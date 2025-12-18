@@ -18,8 +18,8 @@ import {
   Badge,
   Box,
   Tabs,
+  ContextualSaveBar,
 } from "@shopify/polaris";
-import { useContextualSaveBar } from "@shopify/app-bridge-react";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -224,7 +224,6 @@ export default function SettingsPage() {
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
-  const contextualSaveBar = useContextualSaveBar();
 
   const [selectedTab, setSelectedTab] = useState(0);
   
@@ -247,7 +246,6 @@ export default function SettingsPage() {
   // Track form changes for Save bar
   const [alertFormDirty, setAlertFormDirty] = useState(false);
   const [serverFormDirty, setServerFormDirty] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
   
   // Initial values refs for comparison
   const initialAlertValues = useRef({
@@ -305,35 +303,6 @@ export default function SettingsPage() {
     }
   }, [selectedTab, checkAlertFormDirty, checkServerFormDirty]);
 
-  // Handle save bar visibility
-  useEffect(() => {
-    const hasDirtyForm = (selectedTab === 0 && alertFormDirty) || (selectedTab === 1 && serverFormDirty);
-    
-    if (hasDirtyForm) {
-      contextualSaveBar.show({
-        saveAction: {
-          content: "保存",
-          onAction: () => {
-            if (selectedTab === 0) {
-              handleSaveAlert();
-            } else if (selectedTab === 1) {
-              handleSaveServerSide();
-            }
-          },
-          loading: isSubmitting,
-        },
-        discardAction: {
-          content: "放弃",
-          onAction: () => {
-            handleDiscardChanges();
-          },
-        },
-      });
-    } else {
-      contextualSaveBar.hide();
-    }
-  }, [alertFormDirty, serverFormDirty, selectedTab, isSubmitting]);
-
   // Reset dirty state after successful save
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
@@ -359,8 +328,6 @@ export default function SettingsPage() {
         };
         setServerFormDirty(false);
       }
-      setIsSaved(true);
-      contextualSaveBar.hide();
     }
   }, [actionData]);
 
@@ -385,8 +352,10 @@ export default function SettingsPage() {
       setMetaTestCode(initial.metaTestCode);
       setServerFormDirty(false);
     }
-    contextualSaveBar.hide();
-  }, [selectedTab, contextualSaveBar]);
+  }, [selectedTab]);
+
+  // Determine if save bar should show
+  const showSaveBar = (selectedTab === 0 && alertFormDirty) || (selectedTab === 1 && serverFormDirty);
 
   const handleSaveAlert = () => {
     const formData = new FormData();
@@ -453,6 +422,15 @@ export default function SettingsPage() {
     submit(formData, { method: "post" });
   };
 
+  // Handle save action from save bar
+  const handleSaveBarSave = useCallback(() => {
+    if (selectedTab === 0) {
+      handleSaveAlert();
+    } else if (selectedTab === 1) {
+      handleSaveServerSide();
+    }
+  }, [selectedTab]);
+
   const tabs = [
     { id: "alerts", content: "警报通知" },
     { id: "server-side", content: "服务端追踪" },
@@ -461,6 +439,20 @@ export default function SettingsPage() {
 
   return (
     <Page title="设置">
+      {showSaveBar && (
+        <ContextualSaveBar
+          message="未保存的更改"
+          saveAction={{
+            content: "保存",
+            onAction: handleSaveBarSave,
+            loading: isSubmitting,
+          }}
+          discardAction={{
+            content: "放弃",
+            onAction: handleDiscardChanges,
+          }}
+        />
+      )}
       <BlockStack gap="500">
         {actionData && "message" in actionData && (
           <Banner
