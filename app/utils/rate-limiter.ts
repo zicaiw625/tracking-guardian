@@ -174,7 +174,7 @@ function getClientIP(request: Request): string {
   const realIP = request.headers.get("x-real-ip");
   if (realIP) {
     return sanitizeKeyPart(realIP.trim());
-  }
+    }
   
   return "unknown";
 }

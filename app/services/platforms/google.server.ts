@@ -274,28 +274,28 @@ async function getGoogleAccessToken(credentials: GoogleCredentials): Promise<str
     const response = await fetchWithTimeout(
       "https://oauth2.googleapis.com/token",
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          client_id: credentials.clientId,
-          client_secret: credentials.clientSecret,
-          refresh_token: credentials.refreshToken,
-          grant_type: "refresh_token",
-        }),
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      client_id: credentials.clientId,
+      client_secret: credentials.clientSecret,
+      refresh_token: credentials.refreshToken,
+      grant_type: "refresh_token",
+    }),
       },
       TOKEN_REFRESH_TIMEOUT_MS
     );
 
-    if (!response.ok) {
-      const errorData = await response.json();
+  if (!response.ok) {
+    const errorData = await response.json();
       const errorMessage = errorData.error_description || errorData.error || "Unknown error";
       throw new Error(`Failed to refresh Google access token: ${errorMessage}`);
-    }
+  }
 
-    const data = await response.json();
-    return data.access_token;
+  const data = await response.json();
+  return data.access_token;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error(`Google token refresh timeout after ${TOKEN_REFRESH_TIMEOUT_MS}ms`);

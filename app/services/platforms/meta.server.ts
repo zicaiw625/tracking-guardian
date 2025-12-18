@@ -144,33 +144,33 @@ export async function sendConversionToMeta(
   const timeoutId = setTimeout(() => controller.abort(), META_API_TIMEOUT_MS);
 
   try {
-    // Make the API call to Meta Conversions API
+  // Make the API call to Meta Conversions API
     // Note: Using access_token as query param is required by Meta's API design
     // The token is sent over HTTPS so it's encrypted in transit
-    const response = await fetch(
+  const response = await fetch(
       `https://graph.facebook.com/${META_API_VERSION}/${credentials.pixelId}/events`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
           // Meta requires access_token as query param, but we can also include it in header
           // for additional security layers that inspect headers
           "Authorization": `Bearer ${credentials.accessToken}`,
-        },
+      },
         body: JSON.stringify({
           ...eventPayload,
           access_token: credentials.accessToken,
         }),
         signal: controller.signal,
-      }
-    );
+    }
+  );
 
-    if (!response.ok) {
-      const errorData = await response.json();
+  if (!response.ok) {
+    const errorData = await response.json();
       // Don't log the full error as it might contain sensitive info
       const errorMessage = errorData.error?.message || "Unknown Meta API error";
       throw new Error(`Meta API error: ${errorMessage}`);
-    }
+  }
 
     const result = await response.json();
     

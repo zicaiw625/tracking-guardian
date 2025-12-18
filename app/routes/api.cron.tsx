@@ -23,11 +23,11 @@ function validateCronAuth(request: Request): Response | null {
   if (!cronSecret) {
     if (isProduction) {
       console.error("CRITICAL: CRON_SECRET environment variable is not set in production");
-      return json(
+    return json(
         { error: "Cron endpoint not configured" },
-        { status: 503 }
-      ) as unknown as Response;
-    }
+      { status: 503 }
+    ) as unknown as Response;
+  }
     // In development, allow without auth but warn
     console.warn("⚠️ CRON_SECRET not set. Allowing unauthenticated access in development only.");
     return null;

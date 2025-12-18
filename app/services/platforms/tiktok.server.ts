@@ -80,22 +80,22 @@ export async function sendConversionToTikTok(
   const timeoutId = setTimeout(() => controller.abort(), TIKTOK_API_TIMEOUT_MS);
 
   try {
-    // Make the API call to TikTok Events API
-    const response = await fetch(
-      "https://business-api.tiktok.com/open_api/v1.3/pixel/track/",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Token": credentials.accessToken,
-        },
-        body: JSON.stringify({ data: [eventPayload] }),
+  // Make the API call to TikTok Events API
+  const response = await fetch(
+    "https://business-api.tiktok.com/open_api/v1.3/pixel/track/",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Token": credentials.accessToken,
+      },
+      body: JSON.stringify({ data: [eventPayload] }),
         signal: controller.signal,
-      }
-    );
+    }
+  );
 
-    if (!response.ok) {
-      const errorData = await response.json();
+  if (!response.ok) {
+    const errorData = await response.json();
       // Don't expose full error details
       const errorMessage = errorData.message || "Unknown TikTok API error";
       throw new Error(`TikTok API error: ${errorMessage}`);
@@ -104,7 +104,7 @@ export async function sendConversionToTikTok(
     const result = await response.json();
     
     console.log(`TikTok conversion sent: order=${conversionData.orderId}`);
-    
+
     return {
       success: true,
       conversionId: conversionData.orderId,
