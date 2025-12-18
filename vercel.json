@@ -1,0 +1,13 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install && npx prisma generate",
+  "framework": "remix",
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}
+

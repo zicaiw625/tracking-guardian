@@ -1,0 +1,44 @@
+# Learn more: https://shopify.dev/docs/apps/build/online-store/web-pixels
+
+api_version = "2024-10"
+type = "web_pixel_extension"
+name = "Tracking Guardian Pixel"
+runtime_context = "strict"
+
+[settings]
+  [[settings.fields]]
+    key = "google_measurement_id"
+    name = "Google Analytics 4 Measurement ID"
+    description = "Your GA4 Measurement ID (e.g., G-XXXXXXXXXX)"
+    type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "google_conversion_id"
+    name = "Google Ads Conversion ID (Optional)"
+    description = "Your Google Ads Conversion ID (e.g., AW-XXXXXXXXXX)"
+    type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "google_conversion_label"
+    name = "Google Ads Conversion Label (Optional)"
+    description = "Your Google Ads Conversion Label"
+    type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "meta_pixel_id"
+    name = "Meta (Facebook) Pixel ID"
+    description = "Your Meta Pixel ID (15-16 digit number)"
+    type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "tiktok_pixel_id"
+    name = "TikTok Pixel ID"
+    description = "Your TikTok Pixel ID"
+    type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "bing_tag_id"
+    name = "Microsoft Ads UET Tag ID"
+    description = "Your Microsoft Advertising UET Tag ID"
+    type = "single_line_text_field"
+

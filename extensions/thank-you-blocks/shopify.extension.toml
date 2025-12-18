@@ -1,0 +1,73 @@
+# Learn more: https://shopify.dev/docs/apps/build/checkout
+
+api_version = "2024-10"
+type = "ui_extension"
+name = "Tracking Guardian Blocks"
+handle = "tracking-guardian-blocks"
+
+[[extensions]]
+type = "checkout_ui_extension"
+name = "Post-purchase Survey"
+handle = "post-purchase-survey"
+
+  [[extensions.targeting]]
+  module = "./src/Survey.tsx"
+  target = "purchase.thank-you.block.render"
+
+  [[extensions.targeting]]
+  module = "./src/Survey.tsx"
+  target = "customer-account.order-status.block.render"
+
+[[extensions]]
+type = "checkout_ui_extension"
+name = "Shipping Tracker"
+handle = "shipping-tracker"
+
+  [[extensions.targeting]]
+  module = "./src/ShippingTracker.tsx"
+  target = "purchase.thank-you.block.render"
+
+  [[extensions.targeting]]
+  module = "./src/ShippingTracker.tsx"
+  target = "customer-account.order-status.block.render"
+
+[[extensions]]
+type = "checkout_ui_extension"
+name = "Upsell Offer"
+handle = "upsell-offer"
+
+  [[extensions.targeting]]
+  module = "./src/UpsellOffer.tsx"
+  target = "purchase.thank-you.block.render"
+
+[settings]
+  [[settings.fields]]
+  key = "survey_title"
+  name = "Survey Title"
+  description = "Title for the post-purchase survey"
+  type = "single_line_text_field"
+  
+  [[settings.fields]]
+  key = "survey_question"
+  name = "Survey Question"
+  description = "The question to ask customers"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "tracking_provider_url"
+  name = "Tracking Provider URL"
+  description = "URL template for tracking (use {tracking_number} placeholder)"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "upsell_discount_code"
+  name = "Upsell Discount Code"
+  description = "Discount code for the upsell offer"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "upsell_discount_percent"
+  name = "Upsell Discount Percentage"
+  description = "Percentage off for the upsell"
+  type = "number_integer"
+

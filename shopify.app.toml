@@ -1,0 +1,33 @@
+# Tracking Guardian - Post-purchase Tracking Health Monitor
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration
+
+name = "Tracking Guardian"
+client_id = "YOUR_CLIENT_ID"
+application_url = "https://your-app-url.com"
+embedded = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,read_script_tags,write_script_tags,read_checkouts,write_pixels,read_customer_events"
+
+[auth]
+redirect_urls = [
+  "https://your-app-url.com/auth/callback",
+  "https://your-app-url.com/auth/shopify/callback",
+  "https://your-app-url.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-10"
+
+  [webhooks.subscriptions]
+  # Order webhooks for conversion tracking
+  topics = ["orders/create", "orders/paid", "orders/updated", "app/uninstalled"]
+
+[pos]
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "your-dev-store.myshopify.com"
+
