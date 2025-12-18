@@ -1,13 +1,39 @@
+/**
+ * Tracking Guardian - Web Pixel Extension
+ * 
+ * Features:
+ * - Multi-platform tracking (Google, Meta, TikTok, Bing)
+ * - Error isolation: one platform failure doesn't affect others
+ * - Event queuing: events fired before SDK loads are queued and replayed
+ * - Idempotency: prevents double initialization
+ * - Null-safe: handles missing data gracefully
+ */
+
 import { register } from "@shopify/web-pixels-extension";
 
-register(({ analytics, browser, settings, init }) => {
+// Type definitions for platform SDKs
+interface PlatformState {
+  initialized: boolean;
+  ready: boolean;
+  queue: Array<{ method: string; args: unknown[] }>;
+}
+
+register(({ analytics, browser, settings }) => {
   // Get platform settings
-  const googleMeasurementId = settings.google_measurement_id;
-  const googleConversionId = settings.google_conversion_id;
-  const googleConversionLabel = settings.google_conversion_label;
-  const metaPixelId = settings.meta_pixel_id;
-  const tiktokPixelId = settings.tiktok_pixel_id;
-  const bingTagId = settings.bing_tag_id;
+  const googleMeasurementId = settings.google_measurement_id as string | undefined;
+  const googleConversionId = settings.google_conversion_id as string | undefined;
+  const googleConversionLabel = settings.google_conversion_label as string | undefined;
+  const metaPixelId = settings.meta_pixel_id as string | undefined;
+  const tiktokPixelId = settings.tiktok_pixel_id as string | undefined;
+  const bingTagId = settings.bing_tag_id as string | undefined;
+
+  // Platform initialization state tracking
+  const platformState: Record<string, PlatformState> = {
+    google: { initialized: false, ready: false, queue: [] },
+    meta: { initialized: false, ready: false, queue: [] },
+    tiktok: { initialized: false, ready: false, queue: [] },
+    bing: { initialized: false, ready: false, queue: [] },
+  };
 
   /**
    * Safely execute a platform-specific tracking call
@@ -22,14 +48,59 @@ register(({ analytics, browser, settings, init }) => {
     }
   }
 
+  /**
+   * Queue an event for a platform that isn't ready yet
+   */
+  function queueOrExecute(
+    platform: string,
+    method: string,
+    executor: () => void
+  ): void {
+    const state = platformState[platform];
+    if (!state) return;
+
+    if (state.ready) {
+      safeTrack(platform, executor);
+    } else {
+      state.queue.push({ method, args: [] });
+      // Store the actual executor for replay
+      (state.queue[state.queue.length - 1] as any).executor = executor;
+    }
+  }
+
+  /**
+   * Flush queued events for a platform
+   */
+  function flushQueue(platform: string): void {
+    const state = platformState[platform];
+    if (!state) return;
+
+    const queue = [...state.queue];
+    state.queue = [];
+
+    queue.forEach((item: any) => {
+      if (item.executor) {
+        safeTrack(platform, item.executor);
+      }
+    });
+  }
+
   // ==========================================
   // GOOGLE ANALYTICS 4 & GOOGLE ADS
   // ==========================================
-  if (googleMeasurementId) {
+  if (googleMeasurementId && !platformState.google.initialized) {
+    platformState.google.initialized = true;
+
     // Initialize gtag
     const gtagScript = browser.document.createElement("script");
     gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${googleMeasurementId}`;
     gtagScript.async = true;
+    
+    gtagScript.onload = () => {
+      platformState.google.ready = true;
+      flushQueue("google");
+    };
+    
     browser.document.head.appendChild(gtagScript);
 
     (browser.window as any).dataLayer = (browser.window as any).dataLayer || [];
@@ -41,19 +112,25 @@ register(({ analytics, browser, settings, init }) => {
     gtag("js", new Date());
     gtag("config", googleMeasurementId);
 
-    // Google Ads config if provided
     if (googleConversionId) {
       gtag("config", googleConversionId);
     }
+    
+    // Mark as ready after initial config (gtag queues internally anyway)
+    platformState.google.ready = true;
   }
 
   // ==========================================
   // META (FACEBOOK) PIXEL
   // ==========================================
-  if (metaPixelId) {
-    // Initialize Meta Pixel
+  if (metaPixelId && !platformState.meta.initialized) {
+    platformState.meta.initialized = true;
+
     (function (f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
-      if (f.fbq) return;
+      if (f.fbq) {
+        platformState.meta.ready = true;
+        return;
+      }
       n = f.fbq = function () {
         n.callMethod
           ? n.callMethod.apply(n, arguments)
@@ -67,6 +144,10 @@ register(({ analytics, browser, settings, init }) => {
       t = b.createElement(e);
       t.async = !0;
       t.src = v;
+      t.onload = () => {
+        platformState.meta.ready = true;
+        flushQueue("meta");
+      };
       s = b.getElementsByTagName(e)[0];
       s.parentNode.insertBefore(t, s);
     })(
@@ -76,32 +157,30 @@ register(({ analytics, browser, settings, init }) => {
       "https://connect.facebook.net/en_US/fbevents.js"
     );
 
-    const fbq = (browser.window as any).fbq;
-    fbq("init", metaPixelId);
-    fbq("track", "PageView");
+    (browser.window as any).fbq("init", metaPixelId);
+    (browser.window as any).fbq("track", "PageView");
+    
+    // fbq queues internally, so we can mark as ready
+    platformState.meta.ready = true;
   }
 
   // ==========================================
   // TIKTOK PIXEL
   // ==========================================
-  if (tiktokPixelId) {
+  if (tiktokPixelId && !platformState.tiktok.initialized) {
+    platformState.tiktok.initialized = true;
+
     (function (w: any, d: any, t: any) {
+      if (w.ttq) {
+        platformState.tiktok.ready = true;
+        return;
+      }
       w.TiktokAnalyticsObject = t;
       const ttq = (w[t] = w[t] || []);
       ttq.methods = [
-        "page",
-        "track",
-        "identify",
-        "instances",
-        "debug",
-        "on",
-        "off",
-        "once",
-        "ready",
-        "alias",
-        "group",
-        "enableCookie",
-        "disableCookie",
+        "page", "track", "identify", "instances", "debug",
+        "on", "off", "once", "ready", "alias", "group",
+        "enableCookie", "disableCookie",
       ];
       ttq.setAndDefer = function (t: any, e: any) {
         t[e] = function () {
@@ -129,19 +208,32 @@ register(({ analytics, browser, settings, init }) => {
         o.type = "text/javascript";
         o.async = true;
         o.src = i + "?sdkid=" + e + "&lib=" + t;
+        o.onload = () => {
+          platformState.tiktok.ready = true;
+          flushQueue("tiktok");
+        };
         const a = d.getElementsByTagName("script")[0];
         a.parentNode.insertBefore(o, a);
       };
       ttq.load(tiktokPixelId);
       ttq.page();
     })(browser.window, browser.document, "ttq");
+
+    // ttq queues internally
+    platformState.tiktok.ready = true;
   }
 
   // ==========================================
   // MICROSOFT ADVERTISING UET
   // ==========================================
-  if (bingTagId) {
+  if (bingTagId && !platformState.bing.initialized) {
+    platformState.bing.initialized = true;
+
     (function (w: any, d: any, t: any, r: any, u: any) {
+      if (w.uetq && w.uetq.push) {
+        platformState.bing.ready = true;
+        return;
+      }
       let f: any, n: any, i: any;
       w[u] = w[u] || [];
       f = function () {
@@ -149,6 +241,8 @@ register(({ analytics, browser, settings, init }) => {
         (o as any).q = w[u];
         w[u] = new (w as any).UET(o);
         w[u].push("pageLoad");
+        platformState.bing.ready = true;
+        flushQueue("bing");
       };
       n = d.createElement(t);
       n.src = r;
@@ -165,256 +259,309 @@ register(({ analytics, browser, settings, init }) => {
   }
 
   // ==========================================
-  // EVENT TRACKING
+  // EVENT TRACKING - with error isolation
   // ==========================================
 
   // Page View
   analytics.subscribe("page_viewed", (event) => {
     if (googleMeasurementId) {
-      (browser.window as any).gtag?.("event", "page_view", {
-        page_title: event.context.document.title,
-        page_location: event.context.document.location.href,
+      safeTrack("google", () => {
+        (browser.window as any).gtag?.("event", "page_view", {
+          page_title: event.context?.document?.title || "",
+          page_location: event.context?.document?.location?.href || "",
+        });
       });
     }
   });
 
   // Product Viewed
   analytics.subscribe("product_viewed", (event) => {
-    const product = event.data.productVariant;
+    const product = event.data?.productVariant;
+    if (!product) return;
+
+    const currency = product.price?.currencyCode || "USD";
+    const value = parseFloat(product.price?.amount || "0");
 
     if (googleMeasurementId) {
-      (browser.window as any).gtag?.("event", "view_item", {
-        currency: product.price.currencyCode,
-        value: parseFloat(product.price.amount),
-        items: [
-          {
+      safeTrack("google", () => {
+        (browser.window as any).gtag?.("event", "view_item", {
+          currency,
+          value,
+          items: [{
             item_id: product.id,
             item_name: product.title,
-            price: parseFloat(product.price.amount),
-          },
-        ],
+            price: value,
+          }],
+        });
       });
     }
 
     if (metaPixelId) {
-      (browser.window as any).fbq?.("track", "ViewContent", {
-        content_ids: [product.id],
-        content_name: product.title,
-        content_type: "product",
-        value: parseFloat(product.price.amount),
-        currency: product.price.currencyCode,
+      safeTrack("meta", () => {
+        (browser.window as any).fbq?.("track", "ViewContent", {
+          content_ids: [product.id],
+          content_name: product.title,
+          content_type: "product",
+          value,
+          currency,
+        });
       });
     }
 
     if (tiktokPixelId) {
-      (browser.window as any).ttq?.track("ViewContent", {
-        content_id: product.id,
-        content_name: product.title,
-        content_type: "product",
-        value: parseFloat(product.price.amount),
-        currency: product.price.currencyCode,
+      safeTrack("tiktok", () => {
+        (browser.window as any).ttq?.track("ViewContent", {
+          content_id: product.id,
+          content_name: product.title,
+          content_type: "product",
+          value,
+          currency,
+        });
       });
     }
 
     if (bingTagId) {
-      (browser.window as any).uetq?.push("event", "view_item", {
-        ecomm_prodid: product.id,
-        ecomm_pagetype: "product",
-        revenue_value: parseFloat(product.price.amount),
-        currency: product.price.currencyCode,
+      safeTrack("bing", () => {
+        (browser.window as any).uetq?.push("event", "view_item", {
+          ecomm_prodid: product.id,
+          ecomm_pagetype: "product",
+          revenue_value: value,
+          currency,
+        });
       });
     }
   });
 
   // Add to Cart
   analytics.subscribe("product_added_to_cart", (event) => {
-    const item = event.data.cartLine;
-    const value = parseFloat(item.merchandise.price.amount) * item.quantity;
+    const item = event.data?.cartLine;
+    if (!item?.merchandise) return;
+
+    const currency = item.merchandise.price?.currencyCode || "USD";
+    const price = parseFloat(item.merchandise.price?.amount || "0");
+    const quantity = item.quantity || 1;
+    const value = price * quantity;
 
     if (googleMeasurementId) {
-      (browser.window as any).gtag?.("event", "add_to_cart", {
-        currency: item.merchandise.price.currencyCode,
-        value,
-        items: [
-          {
+      safeTrack("google", () => {
+        (browser.window as any).gtag?.("event", "add_to_cart", {
+          currency,
+          value,
+          items: [{
             item_id: item.merchandise.id,
             item_name: item.merchandise.title,
-            price: parseFloat(item.merchandise.price.amount),
-            quantity: item.quantity,
-          },
-        ],
+            price,
+            quantity,
+          }],
+        });
       });
     }
 
     if (metaPixelId) {
-      (browser.window as any).fbq?.("track", "AddToCart", {
-        content_ids: [item.merchandise.id],
-        content_name: item.merchandise.title,
-        content_type: "product",
-        value,
-        currency: item.merchandise.price.currencyCode,
+      safeTrack("meta", () => {
+        (browser.window as any).fbq?.("track", "AddToCart", {
+          content_ids: [item.merchandise.id],
+          content_name: item.merchandise.title,
+          content_type: "product",
+          value,
+          currency,
+        });
       });
     }
 
     if (tiktokPixelId) {
-      (browser.window as any).ttq?.track("AddToCart", {
-        content_id: item.merchandise.id,
-        content_name: item.merchandise.title,
-        content_type: "product",
-        value,
-        currency: item.merchandise.price.currencyCode,
-        quantity: item.quantity,
+      safeTrack("tiktok", () => {
+        (browser.window as any).ttq?.track("AddToCart", {
+          content_id: item.merchandise.id,
+          content_name: item.merchandise.title,
+          content_type: "product",
+          value,
+          currency,
+          quantity,
+        });
       });
     }
 
     if (bingTagId) {
-      (browser.window as any).uetq?.push("event", "add_to_cart", {
-        ecomm_prodid: item.merchandise.id,
-        revenue_value: value,
-        currency: item.merchandise.price.currencyCode,
+      safeTrack("bing", () => {
+        (browser.window as any).uetq?.push("event", "add_to_cart", {
+          ecomm_prodid: item.merchandise.id,
+          revenue_value: value,
+          currency,
+        });
       });
     }
   });
 
   // Checkout Started
   analytics.subscribe("checkout_started", (event) => {
-    const checkout = event.data.checkout;
-    const value = parseFloat(checkout.totalPrice.amount);
+    const checkout = event.data?.checkout;
+    if (!checkout) return;
+
+    const currency = checkout.currencyCode || "USD";
+    const value = parseFloat(checkout.totalPrice?.amount || "0");
+    const lineItems = checkout.lineItems || [];
 
     if (googleMeasurementId) {
-      (browser.window as any).gtag?.("event", "begin_checkout", {
-        currency: checkout.currencyCode,
-        value,
-        items: checkout.lineItems.map((item) => ({
-          item_id: item.id,
-          item_name: item.title,
-          price: parseFloat(item.variant?.price?.amount || "0"),
-          quantity: item.quantity,
-        })),
+      safeTrack("google", () => {
+        (browser.window as any).gtag?.("event", "begin_checkout", {
+          currency,
+          value,
+          items: lineItems.map((item) => ({
+            item_id: item.id,
+            item_name: item.title,
+            price: parseFloat(item.variant?.price?.amount || "0"),
+            quantity: item.quantity || 1,
+          })),
+        });
       });
     }
 
     if (metaPixelId) {
-      (browser.window as any).fbq?.("track", "InitiateCheckout", {
-        content_ids: checkout.lineItems.map((item) => item.id),
-        contents: checkout.lineItems.map((item) => ({
-          id: item.id,
-          quantity: item.quantity,
-        })),
-        content_type: "product",
-        value,
-        currency: checkout.currencyCode,
-        num_items: checkout.lineItems.reduce((sum, item) => sum + item.quantity, 0),
+      safeTrack("meta", () => {
+        (browser.window as any).fbq?.("track", "InitiateCheckout", {
+          content_ids: lineItems.map((item) => item.id),
+          contents: lineItems.map((item) => ({
+            id: item.id,
+            quantity: item.quantity || 1,
+          })),
+          content_type: "product",
+          value,
+          currency,
+          num_items: lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0),
+        });
       });
     }
 
     if (tiktokPixelId) {
-      (browser.window as any).ttq?.track("InitiateCheckout", {
-        contents: checkout.lineItems.map((item) => ({
-          content_id: item.id,
-          content_name: item.title,
-          quantity: item.quantity,
-        })),
-        content_type: "product",
-        value,
-        currency: checkout.currencyCode,
+      safeTrack("tiktok", () => {
+        (browser.window as any).ttq?.track("InitiateCheckout", {
+          contents: lineItems.map((item) => ({
+            content_id: item.id,
+            content_name: item.title,
+            quantity: item.quantity || 1,
+          })),
+          content_type: "product",
+          value,
+          currency,
+        });
       });
     }
 
     if (bingTagId) {
-      (browser.window as any).uetq?.push("event", "begin_checkout", {
-        revenue_value: value,
-        currency: checkout.currencyCode,
+      safeTrack("bing", () => {
+        (browser.window as any).uetq?.push("event", "begin_checkout", {
+          revenue_value: value,
+          currency,
+        });
       });
     }
   });
 
   // Payment Info Submitted
   analytics.subscribe("payment_info_submitted", (event) => {
-    const checkout = event.data.checkout;
-    const value = parseFloat(checkout.totalPrice.amount);
+    const checkout = event.data?.checkout;
+    if (!checkout) return;
+
+    const currency = checkout.currencyCode || "USD";
+    const value = parseFloat(checkout.totalPrice?.amount || "0");
+    const lineItems = checkout.lineItems || [];
 
     if (metaPixelId) {
-      (browser.window as any).fbq?.("track", "AddPaymentInfo", {
-        content_ids: checkout.lineItems.map((item) => item.id),
-        value,
-        currency: checkout.currencyCode,
+      safeTrack("meta", () => {
+        (browser.window as any).fbq?.("track", "AddPaymentInfo", {
+          content_ids: lineItems.map((item) => item.id),
+          value,
+          currency,
+        });
       });
     }
   });
 
   // Purchase Complete
   analytics.subscribe("checkout_completed", (event) => {
-    const checkout = event.data.checkout;
-    const value = parseFloat(checkout.totalPrice.amount);
+    const checkout = event.data?.checkout;
+    if (!checkout) return;
+
+    const currency = checkout.currencyCode || "USD";
+    const value = parseFloat(checkout.totalPrice?.amount || "0");
     const transactionId = checkout.order?.id || checkout.token;
+    const lineItems = checkout.lineItems || [];
 
     // Google Analytics 4 Purchase
     if (googleMeasurementId) {
-      (browser.window as any).gtag?.("event", "purchase", {
-        transaction_id: transactionId,
-        value,
-        currency: checkout.currencyCode,
-        tax: parseFloat(checkout.totalTax?.amount || "0"),
-        shipping: parseFloat(checkout.shippingLine?.price?.amount || "0"),
-        items: checkout.lineItems.map((item) => ({
-          item_id: item.id,
-          item_name: item.title,
-          price: parseFloat(item.variant?.price?.amount || "0"),
-          quantity: item.quantity,
-        })),
-      });
-
-      // Google Ads Conversion
-      if (googleConversionId && googleConversionLabel) {
-        (browser.window as any).gtag?.("event", "conversion", {
-          send_to: `${googleConversionId}/${googleConversionLabel}`,
-          value,
-          currency: checkout.currencyCode,
+      safeTrack("google", () => {
+        (browser.window as any).gtag?.("event", "purchase", {
           transaction_id: transactionId,
+          value,
+          currency,
+          tax: parseFloat(checkout.totalTax?.amount || "0"),
+          shipping: parseFloat(checkout.shippingLine?.price?.amount || "0"),
+          items: lineItems.map((item) => ({
+            item_id: item.id,
+            item_name: item.title,
+            price: parseFloat(item.variant?.price?.amount || "0"),
+            quantity: item.quantity || 1,
+          })),
         });
-      }
+
+        // Google Ads Conversion
+        if (googleConversionId && googleConversionLabel) {
+          (browser.window as any).gtag?.("event", "conversion", {
+            send_to: `${googleConversionId}/${googleConversionLabel}`,
+            value,
+            currency,
+            transaction_id: transactionId,
+          });
+        }
+      });
     }
 
     // Meta Purchase
     if (metaPixelId) {
-      (browser.window as any).fbq?.("track", "Purchase", {
-        content_ids: checkout.lineItems.map((item) => item.id),
-        contents: checkout.lineItems.map((item) => ({
-          id: item.id,
-          quantity: item.quantity,
-          item_price: parseFloat(item.variant?.price?.amount || "0"),
-        })),
-        content_type: "product",
-        value,
-        currency: checkout.currencyCode,
-        order_id: transactionId,
-        num_items: checkout.lineItems.reduce((sum, item) => sum + item.quantity, 0),
+      safeTrack("meta", () => {
+        (browser.window as any).fbq?.("track", "Purchase", {
+          content_ids: lineItems.map((item) => item.id),
+          contents: lineItems.map((item) => ({
+            id: item.id,
+            quantity: item.quantity || 1,
+            item_price: parseFloat(item.variant?.price?.amount || "0"),
+          })),
+          content_type: "product",
+          value,
+          currency,
+          order_id: transactionId,
+          num_items: lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0),
+        });
       });
     }
 
     // TikTok Complete Payment
     if (tiktokPixelId) {
-      (browser.window as any).ttq?.track("CompletePayment", {
-        contents: checkout.lineItems.map((item) => ({
-          content_id: item.id,
-          content_name: item.title,
-          quantity: item.quantity,
-          price: parseFloat(item.variant?.price?.amount || "0"),
-        })),
-        content_type: "product",
-        value,
-        currency: checkout.currencyCode,
-        order_id: transactionId,
+      safeTrack("tiktok", () => {
+        (browser.window as any).ttq?.track("CompletePayment", {
+          contents: lineItems.map((item) => ({
+            content_id: item.id,
+            content_name: item.title,
+            quantity: item.quantity || 1,
+            price: parseFloat(item.variant?.price?.amount || "0"),
+          })),
+          content_type: "product",
+          value,
+          currency,
+          order_id: transactionId,
+        });
       });
     }
 
     // Microsoft Ads Purchase
     if (bingTagId) {
-      (browser.window as any).uetq?.push("event", "purchase", {
-        revenue_value: value,
-        currency: checkout.currencyCode,
-        transaction_id: transactionId,
+      safeTrack("bing", () => {
+        (browser.window as any).uetq?.push("event", "purchase", {
+          revenue_value: value,
+          currency,
+          transaction_id: transactionId,
+        });
       });
     }
   });

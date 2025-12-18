@@ -5,6 +5,7 @@ import { sendConversionToGoogle } from "../services/platforms/google.server";
 import { sendConversionToMeta } from "../services/platforms/meta.server";
 import { sendConversionToTikTok } from "../services/platforms/tiktok.server";
 import { decryptJson } from "../utils/crypto";
+import { scheduleRetry } from "../services/retry.server";
 import type {
   OrderWebhookPayload,
   ConversionData,
@@ -15,6 +16,9 @@ import type {
   ShopData,
   PixelConfigData,
 } from "../types";
+
+// Default max retry attempts
+const MAX_RETRY_ATTEMPTS = 5;
 
 interface ShopWithPixelConfigs extends ShopData {
   pixelConfigs: PixelConfigData[];
@@ -245,16 +249,48 @@ async function processOrderConversion(
       };
 
       // Decrypt credentials before use
+      // New field: credentialsEncrypted (properly encrypted string)
+      // Legacy field: credentials (may be JSON object - invalid)
       let decryptedCredentials: PlatformCredentials | null = null;
-      if (pixelConfig.credentials) {
+      
+      // First try the new properly encrypted field
+      if (pixelConfig.credentialsEncrypted) {
         try {
           decryptedCredentials = decryptJson<PlatformCredentials>(
-            pixelConfig.credentials as string
+            pixelConfig.credentialsEncrypted as string
           );
         } catch (decryptError) {
           console.error(`Failed to decrypt credentials for ${pixelConfig.platform}:`, decryptError);
           continue;
         }
+      } 
+      // Fallback: check if credentials is a valid encrypted string (legacy support)
+      else if (pixelConfig.credentials && typeof pixelConfig.credentials === 'string') {
+        try {
+          decryptedCredentials = decryptJson<PlatformCredentials>(
+            pixelConfig.credentials as string
+          );
+          console.warn(`Using legacy credentials field for ${pixelConfig.platform} - please migrate to credentialsEncrypted`);
+        } catch (decryptError) {
+          // If it's not a valid encrypted string, it might be an old JSON object stored incorrectly
+          console.error(`Failed to decrypt legacy credentials for ${pixelConfig.platform}:`, decryptError);
+          continue;
+        }
+      }
+      
+      // If no encrypted credentials but we have clientConfig, merge it for platforms that don't need server-side tokens
+      if (!decryptedCredentials && pixelConfig.clientConfig) {
+        const clientCfg = pixelConfig.clientConfig as Record<string, unknown>;
+        // For Google with only client-side config (no server-side API)
+        if (pixelConfig.platform === 'google' && clientCfg.conversionId) {
+          console.log(`No server-side credentials for ${pixelConfig.platform}, skipping CAPI`);
+          continue;
+        }
+      }
+      
+      if (!decryptedCredentials) {
+        console.warn(`No valid credentials found for ${pixelConfig.platform}, skipping server-side conversion`);
+        continue;
       }
 
       switch (pixelConfig.platform) {
@@ -295,14 +331,8 @@ async function processOrderConversion(
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       console.error(`Conversion send failed for ${pixelConfig.platform}:`, errorMessage);
       
-      // Update log with failure
-      await prisma.conversionLog.update({
-        where: { id: conversionLog.id },
-        data: {
-          status: conversionLog.attempts >= 3 ? "failed" : "retrying",
-          errorMessage,
-        },
-      });
+      // Use retry service for exponential backoff and dead letter handling
+      await scheduleRetry(conversionLog.id, errorMessage);
     }
   }
 }

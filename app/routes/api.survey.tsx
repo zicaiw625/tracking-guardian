@@ -3,6 +3,11 @@ import { json } from "@remix-run/node";
 import prisma from "../db.server";
 import type { SurveyResponseData } from "../types";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
+import {
+  verifyShopifyJwt,
+  extractAuthToken,
+  getShopifyApiSecret,
+} from "../utils/shopify-jwt";
 
 // Valid source options for survey
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
@@ -122,6 +127,8 @@ function isValidShopDomain(domain: string): boolean {
 /**
  * API endpoint for saving survey responses from checkout extensions
  * This endpoint is called from the Thank You page survey block
+ * 
+ * Security: Requires valid Shopify session token (JWT) from Checkout UI Extension
  */
 export const action = async ({ request }: ActionFunctionArgs) => {
   // Rate limiting check
@@ -146,6 +153,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!isValidShopDomain(shopHeader)) {
       console.warn(`Invalid shop domain format: ${shopHeader}`);
       return json({ error: "Invalid shop domain format" }, { status: 400 });
+    }
+
+    // SECURITY: Verify Shopify session token (JWT)
+    // This prevents fake requests from spoofed origins
+    const authToken = extractAuthToken(request);
+    if (!authToken) {
+      console.warn(`Missing Authorization header for shop ${shopHeader}`);
+      return json({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
+    }
+
+    // Verify the JWT token
+    let apiSecret: string;
+    try {
+      apiSecret = getShopifyApiSecret();
+    } catch (error) {
+      console.error("Failed to get Shopify API secret:", error);
+      return json({ error: "Server configuration error" }, { status: 500 });
+    }
+
+    const jwtResult = verifyShopifyJwt(authToken, apiSecret, shopHeader);
+    
+    if (!jwtResult.valid) {
+      console.warn(`JWT verification failed for shop ${shopHeader}: ${jwtResult.error}`);
+      return json(
+        { error: `Unauthorized: ${jwtResult.error}` },
+        { status: 401 }
+      );
+    }
+
+    // Additional check: ensure shop domain from token matches header
+    if (jwtResult.shopDomain !== shopHeader) {
+      console.warn(
+        `Shop domain mismatch: header=${shopHeader}, token=${jwtResult.shopDomain}`
+      );
+      return json(
+        { error: "Unauthorized: Shop domain mismatch" },
+        { status: 401 }
+      );
     }
 
     // Parse and validate the request body

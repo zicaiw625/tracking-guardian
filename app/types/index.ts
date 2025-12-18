@@ -18,14 +18,45 @@ export const PLATFORM_NAMES: Record<Platform | string, string> = {
 // Credential Types (Encrypted Storage)
 // ==========================================
 
+/**
+ * Google Credentials - supports both GA4 Measurement Protocol and Google Ads Offline Conversions
+ * 
+ * For GA4 Measurement Protocol (recommended MVP path):
+ * - measurementId: GA4 Property Measurement ID (e.g., G-XXXXXXXXXX)
+ * - apiSecret: GA4 Measurement Protocol API secret
+ * 
+ * For Google Ads Offline Conversions (requires OAuth):
+ * - customerId: Google Ads customer ID (without hyphens)
+ * - conversionActionId: The numeric ID of the conversion action
+ * - developerToken: Google Ads API developer token
+ * - clientId, clientSecret, refreshToken: OAuth2 credentials
+ */
 export interface GoogleCredentials {
-  conversionId: string;
-  conversionLabel: string;
-  developerToken?: string;
+  // === GA4 Measurement Protocol (Simple, recommended) ===
+  /** GA4 Measurement ID (e.g., G-XXXXXXXXXX) */
+  measurementId?: string;
+  /** GA4 Measurement Protocol API Secret */
+  apiSecret?: string;
+  
+  // === Google Ads Offline Conversions (Advanced) ===
+  /** Google Ads Customer ID (numeric, no hyphens) */
   customerId?: string;
+  /** Conversion Action ID (numeric) - NOT conversion label */
+  conversionActionId?: string;
+  /** Google Ads API Developer Token */
+  developerToken?: string;
+  /** OAuth2 Client ID */
   clientId?: string;
+  /** OAuth2 Client Secret */
   clientSecret?: string;
+  /** OAuth2 Refresh Token */
   refreshToken?: string;
+  
+  // === Legacy fields (deprecated, for backwards compatibility) ===
+  /** @deprecated Use conversionActionId instead */
+  conversionId?: string;
+  /** @deprecated Not used in server-side API */
+  conversionLabel?: string;
 }
 
 export interface MetaCredentials {
@@ -229,13 +260,20 @@ export interface PixelConfigData {
   id: string;
   platform: string;
   platformId: string | null;
-  credentials: string | null; // Encrypted JSON string
+  /** Non-sensitive client configuration (JSON object) */
+  clientConfig: Record<string, unknown> | null;
+  /** Encrypted credentials string for server-side API */
+  credentialsEncrypted: string | null;
+  /** @deprecated Use credentialsEncrypted instead */
+  credentials?: unknown;
   clientSideEnabled: boolean;
   serverSideEnabled: boolean;
   eventMappings: Record<string, string> | null;
   migrationStatus: string;
   migratedAt: Date | null;
   isActive: boolean;
+  updatedAt?: Date;
+  lastVerifiedAt?: Date;
 }
 
 // ==========================================

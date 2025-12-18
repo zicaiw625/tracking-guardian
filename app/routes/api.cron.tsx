@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
+import { processRetries } from "../services/retry.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 
 // This endpoint is called by a cron job service (e.g., Vercel Cron, Railway Cron)
@@ -74,15 +75,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    const results = await runAllShopsReconciliation();
+    // Process pending retries first
+    console.log("Processing pending conversion retries...");
+    const retryResults = await processRetries();
+    console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed`);
 
-    const successful = results.filter((r) => r.success).length;
-    const failed = results.filter((r) => !r.success).length;
+    // Run daily reconciliation/log verification
+    console.log("Running daily log verification...");
+    const reconciliationResults = await runAllShopsReconciliation();
+
+    const successful = reconciliationResults.filter((r) => r.success).length;
+    const failed = reconciliationResults.filter((r) => !r.success).length;
 
     return json({
       success: true,
-      message: `Reconciliation completed: ${successful} successful, ${failed} failed`,
-      results,
+      message: `Cron completed`,
+      retries: retryResults,
+      reconciliation: {
+        successful,
+        failed,
+        results: reconciliationResults,
+      },
     });
   } catch (error) {
     console.error("Cron job error:", error);
@@ -111,15 +124,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   try {
-    const results = await runAllShopsReconciliation();
+    // Process pending retries first
+    console.log("Processing pending conversion retries...");
+    const retryResults = await processRetries();
+    console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed`);
 
-    const successful = results.filter((r) => r.success).length;
-    const failed = results.filter((r) => !r.success).length;
+    // Run daily reconciliation/log verification
+    console.log("Running daily log verification...");
+    const reconciliationResults = await runAllShopsReconciliation();
+
+    const successful = reconciliationResults.filter((r) => r.success).length;
+    const failed = reconciliationResults.filter((r) => !r.success).length;
 
     return json({
       success: true,
-      message: `Reconciliation completed: ${successful} successful, ${failed} failed`,
-      results,
+      message: `Cron completed`,
+      retries: retryResults,
+      reconciliation: {
+        successful,
+        failed,
+        results: reconciliationResults,
+      },
     });
   } catch (error) {
     console.error("Cron job error:", error);

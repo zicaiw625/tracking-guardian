@@ -161,11 +161,19 @@ export default function ScanPage() {
             >
               <BlockStack gap="300">
                 <Text as="p">
-                  点击开始扫描，我们会检测附加脚本（Additional Scripts）、ScriptTags、Web Pixels 配置、Customer Events，并给出风险等级与迁移建议。
+                  点击开始扫描，我们会自动检测 <strong>ScriptTags</strong> 和已安装的像素配置，并给出风险等级与迁移建议。
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
                   预计耗时约 10 秒，不会修改任何设置
                 </Text>
+                <Banner tone="info">
+                  <BlockStack gap="200">
+                    <Text as="p">
+                      <strong>关于 Additional Scripts：</strong>Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts。
+                      如需检测这些脚本，请在 Shopify 后台「设置 → 结账」复制相关代码片段，我们后续会提供脚本分析功能。
+                    </Text>
+                  </BlockStack>
+                </Banner>
                 <Link
                   url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status"
                   external

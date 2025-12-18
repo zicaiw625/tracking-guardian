@@ -62,6 +62,18 @@ interface RiskRule {
   points: number;
 }
 
+/**
+ * Risk assessment rules
+ * 
+ * NOTE on Additional Scripts:
+ * We CANNOT automatically read Additional Scripts content via API.
+ * The Shopify Admin API does not provide access to checkout.liquid Additional Scripts.
+ * 
+ * For Additional Scripts analysis, users should:
+ * 1. Copy their Additional Scripts content from Shopify Admin → Settings → Checkout
+ * 2. Use our "脚本分析器" feature (if implemented) to analyze the pasted content
+ * 3. Follow our migration guide to move scripts to Web Pixels
+ */
 const RISK_RULES: RiskRule[] = [
   {
     id: "deprecated_script_tag",
@@ -70,24 +82,19 @@ const RISK_RULES: RiskRule[] = [
     severity: "high",
     points: 30,
   },
-  {
-    id: "additional_scripts",
-    name: "Additional Scripts",
-    description: "使用了即将变为只读的 Additional Scripts",
-    severity: "high",
-    points: 30,
-  },
+  // REMOVED: additional_scripts rule - we cannot detect this automatically
+  // The old rule incorrectly suggested we could scan Additional Scripts
   {
     id: "inline_tracking",
     name: "内联追踪代码",
-    description: "直接在页面中嵌入追踪代码，不使用 Shopify 像素 API",
+    description: "检测到 ScriptTag 中使用传统追踪方式，建议迁移到 Web Pixel",
     severity: "medium",
     points: 20,
   },
   {
     id: "no_server_side",
-    name: "缺少服务端追踪",
-    description: "仅依赖客户端追踪，容易受隐私工具影响",
+    name: "建议启用服务端追踪",
+    description: "仅依赖客户端追踪可能导致 15-30% 的转化丢失",
     severity: "low",
     points: 10,
   },

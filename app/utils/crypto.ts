@@ -1,7 +1,13 @@
 // Cryptographic utilities for secure credential storage
 // Uses AES-256-GCM for encryption with proper key derivation
 
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
+import { 
+  createCipheriv, 
+  createDecipheriv, 
+  createHash,
+  randomBytes, 
+  scryptSync 
+} from "crypto";
 
 // Scrypt parameters for key derivation (OWASP recommended)
 // N = 2^17 (131072) - CPU/memory cost parameter
@@ -170,13 +176,22 @@ export function decryptJson<T extends object>(encryptedData: string): T {
 /**
  * SHA-256 hash function for PII data (email, phone, etc.)
  * Used for sending hashed data to ad platforms
+ * 
+ * Uses Node.js crypto module for guaranteed compatibility across all Node.js versions
+ * Note: This function is async for API compatibility, but the implementation is sync
  */
 export async function hashValue(value: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(value);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  // Use Node.js createHash for reliable cross-runtime compatibility
+  // This avoids issues with crypto.subtle not being available in some environments
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+/**
+ * Synchronous version of hashValue for use in synchronous contexts
+ * Prefer the async version when possible
+ */
+export function hashValueSync(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
 /**

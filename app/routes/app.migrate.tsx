@@ -35,6 +35,7 @@ import {
   getPixelConfigs,
   type Platform,
   type MigrationResult,
+  type SavePixelConfigOptions,
 } from "../services/migration.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -89,19 +90,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "Platform and ID are required" }, { status: 400 });
     }
 
-    const additionalConfig: Record<string, string> = {};
-    if (conversionId) additionalConfig.conversionId = conversionId;
-    if (conversionLabel) additionalConfig.conversionLabel = conversionLabel;
+    // Separate client-side config (non-sensitive) from server-side credentials (sensitive)
+    const clientConfig: Record<string, string> = {};
+    if (conversionId) clientConfig.conversionId = conversionId;
+    if (conversionLabel) clientConfig.conversionLabel = conversionLabel;
 
     const result = generatePixelCode({
       platform,
       platformId,
-      additionalConfig,
+      additionalConfig: clientConfig,
     });
 
     if (result.success) {
-      // Save the config
-      await savePixelConfig(shop.id, platform, platformId, additionalConfig);
+      // Save the config with properly separated fields
+      // Note: credentialsEncrypted should be set separately via Settings page
+      // where users configure server-side API access tokens
+      const options: SavePixelConfigOptions = {
+        clientConfig: Object.keys(clientConfig).length > 0 ? clientConfig : undefined,
+      };
+      await savePixelConfig(shop.id, platform, platformId, options);
     }
 
     return json({ result, _action: "generate" });

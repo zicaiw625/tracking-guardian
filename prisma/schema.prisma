@@ -93,8 +93,15 @@ model PixelConfig {
   platform          String   // google, meta, tiktok, bing, clarity
   platformId        String?  // e.g., GA4 Measurement ID, Meta Pixel ID
   
-  // Platform-specific credentials
-  credentials       Json?    // Encrypted credentials for server-side API
+  // Platform-specific credentials (separated for security)
+  // credentialsEncrypted: stores AES-256-GCM encrypted sensitive data (access tokens, API secrets)
+  credentialsEncrypted String?  // Encrypted string for server-side API credentials
+  // clientConfig: stores non-sensitive configuration (conversion labels, event mappings)
+  clientConfig         Json?    // Non-sensitive client configuration
+  
+  // Legacy field - deprecated, use credentialsEncrypted instead
+  // Kept for backwards compatibility during migration
+  credentials       Json?    @map("credentials_legacy")
   
   // Configuration
   clientSideEnabled   Boolean @default(true)
@@ -156,9 +163,16 @@ model ConversionLog {
   eventType       String   // purchase, add_to_cart, etc.
   
   // Sending status
-  status          String   @default("pending") // pending, sent, failed, retrying
+  // pending: initial state
+  // sent: successfully sent to platform
+  // failed: failed but may retry
+  // retrying: currently in retry queue
+  // dead_letter: permanently failed after max retries (manual intervention needed)
+  status          String   @default("pending")
   attempts        Int      @default(0)
+  maxAttempts     Int      @default(5)   // Max retry attempts before dead letter
   lastAttemptAt   DateTime?
+  nextRetryAt     DateTime?              // Scheduled next retry time (for exponential backoff)
   errorMessage    String?
   
   // Response from platform
@@ -167,6 +181,10 @@ model ConversionLog {
   // Metadata
   clientSideSent    Boolean @default(false)
   serverSideSent    Boolean @default(false)
+  
+  // Dead letter handling
+  deadLetteredAt    DateTime?            // When moved to dead letter
+  manuallyRetried   Boolean @default(false) // If manually retried from dead letter
   
   createdAt       DateTime @default(now())
   sentAt          DateTime?
@@ -182,6 +200,9 @@ model ConversionLog {
   @@index([shopId, status])
   @@index([shopId, platform, createdAt])
   @@index([shopId, createdAt, status])
+  // New indexes for retry processing
+  @@index([status, nextRetryAt])  // For finding retryable logs
+  @@index([status, deadLetteredAt])  // For dead letter management
 }
 
 // Daily reconciliation reports

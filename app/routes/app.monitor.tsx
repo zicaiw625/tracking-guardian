@@ -158,7 +158,7 @@ export default function MonitorPage() {
   return (
     <Page
       title="监控面板"
-      subtitle="追踪健康状况和转化对账报告"
+      subtitle="追踪健康状况和转化发送成功率报告"
       primaryAction={{
         content: "配置追踪平台",
         url: "/app/migrate",
@@ -172,10 +172,10 @@ export default function MonitorPage() {
               <InlineStack align="space-between" blockAlign="center">
                 <BlockStack gap="200">
                   <Text as="h2" variant="headingLg">
-                    还没开始监控对账
+                    还没开始监控
                   </Text>
                   <Text as="p" tone="subdued">
-                    连接平台后，我们会基于 Customer Events 和 Web Pixels 的事件流做持续检测与对账。
+                    连接平台后，我们会基于服务端转化发送日志计算发送成功率，帮助您发现追踪问题。
                   </Text>
                 </BlockStack>
                 <Badge tone="info">未初始化</Badge>
@@ -284,7 +284,7 @@ export default function MonitorPage() {
                     }
                   />
                   <Text as="p" variant="bodySm" tone="subdued">
-                    评分依据：过去 7 天对账差异率 / 漏报率
+                    评分依据：过去 7 天发送成功率
                   </Text>
                 </BlockStack>
               </Card>
@@ -314,7 +314,7 @@ export default function MonitorPage() {
                     <Divider />
                     <InlineStack align="space-between">
                       <Text as="span" tone="subdued">
-                        Shopify 订单
+                        待发送转化
                       </Text>
                       <Text as="span" fontWeight="semibold">
                         {data.totalShopifyOrders}
@@ -322,7 +322,7 @@ export default function MonitorPage() {
                     </InlineStack>
                     <InlineStack align="space-between">
                       <Text as="span" tone="subdued">
-                        平台转化
+                        成功发送
                       </Text>
                       <Text as="span" fontWeight="semibold">
                         {data.totalPlatformConversions}
@@ -367,7 +367,7 @@ export default function MonitorPage() {
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text as="h2" variant="headingMd">
-                  对账记录
+                  发送日志核对记录
                 </Text>
                 <Select
                   label=""
@@ -389,9 +389,9 @@ export default function MonitorPage() {
                 headings={[
                   "日期",
                   "平台",
-                  "Shopify 订单",
-                  "平台转化",
-                  "差异率",
+                  "待发送",
+                  "成功发送",
+                  "失败率",
                   "状态",
                 ]}
                 rows={filteredHistory.slice(0, 20).map((report) => [

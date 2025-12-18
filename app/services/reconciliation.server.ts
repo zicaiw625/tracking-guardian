@@ -1,4 +1,29 @@
-// Reconciliation service for comparing Shopify orders with ad platform conversions
+/**
+ * Conversion Tracking Log Verification Service
+ * 
+ * IMPORTANT DISCLAIMER:
+ * This service calculates "send success rate" by comparing:
+ * - Total conversions in our ConversionLog (events we attempted to send)
+ * - Successfully sent conversions (status = "sent")
+ * 
+ * This is NOT a true "reconciliation" with platform reports.
+ * We are comparing our own sending logs, not data pulled from the platforms.
+ * 
+ * For true platform reconciliation, you would need to:
+ * 1. Integrate with platform Reporting APIs (Google Ads API, Meta Marketing API, TikTok API)
+ * 2. Pull conversion reports from each platform
+ * 3. Compare platform-reported conversions with Shopify orders
+ * 
+ * The current implementation helps identify:
+ * - Conversion send failures
+ * - API connectivity issues
+ * - Configuration problems
+ * 
+ * It does NOT tell you:
+ * - Whether the platform actually recorded the conversion
+ * - Match rates / attribution accuracy
+ * - Discrepancies between Shopify and platform dashboards
+ */
 
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
