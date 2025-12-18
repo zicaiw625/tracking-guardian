@@ -1,0 +1,250 @@
+/**
+ * Audit Log Service
+ * 
+ * Records security-sensitive operations for compliance and debugging.
+ * 
+ * Usage:
+ *   await auditLog.record(shopId, {
+ *     actorType: "user",
+ *     actorId: "user@example.com",
+ *     action: "token_updated",
+ *     resourceType: "pixel_config",
+ *     resourceId: configId,
+ *     metadata: { platform: "meta" }
+ *   });
+ */
+
+import prisma from "../db.server";
+import { logger } from "../utils/logger";
+
+// ==========================================
+// Types
+// ==========================================
+
+export type ActorType = "user" | "webhook" | "cron" | "api" | "system";
+
+export type AuditAction =
+  | "token_updated"
+  | "token_deleted"
+  | "pixel_config_created"
+  | "pixel_config_updated"
+  | "pixel_config_deleted"
+  | "alert_config_created"
+  | "alert_config_updated"
+  | "alert_config_deleted"
+  | "threshold_changed"
+  | "shop_settings_updated"
+  | "web_pixel_created"
+  | "web_pixel_updated"
+  | "script_tag_deleted"
+  | "conversion_retry_manual"
+  | "dead_letter_retry";
+
+export type ResourceType =
+  | "pixel_config"
+  | "alert_config"
+  | "shop"
+  | "web_pixel"
+  | "script_tag"
+  | "conversion_log";
+
+export interface AuditLogEntry {
+  actorType: ActorType;
+  actorId?: string;
+  action: AuditAction;
+  resourceType: ResourceType;
+  resourceId?: string;
+  previousValue?: Record<string, unknown>;
+  newValue?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+// ==========================================
+// Helper Functions
+// ==========================================
+
+/**
+ * Redact sensitive fields from audit log values
+ */
+function redactSensitiveFields(obj: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!obj) return obj;
+
+  const sensitiveFields = [
+    "accessToken",
+    "access_token",
+    "apiSecret",
+    "api_secret",
+    "password",
+    "token",
+    "secret",
+    "credentials",
+    "credentialsEncrypted",
+  ];
+
+  const redacted: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    const lowerKey = key.toLowerCase();
+
+    if (sensitiveFields.some((f) => lowerKey.includes(f.toLowerCase()))) {
+      redacted[key] = "[REDACTED]";
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      redacted[key] = redactSensitiveFields(value as Record<string, unknown>);
+    } else {
+      redacted[key] = value;
+    }
+  }
+
+  return redacted;
+}
+
+/**
+ * Extract request context from a Request object
+ */
+export function extractRequestContext(request: Request): {
+  ipAddress?: string;
+  userAgent?: string;
+} {
+  return {
+    ipAddress:
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      undefined,
+    userAgent: request.headers.get("user-agent") || undefined,
+  };
+}
+
+// ==========================================
+// Main Audit Log Service
+// ==========================================
+
+export const auditLog = {
+  /**
+   * Record an audit log entry
+   */
+  async record(shopId: string, entry: AuditLogEntry): Promise<void> {
+    try {
+      await prisma.auditLog.create({
+        data: {
+          shopId,
+          actorType: entry.actorType,
+          actorId: entry.actorId,
+          action: entry.action,
+          resourceType: entry.resourceType,
+          resourceId: entry.resourceId,
+          previousValue: redactSensitiveFields(entry.previousValue),
+          newValue: redactSensitiveFields(entry.newValue),
+          metadata: entry.metadata,
+          ipAddress: entry.ipAddress,
+          userAgent: entry.userAgent,
+        },
+      });
+
+      logger.debug(`Audit log: ${entry.action} on ${entry.resourceType}`, {
+        shopId,
+        action: entry.action,
+        resourceType: entry.resourceType,
+        resourceId: entry.resourceId,
+      });
+    } catch (error) {
+      // Don't throw - audit logging should never break the main operation
+      logger.error("Failed to write audit log", error, {
+        shopId,
+        action: entry.action,
+      });
+    }
+  },
+
+  /**
+   * Get audit logs for a shop
+   */
+  async getForShop(
+    shopId: string,
+    options?: {
+      limit?: number;
+      action?: AuditAction;
+      resourceType?: ResourceType;
+      fromDate?: Date;
+      toDate?: Date;
+    }
+  ): Promise<Array<{
+    id: string;
+    actorType: string;
+    actorId: string | null;
+    action: string;
+    resourceType: string;
+    resourceId: string | null;
+    createdAt: Date;
+  }>> {
+    const { limit = 100, action, resourceType, fromDate, toDate } = options || {};
+
+    return prisma.auditLog.findMany({
+      where: {
+        shopId,
+        ...(action && { action }),
+        ...(resourceType && { resourceType }),
+        ...(fromDate || toDate
+          ? {
+              createdAt: {
+                ...(fromDate && { gte: fromDate }),
+                ...(toDate && { lte: toDate }),
+              },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        actorType: true,
+        actorId: true,
+        action: true,
+        resourceType: true,
+        resourceId: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+  },
+
+  /**
+   * Get a specific audit log entry with full details
+   */
+  async getEntry(id: string): Promise<{
+    id: string;
+    shopId: string;
+    actorType: string;
+    actorId: string | null;
+    action: string;
+    resourceType: string;
+    resourceId: string | null;
+    previousValue: unknown;
+    newValue: unknown;
+    metadata: unknown;
+    ipAddress: string | null;
+    userAgent: string | null;
+    createdAt: Date;
+  } | null> {
+    return prisma.auditLog.findUnique({
+      where: { id },
+    });
+  },
+
+  /**
+   * Clean up old audit logs (retention policy)
+   */
+  async cleanup(retentionDays = 90): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+    const result = await prisma.auditLog.deleteMany({
+      where: {
+        createdAt: { lt: cutoffDate },
+      },
+    });
+
+    logger.info(`Cleaned up ${result.count} audit log entries older than ${retentionDays} days`);
+    return result.count;
+  },
+};

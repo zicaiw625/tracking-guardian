@@ -25,6 +25,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { testNotification } from "../services/notification.server";
 import { encryptJson } from "../utils/crypto";
+import { checkTokenExpirationIssues } from "../services/retry.server";
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -41,6 +42,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
+  // Check for token expiration issues
+  let tokenIssues = { hasIssues: false, affectedPlatforms: [] as string[] };
+  if (shop) {
+    tokenIssues = await checkTokenExpirationIssues(shop.id);
+  }
+
   return json({
     shop: shop
       ? {
@@ -51,6 +58,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           pixelConfigs: shop.pixelConfigs,
         }
       : null,
+    tokenIssues,
   });
 };
 
@@ -132,13 +140,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       let platformId = "";
 
       if (platform === "google") {
+        // GA4 Measurement Protocol credentials
         const googleCreds: GoogleCredentials = {
-          conversionId: formData.get("conversionId") as string || "",
-          conversionLabel: formData.get("conversionLabel") as string || "",
-          customerId: formData.get("customerId") as string || undefined,
+          measurementId: formData.get("measurementId") as string || "",
+          apiSecret: formData.get("apiSecret") as string || "",
         };
         credentials = googleCreds;
-        platformId = googleCreds.conversionId;
+        platformId = googleCreds.measurementId;
       } else if (platform === "meta") {
         const metaCreds: MetaCredentials = {
           pixelId: formData.get("pixelId") as string || "",
@@ -159,6 +167,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       // Encrypt credentials before storing
+      // IMPORTANT: Use credentialsEncrypted field (not legacy credentials field)
       const encryptedCredentials = encryptJson(credentials);
 
       await prisma.pixelConfig.upsert({
@@ -169,14 +178,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
         },
         update: {
-          credentials: encryptedCredentials,
+          credentialsEncrypted: encryptedCredentials,
           serverSideEnabled: enabled,
         },
         create: {
           shopId: shop.id,
           platform,
           platformId,
-          credentials: encryptedCredentials,
+          credentialsEncrypted: encryptedCredentials,
           serverSideEnabled: enabled,
         },
       });
@@ -220,7 +229,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function SettingsPage() {
-  const { shop } = useLoaderData<typeof loader>();
+  const { shop, tokenIssues } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -239,9 +248,16 @@ export default function SettingsPage() {
   // Server-side tracking state
   const [serverPlatform, setServerPlatform] = useState("meta");
   const [serverEnabled, setServerEnabled] = useState(false);
+  // Meta fields
   const [metaPixelId, setMetaPixelId] = useState("");
   const [metaAccessToken, setMetaAccessToken] = useState("");
   const [metaTestCode, setMetaTestCode] = useState("");
+  // Google GA4 fields
+  const [googleMeasurementId, setGoogleMeasurementId] = useState("");
+  const [googleApiSecret, setGoogleApiSecret] = useState("");
+  // TikTok fields
+  const [tiktokPixelId, setTiktokPixelId] = useState("");
+  const [tiktokAccessToken, setTiktokAccessToken] = useState("");
 
   // Track form changes for Save bar
   const [alertFormDirty, setAlertFormDirty] = useState(false);
@@ -403,6 +419,12 @@ export default function SettingsPage() {
       formData.append("pixelId", metaPixelId);
       formData.append("accessToken", metaAccessToken);
       formData.append("testEventCode", metaTestCode);
+    } else if (serverPlatform === "google") {
+      formData.append("measurementId", googleMeasurementId);
+      formData.append("apiSecret", googleApiSecret);
+    } else if (serverPlatform === "tiktok") {
+      formData.append("pixelId", tiktokPixelId);
+      formData.append("accessToken", tiktokAccessToken);
     }
 
     submit(formData, { method: "post" });
@@ -630,6 +652,27 @@ export default function SettingsPage() {
                     <Text as="h2" variant="headingMd">
                       服务端转化追踪（Conversions API）
                     </Text>
+
+                    {/* Token Expiration Warning */}
+                    {tokenIssues.hasIssues && (
+                      <Banner
+                        title="需要重新授权"
+                        tone="critical"
+                        action={{
+                          content: "查看详情",
+                          onAction: () => {
+                            const platform = tokenIssues.affectedPlatforms[0];
+                            if (platform) setServerPlatform(platform);
+                          },
+                        }}
+                      >
+                        <p>
+                          以下平台的访问令牌已过期或无效，请重新配置：
+                          <strong> {tokenIssues.affectedPlatforms.join(", ")}</strong>
+                        </p>
+                      </Banner>
+                    )}
+
                     <Banner tone="info">
                       <p>
                         服务端追踪通过 Shopify Webhooks 直接将转化数据发送到广告平台，
@@ -643,7 +686,7 @@ export default function SettingsPage() {
                       label="选择平台"
                       options={[
                         { label: "Meta Conversions API（CAPI）", value: "meta" },
-                        { label: "Google Ads Conversions API", value: "google" },
+                        { label: "Google GA4 Measurement Protocol", value: "google" },
                         { label: "TikTok Events API", value: "tiktok" },
                       ]}
                       value={serverPlatform}
@@ -673,6 +716,47 @@ export default function SettingsPage() {
                           onChange={setMetaTestCode}
                           autoComplete="off"
                           helpText="用于测试模式，生产环境请留空"
+                        />
+                      </>
+                    )}
+
+                    {serverPlatform === "google" && (
+                      <>
+                        <TextField
+                          label="Measurement ID"
+                          value={googleMeasurementId}
+                          onChange={setGoogleMeasurementId}
+                          autoComplete="off"
+                          placeholder="G-XXXXXXXXXX"
+                          helpText="在 GA4 管理后台 > 数据流中找到"
+                        />
+                        <TextField
+                          label="API Secret"
+                          type="password"
+                          value={googleApiSecret}
+                          onChange={setGoogleApiSecret}
+                          autoComplete="off"
+                          helpText="在 GA4 > 数据流 > Measurement Protocol API 密钥中创建"
+                        />
+                      </>
+                    )}
+
+                    {serverPlatform === "tiktok" && (
+                      <>
+                        <TextField
+                          label="Pixel ID"
+                          value={tiktokPixelId}
+                          onChange={setTiktokPixelId}
+                          autoComplete="off"
+                          placeholder="例: C1234567890123456789"
+                        />
+                        <TextField
+                          label="Access Token"
+                          type="password"
+                          value={tiktokAccessToken}
+                          onChange={setTiktokAccessToken}
+                          autoComplete="off"
+                          helpText="在 TikTok Events Manager 中生成"
                         />
                       </>
                     )}

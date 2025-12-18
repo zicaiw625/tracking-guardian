@@ -94,10 +94,15 @@ async function buildHashedUserData(conversionData: ConversionData): Promise<Meta
  * - All PII is hashed with SHA-256 before transmission
  * - Access token is sent via secure header, not URL parameter
  * - Request has timeout to prevent hanging
+ * 
+ * Deduplication:
+ * - Uses event_id for client/server deduplication
+ * - Meta will ignore duplicate events with same event_id within 48 hours
  */
 export async function sendConversionToMeta(
   credentials: MetaCredentials | null,
-  conversionData: ConversionData
+  conversionData: ConversionData,
+  eventId?: string
 ): Promise<ConversionApiResponse> {
   if (!credentials?.pixelId || !credentials?.accessToken) {
     throw new Error("Meta Pixel credentials not configured");
@@ -120,11 +125,16 @@ export async function sendConversionToMeta(
     item_price: item.price,
   })) || [];
 
+  // Generate event_id for deduplication if not provided
+  // Format: orderId_purchase_timestamp (unique per order)
+  const dedupeEventId = eventId || `${conversionData.orderId}_purchase_${eventTime}`;
+
   const eventPayload = {
     data: [
       {
         event_name: "Purchase",
         event_time: eventTime,
+        event_id: dedupeEventId, // For client/server deduplication
         action_source: "website",
         user_data: userData,
         custom_data: {

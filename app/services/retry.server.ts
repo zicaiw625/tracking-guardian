@@ -5,9 +5,105 @@
  * - Exponential backoff retry strategy
  * - Dead letter queue for permanently failed conversions
  * - Manual retry capability for dead letter items
+ * - Failure reason classification for better diagnostics
  */
 
 import prisma from "../db.server";
+
+// ==========================================
+// Failure Reason Classification
+// ==========================================
+
+export type FailureReason = 
+  | "token_expired"     // 401 - needs re-authorization
+  | "rate_limited"      // 429 - retry later
+  | "platform_error"    // 5xx - platform issue
+  | "validation_error"  // 4xx - field/data issue
+  | "network_error"     // timeout/connection issue
+  | "config_error"      // credential/config issue
+  | "unknown";          // unclassified
+
+/**
+ * Classify error message into a failure reason category
+ */
+export function classifyFailureReason(errorMessage: string | null): FailureReason {
+  if (!errorMessage) return "unknown";
+  
+  const lowerError = errorMessage.toLowerCase();
+  
+  // Token/Auth issues
+  if (
+    lowerError.includes("401") ||
+    lowerError.includes("unauthorized") ||
+    lowerError.includes("token expired") ||
+    lowerError.includes("invalid token") ||
+    lowerError.includes("access token")
+  ) {
+    return "token_expired";
+  }
+  
+  // Rate limiting
+  if (
+    lowerError.includes("429") ||
+    lowerError.includes("rate limit") ||
+    lowerError.includes("too many requests")
+  ) {
+    return "rate_limited";
+  }
+  
+  // Platform errors (5xx)
+  if (
+    lowerError.includes("500") ||
+    lowerError.includes("502") ||
+    lowerError.includes("503") ||
+    lowerError.includes("504") ||
+    lowerError.includes("internal server error") ||
+    lowerError.includes("service unavailable")
+  ) {
+    return "platform_error";
+  }
+  
+  // Network errors
+  if (
+    lowerError.includes("timeout") ||
+    lowerError.includes("network") ||
+    lowerError.includes("econnrefused") ||
+    lowerError.includes("enotfound") ||
+    lowerError.includes("fetch failed")
+  ) {
+    return "network_error";
+  }
+  
+  // Validation errors
+  if (
+    lowerError.includes("400") ||
+    lowerError.includes("invalid") ||
+    lowerError.includes("validation") ||
+    lowerError.includes("missing required")
+  ) {
+    return "validation_error";
+  }
+  
+  // Config errors
+  if (
+    lowerError.includes("credential") ||
+    lowerError.includes("decrypt") ||
+    lowerError.includes("not configured") ||
+    lowerError.includes("api secret")
+  ) {
+    return "config_error";
+  }
+  
+  return "unknown";
+}
+
+/**
+ * Check if a failure reason should trigger immediate notification
+ */
+export function shouldNotifyImmediately(reason: FailureReason): boolean {
+  // Token expiration needs immediate attention
+  return reason === "token_expired" || reason === "config_error";
+}
 import { sendConversionToGoogle } from "./platforms/google.server";
 import { sendConversionToMeta } from "./platforms/meta.server";
 import { sendConversionToTikTok } from "./platforms/tiktok.server";
@@ -44,19 +140,37 @@ export function calculateNextRetryTime(attempts: number): Date {
 
 /**
  * Mark a conversion log for retry with exponential backoff
+ * Classifies the failure reason for better diagnostics
  */
 export async function scheduleRetry(
   logId: string,
   errorMessage: string
-): Promise<void> {
+): Promise<{ scheduled: boolean; failureReason: FailureReason }> {
   const log = await prisma.conversionLog.findUnique({
     where: { id: logId },
   });
 
-  if (!log) return;
+  if (!log) return { scheduled: false, failureReason: "unknown" };
 
+  const failureReason = classifyFailureReason(errorMessage);
   const newAttempts = log.attempts + 1;
   const maxAttempts = log.maxAttempts || MAX_ATTEMPTS;
+
+  // For token_expired errors, don't retry - it won't help without re-auth
+  if (failureReason === "token_expired" || failureReason === "config_error") {
+    await prisma.conversionLog.update({
+      where: { id: logId },
+      data: {
+        status: "dead_letter",
+        attempts: newAttempts,
+        lastAttemptAt: new Date(),
+        errorMessage: `[${failureReason}] ${errorMessage}`,
+        deadLetteredAt: new Date(),
+      },
+    });
+    console.log(`Conversion ${logId} moved to dead letter: ${failureReason}`);
+    return { scheduled: false, failureReason };
+  }
 
   if (newAttempts >= maxAttempts) {
     // Move to dead letter queue
@@ -66,11 +180,12 @@ export async function scheduleRetry(
         status: "dead_letter",
         attempts: newAttempts,
         lastAttemptAt: new Date(),
-        errorMessage,
+        errorMessage: `[${failureReason}] ${errorMessage}`,
         deadLetteredAt: new Date(),
       },
     });
     console.log(`Conversion ${logId} moved to dead letter after ${newAttempts} attempts`);
+    return { scheduled: false, failureReason };
   } else {
     // Schedule retry with exponential backoff
     const nextRetryAt = calculateNextRetryTime(newAttempts);
@@ -81,10 +196,11 @@ export async function scheduleRetry(
         attempts: newAttempts,
         lastAttemptAt: new Date(),
         nextRetryAt,
-        errorMessage,
+        errorMessage: `[${failureReason}] ${errorMessage}`,
       },
     });
-    console.log(`Conversion ${logId} scheduled for retry at ${nextRetryAt.toISOString()}`);
+    console.log(`Conversion ${logId} scheduled for retry at ${nextRetryAt.toISOString()} (reason: ${failureReason})`);
+    return { scheduled: true, failureReason };
   }
 }
 
@@ -135,16 +251,28 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      // Get credentials
+      // Get credentials - only from credentialsEncrypted field
       let credentials: PlatformCredentials | null = null;
-      if (pixelConfig.credentialsEncrypted) {
+      
+      if (!pixelConfig.credentialsEncrypted) {
+        await scheduleRetry(log.id, "No credentials configured - please set up in Settings");
+        failed++;
+        continue;
+      }
+      
+      try {
         credentials = decryptJson<PlatformCredentials>(
           pixelConfig.credentialsEncrypted
         );
+      } catch (decryptError) {
+        const errorMsg = decryptError instanceof Error ? decryptError.message : "Unknown error";
+        await scheduleRetry(log.id, `Credential decryption failed: ${errorMsg}`);
+        failed++;
+        continue;
       }
 
       if (!credentials) {
-        await scheduleRetry(log.id, "No valid credentials found");
+        await scheduleRetry(log.id, "Decrypted credentials are null");
         failed++;
         continue;
       }
@@ -295,6 +423,39 @@ export async function retryAllDeadLetters(shopId: string): Promise<number> {
 
   console.log(`${result.count} dead letters queued for retry in shop ${shopId}`);
   return result.count;
+}
+
+/**
+ * Check if shop has token expiration issues
+ * Returns platforms that have recent token_expired failures
+ */
+export async function checkTokenExpirationIssues(shopId: string): Promise<{
+  hasIssues: boolean;
+  affectedPlatforms: string[];
+}> {
+  // Look for recent failures (last 24 hours) with token_expired reason
+  const oneDayAgo = new Date();
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+  const tokenExpiredLogs = await prisma.conversionLog.findMany({
+    where: {
+      shopId,
+      status: { in: ["failed", "dead_letter"] },
+      errorMessage: { contains: "[token_expired]" },
+      lastAttemptAt: { gte: oneDayAgo },
+    },
+    select: {
+      platform: true,
+    },
+    distinct: ["platform"],
+  });
+
+  const affectedPlatforms = tokenExpiredLogs.map((l) => l.platform);
+
+  return {
+    hasIssues: affectedPlatforms.length > 0,
+    affectedPlatforms,
+  };
 }
 
 /**

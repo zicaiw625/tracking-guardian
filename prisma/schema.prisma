@@ -54,6 +54,7 @@ model Shop {
   conversionLogs         ConversionLog[]
   reconciliationReports  ReconciliationReport[]
   surveyResponses        SurveyResponse[]
+  auditLogs              AuditLog[]
 }
 
 // Scan report for tracking scripts
@@ -262,6 +263,40 @@ model SurveyResponse {
   // Performance: Composite index for checking existing response by shop+order
   @@index([shopId, orderId])
   // Analytics: Index for date-based analytics queries
+  @@index([shopId, createdAt])
+}
+
+// Audit log for security-sensitive operations
+model AuditLog {
+  id              String   @id @default(cuid())
+  shopId          String
+  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  // Who performed the action
+  actorType       String   // "user", "webhook", "cron", "api"
+  actorId         String?  // User email, webhook ID, etc.
+  
+  // What action was performed
+  action          String   // "token_updated", "pixel_config_changed", "threshold_changed", etc.
+  resourceType    String   // "pixel_config", "alert_config", "shop", etc.
+  resourceId      String?  // ID of the affected resource
+  
+  // Action details
+  previousValue   Json?    // Previous state (sensitive fields should be redacted)
+  newValue        Json?    // New state (sensitive fields should be redacted)
+  metadata        Json?    // Additional context
+  
+  // Request context
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([shopId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+  // Query by shop and time range
   @@index([shopId, createdAt])
 }
 

@@ -223,7 +223,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "Shop is not active" }, { status: 403 });
     }
 
-    // Check if survey response already exists for this order
+    // SECURITY: Verify orderId belongs to this shop
+    // Check if we have a conversion log for this order (created by webhook)
+    // This prevents users from submitting surveys for orders that don't belong to this shop
+    const orderBelongsToShop = await prisma.conversionLog.findFirst({
+      where: {
+        shopId: shop.id,
+        orderId: validatedData.orderId,
+      },
+      select: { id: true },
+    });
+
+    if (!orderBelongsToShop) {
+      // Also check if there's already a survey response (for cases where conversion tracking wasn't enabled)
+      const existingSurvey = await prisma.surveyResponse.findFirst({
+        where: {
+          shopId: shop.id,
+          orderId: validatedData.orderId,
+        },
+        select: { id: true },
+      });
+
+      if (!existingSurvey) {
+        console.warn(
+          `Survey submission rejected: orderId=${validatedData.orderId.slice(0, 8)}... ` +
+          `not found for shop=${shopHeader}`
+        );
+        return json(
+          { error: "Order not found or not eligible for survey" },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Check if survey response already exists for this order (idempotency)
     const existingResponse = await prisma.surveyResponse.findFirst({
       where: {
         shopId: shop.id,

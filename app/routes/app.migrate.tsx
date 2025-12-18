@@ -33,6 +33,9 @@ import {
   generatePixelCode,
   savePixelConfig,
   getPixelConfigs,
+  createWebPixel,
+  getExistingWebPixels,
+  deleteScriptTag,
   type Platform,
   type MigrationResult,
   type SavePixelConfigOptions,
@@ -66,7 +69,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
 
   const shop = await prisma.shop.findUnique({
@@ -79,6 +82,71 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const formData = await request.formData();
   const actionType = formData.get("_action");
+
+  // New: Auto-enable Web Pixel
+  if (actionType === "enablePixel") {
+    const backendUrl = formData.get("backendUrl") as string;
+    
+    if (!backendUrl) {
+      return json({ error: "Backend URL is required" }, { status: 400 });
+    }
+
+    // Check if a Web Pixel already exists
+    const existingPixels = await getExistingWebPixels(admin);
+    
+    // Look for our pixel (by checking if settings contain backend_url)
+    let ourPixel = existingPixels.find((p) => {
+      if (!p.settings) return false;
+      try {
+        const settings = JSON.parse(p.settings);
+        return settings.backend_url !== undefined;
+      } catch {
+        return false;
+      }
+    });
+
+    let result;
+    if (ourPixel) {
+      // Update existing pixel
+      const { updateWebPixel } = await import("../services/migration.server");
+      result = await updateWebPixel(admin, ourPixel.id, backendUrl);
+    } else {
+      // Create new pixel
+      result = await createWebPixel(admin, backendUrl);
+    }
+
+    if (result.success) {
+      return json({
+        _action: "enablePixel",
+        success: true,
+        message: ourPixel ? "Web Pixel 已更新" : "Web Pixel 已启用",
+        webPixelId: result.webPixelId,
+      });
+    } else {
+      return json({
+        _action: "enablePixel",
+        success: false,
+        error: result.error,
+      });
+    }
+  }
+
+  // Delete ScriptTag
+  if (actionType === "deleteScriptTag") {
+    const scriptTagId = parseInt(formData.get("scriptTagId") as string);
+    
+    if (!scriptTagId) {
+      return json({ error: "ScriptTag ID is required" }, { status: 400 });
+    }
+
+    const result = await deleteScriptTag(admin, scriptTagId);
+    
+    return json({
+      _action: "deleteScriptTag",
+      success: result.success,
+      error: result.error,
+    });
+  }
 
   if (actionType === "generate") {
     const platform = formData.get("platform") as Platform;

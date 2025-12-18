@@ -19,44 +19,23 @@ export const PLATFORM_NAMES: Record<Platform | string, string> = {
 // ==========================================
 
 /**
- * Google Credentials - supports both GA4 Measurement Protocol and Google Ads Offline Conversions
+ * Google Credentials - GA4 Measurement Protocol
  * 
- * For GA4 Measurement Protocol (recommended MVP path):
- * - measurementId: GA4 Property Measurement ID (e.g., G-XXXXXXXXXX)
- * - apiSecret: GA4 Measurement Protocol API secret
+ * For server-side conversion tracking via GA4 Measurement Protocol.
+ * This is the recommended approach because:
+ * - Simple setup (no OAuth required)
+ * - Works with GA4 properties
+ * - Google Ads can import GA4 conversions for attribution
  * 
- * For Google Ads Offline Conversions (requires OAuth):
- * - customerId: Google Ads customer ID (without hyphens)
- * - conversionActionId: The numeric ID of the conversion action
- * - developerToken: Google Ads API developer token
- * - clientId, clientSecret, refreshToken: OAuth2 credentials
+ * Get these values from GA4 Admin > Data Streams > Your Stream:
+ * - measurementId: The Measurement ID (e.g., G-XXXXXXXXXX)
+ * - apiSecret: Create via "Measurement Protocol API secrets"
  */
 export interface GoogleCredentials {
-  // === GA4 Measurement Protocol (Simple, recommended) ===
   /** GA4 Measurement ID (e.g., G-XXXXXXXXXX) */
-  measurementId?: string;
+  measurementId: string;
   /** GA4 Measurement Protocol API Secret */
-  apiSecret?: string;
-  
-  // === Google Ads Offline Conversions (Advanced) ===
-  /** Google Ads Customer ID (numeric, no hyphens) */
-  customerId?: string;
-  /** Conversion Action ID (numeric) - NOT conversion label */
-  conversionActionId?: string;
-  /** Google Ads API Developer Token */
-  developerToken?: string;
-  /** OAuth2 Client ID */
-  clientId?: string;
-  /** OAuth2 Client Secret */
-  clientSecret?: string;
-  /** OAuth2 Refresh Token */
-  refreshToken?: string;
-  
-  // === Legacy fields (deprecated, for backwards compatibility) ===
-  /** @deprecated Use conversionActionId instead */
-  conversionId?: string;
-  /** @deprecated Not used in server-side API */
-  conversionLabel?: string;
+  apiSecret: string;
 }
 
 export interface MetaCredentials {

@@ -249,47 +249,40 @@ async function processOrderConversion(
       };
 
       // Decrypt credentials before use
-      // New field: credentialsEncrypted (properly encrypted string)
-      // Legacy field: credentials (may be JSON object - invalid)
+      // Only use credentialsEncrypted field (unified storage protocol)
       let decryptedCredentials: PlatformCredentials | null = null;
       
-      // First try the new properly encrypted field
-      if (pixelConfig.credentialsEncrypted) {
-        try {
-          decryptedCredentials = decryptJson<PlatformCredentials>(
-            pixelConfig.credentialsEncrypted as string
-          );
-        } catch (decryptError) {
-          console.error(`Failed to decrypt credentials for ${pixelConfig.platform}:`, decryptError);
-          continue;
-        }
-      } 
-      // Fallback: check if credentials is a valid encrypted string (legacy support)
-      else if (pixelConfig.credentials && typeof pixelConfig.credentials === 'string') {
-        try {
-          decryptedCredentials = decryptJson<PlatformCredentials>(
-            pixelConfig.credentials as string
-          );
-          console.warn(`Using legacy credentials field for ${pixelConfig.platform} - please migrate to credentialsEncrypted`);
-        } catch (decryptError) {
-          // If it's not a valid encrypted string, it might be an old JSON object stored incorrectly
-          console.error(`Failed to decrypt legacy credentials for ${pixelConfig.platform}:`, decryptError);
-          continue;
-        }
+      if (!pixelConfig.credentialsEncrypted) {
+        console.warn(
+          `No credentialsEncrypted for ${pixelConfig.platform} (shop=${shopRecord.shopDomain}), ` +
+          `skipping server-side conversion. Configure credentials in Settings.`
+        );
+        continue;
       }
       
-      // If no encrypted credentials but we have clientConfig, merge it for platforms that don't need server-side tokens
-      if (!decryptedCredentials && pixelConfig.clientConfig) {
-        const clientCfg = pixelConfig.clientConfig as Record<string, unknown>;
-        // For Google with only client-side config (no server-side API)
-        if (pixelConfig.platform === 'google' && clientCfg.conversionId) {
-          console.log(`No server-side credentials for ${pixelConfig.platform}, skipping CAPI`);
-          continue;
-        }
+      try {
+        decryptedCredentials = decryptJson<PlatformCredentials>(
+          pixelConfig.credentialsEncrypted as string
+        );
+      } catch (decryptError) {
+        // Log error but don't crash - continue processing other platforms
+        console.error(
+          `Failed to decrypt credentials for ${pixelConfig.platform} (shop=${shopRecord.shopDomain}):`,
+          decryptError instanceof Error ? decryptError.message : "Unknown error"
+        );
+        // Record the failure in conversion log for visibility
+        await prisma.conversionLog.update({
+          where: { id: conversionLog.id },
+          data: {
+            status: "failed",
+            errorMessage: "Credential decryption failed - please reconfigure in Settings",
+          },
+        });
+        continue;
       }
       
       if (!decryptedCredentials) {
-        console.warn(`No valid credentials found for ${pixelConfig.platform}, skipping server-side conversion`);
+        console.warn(`Decrypted credentials are null for ${pixelConfig.platform}, skipping`);
         continue;
       }
 

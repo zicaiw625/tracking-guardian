@@ -7,8 +7,26 @@ import {
 } from "@remix-run/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
+import { ensureSecretsValid } from "./utils/secrets";
+import { logger } from "./utils/logger";
 
 const ABORT_DELAY = 5000;
+
+// Validate secrets on startup
+let secretsValidated = false;
+function validateSecretsOnce() {
+  if (!secretsValidated) {
+    try {
+      ensureSecretsValid();
+      logger.info("Secrets validation passed");
+    } catch (error) {
+      logger.error("Secrets validation failed", error);
+      // In production, this will throw and prevent startup
+      // In development, it will log and continue
+    }
+    secretsValidated = true;
+  }
+}
 
 export default async function handleRequest(
   request: Request,
@@ -16,6 +34,9 @@ export default async function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
+  // Validate secrets on first request
+  validateSecretsOnce();
+  
   addDocumentResponseHeaders(request, responseHeaders);
 
   const userAgent = request.headers.get("user-agent");

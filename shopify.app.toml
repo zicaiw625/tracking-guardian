@@ -16,7 +16,9 @@ embedded = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_orders,read_script_tags,write_script_tags,read_checkouts,write_pixels,read_customer_events"
+# Note: write_script_tags removed - we use Web Pixels instead of ScriptTags
+# read_script_tags is kept for migration scanning purposes only
+scopes = "read_orders,read_script_tags,read_checkouts,write_pixels,read_customer_events"
 
 [auth]
 # Update these URLs with your deployed app URL

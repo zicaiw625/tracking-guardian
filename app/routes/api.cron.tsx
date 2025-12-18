@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { runAllShopsReconciliation } from "../services/reconciliation.server";
+import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
 import { processRetries } from "../services/retry.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 
@@ -80,21 +80,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const retryResults = await processRetries();
     console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed`);
 
-    // Run daily reconciliation/log verification
-    console.log("Running daily log verification...");
-    const reconciliationResults = await runAllShopsReconciliation();
+    // Run daily delivery health check
+    console.log("Running daily delivery health check...");
+    const healthCheckResults = await runAllShopsDeliveryHealthCheck();
 
-    const successful = reconciliationResults.filter((r) => r.success).length;
-    const failed = reconciliationResults.filter((r) => !r.success).length;
+    const successful = healthCheckResults.filter((r) => r.success).length;
+    const failed = healthCheckResults.filter((r) => !r.success).length;
 
     return json({
       success: true,
       message: `Cron completed`,
       retries: retryResults,
-      reconciliation: {
+      deliveryHealth: {
         successful,
         failed,
-        results: reconciliationResults,
+        results: healthCheckResults,
       },
     });
   } catch (error) {
@@ -129,21 +129,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const retryResults = await processRetries();
     console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed`);
 
-    // Run daily reconciliation/log verification
-    console.log("Running daily log verification...");
-    const reconciliationResults = await runAllShopsReconciliation();
+    // Run daily delivery health check
+    console.log("Running daily delivery health check...");
+    const healthCheckResults = await runAllShopsDeliveryHealthCheck();
 
-    const successful = reconciliationResults.filter((r) => r.success).length;
-    const failed = reconciliationResults.filter((r) => !r.success).length;
+    const successful = healthCheckResults.filter((r) => r.success).length;
+    const failed = healthCheckResults.filter((r) => !r.success).length;
 
     return json({
       success: true,
       message: `Cron completed`,
       retries: retryResults,
-      reconciliation: {
+      deliveryHealth: {
         successful,
         failed,
-        results: reconciliationResults,
+        results: healthCheckResults,
       },
     });
   } catch (error) {

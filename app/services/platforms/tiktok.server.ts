@@ -30,10 +30,15 @@ async function buildHashedUserData(conversionData: ConversionData): Promise<TikT
 
 /**
  * Sends conversion data to TikTok Events API
+ * 
+ * Deduplication:
+ * - Uses event_id for client/server deduplication
+ * - TikTok will ignore duplicate events with same event_id
  */
 export async function sendConversionToTikTok(
   credentials: TikTokCredentials | null,
-  conversionData: ConversionData
+  conversionData: ConversionData,
+  eventId?: string
 ): Promise<ConversionApiResponse> {
   if (!credentials?.pixelId || !credentials?.accessToken) {
     throw new Error("TikTok Pixel credentials not configured");
@@ -57,10 +62,13 @@ export async function sendConversionToTikTok(
     price: item.price,
   })) || [];
 
+  // Generate event_id for deduplication if not provided
+  const dedupeEventId = eventId || `${conversionData.orderId}_purchase_${Date.now()}`;
+
   const eventPayload = {
     pixel_code: credentials.pixelId,
     event: "CompletePayment",
-    event_id: conversionData.orderId,
+    event_id: dedupeEventId, // For client/server deduplication
     timestamp,
     context: {
       user,

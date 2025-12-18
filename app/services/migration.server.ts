@@ -1,5 +1,6 @@
 // Migration service for converting old tracking scripts to Web Pixels
 
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
 import { generateGooglePixelCode } from "./platforms/google.server";
 import { generateMetaPixelCode } from "./platforms/meta.server";
@@ -198,6 +199,223 @@ export async function getPixelConfigs(shopId: string) {
     where: { shopId },
     orderBy: { createdAt: "desc" },
   });
+}
+
+// ==========================================
+// Automatic Web Pixel Creation
+// ==========================================
+
+export interface CreateWebPixelResult {
+  success: boolean;
+  webPixelId?: string;
+  error?: string;
+  userErrors?: Array<{ field: string; message: string }>;
+}
+
+/**
+ * Create a Web Pixel using Shopify Admin GraphQL API
+ * 
+ * This automatically configures the Tracking Guardian pixel in the shop's
+ * Customer Events settings without requiring manual copy/paste.
+ * 
+ * @param admin - Shopify Admin API context
+ * @param backendUrl - URL of the Tracking Guardian backend (e.g., https://your-app.onrender.com)
+ */
+export async function createWebPixel(
+  admin: AdminApiContext,
+  backendUrl: string
+): Promise<CreateWebPixelResult> {
+  // Validate backend URL
+  if (!backendUrl || !backendUrl.startsWith("https://")) {
+    return {
+      success: false,
+      error: "Backend URL must be a valid HTTPS URL",
+    };
+  }
+
+  // Web Pixel settings - just the backend URL
+  const settings = JSON.stringify({
+    backend_url: backendUrl,
+  });
+
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      mutation WebPixelCreate($webPixel: WebPixelInput!) {
+        webPixelCreate(webPixel: $webPixel) {
+          userErrors {
+            field
+            message
+          }
+          webPixel {
+            id
+            settings
+          }
+        }
+      }
+      `,
+      {
+        variables: {
+          webPixel: {
+            settings,
+          },
+        },
+      }
+    );
+
+    const result = await response.json();
+    const data = result.data?.webPixelCreate;
+
+    if (data?.userErrors && data.userErrors.length > 0) {
+      return {
+        success: false,
+        userErrors: data.userErrors,
+        error: data.userErrors.map((e: { message: string }) => e.message).join(", "),
+      };
+    }
+
+    if (data?.webPixel?.id) {
+      console.log(`Web Pixel created successfully: ${data.webPixel.id}`);
+      return {
+        success: true,
+        webPixelId: data.webPixel.id,
+      };
+    }
+
+    return {
+      success: false,
+      error: "Unexpected response from Shopify API",
+    };
+  } catch (error) {
+    console.error("Failed to create Web Pixel:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Update an existing Web Pixel's settings
+ */
+export async function updateWebPixel(
+  admin: AdminApiContext,
+  webPixelId: string,
+  backendUrl: string
+): Promise<CreateWebPixelResult> {
+  const settings = JSON.stringify({
+    backend_url: backendUrl,
+  });
+
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      mutation WebPixelUpdate($id: ID!, $webPixel: WebPixelInput!) {
+        webPixelUpdate(id: $id, webPixel: $webPixel) {
+          userErrors {
+            field
+            message
+          }
+          webPixel {
+            id
+            settings
+          }
+        }
+      }
+      `,
+      {
+        variables: {
+          id: webPixelId,
+          webPixel: {
+            settings,
+          },
+        },
+      }
+    );
+
+    const result = await response.json();
+    const data = result.data?.webPixelUpdate;
+
+    if (data?.userErrors && data.userErrors.length > 0) {
+      return {
+        success: false,
+        userErrors: data.userErrors,
+        error: data.userErrors.map((e: { message: string }) => e.message).join(", "),
+      };
+    }
+
+    if (data?.webPixel?.id) {
+      return {
+        success: true,
+        webPixelId: data.webPixel.id,
+      };
+    }
+
+    return {
+      success: false,
+      error: "Unexpected response from Shopify API",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Get existing Web Pixels for the shop
+ */
+export async function getExistingWebPixels(
+  admin: AdminApiContext
+): Promise<Array<{ id: string; settings: string | null }>> {
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      query GetWebPixels {
+        webPixels(first: 50) {
+          edges {
+            node {
+              id
+              settings
+            }
+          }
+        }
+      }
+      `
+    );
+
+    const result = await response.json();
+    const edges = result.data?.webPixels?.edges || [];
+
+    return edges.map((edge: { node: { id: string; settings: string | null } }) => ({
+      id: edge.node.id,
+      settings: edge.node.settings,
+    }));
+  } catch (error) {
+    console.error("Failed to get Web Pixels:", error);
+    return [];
+  }
+}
+
+/**
+ * Delete a ScriptTag (for migration cleanup)
+ */
+export async function deleteScriptTag(
+  admin: AdminApiContext,
+  scriptTagId: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await admin.rest.delete({
+      path: `script_tags/${scriptTagId}`,
+    });
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
 }
 
 // Microsoft Bing/UET pixel code generator
