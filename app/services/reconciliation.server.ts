@@ -7,27 +7,84 @@ import type {
   ReconciliationSummary,
   ReconciliationReportData,
   AlertConfig,
+  AlertSettings,
+  AlertChannel,
 } from "../types";
+
+/**
+ * Safely parse alert config from Prisma model to typed AlertConfig
+ * Prisma stores Json fields as unknown, this function validates the structure
+ */
+function parseAlertConfig(dbConfig: {
+  id: string;
+  channel: string;
+  settings: unknown;
+  discrepancyThreshold: number;
+  minOrdersForAlert: number;
+  isEnabled: boolean;
+}): AlertConfig | null {
+  const validChannels: AlertChannel[] = ["email", "slack", "telegram"];
+  
+  if (!validChannels.includes(dbConfig.channel as AlertChannel)) {
+    console.warn(`Invalid alert channel: ${dbConfig.channel}`);
+    return null;
+  }
+  
+  // Basic validation of settings structure
+  if (!dbConfig.settings || typeof dbConfig.settings !== "object") {
+    console.warn(`Invalid alert settings for config ${dbConfig.id}`);
+    return null;
+  }
+  
+  return {
+    id: dbConfig.id,
+    channel: dbConfig.channel as AlertChannel,
+    settings: dbConfig.settings as AlertSettings,
+    discrepancyThreshold: dbConfig.discrepancyThreshold,
+    minOrdersForAlert: dbConfig.minOrdersForAlert,
+    isEnabled: dbConfig.isEnabled,
+  };
+}
 
 // Re-export types
 export type { ReconciliationResult, ReconciliationSummary, ReconciliationReportData };
 
 // Run daily reconciliation for a shop
 export async function runDailyReconciliation(shopId: string): Promise<ReconciliationResult[]> {
+  // Optimized query: only select fields we need
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
-    include: {
+    select: {
+      id: true,
+      shopDomain: true,
+      isActive: true,
       pixelConfigs: {
         where: { isActive: true },
+        select: {
+          id: true,
+          platform: true,
+        },
       },
       alertConfigs: {
         where: { isEnabled: true },
+        select: {
+          id: true,
+          channel: true,
+          settings: true,
+          discrepancyThreshold: true,
+          minOrdersForAlert: true,
+          isEnabled: true,
+        },
       },
     },
   });
 
   if (!shop) {
     throw new Error("Shop not found");
+  }
+
+  if (!shop.isActive) {
+    throw new Error("Shop is not active");
   }
 
   const yesterday = new Date();
@@ -39,7 +96,8 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
 
   const results: ReconciliationResult[] = [];
 
-  // Get Shopify orders for yesterday
+  // Optimized query: only select fields needed for aggregation
+  // Uses the composite index [shopId, createdAt]
   const conversionLogs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -47,6 +105,12 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
         gte: yesterday,
         lt: today,
       },
+    },
+    select: {
+      orderId: true,
+      orderValue: true,
+      platform: true,
+      status: true,
     },
   });
 
@@ -133,18 +197,16 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
 
     // Check if alert is needed
     for (const alertConfig of shop.alertConfigs) {
-      const typedAlertConfig: AlertConfig = {
-        id: alertConfig.id,
-        channel: alertConfig.channel as "email" | "slack" | "telegram",
-        settings: alertConfig.settings as unknown as AlertConfig["settings"],
-        discrepancyThreshold: alertConfig.discrepancyThreshold,
-        minOrdersForAlert: alertConfig.minOrdersForAlert,
-        isEnabled: alertConfig.isEnabled,
-      };
+      const typedAlertConfig = parseAlertConfig(alertConfig);
+      
+      // Skip invalid configs
+      if (!typedAlertConfig) {
+        continue;
+      }
       
       if (
-        orderDiscrepancy > alertConfig.discrepancyThreshold &&
-        shopifyOrders >= alertConfig.minOrdersForAlert
+        orderDiscrepancy > typedAlertConfig.discrepancyThreshold &&
+        shopifyOrders >= typedAlertConfig.minOrdersForAlert
       ) {
         await sendAlert(typedAlertConfig, {
           platform,
@@ -182,12 +244,25 @@ export async function getReconciliationHistory(
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
+  // Uses composite index [shopId, reportDate] for efficient querying
   const reports = await prisma.reconciliationReport.findMany({
     where: {
       shopId,
       reportDate: {
         gte: startDate,
       },
+    },
+    select: {
+      id: true,
+      platform: true,
+      reportDate: true,
+      shopifyOrders: true,
+      shopifyRevenue: true,
+      platformConversions: true,
+      platformRevenue: true,
+      orderDiscrepancy: true,
+      revenueDiscrepancy: true,
+      alertSent: true,
     },
     orderBy: { reportDate: "desc" },
   });

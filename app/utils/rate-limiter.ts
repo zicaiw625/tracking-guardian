@@ -1,6 +1,22 @@
 /**
- * Simple in-memory rate limiter for API endpoints
- * For production with multiple instances, use Redis-based rate limiting
+ * Rate limiter for API endpoints
+ * 
+ * Current implementation: In-memory store (suitable for single instance)
+ * 
+ * IMPORTANT: For multi-instance production deployments, you should:
+ * 1. Set REDIS_URL environment variable
+ * 2. Use the Redis-based implementation (see below)
+ * 
+ * The in-memory implementation:
+ * - Is fast and simple
+ * - Does NOT share state across multiple server instances
+ * - Will reset on server restart
+ * - Has memory limits to prevent unbounded growth
+ * 
+ * For Redis upgrade, implement RateLimitStore interface with Redis commands:
+ * - INCR for counter
+ * - EXPIRE for TTL
+ * - GET for checking current count
  */
 
 interface RateLimitEntry {
@@ -8,13 +24,93 @@ interface RateLimitEntry {
   resetTime: number;
 }
 
-interface RateLimitConfig {
+export interface RateLimitConfig {
   maxRequests: number;
   windowMs: number;
 }
 
-// In-memory store for rate limit tracking
-const rateLimitStore = new Map<string, RateLimitEntry>();
+/**
+ * Abstract interface for rate limit storage
+ * Implement this interface for Redis-based storage
+ */
+export interface RateLimitStore {
+  get(key: string): Promise<RateLimitEntry | undefined>;
+  set(key: string, entry: RateLimitEntry): Promise<void>;
+  delete(key: string): Promise<void>;
+  size(): Promise<number>;
+  cleanup(): Promise<void>;
+}
+
+// In-memory store implementation
+class InMemoryRateLimitStore implements RateLimitStore {
+  private store = new Map<string, RateLimitEntry>();
+  private maxSize: number;
+  
+  constructor(maxSize = 10000) {
+    this.maxSize = maxSize;
+  }
+  
+  async get(key: string): Promise<RateLimitEntry | undefined> {
+    return this.store.get(key);
+  }
+  
+  async set(key: string, entry: RateLimitEntry): Promise<void> {
+    // Prevent unbounded memory growth
+    if (this.store.size >= this.maxSize && !this.store.has(key)) {
+      // Remove oldest entries when at capacity
+      const now = Date.now();
+      let removed = 0;
+      for (const [k, v] of this.store.entries()) {
+        if (v.resetTime < now || removed < 100) {
+          this.store.delete(k);
+          removed++;
+        }
+        if (removed >= 100) break;
+      }
+    }
+    this.store.set(key, entry);
+  }
+  
+  async delete(key: string): Promise<void> {
+    this.store.delete(key);
+  }
+  
+  async size(): Promise<number> {
+    return this.store.size;
+  }
+  
+  async cleanup(): Promise<void> {
+    const now = Date.now();
+    for (const [key, entry] of this.store.entries()) {
+      if (entry.resetTime < now) {
+        this.store.delete(key);
+      }
+    }
+  }
+  
+  // For testing and debugging
+  getSync(key: string): RateLimitEntry | undefined {
+    return this.store.get(key);
+  }
+  
+  entries(): IterableIterator<[string, RateLimitEntry]> {
+    return this.store.entries();
+  }
+}
+
+// Create store instance
+// In production with Redis, replace this with RedisRateLimitStore
+const rateLimitStore = new InMemoryRateLimitStore(
+  parseInt(process.env.RATE_LIMIT_MAX_KEYS || "10000", 10)
+);
+
+// Log warning for multi-instance deployments
+if (process.env.NODE_ENV === "production" && !process.env.REDIS_URL) {
+  console.warn(
+    "⚠️ Rate limiter using in-memory store. " +
+    "For multi-instance deployments, set REDIS_URL for shared rate limiting."
+  );
+}
 
 // Default rate limit configurations
 const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
@@ -45,27 +141,61 @@ function cleanupOldEntries(): void {
   if (now - lastCleanup < CLEANUP_INTERVAL) return;
 
   lastCleanup = now;
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (entry.resetTime < now) {
-      rateLimitStore.delete(key);
+  // Use async cleanup but don't wait for it
+  rateLimitStore.cleanup().catch((err) => {
+    console.error("Rate limit cleanup error:", err);
+  });
+}
+
+/**
+ * Sanitize a string for use in rate limit keys
+ * Prevents key injection attacks
+ */
+function sanitizeKeyPart(value: string): string {
+  // Remove any characters that could cause issues in keys
+  return value.replace(/[^a-zA-Z0-9.\-_]/g, "").slice(0, 100);
+}
+
+/**
+ * Extract client IP from request headers
+ * Handles various proxy configurations
+ */
+function getClientIP(request: Request): string {
+  // x-forwarded-for can contain multiple IPs, first one is the client
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const firstIP = forwardedFor.split(",")[0]?.trim();
+    if (firstIP) {
+      return sanitizeKeyPart(firstIP);
     }
   }
+  
+  // Fallback to x-real-ip
+  const realIP = request.headers.get("x-real-ip");
+  if (realIP) {
+    return sanitizeKeyPart(realIP.trim());
+  }
+  
+  return "unknown";
 }
 
 /**
  * Generate a rate limit key from request
+ * Format: endpoint:identifier (shop domain or IP)
  */
 function getRateLimitKey(request: Request, endpoint: string): string {
-  // Use IP address if available, otherwise use a generic key
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const sanitizedEndpoint = sanitizeKeyPart(endpoint);
   
   // For authenticated requests, use shop domain if available
   const shop = request.headers.get("x-shopify-shop-domain");
+  if (shop) {
+    const sanitizedShop = sanitizeKeyPart(shop);
+    return `${sanitizedEndpoint}:shop:${sanitizedShop}`;
+  }
   
-  return shop ? `${endpoint}:${shop}` : `${endpoint}:${ip}`;
+  // Fall back to IP-based rate limiting
+  const ip = getClientIP(request);
+  return `${sanitizedEndpoint}:ip:${ip}`;
 }
 
 /**
@@ -82,6 +212,7 @@ export function checkRateLimit(
   resetTime: number;
   retryAfter: number;
 } {
+  // Trigger async cleanup (non-blocking)
   cleanupOldEntries();
 
   const config = {
@@ -92,7 +223,8 @@ export function checkRateLimit(
   const key = getRateLimitKey(request, endpoint);
   const now = Date.now();
 
-  let entry = rateLimitStore.get(key);
+  // Use sync method for performance (in-memory implementation)
+  let entry = rateLimitStore.getSync(key);
 
   // Create new entry if doesn't exist or expired
   if (!entry || entry.resetTime < now) {
@@ -104,7 +236,11 @@ export function checkRateLimit(
 
   // Increment counter
   entry.count++;
-  rateLimitStore.set(key, entry);
+  
+  // Use async set but don't wait (fire and forget for in-memory)
+  rateLimitStore.set(key, entry).catch((err) => {
+    console.error("Rate limit set error:", err);
+  });
 
   const isLimited = entry.count > config.maxRequests;
   const remaining = Math.max(0, config.maxRequests - entry.count);
@@ -207,11 +343,14 @@ export function withRateLimit<T>(
  */
 export function resetRateLimit(request: Request, endpoint: string): void {
   const key = getRateLimitKey(request, endpoint);
-  rateLimitStore.delete(key);
+  rateLimitStore.delete(key).catch((err) => {
+    console.error("Rate limit reset error:", err);
+  });
 }
 
 /**
  * Get current rate limit stats (for debugging/monitoring)
+ * Note: For Redis implementation, this would need to be async
  */
 export function getRateLimitStats(): {
   totalKeys: number;
@@ -224,7 +363,14 @@ export function getRateLimitStats(): {
   }));
 
   return {
-    totalKeys: rateLimitStore.size,
+    totalKeys: entries.length,
     entries,
   };
+}
+
+/**
+ * Get rate limit configuration for an endpoint
+ */
+export function getRateLimitConfig(endpoint: string): RateLimitConfig {
+  return DEFAULT_CONFIGS[endpoint] || DEFAULT_CONFIGS.api;
 }

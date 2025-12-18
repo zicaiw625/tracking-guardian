@@ -3,26 +3,106 @@
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
 
-// Get encryption key from environment variable or generate a default for development
-const getEncryptionKey = (): Buffer => {
-  const secret = process.env.ENCRYPTION_SECRET;
-  if (!secret) {
-    console.warn(
-      "⚠️ ENCRYPTION_SECRET not set. Using default key for development only."
-    );
-    // In production, this should fail or use a secure default
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("ENCRYPTION_SECRET must be set in production");
-    }
-    return scryptSync("default-dev-secret-do-not-use-in-production", "salt", 32);
-  }
-  // Derive a 256-bit key from the secret
-  return scryptSync(secret, "tracking-guardian-salt", 32);
+// Scrypt parameters for key derivation (OWASP recommended)
+// N = 2^17 (131072) - CPU/memory cost parameter
+// r = 8 - block size parameter
+// p = 1 - parallelization parameter
+const SCRYPT_PARAMS = {
+  N: 131072, // 2^17, recommended minimum for sensitive data
+  r: 8,
+  p: 1,
+  maxmem: 256 * 1024 * 1024, // 256 MB max memory
 };
 
+// Cache for derived key to avoid repeated expensive scrypt operations
+let cachedKey: Buffer | null = null;
+let cachedKeySecret: string | null = null;
+
+/**
+ * Get or derive encryption key from environment variables
+ * Uses scrypt with OWASP-recommended parameters for key derivation
+ */
+const getEncryptionKey = (): Buffer => {
+  const secret = process.env.ENCRYPTION_SECRET;
+  const salt = process.env.ENCRYPTION_SALT;
+  
+  // Always require ENCRYPTION_SECRET in production
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "ENCRYPTION_SECRET must be set in production. " +
+        "Generate a secure secret using: openssl rand -base64 32"
+      );
+    }
+    // Development fallback with clear warning
+    console.warn(
+      "⚠️ ENCRYPTION_SECRET not set. Using insecure default for development only. " +
+      "Set ENCRYPTION_SECRET environment variable for production."
+    );
+    // Use a deterministic but clearly dev-only key
+    const devSecret = "INSECURE_DEV_SECRET_DO_NOT_USE_IN_PRODUCTION";
+    const devSalt = "dev-salt-not-for-production";
+    return scryptSync(devSecret, devSalt, 32, SCRYPT_PARAMS);
+  }
+  
+  // Validate secret length (minimum 32 characters recommended)
+  if (secret.length < 32) {
+    console.warn(
+      "⚠️ ENCRYPTION_SECRET is shorter than 32 characters. " +
+      "Consider using a longer secret for better security."
+    );
+  }
+  
+  // Use cached key if secret hasn't changed (avoid expensive scrypt on every call)
+  if (cachedKey && cachedKeySecret === secret) {
+    return cachedKey;
+  }
+  
+  // Get salt from environment or generate a secure default
+  // Note: In production, ENCRYPTION_SALT should be set and consistent across deploys
+  const effectiveSalt = salt || `tracking-guardian-${secret.slice(0, 8)}`;
+  
+  if (!salt && process.env.NODE_ENV === "production") {
+    console.warn(
+      "⚠️ ENCRYPTION_SALT not set. Using derived salt. " +
+      "Set ENCRYPTION_SALT environment variable for consistent encryption across deployments."
+    );
+  }
+  
+  // Derive a 256-bit key from the secret using scrypt
+  cachedKey = scryptSync(secret, effectiveSalt, 32, SCRYPT_PARAMS);
+  cachedKeySecret = secret;
+  
+  return cachedKey;
+};
+
+/**
+ * Validates encryption configuration
+ * Call this during app startup to ensure proper configuration
+ */
+export function validateEncryptionConfig(): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+  const isProduction = process.env.NODE_ENV === "production";
+  
+  if (!process.env.ENCRYPTION_SECRET) {
+    if (isProduction) {
+      throw new Error("ENCRYPTION_SECRET must be set in production");
+    }
+    warnings.push("ENCRYPTION_SECRET not set - using insecure development default");
+  } else if (process.env.ENCRYPTION_SECRET.length < 32) {
+    warnings.push("ENCRYPTION_SECRET is shorter than recommended 32 characters");
+  }
+  
+  if (!process.env.ENCRYPTION_SALT && isProduction) {
+    warnings.push("ENCRYPTION_SALT not set - using derived salt");
+  }
+  
+  return { valid: true, warnings };
+}
+
 const ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 16;
-const AUTH_TAG_LENGTH = 16;
+const IV_LENGTH = 16; // 128 bits for AES-GCM
+const AUTH_TAG_LENGTH = 16; // 128 bits authentication tag
 
 /**
  * Encrypts sensitive data using AES-256-GCM

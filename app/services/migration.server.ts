@@ -118,11 +118,12 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
 }
 
 // Save pixel configuration to database
+// Note: credentials should be encrypted before passing to this function
 export async function savePixelConfig(
   shopId: string,
   platform: Platform,
   platformId: string,
-  credentials?: Record<string, any>
+  encryptedCredentials?: string
 ) {
   return prisma.pixelConfig.upsert({
     where: {
@@ -133,7 +134,7 @@ export async function savePixelConfig(
     },
     update: {
       platformId,
-      credentials: (credentials || undefined) as any,
+      credentials: encryptedCredentials ?? null,
       migrationStatus: "in_progress",
       updatedAt: new Date(),
     },
@@ -141,7 +142,7 @@ export async function savePixelConfig(
       shopId,
       platform,
       platformId,
-      credentials: (credentials || undefined) as any,
+      credentials: encryptedCredentials ?? null,
       migrationStatus: "in_progress",
     },
   });

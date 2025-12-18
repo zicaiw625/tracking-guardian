@@ -3,30 +3,54 @@ import prisma from "../db.server";
 import type { ScanResult, RiskItem, ScriptTag, CheckoutConfig, RiskSeverity } from "../types";
 
 // Platform detection patterns
-const PLATFORM_PATTERNS = {
+// Each platform has patterns that uniquely identify it
+// Patterns are tested in order - more specific patterns first
+const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
   google: [
-    /gtag\s*\(/i,
-    /google-analytics/i,
-    /googletagmanager/i,
-    /GA4/i,
-    /G-[A-Z0-9]+/i,
-    /AW-[0-9]+/i,
-    /google_conversion/i,
-    /gtm\.js/i,
+    /gtag\s*\(/i,                    // gtag() function call
+    /google-analytics/i,            // GA script reference
+    /googletagmanager/i,            // GTM script reference
+    /G-[A-Z0-9]{10,}/i,            // GA4 Measurement ID (G-XXXXXXXXXX)
+    /AW-\d{9,}/i,                   // Google Ads conversion ID
+    /google_conversion/i,           // Legacy conversion tracking
+    /gtm\.js/i,                     // GTM script file
+    /UA-\d+-\d+/i,                  // Universal Analytics (legacy)
   ],
   meta: [
-    /fbq\s*\(/i,
-    /facebook.*pixel/i,
-    /connect\.facebook\.net/i,
-    /fb-pixel/i,
-    /\d{15,16}/,
+    /fbq\s*\(/i,                    // Meta Pixel function call
+    /facebook\.net\/.*fbevents/i,  // Facebook events script
+    /connect\.facebook\.net/i,      // Facebook connect script
+    /fb-pixel/i,                    // FB pixel reference
+    // Meta Pixel IDs are 15-16 digits, but require context to avoid false positives
+    /pixel[_\-]?id['":\s]+\d{15,16}/i,
   ],
-  tiktok: [/ttq\s*\(/i, /tiktok.*pixel/i, /analytics\.tiktok\.com/i],
-  bing: [/uetq/i, /bing.*uet/i, /bat\.bing\.com/i, /clarity\.ms/i],
-  clarity: [/clarity\s*\(/i, /clarity\.ms/i],
-  pinterest: [/pintrk/i, /pinimg\.com.*tag/i],
-  snapchat: [/snaptr/i, /sc-static\.net.*scevent/i],
-  twitter: [/twq\s*\(/i, /twitter.*pixel/i, /static\.ads-twitter\.com/i],
+  tiktok: [
+    /ttq\s*\(/i,                    // TikTok Pixel function call
+    /tiktok.*pixel/i,               // TikTok pixel reference
+    /analytics\.tiktok\.com/i,      // TikTok analytics domain
+  ],
+  bing: [
+    /uetq/i,                        // UET tag queue
+    /bing.*uet/i,                   // Bing UET reference
+    /bat\.bing\.com/i,              // Bing bat.js domain
+  ],
+  clarity: [
+    /clarity\s*\(/i,                // Clarity function call
+    /clarity\.ms/i,                 // Clarity domain
+  ],
+  pinterest: [
+    /pintrk/i,                      // Pinterest tag
+    /pinimg\.com.*tag/i,            // Pinterest tag image
+  ],
+  snapchat: [
+    /snaptr/i,                      // Snapchat pixel
+    /sc-static\.net.*scevent/i,     // Snapchat event script
+  ],
+  twitter: [
+    /twq\s*\(/i,                    // Twitter pixel function
+    /twitter.*pixel/i,              // Twitter pixel reference
+    /static\.ads-twitter\.com/i,    // Twitter ads domain
+  ],
 };
 
 // Risk assessment rules
@@ -265,9 +289,30 @@ function assessRisks(result: ScanResult): RiskItem[] {
   return risks;
 }
 
+/**
+ * Calculate overall risk score from risk items
+ * Score is 0-100, weighted by severity
+ */
 function calculateRiskScore(riskItems: RiskItem[]): number {
-  const totalPoints = riskItems.reduce((sum, item) => sum + item.points, 0);
-  return Math.min(100, totalPoints);
+  if (riskItems.length === 0) {
+    return 0;
+  }
+  
+  // Severity weights
+  const severityWeight: Record<RiskSeverity, number> = {
+    high: 1.5,
+    medium: 1.0,
+    low: 0.5,
+  };
+  
+  // Calculate weighted points
+  const weightedPoints = riskItems.reduce((sum, item) => {
+    const weight = severityWeight[item.severity] || 1.0;
+    return sum + item.points * weight;
+  }, 0);
+  
+  // Cap at 100
+  return Math.min(100, Math.round(weightedPoints));
 }
 
 async function saveScanReport(

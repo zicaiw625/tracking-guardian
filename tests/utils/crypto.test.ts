@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   encrypt,
   decrypt,
@@ -7,6 +7,7 @@ import {
   hashValue,
   normalizePhone,
   normalizeEmail,
+  validateEncryptionConfig,
 } from "../../app/utils/crypto";
 
 describe("Crypto Utils", () => {
@@ -126,6 +127,85 @@ describe("Crypto Utils", () => {
 
     it("should handle already normalized email", () => {
       expect(normalizeEmail("test@example.com")).toBe("test@example.com");
+    });
+  });
+
+  describe("validateEncryptionConfig", () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      vi.resetModules();
+      process.env = { ...originalEnv };
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    it("should return warnings when ENCRYPTION_SECRET is not set in development", () => {
+      process.env.NODE_ENV = "development";
+      delete process.env.ENCRYPTION_SECRET;
+      
+      const result = validateEncryptionConfig();
+      
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toContain("ENCRYPTION_SECRET not set - using insecure development default");
+    });
+
+    it("should return warning for short ENCRYPTION_SECRET", () => {
+      process.env.NODE_ENV = "development";
+      process.env.ENCRYPTION_SECRET = "short-secret";
+      
+      const result = validateEncryptionConfig();
+      
+      expect(result.valid).toBe(true);
+      expect(result.warnings.some(w => w.includes("shorter than recommended"))).toBe(true);
+    });
+
+    it("should return no warnings when properly configured", () => {
+      process.env.NODE_ENV = "development";
+      process.env.ENCRYPTION_SECRET = "a-very-long-and-secure-secret-key-here";
+      process.env.ENCRYPTION_SALT = "unique-salt-value";
+      
+      const result = validateEncryptionConfig();
+      
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toHaveLength(0);
+    });
+  });
+
+  describe("encryption security", () => {
+    it("should produce ciphertext longer than plaintext (includes IV and auth tag)", () => {
+      const plaintext = "short";
+      const encrypted = encrypt(plaintext);
+      
+      // Encrypted format: iv(32 hex chars):authTag(32 hex chars):ciphertext
+      // So minimum length should be 32 + 1 + 32 + 1 + some ciphertext
+      expect(encrypted.length).toBeGreaterThan(66);
+    });
+
+    it("should fail decryption with tampered ciphertext", () => {
+      const plaintext = "sensitive data";
+      const encrypted = encrypt(plaintext);
+      
+      // Tamper with the ciphertext part
+      const parts = encrypted.split(":");
+      const tamperedCiphertext = parts[2].slice(0, -2) + "ff";
+      const tampered = `${parts[0]}:${parts[1]}:${tamperedCiphertext}`;
+      
+      expect(() => decrypt(tampered)).toThrow();
+    });
+
+    it("should fail decryption with tampered auth tag", () => {
+      const plaintext = "sensitive data";
+      const encrypted = encrypt(plaintext);
+      
+      // Tamper with the auth tag
+      const parts = encrypted.split(":");
+      const tamperedAuthTag = "00".repeat(16);
+      const tampered = `${parts[0]}:${tamperedAuthTag}:${parts[2]}`;
+      
+      expect(() => decrypt(tampered)).toThrow();
     });
   });
 });

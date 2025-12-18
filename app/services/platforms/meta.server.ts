@@ -1,47 +1,119 @@
 // Meta (Facebook) Conversions API integration
 
-import type { ConversionData, MetaCredentials } from "../../types";
-import { hashValue, normalizePhone } from "../../utils/crypto";
+import type { ConversionData, MetaCredentials, ConversionApiResponse } from "../../types";
+import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto";
 
+// API configuration
+const META_API_VERSION = "v18.0";
+const META_API_TIMEOUT_MS = 30000; // 30 seconds
+
+// User data field types for Meta CAPI
+interface MetaUserData {
+  em?: string[];  // hashed email
+  ph?: string[];  // hashed phone
+  fn?: string[];  // hashed first name
+  ln?: string[];  // hashed last name
+  ct?: string[];  // hashed city
+  st?: string[];  // hashed state
+  country?: string[];  // hashed country
+  zp?: string[];  // hashed zip
+}
+
+/**
+ * Builds hashed user data for Meta Conversions API
+ * All PII is normalized and hashed with SHA-256 before sending
+ */
+async function buildHashedUserData(conversionData: ConversionData): Promise<MetaUserData> {
+  const userData: MetaUserData = {};
+  
+  // Hash email (normalize: lowercase, trim)
+  if (conversionData.email) {
+    userData.em = [await hashValue(normalizeEmail(conversionData.email))];
+  }
+  
+  // Hash phone (normalize: remove non-digits except +)
+  if (conversionData.phone) {
+    userData.ph = [await hashValue(normalizePhone(conversionData.phone))];
+  }
+  
+  // Hash first name (normalize: lowercase, trim)
+  if (conversionData.firstName) {
+    const normalized = conversionData.firstName.toLowerCase().trim();
+    if (normalized) {
+      userData.fn = [await hashValue(normalized)];
+    }
+  }
+  
+  // Hash last name (normalize: lowercase, trim)
+  if (conversionData.lastName) {
+    const normalized = conversionData.lastName.toLowerCase().trim();
+    if (normalized) {
+      userData.ln = [await hashValue(normalized)];
+    }
+  }
+  
+  // Hash city (normalize: lowercase, remove spaces)
+  if (conversionData.city) {
+    const normalized = conversionData.city.toLowerCase().replace(/\s/g, '');
+    if (normalized) {
+      userData.ct = [await hashValue(normalized)];
+    }
+  }
+  
+  // Hash state (normalize: lowercase)
+  if (conversionData.state) {
+    const normalized = conversionData.state.toLowerCase().trim();
+    if (normalized) {
+      userData.st = [await hashValue(normalized)];
+    }
+  }
+  
+  // Hash country (normalize: lowercase, 2-letter code)
+  if (conversionData.country) {
+    const normalized = conversionData.country.toLowerCase().trim();
+    if (normalized) {
+      userData.country = [await hashValue(normalized)];
+    }
+  }
+  
+  // Hash zip (normalize: remove spaces)
+  if (conversionData.zip) {
+    const normalized = conversionData.zip.replace(/\s/g, '');
+    if (normalized) {
+      userData.zp = [await hashValue(normalized)];
+    }
+  }
+  
+  return userData;
+}
+
+/**
+ * Sends conversion data to Meta Conversions API
+ * 
+ * Security notes:
+ * - All PII is hashed with SHA-256 before transmission
+ * - Access token is sent via secure header, not URL parameter
+ * - Request has timeout to prevent hanging
+ */
 export async function sendConversionToMeta(
   credentials: MetaCredentials | null,
   conversionData: ConversionData
-): Promise<any> {
+): Promise<ConversionApiResponse> {
   if (!credentials?.pixelId || !credentials?.accessToken) {
     throw new Error("Meta Pixel credentials not configured");
+  }
+
+  // Validate pixel ID format (should be 15-16 digits)
+  if (!/^\d{15,16}$/.test(credentials.pixelId)) {
+    throw new Error("Invalid Meta Pixel ID format");
   }
 
   const eventTime = Math.floor(Date.now() / 1000);
 
   // Build user data with hashed PII
-  const userData: any = {};
-  
-  if (conversionData.email) {
-    userData.em = [await hashValue(conversionData.email.toLowerCase().trim())];
-  }
-  if (conversionData.phone) {
-    userData.ph = [await hashValue(normalizePhone(conversionData.phone))];
-  }
-  if (conversionData.firstName) {
-    userData.fn = [await hashValue(conversionData.firstName.toLowerCase())];
-  }
-  if (conversionData.lastName) {
-    userData.ln = [await hashValue(conversionData.lastName.toLowerCase())];
-  }
-  if (conversionData.city) {
-    userData.ct = [await hashValue(conversionData.city.toLowerCase().replace(/\s/g, ''))];
-  }
-  if (conversionData.state) {
-    userData.st = [await hashValue(conversionData.state.toLowerCase())];
-  }
-  if (conversionData.country) {
-    userData.country = [await hashValue(conversionData.country.toLowerCase())];
-  }
-  if (conversionData.zip) {
-    userData.zp = [await hashValue(conversionData.zip.replace(/\s/g, ''))];
-  }
+  const userData = await buildHashedUserData(conversionData);
 
-  // Build contents array for product data
+  // Build contents array for product data (no PII)
   const contents = conversionData.lineItems?.map((item) => ({
     id: item.productId,
     quantity: item.quantity,
@@ -67,24 +139,55 @@ export async function sendConversionToMeta(
     ...(credentials.testEventCode && { test_event_code: credentials.testEventCode }),
   };
 
-  // Make the API call to Meta Conversions API
-  const response = await fetch(
-    `https://graph.facebook.com/v18.0/${credentials.pixelId}/events?access_token=${credentials.accessToken}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(eventPayload),
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), META_API_TIMEOUT_MS);
+
+  try {
+    // Make the API call to Meta Conversions API
+    // Note: Using access_token as query param is required by Meta's API design
+    // The token is sent over HTTPS so it's encrypted in transit
+    const response = await fetch(
+      `https://graph.facebook.com/${META_API_VERSION}/${credentials.pixelId}/events`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Meta requires access_token as query param, but we can also include it in header
+          // for additional security layers that inspect headers
+          "Authorization": `Bearer ${credentials.accessToken}`,
+        },
+        body: JSON.stringify({
+          ...eventPayload,
+          access_token: credentials.accessToken,
+        }),
+        signal: controller.signal,
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      // Don't log the full error as it might contain sensitive info
+      const errorMessage = errorData.error?.message || "Unknown Meta API error";
+      throw new Error(`Meta API error: ${errorMessage}`);
     }
-  );
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Meta API error: ${JSON.stringify(errorData)}`);
+    const result = await response.json();
+    
+    return {
+      success: true,
+      events_received: result.events_received,
+      fbtrace_id: result.fbtrace_id,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Meta API request timeout after ${META_API_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return await response.json();
 }
 
 // Generate Web Pixel code for Meta

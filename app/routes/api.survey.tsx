@@ -4,6 +4,121 @@ import prisma from "../db.server";
 import type { SurveyResponseData } from "../types";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 
+// Valid source options for survey
+const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
+
+// Maximum lengths for text fields to prevent abuse
+const MAX_ORDER_ID_LENGTH = 64;
+const MAX_ORDER_NUMBER_LENGTH = 32;
+const MAX_FEEDBACK_LENGTH = 2000;
+const MAX_SOURCE_LENGTH = 50;
+
+/**
+ * Validates and sanitizes survey input data
+ * Returns sanitized data or throws an error with a message
+ */
+function validateSurveyInput(body: unknown): SurveyResponseData {
+  if (!body || typeof body !== "object") {
+    throw new Error("Invalid request body");
+  }
+
+  const data = body as Record<string, unknown>;
+
+  // Validate orderId (required)
+  if (!data.orderId || typeof data.orderId !== "string") {
+    throw new Error("Missing or invalid orderId");
+  }
+  
+  const orderId = data.orderId.trim();
+  if (orderId.length === 0 || orderId.length > MAX_ORDER_ID_LENGTH) {
+    throw new Error(`orderId must be 1-${MAX_ORDER_ID_LENGTH} characters`);
+  }
+  
+  // Check for potential injection patterns in orderId
+  if (!/^[a-zA-Z0-9_\-:.]+$/.test(orderId)) {
+    throw new Error("orderId contains invalid characters");
+  }
+
+  // Validate orderNumber (optional)
+  let orderNumber: string | undefined;
+  if (data.orderNumber !== undefined) {
+    if (typeof data.orderNumber !== "string") {
+      throw new Error("Invalid orderNumber type");
+    }
+    orderNumber = data.orderNumber.trim().slice(0, MAX_ORDER_NUMBER_LENGTH);
+  }
+
+  // Validate rating (optional, must be 1-5 if provided)
+  let rating: number | undefined;
+  if (data.rating !== undefined) {
+    if (typeof data.rating !== "number" || !Number.isInteger(data.rating)) {
+      throw new Error("Rating must be an integer");
+    }
+    if (data.rating < 1 || data.rating > 5) {
+      throw new Error("Rating must be between 1 and 5");
+    }
+    rating = data.rating;
+  }
+
+  // Validate feedback (optional)
+  let feedback: string | undefined;
+  if (data.feedback !== undefined) {
+    if (typeof data.feedback !== "string") {
+      throw new Error("Invalid feedback type");
+    }
+    // Sanitize feedback - remove potential XSS
+    feedback = data.feedback
+      .trim()
+      .slice(0, MAX_FEEDBACK_LENGTH)
+      .replace(/<[^>]*>/g, ""); // Strip HTML tags
+  }
+
+  // Validate source (optional)
+  let source: string | undefined;
+  if (data.source !== undefined) {
+    if (typeof data.source !== "string") {
+      throw new Error("Invalid source type");
+    }
+    source = data.source.trim().toLowerCase().slice(0, MAX_SOURCE_LENGTH);
+    // Validate against known sources or accept custom but sanitized
+    if (source && !VALID_SOURCES.includes(source)) {
+      // Accept custom source but sanitize it
+      source = source.replace(/[^a-zA-Z0-9_\-\s]/g, "");
+    }
+  }
+
+  // Validate customAnswers (optional)
+  let customAnswers: Record<string, unknown> | undefined;
+  if (data.customAnswers !== undefined) {
+    if (typeof data.customAnswers !== "object" || Array.isArray(data.customAnswers)) {
+      throw new Error("Invalid customAnswers type");
+    }
+    // Limit the size of customAnswers to prevent abuse
+    const customAnswersStr = JSON.stringify(data.customAnswers);
+    if (customAnswersStr.length > 10000) {
+      throw new Error("customAnswers too large");
+    }
+    customAnswers = data.customAnswers as Record<string, unknown>;
+  }
+
+  return {
+    orderId,
+    orderNumber,
+    rating,
+    feedback,
+    source,
+    customAnswers,
+  };
+}
+
+/**
+ * Validates shop domain format
+ */
+function isValidShopDomain(domain: string): boolean {
+  // Shopify domains follow pattern: store-name.myshopify.com
+  return /^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/.test(domain);
+}
+
 /**
  * API endpoint for saving survey responses from checkout extensions
  * This endpoint is called from the Thank You page survey block
@@ -21,33 +136,53 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    // Get the shop domain from the request
+    // Get and validate the shop domain from the request
     const shopHeader = request.headers.get("X-Shopify-Shop-Domain");
     if (!shopHeader) {
       return json({ error: "Missing shop domain header" }, { status: 400 });
     }
 
-    // Parse the request body
-    const body = await request.json() as SurveyResponseData;
-
-    if (!body.orderId) {
-      return json({ error: "Missing orderId" }, { status: 400 });
+    // Validate shop domain format to prevent header injection
+    if (!isValidShopDomain(shopHeader)) {
+      console.warn(`Invalid shop domain format: ${shopHeader}`);
+      return json({ error: "Invalid shop domain format" }, { status: 400 });
     }
 
-    // Find the shop
+    // Parse and validate the request body
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    let validatedData: SurveyResponseData;
+    try {
+      validatedData = validateSurveyInput(rawBody);
+    } catch (validationError) {
+      const message = validationError instanceof Error ? validationError.message : "Validation failed";
+      return json({ error: message }, { status: 400 });
+    }
+
+    // Find the shop - only find active shops
     const shop = await prisma.shop.findUnique({
       where: { shopDomain: shopHeader },
+      select: { id: true, isActive: true },
     });
 
     if (!shop) {
       return json({ error: "Shop not found" }, { status: 404 });
     }
 
+    if (!shop.isActive) {
+      return json({ error: "Shop is not active" }, { status: 403 });
+    }
+
     // Check if survey response already exists for this order
     const existingResponse = await prisma.surveyResponse.findFirst({
       where: {
         shopId: shop.id,
-        orderId: body.orderId,
+        orderId: validatedData.orderId,
       },
     });
 
@@ -56,10 +191,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const updated = await prisma.surveyResponse.update({
         where: { id: existingResponse.id },
         data: {
-          rating: body.rating ?? existingResponse.rating,
-          feedback: body.feedback ?? existingResponse.feedback,
-          source: body.source ?? existingResponse.source,
-          customAnswers: body.customAnswers ? JSON.parse(JSON.stringify(body.customAnswers)) : existingResponse.customAnswers,
+          rating: validatedData.rating ?? existingResponse.rating,
+          feedback: validatedData.feedback ?? existingResponse.feedback,
+          source: validatedData.source ?? existingResponse.source,
+          customAnswers: validatedData.customAnswers 
+            ? JSON.parse(JSON.stringify(validatedData.customAnswers)) 
+            : existingResponse.customAnswers,
         },
       });
 
@@ -74,16 +211,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const surveyResponse = await prisma.surveyResponse.create({
       data: {
         shopId: shop.id,
-        orderId: body.orderId,
-        orderNumber: body.orderNumber,
-        rating: body.rating,
-        feedback: body.feedback,
-        source: body.source,
-        customAnswers: body.customAnswers ? JSON.parse(JSON.stringify(body.customAnswers)) : undefined,
+        orderId: validatedData.orderId,
+        orderNumber: validatedData.orderNumber,
+        rating: validatedData.rating,
+        feedback: validatedData.feedback,
+        source: validatedData.source,
+        customAnswers: validatedData.customAnswers 
+          ? JSON.parse(JSON.stringify(validatedData.customAnswers)) 
+          : undefined,
       },
     });
 
-    console.log(`Survey response saved: shop=${shopHeader}, order=${body.orderId}, rating=${body.rating}, source=${body.source}`);
+    // Log without sensitive data
+    console.log(
+      `Survey response saved: shop=${shopHeader}, orderId=${validatedData.orderId.slice(0, 8)}..., ` +
+      `hasRating=${validatedData.rating !== undefined}, hasSource=${validatedData.source !== undefined}`
+    );
 
     return json({
       success: true,
@@ -91,12 +234,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       id: surveyResponse.id,
     });
   } catch (error) {
+    // Don't expose internal error details to clients
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Survey API error:", errorMessage);
+    
     return json(
       {
         success: false,
-        error: errorMessage,
+        error: "An error occurred processing your request",
       },
       { status: 500 }
     );

@@ -9,6 +9,19 @@ register(({ analytics, browser, settings, init }) => {
   const tiktokPixelId = settings.tiktok_pixel_id;
   const bingTagId = settings.bing_tag_id;
 
+  /**
+   * Safely execute a platform-specific tracking call
+   * Isolates errors so one platform failure doesn't affect others
+   */
+  function safeTrack(platformName: string, trackFn: () => void): void {
+    try {
+      trackFn();
+    } catch (error) {
+      // Log error but don't throw - isolate platform failures
+      console.error(`[Tracking Guardian] ${platformName} tracking error:`, error);
+    }
+  }
+
   // ==========================================
   // GOOGLE ANALYTICS 4 & GOOGLE ADS
   // ==========================================

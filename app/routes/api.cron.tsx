@@ -9,30 +9,51 @@ import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 /**
  * Validates the cron request authorization
  * Returns an error response if unauthorized, null if authorized
+ * 
+ * SECURITY NOTE: We require CRON_SECRET for all requests.
+ * The x-vercel-cron header alone is NOT sufficient as it can be spoofed.
+ * Vercel Cron jobs should be configured to include the Authorization header.
  */
 function validateCronAuth(request: Request): Response | null {
   const authHeader = request.headers.get("Authorization");
   const cronSecret = process.env.CRON_SECRET;
+  const isProduction = process.env.NODE_ENV === "production";
 
-  // SECURITY FIX: Always require CRON_SECRET to be set
+  // Always require CRON_SECRET to be set in production
   if (!cronSecret) {
-    console.error("CRON_SECRET environment variable is not set");
-    return json(
-      { error: "Cron endpoint not configured. Set CRON_SECRET environment variable." },
-      { status: 503 }
-    ) as unknown as Response;
-  }
-
-  // Check for Vercel Cron header (Vercel sends this header for cron jobs)
-  const vercelCronHeader = request.headers.get("x-vercel-cron");
-  if (vercelCronHeader === "true") {
-    // Vercel Cron requests are trusted
+    if (isProduction) {
+      console.error("CRITICAL: CRON_SECRET environment variable is not set in production");
+      return json(
+        { error: "Cron endpoint not configured" },
+        { status: 503 }
+      ) as unknown as Response;
+    }
+    // In development, allow without auth but warn
+    console.warn("⚠️ CRON_SECRET not set. Allowing unauthenticated access in development only.");
     return null;
   }
 
-  // Check Bearer token authorization
+  // Validate secret length
+  if (cronSecret.length < 32) {
+    console.warn("⚠️ CRON_SECRET is shorter than recommended 32 characters");
+  }
+
+  // Always verify the Authorization header - x-vercel-cron header can be spoofed
+  // For Vercel Cron, configure the cron job to include:
+  // headers: { "Authorization": "Bearer YOUR_CRON_SECRET" }
   if (authHeader !== `Bearer ${cronSecret}`) {
-    console.warn(`Unauthorized cron access attempt from ${request.headers.get("x-forwarded-for") || "unknown"}`);
+    const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+                     request.headers.get("x-real-ip") || 
+                     "unknown";
+    const vercelCronHeader = request.headers.get("x-vercel-cron");
+    
+    // Log the attempt with relevant details for security monitoring
+    console.warn(
+      `Unauthorized cron access attempt: IP=${clientIP}, ` +
+      `hasVercelHeader=${!!vercelCronHeader}, ` +
+      `hasAuthHeader=${!!authHeader}`
+    );
+    
     return json({ error: "Unauthorized" }, { status: 401 }) as unknown as Response;
   }
 

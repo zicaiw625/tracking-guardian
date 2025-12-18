@@ -27,6 +27,9 @@ model Session {
   locale        String?
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
+
+  // Performance: Index for shop lookups (common in webhook/auth flows)
+  @@index([shop])
 }
 
 // Shop information and subscription status
@@ -212,6 +215,8 @@ model ReconciliationReport {
   @@index([shopId])
   @@index([platform])
   @@index([reportDate])
+  // Performance: Composite index for date range queries by shop
+  @@index([shopId, reportDate])
 }
 
 // Post-purchase survey responses
@@ -233,5 +238,9 @@ model SurveyResponse {
   
   @@index([shopId])
   @@index([orderId])
+  // Performance: Composite index for checking existing response by shop+order
+  @@index([shopId, orderId])
+  // Analytics: Index for date-based analytics queries
+  @@index([shopId, createdAt])
 }
 

@@ -8,6 +8,32 @@ import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto";
 const GOOGLE_ADS_API_VERSION = "v15";
 const GOOGLE_ADS_API_BASE = "https://googleads.googleapis.com";
 
+// Timeout configuration
+const API_TIMEOUT_MS = 30000; // 30 seconds
+const TOKEN_REFRESH_TIMEOUT_MS = 10000; // 10 seconds for token refresh
+
+/**
+ * Fetch with timeout support
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 interface UserIdentifier {
   hashedEmail?: string;
   hashedPhoneNumber?: string;
@@ -119,11 +145,11 @@ export async function sendConversionToGoogle(
   // Check if we have developer token and access credentials for real API call
   if (credentials.developerToken && credentials.refreshToken) {
     try {
-      // Get access token using refresh token
+      // Get access token using refresh token (with timeout)
       const accessToken = await getGoogleAccessToken(credentials);
       
-      // Make the API call
-      const response = await fetch(
+      // Make the API call with timeout
+      const response = await fetchWithTimeout(
         `${GOOGLE_ADS_API_BASE}/${GOOGLE_ADS_API_VERSION}/customers/${credentials.customerId}:uploadConversionAdjustments`,
         {
           method: "POST",
@@ -134,17 +160,20 @@ export async function sendConversionToGoogle(
             "login-customer-id": credentials.customerId,
           },
           body: JSON.stringify(payload),
-        }
+        },
+        API_TIMEOUT_MS
       );
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Google Ads API error:", errorData);
-        throw new Error(`Google Ads API error: ${JSON.stringify(errorData)}`);
+        // Don't log full error to avoid leaking sensitive info
+        const errorMessage = errorData.error?.message || "Unknown error";
+        console.error(`Google Ads API error: ${errorMessage}`);
+        throw new Error(`Google Ads API error: ${errorMessage}`);
       }
 
       const result = await response.json();
-      console.log("Google Ads conversion uploaded successfully:", result);
+      console.log(`Google Ads conversion uploaded: order=${conversionData.orderId}`);
       
       return {
         success: true,
@@ -152,6 +181,9 @@ export async function sendConversionToGoogle(
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(`Google Ads API request timeout after ${API_TIMEOUT_MS}ms`);
+      }
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       console.error("Failed to send conversion to Google Ads:", errorMessage);
       throw new Error(`Google Ads API call failed: ${errorMessage}`);
@@ -196,7 +228,7 @@ async function sendToGA4MeasurementProtocol(
   };
 
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`,
       {
         method: "POST",
@@ -204,12 +236,13 @@ async function sendToGA4MeasurementProtocol(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-      }
+      },
+      API_TIMEOUT_MS
     );
 
     // GA4 Measurement Protocol returns 204 No Content on success
     if (response.status === 204 || response.ok) {
-      console.log("GA4 Measurement Protocol: conversion sent successfully");
+      console.log(`GA4 Measurement Protocol: conversion sent for order=${conversionData.orderId}`);
       return {
         success: true,
         conversionId: conversionData.orderId,
@@ -217,9 +250,12 @@ async function sendToGA4MeasurementProtocol(
       };
     } else {
       const errorText = await response.text();
-      throw new Error(`GA4 Measurement Protocol error: ${response.status} ${errorText}`);
+      throw new Error(`GA4 Measurement Protocol error: ${response.status}`);
     }
   } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`GA4 Measurement Protocol timeout after ${API_TIMEOUT_MS}ms`);
+    }
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("GA4 Measurement Protocol failed:", errorMessage);
     throw new Error(`GA4 Measurement Protocol failed: ${errorMessage}`);
@@ -234,26 +270,38 @@ async function getGoogleAccessToken(credentials: GoogleCredentials): Promise<str
     throw new Error("Missing OAuth2 credentials for Google Ads API");
   }
 
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      client_id: credentials.clientId,
-      client_secret: credentials.clientSecret,
-      refresh_token: credentials.refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
+  try {
+    const response = await fetchWithTimeout(
+      "https://oauth2.googleapis.com/token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          client_id: credentials.clientId,
+          client_secret: credentials.clientSecret,
+          refresh_token: credentials.refreshToken,
+          grant_type: "refresh_token",
+        }),
+      },
+      TOKEN_REFRESH_TIMEOUT_MS
+    );
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Failed to refresh Google access token: ${JSON.stringify(errorData)}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = errorData.error_description || errorData.error || "Unknown error";
+      throw new Error(`Failed to refresh Google access token: ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    return data.access_token;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Google token refresh timeout after ${TOKEN_REFRESH_TIMEOUT_MS}ms`);
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  return data.access_token;
 }
 
 /**

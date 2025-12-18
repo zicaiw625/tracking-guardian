@@ -1,29 +1,55 @@
 // TikTok Events API integration
 
-import type { ConversionData, TikTokCredentials } from "../../types";
-import { hashValue, normalizePhone } from "../../utils/crypto";
+import type { ConversionData, TikTokCredentials, ConversionApiResponse } from "../../types";
+import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto";
 
+// Timeout configuration
+const TIKTOK_API_TIMEOUT_MS = 30000; // 30 seconds
+
+// TikTok user data interface
+interface TikTokUserData {
+  email?: string;  // SHA-256 hashed
+  phone_number?: string;  // SHA-256 hashed
+}
+
+/**
+ * Builds hashed user data for TikTok Events API
+ */
+async function buildHashedUserData(conversionData: ConversionData): Promise<TikTokUserData> {
+  const user: TikTokUserData = {};
+  
+  if (conversionData.email) {
+    user.email = await hashValue(normalizeEmail(conversionData.email));
+  }
+  if (conversionData.phone) {
+    user.phone_number = await hashValue(normalizePhone(conversionData.phone));
+  }
+  
+  return user;
+}
+
+/**
+ * Sends conversion data to TikTok Events API
+ */
 export async function sendConversionToTikTok(
   credentials: TikTokCredentials | null,
   conversionData: ConversionData
-): Promise<any> {
+): Promise<ConversionApiResponse> {
   if (!credentials?.pixelId || !credentials?.accessToken) {
     throw new Error("TikTok Pixel credentials not configured");
+  }
+
+  // Validate pixel ID format
+  if (!/^[A-Z0-9]{20,}$/i.test(credentials.pixelId)) {
+    throw new Error("Invalid TikTok Pixel ID format");
   }
 
   const timestamp = new Date().toISOString();
 
   // Build user data with hashed PII
-  const user: any = {};
-  
-  if (conversionData.email) {
-    user.email = await hashValue(conversionData.email.toLowerCase().trim());
-  }
-  if (conversionData.phone) {
-    user.phone_number = await hashValue(normalizePhone(conversionData.phone));
-  }
+  const user = await buildHashedUserData(conversionData);
 
-  // Build contents array
+  // Build contents array (no PII)
   const contents = conversionData.lineItems?.map((item) => ({
     content_id: item.productId,
     content_name: item.name,
@@ -49,25 +75,49 @@ export async function sendConversionToTikTok(
     ...(credentials.testEventCode && { test_event_code: credentials.testEventCode }),
   };
 
-  // Make the API call to TikTok Events API
-  const response = await fetch(
-    "https://business-api.tiktok.com/open_api/v1.3/pixel/track/",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Token": credentials.accessToken,
-      },
-      body: JSON.stringify({ data: [eventPayload] }),
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIKTOK_API_TIMEOUT_MS);
+
+  try {
+    // Make the API call to TikTok Events API
+    const response = await fetch(
+      "https://business-api.tiktok.com/open_api/v1.3/pixel/track/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Token": credentials.accessToken,
+        },
+        body: JSON.stringify({ data: [eventPayload] }),
+        signal: controller.signal,
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      // Don't expose full error details
+      const errorMessage = errorData.message || "Unknown TikTok API error";
+      throw new Error(`TikTok API error: ${errorMessage}`);
     }
-  );
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`TikTok API error: ${JSON.stringify(errorData)}`);
+    const result = await response.json();
+    
+    console.log(`TikTok conversion sent: order=${conversionData.orderId}`);
+    
+    return {
+      success: true,
+      conversionId: conversionData.orderId,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`TikTok API request timeout after ${TIKTOK_API_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return await response.json();
 }
 
 // Generate Web Pixel code for TikTok

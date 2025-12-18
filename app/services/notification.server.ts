@@ -235,7 +235,7 @@ async function sendTelegramAlert(
 // Test notification channel
 export async function testNotification(
   channel: string,
-  settings: any
+  settings: EmailAlertSettings | SlackAlertSettings | TelegramAlertSettings
 ): Promise<{ success: boolean; message: string }> {
   const testData: AlertData = {
     platform: "测试平台",
