@@ -19,7 +19,9 @@
 创建 `.env` 文件:
 
 ```env
-# Shopify Configuration
+# ===========================================
+# Shopify Configuration (REQUIRED)
+# ===========================================
 SHOPIFY_API_KEY=your_api_key_here
 SHOPIFY_API_SECRET=your_api_secret_here
 SCOPES=read_orders,read_script_tags,write_script_tags,read_checkouts,write_pixels,read_customer_events
@@ -27,17 +29,39 @@ SCOPES=read_orders,read_script_tags,write_script_tags,read_checkouts,write_pixel
 # App URL (开发时使用 ngrok/cloudflare tunnel)
 SHOPIFY_APP_URL=https://your-app-url.com
 
-# Database (PostgreSQL)
+# Development store URL (for shopify.app.toml)
+SHOPIFY_DEV_STORE_URL=your-dev-store.myshopify.com
+
+# ===========================================
+# Database (REQUIRED)
+# ===========================================
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 
-# Optional: Notification Services
+# ===========================================
+# Security (REQUIRED in production)
+# ===========================================
+# Encryption key for sensitive data
+# Generate with: openssl rand -base64 32
+ENCRYPTION_SECRET=your_encryption_secret_key_here
+
+# Cron endpoint authentication
+# Generate with: openssl rand -hex 32
+CRON_SECRET=your_random_secret_for_cron
+
+# ===========================================
+# Notification Services (Optional)
+# ===========================================
+# Email notifications via Resend
 RESEND_API_KEY=your_resend_api_key
+# Custom email sender (must be verified domain)
+EMAIL_SENDER=Tracking Guardian <alerts@yourdomain.com>
+
+# Slack notifications
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx
+
+# Telegram notifications
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
-
-# Optional: Cron Secret
-CRON_SECRET=your_random_secret_for_cron
 ```
 
 ### 4. 安装依赖并初始化数据库

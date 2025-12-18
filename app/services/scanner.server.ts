@@ -1,5 +1,6 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
+import type { ScanResult, RiskItem, ScriptTag, CheckoutConfig, RiskSeverity } from "../types";
 
 // Platform detection patterns
 const PLATFORM_PATTERNS = {
@@ -29,7 +30,15 @@ const PLATFORM_PATTERNS = {
 };
 
 // Risk assessment rules
-const RISK_RULES = [
+interface RiskRule {
+  id: string;
+  name: string;
+  description: string;
+  severity: RiskSeverity;
+  points: number;
+}
+
+const RISK_RULES: RiskRule[] = [
   {
     id: "deprecated_script_tag",
     name: "已废弃的 ScriptTag",
@@ -67,29 +76,21 @@ const RISK_RULES = [
   },
 ];
 
-export interface ScanResult {
-  scriptTags: any[];
-  additionalScripts: any;
-  checkoutConfig: any;
-  identifiedPlatforms: string[];
-  riskItems: RiskItem[];
-  riskScore: number;
-}
+// Re-export types from types module
+export type { ScanResult, RiskItem } from "../types";
 
-export interface RiskItem {
-  id: string;
-  name: string;
-  description: string;
-  severity: "high" | "medium" | "low";
-  points: number;
-  details?: string;
-  platform?: string;
+// Error tracking for scan
+interface ScanError {
+  stage: string;
+  message: string;
+  timestamp: Date;
 }
 
 export async function scanShopTracking(
   admin: AdminApiContext,
   shopId: string
 ): Promise<ScanResult> {
+  const errors: ScanError[] = [];
   const result: ScanResult = {
     scriptTags: [],
     additionalScripts: null,
@@ -99,15 +100,24 @@ export async function scanShopTracking(
     riskScore: 0,
   };
 
+  console.log(`Starting scan for shop ${shopId}`);
+
   // 1. Fetch ScriptTags using REST API
   try {
     const scriptTagsResponse = await admin.rest.get({
       path: "script_tags",
     });
-    const body = scriptTagsResponse.body as { script_tags?: any[] } | null;
+    const body = scriptTagsResponse.body as { script_tags?: ScriptTag[] } | null;
     result.scriptTags = body?.script_tags || [];
+    console.log(`Found ${result.scriptTags.length} script tags`);
   } catch (error) {
-    console.error("Error fetching script tags:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error fetching script tags:", errorMessage);
+    errors.push({
+      stage: "script_tags",
+      message: errorMessage,
+      timestamp: new Date(),
+    });
   }
 
   // 2. Fetch checkout configuration using GraphQL
@@ -125,21 +135,37 @@ export async function scanShopTracking(
     `
     );
     const checkoutData = await checkoutResponse.json();
-    result.checkoutConfig = checkoutData.data?.shop;
+    result.checkoutConfig = checkoutData.data?.shop as CheckoutConfig;
+    console.log(`Checkout config fetched successfully`);
   } catch (error) {
-    console.error("Error fetching checkout config:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error fetching checkout config:", errorMessage);
+    errors.push({
+      stage: "checkout_config",
+      message: errorMessage,
+      timestamp: new Date(),
+    });
   }
 
   // 3. Analyze scripts for platform detection
   const allScriptContent = collectScriptContent(result);
   result.identifiedPlatforms = detectPlatforms(allScriptContent);
+  console.log(`Identified platforms: ${result.identifiedPlatforms.join(", ") || "none"}`);
 
   // 4. Assess risks
   result.riskItems = assessRisks(result);
   result.riskScore = calculateRiskScore(result.riskItems);
+  console.log(`Risk assessment complete: score=${result.riskScore}, items=${result.riskItems.length}`);
 
   // 5. Save scan report to database
-  await saveScanReport(shopId, result);
+  try {
+    await saveScanReport(shopId, result, errors.length > 0 ? JSON.stringify(errors) : null);
+    console.log(`Scan report saved for shop ${shopId}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error saving scan report:", errorMessage);
+    throw new Error(`Failed to save scan report: ${errorMessage}`);
+  }
 
   return result;
 }
@@ -244,17 +270,22 @@ function calculateRiskScore(riskItems: RiskItem[]): number {
   return Math.min(100, totalPoints);
 }
 
-async function saveScanReport(shopId: string, result: ScanResult) {
+async function saveScanReport(
+  shopId: string,
+  result: ScanResult,
+  errorMessage: string | null = null
+): Promise<void> {
   await prisma.scanReport.create({
     data: {
       shopId,
-      scriptTags: result.scriptTags as any,
-      additionalScripts: result.additionalScripts as any,
-      checkoutConfig: result.checkoutConfig as any,
-      identifiedPlatforms: result.identifiedPlatforms as any,
-      riskItems: result.riskItems as any,
+      scriptTags: JSON.parse(JSON.stringify(result.scriptTags)),
+      additionalScripts: result.additionalScripts ? JSON.parse(JSON.stringify(result.additionalScripts)) : undefined,
+      checkoutConfig: result.checkoutConfig ? JSON.parse(JSON.stringify(result.checkoutConfig)) : undefined,
+      identifiedPlatforms: result.identifiedPlatforms,
+      riskItems: JSON.parse(JSON.stringify(result.riskItems)),
       riskScore: result.riskScore,
-      status: "completed",
+      status: errorMessage ? "completed_with_errors" : "completed",
+      errorMessage,
       completedAt: new Date(),
     },
   });

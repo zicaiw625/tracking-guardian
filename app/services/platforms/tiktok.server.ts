@@ -1,32 +1,7 @@
 // TikTok Events API integration
 
-interface ConversionData {
-  orderId: string;
-  orderNumber: string | null;
-  value: number;
-  currency: string;
-  email?: string;
-  phone?: string;
-  firstName?: string;
-  lastName?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  zip?: string;
-  lineItems?: Array<{
-    productId: string;
-    variantId: string;
-    name: string;
-    quantity: number;
-    price: number;
-  }>;
-}
-
-interface TikTokCredentials {
-  pixelId: string;
-  accessToken: string;
-  testEventCode?: string;
-}
+import type { ConversionData, TikTokCredentials } from "../../types";
+import { hashValue, normalizePhone } from "../../utils/crypto";
 
 export async function sendConversionToTikTok(
   credentials: TikTokCredentials | null,
@@ -178,16 +153,5 @@ register(({analytics, browser, settings}) => {
 `;
 }
 
-// Helper functions
-async function hashValue(value: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(value);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function normalizePhone(phone: string): string {
-  return phone.replace(/[^\d]/g, "");
-}
+// Helper functions imported from utils/crypto
 

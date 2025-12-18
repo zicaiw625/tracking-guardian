@@ -1,27 +1,27 @@
 // Notification service for sending alerts via email, Slack, and Telegram
 
 import { Resend } from "resend";
+import type {
+  AlertData,
+  AlertConfig,
+  EmailAlertSettings,
+  SlackAlertSettings,
+  TelegramAlertSettings,
+} from "../types";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-export interface AlertData {
-  platform: string;
-  reportDate: Date;
-  shopifyOrders: number;
-  platformConversions: number;
-  orderDiscrepancy: number;
-  revenueDiscrepancy: number;
-  shopDomain: string;
-}
+// Get the app URL from environment
+const getAppUrl = (): string => {
+  return process.env.SHOPIFY_APP_URL || "https://your-app-url.com";
+};
 
-export interface AlertConfig {
-  id: string;
-  channel: string;
-  settings: any;
-  discrepancyThreshold: number;
-}
+// Get the email sender address
+const getEmailSender = (): string => {
+  return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";
+};
 
 // Main alert dispatcher
 export async function sendAlert(
@@ -31,11 +31,11 @@ export async function sendAlert(
   try {
     switch (config.channel) {
       case "email":
-        return await sendEmailAlert(config.settings, data);
+        return await sendEmailAlert(config.settings as EmailAlertSettings, data);
       case "slack":
-        return await sendSlackAlert(config.settings, data);
+        return await sendSlackAlert(config.settings as SlackAlertSettings, data);
       case "telegram":
-        return await sendTelegramAlert(config.settings, data);
+        return await sendTelegramAlert(config.settings as TelegramAlertSettings, data);
       default:
         console.warn(`Unknown alert channel: ${config.channel}`);
         return false;
@@ -48,7 +48,7 @@ export async function sendAlert(
 
 // Email alert
 async function sendEmailAlert(
-  settings: { email: string },
+  settings: EmailAlertSettings,
   data: AlertData
 ): Promise<boolean> {
   if (!resend) {
@@ -58,9 +58,10 @@ async function sendEmailAlert(
 
   const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
   const dateStr = data.reportDate.toLocaleDateString("zh-CN");
+  const appUrl = getAppUrl();
 
   const { error } = await resend.emails.send({
-    from: "Tracking Guardian <alerts@tracking-guardian.app>",
+    from: getEmailSender(),
     to: settings.email,
     subject: `⚠️ 追踪异常警报 - ${data.platform} 平台 (${data.shopDomain})`,
     html: `
@@ -92,7 +93,7 @@ async function sendEmailAlert(
         </ol>
         
         <p style="margin-top: 24px;">
-          <a href="https://your-app-url.com/app/monitor" 
+          <a href="${appUrl}/app/monitor" 
              style="background: #008060; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
             查看详细报告
           </a>
@@ -116,11 +117,12 @@ async function sendEmailAlert(
 
 // Slack alert
 async function sendSlackAlert(
-  settings: { webhookUrl: string },
+  settings: SlackAlertSettings,
   data: AlertData
 ): Promise<boolean> {
   const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
   const dateStr = data.reportDate.toLocaleDateString("zh-CN");
+  const appUrl = getAppUrl();
 
   const payload = {
     blocks: [
@@ -175,7 +177,7 @@ async function sendSlackAlert(
               type: "plain_text",
               text: "查看详细报告",
             },
-            url: "https://your-app-url.com/app/monitor",
+            url: `${appUrl}/app/monitor`,
             style: "primary",
           },
         ],
@@ -194,7 +196,7 @@ async function sendSlackAlert(
 
 // Telegram alert
 async function sendTelegramAlert(
-  settings: { botToken: string; chatId: string },
+  settings: TelegramAlertSettings,
   data: AlertData
 ): Promise<boolean> {
   const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);

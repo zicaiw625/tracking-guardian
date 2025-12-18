@@ -15,7 +15,11 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "render-build": "npm install && npx prisma generate && npx prisma db push && npm run build"
+    "render-build": "npm install && npx prisma generate && npx prisma db push && npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "type": "module",
   "engines": {
@@ -45,11 +49,14 @@
     "@shopify/api-codegen-preset": "^1.0.0",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
+    "@vitest/coverage-v8": "^2.0.0",
+    "@vitest/ui": "^2.0.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.5",
     "prisma": "^5.11.0",
-    "typescript": "^5.4.2"
+    "typescript": "^5.4.2",
+    "vitest": "^2.0.0"
   },
   "overrides": {
     "@shopify/shopify-app-remix": {

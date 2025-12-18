@@ -18,6 +18,7 @@ services:
         fromDatabase:
           name: tracking-guardian-db
           property: connectionString
+      # Shopify Configuration (REQUIRED - set in Render Dashboard)
       - key: SHOPIFY_API_KEY
         sync: false  # 需要手动在 Render 控制台设置
       - key: SHOPIFY_API_SECRET
@@ -26,10 +27,15 @@ services:
         value: read_orders,read_script_tags,write_script_tags,read_checkouts,write_pixels,read_customer_events
       - key: SHOPIFY_APP_URL
         sync: false  # 部署后获取的 URL
+      # Security (Auto-generated)
       - key: CRON_SECRET
         generateValue: true  # 自动生成随机密钥
+      - key: ENCRYPTION_SECRET
+        generateValue: true  # 自动生成加密密钥
       # 可选：通知服务
       - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_SENDER
         sync: false
       - key: SLACK_WEBHOOK_URL
         sync: false

@@ -1,9 +1,17 @@
 # Tracking Guardian - Post-purchase Tracking Health Monitor
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration
+#
+# IMPORTANT: Before deploying, update the following:
+# 1. client_id - Get from Shopify Partners Dashboard after creating your app
+# 2. application_url - Your deployed app URL (e.g., https://tracking-guardian.onrender.com)
+# 3. redirect_urls - Update with your app URL
+# 4. dev_store_url - Your development store URL
 
 name = "Tracking Guardian"
-client_id = "YOUR_CLIENT_ID"
-application_url = "https://your-app-url.com"
+# Replace with your actual client_id from Shopify Partners
+client_id = "${SHOPIFY_API_KEY}"
+# Replace with your deployed app URL
+application_url = "${SHOPIFY_APP_URL}"
 embedded = true
 
 [access_scopes]
@@ -11,10 +19,11 @@ embedded = true
 scopes = "read_orders,read_script_tags,write_script_tags,read_checkouts,write_pixels,read_customer_events"
 
 [auth]
+# Update these URLs with your deployed app URL
 redirect_urls = [
-  "https://your-app-url.com/auth/callback",
-  "https://your-app-url.com/auth/shopify/callback",
-  "https://your-app-url.com/api/auth/callback"
+  "${SHOPIFY_APP_URL}/auth/callback",
+  "${SHOPIFY_APP_URL}/auth/shopify/callback",
+  "${SHOPIFY_APP_URL}/api/auth/callback"
 ]
 
 [webhooks]
@@ -29,5 +38,6 @@ embedded = false
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "your-dev-store.myshopify.com"
+# Update with your development store URL
+dev_store_url = "${SHOPIFY_DEV_STORE_URL}"
 

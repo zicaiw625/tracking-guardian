@@ -2,17 +2,15 @@
 
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
+import type { 
+  ReconciliationResult, 
+  ReconciliationSummary,
+  ReconciliationReportData,
+  AlertConfig,
+} from "../types";
 
-export interface ReconciliationResult {
-  platform: string;
-  reportDate: Date;
-  shopifyOrders: number;
-  shopifyRevenue: number;
-  platformConversions: number;
-  platformRevenue: number;
-  orderDiscrepancy: number;
-  revenueDiscrepancy: number;
-}
+// Re-export types
+export type { ReconciliationResult, ReconciliationSummary, ReconciliationReportData };
 
 // Run daily reconciliation for a shop
 export async function runDailyReconciliation(shopId: string): Promise<ReconciliationResult[]> {
@@ -135,11 +133,20 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
 
     // Check if alert is needed
     for (const alertConfig of shop.alertConfigs) {
+      const typedAlertConfig: AlertConfig = {
+        id: alertConfig.id,
+        channel: alertConfig.channel as "email" | "slack" | "telegram",
+        settings: alertConfig.settings as unknown as AlertConfig["settings"],
+        discrepancyThreshold: alertConfig.discrepancyThreshold,
+        minOrdersForAlert: alertConfig.minOrdersForAlert,
+        isEnabled: alertConfig.isEnabled,
+      };
+      
       if (
         orderDiscrepancy > alertConfig.discrepancyThreshold &&
         shopifyOrders >= alertConfig.minOrdersForAlert
       ) {
-        await sendAlert(alertConfig, {
+        await sendAlert(typedAlertConfig, {
           platform,
           reportDate: yesterday,
           shopifyOrders,
@@ -171,11 +178,11 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
 export async function getReconciliationHistory(
   shopId: string,
   days = 30
-): Promise<any[]> {
+): Promise<ReconciliationReportData[]> {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  return prisma.reconciliationReport.findMany({
+  const reports = await prisma.reconciliationReport.findMany({
     where: {
       shopId,
       reportDate: {
@@ -184,10 +191,25 @@ export async function getReconciliationHistory(
     },
     orderBy: { reportDate: "desc" },
   });
+
+  return reports.map((report) => ({
+    id: report.id,
+    platform: report.platform,
+    reportDate: report.reportDate,
+    shopifyOrders: report.shopifyOrders,
+    shopifyRevenue: Number(report.shopifyRevenue),
+    platformConversions: report.platformConversions,
+    platformRevenue: Number(report.platformRevenue),
+    orderDiscrepancy: report.orderDiscrepancy,
+    revenueDiscrepancy: report.revenueDiscrepancy,
+    alertSent: report.alertSent,
+  }));
 }
 
 // Get reconciliation summary for dashboard
-export async function getReconciliationSummary(shopId: string) {
+export async function getReconciliationSummary(
+  shopId: string
+): Promise<Record<string, ReconciliationSummary>> {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -201,15 +223,7 @@ export async function getReconciliationSummary(shopId: string) {
   });
 
   // Group by platform
-  const summary: Record<
-    string,
-    {
-      totalShopifyOrders: number;
-      totalPlatformConversions: number;
-      avgDiscrepancy: number;
-      reports: any[];
-    }
-  > = {};
+  const summary: Record<string, ReconciliationSummary> = {};
 
   for (const report of reports) {
     if (!summary[report.platform]) {
@@ -224,7 +238,18 @@ export async function getReconciliationSummary(shopId: string) {
     summary[report.platform].totalShopifyOrders += report.shopifyOrders;
     summary[report.platform].totalPlatformConversions +=
       report.platformConversions;
-    summary[report.platform].reports.push(report);
+    summary[report.platform].reports.push({
+      id: report.id,
+      platform: report.platform,
+      reportDate: report.reportDate,
+      shopifyOrders: report.shopifyOrders,
+      shopifyRevenue: Number(report.shopifyRevenue),
+      platformConversions: report.platformConversions,
+      platformRevenue: Number(report.platformRevenue),
+      orderDiscrepancy: report.orderDiscrepancy,
+      revenueDiscrepancy: report.revenueDiscrepancy,
+      alertSent: report.alertSent,
+    });
   }
 
   // Calculate averages
@@ -240,28 +265,69 @@ export async function getReconciliationSummary(shopId: string) {
   return summary;
 }
 
+// Result type for reconciliation
+interface ReconciliationJobResult {
+  shopId: string;
+  success: boolean;
+  results?: ReconciliationResult[];
+  error?: string;
+}
+
 // Cron job handler for daily reconciliation
-export async function runAllShopsReconciliation() {
+// Uses Promise.allSettled for concurrent processing with error isolation
+export async function runAllShopsReconciliation(): Promise<ReconciliationJobResult[]> {
   const activeShops = await prisma.shop.findMany({
     where: { isActive: true },
     select: { id: true },
   });
 
-  const results = [];
+  console.log(`Starting reconciliation for ${activeShops.length} active shops`);
 
-  for (const shop of activeShops) {
-    try {
-      const shopResults = await runDailyReconciliation(shop.id);
-      results.push({ shopId: shop.id, success: true, results: shopResults });
-    } catch (error) {
-      console.error(`Reconciliation failed for shop ${shop.id}:`, error);
-      results.push({
-        shopId: shop.id,
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+  // Process shops in batches to avoid overwhelming the database
+  const BATCH_SIZE = 10;
+  const results: ReconciliationJobResult[] = [];
+
+  for (let i = 0; i < activeShops.length; i += BATCH_SIZE) {
+    const batch = activeShops.slice(i, i + BATCH_SIZE);
+    console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(activeShops.length / BATCH_SIZE)}`);
+
+    // Process batch concurrently
+    const batchPromises = batch.map(async (shop): Promise<ReconciliationJobResult> => {
+      try {
+        const shopResults = await runDailyReconciliation(shop.id);
+        return { shopId: shop.id, success: true, results: shopResults };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        console.error(`Reconciliation failed for shop ${shop.id}:`, errorMessage);
+        return {
+          shopId: shop.id,
+          success: false,
+          error: errorMessage,
+        };
+      }
+    });
+
+    const batchResults = await Promise.allSettled(batchPromises);
+    
+    // Process settled results
+    for (const result of batchResults) {
+      if (result.status === "fulfilled") {
+        results.push(result.value);
+      } else {
+        // This shouldn't happen since we catch errors above, but handle it anyway
+        console.error(`Unexpected promise rejection:`, result.reason);
+        results.push({
+          shopId: "unknown",
+          success: false,
+          error: result.reason?.message || "Unexpected error",
+        });
+      }
     }
   }
+
+  const successful = results.filter((r) => r.success).length;
+  const failed = results.filter((r) => !r.success).length;
+  console.log(`Reconciliation complete: ${successful} successful, ${failed} failed`);
 
   return results;
 }

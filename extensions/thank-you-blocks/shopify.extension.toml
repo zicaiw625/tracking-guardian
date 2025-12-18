@@ -42,6 +42,12 @@ handle = "upsell-offer"
 
 [settings]
   [[settings.fields]]
+  key = "app_url"
+  name = "App URL"
+  description = "Your Tracking Guardian app URL (e.g., https://your-app.onrender.com)"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
   key = "survey_title"
   name = "Survey Title"
   description = "Title for the post-purchase survey"

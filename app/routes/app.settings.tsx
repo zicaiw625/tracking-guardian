@@ -23,6 +23,8 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { testNotification } from "../services/notification.server";
+import { encryptJson } from "../utils/crypto";
+import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -125,20 +127,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     case "saveServerSide": {
       const platform = formData.get("platform") as string;
       const enabled = formData.get("enabled") === "true";
-      const credentials: Record<string, any> = {};
+      let credentials: GoogleCredentials | MetaCredentials | TikTokCredentials;
+      let platformId = "";
 
       if (platform === "google") {
-        credentials.conversionId = formData.get("conversionId");
-        credentials.conversionLabel = formData.get("conversionLabel");
-        credentials.customerId = formData.get("customerId");
+        const googleCreds: GoogleCredentials = {
+          conversionId: formData.get("conversionId") as string || "",
+          conversionLabel: formData.get("conversionLabel") as string || "",
+          customerId: formData.get("customerId") as string || undefined,
+        };
+        credentials = googleCreds;
+        platformId = googleCreds.conversionId;
       } else if (platform === "meta") {
-        credentials.pixelId = formData.get("pixelId");
-        credentials.accessToken = formData.get("accessToken");
-        credentials.testEventCode = formData.get("testEventCode");
+        const metaCreds: MetaCredentials = {
+          pixelId: formData.get("pixelId") as string || "",
+          accessToken: formData.get("accessToken") as string || "",
+          testEventCode: formData.get("testEventCode") as string || undefined,
+        };
+        credentials = metaCreds;
+        platformId = metaCreds.pixelId;
       } else if (platform === "tiktok") {
-        credentials.pixelId = formData.get("pixelId");
-        credentials.accessToken = formData.get("accessToken");
+        const tiktokCreds: TikTokCredentials = {
+          pixelId: formData.get("pixelId") as string || "",
+          accessToken: formData.get("accessToken") as string || "",
+        };
+        credentials = tiktokCreds;
+        platformId = tiktokCreds.pixelId;
+      } else {
+        return json({ error: "Unsupported platform" }, { status: 400 });
       }
+
+      // Encrypt credentials before storing
+      const encryptedCredentials = encryptJson(credentials);
 
       await prisma.pixelConfig.upsert({
         where: {
@@ -148,14 +168,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
         },
         update: {
-          credentials,
+          credentials: encryptedCredentials,
           serverSideEnabled: enabled,
         },
         create: {
           shopId: shop.id,
           platform,
-          platformId: credentials.pixelId || credentials.conversionId || "",
-          credentials,
+          platformId,
+          credentials: encryptedCredentials,
           serverSideEnabled: enabled,
         },
       });

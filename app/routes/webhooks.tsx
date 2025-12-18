@@ -4,75 +4,112 @@ import prisma from "../db.server";
 import { sendConversionToGoogle } from "../services/platforms/google.server";
 import { sendConversionToMeta } from "../services/platforms/meta.server";
 import { sendConversionToTikTok } from "../services/platforms/tiktok.server";
+import { decryptJson } from "../utils/crypto";
+import type {
+  OrderWebhookPayload,
+  ConversionData,
+  GoogleCredentials,
+  MetaCredentials,
+  TikTokCredentials,
+  PlatformCredentials,
+  ShopData,
+  PixelConfigData,
+} from "../types";
+
+interface ShopWithPixelConfigs extends ShopData {
+  pixelConfigs: PixelConfigData[];
+}
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { topic, shop, session, admin, payload } =
-    await authenticate.webhook(request);
+  try {
+    const { topic, shop, session, admin, payload } =
+      await authenticate.webhook(request);
 
-  if (!admin && topic !== "SHOP_REDACT") {
-    // The admin context isn't returned if the webhook fired after a shop uninstalled
-    throw new Response();
-  }
+    if (!admin && topic !== "SHOP_REDACT" && topic !== "CUSTOMERS_DATA_REQUEST" && topic !== "CUSTOMERS_REDACT") {
+      // The admin context isn't returned if the webhook fired after a shop uninstalled
+      console.log(`Webhook ${topic} received for uninstalled shop ${shop}`);
+      return new Response("OK", { status: 200 });
+    }
 
-  // Get shop from our database
-  const shopRecord = await prisma.shop.findUnique({
-    where: { shopDomain: shop },
-    include: {
-      pixelConfigs: {
-        where: { isActive: true, serverSideEnabled: true },
+    // Get shop from our database
+    const shopRecord = await prisma.shop.findUnique({
+      where: { shopDomain: shop },
+      include: {
+        pixelConfigs: {
+          where: { isActive: true, serverSideEnabled: true },
+        },
       },
-    },
-  });
+    });
 
-  switch (topic) {
-    case "APP_UNINSTALLED":
-      if (session) {
-        await prisma.session.deleteMany({ where: { shop } });
-      }
-      // Mark shop as uninstalled
-      if (shopRecord) {
-        await prisma.shop.update({
-          where: { id: shopRecord.id },
-          data: {
-            isActive: false,
-            uninstalledAt: new Date(),
-          },
-        });
-      }
-      break;
+    switch (topic) {
+      case "APP_UNINSTALLED":
+        console.log(`Processing APP_UNINSTALLED for shop ${shop}`);
+        if (session) {
+          await prisma.session.deleteMany({ where: { shop } });
+        }
+        // Mark shop as uninstalled
+        if (shopRecord) {
+          await prisma.shop.update({
+            where: { id: shopRecord.id },
+            data: {
+              isActive: false,
+              uninstalledAt: new Date(),
+            },
+          });
+        }
+        console.log(`Successfully processed APP_UNINSTALLED for shop ${shop}`);
+        break;
 
-    case "ORDERS_CREATE":
-    case "ORDERS_PAID":
-      // Process conversion tracking for the order
-      if (shopRecord && payload) {
-        await processOrderConversion(shopRecord, payload, topic);
-      }
-      break;
+      case "ORDERS_CREATE":
+      case "ORDERS_PAID":
+        // Process conversion tracking for the order
+        if (shopRecord && payload) {
+          console.log(`Processing ${topic} webhook for shop ${shop}, order ${payload.id}`);
+          await processOrderConversion(
+            shopRecord as ShopWithPixelConfigs,
+            payload as OrderWebhookPayload,
+            topic
+          );
+          console.log(`Successfully processed ${topic} for order ${payload.id}`);
+        } else {
+          console.warn(`Skipping ${topic}: shopRecord=${!!shopRecord}, payload=${!!payload}`);
+        }
+        break;
 
-    case "ORDERS_UPDATED":
-      // Handle order updates if needed (e.g., refunds)
-      console.log(`Order updated for shop ${shop}:`, payload?.id);
-      break;
+      case "ORDERS_UPDATED":
+        // Handle order updates if needed (e.g., refunds)
+        console.log(`Order updated for shop ${shop}: order_id=${payload?.id}`);
+        break;
 
-    case "CUSTOMERS_DATA_REQUEST":
-    case "CUSTOMERS_REDACT":
-    case "SHOP_REDACT":
-      // Handle GDPR webhooks - these are mandatory
-      console.log(`GDPR webhook received: ${topic} for shop ${shop}`);
-      break;
+      case "CUSTOMERS_DATA_REQUEST":
+      case "CUSTOMERS_REDACT":
+      case "SHOP_REDACT":
+        // Handle GDPR webhooks - these are mandatory
+        console.log(`GDPR webhook received: ${topic} for shop ${shop}`);
+        // In production, implement proper GDPR data handling here
+        break;
 
-    default:
-      throw new Response("Unhandled webhook topic", { status: 404 });
+      default:
+        console.warn(`Unhandled webhook topic: ${topic}`);
+        return new Response(`Unhandled webhook topic: ${topic}`, { status: 404 });
+    }
+
+    // Return success response
+    return new Response("OK", { status: 200 });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`Webhook processing error: ${errorMessage}`, error);
+    
+    // Return 500 to signal Shopify to retry
+    return new Response(`Webhook error: ${errorMessage}`, { status: 500 });
   }
-
-  throw new Response();
 };
 
 async function processOrderConversion(
-  shopRecord: any,
-  orderPayload: any,
+  shopRecord: ShopWithPixelConfigs,
+  orderPayload: OrderWebhookPayload,
   topic: string
-) {
+): Promise<void> {
   const order = orderPayload;
   const eventType = topic === "ORDERS_CREATE" ? "purchase" : "purchase_paid";
 
@@ -125,7 +162,7 @@ async function processOrderConversion(
 
     try {
       let result;
-      const conversionData = {
+      const conversionData: ConversionData = {
         orderId: String(order.id),
         orderNumber: order.order_number ? String(order.order_number) : null,
         value: parseFloat(order.total_price || "0"),
@@ -138,7 +175,7 @@ async function processOrderConversion(
         state: order.billing_address?.province,
         country: order.billing_address?.country_code,
         zip: order.billing_address?.zip,
-        lineItems: order.line_items?.map((item: any) => ({
+        lineItems: order.line_items?.map((item) => ({
           productId: String(item.product_id),
           variantId: String(item.variant_id),
           name: item.name,
@@ -147,26 +184,40 @@ async function processOrderConversion(
         })),
       };
 
+      // Decrypt credentials before use
+      let decryptedCredentials: PlatformCredentials | null = null;
+      if (pixelConfig.credentials) {
+        try {
+          decryptedCredentials = decryptJson<PlatformCredentials>(
+            pixelConfig.credentials as string
+          );
+        } catch (decryptError) {
+          console.error(`Failed to decrypt credentials for ${pixelConfig.platform}:`, decryptError);
+          continue;
+        }
+      }
+
       switch (pixelConfig.platform) {
         case "google":
           result = await sendConversionToGoogle(
-            pixelConfig.credentials,
+            decryptedCredentials as GoogleCredentials | null,
             conversionData
           );
           break;
         case "meta":
           result = await sendConversionToMeta(
-            pixelConfig.credentials,
+            decryptedCredentials as MetaCredentials | null,
             conversionData
           );
           break;
         case "tiktok":
           result = await sendConversionToTikTok(
-            pixelConfig.credentials,
+            decryptedCredentials as TikTokCredentials | null,
             conversionData
           );
           break;
         default:
+          console.log(`Skipping unsupported platform: ${pixelConfig.platform}`);
           continue;
       }
 
@@ -181,12 +232,15 @@ async function processOrderConversion(
         },
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`Conversion send failed for ${pixelConfig.platform}:`, errorMessage);
+      
       // Update log with failure
       await prisma.conversionLog.update({
         where: { id: conversionLog.id },
         data: {
           status: conversionLog.attempts >= 3 ? "failed" : "retrying",
-          errorMessage: error instanceof Error ? error.message : "Unknown error",
+          errorMessage,
         },
       });
     }

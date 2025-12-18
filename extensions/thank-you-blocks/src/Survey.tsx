@@ -9,7 +9,8 @@ import {
   Icon,
   useSettings,
   useOrder,
-  useAppMetafields,
+  useShop,
+  useApi,
 } from "@shopify/ui-extensions-react/checkout";
 import { useState } from "react";
 
@@ -21,12 +22,17 @@ export default reactExtension(
 function Survey() {
   const settings = useSettings();
   const order = useOrder();
+  const shop = useShop();
+  const { sessionToken } = useApi();
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const title = settings.survey_title || "我们想听听您的意见";
-  const question = settings.survey_question || "您是如何了解到我们的？";
+  const title = (settings.survey_title as string) || "我们想听听您的意见";
+  const question = (settings.survey_question as string) || "您是如何了解到我们的？";
+  const appUrl = (settings.app_url as string) || "";
 
   const sources = [
     { id: "search", label: "搜索引擎" },
@@ -38,15 +44,53 @@ function Survey() {
 
   const handleSubmit = async () => {
     if (selectedRating === null && selectedSource === null) return;
+    if (!order?.id) return;
 
-    // In production, this would send data to your backend
-    console.log("Survey submitted:", {
-      orderId: order?.id,
-      rating: selectedRating,
-      source: selectedSource,
-    });
+    setSubmitting(true);
+    setError(null);
 
-    setSubmitted(true);
+    try {
+      // Get session token for authentication
+      const token = await sessionToken.get();
+      
+      // Submit survey response to backend
+      const surveyData = {
+        orderId: order.id,
+        orderNumber: order.confirmationNumber,
+        rating: selectedRating,
+        source: selectedSource,
+      };
+
+      // If app URL is configured, send to backend
+      if (appUrl) {
+        const response = await fetch(`${appUrl}/api/survey`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Shop-Domain": shop.myshopifyDomain,
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify(surveyData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to submit survey");
+        }
+
+        console.log("Survey submitted successfully to backend");
+      } else {
+        // Fallback: just log if app URL not configured
+        console.log("Survey submitted (app URL not configured):", surveyData);
+      }
+
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Survey submission error:", err);
+      setError("提交失败，请稍后重试");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -124,12 +168,21 @@ function Survey() {
         </InlineLayout>
       </BlockStack>
 
+      {error && (
+        <View padding="tight" background="critical" cornerRadius="base">
+          <Text size="small" appearance="critical">
+            {error}
+          </Text>
+        </View>
+      )}
+
       <Button
         kind="secondary"
         onPress={handleSubmit}
-        disabled={selectedRating === null && selectedSource === null}
+        disabled={(selectedRating === null && selectedSource === null) || submitting}
+        loading={submitting}
       >
-        提交反馈
+        {submitting ? "提交中..." : "提交反馈"}
       </Button>
     </BlockStack>
   );

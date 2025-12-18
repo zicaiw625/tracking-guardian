@@ -25,6 +25,24 @@ import {
   getReconciliationHistory,
   getReconciliationSummary,
 } from "../services/reconciliation.server";
+import type { ReconciliationSummary, ReconciliationReportData, Platform } from "../types";
+import { PLATFORM_NAMES } from "../types";
+
+interface ConversionStat {
+  platform: string;
+  status: string;
+  _count: number;
+  _sum: {
+    orderValue: number | null;
+  };
+}
+
+interface ProcessedStat {
+  total: number;
+  sent: number;
+  failed: number;
+  revenue: number;
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -63,24 +81,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
-const PLATFORM_NAMES: Record<string, string> = {
-  google: "Google Ads / GA4",
-  meta: "Meta (Facebook)",
-  tiktok: "TikTok",
-  bing: "Microsoft Ads",
-  clarity: "Microsoft Clarity",
-};
+// PLATFORM_NAMES imported from types
 
 export default function MonitorPage() {
   const { shop, summary, history, conversionStats } =
     useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 
-  // Cast summary to proper type
-  const summaryData = summary as Record<string, { totalShopifyOrders: number; totalPlatformConversions: number; avgDiscrepancy: number; reports: any[] }>;
+  // Cast summary to proper type and handle serialization
+  const summaryData = summary as unknown as Record<string, ReconciliationSummary>;
+  const historyData = (history as unknown as ReconciliationReportData[]).map((h) => ({
+    ...h,
+    reportDate: new Date(h.reportDate),
+  }));
+  const statsData = conversionStats as ConversionStat[] | null;
 
   // Calculate overall health score
-  const calculateHealthScore = () => {
+  const calculateHealthScore = (): number => {
     const platforms = Object.keys(summaryData);
     if (platforms.length === 0) return 100;
 
@@ -101,12 +118,12 @@ export default function MonitorPage() {
   // Filter history by platform
   const filteredHistory =
     selectedPlatform === "all"
-      ? history
-      : history.filter((h: any) => h.platform === selectedPlatform);
+      ? historyData
+      : historyData.filter((h) => h.platform === selectedPlatform);
 
   // Process conversion stats for display
-  const processedStats = conversionStats?.reduce(
-    (acc: any, stat: any) => {
+  const processedStats = statsData?.reduce<Record<string, ProcessedStat>>(
+    (acc, stat) => {
       if (!acc[stat.platform]) {
         acc[stat.platform] = { total: 0, sent: 0, failed: 0, revenue: 0 };
       }
@@ -119,7 +136,7 @@ export default function MonitorPage() {
       }
       return acc;
     },
-    {} as Record<string, any>
+    {}
   );
 
   const platformOptions = [
@@ -179,7 +196,7 @@ export default function MonitorPage() {
           </Layout.Section>
 
           {/* Platform Summary Cards */}
-          {Object.entries(summaryData).map(([platform, data]: [string, any]) => (
+          {Object.entries(summaryData).map(([platform, data]) => (
             <Layout.Section key={platform} variant="oneThird">
               <Card>
                 <BlockStack gap="300">
@@ -250,7 +267,7 @@ export default function MonitorPage() {
                 columnContentTypes={["text", "numeric", "numeric", "numeric", "text"]}
                 headings={["平台", "总转化", "成功发送", "发送失败", "发送成功率"]}
                 rows={Object.entries(processedStats).map(
-                  ([platform, stats]: [string, any]) => [
+                  ([platform, stats]) => [
                     PLATFORM_NAMES[platform] || platform,
                     stats.total,
                     stats.sent,
@@ -266,7 +283,7 @@ export default function MonitorPage() {
         )}
 
         {/* Historical Reports */}
-        {history.length > 0 && (
+        {historyData.length > 0 && (
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
@@ -298,7 +315,7 @@ export default function MonitorPage() {
                   "差异率",
                   "状态",
                 ]}
-                rows={filteredHistory.slice(0, 20).map((report: any) => [
+                rows={filteredHistory.slice(0, 20).map((report) => [
                   new Date(report.reportDate).toLocaleDateString("zh-CN"),
                   PLATFORM_NAMES[report.platform] || report.platform,
                   report.shopifyOrders,
