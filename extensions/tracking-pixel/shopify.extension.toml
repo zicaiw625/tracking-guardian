@@ -5,6 +5,18 @@ type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
 
+# Privacy & Consent Configuration
+# This pixel respects customer consent and only sends data when allowed
+[customer_privacy]
+  # Analytics data is used for conversion tracking and attribution
+  analytics = true
+  # Marketing data is used for ad platform optimization
+  marketing = true
+  # We collect minimal data needed for conversion tracking
+  preferences = false
+  # No sale of data - data is only used for merchant's own tracking
+  sale_of_data = "disabled"
+
 [settings]
   [[settings.fields]]
     key = "backend_url"

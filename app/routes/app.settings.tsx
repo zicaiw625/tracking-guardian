@@ -280,6 +280,10 @@ export default function SettingsPage() {
     metaPixelId: "",
     metaAccessToken: "",
     metaTestCode: "",
+    googleMeasurementId: "",
+    googleApiSecret: "",
+    tiktokPixelId: "",
+    tiktokAccessToken: "",
   });
 
   const isSubmitting = navigation.state === "submitting";
@@ -306,9 +310,13 @@ export default function SettingsPage() {
       serverEnabled !== initial.enabled ||
       metaPixelId !== initial.metaPixelId ||
       metaAccessToken !== initial.metaAccessToken ||
-      metaTestCode !== initial.metaTestCode;
+      metaTestCode !== initial.metaTestCode ||
+      googleMeasurementId !== initial.googleMeasurementId ||
+      googleApiSecret !== initial.googleApiSecret ||
+      tiktokPixelId !== initial.tiktokPixelId ||
+      tiktokAccessToken !== initial.tiktokAccessToken;
     setServerFormDirty(isDirty);
-  }, [serverPlatform, serverEnabled, metaPixelId, metaAccessToken, metaTestCode]);
+  }, [serverPlatform, serverEnabled, metaPixelId, metaAccessToken, metaTestCode, googleMeasurementId, googleApiSecret, tiktokPixelId, tiktokAccessToken]);
 
   // Update dirty state when form values change
   useEffect(() => {
@@ -341,11 +349,15 @@ export default function SettingsPage() {
           metaPixelId: metaPixelId,
           metaAccessToken: metaAccessToken,
           metaTestCode: metaTestCode,
+          googleMeasurementId: googleMeasurementId,
+          googleApiSecret: googleApiSecret,
+          tiktokPixelId: tiktokPixelId,
+          tiktokAccessToken: tiktokAccessToken,
         };
         setServerFormDirty(false);
       }
     }
-  }, [actionData]);
+  }, [actionData, selectedTab, serverPlatform, serverEnabled, metaPixelId, metaAccessToken, metaTestCode, googleMeasurementId, googleApiSecret, tiktokPixelId, tiktokAccessToken]);
 
   // Discard changes handler
   const handleDiscardChanges = useCallback(() => {
@@ -366,6 +378,10 @@ export default function SettingsPage() {
       setMetaPixelId(initial.metaPixelId);
       setMetaAccessToken(initial.metaAccessToken);
       setMetaTestCode(initial.metaTestCode);
+      setGoogleMeasurementId(initial.googleMeasurementId);
+      setGoogleApiSecret(initial.googleApiSecret);
+      setTiktokPixelId(initial.tiktokPixelId);
+      setTiktokAccessToken(initial.tiktokAccessToken);
       setServerFormDirty(false);
     }
   }, [selectedTab]);
@@ -722,13 +738,22 @@ export default function SettingsPage() {
 
                     {serverPlatform === "google" && (
                       <>
+                        <Banner tone="info">
+                          <p>
+                            <strong>GA4 Measurement Protocol</strong> 是推荐的服务端追踪方式。
+                            Google Ads 可以从 GA4 导入转化数据进行归因优化。
+                          </p>
+                        </Banner>
                         <TextField
                           label="Measurement ID"
                           value={googleMeasurementId}
                           onChange={setGoogleMeasurementId}
                           autoComplete="off"
                           placeholder="G-XXXXXXXXXX"
-                          helpText="在 GA4 管理后台 > 数据流中找到"
+                          helpText="GA4 媒体资源的 Measurement ID（格式：G-XXXXXXXXXX）。在 GA4 管理后台 > 数据流中找到"
+                          error={googleMeasurementId && !googleMeasurementId.match(/^G-[A-Z0-9]+$/i) 
+                            ? "格式应为 G-XXXXXXXXXX" 
+                            : undefined}
                         />
                         <TextField
                           label="API Secret"
@@ -736,8 +761,11 @@ export default function SettingsPage() {
                           value={googleApiSecret}
                           onChange={setGoogleApiSecret}
                           autoComplete="off"
-                          helpText="在 GA4 > 数据流 > Measurement Protocol API 密钥中创建"
+                          helpText="在 GA4 > 数据流 > 选择您的数据流 > Measurement Protocol API 密钥中创建新密钥"
                         />
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          💡 提示：如需在 Google Ads 中使用转化数据，请在 Google Ads 中设置「从 GA4 导入转化」。
+                        </Text>
                       </>
                     )}
 

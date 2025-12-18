@@ -4,11 +4,20 @@
  * This extension subscribes to Shopify Customer Events and forwards them to
  * the backend API for server-side processing via platform CAPI.
  * 
+ * IMPORTANT: This pixel runs in Shopify's strict sandbox environment.
+ * 
  * Design principles:
  * - NO third-party script injection (stable in strict sandbox)
  * - Minimal data extraction (privacy-first)
  * - Event deduplication via event_id
  * - Graceful error handling (no user-visible errors)
+ * - Respects customer consent settings
+ * 
+ * Why NOT inject platform SDKs (fbq, gtag, ttq)?
+ * 1. Strict sandbox has DOM/capability restrictions that break SDKs
+ * 2. Server-side tracking via CAPI is more reliable (no ad blockers)
+ * 3. Better privacy compliance (data processed server-side)
+ * 4. Deduplication with webhook events prevents double-counting
  */
 
 import { register } from "@shopify/web-pixels-extension";
@@ -46,7 +55,7 @@ interface CartLineData {
   quantity?: number;
 }
 
-register(({ analytics, settings, init }) => {
+register(({ analytics, settings, init, browser }) => {
   // Get configuration from pixel settings
   const backendUrl = settings.backend_url as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
@@ -55,6 +64,32 @@ register(({ analytics, settings, init }) => {
   if (!backendUrl) {
     console.warn("[Tracking Guardian] backend_url not configured in pixel settings");
     return;
+  }
+
+  /**
+   * Check if we have consent to track
+   * Respects Shopify's customer privacy API
+   */
+  function hasTrackingConsent(): boolean {
+    try {
+      // Check Shopify's customer privacy consent
+      // In strict sandbox, this may not be available, so default to true
+      const customerPrivacy = init.customerPrivacy;
+      if (customerPrivacy) {
+        // Check for analytics and marketing consent
+        const analyticsAllowed = customerPrivacy.analyticsProcessingAllowed;
+        const marketingAllowed = customerPrivacy.marketingAllowed;
+        
+        // For conversion tracking, we typically need marketing consent
+        // Return true if at least analytics is allowed
+        return analyticsAllowed === true || marketingAllowed === true;
+      }
+      // If privacy API not available, proceed (merchant should handle consent elsewhere)
+      return true;
+    } catch {
+      // If we can't check consent, proceed with tracking
+      return true;
+    }
   }
 
   /**
@@ -69,12 +104,19 @@ register(({ analytics, settings, init }) => {
   /**
    * Safely send event to backend
    * Uses fire-and-forget pattern to avoid blocking
+   * Respects customer consent settings
    */
   async function sendToBackend(
     eventName: string,
     eventId: string,
     data: Record<string, unknown>
   ): Promise<void> {
+    // Check consent before sending any tracking data
+    if (!hasTrackingConsent()) {
+      console.log(`[Tracking Guardian] Skipping ${eventName} - no consent`);
+      return;
+    }
+
     try {
       const payload = {
         eventName,

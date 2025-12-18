@@ -1,4 +1,4 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import prisma from "../db.server";
 import type { SurveyResponseData } from "../types";
@@ -11,6 +11,29 @@ import {
 
 // Valid source options for survey
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
+
+// CORS headers for checkout UI extensions
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Shopify-Shop-Domain",
+  "Access-Control-Max-Age": "86400", // 24 hours
+};
+
+/**
+ * Helper to create JSON response with CORS headers
+ */
+function jsonWithCors<T>(data: T, init?: ResponseInit): Response {
+  const headers = new Headers(init?.headers);
+  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+    headers.set(key, value);
+  });
+  
+  return json(data, {
+    ...init,
+    headers,
+  });
+}
 
 // Maximum lengths for text fields to prevent abuse
 const MAX_ORDER_ID_LENGTH = 64;
@@ -131,28 +154,41 @@ function isValidShopDomain(domain: string): boolean {
  * Security: Requires valid Shopify session token (JWT) from Checkout UI Extension
  */
 export const action = async ({ request }: ActionFunctionArgs) => {
+  // Handle CORS preflight requests (OPTIONS)
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: CORS_HEADERS,
+    });
+  }
+
   // Rate limiting check
   const rateLimit = checkRateLimit(request, "survey");
   if (rateLimit.isLimited) {
-    return createRateLimitResponse(rateLimit.retryAfter);
+    // Add CORS headers to rate limit response
+    const response = createRateLimitResponse(rateLimit.retryAfter);
+    Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+    return response;
   }
 
   // Only accept POST requests
   if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return jsonWithCors({ error: "Method not allowed" }, { status: 405 });
   }
 
   try {
     // Get and validate the shop domain from the request
     const shopHeader = request.headers.get("X-Shopify-Shop-Domain");
     if (!shopHeader) {
-      return json({ error: "Missing shop domain header" }, { status: 400 });
+      return jsonWithCors({ error: "Missing shop domain header" }, { status: 400 });
     }
 
     // Validate shop domain format to prevent header injection
     if (!isValidShopDomain(shopHeader)) {
       console.warn(`Invalid shop domain format: ${shopHeader}`);
-      return json({ error: "Invalid shop domain format" }, { status: 400 });
+      return jsonWithCors({ error: "Invalid shop domain format" }, { status: 400 });
     }
 
     // SECURITY: Verify Shopify session token (JWT)
@@ -160,7 +196,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const authToken = extractAuthToken(request);
     if (!authToken) {
       console.warn(`Missing Authorization header for shop ${shopHeader}`);
-      return json({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
+      return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
     }
 
     // Verify the JWT token
@@ -169,14 +205,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       apiSecret = getShopifyApiSecret();
     } catch (error) {
       console.error("Failed to get Shopify API secret:", error);
-      return json({ error: "Server configuration error" }, { status: 500 });
+      return jsonWithCors({ error: "Server configuration error" }, { status: 500 });
     }
 
     const jwtResult = verifyShopifyJwt(authToken, apiSecret, shopHeader);
     
     if (!jwtResult.valid) {
       console.warn(`JWT verification failed for shop ${shopHeader}: ${jwtResult.error}`);
-      return json(
+      return jsonWithCors(
         { error: `Unauthorized: ${jwtResult.error}` },
         { status: 401 }
       );
@@ -187,7 +223,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       console.warn(
         `Shop domain mismatch: header=${shopHeader}, token=${jwtResult.shopDomain}`
       );
-      return json(
+      return jsonWithCors(
         { error: "Unauthorized: Shop domain mismatch" },
         { status: 401 }
       );
@@ -198,7 +234,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
       rawBody = await request.json();
     } catch {
-      return json({ error: "Invalid JSON body" }, { status: 400 });
+      return jsonWithCors({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     let validatedData: SurveyResponseData;
@@ -206,7 +242,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       validatedData = validateSurveyInput(rawBody);
     } catch (validationError) {
       const message = validationError instanceof Error ? validationError.message : "Validation failed";
-      return json({ error: message }, { status: 400 });
+      return jsonWithCors({ error: message }, { status: 400 });
     }
 
     // Find the shop - only find active shops
@@ -216,11 +252,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
 
     if (!shop) {
-      return json({ error: "Shop not found" }, { status: 404 });
+      return jsonWithCors({ error: "Shop not found" }, { status: 404 });
     }
 
     if (!shop.isActive) {
-      return json({ error: "Shop is not active" }, { status: 403 });
+      return jsonWithCors({ error: "Shop is not active" }, { status: 403 });
     }
 
     // SECURITY: Verify orderId belongs to this shop
@@ -249,7 +285,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           `Survey submission rejected: orderId=${validatedData.orderId.slice(0, 8)}... ` +
           `not found for shop=${shopHeader}`
         );
-        return json(
+        return jsonWithCors(
           { error: "Order not found or not eligible for survey" },
           { status: 404 }
         );
@@ -278,7 +314,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
 
-      return json({
+      return jsonWithCors({
         success: true,
         message: "Survey response updated",
         id: updated.id,
@@ -306,7 +342,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       `hasRating=${validatedData.rating !== undefined}, hasSource=${validatedData.source !== undefined}`
     );
 
-    return json({
+    return jsonWithCors({
       success: true,
       message: "Survey response saved",
       id: surveyResponse.id,
@@ -316,7 +352,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Survey API error:", errorMessage);
     
-    return json(
+    return jsonWithCors(
       {
         success: false,
         error: "An error occurred processing your request",
@@ -326,9 +362,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 };
 
-// GET endpoint for analytics (protected)
-export const loader = async ({ request }: ActionFunctionArgs) => {
-  // This could be used to fetch survey analytics
+// Handle OPTIONS requests for CORS preflight
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  // Handle CORS preflight
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: CORS_HEADERS,
+    });
+  }
+  
+  // GET endpoint for analytics (protected)
   // For now, return method not allowed
-  return json({ error: "Use admin routes for survey analytics" }, { status: 405 });
+  return jsonWithCors({ error: "Use admin routes for survey analytics" }, { status: 405 });
 };

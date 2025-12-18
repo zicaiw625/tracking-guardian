@@ -141,6 +141,17 @@ export function calculateNextRetryTime(attempts: number): Date {
 /**
  * Mark a conversion log for retry with exponential backoff
  * Classifies the failure reason for better diagnostics
+ * 
+ * NOTE: This function does NOT increment attempts - the caller is responsible for
+ * incrementing attempts after each send attempt (success or failure).
+ * This function only schedules the next retry based on the current attempts count.
+ * 
+ * Retry delays based on attempts:
+ * - attempts=1 (first failure): retry in 1 minute
+ * - attempts=2: retry in 5 minutes  
+ * - attempts=3: retry in 25 minutes
+ * - attempts=4: retry in 2 hours
+ * - attempts=5: move to dead letter
  */
 export async function scheduleRetry(
   logId: string,
@@ -153,16 +164,16 @@ export async function scheduleRetry(
   if (!log) return { scheduled: false, failureReason: "unknown" };
 
   const failureReason = classifyFailureReason(errorMessage);
-  const newAttempts = log.attempts + 1;
+  // Use current attempts (already incremented by caller) to determine next action
+  const currentAttempts = log.attempts;
   const maxAttempts = log.maxAttempts || MAX_ATTEMPTS;
 
-  // For token_expired errors, don't retry - it won't help without re-auth
+  // For token_expired or config errors, don't retry - it won't help without re-auth
   if (failureReason === "token_expired" || failureReason === "config_error") {
     await prisma.conversionLog.update({
       where: { id: logId },
       data: {
         status: "dead_letter",
-        attempts: newAttempts,
         lastAttemptAt: new Date(),
         errorMessage: `[${failureReason}] ${errorMessage}`,
         deadLetteredAt: new Date(),
@@ -172,34 +183,32 @@ export async function scheduleRetry(
     return { scheduled: false, failureReason };
   }
 
-  if (newAttempts >= maxAttempts) {
+  if (currentAttempts >= maxAttempts) {
     // Move to dead letter queue
     await prisma.conversionLog.update({
       where: { id: logId },
       data: {
         status: "dead_letter",
-        attempts: newAttempts,
         lastAttemptAt: new Date(),
         errorMessage: `[${failureReason}] ${errorMessage}`,
         deadLetteredAt: new Date(),
       },
     });
-    console.log(`Conversion ${logId} moved to dead letter after ${newAttempts} attempts`);
+    console.log(`Conversion ${logId} moved to dead letter after ${currentAttempts} attempts`);
     return { scheduled: false, failureReason };
   } else {
-    // Schedule retry with exponential backoff
-    const nextRetryAt = calculateNextRetryTime(newAttempts);
+    // Schedule retry with exponential backoff based on current attempts
+    const nextRetryAt = calculateNextRetryTime(currentAttempts);
     await prisma.conversionLog.update({
       where: { id: logId },
       data: {
         status: "retrying",
-        attempts: newAttempts,
         lastAttemptAt: new Date(),
         nextRetryAt,
         errorMessage: `[${failureReason}] ${errorMessage}`,
       },
     });
-    console.log(`Conversion ${logId} scheduled for retry at ${nextRetryAt.toISOString()} (reason: ${failureReason})`);
+    console.log(`Conversion ${logId} scheduled for retry at ${nextRetryAt.toISOString()} (attempt ${currentAttempts}, reason: ${failureReason})`);
     return { scheduled: true, failureReason };
   }
 }
@@ -251,22 +260,49 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      // Get credentials - only from credentialsEncrypted field
+      // Get credentials - prefer credentialsEncrypted, fallback to legacy credentials field
       let credentials: PlatformCredentials | null = null;
       
-      if (!pixelConfig.credentialsEncrypted) {
-        await scheduleRetry(log.id, "No credentials configured - please set up in Settings");
-        failed++;
-        continue;
+      // Try credentialsEncrypted first (new field)
+      if (pixelConfig.credentialsEncrypted) {
+        try {
+          credentials = decryptJson<PlatformCredentials>(
+            pixelConfig.credentialsEncrypted
+          );
+        } catch (decryptError) {
+          const errorMsg = decryptError instanceof Error ? decryptError.message : "Unknown error";
+          console.warn(`Failed to decrypt credentialsEncrypted for ${log.platform}: ${errorMsg}`);
+          // Fall through to try legacy field
+        }
       }
       
-      try {
-        credentials = decryptJson<PlatformCredentials>(
-          pixelConfig.credentialsEncrypted
-        );
-      } catch (decryptError) {
-        const errorMsg = decryptError instanceof Error ? decryptError.message : "Unknown error";
-        await scheduleRetry(log.id, `Credential decryption failed: ${errorMsg}`);
+      // Fallback: try legacy credentials field (for backwards compatibility with old data)
+      // Note: Prisma schema maps this to credentials_legacy column
+      if (!credentials && (pixelConfig as Record<string, unknown>).credentials) {
+        try {
+          const legacyCredentials = (pixelConfig as Record<string, unknown>).credentials;
+          // Legacy field might be:
+          // 1. An encrypted string (old format)
+          // 2. A JSON object stored directly
+          if (typeof legacyCredentials === "string") {
+            credentials = decryptJson<PlatformCredentials>(legacyCredentials);
+          } else if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
+            credentials = legacyCredentials as PlatformCredentials;
+          }
+          console.log(`Using legacy credentials field for ${log.platform} - please migrate to credentialsEncrypted`);
+        } catch (legacyError) {
+          const errorMsg = legacyError instanceof Error ? legacyError.message : "Unknown error";
+          console.warn(`Failed to read legacy credentials for ${log.platform}: ${errorMsg}`);
+        }
+      }
+      
+      if (!credentials) {
+        // Increment attempts before scheduling retry
+        await prisma.conversionLog.update({
+          where: { id: log.id },
+          data: { attempts: { increment: 1 } },
+        });
+        await scheduleRetry(log.id, "No credentials configured - please set up in Settings");
         failed++;
         continue;
       }
@@ -312,7 +348,7 @@ export async function processRetries(): Promise<{
           throw new Error(`Unsupported platform: ${log.platform}`);
       }
 
-      // Success!
+      // Success! Increment attempts to mark this retry as completed
       await prisma.conversionLog.update({
         where: { id: log.id },
         data: {
@@ -322,12 +358,20 @@ export async function processRetries(): Promise<{
           platformResponse: result,
           errorMessage: null,
           nextRetryAt: null,
+          attempts: { increment: 1 }, // Increment after successful retry
         },
       });
       succeeded++;
       console.log(`Retry succeeded for ${log.id}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      
+      // Increment attempts first, then schedule next retry
+      await prisma.conversionLog.update({
+        where: { id: log.id },
+        data: { attempts: { increment: 1 } },
+      });
+      
       await scheduleRetry(log.id, errorMessage);
       failed++;
       console.error(`Retry failed for ${log.id}: ${errorMessage}`);

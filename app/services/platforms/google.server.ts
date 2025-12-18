@@ -76,28 +76,33 @@ export async function sendConversionToGoogle(
 
   console.log(`Sending GA4 MP conversion for order=${conversionData.orderId}`);
 
-  // Build user properties for better matching
-  const userProperties: Record<string, { value: string }> = {};
-  let userId: string | undefined;
-  
-  if (conversionData.email) {
-    const hashedEmail = await hashValue(normalizeEmail(conversionData.email));
-    userProperties.hashed_email = { value: hashedEmail };
-    userId = hashedEmail;
-  }
-
   // Generate event ID for deduplication
   const dedupeEventId = eventId || `${conversionData.orderId}_purchase_${Date.now()}`;
 
-  const payload = {
+  // Build user_id from hashed email (required for user_properties to work in GA4 MP)
+  // GA4 MP requires user_id when using user_properties for user data matching
+  let userId: string | undefined;
+  const userProperties: Record<string, { value: string }> = {};
+  
+  if (conversionData.email) {
+    const normalizedEmail = normalizeEmail(conversionData.email);
+    const hashedEmail = await hashValue(normalizedEmail);
+    // Use hashed email as user_id for cross-device tracking
+    userId = hashedEmail;
+    // Also store as user_property for analytics
+    userProperties.hashed_email = { value: hashedEmail };
+  }
+
+  // Build the payload
+  // Note: Only include user_properties if we have a valid user_id
+  // GA4 MP ignores user_properties without user_id
+  const payload: Record<string, unknown> = {
     client_id: `server.${conversionData.orderId}`,
-    // Use hashed email as user_id for better cross-device tracking
-    ...(userId && { user_id: userId }),
     events: [
       {
         name: "purchase",
         params: {
-          // Event ID for deduplication (if same event sent from client)
+          // engagement_time_msec is required for events to be processed
           engagement_time_msec: "1",
           transaction_id: conversionData.orderId,
           value: conversionData.value,
@@ -111,8 +116,16 @@ export async function sendConversionToGoogle(
         },
       },
     ],
-    ...(Object.keys(userProperties).length > 0 && { user_properties: userProperties }),
   };
+
+  // Only add user_id and user_properties together
+  // GA4 MP requires user_id for user_properties to work
+  if (userId) {
+    payload.user_id = userId;
+    if (Object.keys(userProperties).length > 0) {
+      payload.user_properties = userProperties;
+    }
+  }
 
   try {
     const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(credentials.measurementId)}&api_secret=${encodeURIComponent(credentials.apiSecret)}`;

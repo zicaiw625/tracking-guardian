@@ -1,3 +1,9 @@
+/**
+ * Survey component for Order Status page (Customer Account)
+ * 
+ * This uses the customer-account surface which is required for order-status pages.
+ * The checkout surface is deprecated for order-status.
+ */
 import {
   reactExtension,
   BlockStack,
@@ -9,18 +15,18 @@ import {
   Icon,
   useSettings,
   useApi,
-} from "@shopify/ui-extensions-react/checkout";
+} from "@shopify/ui-extensions-react/customer-account";
 import { useState, useEffect } from "react";
 
+// Target for customer account order status page
 export default reactExtension(
-  "purchase.thank-you.block.render",
-  () => <Survey />
+  "customer-account.order-status.block.render",
+  () => <SurveyOrderStatus />
 );
 
-function Survey() {
+function SurveyOrderStatus() {
   const settings = useSettings();
-  // Use useApi() for thank-you page - orderConfirmation is the recommended approach
-  const { sessionToken, orderConfirmation, shop } = useApi();
+  const api = useApi();
   
   const [orderId, setOrderId] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
@@ -33,25 +39,6 @@ function Survey() {
   const title = (settings.survey_title as string) || "我们想听听您的意见";
   const question = (settings.survey_question as string) || "您是如何了解到我们的？";
   const appUrl = (settings.app_url as string) || "";
-  
-  // Subscribe to orderConfirmation to get order details
-  useEffect(() => {
-    async function fetchOrderInfo() {
-      try {
-        // orderConfirmation is the recommended API for thank-you pages
-        if (orderConfirmation) {
-          const orderData = await orderConfirmation;
-          if (orderData) {
-            setOrderId(orderData.id || null);
-            setOrderNumber(orderData.number?.toString() || null);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to get order confirmation:", err);
-      }
-    }
-    fetchOrderInfo();
-  }, [orderConfirmation]);
 
   const sources = [
     { id: "search", label: "搜索引擎" },
@@ -60,6 +47,25 @@ function Survey() {
     { id: "ad", label: "广告" },
     { id: "other", label: "其他" },
   ];
+
+  // Get order information from customer account API
+  useEffect(() => {
+    async function fetchOrderInfo() {
+      try {
+        // For customer-account surface, use the order API
+        if (api.order) {
+          const order = await api.order.current;
+          if (order) {
+            setOrderId(order.id || null);
+            setOrderNumber(order.name || null);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch order info:", err);
+      }
+    }
+    fetchOrderInfo();
+  }, [api]);
 
   const handleSubmit = async () => {
     if (selectedRating === null && selectedSource === null) return;
@@ -70,7 +76,7 @@ function Survey() {
 
     try {
       // Get session token for authentication
-      const token = await sessionToken.get();
+      const token = await api.sessionToken?.get();
       
       // Submit survey response to backend
       const surveyData = {
@@ -80,16 +86,13 @@ function Survey() {
         source: selectedSource,
       };
 
-      // Get shop domain from API
-      const shopDomain = shop?.myshopifyDomain || "";
-
       // If app URL is configured, send to backend
-      if (appUrl && shopDomain) {
+      if (appUrl && token) {
         const response = await fetch(`${appUrl}/api/survey`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Shopify-Shop-Domain": shopDomain,
+            "X-Shopify-Shop-Domain": api.shop?.myshopifyDomain || "",
             "Authorization": `Bearer ${token}`,
           },
           body: JSON.stringify(surveyData),
@@ -209,4 +212,3 @@ function Survey() {
     </BlockStack>
   );
 }
-

@@ -22,14 +22,14 @@ const shopify = shopifyApp({
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-    ORDERS_CREATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
+    // NOTE: Only using ORDERS_PAID for conversion tracking
+    // ORDERS_PAID is more accurate for "purchase" semantics (payment confirmed)
+    // Using both ORDERS_CREATE and ORDERS_PAID would cause duplicate events
     ORDERS_PAID: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
+    // ORDERS_UPDATED is kept for handling refunds and order changes
     ORDERS_UPDATED: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",

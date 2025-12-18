@@ -481,9 +481,25 @@ function detectPlatforms(content: string): string[] {
 
 function assessRisks(result: EnhancedScanResult): RiskItem[] {
   const risks: RiskItem[] = [];
+  const seenRiskKeys = new Set<string>(); // For deduplication
+
+  // Helper to add risk with deduplication
+  function addRisk(risk: RiskItem, dedupeKey?: string): void {
+    const key = dedupeKey || `${risk.id}_${risk.platform || ""}`;
+    if (!seenRiskKeys.has(key)) {
+      seenRiskKeys.add(key);
+      risks.push(risk);
+    }
+  }
 
   // Check for deprecated script tags
+  // NOTE: Shopify's deprecation specifically targets order_status and thank_you pages
+  // ScriptTags with display_scope="order_status" are high priority
+  // Other display_scope values (online_store, all) are medium priority
   if (result.scriptTags.length > 0) {
+    // Group by platform for cleaner risk reporting
+    const platformScriptTags: Record<string, { orderStatus: ScriptTag[]; other: ScriptTag[] }> = {};
+    
     for (const tag of result.scriptTags) {
       // Detect which platform this script tag is for
       let platform = "unknown";
@@ -497,41 +513,72 @@ function assessRisks(result: EnhancedScanResult): RiskItem[] {
         }
         if (platform !== "unknown") break;
       }
-
-      risks.push({
-        id: "deprecated_script_tag",
-        name: "已废弃的 ScriptTag",
-        description: `ScriptTag API 即将被关闭`,
-        severity: "high",
-        points: 30,
-        details: `Script URL: ${src}`,
-        platform,
-      });
+      
+      if (!platformScriptTags[platform]) {
+        platformScriptTags[platform] = { orderStatus: [], other: [] };
+      }
+      
+      // Check display_scope - Shopify's deprecation focuses on order_status
+      const displayScope = tag.display_scope || "all";
+      if (displayScope === "order_status") {
+        platformScriptTags[platform].orderStatus.push(tag);
+      } else {
+        platformScriptTags[platform].other.push(tag);
+      }
+    }
+    
+    // Create deduplicated risks per platform
+    for (const [platform, tags] of Object.entries(platformScriptTags)) {
+      // High priority: order_status scripts (directly affected by deprecation)
+      if (tags.orderStatus.length > 0) {
+        addRisk({
+          id: "deprecated_script_tag_order_status",
+          name: "订单状态页 ScriptTag（将被废弃）",
+          description: `检测到 ${tags.orderStatus.length} 个用于订单状态页的 ScriptTag，这是 Shopify 废弃公告的主要目标`,
+          severity: "high",
+          points: 30,
+          details: `平台: ${platform}, 脚本数量: ${tags.orderStatus.length}`,
+          platform,
+        }, `order_status_${platform}`);
+      }
+      
+      // Medium priority: other scripts (general ScriptTag API deprecation)
+      if (tags.other.length > 0) {
+        addRisk({
+          id: "deprecated_script_tag",
+          name: "ScriptTag API（建议迁移）",
+          description: `检测到 ${tags.other.length} 个 ScriptTag，建议迁移到 Web Pixel 以获得更好的兼容性`,
+          severity: "medium",
+          points: 15,
+          details: `平台: ${platform}, 范围: ${tags.other.map(t => t.display_scope || "all").join(", ")}`,
+          platform,
+        }, `script_tag_${platform}`);
+      }
     }
   }
 
   // Check if using old tracking methods without web pixels
   if (result.identifiedPlatforms.length > 0 && result.scriptTags.length > 0) {
-    risks.push({
+    addRisk({
       id: "inline_tracking",
       name: "内联追踪代码",
       description: "检测到使用旧的追踪方式，建议迁移到 Shopify Web Pixel",
       severity: "medium",
       points: 20,
       details: `检测到平台: ${result.identifiedPlatforms.join(", ")}`,
-    });
+    }, "inline_tracking");
   }
 
   // Recommend server-side tracking
   if (result.identifiedPlatforms.length > 0) {
-    risks.push({
+    addRisk({
       id: "no_server_side",
       name: "建议启用服务端追踪",
       description: "仅依赖客户端追踪可能导致 15-30% 的转化丢失",
       severity: "low",
       points: 10,
       details: "建议配置 Conversion API 以提高追踪准确性",
-    });
+    }, "no_server_side");
   }
 
   return risks;

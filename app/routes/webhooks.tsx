@@ -64,9 +64,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         console.log(`Successfully processed APP_UNINSTALLED for shop ${shop}`);
         break;
 
-      case "ORDERS_CREATE":
       case "ORDERS_PAID":
-        // Process conversion tracking for the order
+        // Process conversion tracking for paid orders only
+        // NOTE: We only process ORDERS_PAID (not ORDERS_CREATE) to:
+        // 1. Ensure payment is confirmed before sending conversion
+        // 2. Avoid duplicate events (ORDERS_CREATE + ORDERS_PAID for same order)
+        // 3. Match "purchase" semantics more accurately
         if (shopRecord && payload) {
           console.log(`Processing ${topic} webhook for shop ${shop}, order ${payload.id}`);
           await processOrderConversion(
@@ -78,6 +81,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         } else {
           console.warn(`Skipping ${topic}: shopRecord=${!!shopRecord}, payload=${!!payload}`);
         }
+        break;
+      
+      case "ORDERS_CREATE":
+        // NOTE: ORDERS_CREATE is intentionally not processed for conversion tracking
+        // We use ORDERS_PAID instead to ensure payment is confirmed
+        console.log(`ORDERS_CREATE received for shop ${shop}, order ${payload?.id} - skipping (using ORDERS_PAID instead)`);
         break;
 
       case "ORDERS_UPDATED":
@@ -175,7 +184,9 @@ async function processOrderConversion(
   topic: string
 ): Promise<void> {
   const order = orderPayload;
-  const eventType = topic === "ORDERS_CREATE" ? "purchase" : "purchase_paid";
+  // Always use "purchase" as event type since we only process ORDERS_PAID
+  // This matches the standard conversion event name across platforms
+  const eventType = "purchase";
 
   // Process each configured platform
   for (const pixelConfig of shopRecord.pixelConfigs) {
@@ -196,6 +207,10 @@ async function processOrderConversion(
     }
 
     // Create or update conversion log
+    // NOTE: attempts is incremented ONLY after a send attempt completes (success or failure)
+    // - attempts=0: log created, not yet attempted
+    // - attempts=1: first send attempt completed
+    // - attempts=N: N send attempts completed
     const conversionLog = await prisma.conversionLog.upsert({
       where: {
         shopId_orderId_platform_eventType: {
@@ -206,8 +221,8 @@ async function processOrderConversion(
         },
       },
       update: {
+        // Don't increment attempts here - only mark as pending for processing
         status: "pending",
-        attempts: { increment: 1 },
         lastAttemptAt: new Date(),
       },
       create: {
@@ -219,7 +234,7 @@ async function processOrderConversion(
         platform: pixelConfig.platform,
         eventType,
         status: "pending",
-        attempts: 1,
+        attempts: 0, // Start at 0 - will be incremented after first send attempt
         lastAttemptAt: new Date(),
       },
     });
@@ -249,40 +264,60 @@ async function processOrderConversion(
       };
 
       // Decrypt credentials before use
-      // Only use credentialsEncrypted field (unified storage protocol)
+      // Prefer credentialsEncrypted (new field), fallback to legacy credentials field
       let decryptedCredentials: PlatformCredentials | null = null;
       
-      if (!pixelConfig.credentialsEncrypted) {
-        console.warn(
-          `No credentialsEncrypted for ${pixelConfig.platform} (shop=${shopRecord.shopDomain}), ` +
-          `skipping server-side conversion. Configure credentials in Settings.`
-        );
-        continue;
+      // Try credentialsEncrypted first (new unified field)
+      if (pixelConfig.credentialsEncrypted) {
+        try {
+          decryptedCredentials = decryptJson<PlatformCredentials>(
+            pixelConfig.credentialsEncrypted as string
+          );
+        } catch (decryptError) {
+          console.warn(
+            `Failed to decrypt credentialsEncrypted for ${pixelConfig.platform} (shop=${shopRecord.shopDomain}):`,
+            decryptError instanceof Error ? decryptError.message : "Unknown error"
+          );
+          // Fall through to try legacy field
+        }
       }
       
-      try {
-        decryptedCredentials = decryptJson<PlatformCredentials>(
-          pixelConfig.credentialsEncrypted as string
+      // Fallback: try legacy credentials field (for backwards compatibility)
+      // Note: Prisma schema maps this to credentials_legacy column
+      if (!decryptedCredentials && (pixelConfig as Record<string, unknown>).credentials) {
+        try {
+          const legacyCredentials = (pixelConfig as Record<string, unknown>).credentials;
+          if (typeof legacyCredentials === "string") {
+            decryptedCredentials = decryptJson<PlatformCredentials>(legacyCredentials);
+          } else if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
+            decryptedCredentials = legacyCredentials as PlatformCredentials;
+          }
+          console.log(
+            `Using legacy credentials for ${pixelConfig.platform} (shop=${shopRecord.shopDomain}) - ` +
+            `please reconfigure in Settings to use new encryption`
+          );
+        } catch (legacyError) {
+          console.warn(
+            `Failed to read legacy credentials for ${pixelConfig.platform}:`,
+            legacyError instanceof Error ? legacyError.message : "Unknown error"
+          );
+        }
+      }
+      
+      if (!decryptedCredentials) {
+        console.warn(
+          `No credentials for ${pixelConfig.platform} (shop=${shopRecord.shopDomain}), ` +
+          `skipping server-side conversion. Configure credentials in Settings.`
         );
-      } catch (decryptError) {
-        // Log error but don't crash - continue processing other platforms
-        console.error(
-          `Failed to decrypt credentials for ${pixelConfig.platform} (shop=${shopRecord.shopDomain}):`,
-          decryptError instanceof Error ? decryptError.message : "Unknown error"
-        );
-        // Record the failure in conversion log for visibility
+        // Record the failure
         await prisma.conversionLog.update({
           where: { id: conversionLog.id },
           data: {
             status: "failed",
-            errorMessage: "Credential decryption failed - please reconfigure in Settings",
+            attempts: 1,
+            errorMessage: "No credentials configured - please set up in Settings",
           },
         });
-        continue;
-      }
-      
-      if (!decryptedCredentials) {
-        console.warn(`Decrypted credentials are null for ${pixelConfig.platform}, skipping`);
         continue;
       }
 
@@ -310,7 +345,7 @@ async function processOrderConversion(
           continue;
       }
 
-      // Update log with success
+      // Update log with success - increment attempts to 1 (first attempt succeeded)
       await prisma.conversionLog.update({
         where: { id: conversionLog.id },
         data: {
@@ -318,11 +353,18 @@ async function processOrderConversion(
           serverSideSent: true,
           sentAt: new Date(),
           platformResponse: result,
+          attempts: 1, // First attempt completed successfully
         },
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       console.error(`Conversion send failed for ${pixelConfig.platform}:`, errorMessage);
+      
+      // First attempt failed - increment attempts to 1, then schedule retry
+      await prisma.conversionLog.update({
+        where: { id: conversionLog.id },
+        data: { attempts: 1 },
+      });
       
       // Use retry service for exponential backoff and dead letter handling
       await scheduleRetry(conversionLog.id, errorMessage);

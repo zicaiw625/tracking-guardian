@@ -29,11 +29,21 @@ import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
-  getReconciliationHistory,
-  getReconciliationSummary,
-} from "../services/reconciliation.server";
-import type { ReconciliationSummary, ReconciliationReportData, Platform } from "../types";
+  getDeliveryHealthHistory,
+  getDeliveryHealthSummary,
+  type DeliveryHealthReport,
+} from "../services/delivery-health.server";
+import type { Platform } from "../types";
 import { PLATFORM_NAMES } from "../types";
+
+// Type alias for backwards compatibility
+interface DeliverySummary {
+  platform: string;
+  last7DaysAttempted: number;
+  last7DaysSent: number;
+  avgSuccessRate: number;
+  topFailureReasons: Array<{ reason: string; count: number }>;
+}
 
 interface ConversionStat {
   platform: string;
@@ -63,8 +73,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ shop: null, summary: {}, history: [], conversionStats: null });
   }
 
-  const summary = await getReconciliationSummary(shop.id);
-  const history = await getReconciliationHistory(shop.id, 30);
+  const summary = await getDeliveryHealthSummary(shop.id);
+  const history = await getDeliveryHealthHistory(shop.id, 30);
 
   // Get conversion stats for the last 7 days
   const sevenDaysAgo = new Date();
@@ -96,28 +106,31 @@ export default function MonitorPage() {
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 
   // Cast summary to proper type and handle serialization
-  const summaryData = summary as unknown as Record<string, ReconciliationSummary>;
-  const historyData = (history as unknown as ReconciliationReportData[]).map((h) => ({
+  const summaryData = summary as unknown as Record<string, DeliverySummary>;
+  const historyData = (history as unknown as DeliveryHealthReport[]).map((h) => ({
     ...h,
     reportDate: new Date(h.reportDate),
   }));
   const statsData = conversionStats as ConversionStat[] | null;
 
-  // Calculate overall health score - return null if no data to show "uninitialized"
+  // Calculate overall health score based on success rate
+  // Note: This is send success rate, not platform reconciliation
   const calculateHealthScore = (): number | null => {
     const platforms = Object.keys(summaryData);
-    if (platforms.length === 0) return null; // Return null instead of 100 when no data
+    if (platforms.length === 0) return null;
 
-    const avgDiscrepancy =
+    // Calculate average success rate across platforms
+    const avgSuccessRate =
       platforms.reduce(
-        (sum, p) => sum + (summaryData[p]?.avgDiscrepancy || 0),
+        (sum, p) => sum + (summaryData[p]?.avgSuccessRate || 0),
         0
       ) / platforms.length;
 
-    if (avgDiscrepancy > 0.2) return 40;
-    if (avgDiscrepancy > 0.1) return 70;
-    if (avgDiscrepancy > 0.05) return 85;
-    return 95;
+    // Health score is based on success rate
+    if (avgSuccessRate < 0.8) return 40;   // <80% success = critical
+    if (avgSuccessRate < 0.9) return 70;   // <90% success = warning  
+    if (avgSuccessRate < 0.95) return 85;  // <95% success = attention
+    return 95;                              // >=95% success = healthy
   };
 
   const healthScore = calculateHealthScore();
@@ -301,23 +314,23 @@ export default function MonitorPage() {
                       </Text>
                       <Badge
                         tone={
-                          data.avgDiscrepancy < 0.1
+                          data.avgSuccessRate >= 0.95
                             ? "success"
-                            : data.avgDiscrepancy < 0.2
+                            : data.avgSuccessRate >= 0.8
                               ? "attention"
                               : "critical"
                         }
                       >
-                        {`${(data.avgDiscrepancy * 100).toFixed(1)}% 差异`}
+                        {`${(data.avgSuccessRate * 100).toFixed(1)}% 成功率`}
                       </Badge>
                     </InlineStack>
                     <Divider />
                     <InlineStack align="space-between">
                       <Text as="span" tone="subdued">
-                        待发送转化
+                        尝试发送
                       </Text>
                       <Text as="span" fontWeight="semibold">
-                        {data.totalShopifyOrders}
+                        {data.last7DaysAttempted}
                       </Text>
                     </InlineStack>
                     <InlineStack align="space-between">
@@ -325,9 +338,17 @@ export default function MonitorPage() {
                         成功发送
                       </Text>
                       <Text as="span" fontWeight="semibold">
-                        {data.totalPlatformConversions}
+                        {data.last7DaysSent}
                       </Text>
                     </InlineStack>
+                    {data.topFailureReasons.length > 0 && (
+                      <>
+                        <Divider />
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          主要失败原因：{data.topFailureReasons[0]?.reason || "未知"}
+                        </Text>
+                      </>
+                    )}
                   </BlockStack>
                 </Card>
               </Layout.Section>
