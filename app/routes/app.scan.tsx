@@ -18,12 +18,13 @@ import {
   DataTable,
   EmptyState,
   Spinner,
+  Link,
 } from "@shopify/polaris";
 import {
   AlertCircleIcon,
   CheckCircleIcon,
   SearchIcon,
-  RefreshIcon,
+  ArrowRightIcon,
 } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
@@ -146,20 +147,29 @@ export default function ScanPage() {
           </Card>
         )}
 
-        {/* No Scan Yet */}
+        {/* No Scan Yet - Empty State without action button (primary action is in page header) */}
         {!latestScan && !isScanning && (
           <Card>
             <EmptyState
-              heading="尚未进行扫描"
+              heading="还没有扫描记录"
               image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-              action={{
-                content: "开始扫描",
-                onAction: handleScan,
-              }}
             >
-              <p>
-                点击开始扫描，我们将检测您店铺中的追踪脚本并识别潜在的迁移风险。
-              </p>
+              <BlockStack gap="300">
+                <Text as="p">
+                  我们会检查 Thank you / Order status 页相关的{" "}
+                  <strong>Additional Scripts</strong>、<strong>ScriptTags</strong>、
+                  <strong>像素配置</strong>，并给出可迁移建议。
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  点击右上角"开始扫描"按钮开始检测
+                </Text>
+                <Link
+                  url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status"
+                  external
+                >
+                  了解为何需要迁移（Checkout Extensibility）
+                </Link>
+              </BlockStack>
             </EmptyState>
           </Card>
         )}
@@ -272,7 +282,7 @@ export default function ScanPage() {
                     padding="400"
                     borderRadius="200"
                   >
-                    <BlockStack gap="200">
+                    <BlockStack gap="300">
                       <InlineStack align="space-between">
                         <InlineStack gap="200">
                           <Icon
@@ -299,9 +309,26 @@ export default function ScanPage() {
                           {item.details}
                         </Text>
                       )}
-                      {item.platform && (
-                        <Badge>{getPlatformName(item.platform)}</Badge>
-                      )}
+                      {/* Impact and Action Row */}
+                      <InlineStack align="space-between" blockAlign="center">
+                        <InlineStack gap="200">
+                          {item.platform && (
+                            <Badge>{getPlatformName(item.platform)}</Badge>
+                          )}
+                          {item.impact && (
+                            <Text as="span" variant="bodySm" tone="critical">
+                              影响: {item.impact}
+                            </Text>
+                          )}
+                        </InlineStack>
+                        <Button
+                          url={`/app/migrate${item.platform ? `?platform=${item.platform}` : ""}`}
+                          size="slim"
+                          icon={ArrowRightIcon}
+                        >
+                          一键迁移
+                        </Button>
+                      </InlineStack>
                     </BlockStack>
                   </Box>
                 ))}

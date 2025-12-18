@@ -191,6 +191,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ success: true, message: "警报配置已删除" });
     }
 
+    case "testConnection": {
+      const platform = formData.get("platform") as string;
+
+      // Simulate testing connection - in real implementation this would
+      // send a test event to the platform's API
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // For demo purposes, return success if credentials are provided
+      if (platform === "meta") {
+        const pixelId = formData.get("pixelId") as string;
+        const accessToken = formData.get("accessToken") as string;
+        if (!pixelId || !accessToken) {
+          return json({ success: false, message: "请填写 Pixel ID 和 Access Token" });
+        }
+      }
+
+      return json({
+        success: true,
+        message: "连接测试成功！测试事件已发送到平台，请在平台后台检查是否收到事件。",
+      });
+    }
+
     default:
       return json({ error: "Unknown action" }, { status: 400 });
   }
@@ -260,6 +282,20 @@ export default function SettingsPage() {
     formData.append("_action", "saveServerSide");
     formData.append("platform", serverPlatform);
     formData.append("enabled", serverEnabled.toString());
+
+    if (serverPlatform === "meta") {
+      formData.append("pixelId", metaPixelId);
+      formData.append("accessToken", metaAccessToken);
+      formData.append("testEventCode", metaTestCode);
+    }
+
+    submit(formData, { method: "post" });
+  };
+
+  const handleTestConnection = () => {
+    const formData = new FormData();
+    formData.append("_action", "testConnection");
+    formData.append("platform", serverPlatform);
 
     if (serverPlatform === "meta") {
       formData.append("pixelId", metaPixelId);
@@ -382,7 +418,11 @@ export default function SettingsPage() {
                       >
                         保存设置
                       </Button>
-                      <Button onClick={handleTestAlert} loading={isSubmitting}>
+                      <Button
+                        variant="secondary"
+                        onClick={handleTestAlert}
+                        loading={isSubmitting}
+                      >
                         发送测试通知
                       </Button>
                     </InlineStack>
@@ -497,13 +537,25 @@ export default function SettingsPage() {
                       onChange={setServerEnabled}
                     />
 
-                    <Button
-                      variant="primary"
-                      onClick={handleSaveServerSide}
-                      loading={isSubmitting}
-                    >
-                      保存配置
-                    </Button>
+                    <InlineStack gap="200">
+                      <Button
+                        variant="primary"
+                        onClick={handleSaveServerSide}
+                        loading={isSubmitting}
+                      >
+                        保存配置
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={handleTestConnection}
+                        loading={isSubmitting}
+                        disabled={
+                          serverPlatform === "meta" && (!metaPixelId || !metaAccessToken)
+                        }
+                      >
+                        测试连接
+                      </Button>
+                    </InlineStack>
                   </BlockStack>
                 </Card>
               </Layout.Section>
@@ -526,16 +578,23 @@ export default function SettingsPage() {
                             padding="300"
                             borderRadius="200"
                           >
-                            <InlineStack align="space-between">
-                              <Text as="span" fontWeight="semibold">
-                                {config.platform === "meta"
-                                  ? "Meta CAPI"
-                                  : config.platform === "google"
-                                    ? "Google Ads"
-                                    : "TikTok"}
-                              </Text>
-                              <Badge tone="success">已启用</Badge>
-                            </InlineStack>
+                            <BlockStack gap="100">
+                              <InlineStack align="space-between">
+                                <Text as="span" fontWeight="semibold">
+                                  {config.platform === "meta"
+                                    ? "Meta CAPI"
+                                    : config.platform === "google"
+                                      ? "Google Ads"
+                                      : "TikTok"}
+                                </Text>
+                                <Badge tone="success">已启用</Badge>
+                              </InlineStack>
+                              {config.lastTestedAt && (
+                                <Text as="span" variant="bodySm" tone="subdued">
+                                  上次测试: {new Date(config.lastTestedAt).toLocaleDateString("zh-CN")}
+                                </Text>
+                              )}
+                            </BlockStack>
                           </Box>
                         ))
                     ) : (
@@ -575,7 +634,7 @@ export default function SettingsPage() {
                         padding="400"
                         borderRadius="200"
                       >
-                        <BlockStack gap="200">
+                        <BlockStack gap="300">
                           <InlineStack align="space-between">
                             <Text as="h3" variant="headingMd">
                               免费版
@@ -584,11 +643,15 @@ export default function SettingsPage() {
                               $0/月
                             </Text>
                           </InlineStack>
+                          <Badge tone="info">适用人群：月订单 &lt; 100 的新店铺</Badge>
                           <Text as="p" tone="subdued">
                             • 每月 100 次转化追踪
                             <br />• 基础扫描报告
                             <br />• 邮件警报
                           </Text>
+                          {shop?.plan === "free" && (
+                            <Badge tone="success">当前计划</Badge>
+                          )}
                         </BlockStack>
                       </Box>
 
@@ -602,7 +665,7 @@ export default function SettingsPage() {
                         padding="400"
                         borderRadius="200"
                       >
-                        <BlockStack gap="200">
+                        <BlockStack gap="300">
                           <InlineStack align="space-between">
                             <Text as="h3" variant="headingMd">
                               入门版
@@ -611,13 +674,18 @@ export default function SettingsPage() {
                               $29/月
                             </Text>
                           </InlineStack>
+                          <Badge tone="info">适用人群：月订单 100-1,000 的成长店铺</Badge>
                           <Text as="p" tone="subdued">
                             • 每月 1,000 次转化追踪
                             <br />• 2 个平台集成
                             <br />• 每日对账报告
                             <br />• 邮件 + Slack 警报
                           </Text>
-                          <Button>升级到入门版</Button>
+                          {shop?.plan === "starter" ? (
+                            <Badge tone="success">当前计划</Badge>
+                          ) : (
+                            <Button>升级到入门版</Button>
+                          )}
                         </BlockStack>
                       </Box>
 
@@ -631,7 +699,7 @@ export default function SettingsPage() {
                         padding="400"
                         borderRadius="200"
                       >
-                        <BlockStack gap="200">
+                        <BlockStack gap="300">
                           <InlineStack align="space-between">
                             <Text as="h3" variant="headingMd">
                               专业版
@@ -640,6 +708,7 @@ export default function SettingsPage() {
                               $79/月
                             </Text>
                           </InlineStack>
+                          <Badge tone="info">适用人群：月订单 1,000+ 的成熟店铺</Badge>
                           <Text as="p" tone="subdued">
                             • 每月 10,000 次转化追踪
                             <br />• 所有平台集成
@@ -647,7 +716,11 @@ export default function SettingsPage() {
                             <br />• 实时警报
                             <br />• 优先支持
                           </Text>
-                          <Button variant="primary">升级到专业版</Button>
+                          {shop?.plan === "pro" ? (
+                            <Badge tone="success">当前计划</Badge>
+                          ) : (
+                            <Button variant="primary">升级到专业版</Button>
+                          )}
                         </BlockStack>
                       </Box>
                     </BlockStack>

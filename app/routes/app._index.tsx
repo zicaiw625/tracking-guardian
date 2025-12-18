@@ -14,13 +14,12 @@ import {
   Box,
   Divider,
   Banner,
+  Link,
+  ProgressBar,
 } from "@shopify/polaris";
 import {
-  AlertCircleIcon,
   CheckCircleIcon,
   SearchIcon,
-  SettingsIcon,
-  ChartVerticalFilledIcon,
 } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
@@ -45,6 +44,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         orderBy: { reportDate: "desc" },
         take: 7,
       },
+      alertConfigs: {
+        where: { isEnabled: true },
+      },
       _count: {
         select: {
           conversionLogs: {
@@ -60,11 +62,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   // Calculate health score based on recent reconciliation
-  let healthScore = 100;
-  let healthStatus: "success" | "warning" | "critical" = "success";
+  // Return null if no data to indicate "uninitialized" state
+  let healthScore: number | null = null;
+  let healthStatus: "success" | "warning" | "critical" | "uninitialized" = "uninitialized";
   const recentReports = shop?.reconciliationReports || [];
+  const configuredPlatforms = shop?.pixelConfigs?.length || 0;
 
-  if (recentReports.length > 0) {
+  // Only calculate health score if there's meaningful data
+  if (recentReports.length > 0 && configuredPlatforms > 0) {
     const avgDiscrepancy =
       recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) /
       recentReports.length;
@@ -74,14 +79,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     } else if (avgDiscrepancy > 0.1) {
       healthScore = 70;
       healthStatus = "warning";
+    } else if (avgDiscrepancy > 0.05) {
+      healthScore = 85;
     } else {
       healthScore = 95;
+      healthStatus = "success";
     }
   }
 
   const latestScan = shop?.scanReports[0] || null;
-  const configuredPlatforms = shop?.pixelConfigs?.length || 0;
   const weeklyConversions = shop?._count?.conversionLogs || 0;
+  const hasAlertConfig = (shop?.alertConfigs?.length || 0) > 0;
 
   return json({
     shopDomain,
@@ -97,6 +105,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       : null,
     configuredPlatforms,
     weeklyConversions,
+    hasAlertConfig,
     plan: shop?.plan || "free",
   });
 };
@@ -109,8 +118,40 @@ export default function Index() {
     latestScan,
     configuredPlatforms,
     weeklyConversions,
+    hasAlertConfig,
     plan,
   } = useLoaderData<typeof loader>();
+
+  // Setup checklist steps
+  const setupSteps = [
+    {
+      id: "scan",
+      label: "运行一次扫描",
+      description: "检测现有追踪脚本和迁移风险",
+      done: !!latestScan,
+      cta: "开始扫描",
+      url: "/app/scan",
+    },
+    {
+      id: "connect",
+      label: "连接追踪平台",
+      description: "配置 Google、Meta、TikTok 等平台",
+      done: configuredPlatforms > 0,
+      cta: "配置追踪平台",
+      url: "/app/migrate",
+    },
+    {
+      id: "monitor",
+      label: "启用监控与告警",
+      description: "当追踪数据异常时及时通知",
+      done: hasAlertConfig,
+      cta: "开启监控",
+      url: "/app/settings",
+    },
+  ];
+
+  const completedSteps = setupSteps.filter((s) => s.done).length;
+  const allStepsCompleted = completedSteps === setupSteps.length;
 
   const getHealthBadge = () => {
     switch (healthStatus) {
@@ -118,8 +159,10 @@ export default function Index() {
         return <Badge tone="critical">需要关注</Badge>;
       case "warning":
         return <Badge tone="warning">有风险</Badge>;
-      default:
+      case "success":
         return <Badge tone="success">健康</Badge>;
+      default:
+        return <Badge tone="info">未初始化</Badge>;
     }
   };
 
@@ -138,6 +181,68 @@ export default function Index() {
           </p>
         </Banner>
 
+        {/* Setup Checklist - Show when not all steps completed */}
+        {!allStepsCompleted && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
+                <Text as="h2" variant="headingMd">
+                  开始设置
+                </Text>
+                <Badge tone="attention">
+                  {completedSteps}/{setupSteps.length} 已完成
+                </Badge>
+              </InlineStack>
+              <ProgressBar
+                progress={(completedSteps / setupSteps.length) * 100}
+                tone="primary"
+                size="small"
+              />
+              <BlockStack gap="300">
+                {setupSteps.map((step, index) => (
+                  <Box
+                    key={step.id}
+                    background={step.done ? "bg-surface-success" : "bg-surface-secondary"}
+                    padding="400"
+                    borderRadius="200"
+                  >
+                    <InlineStack align="space-between" blockAlign="center">
+                      <InlineStack gap="300" blockAlign="center">
+                        <Box>
+                          {step.done ? (
+                            <Icon source={CheckCircleIcon} tone="success" />
+                          ) : (
+                            <Text as="span" variant="bodyMd" fontWeight="bold">
+                              {index + 1}
+                            </Text>
+                          )}
+                        </Box>
+                        <BlockStack gap="100">
+                          <Text
+                            as="span"
+                            fontWeight="semibold"
+                            tone={step.done ? "success" : undefined}
+                          >
+                            {step.label}
+                          </Text>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {step.description}
+                          </Text>
+                        </BlockStack>
+                      </InlineStack>
+                      {!step.done && (
+                        <Button url={step.url} size="slim">
+                          {step.cta}
+                        </Button>
+                      )}
+                    </InlineStack>
+                  </Box>
+                ))}
+              </BlockStack>
+            </BlockStack>
+          </Card>
+        )}
+
         <Layout>
           {/* Health Score Card */}
           <Layout.Section variant="oneThird">
@@ -150,21 +255,44 @@ export default function Index() {
                   {getHealthBadge()}
                 </InlineStack>
                 <Box
-                  background="bg-surface-secondary"
+                  background={
+                    healthScore === null
+                      ? "bg-surface-secondary"
+                      : healthScore > 80
+                        ? "bg-fill-success"
+                        : healthScore > 60
+                          ? "bg-fill-warning"
+                          : "bg-fill-critical"
+                  }
                   padding="600"
                   borderRadius="200"
                 >
                   <BlockStack gap="200" align="center">
-                    <Text as="p" variant="heading3xl" fontWeight="bold">
-                      {healthScore}
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      / 100
-                    </Text>
+                    {healthScore !== null ? (
+                      <>
+                        <Text as="p" variant="heading3xl" fontWeight="bold">
+                          {healthScore}
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          / 100
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text as="p" variant="headingLg" fontWeight="semibold">
+                          未初始化
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          完成平台连接后开始评分
+                        </Text>
+                      </>
+                    )}
                   </BlockStack>
                 </Box>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  基于过去 7 天的转化数据对账结果
+                  {healthScore !== null
+                    ? "评分依据：过去 7 天对账差异率 / 漏报率"
+                    : "连接平台并产生订单数据后，系统将自动计算健康度评分"}
                 </Text>
               </BlockStack>
             </Card>
@@ -244,57 +372,57 @@ export default function Index() {
                   </Text>
                 )}
                 <Button url="/app/scan" fullWidth icon={SearchIcon}>
-                  开始扫描
+                  {latestScan ? "重新扫描" : "开始扫描"}
                 </Button>
               </BlockStack>
             </Card>
           </Layout.Section>
         </Layout>
 
-        {/* Quick Actions */}
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  快速操作
-                </Text>
-                <InlineStack gap="300" wrap={false}>
-                  <Button url="/app/scan" size="large" icon={SearchIcon}>
-                    扫描追踪脚本
-                  </Button>
-                  <Button url="/app/migrate" size="large" icon={SettingsIcon}>
-                    迁移到新像素
-                  </Button>
-                  <Button url="/app/monitor" size="large" icon={ChartVerticalFilledIcon}>
-                    查看监控报告
-                  </Button>
-                </InlineStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-        </Layout>
-
         {/* Migration Deadline Warning */}
-        <Layout>
-          <Layout.Section>
-            <Banner title="重要迁移截止日期" tone="warning">
-              <BlockStack gap="200">
-                <Text as="p">
-                  <strong>Shopify Plus 商家:</strong> Additional Scripts 将于{" "}
-                  <strong>2025年8月28日</strong> 变为只读
-                </Text>
-                <Text as="p">
-                  <strong>非 Plus 商家:</strong> ScriptTags 将于{" "}
-                  <strong>2026年8月26日</strong> 关闭
-                </Text>
-                <Text as="p" tone="subdued">
-                  建议尽早完成迁移，确保追踪数据不中断
-                </Text>
-              </BlockStack>
-            </Banner>
-          </Layout.Section>
-        </Layout>
+        <Banner
+          title="重要迁移截止日期"
+          tone="warning"
+          action={{
+            content: "了解更多",
+            url: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",
+            external: true,
+          }}
+        >
+          <BlockStack gap="300">
+            <BlockStack gap="100">
+              <Text as="p">
+                <strong>Shopify Plus 商家:</strong> Additional Scripts 自{" "}
+                <strong>2025年8月28日</strong> 起在 Checkout 设置中只读（不可再编辑）
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                <Link
+                  url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/plus-upgrade-guide"
+                  external
+                >
+                  查看 Plus 商家升级指南
+                </Link>
+              </Text>
+            </BlockStack>
+            <BlockStack gap="100">
+              <Text as="p">
+                <strong>非 Plus 商家:</strong> Order status 页 ScriptTags 将于{" "}
+                <strong>2026年8月26日</strong> 关闭
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                <Link
+                  url="https://shopify.dev/docs/apps/build/online-store/blocking-script-tags"
+                  external
+                >
+                  查看 ScriptTags 弃用时间表
+                </Link>
+              </Text>
+            </BlockStack>
+            <Text as="p" tone="subdued">
+              checkout.liquid / additional scripts / script tags 将逐步 sunset，建议尽早迁移到 Web Pixels
+            </Text>
+          </BlockStack>
+        </Banner>
       </BlockStack>
     </Page>
   );

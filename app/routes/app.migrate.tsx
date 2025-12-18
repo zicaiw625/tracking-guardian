@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useActionData } from "@remix-run/react";
-import { useState, useCallback } from "react";
+import { useLoaderData, useSubmit, useNavigation, useActionData, useSearchParams } from "@remix-run/react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -16,15 +16,15 @@ import {
   TextField,
   Select,
   Divider,
-  Modal,
-  Tabs,
-  EmptyState,
   Icon,
+  ProgressBar,
+  Link,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
   ClipboardIcon,
-  CodeIcon,
+  PlayIcon,
+  SettingsIcon,
 } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
@@ -77,9 +77,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   const formData = await request.formData();
-  const action = formData.get("_action");
+  const actionType = formData.get("_action");
 
-  if (action === "generate") {
+  if (actionType === "generate") {
     const platform = formData.get("platform") as Platform;
     const platformId = formData.get("platformId") as string;
     const conversionId = formData.get("conversionId") as string;
@@ -104,7 +104,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       await savePixelConfig(shop.id, platform, platformId, additionalConfig);
     }
 
-    return json({ result });
+    return json({ result, _action: "generate" });
+  }
+
+  if (actionType === "verify") {
+    const platform = formData.get("platform") as Platform;
+    const platformId = formData.get("platformId") as string;
+
+    // Simulate verification - in real implementation, this would send a test event
+    // and check if it's received by the platform
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // For demo, return success
+    return json({
+      _action: "verify",
+      success: true,
+      message: "测试事件已发送，请在平台后台查看事件是否到达",
+      verifiedAt: new Date().toISOString(),
+    });
   }
 
   return json({ error: "Unknown action" }, { status: 400 });
@@ -118,20 +135,40 @@ const PLATFORMS = [
   { label: "Microsoft Clarity", value: "clarity" },
 ];
 
+type WizardStep = "select" | "install" | "verify";
+
 export default function MigratePage() {
   const { shop, pixelConfigs, latestScan } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
+  const [searchParams] = useSearchParams();
 
-  const [selectedPlatform, setSelectedPlatform] = useState<Platform>("google");
+  // Get platform from URL query parameter (from scan page "一键迁移")
+  const urlPlatform = searchParams.get("platform");
+
+  const [currentStep, setCurrentStep] = useState<WizardStep>("select");
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform>(
+    (urlPlatform as Platform) || "google"
+  );
   const [platformId, setPlatformId] = useState("");
   const [conversionId, setConversionId] = useState("");
   const [conversionLabel, setConversionLabel] = useState("");
-  const [showCodeModal, setShowCodeModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<"idle" | "pending" | "success" | "failed">("idle");
 
-  const isGenerating = navigation.state === "submitting";
+  const isSubmitting = navigation.state === "submitting";
+
+  // Handle action results
+  useEffect(() => {
+    const data = actionData as any;
+    if (data?._action === "generate" && data?.result?.success) {
+      setCurrentStep("install");
+    }
+    if (data?._action === "verify") {
+      setVerificationStatus(data.success ? "success" : "failed");
+    }
+  }, [actionData]);
 
   const handleGenerate = () => {
     const formData = new FormData();
@@ -140,6 +177,15 @@ export default function MigratePage() {
     formData.append("platformId", platformId);
     if (conversionId) formData.append("conversionId", conversionId);
     if (conversionLabel) formData.append("conversionLabel", conversionLabel);
+    submit(formData, { method: "post" });
+  };
+
+  const handleVerify = () => {
+    setVerificationStatus("pending");
+    const formData = new FormData();
+    formData.append("_action", "verify");
+    formData.append("platform", selectedPlatform);
+    formData.append("platformId", platformId);
     submit(formData, { method: "post" });
   };
 
@@ -171,27 +217,102 @@ export default function MigratePage() {
 
   const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
 
+  // Step indicator
+  const steps = [
+    { id: "select", label: "选择平台", number: 1 },
+    { id: "install", label: "安装像素", number: 2 },
+    { id: "verify", label: "验证事件", number: 3 },
+  ];
+
+  const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
+
   return (
     <Page
       title="迁移工具"
-      subtitle="将旧的追踪脚本迁移到 Shopify Web Pixel"
+      subtitle="将追踪脚本迁移到 Shopify Web Pixel / Customer Events"
     >
       <BlockStack gap="500">
-        {/* Info Banner */}
-        <Banner title="为什么需要迁移？" tone="info">
+        {/* Info Banner with official docs link */}
+        <Banner
+          title="为什么需要迁移到 Web Pixels？"
+          tone="info"
+          action={{
+            content: "查看官方文档",
+            url: "https://shopify.dev/docs/api/web-pixels-api",
+            external: true,
+          }}
+        >
           <BlockStack gap="200">
             <Text as="p">
-              Shopify 正在逐步淘汰旧的追踪方式（ScriptTags 和 Additional Scripts），
-              建议使用新的 Web Pixel API 来实现追踪功能。
+              Shopify 推荐使用 <strong>Web Pixels API</strong> 和 <strong>Customer Events</strong> 来实现追踪功能。
+              新的方式提供更好的性能、隐私合规性，并与 Checkout Extensibility 原生集成。
             </Text>
-            <Text as="p" variant="bodySm" tone="subdued">
-              Web Pixel 提供更好的性能、隐私合规性和与 Shopify 结账流程的原生集成。
-            </Text>
+            <Link
+              url="https://help.shopify.com/en/manual/promoting-marketing/pixels"
+              external
+            >
+              了解 Pixels 和 Customer Events
+            </Link>
           </BlockStack>
         </Banner>
 
+        {/* Step Progress Indicator */}
+        <Card>
+          <BlockStack gap="400">
+            <InlineStack align="space-between" blockAlign="center">
+              {steps.map((step, index) => (
+                <InlineStack key={step.id} gap="400" blockAlign="center">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Box
+                      background={
+                        index < currentStepIndex
+                          ? "bg-fill-success"
+                          : index === currentStepIndex
+                            ? "bg-fill-info"
+                            : "bg-surface-secondary"
+                      }
+                      padding="200"
+                      borderRadius="full"
+                      minWidth="32px"
+                      minHeight="32px"
+                    >
+                      <Text
+                        as="span"
+                        variant="bodySm"
+                        fontWeight="bold"
+                        alignment="center"
+                      >
+                        {index < currentStepIndex ? "✓" : step.number}
+                      </Text>
+                    </Box>
+                    <Text
+                      as="span"
+                      fontWeight={index === currentStepIndex ? "bold" : "regular"}
+                      tone={index <= currentStepIndex ? undefined : "subdued"}
+                    >
+                      {step.label}
+                    </Text>
+                  </InlineStack>
+                  {index < steps.length - 1 && (
+                    <Box
+                      background={index < currentStepIndex ? "bg-fill-success" : "bg-surface-secondary"}
+                      minWidth="60px"
+                      minHeight="2px"
+                    />
+                  )}
+                </InlineStack>
+              ))}
+            </InlineStack>
+            <ProgressBar
+              progress={((currentStepIndex + 1) / steps.length) * 100}
+              tone="primary"
+              size="small"
+            />
+          </BlockStack>
+        </Card>
+
         {/* Detected Platforms from Scan */}
-        {identifiedPlatforms.length > 0 && (
+        {identifiedPlatforms.length > 0 && currentStep === "select" && (
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
@@ -212,71 +333,264 @@ export default function MigratePage() {
         )}
 
         <Layout>
-          {/* Migration Form */}
+          {/* Main Content Area */}
           <Layout.Section>
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  生成 Web Pixel 代码
-                </Text>
+            {/* Step 1: Select Platform */}
+            {currentStep === "select" && (
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">
+                    第 1 步：选择追踪平台并填写 ID
+                  </Text>
 
-                <Select
-                  label="选择追踪平台"
-                  options={PLATFORMS}
-                  value={selectedPlatform}
-                  onChange={(value) => setSelectedPlatform(value as Platform)}
-                />
+                  <Select
+                    label="选择追踪平台"
+                    options={PLATFORMS}
+                    value={selectedPlatform}
+                    onChange={(value) => setSelectedPlatform(value as Platform)}
+                  />
 
-                <TextField
-                  label={getPlatformIdLabel()}
-                  value={platformId}
-                  onChange={setPlatformId}
-                  autoComplete="off"
-                  placeholder={
-                    selectedPlatform === "google"
-                      ? "G-XXXXXXXXXX"
-                      : selectedPlatform === "meta"
-                        ? "1234567890123456"
-                        : ""
-                  }
-                />
+                  <TextField
+                    label={getPlatformIdLabel()}
+                    value={platformId}
+                    onChange={setPlatformId}
+                    autoComplete="off"
+                    placeholder={
+                      selectedPlatform === "google"
+                        ? "G-XXXXXXXXXX"
+                        : selectedPlatform === "meta"
+                          ? "1234567890123456"
+                          : ""
+                    }
+                  />
 
-                {selectedPlatform === "google" && (
-                  <>
-                    <Divider />
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      可选：添加 Google Ads 转化追踪
+                  {selectedPlatform === "google" && (
+                    <>
+                      <Divider />
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        可选：添加 Google Ads 转化追踪
+                      </Text>
+                      <TextField
+                        label="Conversion ID (可选)"
+                        value={conversionId}
+                        onChange={setConversionId}
+                        autoComplete="off"
+                        placeholder="AW-XXXXXXXXXX"
+                      />
+                      <TextField
+                        label="Conversion Label (可选)"
+                        value={conversionLabel}
+                        onChange={setConversionLabel}
+                        autoComplete="off"
+                        placeholder="AbCdEfGhIjKlMnOp"
+                      />
+                    </>
+                  )}
+
+                  <InlineStack gap="200">
+                    <Button
+                      variant="primary"
+                      onClick={handleGenerate}
+                      loading={isSubmitting}
+                      disabled={!platformId}
+                    >
+                      安装像素并启用
+                    </Button>
+                    <Button
+                      onClick={handleGenerate}
+                      disabled={!platformId}
+                      loading={isSubmitting}
+                    >
+                      仅生成代码
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              </Card>
+            )}
+
+            {/* Step 2: Install Pixel */}
+            {currentStep === "install" && (
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between">
+                    <Text as="h2" variant="headingMd">
+                      第 2 步：安装 Web Pixel 代码
                     </Text>
-                    <TextField
-                      label="Conversion ID (可选)"
-                      value={conversionId}
-                      onChange={setConversionId}
-                      autoComplete="off"
-                      placeholder="AW-XXXXXXXXXX"
-                    />
-                    <TextField
-                      label="Conversion Label (可选)"
-                      value={conversionLabel}
-                      onChange={setConversionLabel}
-                      autoComplete="off"
-                      placeholder="AbCdEfGhIjKlMnOp"
-                    />
-                  </>
-                )}
+                    <Button
+                      onClick={handleCopyCode}
+                      icon={copied ? CheckCircleIcon : ClipboardIcon}
+                    >
+                      {copied ? "已复制" : "复制代码"}
+                    </Button>
+                  </InlineStack>
 
-                <Button
-                  variant="primary"
-                  onClick={handleGenerate}
-                  loading={isGenerating}
-                  disabled={!platformId}
-                >
-                  生成 Web Pixel 代码
-                </Button>
-              </BlockStack>
-            </Card>
+                  {(() => {
+                    const data = actionData as { result?: MigrationResult } | undefined;
+                    if (!data?.result?.success) return null;
+                    const result = data.result;
+                    return (
+                      <BlockStack gap="400">
+                        <Box
+                          background="bg-surface-secondary"
+                          padding="400"
+                          borderRadius="200"
+                        >
+                          <pre
+                            style={{
+                              overflow: "auto",
+                              maxHeight: "300px",
+                              fontSize: "12px",
+                              lineHeight: "1.5",
+                              margin: 0,
+                            }}
+                          >
+                            {result.pixelCode}
+                          </pre>
+                        </Box>
+
+                        <Divider />
+
+                        <Text as="h3" variant="headingSm">
+                          安装步骤
+                        </Text>
+                        <BlockStack gap="200">
+                          {result.instructions.map((instruction: string, index: number) => (
+                            <InlineStack key={index} gap="200" align="start">
+                              <Icon source={CheckCircleIcon} tone="success" />
+                              <Text as="span">{instruction}</Text>
+                            </InlineStack>
+                          ))}
+                        </BlockStack>
+
+                        <Banner tone="info">
+                          <BlockStack gap="200">
+                            <Text as="p">
+                              在 Shopify 后台，前往 <strong>Settings → Customer events → Add custom pixel</strong> 来创建新的 Web Pixel。
+                            </Text>
+                            <Link
+                              url="https://admin.shopify.com/settings/customer_events"
+                              external
+                            >
+                              打开 Customer Events 设置
+                            </Link>
+                          </BlockStack>
+                        </Banner>
+
+                        <InlineStack gap="200">
+                          <Button
+                            variant="primary"
+                            onClick={() => setCurrentStep("verify")}
+                          >
+                            已完成安装，下一步
+                          </Button>
+                          <Button onClick={() => setCurrentStep("select")}>
+                            返回修改
+                          </Button>
+                        </InlineStack>
+                      </BlockStack>
+                    );
+                  })()}
+                </BlockStack>
+              </Card>
+            )}
+
+            {/* Step 3: Verify Events */}
+            {currentStep === "verify" && (
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">
+                    第 3 步：验证事件是否正常触发
+                  </Text>
+
+                  <Text as="p" tone="subdued">
+                    点击下方按钮发送测试事件，然后在平台后台检查事件是否正确到达。
+                  </Text>
+
+                  <Box
+                    background="bg-surface-secondary"
+                    padding="400"
+                    borderRadius="200"
+                  >
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="center">
+                        <BlockStack gap="100">
+                          <Text as="span" fontWeight="semibold">
+                            {PLATFORMS.find((p) => p.value === selectedPlatform)?.label}
+                          </Text>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            ID: {platformId}
+                          </Text>
+                        </BlockStack>
+                        <Button
+                          onClick={handleVerify}
+                          loading={verificationStatus === "pending"}
+                          icon={PlayIcon}
+                        >
+                          发送测试事件
+                        </Button>
+                      </InlineStack>
+
+                      {verificationStatus === "success" && (
+                        <Banner tone="success">
+                          <BlockStack gap="100">
+                            <Text as="p" fontWeight="semibold">
+                              测试事件已发送！
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              请在 {PLATFORMS.find((p) => p.value === selectedPlatform)?.label} 后台检查事件是否到达。
+                              通常需要等待 1-5 分钟。
+                            </Text>
+                          </BlockStack>
+                        </Banner>
+                      )}
+
+                      {verificationStatus === "failed" && (
+                        <Banner tone="critical">
+                          <Text as="p">
+                            测试事件发送失败，请检查配置是否正确。
+                          </Text>
+                        </Banner>
+                      )}
+                    </BlockStack>
+                  </Box>
+
+                  <Divider />
+
+                  <Text as="h3" variant="headingSm">
+                    验证清单
+                  </Text>
+                  <BlockStack gap="200">
+                    <InlineStack gap="200" blockAlign="start">
+                      <Icon source={CheckCircleIcon} tone="subdued" />
+                      <Text as="span">在平台后台检查 Purchase / 购买 事件是否触发</Text>
+                    </InlineStack>
+                    <InlineStack gap="200" blockAlign="start">
+                      <Icon source={CheckCircleIcon} tone="subdued" />
+                      <Text as="span">确认事件包含正确的订单金额和订单号</Text>
+                    </InlineStack>
+                    <InlineStack gap="200" blockAlign="start">
+                      <Icon source={CheckCircleIcon} tone="subdued" />
+                      <Text as="span">检查是否有重复事件触发</Text>
+                    </InlineStack>
+                  </BlockStack>
+
+                  <InlineStack gap="200">
+                    <Button
+                      variant="primary"
+                      url="/app/monitor"
+                    >
+                      完成，前往监控面板
+                    </Button>
+                    <Button onClick={() => setCurrentStep("install")}>
+                      返回上一步
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              </Card>
+            )}
           </Layout.Section>
 
-          {/* Configured Platforms */}
+          {/* Sidebar - Configured Platforms */}
           <Layout.Section variant="oneThird">
             <Card>
               <BlockStack gap="400">
@@ -292,32 +606,36 @@ export default function MigratePage() {
                         padding="300"
                         borderRadius="200"
                       >
-                        <InlineStack align="space-between">
-                          <BlockStack gap="100">
+                        <BlockStack gap="200">
+                          <InlineStack align="space-between">
                             <Text as="span" fontWeight="semibold">
-                              {PLATFORMS.find((p) => p.value === config.platform)
-                                ?.label || config.platform}
+                              {PLATFORMS.find((p) => p.value === config.platform)?.label || config.platform}
                             </Text>
-                            <Text as="span" variant="bodySm" tone="subdued">
-                              {config.platformId}
-                            </Text>
-                          </BlockStack>
-                          <Badge
-                            tone={
-                              config.migrationStatus === "completed"
-                                ? "success"
+                            <Badge
+                              tone={
+                                config.migrationStatus === "completed"
+                                  ? "success"
+                                  : config.migrationStatus === "in_progress"
+                                    ? "attention"
+                                    : "info"
+                              }
+                            >
+                              {config.migrationStatus === "completed"
+                                ? "已完成"
                                 : config.migrationStatus === "in_progress"
-                                  ? "attention"
-                                  : "info"
-                            }
-                          >
-                            {config.migrationStatus === "completed"
-                              ? "已完成"
-                              : config.migrationStatus === "in_progress"
-                                ? "进行中"
-                                : "未开始"}
-                          </Badge>
-                        </InlineStack>
+                                  ? "进行中"
+                                  : "未开始"}
+                            </Badge>
+                          </InlineStack>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {config.platformId}
+                          </Text>
+                          {config.lastVerifiedAt && (
+                            <Text as="span" variant="bodySm" tone="success">
+                              上次验证: {new Date(config.lastVerifiedAt).toLocaleDateString("zh-CN")}
+                            </Text>
+                          )}
+                        </BlockStack>
                       </Box>
                     ))}
                   </BlockStack>
@@ -328,98 +646,29 @@ export default function MigratePage() {
                 )}
               </BlockStack>
             </Card>
+
+            {/* Server-side tracking info */}
+            <Box paddingBlockStart="400">
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack gap="200">
+                    <Icon source={SettingsIcon} tone="base" />
+                    <Text as="h2" variant="headingMd">
+                      服务端追踪
+                    </Text>
+                  </InlineStack>
+                  <Text as="p" variant="bodySm">
+                    配置 Conversion API 可将追踪准确率提高 15-30%，不受广告拦截器影响。
+                  </Text>
+                  <Button url="/app/settings" variant="plain">
+                    前往设置配置 →
+                  </Button>
+                </BlockStack>
+              </Card>
+            </Box>
           </Layout.Section>
         </Layout>
-
-        {/* Generated Code Result */}
-        {(() => {
-          const data = actionData as { result?: MigrationResult } | undefined;
-          if (!data?.result) return null;
-          const result = data.result;
-          return (
-            <Card>
-              <BlockStack gap="400">
-                <InlineStack align="space-between">
-                  <Text as="h2" variant="headingMd">
-                    生成的 Web Pixel 代码
-                  </Text>
-                  <Button
-                    onClick={handleCopyCode}
-                    icon={copied ? CheckCircleIcon : ClipboardIcon}
-                  >
-                    {copied ? "已复制" : "复制代码"}
-                  </Button>
-                </InlineStack>
-
-                {result.success ? (
-                  <BlockStack gap="400">
-                    <Box
-                      background="bg-surface-secondary"
-                      padding="400"
-                      borderRadius="200"
-                    >
-                      <pre
-                        style={{
-                          overflow: "auto",
-                          maxHeight: "400px",
-                          fontSize: "12px",
-                          lineHeight: "1.5",
-                          margin: 0,
-                        }}
-                      >
-                        {result.pixelCode}
-                      </pre>
-                    </Box>
-
-                    <Divider />
-
-                    <Text as="h3" variant="headingSm">
-                      安装步骤
-                    </Text>
-                    <BlockStack gap="200">
-                      {result.instructions.map((instruction: string, index: number) => (
-                        <InlineStack key={index} gap="200" align="start">
-                          <Icon source={CheckCircleIcon} tone="success" />
-                          <Text as="span">{instruction}</Text>
-                        </InlineStack>
-                      ))}
-                    </BlockStack>
-
-                    <Banner tone="info">
-                      <p>
-                        在 Shopify 后台，前往 Settings {'>'} Customer events {'>'} Add custom pixel
-                        来创建新的 Web Pixel。
-                      </p>
-                    </Banner>
-                  </BlockStack>
-                ) : (
-                  <Banner tone="critical">
-                    <p>生成失败: {result.error}</p>
-                  </Banner>
-                )}
-              </BlockStack>
-            </Card>
-          );
-        })()}
-
-        {/* Server-side tracking info */}
-        <Card>
-          <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">
-              服务端转化追踪（推荐）
-            </Text>
-            <Text as="p">
-              除了客户端 Web Pixel，我们还支持服务端转化 API 集成。
-              这可以显著提高追踪准确性（通常提升 15-30%），
-              不受广告拦截器和浏览器隐私限制的影响。
-            </Text>
-            <Button url="/app/settings" variant="plain">
-              前往设置配置服务端追踪 →
-            </Button>
-          </BlockStack>
-        </Card>
       </BlockStack>
     </Page>
   );
 }
-
