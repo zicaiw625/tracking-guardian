@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useActionData, useNavigation } from "@remix-run/react";
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Page,
   Layout,
@@ -19,6 +19,7 @@ import {
   Box,
   Tabs,
 } from "@shopify/polaris";
+import { useContextualSaveBar } from "@shopify/app-bridge-react";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -223,8 +224,11 @@ export default function SettingsPage() {
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
+  const contextualSaveBar = useContextualSaveBar();
 
   const [selectedTab, setSelectedTab] = useState(0);
+  
+  // Alert settings state
   const [alertChannel, setAlertChannel] = useState("email");
   const [alertEmail, setAlertEmail] = useState("");
   const [slackWebhook, setSlackWebhook] = useState("");
@@ -233,13 +237,156 @@ export default function SettingsPage() {
   const [alertThreshold, setAlertThreshold] = useState("10");
   const [alertEnabled, setAlertEnabled] = useState(true);
 
+  // Server-side tracking state
   const [serverPlatform, setServerPlatform] = useState("meta");
   const [serverEnabled, setServerEnabled] = useState(false);
   const [metaPixelId, setMetaPixelId] = useState("");
   const [metaAccessToken, setMetaAccessToken] = useState("");
   const [metaTestCode, setMetaTestCode] = useState("");
 
+  // Track form changes for Save bar
+  const [alertFormDirty, setAlertFormDirty] = useState(false);
+  const [serverFormDirty, setServerFormDirty] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  
+  // Initial values refs for comparison
+  const initialAlertValues = useRef({
+    channel: "email",
+    email: "",
+    slackWebhook: "",
+    telegramToken: "",
+    telegramChatId: "",
+    threshold: "10",
+    enabled: true,
+  });
+  
+  const initialServerValues = useRef({
+    platform: "meta",
+    enabled: false,
+    metaPixelId: "",
+    metaAccessToken: "",
+    metaTestCode: "",
+  });
+
   const isSubmitting = navigation.state === "submitting";
+
+  // Check if alert form has changes
+  const checkAlertFormDirty = useCallback(() => {
+    const initial = initialAlertValues.current;
+    const isDirty = 
+      alertChannel !== initial.channel ||
+      alertEmail !== initial.email ||
+      slackWebhook !== initial.slackWebhook ||
+      telegramToken !== initial.telegramToken ||
+      telegramChatId !== initial.telegramChatId ||
+      alertThreshold !== initial.threshold ||
+      alertEnabled !== initial.enabled;
+    setAlertFormDirty(isDirty);
+  }, [alertChannel, alertEmail, slackWebhook, telegramToken, telegramChatId, alertThreshold, alertEnabled]);
+
+  // Check if server form has changes
+  const checkServerFormDirty = useCallback(() => {
+    const initial = initialServerValues.current;
+    const isDirty =
+      serverPlatform !== initial.platform ||
+      serverEnabled !== initial.enabled ||
+      metaPixelId !== initial.metaPixelId ||
+      metaAccessToken !== initial.metaAccessToken ||
+      metaTestCode !== initial.metaTestCode;
+    setServerFormDirty(isDirty);
+  }, [serverPlatform, serverEnabled, metaPixelId, metaAccessToken, metaTestCode]);
+
+  // Update dirty state when form values change
+  useEffect(() => {
+    if (selectedTab === 0) {
+      checkAlertFormDirty();
+    } else if (selectedTab === 1) {
+      checkServerFormDirty();
+    }
+  }, [selectedTab, checkAlertFormDirty, checkServerFormDirty]);
+
+  // Handle save bar visibility
+  useEffect(() => {
+    const hasDirtyForm = (selectedTab === 0 && alertFormDirty) || (selectedTab === 1 && serverFormDirty);
+    
+    if (hasDirtyForm) {
+      contextualSaveBar.show({
+        saveAction: {
+          content: "保存",
+          onAction: () => {
+            if (selectedTab === 0) {
+              handleSaveAlert();
+            } else if (selectedTab === 1) {
+              handleSaveServerSide();
+            }
+          },
+          loading: isSubmitting,
+        },
+        discardAction: {
+          content: "放弃",
+          onAction: () => {
+            handleDiscardChanges();
+          },
+        },
+      });
+    } else {
+      contextualSaveBar.hide();
+    }
+  }, [alertFormDirty, serverFormDirty, selectedTab, isSubmitting]);
+
+  // Reset dirty state after successful save
+  useEffect(() => {
+    if (actionData && "success" in actionData && actionData.success) {
+      // Update initial values to current values after save
+      if (selectedTab === 0) {
+        initialAlertValues.current = {
+          channel: alertChannel,
+          email: alertEmail,
+          slackWebhook: slackWebhook,
+          telegramToken: telegramToken,
+          telegramChatId: telegramChatId,
+          threshold: alertThreshold,
+          enabled: alertEnabled,
+        };
+        setAlertFormDirty(false);
+      } else if (selectedTab === 1) {
+        initialServerValues.current = {
+          platform: serverPlatform,
+          enabled: serverEnabled,
+          metaPixelId: metaPixelId,
+          metaAccessToken: metaAccessToken,
+          metaTestCode: metaTestCode,
+        };
+        setServerFormDirty(false);
+      }
+      setIsSaved(true);
+      contextualSaveBar.hide();
+    }
+  }, [actionData]);
+
+  // Discard changes handler
+  const handleDiscardChanges = useCallback(() => {
+    if (selectedTab === 0) {
+      const initial = initialAlertValues.current;
+      setAlertChannel(initial.channel);
+      setAlertEmail(initial.email);
+      setSlackWebhook(initial.slackWebhook);
+      setTelegramToken(initial.telegramToken);
+      setTelegramChatId(initial.telegramChatId);
+      setAlertThreshold(initial.threshold);
+      setAlertEnabled(initial.enabled);
+      setAlertFormDirty(false);
+    } else if (selectedTab === 1) {
+      const initial = initialServerValues.current;
+      setServerPlatform(initial.platform);
+      setServerEnabled(initial.enabled);
+      setMetaPixelId(initial.metaPixelId);
+      setMetaAccessToken(initial.metaAccessToken);
+      setMetaTestCode(initial.metaTestCode);
+      setServerFormDirty(false);
+    }
+    contextualSaveBar.hide();
+  }, [selectedTab, contextualSaveBar]);
 
   const handleSaveAlert = () => {
     const formData = new FormData();
@@ -415,6 +562,7 @@ export default function SettingsPage() {
                         variant="primary"
                         onClick={handleSaveAlert}
                         loading={isSubmitting}
+                        disabled={!alertFormDirty}
                       >
                         保存设置
                       </Button>
@@ -422,10 +570,16 @@ export default function SettingsPage() {
                         variant="secondary"
                         onClick={handleTestAlert}
                         loading={isSubmitting}
+                        disabled={alertFormDirty}
                       >
                         发送测试通知
                       </Button>
                     </InlineStack>
+                    {alertFormDirty && (
+                      <Text as="p" variant="bodySm" tone="caution">
+                        请先保存设置后再发送测试通知
+                      </Text>
+                    )}
                   </BlockStack>
                 </Card>
               </Layout.Section>
@@ -482,7 +636,7 @@ export default function SettingsPage() {
                 <Card>
                   <BlockStack gap="400">
                     <Text as="h2" variant="headingMd">
-                      服务端转化追踪 (Conversion API)
+                      服务端转化追踪（Conversions API）
                     </Text>
                     <Banner tone="info">
                       <p>
@@ -496,8 +650,8 @@ export default function SettingsPage() {
                     <Select
                       label="选择平台"
                       options={[
-                        { label: "Meta (Facebook) Conversions API", value: "meta" },
-                        { label: "Google Ads Conversion API", value: "google" },
+                        { label: "Meta Conversions API（CAPI）", value: "meta" },
+                        { label: "Google Ads Conversions API", value: "google" },
                         { label: "TikTok Events API", value: "tiktok" },
                       ]}
                       value={serverPlatform}
@@ -542,6 +696,7 @@ export default function SettingsPage() {
                         variant="primary"
                         onClick={handleSaveServerSide}
                         loading={isSubmitting}
+                        disabled={!serverFormDirty}
                       >
                         保存配置
                       </Button>
@@ -550,12 +705,18 @@ export default function SettingsPage() {
                         onClick={handleTestConnection}
                         loading={isSubmitting}
                         disabled={
-                          serverPlatform === "meta" && (!metaPixelId || !metaAccessToken)
+                          serverFormDirty ||
+                          (serverPlatform === "meta" && (!metaPixelId || !metaAccessToken))
                         }
                       >
                         测试连接
                       </Button>
                     </InlineStack>
+                    {serverFormDirty && (
+                      <Text as="p" variant="bodySm" tone="caution">
+                        请先保存配置后再测试连接
+                      </Text>
+                    )}
                   </BlockStack>
                 </Card>
               </Layout.Section>
@@ -645,7 +806,7 @@ export default function SettingsPage() {
                           </InlineStack>
                           <Badge tone="info">适用人群：月订单 &lt; 100 的新店铺</Badge>
                           <Text as="p" tone="subdued">
-                            • 每月 100 次转化追踪
+                            • 每月 100 次转化追踪（按订单数计算）
                             <br />• 基础扫描报告
                             <br />• 邮件警报
                           </Text>
@@ -666,17 +827,20 @@ export default function SettingsPage() {
                         borderRadius="200"
                       >
                         <BlockStack gap="300">
-                          <InlineStack align="space-between">
-                            <Text as="h3" variant="headingMd">
-                              入门版
-                            </Text>
+                          <InlineStack align="space-between" blockAlign="center">
+                            <InlineStack gap="200" blockAlign="center">
+                              <Text as="h3" variant="headingMd">
+                                入门版
+                              </Text>
+                              <Badge tone="success">最受欢迎</Badge>
+                            </InlineStack>
                             <Text as="span" fontWeight="bold">
                               $29/月
                             </Text>
                           </InlineStack>
                           <Badge tone="info">适用人群：月订单 100-1,000 的成长店铺</Badge>
                           <Text as="p" tone="subdued">
-                            • 每月 1,000 次转化追踪
+                            • 每月 1,000 次转化追踪（按订单数计算）
                             <br />• 2 个平台集成
                             <br />• 每日对账报告
                             <br />• 邮件 + Slack 警报
@@ -710,9 +874,9 @@ export default function SettingsPage() {
                           </InlineStack>
                           <Badge tone="info">适用人群：月订单 1,000+ 的成熟店铺</Badge>
                           <Text as="p" tone="subdued">
-                            • 每月 10,000 次转化追踪
+                            • 每月 10,000 次转化追踪（按订单数计算）
                             <br />• 所有平台集成
-                            <br />• 服务端转化 API
+                            <br />• Conversions API（CAPI）
                             <br />• 实时警报
                             <br />• 优先支持
                           </Text>

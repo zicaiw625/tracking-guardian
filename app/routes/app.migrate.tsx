@@ -331,7 +331,7 @@ export default function MigratePage() {
                 ))}
               </InlineStack>
               <Text as="p" variant="bodySm" tone="subdued">
-                这些平台可能需要迁移到 Web Pixel 格式
+                这些平台可能需要迁移到 Web Pixels 格式
               </Text>
             </BlockStack>
           </Card>
@@ -399,7 +399,7 @@ export default function MigratePage() {
                       loading={isSubmitting}
                       disabled={!platformId}
                     >
-                      安装像素并启用
+                      生成并启用像素
                     </Button>
                     <Button
                       onClick={handleGenerate}
@@ -682,17 +682,18 @@ export default function MigratePage() {
             <Box paddingBlockStart="400">
               <Card>
                 <BlockStack gap="400">
-                  <InlineStack gap="200">
+                  <InlineStack gap="200" blockAlign="center">
                     <Icon source={SettingsIcon} tone="base" />
                     <Text as="h2" variant="headingMd">
                       服务端追踪
                     </Text>
+                    <Badge tone="info">专业版</Badge>
                   </InlineStack>
                   <Text as="p" variant="bodySm">
-                    配置 Conversion API 可将追踪准确率提高 15-30%，不受广告拦截器影响。
+                    配置 Conversions API（CAPI）可将追踪准确率提高 15-30%，不受广告拦截器影响。
                   </Text>
-                  <Button url="/app/settings" variant="plain">
-                    前往设置配置 →
+                  <Button url="/app/settings">
+                    配置服务端追踪
                   </Button>
                 </BlockStack>
               </Card>

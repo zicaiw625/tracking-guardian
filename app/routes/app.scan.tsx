@@ -147,32 +147,24 @@ export default function ScanPage() {
           </Card>
         )}
 
-        {/* No Scan Yet - Empty State without action button (primary action is in page header) */}
+        {/* No Scan Yet - Empty State with primary CTA */}
         {!latestScan && !isScanning && (
           <Card>
             <EmptyState
               heading="还没有扫描报告"
               image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+              action={{
+                content: "开始扫描",
+                onAction: handleScan,
+                loading: isScanning,
+              }}
             >
-              <BlockStack gap="400">
-                <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    扫描范围
-                  </Text>
-                  <Text as="p">
-                    Additional Scripts / ScriptTags / 像素配置 / Customer Events
-                  </Text>
-                </BlockStack>
-                <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    扫描输出
-                  </Text>
-                  <Text as="p">
-                    风险等级评估 + 一键迁移建议
-                  </Text>
-                </BlockStack>
+              <BlockStack gap="300">
+                <Text as="p">
+                  点击开始扫描，我们会检测附加脚本（Additional Scripts）、ScriptTags、Web Pixels 配置、Customer Events，并给出风险等级与迁移建议。
+                </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  点击右上角"开始扫描"按钮开始检测
+                  预计耗时约 10 秒，不会修改任何设置
                 </Text>
                 <Link
                   url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status"
@@ -268,7 +260,7 @@ export default function ScanPage() {
                     </InlineStack>
                     {((latestScan.scriptTags as any[])?.length || 0) > 0 && (
                       <Banner tone="warning">
-                        <p>ScriptTags 即将被弃用，建议迁移到 Web Pixel</p>
+                        <p>ScriptTags 即将被弃用，建议迁移到 Web Pixels</p>
                       </Banner>
                     )}
                   </BlockStack>

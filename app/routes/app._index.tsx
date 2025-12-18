@@ -165,8 +165,21 @@ export default function Index() {
     }
   };
 
+  // Find the first uncompleted step
+  const nextStep = setupSteps.find((s) => !s.done);
+
   return (
-    <Page title="Tracking Guardian">
+    <Page
+      title="Tracking Guardian"
+      primaryAction={
+        !allStepsCompleted && nextStep
+          ? {
+              content: nextStep.cta,
+              url: nextStep.url,
+            }
+          : undefined
+      }
+    >
       <BlockStack gap="500">
         {/* Welcome Banner */}
         <Banner
@@ -230,7 +243,11 @@ export default function Index() {
                         </BlockStack>
                       </InlineStack>
                       {!step.done && (
-                        <Button url={step.url} size="slim">
+                        <Button
+                          url={step.url}
+                          size="slim"
+                          variant={step.id === nextStep?.id ? "primary" : undefined}
+                        >
                           {step.cta}
                         </Button>
                       )}
@@ -375,9 +392,14 @@ export default function Index() {
                     查看扫描报告
                   </Button>
                 ) : (
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    完成上方第 1 步开始扫描
-                  </Text>
+                  <BlockStack gap="100">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      完成上方第 1 步开始扫描
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      预计耗时约 10 秒，不会修改任何设置
+                    </Text>
+                  </BlockStack>
                 )}
               </BlockStack>
             </Card>
@@ -397,7 +419,7 @@ export default function Index() {
           <BlockStack gap="300">
             <BlockStack gap="100">
               <Text as="p">
-                <strong>Shopify Plus 商家:</strong> Additional Scripts 自{" "}
+                <strong>Shopify Plus 商家:</strong> 附加脚本（Additional Scripts）自{" "}
                 <strong>2025年8月28日</strong> 起在 Checkout 设置中只读（不可再编辑）
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
@@ -424,7 +446,7 @@ export default function Index() {
               </Text>
             </BlockStack>
             <Text as="p" tone="subdued">
-              checkout.liquid / additional scripts / script tags 将逐步 sunset，建议尽早迁移到 Web Pixels
+              checkout.liquid、附加脚本（Additional Scripts）、ScriptTags 将逐步下线，建议尽早迁移到 Web Pixels
             </Text>
           </BlockStack>
         </Banner>

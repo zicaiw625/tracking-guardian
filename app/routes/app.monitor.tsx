@@ -156,7 +156,14 @@ export default function MonitorPage() {
   ];
 
   return (
-    <Page title="监控面板" subtitle="追踪健康状况和转化对账报告">
+    <Page
+      title="监控面板"
+      subtitle="追踪健康状况和转化对账报告"
+      primaryAction={{
+        content: "配置追踪平台",
+        url: "/app/migrate",
+      }}
+    >
       <BlockStack gap="500">
         {/* Empty State - Show when no data */}
         {!hasData && (
@@ -168,7 +175,7 @@ export default function MonitorPage() {
                     还没开始监控对账
                   </Text>
                   <Text as="p" tone="subdued">
-                    连接平台后，我们会基于 Customer events / Web Pixels 的事件流做持续检测与对账。
+                    连接平台后，我们会基于 Customer Events 和 Web Pixels 的事件流做持续检测与对账。
                   </Text>
                 </BlockStack>
                 <Badge tone="info">未初始化</Badge>
@@ -202,8 +209,8 @@ export default function MonitorPage() {
                   <Button url="/app/migrate" variant="primary">
                     配置追踪平台
                   </Button>
-                  <Button url="/app/settings" variant="plain">
-                    开启告警通知 →
+                  <Button url="/app/settings">
+                    配置告警通知
                   </Button>
                 </InlineStack>
               </BlockStack>
@@ -422,7 +429,7 @@ export default function MonitorPage() {
                       </Text>
                     </InlineStack>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      配置 Conversion API 可将追踪准确率提高 15-30%，不受广告拦截器影响
+                      配置 Conversions API（CAPI）可将追踪准确率提高 15-30%，不受广告拦截器影响
                     </Text>
                   </BlockStack>
                   <Button url="/app/settings" size="slim" icon={ArrowRightIcon}>
