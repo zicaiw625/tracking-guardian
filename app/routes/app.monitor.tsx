@@ -202,8 +202,8 @@ export default function MonitorPage() {
                   <Button url="/app/migrate" variant="primary">
                     配置追踪平台
                   </Button>
-                  <Button url="/app/settings">
-                    开启告警通知
+                  <Button url="/app/settings" variant="plain">
+                    开启告警通知 →
                   </Button>
                 </InlineStack>
               </BlockStack>
@@ -360,7 +360,7 @@ export default function MonitorPage() {
             <BlockStack gap="400">
               <InlineStack align="space-between">
                 <Text as="h2" variant="headingMd">
-                  历史对账报告
+                  对账记录
                 </Text>
                 <Select
                   label=""

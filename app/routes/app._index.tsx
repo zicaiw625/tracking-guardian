@@ -19,7 +19,6 @@ import {
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
-  SearchIcon,
 } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
@@ -250,7 +249,7 @@ export default function Index() {
               <BlockStack gap="400">
                 <InlineStack align="space-between">
                   <Text as="h2" variant="headingMd">
-                    追踪健康度
+                    健康度
                   </Text>
                   {getHealthBadge()}
                 </InlineStack>
@@ -371,9 +370,15 @@ export default function Index() {
                     尚未进行扫描
                   </Text>
                 )}
-                <Button url="/app/scan" fullWidth icon={SearchIcon}>
-                  {latestScan ? "重新扫描" : "开始扫描"}
-                </Button>
+                {latestScan ? (
+                  <Button url="/app/scan" fullWidth>
+                    查看扫描报告
+                  </Button>
+                ) : (
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    完成上方第 1 步开始扫描
+                  </Text>
+                )}
               </BlockStack>
             </Card>
           </Layout.Section>

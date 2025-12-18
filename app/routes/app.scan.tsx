@@ -151,15 +151,26 @@ export default function ScanPage() {
         {!latestScan && !isScanning && (
           <Card>
             <EmptyState
-              heading="还没有扫描记录"
+              heading="还没有扫描报告"
               image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
             >
-              <BlockStack gap="300">
-                <Text as="p">
-                  我们会检查 Thank you / Order status 页相关的{" "}
-                  <strong>Additional Scripts</strong>、<strong>ScriptTags</strong>、
-                  <strong>像素配置</strong>，并给出可迁移建议。
-                </Text>
+              <BlockStack gap="400">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    扫描范围
+                  </Text>
+                  <Text as="p">
+                    Additional Scripts / ScriptTags / 像素配置 / Customer Events
+                  </Text>
+                </BlockStack>
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    扫描输出
+                  </Text>
+                  <Text as="p">
+                    风险等级评估 + 一键迁移建议
+                  </Text>
+                </BlockStack>
                 <Text as="p" variant="bodySm" tone="subdued">
                   点击右上角"开始扫描"按钮开始检测
                 </Text>

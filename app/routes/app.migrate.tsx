@@ -217,6 +217,11 @@ export default function MigratePage() {
 
   const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
 
+  // Get existing config for selected platform
+  const existingConfig = pixelConfigs.find(
+    (config) => config?.platform === selectedPlatform
+  );
+
   // Step indicator
   const steps = [
     { id: "select", label: "选择平台", number: 1 },
@@ -424,6 +429,22 @@ export default function MigratePage() {
                     </Button>
                   </InlineStack>
 
+                  {/* Installation status */}
+                  {existingConfig ? (
+                    <Banner tone="success">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" fontWeight="semibold">已安装</Text>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          上次更新: {new Date(existingConfig.updatedAt).toLocaleDateString("zh-CN")}
+                        </Text>
+                      </InlineStack>
+                    </Banner>
+                  ) : (
+                    <Banner tone="info">
+                      <Text as="span">未安装 - 请按照下方步骤完成安装</Text>
+                    </Banner>
+                  )}
+
                   {(() => {
                     const data = actionData as { result?: MigrationResult } | undefined;
                     if (!data?.result?.success) return null;
@@ -501,6 +522,16 @@ export default function MigratePage() {
                   <Text as="h2" variant="headingMd">
                     第 3 步：验证事件是否正常触发
                   </Text>
+
+                  {/* Previous verification status */}
+                  {existingConfig?.lastVerifiedAt && (
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone="success">上次验证通过</Badge>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        {new Date(existingConfig.lastVerifiedAt).toLocaleString("zh-CN")}
+                      </Text>
+                    </InlineStack>
+                  )}
 
                   <Text as="p" tone="subdued">
                     点击下方按钮发送测试事件，然后在平台后台检查事件是否正确到达。
