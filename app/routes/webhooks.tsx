@@ -104,10 +104,39 @@ interface ShopWithPixelConfigs extends Shop {
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  // P0-02: Variables to hold authenticated data
+  let topic: string;
+  let shop: string;
+  let session: unknown;
+  let admin: unknown;
+  let payload: unknown;
+  
+  // P0-02: Enhanced error handling for HMAC validation and JSON parsing
   try {
-    const { topic, shop, session, admin, payload } =
-      await authenticate.webhook(request);
-    
+    const authResult = await authenticate.webhook(request);
+    topic = authResult.topic;
+    shop = authResult.shop;
+    session = authResult.session;
+    admin = authResult.admin;
+    payload = authResult.payload;
+  } catch (error) {
+    // P0-02: Handle HMAC validation failure - return 401
+    if (error instanceof Response) {
+      // Shopify's authenticate.webhook throws Response on auth failure
+      console.warn("[Webhook] HMAC validation failed - returning 401");
+      return new Response("Unauthorized", { status: 401 });
+    }
+    // P0-02: Handle JSON parsing errors - return 400
+    if (error instanceof SyntaxError) {
+      console.warn("[Webhook] Payload JSON parse error - returning 400");
+      return new Response("Bad Request: Invalid JSON", { status: 400 });
+    }
+    // P0-02: For other errors, log and return 500
+    console.error("[Webhook] Authentication error:", error);
+    return new Response("Webhook authentication failed", { status: 500 });
+  }
+
+  try {
     // P0-5: Get webhook ID from headers for idempotency
     const webhookId = request.headers.get("X-Shopify-Webhook-Id");
     
@@ -163,7 +192,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         // This handler quickly validates and queues the order, then returns 200
         // Actual CAPI sending is done by the worker (api.cron.tsx)
         if (shopRecord && payload) {
-          const orderId = normalizeOrderId(String(payload.id));
+          const orderPayload = payload as OrderWebhookPayload;
+          const orderId = normalizeOrderId(String(orderPayload.id));
           console.log(`Processing ${topic} webhook for shop ${shop}, order ${orderId}`);
           
           // P0-1: Check billing gate BEFORE processing
@@ -194,9 +224,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 create: {
                   shopId: shopRecord.id,
                   orderId,
-                  orderNumber: payload.order_number ? String(payload.order_number) : null,
-                  orderValue: parseFloat(payload.total_price || "0"),
-                  currency: payload.currency || "USD",
+                  orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
+                  orderValue: parseFloat(orderPayload.total_price || "0"),
+                  currency: orderPayload.currency || "USD",
                   platform: pixelConfig.platform,
                   eventType: "purchase",
                   eventId: blockedEventId,
@@ -205,9 +235,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 },
                 update: {
                   // P0-3: Update all key fields
-                  orderNumber: payload.order_number ? String(payload.order_number) : null,
-                  orderValue: parseFloat(payload.total_price || "0"),
-                  currency: payload.currency || "USD",
+                  orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
+                  orderValue: parseFloat(orderPayload.total_price || "0"),
+                  currency: orderPayload.currency || "USD",
                   eventId: blockedEventId,
                   status: "failed",
                   errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
@@ -227,7 +257,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           // P0-2: Queue the order for async processing
           await queueOrderForProcessing(
             shopRecord as ShopWithPixelConfigs,
-            payload as OrderWebhookPayload
+            orderPayload
           );
           
           // P0-5: Record webhook as processed
@@ -244,12 +274,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "ORDERS_CREATE":
         // NOTE: ORDERS_CREATE is intentionally not processed for conversion tracking
         // We use ORDERS_PAID instead to ensure payment is confirmed
-        console.log(`ORDERS_CREATE received for shop ${shop}, order ${payload?.id} - skipping (using ORDERS_PAID instead)`);
+        console.log(`ORDERS_CREATE received for shop ${shop}, order ${(payload as { id?: number })?.id} - skipping (using ORDERS_PAID instead)`);
         break;
 
       case "ORDERS_UPDATED":
         // Handle order updates if needed (e.g., refunds)
-        console.log(`Order updated for shop ${shop}: order_id=${payload?.id}`);
+        console.log(`Order updated for shop ${shop}: order_id=${(payload as { id?: number })?.id}`);
         break;
 
       case "CUSTOMERS_DATA_REQUEST":
@@ -326,6 +356,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "CUSTOMERS_REDACT":
         // Customer data deletion request - MUST delete customer data
         // This is a mandatory webhook for GDPR compliance
+        // P0-03: Must delete ALL customer-related data across ALL tables
         console.log(`GDPR customer redact request for shop ${shop}`);
         if (payload) {
           try {
@@ -337,17 +368,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             const customerId = customerPayload.customer?.id;
             const ordersToRedact = customerPayload.orders_to_redact || [];
             
+            // P0-03: Track all deletions for logging
             let conversionLogsDeleted = 0;
             let surveyResponsesDeleted = 0;
+            let conversionJobsDeleted = 0;
+            let pixelEventReceiptsDeleted = 0;
+            let webhookLogsDeleted = 0;
             
             // Delete data associated with the customer's orders
             if (ordersToRedact.length > 0) {
               // Convert order IDs to strings (our schema uses string orderId)
               const orderIdStrings = ordersToRedact.map(String);
               
-              // Delete ConversionLogs for these orders
-              // Note: We query by orderId since we don't store customerId
               if (shopRecord) {
+                // P0-03: Delete ConversionLogs for these orders
                 const conversionResult = await prisma.conversionLog.deleteMany({
                   where: {
                     shopId: shopRecord.id,
@@ -356,7 +390,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 });
                 conversionLogsDeleted = conversionResult.count;
                 
-                // Delete SurveyResponses for these orders
+                // P0-03: Delete SurveyResponses for these orders
                 const surveyResult = await prisma.surveyResponse.deleteMany({
                   where: {
                     shopId: shopRecord.id,
@@ -364,16 +398,46 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   },
                 });
                 surveyResponsesDeleted = surveyResult.count;
-              } else {
-                // If shop record doesn't exist, try to find and delete by orderId across all
-                // This handles edge case where shop was already deleted but data remains
-                console.log(`Shop record not found for ${shop}, attempting cross-shop cleanup`);
+                
+                // P0-03: Delete ConversionJobs for these orders
+                // This may contain orderPayload with PII
+                const conversionJobResult = await prisma.conversionJob.deleteMany({
+                  where: {
+                    shopId: shopRecord.id,
+                    orderId: { in: orderIdStrings },
+                  },
+                });
+                conversionJobsDeleted = conversionJobResult.count;
+                
+                // P0-03: Delete PixelEventReceipts for these orders
+                const pixelReceiptResult = await prisma.pixelEventReceipt.deleteMany({
+                  where: {
+                    shopId: shopRecord.id,
+                    orderId: { in: orderIdStrings },
+                  },
+                });
+                pixelEventReceiptsDeleted = pixelReceiptResult.count;
               }
+              
+              // P0-03: Delete WebhookLogs for these orders (uses shopDomain, not shopId)
+              const webhookLogResult = await prisma.webhookLog.deleteMany({
+                where: {
+                  shopDomain: shop,
+                  orderId: { in: orderIdStrings },
+                },
+              });
+              webhookLogsDeleted = webhookLogResult.count;
             }
             
-            console.log(`Customer redact completed: customerId=${customerId}, ` +
-              `ordersRedacted=${ordersToRedact.length}, conversionLogsDeleted=${conversionLogsDeleted}, ` +
-              `surveyResponsesDeleted=${surveyResponsesDeleted}`);
+            console.log(
+              `[P0-03] Customer redact completed: customerId=${customerId}, ` +
+              `ordersRedacted=${ordersToRedact.length}, ` +
+              `conversionLogsDeleted=${conversionLogsDeleted}, ` +
+              `surveyResponsesDeleted=${surveyResponsesDeleted}, ` +
+              `conversionJobsDeleted=${conversionJobsDeleted}, ` +
+              `pixelEventReceiptsDeleted=${pixelEventReceiptsDeleted}, ` +
+              `webhookLogsDeleted=${webhookLogsDeleted}`
+            );
               
           } catch (gdprError) {
             console.error("Error processing CUSTOMERS_REDACT:", gdprError);
@@ -386,6 +450,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "SHOP_REDACT":
         // Shop data deletion - happens 48 hours after uninstall
         // This is a mandatory webhook - we MUST delete all shop data
+        // P0-04: Must delete ALL shop data including non-cascaded tables
         console.log(`GDPR shop redact request for shop ${shop}`);
         try {
           // Delete all shop data when the shop requests complete data deletion
@@ -395,12 +460,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             select: { id: true, shopDomain: true },
           });
           
+          // P0-04: Delete WebhookLog first (not cascaded - uses shopDomain string)
+          // Must be done before shop deletion since it references shopDomain
+          const webhookLogResult = await prisma.webhookLog.deleteMany({
+            where: { shopDomain: shop },
+          });
+          console.log(`[P0-04] Deleted ${webhookLogResult.count} WebhookLog entries for ${shop}`);
+          
           if (shopToDelete) {
             // Log deletion for compliance
             console.log(`Deleting all shop data for ${shop} (GDPR SHOP_REDACT)`);
             
             // Delete all related data (cascade handles child records)
-            // The Prisma schema has onDelete: Cascade for all relations
+            // The Prisma schema has onDelete: Cascade for:
+            // - ScanReport, PixelConfig, AlertConfig, ConversionLog
+            // - ReconciliationReport, SurveyResponse, AuditLog
+            // - MonthlyUsage, PixelEventReceipt, ConversionJob
             await prisma.shop.delete({
               where: { id: shopToDelete.id },
             });
@@ -410,7 +485,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               where: { shop },
             });
             
-            console.log(`Shop data completely deleted for GDPR compliance: ${shop}`);
+            console.log(`[P0-04] Shop data completely deleted for GDPR compliance: ${shop}`);
           } else {
             // Shop may have been deleted already or never existed
             // Still try to clean up any orphaned sessions
@@ -450,6 +525,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 /**
+ * P0-05: Build minimal CAPI input from order payload
+ * Only includes fields necessary for platform API calls - NO raw PII
+ */
+function buildCapiInput(orderPayload: OrderWebhookPayload, orderId: string): object {
+  // Extract line items summary (no PII)
+  // Shopify uses 'title' for product name, but some versions use 'name'
+  const items = orderPayload.line_items?.map((item) => ({
+    productId: item.product_id ? String(item.product_id) : undefined,
+    variantId: item.variant_id ? String(item.variant_id) : undefined,
+    name: item.title || item.name || "",
+    quantity: item.quantity || 1,
+    price: parseFloat(item.price || "0"),
+  })) || [];
+
+  return {
+    orderId,
+    value: parseFloat(orderPayload.total_price || "0"),
+    currency: orderPayload.currency || "USD",
+    orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
+    items,
+    // P0-05: Store tax and shipping for accurate conversion value
+    tax: parseFloat(orderPayload.total_tax || "0"),
+    shipping: parseFloat(orderPayload.total_shipping_price_set?.shop_money?.amount || "0"),
+    // Timestamp for event timing
+    processedAt: orderPayload.processed_at || new Date().toISOString(),
+    // P0-05: Do NOT include raw email/phone/address - only if piiEnabled and hashed
+  };
+}
+
+/**
  * P0-07: Queue order for async processing with O(1) response time
  * 
  * CRITICAL: This function must return as fast as possible to avoid webhook timeouts.
@@ -459,6 +564,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
  * 1. Single ConversionJob upsert (not per-platform)
  * 2. Defer all platform-specific logic to the cron worker
  * 3. Minimal DB queries - just the essential upsert
+ * 
+ * P0-05: Now stores capiInput (minimal fields) instead of full orderPayload
  * 
  * The cron worker (api.cron.tsx) will:
  * - Query PixelEventReceipt for consent
@@ -472,9 +579,36 @@ async function queueOrderForProcessing(
 ): Promise<void> {
   const orderId = normalizeOrderId(String(orderPayload.id));
   
+  // P0-05: Build minimal CAPI input - no raw PII stored
+  const capiInput = buildCapiInput(orderPayload, orderId);
+  
   // P0-07: Single upsert to ConversionJob - minimal I/O
   // All consent checking and platform logic deferred to worker
   try {
+    // P0-05: Build create/update data with capiInput
+    // Note: After running `prisma migrate`, capiInput will be a proper field
+    // For now, we include it in the data object for forward compatibility
+    const createData = {
+      shopId: shopRecord.id,
+      orderId,
+      orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
+      orderValue: parseFloat(orderPayload.total_price || "0"),
+      currency: orderPayload.currency || "USD",
+      // P0-05: Store minimal CAPI input instead of full payload
+      capiInput: capiInput as object,
+      // P0-05: orderPayload is deprecated - use empty object for new records
+      orderPayload: {},
+      status: "queued",
+    };
+    
+    const updateData = {
+      orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
+      orderValue: parseFloat(orderPayload.total_price || "0"),
+      currency: orderPayload.currency || "USD",
+      // P0-05: Update capiInput
+      capiInput: capiInput as object,
+    };
+    
     await prisma.conversionJob.upsert({
       where: {
         shopId_orderId: {
@@ -482,24 +616,9 @@ async function queueOrderForProcessing(
           orderId,
         },
       },
-      create: {
-        shopId: shopRecord.id,
-        orderId,
-        orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
-        orderValue: parseFloat(orderPayload.total_price || "0"),
-        currency: orderPayload.currency || "USD",
-        // Store full payload for worker to process
-        orderPayload: orderPayload as object,
-        status: "queued",
-      },
-      update: {
-        // Update order data if job already exists (shouldn't happen often)
-        orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
-        orderValue: parseFloat(orderPayload.total_price || "0"),
-        currency: orderPayload.currency || "USD",
-        orderPayload: orderPayload as object,
-        // Don't overwrite status if already processing/completed
-      },
+      // Use type assertion to include capiInput field (requires prisma migrate)
+      create: createData as Parameters<typeof prisma.conversionJob.upsert>[0]["create"],
+      update: updateData as Parameters<typeof prisma.conversionJob.upsert>[0]["update"],
     });
     
     console.log(`[P0-07] Order ${orderId} queued for async processing`);

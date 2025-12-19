@@ -39,6 +39,9 @@ import { getShopForVerification, verifyWithGraceWindow } from "../utils/shop-acc
 // Signature verification time window (5 minutes)
 const SIGNATURE_TIME_WINDOW_MS = 5 * 60 * 1000;
 
+// P1-02: Maximum request body size (32KB)
+const MAX_BODY_SIZE = 32 * 1024;
+
 // P0-1: Rate limit configs for signed vs unsigned requests
 const SIGNED_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 }; // 100/min
 const UNSIGNED_RATE_LIMIT = { maxRequests: 20, windowMs: 60 * 1000 }; // 20/min (stricter)
@@ -414,8 +417,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
+    // P1-02: Check Content-Length before reading body
+    const contentLength = parseInt(request.headers.get("Content-Length") || "0", 10);
+    if (contentLength > MAX_BODY_SIZE) {
+      console.warn(`[P1-02] Payload too large: ${contentLength} bytes (max ${MAX_BODY_SIZE})`);
+      return jsonWithCors(
+        { error: "Payload too large", maxSize: MAX_BODY_SIZE },
+        { status: 413, request }
+      );
+    }
+
     // Read raw body for signature verification
     const bodyText = await request.text();
+    
+    // P1-02: Double-check actual body size (in case Content-Length was missing/wrong)
+    if (bodyText.length > MAX_BODY_SIZE) {
+      console.warn(`[P1-02] Actual payload too large: ${bodyText.length} bytes (max ${MAX_BODY_SIZE})`);
+      return jsonWithCors(
+        { error: "Payload too large", maxSize: MAX_BODY_SIZE },
+        { status: 413, request }
+      );
+    }
     
     // Parse request body
     let rawBody: unknown;

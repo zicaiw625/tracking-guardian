@@ -823,12 +823,56 @@ export async function processConversionJobs(): Promise<{
       // Generate eventId for deduplication
       const eventId = generateEventId(job.orderId, "purchase", job.shop.shopDomain);
       
+      // P0-08: Get PixelEventReceipt to check consent state
+      const receipt = await prisma.pixelEventReceipt.findUnique({
+        where: {
+          shopId_orderId_eventType: {
+            shopId: job.shopId,
+            orderId: job.orderId,
+            eventType: "purchase",
+          },
+        },
+        select: { consentState: true, isTrusted: true },
+      });
+      
+      const consentState = receipt?.consentState as { 
+        marketing?: boolean; 
+        analytics?: boolean; 
+      } | null;
+      
       // Process each platform
       const platformResults: Record<string, string> = {};
       let allSucceeded = true;
       let anySucceeded = false;
       
       for (const pixelConfig of job.shop.pixelConfigs) {
+        // P0-08: Platform-level consent gating
+        // Marketing platforms (Meta, TikTok) require marketing consent
+        // Analytics platforms (Google) require analytics consent
+        const isMarketingPlatform = ["meta", "tiktok"].includes(pixelConfig.platform);
+        const isAnalyticsPlatform = ["google"].includes(pixelConfig.platform);
+        
+        // P0-08: Check consent - if we have receipt with explicit denial, skip
+        // Note: If no receipt exists, we follow the shop's consentStrategy
+        if (receipt && consentState) {
+          if (isMarketingPlatform && consentState.marketing === false) {
+            console.log(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: marketing consent denied`);
+            platformResults[pixelConfig.platform] = "skipped:no_marketing_consent";
+            continue;
+          }
+          if (isAnalyticsPlatform && consentState.analytics === false) {
+            console.log(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: analytics consent denied`);
+            platformResults[pixelConfig.platform] = "skipped:no_analytics_consent";
+            continue;
+          }
+        }
+        // P0-08: If no receipt exists, use shop's consentStrategy
+        // "strict" = require receipt, "balanced" = allow if no denial, "weak" = allow all
+        else if (job.shop.consentStrategy === "strict") {
+          console.log(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: strict mode requires consent receipt`);
+          platformResults[pixelConfig.platform] = "skipped:no_consent_receipt";
+          continue;
+        }
         try {
           // Get credentials
           let credentials: PlatformCredentials | null = null;
@@ -860,12 +904,31 @@ export async function processConversionJobs(): Promise<{
             continue;
           }
           
-          // Build conversion data
+          // P0-05: Build conversion data from job fields + capiInput
+          // capiInput contains minimal CAPI-specific data (items, tax, etc.)
+          // Prefer capiInput values when available for richer conversion data
+          const capiInput = job.capiInput as {
+            items?: Array<{ productId?: string; variantId?: string; name?: string; quantity?: number; price?: number }>;
+            tax?: number;
+            shipping?: number;
+          } | null;
+          
+          // P0-05: Convert capiInput.items to LineItem format for ConversionData
+          const lineItems = capiInput?.items?.map(item => ({
+            productId: item.productId || "",
+            variantId: item.variantId || "",
+            name: item.name || "",
+            quantity: item.quantity || 1,
+            price: item.price || 0,
+          }));
+          
           const conversionData: ConversionData = {
             orderId: job.orderId,
             orderNumber: job.orderNumber,
             value: Number(job.orderValue),
             currency: job.currency,
+            // P0-05: Include lineItems from capiInput if available
+            lineItems,
           };
           
           // Send to platform

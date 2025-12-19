@@ -300,6 +300,15 @@ export interface OrderWebhookPayload {
   order_number?: number | null;
   total_price?: string | null;
   currency?: string | null;
+  // P0-05: Additional order value fields for accurate conversion tracking
+  total_tax?: string | null;
+  total_shipping_price_set?: {
+    shop_money?: {
+      amount?: string | null;
+      currency_code?: string | null;
+    } | null;
+  } | null;
+  processed_at?: string | null;
   // P0-6: PII fields - may be null if Protected Customer Data not granted
   email?: string | null;
   phone?: string | null;
@@ -317,11 +326,12 @@ export interface OrderWebhookPayload {
     zip?: string | null;
   } | null;
   line_items?: Array<{
-    product_id: number;
-    variant_id: number;
-    name: string;
-    quantity: number;
-    price: string;
+    product_id?: number;
+    variant_id?: number;
+    title?: string;
+    name?: string;
+    quantity?: number;
+    price?: string;
   }> | null;
 }
 

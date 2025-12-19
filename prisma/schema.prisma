@@ -443,7 +443,15 @@ model ConversionJob {
   orderNumber  String?
   orderValue   Decimal  @db.Decimal(10, 2)
   currency     String   @default("USD")
-  orderPayload Json     // Full webhook payload for retry
+  
+  // P0-05: DEPRECATED - Full webhook payload (contains PII, being phased out)
+  // This field will be removed in a future migration after all data is migrated to capiInput
+  orderPayload Json?    // Full webhook payload for retry - DEPRECATED
+  
+  // P0-05: Minimal CAPI input - only stores data needed for platform API calls
+  // Contains: {value, currency, orderId, items?, hashedIdentifiers?, consentEvidence?}
+  // NO raw PII (email/phone/address) - only hashed versions if needed
+  capiInput    Json?    // Minimal fields for CAPI sending
 
   // Job status
   // queued: waiting to be processed

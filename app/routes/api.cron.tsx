@@ -18,8 +18,13 @@ function generateRequestId(): string {
 const REPLAY_PROTECTION_WINDOW_MS = 5 * 60 * 1000;
 
 /**
- * P2-2 / P3-2: Clean up old data based on each shop's retention settings
+ * P2-2 / P3-2 / P0-06: Clean up old data based on each shop's retention settings
  * This runs as part of the daily cron job
+ * 
+ * P0-06: Now covers ALL data tables including:
+ * - ConversionLog, SurveyResponse, AuditLog (original)
+ * - ConversionJob, PixelEventReceipt, WebhookLog (P0-06 additions)
+ * - ScanReport, ReconciliationReport (P0-06 additions)
  * 
  * P2-2: Writes audit log for each shop's cleanup operation
  */
@@ -28,6 +33,11 @@ async function cleanupExpiredData(): Promise<{
   conversionLogsDeleted: number;
   surveyResponsesDeleted: number;
   auditLogsDeleted: number;
+  conversionJobsDeleted: number;
+  pixelEventReceiptsDeleted: number;
+  webhookLogsDeleted: number;
+  scanReportsDeleted: number;
+  reconciliationReportsDeleted: number;
 }> {
   // Get all active shops with their retention settings
   const shops = await prisma.shop.findMany({
@@ -45,6 +55,11 @@ async function cleanupExpiredData(): Promise<{
   let totalConversionLogs = 0;
   let totalSurveyResponses = 0;
   let totalAuditLogs = 0;
+  let totalConversionJobs = 0;
+  let totalPixelEventReceipts = 0;
+  let totalWebhookLogs = 0;
+  let totalScanReports = 0;
+  let totalReconciliationReports = 0;
 
   for (const shop of shops) {
     const retentionDays = shop.dataRetentionDays || 90;
@@ -82,13 +97,71 @@ async function cleanupExpiredData(): Promise<{
     });
     totalAuditLogs += auditResult.count;
 
+    // P0-06: Delete completed/dead_letter ConversionJobs
+    const conversionJobResult = await prisma.conversionJob.deleteMany({
+      where: {
+        shopId: shop.id,
+        createdAt: { lt: cutoffDate },
+        status: { in: ["completed", "dead_letter"] },
+      },
+    });
+    totalConversionJobs += conversionJobResult.count;
+
+    // P0-06: Delete old PixelEventReceipts
+    const pixelReceiptResult = await prisma.pixelEventReceipt.deleteMany({
+      where: {
+        shopId: shop.id,
+        createdAt: { lt: cutoffDate },
+      },
+    });
+    totalPixelEventReceipts += pixelReceiptResult.count;
+
+    // P0-06: Delete old WebhookLogs (uses shopDomain, not shopId)
+    const webhookLogResult = await prisma.webhookLog.deleteMany({
+      where: {
+        shopDomain: shop.shopDomain,
+        receivedAt: { lt: cutoffDate },
+      },
+    });
+    totalWebhookLogs += webhookLogResult.count;
+
+    // P0-06: Keep only the most recent N ScanReports per shop
+    const scanReportsToKeep = 5;
+    const oldScanReports = await prisma.scanReport.findMany({
+      where: { shopId: shop.id },
+      orderBy: { createdAt: "desc" },
+      skip: scanReportsToKeep,
+      select: { id: true },
+    });
+    if (oldScanReports.length > 0) {
+      const scanReportResult = await prisma.scanReport.deleteMany({
+        where: { id: { in: oldScanReports.map(r => r.id) } },
+      });
+      totalScanReports += scanReportResult.count;
+    }
+
+    // P0-06: Delete old ReconciliationReports
+    const reconciliationResult = await prisma.reconciliationReport.deleteMany({
+      where: {
+        shopId: shop.id,
+        createdAt: { lt: cutoffDate },
+      },
+    });
+    totalReconciliationReports += reconciliationResult.count;
+
     // P2-2: Write audit log for this shop's cleanup
-    if (conversionResult.count > 0 || surveyResult.count > 0 || auditResult.count > 0) {
+    const totalDeleted = 
+      conversionResult.count + surveyResult.count + auditResult.count +
+      conversionJobResult.count + pixelReceiptResult.count + webhookLogResult.count +
+      (oldScanReports.length > 0 ? oldScanReports.length : 0) + reconciliationResult.count;
+
+    if (totalDeleted > 0) {
       console.log(
-        `Data cleanup for ${shop.shopDomain}: ` +
-        `${conversionResult.count} conversions, ` +
-        `${surveyResult.count} surveys, ` +
-        `${auditResult.count} audit logs deleted`
+        `[P0-06] Data cleanup for ${shop.shopDomain}: ` +
+        `conversions=${conversionResult.count}, surveys=${surveyResult.count}, ` +
+        `auditLogs=${auditResult.count}, jobs=${conversionJobResult.count}, ` +
+        `receipts=${pixelReceiptResult.count}, webhookLogs=${webhookLogResult.count}, ` +
+        `scanReports=${oldScanReports.length}, reconciliations=${reconciliationResult.count}`
       );
       
       // Record cleanup in audit log
@@ -106,6 +179,11 @@ async function cleanupExpiredData(): Promise<{
             conversionLogs: conversionResult.count,
             surveyResponses: surveyResult.count,
             auditLogs: auditResult.count,
+            conversionJobs: conversionJobResult.count,
+            pixelEventReceipts: pixelReceiptResult.count,
+            webhookLogs: webhookLogResult.count,
+            scanReports: oldScanReports.length,
+            reconciliationReports: reconciliationResult.count,
           },
         },
       });
@@ -117,6 +195,11 @@ async function cleanupExpiredData(): Promise<{
     conversionLogsDeleted: totalConversionLogs,
     surveyResponsesDeleted: totalSurveyResponses,
     auditLogsDeleted: totalAuditLogs,
+    conversionJobsDeleted: totalConversionJobs,
+    pixelEventReceiptsDeleted: totalPixelEventReceipts,
+    webhookLogsDeleted: totalWebhookLogs,
+    scanReportsDeleted: totalScanReports,
+    reconciliationReportsDeleted: totalReconciliationReports,
   };
 }
 
@@ -301,13 +384,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       `${reconciliationResults.succeeded} succeeded, ${reconciliationResults.failed} failed, ` +
       `${reconciliationResults.results.length} reports generated`);
 
-    // P3-2: Clean up expired data based on retention settings
+    // P3-2 / P0-06: Clean up expired data based on retention settings
     console.log(`[${requestId}] Cleaning up expired data...`);
     const cleanupResults = await cleanupExpiredData();
-    console.log(`[${requestId}] Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
-      `${cleanupResults.conversionLogsDeleted} conversions, ` +
-      `${cleanupResults.surveyResponsesDeleted} surveys, ` +
-      `${cleanupResults.auditLogsDeleted} audit logs deleted`);
+    console.log(
+      `[${requestId}] [P0-06] Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
+      `conversions=${cleanupResults.conversionLogsDeleted}, surveys=${cleanupResults.surveyResponsesDeleted}, ` +
+      `auditLogs=${cleanupResults.auditLogsDeleted}, jobs=${cleanupResults.conversionJobsDeleted}, ` +
+      `receipts=${cleanupResults.pixelEventReceiptsDeleted}, webhookLogs=${cleanupResults.webhookLogsDeleted}, ` +
+      `scanReports=${cleanupResults.scanReportsDeleted}, reconciliations=${cleanupResults.reconciliationReportsDeleted}`
+    );
 
     const durationMs = Date.now() - startTime;
     console.log(`[${requestId}] Cron execution completed in ${durationMs}ms`);
@@ -405,13 +491,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       `${reconciliationResults.succeeded} succeeded, ${reconciliationResults.failed} failed, ` +
       `${reconciliationResults.results.length} reports generated`);
 
-    // P3-2: Clean up expired data based on retention settings
+    // P3-2 / P0-06: Clean up expired data based on retention settings
     console.log(`[${requestId}] Cleaning up expired data...`);
     const cleanupResults = await cleanupExpiredData();
-    console.log(`[${requestId}] Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
-      `${cleanupResults.conversionLogsDeleted} conversions, ` +
-      `${cleanupResults.surveyResponsesDeleted} surveys, ` +
-      `${cleanupResults.auditLogsDeleted} audit logs deleted`);
+    console.log(
+      `[${requestId}] [P0-06] Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
+      `conversions=${cleanupResults.conversionLogsDeleted}, surveys=${cleanupResults.surveyResponsesDeleted}, ` +
+      `auditLogs=${cleanupResults.auditLogsDeleted}, jobs=${cleanupResults.conversionJobsDeleted}, ` +
+      `receipts=${cleanupResults.pixelEventReceiptsDeleted}, webhookLogs=${cleanupResults.webhookLogsDeleted}, ` +
+      `scanReports=${cleanupResults.scanReportsDeleted}, reconciliations=${cleanupResults.reconciliationReportsDeleted}`
+    );
 
     const durationMs = Date.now() - startTime;
     console.log(`[${requestId}] Cron execution completed (GET) in ${durationMs}ms`);

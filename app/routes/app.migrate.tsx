@@ -40,7 +40,16 @@ import {
   type MigrationResult,
   type SavePixelConfigOptions,
 } from "../services/migration.server";
-import { decryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
+import { decryptIngestionSecret, isTokenEncrypted, encryptIngestionSecret } from "../utils/token-encryption";
+import { randomBytes } from "crypto";
+
+/**
+ * P1-01: Generate a secure random ingestion secret for pixel request signing
+ * The secret is 32 bytes (256 bits) encoded as hex (64 characters)
+ */
+function generateIngestionSecret(): string {
+  return randomBytes(32).toString("hex");
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -93,6 +102,45 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const formData = await request.formData();
   const actionType = formData.get("_action");
+
+  // P1-01: Generate ingestionSecret for shop if missing
+  if (actionType === "generateSecret") {
+    if (shop.ingestionSecret) {
+      return json({
+        _action: "generateSecret",
+        success: true,
+        message: "Shop already has an ingestion secret configured",
+        alreadyExists: true,
+      });
+    }
+    
+    try {
+      const plainSecret = generateIngestionSecret();
+      const encryptedSecret = encryptIngestionSecret(plainSecret);
+      
+      await prisma.shop.update({
+        where: { id: shop.id },
+        data: { ingestionSecret: encryptedSecret },
+      });
+      
+      console.log(`[P1-01] Generated ingestionSecret for shop ${shopDomain}`);
+      
+      return json({
+        _action: "generateSecret",
+        success: true,
+        message: "Ingestion secret generated successfully",
+        // Return the plaintext secret so user can configure Web Pixel
+        secret: plainSecret,
+      });
+    } catch (error) {
+      console.error(`[P1-01] Failed to generate ingestionSecret for ${shopDomain}:`, error);
+      return json({
+        _action: "generateSecret",
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to generate secret",
+      });
+    }
+  }
 
   // New: Auto-enable Web Pixel
   if (actionType === "enablePixel") {
