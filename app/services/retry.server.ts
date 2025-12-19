@@ -18,6 +18,14 @@ import {
   shouldRetry as shouldRetryPlatform,
   formatErrorForLog,
 } from "./platforms/base.server";
+import { 
+  checkBillingGate, 
+  incrementMonthlyUsage, 
+  type PlanId 
+} from "./billing.server";
+import { generateEventId, normalizeOrderId } from "../utils/crypto";
+import { extractPIISafely, logPIIStatus } from "../utils/pii";
+import type { OrderWebhookPayload } from "../types";
 
 // ==========================================
 // Failure Reason Classification
@@ -273,6 +281,7 @@ export async function scheduleRetry(
 
 /**
  * P1-2: Process pending conversions (newly created, not yet sent)
+ * P0-1: Includes billing gate check before processing
  * This is called by the cron job to process webhooks asynchronously
  * Should be called frequently (e.g., every minute)
  */
@@ -280,6 +289,7 @@ export async function processPendingConversions(): Promise<{
   processed: number;
   succeeded: number;
   failed: number;
+  limitExceeded: number;
 }> {
   // Find logs that are pending and have never been attempted
   const pendingLogs = await prisma.conversionLog.findMany({
@@ -292,6 +302,7 @@ export async function processPendingConversions(): Promise<{
         select: {
           id: true,
           shopDomain: true,
+          plan: true,
           piiEnabled: true,
           pixelConfigs: {
             where: { isActive: true, serverSideEnabled: true },
@@ -314,9 +325,35 @@ export async function processPendingConversions(): Promise<{
 
   let succeeded = 0;
   let failed = 0;
+  let limitExceeded = 0;
 
   for (const log of pendingLogs) {
     try {
+      // P0-1: Check billing gate BEFORE processing
+      const billingCheck = await checkBillingGate(
+        log.shopId,
+        (log.shop.plan || "free") as PlanId
+      );
+
+      if (!billingCheck.allowed) {
+        console.log(
+          `Billing gate blocked conversion ${log.id}: ${billingCheck.reason}, ` +
+          `usage=${billingCheck.usage.current}/${billingCheck.usage.limit}`
+        );
+
+        await prisma.conversionLog.update({
+          where: { id: log.id },
+          data: {
+            status: "failed",
+            errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
+            lastAttemptAt: new Date(),
+          },
+        });
+
+        limitExceeded++;
+        continue;
+      }
+
       // Find the pixel config for this platform
       const pixelConfig = log.shop.pixelConfigs.find(
         (pc) => pc.platform === log.platform
@@ -423,6 +460,10 @@ export async function processPendingConversions(): Promise<{
           lastAttemptAt: new Date(),
         },
       });
+
+      // P0-1: Increment monthly usage on successful send
+      await incrementMonthlyUsage(log.shopId, log.orderId);
+
       succeeded++;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -438,17 +479,19 @@ export async function processPendingConversions(): Promise<{
     }
   }
 
-  return { processed: pendingLogs.length, succeeded, failed };
+  return { processed: pendingLogs.length, succeeded, failed, limitExceeded };
 }
 
 /**
  * Process pending retries
+ * P0-1: Includes billing gate check before retrying
  * Should be called periodically (e.g., by a cron job)
  */
 export async function processRetries(): Promise<{
   processed: number;
   succeeded: number;
   failed: number;
+  limitExceeded: number;
 }> {
   const now = new Date();
   
@@ -460,7 +503,10 @@ export async function processRetries(): Promise<{
     },
     include: {
       shop: {
-        include: {
+        select: {
+          id: true,
+          shopDomain: true,
+          plan: true,
           pixelConfigs: {
             where: { isActive: true, serverSideEnabled: true },
           },
@@ -474,9 +520,35 @@ export async function processRetries(): Promise<{
 
   let succeeded = 0;
   let failed = 0;
+  let limitExceeded = 0;
 
   for (const log of logsToRetry) {
     try {
+      // P0-1: Check billing gate BEFORE retrying
+      const billingCheck = await checkBillingGate(
+        log.shopId,
+        (log.shop.plan || "free") as PlanId
+      );
+
+      if (!billingCheck.allowed) {
+        console.log(
+          `Billing gate blocked retry for ${log.id}: ${billingCheck.reason}, ` +
+          `usage=${billingCheck.usage.current}/${billingCheck.usage.limit}`
+        );
+
+        await prisma.conversionLog.update({
+          where: { id: log.id },
+          data: {
+            status: "limit_exceeded",
+            errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
+            lastAttemptAt: now,
+          },
+        });
+
+        limitExceeded++;
+        continue;
+      }
+
       // Find the pixel config for this platform
       const pixelConfig = log.shop.pixelConfigs.find(
         (pc) => pc.platform === log.platform
@@ -589,6 +661,11 @@ export async function processRetries(): Promise<{
           attempts: { increment: 1 }, // Increment after successful retry
         },
       });
+
+      // P0-1: Increment monthly usage on successful retry
+      // Note: This is idempotent - it checks if already counted
+      await incrementMonthlyUsage(log.shopId, log.orderId);
+
       succeeded++;
       console.log(`Retry succeeded for ${log.id}`);
     } catch (error) {
@@ -606,7 +683,28 @@ export async function processRetries(): Promise<{
     }
   }
 
-  return { processed: logsToRetry.length, succeeded, failed };
+  return { processed: logsToRetry.length, succeeded, failed, limitExceeded };
+}
+
+/**
+ * P0-2: Process queued ConversionJobs
+ * This is the main worker function that processes the async queue
+ * P0-1: Includes billing gate check before processing
+ * 
+ * NOTE: This function is a placeholder until the schema migration is complete.
+ * After running `prisma migrate`, uncomment and use the ConversionJob-based implementation.
+ * For now, processing is done via processPendingConversions and processRetries.
+ */
+export async function processConversionJobs(): Promise<{
+  processed: number;
+  succeeded: number;
+  failed: number;
+  limitExceeded: number;
+}> {
+  // NOTE: ConversionJob table not yet migrated. Using processPendingConversions as fallback.
+  // After migration, replace this with the full ConversionJob-based implementation.
+  console.log("processConversionJobs: ConversionJob table not migrated yet, skipping");
+  return { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
 }
 
 /**

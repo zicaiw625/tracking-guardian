@@ -78,19 +78,29 @@ export interface LineItem {
   price: number;
 }
 
+/**
+ * Conversion data sent to ad platforms
+ * 
+ * P0-6: All PII fields are optional and may be null/undefined.
+ * When Shopify's Protected Customer Data rules are enforced,
+ * these fields may be empty even if piiEnabled is true.
+ * Always handle these fields defensively.
+ */
 export interface ConversionData {
   orderId: string;
   orderNumber: string | null;
   value: number;
   currency: string;
-  email?: string;
-  phone?: string;
-  firstName?: string;
-  lastName?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  zip?: string;
+  // P0-6: PII fields - may be null/undefined even when piiEnabled=true
+  // due to Shopify's Protected Customer Data enforcement
+  email?: string | null;
+  phone?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  zip?: string | null;
   lineItems?: LineItem[];
 }
 
@@ -269,40 +279,50 @@ export interface ShopData {
   monthlyOrderLimit: number;
   isActive: boolean;
   piiEnabled?: boolean;
-  weakConsentMode?: boolean; // P1-3: Weak consent mode
+  weakConsentMode?: boolean; // P1-3: Weak consent mode (deprecated)
+  consentStrategy?: string; // P0-5: "strict" | "balanced" | "weak"
 }
 
 // ==========================================
 // Order Webhook Payload Types
 // ==========================================
 
+/**
+ * Order webhook payload from Shopify
+ * 
+ * P0-6: All fields except 'id' may be null/undefined.
+ * When Protected Customer Data access is not granted,
+ * PII fields (email, phone, customer, billing_address) will be null.
+ * Always use null-coalescing when accessing these fields.
+ */
 export interface OrderWebhookPayload {
   id: number;
-  order_number?: number;
-  total_price?: string;
-  currency?: string;
-  email?: string;
-  phone?: string;
+  order_number?: number | null;
+  total_price?: string | null;
+  currency?: string | null;
+  // P0-6: PII fields - may be null if Protected Customer Data not granted
+  email?: string | null;
+  phone?: string | null;
   customer?: {
-    first_name?: string;
-    last_name?: string;
-  };
+    first_name?: string | null;
+    last_name?: string | null;
+  } | null;
   billing_address?: {
-    phone?: string;
-    first_name?: string;
-    last_name?: string;
-    city?: string;
-    province?: string;
-    country_code?: string;
-    zip?: string;
-  };
+    phone?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    city?: string | null;
+    province?: string | null;
+    country_code?: string | null;
+    zip?: string | null;
+  } | null;
   line_items?: Array<{
     product_id: number;
     variant_id: number;
     name: string;
     quantity: number;
     price: string;
-  }>;
+  }> | null;
 }
 
 // ==========================================
@@ -328,7 +348,15 @@ export interface ConversionApiResponse {
 // Conversion Log Types
 // ==========================================
 
-export type ConversionStatus = "pending" | "sent" | "failed" | "retrying";
+// P0-1 & P0-5: Extended conversion statuses
+export type ConversionStatus = 
+  | "pending"           // Initial state, waiting to be processed
+  | "pending_consent"   // Waiting for consent confirmation
+  | "sent"              // Successfully sent to platform
+  | "failed"            // Failed, may retry
+  | "retrying"          // Scheduled for retry
+  | "limit_exceeded"    // Blocked due to billing limit
+  | "dead_letter";      // Permanently failed
 
 export interface ConversionLogData {
   id: string;

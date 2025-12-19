@@ -51,11 +51,15 @@ model Shop {
   // Note: Server-side tracking always hashes PII before sending
   piiEnabled Boolean @default(false)
 
-  // P1-3: Weak consent mode
-  // When true, allows server-side CAPI even when pixel consent is not confirmed
-  // Use with caution: only for regions where implied consent is legal
-  // Default: false (strict mode - requires pixel consent)
+  // P1-3: Weak consent mode (DEPRECATED - use consentStrategy instead)
+  // Kept for backwards compatibility
   weakConsentMode Boolean @default(false)
+
+  // P0-5: Consent strategy for CAPI sending
+  // - strict: Must have PixelEventReceipt with consent allowed
+  // - balanced: Use receipt if available, otherwise use region/shop defaults
+  // - weak: Allow sending without consent (for regions with implied consent)
+  consentStrategy String @default("balanced")
 
   // Data retention settings (in days)
   // 0 means no auto-deletion (manual deletion required)
@@ -78,6 +82,9 @@ model Shop {
   reconciliationReports ReconciliationReport[]
   surveyResponses       SurveyResponse[]
   auditLogs             AuditLog[]
+  monthlyUsages         MonthlyUsage[]
+  pixelEventReceipts    PixelEventReceipt[]
+  conversionJobs        ConversionJob[]
 }
 
 // Scan report for tracking scripts
@@ -326,4 +333,99 @@ model AuditLog {
   @@index([createdAt])
   // Query by shop and time range
   @@index([shopId, createdAt])
+}
+
+// P0-1: Monthly usage tracking for accurate billing
+// Tracks successfully sent orders per month per shop
+model MonthlyUsage {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  yearMonth String   // Format: "2024-12"
+  sentCount Int      @default(0) // Number of successfully sent orders this month
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shopId, yearMonth])
+  @@index([shopId])
+  @@index([yearMonth])
+}
+
+// P0-3: Pixel event receipts - separate from ConversionLog
+// Records pixel-side events for consent verification and diagnostics
+model PixelEventReceipt {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  orderId   String   // Normalized order ID
+  eventType String   // checkout_completed, etc.
+  eventId   String?  // Server-generated dedup ID
+
+  // Pixel event metadata
+  pixelTimestamp DateTime // When the pixel fired (client time)
+  
+  // P0-5: Consent state from pixel
+  consentState   Json?    // {marketing: boolean, analytics: boolean}
+  
+  // Trust level
+  isTrusted      Boolean  @default(false) // True if signature was valid
+  signatureStatus String  @default("unsigned") // signed, unsigned, invalid
+  
+  // Diagnostics
+  metadata       Json?    // Additional debug info
+
+  createdAt DateTime @default(now())
+
+  @@unique([shopId, orderId, eventType])
+  @@index([shopId])
+  @@index([orderId])
+  @@index([shopId, orderId])
+}
+
+// P0-2: Conversion job queue for async webhook processing
+// Webhook writes here, worker processes asynchronously
+model ConversionJob {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  // Order data (serialized webhook payload)
+  orderId      String
+  orderNumber  String?
+  orderValue   Decimal  @db.Decimal(10, 2)
+  currency     String   @default("USD")
+  orderPayload Json     // Full webhook payload for retry
+
+  // Job status
+  // queued: waiting to be processed
+  // processing: currently being processed
+  // completed: successfully sent to all platforms
+  // failed: failed but may retry
+  // limit_exceeded: blocked due to billing limit
+  // dead_letter: permanently failed
+  status       String   @default("queued")
+  
+  // Processing metadata
+  attempts     Int      @default(0)
+  maxAttempts  Int      @default(5)
+  lastAttemptAt DateTime?
+  nextRetryAt  DateTime?
+  errorMessage String?
+
+  // Platform results (which platforms succeeded/failed)
+  platformResults Json?  // {google: "sent", meta: "failed", tiktok: "pending"}
+
+  // Timestamps
+  createdAt    DateTime @default(now())
+  processedAt  DateTime?
+  completedAt  DateTime?
+
+  @@unique([shopId, orderId])
+  @@index([shopId])
+  @@index([status])
+  @@index([status, nextRetryAt])
+  @@index([createdAt])
 }

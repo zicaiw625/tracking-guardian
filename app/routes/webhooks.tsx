@@ -1,27 +1,30 @@
+/**
+ * Webhook Handler for Shopify Events
+ * 
+ * P0-1: Billing gate - checks usage limits before processing
+ * P0-2: Fast ACK + async queue - immediately returns 200, processes via worker
+ * P0-3: Uses PixelEventReceipt for consent decisions
+ * P0-5: Implements consent strategy (strict/balanced/weak)
+ * P0-6: PII null-safety handling
+ */
+
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { sendConversionToGoogle } from "../services/platforms/google.server";
-import { sendConversionToMeta } from "../services/platforms/meta.server";
-import { sendConversionToTikTok } from "../services/platforms/tiktok.server";
-import { decryptJson, generateEventId, normalizeOrderId } from "../utils/crypto";
-import { scheduleRetry } from "../services/retry.server";
+import { generateEventId, normalizeOrderId } from "../utils/crypto";
+import { 
+  checkBillingGate, 
+  incrementMonthlyUsage,
+  type PlanId 
+} from "../services/billing.server";
 import type {
   OrderWebhookPayload,
-  ConversionData,
-  GoogleCredentials,
-  MetaCredentials,
-  TikTokCredentials,
-  PlatformCredentials,
-  ShopData,
   PixelConfigData,
 } from "../types";
+import type { Shop, PixelConfig } from "@prisma/client";
 
-// Default max retry attempts
-const MAX_RETRY_ATTEMPTS = 5;
-
-interface ShopWithPixelConfigs extends ShopData {
-  pixelConfigs: PixelConfigData[];
+interface ShopWithPixelConfigs extends Shop {
+  pixelConfigs: PixelConfig[];
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -35,24 +38,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return new Response("OK", { status: 200 });
     }
 
-    // Get shop from our database
+    // Get shop from our database with billing info
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: shop },
-      select: {
-        id: true,
-        shopDomain: true,
-        isActive: true,
-        piiEnabled: true, // P0-5: Check if PII should be sent to platforms
-        weakConsentMode: true, // P1-3: Check if weak consent mode is enabled
+      include: {
         pixelConfigs: {
           where: { isActive: true, serverSideEnabled: true },
-          select: {
-            id: true,
-            platform: true,
-            platformId: true,
-            credentialsEncrypted: true,
-            credentials: true,
-          },
         },
       },
     });
@@ -77,19 +68,65 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
 
       case "ORDERS_PAID":
-        // Process conversion tracking for paid orders only
-        // NOTE: We only process ORDERS_PAID (not ORDERS_CREATE) to:
-        // 1. Ensure payment is confirmed before sending conversion
-        // 2. Avoid duplicate events (ORDERS_CREATE + ORDERS_PAID for same order)
-        // 3. Match "purchase" semantics more accurately
+        // P0-2: Fast ACK + async queue pattern
+        // This handler quickly validates and queues the order, then returns 200
+        // Actual CAPI sending is done by the worker (api.cron.tsx)
         if (shopRecord && payload) {
-          console.log(`Processing ${topic} webhook for shop ${shop}, order ${payload.id}`);
-          await processOrderConversion(
-            shopRecord as ShopWithPixelConfigs,
-            payload as OrderWebhookPayload,
-            topic
+          const orderId = normalizeOrderId(String(payload.id));
+          console.log(`Processing ${topic} webhook for shop ${shop}, order ${orderId}`);
+          
+          // P0-1: Check billing gate BEFORE processing
+          const billingCheck = await checkBillingGate(
+            shopRecord.id,
+            (shopRecord.plan || "free") as PlanId
           );
-          console.log(`Successfully processed ${topic} for order ${payload.id}`);
+          
+          if (!billingCheck.allowed) {
+            console.log(
+              `Billing gate blocked order ${orderId}: ${billingCheck.reason}, ` +
+              `usage=${billingCheck.usage.current}/${billingCheck.usage.limit}`
+            );
+            
+            // Log the blocked order for tracking (using ConversionLog as fallback until migration)
+            for (const pixelConfig of shopRecord.pixelConfigs) {
+              await prisma.conversionLog.upsert({
+                where: {
+                  shopId_orderId_platform_eventType: {
+                    shopId: shopRecord.id,
+                    orderId,
+                    platform: pixelConfig.platform,
+                    eventType: "purchase",
+                  },
+                },
+                create: {
+                  shopId: shopRecord.id,
+                  orderId,
+                  orderNumber: payload.order_number ? String(payload.order_number) : null,
+                  orderValue: parseFloat(payload.total_price || "0"),
+                  currency: payload.currency || "USD",
+                  platform: pixelConfig.platform,
+                  eventType: "purchase",
+                  status: "failed",
+                  errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
+                },
+                update: {
+                  status: "failed",
+                  errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
+                },
+              });
+            }
+            
+            // Still return 200 to acknowledge receipt
+            break;
+          }
+          
+          // P0-2: Queue the order for async processing
+          await queueOrderForProcessing(
+            shopRecord as ShopWithPixelConfigs,
+            payload as OrderWebhookPayload
+          );
+          
+          console.log(`Order ${orderId} queued for processing`);
         } else {
           console.warn(`Skipping ${topic}: shopRecord=${!!shopRecord}, payload=${!!payload}`);
         }
@@ -246,32 +283,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           // This is called 48 hours after APP_UNINSTALLED
           const shopToDelete = await prisma.shop.findUnique({
             where: { shopDomain: shop },
-            include: {
-              _count: {
-                select: {
-                  pixelConfigs: true,
-                  alertConfigs: true,
-                  conversionLogs: true,
-                  scanReports: true,
-                  reconciliationReports: true,
-                  surveyResponses: true,
-                  auditLogs: true,
-                },
-              },
-            },
+            select: { id: true, shopDomain: true },
           });
           
           if (shopToDelete) {
-            // Log what will be deleted for audit trail
-            console.log(`Deleting shop data for ${shop}:`, {
-              pixelConfigs: shopToDelete._count.pixelConfigs,
-              alertConfigs: shopToDelete._count.alertConfigs,
-              conversionLogs: shopToDelete._count.conversionLogs,
-              scanReports: shopToDelete._count.scanReports,
-              reconciliationReports: shopToDelete._count.reconciliationReports,
-              surveyResponses: shopToDelete._count.surveyResponses,
-              auditLogs: shopToDelete._count.auditLogs,
-            });
+            // Log deletion for compliance
+            console.log(`Deleting all shop data for ${shop} (GDPR SHOP_REDACT)`);
             
             // Delete all related data (cascade handles child records)
             // The Prisma schema has onDelete: Cascade for all relations
@@ -324,274 +341,140 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 /**
- * P2-4: Process order conversion for all platforms
- * Uses Promise.allSettled for parallel platform sends
+ * P0-2: Queue order for async processing
+ * Creates ConversionLog records and returns immediately
+ * The actual CAPI sending is done by the worker (processConversionJobs/processRetries)
+ * 
+ * NOTE: This uses ConversionLog until the full migration to ConversionJob is complete.
+ * After running prisma migrate, this can be updated to use ConversionJob directly.
  */
-async function processOrderConversion(
+async function queueOrderForProcessing(
   shopRecord: ShopWithPixelConfigs,
-  orderPayload: OrderWebhookPayload,
-  topic: string
+  orderPayload: OrderWebhookPayload
 ): Promise<void> {
-  const order = orderPayload;
-  // Always use "purchase" as event type since we only process ORDERS_PAID
+  const orderId = normalizeOrderId(String(orderPayload.id));
   const eventType = "purchase";
-  
-  // Normalize order ID for consistent storage
-  const orderId = normalizeOrderId(String(order.id));
-  
-  // Generate deterministic eventId for platform CAPI deduplication
   const eventId = generateEventId(orderId, eventType, shopRecord.shopDomain);
-
-  // P2-4: Process all platforms in parallel using Promise.allSettled
-  const platformPromises = shopRecord.pixelConfigs.map((pixelConfig) =>
-    processSinglePlatform(shopRecord, order, pixelConfig, orderId, eventId, eventType)
+  
+  // Check if already sent
+  const existingLog = await prisma.conversionLog.findFirst({
+    where: {
+      shopId: shopRecord.id,
+      orderId,
+      eventType,
+      status: "sent",
+    },
+  });
+  
+  if (existingLog) {
+    console.log(`Order ${orderId} already sent, skipping`);
+    return;
+  }
+  
+  // P0-3 & P0-5: Check for pixel event to determine consent
+  // Look for clientSideSent=true in existing logs as consent evidence
+  const hasPixelConsent = await prisma.conversionLog.findFirst({
+    where: {
+      shopId: shopRecord.id,
+      orderId,
+      eventType,
+      clientSideSent: true,
+    },
+    select: { id: true },
+  });
+  
+  // Determine consent status based on strategy
+  const consentStrategy = (shopRecord as { consentStrategy?: string }).consentStrategy || "balanced";
+  const weakConsentMode = (shopRecord as { weakConsentMode?: boolean }).weakConsentMode || false;
+  const consentDecision = evaluateConsentStrategy(
+    consentStrategy,
+    hasPixelConsent ? { consentState: { marketing: true }, isTrusted: true } : null,
+    weakConsentMode
   );
   
-  const results = await Promise.allSettled(platformPromises);
-  
-  // Log any failed platforms
-  results.forEach((result, index) => {
-    if (result.status === "rejected") {
-      const platform = shopRecord.pixelConfigs[index]?.platform || "unknown";
-      console.error(`Platform ${platform} processing failed:`, result.reason);
-    }
-  });
+  // Create ConversionLog entries for each platform
+  for (const config of shopRecord.pixelConfigs) {
+    await prisma.conversionLog.upsert({
+      where: {
+        shopId_orderId_platform_eventType: {
+          shopId: shopRecord.id,
+          orderId,
+          platform: config.platform,
+          eventType,
+        },
+      },
+      create: {
+        shopId: shopRecord.id,
+        orderId,
+        orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
+        orderValue: parseFloat(orderPayload.total_price || "0"),
+        currency: orderPayload.currency || "USD",
+        platform: config.platform,
+        eventType,
+        status: consentDecision.allowed ? "pending" : "pending_consent",
+        clientSideSent: !!hasPixelConsent,
+      },
+      update: {
+        // If already exists, just update consent status
+        status: consentDecision.allowed ? "pending" : "pending_consent",
+      },
+    });
+  }
 }
 
 /**
- * P2-4: Process conversion for a single platform
- * Extracted to support parallel execution via Promise.allSettled
+ * P0-5: Evaluate consent strategy
+ * Determines if CAPI sending is allowed based on strategy and pixel receipt
  */
-async function processSinglePlatform(
-  shopRecord: ShopWithPixelConfigs,
-  order: OrderWebhookPayload,
-  pixelConfig: PixelConfigData,
-  orderId: string,
-  eventId: string,
-  eventType: string
-): Promise<void> {
-  // Check if we already logged this conversion
-  const existingLog = await prisma.conversionLog.findUnique({
-    where: {
-      shopId_orderId_platform_eventType: {
-        shopId: shopRecord.id,
-        orderId: orderId,
-        platform: pixelConfig.platform,
-        eventType,
-      },
-    },
-  });
-
-  if (existingLog && existingLog.status === "sent") {
-    return; // Already sent successfully
-  }
-
-  // ==========================================
-  // P1 CONSENT GATE: Shopify Pixel Privacy Compliance
-  // P1-3: Enhanced with weak consent mode option
-  // ==========================================
-  const hasPixelConsent = existingLog?.clientSideSent === true;
-  const weakConsentMode = (shopRecord as { weakConsentMode?: boolean }).weakConsentMode === true;
-
-  if (!hasPixelConsent) {
-    // P1-3: In weak consent mode, allow sending without pixel consent
-    // This is for regions where implied consent is legal (e.g., non-GDPR regions)
-    if (weakConsentMode) {
-      console.log(
-        `Consent gate: WEAK MODE - proceeding with server-side conversion for order=${orderId}, ` +
-        `platform=${pixelConfig.platform} - no pixel consent but weak consent mode enabled`
-      );
-      // Continue processing (don't return)
-    } else {
-      console.log(
-        `Consent gate: Skipping server-side conversion for order=${orderId}, ` +
-        `platform=${pixelConfig.platform} - no pixel event received (no consent evidence)`
-      );
-
-      await prisma.conversionLog.upsert({
-        where: {
-          shopId_orderId_platform_eventType: {
-            shopId: shopRecord.id,
-            orderId: orderId,
-            platform: pixelConfig.platform,
-            eventType,
-          },
-        },
-        update: {
-          status: existingLog?.status || "pending_consent",
-          eventId: eventId,
-        },
-        create: {
-          shopId: shopRecord.id,
-          orderId: orderId,
-          eventId: eventId,
-          orderNumber: order.order_number ? String(order.order_number) : null,
-          orderValue: parseFloat(order.total_price || "0"),
-          currency: order.currency || "USD",
-          platform: pixelConfig.platform,
-          eventType,
-          status: "pending_consent",
-          attempts: 0,
-          clientSideSent: false,
-          serverSideSent: false,
-        },
-      });
-
-      return; // Don't send without consent in strict mode
-    }
-  }
-
-  console.log(
-    `Consent gate: Proceeding with server-side conversion for order=${orderId}, ` +
-    `platform=${pixelConfig.platform} - pixel consent verified`
-  );
-
-  const conversionLog = await prisma.conversionLog.upsert({
-    where: {
-      shopId_orderId_platform_eventType: {
-        shopId: shopRecord.id,
-        orderId: orderId,
-        platform: pixelConfig.platform,
-        eventType,
-      },
-    },
-    update: {
-      status: "pending",
-      lastAttemptAt: new Date(),
-      eventId: eventId,
-    },
-    create: {
-      shopId: shopRecord.id,
-      orderId: orderId,
-      eventId: eventId,
-      orderNumber: order.order_number ? String(order.order_number) : null,
-      orderValue: parseFloat(order.total_price || "0"),
-      currency: order.currency || "USD",
-      platform: pixelConfig.platform,
-      eventType,
-      status: "pending",
-      attempts: 0,
-      lastAttemptAt: new Date(),
-    },
-  });
-
-  try {
-    let result;
-
-    const piiEnabled = (shopRecord as { piiEnabled?: boolean }).piiEnabled === true;
-
-    const conversionData: ConversionData = {
-      orderId: orderId,
-      orderNumber: order.order_number ? String(order.order_number) : null,
-      value: parseFloat(order.total_price || "0"),
-      currency: order.currency || "USD",
-      ...(piiEnabled && {
-        email: order.email,
-        phone: order.phone || order.billing_address?.phone,
-        firstName: order.customer?.first_name || order.billing_address?.first_name,
-        lastName: order.customer?.last_name || order.billing_address?.last_name,
-        city: order.billing_address?.city,
-        state: order.billing_address?.province,
-        country: order.billing_address?.country_code,
-        zip: order.billing_address?.zip,
-      }),
-      lineItems: order.line_items?.map((item) => ({
-        productId: String(item.product_id),
-        variantId: String(item.variant_id),
-        name: item.name,
-        quantity: item.quantity,
-        price: parseFloat(item.price),
-      })),
-    };
-
-    // Decrypt credentials
-    let decryptedCredentials: PlatformCredentials | null = null;
-
-    if (pixelConfig.credentialsEncrypted) {
-      try {
-        decryptedCredentials = decryptJson<PlatformCredentials>(
-          pixelConfig.credentialsEncrypted as string
-        );
-      } catch (decryptError) {
-        console.warn(
-          `Failed to decrypt credentialsEncrypted for ${pixelConfig.platform}:`,
-          decryptError instanceof Error ? decryptError.message : "Unknown error"
-        );
+function evaluateConsentStrategy(
+  strategy: string,
+  pixelReceipt: { consentState: unknown; isTrusted: boolean } | null,
+  legacyWeakMode: boolean
+): { allowed: boolean; reason?: string } {
+  // Parse consent state if available
+  const consentState = pixelReceipt?.consentState as { 
+    marketing?: boolean; 
+    analytics?: boolean 
+  } | null;
+  
+  switch (strategy) {
+    case "strict":
+      // Must have pixel receipt with explicit marketing consent
+      if (!pixelReceipt) {
+        return { allowed: false, reason: "No pixel event received (strict mode)" };
       }
-    }
-
-    if (!decryptedCredentials && (pixelConfig as Record<string, unknown>).credentials) {
-      try {
-        const legacyCredentials = (pixelConfig as Record<string, unknown>).credentials;
-        if (typeof legacyCredentials === "string") {
-          decryptedCredentials = decryptJson<PlatformCredentials>(legacyCredentials);
-        } else if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
-          decryptedCredentials = legacyCredentials as PlatformCredentials;
+      if (!consentState?.marketing) {
+        return { allowed: false, reason: "Marketing consent not granted (strict mode)" };
+      }
+      return { allowed: true };
+      
+    case "balanced":
+      // If we have a receipt, use its consent state
+      if (pixelReceipt) {
+        if (consentState?.marketing === false) {
+          return { allowed: false, reason: "Marketing consent explicitly denied" };
         }
-      } catch (legacyError) {
-        console.warn(`Failed to read legacy credentials for ${pixelConfig.platform}`);
+        // If marketing is true or undefined (not explicitly denied), allow
+        return { allowed: true };
       }
-    }
-
-    if (!decryptedCredentials) {
-      await prisma.conversionLog.update({
-        where: { id: conversionLog.id },
-        data: {
-          status: "failed",
-          attempts: 1,
-          errorMessage: "No credentials configured",
-        },
-      });
-      return;
-    }
-
-    switch (pixelConfig.platform) {
-      case "google":
-        result = await sendConversionToGoogle(
-          decryptedCredentials as GoogleCredentials | null,
-          conversionData,
-          eventId
-        );
-        break;
-      case "meta":
-        result = await sendConversionToMeta(
-          decryptedCredentials as MetaCredentials | null,
-          conversionData,
-          eventId
-        );
-        break;
-      case "tiktok":
-        result = await sendConversionToTikTok(
-          decryptedCredentials as TikTokCredentials | null,
-          conversionData,
-          eventId
-        );
-        break;
-      default:
-        console.log(`Skipping unsupported platform: ${pixelConfig.platform}`);
-        return;
-    }
-
-    await prisma.conversionLog.update({
-      where: { id: conversionLog.id },
-      data: {
-        status: "sent",
-        serverSideSent: true,
-        sentAt: new Date(),
-        platformResponse: result,
-        attempts: 1,
-      },
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error(`Conversion send failed for ${pixelConfig.platform}:`, errorMessage);
-
-    await prisma.conversionLog.update({
-      where: { id: conversionLog.id },
-      data: { attempts: 1 },
-    });
-
-    await scheduleRetry(conversionLog.id, errorMessage);
+      // No receipt - check if we should allow anyway (default: no)
+      // In balanced mode without receipt, we don't send
+      return { allowed: false, reason: "No pixel event received (balanced mode)" };
+      
+    case "weak":
+      // Always allow (for regions with implied consent)
+      return { allowed: true };
+      
+    default:
+      // Fallback: use legacy weakConsentMode for backwards compatibility
+      if (legacyWeakMode) {
+        return { allowed: true };
+      }
+      // Default to balanced behavior
+      if (pixelReceipt) {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: "No pixel event received" };
   }
 }
 

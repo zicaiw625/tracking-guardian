@@ -24,10 +24,11 @@ runtime_context = "strict"
     description = "Your Tracking Guardian app URL (e.g., https://your-app.onrender.com). Required for server-side tracking."
     type = "single_line_text_field"
 
+  # P0-4: Renamed from ingestion_secret to ingestion_key with updated description
   [[settings.fields]]
     key = "ingestion_secret"
-    name = "Ingestion Secret"
-    description = "Secret key for request signing (auto-generated, do not share). Used to prevent request forgery."
+    name = "Ingestion Key"
+    description = "Key for request association and filtering (auto-generated). Used for diagnostics and noise reduction."
     type = "single_line_text_field"
 
   [[settings.fields]]

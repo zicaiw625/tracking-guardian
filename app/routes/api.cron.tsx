@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "../db.server";
 import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
-import { processPendingConversions, processRetries } from "../services/retry.server";
+import { processPendingConversions, processRetries, processConversionJobs } from "../services/retry.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 import { createAuditLog } from "../services/audit.server";
 
@@ -254,7 +254,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    // P1-2: Process pending conversions first (newly queued from webhooks)
+    // P0-2: Process ConversionJobs (new queue-based async processing)
+    console.log("Processing conversion jobs...");
+    const jobResults = await processConversionJobs();
+    console.log(`Jobs: ${jobResults.processed} processed, ${jobResults.succeeded} succeeded, ${jobResults.failed} failed, ${jobResults.limitExceeded} limit exceeded`);
+
+    // P1-2: Process pending conversions (legacy - for backwards compatibility)
     console.log("Processing pending conversions...");
     const pendingResults = await processPendingConversions();
     console.log(`Pending: ${pendingResults.processed} processed, ${pendingResults.succeeded} succeeded, ${pendingResults.failed} failed`);
@@ -262,7 +267,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Process conversion retries (failed items scheduled for retry)
     console.log("Processing pending conversion retries...");
     const retryResults = await processRetries();
-    console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed`);
+    console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed, ${retryResults.limitExceeded || 0} limit exceeded`);
 
     // Run daily delivery health check
     console.log("Running daily delivery health check...");
@@ -289,6 +294,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({
       success: true,
       message: `Cron completed`,
+      jobs: jobResults,
       pending: pendingResults,
       retries: retryResults,
       deliveryHealth: {
@@ -331,7 +337,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   try {
-    // P1-2: Process pending conversions first (newly queued from webhooks)
+    // P0-2: Process ConversionJobs (new queue-based async processing)
+    console.log("Processing conversion jobs...");
+    const jobResults = await processConversionJobs();
+    console.log(`Jobs: ${jobResults.processed} processed, ${jobResults.succeeded} succeeded, ${jobResults.failed} failed, ${jobResults.limitExceeded} limit exceeded`);
+
+    // P1-2: Process pending conversions (legacy - for backwards compatibility)
     console.log("Processing pending conversions...");
     const pendingResults = await processPendingConversions();
     console.log(`Pending: ${pendingResults.processed} processed, ${pendingResults.succeeded} succeeded, ${pendingResults.failed} failed`);
@@ -339,7 +350,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Process conversion retries (failed items scheduled for retry)
     console.log("Processing pending conversion retries...");
     const retryResults = await processRetries();
-    console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed`);
+    console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed, ${retryResults.limitExceeded || 0} limit exceeded`);
 
     // Run daily delivery health check
     console.log("Running daily delivery health check...");
@@ -366,6 +377,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({
       success: true,
       message: `Cron completed`,
+      jobs: jobResults,
       pending: pendingResults,
       retries: retryResults,
       deliveryHealth: {

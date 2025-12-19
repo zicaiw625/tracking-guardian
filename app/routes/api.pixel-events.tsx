@@ -272,6 +272,11 @@ interface PixelEventPayload {
   // P0-5: eventId is now generated server-side, not sent from pixel
   timestamp: number;
   shopDomain: string;
+  // P0-5: Consent state from pixel
+  consent?: {
+    marketing?: boolean;
+    analytics?: boolean;
+  };
   // Event-specific data
   data: {
     // For checkout_completed
@@ -301,7 +306,9 @@ interface PixelEventPayload {
 }
 
 /**
- * Check if this order has already been recorded from pixel (deduplication)
+ * P0-3: Check if this order has already been recorded from pixel (deduplication)
+ * Checks ConversionLog for clientSideSent flag
+ * NOTE: After migration, this can be updated to check PixelEventReceipt
  */
 async function isClientEventRecorded(
   shopId: string,
@@ -362,6 +369,8 @@ function validateRequest(body: unknown): { valid: true; payload: PixelEventPaylo
       // P0-5: eventId removed - server generates it
       timestamp: data.timestamp as number,
       shopDomain: data.shopDomain as string,
+      // P0-5: Extract consent state from payload
+      consent: data.consent as PixelEventPayload["consent"] | undefined,
       data: (data.data as PixelEventPayload["data"]) || {},
     },
   };
@@ -516,17 +525,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const isTrusted = signatureResult.trusted;
 
     // ==========================================
-    // RECORD CLIENT-SIDE EVENT (NO CAPI SENDING)
+    // P0-3: RECORD PIXEL EVENT (NO CAPI SENDING)
     // ==========================================
     // 
     // IMPORTANT: This endpoint does NOT send events to platform CAPI directly.
     // It only records that a client-side pixel event was fired.
+    // The ORDERS_PAID webhook will check clientSideSent flag for consent.
     // 
-    // Why?
-    // 1. ORDERS_PAID webhook is more reliable for CAPI (has full order data)
-    // 2. Single source of truth prevents duplicate conversions
-    // 3. Webhook can check clientSideSent to know if pixel fired
-    // 4. Unified eventId ensures platform-level deduplication works
+    // NOTE: After schema migration, this should write to PixelEventReceipt.
+    // For now, we update ConversionLog.clientSideSent for backwards compatibility.
 
     // Extract and normalize the order ID
     const rawOrderId = payload.data.orderId!;
@@ -569,7 +576,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // Record client-side event for each configured platform
-    // The actual CAPI sending will be done by the ORDERS_PAID webhook
+    // This marks clientSideSent=true for consent verification
     const recordedPlatforms: string[] = [];
     
     for (const config of pixelConfigs) {
@@ -578,29 +585,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           where: {
             shopId_orderId_platform_eventType: {
               shopId: shop.id,
-              orderId: orderId,  // Use real orderId (not eventId!)
+              orderId: orderId,
               platform: config.platform,
               eventType: "purchase",
             },
           },
           update: {
-            // If webhook already created the record, just mark client side as sent
+            // Mark that pixel event was received (consent evidence)
             clientSideSent: true,
-            eventId: eventId,  // Store the dedup eventId
           },
           create: {
             shopId: shop.id,
             orderId: orderId,
-            eventId: eventId,  // Store the dedup eventId for CAPI
             orderNumber: payload.data.orderNumber || null,
             orderValue: payload.data.value || 0,
             currency: payload.data.currency || "USD",
             platform: config.platform,
             eventType: "purchase",
-            status: "pending",  // Will be updated to "sent" by webhook
+            status: "pending",
             attempts: 0,
             clientSideSent: true,  // Mark that pixel fired
-            serverSideSent: false, // Not yet sent by webhook
+            serverSideSent: false,
           },
         });
         recordedPlatforms.push(config.platform);
@@ -612,11 +617,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonWithCors({
       success: true,
       eventId,
-      message: "Client event recorded, CAPI will be sent via webhook",
+      message: "Pixel event recorded, CAPI will be sent via webhook",
       clientSideSent: true,
       platforms: recordedPlatforms,
       // P0-1: Include trust status for debugging
       trusted: isTrusted,
+      // P0-5: Echo back consent state for transparency
+      consent: payload.consent || null,
     }, { request });
   } catch (error) {
     console.error("Pixel events API error:", error);

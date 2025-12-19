@@ -265,6 +265,8 @@ interface VisitorConsentCollectedEvent {
 register(({ analytics, settings, init }) => {
   // Get configuration from pixel settings
   const backendUrl = settings.backend_url as string | undefined;
+  // P0-4: ingestion_secret renamed to ingestion_key in UI, but key name kept for compatibility
+  // This key is used for request association and noise filtering, not as a security boundary
   const ingestionSecret = settings.ingestion_secret as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
   // P0-4: Debug mode defaults to false for production safety
@@ -392,6 +394,7 @@ register(({ analytics, settings, init }) => {
    * P0-1: Includes HMAC signature using pure JS implementation
    * P0-4: Uses AbortController for timeout (not AbortSignal.timeout)
    * P0-5: Does not generate eventId - server handles this
+   * P0-5: Includes consent state in payload for server-side decision making
    */
   async function sendToBackend(
     eventName: string,
@@ -410,6 +413,11 @@ register(({ analytics, settings, init }) => {
         // P0-5: No eventId from pixel - server generates it
         timestamp,
         shopDomain,
+        // P0-5: Include current consent state for server-side decision making
+        consent: {
+          marketing: marketingAllowed,
+          analytics: analyticsAllowed,
+        },
         data,
       };
       

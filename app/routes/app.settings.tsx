@@ -45,7 +45,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    include: {
+    select: {
+      id: true,
+      plan: true,
+      ingestionSecret: true,
+      piiEnabled: true,
+      weakConsentMode: true,
+      consentStrategy: true, // P0-5
+      dataRetentionDays: true,
       alertConfigs: true,
       pixelConfigs: {
         where: { isActive: true },
@@ -70,7 +77,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           // P1-1: Return whether ingestion secret is configured (not the actual value)
           hasIngestionSecret: !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
           piiEnabled: shop.piiEnabled,
-          weakConsentMode: shop.weakConsentMode, // P1-3
+          weakConsentMode: shop.weakConsentMode, // P1-3 (deprecated)
+          consentStrategy: shop.consentStrategy || "balanced", // P0-5
           dataRetentionDays: shop.dataRetentionDays,
         }
       : null,
@@ -308,7 +316,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
 
-      const baseMessage = "Ingestion Secret 已更新。";
+      const baseMessage = "Ingestion Key 已更新。";
       const syncMessage = pixelSyncResult.success 
         ? pixelSyncResult.message 
         : `⚠️ ${pixelSyncResult.message}`;
@@ -322,12 +330,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     case "updatePrivacySettings": {
       const piiEnabled = formData.get("piiEnabled") === "true";
-      const weakConsentMode = formData.get("weakConsentMode") === "true";
+      const consentStrategy = formData.get("consentStrategy") as string || "balanced";
       const dataRetentionDays = parseInt(formData.get("dataRetentionDays") as string) || 90;
+
+      // P0-5: Map consent strategy to legacy weakConsentMode for backwards compatibility
+      const weakConsentMode = consentStrategy === "weak";
 
       await prisma.shop.update({
         where: { id: shop.id },
-        data: { piiEnabled, weakConsentMode, dataRetentionDays },
+        data: { piiEnabled, weakConsentMode, consentStrategy, dataRetentionDays },
       });
 
       await createAuditLog({
@@ -337,7 +348,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         action: "privacy_settings_updated",
         resourceType: "shop",
         resourceId: shop.id,
-        metadata: { piiEnabled, weakConsentMode, dataRetentionDays },
+        metadata: { piiEnabled, consentStrategy, dataRetentionDays },
       });
 
       return json({
@@ -599,9 +610,12 @@ export default function SettingsPage() {
     { id: "subscription", content: "订阅计划" },
   ];
 
-  // Handler for rotating ingestion secret
+  // Handler for rotating ingestion key
   const handleRotateSecret = () => {
-    if (confirm("确定要更换 Ingestion Secret 吗？更换后需要重新部署 Web Pixel。")) {
+    const message = shop?.hasIngestionSecret 
+      ? "确定要更换 Ingestion Key 吗？更换后 Web Pixel 将自动更新。"
+      : "确定要生成 Ingestion Key 吗？";
+    if (confirm(message)) {
       const formData = new FormData();
       formData.append("_action", "rotateIngestionSecret");
       submit(formData, { method: "post" });
@@ -1021,14 +1035,18 @@ export default function SettingsPage() {
 
                     <Divider />
 
-                    {/* Ingestion Secret Section */}
+                    {/* P0-4: Ingestion Key Section (renamed from Ingestion Secret) */}
                     <BlockStack gap="300">
                       <Text as="h3" variant="headingMd">
-                        Ingestion Secret
+                        Ingestion Key
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        用于验证来自 Web Pixel 的事件请求。每个请求都需要使用此密钥进行签名，
-                        以防止未授权的事件提交。
+                        用于关联和验证来自 Web Pixel 的事件请求。此密钥帮助我们：
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        • 过滤无效或恶意请求（抗噪）
+                        <br />• 将像素事件与订单正确关联（诊断）
+                        <br />• 在多实例部署中识别请求来源
                       </Text>
                       
                       <Box
@@ -1051,9 +1069,9 @@ export default function SettingsPage() {
                                 </>
                               ) : (
                                 <>
-                                  <Badge tone="critical">未配置</Badge>
+                                  <Badge tone="attention">未配置</Badge>
                                   <Text as="span" variant="bodySm" tone="subdued">
-                                    请重新安装应用以生成密钥
+                                    请重新安装应用或点击生成密钥
                                   </Text>
                                 </>
                               )}
@@ -1064,15 +1082,15 @@ export default function SettingsPage() {
                             onClick={handleRotateSecret}
                             loading={isSubmitting}
                           >
-                            更换密钥
+                            {shop?.hasIngestionSecret ? "更换密钥" : "生成密钥"}
                           </Button>
                         </InlineStack>
                       </Box>
 
-                      <Banner tone="warning">
+                      <Banner tone="info">
                         <p>
-                          更换密钥后，需要重新部署 Web Pixel 扩展以使用新密钥。
-                          在此期间，旧密钥签名的请求将被拒绝。
+                          <strong>注意：</strong>Ingestion Key 主要用于请求关联和诊断，
+                          而非严格的安全边界。转化追踪的安全性由 Shopify Webhook 签名和服务端逻辑保证。
                         </p>
                       </Banner>
                     </BlockStack>
@@ -1103,12 +1121,48 @@ export default function SettingsPage() {
                                 当前状态：{shop?.piiEnabled ? "已启用" : "已禁用"}
                               </Text>
                             </BlockStack>
-                            <Badge tone={shop?.piiEnabled ? "attention" : "success"}>
-                              {shop?.piiEnabled ? "已启用" : "已禁用（推荐）"}
-                            </Badge>
+                            <Button
+                              variant="secondary"
+                              size="slim"
+                              onClick={() => {
+                                const formData = new FormData();
+                                formData.append("_action", "updatePrivacySettings");
+                                formData.append("piiEnabled", String(!shop?.piiEnabled));
+                                formData.append("consentStrategy", shop?.consentStrategy || "balanced");
+                                formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
+                                submit(formData, { method: "post" });
+                              }}
+                              loading={isSubmitting}
+                            >
+                              {shop?.piiEnabled ? "禁用" : "启用"}
+                            </Button>
                           </InlineStack>
                         </BlockStack>
                       </Box>
+
+                      {/* P0-6: PII Warning Banner */}
+                      {shop?.piiEnabled && (
+                        <Banner 
+                          title="需要 Protected Customer Data 权限" 
+                          tone="critical"
+                        >
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodySm">
+                              您已启用 PII 发送功能。为确保合规，请注意：
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              1. 您的应用需要通过 Shopify 的 <strong>Protected Customer Data</strong> 审核
+                              <br />
+                              2. 审核未通过前，Shopify 可能会限制或清空 PII 字段
+                              <br />
+                              3. 请在 Shopify Partner Dashboard 提交审核申请
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              如果您尚未通过审核，建议暂时禁用此选项以避免数据丢失。
+                            </Text>
+                          </BlockStack>
+                        </Banner>
+                      )}
 
                       <Banner tone="info">
                         <BlockStack gap="200">
@@ -1119,6 +1173,75 @@ export default function SettingsPage() {
                             <br />• <strong>默认禁用</strong>：为保护用户隐私，PII 发送默认关闭
                           </Text>
                         </BlockStack>
+                      </Banner>
+                    </BlockStack>
+
+                    <Divider />
+
+                    {/* P0-5: Consent Strategy Section */}
+                    <BlockStack gap="300">
+                      <Text as="h3" variant="headingMd">
+                        Consent 策略
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        控制何时发送转化数据到广告平台。不同策略适用于不同地区的合规要求。
+                      </Text>
+
+                      <Select
+                        label="策略选择"
+                        options={[
+                          { 
+                            label: "严格模式（Strict）", 
+                            value: "strict",
+                          },
+                          { 
+                            label: "平衡模式（Balanced）- 推荐", 
+                            value: "balanced",
+                          },
+                          { 
+                            label: "宽松模式（Weak）", 
+                            value: "weak",
+                          },
+                        ]}
+                        value={shop?.consentStrategy || "balanced"}
+                        onChange={(value) => {
+                          const formData = new FormData();
+                          formData.append("_action", "updatePrivacySettings");
+                          formData.append("piiEnabled", String(shop?.piiEnabled || false));
+                          formData.append("consentStrategy", value);
+                          formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
+                          submit(formData, { method: "post" });
+                        }}
+                        helpText={
+                          shop?.consentStrategy === "strict" 
+                            ? "必须有明确的用户同意才发送数据。适用于 GDPR 地区。"
+                            : shop?.consentStrategy === "weak"
+                            ? "即使没有同意证据也发送数据。仅适用于允许默示同意的地区。"
+                            : "如有同意记录则使用；无记录时不发送。适合大多数场景。"
+                        }
+                      />
+
+                      <Banner 
+                        tone={shop?.consentStrategy === "weak" ? "warning" : "info"}
+                      >
+                        {shop?.consentStrategy === "strict" && (
+                          <p>
+                            <strong>严格模式：</strong>仅当像素事件明确表明用户同意营销追踪时才发送 CAPI。
+                            如果像素未触发或用户拒绝同意，转化数据将不会发送。
+                          </p>
+                        )}
+                        {shop?.consentStrategy === "balanced" && (
+                          <p>
+                            <strong>平衡模式：</strong>如果收到像素事件，检查其中的同意状态；
+                            如果未收到像素事件，则不发送 CAPI。这是推荐的默认设置。
+                          </p>
+                        )}
+                        {shop?.consentStrategy === "weak" && (
+                          <p>
+                            <strong>⚠️ 宽松模式：</strong>无论是否收到像素事件或同意状态，都发送 CAPI。
+                            请确保您的目标市场允许此做法（如美国、加拿大等默示同意地区）。
+                          </p>
+                        )}
                       </Banner>
                     </BlockStack>
                   </BlockStack>

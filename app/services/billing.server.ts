@@ -391,32 +391,148 @@ export async function syncSubscriptionStatus(
 }
 
 /**
- * Check if shop has exceeded their monthly order limit
+ * P0-1: Get current year-month string in YYYY-MM format
+ */
+export function getCurrentYearMonth(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+/**
+ * P0-1: Get or create MonthlyUsage record for a shop
+ */
+export async function getOrCreateMonthlyUsage(
+  shopId: string,
+  yearMonth?: string
+): Promise<{ id: string; sentCount: number }> {
+  const ym = yearMonth || getCurrentYearMonth();
+  
+  const usage = await prisma.monthlyUsage.upsert({
+    where: {
+      shopId_yearMonth: { shopId, yearMonth: ym },
+    },
+    create: {
+      shopId,
+      yearMonth: ym,
+      sentCount: 0,
+    },
+    update: {},
+    select: { id: true, sentCount: true },
+  });
+  
+  return usage;
+}
+
+/**
+ * P0-1: Increment monthly usage count when an order is successfully sent
+ * This should be called ONLY when CAPI is successfully sent to at least one platform
+ * 
+ * @param shopId - Shop ID
+ * @param orderId - Order ID (for deduplication - we only count each order once)
+ * @returns Updated sent count
+ */
+export async function incrementMonthlyUsage(
+  shopId: string,
+  orderId: string
+): Promise<number> {
+  const yearMonth = getCurrentYearMonth();
+  
+  // Use a transaction to ensure atomicity and prevent double-counting
+  const result = await prisma.$transaction(async (tx) => {
+    // Check if this order was already counted this month
+    // We track via ConversionJob to avoid double counting
+    const existingJob = await tx.conversionJob.findUnique({
+      where: { shopId_orderId: { shopId, orderId } },
+      select: { status: true },
+    });
+    
+    // If job is already completed, don't increment again
+    if (existingJob?.status === "completed") {
+      const usage = await tx.monthlyUsage.findUnique({
+        where: { shopId_yearMonth: { shopId, yearMonth } },
+        select: { sentCount: true },
+      });
+      return usage?.sentCount || 0;
+    }
+    
+    // Increment usage
+    const usage = await tx.monthlyUsage.upsert({
+      where: {
+        shopId_yearMonth: { shopId, yearMonth },
+      },
+      create: {
+        shopId,
+        yearMonth,
+        sentCount: 1,
+      },
+      update: {
+        sentCount: { increment: 1 },
+      },
+      select: { sentCount: true },
+    });
+    
+    return usage.sentCount;
+  });
+  
+  return result;
+}
+
+/**
+ * P0-1: Check if shop has exceeded their monthly order limit
+ * Uses MonthlyUsage table for accurate tracking (only counts successfully sent orders)
  */
 export async function checkOrderLimit(
   shopId: string,
   shopPlan: PlanId
-): Promise<{ exceeded: boolean; current: number; limit: number }> {
+): Promise<{ exceeded: boolean; current: number; limit: number; remaining: number }> {
   const planConfig = BILLING_PLANS[shopPlan] || BILLING_PLANS.free;
   const limit = planConfig.monthlyOrderLimit;
-
-  // Count orders this month
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const orderCount = await prisma.conversionLog.count({
-    where: {
-      shopId,
-      eventType: "purchase",
-      createdAt: { gte: startOfMonth },
-    },
-  });
-
+  
+  const usage = await getOrCreateMonthlyUsage(shopId);
+  const current = usage.sentCount;
+  
   return {
-    exceeded: orderCount >= limit,
-    current: orderCount,
+    exceeded: current >= limit,
+    current,
     limit,
+    remaining: Math.max(0, limit - current),
+  };
+}
+
+/**
+ * P0-1: Check billing gate before processing an order
+ * Returns whether the order can be processed and why not if blocked
+ */
+export async function checkBillingGate(
+  shopId: string,
+  shopPlan: PlanId
+): Promise<{
+  allowed: boolean;
+  reason?: "limit_exceeded" | "inactive_subscription";
+  usage: { current: number; limit: number; remaining: number };
+}> {
+  const planConfig = BILLING_PLANS[shopPlan] || BILLING_PLANS.free;
+  const limit = planConfig.monthlyOrderLimit;
+  
+  const usageRecord = await getOrCreateMonthlyUsage(shopId);
+  const current = usageRecord.sentCount;
+  const remaining = Math.max(0, limit - current);
+  
+  const usage = { current, limit, remaining };
+  
+  if (current >= limit) {
+    return {
+      allowed: false,
+      reason: "limit_exceeded",
+      usage,
+    };
+  }
+  
+  return {
+    allowed: true,
+    usage,
   };
 }
 
