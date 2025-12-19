@@ -29,6 +29,7 @@ import { encryptJson } from "../utils/crypto";
 import { checkTokenExpirationIssues } from "../services/retry.server";
 import { createAuditLog } from "../services/audit.server";
 import { getExistingWebPixels, updateWebPixel } from "../services/migration.server";
+import { encryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
 
 /**
@@ -37,6 +38,16 @@ import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../t
  */
 function generateIngestionSecret(): string {
   return randomBytes(32).toString("hex");
+}
+
+/**
+ * P0-2: Generate and encrypt ingestion secret
+ * Returns both plain (for Web Pixel sync) and encrypted (for storage) versions
+ */
+function generateEncryptedIngestionSecret(): { plain: string; encrypted: string } {
+  const plain = generateIngestionSecret();
+  const encrypted = encryptIngestionSecret(plain);
+  return { plain, encrypted };
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -248,15 +259,34 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     case "rotateIngestionSecret": {
-      // P1-1: Rotate the ingestion secret for security
-      const newSecret = generateIngestionSecret();
+      // P0-2: Rotate the ingestion secret with encryption and grace window
       
+      // Get current secret for grace window (already encrypted in DB)
+      const currentShop = await prisma.shop.findUnique({
+        where: { id: shop.id },
+        select: { ingestionSecret: true },
+      });
+      
+      // Generate new secret (both plain and encrypted versions)
+      const { plain: newPlainSecret, encrypted: newEncryptedSecret } = generateEncryptedIngestionSecret();
+      
+      // P0-2: Grace window configuration
+      // Old secret remains valid for 30 minutes to handle in-flight requests
+      const graceWindowMinutes = 30;
+      const graceWindowExpiry = new Date(Date.now() + graceWindowMinutes * 60 * 1000);
+      
+      // Update shop with new secret and preserve old secret for grace period
       await prisma.shop.update({
         where: { id: shop.id },
-        data: { ingestionSecret: newSecret },
+        data: { 
+          ingestionSecret: newEncryptedSecret,
+          // Store the previous secret (already encrypted) for grace window
+          previousIngestionSecret: currentShop?.ingestionSecret || null,
+          previousSecretExpiry: graceWindowExpiry,
+        },
       });
 
-      // P1-1: Automatically sync new secret to Web Pixel
+      // P0-2: Automatically sync new secret to Web Pixel
       const backendUrl = process.env.SHOPIFY_APP_URL || "";
       let pixelSyncResult = { success: false, message: "" };
       
@@ -275,8 +305,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
         
         if (ourPixel) {
-          // Update existing pixel with new secret
-          const result = await updateWebPixel(admin, ourPixel.id, backendUrl, newSecret);
+          // Update existing pixel with new plain secret (pixel needs unencrypted version)
+          const result = await updateWebPixel(admin, ourPixel.id, backendUrl, newPlainSecret);
           if (result.success) {
             pixelSyncResult = {
               success: true,
@@ -313,18 +343,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         metadata: { 
           reason: "Manual rotation from settings",
           pixelSyncSuccess: pixelSyncResult.success,
+          graceWindowExpiry: graceWindowExpiry.toISOString(),
         },
       });
 
       const baseMessage = "Ingestion Key 已更新。";
+      const graceMessage = ` 旧密钥将在 ${graceWindowMinutes} 分钟内继续有效。`;
       const syncMessage = pixelSyncResult.success 
         ? pixelSyncResult.message 
         : `⚠️ ${pixelSyncResult.message}`;
 
       return json({
         success: true,
-        message: `${baseMessage}${syncMessage}`,
+        message: `${baseMessage}${graceMessage}${syncMessage}`,
         pixelSyncSuccess: pixelSyncResult.success,
+        graceWindowExpiry: graceWindowExpiry.toISOString(),
       });
     }
 

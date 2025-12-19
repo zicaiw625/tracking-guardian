@@ -34,6 +34,7 @@ import prisma from "../db.server";
 import { generateEventId, normalizeOrderId } from "../utils/crypto";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 import { checkCircuitBreaker } from "../utils/circuit-breaker";
+import { getShopForVerification, verifyWithGraceWindow } from "../utils/shop-access";
 
 // Signature verification time window (5 minutes)
 const SIGNATURE_TIME_WINDOW_MS = 5 * 60 * 1000;
@@ -461,29 +462,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }, { request });
     }
 
-    // Find the shop (include ingestionSecret for signature verification)
-    const shop = await prisma.shop.findUnique({
-      where: { shopDomain: payload.shopDomain },
-      select: {
-        id: true,
-        shopDomain: true,
-        isActive: true,
-        ingestionSecret: true,
-      },
-    });
+    // Find the shop with decrypted ingestionSecret for signature verification
+    // P0-1 & P0-2: ingestionSecret is stored encrypted, getShopForVerification decrypts it
+    const shop = await getShopForVerification(payload.shopDomain);
 
     if (!shop || !shop.isActive) {
       return jsonWithCors({ error: "Shop not found or inactive" }, { status: 404, request });
     }
     
-    // P0-1 & P0-2: Verify request signature
-    const signatureResult = verifySignature(
+    // P0-1 & P0-2: Verify request signature with grace window support
+    // First try with current secret
+    let signatureResult = verifySignature(
       shop.ingestionSecret,
       timestamp,
       bodyText,
       signature,
       isExplicitlyUnsigned
     );
+    
+    // P0-2: If current secret fails, try previous secret (grace window)
+    let usedPreviousSecret = false;
+    if (signatureResult.status === "invalid" && shop.previousIngestionSecret) {
+      const previousResult = verifySignature(
+        shop.previousIngestionSecret,
+        timestamp,
+        bodyText,
+        signature,
+        false // Don't allow unsigned for previous secret check
+      );
+      
+      if (previousResult.status === "signed") {
+        signatureResult = previousResult;
+        usedPreviousSecret = true;
+        console.info(
+          `[Grace Window] Request verified using previous secret for ${shop.shopDomain}. ` +
+          `Previous secret expires: ${shop.previousSecretExpiry?.toISOString()}`
+        );
+      }
+    }
     
     // Reject requests with INVALID signatures (spoofing attempt)
     if (signatureResult.status === "invalid") {

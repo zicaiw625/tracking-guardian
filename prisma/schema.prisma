@@ -65,11 +65,18 @@ model Shop {
   // 0 means no auto-deletion (manual deletion required)
   dataRetentionDays Int @default(90)
 
-  // P1-1: Ingestion secret for pixel event signature verification
+  // P0-2: Ingestion secret for pixel event signature verification
   // Used to sign requests from the web pixel to prevent forgery/abuse
   // Generated on shop installation, can be regenerated in settings
-  // SECURITY: This field is required - empty string treated as unconfigured
-  ingestionSecret String @default("")
+  // SECURITY: This field is stored encrypted using AES-256-GCM
+  // Made optional to support existing shops without secrets; afterAuth hook will populate
+  ingestionSecret String?
+  
+  // P0-2: Previous ingestion secret for grace window during rotation
+  // Allows old signatures to work for a brief period after rotation
+  // Stored encrypted; cleared after grace window expires
+  previousIngestionSecret String?
+  previousSecretExpiry    DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -383,6 +390,36 @@ model PixelEventReceipt {
   @@index([shopId])
   @@index([orderId])
   @@index([shopId, orderId])
+}
+
+// P0-5: Webhook processing log for idempotency
+// Stores fingerprints of processed webhooks to prevent duplicate processing
+model WebhookLog {
+  id        String   @id @default(cuid())
+  
+  // Webhook identification (composite key for deduplication)
+  shopDomain   String    // Shop that sent the webhook
+  webhookId    String    // Shopify's X-Shopify-Webhook-Id header
+  topic        String    // Webhook topic (e.g., ORDERS_PAID)
+  
+  // Processing status
+  status       String    @default("processed") // processed, failed
+  
+  // Order details (for reference)
+  orderId      String?   // Order ID from payload (if applicable)
+  
+  // Timestamps
+  receivedAt   DateTime  @default(now())
+  processedAt  DateTime?
+  
+  // Prevent duplicate processing - unique on shop + webhookId + topic
+  @@unique([shopDomain, webhookId, topic])
+  
+  // Performance indexes
+  @@index([shopDomain])
+  @@index([receivedAt])
+  // Cleanup index - for periodic deletion of old entries
+  @@index([receivedAt, status])
 }
 
 // P0-2: Conversion job queue for async webhook processing

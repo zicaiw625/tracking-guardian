@@ -359,13 +359,38 @@ register(({ analytics, settings, init }) => {
   }
 
   /**
-   * Check if we have consent to track
-   * Conversion tracking typically requires marketing consent
+   * P0-7: Check if we have consent to track
+   * 
+   * For conversion tracking (purchase events), we need marketing consent
+   * since the data is used for advertising optimization.
+   * 
+   * Note: The server will make the final decision based on platform type:
+   * - Marketing platforms (Meta, TikTok): require marketingAllowed
+   * - Analytics platforms (GA4): require analyticsAllowed
+   * 
+   * The pixel sends both consent states to the server for proper routing.
    */
   function hasTrackingConsent(): boolean {
-    // For conversion tracking, we need marketing consent
-    // marketingAllowed covers advertising/conversion use cases
+    // For checkout/purchase events, require marketing consent
+    // since these are primarily used for conversion tracking
+    // The server will also check based on specific platform requirements
     return marketingAllowed === true;
+  }
+  
+  /**
+   * P0-7: Check if we have analytics consent
+   * Used for analytics-only platforms like GA4 in pure analytics mode
+   */
+  function hasAnalyticsConsent(): boolean {
+    return analyticsAllowed === true;
+  }
+  
+  /**
+   * P0-7: Check if we have any form of consent
+   * Returns true if either marketing or analytics is allowed
+   */
+  function hasAnyConsent(): boolean {
+    return marketingAllowed === true || analyticsAllowed === true;
   }
 
   // P0-5: Removed generateEventId from pixel side

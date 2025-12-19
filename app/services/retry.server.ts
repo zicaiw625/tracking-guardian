@@ -699,24 +699,304 @@ export async function processRetries(): Promise<{
 }
 
 /**
- * P0-2: Process queued ConversionJobs
- * This is the main worker function that processes the async queue
- * P0-1: Includes billing gate check before processing
+ * P0-2 & P1-9: Process queued ConversionJobs
+ * This is the main worker function that processes the async webhook queue
  * 
- * NOTE: This function is a placeholder until the schema migration is complete.
- * After running `prisma migrate`, uncomment and use the ConversionJob-based implementation.
- * For now, processing is done via processPendingConversions and processRetries.
+ * Features:
+ * - Processes jobs in batches with locking to prevent duplicate processing
+ * - P0-1: Billing gate check before processing
+ * - Sends to all configured platforms
+ * - Updates job status on success/failure
+ * - Moves permanently failed jobs to dead letter
  */
 export async function processConversionJobs(): Promise<{
   processed: number;
   succeeded: number;
   failed: number;
   limitExceeded: number;
+  skipped: number;
 }> {
-  // NOTE: ConversionJob table not yet migrated. Using processPendingConversions as fallback.
-  // After migration, replace this with the full ConversionJob-based implementation.
-  console.log("processConversionJobs: ConversionJob table not migrated yet, skipping");
-  return { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
+  const now = new Date();
+  const batchSize = 50;
+  
+  // Find jobs ready to process:
+  // - Status: queued or failed (for retry)
+  // - nextRetryAt: null or in the past
+  // - attempts < maxAttempts
+  const jobsToProcess = await prisma.conversionJob.findMany({
+    where: {
+      OR: [
+        { status: "queued" },
+        {
+          status: "failed",
+          nextRetryAt: { lte: now },
+          attempts: { lt: prisma.conversionJob.fields.maxAttempts },
+        },
+      ],
+    },
+    include: {
+      shop: {
+        select: {
+          id: true,
+          shopDomain: true,
+          plan: true,
+          piiEnabled: true,
+          consentStrategy: true,
+          pixelConfigs: {
+            where: { isActive: true, serverSideEnabled: true },
+            select: {
+              id: true,
+              platform: true,
+              platformId: true,
+              credentialsEncrypted: true,
+              credentials: true,
+            },
+          },
+        },
+      },
+    },
+    take: batchSize,
+    orderBy: { createdAt: "asc" },
+  });
+  
+  if (jobsToProcess.length === 0) {
+    console.log("processConversionJobs: No jobs to process");
+    return { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0, skipped: 0 };
+  }
+  
+  console.log(`processConversionJobs: Processing ${jobsToProcess.length} jobs`);
+  
+  let succeeded = 0;
+  let failed = 0;
+  let limitExceeded = 0;
+  let skipped = 0;
+  
+  for (const job of jobsToProcess) {
+    try {
+      // Mark as processing to prevent duplicate processing
+      await prisma.conversionJob.update({
+        where: { id: job.id },
+        data: { status: "processing" },
+      });
+      
+      // P0-1: Check billing gate
+      const billingCheck = await checkBillingGate(
+        job.shopId,
+        (job.shop.plan || "free") as PlanId
+      );
+      
+      if (!billingCheck.allowed) {
+        console.log(
+          `Billing gate blocked job ${job.id}: ${billingCheck.reason}, ` +
+          `usage=${billingCheck.usage.current}/${billingCheck.usage.limit}`
+        );
+        
+        await prisma.conversionJob.update({
+          where: { id: job.id },
+          data: {
+            status: "limit_exceeded",
+            errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
+            lastAttemptAt: now,
+          },
+        });
+        
+        limitExceeded++;
+        continue;
+      }
+      
+      // Check if shop has any configured platforms
+      if (job.shop.pixelConfigs.length === 0) {
+        console.log(`Job ${job.id}: No active platforms configured`);
+        await prisma.conversionJob.update({
+          where: { id: job.id },
+          data: {
+            status: "completed",
+            processedAt: now,
+            completedAt: now,
+            platformResults: { message: "No platforms configured" },
+          },
+        });
+        skipped++;
+        continue;
+      }
+      
+      // Generate eventId for deduplication
+      const eventId = generateEventId(job.orderId, "purchase", job.shop.shopDomain);
+      
+      // Process each platform
+      const platformResults: Record<string, string> = {};
+      let allSucceeded = true;
+      let anySucceeded = false;
+      
+      for (const pixelConfig of job.shop.pixelConfigs) {
+        try {
+          // Get credentials
+          let credentials: PlatformCredentials | null = null;
+          
+          if (pixelConfig.credentialsEncrypted) {
+            try {
+              credentials = decryptJson<PlatformCredentials>(pixelConfig.credentialsEncrypted);
+            } catch {
+              // Fall through
+            }
+          }
+          
+          if (!credentials && (pixelConfig as Record<string, unknown>).credentials) {
+            try {
+              const legacyCreds = (pixelConfig as Record<string, unknown>).credentials;
+              if (typeof legacyCreds === "string") {
+                credentials = decryptJson<PlatformCredentials>(legacyCreds);
+              } else if (typeof legacyCreds === "object" && legacyCreds !== null) {
+                credentials = legacyCreds as PlatformCredentials;
+              }
+            } catch {
+              // Continue
+            }
+          }
+          
+          if (!credentials) {
+            platformResults[pixelConfig.platform] = "failed:no_credentials";
+            allSucceeded = false;
+            continue;
+          }
+          
+          // Build conversion data
+          const conversionData: ConversionData = {
+            orderId: job.orderId,
+            orderNumber: job.orderNumber,
+            value: Number(job.orderValue),
+            currency: job.currency,
+          };
+          
+          // Send to platform
+          let result;
+          switch (pixelConfig.platform) {
+            case "google":
+              result = await sendConversionToGoogle(
+                credentials as GoogleCredentials,
+                conversionData,
+                eventId
+              );
+              break;
+            case "meta":
+              result = await sendConversionToMeta(
+                credentials as MetaCredentials,
+                conversionData,
+                eventId
+              );
+              break;
+            case "tiktok":
+              result = await sendConversionToTikTok(
+                credentials as TikTokCredentials,
+                conversionData,
+                eventId
+              );
+              break;
+            default:
+              platformResults[pixelConfig.platform] = "failed:unsupported_platform";
+              allSucceeded = false;
+              continue;
+          }
+          
+          platformResults[pixelConfig.platform] = "sent";
+          anySucceeded = true;
+          
+        } catch (platformError) {
+          const errorMsg = platformError instanceof Error ? platformError.message : "Unknown error";
+          platformResults[pixelConfig.platform] = `failed:${errorMsg.substring(0, 50)}`;
+          allSucceeded = false;
+        }
+      }
+      
+      // Update job status based on results
+      const newAttempts = job.attempts + 1;
+      
+      if (allSucceeded || anySucceeded) {
+        // At least some platforms succeeded
+        await prisma.conversionJob.update({
+          where: { id: job.id },
+          data: {
+            status: "completed",
+            attempts: newAttempts,
+            lastAttemptAt: now,
+            processedAt: now,
+            completedAt: now,
+            platformResults,
+            errorMessage: null,
+          },
+        });
+        
+        // Increment monthly usage
+        await incrementMonthlyUsage(job.shopId, job.orderId);
+        
+        succeeded++;
+      } else {
+        // All platforms failed
+        if (newAttempts >= job.maxAttempts) {
+          // Move to dead letter
+          await prisma.conversionJob.update({
+            where: { id: job.id },
+            data: {
+              status: "dead_letter",
+              attempts: newAttempts,
+              lastAttemptAt: now,
+              platformResults,
+              errorMessage: "All platforms failed after max attempts",
+            },
+          });
+        } else {
+          // Schedule retry with exponential backoff
+          const nextRetryAt = calculateNextRetryTime(newAttempts);
+          await prisma.conversionJob.update({
+            where: { id: job.id },
+            data: {
+              status: "failed",
+              attempts: newAttempts,
+              lastAttemptAt: now,
+              nextRetryAt,
+              platformResults,
+              errorMessage: "All platforms failed, retrying...",
+            },
+          });
+        }
+        failed++;
+      }
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.error(`Failed to process job ${job.id}: ${errorMsg}`);
+      
+      // Mark as failed
+      await prisma.conversionJob.update({
+        where: { id: job.id },
+        data: {
+          status: "failed",
+          attempts: job.attempts + 1,
+          lastAttemptAt: now,
+          nextRetryAt: calculateNextRetryTime(job.attempts + 1),
+          errorMessage: errorMsg,
+        },
+      }).catch(() => {
+        // Ignore update errors - job will be retried
+      });
+      
+      failed++;
+    }
+  }
+  
+  console.log(
+    `processConversionJobs: Completed - ` +
+    `${succeeded} succeeded, ${failed} failed, ` +
+    `${limitExceeded} limit exceeded, ${skipped} skipped`
+  );
+  
+  return { 
+    processed: jobsToProcess.length, 
+    succeeded, 
+    failed, 
+    limitExceeded,
+    skipped,
+  };
 }
 
 /**

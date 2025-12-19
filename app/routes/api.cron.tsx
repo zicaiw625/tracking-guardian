@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual, randomBytes } from "crypto";
 import prisma from "../db.server";
 import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
@@ -8,6 +8,11 @@ import { processPendingConversions, processRetries, processConversionJobs } from
 import { reconcilePendingConsent } from "../services/consent-reconciler.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 import { createAuditLog } from "../services/audit.server";
+
+// P0-4: Generate unique request ID for logging and tracing
+function generateRequestId(): string {
+  return `cron-${Date.now()}-${randomBytes(4).toString("hex")}`;
+}
 
 // P1-4: Replay protection time window (5 minutes)
 const REPLAY_PROTECTION_WINDOW_MS = 5 * 60 * 1000;
@@ -242,21 +247,28 @@ function validateCronAuth(request: Request): Response | null {
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  // P0-4: Generate unique request ID for this cron execution
+  const requestId = generateRequestId();
+  const startTime = Date.now();
+  
+  console.log(`[${requestId}] Cron execution started at ${new Date().toISOString()}`);
+  
   // Rate limiting check
   const rateLimit = checkRateLimit(request, "cron");
   if (rateLimit.isLimited) {
-    console.warn("Cron endpoint rate limited");
+    console.warn(`[${requestId}] Cron endpoint rate limited`);
     return createRateLimitResponse(rateLimit.retryAfter);
   }
 
   const authError = validateCronAuth(request);
   if (authError) {
+    console.warn(`[${requestId}] Cron auth failed`);
     return authError;
   }
 
   try {
     // P0-6: Reconcile pending_consent logs (check if pixel events have arrived)
-    console.log("Reconciling pending consent...");
+    console.log(`[${requestId}] Reconciling pending consent...`);
     const consentResults = await reconcilePendingConsent();
     console.log(`Consent: ${consentResults.processed} processed, ${consentResults.resolved} resolved, ${consentResults.expired} expired, ${consentResults.errors} errors`);
 
@@ -290,16 +302,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       `${reconciliationResults.results.length} reports generated`);
 
     // P3-2: Clean up expired data based on retention settings
-    console.log("Cleaning up expired data...");
+    console.log(`[${requestId}] Cleaning up expired data...`);
     const cleanupResults = await cleanupExpiredData();
-    console.log(`Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
+    console.log(`[${requestId}] Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
       `${cleanupResults.conversionLogsDeleted} conversions, ` +
       `${cleanupResults.surveyResponsesDeleted} surveys, ` +
       `${cleanupResults.auditLogsDeleted} audit logs deleted`);
 
+    const durationMs = Date.now() - startTime;
+    console.log(`[${requestId}] Cron execution completed in ${durationMs}ms`);
+
     return json({
       success: true,
       message: `Cron completed`,
+      requestId, // P0-4: Include requestId for tracing
+      durationMs,
       consent: consentResults,
       jobs: jobResults,
       pending: pendingResults,
@@ -318,10 +335,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       cleanup: cleanupResults,
     });
   } catch (error) {
-    console.error("Cron job error:", error);
+    const durationMs = Date.now() - startTime;
+    console.error(`[${requestId}] Cron job error after ${durationMs}ms:`, error);
     return json(
       {
         success: false,
+        requestId, // P0-4: Include requestId even on failure
+        durationMs,
         error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
@@ -331,21 +351,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 // Also support GET for simple cron services (like Vercel Cron)
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  // P0-4: Generate unique request ID for this cron execution
+  const requestId = generateRequestId();
+  const startTime = Date.now();
+  
+  console.log(`[${requestId}] Cron execution started (GET) at ${new Date().toISOString()}`);
+  
   // Rate limiting check
   const rateLimit = checkRateLimit(request, "cron");
   if (rateLimit.isLimited) {
-    console.warn("Cron endpoint rate limited (GET)");
+    console.warn(`[${requestId}] Cron endpoint rate limited (GET)`);
     return createRateLimitResponse(rateLimit.retryAfter);
   }
 
   const authError = validateCronAuth(request);
   if (authError) {
+    console.warn(`[${requestId}] Cron auth failed (GET)`);
     return authError;
   }
 
   try {
     // P0-6: Reconcile pending_consent logs (check if pixel events have arrived)
-    console.log("Reconciling pending consent...");
+    console.log(`[${requestId}] Reconciling pending consent...`);
     const consentResults = await reconcilePendingConsent();
     console.log(`Consent: ${consentResults.processed} processed, ${consentResults.resolved} resolved, ${consentResults.expired} expired, ${consentResults.errors} errors`);
 
@@ -379,16 +406,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       `${reconciliationResults.results.length} reports generated`);
 
     // P3-2: Clean up expired data based on retention settings
-    console.log("Cleaning up expired data...");
+    console.log(`[${requestId}] Cleaning up expired data...`);
     const cleanupResults = await cleanupExpiredData();
-    console.log(`Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
+    console.log(`[${requestId}] Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
       `${cleanupResults.conversionLogsDeleted} conversions, ` +
       `${cleanupResults.surveyResponsesDeleted} surveys, ` +
       `${cleanupResults.auditLogsDeleted} audit logs deleted`);
 
+    const durationMs = Date.now() - startTime;
+    console.log(`[${requestId}] Cron execution completed (GET) in ${durationMs}ms`);
+
     return json({
       success: true,
       message: `Cron completed`,
+      requestId, // P0-4: Include requestId for tracing
+      durationMs,
       consent: consentResults,
       jobs: jobResults,
       pending: pendingResults,
@@ -407,10 +439,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       cleanup: cleanupResults,
     });
   } catch (error) {
-    console.error("Cron job error:", error);
+    const durationMs = Date.now() - startTime;
+    console.error(`[${requestId}] Cron job error (GET) after ${durationMs}ms:`, error);
     return json(
       {
         success: false,
+        requestId, // P0-4: Include requestId even on failure
+        durationMs,
         error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }

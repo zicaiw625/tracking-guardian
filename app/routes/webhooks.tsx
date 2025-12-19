@@ -5,6 +5,7 @@
  * P0-2: Fast ACK + async queue - immediately returns 200, processes via worker
  * P0-3: Uses PixelEventReceipt for consent decisions
  * P0-5: Implements consent strategy (strict/balanced/weak)
+ * P0-5: Webhook idempotency via WebhookLog fingerprinting
  * P0-6: PII null-safety handling
  */
 
@@ -22,6 +23,80 @@ import type {
   PixelConfigData,
 } from "../types";
 import type { Shop, PixelConfig } from "@prisma/client";
+import { evaluatePlatformConsentWithStrategy, type ConsentState } from "../utils/platform-consent";
+
+/**
+ * P0-5: Check if a webhook has already been processed
+ * Uses WebhookLog for idempotency (fingerprint: shop + webhookId + topic)
+ * 
+ * @returns true if webhook was already processed (should skip)
+ */
+async function isWebhookAlreadyProcessed(
+  shopDomain: string,
+  webhookId: string | null,
+  topic: string
+): Promise<boolean> {
+  if (!webhookId) {
+    // No webhook ID means we can't deduplicate - allow processing
+    // This shouldn't happen with valid Shopify webhooks
+    console.warn(`[Webhook] Missing X-Shopify-Webhook-Id for topic ${topic} from ${shopDomain}`);
+    return false;
+  }
+  
+  // Check if this webhook was already processed
+  const existing = await prisma.webhookLog.findUnique({
+    where: {
+      shopDomain_webhookId_topic: {
+        shopDomain,
+        webhookId,
+        topic,
+      },
+    },
+    select: { id: true, status: true },
+  });
+  
+  if (existing) {
+    console.log(
+      `[Webhook Idempotency] Duplicate webhook detected: ${topic} for ${shopDomain}, ` +
+      `webhookId=${webhookId}, status=${existing.status}`
+    );
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * P0-5: Record a webhook as processed
+ */
+async function recordWebhookProcessed(
+  shopDomain: string,
+  webhookId: string,
+  topic: string,
+  orderId?: string,
+  status: "processed" | "failed" = "processed"
+): Promise<void> {
+  try {
+    await prisma.webhookLog.create({
+      data: {
+        shopDomain,
+        webhookId,
+        topic,
+        orderId,
+        status,
+        processedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    // If insert fails due to unique constraint, that's fine - another request beat us
+    // Just log and continue
+    if ((error as { code?: string })?.code === "P2002") {
+      console.log(`[Webhook] WebhookLog already exists for ${webhookId}`);
+    } else {
+      console.error(`[Webhook] Failed to record webhook: ${error}`);
+    }
+  }
+}
 
 interface ShopWithPixelConfigs extends Shop {
   pixelConfigs: PixelConfig[];
@@ -31,6 +106,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const { topic, shop, session, admin, payload } =
       await authenticate.webhook(request);
+    
+    // P0-5: Get webhook ID from headers for idempotency
+    const webhookId = request.headers.get("X-Shopify-Webhook-Id");
+    
+    // P0-5: Check if this webhook was already processed
+    if (webhookId && await isWebhookAlreadyProcessed(shop, webhookId, topic)) {
+      // Already processed - return 200 to acknowledge receipt
+      // This prevents Shopify from retrying and prevents duplicate processing
+      console.log(`[Webhook Idempotency] Skipping duplicate: ${topic} for ${shop}`);
+      return new Response("OK (duplicate)", { status: 200 });
+    }
 
     if (!admin && topic !== "SHOP_REDACT" && topic !== "CUSTOMERS_DATA_REQUEST" && topic !== "CUSTOMERS_REDACT") {
       // The admin context isn't returned if the webhook fired after a shop uninstalled
@@ -63,6 +149,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               uninstalledAt: new Date(),
             },
           });
+        }
+        // P0-5: Record webhook as processed
+        if (webhookId) {
+          await recordWebhookProcessed(shop, webhookId, topic, undefined, "processed");
         }
         console.log(`Successfully processed APP_UNINSTALLED for shop ${shop}`);
         break;
@@ -124,6 +214,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               });
             }
             
+            // P0-5: Record webhook as processed (even if blocked by billing)
+            if (webhookId) {
+              await recordWebhookProcessed(shop, webhookId, topic, orderId, "processed");
+            }
+            
             // Still return 200 to acknowledge receipt
             break;
           }
@@ -133,6 +228,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             shopRecord as ShopWithPixelConfigs,
             payload as OrderWebhookPayload
           );
+          
+          // P0-5: Record webhook as processed
+          if (webhookId) {
+            await recordWebhookProcessed(shop, webhookId, topic, orderId, "processed");
+          }
           
           console.log(`Order ${orderId} queued for processing`);
         } else {
@@ -419,19 +519,23 @@ async function queueOrderForProcessing(
     ? { consentState: pixelReceipt.consentState, isTrusted: pixelReceipt.isTrusted }
     : (hasPixelConsent ? { consentState: { marketing: true }, isTrusted: false } : null);
   
-  const consentDecision = evaluateConsentStrategy(
-    consentStrategy,
-    consentInfo,
-    weakConsentMode
-  );
-  
   // P0-3: Extract order data from webhook (authoritative source)
   const orderNumber = orderPayload.order_number ? String(orderPayload.order_number) : null;
   const orderValue = parseFloat(orderPayload.total_price || "0");
   const currency = orderPayload.currency || "USD";
   
-  // Create ConversionLog entries for each platform
+  // P0-7: Create ConversionLog entries for each platform with platform-specific consent
   for (const config of shopRecord.pixelConfigs) {
+    // P0-7: Evaluate consent for this specific platform
+    // Marketing platforms (Meta, TikTok) require marketing consent
+    // Analytics platforms (GA4) require analytics consent
+    const consentDecision = evaluateConsentStrategy(
+      consentStrategy,
+      consentInfo,
+      weakConsentMode,
+      config.platform // Pass platform for platform-specific consent check
+    );
+    
     await prisma.conversionLog.upsert({
       where: {
         shopId_orderId_platform_eventType: {
@@ -473,20 +577,34 @@ async function queueOrderForProcessing(
 }
 
 /**
- * P0-5: Evaluate consent strategy
- * Determines if CAPI sending is allowed based on strategy and pixel receipt
+ * P0-5 & P0-7: Evaluate consent strategy for a specific platform
+ * Determines if CAPI sending is allowed based on:
+ * - Consent strategy (strict/balanced/weak)
+ * - Pixel receipt presence
+ * - Platform type (marketing vs analytics) - P0-7
  */
 function evaluateConsentStrategy(
   strategy: string,
   pixelReceipt: { consentState: unknown; isTrusted: boolean } | null,
-  legacyWeakMode: boolean
+  legacyWeakMode: boolean,
+  platform?: string
 ): { allowed: boolean; reason?: string } {
   // Parse consent state if available
-  const consentState = pixelReceipt?.consentState as { 
-    marketing?: boolean; 
-    analytics?: boolean 
-  } | null;
+  const consentState = pixelReceipt?.consentState as ConsentState | null;
+  const hasPixelReceipt = !!pixelReceipt;
   
+  // P0-7: If platform is provided, use platform-specific consent evaluation
+  if (platform) {
+    const decision = evaluatePlatformConsentWithStrategy(
+      platform,
+      strategy,
+      consentState,
+      hasPixelReceipt
+    );
+    return { allowed: decision.allowed, reason: decision.reason };
+  }
+  
+  // Fallback to legacy behavior when no platform specified
   switch (strategy) {
     case "strict":
       // Must have pixel receipt with explicit marketing consent
