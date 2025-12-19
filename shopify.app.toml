@@ -16,9 +16,16 @@ embedded = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-# Note: write_script_tags removed - we use Web Pixels instead of ScriptTags
-# read_script_tags is kept for migration scanning purposes only
-scopes = "read_orders,read_script_tags,read_checkouts,write_pixels,read_customer_events"
+# 
+# Scope justification:
+# - read_orders: Required for webhook order data and reconciliation reports
+# - read_script_tags: Required for migration scanning (detecting old tracking scripts)
+# - write_pixels: Required to create/manage the Web Pixel extension
+# - read_customer_events: Required to receive customer event data via Web Pixel
+#
+# Note: read_checkouts removed (P3-1) - checkout data comes via Web Pixel events,
+# not via Admin API. This reduces our permission footprint for App Review.
+scopes = "read_orders,read_script_tags,write_pixels,read_customer_events"
 
 [auth]
 # Update these URLs with your deployed app URL
@@ -31,9 +38,12 @@ redirect_urls = [
 [webhooks]
 api_version = "2024-10"
 
-  [webhooks.subscriptions]
-  # Order webhooks for conversion tracking
-  topics = ["orders/create", "orders/paid", "orders/updated", "app/uninstalled"]
+# Mandatory compliance webhooks (app-level subscription)
+# Business webhooks (orders/paid, app/uninstalled) are managed via code in shopify.server.ts
+# to avoid duplicate deliveries
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/webhooks"
 
 [pos]
 embedded = false

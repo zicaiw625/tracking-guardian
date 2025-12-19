@@ -44,6 +44,22 @@ model Shop {
   installedAt       DateTime             @default(now())
   uninstalledAt     DateTime?
   isActive          Boolean              @default(true)
+  
+  // Privacy settings
+  // When false, PII (email/phone/address) is NOT sent to ad platforms
+  // This provides an extra layer of privacy compliance
+  // Note: Server-side tracking always hashes PII before sending
+  piiEnabled        Boolean              @default(false)
+  
+  // Data retention settings (in days)
+  // 0 means no auto-deletion (manual deletion required)
+  dataRetentionDays Int                  @default(90)
+  
+  // P1-1: Ingestion secret for pixel event signature verification
+  // Used to sign requests from the web pixel to prevent forgery/abuse
+  // Generated on shop installation, can be regenerated in settings
+  ingestionSecret   String?
+  
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 

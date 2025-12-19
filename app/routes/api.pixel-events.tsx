@@ -6,10 +6,16 @@
  * 
  * This approach is more stable than injecting third-party scripts in the
  * Web Pixel sandbox, as it uses native fetch() and server-side APIs.
+ * 
+ * Security (P1-1):
+ * - Requests can be signed with HMAC-SHA256 to prevent forgery
+ * - Signature is verified using shop's ingestion secret
+ * - Unsigned requests are still accepted but may be rate-limited more aggressively
  */
 
-import type { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "../db.server";
 import { sendConversionToGoogle } from "../services/platforms/google.server";
 import { sendConversionToMeta } from "../services/platforms/meta.server";
@@ -23,6 +29,98 @@ import type {
   TikTokCredentials,
   PlatformCredentials,
 } from "../types";
+
+// Signature verification time window (5 minutes)
+const SIGNATURE_TIME_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * P1-1: Verify HMAC-SHA256 signature from the Web Pixel
+ * Returns true if signature is valid or if no signature is required
+ */
+function verifySignature(
+  secret: string | null,
+  timestamp: string | null,
+  body: string,
+  signature: string | null
+): { valid: boolean; error?: string } {
+  // If shop has no ingestion secret configured, accept unsigned requests
+  // This allows gradual rollout and backwards compatibility
+  if (!secret) {
+    return { valid: true };
+  }
+  
+  // If secret is configured but request is unsigned, reject
+  if (!signature || !timestamp) {
+    return { valid: false, error: "Missing signature or timestamp" };
+  }
+  
+  // Verify timestamp is within acceptable window (prevent replay attacks)
+  const requestTime = parseInt(timestamp, 10);
+  if (isNaN(requestTime)) {
+    return { valid: false, error: "Invalid timestamp" };
+  }
+  
+  const now = Date.now();
+  if (Math.abs(now - requestTime) > SIGNATURE_TIME_WINDOW_MS) {
+    return { valid: false, error: "Request timestamp out of range" };
+  }
+  
+  // Compute expected signature: HMAC-SHA256(secret, timestamp + body)
+  const message = `${timestamp}${body}`;
+  const expectedSignature = createHmac("sha256", secret)
+    .update(message)
+    .digest("hex");
+  
+  // Use timing-safe comparison to prevent timing attacks
+  try {
+    const signatureBuffer = Buffer.from(signature, "hex");
+    const expectedBuffer = Buffer.from(expectedSignature, "hex");
+    
+    if (signatureBuffer.length !== expectedBuffer.length) {
+      return { valid: false, error: "Invalid signature" };
+    }
+    
+    if (!timingSafeEqual(signatureBuffer, expectedBuffer)) {
+      return { valid: false, error: "Invalid signature" };
+    }
+    
+    return { valid: true };
+  } catch {
+    return { valid: false, error: "Invalid signature format" };
+  }
+}
+
+/**
+ * Generate CORS headers for cross-origin requests from Web Pixel sandbox
+ * The Web Pixel runs in a strict sandbox and needs CORS to communicate with our API
+ */
+function getCorsHeaders(request: Request): HeadersInit {
+  const origin = request.headers.get("Origin");
+  return {
+    // Echo back the origin or use * if no origin (for direct requests)
+    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Signature, X-Tracking-Guardian-Timestamp",
+    "Access-Control-Max-Age": "86400", // Cache preflight for 24 hours
+    // Add Vary header when echoing origin to ensure proper caching
+    ...(origin ? { "Vary": "Origin" } : {}),
+  };
+}
+
+/**
+ * Helper to create JSON response with CORS headers
+ */
+function jsonWithCors<T>(data: T, init: ResponseInit & { request: Request }): Response {
+  const { request, ...responseInit } = init;
+  const corsHeaders = getCorsHeaders(request);
+  return json(data, {
+    ...responseInit,
+    headers: {
+      ...corsHeaders,
+      ...(responseInit.headers || {}),
+    },
+  });
+}
 
 // Event types we handle
 type PixelEventName = 
@@ -142,30 +240,51 @@ function validateRequest(body: unknown): { valid: true; payload: PixelEventPaylo
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  // Rate limiting
-  const rateLimit = checkRateLimit(request, "pixel-events");
-  if (rateLimit.isLimited) {
-    return createRateLimitResponse(rateLimit.retryAfter);
+  // Handle CORS preflight requests
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: getCorsHeaders(request),
+    });
   }
 
   // Only accept POST
   if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
   }
 
+  // Rate limiting
+  const rateLimit = checkRateLimit(request, "pixel-events");
+  if (rateLimit.isLimited) {
+    // Add CORS headers to rate limit response
+    const rateLimitResponse = createRateLimitResponse(rateLimit.retryAfter);
+    const corsHeaders = getCorsHeaders(request);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      rateLimitResponse.headers.set(key, value);
+    });
+    return rateLimitResponse;
+  }
+
+  // P1-1: Get signature headers for verification
+  const signature = request.headers.get("X-Tracking-Guardian-Signature");
+  const timestamp = request.headers.get("X-Tracking-Guardian-Timestamp");
+
   try {
+    // Read raw body for signature verification
+    const bodyText = await request.text();
+    
     // Parse request body
     let rawBody: unknown;
     try {
-      rawBody = await request.json();
+      rawBody = JSON.parse(bodyText);
     } catch {
-      return json({ error: "Invalid JSON body" }, { status: 400 });
+      return jsonWithCors({ error: "Invalid JSON body" }, { status: 400, request });
     }
 
     // Validate request
     const validation = validateRequest(rawBody);
     if (!validation.valid) {
-      return json({ error: validation.error }, { status: 400 });
+      return jsonWithCors({ error: validation.error }, { status: 400, request });
     }
 
     const { payload } = validation;
@@ -174,46 +293,73 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Other events can be added later
     if (payload.eventName !== "checkout_completed") {
       // Acknowledge receipt but don't process non-purchase events server-side
-      return json({ 
+      return jsonWithCors({ 
         success: true, 
         message: "Event received (client-side only for this event type)" 
-      });
+      }, { request });
     }
 
-    // Find the shop
+    // Find the shop (include ingestionSecret for signature verification)
     const shop = await prisma.shop.findUnique({
       where: { shopDomain: payload.shopDomain },
-      include: {
+      select: {
+        id: true,
+        shopDomain: true,
+        isActive: true,
+        ingestionSecret: true, // P1-1: For signature verification
         pixelConfigs: {
           where: { isActive: true, serverSideEnabled: true },
+          select: {
+            id: true,
+            platform: true,
+            platformId: true,
+            credentialsEncrypted: true,
+          },
         },
       },
     });
 
     if (!shop || !shop.isActive) {
-      return json({ error: "Shop not found or inactive" }, { status: 404 });
+      return jsonWithCors({ error: "Shop not found or inactive" }, { status: 404, request });
+    }
+    
+    // P1-1: Verify request signature
+    const signatureVerification = verifySignature(
+      shop.ingestionSecret,
+      timestamp,
+      bodyText,
+      signature
+    );
+    
+    if (!signatureVerification.valid) {
+      // Log invalid signature attempts (without revealing the secret)
+      console.warn(`Invalid signature for shop ${shop.shopDomain}: ${signatureVerification.error}`);
+      return jsonWithCors(
+        { error: "Invalid request signature" },
+        { status: 401, request }
+      );
     }
 
     // No pixel configs with server-side enabled
     if (shop.pixelConfigs.length === 0) {
-      return json({ 
+      return jsonWithCors({ 
         success: true, 
         message: "No server-side tracking configured" 
-      });
+      }, { request });
     }
 
     // Generate event ID for deduplication
     const orderId = payload.data.orderId!;
     const eventId = payload.eventId || generateEventId(orderId, payload.eventName, payload.timestamp);
 
-    // Build conversion data
+    // Build conversion data (P0-5: Default to not using PII unless explicitly enabled)
     const conversionData: ConversionData = {
       orderId,
       orderNumber: payload.data.orderNumber || null,
       value: payload.data.value || 0,
       currency: payload.data.currency || "USD",
-      email: payload.data.email,
-      phone: payload.data.phone,
+      // PII fields are intentionally not passed from pixel events by default
+      // Server-side tracking via webhooks handles PII with proper consent
       lineItems: payload.data.items?.map((item) => ({
         productId: item.id,
         variantId: item.id,
@@ -353,21 +499,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    return json({
+    return jsonWithCors({
       success: true,
       eventId,
       results,
-    });
+    }, { request });
   } catch (error) {
     console.error("Pixel events API error:", error);
-    return json(
+    return jsonWithCors(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, request }
     );
   }
 };
 
-// Health check endpoint
-export const loader = async () => {
-  return json({ status: "ok", endpoint: "pixel-events" });
+// Health check endpoint with CORS support
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  // Handle CORS preflight for GET requests (though typically not needed for simple GET)
+  return jsonWithCors({ status: "ok", endpoint: "pixel-events" }, { request });
 };

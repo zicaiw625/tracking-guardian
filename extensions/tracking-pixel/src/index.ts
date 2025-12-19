@@ -11,7 +11,9 @@
  * - Minimal data extraction (privacy-first)
  * - Event deduplication via event_id
  * - Graceful error handling (no user-visible errors)
- * - Respects customer consent settings
+ * - Respects customer consent settings (defaults to NO tracking without consent)
+ * - NO PII (email/phone) sent by default for privacy compliance
+ * - Request signing to prevent forgery/abuse (P1-1)
  * 
  * Why NOT inject platform SDKs (fbq, gtag, ttq)?
  * 1. Strict sandbox has DOM/capability restrictions that break SDKs
@@ -36,6 +38,7 @@ interface CheckoutData {
     quantity?: number;
     variant?: { price?: { amount?: string } };
   }>;
+  // Note: email/phone are available but NOT sent by default for privacy compliance
   email?: string;
   phone?: string;
 }
@@ -55,41 +58,129 @@ interface CartLineData {
   quantity?: number;
 }
 
-register(({ analytics, settings, init, browser }) => {
+// Consent change event type
+interface VisitorConsentCollectedEvent {
+  analyticsProcessingAllowed: boolean;
+  marketingAllowed: boolean;
+  preferencesProcessingAllowed: boolean;
+  saleOfDataAllowed: boolean;
+}
+
+register(({ analytics, settings, init }) => {
   // Get configuration from pixel settings
   const backendUrl = settings.backend_url as string | undefined;
+  const ingestionSecret = settings.ingestion_secret as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
+  const debugMode = settings.debug === true;
+  
+  // Conditional logging - only in debug mode (P1-3)
+  function log(...args: unknown[]): void {
+    if (debugMode) {
+      console.log("[Tracking Guardian]", ...args);
+    }
+  }
   
   // If no backend URL configured, we can't send events
   if (!backendUrl) {
-    console.warn("[Tracking Guardian] backend_url not configured in pixel settings");
+    log("backend_url not configured in pixel settings");
     return;
+  }
+
+  // ==========================================
+  // P1-1: REQUEST SIGNING
+  // ==========================================
+  
+  /**
+   * Generate HMAC-SHA256 signature for request authentication
+   * This prevents unauthorized requests to our API
+   */
+  async function generateSignature(timestamp: number, body: string): Promise<string | null> {
+    if (!ingestionSecret) {
+      // No secret configured - requests will be sent unsigned
+      // Server should still accept these but may rate limit more aggressively
+      return null;
+    }
+    
+    try {
+      // Create the message to sign: timestamp + body
+      const message = `${timestamp}${body}`;
+      
+      // Convert secret and message to ArrayBuffer
+      const encoder = new TextEncoder();
+      const keyData = encoder.encode(ingestionSecret);
+      const messageData = encoder.encode(message);
+      
+      // Import the key for HMAC
+      const key = await crypto.subtle.importKey(
+        "raw",
+        keyData,
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+      );
+      
+      // Generate the signature
+      const signatureBuffer = await crypto.subtle.sign("HMAC", key, messageData);
+      
+      // Convert to hex string
+      const signatureArray = Array.from(new Uint8Array(signatureBuffer));
+      const signature = signatureArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      
+      return signature;
+    } catch {
+      // Crypto API might not be available in all sandbox environments
+      log("Failed to generate signature");
+      return null;
+    }
+  }
+
+  // ==========================================
+  // CONSENT MANAGEMENT (P0-3)
+  // ==========================================
+  
+  // Default consent state: FALSE (most conservative approach)
+  // This ensures we don't track users without explicit consent
+  let marketingAllowed = false;
+  let analyticsAllowed = false;
+  
+  // Initialize consent state from Shopify's customer privacy API
+  const customerPrivacy = init.customerPrivacy;
+  if (customerPrivacy) {
+    // Read initial consent state - must be explicitly true
+    marketingAllowed = customerPrivacy.marketingAllowed === true;
+    analyticsAllowed = customerPrivacy.analyticsProcessingAllowed === true;
+    
+    log("Initial consent state:", { marketingAllowed, analyticsAllowed });
+    
+    // Subscribe to consent changes so we can start/stop tracking dynamically
+    // This handles cases where:
+    // 1. User initially denies consent, then later accepts
+    // 2. User accepts consent, then later revokes it
+    // 3. Consent banner is shown and user makes a choice
+    try {
+      customerPrivacy.subscribe("visitorConsentCollected", (event: VisitorConsentCollectedEvent) => {
+        marketingAllowed = event.marketingAllowed === true;
+        analyticsAllowed = event.analyticsProcessingAllowed === true;
+        log("Consent updated:", { marketingAllowed, analyticsAllowed });
+      });
+    } catch {
+      // Some sandbox environments may not support subscribe
+      log("Could not subscribe to consent changes");
+    }
+  } else {
+    // If privacy API is not available, we stay with defaults (no tracking)
+    // This is the safest approach for GDPR/privacy compliance
+    log("Customer privacy API not available, defaulting to no tracking");
   }
 
   /**
    * Check if we have consent to track
-   * Respects Shopify's customer privacy API
+   * Conversion tracking typically requires marketing consent
    */
   function hasTrackingConsent(): boolean {
-    try {
-      // Check Shopify's customer privacy consent
-      // In strict sandbox, this may not be available, so default to true
-      const customerPrivacy = init.customerPrivacy;
-      if (customerPrivacy) {
-        // Check for analytics and marketing consent
-        const analyticsAllowed = customerPrivacy.analyticsProcessingAllowed;
-        const marketingAllowed = customerPrivacy.marketingAllowed;
-        
-        // For conversion tracking, we typically need marketing consent
-        // Return true if at least analytics is allowed
-        return analyticsAllowed === true || marketingAllowed === true;
-      }
-      // If privacy API not available, proceed (merchant should handle consent elsewhere)
-      return true;
-    } catch {
-      // If we can't check consent, proceed with tracking
-      return true;
-    }
+    // For conversion tracking, we need marketing consent
+    // marketingAllowed covers advertising/conversion use cases
+    return marketingAllowed === true;
   }
 
   /**
@@ -105,6 +196,7 @@ register(({ analytics, settings, init, browser }) => {
    * Safely send event to backend
    * Uses fire-and-forget pattern to avoid blocking
    * Respects customer consent settings
+   * Includes HMAC signature for request verification (P1-1)
    */
   async function sendToBackend(
     eventName: string,
@@ -113,26 +205,41 @@ register(({ analytics, settings, init, browser }) => {
   ): Promise<void> {
     // Check consent before sending any tracking data
     if (!hasTrackingConsent()) {
-      console.log(`[Tracking Guardian] Skipping ${eventName} - no consent`);
+      log(`Skipping ${eventName} - no marketing consent`);
       return;
     }
 
     try {
+      const timestamp = Date.now();
       const payload = {
         eventName,
         eventId,
-        timestamp: Date.now(),
+        timestamp,
         shopDomain,
         data,
       };
+      
+      const body = JSON.stringify(payload);
+      
+      // Generate signature for request verification (P1-1)
+      const signature = await generateSignature(timestamp, body);
+      
+      // Build headers
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      
+      // Add signature headers if available
+      if (signature) {
+        headers["X-Tracking-Guardian-Signature"] = signature;
+        headers["X-Tracking-Guardian-Timestamp"] = timestamp.toString();
+      }
 
       // Fire and forget - don't await to avoid blocking
       fetch(`${backendUrl}/api/pixel-events`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        headers,
+        body,
         // Short timeout to prevent hanging
         signal: AbortSignal.timeout(5000),
       }).catch(() => {
@@ -239,15 +346,17 @@ register(({ analytics, settings, init, browser }) => {
     const tax = parseFloat(checkout.totalTax?.amount || "0");
     const shipping = parseFloat(checkout.shippingLine?.price?.amount || "0");
 
+    // P0-5: Do NOT send PII (email/phone) from pixel by default
+    // Server-side tracking via webhooks handles PII with proper controls
+    // This ensures privacy compliance and simplifies GDPR/CCPA handling
     sendToBackend("checkout_completed", eventId, {
       orderId,
       value,
       tax,
       shipping,
       currency: checkout.currencyCode || "USD",
-      // Customer data for enhanced matching (sent to backend for hashing)
-      email: checkout.email,
-      phone: checkout.phone,
+      // Note: email and phone are intentionally NOT included
+      // PII is handled server-side via webhooks where we have more control
       items: (checkout.lineItems || []).map((item) => ({
         id: item.id || "",
         name: item.title || "",

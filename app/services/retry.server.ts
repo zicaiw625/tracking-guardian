@@ -214,6 +214,176 @@ export async function scheduleRetry(
 }
 
 /**
+ * P1-2: Process pending conversions (newly created, not yet sent)
+ * This is called by the cron job to process webhooks asynchronously
+ * Should be called frequently (e.g., every minute)
+ */
+export async function processPendingConversions(): Promise<{
+  processed: number;
+  succeeded: number;
+  failed: number;
+}> {
+  // Find logs that are pending and have never been attempted
+  const pendingLogs = await prisma.conversionLog.findMany({
+    where: {
+      status: "pending",
+      attempts: 0, // Only process new logs, not ones that have failed
+    },
+    include: {
+      shop: {
+        select: {
+          id: true,
+          shopDomain: true,
+          piiEnabled: true,
+          pixelConfigs: {
+            where: { isActive: true, serverSideEnabled: true },
+            select: {
+              id: true,
+              platform: true,
+              platformId: true,
+              credentialsEncrypted: true,
+              credentials: true,
+            },
+          },
+        },
+      },
+    },
+    take: 100, // Process in batches
+    orderBy: { createdAt: "asc" }, // Process oldest first
+  });
+
+  console.log(`Processing ${pendingLogs.length} pending conversions`);
+
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const log of pendingLogs) {
+    try {
+      // Find the pixel config for this platform
+      const pixelConfig = log.shop.pixelConfigs.find(
+        (pc) => pc.platform === log.platform
+      );
+
+      if (!pixelConfig) {
+        // Mark as failed if no config
+        await prisma.conversionLog.update({
+          where: { id: log.id },
+          data: {
+            status: "failed",
+            attempts: 1,
+            lastAttemptAt: new Date(),
+            errorMessage: "Pixel config not found or disabled",
+          },
+        });
+        failed++;
+        continue;
+      }
+
+      // Get credentials
+      let credentials: PlatformCredentials | null = null;
+      
+      if (pixelConfig.credentialsEncrypted) {
+        try {
+          credentials = decryptJson<PlatformCredentials>(
+            pixelConfig.credentialsEncrypted
+          );
+        } catch {
+          // Fall through to try legacy field
+        }
+      }
+      
+      if (!credentials && (pixelConfig as Record<string, unknown>).credentials) {
+        try {
+          const legacyCredentials = (pixelConfig as Record<string, unknown>).credentials;
+          if (typeof legacyCredentials === "string") {
+            credentials = decryptJson<PlatformCredentials>(legacyCredentials);
+          } else if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
+            credentials = legacyCredentials as PlatformCredentials;
+          }
+        } catch {
+          // Continue with null credentials
+        }
+      }
+
+      if (!credentials) {
+        await prisma.conversionLog.update({
+          where: { id: log.id },
+          data: {
+            status: "failed",
+            attempts: 1,
+            lastAttemptAt: new Date(),
+            errorMessage: "No credentials configured",
+          },
+        });
+        failed++;
+        continue;
+      }
+
+      // Build conversion data (minimal - no PII stored in logs)
+      const conversionData: ConversionData = {
+        orderId: log.orderId,
+        orderNumber: log.orderNumber,
+        value: Number(log.orderValue),
+        currency: log.currency,
+      };
+
+      // Send to platform
+      let result;
+      switch (log.platform) {
+        case "google":
+          result = await sendConversionToGoogle(
+            credentials as GoogleCredentials,
+            conversionData
+          );
+          break;
+        case "meta":
+          result = await sendConversionToMeta(
+            credentials as MetaCredentials,
+            conversionData
+          );
+          break;
+        case "tiktok":
+          result = await sendConversionToTikTok(
+            credentials as TikTokCredentials,
+            conversionData
+          );
+          break;
+        default:
+          throw new Error(`Unsupported platform: ${log.platform}`);
+      }
+
+      // Success!
+      await prisma.conversionLog.update({
+        where: { id: log.id },
+        data: {
+          status: "sent",
+          serverSideSent: true,
+          sentAt: new Date(),
+          platformResponse: result,
+          errorMessage: null,
+          attempts: 1,
+          lastAttemptAt: new Date(),
+        },
+      });
+      succeeded++;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      
+      // Mark as failed and schedule retry
+      await prisma.conversionLog.update({
+        where: { id: log.id },
+        data: { attempts: 1, lastAttemptAt: new Date() },
+      });
+      
+      await scheduleRetry(log.id, errorMessage);
+      failed++;
+    }
+  }
+
+  return { processed: pendingLogs.length, succeeded, failed };
+}
+
+/**
  * Process pending retries
  * Should be called periodically (e.g., by a cron job)
  */

@@ -1,8 +1,90 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import prisma from "../db.server";
 import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
-import { processRetries } from "../services/retry.server";
+import { processPendingConversions, processRetries } from "../services/retry.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
+
+/**
+ * P3-2: Clean up old data based on each shop's retention settings
+ * This runs as part of the daily cron job
+ */
+async function cleanupExpiredData(): Promise<{
+  shopsProcessed: number;
+  conversionLogsDeleted: number;
+  surveyResponsesDeleted: number;
+  auditLogsDeleted: number;
+}> {
+  // Get all active shops with their retention settings
+  const shops = await prisma.shop.findMany({
+    where: {
+      isActive: true,
+      dataRetentionDays: { gt: 0 }, // Only shops with retention enabled
+    },
+    select: {
+      id: true,
+      shopDomain: true,
+      dataRetentionDays: true,
+    },
+  });
+
+  let totalConversionLogs = 0;
+  let totalSurveyResponses = 0;
+  let totalAuditLogs = 0;
+
+  for (const shop of shops) {
+    const retentionDays = shop.dataRetentionDays || 90;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+    // Delete old ConversionLogs
+    const conversionResult = await prisma.conversionLog.deleteMany({
+      where: {
+        shopId: shop.id,
+        createdAt: { lt: cutoffDate },
+        // Only delete successfully sent or permanently failed items
+        status: { in: ["sent", "dead_letter"] },
+      },
+    });
+    totalConversionLogs += conversionResult.count;
+
+    // Delete old SurveyResponses
+    const surveyResult = await prisma.surveyResponse.deleteMany({
+      where: {
+        shopId: shop.id,
+        createdAt: { lt: cutoffDate },
+      },
+    });
+    totalSurveyResponses += surveyResult.count;
+
+    // Delete old AuditLogs (keep them longer - 180 days)
+    const auditCutoff = new Date();
+    auditCutoff.setDate(auditCutoff.getDate() - Math.max(retentionDays, 180));
+    const auditResult = await prisma.auditLog.deleteMany({
+      where: {
+        shopId: shop.id,
+        createdAt: { lt: auditCutoff },
+      },
+    });
+    totalAuditLogs += auditResult.count;
+
+    if (conversionResult.count > 0 || surveyResult.count > 0 || auditResult.count > 0) {
+      console.log(
+        `Data cleanup for ${shop.shopDomain}: ` +
+        `${conversionResult.count} conversions, ` +
+        `${surveyResult.count} surveys, ` +
+        `${auditResult.count} audit logs deleted`
+      );
+    }
+  }
+
+  return {
+    shopsProcessed: shops.length,
+    conversionLogsDeleted: totalConversionLogs,
+    surveyResponsesDeleted: totalSurveyResponses,
+    auditLogsDeleted: totalAuditLogs,
+  };
+}
 
 // This endpoint is called by a cron job service (e.g., Vercel Cron, Railway Cron)
 // to run daily reconciliation for all shops
@@ -75,7 +157,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    // Process pending retries first
+    // P1-2: Process pending conversions first (newly queued from webhooks)
+    console.log("Processing pending conversions...");
+    const pendingResults = await processPendingConversions();
+    console.log(`Pending: ${pendingResults.processed} processed, ${pendingResults.succeeded} succeeded, ${pendingResults.failed} failed`);
+
+    // Process conversion retries (failed items scheduled for retry)
     console.log("Processing pending conversion retries...");
     const retryResults = await processRetries();
     console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed`);
@@ -87,15 +174,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const successful = healthCheckResults.filter((r) => r.success).length;
     const failed = healthCheckResults.filter((r) => !r.success).length;
 
+    // P3-2: Clean up expired data based on retention settings
+    console.log("Cleaning up expired data...");
+    const cleanupResults = await cleanupExpiredData();
+    console.log(`Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
+      `${cleanupResults.conversionLogsDeleted} conversions, ` +
+      `${cleanupResults.surveyResponsesDeleted} surveys, ` +
+      `${cleanupResults.auditLogsDeleted} audit logs deleted`);
+
     return json({
       success: true,
       message: `Cron completed`,
+      pending: pendingResults,
       retries: retryResults,
       deliveryHealth: {
         successful,
         failed,
         results: healthCheckResults,
       },
+      cleanup: cleanupResults,
     });
   } catch (error) {
     console.error("Cron job error:", error);
@@ -124,7 +221,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   try {
-    // Process pending retries first
+    // P1-2: Process pending conversions first (newly queued from webhooks)
+    console.log("Processing pending conversions...");
+    const pendingResults = await processPendingConversions();
+    console.log(`Pending: ${pendingResults.processed} processed, ${pendingResults.succeeded} succeeded, ${pendingResults.failed} failed`);
+
+    // Process conversion retries (failed items scheduled for retry)
     console.log("Processing pending conversion retries...");
     const retryResults = await processRetries();
     console.log(`Retries: ${retryResults.processed} processed, ${retryResults.succeeded} succeeded, ${retryResults.failed} failed`);
@@ -136,15 +238,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const successful = healthCheckResults.filter((r) => r.success).length;
     const failed = healthCheckResults.filter((r) => !r.success).length;
 
+    // P3-2: Clean up expired data based on retention settings
+    console.log("Cleaning up expired data...");
+    const cleanupResults = await cleanupExpiredData();
+    console.log(`Cleanup: ${cleanupResults.shopsProcessed} shops, ` +
+      `${cleanupResults.conversionLogsDeleted} conversions, ` +
+      `${cleanupResults.surveyResponsesDeleted} surveys, ` +
+      `${cleanupResults.auditLogsDeleted} audit logs deleted`);
+
     return json({
       success: true,
       message: `Cron completed`,
+      pending: pendingResults,
       retries: retryResults,
       deliveryHealth: {
         successful,
         failed,
         results: healthCheckResults,
       },
+      cleanup: cleanupResults,
     });
   } catch (error) {
     console.error("Cron job error:", error);

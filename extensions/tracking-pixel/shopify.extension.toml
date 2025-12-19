@@ -23,3 +23,15 @@ runtime_context = "strict"
     name = "Backend URL"
     description = "Your Tracking Guardian app URL (e.g., https://your-app.onrender.com). Required for server-side tracking."
     type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "ingestion_secret"
+    name = "Ingestion Secret"
+    description = "Secret key for request signing (auto-generated, do not share). Used to prevent request forgery."
+    type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "debug"
+    name = "Debug Mode"
+    description = "Enable debug logging in browser console (disable for production)"
+    type = "boolean"
