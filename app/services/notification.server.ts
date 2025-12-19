@@ -8,6 +8,8 @@ import type {
   SlackAlertSettings,
   TelegramAlertSettings,
 } from "../types";
+// P0-13: Use logger for proper sanitization
+import { logger } from "../utils/logger";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -37,11 +39,11 @@ export async function sendAlert(
       case "telegram":
         return await sendTelegramAlert(config.settings as TelegramAlertSettings, data);
       default:
-        console.warn(`Unknown alert channel: ${config.channel}`);
+        logger.warn(`Unknown alert channel: ${config.channel}`);
         return false;
     }
   } catch (error) {
-    console.error(`Failed to send ${config.channel} alert:`, error);
+    logger.error(`Failed to send ${config.channel} alert`, error);
     return false;
   }
 }
@@ -52,7 +54,7 @@ async function sendEmailAlert(
   data: AlertData
 ): Promise<boolean> {
   if (!resend) {
-    console.warn("Resend not configured, skipping email alert");
+    logger.warn("Resend not configured, skipping email alert");
     return false;
   }
 
@@ -108,7 +110,7 @@ async function sendEmailAlert(
   });
 
   if (error) {
-    console.error("Email send error:", error);
+    logger.error("Email send error", error);
     return false;
   }
 

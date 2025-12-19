@@ -483,3 +483,28 @@ model ConversionJob {
   @@index([status, nextRetryAt])
   @@index([createdAt])
 }
+
+// P0-07 & P0-08: GDPR Job Queue for async processing
+// Webhook handler quickly queues jobs, worker processes them
+model GDPRJob {
+  id           String   @id @default(cuid())
+  shopDomain   String
+  // Job type: "data_request" | "customer_redact" | "shop_redact"
+  jobType      String
+  // Original webhook payload
+  payload      Json
+  // Status: "queued" | "processing" | "completed" | "failed"
+  status       String   @default("queued")
+  // Result data (for data_request: customer data, for redact: deletion counts)
+  result       Json?
+  // Error message if failed
+  errorMessage String?
+  // Timestamps
+  createdAt    DateTime @default(now())
+  processedAt  DateTime?
+  completedAt  DateTime?
+
+  @@index([status])
+  @@index([shopDomain])
+  @@index([createdAt])
+}

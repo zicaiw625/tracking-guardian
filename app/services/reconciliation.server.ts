@@ -15,6 +15,7 @@
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger";
+import type { AlertChannel, AlertSettings } from "../types";
 
 // ==========================================
 // Types
@@ -51,12 +52,115 @@ export interface ReconciliationSummary {
 }
 
 // ==========================================
+// P0-02: Shopify Order Data Fetching
+// ==========================================
+
+/**
+ * P0-02: Fetch real order count and revenue from Shopify Admin API
+ * 
+ * This provides the "ground truth" for reconciliation - what Shopify
+ * actually recorded as paid orders in the given time period.
+ */
+async function getShopifyOrderStats(
+  shopDomain: string,
+  accessToken: string | null,
+  startDate: Date,
+  endDate: Date
+): Promise<{ count: number; revenue: number } | null> {
+  if (!accessToken) {
+    logger.warn(`No access token for shop ${shopDomain}, skipping Shopify order fetch`);
+    return null;
+  }
+  
+  const query = `
+    query OrdersStats($query: String!) {
+      ordersCount(query: $query) {
+        count
+      }
+      orders(first: 250, query: $query) {
+        edges {
+          node {
+            totalPriceSet {
+              shopMoney {
+                amount
+              }
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+        }
+      }
+    }
+  `;
+  
+  // Query for paid orders in the date range
+  const dateQuery = `financial_status:paid created_at:>=${startDate.toISOString()} created_at:<${endDate.toISOString()}`;
+  
+  try {
+    const response = await fetch(
+      `https://${shopDomain}/admin/api/2024-01/graphql.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": accessToken,
+        },
+        body: JSON.stringify({ query, variables: { query: dateQuery } }),
+      }
+    );
+    
+    if (!response.ok) {
+      logger.error(`Shopify API error for ${shopDomain}: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data.errors) {
+      logger.error(`Shopify GraphQL errors for ${shopDomain}`, undefined, { errors: data.errors });
+      return null;
+    }
+    
+    const count = data.data?.ordersCount?.count || 0;
+    
+    // Sum up revenue from order edges
+    interface OrderEdge {
+      node: {
+        totalPriceSet: {
+          shopMoney: {
+            amount: string;
+          };
+        };
+      };
+    }
+    const revenue = data.data?.orders?.edges?.reduce(
+      (sum: number, edge: OrderEdge) => 
+        sum + parseFloat(edge.node.totalPriceSet?.shopMoney?.amount || "0"),
+      0
+    ) || 0;
+    
+    // Note: If hasNextPage is true, this revenue is incomplete
+    // For full accuracy with large order volumes, we'd need to paginate
+    const hasNextPage = data.data?.orders?.pageInfo?.hasNextPage;
+    if (hasNextPage) {
+      logger.warn(`Shop ${shopDomain} has more than 250 orders in period, revenue may be incomplete`);
+    }
+    
+    return { count, revenue };
+  } catch (error) {
+    logger.error(`Failed to fetch Shopify orders for ${shopDomain}`, error);
+    return null;
+  }
+}
+
+// ==========================================
 // Core Reconciliation Functions
 // ==========================================
 
 /**
  * Run daily reconciliation for a single shop
- * Compares yesterday's Shopify orders with conversion logs
+ * P0-02: Now compares real Shopify orders with conversion logs
  */
 export async function runDailyReconciliation(shopId: string): Promise<ReconciliationResult[]> {
   const shop = await prisma.shop.findUnique({
@@ -103,6 +207,22 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
     return [];
   }
 
+  // P0-02: Get real Shopify order data for the period
+  const shopifyStats = await getShopifyOrderStats(
+    shop.shopDomain,
+    shop.accessToken,
+    yesterday,
+    today
+  );
+  
+  // P0-02: Use real Shopify data if available, otherwise fall back to ConversionLog data
+  const shopifyOrderCount = shopifyStats?.count ?? 0;
+  const shopifyRevenue = shopifyStats?.revenue ?? 0;
+  
+  if (!shopifyStats) {
+    logger.warn(`Could not fetch Shopify order data for ${shop.shopDomain}, using ConversionLog data`);
+  }
+
   // Get Shopify conversion logs for the period
   const conversionLogs = await prisma.conversionLog.groupBy({
     by: ["platform", "status"],
@@ -122,20 +242,24 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
 
   // Process each platform
   for (const platform of platforms) {
-    // Calculate platform-specific metrics
+    // Calculate platform-specific metrics from ConversionLog
     const platformLogs = conversionLogs.filter(l => l.platform === platform);
     
-    const totalOrders = platformLogs.reduce((sum, l) => sum + l._count, 0);
+    // P0-02: sentOrders = what we successfully sent to the platform
     const sentOrders = platformLogs
       .filter(l => l.status === "sent")
       .reduce((sum, l) => sum + l._count, 0);
     const sentRevenue = platformLogs
       .filter(l => l.status === "sent")
       .reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
-    const totalRevenue = platformLogs
-      .reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
+    
+    // P0-02: Use real Shopify data for comparison
+    // shopifyOrderCount = total paid orders in Shopify (ground truth)
+    // sentOrders = what we sent to this platform
+    const totalOrders = shopifyStats ? shopifyOrderCount : platformLogs.reduce((sum, l) => sum + l._count, 0);
+    const totalRevenue = shopifyStats ? shopifyRevenue : platformLogs.reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
 
-    // Calculate discrepancy rates
+    // P0-02: Calculate discrepancy: how many Shopify orders did we NOT send to the platform
     const orderDiscrepancy = totalOrders > 0 
       ? (totalOrders - sentOrders) / totalOrders 
       : 0;
@@ -152,16 +276,26 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
     if (matchingAlerts.length > 0) {
       for (const alertConfig of matchingAlerts) {
         try {
-          await sendAlert(alertConfig.channel, alertConfig.settings as Record<string, unknown>, {
-            type: "reconciliation_discrepancy",
-            shopDomain: shop.shopDomain,
-            platform,
-            reportDate: reportDate.toISOString().split("T")[0],
-            shopifyOrders: totalOrders,
-            platformConversions: sentOrders,
-            orderDiscrepancy: (orderDiscrepancy * 100).toFixed(1) + "%",
-            revenueDiscrepancy: (revenueDiscrepancy * 100).toFixed(1) + "%",
-          });
+          // P0-01: Fixed sendAlert signature - now passes AlertConfig and AlertData correctly
+          await sendAlert(
+            {
+              id: alertConfig.id,
+              channel: alertConfig.channel as AlertChannel,
+              settings: alertConfig.settings as AlertSettings,
+              discrepancyThreshold: alertConfig.discrepancyThreshold,
+              minOrdersForAlert: alertConfig.minOrdersForAlert,
+              isEnabled: true,
+            },
+            {
+              platform,
+              reportDate,
+              shopifyOrders: totalOrders,
+              platformConversions: sentOrders,
+              orderDiscrepancy,
+              revenueDiscrepancy,
+              shopDomain: shop.shopDomain,
+            }
+          );
           alertSent = true;
         } catch (error) {
           logger.error(`Failed to send reconciliation alert`, error, {

@@ -121,8 +121,9 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
   
   for (const log of pendingLogs) {
     try {
-      // Check if PixelEventReceipt exists for this order
-      const receipt = await prisma.pixelEventReceipt.findUnique({
+      // P0-11: Check if PixelEventReceipt exists for this order
+      // First try by orderId, then fall back to checkoutToken
+      let receipt = await prisma.pixelEventReceipt.findUnique({
         where: {
           shopId_orderId_eventType: {
             shopId: log.shopId,
@@ -136,6 +137,39 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
           pixelTimestamp: true,
         },
       });
+      
+      // P0-11: If not found by orderId, try to find by checkoutToken
+      if (!receipt) {
+        // Get checkoutToken from ConversionJob if available
+        const job = await prisma.conversionJob.findUnique({
+          where: { shopId_orderId: { shopId: log.shopId, orderId: log.orderId } },
+          select: { capiInput: true },
+        });
+        
+        const checkoutToken = (job?.capiInput as { checkoutToken?: string } | null)?.checkoutToken;
+        if (checkoutToken) {
+          // Try to find receipt by checkoutToken
+          receipt = await prisma.pixelEventReceipt.findFirst({
+            where: {
+              shopId: log.shopId,
+              checkoutToken,
+              eventType: log.eventType,
+            },
+            select: {
+              consentState: true,
+              isTrusted: true,
+              pixelTimestamp: true,
+            },
+          });
+          
+          if (receipt) {
+            logger.info(`P0-11: Found receipt by checkoutToken for ${log.orderId}`, {
+              checkoutToken,
+              orderId: log.orderId,
+            });
+          }
+        }
+      }
       
       if (receipt) {
         // Receipt exists - evaluate consent

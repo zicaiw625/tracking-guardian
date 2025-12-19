@@ -58,16 +58,25 @@ class InMemoryRateLimitStore implements RateLimitStore {
   }
   
   async set(key: string, entry: RateLimitEntry): Promise<void> {
-    // Prevent unbounded memory growth
+    // P0-04: Fixed cleanup logic - first delete expired, then oldest if still over limit
     if (this.store.size >= this.maxSize && !this.store.has(key)) {
       const now = Date.now();
-      let removed = 0;
+      
+      // Step 1: Delete all expired entries
       for (const [k, v] of this.store.entries()) {
-        if (v.resetTime < now || removed < 100) {
+        if (v.resetTime < now) {
           this.store.delete(k);
-          removed++;
         }
-        if (removed >= 100) break;
+      }
+      
+      // Step 2: If still over limit, delete oldest entries
+      if (this.store.size >= this.maxSize) {
+        const entries = Array.from(this.store.entries())
+          .sort((a, b) => a[1].resetTime - b[1].resetTime);
+        const toRemove = Math.min(100, entries.length);
+        for (let i = 0; i < toRemove; i++) {
+          this.store.delete(entries[i][0]);
+        }
       }
     }
     this.store.set(key, entry);
@@ -123,10 +132,14 @@ class RedisRateLimitStore implements RateLimitStore {
     keys: (pattern: string) => Promise<string[]>;
   } | null = null;
   private prefix = "tg:rl:";
+  // P0-05: Add fallback store for when Redis fails
+  private fallbackStore = new InMemoryRateLimitStore();
+  private initPromise: Promise<void>;
+  private initFailed = false;
   
   constructor(redisUrl: string) {
     this.redisUrl = redisUrl;
-    this.initRedis();
+    this.initPromise = this.initRedis();
   }
   
   private async initRedis(): Promise<void> {
@@ -137,6 +150,13 @@ class RedisRateLimitStore implements RateLimitStore {
       
       client.on("error", (err) => {
         console.error("Redis rate limiter error:", err);
+        // P0-05: Mark as unavailable on error, subsequent requests use fallback
+        this.redis = null;
+        this.initFailed = true;
+      });
+      
+      client.on("reconnecting", () => {
+        console.log("Redis rate limiter reconnecting...");
       });
       
       await client.connect();
@@ -150,10 +170,13 @@ class RedisRateLimitStore implements RateLimitStore {
         keys: (pattern) => client.keys(pattern),
       };
       
+      this.initFailed = false;
       console.log("✅ Redis rate limiter connected");
     } catch (error) {
       console.error("Failed to initialize Redis rate limiter:", error);
-      console.warn("Falling back to in-memory rate limiter");
+      console.warn("⚠️ Falling back to in-memory rate limiter");
+      this.initFailed = true;
+      // P0-05: Redis init failed, use fallback store
     }
   }
   
@@ -162,7 +185,11 @@ class RedisRateLimitStore implements RateLimitStore {
   }
   
   async get(key: string): Promise<RateLimitEntry | undefined> {
-    if (!this.redis) return undefined;
+    // P0-05: Wait for init and use fallback if Redis unavailable
+    await this.initPromise;
+    if (!this.redis || this.initFailed) {
+      return this.fallbackStore.get(key);
+    }
     
     try {
       const redisKey = this.getRedisKey(key);
@@ -178,19 +205,25 @@ class RedisRateLimitStore implements RateLimitStore {
         resetTime: Date.now() + ttl * 1000,
       };
     } catch (error) {
-      console.error("Redis get error:", error);
-      return undefined;
+      console.error("Redis get error, falling back to in-memory:", error);
+      return this.fallbackStore.get(key);
     }
   }
   
   async set(key: string, entry: RateLimitEntry): Promise<void> {
+    // P0-05: Use fallback store when Redis unavailable
+    await this.initPromise;
+    if (!this.redis || this.initFailed) {
+      return this.fallbackStore.set(key, entry);
+    }
     // Redis implementation uses increment instead
   }
   
   async increment(key: string, windowMs: number): Promise<RateLimitEntry> {
-    if (!this.redis) {
-      // Fallback behavior
-      return { count: 1, resetTime: Date.now() + windowMs };
+    // P0-05: Wait for init and use fallback if Redis unavailable
+    await this.initPromise;
+    if (!this.redis || this.initFailed) {
+      return this.fallbackStore.increment(key, windowMs);
     }
     
     try {
@@ -213,30 +246,37 @@ class RedisRateLimitStore implements RateLimitStore {
         resetTime: Date.now() + (ttl > 0 ? ttl * 1000 : windowMs),
       };
     } catch (error) {
-      console.error("Redis increment error:", error);
-      return { count: 1, resetTime: Date.now() + windowMs };
+      console.error("Redis increment error, falling back to in-memory:", error);
+      return this.fallbackStore.increment(key, windowMs);
     }
   }
   
   async delete(key: string): Promise<void> {
-    if (!this.redis) return;
+    await this.initPromise;
+    if (!this.redis || this.initFailed) {
+      return this.fallbackStore.delete(key);
+    }
     
     try {
       await this.redis.del(this.getRedisKey(key));
     } catch (error) {
       console.error("Redis delete error:", error);
+      return this.fallbackStore.delete(key);
     }
   }
   
   async size(): Promise<number> {
-    if (!this.redis) return 0;
+    await this.initPromise;
+    if (!this.redis || this.initFailed) {
+      return this.fallbackStore.size();
+    }
     
     try {
       const keys = await this.redis.keys(`${this.prefix}*`);
       return keys.length;
     } catch (error) {
       console.error("Redis size error:", error);
-      return 0;
+      return this.fallbackStore.size();
     }
   }
   

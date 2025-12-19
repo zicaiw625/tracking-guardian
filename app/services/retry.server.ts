@@ -26,6 +26,8 @@ import {
 import { generateEventId, normalizeOrderId } from "../utils/crypto";
 import { extractPIISafely, logPIIStatus } from "../utils/pii";
 import type { OrderWebhookPayload } from "../types";
+// P0-13: Use logger instead of console for proper sanitization
+import { logger } from "../utils/logger";
 
 // ==========================================
 // Failure Reason Classification
@@ -245,7 +247,7 @@ export async function scheduleRetry(
         deadLetteredAt: new Date(),
       },
     });
-    console.log(`Conversion ${logId} moved to dead letter: ${failureReason}`);
+    logger.warn(`Conversion ${logId} moved to dead letter: ${failureReason}`);
     return { scheduled: false, failureReason };
   }
 
@@ -260,7 +262,7 @@ export async function scheduleRetry(
         deadLetteredAt: new Date(),
       },
     });
-    console.log(`Conversion ${logId} moved to dead letter after ${currentAttempts} attempts`);
+    logger.warn(`Conversion ${logId} moved to dead letter after ${currentAttempts} attempts`);
     return { scheduled: false, failureReason };
   } else {
     // Schedule retry with exponential backoff based on current attempts
@@ -274,7 +276,7 @@ export async function scheduleRetry(
         errorMessage: `[${failureReason}] ${errorMessage}`,
       },
     });
-    console.log(`Conversion ${logId} scheduled for retry at ${nextRetryAt.toISOString()} (attempt ${currentAttempts}, reason: ${failureReason})`);
+    logger.info(`Conversion ${logId} scheduled for retry at ${nextRetryAt.toISOString()} (attempt ${currentAttempts}, reason: ${failureReason})`);
     return { scheduled: true, failureReason };
   }
 }
@@ -321,7 +323,7 @@ export async function processPendingConversions(): Promise<{
     orderBy: { createdAt: "asc" }, // Process oldest first
   });
 
-  console.log(`Processing ${pendingLogs.length} pending conversions`);
+  logger.info(`Processing ${pendingLogs.length} pending conversions`);
 
   let succeeded = 0;
   let failed = 0;
@@ -336,7 +338,7 @@ export async function processPendingConversions(): Promise<{
       );
 
       if (!billingCheck.allowed) {
-        console.log(
+        logger.info(
           `Billing gate blocked conversion ${log.id}: ${billingCheck.reason}, ` +
           `usage=${billingCheck.usage.current}/${billingCheck.usage.limit}`
         );
@@ -522,7 +524,7 @@ export async function processRetries(): Promise<{
     take: 50, // Process in batches
   });
 
-  console.log(`Processing ${logsToRetry.length} pending retries`);
+  logger.info(`Processing ${logsToRetry.length} pending retries`);
 
   let succeeded = 0;
   let failed = 0;
@@ -537,7 +539,7 @@ export async function processRetries(): Promise<{
       );
 
       if (!billingCheck.allowed) {
-        console.log(
+        logger.info(
           `Billing gate blocked retry for ${log.id}: ${billingCheck.reason}, ` +
           `usage=${billingCheck.usage.current}/${billingCheck.usage.limit}`
         );
@@ -577,7 +579,7 @@ export async function processRetries(): Promise<{
           );
         } catch (decryptError) {
           const errorMsg = decryptError instanceof Error ? decryptError.message : "Unknown error";
-          console.warn(`Failed to decrypt credentialsEncrypted for ${log.platform}: ${errorMsg}`);
+          logger.warn(`Failed to decrypt credentialsEncrypted for ${log.platform}: ${errorMsg}`);
           // Fall through to try legacy field
         }
       }
@@ -595,10 +597,10 @@ export async function processRetries(): Promise<{
           } else if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
             credentials = legacyCredentials as PlatformCredentials;
           }
-          console.log(`Using legacy credentials field for ${log.platform} - please migrate to credentialsEncrypted`);
+          logger.info(`Using legacy credentials field for ${log.platform} - please migrate to credentialsEncrypted`);
         } catch (legacyError) {
           const errorMsg = legacyError instanceof Error ? legacyError.message : "Unknown error";
-          console.warn(`Failed to read legacy credentials for ${log.platform}: ${errorMsg}`);
+          logger.warn(`Failed to read legacy credentials for ${log.platform}: ${errorMsg}`);
         }
       }
       
@@ -679,7 +681,7 @@ export async function processRetries(): Promise<{
       await incrementMonthlyUsage(log.shopId, log.orderId);
 
       succeeded++;
-      console.log(`Retry succeeded for ${log.id}`);
+      logger.info(`Retry succeeded for ${log.id}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       
@@ -691,7 +693,7 @@ export async function processRetries(): Promise<{
       
       await scheduleRetry(log.id, errorMessage);
       failed++;
-      console.error(`Retry failed for ${log.id}: ${errorMessage}`);
+      logger.error(`Retry failed for ${log.id}: ${errorMessage}`);
     }
   }
 
@@ -760,11 +762,11 @@ export async function processConversionJobs(): Promise<{
   });
   
   if (jobsToProcess.length === 0) {
-    console.log("processConversionJobs: No jobs to process");
+    logger.debug("processConversionJobs: No jobs to process");
     return { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0, skipped: 0 };
   }
   
-  console.log(`processConversionJobs: Processing ${jobsToProcess.length} jobs`);
+  logger.info(`processConversionJobs: Processing ${jobsToProcess.length} jobs`);
   
   let succeeded = 0;
   let failed = 0;
@@ -786,7 +788,7 @@ export async function processConversionJobs(): Promise<{
       );
       
       if (!billingCheck.allowed) {
-        console.log(
+        logger.info(
           `Billing gate blocked job ${job.id}: ${billingCheck.reason}, ` +
           `usage=${billingCheck.usage.current}/${billingCheck.usage.limit}`
         );
@@ -806,7 +808,7 @@ export async function processConversionJobs(): Promise<{
       
       // Check if shop has any configured platforms
       if (job.shop.pixelConfigs.length === 0) {
-        console.log(`Job ${job.id}: No active platforms configured`);
+        logger.debug(`Job ${job.id}: No active platforms configured`);
         await prisma.conversionJob.update({
           where: { id: job.id },
           data: {
@@ -856,12 +858,12 @@ export async function processConversionJobs(): Promise<{
         // Note: If no receipt exists, we follow the shop's consentStrategy
         if (receipt && consentState) {
           if (isMarketingPlatform && consentState.marketing === false) {
-            console.log(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: marketing consent denied`);
+            logger.debug(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: marketing consent denied`);
             platformResults[pixelConfig.platform] = "skipped:no_marketing_consent";
             continue;
           }
           if (isAnalyticsPlatform && consentState.analytics === false) {
-            console.log(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: analytics consent denied`);
+            logger.debug(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: analytics consent denied`);
             platformResults[pixelConfig.platform] = "skipped:no_analytics_consent";
             continue;
           }
@@ -869,7 +871,7 @@ export async function processConversionJobs(): Promise<{
         // P0-08: If no receipt exists, use shop's consentStrategy
         // "strict" = require receipt, "balanced" = allow if no denial, "weak" = allow all
         else if (job.shop.consentStrategy === "strict") {
-          console.log(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: strict mode requires consent receipt`);
+          logger.debug(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: strict mode requires consent receipt`);
           platformResults[pixelConfig.platform] = "skipped:no_consent_receipt";
           continue;
         }
@@ -1027,7 +1029,7 @@ export async function processConversionJobs(): Promise<{
       
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      console.error(`Failed to process job ${job.id}: ${errorMsg}`);
+      logger.error(`Failed to process job ${job.id}: ${errorMsg}`);
       
       // Mark as failed
       await prisma.conversionJob.update({
@@ -1047,7 +1049,7 @@ export async function processConversionJobs(): Promise<{
     }
   }
   
-  console.log(
+  logger.info(
     `processConversionJobs: Completed - ` +
     `${succeeded} succeeded, ${failed} failed, ` +
     `${limitExceeded} limit exceeded, ${skipped} skipped`
@@ -1123,7 +1125,7 @@ export async function retryDeadLetter(logId: string): Promise<boolean> {
     },
   });
 
-  console.log(`Dead letter ${logId} queued for manual retry`);
+  logger.info(`Dead letter ${logId} queued for manual retry`);
   return true;
 }
 
@@ -1146,7 +1148,7 @@ export async function retryAllDeadLetters(shopId: string): Promise<number> {
     },
   });
 
-  console.log(`${result.count} dead letters queued for retry in shop ${shopId}`);
+  logger.info(`${result.count} dead letters queued for retry in shop ${shopId}`);
   return result.count;
 }
 

@@ -663,7 +663,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           // P0-03: Always store checkoutToken for fallback matching
           checkoutToken: checkoutToken || null,
           pixelTimestamp: new Date(payload.timestamp),
-          consentState: payload.consent || { marketing: true, analytics: true },
+          // P0-03: FIXED - Default to null instead of true for privacy compliance
+          // null means "consent state unknown" and will be handled by consent strategy
+          consentState: payload.consent ?? null,
           isTrusted: signatureResult.trusted,
           signatureStatus: signatureResult.status,
           // P0-03: Track if we used checkoutToken as the primary identifier
@@ -674,7 +676,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           // P0-03: Update checkoutToken if provided
           checkoutToken: checkoutToken || undefined,
           pixelTimestamp: new Date(payload.timestamp),
-          consentState: payload.consent || { marketing: true, analytics: true },
+          // P0-03: FIXED - Default to null instead of true for privacy compliance
+          consentState: payload.consent ?? null,
           isTrusted: signatureResult.trusted,
           signatureStatus: signatureResult.status,
           usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,

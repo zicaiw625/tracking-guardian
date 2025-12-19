@@ -109,14 +109,25 @@ class InMemoryCircuitBreakerStore implements CircuitBreakerStore {
   }
 
   async cleanup(): Promise<void> {
+    // P0-04: Fixed cleanup logic - first delete expired, then oldest if still over limit
     const now = Date.now();
-    let removed = 0;
+    
+    // Step 1: Delete all expired entries
     for (const [key, state] of this.store.entries()) {
-      if (state.resetTime < now || removed < 100) {
+      if (state.resetTime < now) {
         this.store.delete(key);
-        removed++;
       }
-      if (this.store.size < this.maxSize * 0.8) break;
+    }
+    
+    // Step 2: If still over 80% capacity, delete oldest entries
+    if (this.store.size >= this.maxSize * 0.8) {
+      const entries = Array.from(this.store.entries())
+        .sort((a, b) => a[1].resetTime - b[1].resetTime);
+      const targetSize = Math.floor(this.maxSize * 0.7);
+      const toRemove = Math.max(0, entries.length - targetSize);
+      for (let i = 0; i < toRemove; i++) {
+        this.store.delete(entries[i][0]);
+      }
     }
   }
 }
@@ -138,6 +149,8 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
   private prefix = "tg:cb:";
   private initPromise: Promise<void>;
   private fallbackStore = new InMemoryCircuitBreakerStore();
+  // P0-05: Track if Redis init failed for graceful degradation
+  private initFailed = false;
 
   constructor(redisUrl: string) {
     this.redisUrl = redisUrl;
@@ -151,6 +164,13 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
 
       client.on("error", (err) => {
         console.error("Redis circuit breaker error:", err);
+        // P0-05: Mark as unavailable on error
+        this.redis = null;
+        this.initFailed = true;
+      });
+
+      client.on("reconnecting", () => {
+        console.log("Redis circuit breaker reconnecting...");
       });
 
       await client.connect();
@@ -165,10 +185,12 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
         ttl: (key) => client.ttl(key),
       };
 
+      this.initFailed = false;
       console.log("✅ Redis circuit breaker connected");
     } catch (error) {
       console.error("Failed to initialize Redis circuit breaker:", error);
-      console.warn("Falling back to in-memory circuit breaker");
+      console.warn("⚠️ Falling back to in-memory circuit breaker");
+      this.initFailed = true;
     }
   }
 
@@ -179,7 +201,8 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
   async getState(key: string): Promise<CircuitBreakerState | null> {
     await this.initPromise;
     
-    if (!this.redis) {
+    // P0-05: Use fallback if Redis unavailable
+    if (!this.redis || this.initFailed) {
       return this.fallbackStore.getState(key);
     }
 
@@ -210,7 +233,8 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
   async setState(key: string, state: CircuitBreakerState): Promise<void> {
     await this.initPromise;
     
-    if (!this.redis) {
+    // P0-05: Use fallback if Redis unavailable
+    if (!this.redis || this.initFailed) {
       return this.fallbackStore.setState(key, state);
     }
 
@@ -232,7 +256,8 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
   async increment(key: string, config: CircuitBreakerConfig): Promise<CircuitBreakerState> {
     await this.initPromise;
     
-    if (!this.redis) {
+    // P0-05: Use fallback if Redis unavailable
+    if (!this.redis || this.initFailed) {
       return this.fallbackStore.increment(key, config);
     }
 
@@ -272,7 +297,8 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
   async trip(key: string, config: CircuitBreakerConfig): Promise<void> {
     await this.initPromise;
     
-    if (!this.redis) {
+    // P0-05: Use fallback if Redis unavailable
+    if (!this.redis || this.initFailed) {
       return this.fallbackStore.trip(key, config);
     }
 
@@ -294,7 +320,8 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
   async reset(key: string): Promise<void> {
     await this.initPromise;
     
-    if (!this.redis) {
+    // P0-05: Use fallback if Redis unavailable
+    if (!this.redis || this.initFailed) {
       return this.fallbackStore.reset(key);
     }
 

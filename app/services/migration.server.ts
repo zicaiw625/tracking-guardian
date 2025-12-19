@@ -547,6 +547,223 @@ register(({ analytics, browser }) => {
 `;
 }
 
+// ==========================================
+// P0-09: Credentials Encryption Migration
+// ==========================================
+
+import { encryptJson, decryptJson } from "../utils/crypto";
+import type { PlatformCredentials } from "../types";
+import { logger } from "../utils/logger";
+
+/**
+ * P0-09: Migrate legacy credentials to encrypted format
+ * 
+ * This function:
+ * 1. Finds all PixelConfigs with non-null credentials (legacy field)
+ * 2. Encrypts the credentials using encryptJson
+ * 3. Stores in credentialsEncrypted field
+ * 4. Clears the legacy credentials field
+ * 
+ * Should be run as a one-time migration or via the admin migrate endpoint.
+ */
+export async function migrateCredentialsToEncrypted(): Promise<{
+  migrated: number;
+  failed: number;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  let migrated = 0;
+  let failed = 0;
+
+  // Find configs with legacy credentials that haven't been migrated
+  const configs = await prisma.pixelConfig.findMany({
+    where: {
+      credentials: { not: null },
+    },
+    select: {
+      id: true,
+      platform: true,
+      credentials: true,
+      credentialsEncrypted: true,
+      shop: { select: { shopDomain: true } },
+    },
+  });
+
+  logger.info(`P0-09: Found ${configs.length} configs with legacy credentials to migrate`);
+
+  for (const config of configs) {
+    try {
+      // Skip if already has encrypted credentials
+      if (config.credentialsEncrypted) {
+        logger.info(`P0-09: Skipping ${config.id} - already has encrypted credentials`);
+        // Still clear the legacy field
+        await prisma.pixelConfig.update({
+          where: { id: config.id },
+          data: { credentials: null },
+        });
+        continue;
+      }
+
+      const legacyCreds = config.credentials;
+      if (!legacyCreds || typeof legacyCreds !== 'object') {
+        logger.warn(`P0-09: Skipping ${config.id} - invalid credentials format`);
+        continue;
+      }
+
+      // Encrypt the credentials
+      const encrypted = encryptJson(legacyCreds as PlatformCredentials);
+
+      // Update: set encrypted, clear legacy
+      await prisma.pixelConfig.update({
+        where: { id: config.id },
+        data: {
+          credentialsEncrypted: encrypted,
+          credentials: null,
+        },
+      });
+
+      logger.info(`P0-09: Migrated credentials for ${config.platform} on ${config.shop.shopDomain}`);
+      migrated++;
+    } catch (error) {
+      const errorMsg = `Failed to migrate config ${config.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      errors.push(errorMsg);
+      logger.error(`P0-09: ${errorMsg}`);
+      failed++;
+    }
+  }
+
+  logger.info(`P0-09: Migration complete - ${migrated} migrated, ${failed} failed`);
+  return { migrated, failed, errors };
+}
+
+/**
+ * P0-09: Verify all credentials are properly encrypted
+ * Returns configs that still have unencrypted credentials
+ */
+export async function verifyCredentialsEncryption(): Promise<{
+  total: number;
+  encrypted: number;
+  unencrypted: number;
+  unencryptedConfigs: Array<{ id: string; platform: string; shopDomain: string }>;
+}> {
+  const configs = await prisma.pixelConfig.findMany({
+    select: {
+      id: true,
+      platform: true,
+      credentials: true,
+      credentialsEncrypted: true,
+      shop: { select: { shopDomain: true } },
+    },
+  });
+
+  const unencryptedConfigs: Array<{ id: string; platform: string; shopDomain: string }> = [];
+  let encrypted = 0;
+  let unencrypted = 0;
+
+  for (const config of configs) {
+    if (config.credentials && !config.credentialsEncrypted) {
+      unencrypted++;
+      unencryptedConfigs.push({
+        id: config.id,
+        platform: config.platform,
+        shopDomain: config.shop.shopDomain,
+      });
+    } else if (config.credentialsEncrypted) {
+      encrypted++;
+    }
+  }
+
+  return {
+    total: configs.length,
+    encrypted,
+    unencrypted,
+    unencryptedConfigs,
+  };
+}
+
+// ==========================================
+// P0-10: OrderPayload PII Sanitization
+// ==========================================
+
+/**
+ * P0-10: Sanitize existing ConversionJob orderPayloads to remove PII
+ * 
+ * This function:
+ * 1. Finds ConversionJobs with non-empty orderPayload
+ * 2. Clears the orderPayload field (PII data)
+ * 3. Jobs should already have capiInput which contains only necessary data
+ * 
+ * Run in batches to avoid overwhelming the database.
+ */
+export async function sanitizeExistingOrderPayloads(batchSize = 500): Promise<{
+  processed: number;
+  cleaned: number;
+  errors: number;
+}> {
+  let processed = 0;
+  let cleaned = 0;
+  let errors = 0;
+
+  // Process in batches
+  while (true) {
+    const jobs = await prisma.conversionJob.findMany({
+      where: {
+        orderPayload: { not: {} },
+      },
+      select: { id: true },
+      take: batchSize,
+    });
+
+    if (jobs.length === 0) break;
+
+    for (const job of jobs) {
+      try {
+        await prisma.conversionJob.update({
+          where: { id: job.id },
+          data: { orderPayload: {} },
+        });
+        cleaned++;
+      } catch (error) {
+        errors++;
+        logger.error(`P0-10: Failed to sanitize job ${job.id}`, error);
+      }
+      processed++;
+    }
+
+    logger.info(`P0-10: Processed ${processed} jobs, cleaned ${cleaned}`);
+  }
+
+  logger.info(`P0-10: Sanitization complete - ${cleaned} cleaned, ${errors} errors`);
+  return { processed, cleaned, errors };
+}
+
+/**
+ * P0-10: Get statistics about orderPayload data
+ */
+export async function getOrderPayloadStats(): Promise<{
+  totalJobs: number;
+  withOrderPayload: number;
+  withCapiInput: number;
+  needsSanitization: number;
+}> {
+  const [totalJobs, withOrderPayload, withCapiInput] = await Promise.all([
+    prisma.conversionJob.count(),
+    prisma.conversionJob.count({
+      where: { orderPayload: { not: {} } },
+    }),
+    prisma.conversionJob.count({
+      where: { capiInput: { not: null } },
+    }),
+  ]);
+
+  return {
+    totalJobs,
+    withOrderPayload,
+    withCapiInput,
+    needsSanitization: withOrderPayload,
+  };
+}
+
 // Microsoft Clarity pixel code generator
 //
 // WARNING (P2-1): This template uses browser.window/browser.document for DOM injection.

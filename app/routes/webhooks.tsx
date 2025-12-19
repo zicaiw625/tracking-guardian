@@ -27,75 +27,88 @@ import type { Shop, PixelConfig } from "@prisma/client";
 // import { evaluatePlatformConsentWithStrategy, type ConsentState } from "../utils/platform-consent";
 
 /**
- * P0-5: Check if a webhook has already been processed
- * Uses WebhookLog for idempotency (fingerprint: shop + webhookId + topic)
+ * P0-06: Atomic webhook lock acquisition
  * 
- * @returns true if webhook was already processed (should skip)
+ * FIXED: Uses "insert-first" strategy to prevent race conditions.
+ * Instead of "check then insert", we "insert then catch conflict".
+ * 
+ * This ensures that concurrent requests for the same webhook will:
+ * 1. Both try to INSERT the lock record
+ * 2. Only one succeeds (due to unique constraint)
+ * 3. The other gets a P2002 error and knows it's a duplicate
+ * 
+ * @returns { acquired: true } if lock was acquired (proceed with processing)
+ * @returns { acquired: false, existing: true } if webhook already processed
  */
-async function isWebhookAlreadyProcessed(
+async function tryAcquireWebhookLock(
   shopDomain: string,
   webhookId: string | null,
-  topic: string
-): Promise<boolean> {
+  topic: string,
+  orderId?: string
+): Promise<{ acquired: boolean; existing?: boolean }> {
   if (!webhookId) {
     // No webhook ID means we can't deduplicate - allow processing
     // This shouldn't happen with valid Shopify webhooks
     console.warn(`[Webhook] Missing X-Shopify-Webhook-Id for topic ${topic} from ${shopDomain}`);
-    return false;
+    return { acquired: true };
   }
   
-  // Check if this webhook was already processed
-  const existing = await prisma.webhookLog.findUnique({
-    where: {
-      shopDomain_webhookId_topic: {
-        shopDomain,
-        webhookId,
-        topic,
-      },
-    },
-    select: { id: true, status: true },
-  });
-  
-  if (existing) {
-    console.log(
-      `[Webhook Idempotency] Duplicate webhook detected: ${topic} for ${shopDomain}, ` +
-      `webhookId=${webhookId}, status=${existing.status}`
-    );
-    return true;
-  }
-  
-  return false;
-}
-
-/**
- * P0-5: Record a webhook as processed
- */
-async function recordWebhookProcessed(
-  shopDomain: string,
-  webhookId: string,
-  topic: string,
-  orderId?: string,
-  status: "processed" | "failed" = "processed"
-): Promise<void> {
   try {
+    // P0-06: Attempt to insert lock record first (atomic operation)
     await prisma.webhookLog.create({
       data: {
         shopDomain,
         webhookId,
         topic,
         orderId,
+        status: "processing",
+        receivedAt: new Date(),
+      },
+    });
+    return { acquired: true };
+  } catch (error) {
+    // P2002 is Prisma's unique constraint violation error
+    if ((error as { code?: string })?.code === "P2002") {
+      console.log(
+        `[Webhook Idempotency] Duplicate webhook detected: ${topic} for ${shopDomain}, ` +
+        `webhookId=${webhookId}`
+      );
+      return { acquired: false, existing: true };
+    }
+    // For other errors, log and allow processing (fail-open)
+    console.error(`[Webhook] Failed to acquire lock: ${error}`);
+    return { acquired: true };
+  }
+}
+
+/**
+ * P0-06: Update webhook status after processing
+ */
+async function updateWebhookStatus(
+  shopDomain: string,
+  webhookId: string,
+  topic: string,
+  status: "processed" | "failed",
+  orderId?: string
+): Promise<void> {
+  try {
+    await prisma.webhookLog.update({
+      where: {
+        shopDomain_webhookId_topic: {
+          shopDomain,
+          webhookId,
+          topic,
+        },
+      },
+      data: {
         status,
+        orderId,
         processedAt: new Date(),
       },
     });
   } catch (error) {
-    // If insert fails due to unique constraint, that's fine - another request beat us
-    // Just log and continue
-    if ((error as { code?: string })?.code === "P2002") {
-      console.log(`[Webhook] WebhookLog already exists for ${webhookId}`);
-    } else {
-      console.error(`[Webhook] Failed to record webhook: ${error}`);
-    }
+    // Log but don't throw - webhook was already processed
+    console.error(`[Webhook] Failed to update status: ${error}`);
   }
 }
 
@@ -137,15 +150,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    // P0-5: Get webhook ID from headers for idempotency
+    // P0-06: Get webhook ID from headers for idempotency
     const webhookId = request.headers.get("X-Shopify-Webhook-Id");
     
-    // P0-5: Check if this webhook was already processed
-    if (webhookId && await isWebhookAlreadyProcessed(shop, webhookId, topic)) {
-      // Already processed - return 200 to acknowledge receipt
-      // This prevents Shopify from retrying and prevents duplicate processing
-      console.log(`[Webhook Idempotency] Skipping duplicate: ${topic} for ${shop}`);
-      return new Response("OK (duplicate)", { status: 200 });
+    // P0-06: Try to acquire lock FIRST (atomic operation to prevent race conditions)
+    // This replaces the previous "check then insert" pattern
+    if (webhookId) {
+      const lock = await tryAcquireWebhookLock(shop, webhookId, topic);
+      if (!lock.acquired) {
+        // Already processed - return 200 to acknowledge receipt
+        console.log(`[Webhook Idempotency] Skipping duplicate: ${topic} for ${shop}`);
+        return new Response("OK (duplicate)", { status: 200 });
+      }
     }
 
     if (!admin && topic !== "SHOP_REDACT" && topic !== "CUSTOMERS_DATA_REQUEST" && topic !== "CUSTOMERS_REDACT") {
@@ -182,7 +198,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         // P0-5: Record webhook as processed
         if (webhookId) {
-          await recordWebhookProcessed(shop, webhookId, topic, undefined, "processed");
+          await updateWebhookStatus(shop, webhookId, topic, "processed");
         }
         console.log(`Successfully processed APP_UNINSTALLED for shop ${shop}`);
         break;
@@ -247,7 +263,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             
             // P0-5: Record webhook as processed (even if blocked by billing)
             if (webhookId) {
-              await recordWebhookProcessed(shop, webhookId, topic, orderId, "processed");
+              await updateWebhookStatus(shop, webhookId, topic, "processed", orderId);
             }
             
             // Still return 200 to acknowledge receipt
@@ -262,7 +278,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           
           // P0-5: Record webhook as processed
           if (webhookId) {
-            await recordWebhookProcessed(shop, webhookId, topic, orderId, "processed");
+            await updateWebhookStatus(shop, webhookId, topic, "processed", orderId);
           }
           
           console.log(`Order ${orderId} queued for processing`);
@@ -283,222 +299,62 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
 
       case "CUSTOMERS_DATA_REQUEST":
-        // Customer data request - Shopify requires acknowledgment
-        // This webhook is sent when a customer requests their data
+        // P0-08: Customer data request - Queue for async processing
+        // Shopify requires quick acknowledgment, actual processing done by cron
         console.log(`GDPR data request received for shop ${shop}`);
-        if (shopRecord && payload) {
-          try {
-            const dataRequestPayload = payload as {
-              customer?: { id?: number; email?: string };
-              orders_requested?: number[];
-              data_request?: { id?: number };
-            };
-            
-            // Log the request for compliance tracking
-            const customerId = dataRequestPayload.customer?.id;
-            const ordersRequested = dataRequestPayload.orders_requested || [];
-            
-            // Query what data we have for this customer's orders
-            // Our app primarily stores: ConversionLog, SurveyResponse
-            // These are keyed by orderId, not customerId directly
-            
-            if (ordersRequested.length > 0 && shopRecord) {
-              const conversionLogs = await prisma.conversionLog.findMany({
-                where: {
-                  shopId: shopRecord.id,
-                  orderId: { in: ordersRequested.map(String) },
-                },
-                select: {
-                  orderId: true,
-                  orderNumber: true,
-                  orderValue: true,
-                  currency: true,
-                  platform: true,
-                  eventType: true,
-                  createdAt: true,
-                  // Note: We don't store PII in ConversionLog
-                },
-              });
-              
-              const surveyResponses = await prisma.surveyResponse.findMany({
-                where: {
-                  shopId: shopRecord.id,
-                  orderId: { in: ordersRequested.map(String) },
-                },
-                select: {
-                  orderId: true,
-                  orderNumber: true,
-                  rating: true,
-                  source: true,
-                  // feedback might contain user input but is optional
-                  createdAt: true,
-                },
-              });
-              
-              // Log summary (actual data would be sent to shop owner)
-              console.log(`Customer data request processed: customerId=${customerId}, ` +
-                `orders=${ordersRequested.length}, conversionLogs=${conversionLogs.length}, ` +
-                `surveyResponses=${surveyResponses.length}`);
-              
-              // Note: In production, you would send this data to the shop owner
-              // via email or provide it through a secure endpoint
-              // For this app, we primarily store non-PII conversion tracking data
-            } else {
-              console.log(`Customer data request: no orders specified or shop not found`);
-            }
-          } catch (dataRequestError) {
-            console.error("Error processing CUSTOMERS_DATA_REQUEST:", dataRequestError);
-            // Still return 200 to acknowledge receipt
-          }
+        try {
+          await prisma.gDPRJob.create({
+            data: {
+              shopDomain: shop,
+              jobType: "data_request",
+              payload: payload as object,
+              status: "queued",
+            },
+          });
+          console.log(`GDPR data request queued for ${shop}`);
+        } catch (queueError) {
+          console.error("Failed to queue GDPR data request:", queueError);
+          // Still return 200 - Shopify expects acknowledgment
         }
         break;
 
       case "CUSTOMERS_REDACT":
-        // Customer data deletion request - MUST delete customer data
+        // P0-08: Customer data deletion request - Queue for async processing
         // This is a mandatory webhook for GDPR compliance
-        // P0-03: Must delete ALL customer-related data across ALL tables
         console.log(`GDPR customer redact request for shop ${shop}`);
-        if (payload) {
-          try {
-            const customerPayload = payload as {
-              customer?: { id?: number; email?: string };
-              orders_to_redact?: number[];
-            };
-            
-            const customerId = customerPayload.customer?.id;
-            const ordersToRedact = customerPayload.orders_to_redact || [];
-            
-            // P0-03: Track all deletions for logging
-            let conversionLogsDeleted = 0;
-            let surveyResponsesDeleted = 0;
-            let conversionJobsDeleted = 0;
-            let pixelEventReceiptsDeleted = 0;
-            let webhookLogsDeleted = 0;
-            
-            // Delete data associated with the customer's orders
-            if (ordersToRedact.length > 0) {
-              // Convert order IDs to strings (our schema uses string orderId)
-              const orderIdStrings = ordersToRedact.map(String);
-              
-              if (shopRecord) {
-                // P0-03: Delete ConversionLogs for these orders
-                const conversionResult = await prisma.conversionLog.deleteMany({
-                  where: {
-                    shopId: shopRecord.id,
-                    orderId: { in: orderIdStrings },
-                  },
-                });
-                conversionLogsDeleted = conversionResult.count;
-                
-                // P0-03: Delete SurveyResponses for these orders
-                const surveyResult = await prisma.surveyResponse.deleteMany({
-                  where: {
-                    shopId: shopRecord.id,
-                    orderId: { in: orderIdStrings },
-                  },
-                });
-                surveyResponsesDeleted = surveyResult.count;
-                
-                // P0-03: Delete ConversionJobs for these orders
-                // This may contain orderPayload with PII
-                const conversionJobResult = await prisma.conversionJob.deleteMany({
-                  where: {
-                    shopId: shopRecord.id,
-                    orderId: { in: orderIdStrings },
-                  },
-                });
-                conversionJobsDeleted = conversionJobResult.count;
-                
-                // P0-03: Delete PixelEventReceipts for these orders
-                const pixelReceiptResult = await prisma.pixelEventReceipt.deleteMany({
-                  where: {
-                    shopId: shopRecord.id,
-                    orderId: { in: orderIdStrings },
-                  },
-                });
-                pixelEventReceiptsDeleted = pixelReceiptResult.count;
-              }
-              
-              // P0-03: Delete WebhookLogs for these orders (uses shopDomain, not shopId)
-              const webhookLogResult = await prisma.webhookLog.deleteMany({
-                where: {
-                  shopDomain: shop,
-                  orderId: { in: orderIdStrings },
-                },
-              });
-              webhookLogsDeleted = webhookLogResult.count;
-            }
-            
-            console.log(
-              `[P0-03] Customer redact completed: customerId=${customerId}, ` +
-              `ordersRedacted=${ordersToRedact.length}, ` +
-              `conversionLogsDeleted=${conversionLogsDeleted}, ` +
-              `surveyResponsesDeleted=${surveyResponsesDeleted}, ` +
-              `conversionJobsDeleted=${conversionJobsDeleted}, ` +
-              `pixelEventReceiptsDeleted=${pixelEventReceiptsDeleted}, ` +
-              `webhookLogsDeleted=${webhookLogsDeleted}`
-            );
-              
-          } catch (gdprError) {
-            console.error("Error processing CUSTOMERS_REDACT:", gdprError);
-            // Still return 200 to acknowledge receipt - Shopify expects this
-            // The error is logged for investigation
-          }
+        try {
+          await prisma.gDPRJob.create({
+            data: {
+              shopDomain: shop,
+              jobType: "customer_redact",
+              payload: payload as object,
+              status: "queued",
+            },
+          });
+          console.log(`GDPR customer redact queued for ${shop}`);
+        } catch (queueError) {
+          console.error("Failed to queue GDPR customer redact:", queueError);
+          // Still return 200 - Shopify expects acknowledgment
         }
         break;
 
       case "SHOP_REDACT":
-        // Shop data deletion - happens 48 hours after uninstall
-        // This is a mandatory webhook - we MUST delete all shop data
-        // P0-04: Must delete ALL shop data including non-cascaded tables
+        // P0-08: Shop data deletion - Queue for async processing
+        // This is a mandatory webhook - happens 48 hours after uninstall
         console.log(`GDPR shop redact request for shop ${shop}`);
         try {
-          // Delete all shop data when the shop requests complete data deletion
-          // This is called 48 hours after APP_UNINSTALLED
-          const shopToDelete = await prisma.shop.findUnique({
-            where: { shopDomain: shop },
-            select: { id: true, shopDomain: true },
+          await prisma.gDPRJob.create({
+            data: {
+              shopDomain: shop,
+              jobType: "shop_redact",
+              payload: payload as object,
+              status: "queued",
+            },
           });
-          
-          // P0-04: Delete WebhookLog first (not cascaded - uses shopDomain string)
-          // Must be done before shop deletion since it references shopDomain
-          const webhookLogResult = await prisma.webhookLog.deleteMany({
-            where: { shopDomain: shop },
-          });
-          console.log(`[P0-04] Deleted ${webhookLogResult.count} WebhookLog entries for ${shop}`);
-          
-          if (shopToDelete) {
-            // Log deletion for compliance
-            console.log(`Deleting all shop data for ${shop} (GDPR SHOP_REDACT)`);
-            
-            // Delete all related data (cascade handles child records)
-            // The Prisma schema has onDelete: Cascade for:
-            // - ScanReport, PixelConfig, AlertConfig, ConversionLog
-            // - ReconciliationReport, SurveyResponse, AuditLog
-            // - MonthlyUsage, PixelEventReceipt, ConversionJob
-            await prisma.shop.delete({
-              where: { id: shopToDelete.id },
-            });
-            
-            // Also delete any orphaned sessions
-            await prisma.session.deleteMany({
-              where: { shop },
-            });
-            
-            console.log(`[P0-04] Shop data completely deleted for GDPR compliance: ${shop}`);
-          } else {
-            // Shop may have been deleted already or never existed
-            // Still try to clean up any orphaned sessions
-            const deletedSessions = await prisma.session.deleteMany({
-              where: { shop },
-            });
-            console.log(`Shop ${shop} not found for SHOP_REDACT (may already be deleted). ` +
-              `Cleaned up ${deletedSessions.count} orphaned sessions.`);
-          }
-        } catch (deleteError) {
-          console.error(`Error processing SHOP_REDACT for ${shop}:`, deleteError);
-          // Still return 200 to acknowledge receipt - Shopify expects this
-          // The error is logged for investigation
+          console.log(`GDPR shop redact queued for ${shop}`);
+        } catch (queueError) {
+          console.error("Failed to queue GDPR shop redact:", queueError);
+          // Still return 200 - Shopify expects acknowledgment
         }
         break;
 

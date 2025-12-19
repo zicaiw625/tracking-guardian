@@ -674,6 +674,84 @@ export async function checkBillingGate(
 }
 
 /**
+ * P0-12: Atomic usage increment with limit check
+ * 
+ * This function prevents concurrent "overselling" by combining the
+ * limit check and increment into a single atomic transaction.
+ * 
+ * Uses a conditional UPDATE to ensure sentCount never exceeds limit:
+ * - If sentCount < limit, increment and return success
+ * - If sentCount >= limit, return failure without incrementing
+ * 
+ * @param shopId - Shop ID
+ * @param orderId - Order ID (for idempotency)
+ * @param limit - Maximum allowed count
+ * @returns { success: true, current } if increment succeeded
+ * @returns { success: false, current } if limit exceeded
+ */
+export async function tryReserveUsageSlot(
+  shopId: string,
+  orderId: string,
+  limit: number
+): Promise<{ success: boolean; current: number; alreadyCounted: boolean }> {
+  const yearMonth = getCurrentYearMonth();
+  
+  const result = await prisma.$transaction(async (tx) => {
+    // Step 1: Check if this order was already counted (idempotency)
+    const existingJob = await tx.conversionJob.findUnique({
+      where: { shopId_orderId: { shopId, orderId } },
+      select: { status: true },
+    });
+    
+    if (existingJob?.status === "completed") {
+      const usage = await tx.monthlyUsage.findUnique({
+        where: { shopId_yearMonth: { shopId, yearMonth } },
+      });
+      return { success: true, current: usage?.sentCount || 0, alreadyCounted: true };
+    }
+    
+    // Step 2: Ensure usage record exists
+    await tx.monthlyUsage.upsert({
+      where: { shopId_yearMonth: { shopId, yearMonth } },
+      create: { shopId, yearMonth, sentCount: 0 },
+      update: {},
+    });
+    
+    // Step 3: Atomic conditional update
+    // This raw query ensures we only increment if under limit
+    const updated = await tx.$executeRaw`
+      UPDATE "MonthlyUsage"
+      SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
+      WHERE "shopId" = ${shopId} 
+        AND "yearMonth" = ${yearMonth}
+        AND "sentCount" < ${limit}
+    `;
+    
+    // Step 4: Get final count
+    const finalUsage = await tx.monthlyUsage.findUnique({
+      where: { shopId_yearMonth: { shopId, yearMonth } },
+    });
+    
+    if (updated === 0) {
+      // Either no record (shouldn't happen) or limit exceeded
+      return { 
+        success: false, 
+        current: finalUsage?.sentCount || 0, 
+        alreadyCounted: false 
+      };
+    }
+    
+    return { 
+      success: true, 
+      current: finalUsage?.sentCount || 1, 
+      alreadyCounted: false 
+    };
+  });
+  
+  return result;
+}
+
+/**
  * Handle subscription confirmation callback
  * Called when merchant returns from Shopify billing confirmation page
  */
