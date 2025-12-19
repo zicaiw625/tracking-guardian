@@ -1,14 +1,23 @@
 /**
  * Retry Service for Server-Side Conversions
  * 
+ * P1-5: Enhanced with standardized error handling from platform services
+ * 
  * Implements:
  * - Exponential backoff retry strategy
  * - Dead letter queue for permanently failed conversions
  * - Manual retry capability for dead letter items
  * - Failure reason classification for better diagnostics
+ * - Integration with platform-specific error parsers
  */
 
 import prisma from "../db.server";
+import { 
+  type PlatformError,
+  calculateBackoff,
+  shouldRetry as shouldRetryPlatform,
+  formatErrorForLog,
+} from "./platforms/base.server";
 
 // ==========================================
 // Failure Reason Classification
@@ -22,6 +31,55 @@ export type FailureReason =
   | "network_error"     // timeout/connection issue
   | "config_error"      // credential/config issue
   | "unknown";          // unclassified
+
+/**
+ * P1-5: Convert PlatformError type to FailureReason
+ */
+export function platformErrorToFailureReason(error: PlatformError): FailureReason {
+  switch (error.type) {
+    case "auth_error":
+      return "token_expired";
+    case "rate_limited":
+      return "rate_limited";
+    case "server_error":
+      return "platform_error";
+    case "validation_error":
+      return "validation_error";
+    case "timeout":
+    case "network_error":
+      return "network_error";
+    case "invalid_config":
+      return "config_error";
+    case "quota_exceeded":
+      return "config_error"; // Treat as config issue (needs plan upgrade)
+    default:
+      return "unknown";
+  }
+}
+
+/**
+ * P1-5: Determine if an error should be retried based on PlatformError
+ */
+export function shouldRetryFromPlatformError(
+  error: PlatformError, 
+  currentAttempt: number, 
+  maxAttempts: number
+): boolean {
+  return shouldRetryPlatform(error, currentAttempt, maxAttempts);
+}
+
+/**
+ * P1-5: Get retry delay based on PlatformError
+ */
+export function getRetryDelay(error: PlatformError, attempt: number): number {
+  // If platform specified a retry-after, use it
+  if (error.retryAfter) {
+    return error.retryAfter * 1000; // Convert to ms
+  }
+  
+  // Otherwise use exponential backoff
+  return calculateBackoff(attempt);
+}
 
 /**
  * Classify error message into a failure reason category

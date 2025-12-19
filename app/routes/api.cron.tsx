@@ -6,13 +6,16 @@ import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.serv
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
 import { processPendingConversions, processRetries } from "../services/retry.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
+import { createAuditLog } from "../services/audit.server";
 
 // P1-4: Replay protection time window (5 minutes)
 const REPLAY_PROTECTION_WINDOW_MS = 5 * 60 * 1000;
 
 /**
- * P3-2: Clean up old data based on each shop's retention settings
+ * P2-2 / P3-2: Clean up old data based on each shop's retention settings
  * This runs as part of the daily cron job
+ * 
+ * P2-2: Writes audit log for each shop's cleanup operation
  */
 async function cleanupExpiredData(): Promise<{
   shopsProcessed: number;
@@ -73,6 +76,7 @@ async function cleanupExpiredData(): Promise<{
     });
     totalAuditLogs += auditResult.count;
 
+    // P2-2: Write audit log for this shop's cleanup
     if (conversionResult.count > 0 || surveyResult.count > 0 || auditResult.count > 0) {
       console.log(
         `Data cleanup for ${shop.shopDomain}: ` +
@@ -80,6 +84,25 @@ async function cleanupExpiredData(): Promise<{
         `${surveyResult.count} surveys, ` +
         `${auditResult.count} audit logs deleted`
       );
+      
+      // Record cleanup in audit log
+      await createAuditLog({
+        shopId: shop.id,
+        actorType: "cron",
+        actorId: "data-retention-cleanup",
+        action: "data_cleanup_completed",
+        resourceType: "shop",
+        resourceId: shop.id,
+        metadata: {
+          retentionDays,
+          cutoffDate: cutoffDate.toISOString(),
+          deletedCounts: {
+            conversionLogs: conversionResult.count,
+            surveyResponses: surveyResult.count,
+            auditLogs: auditResult.count,
+          },
+        },
+      });
     }
   }
 

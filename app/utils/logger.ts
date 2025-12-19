@@ -1,20 +1,47 @@
 /**
  * Logging utility for Tracking Guardian
  * 
+ * P2-3: Enhanced with requestId support for request tracing
+ * 
  * Controls log output based on environment:
  * - Production: Only error and warn levels
  * - Development: All levels including debug
  * 
  * Usage:
- *   import { logger } from "../utils/logger";
+ *   import { logger, createRequestLogger } from "../utils/logger";
+ *   
+ *   // Basic logging
  *   logger.info("Operation completed", { orderId: "123" });
  *   logger.error("Failed to process", error);
+ *   
+ *   // Request-scoped logging
+ *   const reqLogger = createRequestLogger(request);
+ *   reqLogger.info("Processing order", { orderId: "123" });
  */
+
+import { randomBytes } from "crypto";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 interface LogContext {
   [key: string]: unknown;
+}
+
+// P2-3: Request ID header name
+const REQUEST_ID_HEADER = "X-Request-Id";
+
+/**
+ * Generate a short unique request ID
+ */
+export function generateRequestId(): string {
+  return randomBytes(8).toString("hex");
+}
+
+/**
+ * Extract or generate request ID from a request
+ */
+export function getRequestId(request: Request): string {
+  return request.headers.get(REQUEST_ID_HEADER) || generateRequestId();
 }
 
 const LOG_LEVELS: Record<LogLevel, number> = {
@@ -169,3 +196,153 @@ export function getLogLevel(): LogLevel {
 export function isDebugEnabled(): boolean {
   return shouldLog("debug");
 }
+
+// ==========================================
+// P2-3: Request-Scoped Logger
+// ==========================================
+
+/**
+ * Logger interface with requestId support
+ */
+export interface RequestLogger {
+  debug(message: string, context?: LogContext): void;
+  info(message: string, context?: LogContext): void;
+  warn(message: string, context?: LogContext): void;
+  error(message: string, error?: Error | unknown, context?: LogContext): void;
+  child(additionalContext: LogContext): RequestLogger;
+  readonly requestId: string;
+}
+
+/**
+ * Create a request-scoped logger with automatic requestId injection
+ */
+export function createRequestLogger(
+  requestOrId: Request | string,
+  baseContext?: LogContext
+): RequestLogger {
+  const requestId = typeof requestOrId === "string" 
+    ? requestOrId 
+    : getRequestId(requestOrId);
+  
+  const contextWithRequestId: LogContext = {
+    ...baseContext,
+    requestId,
+  };
+  
+  return {
+    requestId,
+    
+    debug(message: string, context?: LogContext): void {
+      logger.debug(message, { ...contextWithRequestId, ...context });
+    },
+    
+    info(message: string, context?: LogContext): void {
+      logger.info(message, { ...contextWithRequestId, ...context });
+    },
+    
+    warn(message: string, context?: LogContext): void {
+      logger.warn(message, { ...contextWithRequestId, ...context });
+    },
+    
+    error(message: string, error?: Error | unknown, context?: LogContext): void {
+      logger.error(message, error, { ...contextWithRequestId, ...context });
+    },
+    
+    child(additionalContext: LogContext): RequestLogger {
+      return createRequestLogger(requestId, {
+        ...contextWithRequestId,
+        ...additionalContext,
+      });
+    },
+  };
+}
+
+// ==========================================
+// P2-3: Key Metrics Logging
+// ==========================================
+
+/**
+ * Log metrics for monitoring and alerting
+ */
+export const metrics = {
+  /**
+   * Log pixel event metrics
+   */
+  pixelEvent(context: {
+    requestId: string;
+    shopDomain: string;
+    eventName: string;
+    status: "received" | "verified" | "recorded" | "failed";
+    duration?: number;
+    error?: string;
+  }): void {
+    logger.info(`[METRIC] pixel_event`, {
+      ...context,
+      _metric: "pixel_event",
+    });
+  },
+  
+  /**
+   * Log webhook processing metrics
+   */
+  webhookProcessing(context: {
+    requestId?: string;
+    shopDomain: string;
+    orderId: string;
+    platform: string;
+    status: "started" | "consent_pending" | "sent" | "failed" | "retrying";
+    duration?: number;
+    error?: string;
+  }): void {
+    logger.info(`[METRIC] webhook_processing`, {
+      ...context,
+      _metric: "webhook_processing",
+    });
+  },
+  
+  /**
+   * Log retry queue metrics
+   */
+  retryQueue(context: {
+    action: "scheduled" | "processed" | "dead_letter";
+    platform: string;
+    attempt: number;
+    reason?: string;
+  }): void {
+    logger.info(`[METRIC] retry_queue`, {
+      ...context,
+      _metric: "retry_queue",
+    });
+  },
+  
+  /**
+   * Log rate limit metrics
+   */
+  rateLimit(context: {
+    endpoint: string;
+    key: string;
+    blocked: boolean;
+    remaining?: number;
+  }): void {
+    if (context.blocked) {
+      logger.warn(`[METRIC] rate_limited`, {
+        ...context,
+        _metric: "rate_limit",
+      });
+    }
+  },
+  
+  /**
+   * Log circuit breaker metrics
+   */
+  circuitBreaker(context: {
+    shopDomain: string;
+    action: "tripped" | "reset";
+    count?: number;
+  }): void {
+    logger.warn(`[METRIC] circuit_breaker`, {
+      ...context,
+      _metric: "circuit_breaker",
+    });
+  },
+};

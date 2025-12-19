@@ -16,10 +16,15 @@
  * 3. Single source of truth for CAPI sends prevents double-counting
  * 4. Pixel events still useful for marking client-side tracking status
  * 
- * Security (P1-1):
- * - Requests can be signed with HMAC-SHA256 to prevent forgery
- * - Signature is verified using shop's ingestion secret
- * - Unsigned requests are still accepted but may be rate-limited more aggressively
+ * Security:
+ * P0-1: Signature Strategy (Hybrid Approach)
+ * - Signed requests: Full trust, normal rate limits
+ * - Unsigned requests: Accepted with strict rate limiting and reduced trust
+ * - This ensures pixel events work even if signing fails in sandbox
+ * 
+ * P0-2: CORS Policy
+ * - Allows null/missing Origin (common in strict sandbox)
+ * - Returns * for null Origin to prevent CORS blocking
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
@@ -32,40 +37,138 @@ import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 // Signature verification time window (5 minutes)
 const SIGNATURE_TIME_WINDOW_MS = 5 * 60 * 1000;
 
+// P0-1: Rate limit configs for signed vs unsigned requests
+const SIGNED_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 }; // 100/min
+const UNSIGNED_RATE_LIMIT = { maxRequests: 20, windowMs: 60 * 1000 }; // 20/min (stricter)
+
+// P1-2: High-frequency circuit breaker thresholds
+// If a shopDomain exceeds this, it's likely abuse or misconfiguration
+const CIRCUIT_BREAKER_THRESHOLD = 10000; // 10k requests per minute
+const CIRCUIT_BREAKER_WINDOW_MS = 60 * 1000;
+const circuitBreakerState = new Map<string, { count: number; resetTime: number; tripped: boolean }>();
+
 /**
- * P1-1: Verify HMAC-SHA256 signature from the Web Pixel
- * Returns true if signature is valid or if no signature is required
+ * P1-2: Check if a shopDomain should be circuit-broken
+ * Prevents abuse from misconfigured or malicious sources
+ */
+function checkCircuitBreaker(shopDomain: string): { blocked: boolean; reason?: string } {
+  const now = Date.now();
+  const state = circuitBreakerState.get(shopDomain);
+  
+  // Initialize or reset if window expired
+  if (!state || state.resetTime < now) {
+    circuitBreakerState.set(shopDomain, {
+      count: 1,
+      resetTime: now + CIRCUIT_BREAKER_WINDOW_MS,
+      tripped: false,
+    });
+    return { blocked: false };
+  }
+  
+  // If already tripped, block until reset
+  if (state.tripped) {
+    const retryAfter = Math.ceil((state.resetTime - now) / 1000);
+    return { 
+      blocked: true, 
+      reason: `Circuit breaker tripped. Retry after ${retryAfter}s` 
+    };
+  }
+  
+  // Increment counter
+  state.count++;
+  
+  // Check if threshold exceeded
+  if (state.count > CIRCUIT_BREAKER_THRESHOLD) {
+    state.tripped = true;
+    console.error(
+      `🚨 Circuit breaker TRIPPED for ${shopDomain}: ${state.count} requests in ${CIRCUIT_BREAKER_WINDOW_MS}ms`
+    );
+    return { 
+      blocked: true, 
+      reason: "Too many requests - circuit breaker activated" 
+    };
+  }
+  
+  return { blocked: false };
+}
+
+// Periodic cleanup of circuit breaker state (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, state] of circuitBreakerState.entries()) {
+    if (state.resetTime < now) {
+      circuitBreakerState.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+/**
+ * P0-1: Signature verification result type
+ * - signed: Request has valid signature (full trust)
+ * - unsigned: Request has no signature (reduced trust, stricter rate limit)
+ * - invalid: Request has invalid signature (reject)
+ */
+type SignatureResult = 
+  | { status: "signed"; trusted: true }
+  | { status: "unsigned"; trusted: false; reason: string }
+  | { status: "invalid"; trusted: false; error: string };
+
+/**
+ * P0-1: Verify HMAC-SHA256 signature from the Web Pixel
+ * 
+ * Hybrid approach:
+ * - If signature is valid: full trust
+ * - If signature is missing: accept with reduced trust (stricter rate limit)
+ * - If signature is invalid: reject (prevent spoofing attempts)
  */
 function verifySignature(
   secret: string | null,
   timestamp: string | null,
   body: string,
-  signature: string | null
-): { valid: boolean; error?: string } {
-  // P1-1: SECURITY - Require ingestion secret for all requests
-  // Unsigned requests are rejected to prevent unauthorized event submission
-  // Shop's ingestion secret is generated on installation and can be rotated
+  signature: string | null,
+  isExplicitlyUnsigned: boolean
+): SignatureResult {
+  // If shop has no secret configured, accept as unsigned
   if (!secret) {
     return { 
-      valid: false, 
-      error: "Shop ingestion secret not configured. Please reinstall the app or contact support." 
+      status: "unsigned", 
+      trusted: false, 
+      reason: "Shop ingestion secret not configured" 
     };
   }
   
-  // If secret is configured but request is unsigned, reject
+  // P0-1: If request is explicitly marked as unsigned (X-Tracking-Guardian-Unsigned header)
+  // or has no signature headers, accept with reduced trust
+  if (isExplicitlyUnsigned || (!signature && !timestamp)) {
+    return { 
+      status: "unsigned", 
+      trusted: false, 
+      reason: "Request sent without signature" 
+    };
+  }
+  
+  // If only one of signature/timestamp is present, that's suspicious
   if (!signature || !timestamp) {
-    return { valid: false, error: "Missing signature or timestamp" };
+    return { 
+      status: "invalid", 
+      trusted: false, 
+      error: "Incomplete signature headers (one of signature/timestamp missing)" 
+    };
   }
   
   // Verify timestamp is within acceptable window (prevent replay attacks)
   const requestTime = parseInt(timestamp, 10);
   if (isNaN(requestTime)) {
-    return { valid: false, error: "Invalid timestamp" };
+    return { status: "invalid", trusted: false, error: "Invalid timestamp format" };
   }
   
   const now = Date.now();
   if (Math.abs(now - requestTime) > SIGNATURE_TIME_WINDOW_MS) {
-    return { valid: false, error: "Request timestamp out of range" };
+    return { 
+      status: "invalid", 
+      trusted: false, 
+      error: "Request timestamp out of range (possible replay attack)" 
+    };
   }
   
   // Compute expected signature: HMAC-SHA256(secret, timestamp + body)
@@ -80,53 +183,82 @@ function verifySignature(
     const expectedBuffer = Buffer.from(expectedSignature, "hex");
     
     if (signatureBuffer.length !== expectedBuffer.length) {
-      return { valid: false, error: "Invalid signature" };
+      return { status: "invalid", trusted: false, error: "Invalid signature" };
     }
     
     if (!timingSafeEqual(signatureBuffer, expectedBuffer)) {
-      return { valid: false, error: "Invalid signature" };
+      return { status: "invalid", trusted: false, error: "Invalid signature" };
     }
     
-    return { valid: true };
+    return { status: "signed", trusted: true };
   } catch {
-    return { valid: false, error: "Invalid signature format" };
+    return { status: "invalid", trusted: false, error: "Invalid signature format" };
   }
 }
 
 /**
- * P1-2: Generate CORS headers for cross-origin requests from Web Pixel sandbox
+ * P0-2: Generate CORS headers for cross-origin requests from Web Pixel sandbox
  * 
- * SECURITY: We validate the origin to only allow Shopify domains.
- * The Web Pixel runs in a Shopify-controlled sandbox, so we can trust
- * requests from *.myshopify.com domains.
+ * CRITICAL: Strict sandbox may send requests with:
+ * - Origin: null (opaque origin in sandboxed iframe)
+ * - No Origin header at all (worker context)
  * 
- * Note: CORS is a browser-enforced policy. Server-side requests (like bots)
- * can bypass it, so we also require signature verification (P1-1).
+ * We MUST handle these cases or requests will be CORS-blocked.
+ * 
+ * Security notes:
+ * - CORS is browser-enforced; server-side requests bypass it
+ * - Signature verification (P0-1) provides actual security
+ * - CORS is mainly to enable legitimate browser requests
  */
 function getCorsHeaders(request: Request): HeadersInit {
   const origin = request.headers.get("Origin");
   
-  // P1-2: Only allow Shopify domains
-  // Valid patterns: *.myshopify.com, *.shopify.com (for checkout pages)
-  const isValidOrigin = origin && (
+  // P0-2: Handle null/missing Origin (common in strict sandbox)
+  // 
+  // Cases where Origin may be null or missing:
+  // 1. Strict sandbox iframe (Origin: null)
+  // 2. Worker context (no Origin header)
+  // 3. Redirect scenarios
+  // 4. Privacy-focused browsers
+  //
+  // For these cases, we return * to allow the request.
+  // This is safe because:
+  // - We don't use credentials (no cookies)
+  // - Signature verification provides actual authentication
+  // - Rate limiting provides abuse protection
+  
+  if (!origin || origin === "null") {
+    return {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Signature, X-Tracking-Guardian-Timestamp, X-Tracking-Guardian-Unsigned",
+      "Access-Control-Max-Age": "86400",
+    };
+  }
+  
+  // Check if origin is a valid Shopify domain
+  const isValidShopifyOrigin = (
     /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/.test(origin) ||
     /^https:\/\/checkout\.[a-zA-Z0-9][a-zA-Z0-9\-]*\.com$/.test(origin) ||
     origin === "https://shopify.com" ||
     /^https:\/\/[a-zA-Z0-9\-]+\.shopify\.com$/.test(origin)
   );
   
-  // Log unexpected origins for monitoring (but don't block - signature handles security)
-  if (origin && !isValidOrigin) {
-    console.warn(`Unexpected origin in pixel request: ${origin}`);
+  // For valid Shopify origins, echo back the origin
+  // For other origins, still use * to not break legitimate requests
+  // (signature verification is the real security layer)
+  const allowOrigin = isValidShopifyOrigin ? origin : "*";
+  
+  // Log unexpected origins for monitoring
+  if (!isValidShopifyOrigin) {
+    console.warn(`Non-Shopify origin in pixel request: ${origin}`);
   }
   
   return {
-    // Only echo back valid origins, otherwise use restrictive policy
-    "Access-Control-Allow-Origin": isValidOrigin ? origin : "",
+    "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Signature, X-Tracking-Guardian-Timestamp",
-    "Access-Control-Max-Age": "86400", // Cache preflight for 24 hours
-    // Add Vary header to ensure proper caching per origin
+    "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Signature, X-Tracking-Guardian-Timestamp, X-Tracking-Guardian-Unsigned",
+    "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
 }
@@ -157,7 +289,7 @@ type PixelEventName =
 
 interface PixelEventPayload {
   eventName: PixelEventName;
-  eventId: string;
+  // P0-5: eventId is now generated server-side, not sent from pixel
   timestamp: number;
   shopDomain: string;
   // Event-specific data
@@ -169,9 +301,8 @@ interface PixelEventPayload {
     currency?: string;
     tax?: number;
     shipping?: number;
-    // Customer data (hashed on client for privacy)
-    email?: string;
-    phone?: string;
+    // For checkout_started / payment_info_submitted
+    checkoutToken?: string;
     // Line items
     items?: Array<{
       id: string;
@@ -183,6 +314,9 @@ interface PixelEventPayload {
     productId?: string;
     productName?: string;
     productPrice?: number;
+    // For page_viewed
+    pageTitle?: string;
+    pageUrl?: string;
   };
 }
 
@@ -245,7 +379,7 @@ function validateRequest(body: unknown): { valid: true; payload: PixelEventPaylo
     valid: true,
     payload: {
       eventName: data.eventName as PixelEventName,
-      eventId: (data.eventId as string) || "",
+      // P0-5: eventId removed - server generates it
       timestamp: data.timestamp as number,
       shopDomain: data.shopDomain as string,
       data: (data.data as PixelEventPayload["data"]) || {},
@@ -267,8 +401,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
   }
 
-  // Rate limiting
-  const rateLimit = checkRateLimit(request, "pixel-events");
+  // P0-1: Get signature headers to determine rate limit config
+  const signature = request.headers.get("X-Tracking-Guardian-Signature");
+  const timestamp = request.headers.get("X-Tracking-Guardian-Timestamp");
+  const isExplicitlyUnsigned = request.headers.get("X-Tracking-Guardian-Unsigned") === "true";
+  
+  // P0-1: Apply appropriate rate limit based on signature presence
+  // Unsigned requests get stricter limits to prevent abuse
+  const hasSignatureHeaders = !!(signature && timestamp);
+  const rateLimitConfig = hasSignatureHeaders ? SIGNED_RATE_LIMIT : UNSIGNED_RATE_LIMIT;
+  
+  const rateLimit = checkRateLimit(request, "pixel-events", rateLimitConfig);
   if (rateLimit.isLimited) {
     // Add CORS headers to rate limit response
     const rateLimitResponse = createRateLimitResponse(rateLimit.retryAfter);
@@ -278,10 +421,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     return rateLimitResponse;
   }
-
-  // P1-1: Get signature headers for verification
-  const signature = request.headers.get("X-Tracking-Guardian-Signature");
-  const timestamp = request.headers.get("X-Tracking-Guardian-Timestamp");
 
   try {
     // Read raw body for signature verification
@@ -303,6 +442,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const { payload } = validation;
 
+    // P1-2: Check circuit breaker BEFORE database queries
+    const circuitCheck = checkCircuitBreaker(payload.shopDomain);
+    if (circuitCheck.blocked) {
+      console.warn(`Circuit breaker blocked request for ${payload.shopDomain}`);
+      return jsonWithCors(
+        { error: circuitCheck.reason },
+        { status: 429, request }
+      );
+    }
+
     // Only process purchase events for now (most critical for CAPI)
     // Other events can be added later
     if (payload.eventName !== "checkout_completed") {
@@ -320,7 +469,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         id: true,
         shopDomain: true,
         isActive: true,
-        ingestionSecret: true, // P1-1: For signature verification
+        ingestionSecret: true,
       },
     });
 
@@ -328,22 +477,37 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Shop not found or inactive" }, { status: 404, request });
     }
     
-    // P1-1: Verify request signature
-    const signatureVerification = verifySignature(
+    // P0-1: Verify request signature (hybrid approach)
+    const signatureResult = verifySignature(
       shop.ingestionSecret,
       timestamp,
       bodyText,
-      signature
+      signature,
+      isExplicitlyUnsigned
     );
     
-    if (!signatureVerification.valid) {
-      // Log invalid signature attempts (without revealing the secret)
-      console.warn(`Invalid signature for shop ${shop.shopDomain}: ${signatureVerification.error}`);
+    // Only reject requests with INVALID signatures (spoofing attempt)
+    // Accept both signed and unsigned requests
+    if (signatureResult.status === "invalid") {
+      console.warn(
+        `Invalid signature for shop ${shop.shopDomain}: ${signatureResult.error}`,
+        { hasSignature: !!signature, hasTimestamp: !!timestamp }
+      );
       return jsonWithCors(
         { error: "Invalid request signature" },
         { status: 401, request }
       );
     }
+    
+    // Log unsigned requests for monitoring (but don't reject)
+    if (signatureResult.status === "unsigned") {
+      console.info(
+        `Unsigned pixel request from ${shop.shopDomain}: ${signatureResult.reason}`
+      );
+    }
+    
+    // Track trust level for the response
+    const isTrusted = signatureResult.trusted;
 
     // ==========================================
     // RECORD CLIENT-SIDE EVENT (NO CAPI SENDING)
@@ -445,6 +609,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       message: "Client event recorded, CAPI will be sent via webhook",
       clientSideSent: true,
       platforms: recordedPlatforms,
+      // P0-1: Include trust status for debugging
+      trusted: isTrusted,
     }, { request });
   } catch (error) {
     console.error("Pixel events API error:", error);

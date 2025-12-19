@@ -28,6 +28,7 @@ import { testNotification } from "../services/notification.server";
 import { encryptJson } from "../utils/crypto";
 import { checkTokenExpirationIssues } from "../services/retry.server";
 import { createAuditLog } from "../services/audit.server";
+import { getExistingWebPixels, updateWebPixel } from "../services/migration.server";
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
 
 /**
@@ -69,6 +70,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           // P1-1: Return whether ingestion secret is configured (not the actual value)
           hasIngestionSecret: !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
           piiEnabled: shop.piiEnabled,
+          weakConsentMode: shop.weakConsentMode, // P1-3
           dataRetentionDays: shop.dataRetentionDays,
         }
       : null,
@@ -77,7 +79,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
 
   const shop = await prisma.shop.findUnique({
@@ -246,6 +248,52 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         data: { ingestionSecret: newSecret },
       });
 
+      // P1-1: Automatically sync new secret to Web Pixel
+      const backendUrl = process.env.SHOPIFY_APP_URL || "";
+      let pixelSyncResult = { success: false, message: "" };
+      
+      try {
+        // Find existing Tracking Guardian pixel
+        const existingPixels = await getExistingWebPixels(admin);
+        
+        // Look for our pixel (settings contains backend_url)
+        const ourPixel = existingPixels.find((p) => {
+          try {
+            const settings = JSON.parse(p.settings || "{}");
+            return settings.backend_url && settings.backend_url.includes(backendUrl);
+          } catch {
+            return false;
+          }
+        });
+        
+        if (ourPixel) {
+          // Update existing pixel with new secret
+          const result = await updateWebPixel(admin, ourPixel.id, backendUrl, newSecret);
+          if (result.success) {
+            pixelSyncResult = {
+              success: true,
+              message: "已自动同步到 Web Pixel 配置",
+            };
+          } else {
+            pixelSyncResult = {
+              success: false,
+              message: `Web Pixel 同步失败: ${result.error}`,
+            };
+          }
+        } else {
+          pixelSyncResult = {
+            success: false,
+            message: "未找到已安装的 Web Pixel，请先在「迁移」页面安装像素",
+          };
+        }
+      } catch (pixelError) {
+        console.error("Failed to sync ingestion secret to Web Pixel:", pixelError);
+        pixelSyncResult = {
+          success: false,
+          message: "Web Pixel 同步失败，请手动重新配置",
+        };
+      }
+
       // Create audit log for security tracking
       await createAuditLog({
         shopId: shop.id,
@@ -254,22 +302,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         action: "ingestion_secret_rotated",
         resourceType: "shop",
         resourceId: shop.id,
-        metadata: { reason: "Manual rotation from settings" },
+        metadata: { 
+          reason: "Manual rotation from settings",
+          pixelSyncSuccess: pixelSyncResult.success,
+        },
       });
+
+      const baseMessage = "Ingestion Secret 已更新。";
+      const syncMessage = pixelSyncResult.success 
+        ? pixelSyncResult.message 
+        : `⚠️ ${pixelSyncResult.message}`;
 
       return json({
         success: true,
-        message: "Ingestion Secret 已更新。请重新部署 Web Pixel 以使用新密钥。",
+        message: `${baseMessage}${syncMessage}`,
+        pixelSyncSuccess: pixelSyncResult.success,
       });
     }
 
     case "updatePrivacySettings": {
       const piiEnabled = formData.get("piiEnabled") === "true";
+      const weakConsentMode = formData.get("weakConsentMode") === "true";
       const dataRetentionDays = parseInt(formData.get("dataRetentionDays") as string) || 90;
 
       await prisma.shop.update({
         where: { id: shop.id },
-        data: { piiEnabled, dataRetentionDays },
+        data: { piiEnabled, weakConsentMode, dataRetentionDays },
       });
 
       await createAuditLog({
@@ -279,7 +337,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         action: "privacy_settings_updated",
         resourceType: "shop",
         resourceId: shop.id,
-        metadata: { piiEnabled, dataRetentionDays },
+        metadata: { piiEnabled, weakConsentMode, dataRetentionDays },
       });
 
       return json({

@@ -34,106 +34,112 @@ model Session {
 
 // Shop information and subscription status
 model Shop {
-  id                String               @id @default(cuid())
-  shopDomain        String               @unique
+  id                String    @id @default(cuid())
+  shopDomain        String    @unique
   accessToken       String?
   email             String?
   name              String?
-  plan              String               @default("free") // free, starter, pro, enterprise
-  monthlyOrderLimit Int                  @default(100)
-  installedAt       DateTime             @default(now())
+  plan              String    @default("free") // free, starter, pro, enterprise
+  monthlyOrderLimit Int       @default(100)
+  installedAt       DateTime  @default(now())
   uninstalledAt     DateTime?
-  isActive          Boolean              @default(true)
-  
+  isActive          Boolean   @default(true)
+
   // Privacy settings
   // When false, PII (email/phone/address) is NOT sent to ad platforms
   // This provides an extra layer of privacy compliance
   // Note: Server-side tracking always hashes PII before sending
-  piiEnabled        Boolean              @default(false)
-  
+  piiEnabled Boolean @default(false)
+
+  // P1-3: Weak consent mode
+  // When true, allows server-side CAPI even when pixel consent is not confirmed
+  // Use with caution: only for regions where implied consent is legal
+  // Default: false (strict mode - requires pixel consent)
+  weakConsentMode Boolean @default(false)
+
   // Data retention settings (in days)
   // 0 means no auto-deletion (manual deletion required)
-  dataRetentionDays Int                  @default(90)
-  
+  dataRetentionDays Int @default(90)
+
   // P1-1: Ingestion secret for pixel event signature verification
   // Used to sign requests from the web pixel to prevent forgery/abuse
   // Generated on shop installation, can be regenerated in settings
   // SECURITY: This field is required - empty string treated as unconfigured
-  ingestionSecret   String   @default("")
-  
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  ingestionSecret String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  scanReports            ScanReport[]
-  pixelConfigs           PixelConfig[]
-  alertConfigs           AlertConfig[]
-  conversionLogs         ConversionLog[]
-  reconciliationReports  ReconciliationReport[]
-  surveyResponses        SurveyResponse[]
-  auditLogs              AuditLog[]
+  scanReports           ScanReport[]
+  pixelConfigs          PixelConfig[]
+  alertConfigs          AlertConfig[]
+  conversionLogs        ConversionLog[]
+  reconciliationReports ReconciliationReport[]
+  surveyResponses       SurveyResponse[]
+  auditLogs             AuditLog[]
 }
 
 // Scan report for tracking scripts
 model ScanReport {
-  id                String   @id @default(cuid())
-  shopId            String
-  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
   // Scan results
-  additionalScripts Json?    // Raw additional scripts content
-  scriptTags        Json?    // ScriptTag API results
-  checkoutConfig    Json?    // Checkout configuration
-  
+  additionalScripts Json? // Raw additional scripts content
+  scriptTags        Json? // ScriptTag API results
+  checkoutConfig    Json? // Checkout configuration
+
   // Risk analysis
-  riskItems         Json?    // Array of identified risks
-  riskScore         Int      @default(0) // 0-100 risk score
-  
+  riskItems Json? // Array of identified risks
+  riskScore Int   @default(0) // 0-100 risk score
+
   // Identified platforms
-  identifiedPlatforms Json?  // e.g., ["google", "meta", "tiktok"]
-  
-  status            String   @default("pending") // pending, scanning, completed, failed
-  errorMessage      String?
-  
-  createdAt         DateTime @default(now())
-  completedAt       DateTime?
-  
+  identifiedPlatforms Json? // e.g., ["google", "meta", "tiktok"]
+
+  status       String  @default("pending") // pending, scanning, completed, failed
+  errorMessage String?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
   @@index([shopId])
   @@index([status])
 }
 
 // Pixel configuration for each platform
 model PixelConfig {
-  id                String   @id @default(cuid())
-  shopId            String
-  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  platform          String   // google, meta, tiktok, bing, clarity
-  platformId        String?  // e.g., GA4 Measurement ID, Meta Pixel ID
-  
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  platform   String // google, meta, tiktok, bing, clarity
+  platformId String? // e.g., GA4 Measurement ID, Meta Pixel ID
+
   // Platform-specific credentials (separated for security)
   // credentialsEncrypted: stores AES-256-GCM encrypted sensitive data (access tokens, API secrets)
-  credentialsEncrypted String?  // Encrypted string for server-side API credentials
+  credentialsEncrypted String? // Encrypted string for server-side API credentials
   // clientConfig: stores non-sensitive configuration (conversion labels, event mappings)
-  clientConfig         Json?    // Non-sensitive client configuration
-  
+  clientConfig         Json? // Non-sensitive client configuration
+
   // Legacy field - deprecated, use credentialsEncrypted instead
   // Kept for backwards compatibility during migration
-  credentials       Json?    @map("credentials_legacy")
-  
+  credentials Json? @map("credentials_legacy")
+
   // Configuration
-  clientSideEnabled   Boolean @default(true)
-  serverSideEnabled   Boolean @default(false)
-  eventMappings       Json?   // Custom event mappings
-  
+  clientSideEnabled Boolean @default(true)
+  serverSideEnabled Boolean @default(false)
+  eventMappings     Json? // Custom event mappings
+
   // Migration status
-  migrationStatus     String  @default("not_started") // not_started, in_progress, completed
-  migratedAt          DateTime?
-  
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  migrationStatus String    @default("not_started") // not_started, in_progress, completed
+  migratedAt      DateTime?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([shopId, platform])
   @@index([shopId])
   @@index([platform])
@@ -141,77 +147,77 @@ model PixelConfig {
 
 // Alert configuration for monitoring
 model AlertConfig {
-  id              String   @id @default(cuid())
-  shopId          String
-  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  channel         String   // email, slack, telegram
-  settings        Json     // Channel-specific settings (email address, webhook URL, etc.)
-  
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  channel  String // email, slack, telegram
+  settings Json // Channel-specific settings (email address, webhook URL, etc.)
+
   // Alert thresholds
   discrepancyThreshold Float @default(0.1) // 10% default threshold
-  minOrdersForAlert    Int   @default(10)  // Minimum orders before alerting
-  
+  minOrdersForAlert    Int   @default(10) // Minimum orders before alerting
+
   // Alert frequency
-  frequency       String   @default("daily") // daily, weekly, instant
-  
-  isEnabled       Boolean  @default(true)
-  lastAlertAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  frequency String @default("daily") // daily, weekly, instant
+
+  isEnabled   Boolean   @default(true)
+  lastAlertAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   @@index([shopId])
   @@index([channel])
 }
 
 // Conversion tracking log
 model ConversionLog {
-  id              String   @id @default(cuid())
-  shopId          String
-  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
   // Order info
-  orderId         String   // Real order ID (numeric or GID format)
-  orderNumber     String?
-  orderValue      Decimal  @db.Decimal(10, 2)
-  currency        String   @default("USD")
-  
+  orderId     String // Real order ID (numeric or GID format)
+  orderNumber String?
+  orderValue  Decimal @db.Decimal(10, 2)
+  currency    String  @default("USD")
+
   // Deduplication - deterministic event ID for platform CAPI dedup
   // Generated using generateEventId(orderId, eventType, shopDomain)
   // Used as event_id for Meta/TikTok and transaction_id for GA4
-  eventId         String?
-  
+  eventId String?
+
   // Platform info
-  platform        String   // google, meta, tiktok
-  eventType       String   // purchase, add_to_cart, etc.
-  
+  platform  String // google, meta, tiktok
+  eventType String // purchase, add_to_cart, etc.
+
   // Sending status
   // pending: initial state
   // sent: successfully sent to platform
   // failed: failed but may retry
   // retrying: currently in retry queue
   // dead_letter: permanently failed after max retries (manual intervention needed)
-  status          String   @default("pending")
-  attempts        Int      @default(0)
-  maxAttempts     Int      @default(5)   // Max retry attempts before dead letter
-  lastAttemptAt   DateTime?
-  nextRetryAt     DateTime?              // Scheduled next retry time (for exponential backoff)
-  errorMessage    String?
-  
+  status        String    @default("pending")
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(5) // Max retry attempts before dead letter
+  lastAttemptAt DateTime?
+  nextRetryAt   DateTime? // Scheduled next retry time (for exponential backoff)
+  errorMessage  String?
+
   // Response from platform
   platformResponse Json?
-  
+
   // Metadata
-  clientSideSent    Boolean @default(false)
-  serverSideSent    Boolean @default(false)
-  
+  clientSideSent Boolean @default(false)
+  serverSideSent Boolean @default(false)
+
   // Dead letter handling
-  deadLetteredAt    DateTime?            // When moved to dead letter
-  manuallyRetried   Boolean @default(false) // If manually retried from dead letter
-  
-  createdAt       DateTime @default(now())
-  sentAt          DateTime?
-  
+  deadLetteredAt  DateTime? // When moved to dead letter
+  manuallyRetried Boolean   @default(false) // If manually retried from dead letter
+
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
   @@unique([shopId, orderId, platform, eventType])
   @@index([shopId])
   @@index([orderId])
@@ -224,37 +230,37 @@ model ConversionLog {
   @@index([shopId, platform, createdAt])
   @@index([shopId, createdAt, status])
   // New indexes for retry processing
-  @@index([status, nextRetryAt])  // For finding retryable logs
-  @@index([status, deadLetteredAt])  // For dead letter management
+  @@index([status, nextRetryAt]) // For finding retryable logs
+  @@index([status, deadLetteredAt]) // For dead letter management
 }
 
 // Daily reconciliation reports
 model ReconciliationReport {
-  id                  String   @id @default(cuid())
-  shopId              String
-  shop                Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  platform            String   // google, meta, tiktok
-  reportDate          DateTime @db.Date
-  
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  platform   String // google, meta, tiktok
+  reportDate DateTime @db.Date
+
   // Shopify data
-  shopifyOrders       Int      @default(0)
-  shopifyRevenue      Decimal  @db.Decimal(12, 2) @default(0)
-  
+  shopifyOrders  Int     @default(0)
+  shopifyRevenue Decimal @default(0) @db.Decimal(12, 2)
+
   // Platform reported data
-  platformConversions Int      @default(0)
-  platformRevenue     Decimal  @db.Decimal(12, 2) @default(0)
-  
+  platformConversions Int     @default(0)
+  platformRevenue     Decimal @default(0) @db.Decimal(12, 2)
+
   // Calculated metrics
-  orderDiscrepancy    Float    @default(0) // Percentage difference
-  revenueDiscrepancy  Float    @default(0)
-  
+  orderDiscrepancy   Float @default(0) // Percentage difference
+  revenueDiscrepancy Float @default(0)
+
   // Status
-  status              String   @default("pending") // pending, completed, failed
-  alertSent           Boolean  @default(false)
-  
-  createdAt           DateTime @default(now())
-  
+  status    String  @default("pending") // pending, completed, failed
+  alertSent Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
   @@unique([shopId, platform, reportDate])
   @@index([shopId])
   @@index([platform])
@@ -265,21 +271,21 @@ model ReconciliationReport {
 
 // Post-purchase survey responses
 model SurveyResponse {
-  id              String   @id @default(cuid())
-  shopId          String
-  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  orderId         String
-  orderNumber     String?
-  
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  orderId     String
+  orderNumber String?
+
   // Survey data
-  rating          Int?     // 1-5 star rating
-  feedback        String?  // Open text feedback
-  source          String?  // How did you hear about us?
-  customAnswers   Json?    // Custom survey question answers
-  
-  createdAt       DateTime @default(now())
-  
+  rating        Int? // 1-5 star rating
+  feedback      String? // Open text feedback
+  source        String? // How did you hear about us?
+  customAnswers Json? // Custom survey question answers
+
+  createdAt DateTime @default(now())
+
   @@index([shopId])
   @@index([orderId])
   // Performance: Composite index for checking existing response by shop+order
@@ -290,30 +296,30 @@ model SurveyResponse {
 
 // Audit log for security-sensitive operations
 model AuditLog {
-  id              String   @id @default(cuid())
-  shopId          String
-  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
   // Who performed the action
-  actorType       String   // "user", "webhook", "cron", "api"
-  actorId         String?  // User email, webhook ID, etc.
-  
+  actorType String // "user", "webhook", "cron", "api"
+  actorId   String? // User email, webhook ID, etc.
+
   // What action was performed
-  action          String   // "token_updated", "pixel_config_changed", "threshold_changed", etc.
-  resourceType    String   // "pixel_config", "alert_config", "shop", etc.
-  resourceId      String?  // ID of the affected resource
-  
+  action       String // "token_updated", "pixel_config_changed", "threshold_changed", etc.
+  resourceType String // "pixel_config", "alert_config", "shop", etc.
+  resourceId   String? // ID of the affected resource
+
   // Action details
-  previousValue   Json?    // Previous state (sensitive fields should be redacted)
-  newValue        Json?    // New state (sensitive fields should be redacted)
-  metadata        Json?    // Additional context
-  
+  previousValue Json? // Previous state (sensitive fields should be redacted)
+  newValue      Json? // New state (sensitive fields should be redacted)
+  metadata      Json? // Additional context
+
   // Request context
-  ipAddress       String?
-  userAgent       String?
-  
-  createdAt       DateTime @default(now())
-  
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
   @@index([shopId])
   @@index([action])
   @@index([resourceType])
@@ -321,4 +327,3 @@ model AuditLog {
   // Query by shop and time range
   @@index([shopId, createdAt])
 }
-

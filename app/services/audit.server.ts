@@ -40,7 +40,13 @@ export type AuditAction =
   | "conversion_retry_manual"
   | "dead_letter_retry"
   | "ingestion_secret_rotated"
-  | "privacy_settings_updated";
+  | "privacy_settings_updated"
+  // P0-3: Billing actions
+  | "subscription_created"
+  | "subscription_cancelled"
+  | "subscription_activated"
+  // P2-2: Data cleanup action
+  | "data_cleanup_completed";
 
 export type ResourceType =
   | "pixel_config"
@@ -48,7 +54,8 @@ export type ResourceType =
   | "shop"
   | "web_pixel"
   | "script_tag"
-  | "conversion_log";
+  | "conversion_log"
+  | "billing";
 
 export interface AuditLogEntry {
   actorType: ActorType;

@@ -268,6 +268,8 @@ export interface ShopData {
   plan: string;
   monthlyOrderLimit: number;
   isActive: boolean;
+  piiEnabled?: boolean;
+  weakConsentMode?: boolean; // P1-3: Weak consent mode
 }
 
 // ==========================================

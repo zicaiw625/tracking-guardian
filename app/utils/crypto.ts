@@ -262,14 +262,27 @@ export function generateEventId(
 }
 
 /**
- * Normalize order ID by extracting numeric ID from Shopify GID
+ * P2-5: Normalize order ID by extracting numeric ID from Shopify GID
  * 
- * Shopify order IDs can come in different formats:
- * - GID: "gid://shopify/Order/1234567890"
- * - Numeric string: "1234567890"
- * - Number: 1234567890
+ * STORAGE SPECIFICATION:
+ * ======================
+ * ConversionLog.orderId always stores the NUMERIC order ID as a string.
+ * Example: "1234567890" (not "gid://shopify/Order/1234567890")
  * 
- * This function extracts a consistent numeric string
+ * This ensures:
+ * - Consistent unique key behavior (shopId + orderId + platform + eventType)
+ * - Proper deduplication between pixel events and webhooks
+ * - Easier querying and debugging
+ * 
+ * Input formats accepted:
+ * - GID: "gid://shopify/Order/1234567890" → "1234567890"
+ * - Numeric string: "1234567890" → "1234567890"
+ * - Number: 1234567890 → "1234567890"
+ * 
+ * IMPORTANT: All code paths that write to ConversionLog.orderId MUST call
+ * normalizeOrderId() first:
+ * - api.pixel-events.tsx (pixel event recording)
+ * - webhooks.tsx (webhook conversion processing)
  * 
  * @param orderId - Order ID in any format
  * @returns Normalized numeric order ID as string
@@ -289,6 +302,7 @@ export function normalizeOrderId(orderId: string | number): string {
     return numericMatch[1];
   }
   
-  // Return as-is if no pattern matches
+  // Return as-is if no pattern matches (shouldn't happen with valid Shopify order IDs)
+  console.warn(`[normalizeOrderId] Unable to extract numeric ID from: ${orderIdStr}`);
   return orderIdStr;
 }
