@@ -21,12 +21,22 @@ import {
   ContextualSaveBar,
 } from "@shopify/polaris";
 
+import { randomBytes } from "crypto";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { testNotification } from "../services/notification.server";
 import { encryptJson } from "../utils/crypto";
 import { checkTokenExpirationIssues } from "../services/retry.server";
+import { createAuditLog } from "../services/audit.server";
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
+
+/**
+ * P1-1: Generate a secure random ingestion secret for pixel request signing
+ * The secret is 32 bytes (256 bits) encoded as hex (64 characters)
+ */
+function generateIngestionSecret(): string {
+  return randomBytes(32).toString("hex");
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -56,6 +66,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           plan: shop.plan,
           alertConfigs: shop.alertConfigs,
           pixelConfigs: shop.pixelConfigs,
+          // P1-1: Return whether ingestion secret is configured (not the actual value)
+          hasIngestionSecret: !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
+          piiEnabled: shop.piiEnabled,
+          dataRetentionDays: shop.dataRetentionDays,
         }
       : null,
     tokenIssues,
@@ -220,6 +234,57 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({
         success: true,
         message: "连接测试成功！测试事件已发送到平台，请在平台后台检查是否收到事件。",
+      });
+    }
+
+    case "rotateIngestionSecret": {
+      // P1-1: Rotate the ingestion secret for security
+      const newSecret = generateIngestionSecret();
+      
+      await prisma.shop.update({
+        where: { id: shop.id },
+        data: { ingestionSecret: newSecret },
+      });
+
+      // Create audit log for security tracking
+      await createAuditLog({
+        shopId: shop.id,
+        actorType: "user",
+        actorId: session.shop,
+        action: "ingestion_secret_rotated",
+        resourceType: "shop",
+        resourceId: shop.id,
+        metadata: { reason: "Manual rotation from settings" },
+      });
+
+      return json({
+        success: true,
+        message: "Ingestion Secret 已更新。请重新部署 Web Pixel 以使用新密钥。",
+      });
+    }
+
+    case "updatePrivacySettings": {
+      const piiEnabled = formData.get("piiEnabled") === "true";
+      const dataRetentionDays = parseInt(formData.get("dataRetentionDays") as string) || 90;
+
+      await prisma.shop.update({
+        where: { id: shop.id },
+        data: { piiEnabled, dataRetentionDays },
+      });
+
+      await createAuditLog({
+        shopId: shop.id,
+        actorType: "user",
+        actorId: session.shop,
+        action: "privacy_settings_updated",
+        resourceType: "shop",
+        resourceId: shop.id,
+        metadata: { piiEnabled, dataRetentionDays },
+      });
+
+      return json({
+        success: true,
+        message: "隐私设置已更新",
       });
     }
 
@@ -472,8 +537,18 @@ export default function SettingsPage() {
   const tabs = [
     { id: "alerts", content: "警报通知" },
     { id: "server-side", content: "服务端追踪" },
+    { id: "security", content: "安全与隐私" },
     { id: "subscription", content: "订阅计划" },
   ];
+
+  // Handler for rotating ingestion secret
+  const handleRotateSecret = () => {
+    if (confirm("确定要更换 Ingestion Secret 吗？更换后需要重新部署 Web Pixel。")) {
+      const formData = new FormData();
+      formData.append("_action", "rotateIngestionSecret");
+      submit(formData, { method: "post" });
+    }
+  };
 
   return (
     <Page title="设置">
@@ -873,8 +948,129 @@ export default function SettingsPage() {
             </Layout>
           )}
 
-          {/* Subscription Tab */}
+          {/* Security & Privacy Tab */}
           {selectedTab === 2 && (
+            <Layout>
+              <Layout.Section>
+                <Card>
+                  <BlockStack gap="400">
+                    <Text as="h2" variant="headingMd">
+                      安全设置
+                    </Text>
+                    <Text as="p" tone="subdued">
+                      管理 Pixel 事件签名密钥和数据安全设置。
+                    </Text>
+
+                    <Divider />
+
+                    {/* Ingestion Secret Section */}
+                    <BlockStack gap="300">
+                      <Text as="h3" variant="headingMd">
+                        Ingestion Secret
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        用于验证来自 Web Pixel 的事件请求。每个请求都需要使用此密钥进行签名，
+                        以防止未授权的事件提交。
+                      </Text>
+                      
+                      <Box
+                        background="bg-surface-secondary"
+                        padding="300"
+                        borderRadius="200"
+                      >
+                        <InlineStack align="space-between" blockAlign="center">
+                          <BlockStack gap="100">
+                            <Text as="span" fontWeight="semibold">
+                              状态
+                            </Text>
+                            <InlineStack gap="200" blockAlign="center">
+                              {shop?.hasIngestionSecret ? (
+                                <>
+                                  <Badge tone="success">已配置</Badge>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    密钥已安全存储
+                                  </Text>
+                                </>
+                              ) : (
+                                <>
+                                  <Badge tone="critical">未配置</Badge>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    请重新安装应用以生成密钥
+                                  </Text>
+                                </>
+                              )}
+                            </InlineStack>
+                          </BlockStack>
+                          <Button
+                            variant="secondary"
+                            onClick={handleRotateSecret}
+                            loading={isSubmitting}
+                          >
+                            更换密钥
+                          </Button>
+                        </InlineStack>
+                      </Box>
+
+                      <Banner tone="warning">
+                        <p>
+                          更换密钥后，需要重新部署 Web Pixel 扩展以使用新密钥。
+                          在此期间，旧密钥签名的请求将被拒绝。
+                        </p>
+                      </Banner>
+                    </BlockStack>
+
+                    <Divider />
+
+                    {/* PII Settings Section */}
+                    <BlockStack gap="300">
+                      <Text as="h3" variant="headingMd">
+                        隐私设置
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        控制是否将个人身份信息（PII）发送到广告平台。
+                      </Text>
+
+                      <Box
+                        background="bg-surface-secondary"
+                        padding="300"
+                        borderRadius="200"
+                      >
+                        <BlockStack gap="200">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <BlockStack gap="100">
+                              <Text as="span" fontWeight="semibold">
+                                发送 PII 到广告平台
+                              </Text>
+                              <Text as="span" variant="bodySm" tone="subdued">
+                                当前状态：{shop?.piiEnabled ? "已启用" : "已禁用"}
+                              </Text>
+                            </BlockStack>
+                            <Badge tone={shop?.piiEnabled ? "attention" : "success"}>
+                              {shop?.piiEnabled ? "已启用" : "已禁用（推荐）"}
+                            </Badge>
+                          </InlineStack>
+                        </BlockStack>
+                      </Box>
+
+                      <Banner tone="info">
+                        <BlockStack gap="200">
+                          <Text as="span" fontWeight="semibold">PII 处理说明：</Text>
+                          <Text as="p" variant="bodySm">
+                            • <strong>Meta/TikTok</strong>：启用后，PII（邮箱、电话）会先进行 SHA256 哈希再发送
+                            <br />• <strong>Google</strong>：GA4 Measurement Protocol 禁止上传 PII（含哈希），我们不会发送
+                            <br />• <strong>默认禁用</strong>：为保护用户隐私，PII 发送默认关闭
+                          </Text>
+                        </BlockStack>
+                      </Banner>
+                    </BlockStack>
+                  </BlockStack>
+                </Card>
+              </Layout.Section>
+            </Layout>
+          )}
+
+          {/* Subscription Tab */}
+          {selectedTab === 3 && (
             <Layout>
               <Layout.Section>
                 <Card>
@@ -883,19 +1079,22 @@ export default function SettingsPage() {
                       <Text as="h2" variant="headingMd">
                         当前计划
                       </Text>
-                      <Badge tone="info">{shop?.plan || "免费版"}</Badge>
+                      <Badge tone="success">免费版</Badge>
                     </InlineStack>
+
+                    <Banner tone="info">
+                      <p>
+                        感谢使用 Tracking Guardian！目前所有功能完全免费开放。
+                        付费套餐即将推出，届时将提供更高的使用限额和高级功能。
+                      </p>
+                    </Banner>
 
                     <Divider />
 
                     <BlockStack gap="400">
-                      {/* Free Plan */}
+                      {/* Current Free Plan */}
                       <Box
-                        background={
-                          shop?.plan === "free"
-                            ? "bg-surface-selected"
-                            : "bg-surface-secondary"
-                        }
+                        background="bg-surface-selected"
                         padding="400"
                         borderRadius="200"
                       >
@@ -904,91 +1103,42 @@ export default function SettingsPage() {
                             <Text as="h3" variant="headingMd">
                               免费版
                             </Text>
-                            <Text as="span" fontWeight="bold">
-                              $0/月
-                            </Text>
-                          </InlineStack>
-                          <Badge tone="info">适用人群：月订单 &lt; 100 的新店铺</Badge>
-                          <Text as="p" tone="subdued">
-                            • 每月 100 次转化追踪（按订单数计算）
-                            <br />• 基础扫描报告
-                            <br />• 邮件警报
-                          </Text>
-                          {shop?.plan === "free" && (
                             <Badge tone="success">当前计划</Badge>
-                          )}
+                          </InlineStack>
+                          <Text as="p" tone="subdued">
+                            • 无限扫描报告
+                            <br />• 所有平台集成（Google、Meta、TikTok）
+                            <br />• 服务端转化追踪（CAPI）
+                            <br />• 邮件 + Slack + Telegram 警报
+                            <br />• 每日健康监控
+                          </Text>
                         </BlockStack>
                       </Box>
 
-                      {/* Starter Plan */}
+                      {/* Coming Soon Plans */}
                       <Box
-                        background={
-                          shop?.plan === "starter"
-                            ? "bg-surface-selected"
-                            : "bg-surface-secondary"
-                        }
+                        background="bg-surface-secondary"
                         padding="400"
                         borderRadius="200"
                       >
                         <BlockStack gap="300">
                           <InlineStack align="space-between" blockAlign="center">
                             <InlineStack gap="200" blockAlign="center">
-                              <Text as="h3" variant="headingMd">
-                                入门版
+                              <Text as="h3" variant="headingMd" tone="subdued">
+                                高级套餐
                               </Text>
-                              <Badge tone="success">最受欢迎</Badge>
+                              <Badge>即将推出</Badge>
                             </InlineStack>
-                            <Text as="span" fontWeight="bold">
-                              $29/月
-                            </Text>
                           </InlineStack>
-                          <Badge tone="info">适用人群：月订单 100-1,000 的成长店铺</Badge>
                           <Text as="p" tone="subdued">
-                            • 每月 1,000 次转化追踪（按订单数计算）
-                            <br />• 2 个平台集成
-                            <br />• 每日对账报告
-                            <br />• 邮件 + Slack 警报
+                            • 更高的月度订单限额
+                            <br />• 更长的数据保留期
+                            <br />• 优先技术支持
+                            <br />• 高级对账报告
                           </Text>
-                          {shop?.plan === "starter" ? (
-                            <Badge tone="success">当前计划</Badge>
-                          ) : (
-                            <Button>升级到入门版</Button>
-                          )}
-                        </BlockStack>
-                      </Box>
-
-                      {/* Pro Plan */}
-                      <Box
-                        background={
-                          shop?.plan === "pro"
-                            ? "bg-surface-selected"
-                            : "bg-surface-secondary"
-                        }
-                        padding="400"
-                        borderRadius="200"
-                      >
-                        <BlockStack gap="300">
-                          <InlineStack align="space-between">
-                            <Text as="h3" variant="headingMd">
-                              专业版
-                            </Text>
-                            <Text as="span" fontWeight="bold">
-                              $79/月
-                            </Text>
-                          </InlineStack>
-                          <Badge tone="info">适用人群：月订单 1,000+ 的成熟店铺</Badge>
-                          <Text as="p" tone="subdued">
-                            • 每月 10,000 次转化追踪（按订单数计算）
-                            <br />• 所有平台集成
-                            <br />• Conversions API（CAPI）
-                            <br />• 实时警报
-                            <br />• 优先支持
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            付费套餐即将推出，敬请期待。当前所有功能免费使用。
                           </Text>
-                          {shop?.plan === "pro" ? (
-                            <Badge tone="success">当前计划</Badge>
-                          ) : (
-                            <Button variant="primary">升级到专业版</Button>
-                          )}
                         </BlockStack>
                       </Box>
                     </BlockStack>

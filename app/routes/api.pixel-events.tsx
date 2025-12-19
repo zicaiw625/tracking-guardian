@@ -42,10 +42,14 @@ function verifySignature(
   body: string,
   signature: string | null
 ): { valid: boolean; error?: string } {
-  // If shop has no ingestion secret configured, accept unsigned requests
-  // This allows gradual rollout and backwards compatibility
+  // P1-1: SECURITY - Require ingestion secret for all requests
+  // Unsigned requests are rejected to prevent unauthorized event submission
+  // Shop's ingestion secret is generated on installation and can be rotated
   if (!secret) {
-    return { valid: true };
+    return { 
+      valid: false, 
+      error: "Shop ingestion secret not configured. Please reinstall the app or contact support." 
+    };
   }
   
   // If secret is configured but request is unsigned, reject
@@ -90,19 +94,40 @@ function verifySignature(
 }
 
 /**
- * Generate CORS headers for cross-origin requests from Web Pixel sandbox
- * The Web Pixel runs in a strict sandbox and needs CORS to communicate with our API
+ * P1-2: Generate CORS headers for cross-origin requests from Web Pixel sandbox
+ * 
+ * SECURITY: We validate the origin to only allow Shopify domains.
+ * The Web Pixel runs in a Shopify-controlled sandbox, so we can trust
+ * requests from *.myshopify.com domains.
+ * 
+ * Note: CORS is a browser-enforced policy. Server-side requests (like bots)
+ * can bypass it, so we also require signature verification (P1-1).
  */
 function getCorsHeaders(request: Request): HeadersInit {
   const origin = request.headers.get("Origin");
+  
+  // P1-2: Only allow Shopify domains
+  // Valid patterns: *.myshopify.com, *.shopify.com (for checkout pages)
+  const isValidOrigin = origin && (
+    /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/.test(origin) ||
+    /^https:\/\/checkout\.[a-zA-Z0-9][a-zA-Z0-9\-]*\.com$/.test(origin) ||
+    origin === "https://shopify.com" ||
+    /^https:\/\/[a-zA-Z0-9\-]+\.shopify\.com$/.test(origin)
+  );
+  
+  // Log unexpected origins for monitoring (but don't block - signature handles security)
+  if (origin && !isValidOrigin) {
+    console.warn(`Unexpected origin in pixel request: ${origin}`);
+  }
+  
   return {
-    // Echo back the origin or use * if no origin (for direct requests)
-    "Access-Control-Allow-Origin": origin || "*",
+    // Only echo back valid origins, otherwise use restrictive policy
+    "Access-Control-Allow-Origin": isValidOrigin ? origin : "",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Signature, X-Tracking-Guardian-Timestamp",
     "Access-Control-Max-Age": "86400", // Cache preflight for 24 hours
-    // Add Vary header when echoing origin to ensure proper caching
-    ...(origin ? { "Vary": "Origin" } : {}),
+    // Add Vary header to ensure proper caching per origin
+    "Vary": "Origin",
   };
 }
 

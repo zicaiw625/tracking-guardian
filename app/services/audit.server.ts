@@ -38,7 +38,9 @@ export type AuditAction =
   | "web_pixel_updated"
   | "script_tag_deleted"
   | "conversion_retry_manual"
-  | "dead_letter_retry";
+  | "dead_letter_retry"
+  | "ingestion_secret_rotated"
+  | "privacy_settings_updated";
 
 export type ResourceType =
   | "pixel_config"
@@ -248,3 +250,12 @@ export const auditLog = {
     return result.count;
   },
 };
+
+/**
+ * Convenience function to create an audit log entry
+ * @param entry - The audit log entry to create
+ */
+export async function createAuditLog(entry: AuditLogEntry & { shopId: string }): Promise<void> {
+  const { shopId, ...logEntry } = entry;
+  return auditLog.record(shopId, logEntry);
+}

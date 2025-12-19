@@ -58,7 +58,8 @@ model Shop {
   // P1-1: Ingestion secret for pixel event signature verification
   // Used to sign requests from the web pixel to prevent forgery/abuse
   // Generated on shop installation, can be regenerated in settings
-  ingestionSecret   String?
+  // SECURITY: This field is required - empty string treated as unconfigured
+  ingestionSecret   String   @default("")
   
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt

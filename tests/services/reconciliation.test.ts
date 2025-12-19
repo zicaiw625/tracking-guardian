@@ -27,6 +27,16 @@ vi.mock("../../app/services/notification.server", () => ({
   sendAlert: vi.fn().mockResolvedValue(true),
 }));
 
+// Mock logger
+vi.mock("../../app/utils/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 import prisma from "../../app/db.server";
 import {
   getReconciliationHistory,

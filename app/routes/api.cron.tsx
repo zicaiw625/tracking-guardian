@@ -1,9 +1,14 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "../db.server";
 import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
+import { runAllShopsReconciliation } from "../services/reconciliation.server";
 import { processPendingConversions, processRetries } from "../services/retry.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
+
+// P1-4: Replay protection time window (5 minutes)
+const REPLAY_PROTECTION_WINDOW_MS = 5 * 60 * 1000;
 
 /**
  * P3-2: Clean up old data based on each shop's retention settings
@@ -90,12 +95,74 @@ async function cleanupExpiredData(): Promise<{
 // to run daily reconciliation for all shops
 
 /**
+ * P1-4: Verify timestamp and optional HMAC signature for replay protection
+ * 
+ * Supports two authentication modes:
+ * 1. Simple Bearer token (backwards compatible)
+ * 2. HMAC signature with timestamp (enhanced security)
+ * 
+ * For HMAC mode, the request should include:
+ * - X-Cron-Timestamp: Unix timestamp in seconds
+ * - X-Cron-Signature: HMAC-SHA256(secret, timestamp)
+ */
+function verifyReplayProtection(request: Request, cronSecret: string): { valid: boolean; error?: string } {
+  const timestamp = request.headers.get("X-Cron-Timestamp");
+  const signature = request.headers.get("X-Cron-Signature");
+  
+  // If no timestamp header, skip replay protection (allow simple Bearer token auth)
+  if (!timestamp) {
+    return { valid: true };
+  }
+  
+  // Validate timestamp format
+  const requestTime = parseInt(timestamp, 10);
+  if (isNaN(requestTime)) {
+    return { valid: false, error: "Invalid timestamp format" };
+  }
+  
+  // Check if request is within acceptable time window
+  const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+  const timeDiff = Math.abs(now - requestTime);
+  
+  if (timeDiff > REPLAY_PROTECTION_WINDOW_MS / 1000) {
+    console.warn(`Cron request timestamp out of range: diff=${timeDiff}s`);
+    return { valid: false, error: "Request timestamp out of range (possible replay attack)" };
+  }
+  
+  // If signature is provided, verify HMAC
+  if (signature) {
+    const expectedSignature = createHmac("sha256", cronSecret)
+      .update(timestamp)
+      .digest("hex");
+    
+    try {
+      const signatureBuffer = Buffer.from(signature, "hex");
+      const expectedBuffer = Buffer.from(expectedSignature, "hex");
+      
+      if (signatureBuffer.length !== expectedBuffer.length) {
+        return { valid: false, error: "Invalid signature" };
+      }
+      
+      if (!timingSafeEqual(signatureBuffer, expectedBuffer)) {
+        return { valid: false, error: "Invalid signature" };
+      }
+    } catch {
+      return { valid: false, error: "Invalid signature format" };
+    }
+  }
+  
+  return { valid: true };
+}
+
+/**
  * Validates the cron request authorization
  * Returns an error response if unauthorized, null if authorized
  * 
  * SECURITY NOTE: We require CRON_SECRET for all requests.
  * The x-vercel-cron header alone is NOT sufficient as it can be spoofed.
  * Vercel Cron jobs should be configured to include the Authorization header.
+ * 
+ * P1-4: Enhanced with replay protection via timestamp validation
  */
 function validateCronAuth(request: Request): Response | null {
   const authHeader = request.headers.get("Authorization");
@@ -106,11 +173,11 @@ function validateCronAuth(request: Request): Response | null {
   if (!cronSecret) {
     if (isProduction) {
       console.error("CRITICAL: CRON_SECRET environment variable is not set in production");
-    return json(
+      return json(
         { error: "Cron endpoint not configured" },
-      { status: 503 }
-    ) as unknown as Response;
-  }
+        { status: 503 }
+      ) as unknown as Response;
+    }
     // In development, allow without auth but warn
     console.warn("⚠️ CRON_SECRET not set. Allowing unauthenticated access in development only.");
     return null;
@@ -138,6 +205,13 @@ function validateCronAuth(request: Request): Response | null {
     );
     
     return json({ error: "Unauthorized" }, { status: 401 }) as unknown as Response;
+  }
+  
+  // P1-4: Verify replay protection
+  const replayCheck = verifyReplayProtection(request, cronSecret);
+  if (!replayCheck.valid) {
+    console.warn(`Cron replay protection failed: ${replayCheck.error}`);
+    return json({ error: replayCheck.error }, { status: 401 }) as unknown as Response;
   }
 
   return null;
@@ -174,6 +248,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const successful = healthCheckResults.filter((r) => r.success).length;
     const failed = healthCheckResults.filter((r) => !r.success).length;
 
+    // P2-3: Run daily reconciliation (compare Shopify orders vs platform conversions)
+    console.log("Running daily reconciliation...");
+    const reconciliationResults = await runAllShopsReconciliation();
+    console.log(`Reconciliation: ${reconciliationResults.processed} shops processed, ` +
+      `${reconciliationResults.succeeded} succeeded, ${reconciliationResults.failed} failed, ` +
+      `${reconciliationResults.results.length} reports generated`);
+
     // P3-2: Clean up expired data based on retention settings
     console.log("Cleaning up expired data...");
     const cleanupResults = await cleanupExpiredData();
@@ -191,6 +272,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         successful,
         failed,
         results: healthCheckResults,
+      },
+      reconciliation: {
+        processed: reconciliationResults.processed,
+        succeeded: reconciliationResults.succeeded,
+        failed: reconciliationResults.failed,
+        reportsGenerated: reconciliationResults.results.length,
       },
       cleanup: cleanupResults,
     });
@@ -238,6 +325,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const successful = healthCheckResults.filter((r) => r.success).length;
     const failed = healthCheckResults.filter((r) => !r.success).length;
 
+    // P2-3: Run daily reconciliation (compare Shopify orders vs platform conversions)
+    console.log("Running daily reconciliation...");
+    const reconciliationResults = await runAllShopsReconciliation();
+    console.log(`Reconciliation: ${reconciliationResults.processed} shops processed, ` +
+      `${reconciliationResults.succeeded} succeeded, ${reconciliationResults.failed} failed, ` +
+      `${reconciliationResults.results.length} reports generated`);
+
     // P3-2: Clean up expired data based on retention settings
     console.log("Cleaning up expired data...");
     const cleanupResults = await cleanupExpiredData();
@@ -255,6 +349,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         successful,
         failed,
         results: healthCheckResults,
+      },
+      reconciliation: {
+        processed: reconciliationResults.processed,
+        succeeded: reconciliationResults.succeeded,
+        failed: reconciliationResults.failed,
+        reportsGenerated: reconciliationResults.results.length,
       },
       cleanup: cleanupResults,
     });

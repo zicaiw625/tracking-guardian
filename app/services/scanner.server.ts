@@ -142,6 +142,147 @@ interface ScanError {
   timestamp: Date;
 }
 
+// GraphQL edge type for pagination
+interface GraphQLEdge<T> {
+  node: T;
+  cursor: string;
+}
+
+interface GraphQLPageInfo {
+  hasNextPage: boolean;
+  endCursor: string | null;
+}
+
+/**
+ * P2-2: Fetch all ScriptTags with pagination
+ * Handles stores with more than 100 script tags
+ */
+async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> {
+  const allTags: ScriptTag[] = [];
+  let hasNextPage = true;
+  let cursor: string | null = null;
+
+  while (hasNextPage) {
+    const response = await admin.graphql(
+      `#graphql
+      query GetScriptTags($cursor: String) {
+        scriptTags(first: 100, after: $cursor) {
+          edges {
+            node {
+              id
+              src
+              displayScope
+              cache
+              createdAt
+              updatedAt
+            }
+            cursor
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    `,
+      { variables: { cursor } }
+    );
+
+    const data = await response.json();
+    const edges = data.data?.scriptTags?.edges || [];
+    const pageInfo: GraphQLPageInfo = data.data?.scriptTags?.pageInfo || { hasNextPage: false, endCursor: null };
+
+    // Transform and add to results
+    for (const edge of edges as GraphQLEdge<{
+      id: string;
+      src: string;
+      displayScope: string;
+      cache: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }>[]) {
+      const gidMatch = edge.node.id.match(/ScriptTag\/(\d+)/);
+      const numericId = gidMatch ? parseInt(gidMatch[1], 10) : 0;
+
+      allTags.push({
+        id: numericId,
+        src: edge.node.src,
+        event: "onload",
+        display_scope: edge.node.displayScope?.toLowerCase() || "all",
+        cache: edge.node.cache,
+        created_at: edge.node.createdAt,
+        updated_at: edge.node.updatedAt,
+      } as ScriptTag);
+    }
+
+    hasNextPage = pageInfo.hasNextPage;
+    cursor = pageInfo.endCursor;
+
+    // Safety limit to prevent infinite loops
+    if (allTags.length > 1000) {
+      console.warn("ScriptTags pagination limit reached (1000)");
+      break;
+    }
+  }
+
+  return allTags;
+}
+
+/**
+ * P2-2: Fetch all Web Pixels with pagination
+ * Handles stores with more than 50 web pixels
+ */
+async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]> {
+  const allPixels: WebPixelInfo[] = [];
+  let hasNextPage = true;
+  let cursor: string | null = null;
+
+  while (hasNextPage) {
+    const response = await admin.graphql(
+      `#graphql
+      query GetWebPixels($cursor: String) {
+        webPixels(first: 50, after: $cursor) {
+          edges {
+            node {
+              id
+              settings
+            }
+            cursor
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    `,
+      { variables: { cursor } }
+    );
+
+    const data = await response.json();
+    const edges = data.data?.webPixels?.edges || [];
+    const pageInfo: GraphQLPageInfo = data.data?.webPixels?.pageInfo || { hasNextPage: false, endCursor: null };
+
+    for (const edge of edges as GraphQLEdge<WebPixelInfo>[]) {
+      allPixels.push({
+        id: edge.node.id,
+        settings: edge.node.settings,
+      });
+    }
+
+    hasNextPage = pageInfo.hasNextPage;
+    cursor = pageInfo.endCursor;
+
+    // Safety limit
+    if (allPixels.length > 200) {
+      console.warn("WebPixels pagination limit reached (200)");
+      break;
+    }
+  }
+
+  return allPixels;
+}
+
 /**
  * Enhanced scan that provides actionable migration recommendations
  */
@@ -164,54 +305,11 @@ export async function scanShopTracking(
 
   console.log(`Starting enhanced scan for shop ${shopId}`);
 
-  // 1. Fetch ScriptTags using GraphQL API (P0: Shopify requires GraphQL for new public apps)
+  // 1. Fetch ScriptTags using GraphQL API with pagination (P2-2)
   // Reference: https://shopify.dev/docs/api/admin-graphql/latest/queries/scriptTags
   try {
-    const scriptTagsResponse = await admin.graphql(
-      `#graphql
-      query GetScriptTags {
-        scriptTags(first: 100) {
-          edges {
-            node {
-              id
-              src
-              displayScope
-              cache
-              createdAt
-              updatedAt
-            }
-          }
-        }
-      }
-    `
-    );
-    const scriptTagsData = await scriptTagsResponse.json();
-    const scriptTagEdges = scriptTagsData.data?.scriptTags?.edges || [];
-    
-    // Transform GraphQL response to match existing ScriptTag interface
-    result.scriptTags = scriptTagEdges.map((edge: { node: {
-      id: string;
-      src: string;
-      displayScope: string;
-      cache: boolean;
-      createdAt: string;
-      updatedAt: string;
-    }}) => {
-      // Extract numeric ID from GraphQL global ID (gid://shopify/ScriptTag/123456789)
-      const gidMatch = edge.node.id.match(/ScriptTag\/(\d+)/);
-      const numericId = gidMatch ? parseInt(gidMatch[1], 10) : 0;
-      
-      return {
-        id: numericId,
-        src: edge.node.src,
-        event: "onload", // GraphQL doesn't return event, default to onload
-        display_scope: edge.node.displayScope?.toLowerCase() || "all",
-        cache: edge.node.cache,
-        created_at: edge.node.createdAt,
-        updated_at: edge.node.updatedAt,
-      } as ScriptTag;
-    });
-    console.log(`Found ${result.scriptTags.length} script tags`);
+    result.scriptTags = await fetchAllScriptTags(admin);
+    console.log(`Found ${result.scriptTags.length} script tags (with pagination)`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error fetching script tags:", errorMessage);
@@ -249,29 +347,10 @@ export async function scanShopTracking(
     });
   }
 
-  // 3. Fetch Web Pixels (App Pixels) using GraphQL
+  // 3. Fetch Web Pixels (App Pixels) using GraphQL with pagination (P2-2)
   try {
-    const webPixelsResponse = await admin.graphql(
-      `#graphql
-      query GetWebPixels {
-        webPixels(first: 50) {
-          edges {
-            node {
-              id
-              settings
-            }
-          }
-        }
-      }
-    `
-    );
-    const webPixelsData = await webPixelsResponse.json();
-    const webPixelEdges = webPixelsData.data?.webPixels?.edges || [];
-    result.webPixels = webPixelEdges.map((edge: { node: WebPixelInfo }) => ({
-      id: edge.node.id,
-      settings: edge.node.settings,
-    }));
-    console.log(`Found ${result.webPixels.length} web pixels`);
+    result.webPixels = await fetchAllWebPixels(admin);
+    console.log(`Found ${result.webPixels.length} web pixels (with pagination)`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error fetching web pixels:", errorMessage);
@@ -678,4 +757,218 @@ export async function getScanHistory(shopId: string, limit = 10) {
     take: limit,
   });
 }
+
+// ==========================================
+// P2-1: Manual Script Analysis
+// ==========================================
+
+/**
+ * Analyze pasted script content (e.g., Additional Scripts from Shopify Admin)
+ * 
+ * This is used when the user manually pastes their Additional Scripts content
+ * since we cannot read it via the Admin API.
+ * 
+ * @param content - The raw script content to analyze
+ * @returns Analysis result with detected platforms, risks, and recommendations
+ */
+export interface ScriptAnalysisResult {
+  identifiedPlatforms: string[];
+  platformDetails: Array<{
+    platform: string;
+    type: string;
+    confidence: "high" | "medium" | "low";
+    matchedPattern: string;
+  }>;
+  risks: RiskItem[];
+  riskScore: number;
+  recommendations: string[];
+}
+
+export function analyzeScriptContent(content: string): ScriptAnalysisResult {
+  const result: ScriptAnalysisResult = {
+    identifiedPlatforms: [],
+    platformDetails: [],
+    risks: [],
+    riskScore: 0,
+    recommendations: [],
+  };
+
+  if (!content || content.trim().length === 0) {
+    return result;
+  }
+
+  // Platform detection with detailed matching
+  const platformMatches: Map<string, { type: string; pattern: string }[]> = new Map();
+
+  for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
+    for (const pattern of patterns) {
+      const match = content.match(pattern);
+      if (match) {
+        if (!platformMatches.has(platform)) {
+          platformMatches.set(platform, []);
+        }
+        platformMatches.get(platform)!.push({
+          type: getPatternType(platform, pattern),
+          pattern: match[0],
+        });
+      }
+    }
+  }
+
+  // Build platform details
+  for (const [platform, matches] of platformMatches.entries()) {
+    result.identifiedPlatforms.push(platform);
+    
+    for (const match of matches) {
+      result.platformDetails.push({
+        platform,
+        type: match.type,
+        confidence: matches.length > 1 ? "high" : "medium",
+        matchedPattern: match.pattern.substring(0, 50) + (match.pattern.length > 50 ? "..." : ""),
+      });
+    }
+  }
+
+  // Detect specific ID patterns and add to platform details
+  const ga4Match = content.match(/G-[A-Z0-9]{10,}/gi);
+  if (ga4Match) {
+    for (const id of ga4Match) {
+      if (!result.platformDetails.some(d => d.matchedPattern.includes(id))) {
+        result.platformDetails.push({
+          platform: "google",
+          type: "GA4 Measurement ID",
+          confidence: "high",
+          matchedPattern: id,
+        });
+      }
+    }
+  }
+
+  const metaPixelMatch = content.match(/(?:pixel[_\-]?id|fbq\('init',)\s*['":]?\s*(\d{15,16})/gi);
+  if (metaPixelMatch) {
+    for (const match of metaPixelMatch) {
+      const pixelId = match.match(/\d{15,16}/)?.[0];
+      if (pixelId && !result.platformDetails.some(d => d.matchedPattern.includes(pixelId))) {
+        result.platformDetails.push({
+          platform: "meta",
+          type: "Pixel ID",
+          confidence: "high",
+          matchedPattern: pixelId,
+        });
+      }
+    }
+  }
+
+  // Assess risks for Additional Scripts
+  if (result.identifiedPlatforms.length > 0) {
+    result.risks.push({
+      id: "additional_scripts_detected",
+      name: "Additional Scripts 中检测到追踪代码",
+      description: "建议迁移到 Web Pixel 以获得更好的兼容性和隐私合规",
+      severity: "high" as RiskSeverity,
+      points: 25,
+      details: `检测到平台: ${result.identifiedPlatforms.join(", ")}`,
+    });
+
+    // Add platform-specific risks
+    if (result.identifiedPlatforms.includes("google") && content.includes("UA-")) {
+      result.risks.push({
+        id: "legacy_ua",
+        name: "使用旧版 Universal Analytics",
+        description: "Universal Analytics 已于 2023 年 7 月停止处理数据，请迁移到 GA4",
+        severity: "high" as RiskSeverity,
+        points: 30,
+      });
+    }
+
+    if (content.includes("<script") && content.includes("</script>")) {
+      result.risks.push({
+        id: "inline_script_tags",
+        name: "内联 Script 标签",
+        description: "内联脚本可能影响页面加载性能，建议使用异步加载或 Web Pixel",
+        severity: "medium" as RiskSeverity,
+        points: 15,
+      });
+    }
+  }
+
+  // Calculate risk score
+  result.riskScore = calculateRiskScore(result.risks);
+
+  // Generate recommendations
+  for (const platform of result.identifiedPlatforms) {
+    switch (platform) {
+      case "google":
+        result.recommendations.push(
+          "将 Google Analytics/Ads 追踪迁移到我们的 Web Pixel 扩展，支持 GA4 和 Google Ads 转化追踪"
+        );
+        break;
+      case "meta":
+        result.recommendations.push(
+          "将 Meta Pixel 迁移到我们的 Web Pixel 扩展，并启用服务端 Conversions API (CAPI) 提高追踪准确性"
+        );
+        break;
+      case "tiktok":
+        result.recommendations.push(
+          "将 TikTok Pixel 迁移到我们的 Web Pixel 扩展，并启用 Events API 进行服务端追踪"
+        );
+        break;
+      case "bing":
+        result.recommendations.push(
+          "将 Microsoft UET 标签迁移到我们的 Web Pixel 扩展"
+        );
+        break;
+      case "clarity":
+        result.recommendations.push(
+          "将 Microsoft Clarity 迁移到我们的 Web Pixel 扩展"
+        );
+        break;
+      default:
+        result.recommendations.push(
+          `将 ${platform} 追踪代码迁移到 Web Pixel 以确保 Checkout Extensibility 兼容性`
+        );
+    }
+  }
+
+  if (result.identifiedPlatforms.length === 0 && content.length > 100) {
+    result.recommendations.push(
+      "未检测到已知追踪平台。如果您使用了自定义追踪代码，请确保它与 Checkout Extensibility 兼容。"
+    );
+  }
+
+  return result;
+}
+
+/**
+ * Get a human-readable type for a matched pattern
+ */
+function getPatternType(platform: string, pattern: RegExp): string {
+  const patternStr = pattern.source;
+  
+  switch (platform) {
+    case "google":
+      if (patternStr.includes("gtag")) return "gtag() 函数调用";
+      if (patternStr.includes("gtm")) return "Google Tag Manager";
+      if (patternStr.includes("G-")) return "GA4 Measurement ID";
+      if (patternStr.includes("AW-")) return "Google Ads Conversion ID";
+      if (patternStr.includes("UA-")) return "Universal Analytics (已弃用)";
+      return "Google 追踪代码";
+    case "meta":
+      if (patternStr.includes("fbq")) return "Meta Pixel 函数调用";
+      if (patternStr.includes("facebook")) return "Facebook SDK";
+      if (patternStr.includes("pixel")) return "Pixel ID";
+      return "Meta 追踪代码";
+    case "tiktok":
+      if (patternStr.includes("ttq")) return "TikTok Pixel 函数调用";
+      return "TikTok 追踪代码";
+    case "bing":
+      if (patternStr.includes("uet")) return "Microsoft UET 标签";
+      return "Bing 追踪代码";
+    case "clarity":
+      return "Microsoft Clarity";
+    default:
+      return "追踪代码";
+  }
+}
+
 
