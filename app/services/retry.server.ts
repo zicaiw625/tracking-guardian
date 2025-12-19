@@ -454,7 +454,7 @@ export async function processPendingConversions(): Promise<{
           status: "sent",
           serverSideSent: true,
           sentAt: new Date(),
-          platformResponse: result,
+          platformResponse: result as object,
           errorMessage: null,
           attempts: 1,
           lastAttemptAt: new Date(),
@@ -655,7 +655,7 @@ export async function processRetries(): Promise<{
           status: "sent",
           serverSideSent: true,
           sentAt: new Date(),
-          platformResponse: result,
+          platformResponse: result as object,
           errorMessage: null,
           nextRetryAt: null,
           attempts: { increment: 1 }, // Increment after successful retry
