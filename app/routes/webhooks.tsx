@@ -88,6 +88,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             );
             
             // Log the blocked order for tracking (using ConversionLog as fallback until migration)
+            // P0-1: Generate eventId for consistency
+            const blockedEventId = generateEventId(orderId, "purchase", shopRecord.shopDomain);
             for (const pixelConfig of shopRecord.pixelConfigs) {
               await prisma.conversionLog.upsert({
                 where: {
@@ -106,10 +108,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   currency: payload.currency || "USD",
                   platform: pixelConfig.platform,
                   eventType: "purchase",
+                  eventId: blockedEventId,
                   status: "failed",
                   errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
                 },
                 update: {
+                  // P0-3: Update all key fields
+                  orderNumber: payload.order_number ? String(payload.order_number) : null,
+                  orderValue: parseFloat(payload.total_price || "0"),
+                  currency: payload.currency || "USD",
+                  eventId: blockedEventId,
                   status: "failed",
                   errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
                 },
@@ -345,6 +353,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
  * Creates ConversionLog records and returns immediately
  * The actual CAPI sending is done by the worker (processConversionJobs/processRetries)
  * 
+ * P0-1: Writes eventId for platform deduplication
+ * P0-3: Updates all key fields (not just status) when record exists
+ * P0-2: Uses PixelEventReceipt for consent decisions (primary source)
+ * 
  * NOTE: This uses ConversionLog until the full migration to ConversionJob is complete.
  * After running prisma migrate, this can be updated to use ConversionJob directly.
  */
@@ -354,6 +366,7 @@ async function queueOrderForProcessing(
 ): Promise<void> {
   const orderId = normalizeOrderId(String(orderPayload.id));
   const eventType = "purchase";
+  // P0-1: Generate deterministic eventId for platform deduplication
   const eventId = generateEventId(orderId, eventType, shopRecord.shopDomain);
   
   // Check if already sent
@@ -371,9 +384,23 @@ async function queueOrderForProcessing(
     return;
   }
   
-  // P0-3 & P0-5: Check for pixel event to determine consent
-  // Look for clientSideSent=true in existing logs as consent evidence
-  const hasPixelConsent = await prisma.conversionLog.findFirst({
+  // P0-2: Check PixelEventReceipt for consent (primary source of truth)
+  const pixelReceipt = await prisma.pixelEventReceipt.findUnique({
+    where: {
+      shopId_orderId_eventType: {
+        shopId: shopRecord.id,
+        orderId,
+        eventType,
+      },
+    },
+    select: {
+      consentState: true,
+      isTrusted: true,
+    },
+  });
+  
+  // Fallback: Check ConversionLog for clientSideSent (backwards compatibility)
+  const hasPixelConsent = pixelReceipt || await prisma.conversionLog.findFirst({
     where: {
       shopId: shopRecord.id,
       orderId,
@@ -386,11 +413,22 @@ async function queueOrderForProcessing(
   // Determine consent status based on strategy
   const consentStrategy = (shopRecord as { consentStrategy?: string }).consentStrategy || "balanced";
   const weakConsentMode = (shopRecord as { weakConsentMode?: boolean }).weakConsentMode || false;
+  
+  // Build consent info from PixelEventReceipt or fallback
+  const consentInfo = pixelReceipt 
+    ? { consentState: pixelReceipt.consentState, isTrusted: pixelReceipt.isTrusted }
+    : (hasPixelConsent ? { consentState: { marketing: true }, isTrusted: false } : null);
+  
   const consentDecision = evaluateConsentStrategy(
     consentStrategy,
-    hasPixelConsent ? { consentState: { marketing: true }, isTrusted: true } : null,
+    consentInfo,
     weakConsentMode
   );
+  
+  // P0-3: Extract order data from webhook (authoritative source)
+  const orderNumber = orderPayload.order_number ? String(orderPayload.order_number) : null;
+  const orderValue = parseFloat(orderPayload.total_price || "0");
+  const currency = orderPayload.currency || "USD";
   
   // Create ConversionLog entries for each platform
   for (const config of shopRecord.pixelConfigs) {
@@ -406,17 +444,29 @@ async function queueOrderForProcessing(
       create: {
         shopId: shopRecord.id,
         orderId,
-        orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
-        orderValue: parseFloat(orderPayload.total_price || "0"),
-        currency: orderPayload.currency || "USD",
+        orderNumber,
+        orderValue,
+        currency,
         platform: config.platform,
         eventType,
+        // P0-1: Write eventId for deduplication
+        eventId,
         status: consentDecision.allowed ? "pending" : "pending_consent",
         clientSideSent: !!hasPixelConsent,
       },
       update: {
-        // If already exists, just update consent status
+        // P0-3: Update ALL key fields from webhook (authoritative source)
+        // This fixes the bug where pixel first writes value=0 and webhook doesn't correct it
+        orderNumber,
+        orderValue,
+        currency,
+        // P0-1: Write eventId for deduplication
+        eventId,
         status: consentDecision.allowed ? "pending" : "pending_consent",
+        // Only set clientSideSent to true, never back to false
+        ...(hasPixelConsent ? { clientSideSent: true } : {}),
+        // Clear any previous error message
+        errorMessage: null,
       },
     });
   }

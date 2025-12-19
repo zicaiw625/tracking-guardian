@@ -575,6 +575,43 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }, { request });
     }
 
+    // ==========================================
+    // P0-2: Write to PixelEventReceipt for consent tracking
+    // ==========================================
+    // This is the authoritative record of pixel-side consent state.
+    // The webhook will query this to decide whether to send CAPI.
+    try {
+      await prisma.pixelEventReceipt.upsert({
+        where: {
+          shopId_orderId_eventType: {
+            shopId: shop.id,
+            orderId,
+            eventType: "purchase",
+          },
+        },
+        create: {
+          shopId: shop.id,
+          orderId,
+          eventType: "purchase",
+          eventId,
+          pixelTimestamp: new Date(payload.timestamp),
+          consentState: payload.consent || { marketing: true, analytics: true },
+          isTrusted: signatureResult.trusted,
+          signatureStatus: signatureResult.status,
+        },
+        update: {
+          eventId,
+          pixelTimestamp: new Date(payload.timestamp),
+          consentState: payload.consent || { marketing: true, analytics: true },
+          isTrusted: signatureResult.trusted,
+          signatureStatus: signatureResult.status,
+        },
+      });
+    } catch (error) {
+      console.warn(`Failed to write PixelEventReceipt for order ${orderId}:`, error);
+      // Continue - this is not critical for the flow
+    }
+
     // Record client-side event for each configured platform
     // This marks clientSideSent=true for consent verification
     const recordedPlatforms: string[] = [];
@@ -593,6 +630,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           update: {
             // Mark that pixel event was received (consent evidence)
             clientSideSent: true,
+            // P0-1: Write eventId for deduplication
+            eventId,
           },
           create: {
             shopId: shop.id,
@@ -602,6 +641,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             currency: payload.data.currency || "USD",
             platform: config.platform,
             eventType: "purchase",
+            // P0-1: Write eventId for deduplication
+            eventId,
             status: "pending",
             attempts: 0,
             clientSideSent: true,  // Mark that pixel fired

@@ -414,6 +414,9 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
 
+      // P0-1: Get or generate eventId for platform deduplication
+      const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.shop.shopDomain);
+
       // Build conversion data (minimal - no PII stored in logs)
       const conversionData: ConversionData = {
         orderId: log.orderId,
@@ -422,25 +425,28 @@ export async function processPendingConversions(): Promise<{
         currency: log.currency,
       };
 
-      // Send to platform
+      // Send to platform with eventId for deduplication
       let result;
       switch (log.platform) {
         case "google":
           result = await sendConversionToGoogle(
             credentials as GoogleCredentials,
-            conversionData
+            conversionData,
+            eventId
           );
           break;
         case "meta":
           result = await sendConversionToMeta(
             credentials as MetaCredentials,
-            conversionData
+            conversionData,
+            eventId
           );
           break;
         case "tiktok":
           result = await sendConversionToTikTok(
             credentials as TikTokCredentials,
-            conversionData
+            conversionData,
+            eventId
           );
           break;
         default:
@@ -613,6 +619,9 @@ export async function processRetries(): Promise<{
         continue;
       }
 
+      // P0-1: Get or generate eventId for platform deduplication
+      const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.shop.shopDomain);
+
       // Build conversion data
       const conversionData: ConversionData = {
         orderId: log.orderId,
@@ -623,25 +632,28 @@ export async function processRetries(): Promise<{
         // This is a trade-off between privacy and retry capability
       };
 
-      // Send to platform
+      // Send to platform with eventId for deduplication
       let result;
       switch (log.platform) {
         case "google":
           result = await sendConversionToGoogle(
             credentials as GoogleCredentials,
-            conversionData
+            conversionData,
+            eventId
           );
           break;
         case "meta":
           result = await sendConversionToMeta(
             credentials as MetaCredentials,
-            conversionData
+            conversionData,
+            eventId
           );
           break;
         case "tiktok":
           result = await sendConversionToTikTok(
             credentials as TikTokCredentials,
-            conversionData
+            conversionData,
+            eventId
           );
           break;
         default:

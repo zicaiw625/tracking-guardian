@@ -426,12 +426,60 @@ export async function getOrCreateMonthlyUsage(
 }
 
 /**
- * P0-1: Increment monthly usage count when an order is successfully sent
- * This should be called ONLY when CAPI is successfully sent to at least one platform
+ * P0-5: Check if an order has already been counted for usage this month
+ * Uses ConversionLog.serverSideSent as the indicator that an order was successfully sent
+ * 
+ * @param shopId - Shop ID
+ * @param orderId - Order ID
+ * @param yearMonth - Year-month string (YYYY-MM)
+ * @returns true if order was already counted
+ */
+async function isOrderAlreadyCounted(
+  shopId: string,
+  orderId: string,
+  yearMonth: string
+): Promise<boolean> {
+  // First check ConversionJob if it exists
+  const existingJob = await prisma.conversionJob.findUnique({
+    where: { shopId_orderId: { shopId, orderId } },
+    select: { status: true },
+  });
+  
+  if (existingJob?.status === "completed") {
+    return true;
+  }
+  
+  // Fallback: Check if any ConversionLog for this order has serverSideSent=true
+  // and was created in the current month
+  const startOfMonth = new Date(`${yearMonth}-01T00:00:00.000Z`);
+  const endOfMonth = new Date(startOfMonth);
+  endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+  
+  const sentLog = await prisma.conversionLog.findFirst({
+    where: {
+      shopId,
+      orderId,
+      serverSideSent: true,
+      sentAt: {
+        gte: startOfMonth,
+        lt: endOfMonth,
+      },
+    },
+    select: { id: true },
+  });
+  
+  return !!sentLog;
+}
+
+/**
+ * P0-1 & P0-5: Increment monthly usage count when an order is successfully sent
+ * 
+ * IMPORTANT: This is idempotent - each order is only counted ONCE per month,
+ * regardless of how many platforms it was sent to.
  * 
  * @param shopId - Shop ID
  * @param orderId - Order ID (for deduplication - we only count each order once)
- * @returns Updated sent count
+ * @returns Object with incremented flag and current count
  */
 export async function incrementMonthlyUsage(
   shopId: string,
@@ -441,23 +489,49 @@ export async function incrementMonthlyUsage(
   
   // Use a transaction to ensure atomicity and prevent double-counting
   const result = await prisma.$transaction(async (tx) => {
-    // Check if this order was already counted this month
-    // We track via ConversionJob to avoid double counting
+    // P0-5: Check if this order was already counted this month
+    // First check ConversionJob if it exists
     const existingJob = await tx.conversionJob.findUnique({
       where: { shopId_orderId: { shopId, orderId } },
       select: { status: true },
     });
     
-    // If job is already completed, don't increment again
     if (existingJob?.status === "completed") {
       const usage = await tx.monthlyUsage.findUnique({
         where: { shopId_yearMonth: { shopId, yearMonth } },
         select: { sentCount: true },
       });
-      return usage?.sentCount || 0;
+      return { incremented: false, count: usage?.sentCount || 0 };
     }
     
-    // Increment usage
+    // Fallback: Check if any ConversionLog for this order has serverSideSent=true
+    const startOfMonth = new Date(`${yearMonth}-01T00:00:00.000Z`);
+    const endOfMonth = new Date(startOfMonth);
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    
+    const sentLog = await tx.conversionLog.findFirst({
+      where: {
+        shopId,
+        orderId,
+        serverSideSent: true,
+        sentAt: {
+          gte: startOfMonth,
+          lt: endOfMonth,
+        },
+      },
+      select: { id: true },
+    });
+    
+    // If already sent, don't increment
+    if (sentLog) {
+      const usage = await tx.monthlyUsage.findUnique({
+        where: { shopId_yearMonth: { shopId, yearMonth } },
+        select: { sentCount: true },
+      });
+      return { incremented: false, count: usage?.sentCount || 0 };
+    }
+    
+    // Increment usage - this is the first successful send for this order
     const usage = await tx.monthlyUsage.upsert({
       where: {
         shopId_yearMonth: { shopId, yearMonth },
@@ -473,7 +547,70 @@ export async function incrementMonthlyUsage(
       select: { sentCount: true },
     });
     
-    return usage.sentCount;
+    return { incremented: true, count: usage.sentCount };
+  });
+  
+  if (result.incremented) {
+    console.log(`Usage incremented for shop ${shopId}, order ${orderId}: ${result.count}`);
+  }
+  
+  return result.count;
+}
+
+/**
+ * P0-5: Idempotent version that explicitly returns whether increment happened
+ * Use this when you need to know if this was the first successful send
+ */
+export async function incrementMonthlyUsageIdempotent(
+  shopId: string,
+  orderId: string
+): Promise<{ incremented: boolean; current: number }> {
+  const yearMonth = getCurrentYearMonth();
+  
+  const result = await prisma.$transaction(async (tx) => {
+    // Check ConversionJob first
+    const existingJob = await tx.conversionJob.findUnique({
+      where: { shopId_orderId: { shopId, orderId } },
+      select: { status: true },
+    });
+    
+    if (existingJob?.status === "completed") {
+      const usage = await tx.monthlyUsage.findUnique({
+        where: { shopId_yearMonth: { shopId, yearMonth } },
+      });
+      return { incremented: false, current: usage?.sentCount || 0 };
+    }
+    
+    // Check ConversionLog fallback
+    const startOfMonth = new Date(`${yearMonth}-01T00:00:00.000Z`);
+    const endOfMonth = new Date(startOfMonth);
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    
+    const sentLog = await tx.conversionLog.findFirst({
+      where: {
+        shopId,
+        orderId,
+        serverSideSent: true,
+        sentAt: { gte: startOfMonth, lt: endOfMonth },
+      },
+      select: { id: true },
+    });
+    
+    if (sentLog) {
+      const usage = await tx.monthlyUsage.findUnique({
+        where: { shopId_yearMonth: { shopId, yearMonth } },
+      });
+      return { incremented: false, current: usage?.sentCount || 0 };
+    }
+    
+    // Increment usage
+    const usage = await tx.monthlyUsage.upsert({
+      where: { shopId_yearMonth: { shopId, yearMonth } },
+      create: { shopId, yearMonth, sentCount: 1 },
+      update: { sentCount: { increment: 1 } },
+    });
+    
+    return { incremented: true, current: usage.sentCount };
   });
   
   return result;

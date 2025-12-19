@@ -5,6 +5,7 @@ import prisma from "../db.server";
 import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.server";
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
 import { processPendingConversions, processRetries, processConversionJobs } from "../services/retry.server";
+import { reconcilePendingConsent } from "../services/consent-reconciler.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 import { createAuditLog } from "../services/audit.server";
 
@@ -254,6 +255,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
+    // P0-6: Reconcile pending_consent logs (check if pixel events have arrived)
+    console.log("Reconciling pending consent...");
+    const consentResults = await reconcilePendingConsent();
+    console.log(`Consent: ${consentResults.processed} processed, ${consentResults.resolved} resolved, ${consentResults.expired} expired, ${consentResults.errors} errors`);
+
     // P0-2: Process ConversionJobs (new queue-based async processing)
     console.log("Processing conversion jobs...");
     const jobResults = await processConversionJobs();
@@ -294,6 +300,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({
       success: true,
       message: `Cron completed`,
+      consent: consentResults,
       jobs: jobResults,
       pending: pendingResults,
       retries: retryResults,
@@ -337,6 +344,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   try {
+    // P0-6: Reconcile pending_consent logs (check if pixel events have arrived)
+    console.log("Reconciling pending consent...");
+    const consentResults = await reconcilePendingConsent();
+    console.log(`Consent: ${consentResults.processed} processed, ${consentResults.resolved} resolved, ${consentResults.expired} expired, ${consentResults.errors} errors`);
+
     // P0-2: Process ConversionJobs (new queue-based async processing)
     console.log("Processing conversion jobs...");
     const jobResults = await processConversionJobs();
@@ -377,6 +389,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({
       success: true,
       message: `Cron completed`,
+      consent: consentResults,
       jobs: jobResults,
       pending: pendingResults,
       retries: retryResults,
