@@ -40,6 +40,7 @@ import {
   type MigrationResult,
   type SavePixelConfigOptions,
 } from "../services/migration.server";
+import { decryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -101,18 +102,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "Backend URL is required" }, { status: 400 });
     }
 
-    // Get shop's ingestion secret for request signing (P1-1)
-    const ingestionSecret = shop.ingestionSecret || undefined;
+    // P0-02: Get shop's ingestion secret and DECRYPT it before sending to Web Pixel
+    // The database stores encrypted secrets; Web Pixel needs the plaintext version
+    let ingestionSecret: string | undefined = undefined;
+    if (shop.ingestionSecret) {
+      try {
+        // Check if the secret is encrypted (has v1: prefix)
+        if (isTokenEncrypted(shop.ingestionSecret)) {
+          // Decrypt it before sending to Web Pixel
+          ingestionSecret = decryptIngestionSecret(shop.ingestionSecret);
+        } else {
+          // Legacy unencrypted secret (should be migrated)
+          ingestionSecret = shop.ingestionSecret;
+          console.warn(`[P0-02] Shop ${shopDomain} has unencrypted ingestionSecret - migration needed`);
+        }
+      } catch (error) {
+        console.error(`[P0-02] Failed to decrypt ingestionSecret for ${shopDomain}:`, error);
+        // Continue without secret - pixel will work but requests will be unsigned
+        ingestionSecret = undefined;
+      }
+    }
 
     // Check if a Web Pixel already exists
     const existingPixels = await getExistingWebPixels(admin);
     
-    // Look for our pixel (by checking if settings contain backend_url)
+    // P0-05: Look for our pixel with STRICT matching
+    // Must match our backendUrl exactly, not just have "backend_url" field
     let ourPixel = existingPixels.find((p) => {
       if (!p.settings) return false;
       try {
         const settings = JSON.parse(p.settings);
-        return settings.backend_url !== undefined;
+        // P0-05: Strict matching - backend_url must match our URL
+        return settings.backend_url === backendUrl;
       } catch {
         return false;
       }

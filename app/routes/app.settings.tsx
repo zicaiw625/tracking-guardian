@@ -294,11 +294,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         // Find existing Tracking Guardian pixel
         const existingPixels = await getExistingWebPixels(admin);
         
-        // Look for our pixel (settings contains backend_url)
+        // P0-05: Look for our pixel with STRICT matching
+        // backend_url must exactly match our URL to prevent updating other apps' pixels
         const ourPixel = existingPixels.find((p) => {
           try {
             const settings = JSON.parse(p.settings || "{}");
-            return settings.backend_url && settings.backend_url.includes(backendUrl);
+            // P0-05: Strict equality check, not includes()
+            return settings.backend_url === backendUrl;
           } catch {
             return false;
           }

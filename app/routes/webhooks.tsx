@@ -23,7 +23,8 @@ import type {
   PixelConfigData,
 } from "../types";
 import type { Shop, PixelConfig } from "@prisma/client";
-import { evaluatePlatformConsentWithStrategy, type ConsentState } from "../utils/platform-consent";
+// P0-07: Consent evaluation moved to worker (api.cron.tsx / retry.server.ts)
+// import { evaluatePlatformConsentWithStrategy, type ConsentState } from "../utils/platform-consent";
 
 /**
  * P0-5: Check if a webhook has already been processed
@@ -449,200 +450,65 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 /**
- * P0-2: Queue order for async processing
- * Creates ConversionLog records and returns immediately
- * The actual CAPI sending is done by the worker (processConversionJobs/processRetries)
+ * P0-07: Queue order for async processing with O(1) response time
  * 
- * P0-1: Writes eventId for platform deduplication
- * P0-3: Updates all key fields (not just status) when record exists
- * P0-2: Uses PixelEventReceipt for consent decisions (primary source)
+ * CRITICAL: This function must return as fast as possible to avoid webhook timeouts.
+ * Shopify webhooks have a 5-second timeout and will retry on slow responses.
  * 
- * NOTE: This uses ConversionLog until the full migration to ConversionJob is complete.
- * After running prisma migrate, this can be updated to use ConversionJob directly.
+ * Strategy:
+ * 1. Single ConversionJob upsert (not per-platform)
+ * 2. Defer all platform-specific logic to the cron worker
+ * 3. Minimal DB queries - just the essential upsert
+ * 
+ * The cron worker (api.cron.tsx) will:
+ * - Query PixelEventReceipt for consent
+ * - Evaluate consent per platform
+ * - Create/update ConversionLog entries
+ * - Send to CAPI endpoints
  */
 async function queueOrderForProcessing(
   shopRecord: ShopWithPixelConfigs,
   orderPayload: OrderWebhookPayload
 ): Promise<void> {
   const orderId = normalizeOrderId(String(orderPayload.id));
-  const eventType = "purchase";
-  // P0-1: Generate deterministic eventId for platform deduplication
-  const eventId = generateEventId(orderId, eventType, shopRecord.shopDomain);
   
-  // Check if already sent
-  const existingLog = await prisma.conversionLog.findFirst({
-    where: {
-      shopId: shopRecord.id,
-      orderId,
-      eventType,
-      status: "sent",
-    },
-  });
-  
-  if (existingLog) {
-    console.log(`Order ${orderId} already sent, skipping`);
-    return;
-  }
-  
-  // P0-2: Check PixelEventReceipt for consent (primary source of truth)
-  const pixelReceipt = await prisma.pixelEventReceipt.findUnique({
-    where: {
-      shopId_orderId_eventType: {
-        shopId: shopRecord.id,
-        orderId,
-        eventType,
-      },
-    },
-    select: {
-      consentState: true,
-      isTrusted: true,
-    },
-  });
-  
-  // Fallback: Check ConversionLog for clientSideSent (backwards compatibility)
-  const hasPixelConsent = pixelReceipt || await prisma.conversionLog.findFirst({
-    where: {
-      shopId: shopRecord.id,
-      orderId,
-      eventType,
-      clientSideSent: true,
-    },
-    select: { id: true },
-  });
-  
-  // Determine consent status based on strategy
-  const consentStrategy = (shopRecord as { consentStrategy?: string }).consentStrategy || "balanced";
-  const weakConsentMode = (shopRecord as { weakConsentMode?: boolean }).weakConsentMode || false;
-  
-  // Build consent info from PixelEventReceipt or fallback
-  const consentInfo = pixelReceipt 
-    ? { consentState: pixelReceipt.consentState, isTrusted: pixelReceipt.isTrusted }
-    : (hasPixelConsent ? { consentState: { marketing: true }, isTrusted: false } : null);
-  
-  // P0-3: Extract order data from webhook (authoritative source)
-  const orderNumber = orderPayload.order_number ? String(orderPayload.order_number) : null;
-  const orderValue = parseFloat(orderPayload.total_price || "0");
-  const currency = orderPayload.currency || "USD";
-  
-  // P0-7: Create ConversionLog entries for each platform with platform-specific consent
-  for (const config of shopRecord.pixelConfigs) {
-    // P0-7: Evaluate consent for this specific platform
-    // Marketing platforms (Meta, TikTok) require marketing consent
-    // Analytics platforms (GA4) require analytics consent
-    const consentDecision = evaluateConsentStrategy(
-      consentStrategy,
-      consentInfo,
-      weakConsentMode,
-      config.platform // Pass platform for platform-specific consent check
-    );
-    
-    await prisma.conversionLog.upsert({
+  // P0-07: Single upsert to ConversionJob - minimal I/O
+  // All consent checking and platform logic deferred to worker
+  try {
+    await prisma.conversionJob.upsert({
       where: {
-        shopId_orderId_platform_eventType: {
+        shopId_orderId: {
           shopId: shopRecord.id,
           orderId,
-          platform: config.platform,
-          eventType,
         },
       },
       create: {
         shopId: shopRecord.id,
         orderId,
-        orderNumber,
-        orderValue,
-        currency,
-        platform: config.platform,
-        eventType,
-        // P0-1: Write eventId for deduplication
-        eventId,
-        status: consentDecision.allowed ? "pending" : "pending_consent",
-        clientSideSent: !!hasPixelConsent,
+        orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
+        orderValue: parseFloat(orderPayload.total_price || "0"),
+        currency: orderPayload.currency || "USD",
+        // Store full payload for worker to process
+        orderPayload: orderPayload as object,
+        status: "queued",
       },
       update: {
-        // P0-3: Update ALL key fields from webhook (authoritative source)
-        // This fixes the bug where pixel first writes value=0 and webhook doesn't correct it
-        orderNumber,
-        orderValue,
-        currency,
-        // P0-1: Write eventId for deduplication
-        eventId,
-        status: consentDecision.allowed ? "pending" : "pending_consent",
-        // Only set clientSideSent to true, never back to false
-        ...(hasPixelConsent ? { clientSideSent: true } : {}),
-        // Clear any previous error message
-        errorMessage: null,
+        // Update order data if job already exists (shouldn't happen often)
+        orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
+        orderValue: parseFloat(orderPayload.total_price || "0"),
+        currency: orderPayload.currency || "USD",
+        orderPayload: orderPayload as object,
+        // Don't overwrite status if already processing/completed
       },
     });
+    
+    console.log(`[P0-07] Order ${orderId} queued for async processing`);
+  } catch (error) {
+    // Log but don't throw - we still want to return 200 to Shopify
+    console.error(`[P0-07] Failed to queue order ${orderId}:`, error);
   }
 }
 
-/**
- * P0-5 & P0-7: Evaluate consent strategy for a specific platform
- * Determines if CAPI sending is allowed based on:
- * - Consent strategy (strict/balanced/weak)
- * - Pixel receipt presence
- * - Platform type (marketing vs analytics) - P0-7
- */
-function evaluateConsentStrategy(
-  strategy: string,
-  pixelReceipt: { consentState: unknown; isTrusted: boolean } | null,
-  legacyWeakMode: boolean,
-  platform?: string
-): { allowed: boolean; reason?: string } {
-  // Parse consent state if available
-  const consentState = pixelReceipt?.consentState as ConsentState | null;
-  const hasPixelReceipt = !!pixelReceipt;
-  
-  // P0-7: If platform is provided, use platform-specific consent evaluation
-  if (platform) {
-    const decision = evaluatePlatformConsentWithStrategy(
-      platform,
-      strategy,
-      consentState,
-      hasPixelReceipt
-    );
-    return { allowed: decision.allowed, reason: decision.reason };
-  }
-  
-  // Fallback to legacy behavior when no platform specified
-  switch (strategy) {
-    case "strict":
-      // Must have pixel receipt with explicit marketing consent
-      if (!pixelReceipt) {
-        return { allowed: false, reason: "No pixel event received (strict mode)" };
-      }
-      if (!consentState?.marketing) {
-        return { allowed: false, reason: "Marketing consent not granted (strict mode)" };
-      }
-      return { allowed: true };
-      
-    case "balanced":
-      // If we have a receipt, use its consent state
-      if (pixelReceipt) {
-        if (consentState?.marketing === false) {
-          return { allowed: false, reason: "Marketing consent explicitly denied" };
-        }
-        // If marketing is true or undefined (not explicitly denied), allow
-        return { allowed: true };
-      }
-      // No receipt - check if we should allow anyway (default: no)
-      // In balanced mode without receipt, we don't send
-      return { allowed: false, reason: "No pixel event received (balanced mode)" };
-      
-    case "weak":
-      // Always allow (for regions with implied consent)
-      return { allowed: true };
-      
-    default:
-      // Fallback: use legacy weakConsentMode for backwards compatibility
-      if (legacyWeakMode) {
-        return { allowed: true };
-      }
-      // Default to balanced behavior
-      if (pixelReceipt) {
-        return { allowed: true };
-      }
-      return { allowed: false, reason: "No pixel event received" };
-  }
-}
+// P0-07: evaluateConsentStrategy moved to retry.server.ts / processConversionJobs
+// Webhook now only queues jobs; all consent evaluation is done by the worker
 

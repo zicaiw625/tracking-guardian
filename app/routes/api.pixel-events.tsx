@@ -280,15 +280,15 @@ interface PixelEventPayload {
   };
   // Event-specific data
   data: {
-    // For checkout_completed
-    orderId?: string;
+    // P0-03: For checkout_completed - orderId is preferred, checkoutToken is fallback
+    orderId?: string | null;
     orderNumber?: string;
     value?: number;
     currency?: string;
     tax?: number;
     shipping?: number;
-    // For checkout_started / payment_info_submitted
-    checkoutToken?: string;
+    // P0-03: checkoutToken for all checkout events, also used as fallback identifier
+    checkoutToken?: string | null;
     // Line items
     items?: Array<{
       id: string;
@@ -355,11 +355,12 @@ function validateRequest(body: unknown): { valid: true; payload: PixelEventPaylo
     return { valid: false, error: "Missing or invalid timestamp" };
   }
 
-  // For purchase events, orderId is required
+  // P0-03: For purchase events, we need either orderId OR checkoutToken
+  // orderId is preferred, but checkoutToken can be used as fallback for matching
   if (data.eventName === "checkout_completed") {
     const eventData = data.data as Record<string, unknown> | undefined;
-    if (!eventData?.orderId) {
-      return { valid: false, error: "Missing orderId for checkout_completed event" };
+    if (!eventData?.orderId && !eventData?.checkoutToken) {
+      return { valid: false, error: "Missing orderId and checkoutToken for checkout_completed event" };
     }
   }
 
@@ -551,9 +552,35 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // NOTE: After schema migration, this should write to PixelEventReceipt.
     // For now, we update ConversionLog.clientSideSent for backwards compatibility.
 
-    // Extract and normalize the order ID
-    const rawOrderId = payload.data.orderId!;
-    const orderId = normalizeOrderId(rawOrderId);
+    // P0-03: Extract and normalize the order ID
+    // Priority: orderId (from checkout.order.id) > checkoutToken (fallback)
+    const rawOrderId = payload.data.orderId;
+    const checkoutToken = payload.data.checkoutToken;
+    
+    // P0-03: Use orderId if available, otherwise use checkoutToken as identifier
+    // The server webhook will use the numeric order ID, so we normalize appropriately
+    let orderId: string;
+    let usedCheckoutTokenAsFallback = false;
+    
+    if (rawOrderId) {
+      // Normal case: we have the actual order ID from checkout.order.id
+      orderId = normalizeOrderId(rawOrderId);
+    } else if (checkoutToken) {
+      // Fallback case: use checkoutToken as the identifier
+      // This happens when checkout.order.id is not yet available
+      orderId = checkoutToken;
+      usedCheckoutTokenAsFallback = true;
+      console.info(
+        `[P0-03] Using checkoutToken as fallback for shop ${shop.shopDomain}. ` +
+        `This may affect webhook matching.`
+      );
+    } else {
+      // This shouldn't happen due to validation, but handle it
+      return jsonWithCors(
+        { error: "Missing orderId and checkoutToken" },
+        { status: 400, request }
+      );
+    }
     
     // Generate deterministic eventId for platform deduplication
     // This same eventId will be used by the webhook when sending CAPI
@@ -592,7 +619,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // ==========================================
-    // P0-2: Write to PixelEventReceipt for consent tracking
+    // P0-02: Write to PixelEventReceipt for consent tracking
+    // P0-03: Include checkoutToken for fallback matching
     // ==========================================
     // This is the authoritative record of pixel-side consent state.
     // The webhook will query this to decide whether to send CAPI.
@@ -610,17 +638,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           orderId,
           eventType: "purchase",
           eventId,
+          // P0-03: Always store checkoutToken for fallback matching
+          checkoutToken: checkoutToken || null,
           pixelTimestamp: new Date(payload.timestamp),
           consentState: payload.consent || { marketing: true, analytics: true },
           isTrusted: signatureResult.trusted,
           signatureStatus: signatureResult.status,
+          // P0-03: Track if we used checkoutToken as the primary identifier
+          usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
         },
         update: {
           eventId,
+          // P0-03: Update checkoutToken if provided
+          checkoutToken: checkoutToken || undefined,
           pixelTimestamp: new Date(payload.timestamp),
           consentState: payload.consent || { marketing: true, analytics: true },
           isTrusted: signatureResult.trusted,
           signatureStatus: signatureResult.status,
+          usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
         },
       });
     } catch (error) {

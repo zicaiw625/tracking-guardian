@@ -6,7 +6,8 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@shopify/web-pixels-extension": "^1.0.0"
+    "@shopify/web-pixels-extension": "^1.0.0",
+    "@noble/hashes": "^1.4.0"
   },
   "devDependencies": {
     "typescript": "^5.4.2"

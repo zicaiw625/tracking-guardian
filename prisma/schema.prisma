@@ -367,9 +367,13 @@ model PixelEventReceipt {
   shopId    String
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  orderId   String   // Normalized order ID
+  orderId   String   // Normalized order ID (from checkout.order.id)
   eventType String   // checkout_completed, etc.
   eventId   String?  // Server-generated dedup ID
+  
+  // P0-03: Checkout token for fallback matching
+  // When orderId is from checkoutToken (not order.id), webhook can match by this field
+  checkoutToken String?
 
   // Pixel event metadata
   pixelTimestamp DateTime // When the pixel fired (client time)
@@ -381,6 +385,9 @@ model PixelEventReceipt {
   isTrusted      Boolean  @default(false) // True if signature was valid
   signatureStatus String  @default("unsigned") // signed, unsigned, invalid
   
+  // P0-03: Flag indicating orderId was derived from checkoutToken (fallback)
+  usedCheckoutTokenFallback Boolean @default(false)
+  
   // Diagnostics
   metadata       Json?    // Additional debug info
 
@@ -390,6 +397,8 @@ model PixelEventReceipt {
   @@index([shopId])
   @@index([orderId])
   @@index([shopId, orderId])
+  // P0-03: Index for checkoutToken lookup
+  @@index([shopId, checkoutToken])
 }
 
 // P0-5: Webhook processing log for idempotency
