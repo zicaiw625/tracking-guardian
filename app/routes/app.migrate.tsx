@@ -47,6 +47,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
+    select: {
+      id: true,
+      shopDomain: true,
+      ingestionSecret: true, // P1-1: For Web Pixel request signing
+    },
   });
 
   if (!shop) {
@@ -74,6 +79,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
+    select: {
+      id: true,
+      shopDomain: true,
+      ingestionSecret: true, // P1-1: For Web Pixel request signing
+    },
   });
 
   if (!shop) {
@@ -91,6 +101,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "Backend URL is required" }, { status: 400 });
     }
 
+    // Get shop's ingestion secret for request signing (P1-1)
+    const ingestionSecret = shop.ingestionSecret || undefined;
+
     // Check if a Web Pixel already exists
     const existingPixels = await getExistingWebPixels(admin);
     
@@ -107,12 +120,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     let result;
     if (ourPixel) {
-      // Update existing pixel
+      // Update existing pixel with ingestionSecret
       const { updateWebPixel } = await import("../services/migration.server");
-      result = await updateWebPixel(admin, ourPixel.id, backendUrl);
+      result = await updateWebPixel(admin, ourPixel.id, backendUrl, ingestionSecret);
     } else {
-      // Create new pixel
-      result = await createWebPixel(admin, backendUrl);
+      // Create new pixel with ingestionSecret
+      result = await createWebPixel(admin, backendUrl, ingestionSecret);
     }
 
     if (result.success) {

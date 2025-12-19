@@ -170,10 +170,15 @@ model ConversionLog {
   shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   
   // Order info
-  orderId         String
+  orderId         String   // Real order ID (numeric or GID format)
   orderNumber     String?
   orderValue      Decimal  @db.Decimal(10, 2)
   currency        String   @default("USD")
+  
+  // Deduplication - deterministic event ID for platform CAPI dedup
+  // Generated using generateEventId(orderId, eventType, shopDomain)
+  // Used as event_id for Meta/TikTok and transaction_id for GA4
+  eventId         String?
   
   // Platform info
   platform        String   // google, meta, tiktok

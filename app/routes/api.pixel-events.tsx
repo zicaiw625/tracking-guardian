@@ -1,11 +1,20 @@
 /**
  * Pixel Events API Endpoint
  * 
- * Receives tracking events from the Web Pixel extension and forwards them to
- * platform CAPI (Meta, TikTok, Google GA4 Measurement Protocol).
+ * Receives tracking events from the Web Pixel extension and records them
+ * for deduplication with webhook-based server-side tracking.
  * 
- * This approach is more stable than injecting third-party scripts in the
- * Web Pixel sandbox, as it uses native fetch() and server-side APIs.
+ * IMPORTANT ARCHITECTURE DECISION:
+ * - This endpoint does NOT directly send events to platform CAPI
+ * - It only records that a client-side event was fired (clientSideSent = true)
+ * - Actual CAPI sending is done by the ORDERS_PAID webhook handler
+ * - This prevents duplicate conversions and ensures consistent dedup
+ * 
+ * Why this design?
+ * 1. Webhooks are more reliable (not affected by ad blockers, browser issues)
+ * 2. Webhooks have access to complete order data including PII (when enabled)
+ * 3. Single source of truth for CAPI sends prevents double-counting
+ * 4. Pixel events still useful for marking client-side tracking status
  * 
  * Security (P1-1):
  * - Requests can be signed with HMAC-SHA256 to prevent forgery
@@ -17,18 +26,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "../db.server";
-import { sendConversionToGoogle } from "../services/platforms/google.server";
-import { sendConversionToMeta } from "../services/platforms/meta.server";
-import { sendConversionToTikTok } from "../services/platforms/tiktok.server";
-import { decryptJson } from "../utils/crypto";
+import { generateEventId, normalizeOrderId } from "../utils/crypto";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
-import type {
-  ConversionData,
-  GoogleCredentials,
-  MetaCredentials,
-  TikTokCredentials,
-  PlatformCredentials,
-} from "../types";
 
 // Signature verification time window (5 minutes)
 const SIGNATURE_TIME_WINDOW_MS = 5 * 60 * 1000;
@@ -163,29 +162,19 @@ interface PixelEventPayload {
 }
 
 /**
- * Generate a deduplication event ID
- * Format: {orderId}_{eventName}_{5min_bucket}
+ * Check if this order has already been recorded from pixel (deduplication)
  */
-function generateEventId(orderId: string, eventName: string, timestamp: number): string {
-  // 5-minute time bucket (300000ms)
-  const timeBucket = Math.floor(timestamp / 300000);
-  return `${orderId}_${eventName}_${timeBucket}`;
-}
-
-/**
- * Check if this event has already been processed (deduplication)
- */
-async function isEventProcessed(
+async function isClientEventRecorded(
   shopId: string,
-  eventId: string,
-  platform: string
+  orderId: string,
+  eventType: string
 ): Promise<boolean> {
   const existing = await prisma.conversionLog.findFirst({
     where: {
       shopId,
-      orderId: eventId, // We store eventId in orderId for dedup
-      platform,
-      status: "sent",
+      orderId,
+      eventType,
+      clientSideSent: true,
     },
     select: { id: true },
   });
@@ -307,15 +296,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shopDomain: true,
         isActive: true,
         ingestionSecret: true, // P1-1: For signature verification
-        pixelConfigs: {
-          where: { isActive: true, serverSideEnabled: true },
-          select: {
-            id: true,
-            platform: true,
-            platformId: true,
-            credentialsEncrypted: true,
-          },
-        },
       },
     });
 
@@ -340,169 +320,106 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // No pixel configs with server-side enabled
-    if (shop.pixelConfigs.length === 0) {
-      return jsonWithCors({ 
-        success: true, 
-        message: "No server-side tracking configured" 
+    // ==========================================
+    // RECORD CLIENT-SIDE EVENT (NO CAPI SENDING)
+    // ==========================================
+    // 
+    // IMPORTANT: This endpoint does NOT send events to platform CAPI directly.
+    // It only records that a client-side pixel event was fired.
+    // 
+    // Why?
+    // 1. ORDERS_PAID webhook is more reliable for CAPI (has full order data)
+    // 2. Single source of truth prevents duplicate conversions
+    // 3. Webhook can check clientSideSent to know if pixel fired
+    // 4. Unified eventId ensures platform-level deduplication works
+
+    // Extract and normalize the order ID
+    const rawOrderId = payload.data.orderId!;
+    const orderId = normalizeOrderId(rawOrderId);
+    
+    // Generate deterministic eventId for platform deduplication
+    // This same eventId will be used by the webhook when sending CAPI
+    const eventId = generateEventId(orderId, "purchase", shop.shopDomain);
+    
+    // Check if we already recorded this client event
+    const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, "purchase");
+    if (alreadyRecorded) {
+      return jsonWithCors({
+        success: true,
+        eventId,
+        message: "Client event already recorded",
+        clientSideSent: true,
       }, { request });
     }
 
-    // Generate event ID for deduplication
-    const orderId = payload.data.orderId!;
-    const eventId = payload.eventId || generateEventId(orderId, payload.eventName, payload.timestamp);
+    // Get active pixel configs to know which platforms to track
+    const pixelConfigs = await prisma.pixelConfig.findMany({
+      where: {
+        shopId: shop.id,
+        isActive: true,
+        serverSideEnabled: true,
+      },
+      select: {
+        platform: true,
+      },
+    });
 
-    // Build conversion data (P0-5: Default to not using PII unless explicitly enabled)
-    const conversionData: ConversionData = {
-      orderId,
-      orderNumber: payload.data.orderNumber || null,
-      value: payload.data.value || 0,
-      currency: payload.data.currency || "USD",
-      // PII fields are intentionally not passed from pixel events by default
-      // Server-side tracking via webhooks handles PII with proper consent
-      lineItems: payload.data.items?.map((item) => ({
-        productId: item.id,
-        variantId: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-    };
+    // If no platforms configured, just acknowledge receipt
+    if (pixelConfigs.length === 0) {
+      return jsonWithCors({ 
+        success: true, 
+        eventId,
+        message: "No server-side tracking configured - client event acknowledged" 
+      }, { request });
+    }
 
-    const results: Array<{ platform: string; success: boolean; error?: string }> = [];
-
-    // Process each configured platform
-    for (const pixelConfig of shop.pixelConfigs) {
-      // Check deduplication
-      const alreadyProcessed = await isEventProcessed(shop.id, eventId, pixelConfig.platform);
-      if (alreadyProcessed) {
-        results.push({ 
-          platform: pixelConfig.platform, 
-          success: true, 
-          error: "Duplicate event (already processed)" 
-        });
-        continue;
-      }
-
-      // Get credentials
-      if (!pixelConfig.credentialsEncrypted) {
-        results.push({ 
-          platform: pixelConfig.platform, 
-          success: false, 
-          error: "No credentials configured" 
-        });
-        continue;
-      }
-
-      let credentials: PlatformCredentials | null = null;
+    // Record client-side event for each configured platform
+    // The actual CAPI sending will be done by the ORDERS_PAID webhook
+    const recordedPlatforms: string[] = [];
+    
+    for (const config of pixelConfigs) {
       try {
-        credentials = decryptJson<PlatformCredentials>(pixelConfig.credentialsEncrypted);
-      } catch {
-        results.push({ 
-          platform: pixelConfig.platform, 
-          success: false, 
-          error: "Failed to decrypt credentials" 
-        });
-        continue;
-      }
-
-      // Create conversion log for tracking
-      const conversionLog = await prisma.conversionLog.upsert({
-        where: {
-          shopId_orderId_platform_eventType: {
+        await prisma.conversionLog.upsert({
+          where: {
+            shopId_orderId_platform_eventType: {
+              shopId: shop.id,
+              orderId: orderId,  // Use real orderId (not eventId!)
+              platform: config.platform,
+              eventType: "purchase",
+            },
+          },
+          update: {
+            // If webhook already created the record, just mark client side as sent
+            clientSideSent: true,
+            eventId: eventId,  // Store the dedup eventId
+          },
+          create: {
             shopId: shop.id,
-            orderId: eventId,
-            platform: pixelConfig.platform,
+            orderId: orderId,
+            eventId: eventId,  // Store the dedup eventId for CAPI
+            orderNumber: payload.data.orderNumber || null,
+            orderValue: payload.data.value || 0,
+            currency: payload.data.currency || "USD",
+            platform: config.platform,
             eventType: "purchase",
-          },
-        },
-        update: {
-          status: "pending",
-          attempts: { increment: 1 },
-          lastAttemptAt: new Date(),
-        },
-        create: {
-          shopId: shop.id,
-          orderId: eventId,
-          orderNumber: conversionData.orderNumber,
-          orderValue: conversionData.value,
-          currency: conversionData.currency,
-          platform: pixelConfig.platform,
-          eventType: "purchase",
-          status: "pending",
-          attempts: 1,
-          lastAttemptAt: new Date(),
-          clientSideSent: true, // Came from pixel
-        },
-      });
-
-      try {
-        let result;
-        
-        switch (pixelConfig.platform) {
-          case "google":
-            result = await sendConversionToGoogle(
-              credentials as GoogleCredentials,
-              conversionData
-            );
-            break;
-          case "meta":
-            result = await sendConversionToMeta(
-              credentials as MetaCredentials,
-              conversionData
-            );
-            break;
-          case "tiktok":
-            result = await sendConversionToTikTok(
-              credentials as TikTokCredentials,
-              conversionData
-            );
-            break;
-          default:
-            results.push({ 
-              platform: pixelConfig.platform, 
-              success: false, 
-              error: "Unsupported platform" 
-            });
-            continue;
-        }
-
-        // Update log with success
-        await prisma.conversionLog.update({
-          where: { id: conversionLog.id },
-          data: {
-            status: "sent",
-            serverSideSent: true,
-            sentAt: new Date(),
-            platformResponse: result,
+            status: "pending",  // Will be updated to "sent" by webhook
+            attempts: 0,
+            clientSideSent: true,  // Mark that pixel fired
+            serverSideSent: false, // Not yet sent by webhook
           },
         });
-
-        results.push({ platform: pixelConfig.platform, success: true });
+        recordedPlatforms.push(config.platform);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        
-        // Update log with failure
-        await prisma.conversionLog.update({
-          where: { id: conversionLog.id },
-          data: {
-            status: "failed",
-            errorMessage,
-          },
-        });
-
-        results.push({ 
-          platform: pixelConfig.platform, 
-          success: false, 
-          error: errorMessage 
-        });
+        console.warn(`Failed to record client event for ${config.platform}:`, error);
       }
     }
 
     return jsonWithCors({
       success: true,
       eventId,
-      results,
+      message: "Client event recorded, CAPI will be sent via webhook",
+      clientSideSent: true,
+      platforms: recordedPlatforms,
     }, { request });
   } catch (error) {
     console.error("Pixel events API error:", error);

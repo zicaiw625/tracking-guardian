@@ -220,10 +220,12 @@ export interface CreateWebPixelResult {
  * 
  * @param admin - Shopify Admin API context
  * @param backendUrl - URL of the Tracking Guardian backend (e.g., https://your-app.onrender.com)
+ * @param ingestionSecret - Secret for request signing (P1-1)
  */
 export async function createWebPixel(
   admin: AdminApiContext,
-  backendUrl: string
+  backendUrl: string,
+  ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
   // Validate backend URL
   if (!backendUrl || !backendUrl.startsWith("https://")) {
@@ -233,9 +235,11 @@ export async function createWebPixel(
     };
   }
 
-  // Web Pixel settings - just the backend URL
+  // Web Pixel settings - include both backend_url and ingestion_secret
+  // The ingestion_secret is used by the pixel to sign requests (P1-1)
   const settings = JSON.stringify({
     backend_url: backendUrl,
+    ...(ingestionSecret && { ingestion_secret: ingestionSecret }),
   });
 
   try {
@@ -297,14 +301,22 @@ export async function createWebPixel(
 
 /**
  * Update an existing Web Pixel's settings
+ * 
+ * @param admin - Shopify Admin API context
+ * @param webPixelId - Existing Web Pixel ID to update
+ * @param backendUrl - URL of the Tracking Guardian backend
+ * @param ingestionSecret - Secret for request signing (P1-1)
  */
 export async function updateWebPixel(
   admin: AdminApiContext,
   webPixelId: string,
-  backendUrl: string
+  backendUrl: string,
+  ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
+  // Include ingestion_secret in settings for request signing
   const settings = JSON.stringify({
     backend_url: backendUrl,
+    ...(ingestionSecret && { ingestion_secret: ingestionSecret }),
   });
 
   try {

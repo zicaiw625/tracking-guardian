@@ -212,3 +212,83 @@ export function normalizePhone(phone: string): string {
 export function normalizeEmail(email: string): string {
   return email.toLowerCase().trim();
 }
+
+// ==========================================
+// Event Deduplication
+// ==========================================
+
+/**
+ * Generate a deterministic event ID for deduplication
+ * 
+ * This function generates a consistent eventId that can be used for:
+ * 1. ConversionLog internal deduplication (prevent double processing)
+ * 2. Platform CAPI deduplication (Meta event_id, TikTok event_id, GA4 transaction_id)
+ * 
+ * The eventId is deterministic based on orderId and eventType, ensuring:
+ * - Same order + same event type = same eventId
+ * - Pixel flow and Webhook flow generate identical eventIds
+ * - Platforms can deduplicate events from different sources
+ * 
+ * Format: {orderId}_{eventType}_{short_hash}
+ * Example: gid://shopify/Order/123456_purchase_a1b2c3d4
+ * 
+ * @param orderId - The order ID (can be Shopify GID or numeric ID)
+ * @param eventType - Event type (e.g., "purchase", "checkout_started")
+ * @param shopDomain - Optional shop domain for additional uniqueness
+ * @returns Deterministic event ID for deduplication
+ */
+export function generateEventId(
+  orderId: string,
+  eventType: string,
+  shopDomain?: string
+): string {
+  // Normalize orderId - extract numeric ID if it's a GID
+  const normalizedOrderId = normalizeOrderId(orderId);
+  
+  // Create a deterministic hash based on the inputs
+  const hashInput = shopDomain 
+    ? `${shopDomain}:${normalizedOrderId}:${eventType}`
+    : `${normalizedOrderId}:${eventType}`;
+  
+  // Generate short hash (first 8 characters of SHA-256)
+  const shortHash = createHash("sha256")
+    .update(hashInput, "utf8")
+    .digest("hex")
+    .slice(0, 8);
+  
+  // Format: orderId_eventType_hash
+  // This format is readable for debugging while being unique
+  return `${normalizedOrderId}_${eventType}_${shortHash}`;
+}
+
+/**
+ * Normalize order ID by extracting numeric ID from Shopify GID
+ * 
+ * Shopify order IDs can come in different formats:
+ * - GID: "gid://shopify/Order/1234567890"
+ * - Numeric string: "1234567890"
+ * - Number: 1234567890
+ * 
+ * This function extracts a consistent numeric string
+ * 
+ * @param orderId - Order ID in any format
+ * @returns Normalized numeric order ID as string
+ */
+export function normalizeOrderId(orderId: string | number): string {
+  const orderIdStr = String(orderId);
+  
+  // Check if it's a Shopify GID format
+  const gidMatch = orderIdStr.match(/gid:\/\/shopify\/Order\/(\d+)/);
+  if (gidMatch) {
+    return gidMatch[1];
+  }
+  
+  // Check if it contains a numeric ID at the end (handles various formats)
+  const numericMatch = orderIdStr.match(/(\d+)$/);
+  if (numericMatch) {
+    return numericMatch[1];
+  }
+  
+  // Return as-is if no pattern matches
+  return orderIdStr;
+}
