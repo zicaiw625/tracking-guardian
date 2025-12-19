@@ -35,7 +35,7 @@ import {
   getPixelConfigs,
   createWebPixel,
   getExistingWebPixels,
-  deleteScriptTag,
+  // NOTE: deleteScriptTag removed - P0 compliance (no write_script_tags scope)
   type Platform,
   type MigrationResult,
   type SavePixelConfigOptions,
@@ -144,20 +144,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
-  // Delete ScriptTag
+  // Delete ScriptTag - DEPRECATED (P0 Compliance)
+  // We no longer support automatic ScriptTag deletion because:
+  // 1. Our app only has read_script_tags scope (not write_script_tags)
+  // 2. Shopify requires GraphQL-only for new public apps
+  // 3. ScriptTags are being deprecated - users should delete manually
   if (actionType === "deleteScriptTag") {
-    const scriptTagId = parseInt(formData.get("scriptTagId") as string);
-    
-    if (!scriptTagId) {
-      return json({ error: "ScriptTag ID is required" }, { status: 400 });
-    }
-
-    const result = await deleteScriptTag(admin, scriptTagId);
-    
     return json({
       _action: "deleteScriptTag",
-      success: result.success,
-      error: result.error,
+      success: false,
+      error: "自动删除功能已停用。请在 Shopify 后台「设置 → 应用和销售渠道」中手动删除 ScriptTag，或联系创建该 ScriptTag 的应用进行删除。",
     });
   }
 

@@ -164,13 +164,53 @@ export async function scanShopTracking(
 
   console.log(`Starting enhanced scan for shop ${shopId}`);
 
-  // 1. Fetch ScriptTags using REST API
+  // 1. Fetch ScriptTags using GraphQL API (P0: Shopify requires GraphQL for new public apps)
+  // Reference: https://shopify.dev/docs/api/admin-graphql/latest/queries/scriptTags
   try {
-    const scriptTagsResponse = await admin.rest.get({
-      path: "script_tags",
+    const scriptTagsResponse = await admin.graphql(
+      `#graphql
+      query GetScriptTags {
+        scriptTags(first: 100) {
+          edges {
+            node {
+              id
+              src
+              displayScope
+              cache
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      }
+    `
+    );
+    const scriptTagsData = await scriptTagsResponse.json();
+    const scriptTagEdges = scriptTagsData.data?.scriptTags?.edges || [];
+    
+    // Transform GraphQL response to match existing ScriptTag interface
+    result.scriptTags = scriptTagEdges.map((edge: { node: {
+      id: string;
+      src: string;
+      displayScope: string;
+      cache: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }}) => {
+      // Extract numeric ID from GraphQL global ID (gid://shopify/ScriptTag/123456789)
+      const gidMatch = edge.node.id.match(/ScriptTag\/(\d+)/);
+      const numericId = gidMatch ? parseInt(gidMatch[1], 10) : 0;
+      
+      return {
+        id: numericId,
+        src: edge.node.src,
+        event: "onload", // GraphQL doesn't return event, default to onload
+        display_scope: edge.node.displayScope?.toLowerCase() || "all",
+        cache: edge.node.cache,
+        created_at: edge.node.createdAt,
+        updated_at: edge.node.updatedAt,
+      } as ScriptTag;
     });
-    const body = scriptTagsResponse.body as { script_tags?: ScriptTag[] } | null;
-    result.scriptTags = body?.script_tags || [];
     console.log(`Found ${result.scriptTags.length} script tags`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

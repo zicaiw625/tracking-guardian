@@ -357,6 +357,76 @@ async function processOrderConversion(
     if (existingLog && existingLog.status === "sent") {
       continue; // Already sent successfully
     }
+    
+    // ==========================================
+    // P1 CONSENT GATE: Shopify Pixel Privacy Compliance
+    // ==========================================
+    // 
+    // Shopify's Pixel Privacy mechanism ensures pixels only load when:
+    // 1. The pixel's declared privacy purpose (analytics/marketing) is satisfied
+    // 2. The visitor has given consent for that purpose
+    // 
+    // To comply with this mechanism and avoid "bypassing platform controls":
+    // - We only send server-side conversions if the client-side pixel has already sent
+    // - clientSideSent = true means the user consented to marketing tracking
+    // - This ensures webhook-based CAPI respects the same consent as pixel tracking
+    //
+    // If no pixel event was received, we record the order but DON'T send to platforms.
+    // This can happen when:
+    // - User blocked marketing cookies/tracking
+    // - User didn't complete checkout on a page with our pixel
+    // - Pixel failed to load/execute
+    //
+    // Reference: https://shopify.dev/docs/api/web-pixels-api/pixel-privacy
+    
+    const hasPixelConsent = existingLog?.clientSideSent === true;
+    
+    if (!hasPixelConsent) {
+      // No pixel event received = no consent evidence
+      // Record the order for tracking purposes but don't send to ad platforms
+      console.log(
+        `Consent gate: Skipping server-side conversion for order=${orderId}, ` +
+        `platform=${pixelConfig.platform} - no pixel event received (no consent evidence)`
+      );
+      
+      // Create/update the log to record we saw this order, but mark as "pending_consent"
+      await prisma.conversionLog.upsert({
+        where: {
+          shopId_orderId_platform_eventType: {
+            shopId: shopRecord.id,
+            orderId: orderId,
+            platform: pixelConfig.platform,
+            eventType,
+          },
+        },
+        update: {
+          // Keep existing status if already set, otherwise mark waiting for consent
+          status: existingLog?.status || "pending_consent",
+          eventId: eventId,
+        },
+        create: {
+          shopId: shopRecord.id,
+          orderId: orderId,
+          eventId: eventId,
+          orderNumber: order.order_number ? String(order.order_number) : null,
+          orderValue: parseFloat(order.total_price || "0"),
+          currency: order.currency || "USD",
+          platform: pixelConfig.platform,
+          eventType,
+          status: "pending_consent", // Special status: waiting for pixel consent
+          attempts: 0,
+          clientSideSent: false,
+          serverSideSent: false,
+        },
+      });
+      
+      continue; // Skip to next platform - don't send without consent
+    }
+    
+    console.log(
+      `Consent gate: Proceeding with server-side conversion for order=${orderId}, ` +
+      `platform=${pixelConfig.platform} - pixel consent verified`
+    );
 
     // Create or update conversion log
     // NOTE: attempts is incremented ONLY after a send attempt completes (success or failure)

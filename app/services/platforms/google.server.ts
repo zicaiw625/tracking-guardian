@@ -15,7 +15,8 @@
  */
 
 import type { ConversionData, GoogleCredentials, ConversionApiResponse } from "../../types";
-import { hashValue, normalizeEmail } from "../../utils/crypto";
+// NOTE: hashValue and normalizeEmail removed - GA4 MP prohibits any PII (including hashed)
+// Reference: https://developers.google.com/analytics/devguides/collection/protocol/ga4/policy
 
 // API configuration
 const API_TIMEOUT_MS = 30000;
@@ -79,24 +80,21 @@ export async function sendConversionToGoogle(
   // Generate event ID for deduplication
   const dedupeEventId = eventId || `${conversionData.orderId}_purchase_${Date.now()}`;
 
-  // Build user_id from hashed email (required for user_properties to work in GA4 MP)
-  // GA4 MP requires user_id when using user_properties for user data matching
-  let userId: string | undefined;
-  const userProperties: Record<string, { value: string }> = {};
-  
-  if (conversionData.email) {
-    const normalizedEmail = normalizeEmail(conversionData.email);
-    const hashedEmail = await hashValue(normalizedEmail);
-    // Use hashed email as user_id for cross-device tracking
-    userId = hashedEmail;
-    // Also store as user_property for analytics
-    userProperties.hashed_email = { value: hashedEmail };
-  }
+  // P0 COMPLIANCE: GA4 Measurement Protocol PII Policy
+  // Google Analytics explicitly prohibits uploading any PII (including hashed email/phone)
+  // Reference: https://developers.google.com/analytics/devguides/collection/protocol/ga4/policy
+  // 
+  // REMOVED: user_id from hashed email, user_properties.hashed_email
+  // 
+  // For cross-device tracking in GA4, merchants should:
+  // 1. Use GA4's built-in User-ID feature with their own internal IDs (not email-derived)
+  // 2. Import GA4 conversions into Google Ads for attribution
+  // 3. Use Google Ads Enhanced Conversions separately (which DOES support hashed PII)
 
-  // Build the payload
-  // Note: Only include user_properties if we have a valid user_id
-  // GA4 MP ignores user_properties without user_id
+  // Build the payload - NO PII or hashed PII included
   const payload: Record<string, unknown> = {
+    // client_id is required - use order ID as a server-side identifier
+    // This is NOT PII - it's an internal order reference
     client_id: `server.${conversionData.orderId}`,
     events: [
       {
@@ -117,15 +115,6 @@ export async function sendConversionToGoogle(
       },
     ],
   };
-
-  // Only add user_id and user_properties together
-  // GA4 MP requires user_id for user_properties to work
-  if (userId) {
-    payload.user_id = userId;
-    if (Object.keys(userProperties).length > 0) {
-      payload.user_properties = userProperties;
-    }
-  }
 
   try {
     const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(credentials.measurementId)}&api_secret=${encodeURIComponent(credentials.apiSecret)}`;

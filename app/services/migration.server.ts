@@ -412,22 +412,29 @@ export async function getExistingWebPixels(
 
 /**
  * Delete a ScriptTag (for migration cleanup)
+ * 
+ * NOTE (P0 Compliance): This function is DEPRECATED and should not be called.
+ * 
+ * Reasons:
+ * 1. Shopify requires new public apps to use GraphQL-only (no REST API) as of 2025-04-01
+ * 2. Our app only has read_script_tags scope, not write_script_tags
+ * 3. ScriptTags are being deprecated by Shopify - we should guide users to delete manually
+ * 
+ * Instead, guide merchants to delete ScriptTags manually via:
+ * - Shopify Admin → Settings → Custom data → ScriptTags
+ * - Or via the app that originally created the ScriptTag
+ * 
+ * @deprecated Do not use - returns error with guidance message
  */
 export async function deleteScriptTag(
-  admin: AdminApiContext,
-  scriptTagId: number
+  _admin: AdminApiContext,
+  _scriptTagId: number
 ): Promise<{ success: boolean; error?: string }> {
-  try {
-    await admin.rest.delete({
-      path: `script_tags/${scriptTagId}`,
-    });
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
+  // Return a helpful error message instead of attempting the delete
+  return {
+    success: false,
+    error: "自动删除功能已停用。请在 Shopify 后台「设置 → 应用和销售渠道」中找到创建该 ScriptTag 的应用，手动删除。或者联系 Shopify 支持获取帮助。",
+  };
 }
 
 // Microsoft Bing/UET pixel code generator
