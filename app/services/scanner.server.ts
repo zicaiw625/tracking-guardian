@@ -454,12 +454,17 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{ platform: st
 
 /**
  * Generate actionable migration recommendations
+ * 
+ * ScriptTag API Deprecation Timeline (Official):
+ * - Plus merchants: Order status page ScriptTags blocked from 2025-08-28
+ * - Non-Plus merchants: Order status page ScriptTags blocked from 2026-08-26
+ * 
+ * Reference: https://shopify.dev/docs/apps/build/online-store/blocking-script-tags
  */
 function generateMigrationActions(result: EnhancedScanResult): MigrationAction[] {
   const actions: MigrationAction[] = [];
   
   // Action 1: Delete deprecated ScriptTags
-  // ScriptTag API deadline: August 2025 (estimated based on Shopify announcements)
   for (const tag of result.scriptTags) {
     let platform = "unknown";
     const src = tag.src || "";
@@ -473,14 +478,22 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
       if (platform !== "unknown") break;
     }
     
+    // Determine deadline based on display_scope
+    // Order status page scripts have hard deadlines
+    const isOrderStatusScript = tag.display_scope === "order_status";
+    const deadlineNote = isOrderStatusScript
+      ? "Plus 商家: 2025-08-28 停用；非 Plus 商家: 2026-08-26 停用"
+      : "建议尽早迁移以确保兼容性";
+    
     actions.push({
       type: "delete_script_tag",
       priority: "high",
       platform,
       title: `删除 ScriptTag: ${platform}`,
-      description: `ScriptTag API 将于 2025 年 8 月关闭。请先配置 Web Pixel，然后删除此 ScriptTag。`,
+      description: `ScriptTag API 即将关闭。${deadlineNote}。请先配置 Web Pixel，然后删除此 ScriptTag。`,
       scriptTagId: tag.id,
-      deadline: "2025-08-01",
+      // Use the later deadline (non-Plus) as default, UI should show both dates
+      deadline: isOrderStatusScript ? "2026-08-26" : undefined,
     });
   }
   

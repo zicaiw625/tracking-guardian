@@ -33,6 +33,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "../db.server";
 import { generateEventId, normalizeOrderId } from "../utils/crypto";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
+import { checkCircuitBreaker } from "../utils/circuit-breaker";
 
 // Signature verification time window (5 minutes)
 const SIGNATURE_TIME_WINDOW_MS = 5 * 60 * 1000;
@@ -41,85 +42,49 @@ const SIGNATURE_TIME_WINDOW_MS = 5 * 60 * 1000;
 const SIGNED_RATE_LIMIT = { maxRequests: 100, windowMs: 60 * 1000 }; // 100/min
 const UNSIGNED_RATE_LIMIT = { maxRequests: 20, windowMs: 60 * 1000 }; // 20/min (stricter)
 
-// P1-2: High-frequency circuit breaker thresholds
-// If a shopDomain exceeds this, it's likely abuse or misconfiguration
-const CIRCUIT_BREAKER_THRESHOLD = 10000; // 10k requests per minute
-const CIRCUIT_BREAKER_WINDOW_MS = 60 * 1000;
-const circuitBreakerState = new Map<string, { count: number; resetTime: number; tripped: boolean }>();
-
-/**
- * P1-2: Check if a shopDomain should be circuit-broken
- * Prevents abuse from misconfigured or malicious sources
- */
-function checkCircuitBreaker(shopDomain: string): { blocked: boolean; reason?: string } {
-  const now = Date.now();
-  const state = circuitBreakerState.get(shopDomain);
-  
-  // Initialize or reset if window expired
-  if (!state || state.resetTime < now) {
-    circuitBreakerState.set(shopDomain, {
-      count: 1,
-      resetTime: now + CIRCUIT_BREAKER_WINDOW_MS,
-      tripped: false,
-    });
-    return { blocked: false };
-  }
-  
-  // If already tripped, block until reset
-  if (state.tripped) {
-    const retryAfter = Math.ceil((state.resetTime - now) / 1000);
-    return { 
-      blocked: true, 
-      reason: `Circuit breaker tripped. Retry after ${retryAfter}s` 
-    };
-  }
-  
-  // Increment counter
-  state.count++;
-  
-  // Check if threshold exceeded
-  if (state.count > CIRCUIT_BREAKER_THRESHOLD) {
-    state.tripped = true;
-    console.error(
-      `🚨 Circuit breaker TRIPPED for ${shopDomain}: ${state.count} requests in ${CIRCUIT_BREAKER_WINDOW_MS}ms`
-    );
-    return { 
-      blocked: true, 
-      reason: "Too many requests - circuit breaker activated" 
-    };
-  }
-  
-  return { blocked: false };
-}
-
-// Periodic cleanup of circuit breaker state (every 5 minutes)
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, state] of circuitBreakerState.entries()) {
-    if (state.resetTime < now) {
-      circuitBreakerState.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
+// P0-3: Circuit breaker configuration
+// Now uses shared storage (Redis when REDIS_URL is set, otherwise in-memory)
+const CIRCUIT_BREAKER_CONFIG = {
+  threshold: 10000,     // 10k requests per minute
+  windowMs: 60 * 1000,  // 1 minute window
+};
 
 /**
  * P0-1: Signature verification result type
  * - signed: Request has valid signature (full trust)
- * - unsigned: Request has no signature (reduced trust, stricter rate limit)
+ * - unsigned: Request has no signature (allowed only when secret not configured or dev mode)
+ * - unsigned_rejected: Request has no signature but shop has secret configured (REJECT in production)
  * - invalid: Request has invalid signature (reject)
  */
 type SignatureResult = 
   | { status: "signed"; trusted: true }
   | { status: "unsigned"; trusted: false; reason: string }
+  | { status: "unsigned_rejected"; trusted: false; error: string }
   | { status: "invalid"; trusted: false; error: string };
+
+/**
+ * Check if we're in development/test mode
+ * In dev mode, we allow unsigned requests even if secret is configured
+ */
+function isDevMode(): boolean {
+  return (
+    process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV === "test" ||
+    process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true"
+  );
+}
 
 /**
  * P0-1: Verify HMAC-SHA256 signature from the Web Pixel
  * 
- * Hybrid approach:
- * - If signature is valid: full trust
- * - If signature is missing: accept with reduced trust (stricter rate limit)
- * - If signature is invalid: reject (prevent spoofing attempts)
+ * SECURITY UPDATE (P0-2):
+ * - If shop has ingestionSecret configured, signature is REQUIRED in production
+ * - Unsigned requests are only allowed when:
+ *   1. Shop has no ingestionSecret configured (new/unconfigured shop)
+ *   2. Running in development/test mode
+ *   3. ALLOW_UNSIGNED_PIXEL_EVENTS=true (for specific testing scenarios)
+ * 
+ * This prevents attackers from spoofing shopDomain to pollute conversion logs.
  */
 function verifySignature(
   secret: string | null,
@@ -129,6 +94,7 @@ function verifySignature(
   isExplicitlyUnsigned: boolean
 ): SignatureResult {
   // If shop has no secret configured, accept as unsigned
+  // This allows new shops to work before they configure the pixel
   if (!secret) {
     return { 
       status: "unsigned", 
@@ -137,13 +103,27 @@ function verifySignature(
     };
   }
   
-  // P0-1: If request is explicitly marked as unsigned (X-Tracking-Guardian-Unsigned header)
-  // or has no signature headers, accept with reduced trust
+  // P0-2: Shop has secret configured - signature is required in production
+  // If request is explicitly unsigned or has no signature headers, check environment
   if (isExplicitlyUnsigned || (!signature && !timestamp)) {
+    if (isDevMode()) {
+      // Allow in dev mode for testing
+      console.info(
+        `[DEV MODE] Allowing unsigned request despite shop having ingestionSecret configured`
+      );
+      return { 
+        status: "unsigned", 
+        trusted: false, 
+        reason: "Unsigned request allowed in development mode" 
+      };
+    }
+    
+    // PRODUCTION: Reject unsigned requests when shop has secret configured
+    // This is the key security fix - prevents shopDomain spoofing
     return { 
-      status: "unsigned", 
+      status: "unsigned_rejected", 
       trusted: false, 
-      reason: "Request sent without signature" 
+      error: "Signature required. Shop has ingestionSecret configured but request was unsigned." 
     };
   }
   
@@ -442,13 +422,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const { payload } = validation;
 
-    // P1-2: Check circuit breaker BEFORE database queries
-    const circuitCheck = checkCircuitBreaker(payload.shopDomain);
+    // P0-3: Check circuit breaker BEFORE database queries
+    // Now uses shared storage (Redis when available) for multi-instance deployments
+    const circuitCheck = await checkCircuitBreaker(payload.shopDomain, CIRCUIT_BREAKER_CONFIG);
     if (circuitCheck.blocked) {
       console.warn(`Circuit breaker blocked request for ${payload.shopDomain}`);
       return jsonWithCors(
-        { error: circuitCheck.reason },
-        { status: 429, request }
+        { 
+          error: circuitCheck.reason,
+          retryAfter: circuitCheck.retryAfter,
+        },
+        { 
+          status: 429, 
+          request,
+          headers: circuitCheck.retryAfter 
+            ? { "Retry-After": String(circuitCheck.retryAfter) }
+            : undefined,
+        }
       );
     }
 
@@ -477,7 +467,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Shop not found or inactive" }, { status: 404, request });
     }
     
-    // P0-1: Verify request signature (hybrid approach)
+    // P0-1 & P0-2: Verify request signature
     const signatureResult = verifySignature(
       shop.ingestionSecret,
       timestamp,
@@ -486,8 +476,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       isExplicitlyUnsigned
     );
     
-    // Only reject requests with INVALID signatures (spoofing attempt)
-    // Accept both signed and unsigned requests
+    // Reject requests with INVALID signatures (spoofing attempt)
     if (signatureResult.status === "invalid") {
       console.warn(
         `Invalid signature for shop ${shop.shopDomain}: ${signatureResult.error}`,
@@ -499,7 +488,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
     
-    // Log unsigned requests for monitoring (but don't reject)
+    // P0-2: Reject unsigned requests when shop has ingestionSecret configured (production)
+    // This prevents shopDomain spoofing attacks
+    if (signatureResult.status === "unsigned_rejected") {
+      console.warn(
+        `Unsigned request rejected for shop ${shop.shopDomain}: ${signatureResult.error}`,
+        { shopHasSecret: !!shop.ingestionSecret }
+      );
+      return jsonWithCors(
+        { 
+          error: "Signature required",
+          message: "This shop requires signed requests. Please ensure your Web Pixel is configured with the correct ingestion secret.",
+          code: "SIGNATURE_REQUIRED"
+        },
+        { status: 401, request }
+      );
+    }
+    
+    // Log unsigned requests for monitoring (allowed in dev mode or when no secret configured)
     if (signatureResult.status === "unsigned") {
       console.info(
         `Unsigned pixel request from ${shop.shopDomain}: ${signatureResult.reason}`
