@@ -154,6 +154,56 @@ import type {
   PlatformCredentials,
 } from "../types";
 
+// P1: Extracted helper function to decrypt credentials with legacy fallback
+// This eliminates duplicated credential decryption logic
+interface DecryptCredentialsResult {
+  credentials: PlatformCredentials | null;
+  usedLegacy: boolean;
+}
+
+export function getDecryptedCredentials(
+  pixelConfig: { credentialsEncrypted?: string | null } & Record<string, unknown>,
+  platform: string
+): DecryptCredentialsResult {
+  let credentials: PlatformCredentials | null = null;
+  let usedLegacy = false;
+  
+  // First try the encrypted credentials field
+  if (pixelConfig.credentialsEncrypted) {
+    try {
+      credentials = decryptJson<PlatformCredentials>(pixelConfig.credentialsEncrypted);
+      return { credentials, usedLegacy: false };
+    } catch (decryptError) {
+      const errorMsg = decryptError instanceof Error ? decryptError.message : "Unknown error";
+      logger.warn(`Failed to decrypt credentialsEncrypted for ${platform}: ${errorMsg}`);
+    }
+  }
+  
+  // Fallback to legacy credentials field
+  if (!credentials && pixelConfig.credentials) {
+    try {
+      const legacyCredentials = pixelConfig.credentials;
+      
+      if (typeof legacyCredentials === "string") {
+        credentials = decryptJson<PlatformCredentials>(legacyCredentials);
+        usedLegacy = true;
+      } else if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
+        credentials = legacyCredentials as PlatformCredentials;
+        usedLegacy = true;
+      }
+      
+      if (usedLegacy) {
+        logger.info(`Using legacy credentials field for ${platform} - please migrate to credentialsEncrypted`);
+      }
+    } catch (legacyError) {
+      const errorMsg = legacyError instanceof Error ? legacyError.message : "Unknown error";
+      logger.warn(`Failed to read legacy credentials for ${platform}: ${errorMsg}`);
+    }
+  }
+  
+  return { credentials, usedLegacy };
+}
+
 const MAX_ATTEMPTS = 5;
 const BASE_DELAY_MS = 60 * 1000; 
 const MAX_DELAY_MS = 2 * 60 * 60 * 1000; 
@@ -165,7 +215,10 @@ export function calculateNextRetryTime(attempts: number): Date {
     MAX_DELAY_MS
   );
 
-  const jitter = delayMs * 0.1 * (Math.random() * 2 - 1);
+  // P1 Fix: Jitter should always be positive to prevent retries happening earlier than expected
+  // Previously used (Math.random() * 2 - 1) which could produce negative values [-1, 1]
+  // Now using Math.random() which produces [0, 1], so jitter is always 0% to 10% of delay
+  const jitter = delayMs * 0.1 * Math.random();
   
   return new Date(Date.now() + delayMs + jitter);
 }
@@ -317,30 +370,11 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
 
-      let credentials: PlatformCredentials | null = null;
-      
-      if (pixelConfig.credentialsEncrypted) {
-        try {
-          credentials = decryptJson<PlatformCredentials>(
-            pixelConfig.credentialsEncrypted
-          );
-        } catch {
-          
-        }
-      }
-      
-      if (!credentials && (pixelConfig as Record<string, unknown>).credentials) {
-        try {
-          const legacyCredentials = (pixelConfig as Record<string, unknown>).credentials;
-          if (typeof legacyCredentials === "string") {
-            credentials = decryptJson<PlatformCredentials>(legacyCredentials);
-          } else if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
-            credentials = legacyCredentials as PlatformCredentials;
-          }
-        } catch {
-          
-        }
-      }
+      // P1: Use extracted helper function for credential decryption
+      const { credentials } = getDecryptedCredentials(
+        pixelConfig as { credentialsEncrypted?: string | null } & Record<string, unknown>,
+        log.platform
+      );
 
       if (!credentials) {
         await prisma.conversionLog.update({
@@ -495,49 +529,18 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      let credentials: PlatformCredentials | null = null;
-
-      if (pixelConfig.credentialsEncrypted) {
-        try {
-          credentials = decryptJson<PlatformCredentials>(
-            pixelConfig.credentialsEncrypted
-          );
-        } catch (decryptError) {
-          const errorMsg = decryptError instanceof Error ? decryptError.message : "Unknown error";
-          logger.warn(`Failed to decrypt credentialsEncrypted for ${log.platform}: ${errorMsg}`);
-          
-        }
-      }
-
-      if (!credentials && (pixelConfig as Record<string, unknown>).credentials) {
-        try {
-          const legacyCredentials = (pixelConfig as Record<string, unknown>).credentials;
-
-          if (typeof legacyCredentials === "string") {
-            credentials = decryptJson<PlatformCredentials>(legacyCredentials);
-          } else if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
-            credentials = legacyCredentials as PlatformCredentials;
-          }
-          logger.info(`Using legacy credentials field for ${log.platform} - please migrate to credentialsEncrypted`);
-        } catch (legacyError) {
-          const errorMsg = legacyError instanceof Error ? legacyError.message : "Unknown error";
-          logger.warn(`Failed to read legacy credentials for ${log.platform}: ${errorMsg}`);
-        }
-      }
+      // P1: Use extracted helper function for credential decryption
+      const { credentials } = getDecryptedCredentials(
+        pixelConfig as { credentialsEncrypted?: string | null } & Record<string, unknown>,
+        log.platform
+      );
       
       if (!credentials) {
-        
         await prisma.conversionLog.update({
           where: { id: log.id },
           data: { attempts: { increment: 1 } },
         });
         await scheduleRetry(log.id, "No credentials configured - please set up in Settings");
-        failed++;
-        continue;
-      }
-
-      if (!credentials) {
-        await scheduleRetry(log.id, "Decrypted credentials are null");
         failed++;
         continue;
       }

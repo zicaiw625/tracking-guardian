@@ -17,7 +17,10 @@ import {
 } from "./base.server";
 import { logger } from "../../utils/logger";
 
-const META_API_VERSION = "v18.0";
+// P1: Updated from v18.0 to v21.0 (December 2024)
+// Meta Graph API version schedule: https://developers.facebook.com/docs/graph-api/changelog/versions
+// v21.0 released October 2024, supported until ~October 2026
+const META_API_VERSION = "v21.0";
 const META_API_TIMEOUT_MS = 30000; 
 
 interface MetaUserData {

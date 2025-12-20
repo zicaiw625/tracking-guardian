@@ -11,6 +11,7 @@ import {
 } from "../services/billing.server";
 
 import { logger } from "../utils/logger";
+import { parseOrderWebhookPayload } from "../utils/webhook-validation";
 import type {
   OrderWebhookPayload,
   PixelConfigData,
@@ -175,7 +176,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "ORDERS_PAID":
 
         if (shopRecord && payload) {
-          const orderPayload = payload as OrderWebhookPayload;
+          // P1: Validate and sanitize webhook payload at runtime
+          const orderPayload = parseOrderWebhookPayload(payload, shop);
+          if (!orderPayload) {
+            logger.warn(`[P1] Invalid ORDERS_PAID payload from ${shop}, skipping`);
+            if (webhookId) {
+              await updateWebhookStatus(shop, webhookId, topic, "failed");
+            }
+            return new Response("Invalid payload", { status: 400 });
+          }
+          
           const orderId = normalizeOrderId(String(orderPayload.id));
           logger.info(`Processing ${topic} webhook for shop ${shop}, order ${orderId}`);
 

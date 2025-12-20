@@ -15,12 +15,18 @@ const SCRYPT_PARAMS = {
   maxmem: 256 * 1024 * 1024, 
 };
 
+// P1: Unified salt strategy with token-encryption.ts
+// Both modules now use the same default salt when ENCRYPTION_SALT is not set
+const DEFAULT_ENCRYPTION_SALT = "tracking-guardian-credentials-salt";
+const DEV_ENCRYPTION_SALT = "dev-salt-not-for-production";
+
 let cachedKey: Buffer | null = null;
 let cachedKeySecret: string | null = null;
+let cachedKeySalt: string | null = null;
 
 const getEncryptionKey = (): Buffer => {
   const secret = process.env.ENCRYPTION_SECRET;
-  const salt = process.env.ENCRYPTION_SALT;
+  const salt = process.env.ENCRYPTION_SALT || DEFAULT_ENCRYPTION_SALT;
 
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
@@ -36,8 +42,7 @@ const getEncryptionKey = (): Buffer => {
     );
     
     const devSecret = "INSECURE_DEV_SECRET_DO_NOT_USE_IN_PRODUCTION";
-    const devSalt = "dev-salt-not-for-production";
-    return scryptSync(devSecret, devSalt, 32, SCRYPT_PARAMS);
+    return scryptSync(devSecret, DEV_ENCRYPTION_SALT, 32, SCRYPT_PARAMS);
   }
 
   if (secret.length < 32) {
@@ -47,21 +52,21 @@ const getEncryptionKey = (): Buffer => {
     );
   }
 
-  if (cachedKey && cachedKeySecret === secret) {
+  // Cache key only if both secret and salt match
+  if (cachedKey && cachedKeySecret === secret && cachedKeySalt === salt) {
     return cachedKey;
   }
-
-  const effectiveSalt = salt || `tracking-guardian-${secret.slice(0, 8)}`;
   
-  if (!salt && process.env.NODE_ENV === "production") {
+  if (!process.env.ENCRYPTION_SALT && process.env.NODE_ENV === "production") {
     console.warn(
-      "⚠️ ENCRYPTION_SALT not set. Using derived salt. " +
+      "⚠️ ENCRYPTION_SALT not set. Using default salt. " +
       "Set ENCRYPTION_SALT environment variable for consistent encryption across deployments."
     );
   }
 
-  cachedKey = scryptSync(secret, effectiveSalt, 32, SCRYPT_PARAMS);
+  cachedKey = scryptSync(secret, salt, 32, SCRYPT_PARAMS);
   cachedKeySecret = secret;
+  cachedKeySalt = salt;
   
   return cachedKey;
 };
