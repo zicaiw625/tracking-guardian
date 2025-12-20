@@ -11,27 +11,11 @@ import {
 
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
 
-/**
- * P1-05 & P2-2: CORS and Security headers for survey API
- * 
- * CORS is intentionally permissive ("*") because:
- * 1. Shopify checkout extensions run on various domains (shop.myshopify.com, custom domains, etc.)
- * 2. The primary security is JWT validation (Shopify session token), not Origin
- * 3. Restricting to specific origins would break legitimate survey submissions
- * 
- * Defense in depth:
- * - JWT signature verification (cryptographic)
- * - Shop domain matching (header vs JWT claim)
- * - Rate limiting (per IP)
- * - Input validation (orderId format, etc.)
- */
 const CORS_HEADERS = {
-  // P2-2: Keep "*" but document why - real security is JWT validation
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Shopify-Shop-Domain",
   "Access-Control-Max-Age": "86400",
-  // P1-05: Include standard security headers
   ...SECURITY_HEADERS,
 };
 
@@ -153,7 +137,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   }
 
-  // P0-2 FIX: Use async rate limiter to ensure Redis mode actually blocks requests
   const rateLimit = await checkRateLimitAsync(request, "survey");
   if (rateLimit.isLimited) {
     console.warn(`[P0-2] Rate limit exceeded for survey API`);
@@ -168,7 +151,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405 });
   }
 
-  // P1-2: Validate Content-Type header
   const contentType = request.headers.get("Content-Type");
   if (!contentType || !contentType.includes("application/json")) {
     return jsonWithCors(
@@ -177,8 +159,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
 
-  // P1-2: Validate body size (max 16KB for survey data)
-  const MAX_SURVEY_BODY_SIZE = 16 * 1024; // 16KB
+  const MAX_SURVEY_BODY_SIZE = 16 * 1024;
   const contentLength = parseInt(request.headers.get("Content-Length") || "0", 10);
   if (contentLength > MAX_SURVEY_BODY_SIZE) {
     return jsonWithCors(
@@ -261,20 +242,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Shop is not active" }, { status: 403 });
     }
 
-    // P2-1: Relaxed order validation
-    // Old logic required ConversionLog entry, which could fail if:
-    // - Platform not configured yet
-    // - Pixel didn't fire (ad blocker, consent denied)
-    // - Webhook processing delayed
-    //
-    // New logic: Trust the JWT shop validation - if the request comes from
-    // a valid Shopify checkout extension with a valid session token for this shop,
-    // we accept the survey. The orderId format validation in validateSurveyInput()
-    // provides basic protection against injection.
-    //
-    // For stricter validation (if needed), consider:
-    // - Adding optional Admin API order lookup (requires read_orders scope justification)
-    // - Async verification after survey acceptance
     const existingOrderEvidence = await prisma.conversionLog.findFirst({
       where: {
         shopId: shop.id,
@@ -283,7 +250,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       select: { id: true },
     });
 
-    // Log for diagnostics but don't block the survey
     if (!existingOrderEvidence) {
       console.log(
         `[P2-1] Survey for untracked order: orderId=${validatedData.orderId.slice(0, 8)}... ` +

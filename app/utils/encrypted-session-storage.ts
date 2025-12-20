@@ -1,5 +1,3 @@
-
-
 import type { SessionStorage, Session } from "@shopify/shopify-app-session-storage-prisma";
 import { 
   encryptAccessToken, 
@@ -12,9 +10,7 @@ export function createEncryptedSessionStorage(
   baseStorage: SessionStorage
 ): SessionStorage {
   return {
-    
     async storeSession(session: Session): Promise<boolean> {
-      
       const encryptedSession = { ...session };
 
       if (encryptedSession.accessToken) {
@@ -36,7 +32,6 @@ export function createEncryptedSessionStorage(
           session.accessToken = decryptAccessToken(session.accessToken);
         } catch (error) {
           if (error instanceof TokenDecryptionError) {
-            
             console.error(
               `[EncryptedSessionStorage] Failed to decrypt accessToken for session ${id}. ` +
               "Clearing session to force re-authentication."
@@ -71,7 +66,6 @@ export function createEncryptedSessionStorage(
             decryptedSessions.push(session);
           } catch (error) {
             if (error instanceof TokenDecryptionError) {
-              
               console.warn(
                 `[EncryptedSessionStorage] Skipping session with undecryptable token for shop ${shop}`
               );

@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { 
   decryptAccessToken, 
@@ -9,14 +7,11 @@ import {
 import type { Shop, PixelConfig, AlertConfig } from "@prisma/client";
 
 export interface DecryptedShop extends Omit<Shop, "accessToken" | "ingestionSecret"> {
-  
   accessToken: string | null;
-  
   ingestionSecret: string;
 }
 
 export interface ShopWithDecryptedSecret extends Shop {
-  
   decryptedIngestionSecret: string;
 }
 
@@ -107,11 +102,8 @@ export interface ShopVerificationData {
   id: string;
   shopDomain: string;
   isActive: boolean;
-  
   ingestionSecret: string | null;
-  
   previousIngestionSecret: string | null;
-  
   previousSecretExpiry: Date | null;
 }
 

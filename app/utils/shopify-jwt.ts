@@ -1,25 +1,14 @@
-
-
 import { createHmac } from "crypto";
 
 interface ShopifyJwtPayload {
-  
   iss: string;
-  
   dest: string;
-  
   aud: string;
-  
   sub: string;
-  
   exp: number;
-  
   nbf: number;
-  
   iat: number;
-  
   jti: string;
-  
   sid?: string;
 }
 
@@ -31,9 +20,7 @@ interface VerificationResult {
 }
 
 function base64UrlDecode(str: string): string {
-  
   const padded = str + "=".repeat((4 - (str.length % 4)) % 4);
-  
   const base64 = padded.replace(/-/g, "+").replace(/_/g, "/");
   return Buffer.from(base64, "base64").toString("utf8");
 }

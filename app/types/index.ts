@@ -1,5 +1,3 @@
-
-
 export type Platform = "google" | "meta" | "tiktok" | "bing" | "clarity";
 
 export const PLATFORM_NAMES: Record<Platform | string, string> = {
@@ -11,9 +9,7 @@ export const PLATFORM_NAMES: Record<Platform | string, string> = {
 };
 
 export interface GoogleCredentials {
-  
   measurementId: string;
-  
   apiSecret: string;
 }
 
@@ -53,32 +49,11 @@ export interface LineItem {
   price: number;
 }
 
-/**
- * P0-01: ConversionData for CAPI transmission
- * 
- * IMPORTANT: PII fields may be null/undefined due to:
- * 1. Protected Customer Data scope not granted
- * 2. Data already redacted by Shopify
- * 3. Customer did not provide the information
- * 
- * Platform services MUST handle null PII gracefully:
- * - Still send the conversion with available data
- * - Log when PII is unavailable (for debugging, not as an error)
- * - Never crash or fail the conversion due to missing PII
- */
 export interface ConversionData {
-  /** Required: Shopify order ID (always available) */
   orderId: string;
-  /** Optional: Order display number */
   orderNumber: string | null;
-  /** Required: Order value (always available) */
   value: number;
-  /** Required: Currency code (always available) */
   currency: string;
-
-  // P0-01: PII fields - all optional
-  // These may be null if Protected Customer Data scope is not granted
-  // or if customer data is redacted
   email?: string | null;
   phone?: string | null;
   firstName?: string | null;
@@ -87,7 +62,6 @@ export interface ConversionData {
   state?: string | null;
   country?: string | null;
   zip?: string | null;
-  
   lineItems?: LineItem[];
 }
 
@@ -216,11 +190,8 @@ export interface PixelConfigData {
   id: string;
   platform: string;
   platformId: string | null;
-  
   clientConfig: Record<string, unknown> | null;
-  
   credentialsEncrypted: string | null;
-  
   credentials?: unknown;
   clientSideEnabled: boolean;
   serverSideEnabled: boolean;
@@ -246,42 +217,13 @@ export interface ShopData {
   consentStrategy?: string; 
 }
 
-/**
- * P2-1: MinimalOrderPayload - Data-minimized order structure for CAPI transmission
- * 
- * This type represents the minimum data needed for conversion tracking:
- * - Order identification (id, order_number)
- * - Order value and currency (for attribution)
- * - Line items (for product-level attribution)
- * - Checkout token (for pixel event matching)
- * 
- * IMPORTANT: This type intentionally EXCLUDES PII fields (email, phone, etc.)
- * to enforce data minimization. The application should never store or transmit
- * customer PII unless explicitly enabled and properly consented.
- * 
- * Use this type for:
- * - ConversionJob.capiInput JSON structure
- * - Conversion platform API payloads
- * - Any data that leaves the system
- * 
- * Use OrderWebhookPayload for:
- * - Receiving raw Shopify webhook payloads
- * - Temporary processing before data minimization
- */
 export interface MinimalOrderPayload {
-  /** Shopify order ID (always available) */
   id: number;
-  /** Order display number */
   order_number?: number | null;
-  /** Order total value */
   total_price?: string | null;
-  /** Currency code (ISO 4217) */
   currency?: string | null;
-  /** Checkout token for pixel event matching */
   checkout_token?: string | null;
-  /** Order timestamp */
   processed_at?: string | null;
-  /** Line items for product-level attribution */
   line_items?: Array<{
     product_id?: number;
     variant_id?: number;
@@ -293,28 +235,12 @@ export interface MinimalOrderPayload {
   }> | null;
 }
 
-/**
- * OrderWebhookPayload - Full Shopify webhook payload structure
- * 
- * This type represents the complete order data from Shopify webhooks,
- * including PII fields that may or may not be present depending on:
- * - Protected Customer Data scope approval
- * - Data redaction status
- * - Customer consent
- * 
- * WARNING: Do not store or transmit this data directly. Extract only
- * the necessary fields into MinimalOrderPayload for CAPI transmission.
- * 
- * @see MinimalOrderPayload for the data-minimized version
- */
 export interface OrderWebhookPayload {
   id: number;
   order_number?: number | null;
   total_price?: string | null;
   currency?: string | null;
-  
   checkout_token?: string | null;
-  
   total_tax?: string | null;
   total_shipping_price_set?: {
     shop_money?: {
@@ -323,9 +249,6 @@ export interface OrderWebhookPayload {
     } | null;
   } | null;
   processed_at?: string | null;
-  
-  // PII fields - may be null/redacted, should NOT be stored or transmitted
-  // See MinimalOrderPayload for data-minimized version
   email?: string | null;
   phone?: string | null;
   customer?: {
@@ -352,12 +275,6 @@ export interface OrderWebhookPayload {
   }> | null;
 }
 
-/**
- * P2-1: Helper function to convert OrderWebhookPayload to MinimalOrderPayload
- * 
- * Use this function to extract only the necessary data from a full webhook payload
- * before storing in ConversionJob.capiInput or transmitting to ad platforms.
- */
 export function toMinimalOrderPayload(order: OrderWebhookPayload): MinimalOrderPayload {
   return {
     id: order.id,

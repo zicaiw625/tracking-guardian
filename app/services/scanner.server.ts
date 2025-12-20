@@ -406,7 +406,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{ platform: st
 function generateMigrationActions(result: EnhancedScanResult): MigrationAction[] {
   const actions: MigrationAction[] = [];
   
-  // P0-1: Get dynamic deprecation status based on current date
   const scriptTagStatus = getScriptTagDeprecationStatus();
   const plusStatus = getAdditionalScriptsDeprecationStatus("plus");
   const nonPlusStatus = getAdditionalScriptsDeprecationStatus("non_plus");
@@ -426,20 +425,16 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
 
     const isOrderStatusScript = tag.display_scope === "order_status";
     
-    // P0-1: Dynamic deadline messaging based on current date
     let deadlineNote: string;
     let priority: "high" | "medium" | "low" = "high";
     
     if (scriptTagStatus.isExpired && isOrderStatusScript) {
-      // ScriptTag already blocked
       deadlineNote = "⚠️ ScriptTag 在订单状态页的功能已被禁用，请立即迁移！";
       priority = "high";
     } else if (plusStatus.isExpired) {
-      // Plus deadline passed
       deadlineNote = `Plus 商家: 已过期；非 Plus 商家: ${nonPlusStatus.isExpired ? "已过期" : `剩余 ${nonPlusStatus.daysRemaining} 天`}`;
       priority = "high";
     } else {
-      // Both still in future
       deadlineNote = `Plus 商家: 剩余 ${plusStatus.daysRemaining} 天（2025-08-28）；非 Plus 商家: 剩余 ${nonPlusStatus.daysRemaining} 天（2026-08-26）`;
       priority = plusStatus.isWarning ? "high" : "medium";
     }
@@ -451,7 +446,6 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
       title: `删除 ScriptTag: ${platform}`,
       description: `${deadlineNote}。请先配置 Web Pixel，然后删除此 ScriptTag。`,
       scriptTagId: tag.id,
-      
       deadline: isOrderStatusScript ? "2026-08-26" : undefined,
     });
   }
@@ -503,13 +497,10 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     });
   }
 
-  // P1-2: Check if our App Pixel is configured (identified by ingestion_key or ingestion_secret)
-  // Note: backend_url was removed from pixel settings - we now use a hardcoded production URL
   const hasAppPixelConfigured = result.webPixels.some(p => {
     if (!p.settings) return false;
     try {
       const settings = typeof p.settings === "string" ? JSON.parse(p.settings) : p.settings;
-      // P1-2: Check for both new (ingestion_key) and legacy (ingestion_secret) field names
       const s = settings as Record<string, unknown>;
       return typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string";
     } catch {

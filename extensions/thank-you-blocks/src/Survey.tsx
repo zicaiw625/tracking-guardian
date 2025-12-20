@@ -1,19 +1,3 @@
-/**
- * Post-purchase Survey Component
- * 
- * P0-2: Centralized URL Configuration
- * The app URL is hardcoded as a constant (not merchant-configurable).
- * This prevents arbitrary URL configuration which could be flagged as 
- * data exfiltration during App Store review.
- * 
- * DEPLOYMENT INSTRUCTIONS:
- * For different environments, update BACKEND_URL before building:
- * - Production: https://tracking-guardian.onrender.com (default)
- * - Staging: Modify this constant before `shopify app deploy`
- * 
- * See: extensions/shared/config.ts for centralized configuration strategy
- */
-
 import {
   reactExtension,
   BlockStack,
@@ -28,12 +12,6 @@ import {
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
 
-/**
- * P0-2: Backend URL - Single Source of Truth for Survey Extension
- * 
- * SECURITY: This is intentionally NOT merchant-configurable.
- * Only the app developer can change this by rebuilding the extension.
- */
 const BACKEND_URL = "https://tracking-guardian.onrender.com";
 
 export default reactExtension(
@@ -103,7 +81,6 @@ function Survey() {
 
       const shopDomain = shop?.myshopifyDomain || "";
 
-      // P0-2: Backend URL is hardcoded constant (single source of truth)
       if (shopDomain) {
         const response = await fetch(`${BACKEND_URL}/api/survey`, {
           method: "POST",
@@ -122,7 +99,6 @@ function Survey() {
 
         console.log("Survey submitted successfully to backend");
       } else {
-        // Shop domain missing - this should not happen in production
         console.warn("Survey submission skipped: shop domain not available");
         throw new Error("Shop domain not available");
       }

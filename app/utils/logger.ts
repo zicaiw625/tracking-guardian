@@ -1,5 +1,3 @@
-
-
 import { randomBytes } from "crypto";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
@@ -32,7 +30,6 @@ function formatMessage(level: LogLevel, message: string, context?: LogContext): 
   const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
   
   if (context && Object.keys(context).length > 0) {
-    
     const sanitizedContext = sanitizeContext(context);
     return `${prefix} ${message} ${JSON.stringify(sanitizedContext)}`;
   }
@@ -40,14 +37,7 @@ function formatMessage(level: LogLevel, message: string, context?: LogContext): 
   return `${prefix} ${message}`;
 }
 
-/**
- * P1-02: Comprehensive sensitive field blacklist for log sanitization
- * 
- * This list MUST be kept up-to-date with any new sensitive fields.
- * Fields are matched case-insensitively and by substring.
- */
 const SENSITIVE_FIELD_PATTERNS = [
-  // Authentication & Secrets
   "accesstoken",
   "access_token",
   "apisecret",
@@ -60,8 +50,6 @@ const SENSITIVE_FIELD_PATTERNS = [
   "bearer",
   "apikey",
   "api_key",
-  
-  // PII - Personal Identifiable Information
   "email",
   "phone",
   "firstname",
@@ -77,35 +65,25 @@ const SENSITIVE_FIELD_PATTERNS = [
   "zip",
   "postal",
   "postcode",
-  
-  // Financial
   "creditcard",
   "credit_card",
   "cardnumber",
   "card_number",
   "cvv",
   "expiry",
-  
-  // Platform-specific secrets
   "ingestionsecret",
   "ingestion_secret",
-  "ingestion_key",  // P1-2: New field name for correlation key
+  "ingestion_key",
   "ingestionkey",
   "pixelid",
   "pixel_id",
   "measurementid",
   "measurement_id",
-  
-  // Webhook/Request payloads that might contain PII
   "customer",
   "billing",
   "shipping",
 ];
 
-/**
- * P1-02: Keys that should be completely excluded (not even show [REDACTED])
- * These are large payload fields that add noise to logs
- */
 const EXCLUDED_FIELDS = [
   "orderpayload",
   "order_payload",
@@ -121,19 +99,15 @@ function sanitizeContext(context: LogContext): LogContext {
   for (const [key, value] of Object.entries(context)) {
     const lowerKey = key.toLowerCase();
     
-    // P1-02: Completely exclude certain noisy fields
     if (EXCLUDED_FIELDS.some((f) => lowerKey.includes(f))) {
       sanitized[key] = "[EXCLUDED]";
       continue;
     }
     
-    // P1-02: Redact sensitive fields
     if (SENSITIVE_FIELD_PATTERNS.some((f) => lowerKey.includes(f))) {
       sanitized[key] = "[REDACTED]";
     } else if (typeof value === "object" && value !== null) {
-      // Recursively sanitize nested objects
       if (Array.isArray(value)) {
-        // P1-02: Sanitize arrays (might contain objects with sensitive data)
         sanitized[key] = value.map(item => 
           typeof item === "object" && item !== null 
             ? sanitizeContext(item as LogContext)
@@ -143,7 +117,6 @@ function sanitizeContext(context: LogContext): LogContext {
         sanitized[key] = sanitizeContext(value as LogContext);
       }
     } else if (typeof value === "string" && value.length > 500) {
-      // P1-02: Truncate very long strings (might be payload dumps)
       sanitized[key] = value.substring(0, 200) + "...[TRUNCATED]";
     } else {
       sanitized[key] = value;

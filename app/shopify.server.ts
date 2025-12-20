@@ -32,8 +32,6 @@ const encryptedSessionStorage = createEncryptedSessionStorage(baseSessionStorage
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
-  // P0-1: Updated from October24 (2024-10) to July25 (2025-07)
-  // 2024-10 was no longer supported as of 2025-10-01
   apiVersion: ApiVersion.July25,
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
@@ -41,10 +39,6 @@ const shopify = shopifyApp({
   
   sessionStorage: encryptedSessionStorage,
   distribution: AppDistribution.AppStore,
-  // P0-1 (Review Fix): Only register BUSINESS webhooks here
-  // Mandatory compliance webhooks (customers/data_request, customers/redact, shop/redact)
-  // are subscribed via shopify.app.toml [webhooks.subscriptions] compliance_topics
-  // to avoid duplicate deliveries
   webhooks: {
     APP_UNINSTALLED: {
       deliveryMethod: DeliveryMethod.Http,
@@ -60,18 +54,12 @@ const shopify = shopifyApp({
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-    // NOTE: CUSTOMERS_DATA_REQUEST, CUSTOMERS_REDACT, SHOP_REDACT
-    // are NOT registered here - they come from shopify.app.toml compliance_topics
-    // to prevent duplicate webhook deliveries and GDPRJob creation
   },
   hooks: {
     afterAuth: async ({ session }) => {
-      // P0-1 (Review Fix): Must await registerWebhooks to ensure business webhooks are registered
-      // Without await, registration failures are silent and core functionality may break
       try {
         const webhookResult = await shopify.registerWebhooks({ session });
         
-        // Log registration results for debugging
         const registered = Object.entries(webhookResult).filter(
           ([, results]) => results.some((r: { success: boolean }) => r.success)
         );
@@ -90,8 +78,6 @@ const shopify = shopifyApp({
           );
         }
       } catch (webhookError) {
-        // Log but don't throw - shop setup should continue even if webhook registration fails
-        // Failed webhooks will be retried on next OAuth flow or can be manually triggered
         console.error(`[Webhooks] Registration error for ${session.shop}:`, 
           webhookError instanceof Error ? webhookError.message : webhookError
         );
@@ -114,12 +100,10 @@ const shopify = shopifyApp({
           accessToken: encryptedAccessToken,
           isActive: true,
           uninstalledAt: null,
-          
         },
         create: {
           shopDomain: session.shop,
           accessToken: encryptedAccessToken,
-          
           ingestionSecret: newIngestionSecret.encrypted,
         },
       });
@@ -149,4 +133,3 @@ export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
 export const registerWebhooks = shopify.registerWebhooks;
 export const sessionStorage = shopify.sessionStorage;
-

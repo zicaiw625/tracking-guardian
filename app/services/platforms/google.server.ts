@@ -1,5 +1,3 @@
-
-
 import type { ConversionData, GoogleCredentials, ConversionApiResponse } from "../../types";
 
 const API_TIMEOUT_MS = 30000;
@@ -47,13 +45,11 @@ export async function sendConversionToGoogle(
   const dedupeEventId = eventId || `${conversionData.orderId}_purchase_${Date.now()}`;
 
   const payload: Record<string, unknown> = {
-
     client_id: `server.${conversionData.orderId}`,
     events: [
       {
         name: "purchase",
         params: {
-          
           engagement_time_msec: "1",
           transaction_id: conversionData.orderId,
           value: conversionData.value,
@@ -101,29 +97,11 @@ export async function sendConversionToGoogle(
   }
 }
 
-/**
- * @deprecated This function is deprecated and should not be used.
- * 
- * Tracking Guardian now uses a pure server-side CAPI approach:
- * - Our App Pixel Extension handles checkout_completed event collection
- * - Server-side receives orders/paid webhook and sends CAPI to Google GA4
- * - No merchant-pasted Custom Pixel code is needed
- * 
- * The old approach (generating code for merchants to paste) doesn't work because:
- * - Custom Pixels don't support the `settings` API
- * - Custom Pixels don't have access to `register` from @shopify/web-pixels-extension
- * 
- * To track conversions in Google:
- * 1. Configure GA4 Measurement Protocol credentials in Settings
- * 2. Enable server-side tracking
- * 3. Tracking Guardian will automatically send conversions via GA4 MP
- */
 export function generateGooglePixelCode(_config: {
   measurementId: string;
   conversionId?: string;
   conversionLabel?: string;
 }): string {
-  // Return instructions instead of code
   return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
 
 Tracking Guardian no longer generates client-side pixel code.

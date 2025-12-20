@@ -1,47 +1,25 @@
-/**
- * P1: Runtime validation for webhook payloads
- * 
- * This module provides lightweight runtime validation for webhook payloads
- * without requiring heavy dependencies like Zod or Yup.
- * 
- * SECURITY: Validates webhook payloads to prevent:
- * - Processing malformed data that could cause crashes
- * - Type confusion attacks
- * - Injection through unexpected data types
- */
-
 import { logger } from "./logger";
 import type { OrderWebhookPayload } from "../types";
 
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
-  /** Sanitized payload (only present if valid) */
   payload?: OrderWebhookPayload;
 }
 
-/**
- * Validate and sanitize an OrderWebhookPayload
- * 
- * @param data - Raw webhook payload from Shopify
- * @returns ValidationResult with sanitized payload or error messages
- */
 export function validateOrderWebhookPayload(data: unknown): ValidationResult {
   const errors: string[] = [];
 
-  // Check if data is an object
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     return { valid: false, errors: ["Payload must be a non-null object"] };
   }
 
   const payload = data as Record<string, unknown>;
 
-  // Required field: id (must be a number)
   if (typeof payload.id !== "number" || isNaN(payload.id)) {
     errors.push("Missing or invalid 'id' field (must be a number)");
   }
 
-  // Optional fields validation
   if (payload.order_number !== undefined && payload.order_number !== null) {
     if (typeof payload.order_number !== "number") {
       errors.push("'order_number' must be a number if present");
@@ -70,7 +48,6 @@ export function validateOrderWebhookPayload(data: unknown): ValidationResult {
     }
   }
 
-  // Validate line_items if present
   if (payload.line_items !== undefined && payload.line_items !== null) {
     if (!Array.isArray(payload.line_items)) {
       errors.push("'line_items' must be an array if present");
@@ -79,7 +56,6 @@ export function validateOrderWebhookPayload(data: unknown): ValidationResult {
     }
   }
 
-  // Validate nested objects
   if (payload.billing_address !== undefined && payload.billing_address !== null) {
     if (typeof payload.billing_address !== "object" || Array.isArray(payload.billing_address)) {
       errors.push("'billing_address' must be an object if present");
@@ -102,7 +78,6 @@ export function validateOrderWebhookPayload(data: unknown): ValidationResult {
     return { valid: false, errors };
   }
 
-  // Build sanitized payload
   const sanitizedPayload: OrderWebhookPayload = {
     id: payload.id as number,
     order_number: sanitizeNumber(payload.order_number),
@@ -122,13 +97,6 @@ export function validateOrderWebhookPayload(data: unknown): ValidationResult {
   return { valid: true, errors: [], payload: sanitizedPayload };
 }
 
-/**
- * Validate and parse with logging for webhook handler
- * 
- * @param data - Raw webhook payload
- * @param shopDomain - Shop domain for logging context
- * @returns Validated payload or null if invalid
- */
 export function parseOrderWebhookPayload(
   data: unknown,
   shopDomain: string
@@ -138,7 +106,6 @@ export function parseOrderWebhookPayload(
   if (!result.valid) {
     logger.warn(`[P1] Invalid order webhook payload from ${shopDomain}`, {
       errors: result.errors,
-      // Log only the type structure for debugging, not actual values (may contain PII)
       payloadType: typeof data,
       hasId: data && typeof data === "object" ? "id" in data : false,
     });
@@ -148,12 +115,9 @@ export function parseOrderWebhookPayload(
   return result.payload!;
 }
 
-// Helper functions for sanitization
-
 function sanitizeString(value: unknown): string | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== "string") return null;
-  // Truncate extremely long strings to prevent memory issues
   return value.length > 10000 ? value.substring(0, 10000) : value;
 }
 
@@ -212,7 +176,6 @@ function sanitizeLineItems(value: unknown): OrderWebhookPayload["line_items"] {
   if (value === undefined || value === null) return null;
   if (!Array.isArray(value)) return null;
   
-  // Limit to first 1000 items to prevent memory issues
   const items = value.slice(0, 1000);
   
   return items.map((item) => {
@@ -240,4 +203,3 @@ function sanitizeLineItems(value: unknown): OrderWebhookPayload["line_items"] {
     };
   });
 }
-

@@ -1,5 +1,3 @@
-
-
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
 import { generateGooglePixelCode } from "./platforms/google.server";
@@ -22,17 +20,9 @@ export interface MigrationResult {
   error?: string;
 }
 
-/**
- * @deprecated This function returns deprecated pixel code.
- * 
- * Tracking Guardian now uses server-side CAPI exclusively.
- * The returned pixelCode is a deprecation notice, not actual code.
- * Instructions guide users to configure server-side tracking instead.
- */
 export function generatePixelCode(config: MigrationConfig): MigrationResult {
   try {
     let pixelCode = "";
-    // Updated instructions: No more "paste code" - use server-side CAPI instead
     const serverSideInstructions = [
       "1. 前往 Tracking Guardian「设置」页面",
       "2. 在「服务端追踪」部分配置平台凭证",
@@ -78,7 +68,6 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
         throw new Error(`Unsupported platform: ${config.platform}`);
     }
 
-    // All platforms now use the same server-side instructions
     const instructions = serverSideInstructions;
 
     return {
@@ -99,11 +88,8 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
 }
 
 export interface SavePixelConfigOptions {
-  
   clientConfig?: Record<string, string | number | boolean>;
-  
   credentialsEncrypted?: string;
-  
   serverSideEnabled?: boolean;
 }
 
@@ -171,23 +157,10 @@ export interface CreateWebPixelResult {
   userErrors?: Array<{ field: string; message: string }>;
 }
 
-/**
- * P0-01: Create Web Pixel with settings matching shopify.extension.toml schema
- * 
- * Settings schema (must match extension toml):
- * - ingestion_key: Key for request correlation and diagnostics (P1-2: renamed from ingestion_secret)
- * - ingestion_secret: Legacy field name (kept for backwards compatibility)
- * 
- * Note: backend_url is NOT included - the pixel uses a hardcoded production URL
- * to prevent merchants from configuring arbitrary data exfiltration endpoints.
- */
 export async function createWebPixel(
   admin: AdminApiContext,
   ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
-  // P0-01: Settings must match shopify.extension.toml schema exactly
-  // P1-2: Use new field name "ingestion_key" for new installations
-  // The pixel code reads both ingestion_key and ingestion_secret for backwards compatibility
   const settings = JSON.stringify({
     ingestion_key: ingestionSecret || "",
   });
@@ -249,17 +222,11 @@ export async function createWebPixel(
   }
 }
 
-/**
- * P0-01: Update Web Pixel with settings matching shopify.extension.toml schema
- * P1-2: Use new field name "ingestion_key" for updates
- */
 export async function updateWebPixel(
   admin: AdminApiContext,
   webPixelId: string,
   ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
-  // P0-01: Settings must match shopify.extension.toml schema exactly
-  // P1-2: Use new field name "ingestion_key" for updates
   const settings = JSON.stringify({
     ingestion_key: ingestionSecret || "",
   });
@@ -352,15 +319,6 @@ export async function getExistingWebPixels(
   }
 }
 
-/**
- * P0-04: ScriptTag deletion with detailed guidance
- * 
- * ScriptTags can only be deleted by the app that created them.
- * Since we're not the creator, we provide:
- * 1. Option to attempt deletion (may fail if created by another app)
- * 2. Detailed manual deletion instructions
- * 3. Admin console link for the shop
- */
 export interface ScriptTagDeletionResult {
   success: boolean;
   error?: string;
@@ -376,7 +334,6 @@ export async function deleteScriptTag(
 ): Promise<ScriptTagDeletionResult> {
   const gid = `gid://shopify/ScriptTag/${scriptTagId}`;
   
-  // P0-04: Attempt to delete the ScriptTag
   try {
     const response = await admin.graphql(
       `#graphql
@@ -407,7 +364,6 @@ export async function deleteScriptTag(
       const errorMessage = data.userErrors.map((e: { message: string }) => e.message).join(", ");
       logger.warn(`[P0-04] ScriptTag deletion failed: ${errorMessage}`);
       
-      // Return detailed manual steps if deletion fails
       return getManualDeletionInstructions(scriptTagId, shopDomain, errorMessage);
     }
 
@@ -420,9 +376,6 @@ export async function deleteScriptTag(
   }
 }
 
-/**
- * P0-04: Generate manual deletion instructions for ScriptTags
- */
 function getManualDeletionInstructions(
   scriptTagId: number,
   shopDomain?: string,
@@ -449,9 +402,6 @@ function getManualDeletionInstructions(
   };
 }
 
-/**
- * P0-04: Get platform-specific migration guidance
- */
 export function getScriptTagMigrationGuidance(platform: string, scriptTagId: number): {
   title: string;
   steps: string[];
@@ -513,16 +463,6 @@ export function getScriptTagMigrationGuidance(platform: string, scriptTagId: num
   };
 }
 
-/**
- * @deprecated This function is deprecated and should not be used.
- * 
- * Tracking Guardian now uses a pure server-side approach. We don't generate
- * client-side tracking code for any platform.
- * 
- * For Bing/Microsoft Advertising:
- * - Use Microsoft's native Shopify integration if available
- * - Or implement server-side conversion import via Microsoft Advertising API
- */
 function generateBingPixelCode(_config: { tagId: string }): string {
   return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
 
@@ -574,7 +514,6 @@ export async function migrateCredentialsToEncrypted(): Promise<{
 
   for (const config of configs) {
     try {
-      
       if (config.credentialsEncrypted) {
         logger.info(`P0-09: Skipping ${config.id} - already has encrypted credentials`);
         
@@ -721,17 +660,6 @@ export async function getOrderPayloadStats(): Promise<{
   };
 }
 
-/**
- * @deprecated This function is deprecated and should not be used.
- * 
- * Tracking Guardian now uses a pure server-side approach. We don't generate
- * client-side tracking code for any platform.
- * 
- * For Microsoft Clarity:
- * - Clarity is a session replay / heatmap tool, not a conversion tracking platform
- * - It requires lax sandbox mode and DOM access
- * - This is outside Tracking Guardian's scope (server-side conversion tracking)
- */
 function generateClarityPixelCode(_config: { projectId: string }): string {
   return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
 
@@ -751,4 +679,3 @@ For Clarity, please install it directly via Shopify's theme editor
 or use a dedicated Clarity app.
 */`;
 }
-

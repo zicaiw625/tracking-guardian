@@ -1,26 +1,13 @@
-
-
 export type ConsentCategory = "marketing" | "analytics";
 
 export interface PlatformConsentConfig {
-  
   category: ConsentCategory;
-  
   name: string;
-  
   dualUse: boolean;
-  
   consentReason: string;
 }
 
-/**
- * P0-07: Centralized platform consent configuration
- * 
- * This is the SINGLE SOURCE OF TRUTH for platform consent categorization.
- * All consent-related logic should use these functions instead of hardcoding.
- */
 export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
-  // Marketing platforms - require marketing consent
   meta: {
     category: "marketing",
     name: "Meta (Facebook/Instagram)",
@@ -57,13 +44,10 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
     dualUse: false,
     consentReason: "用于转化追踪和广告优化",
   },
-
-  // Analytics platforms - require analytics consent
-  // P0-07: GA4 is dual-use: can be analytics OR marketing depending on config
   google: {
     category: "analytics",
     name: "Google Analytics 4 (GA4)",
-    dualUse: true, // Can be used for both analytics and ads conversion tracking
+    dualUse: true,
     consentReason: "用于网站分析和用户行为理解",
   },
   clarity: {
@@ -74,13 +58,6 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
   },
 };
 
-/**
- * P0-07: Get the effective consent category for a platform
- * Takes into account dual-use platforms and explicit marketing treatment
- * 
- * @param platform - Platform identifier (e.g., "google", "meta")
- * @param treatAsMarketing - For dual-use platforms, treat as marketing (e.g., Google Ads)
- */
 export function getEffectiveConsentCategory(
   platform: string,
   treatAsMarketing = false
@@ -88,11 +65,9 @@ export function getEffectiveConsentCategory(
   const config = PLATFORM_CONSENT_CONFIG[platform];
   
   if (!config) {
-    // Unknown platforms default to marketing for safety
     return "marketing";
   }
   
-  // For dual-use platforms (like Google), check the treatAsMarketing flag
   if (config.dualUse && treatAsMarketing) {
     return "marketing";
   }
@@ -140,7 +115,6 @@ export function evaluatePlatformConsent(
 
   let category: ConsentCategory;
   if (config?.dualUse && treatAsMarketing) {
-    
     category = "marketing";
   } else {
     category = config?.category || "marketing";
@@ -163,7 +137,6 @@ export function evaluatePlatformConsent(
       usedConsent: "marketing",
     };
   } else {
-    
     if (consentState.analytics === true) {
       return { allowed: true, usedConsent: "analytics" };
     } else if (consentState.analytics === false) {
@@ -182,22 +155,6 @@ export function evaluatePlatformConsent(
   }
 }
 
-/**
- * P0-07: Evaluate platform consent with strategy
- * 
- * This is the MAIN function that should be used for consent evaluation.
- * It handles all combinations of:
- * - Consent strategy (strict/balanced/weak)
- * - Platform type (marketing/analytics)
- * - Dual-use platforms (treatAsMarketing flag)
- * - Pixel receipt presence
- * 
- * @param platform - Platform identifier
- * @param consentStrategy - Shop's consent strategy setting
- * @param consentState - Consent state from pixel receipt (if any)
- * @param hasPixelReceipt - Whether a pixel receipt exists for this conversion
- * @param treatAsMarketing - For dual-use platforms, treat as marketing
- */
 export function evaluatePlatformConsentWithStrategy(
   platform: string,
   consentStrategy: string,
@@ -205,12 +162,10 @@ export function evaluatePlatformConsentWithStrategy(
   hasPixelReceipt: boolean,
   treatAsMarketing = false
 ): ConsentDecision {
-  // P0-07: Use effective category that respects treatAsMarketing for dual-use platforms
   const category = getEffectiveConsentCategory(platform, treatAsMarketing);
   
   switch (consentStrategy) {
     case "strict":
-      // Strict mode: MUST have pixel receipt with consent
       if (!hasPixelReceipt) {
         return {
           allowed: false,
@@ -221,11 +176,7 @@ export function evaluatePlatformConsentWithStrategy(
       return evaluatePlatformConsent(platform, consentState, treatAsMarketing);
       
     case "balanced":
-      // Balanced mode: 
-      // - Marketing platforms: require receipt + consent
-      // - Analytics platforms: allow without receipt
       if (hasPixelReceipt && consentState) {
-        // If we have a receipt, check explicit denial
         if (category === "marketing" && consentState.marketing === false) {
           return {
             allowed: false,
@@ -240,11 +191,9 @@ export function evaluatePlatformConsentWithStrategy(
             usedConsent: "analytics",
           };
         }
-        // Consent not explicitly denied - allow
         return { allowed: true, usedConsent: category };
       }
       
-      // No receipt - only allow analytics platforms
       if (category === "analytics") {
         return { 
           allowed: true, 
@@ -253,7 +202,6 @@ export function evaluatePlatformConsentWithStrategy(
         };
       }
       
-      // Marketing platforms require receipt in balanced mode
       return {
         allowed: false,
         reason: `No pixel event received for ${platform} (balanced mode requires consent for marketing)`,
@@ -261,11 +209,9 @@ export function evaluatePlatformConsentWithStrategy(
       };
       
     case "weak":
-      // Weak mode: always allow (for regions with implied consent)
       return { allowed: true, usedConsent: category };
       
     default:
-      // Unknown strategy - default to requiring receipt
       if (hasPixelReceipt) {
         return { allowed: true, usedConsent: category };
       }

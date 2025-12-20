@@ -1,17 +1,3 @@
-/**
- * P3-1: Diagnostics Wizard
- * 
- * This page provides a quick health check for App Store reviewers and merchants
- * to verify the app is configured correctly.
- * 
- * Checks:
- * 1. Pixel activation status
- * 2. Ingestion secret configuration
- * 3. Last event received
- * 4. CAPI platform configuration
- * 5. Recent conversion status
- */
-
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useRevalidator } from "@remix-run/react";
@@ -51,14 +37,13 @@ interface DiagnosticsData {
   lastUpdated: string;
 }
 
-// P3-13: Event processing funnel data
 interface EventFunnel {
-  pixelRequests: number;        // Total pixel requests received
-  passedOrigin: number;         // Passed origin validation
-  passedKey: number;            // Passed ingestion key validation
-  matchedWebhook: number;       // Matched with order webhook
-  sentToPlatforms: number;      // Successfully sent to ad platforms
-  period: string;               // Time period (e.g., "24h")
+  pixelRequests: number;
+  passedOrigin: number;
+  passedKey: number;
+  matchedWebhook: number;
+  sentToPlatforms: number;
+  period: string;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -67,7 +52,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const checks: DiagnosticCheck[] = [];
 
-  // Get shop data
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -102,7 +86,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // Check 1: Ingestion Key (used for request correlation and noise filtering)
   checks.push({
     name: "Ingestion Key",
     status: shop.ingestionSecret ? "pass" : "fail",
@@ -114,14 +97,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       : "请在设置页面生成 Ingestion Key",
   });
 
-  // Check 2: Web Pixel Status
-  // P1-2: Our App Pixel is identified by having ingestion_key OR ingestion_secret setting
   try {
     const existingPixels = await getExistingWebPixels(admin);
     const ourPixel = existingPixels.find((p) => {
       try {
         const settings = JSON.parse(p.settings || "{}");
-        // P1-2: Check for both new (ingestion_key) and legacy (ingestion_secret) field names
         return typeof settings.ingestion_key === "string" || 
                typeof settings.ingestion_secret === "string";
       } catch {
@@ -146,7 +126,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // Check 3: Platform Configuration
   const serverSideConfigs = shop.pixelConfigs.filter(c => c.serverSideEnabled);
   
   if (serverSideConfigs.length > 0) {
@@ -165,7 +144,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // Check 4: Recent Events
   const recentReceipt = await prisma.pixelEventReceipt.findFirst({
     where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },
@@ -200,7 +178,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // Check 5: Recent Conversions
   const recentConversions = await prisma.conversionLog.count({
     where: {
       shopId: shop.id,
@@ -217,7 +194,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       : "完成测试订单后会产生转化记录",
   });
 
-  // Check 6: Consent Strategy
   checks.push({
     name: "Consent 策略",
     status: "pass",
@@ -229,7 +205,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       : "平衡模式: 推荐设置",
   });
 
-  // Check 7: Data Retention
   checks.push({
     name: "数据保留策略",
     status: "pass",
@@ -237,7 +212,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     details: "超期数据自动清理",
   });
 
-  // Calculate summary
   const summary = {
     total: checks.length,
     passed: checks.filter(c => c.status === "pass").length,
@@ -245,10 +219,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     warnings: checks.filter(c => c.status === "warning").length,
   };
 
-  // P3-13: Calculate event processing funnel
   const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  
-  // Count pixel receipts (represents requests that passed validation)
+
   const pixelReceiptsCount = await prisma.pixelEventReceipt.count({
     where: {
       shopId: shop.id,
@@ -256,7 +228,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  // Count trusted receipts (passed origin + key validation)
   const trustedReceiptsCount = await prisma.pixelEventReceipt.count({
     where: {
       shopId: shop.id,
@@ -265,7 +236,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  // Count matched with webhook (have corresponding ConversionJob)
   const matchedWebhookCount = await prisma.conversionJob.count({
     where: {
       shopId: shop.id,
@@ -273,7 +243,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  // Count successfully sent to platforms
   const sentToPlatformsCount = await prisma.conversionLog.count({
     where: {
       shopId: shop.id,
@@ -284,7 +253,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const eventFunnel: EventFunnel = {
     pixelRequests: pixelReceiptsCount,
-    passedOrigin: pixelReceiptsCount, // All receipts passed origin validation
+    passedOrigin: pixelReceiptsCount,
     passedKey: trustedReceiptsCount,
     matchedWebhook: matchedWebhookCount,
     sentToPlatforms: sentToPlatformsCount,
@@ -299,7 +268,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
-// P3-13: Funnel Stage Component
 function FunnelStage({
   label,
   count,
@@ -455,7 +423,6 @@ export default function DiagnosticsPage() {
           </Card>
         </Layout.Section>
 
-        {/* P3-13: Event Processing Funnel Visualization */}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -473,7 +440,6 @@ export default function DiagnosticsPage() {
               <Divider />
 
               <BlockStack gap="300">
-                {/* Stage 1: Pixel Requests */}
                 <FunnelStage
                   label="1. Pixel 请求"
                   count={data.eventFunnel.pixelRequests}
@@ -481,7 +447,6 @@ export default function DiagnosticsPage() {
                   description="收到的 checkout_completed 事件"
                 />
 
-                {/* Stage 2: Passed Origin */}
                 <FunnelStage
                   label="2. 通过 Origin 验证"
                   count={data.eventFunnel.passedOrigin}
@@ -489,7 +454,6 @@ export default function DiagnosticsPage() {
                   description="来自 Shopify 域名/沙箱的请求"
                 />
 
-                {/* Stage 3: Passed Key */}
                 <FunnelStage
                   label="3. 通过 Key 验证"
                   count={data.eventFunnel.passedKey}
@@ -497,7 +461,6 @@ export default function DiagnosticsPage() {
                   description="Ingestion Key 匹配的请求"
                 />
 
-                {/* Stage 4: Matched Webhook */}
                 <FunnelStage
                   label="4. 匹配订单 Webhook"
                   count={data.eventFunnel.matchedWebhook}
@@ -505,7 +468,6 @@ export default function DiagnosticsPage() {
                   description="关联到 orders/paid webhook 的事件"
                 />
 
-                {/* Stage 5: Sent to Platforms */}
                 <FunnelStage
                   label="5. 成功发送到平台"
                   count={data.eventFunnel.sentToPlatforms}

@@ -1,5 +1,3 @@
-
-
 import { 
   createCipheriv, 
   createDecipheriv, 
@@ -21,8 +19,6 @@ const SCRYPT_PARAMS = {
 const CURRENT_VERSION = "v1";
 const VERSION_PREFIX = `${CURRENT_VERSION}:`;
 
-// P0-1: Unified salt strategy with crypto.ts
-// Both modules now use the same default salt when ENCRYPTION_SALT is not set
 const DEFAULT_ENCRYPTION_SALT = "tracking-guardian-credentials-salt";
 const DEV_ENCRYPTION_SALT = "dev-salt-not-for-production";
 
@@ -50,7 +46,6 @@ function getTokenEncryptionKey(): Buffer {
     return scryptSync(devSecret, DEV_ENCRYPTION_SALT, 32, SCRYPT_PARAMS);
   }
 
-  // Cache key only if both secret and salt match
   if (cachedTokenKey && cachedTokenKeySecret === secret && cachedTokenKeySalt === salt) {
     return cachedTokenKey;
   }
@@ -91,7 +86,6 @@ export function decryptAccessToken(encryptedToken: string): string {
   }
 
   if (!encryptedToken.startsWith(VERSION_PREFIX)) {
-
     console.warn(
       "[Token Encryption] Found unencrypted legacy token. " +
       "It will be encrypted on next auth refresh."
@@ -152,7 +146,6 @@ export function decryptIngestionSecret(encryptedSecret: string): string {
   try {
     return decryptAccessToken(encryptedSecret);
   } catch {
-
     console.warn(
       "[Token Encryption] Failed to decrypt ingestion secret. " +
       "Shop should regenerate via Settings."
@@ -161,15 +154,6 @@ export function decryptIngestionSecret(encryptedSecret: string): string {
   }
 }
 
-/**
- * P1-1: Shared function for generating encrypted ingestion secrets
- * Previously duplicated in shopify.server.ts and app.settings.tsx
- * 
- * Generates a cryptographically secure ingestion secret and returns
- * both the plain and encrypted versions.
- * 
- * @returns Object with plain (for pixel config) and encrypted (for DB storage) versions
- */
 export function generateEncryptedIngestionSecret(): { plain: string; encrypted: string } {
   const plain = randomBytes(32).toString("hex");
   const encrypted = encryptIngestionSecret(plain);

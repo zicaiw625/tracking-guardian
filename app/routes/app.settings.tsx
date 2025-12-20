@@ -32,23 +32,21 @@ import { generateEncryptedIngestionSecret, isTokenEncrypted } from "../utils/tok
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
 import { logger } from "../utils/logger";
 
-// P0-2: Alert settings types for encrypted storage
 interface AlertSettingsEmail {
   email: string;
 }
 
 interface AlertSettingsSlack {
-  webhookUrl: string; // Sensitive - encrypted
+  webhookUrl: string;
 }
 
 interface AlertSettingsTelegram {
-  botToken: string;  // Sensitive - encrypted
-  chatId: string;    // Non-sensitive but stored together
+  botToken: string;
+  chatId: string;
 }
 
 type AlertSettings = AlertSettingsEmail | AlertSettingsSlack | AlertSettingsTelegram;
 
-// P1-2: Display types for settings page - avoid using 'any'
 interface AlertConfigDisplay {
   id: string;
   channel: string;
@@ -67,7 +65,6 @@ interface PixelConfigDisplay {
   lastTestedAt?: Date | null;
 }
 
-// P0-2: Helper to encrypt alert settings based on channel
 function encryptAlertSettings(channel: string, settings: Record<string, unknown>): string | null {
   const sensitiveSettings: Record<string, unknown> = {};
   
@@ -88,7 +85,6 @@ function encryptAlertSettings(channel: string, settings: Record<string, unknown>
   return encryptJson(sensitiveSettings);
 }
 
-// P0-2: Helper to decrypt alert settings
 function decryptAlertSettings(encryptedSettings: string | null): Record<string, unknown> | null {
   if (!encryptedSettings) {
     return null;
@@ -102,7 +98,6 @@ function decryptAlertSettings(encryptedSettings: string | null): Record<string, 
   }
 }
 
-// P0-2: Helper to get display-safe settings (masked sensitive values)
 function getMaskedAlertSettings(channel: string, settings: Record<string, unknown> | null): Record<string, unknown> {
   if (!settings) {
     return {};
@@ -112,20 +107,16 @@ function getMaskedAlertSettings(channel: string, settings: Record<string, unknow
   
   if (channel === "slack" && masked.webhookUrl) {
     const url = String(masked.webhookUrl);
-    // Show only last 8 characters of webhook URL
     masked.webhookUrl = url.length > 12 ? `****${url.slice(-8)}` : "****";
   }
   
   if (channel === "telegram" && masked.botToken) {
     const token = String(masked.botToken);
-    // Show only first 8 characters of bot token
     masked.botToken = token.length > 12 ? `${token.slice(0, 8)}****` : "****";
   }
   
   return masked;
 }
-
-// P1-1: generateEncryptedIngestionSecret is now imported from token-encryption.ts
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -164,8 +155,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           
           hasIngestionSecret: !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
           piiEnabled: shop.piiEnabled,
-          weakConsentMode: shop.weakConsentMode, 
-          // P1-3: Default to strict mode for privacy compliance
+          weakConsentMode: shop.weakConsentMode,
           consentStrategy: shop.consentStrategy || "strict", 
           dataRetentionDays: shop.dataRetentionDays,
         }
@@ -195,7 +185,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const threshold = parseFloat(formData.get("threshold") as string) / 100;
       const enabled = formData.get("enabled") === "true";
 
-      // P0-2: Separate sensitive and non-sensitive settings
       const rawSettings: Record<string, unknown> = {};
 
       if (channel === "email") {
@@ -207,11 +196,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         rawSettings.chatId = formData.get("chatId");
       }
 
-      // P0-2: Encrypt sensitive settings
       const encryptedSettings = encryptAlertSettings(channel, rawSettings);
-      
-      // P0-2: Store non-sensitive metadata in settings JSON (for display purposes)
-      // Never store actual sensitive values in plain text
+
       const nonSensitiveSettings: Record<string, unknown> = {
         channel,
         // For email, we can show a masked version
@@ -237,22 +223,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
         update: {
           channel,
-          settings: nonSensitiveSettings, // P0-2: Non-sensitive only
-          settingsEncrypted: encryptedSettings, // P0-2: Encrypted sensitive data
+          settings: nonSensitiveSettings,
+          settingsEncrypted: encryptedSettings,
           discrepancyThreshold: threshold,
           isEnabled: enabled,
         },
         create: {
           shopId: shop.id,
           channel,
-          settings: nonSensitiveSettings, // P0-2: Non-sensitive only
-          settingsEncrypted: encryptedSettings, // P0-2: Encrypted sensitive data
+          settings: nonSensitiveSettings,
+          settingsEncrypted: encryptedSettings,
           discrepancyThreshold: threshold,
           isEnabled: enabled,
         },
       });
 
-      // P0-2: Audit log for alert config change
       await createAuditLog({
         shopId: shop.id,
         actorType: "user",
@@ -263,7 +248,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         metadata: { 
           channel, 
           threshold,
-          // Never log sensitive values
         },
       });
 
@@ -274,9 +258,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const channel = formData.get("channel") as string;
       const settings: Record<string, unknown> = {};
 
-      // P0-2: Get settings from form for testing
-      // Note: For testing, we use the values directly from the form
-      // since the user may be testing before saving
       if (channel === "email") {
         settings.email = formData.get("email");
       } else if (channel === "slack") {
@@ -376,7 +357,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     case "rotateIngestionSecret": {
-
       const currentShop = await prisma.shop.findUnique({
         where: { id: shop.id },
         select: { ingestionSecret: true },
@@ -391,19 +371,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         where: { id: shop.id },
         data: { 
           ingestionSecret: newEncryptedSecret,
-          
           previousIngestionSecret: currentShop?.ingestionSecret || null,
           previousSecretExpiry: graceWindowExpiry,
         },
       });
 
-      // P0-01: Backend URL is no longer configurable
       let pixelSyncResult = { success: false, message: "" };
       
       try {
         const existingPixels = await getExistingWebPixels(admin);
 
-        // P1-2: Find our pixel by checking for ingestion_key OR ingestion_secret field
         const ourPixel = existingPixels.find((p) => {
           try {
             const settings = JSON.parse(p.settings || "{}");
@@ -415,7 +392,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
         
         if (ourPixel) {
-          // P0-01: No backendUrl parameter needed
           const result = await updateWebPixel(admin, ourPixel.id, newPlainSecret);
           if (result.success) {
             pixelSyncResult = {
@@ -1311,7 +1287,6 @@ export default function SettingsPage() {
 
                     <Divider />
 
-                    {/* P1-01: Data Minimization & Retention UI */}
                     <BlockStack gap="300">
                       <Text as="h3" variant="headingMd">
                         数据保留策略
@@ -1375,7 +1350,6 @@ export default function SettingsPage() {
 
                     <Divider />
 
-                    {/* Consent Strategy Section */}
                     <BlockStack gap="300">
                       <Text as="h3" variant="headingMd">
                         Consent 策略
@@ -1402,7 +1376,6 @@ export default function SettingsPage() {
                         ]}
                         value={shop?.consentStrategy || "strict"}
                         onChange={(value) => {
-                          // P1-3: Warn about compliance risks for non-strict modes
                           if (value !== "strict") {
                             const warning = value === "balanced" 
                               ? "平衡模式对分析类平台（如 GA4）可能在没有明确同意的情况下发送数据。在 GDPR 等严格隐私法规地区可能存在合规风险。\n\n确定要切换吗？"

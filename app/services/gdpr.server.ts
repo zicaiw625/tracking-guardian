@@ -6,20 +6,18 @@ import { createAuditLog } from "./audit.server";
 
 export type GDPRJobType = "data_request" | "customer_redact" | "shop_redact";
 
-// P0-2: Minimal payload interfaces - NO PII (email/phone) stored
-// These match the minimal payloads created in webhooks.tsx
 interface DataRequestPayload {
   shop_id?: number;
   shop_domain?: string;
   orders_requested?: number[];
-  customer_id?: number;  // P0-2: Only ID, not email/phone
+  customer_id?: number;
   data_request_id?: number;
 }
 
 interface CustomerRedactPayload {
   shop_id?: number;
   shop_domain?: string;
-  customer_id?: number;  // P0-2: Only ID, not email/phone
+  customer_id?: number;
   orders_to_redact?: number[];
 }
 
@@ -28,8 +26,6 @@ interface ShopRedactPayload {
   shop_domain?: string;
 }
 
-// P2-1: Enhanced data request result for GDPR compliance
-// Returns counts AND record IDs for easier data export via support
 interface DataRequestResult {
   dataRequestId?: number;
   customerId?: number;
@@ -37,7 +33,7 @@ interface DataRequestResult {
   dataLocated: {
     conversionLogs: {
       count: number;
-      recordIds: string[];  // For support-assisted export
+      recordIds: string[];
     };
     surveyResponses: {
       count: number;
@@ -48,8 +44,6 @@ interface DataRequestResult {
       recordIds: string[];
     };
   };
-  // Note: Full data export available via support request
-  // Use the recordIds to locate and export complete records
   exportedAt: string;
 }
 
@@ -87,7 +81,6 @@ async function processDataRequest(
   shopDomain: string,
   payload: DataRequestPayload
 ): Promise<DataRequestResult> {
-  // P0-2: Use minimal payload fields (no email/phone stored)
   const customerId = payload.customer_id;
   const ordersRequested = payload.orders_requested || [];
   const dataRequestId = payload.data_request_id;
@@ -163,11 +156,10 @@ async function processDataRequest(
       orderId: true,
       eventType: true,
       consentState: true,
-      createdAt: true,
+      createdAt: true,      
     },
   });
   
-  // P2-1: Return counts AND record IDs for support-assisted export
   const result: DataRequestResult = {
     dataRequestId,
     customerId,
@@ -203,7 +195,6 @@ async function processCustomerRedact(
   shopDomain: string,
   payload: CustomerRedactPayload
 ): Promise<CustomerRedactResult> {
-  // P0-2: Use minimal payload fields (no email/phone stored)
   const customerId = payload.customer_id;
   const ordersToRedact = payload.orders_to_redact || [];
   
@@ -452,13 +443,12 @@ export async function processGDPRJob(jobId: string): Promise<{
         throw new Error(`Unknown GDPR job type: ${job.jobType}`);
     }
 
-    // P0-2: Clear payload after processing to minimize data retention
     await prisma.gDPRJob.update({
       where: { id: jobId },
       data: {
         status: "completed",
         result: result as object,
-        payload: {}, // P0-2: Clear payload after successful processing
+        payload: {},
         processedAt: new Date(),
         completedAt: new Date(),
       },
@@ -514,7 +504,7 @@ export async function processGDPRJobs(): Promise<{
   
   for (const job of pendingJobs) {
     const result = await processGDPRJob(job.id);
-    if (result.success) {
+        if (result.success) {
       succeeded++;
     } else {
       failed++;

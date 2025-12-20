@@ -23,21 +23,13 @@ let securityChecked = false;
 let headersValidated = false;
 let configValidated = false;
 
-/**
- * P0-04: Enforce security checks BEFORE any request processing
- * This runs once at startup and will crash the app if critical violations are found
- */
 function enforceSecurityOnce() {
   if (!securityChecked) {
-    // P0-04: This will throw and crash the app if ALLOW_UNSIGNED_PIXEL_EVENTS=true in production
     enforceSecurityChecks();
     securityChecked = true;
   }
 }
 
-/**
- * P1-05: Validate security headers configuration at startup
- */
 function validateHeadersOnce() {
   if (!headersValidated) {
     const validation = validateSecurityHeaders();
@@ -60,18 +52,12 @@ function validateSecretsOnce() {
   }
 }
 
-/**
- * P0-2 (Mid Priority): Validate configuration at startup
- * This ensures critical environment variables are set before processing requests.
- * In production, missing required vars will throw and crash the app.
- */
 function validateConfigOnce() {
   if (!configValidated) {
     const result = validateConfig();
     
     if (result.errors.length > 0) {
       logger.error("Configuration errors:", result.errors);
-      // In production, this is fatal - better to crash than run misconfigured
       if (process.env.NODE_ENV === "production") {
         throw new Error(`Configuration errors: ${result.errors.join(", ")}`);
       }
@@ -81,7 +67,6 @@ function validateConfigOnce() {
       logger.warn("Configuration warnings:", result.warnings);
     }
     
-    // Also log full config status for debugging
     logConfigStatus();
     
     configValidated = true;
@@ -94,23 +79,16 @@ export default async function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
-  // P0-04: Security checks MUST run first - crashes app on critical violations
   enforceSecurityOnce();
   
   validateSecretsOnce();
   
-  // P0-2 (Mid Priority): Validate configuration (SHOPIFY_APP_URL, etc.)
   validateConfigOnce();
   
-  // P1-05: Validate security headers configuration
   validateHeadersOnce();
   
-  // Add Shopify document response headers (App Bridge compatibility)
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // P1-05: Add security headers for embedded app pages
-  // These headers protect against XSS, clickjacking, etc.
-  // The CSP uses frame-ancestors to allow Shopify Admin iframe embedding
   addSecurityHeadersToHeaders(responseHeaders, EMBEDDED_APP_HEADERS);
 
   const userAgent = request.headers.get("user-agent");
@@ -149,4 +127,3 @@ export default async function handleRequest(
     setTimeout(abort, ABORT_DELAY);
   });
 }
-

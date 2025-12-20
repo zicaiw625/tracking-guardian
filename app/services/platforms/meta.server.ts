@@ -1,12 +1,3 @@
-/**
- * Meta (Facebook) Conversions API Service
- * 
- * P0-01: This service handles Protected Customer Data gracefully:
- * - All PII fields are optional and may be null
- * - Conversions are sent with whatever data is available
- * - Missing PII is logged for debugging but does not cause failures
- */
-
 import type { ConversionData, MetaCredentials, ConversionApiResponse } from "../../types";
 import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto";
 import { 
@@ -17,31 +8,20 @@ import {
 } from "./base.server";
 import { logger } from "../../utils/logger";
 
-// P1: Updated from v18.0 to v21.0 (December 2024)
-// Meta Graph API version schedule: https://developers.facebook.com/docs/graph-api/changelog/versions
-// v21.0 released October 2024, supported until ~October 2026
 const META_API_VERSION = "v21.0";
 const META_API_TIMEOUT_MS = 30000; 
 
 interface MetaUserData {
-  em?: string[];  // email hash
-  ph?: string[];  // phone hash
-  fn?: string[];  // first name hash
-  ln?: string[];  // last name hash
-  ct?: string[];  // city hash
-  st?: string[];  // state hash
-  country?: string[];  // country hash
-  zp?: string[];  // zip hash
+  em?: string[];
+  ph?: string[];
+  fn?: string[];
+  ln?: string[];
+  ct?: string[];
+  st?: string[];
+  country?: string[];
+  zp?: string[];
 }
 
-/**
- * P0-01: Build user data for Meta CAPI
- * 
- * This function gracefully handles missing PII:
- * - Returns whatever data is available
- * - Never fails due to missing PII
- * - Logs the data quality for debugging
- */
 async function buildHashedUserData(
   conversionData: ConversionData,
   orderId: string
@@ -50,7 +30,6 @@ async function buildHashedUserData(
   const availableFields: string[] = [];
   const missingFields: string[] = [];
 
-  // P0-01: Process each PII field, tracking what's available
   if (conversionData.email) {
     userData.em = [await hashValue(normalizeEmail(conversionData.email))];
     availableFields.push("email");
@@ -113,17 +92,15 @@ async function buildHashedUserData(
     }
   }
   
-  // P0-01: Determine PII quality level
   let piiQuality: string;
   if (availableFields.length === 0) {
     piiQuality = "none";
   } else if (availableFields.includes("email") || availableFields.includes("phone")) {
-    piiQuality = "good"; // Primary identifiers available
+    piiQuality = "good";
   } else {
-    piiQuality = "partial"; // Only secondary identifiers
+    piiQuality = "partial";
   }
 
-  // Log for debugging (not as an error, just info)
   if (missingFields.length > 0 && process.env.NODE_ENV !== "test") {
     logger.debug(`[P0-01] Meta CAPI PII status for order ${orderId.slice(0, 8)}...`, {
       piiQuality,
@@ -150,18 +127,15 @@ export async function sendConversionToMeta(
 
   const eventTime = Math.floor(Date.now() / 1000);
 
-  // P0-01: Build user data with PII quality tracking
   const { userData, piiQuality } = await buildHashedUserData(
     conversionData, 
     conversionData.orderId
   );
 
-  // P0-01: Log when sending conversion with limited data
   if (piiQuality === "none") {
     logger.info(`[P0-01] Sending Meta conversion with no PII for order ${conversionData.orderId.slice(0, 8)}...`, {
       platform: "meta",
       piiQuality,
-      // This is expected when Protected Customer Data scope is not granted
       note: "Conversion will still be recorded but may have lower match rate",
     });
   }
@@ -205,7 +179,6 @@ export async function sendConversionToMeta(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-
           "Authorization": `Bearer ${credentials.accessToken}`,
       },
         body: JSON.stringify({
@@ -244,7 +217,6 @@ export async function sendConversionToMeta(
 } catch (error) {
   
   if (error instanceof Error) {
-    
     if ((error as Error & { platformError?: PlatformError }).platformError) {
       throw error;
     }
@@ -267,26 +239,7 @@ export function extractMetaError(error: unknown): PlatformError | null {
   return null;
 }
 
-/**
- * @deprecated This function is deprecated and should not be used.
- * 
- * Tracking Guardian now uses a pure server-side CAPI approach:
- * - Our App Pixel Extension handles checkout_completed event collection
- * - Server-side receives orders/paid webhook and sends CAPI to Meta
- * - No merchant-pasted Custom Pixel code is needed
- * 
- * The old approach (generating code for merchants to paste) doesn't work because:
- * - Custom Pixels in "strict" mode don't have access to browser APIs
- * - Custom Pixels don't support the `settings` API
- * - The code uses `register` which is for App Pixels, not Custom Pixels
- * 
- * To track conversions in Meta:
- * 1. Configure Meta CAPI credentials in Settings
- * 2. Enable server-side tracking
- * 3. Tracking Guardian will automatically send conversions via CAPI
- */
 export function generateMetaPixelCode(_config: { pixelId: string }): string {
-  // Return instructions instead of code
   return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
 
 Tracking Guardian no longer generates client-side pixel code.
@@ -308,4 +261,3 @@ Benefits of server-side tracking:
 - GDPR compliant (data minimization)
 */`;
 }
-

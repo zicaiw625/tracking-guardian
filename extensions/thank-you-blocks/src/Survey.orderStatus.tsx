@@ -1,16 +1,3 @@
-/**
- * Order Status Survey Component
- * 
- * P0-1 + P1-2: App URL Configuration
- * The app URL is hardcoded as a constant (not merchant-configurable).
- * This prevents arbitrary URL configuration which could be flagged as
- * data exfiltration during App Store review.
- * 
- * NOTE: We previously attempted to use app metafields, but since the
- * server-side metafield writing was never implemented, we simplified
- * to use a single trusted constant.
- */
-
 import {
   reactExtension,
   BlockStack,
@@ -25,7 +12,6 @@ import {
 } from "@shopify/ui-extensions-react/customer-account";
 import { useState, useEffect } from "react";
 
-// P0-1 + P1-2: Production URL constant - single source of truth
 const APP_URL = "https://tracking-guardian.onrender.com";
 
 export default reactExtension(
@@ -92,7 +78,6 @@ function SurveyOrderStatus() {
         source: selectedSource,
       };
 
-      // P0-1 + P1-2: App URL is hardcoded constant (single source of truth)
       const shopDomain = api.shop?.myshopifyDomain || "";
       
       if (token && shopDomain) {
@@ -113,7 +98,6 @@ function SurveyOrderStatus() {
 
         console.log("Survey submitted successfully to backend");
       } else {
-        // Missing token or shop domain - this should not happen in production
         console.warn("Survey submission skipped: missing authentication or shop domain");
         throw new Error("Authentication or shop domain not available");
       }

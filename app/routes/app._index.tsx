@@ -86,7 +86,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const weeklyConversions = shop?._count?.conversionLogs || 0;
   const hasAlertConfig = (shop?.alertConfigs?.length || 0) > 0;
 
-  // P2-11: Extract ScriptTags info for migration warning
   let scriptTagsCount = 0;
   let hasOrderStatusScripts = false;
   if (latestScan?.scriptTags) {
@@ -111,7 +110,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     weeklyConversions,
     hasAlertConfig,
     plan: shop?.plan || "free",
-    // P2-11: Migration risk info
     scriptTagsCount,
     hasOrderStatusScripts,
   });
@@ -414,7 +412,6 @@ export default function Index() {
           </Layout.Section>
         </Layout>
 
-        {/* P2-11: 迁移风险提醒卡片 - 基于扫描结果 */}
         {scriptTagsCount > 0 && (
           <Banner
             title={`检测到 ${scriptTagsCount} 个 ScriptTag 需要迁移`}
@@ -453,7 +450,6 @@ export default function Index() {
           </Banner>
         )}
 
-        {/* 通用迁移截止日期提醒 */}
         <Banner
           title="重要迁移截止日期"
           tone={scriptTagsCount > 0 ? "warning" : "info"}

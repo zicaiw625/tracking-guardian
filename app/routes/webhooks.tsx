@@ -176,10 +176,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "ORDERS_PAID":
 
         if (shopRecord && payload) {
-          // P1: Validate and sanitize webhook payload at runtime
           const orderPayload = parseOrderWebhookPayload(payload, shop);
           if (!orderPayload) {
-            logger.warn(`[P1] Invalid ORDERS_PAID payload from ${shop}, skipping`);
+            logger.warn(`Invalid ORDERS_PAID payload from ${shop}, skipping`);
             if (webhookId) {
               await updateWebhookStatus(shop, webhookId, topic, "failed");
             }
@@ -257,17 +256,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         break;
       
-      // NOTE: ORDERS_CREATE is not registered in shopify.server.ts
-      // We use ORDERS_PAID instead for conversion tracking (more reliable for completed purchases)
-      // If you see ORDERS_CREATE here, it's likely a legacy subscription - ignore it
-
       case "ORDERS_UPDATED":
         
         logger.info(`Order updated for shop ${shop}: order_id=${(payload as { id?: number })?.id}`);
         break;
 
       case "CUSTOMERS_DATA_REQUEST":
-        // P0-2: GDPR data minimization - only store metadata, not raw PII
         logger.info(`GDPR data request received for shop ${shop}`);
         try {
           const dataRequestPayload = payload as {
@@ -278,14 +272,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             data_request?: { id?: number };
           };
           
-          // P0-2: Store only non-PII metadata
           const minimalPayload = {
             shop_id: dataRequestPayload.shop_id,
             shop_domain: dataRequestPayload.shop_domain,
             orders_requested: dataRequestPayload.orders_requested || [],
             customer_id: dataRequestPayload.customer?.id,
             data_request_id: dataRequestPayload.data_request?.id,
-            // Note: email/phone intentionally NOT stored
           };
           
           await prisma.gDPRJob.create({
@@ -303,7 +295,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
 
       case "CUSTOMERS_REDACT":
-        // P0-2: GDPR data minimization - only store metadata, not raw PII
         logger.info(`GDPR customer redact request for shop ${shop}`);
         try {
           const customerRedactPayload = payload as {
@@ -313,13 +304,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             orders_to_redact?: number[];
           };
           
-          // P0-2: Store only non-PII metadata
           const minimalPayload = {
             shop_id: customerRedactPayload.shop_id,
             shop_domain: customerRedactPayload.shop_domain,
             customer_id: customerRedactPayload.customer?.id,
             orders_to_redact: customerRedactPayload.orders_to_redact || [],
-            // Note: email/phone intentionally NOT stored
           };
           
           await prisma.gDPRJob.create({
@@ -337,7 +326,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
 
       case "SHOP_REDACT":
-        // P0-2: GDPR data minimization - only store minimal metadata
         logger.info(`GDPR shop redact request for shop ${shop}`);
         try {
           const shopRedactPayload = payload as {
@@ -345,7 +333,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             shop_domain?: string;
           };
           
-          // P0-2: Store only non-PII metadata
           const minimalPayload = {
             shop_id: shopRedactPayload.shop_id,
             shop_domain: shopRedactPayload.shop_domain,
@@ -466,10 +453,9 @@ async function queueOrderForProcessing(
       update: updateData as Parameters<typeof prisma.conversionJob.upsert>[0]["update"],
     });
     
-    logger.info(`[P0-07] Order ${orderId} queued for async processing`);
+    logger.info(`Order ${orderId} queued for async processing`);
   } catch (error) {
-    
-    logger.error(`[P0-07] Failed to queue order ${orderId}:`, error);
+    logger.error(`Failed to queue order ${orderId}:`, error);
   }
 }
 

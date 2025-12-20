@@ -9,9 +9,7 @@ import { reconcilePendingConsent } from "../services/consent-reconciler.server";
 import { processGDPRJobs } from "../services/gdpr.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 import { createAuditLog } from "../services/audit.server";
-// P1-02: Use unified logger instead of console.log/console.error
 import { logger, createRequestLogger } from "../utils/logger";
-// P1-03: Cron mutex lock to prevent concurrent execution
 import { withCronLock } from "../utils/cron-lock";
 
 function generateRequestId(): string {
@@ -30,10 +28,8 @@ async function cleanupExpiredData(): Promise<{
   webhookLogsDeleted: number;
   scanReportsDeleted: number;
   reconciliationReportsDeleted: number;
-  gdprJobsDeleted: number;  // P0-2: Added GDPR job cleanup
+  gdprJobsDeleted: number;
 }> {
-  // P0-2: Clean up old GDPR jobs (completed/failed jobs older than 30 days)
-  // This ensures we don't retain GDPR-related data longer than necessary
   const gdprCutoff = new Date();
   gdprCutoff.setDate(gdprCutoff.getDate() - 30);
   
@@ -45,10 +41,9 @@ async function cleanupExpiredData(): Promise<{
   });
   
   if (gdprJobResult.count > 0) {
-    logger.info(`[P0-2] Cleaned up ${gdprJobResult.count} old GDPR jobs`);
+    logger.info(`Cleaned up ${gdprJobResult.count} old GDPR jobs`);
   }
   
-  // P1: Optimized batch cleanup - group shops by retention days to reduce DB queries
   const shops = await prisma.shop.findMany({
     where: {
       isActive: true,
@@ -61,7 +56,6 @@ async function cleanupExpiredData(): Promise<{
     },
   });
 
-  // Group shops by retention days for batch processing
   const shopsByRetention = new Map<number, Array<{ id: string; shopDomain: string }>>();
   for (const shop of shops) {
     const retentionDays = shop.dataRetentionDays || 90;
@@ -79,7 +73,6 @@ async function cleanupExpiredData(): Promise<{
   let totalScanReports = 0;
   let totalReconciliationReports = 0;
 
-  // P1: Process each retention group in batch instead of per-shop
   for (const [retentionDays, shopsInGroup] of shopsByRetention) {
     const shopIds = shopsInGroup.map(s => s.id);
     const shopDomains = shopsInGroup.map(s => s.shopDomain);
@@ -90,7 +83,6 @@ async function cleanupExpiredData(): Promise<{
     const auditCutoff = new Date();
     auditCutoff.setDate(auditCutoff.getDate() - Math.max(retentionDays, 180));
 
-    // Batch delete for all shops in this retention group
     const [
       conversionResult,
       surveyResult,
@@ -154,8 +146,6 @@ async function cleanupExpiredData(): Promise<{
     totalWebhookLogs += webhookLogResult.count;
     totalReconciliationReports += reconciliationResult.count;
 
-    // ScanReports need per-shop handling (keep last 5 per shop)
-    // But we can batch the delete operation
     for (const shop of shopsInGroup) {
       const scanReportsToKeep = 5;
       const oldScanReports = await prisma.scanReport.findMany({
@@ -172,7 +162,6 @@ async function cleanupExpiredData(): Promise<{
       }
     }
 
-    // Log cleanup results for this retention group
     const totalDeleted = 
       conversionResult.count + surveyResult.count + auditResult.count +
       conversionJobResult.count + pixelReceiptResult.count + webhookLogResult.count +
@@ -180,7 +169,7 @@ async function cleanupExpiredData(): Promise<{
 
     if (totalDeleted > 0) {
       logger.info(
-        `[P0-06] Batch cleanup for ${shopsInGroup.length} shops (${retentionDays} day retention)`,
+        `Batch cleanup for ${shopsInGroup.length} shops (${retentionDays} day retention)`,
         {
           shopsCount: shopsInGroup.length,
           retentionDays,
@@ -206,7 +195,7 @@ async function cleanupExpiredData(): Promise<{
     webhookLogsDeleted: totalWebhookLogs,
     scanReportsDeleted: totalScanReports,
     reconciliationReportsDeleted: totalReconciliationReports,
-    gdprJobsDeleted: gdprJobResult.count,  // P0-2: Include GDPR cleanup count
+    gdprJobsDeleted: gdprJobResult.count,
   };
 }
 
@@ -214,17 +203,13 @@ function verifyReplayProtection(request: Request, cronSecret: string): { valid: 
   const timestamp = request.headers.get("X-Cron-Timestamp");
   const signature = request.headers.get("X-Cron-Signature");
   const isProduction = process.env.NODE_ENV === "production";
-  // P1: Check if strict replay protection is enabled (default: true in production)
   const strictReplayProtection = process.env.CRON_STRICT_REPLAY !== "false";
 
   if (!timestamp) {
-    // P1 Fix: In production with strict mode, require timestamp to prevent replay attacks
     if (isProduction && strictReplayProtection) {
       logger.warn("Cron request missing timestamp header in production");
       return { valid: false, error: "Missing timestamp header (required in production)" };
     }
-    // In development or with strict mode disabled, allow without timestamp
-    // but log a warning
     if (isProduction) {
       logger.warn("Cron request accepted without timestamp (CRON_STRICT_REPLAY=false)");
     }
@@ -240,12 +225,10 @@ function verifyReplayProtection(request: Request, cronSecret: string): { valid: 
   const timeDiff = Math.abs(now - requestTime);
   
   if (timeDiff > REPLAY_PROTECTION_WINDOW_MS / 1000) {
-    // P1-02: Use logger
     logger.warn(`Cron request timestamp out of range`, { timeDiff });
     return { valid: false, error: "Request timestamp out of range (possible replay attack)" };
   }
 
-  // P1 Fix: In production with strict mode, require signature when timestamp is provided
   if (isProduction && strictReplayProtection && !signature) {
     logger.warn("Cron request has timestamp but missing signature");
     return { valid: false, error: "Missing signature (required when timestamp is provided)" };
@@ -282,7 +265,6 @@ function validateCronAuth(request: Request): Response | null {
 
   if (!cronSecret) {
     if (isProduction) {
-      // P1-02: Use logger
       logger.error("CRITICAL: CRON_SECRET environment variable is not set in production");
       return json(
         { error: "Cron endpoint not configured" },
@@ -304,7 +286,6 @@ function validateCronAuth(request: Request): Response | null {
                      "unknown";
     const vercelCronHeader = request.headers.get("x-vercel-cron");
 
-    // P1-02: Use logger - don't log auth header content
     logger.warn("Unauthorized cron access attempt", {
       clientIP,
       hasVercelHeader: !!vercelCronHeader,
@@ -323,7 +304,6 @@ function validateCronAuth(request: Request): Response | null {
   return null;
 }
 
-// P1: Extracted shared cron handler to eliminate code duplication between loader and action
 interface CronResult {
   gdpr: Awaited<ReturnType<typeof processGDPRJobs>>;
   consent: Awaited<ReturnType<typeof reconcilePendingConsent>>;
@@ -383,7 +363,7 @@ async function executeCronTasks(
 
   cronLogger.info("Cleaning up expired data...");
   const cleanupResults = await cleanupExpiredData();
-  cronLogger.info("[P0-06] Cleanup completed", cleanupResults);
+  cronLogger.info("Cleanup completed", cleanupResults);
 
   return {
     gdpr: gdprResults,
@@ -428,14 +408,12 @@ async function handleCronRequest(
     return authError;
   }
 
-  // P1-03: Use distributed lock to prevent concurrent cron execution
   const lockResult = await withCronLock("main", requestId, async () => {
     return executeCronTasks(cronLogger);
   });
 
   const durationMs = Date.now() - startTime;
 
-  // P1-03: Handle lock skip case
   if (lockResult.lockSkipped) {
     cronLogger.info(`Cron execution skipped${methodSuffix} - lock held by another instance`, {
       reason: lockResult.reason,

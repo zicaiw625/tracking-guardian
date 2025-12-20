@@ -1,10 +1,3 @@
-/**
- * Notification Service
- * 
- * P0-2: Updated to support encrypted alert settings
- * Sensitive data (webhook URLs, bot tokens) are now stored encrypted
- */
-
 import { Resend } from "resend";
 import type {
   AlertData,
@@ -28,24 +21,19 @@ const getEmailSender = (): string => {
   return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";
 };
 
-// P0-2: Extended AlertConfig type with encrypted settings
 interface AlertConfigWithEncryption extends AlertConfig {
   settingsEncrypted?: string | null;
 }
 
-// P0-2: Helper to get decrypted settings from AlertConfig
 function getDecryptedSettings(config: AlertConfigWithEncryption): Record<string, unknown> | null {
-  // First try encrypted settings (P0-2)
   if (config.settingsEncrypted) {
     try {
       return decryptJson<Record<string, unknown>>(config.settingsEncrypted);
     } catch (error) {
       logger.error(`Failed to decrypt settings for alert config ${config.id}`, error);
-      // Fall through to try legacy settings
     }
   }
   
-  // Fall back to legacy plain settings (backwards compatibility)
   if (config.settings && typeof config.settings === "object") {
     logger.warn(`[P0-2] Using legacy plain settings for alert config - migration needed`);
     return config.settings as Record<string, unknown>;
@@ -59,7 +47,6 @@ export async function sendAlert(
   data: AlertData
 ): Promise<boolean> {
   try {
-    // P0-2: Get decrypted settings
     const settings = getDecryptedSettings(config);
     if (!settings) {
       logger.error(`No valid settings found for alert config ${config.id}`);

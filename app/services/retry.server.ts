@@ -12,13 +12,11 @@ import {
   incrementMonthlyUsage, 
   type PlanId 
 } from "./billing.server";
-// P1-04: Import unified match key functions for consistent deduplication
 import { generateEventId, normalizeOrderId, generateMatchKey, matchKeysEqual } from "../utils/crypto";
 import { extractPIISafely, logPIIStatus } from "../utils/pii";
 import type { OrderWebhookPayload } from "../types";
 
 import { logger } from "../utils/logger";
-// P0-07: Import unified consent functions instead of hardcoding
 import { 
   evaluatePlatformConsentWithStrategy,
   getEffectiveConsentCategory,
@@ -154,8 +152,6 @@ import type {
   PlatformCredentials,
 } from "../types";
 
-// P1: Extracted helper function to decrypt credentials with legacy fallback
-// This eliminates duplicated credential decryption logic
 interface DecryptCredentialsResult {
   credentials: PlatformCredentials | null;
   usedLegacy: boolean;
@@ -168,7 +164,6 @@ export function getDecryptedCredentials(
   let credentials: PlatformCredentials | null = null;
   let usedLegacy = false;
   
-  // First try the encrypted credentials field
   if (pixelConfig.credentialsEncrypted) {
     try {
       credentials = decryptJson<PlatformCredentials>(pixelConfig.credentialsEncrypted);
@@ -179,7 +174,6 @@ export function getDecryptedCredentials(
     }
   }
   
-  // Fallback to legacy credentials field
   if (!credentials && pixelConfig.credentials) {
     try {
       const legacyCredentials = pixelConfig.credentials;
@@ -209,15 +203,11 @@ const BASE_DELAY_MS = 60 * 1000;
 const MAX_DELAY_MS = 2 * 60 * 60 * 1000; 
 
 export function calculateNextRetryTime(attempts: number): Date {
-  
   const delayMs = Math.min(
     BASE_DELAY_MS * Math.pow(5, attempts - 1),
     MAX_DELAY_MS
   );
 
-  // P1 Fix: Jitter should always be positive to prevent retries happening earlier than expected
-  // Previously used (Math.random() * 2 - 1) which could produce negative values [-1, 1]
-  // Now using Math.random() which produces [0, 1], so jitter is always 0% to 10% of delay
   const jitter = delayMs * 0.1 * Math.random();
   
   return new Date(Date.now() + delayMs + jitter);
@@ -370,7 +360,6 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
 
-      // P1: Use extracted helper function for credential decryption
       const { credentials } = getDecryptedCredentials(
         pixelConfig as { credentialsEncrypted?: string | null } & Record<string, unknown>,
         log.platform
@@ -529,7 +518,6 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      // P1: Use extracted helper function for credential decryption
       const { credentials } = getDecryptedCredentials(
         pixelConfig as { credentialsEncrypted?: string | null } & Record<string, unknown>,
         log.platform
@@ -653,7 +641,6 @@ export async function processConversionJobs(): Promise<{
               platformId: true,
               credentialsEncrypted: true,
               credentials: true,
-              // P0-07: Include clientConfig to check treatAsMarketing for dual-use platforms
               clientConfig: true,
             },
           },
@@ -734,11 +721,9 @@ export async function processConversionJobs(): Promise<{
 
       const eventId = generateEventId(job.orderId, "purchase", job.shop.shopDomain);
 
-      // P1-04: Use unified matching strategy for pixel receipt lookup
       const capiInputRaw = job.capiInput as { checkoutToken?: string } | null;
       const checkoutToken = capiInputRaw?.checkoutToken;
       
-      // First try: Match by orderId (primary key)
       let receipt = await prisma.pixelEventReceipt.findUnique({
         where: {
           shopId_orderId_eventType: {
@@ -755,7 +740,6 @@ export async function processConversionJobs(): Promise<{
         },
       });
 
-      // Second try: Match by checkoutToken (fallback)
       if (!receipt && checkoutToken) {
         receipt = await prisma.pixelEventReceipt.findFirst({
           where: {
@@ -770,27 +754,13 @@ export async function processConversionJobs(): Promise<{
             orderId: true,
           },
         });
-        
-        if (receipt) {
-          logger.debug(
-            `[P1-04] Found PixelEventReceipt via checkoutToken fallback for job ${job.id}`,
-            { 
-              jobOrderId: job.orderId,
-              receiptOrderId: receipt.orderId,
-              checkoutToken: checkoutToken,
-            }
-          );
-        }
       }
-      
-      // Third try: Cross-match using matchKeysEqual
-      // This handles edge cases where pixel used checkoutToken but we have orderId
+
       if (!receipt && checkoutToken) {
         const potentialReceipts = await prisma.pixelEventReceipt.findMany({
           where: {
             shopId: job.shopId,
             eventType: "purchase",
-            // Look for receipts created around the same time (within 1 hour)
             createdAt: {
               gte: new Date(job.createdAt.getTime() - 60 * 60 * 1000),
               lte: new Date(job.createdAt.getTime() + 60 * 60 * 1000),
@@ -802,23 +772,15 @@ export async function processConversionJobs(): Promise<{
             checkoutToken: true,
             orderId: true,
           },
-          take: 10, // Limit to prevent excessive queries
+          take: 10,
         });
         
-        // Use matchKeysEqual to find matching receipt
         for (const candidate of potentialReceipts) {
           if (matchKeysEqual(
             { orderId: job.orderId, checkoutToken },
             { orderId: candidate.orderId, checkoutToken: candidate.checkoutToken }
           )) {
             receipt = candidate;
-            logger.debug(
-              `[P1-04] Found PixelEventReceipt via cross-match for job ${job.id}`,
-              { 
-                jobOrderId: job.orderId,
-                receiptOrderId: candidate.orderId,
-              }
-            );
             break;
           }
         }
@@ -836,18 +798,15 @@ export async function processConversionJobs(): Promise<{
       for (const pixelConfig of job.shop.pixelConfigs) {
         const strategy = job.shop.consentStrategy || "strict";
         
-        // P0-07: Check if this platform config has treatAsMarketing flag set
-        // This is stored in PixelConfig.clientConfig for dual-use platforms like Google
         const clientConfig = pixelConfig.clientConfig as { treatAsMarketing?: boolean } | null;
         const treatAsMarketing = clientConfig?.treatAsMarketing === true;
 
-        // P0-07: Use unified consent evaluation function - no more hardcoded platform lists!
         const consentDecision = evaluatePlatformConsentWithStrategy(
           pixelConfig.platform,
           strategy,
           consentState as ConsentState | null,
-          !!receipt, // hasPixelReceipt
-          treatAsMarketing // for dual-use platforms
+          !!receipt,
+          treatAsMarketing
         );
 
         if (!consentDecision.allowed) {

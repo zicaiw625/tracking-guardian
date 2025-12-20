@@ -66,9 +66,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const scanHistory = await getScanHistory(shop.id, 5);
 
-  // P0-1: Calculate dynamic deprecation status based on current date
-  // TODO: In production, determine shop tier from Shopify API (shop.plan_name)
-  // For now, default to "unknown" which shows the more conservative Plus deadline
   const shopTier: ShopTier = "unknown";
   
   const hasScriptTags = ((latestScan?.scriptTags as unknown[]) || []).length > 0;

@@ -1,5 +1,3 @@
-
-
 interface RateLimitEntry {
   count: number;
   resetTime: number;
@@ -38,7 +36,6 @@ class InMemoryRateLimitStore implements RateLimitStore {
   }
   
   async set(key: string, entry: RateLimitEntry): Promise<void> {
-    
     if (this.store.size >= this.maxSize && !this.store.has(key)) {
       const now = Date.now();
 
@@ -118,13 +115,11 @@ class RedisRateLimitStore implements RateLimitStore {
   
   private async initRedis(): Promise<void> {
     try {
-      
       const { createClient } = await import("redis");
       const client = createClient({ url: this.redisUrl });
       
       client.on("error", (err) => {
         console.error("Redis rate limiter error:", err);
-        
         this.redis = null;
         this.initFailed = true;
       });
@@ -150,7 +145,6 @@ class RedisRateLimitStore implements RateLimitStore {
       console.error("Failed to initialize Redis rate limiter:", error);
       console.warn("⚠️ Falling back to in-memory rate limiter");
       this.initFailed = true;
-      
     }
   }
   
@@ -159,7 +153,6 @@ class RedisRateLimitStore implements RateLimitStore {
   }
   
   async get(key: string): Promise<RateLimitEntry | undefined> {
-    
     await this.initPromise;
     if (!this.redis || this.initFailed) {
       return this.fallbackStore.get(key);
@@ -185,16 +178,13 @@ class RedisRateLimitStore implements RateLimitStore {
   }
   
   async set(key: string, entry: RateLimitEntry): Promise<void> {
-    
     await this.initPromise;
     if (!this.redis || this.initFailed) {
       return this.fallbackStore.set(key, entry);
     }
-    
   }
   
   async increment(key: string, windowMs: number): Promise<RateLimitEntry> {
-    
     await this.initPromise;
     if (!this.redis || this.initFailed) {
       return this.fallbackStore.increment(key, windowMs);
@@ -252,7 +242,6 @@ class RedisRateLimitStore implements RateLimitStore {
   }
   
   async cleanup(): Promise<void> {
-    
   }
 }
 
@@ -274,67 +263,49 @@ if (process.env.REDIS_URL) {
   }
 }
 
-/**
- * P1-05 + P1-08: Rate limit configurations
- * 
- * These values balance protection against abuse while allowing legitimate traffic.
- * For high-volume shops, consider adjusting via environment variables.
- * 
- * P1-08: Separate buckets for different scenarios:
- * - checkout_completed: Legitimate conversion events (moderate limit)
- * - invalid_key: Requests with missing/invalid ingestion key (strict limit)
- * - invalid_origin: Requests from non-Shopify origins (very strict)
- * - page_view: Browsing events (not currently collected, but ready for future)
- */
 const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
   api: {
     maxRequests: 100,
-    windowMs: 60 * 1000, // 1 minute
+    windowMs: 60 * 1000,
   },
   cron: {
     maxRequests: 5,
-    windowMs: 60 * 60 * 1000, // 1 hour
+    windowMs: 60 * 60 * 1000,
   },
   survey: {
     maxRequests: 10,
-    windowMs: 60 * 1000, // 1 minute
+    windowMs: 60 * 1000,
   },
   webhook: {
     maxRequests: 1000,
-    windowMs: 60 * 1000, // 1 minute
+    windowMs: 60 * 1000,
   },
-  // P1-05 + P1-08: Granular pixel event limits
   "pixel-events": {
-    maxRequests: 200, // Higher limit for legitimate checkout_completed events
+    maxRequests: 200,
     windowMs: 60 * 1000,
   },
   "pixel-events-checkout": {
-    maxRequests: 50, // Per-shop limit for checkout_completed
+    maxRequests: 50,
     windowMs: 60 * 1000,
   },
-  // P1-08: Stricter limits for anomalous patterns
   "pixel-events-invalid-key": {
-    maxRequests: 10, // Very strict for requests with invalid/missing key
+    maxRequests: 10,
     windowMs: 60 * 1000,
   },
   "pixel-events-invalid-origin": {
-    maxRequests: 5, // Strictest for non-Shopify origins
+    maxRequests: 5,
     windowMs: 60 * 1000,
   },
   "pixel-events-invalid-timestamp": {
-    maxRequests: 10, // Strict for requests with invalid/expired timestamps
+    maxRequests: 10,
     windowMs: 60 * 1000,
   },
   "pixel-events-unsigned": {
-    maxRequests: 20, // Much stricter for unsigned requests
+    maxRequests: 20,
     windowMs: 60 * 1000,
   },
 };
 
-/**
- * P1-08: Anomaly tracking for circuit breaking
- * Tracks patterns that indicate potential abuse
- */
 interface AnomalyTracker {
   invalidKeyCount: number;
   invalidOriginCount: number;
@@ -343,38 +314,25 @@ interface AnomalyTracker {
 }
 
 const anomalyTrackers = new Map<string, AnomalyTracker>();
-const ANOMALY_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const ANOMALY_WINDOW_MS = 5 * 60 * 1000;
 
-// P1-3: Enhanced anomaly thresholds with different severity levels
 const ANOMALY_THRESHOLDS = {
-  // Individual type thresholds
-  invalidKey: 50,         // Likely misconfigured pixel or stale key
-  invalidOrigin: 25,      // Higher risk - potential attack or unauthorized use
-  invalidTimestamp: 50,   // Clock drift or replay attempt
-  
-  // Composite threshold - total anomalies across all types
-  // Triggers faster blocking for diverse attack patterns
+  invalidKey: 50,
+  invalidOrigin: 25,
+  invalidTimestamp: 50,
   composite: 75,
-  
-  // Warning threshold for logging (50% of block threshold)
   warningRatio: 0.5,
 };
 
-// P1-3: Track blocked shops to prevent log spam
 const blockedShops = new Map<string, { blockedAt: number; reason: string }>();
-const BLOCKED_SHOP_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+const BLOCKED_SHOP_COOLDOWN_MS = 10 * 60 * 1000;
 
-/**
- * P1-08: Track anomalous requests for potential circuit breaking
- * P1-3: Enhanced with composite detection and severity levels
- */
 export function trackAnomaly(
   shopDomain: string,
   type: "invalid_key" | "invalid_origin" | "invalid_timestamp"
 ): { shouldBlock: boolean; reason?: string; severity?: "warning" | "critical" } {
   const now = Date.now();
   
-  // P1-3: Check if already blocked (reduce log spam)
   const blocked = blockedShops.get(shopDomain);
   if (blocked && (now - blocked.blockedAt) < BLOCKED_SHOP_COOLDOWN_MS) {
     return { shouldBlock: true, reason: blocked.reason, severity: "critical" };
@@ -404,16 +362,13 @@ export function trackAnomaly(
       break;
   }
 
-  // P1-3: Calculate composite anomaly score
   const totalAnomalies = 
     tracker.invalidKeyCount + 
     tracker.invalidOriginCount + 
     tracker.invalidTimestampCount;
 
-  // P1-3: Check for warning level (for monitoring/alerting)
   const warningThreshold = Math.floor(ANOMALY_THRESHOLDS.composite * ANOMALY_THRESHOLDS.warningRatio);
   if (totalAnomalies >= warningThreshold && totalAnomalies < ANOMALY_THRESHOLDS.composite) {
-    // Log warning but don't block yet
     return { 
       shouldBlock: false, 
       reason: `Approaching anomaly threshold (${totalAnomalies}/${ANOMALY_THRESHOLDS.composite})`,
@@ -421,7 +376,6 @@ export function trackAnomaly(
     };
   }
 
-  // P1-3: Check composite threshold first (detects diverse attack patterns)
   if (totalAnomalies >= ANOMALY_THRESHOLDS.composite) {
     const reason = `Too many total anomalies (${totalAnomalies}): ` +
       `key=${tracker.invalidKeyCount}, origin=${tracker.invalidOriginCount}, ` +
@@ -430,14 +384,12 @@ export function trackAnomaly(
     return { shouldBlock: true, reason, severity: "critical" };
   }
 
-  // Check individual thresholds with type-specific limits
   if (tracker.invalidKeyCount >= ANOMALY_THRESHOLDS.invalidKey) {
     const reason = `Too many invalid key requests (${tracker.invalidKeyCount})`;
     blockedShops.set(shopDomain, { blockedAt: now, reason });
     return { shouldBlock: true, reason, severity: "critical" };
   }
   
-  // P1-3: Origin attacks are higher severity - lower threshold
   if (tracker.invalidOriginCount >= ANOMALY_THRESHOLDS.invalidOrigin) {
     const reason = `Too many invalid origin requests (${tracker.invalidOriginCount})`;
     blockedShops.set(shopDomain, { blockedAt: now, reason });
@@ -453,9 +405,6 @@ export function trackAnomaly(
   return { shouldBlock: false };
 }
 
-/**
- * P1-3: Clear blocked shop status (for admin override)
- */
 export function unblockShop(shopDomain: string): boolean {
   const wasBlocked = blockedShops.has(shopDomain);
   blockedShops.delete(shopDomain);
@@ -463,9 +412,6 @@ export function unblockShop(shopDomain: string): boolean {
   return wasBlocked;
 }
 
-/**
- * P1-3: Get blocked shops list for monitoring
- */
 export function getBlockedShops(): Array<{
   shopDomain: string;
   blockedAt: Date;
@@ -490,7 +436,6 @@ export function getBlockedShops(): Array<{
         remainingMs,
       });
     } else {
-      // Clean up expired blocks
       blockedShops.delete(shopDomain);
     }
   });
@@ -498,9 +443,6 @@ export function getBlockedShops(): Array<{
   return result;
 }
 
-/**
- * P1-08: Get anomaly statistics for monitoring
- */
 export function getAnomalyStats(): Array<{
   shopDomain: string;
   invalidKeyCount: number;
@@ -535,9 +477,6 @@ export function getAnomalyStats(): Array<{
   );
 }
 
-/**
- * P1-08: Clean up old anomaly tracking data
- */
 export function cleanupAnomalyTrackers(): number {
   const now = Date.now();
   let cleaned = 0;
@@ -567,12 +506,10 @@ function cleanupOldEntries(): void {
 }
 
 function sanitizeKeyPart(value: string): string {
-  
   return value.replace(/[^a-zA-Z0-9.\-_]/g, "").slice(0, 100);
 }
 
 function getClientIP(request: Request): string {
-  
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
     const firstIP = forwardedFor.split(",")[0]?.trim();
@@ -589,17 +526,6 @@ function getClientIP(request: Request): string {
   return "unknown";
 }
 
-/**
- * P1-05: Generate rate limit key
- * 
- * Key strategy:
- * - If shopDomain header present: use shop + IP combination (prevents single shop/IP abuse)
- * - Otherwise: use IP only
- * 
- * The combination approach ensures that:
- * 1. A single shop can't monopolize the rate limit
- * 2. A single IP can't attack multiple shops
- */
 function getRateLimitKey(request: Request, endpoint: string): string {
   const sanitizedEndpoint = sanitizeKeyPart(endpoint);
   const ip = getClientIP(request);
@@ -607,35 +533,26 @@ function getRateLimitKey(request: Request, endpoint: string): string {
   const shop = request.headers.get("x-shopify-shop-domain");
   if (shop) {
     const sanitizedShop = sanitizeKeyPart(shop);
-    // P1-05: Use shop + IP combination for better protection
     return `${sanitizedEndpoint}:${sanitizedShop}:${ip}`;
   }
 
   return `${sanitizedEndpoint}:ip:${ip}`;
 }
 
-/**
- * P1-05: Standard security headers for all public API responses
- */
 export const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "X-XSS-Protection": "1; mode=block",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  // Cache control for API responses
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   "Pragma": "no-cache",
   "Expires": "0",
 };
 
-/**
- * P1-05: Add security headers to a response
- */
 export function addSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
   
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
-    // Don't override existing headers
     if (!headers.has(key)) {
       headers.set(key, value);
     }
@@ -648,25 +565,6 @@ export function addSecurityHeaders(response: Response): Response {
   });
 }
 
-/**
- * @deprecated P1-3: Use checkRateLimitAsync instead.
- * 
- * WARNING: This synchronous version has a critical limitation:
- * - In Redis mode, it fires-and-forgets the increment operation
- * - This means it may NOT actually block requests even when limit is exceeded
- * - The rate limiting only works correctly with the in-memory store
- * 
- * Use checkRateLimitAsync for reliable rate limiting in all deployment modes.
- * 
- * Migration guide:
- * ```
- * // Before:
- * const { isLimited } = checkRateLimit(request, endpoint);
- * 
- * // After:
- * const { isLimited } = await checkRateLimitAsync(request, endpoint);
- * ```
- */
 export function checkRateLimit(
   request: Request,
   endpoint: string,
@@ -677,7 +575,6 @@ export function checkRateLimit(
   resetTime: number;
   retryAfter: number;
 } {
-  
   cleanupOldEntries();
 
   const config = {
@@ -818,27 +715,12 @@ export function addRateLimitHeaders(
   });
 }
 
-/**
- * @deprecated P1-3: This wrapper uses the deprecated checkRateLimit synchronous function.
- * 
- * For new code, manually use checkRateLimitAsync at the start of your handler:
- * ```
- * export async function action({ request }: ActionFunctionArgs) {
- *   const { isLimited, retryAfter } = await checkRateLimitAsync(request, "api");
- *   if (isLimited) {
- *     return createRateLimitResponse(retryAfter);
- *   }
- *   // ... rest of handler
- * }
- * ```
- */
 export function withRateLimit<T>(
   endpoint: string,
   handler: (args: { request: Request }) => Promise<T>,
   customConfig?: Partial<RateLimitConfig>
 ): (args: { request: Request }) => Promise<T | Response> {
   return async (args) => {
-    // P1-3: Uses deprecated sync checkRateLimit - see function deprecation notice
     const { isLimited, remaining, resetTime, retryAfter } = checkRateLimit(
       args.request,
       endpoint,

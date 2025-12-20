@@ -1,5 +1,3 @@
-
-
 import { logger } from "./logger";
 
 interface SecretConfig {
@@ -37,22 +35,15 @@ const REQUIRED_SECRETS: SecretConfig[] = [
   },
 ];
 
-// P0-04: Security-critical environment variable checks
 interface SecurityViolation {
   type: "fatal" | "warning";
   message: string;
 }
 
-/**
- * P0-04: Check for insecure production configurations that MUST cause startup failure
- * This is separate from validateSecrets because these are security-critical violations
- */
 export function checkSecurityViolations(): SecurityViolation[] {
   const isProduction = process.env.NODE_ENV === "production";
   const violations: SecurityViolation[] = [];
 
-  // P0-04: ALLOW_UNSIGNED_PIXEL_EVENTS in production is a FATAL error
-  // This defeats the entire signature security mechanism
   if (isProduction && process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true") {
     violations.push({
       type: "fatal",
@@ -64,7 +55,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
     });
   }
 
-  // Warn about ALLOW_UNSIGNED_PIXEL_EVENTS in non-production (it's expected for dev)
   if (!isProduction && process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true") {
     violations.push({
       type: "warning",
@@ -77,29 +67,22 @@ export function checkSecurityViolations(): SecurityViolation[] {
   return violations;
 }
 
-/**
- * P0-04: Enforce security checks at startup - throws on fatal violations
- * This MUST be called early in the application lifecycle
- */
 export function enforceSecurityChecks(): void {
   const violations = checkSecurityViolations();
   
   const fatalViolations = violations.filter(v => v.type === "fatal");
   const warnings = violations.filter(v => v.type === "warning");
 
-  // Log warnings
   for (const warning of warnings) {
     logger.warn(warning.message);
   }
 
-  // Fatal violations cause immediate crash
   if (fatalViolations.length > 0) {
     const errorMessage = fatalViolations.map(v => v.message).join("\n");
     logger.error("FATAL SECURITY VIOLATION - Application startup aborted", undefined, {
       violations: fatalViolations.map(v => v.message),
     });
     
-    // Throw error to prevent application from starting
     throw new Error(
       `\n\n${"=".repeat(80)}\n` +
       `FATAL SECURITY VIOLATION - APPLICATION STARTUP ABORTED\n` +

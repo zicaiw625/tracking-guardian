@@ -61,10 +61,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // Check if App Pixel is already installed
   const existingPixels = await getExistingWebPixels(admin);
-  
-  // P1-2: Our pixel is identified by having ingestion_key OR ingestion_secret setting
+
   const ourPixel = existingPixels.find((p) => {
     if (!p.settings) return false;
     try {
@@ -76,7 +74,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   });
 
-  // Check if CAPI is configured (any platform)
   const hasCapiConfig = await prisma.platformCredential.count({
     where: { 
       shopId: shop.id,
@@ -119,7 +116,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const actionType = formData.get("_action");
 
   if (actionType === "enablePixel") {
-    // Ensure shop has an ingestion secret
     let ingestionSecret: string | undefined = undefined;
     
     if (shop.ingestionSecret) {
@@ -127,7 +123,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (isTokenEncrypted(shop.ingestionSecret)) {
           ingestionSecret = decryptIngestionSecret(shop.ingestionSecret);
         } else {
-          // Migrate unencrypted secret
           ingestionSecret = shop.ingestionSecret;
           const encryptedSecret = encryptIngestionSecret(ingestionSecret);
           await prisma.shop.update({
@@ -141,7 +136,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
     
-    // Generate new secret if none exists
     if (!ingestionSecret) {
       ingestionSecret = generateIngestionSecret();
       const encryptedSecret = encryptIngestionSecret(ingestionSecret);
@@ -152,17 +146,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       console.log(`[Migration] Generated new ingestionSecret for ${shopDomain}`);
     }
 
-    // P1: Check for existing pixel using stored webPixelId first, then fallback to settings matching
     let ourPixelId = shop.webPixelId;
     
     if (!ourPixelId) {
-      // Fallback: Check existing pixels by settings (for migration from old versions)
       const existingPixels = await getExistingWebPixels(admin);
       const ourPixel = existingPixels.find((p) => {
         if (!p.settings) return false;
         try {
           const settings = JSON.parse(p.settings);
-          // P1-2: Check for both new (ingestion_key) and legacy (ingestion_secret) field names
           return typeof settings.ingestion_key === "string" ||
                  typeof settings.ingestion_secret === "string";
         } catch {
@@ -174,16 +165,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     let result;
     if (ourPixelId) {
-      // Update existing pixel
       const { updateWebPixel } = await import("../services/migration.server");
       result = await updateWebPixel(admin, ourPixelId, ingestionSecret);
     } else {
-      // Create new pixel
       result = await createWebPixel(admin, ingestionSecret);
     }
 
     if (result.success) {
-      // P1: Store webPixelId in database for reliable identification
       const newPixelId = result.webPixelId || ourPixelId;
       if (newPixelId && newPixelId !== shop.webPixelId) {
         await prisma.shop.update({
@@ -228,7 +216,6 @@ export default function MigratePage() {
 
   const isSubmitting = navigation.state === "submitting";
 
-  // Update step based on action result
   useEffect(() => {
     const data = actionData as { _action?: string; success?: boolean } | undefined;
     if (data?._action === "enablePixel" && data?.success) {
@@ -236,7 +223,6 @@ export default function MigratePage() {
     }
   }, [actionData]);
 
-  // Update step based on loader data changes
   useEffect(() => {
     if (pixelStatus === "installed" && hasCapiConfig) {
       setCurrentStep("complete");
@@ -267,7 +253,6 @@ export default function MigratePage() {
       subtitle="配置服务端转化追踪（Server-side CAPI）"
     >
       <BlockStack gap="500">
-        {/* Info Banner */}
         <Banner
           title="服务端转化追踪 (Server-side CAPI)"
           tone="info"
@@ -290,7 +275,6 @@ export default function MigratePage() {
           </BlockStack>
         </Banner>
 
-        {/* Progress Steps */}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -345,7 +329,6 @@ export default function MigratePage() {
           </BlockStack>
         </Card>
 
-        {/* Warning about old tracking scripts */}
         {identifiedPlatforms.length > 0 && currentStep === "pixel" && (
           <Banner tone="warning" title="检测到旧版追踪代码">
             <BlockStack gap="200">
@@ -366,7 +349,6 @@ export default function MigratePage() {
 
         <Layout>
           <Layout.Section>
-            {/* Step 1: Enable App Pixel */}
             {currentStep === "pixel" && (
               <Card>
                 <BlockStack gap="400">
@@ -398,7 +380,6 @@ export default function MigratePage() {
                     </BlockStack>
                   </Box>
 
-                  {/* Action result messages */}
                   {(() => {
                     const data = actionData as { _action?: string; success?: boolean; error?: string; message?: string } | undefined;
                     if (data?._action === "enablePixel") {
@@ -431,7 +412,6 @@ export default function MigratePage() {
               </Card>
             )}
 
-            {/* Step 2: Configure CAPI */}
             {currentStep === "capi" && (
               <Card>
                 <BlockStack gap="400">
@@ -493,7 +473,6 @@ export default function MigratePage() {
               </Card>
             )}
 
-            {/* Step 3: Complete */}
             {currentStep === "complete" && (
               <Card>
                 <BlockStack gap="400">
@@ -569,7 +548,6 @@ export default function MigratePage() {
             )}
           </Layout.Section>
 
-          {/* Sidebar */}
           <Layout.Section variant="oneThird">
             <Card>
               <BlockStack gap="400">

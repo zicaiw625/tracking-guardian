@@ -1,5 +1,3 @@
-
-
 export type PlatformErrorType = 
   | "auth_error"           
   | "invalid_config"       
@@ -295,14 +293,12 @@ export function calculateBackoff(
   baseDelayMs = 1000,
   maxDelayMs = 300000 
 ): number {
-  
   const exponentialDelay = Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
   const jitter = Math.random() * 0.3 * exponentialDelay; 
   return Math.floor(exponentialDelay + jitter);
 }
 
 export function shouldRetry(error: PlatformError, currentAttempt: number, maxAttempts: number): boolean {
-  
   if (currentAttempt >= maxAttempts) {
     return false;
   }
@@ -316,7 +312,6 @@ export function formatErrorForLog(error: PlatformError): Record<string, unknown>
     message: error.message,
     retryable: error.retryable,
     platformCode: error.platformCode,
-    
     platformMessage: error.platformMessage?.slice(0, 200),
     traceId: error.traceId,
     retryAfter: error.retryAfter,

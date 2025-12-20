@@ -1,12 +1,3 @@
-/**
- * TikTok Events API Service
- * 
- * P0-01: This service handles Protected Customer Data gracefully:
- * - All PII fields are optional and may be null
- * - Conversions are sent with whatever data is available
- * - Missing PII is logged for debugging but does not cause failures
- */
-
 import type { ConversionData, TikTokCredentials, ConversionApiResponse } from "../../types";
 import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto";
 import { logger } from "../../utils/logger";
@@ -14,16 +5,10 @@ import { logger } from "../../utils/logger";
 const TIKTOK_API_TIMEOUT_MS = 30000; 
 
 interface TikTokUserData {
-  email?: string;  // hashed email
-  phone_number?: string;  // hashed phone
+  email?: string;
+  phone_number?: string;
 }
 
-/**
- * P0-01: Build user data for TikTok Events API
- * 
- * TikTok requires either email or phone for better matching.
- * This function handles missing PII gracefully.
- */
 async function buildHashedUserData(
   conversionData: ConversionData,
   orderId: string
@@ -40,7 +25,6 @@ async function buildHashedUserData(
     hasPii = true;
   }
   
-  // P0-01: Log when no PII is available
   if (!hasPii && process.env.NODE_ENV !== "test") {
     logger.debug(`[P0-01] TikTok Events API: No PII for order ${orderId.slice(0, 8)}...`, {
       platform: "tiktok",
@@ -66,13 +50,11 @@ export async function sendConversionToTikTok(
 
   const timestamp = new Date().toISOString();
 
-  // P0-01: Build user data with PII tracking
   const { user, hasPii } = await buildHashedUserData(
     conversionData,
     conversionData.orderId
   );
 
-  // P0-01: Log when sending conversion with no PII
   if (!hasPii) {
     logger.info(`[P0-01] Sending TikTok conversion with no PII for order ${conversionData.orderId.slice(0, 8)}...`, {
       platform: "tiktok",
@@ -151,26 +133,7 @@ export async function sendConversionToTikTok(
   }
 }
 
-/**
- * @deprecated This function is deprecated and should not be used.
- * 
- * Tracking Guardian now uses a pure server-side Events API approach:
- * - Our App Pixel Extension handles checkout_completed event collection
- * - Server-side receives orders/paid webhook and sends to TikTok Events API
- * - No merchant-pasted Custom Pixel code is needed
- * 
- * The old approach (generating code for merchants to paste) doesn't work because:
- * - Custom Pixels in "strict" mode don't have access to browser APIs
- * - Custom Pixels don't support the `settings` API  
- * - The code uses `register` which is for App Pixels, not Custom Pixels
- * 
- * To track conversions in TikTok:
- * 1. Configure TikTok Events API credentials in Settings
- * 2. Enable server-side tracking
- * 3. Tracking Guardian will automatically send conversions via Events API
- */
 export function generateTikTokPixelCode(_config: { pixelId: string }): string {
-  // Return instructions instead of code
   return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
 
 Tracking Guardian no longer generates client-side pixel code.
@@ -192,4 +155,3 @@ Benefits of server-side tracking:
 - GDPR compliant (data minimization)
 */`;
 }
-

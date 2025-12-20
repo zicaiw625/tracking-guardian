@@ -1,5 +1,3 @@
-
-
 import { 
   createCipheriv, 
   createDecipheriv, 
@@ -15,8 +13,6 @@ const SCRYPT_PARAMS = {
   maxmem: 256 * 1024 * 1024, 
 };
 
-// P1: Unified salt strategy with token-encryption.ts
-// Both modules now use the same default salt when ENCRYPTION_SALT is not set
 const DEFAULT_ENCRYPTION_SALT = "tracking-guardian-credentials-salt";
 const DEV_ENCRYPTION_SALT = "dev-salt-not-for-production";
 
@@ -52,7 +48,6 @@ const getEncryptionKey = (): Buffer => {
     );
   }
 
-  // Cache key only if both secret and salt match
   if (cachedKey && cachedKeySecret === secret && cachedKeySalt === salt) {
     return cachedKey;
   }
@@ -138,7 +133,6 @@ export function decryptJson<T extends object>(encryptedData: string): T {
 }
 
 export async function hashValue(value: string): Promise<string> {
-
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
@@ -147,7 +141,6 @@ export function hashValueSync(value: string): string {
 }
 
 export function normalizePhone(phone: string): string {
-  
   return phone.replace(/[^\d+]/g, "");
 }
 
@@ -160,7 +153,6 @@ export function generateEventId(
   eventType: string,
   shopDomain?: string
 ): string {
-  
   const normalizedOrderId = normalizeOrderId(orderId);
 
   const hashInput = shopDomain 
@@ -192,46 +184,21 @@ export function normalizeOrderId(orderId: string | number): string {
   return orderIdStr;
 }
 
-/**
- * P1-04: Unified match key generation for pixel receipt and webhook deduplication
- * 
- * Match Priority:
- * 1. orderId (normalized numeric ID) - highest priority, most reliable
- * 2. checkoutToken - fallback when orderId is not available
- * 
- * This ensures consistent matching between:
- * - PixelEventReceipt (from pixel events)
- * - ConversionJob (from webhooks)
- * - ConversionLog (final tracking records)
- */
-
 export interface MatchKeyInput {
   orderId?: string | number | null;
   checkoutToken?: string | null;
 }
 
 export interface MatchKeyResult {
-  /** The primary key used for matching */
   matchKey: string;
-  /** Whether the key is an orderId (true) or checkoutToken fallback (false) */
   isOrderId: boolean;
-  /** Original orderId if available */
   normalizedOrderId: string | null;
-  /** Original checkoutToken if available */
   checkoutToken: string | null;
 }
 
-/**
- * Generate a consistent match key for deduplication
- * 
- * @param input - Object containing orderId and/or checkoutToken
- * @returns MatchKeyResult with the key and metadata
- * @throws Error if neither orderId nor checkoutToken is provided
- */
 export function generateMatchKey(input: MatchKeyInput): MatchKeyResult {
   const { orderId, checkoutToken } = input;
   
-  // Priority 1: Use orderId if available and valid
   if (orderId != null && orderId !== "") {
     const normalizedOrderId = normalizeOrderId(orderId);
     return {
@@ -242,7 +209,6 @@ export function generateMatchKey(input: MatchKeyInput): MatchKeyResult {
     };
   }
   
-  // Priority 2: Fall back to checkoutToken
   if (checkoutToken != null && checkoutToken !== "") {
     return {
       matchKey: checkoutToken,
@@ -252,30 +218,18 @@ export function generateMatchKey(input: MatchKeyInput): MatchKeyResult {
     };
   }
   
-  // Neither available - this is an error condition
   throw new Error(
     "[P1-04] Cannot generate match key: both orderId and checkoutToken are null/empty"
   );
 }
 
-/**
- * Check if two match key inputs would produce the same match key
- * 
- * @param a - First input
- * @param b - Second input
- * @returns true if they match by either orderId or checkoutToken
- */
 export function matchKeysEqual(a: MatchKeyInput, b: MatchKeyInput): boolean {
-  // First check if both have orderId
   if (a.orderId && b.orderId) {
     return normalizeOrderId(a.orderId) === normalizeOrderId(b.orderId);
   }
   
-  // Check if orderId from one matches checkoutToken from the other
-  // (This handles the case where pixel uses checkoutToken but webhook has orderId)
   if (a.orderId && b.checkoutToken) {
     const normalizedA = normalizeOrderId(a.orderId);
-    // checkoutToken might contain the order ID in some formats
     if (b.checkoutToken.includes(normalizedA)) {
       return true;
     }
@@ -287,7 +241,6 @@ export function matchKeysEqual(a: MatchKeyInput, b: MatchKeyInput): boolean {
     }
   }
   
-  // Check if both have the same checkoutToken
   if (a.checkoutToken && b.checkoutToken) {
     return a.checkoutToken === b.checkoutToken;
   }
@@ -295,12 +248,6 @@ export function matchKeysEqual(a: MatchKeyInput, b: MatchKeyInput): boolean {
   return false;
 }
 
-/**
- * P1-04: Generate a stable fingerprint for deduplication across services
- * 
- * This creates a hash that can be used as a unique identifier regardless
- * of whether the source was pixel or webhook.
- */
 export function generateDeduplicationFingerprint(
   shopId: string,
   matchKey: string,
