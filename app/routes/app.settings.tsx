@@ -386,26 +386,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
 
-      const backendUrl = process.env.SHOPIFY_APP_URL || "";
+      // P0-01: Backend URL is no longer configurable
       let pixelSyncResult = { success: false, message: "" };
       
       try {
-        
         const existingPixels = await getExistingWebPixels(admin);
 
+        // P0-01: Find our pixel by checking for ingestion_secret field (not backend_url)
         const ourPixel = existingPixels.find((p) => {
           try {
             const settings = JSON.parse(p.settings || "{}");
-            
-            return settings.backend_url === backendUrl;
+            return typeof settings.ingestion_secret === "string";
           } catch {
             return false;
           }
         });
         
         if (ourPixel) {
-          
-          const result = await updateWebPixel(admin, ourPixel.id, backendUrl, newPlainSecret);
+          // P0-01: No backendUrl parameter needed
+          const result = await updateWebPixel(admin, ourPixel.id, newPlainSecret);
           if (result.success) {
             pixelSyncResult = {
               success: true,

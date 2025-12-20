@@ -64,11 +64,19 @@ Tracking Guardian processes order data to:
 
 ### What We DON'T Collect
 
-- Customer browsing history
-- Device fingerprints
-- IP addresses (except for rate limiting, not stored)
-- Payment information
-- Detailed customer profiles
+**P0-02 Compliance: Our Web Pixel ONLY sends checkout_completed events.**
+
+- ❌ Page views (not collected)
+- ❌ Product views (not collected)
+- ❌ Add to cart events (not collected)
+- ❌ Checkout started events (not collected)
+- ❌ Customer browsing history (not collected)
+- ❌ Device fingerprints
+- ❌ IP addresses (except for rate limiting, not stored)
+- ❌ Payment information
+- ❌ Detailed customer profiles
+
+**Verification**: Check `extensions/tracking-pixel/src/index.ts` - only `checkout_completed` has a subscriber.
 
 ---
 
@@ -117,9 +125,11 @@ We fully implement Shopify's mandatory compliance webhooks:
 
 ### Access Control
 
-- **API Authentication**: All API endpoints require valid session/signature
-- **Webhook Verification**: HMAC signature validation for all webhooks
-- **Pixel Signing**: Client-to-server requests signed with shop-specific secret
+- **API Authentication**: All API endpoints require valid session
+- **Webhook Verification**: HMAC signature validation for all webhooks (Shopify-signed)
+- **Pixel Security (P0-03)**: Origin-based validation + rate limiting (NOT client-side HMAC)
+  - Ingestion Key is used for request correlation/diagnostics only
+  - Security relies on: Origin validation, rate limiting, order verification via webhook
 - **Rate Limiting**: Protection against abuse and brute force
 
 ### Audit Logging
@@ -228,13 +238,15 @@ For data-related inquiries or requests:
 - [ ] Support 联系方式有效
 - [ ] 确认 scopes 最小化 (见下方)
 
-#### Scopes Justification
-| Scope | 必要性解释 | 对应功能 |
-|-------|-----------|---------|
-| `read_orders` | 接收 orders/paid webhook 以发送转化事件 | CAPI 发送 |
-| `read_script_tags` | 扫描旧版 ScriptTag 用于迁移建议 | 扫描报告 |
-| `write_pixels` | 创建/管理 Web Pixel extension | 像素安装 |
-| `read_customer_events` | 接收 Web Pixel 客户端事件 | 客户端追踪 |
+#### Scopes Justification (P0-04)
+| Scope | 必要性解释 | 代码调用点 | 对应功能 |
+|-------|-----------|-----------|---------|
+| `read_orders` | 接收 orders/paid webhook 以发送转化事件 | `app/routes/webhooks.tsx:175-248` | CAPI 发送 |
+| `read_script_tags` | 扫描旧版 ScriptTag 用于迁移建议 | `app/services/scanner.server.ts:132-199` | 扫描报告 |
+| `write_pixels` | 创建/管理 Web Pixel extension | `app/services/migration.server.ts:193-266` | 像素安装 |
+| `read_customer_events` | 接收 Web Pixel checkout_completed 事件 | `extensions/tracking-pixel/src/index.ts` | 客户端追踪 |
+
+**P0-04 验证**: 所有 scopes 都有明确的代码调用点和业务理由，没有"申请了却没用"的权限。
 
 ### Test Steps for Reviewers
 
@@ -271,16 +283,22 @@ For data-related inquiries or requests:
 
 ### Data Flow Diagram
 
+**P0-02: Only checkout_completed events are sent from pixel to backend.**
+
 ```
 Customer Browser              Shopify                 Tracking Guardian            Ad Platforms
       │                          │                           │                          │
       │──── Page View ───────────│                           │                          │
+      │                          │  (NOT sent to backend)    │                          │
       │                          │                           │                          │
+      │──── Product View ────────│                           │                          │
+      │                          │  (NOT sent to backend)    │                          │
       │                          │                           │                          │
       │──── Checkout Complete ───│                           │                          │
       │                          │                           │                          │
-      │                          │──── Web Pixel Event ──────│                          │
-      │                          │    (signed, consent)      │                          │
+      │                          │──── checkout_completed ───│                          │
+      │                          │    (only event sent)      │                          │
+      │                          │    (with consent state)   │                          │
       │                          │                           │                          │
       │                          │──── orders/paid Webhook ──│                          │
       │                          │    (HMAC verified)        │                          │
@@ -288,6 +306,10 @@ Customer Browser              Shopify                 Tracking Guardian         
       │                          │                           │── CAPI (if consented) ──│
       │                          │                           │   (hashed PII only)      │
 ```
+
+**Privacy Note**: The Web Pixel only subscribes to `checkout_completed`. All other events 
+(page_viewed, product_viewed, product_added_to_cart, checkout_started, payment_info_submitted) 
+are NOT collected, NOT transmitted, and NOT processed.
 
 ---
 

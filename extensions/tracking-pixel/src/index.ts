@@ -1,18 +1,24 @@
 /**
  * Tracking Guardian - Web Pixel Extension
  * 
- * P0-1: Backend URL Configuration
- * The backend URL is now retrieved from app metafields (set during installation)
- * rather than merchant-configurable settings. This prevents arbitrary URL configuration
- * which could be flagged as data exfiltration during App Store review.
+ * P0-01: Backend URL Configuration
+ * The backend URL is hardcoded (not merchant-configurable) to prevent 
+ * data exfiltration concerns during App Store review.
  * 
- * Security: All requests are signed with HMAC-SHA256 using the ingestion secret.
+ * P0-02: Privacy-First Event Collection
+ * ONLY checkout_completed events are sent to the backend.
+ * Other events (page_viewed, product_viewed, etc.) are NOT collected.
+ * This aligns with our privacy disclosure that we don't collect browsing history.
+ * 
+ * P0-03: Ingestion Key
+ * The ingestion_secret is used for request association and diagnostics,
+ * NOT as a cryptographic security boundary. Security is enforced server-side
+ * through Origin validation, rate limiting, and order verification.
  */
 
 import { register } from "@shopify/web-pixels-extension";
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha256";
-import { bytesToHex } from "@noble/hashes/utils";
+// P0-03: HMAC imports removed - ingestion_key is now only for diagnostics, not security
+// Security is enforced server-side through Origin validation, rate limiting, and order verification
 
 // P0-1: Production URL constant - set during deployment
 // This is the ONLY allowed backend URL; merchants cannot configure arbitrary URLs
@@ -32,15 +38,12 @@ function isAllowedBackendUrl(url: string): boolean {
   return ALLOWED_URL_PATTERNS.some(pattern => pattern.test(url));
 }
 
-function hmacSha256(key: string, message: string): string {
-  const encoder = new TextEncoder();
-  const keyBytes = encoder.encode(key);
-  const messageBytes = encoder.encode(message);
-
-  const signature = hmac(sha256, keyBytes, messageBytes);
-
-  return bytesToHex(signature);
-}
+// P0-03: hmacSha256 function removed
+// The ingestion_key is now only used for diagnostics/correlation, not security
+// Server-side security relies on:
+// 1. Origin validation (only Shopify origins allowed)
+// 2. Rate limiting (per-shop and global)
+// 3. Order verification (orderId format, shop ownership via webhook)
 
 // Types are intentionally loose to handle Shopify's varying type definitions
 interface CheckoutData {
@@ -61,20 +64,8 @@ interface CheckoutData {
   phone?: string;
 }
 
-interface ProductVariantData {
-  id?: string;
-  title?: string;
-  price?: { amount?: string | number; currencyCode?: string };
-}
-
-interface CartLineData {
-  merchandise?: {
-    id?: string;
-    title?: string;
-    price?: { amount?: string | number; currencyCode?: string };
-  };
-  quantity?: number;
-}
+// P0-02: ProductVariantData and CartLineData types removed
+// They were only used by page_viewed, product_viewed, etc. which are no longer collected
 
 interface VisitorConsentCollectedEvent {
   analyticsProcessingAllowed: boolean;
@@ -98,7 +89,9 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   // The URL allowlist validation provides defense-in-depth
   const backendUrl = PRODUCTION_BACKEND_URL;
 
-  const ingestionSecret = settings.ingestion_secret as string | undefined;
+  // P0-03: Renamed from ingestion_secret to ingestion_key conceptually
+  // This is NOT a security credential - it's used for request correlation and diagnostics
+  const ingestionKey = settings.ingestion_secret as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
   
   const debugMode = settings.debug === true;
@@ -109,36 +102,19 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     }
   }
 
-  // P0-1: Backend URL is now always the production constant
+  // P0-01: Backend URL is now always the production constant
   log("Using backend URL:", backendUrl);
 
-  if (!ingestionSecret) {
-    console.warn(
-      "[Tracking Guardian] WARNING: ingestion_secret not configured. " +
-      "Requests will be sent unsigned and may be rejected in production. " +
-      "Please configure the Ingestion Key in your Web Pixel settings."
-    );
+  // P0-03: Ingestion key is optional - used for diagnostics only
+  if (!ingestionKey) {
+    log("No ingestion_key configured - requests will be sent without correlation key");
   }
 
-  function generateSignature(timestamp: number, body: string): string | null {
-    if (!ingestionSecret) {
-
-      return null;
-    }
-    
-    try {
-      
-      const message = `${timestamp}${body}`;
-
-      const signature = hmacSha256(ingestionSecret, message);
-      
-      return signature;
-    } catch (e) {
-      
-      log("Failed to generate signature:", e);
-      return null;
-    }
-  }
+  // P0-03: generateSignature function removed
+  // Security is now enforced server-side through:
+  // 1. Origin validation (only Shopify origins)
+  // 2. Rate limiting (prevents abuse)
+  // 3. Order verification (validates orderId belongs to shop)
 
   let marketingAllowed = false;
   let analyticsAllowed = false;
@@ -202,10 +178,8 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
       const timestamp = Date.now();
       const payload = {
         eventName,
-        
         timestamp,
         shopDomain,
-        
         consent: {
           marketing: marketingAllowed,
           analytics: analyticsAllowed,
@@ -215,19 +189,17 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
       
       const body = JSON.stringify(payload);
 
-      const signature = generateSignature(timestamp, body);
-
+      // P0-03: Headers simplified - no more HMAC signatures
+      // ingestion_key is sent for correlation/diagnostics only
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
 
-      if (signature) {
-        headers["X-Tracking-Guardian-Signature"] = signature;
-        headers["X-Tracking-Guardian-Timestamp"] = timestamp.toString();
-      } else {
-        
-        headers["X-Tracking-Guardian-Unsigned"] = "true";
+      // P0-03: Send ingestion key for request correlation (optional, not for security)
+      if (ingestionKey) {
+        headers["X-Tracking-Guardian-Key"] = ingestionKey;
       }
+      headers["X-Tracking-Guardian-Timestamp"] = timestamp.toString();
 
       const { signal, cleanup } = createTimeoutSignal(5000);
 
@@ -240,76 +212,20 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
         .then(() => cleanup())
         .catch(() => {
           cleanup();
-          
         });
     } catch {
-      
+      // Silently ignore errors - pixel should never disrupt checkout
     }
   }
 
-  analytics.subscribe("page_viewed", (event) => {
-    sendToBackend("page_viewed", {
-      pageTitle: event.context?.document?.title || "",
-      pageUrl: event.context?.document?.location?.href || "",
-    });
-  });
-
-  analytics.subscribe("product_viewed", (event) => {
-    const product = event.data?.productVariant as ProductVariantData | undefined;
-    if (!product?.id) return;
-    
-    sendToBackend("product_viewed", {
-      productId: product.id,
-      productName: product.title || "",
-      productPrice: toNumber(product.price?.amount),
-      currency: product.price?.currencyCode || "USD",
-    });
-  });
-
-  analytics.subscribe("product_added_to_cart", (event) => {
-    const cartLine = event.data?.cartLine as CartLineData | undefined;
-    if (!cartLine?.merchandise?.id) return;
-
-    const price = toNumber(cartLine.merchandise.price?.amount);
-    const quantity = cartLine.quantity || 1;
-
-    sendToBackend("product_added_to_cart", {
-      productId: cartLine.merchandise.id,
-      productName: cartLine.merchandise.title || "",
-      productPrice: price,
-      quantity,
-      value: price * quantity,
-      currency: cartLine.merchandise.price?.currencyCode || "USD",
-    });
-  });
-
-  analytics.subscribe("checkout_started", (event) => {
-    const checkout = event.data?.checkout as CheckoutData | undefined;
-    if (!checkout) return;
-
-    sendToBackend("checkout_started", {
-      checkoutToken: checkout.token || "",
-      value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
-      items: (checkout.lineItems || []).map((item) => ({
-        id: item.id || "",
-        name: item.title || "",
-        price: toNumber(item.variant?.price?.amount),
-        quantity: item.quantity || 1,
-      })),
-    });
-  });
-
-  analytics.subscribe("payment_info_submitted", (event) => {
-    const checkout = event.data?.checkout as CheckoutData | undefined;
-    if (!checkout) return;
-
-    sendToBackend("payment_info_submitted", {
-      checkoutToken: checkout.token || "",
-      value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
-    });
-  });
+  // P0-02: ONLY checkout_completed is sent to backend
+  // Other events (page_viewed, product_viewed, etc.) are NOT collected
+  // This aligns with our privacy disclosure that we don't collect browsing history
+  //
+  // Why only checkout_completed?
+  // 1. Privacy: We don't need/store browsing behavior
+  // 2. CAPI: Server-side conversion tracking only needs completed purchases
+  // 3. Compliance: Minimizes data collection footprint for App Store review
 
   analytics.subscribe("checkout_completed", (event) => {
     const checkout = event.data?.checkout as CheckoutData | undefined;

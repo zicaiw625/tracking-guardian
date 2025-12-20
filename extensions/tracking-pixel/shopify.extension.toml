@@ -5,28 +5,47 @@ type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
 
-# Privacy & Consent Configuration
+# Privacy & Consent Configuration (P1-05)
 # This pixel respects customer consent and only sends data when allowed
+#
+# Why marketing=true?
+# - We send conversion data to ad platforms (Meta CAPI, TikTok Events, Google GA4)
+# - This is for advertising attribution and optimization
+# - If a customer denies marketing consent, the pixel will NOT send any data
+#
+# Why analytics=true?
+# - Conversion tracking is also considered analytics
+# - Some shops may only use analytics consent (not marketing)
+# - We check EITHER marketing OR analytics consent before sending
+#
+# Merchant Visibility:
+# - If a customer denies marketing consent, CAPI data will NOT be sent
+# - Merchants should be aware of this in their consent banner settings
+# - This is compliant with GDPR and other privacy regulations
 [customer_privacy]
-  # Analytics data is used for conversion tracking and attribution
+  # Analytics: conversion tracking and reporting
   analytics = true
-  # Marketing data is used for ad platform optimization
+  # Marketing: data sent to ad platforms for optimization
   marketing = true
-  # We collect minimal data needed for conversion tracking
+  # Preferences: not used by this pixel
   preferences = false
   # No sale of data - data is only used for merchant's own tracking
   sale_of_data = "disabled"
 
-# P0-1: Backend URL is now retrieved from app metafields for security
-# The app automatically sets the correct URL during installation
-# This prevents merchants from configuring arbitrary URLs
+# P0-01: Backend URL is hardcoded in the pixel extension for security
+# This prevents merchants from configuring arbitrary data exfiltration endpoints
+# The production URL is set as a constant in the extension source code
 
 [settings]
-  # P0-4: Renamed from ingestion_secret to ingestion_key with updated description
+  # P0-03: Ingestion Key - used for request association and diagnostics (NOT a security credential)
+  # This is NOT a cryptographic secret - it's used for:
+  # - Correlating pixel events with webhook events
+  # - Filtering noise from invalid requests
+  # - Diagnostics and troubleshooting
   [[settings.fields]]
     key = "ingestion_secret"
     name = "Ingestion Key"
-    description = "Key for request association and filtering (auto-generated). Used for diagnostics and noise reduction."
+    description = "Key for request association and diagnostics (auto-generated). NOT used for security - the security boundary is server-side validation."
     type = "single_line_text_field"
 
   [[settings.fields]]
@@ -34,8 +53,3 @@ runtime_context = "strict"
     name = "Debug Mode"
     description = "Enable debug logging in browser console (disable for production)"
     type = "boolean"
-
-# P0-1: App metafields configuration
-# The backend_url is stored as an app-owned metafield, not editable by merchants
-[settings.fields.metafields]
-# App metafields are automatically read-only for merchants

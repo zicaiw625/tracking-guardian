@@ -190,22 +190,25 @@ export interface CreateWebPixelResult {
   userErrors?: Array<{ field: string; message: string }>;
 }
 
+/**
+ * P0-01: Create Web Pixel with settings matching shopify.extension.toml schema
+ * 
+ * Settings schema (must match extension toml):
+ * - ingestion_secret: Key for request association and diagnostics
+ * - debug: Enable debug logging in browser console
+ * 
+ * Note: backend_url is NOT included - the pixel uses a hardcoded production URL
+ * to prevent merchants from configuring arbitrary data exfiltration endpoints.
+ */
 export async function createWebPixel(
   admin: AdminApiContext,
-  backendUrl: string,
   ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
-  
-  if (!backendUrl || !backendUrl.startsWith("https://")) {
-    return {
-      success: false,
-      error: "Backend URL must be a valid HTTPS URL",
-    };
-  }
-
+  // P0-01: Settings must match shopify.extension.toml schema exactly
+  // Only include fields defined in the extension's settings.fields
   const settings = JSON.stringify({
-    backend_url: backendUrl,
-    ...(ingestionSecret && { ingestion_secret: ingestionSecret }),
+    ingestion_secret: ingestionSecret || "",
+    debug: false,
   });
 
   try {
@@ -265,16 +268,18 @@ export async function createWebPixel(
   }
 }
 
+/**
+ * P0-01: Update Web Pixel with settings matching shopify.extension.toml schema
+ */
 export async function updateWebPixel(
   admin: AdminApiContext,
   webPixelId: string,
-  backendUrl: string,
   ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
-  
+  // P0-01: Settings must match shopify.extension.toml schema exactly
   const settings = JSON.stringify({
-    backend_url: backendUrl,
-    ...(ingestionSecret && { ingestion_secret: ingestionSecret }),
+    ingestion_secret: ingestionSecret || "",
+    debug: false,
   });
 
   try {

@@ -137,39 +137,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (actionType === "enablePixel") {
-    const backendUrl = formData.get("backendUrl") as string;
-    
-    if (!backendUrl) {
-      return json({ error: "Backend URL is required" }, { status: 400 });
-    }
+    // P0-01: Backend URL is no longer configurable - pixel uses hardcoded production URL
+    // This prevents merchants from configuring arbitrary data exfiltration endpoints
 
     let ingestionSecret: string | undefined = undefined;
     if (shop.ingestionSecret) {
       try {
-        
         if (isTokenEncrypted(shop.ingestionSecret)) {
-          
           ingestionSecret = decryptIngestionSecret(shop.ingestionSecret);
         } else {
-          
           ingestionSecret = shop.ingestionSecret;
           console.warn(`[P0-02] Shop ${shopDomain} has unencrypted ingestionSecret - migration needed`);
         }
       } catch (error) {
         console.error(`[P0-02] Failed to decrypt ingestionSecret for ${shopDomain}:`, error);
-        
         ingestionSecret = undefined;
       }
     }
 
     const existingPixels = await getExistingWebPixels(admin);
 
+    // P0-01: Find our pixel by checking for ingestion_secret field (not backend_url)
     let ourPixel = existingPixels.find((p) => {
       if (!p.settings) return false;
       try {
         const settings = JSON.parse(p.settings);
-        
-        return settings.backend_url === backendUrl;
+        // Our pixel is identified by having an ingestion_secret setting
+        return typeof settings.ingestion_secret === "string";
       } catch {
         return false;
       }
@@ -177,12 +171,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     let result;
     if (ourPixel) {
-      
       const { updateWebPixel } = await import("../services/migration.server");
-      result = await updateWebPixel(admin, ourPixel.id, backendUrl, ingestionSecret);
+      // P0-01: No backendUrl parameter needed
+      result = await updateWebPixel(admin, ourPixel.id, ingestionSecret);
     } else {
-      
-      result = await createWebPixel(admin, backendUrl, ingestionSecret);
+      // P0-01: No backendUrl parameter needed
+      result = await createWebPixel(admin, ingestionSecret);
     }
 
     if (result.success) {
