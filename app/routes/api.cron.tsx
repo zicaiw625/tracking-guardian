@@ -30,7 +30,23 @@ async function cleanupExpiredData(): Promise<{
   webhookLogsDeleted: number;
   scanReportsDeleted: number;
   reconciliationReportsDeleted: number;
+  gdprJobsDeleted: number;  // P0-2: Added GDPR job cleanup
 }> {
+  // P0-2: Clean up old GDPR jobs (completed/failed jobs older than 30 days)
+  // This ensures we don't retain GDPR-related data longer than necessary
+  const gdprCutoff = new Date();
+  gdprCutoff.setDate(gdprCutoff.getDate() - 30);
+  
+  const gdprJobResult = await prisma.gDPRJob.deleteMany({
+    where: {
+      status: { in: ["completed", "failed"] },
+      createdAt: { lt: gdprCutoff },
+    },
+  });
+  
+  if (gdprJobResult.count > 0) {
+    logger.info(`[P0-2] Cleaned up ${gdprJobResult.count} old GDPR jobs`);
+  }
   
   const shops = await prisma.shop.findMany({
     where: {
@@ -189,6 +205,7 @@ async function cleanupExpiredData(): Promise<{
     webhookLogsDeleted: totalWebhookLogs,
     scanReportsDeleted: totalScanReports,
     reconciliationReportsDeleted: totalReconciliationReports,
+    gdprJobsDeleted: gdprJobResult.count,  // P0-2: Include GDPR cleanup count
   };
 }
 

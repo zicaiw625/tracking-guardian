@@ -155,7 +155,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           hasIngestionSecret: !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
           piiEnabled: shop.piiEnabled,
           weakConsentMode: shop.weakConsentMode, 
-          consentStrategy: shop.consentStrategy || "balanced", 
+          // P1-3: Default to strict mode for privacy compliance
+          consentStrategy: shop.consentStrategy || "strict", 
           dataRetentionDays: shop.dataRetentionDays,
         }
       : null,
@@ -1372,20 +1373,29 @@ export default function SettingsPage() {
                         label="策略选择"
                         options={[
                           { 
-                            label: "严格模式（Strict）", 
+                            label: "🔒 严格模式（Strict）- 推荐", 
                             value: "strict",
                           },
                           { 
-                            label: "平衡模式（Balanced）- 推荐", 
+                            label: "⚖️ 平衡模式（Balanced）", 
                             value: "balanced",
                           },
                           { 
-                            label: "宽松模式（Weak）", 
+                            label: "⚠️ 宽松模式（Weak）", 
                             value: "weak",
                           },
                         ]}
-                        value={shop?.consentStrategy || "balanced"}
+                        value={shop?.consentStrategy || "strict"}
                         onChange={(value) => {
+                          // P1-3: Warn about compliance risks for non-strict modes
+                          if (value !== "strict") {
+                            const warning = value === "balanced" 
+                              ? "平衡模式对分析类平台（如 GA4）可能在没有明确同意的情况下发送数据。在 GDPR 等严格隐私法规地区可能存在合规风险。\n\n确定要切换吗？"
+                              : "宽松模式将在没有任何同意证据的情况下发送数据。这可能违反 GDPR、CCPA 等隐私法规。\n\n仅在您确定目标市场允许默示同意时使用。确定要切换吗？";
+                            if (!confirm(warning)) {
+                              return;
+                            }
+                          }
                           const formData = new FormData();
                           formData.append("_action", "updatePrivacySettings");
                           formData.append("piiEnabled", String(shop?.piiEnabled || false));
@@ -1395,33 +1405,49 @@ export default function SettingsPage() {
                         }}
                         helpText={
                           shop?.consentStrategy === "strict" 
-                            ? "必须有明确的用户同意才发送数据。适用于 GDPR 地区。"
+                            ? "必须有明确的用户同意才发送数据。适用于 GDPR/CCPA 等严格隐私法规地区。推荐设置。"
                             : shop?.consentStrategy === "weak"
-                            ? "即使没有同意证据也发送数据。仅适用于允许默示同意的地区。"
-                            : "如有同意记录则使用；无记录时不发送。适合大多数场景。"
+                            ? "即使没有同意证据也发送数据。仅适用于允许默示同意的地区。有合规风险。"
+                            : "分析平台（如 GA4）可能在无同意记录时仍发送数据。可能不满足 GDPR 等严格要求。"
                         }
                       />
 
                       <Banner 
-                        tone={shop?.consentStrategy === "weak" ? "warning" : "info"}
+                        tone={shop?.consentStrategy === "strict" ? "success" : "warning"}
                       >
                         {shop?.consentStrategy === "strict" && (
-                          <p>
-                            <strong>严格模式：</strong>仅当像素事件明确表明用户同意营销追踪时才发送 CAPI。
-                            如果像素未触发或用户拒绝同意，转化数据将不会发送。
-                          </p>
+                          <BlockStack gap="100">
+                            <Text as="span" fontWeight="semibold">✅ 严格模式（推荐）</Text>
+                            <Text as="p" variant="bodySm">
+                              仅当像素事件明确表明用户同意营销追踪时才发送 CAPI。
+                              如果像素未触发或用户拒绝同意，转化数据将不会发送。
+                              这是最安全的设置，符合 GDPR/CCPA 等严格隐私法规要求。
+                            </Text>
+                          </BlockStack>
                         )}
                         {shop?.consentStrategy === "balanced" && (
-                          <p>
-                            <strong>平衡模式：</strong>如果收到像素事件，检查其中的同意状态；
-                            如果未收到像素事件，则不发送 CAPI。这是推荐的默认设置。
-                          </p>
+                          <BlockStack gap="100">
+                            <Text as="span" fontWeight="semibold">⚠️ 平衡模式 - 潜在合规风险</Text>
+                            <Text as="p" variant="bodySm">
+                              分析类平台（如 Google Analytics 4）在没有像素回执时仍可能发送数据。
+                              这在 GDPR 等严格隐私法规地区可能不满足合规要求。
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              建议：如果您的客户主要来自欧盟、英国等地区，请使用严格模式。
+                            </Text>
+                          </BlockStack>
                         )}
                         {shop?.consentStrategy === "weak" && (
-                          <p>
-                            <strong>⚠️ 宽松模式：</strong>无论是否收到像素事件或同意状态，都发送 CAPI。
-                            请确保您的目标市场允许此做法（如美国、加拿大等默示同意地区）。
-                          </p>
+                          <BlockStack gap="100">
+                            <Text as="span" fontWeight="semibold">🚨 宽松模式 - 高合规风险</Text>
+                            <Text as="p" variant="bodySm">
+                              无论是否收到像素事件或同意状态，都会发送 CAPI 数据。
+                              这可能违反 GDPR、CCPA 等隐私法规，仅适用于允许默示同意的地区（如部分亚洲市场）。
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="critical">
+                              警告：使用此模式前，请咨询法律顾问确认您的目标市场允许此做法。
+                            </Text>
+                          </BlockStack>
                         )}
                       </Banner>
                     </BlockStack>

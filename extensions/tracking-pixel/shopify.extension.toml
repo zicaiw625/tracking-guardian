@@ -1,6 +1,7 @@
 # Learn more: https://shopify.dev/docs/apps/build/online-store/web-pixels
 
-api_version = "2024-10"
+# P0-1: Updated from 2024-10 to 2025-07 (2024-10 no longer supported as of 2025-10-01)
+api_version = "2025-07"
 type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
@@ -46,16 +47,21 @@ runtime_context = "strict"
 # The production URL is set as a constant in the extension source code
 
 [settings]
-  # Ingestion Key - store-scoped key for pixel event filtering and correlation
-  # This key IS validated by the server:
-  # - Requests with missing/invalid key are rejected (204 No Content)
-  # - Used to filter out noise and prevent unauthorized event injection
-  # - Correlates pixel events with webhook events for consistency checks
-  # Note: Not a cryptographic signing secret, but IS an access control mechanism
+  # Ingestion Key - store-scoped key for request correlation and noise filtering
+  # 
+  # SECURITY CLARIFICATION (P1-2):
+  # - This is a WEAK validation mechanism, NOT a security boundary
+  # - The key is visible in browser network traffic (not truly secret)
+  # - Primary purpose: correlate pixel events with webhooks, filter noise/misconfiguration
+  # - Defense layers are server-side: Origin validation, rate limiting, order ownership
+  #
+  # Server behavior:
+  # - Missing/invalid key: request rejected (204 No Content)
+  # - Valid key: request processed (correlated with shop for diagnostics)
   [[settings.fields]]
     key = "ingestion_secret"
     name = "Ingestion Key"
-    description = "Store-scoped key for event filtering and correlation. Validated by server - invalid keys are rejected."
+    description = "Store-scoped key for event correlation. Validated by server for noise filtering (not a security credential)."
     type = "single_line_text_field"
   
   # Note: debug field removed - Shopify settings are always strings (single_line_text_field)

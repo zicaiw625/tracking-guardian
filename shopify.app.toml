@@ -18,14 +18,25 @@ embedded = true
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 # 
 # Scope justification (minimal permissions per PCD requirements):
-# - read_orders: Required for webhook order data and reconciliation reports
-# - read_script_tags: Required for migration scanning (detecting old tracking scripts)
+#
+# - read_orders: REQUIRED for daily reconciliation reports
+#   Used in: app/services/reconciliation.server.ts → getShopifyOrderStats()
+#   Purpose: Query paid orders to compare Shopify vs platform conversion counts
+#   API endpoint: Admin GraphQL ordersCount + orders queries
+#   Data accessed: Order count and totalPriceSet (no PII accessed)
+#
+# - read_script_tags: Required for migration scanning
+#   Used in: app/services/scanner.server.ts
+#   Purpose: Detect legacy tracking scripts for migration assistance
+#
 # - write_pixels: Required to create/manage the App Pixel extension
+#   Used in: app/services/migration.server.ts → registerWebPixel()
+#
 # - read_customer_events: Required by Shopify for webPixelCreate mutation
-#   (see https://shopify.dev/docs/api/admin-graphql/latest/mutations/webpixelcreate)
+#   See: https://shopify.dev/docs/api/admin-graphql/latest/mutations/webpixelcreate
 #
 # Note: read_checkouts removed (P3-1) - checkout data comes via Web Pixel events,
-# not via Admin API.
+# not via Admin API. No PII is accessed through these scopes.
 scopes = "read_orders,read_script_tags,write_pixels,read_customer_events"
 
 [auth]
@@ -37,7 +48,9 @@ redirect_urls = [
 ]
 
 [webhooks]
-api_version = "2024-10"
+# Updated to 2025-07 (P0-1: was 2024-10, which is no longer supported as of 2025-10-01)
+# 2025-07 support ends 2026-07-01 - plan upgrade to 2026-01 before then
+api_version = "2025-07"
 
 # Mandatory compliance webhooks (app-level subscription)
 # Business webhooks (orders/paid, app/uninstalled) are managed via code in shopify.server.ts

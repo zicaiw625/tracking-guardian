@@ -258,59 +258,101 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
 
       case "CUSTOMERS_DATA_REQUEST":
-
+        // P0-2: GDPR data minimization - only store metadata, not raw PII
         logger.info(`GDPR data request received for shop ${shop}`);
         try {
+          const dataRequestPayload = payload as {
+            shop_id?: number;
+            shop_domain?: string;
+            orders_requested?: number[];
+            customer?: { id?: number; email?: string; phone?: string };
+            data_request?: { id?: number };
+          };
+          
+          // P0-2: Store only non-PII metadata
+          const minimalPayload = {
+            shop_id: dataRequestPayload.shop_id,
+            shop_domain: dataRequestPayload.shop_domain,
+            orders_requested: dataRequestPayload.orders_requested || [],
+            customer_id: dataRequestPayload.customer?.id,
+            data_request_id: dataRequestPayload.data_request?.id,
+            // Note: email/phone intentionally NOT stored
+          };
+          
           await prisma.gDPRJob.create({
             data: {
               shopDomain: shop,
               jobType: "data_request",
-              payload: payload as object,
+              payload: minimalPayload,
               status: "queued",
             },
           });
           logger.info(`GDPR data request queued for ${shop}`);
         } catch (queueError) {
           logger.error("Failed to queue GDPR data request:", queueError);
-          
         }
         break;
 
       case "CUSTOMERS_REDACT":
-
+        // P0-2: GDPR data minimization - only store metadata, not raw PII
         logger.info(`GDPR customer redact request for shop ${shop}`);
         try {
+          const customerRedactPayload = payload as {
+            shop_id?: number;
+            shop_domain?: string;
+            customer?: { id?: number; email?: string; phone?: string };
+            orders_to_redact?: number[];
+          };
+          
+          // P0-2: Store only non-PII metadata
+          const minimalPayload = {
+            shop_id: customerRedactPayload.shop_id,
+            shop_domain: customerRedactPayload.shop_domain,
+            customer_id: customerRedactPayload.customer?.id,
+            orders_to_redact: customerRedactPayload.orders_to_redact || [],
+            // Note: email/phone intentionally NOT stored
+          };
+          
           await prisma.gDPRJob.create({
             data: {
               shopDomain: shop,
               jobType: "customer_redact",
-              payload: payload as object,
+              payload: minimalPayload,
               status: "queued",
             },
           });
           logger.info(`GDPR customer redact queued for ${shop}`);
         } catch (queueError) {
           logger.error("Failed to queue GDPR customer redact:", queueError);
-          
         }
         break;
 
       case "SHOP_REDACT":
-
+        // P0-2: GDPR data minimization - only store minimal metadata
         logger.info(`GDPR shop redact request for shop ${shop}`);
         try {
+          const shopRedactPayload = payload as {
+            shop_id?: number;
+            shop_domain?: string;
+          };
+          
+          // P0-2: Store only non-PII metadata
+          const minimalPayload = {
+            shop_id: shopRedactPayload.shop_id,
+            shop_domain: shopRedactPayload.shop_domain,
+          };
+          
           await prisma.gDPRJob.create({
             data: {
               shopDomain: shop,
               jobType: "shop_redact",
-              payload: payload as object,
+              payload: minimalPayload,
               status: "queued",
             },
           });
           logger.info(`GDPR shop redact queued for ${shop}`);
         } catch (queueError) {
           logger.error("Failed to queue GDPR shop redact:", queueError);
-          
         }
         break;
 

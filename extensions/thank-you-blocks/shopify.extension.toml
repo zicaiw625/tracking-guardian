@@ -4,7 +4,8 @@
 # as they currently use simulated data. These will be re-enabled
 # once integrated with real fulfillment APIs.
 
-api_version = "2024-10"
+# P0-1: Updated from 2024-10 to 2025-07 (2024-10 no longer supported as of 2025-10-01)
+api_version = "2025-07"
 type = "ui_extension"
 name = "Tracking Guardian Blocks"
 handle = "tracking-guardian-blocks"
@@ -52,9 +53,10 @@ handle = "order-status-survey"
 #   module = "./src/UpsellOffer.tsx"
 #   target = "purchase.thank-you.block.render"
 
-# P0-1: App URL is now retrieved from app metafields (set during installation)
-# This prevents merchants from configuring arbitrary URLs
-# The app automatically sets the correct URL during installation
+# P0-1: Backend URL Security
+# The backend URL is hardcoded in the extension source code (not configurable by merchants).
+# This prevents data exfiltration to arbitrary URLs - a key App Store security requirement.
+# See: extensions/tracking-pixel/src/index.ts → PRODUCTION_BACKEND_URL constant
 
 [settings]
   [[settings.fields]]

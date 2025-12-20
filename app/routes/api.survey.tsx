@@ -12,9 +12,21 @@ import {
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
 
 /**
- * P1-05: CORS and Security headers for survey API
+ * P1-05 & P2-2: CORS and Security headers for survey API
+ * 
+ * CORS is intentionally permissive ("*") because:
+ * 1. Shopify checkout extensions run on various domains (shop.myshopify.com, custom domains, etc.)
+ * 2. The primary security is JWT validation (Shopify session token), not Origin
+ * 3. Restricting to specific origins would break legitimate survey submissions
+ * 
+ * Defense in depth:
+ * - JWT signature verification (cryptographic)
+ * - Shop domain matching (header vs JWT claim)
+ * - Rate limiting (per IP)
+ * - Input validation (orderId format, etc.)
  */
 const CORS_HEADERS = {
+  // P2-2: Keep "*" but document why - real security is JWT validation
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Shopify-Shop-Domain",
@@ -248,7 +260,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Shop is not active" }, { status: 403 });
     }
 
-    const orderBelongsToShop = await prisma.conversionLog.findFirst({
+    // P2-1: Relaxed order validation
+    // Old logic required ConversionLog entry, which could fail if:
+    // - Platform not configured yet
+    // - Pixel didn't fire (ad blocker, consent denied)
+    // - Webhook processing delayed
+    //
+    // New logic: Trust the JWT shop validation - if the request comes from
+    // a valid Shopify checkout extension with a valid session token for this shop,
+    // we accept the survey. The orderId format validation in validateSurveyInput()
+    // provides basic protection against injection.
+    //
+    // For stricter validation (if needed), consider:
+    // - Adding optional Admin API order lookup (requires read_orders scope justification)
+    // - Async verification after survey acceptance
+    const existingOrderEvidence = await prisma.conversionLog.findFirst({
       where: {
         shopId: shop.id,
         orderId: validatedData.orderId,
@@ -256,26 +282,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       select: { id: true },
     });
 
-    if (!orderBelongsToShop) {
-      
-      const existingSurvey = await prisma.surveyResponse.findFirst({
-        where: {
-          shopId: shop.id,
-          orderId: validatedData.orderId,
-        },
-        select: { id: true },
-      });
-
-      if (!existingSurvey) {
-        console.warn(
-          `Survey submission rejected: orderId=${validatedData.orderId.slice(0, 8)}... ` +
-          `not found for shop=${shopHeader}`
-        );
-        return jsonWithCors(
-          { error: "Order not found or not eligible for survey" },
-          { status: 404 }
-        );
-      }
+    // Log for diagnostics but don't block the survey
+    if (!existingOrderEvidence) {
+      console.log(
+        `[P2-1] Survey for untracked order: orderId=${validatedData.orderId.slice(0, 8)}... ` +
+        `shop=${shopHeader} (accepted - JWT validated)`
+      );
     }
 
     const existingResponse = await prisma.surveyResponse.findFirst({
