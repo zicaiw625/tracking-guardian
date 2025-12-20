@@ -46,10 +46,12 @@ function SurveyOrderStatus() {
   const api = useApi();
   
   // P0-1: Get app URL from app metafields instead of settings
+  // Note: Metafield key changed from "backend_url" to "app_url" to avoid confusion
   const appMetafields = useAppMetafields();
   const appUrl = useMemo(() => {
+    // Try new key first, fall back to old key for backwards compatibility
     const metafield = appMetafields.find(
-      (mf) => mf.metafield?.key === "backend_url"
+      (mf) => mf.metafield?.key === "app_url" || mf.metafield?.key === "backend_url"
     );
     const url = metafield?.metafield?.value || PRODUCTION_APP_URL;
     

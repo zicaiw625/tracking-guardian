@@ -151,34 +151,50 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       console.log(`[Migration] Generated new ingestionSecret for ${shopDomain}`);
     }
 
-    // Check for existing pixel
-    const existingPixels = await getExistingWebPixels(admin);
-    const ourPixel = existingPixels.find((p) => {
-      if (!p.settings) return false;
-      try {
-        const settings = JSON.parse(p.settings);
-        return typeof settings.ingestion_secret === "string";
-      } catch {
-        return false;
-      }
-    });
+    // P1: Check for existing pixel using stored webPixelId first, then fallback to settings matching
+    let ourPixelId = shop.webPixelId;
+    
+    if (!ourPixelId) {
+      // Fallback: Check existing pixels by settings (for migration from old versions)
+      const existingPixels = await getExistingWebPixels(admin);
+      const ourPixel = existingPixels.find((p) => {
+        if (!p.settings) return false;
+        try {
+          const settings = JSON.parse(p.settings);
+          return typeof settings.ingestion_secret === "string";
+        } catch {
+          return false;
+        }
+      });
+      ourPixelId = ourPixel?.id;
+    }
 
     let result;
-    if (ourPixel) {
+    if (ourPixelId) {
       // Update existing pixel
       const { updateWebPixel } = await import("../services/migration.server");
-      result = await updateWebPixel(admin, ourPixel.id, ingestionSecret);
+      result = await updateWebPixel(admin, ourPixelId, ingestionSecret);
     } else {
       // Create new pixel
       result = await createWebPixel(admin, ingestionSecret);
     }
 
     if (result.success) {
+      // P1: Store webPixelId in database for reliable identification
+      const newPixelId = result.webPixelId || ourPixelId;
+      if (newPixelId && newPixelId !== shop.webPixelId) {
+        await prisma.shop.update({
+          where: { id: shop.id },
+          data: { webPixelId: newPixelId },
+        });
+        console.log(`[Migration] Stored webPixelId ${newPixelId} for ${shopDomain}`);
+      }
+      
       return json({
         _action: "enablePixel",
         success: true,
-        message: ourPixel ? "App Pixel 已更新" : "App Pixel 已启用",
-        webPixelId: result.webPixelId,
+        message: ourPixelId ? "App Pixel 已更新" : "App Pixel 已启用",
+        webPixelId: newPixelId,
       });
     } else {
       return json({
@@ -607,9 +623,9 @@ export default function MigratePage() {
                 <BlockStack gap="200">
                   <Text as="span" fontWeight="semibold">为什么使用服务端追踪？</Text>
                   <List type="bullet">
-                    <List.Item>绕过广告拦截器</List.Item>
-                    <List.Item>更高的数据匹配率</List.Item>
-                    <List.Item>更好的隐私合规性</List.Item>
+                    <List.Item>绕过广告拦截器和浏览器限制</List.Item>
+                    <List.Item>更可靠的转化归因</List.Item>
+                    <List.Item>更好的隐私合规性（数据最小化）</List.Item>
                     <List.Item>更稳定的追踪准确性</List.Item>
                   </List>
                 </BlockStack>

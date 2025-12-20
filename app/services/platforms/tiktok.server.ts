@@ -188,8 +188,8 @@ Benefits of server-side tracking:
 - Not affected by ad blockers
 - Works in strict sandbox mode
 - More accurate attribution
-- Higher match rates with hashed PII
-- GDPR compliant (server-side hashing)
+- Privacy-first: no PII is collected or sent
+- GDPR compliant (data minimization)
 */`;
 }
 

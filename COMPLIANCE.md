@@ -57,10 +57,12 @@ Tracking Guardian processes order data to:
 
 ### Principle: Collect Only What's Necessary
 
-1. **No unnecessary PII storage**: Email, phone, name, address are NEVER stored in our database
-2. **Hashing before transmission**: All PII sent to ad platforms is SHA-256 hashed
+1. **No PII collection**: Email, phone, name, address are NOT collected, stored, or sent
+2. **Order data only**: We only process order ID, value, currency, and line items
 3. **Configurable retention**: Merchants control how long we retain conversion logs
 4. **Automatic cleanup**: Data older than retention period is automatically deleted
+
+**Privacy-First Approach**: We do not use hashed PII for ad platform matching. While this may reduce match rates, it provides stronger privacy guarantees and simpler compliance.
 
 ### What We DON'T Collect
 
@@ -127,9 +129,11 @@ We fully implement Shopify's mandatory compliance webhooks:
 
 - **API Authentication**: All API endpoints require valid session
 - **Webhook Verification**: HMAC signature validation for all webhooks (Shopify-signed)
-- **Pixel Security (P0-03)**: Origin-based validation + rate limiting (NOT client-side HMAC)
-  - Ingestion Key is used for request correlation/diagnostics only
-  - Security relies on: Origin validation, rate limiting, order verification via webhook
+- **Pixel Event Security**:
+  - **Ingestion Key Validation**: Store-scoped key is validated server-side; requests with missing/invalid keys are rejected (204 No Content)
+  - **Origin Validation**: Only accept requests from Shopify domains or sandbox "null" origin
+  - **Rate Limiting**: Per-shop and global limits prevent abuse
+  - **Order Verification**: orderId validated against shop's orders via webhook
 - **Rate Limiting**: Protection against abuse and brute force
 
 ### Audit Logging
@@ -167,8 +171,10 @@ All sensitive operations are logged:
 | Platform | Data Shared | Purpose | User Control |
 |----------|-------------|---------|--------------|
 | Google GA4 | Order ID, Value, Items | Conversion measurement | Consent required |
-| Meta CAPI | Order ID, Value, Hashed PII | Attribution | Consent required |
-| TikTok Events | Order ID, Value, Hashed PII | Attribution | Consent required |
+| Meta CAPI | Order ID, Value, Items | Attribution | Consent required |
+| TikTok Events | Order ID, Value, Items | Attribution | Consent required |
+
+**Note**: No PII (email, phone, address) is sent to any platform. This is a privacy-first design choice.
 
 ### What's Shared
 
@@ -230,7 +236,7 @@ For data-related inquiries or requests:
 - [ ] 声明数据用途: Conversion tracking, Attribution, Reconciliation
 - [ ] 声明数据保留期: Configurable 30-365 days
 - [ ] 声明数据删除方式: Automatic retention-based + GDPR webhooks
-- [ ] 声明第三方分享: Google, Meta, TikTok (仅哈希后的转化数据)
+- [ ] 声明第三方分享: Google, Meta, TikTok (订单金额、商品信息，不含 PII)
 
 #### Privacy & Security
 - [ ] Privacy Policy 链接可访问且内容匹配应用功能
@@ -306,7 +312,7 @@ Customer Browser              Shopify                 Tracking Guardian         
       │                          │    (HMAC verified)        │                          │
       │                          │                           │                          │
       │                          │                           │── CAPI (if consented) ──│
-      │                          │                           │   (hashed PII only)      │
+      │                          │                           │   (order data only)      │
 ```
 
 **Privacy Note**: The Web Pixel only subscribes to `checkout_completed`. All other events 

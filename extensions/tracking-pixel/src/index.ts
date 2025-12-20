@@ -10,15 +10,14 @@
  * Other events (page_viewed, product_viewed, etc.) are NOT collected.
  * This aligns with our privacy disclosure that we don't collect browsing history.
  * 
- * P0-03: Ingestion Key
- * The ingestion_secret is used for request association and diagnostics,
- * NOT as a cryptographic security boundary. Security is enforced server-side
- * through Origin validation, rate limiting, and order verification.
+ * Ingestion Key:
+ * The ingestion_secret is a store-scoped key that IS validated server-side.
+ * Requests with missing or invalid keys are rejected with 204 No Content.
+ * This provides access control for the pixel event ingestion endpoint.
  */
 
 import { register } from "@shopify/web-pixels-extension";
-// P0-03: HMAC imports removed - ingestion_key is now only for diagnostics, not security
-// Security is enforced server-side through Origin validation, rate limiting, and order verification
+// Ingestion key is validated server-side - invalid keys cause request rejection
 
 // P0-1: Production URL constant - set during deployment
 // This is the ONLY allowed backend URL; merchants cannot configure arbitrary URLs
@@ -38,12 +37,11 @@ function isAllowedBackendUrl(url: string): boolean {
   return ALLOWED_URL_PATTERNS.some(pattern => pattern.test(url));
 }
 
-// P0-03: hmacSha256 function removed
-// The ingestion_key is now only used for diagnostics/correlation, not security
-// Server-side security relies on:
-// 1. Origin validation (only Shopify origins allowed)
-// 2. Rate limiting (per-shop and global)
-// 3. Order verification (orderId format, shop ownership via webhook)
+// Server-side security layers:
+// 1. Ingestion key validation (reject requests with missing/invalid key)
+// 2. Origin validation (only Shopify origins allowed)
+// 3. Rate limiting (per-shop and global)
+// 4. Order verification (orderId format, shop ownership via webhook)
 
 // Types are intentionally loose to handle Shopify's varying type definitions
 interface CheckoutData {

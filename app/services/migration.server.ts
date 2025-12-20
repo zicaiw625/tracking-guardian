@@ -22,10 +22,24 @@ export interface MigrationResult {
   error?: string;
 }
 
+/**
+ * @deprecated This function returns deprecated pixel code.
+ * 
+ * Tracking Guardian now uses server-side CAPI exclusively.
+ * The returned pixelCode is a deprecation notice, not actual code.
+ * Instructions guide users to configure server-side tracking instead.
+ */
 export function generatePixelCode(config: MigrationConfig): MigrationResult {
   try {
     let pixelCode = "";
-    let instructions: string[] = [];
+    // Updated instructions: No more "paste code" - use server-side CAPI instead
+    const serverSideInstructions = [
+      "1. 前往 Tracking Guardian「设置」页面",
+      "2. 在「服务端追踪」部分配置平台凭证",
+      "3. 开启服务端转化追踪 (Server-side CAPI)",
+      "4. 删除旧的 ScriptTag 或 Additional Scripts（如有）",
+      "5. 无需粘贴任何客户端代码",
+    ];
 
     switch (config.platform) {
       case "google":
@@ -34,71 +48,38 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
           conversionId: config.additionalConfig?.conversionId,
           conversionLabel: config.additionalConfig?.conversionLabel,
         });
-        instructions = [
-          "1. 在 Shopify 后台创建新的 Web Pixel",
-          "2. 将生成的代码复制到 Web Pixel 编辑器中",
-          "3. 保存并发布 Web Pixel",
-          "4. 在 Google Ads 中验证转化追踪是否正常",
-          "5. 删除旧的 ScriptTag 或 Additional Scripts",
-        ];
         break;
 
       case "meta":
         pixelCode = generateMetaPixelCode({
           pixelId: config.platformId,
         });
-        instructions = [
-          "1. 在 Shopify 后台创建新的 Web Pixel",
-          "2. 将生成的代码复制到 Web Pixel 编辑器中",
-          "3. 保存并发布 Web Pixel",
-          "4. 在 Meta Events Manager 中验证事件是否正常触发",
-          "5. 配置 Conversions API 以提高追踪准确性",
-          "6. 删除旧的 ScriptTag 或 Additional Scripts",
-        ];
         break;
 
       case "tiktok":
         pixelCode = generateTikTokPixelCode({
           pixelId: config.platformId,
         });
-        instructions = [
-          "1. 在 Shopify 后台创建新的 Web Pixel",
-          "2. 将生成的代码复制到 Web Pixel 编辑器中",
-          "3. 保存并发布 Web Pixel",
-          "4. 在 TikTok Events Manager 中验证事件",
-          "5. 删除旧的 ScriptTag 或 Additional Scripts",
-        ];
         break;
 
       case "bing":
         pixelCode = generateBingPixelCode({
           tagId: config.platformId,
         });
-        instructions = [
-          "1. 在 Shopify 后台创建新的 Web Pixel",
-          "2. 将生成的代码复制到 Web Pixel 编辑器中",
-          "3. 保存并发布 Web Pixel",
-          "4. 在 Microsoft Advertising 中验证 UET 标签",
-          "5. 删除旧的 ScriptTag 或 Additional Scripts",
-        ];
         break;
 
       case "clarity":
         pixelCode = generateClarityPixelCode({
           projectId: config.platformId,
         });
-        instructions = [
-          "1. 在 Shopify 后台创建新的 Web Pixel",
-          "2. 将生成的代码复制到 Web Pixel 编辑器中",
-          "3. 保存并发布 Web Pixel",
-          "4. 在 Microsoft Clarity 中验证数据收集",
-          "5. 删除旧的 ScriptTag",
-        ];
         break;
 
       default:
         throw new Error(`Unsupported platform: ${config.platform}`);
     }
+
+    // All platforms now use the same server-side instructions
+    const instructions = serverSideInstructions;
 
     return {
       success: true,

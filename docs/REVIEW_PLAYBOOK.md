@@ -241,8 +241,8 @@ done
 
 ### Privacy Verification
 - [ ] Only checkout_completed events sent to backend
-- [ ] No PII stored in database (email, phone, address)
-- [ ] PII is hashed before sending to ad platforms
+- [ ] No PII collected or stored (email, phone, address)
+- [ ] No PII sent to ad platforms (privacy-first design)
 - [ ] Consent is checked before any data processing
 
 ### GDPR Verification

@@ -46,15 +46,16 @@ runtime_context = "strict"
 # The production URL is set as a constant in the extension source code
 
 [settings]
-  # P0-03: Ingestion Key - used for request association and diagnostics (NOT a security credential)
-  # This is NOT a cryptographic secret - it's used for:
-  # - Correlating pixel events with webhook events
-  # - Filtering noise from invalid requests
-  # - Diagnostics and troubleshooting
+  # Ingestion Key - store-scoped key for pixel event filtering and correlation
+  # This key IS validated by the server:
+  # - Requests with missing/invalid key are rejected (204 No Content)
+  # - Used to filter out noise and prevent unauthorized event injection
+  # - Correlates pixel events with webhook events for consistency checks
+  # Note: Not a cryptographic signing secret, but IS an access control mechanism
   [[settings.fields]]
     key = "ingestion_secret"
     name = "Ingestion Key"
-    description = "Key for request association and diagnostics (auto-generated). NOT used for security - the security boundary is server-side validation."
+    description = "Store-scoped key for event filtering and correlation. Validated by server - invalid keys are rejected."
     type = "single_line_text_field"
   
   # Note: debug field removed - Shopify settings are always strings (single_line_text_field)

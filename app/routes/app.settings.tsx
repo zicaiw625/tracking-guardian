@@ -1206,8 +1206,8 @@ export default function SettingsPage() {
 
                       <Banner tone="info">
                         <p>
-                          <strong>注意：</strong>Ingestion Key 主要用于请求关联和诊断，
-                          而非严格的安全边界。转化追踪的安全性由 Shopify Webhook 签名和服务端逻辑保证。
+                          <strong>注意：</strong>Ingestion Key 会被服务端验证。缺少或错误的密钥会导致像素事件被拒绝。
+                          更换密钥后，App Pixel 会自动更新，通常无需手动操作。
                         </p>
                       </Banner>
                     </BlockStack>
@@ -1283,11 +1283,11 @@ export default function SettingsPage() {
 
                       <Banner tone="info">
                         <BlockStack gap="200">
-                          <Text as="span" fontWeight="semibold">PII 处理说明：</Text>
+                          <Text as="span" fontWeight="semibold">数据发送说明：</Text>
                           <Text as="p" variant="bodySm">
-                            • <strong>Meta/TikTok</strong>：启用后，PII（邮箱、电话）会先进行 SHA256 哈希再发送
-                            <br />• <strong>Google</strong>：GA4 Measurement Protocol 禁止上传 PII（含哈希），我们不会发送
-                            <br />• <strong>默认禁用</strong>：为保护用户隐私，PII 发送默认关闭
+                            • <strong>当前模式</strong>：仅发送订单金额、货币、商品信息用于转化归因
+                            <br />• <strong>不发送 PII</strong>：邮箱、电话等个人信息不会发送到广告平台
+                            <br />• <strong>隐私优先</strong>：这种数据最小化模式更适合隐私敏感场景
                           </Text>
                         </BlockStack>
                       </Banner>
@@ -1349,9 +1349,9 @@ export default function SettingsPage() {
                           <Text as="span" fontWeight="semibold">数据最小化原则：</Text>
                           <Text as="p" variant="bodySm">
                             我们仅存储转化追踪必需的数据：
-                            <br />• 订单 ID、金额、货币（来自 Webhook）
-                            <br />• 同意状态、事件签名（来自 Pixel）
-                            <br />• <strong>不存储原始 PII</strong>：邮箱和电话仅在发送时临时哈希处理
+                            <br />• 订单 ID、金额、货币、商品信息（来自 Webhook）
+                            <br />• 同意状态、事件时间戳（来自 Pixel）
+                            <br />• <strong>不存储/发送 PII</strong>：邮箱、电话等个人信息不会被收集或发送
                           </Text>
                         </BlockStack>
                       </Banner>

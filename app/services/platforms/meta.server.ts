@@ -299,10 +299,10 @@ when orders are placed.
 
 Benefits of server-side tracking:
 - Not affected by ad blockers or iOS 14+ restrictions
-- Higher match rates with hashed PII
-- More accurate attribution
+- More reliable conversion attribution
 - Works in strict sandbox mode
-- GDPR compliant (server-side hashing)
+- Privacy-first: no PII is collected or sent
+- GDPR compliant (data minimization)
 */`;
 }
 

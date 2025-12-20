@@ -79,6 +79,11 @@ model Shop {
   previousIngestionSecret String?
   previousSecretExpiry    DateTime?
 
+  // P1: Web Pixel ID for reliable pixel identification
+  // Stored after webPixelCreate succeeds; used for webPixelUpdate
+  // Avoids relying on settings key guessing to identify "our" pixel
+  webPixelId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

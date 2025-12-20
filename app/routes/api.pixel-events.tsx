@@ -1,13 +1,13 @@
 /**
- * P0-03: Simplified Pixel Events API
+ * Pixel Events API - Ingests checkout_completed events from App Pixel
  * 
  * Security Model:
- * - NO client-side HMAC signatures (browser-visible secrets provide no security)
- * - Origin validation (only accept requests from Shopify domains)
- * - Strict rate limiting (per-shop and global)
- * - Order verification (validate orderId belongs to shop via webhook)
+ * 1. Ingestion Key Validation: Store-scoped key must match - invalid/missing keys are rejected
+ * 2. Origin Validation: Only accept requests from Shopify domains or sandbox "null" origin
+ * 3. Rate Limiting: Per-shop and global limits prevent abuse
+ * 4. Order Verification: orderId is validated against shop's orders via webhook
  * 
- * The ingestion_key is used for request correlation and diagnostics only.
+ * The ingestion_key IS validated and used for access control, not just diagnostics.
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";

@@ -48,7 +48,7 @@ specifically for Protected Customer Data requirements.
 ├─────────────────────────────────────────────────────────────────────────────────────────┤
 │  7. CAPI Dispatch (retry.server.ts)                                                      │
 │     - Only sends if consent allows                                                       │
-│     - PII is hashed in-transit, NEVER stored in our DB                                   │
+│     - NO PII is collected or sent (privacy-first design)                                 │
 │     - Sends to configured platforms only                                                 │
 └──────────────────────────────────┬──────────────────────────────────────────────────────┘
                                    │
@@ -63,8 +63,9 @@ specifically for Protected Customer Data requirements.
 │  - transaction_id               - event_id                   - event_id                  │
 │  - value, currency              - value, currency            - value, currency           │
 │  - items[]                      - contents[]                 - contents[]                │
-│  - NO PII (Google policy)       - em, ph (SHA256 hashed)     - email, phone (SHA256)    │
-│                                 - external_id (SHA256)       - external_id (SHA256)      │
+│  - NO PII                       - NO PII                     - NO PII                    │
+│                                                                                          │
+│  NOTE: We do NOT send email, phone, or any PII. This is a privacy-first design.         │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,8 +78,8 @@ specifically for Protected Customer Data requirements.
 | Currency | Webhook | ConversionLog | Configurable | Accurate conversion value |
 | Line Items | Webhook | capiInput (JSON field) | Configurable | Product-level attribution |
 | Consent State | Pixel | PixelEventReceipt | Configurable | Consent verification |
-| Email | Webhook | **NOT STORED** | N/A | Hashed and sent to platforms only |
-| Phone | Webhook | **NOT STORED** | N/A | Hashed and sent to platforms only |
+| Email | N/A | **NOT COLLECTED** | N/A | Not used (privacy-first design) |
+| Phone | N/A | **NOT COLLECTED** | N/A | Not used (privacy-first design) |
 
 ---
 
@@ -253,10 +254,10 @@ Pixel event includes consent → Server respects consent for CAPI
 - [x] Data retention configurable and enforced
 
 ### PCD-Specific
-- [x] PII is NEVER stored in plaintext
-- [x] PII is hashed before transmission to ad platforms
-- [x] Consent is verified before PII processing
-- [x] Audit logging for all PII access
+- [x] PII is NEVER collected (privacy-first design)
+- [x] No email, phone, or address is sent to ad platforms
+- [x] Consent is verified before any conversion data processing
+- [x] Audit logging for all data access
 
 ### Documentation
 - [x] COMPLIANCE.md updated
