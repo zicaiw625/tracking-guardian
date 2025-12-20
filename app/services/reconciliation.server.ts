@@ -82,8 +82,11 @@ async function getShopifyOrderStats(
     } | null;
     errors?: unknown[];
   }> {
+    // P0-2 FIX: Use centralized API version instead of hardcoded value
+    // 2024-01 was no longer supported as of 2025-01
+    // Now using 2025-07 to match shopify.server.ts and shopify.app.toml
     const response = await fetch(
-      `https://${shopDomain}/admin/api/2024-01/graphql.json`,
+      `https://${shopDomain}/admin/api/2025-07/graphql.json`,
       {
         method: "POST",
         headers: {
