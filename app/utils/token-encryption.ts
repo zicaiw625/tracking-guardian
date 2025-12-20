@@ -21,12 +21,18 @@ const SCRYPT_PARAMS = {
 const CURRENT_VERSION = "v1";
 const VERSION_PREFIX = `${CURRENT_VERSION}:`;
 
+// P0-1: Unified salt strategy with crypto.ts
+// Both modules now use the same default salt when ENCRYPTION_SALT is not set
+const DEFAULT_ENCRYPTION_SALT = "tracking-guardian-credentials-salt";
+const DEV_ENCRYPTION_SALT = "dev-salt-not-for-production";
+
 let cachedTokenKey: Buffer | null = null;
 let cachedTokenKeySecret: string | null = null;
+let cachedTokenKeySalt: string | null = null;
 
 function getTokenEncryptionKey(): Buffer {
   const secret = process.env.ENCRYPTION_SECRET;
-  const salt = process.env.ENCRYPTION_SALT || "shopify-access-token-salt";
+  const salt = process.env.ENCRYPTION_SALT || DEFAULT_ENCRYPTION_SALT;
 
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
@@ -41,15 +47,24 @@ function getTokenEncryptionKey(): Buffer {
       "Using insecure default for development only."
     );
     const devSecret = "INSECURE_DEV_SECRET_DO_NOT_USE_IN_PRODUCTION";
-    return scryptSync(devSecret, "dev-token-salt", 32, SCRYPT_PARAMS);
+    return scryptSync(devSecret, DEV_ENCRYPTION_SALT, 32, SCRYPT_PARAMS);
   }
 
-  if (cachedTokenKey && cachedTokenKeySecret === secret) {
+  // Cache key only if both secret and salt match
+  if (cachedTokenKey && cachedTokenKeySecret === secret && cachedTokenKeySalt === salt) {
     return cachedTokenKey;
+  }
+
+  if (!process.env.ENCRYPTION_SALT && process.env.NODE_ENV === "production") {
+    console.warn(
+      "⚠️ [Token Encryption] ENCRYPTION_SALT not set. Using default salt. " +
+      "Set ENCRYPTION_SALT environment variable for consistent encryption across deployments."
+    );
   }
 
   cachedTokenKey = scryptSync(secret, salt, 32, SCRYPT_PARAMS);
   cachedTokenKeySecret = secret;
+  cachedTokenKeySalt = salt;
   
   return cachedTokenKey;
 }
@@ -144,6 +159,21 @@ export function decryptIngestionSecret(encryptedSecret: string): string {
     );
     return "";
   }
+}
+
+/**
+ * P1-1: Shared function for generating encrypted ingestion secrets
+ * Previously duplicated in shopify.server.ts and app.settings.tsx
+ * 
+ * Generates a cryptographically secure ingestion secret and returns
+ * both the plain and encrypted versions.
+ * 
+ * @returns Object with plain (for pixel config) and encrypted (for DB storage) versions
+ */
+export function generateEncryptedIngestionSecret(): { plain: string; encrypted: string } {
+  const plain = randomBytes(32).toString("hex");
+  const encrypted = encryptIngestionSecret(plain);
+  return { plain, encrypted };
 }
 
 export class TokenDecryptionError extends Error {

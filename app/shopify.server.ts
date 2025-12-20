@@ -1,5 +1,4 @@
 import "@shopify/shopify-app-remix/adapters/node";
-import { randomBytes } from "crypto";
 import {
   ApiVersion,
   AppDistribution,
@@ -11,7 +10,7 @@ import prisma from "./db.server";
 import { createEncryptedSessionStorage } from "./utils/encrypted-session-storage";
 import { 
   encryptAccessToken, 
-  encryptIngestionSecret,
+  generateEncryptedIngestionSecret,
   validateTokenEncryptionConfig 
 } from "./utils/token-encryption";
 
@@ -25,16 +24,6 @@ try {
   if (process.env.NODE_ENV === "production") {
     throw error;
   }
-}
-
-function generateIngestionSecret(): string {
-  return randomBytes(32).toString("hex");
-}
-
-function generateEncryptedIngestionSecret(): { plain: string; encrypted: string } {
-  const plain = generateIngestionSecret();
-  const encrypted = encryptIngestionSecret(plain);
-  return { plain, encrypted };
 }
 
 const baseSessionStorage = new PrismaSessionStorage(prisma);

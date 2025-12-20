@@ -648,6 +648,25 @@ export function addSecurityHeaders(response: Response): Response {
   });
 }
 
+/**
+ * @deprecated P1-3: Use checkRateLimitAsync instead.
+ * 
+ * WARNING: This synchronous version has a critical limitation:
+ * - In Redis mode, it fires-and-forgets the increment operation
+ * - This means it may NOT actually block requests even when limit is exceeded
+ * - The rate limiting only works correctly with the in-memory store
+ * 
+ * Use checkRateLimitAsync for reliable rate limiting in all deployment modes.
+ * 
+ * Migration guide:
+ * ```
+ * // Before:
+ * const { isLimited } = checkRateLimit(request, endpoint);
+ * 
+ * // After:
+ * const { isLimited } = await checkRateLimitAsync(request, endpoint);
+ * ```
+ */
 export function checkRateLimit(
   request: Request,
   endpoint: string,
@@ -799,12 +818,27 @@ export function addRateLimitHeaders(
   });
 }
 
+/**
+ * @deprecated P1-3: This wrapper uses the deprecated checkRateLimit synchronous function.
+ * 
+ * For new code, manually use checkRateLimitAsync at the start of your handler:
+ * ```
+ * export async function action({ request }: ActionFunctionArgs) {
+ *   const { isLimited, retryAfter } = await checkRateLimitAsync(request, "api");
+ *   if (isLimited) {
+ *     return createRateLimitResponse(retryAfter);
+ *   }
+ *   // ... rest of handler
+ * }
+ * ```
+ */
 export function withRateLimit<T>(
   endpoint: string,
   handler: (args: { request: Request }) => Promise<T>,
   customConfig?: Partial<RateLimitConfig>
 ): (args: { request: Request }) => Promise<T | Response> {
   return async (args) => {
+    // P1-3: Uses deprecated sync checkRateLimit - see function deprecation notice
     const { isLimited, remaining, resetTime, retryAfter } = checkRateLimit(
       args.request,
       endpoint,

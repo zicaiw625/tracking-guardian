@@ -113,13 +113,56 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   const ingestionKey = (settings.ingestion_key || settings.ingestion_secret) as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
   
-  // P0-03: Debug mode removed - Shopify settings are strings, not booleans
-  // For debugging, use browser DevTools Network tab to inspect requests
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function log(..._args: unknown[]): void {
-    // No-op: debug logging disabled in production
-    // To enable: uncomment the line below
-    // console.log("[Tracking Guardian]", ..._args);
+  /**
+   * P2-2: Development mode detection and logging
+   * 
+   * Debug logging is enabled when ANY of these conditions are met:
+   * 1. Backend URL points to localhost/127.0.0.1 (local development)
+   * 2. Settings contains debug_mode="true" (can be set via pixel config)
+   * 3. Shop domain contains "dev" or ".myshopify.dev" (development shops)
+   * 
+   * In production, logging is completely silent to avoid console spam.
+   * For production debugging, use browser DevTools Network tab instead.
+   */
+  const isDevMode = (() => {
+    // Check for localhost backend URL
+    if (/^https?:\/\/(localhost|127\.0\.0\.1):\d+/.test(backendUrl)) {
+      return true;
+    }
+    // Check for explicit debug setting (set via app settings or pixel config)
+    if (settings.debug_mode === "true" || settings.debug_mode === true) {
+      return true;
+    }
+    // Check for development shop domains
+    if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
+      return true;
+    }
+    return false;
+  })();
+
+  /**
+   * P2-2: Controlled development mode logging
+   * 
+   * Logs are ONLY output when isDevMode is true.
+   * In production, this function is a complete no-op.
+   * 
+   * For production debugging:
+   * - Use browser DevTools Network tab to inspect requests
+   * - Check server logs for correlation with request timestamps
+   */
+  function log(...args: unknown[]): void {
+    if (isDevMode) {
+      console.log("[Tracking Guardian]", ...args);
+    }
+  }
+
+  // P2-2: Log initial configuration in development mode
+  if (isDevMode) {
+    log("Development mode enabled", {
+      backendUrl,
+      shopDomain,
+      hasIngestionKey: !!ingestionKey,
+    });
   }
 
   // P0-03: generateSignature function removed
@@ -240,12 +283,26 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
         body,
         signal,
       })
-        .then(() => cleanup())
-        .catch(() => {
+        .then((response) => {
           cleanup();
+          // P2-2: Log response status in dev mode for debugging
+          if (isDevMode) {
+            log(`${eventName} sent, status: ${response.status}`);
+          }
+        })
+        .catch((error) => {
+          cleanup();
+          // P2-2: Log errors in dev mode for debugging
+          if (isDevMode) {
+            log(`${eventName} failed:`, error);
+          }
         });
-    } catch {
-      // Silently ignore errors - pixel should never disrupt checkout
+    } catch (error) {
+      // P2-2: Log unexpected errors in dev mode, silently ignore in production
+      // Pixel should never disrupt checkout experience
+      if (isDevMode) {
+        log("Unexpected error:", error);
+      }
     }
   }
 

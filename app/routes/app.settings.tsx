@@ -21,7 +21,6 @@ import {
   ContextualSaveBar,
 } from "@shopify/polaris";
 
-import { randomBytes } from "crypto";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { testNotification } from "../services/notification.server";
@@ -29,7 +28,7 @@ import { encryptJson, decryptJson } from "../utils/crypto";
 import { checkTokenExpirationIssues } from "../services/retry.server";
 import { createAuditLog } from "../services/audit.server";
 import { getExistingWebPixels, updateWebPixel } from "../services/migration.server";
-import { encryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
+import { generateEncryptedIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
 import { logger } from "../utils/logger";
 
@@ -48,6 +47,25 @@ interface AlertSettingsTelegram {
 }
 
 type AlertSettings = AlertSettingsEmail | AlertSettingsSlack | AlertSettingsTelegram;
+
+// P1-2: Display types for settings page - avoid using 'any'
+interface AlertConfigDisplay {
+  id: string;
+  channel: string;
+  settings: Record<string, unknown> | null;
+  discrepancyThreshold: number;
+  isEnabled: boolean;
+}
+
+interface PixelConfigDisplay {
+  id: string;
+  platform: string;
+  platformId: string | null;
+  serverSideEnabled: boolean;
+  clientSideEnabled: boolean;
+  isActive: boolean;
+  lastTestedAt?: Date | null;
+}
 
 // P0-2: Helper to encrypt alert settings based on channel
 function encryptAlertSettings(channel: string, settings: Record<string, unknown>): string | null {
@@ -107,15 +125,7 @@ function getMaskedAlertSettings(channel: string, settings: Record<string, unknow
   return masked;
 }
 
-function generateIngestionSecret(): string {
-  return randomBytes(32).toString("hex");
-}
-
-function generateEncryptedIngestionSecret(): { plain: string; encrypted: string } {
-  const plain = generateIngestionSecret();
-  const encrypted = encryptIngestionSecret(plain);
-  return { plain, encrypted };
-}
+// P1-1: generateEncryptedIngestionSecret is now imported from token-encryption.ts
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -888,7 +898,7 @@ export default function SettingsPage() {
                       已配置的警报
                     </Text>
                     {shop?.alertConfigs && shop.alertConfigs.length > 0 ? (
-                      shop.alertConfigs.map((config: any) => (
+                      shop.alertConfigs.map((config: AlertConfigDisplay) => (
                         <Box
                           key={config.id}
                           background="bg-surface-secondary"
@@ -1098,11 +1108,11 @@ export default function SettingsPage() {
                       服务端追踪状态
                     </Text>
                     {shop?.pixelConfigs &&
-                    shop.pixelConfigs.filter((c: any) => c.serverSideEnabled)
+                    shop.pixelConfigs.filter((c: PixelConfigDisplay) => c.serverSideEnabled)
                       .length > 0 ? (
                       shop.pixelConfigs
-                        .filter((c: any) => c.serverSideEnabled)
-                        .map((config: any) => (
+                        .filter((c: PixelConfigDisplay) => c.serverSideEnabled)
+                        .map((config: PixelConfigDisplay) => (
                           <Box
                             key={config.id}
                             background="bg-surface-secondary"
