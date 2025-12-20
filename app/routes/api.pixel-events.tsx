@@ -28,7 +28,7 @@ import { json } from "@remix-run/node";
 import prisma from "../db.server";
 // P1-04: Use unified match key generation for consistent deduplication
 import { generateEventId, generateMatchKey } from "../utils/crypto";
-import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
+import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limiter";
 import { checkCircuitBreaker } from "../utils/circuit-breaker";
 import { getShopForVerification } from "../utils/shop-access";
 
@@ -347,9 +347,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   // P0-03: Single rate limit config (no signed/unsigned distinction)
-  const rateLimit = checkRateLimit(request, "pixel-events", RATE_LIMIT_CONFIG);
+  // P0-2 FIX: Use async rate limiter to ensure Redis mode actually blocks requests
+  const rateLimit = await checkRateLimitAsync(request, "pixel-events", RATE_LIMIT_CONFIG);
   if (rateLimit.isLimited) {
-    
+    logger.warn(`[P0-2] Rate limit exceeded for pixel-events`, {
+      retryAfter: rateLimit.retryAfter,
+      remaining: rateLimit.remaining,
+    });
     const rateLimitResponse = createRateLimitResponse(rateLimit.retryAfter);
     const corsHeaders = getCorsHeaders(request);
     Object.entries(corsHeaders).forEach(([key, value]) => {

@@ -64,6 +64,23 @@ Tracking Guardian processes order data to:
 
 **Privacy-First Approach**: We do not use hashed PII for ad platform matching. While this may reduce match rates, it provides stronger privacy guarantees and simpler compliance.
 
+### Operational Data (Non-Customer PII)
+
+The following data is stored for operational purposes and is **not customer PII**, but may contain personal information of **store staff or survey respondents**:
+
+| Data Type | Table | Purpose | Retention | Notes |
+|-----------|-------|---------|-----------|-------|
+| Staff Email/Name | `Session` | Shopify OAuth sessions | Until logout/uninstall | Shopify-provided session data |
+| IP Address | `AuditLog` | Security audit trails | 180 days | For abuse detection only |
+| User Agent | `AuditLog` | Security audit trails | 180 days | Browser/device info |
+| Survey Feedback | `SurveyResponse` | Post-purchase surveys | 90 days | Free-text, may contain PII entered by customer |
+
+**Important Notes:**
+- Session data contains store **staff/admin** information, not customer PII
+- AuditLog IP/UA is for security monitoring, not customer tracking
+- SurveyResponse feedback is voluntary free-text; customers may choose to include contact info
+- All above data is subject to GDPR deletion requests via `shop/redact` webhook
+
 ### What We DON'T Collect
 
 **P0-02 Compliance: Our Web Pixel ONLY sends checkout_completed events.**
@@ -74,7 +91,7 @@ Tracking Guardian processes order data to:
 - ❌ Checkout started events (not collected)
 - ❌ Customer browsing history (not collected)
 - ❌ Device fingerprints
-- ❌ IP addresses (except for rate limiting, not stored)
+- ❌ Customer IP addresses (rate limiting uses transient IP, not stored with customer data)
 - ❌ Payment information
 - ❌ Detailed customer profiles
 
@@ -296,12 +313,15 @@ For data-related inquiries or requests:
 |-------|-----------|-----------|---------|
 | `read_orders` | 接收 orders/paid webhook 以发送转化事件 | `app/routes/webhooks.tsx:175-248` | CAPI 发送 |
 | `read_script_tags` | 扫描旧版 ScriptTag 用于迁移建议 | `app/services/scanner.server.ts:132-199` | 扫描报告 |
-| `write_pixels` | 创建/管理 App Pixel extension | `app/services/migration.server.ts:203-268` | 像素安装 |
-| `read_customer_events` | Shopify webPixelCreate API 必需 | `app/services/migration.server.ts:214-237` | 像素创建 |
+| `read_pixels` | 查询已安装的 Web Pixel | `app/services/migration.server.ts:322-352` | 像素状态检测 |
+| `write_pixels` | 创建/管理 App Pixel extension | `app/services/migration.server.ts:184-250` | 像素安装 |
+| `read_customer_events` | Shopify webPixelCreate API 必需 | `app/services/migration.server.ts:196-248` | 像素创建 |
 
-**P0-04 验证**: 所有 scopes 都有明确的代码调用点和业务理由。
+**P0-04 验证**: 所有 5 个 scopes 都有明确的代码调用点和业务理由。
 
-> **Note**: `read_customer_events` 是 Shopify `webPixelCreate` mutation 的必需权限，见 [官方文档](https://shopify.dev/docs/api/admin-graphql/latest/mutations/webpixelcreate)。
+> **Note**: 
+> - `read_pixels` 是读取 [WebPixel 对象](https://shopify.dev/docs/api/admin-graphql/latest/objects/WebPixel) 的必需权限
+> - `read_customer_events` 是 Shopify `webPixelCreate` mutation 的必需权限，见 [官方文档](https://shopify.dev/docs/api/admin-graphql/latest/mutations/webpixelcreate)
 
 ### Test Steps for Reviewers
 

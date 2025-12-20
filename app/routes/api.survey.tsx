@@ -2,7 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import prisma from "../db.server";
 import type { SurveyResponseData } from "../types";
-import { checkRateLimit, createRateLimitResponse, SECURITY_HEADERS } from "../utils/rate-limiter";
+import { checkRateLimitAsync, createRateLimitResponse, SECURITY_HEADERS } from "../utils/rate-limiter";
 import {
   verifyShopifyJwt,
   extractAuthToken,
@@ -153,9 +153,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   }
 
-  const rateLimit = checkRateLimit(request, "survey");
+  // P0-2 FIX: Use async rate limiter to ensure Redis mode actually blocks requests
+  const rateLimit = await checkRateLimitAsync(request, "survey");
   if (rateLimit.isLimited) {
-    
+    console.warn(`[P0-2] Rate limit exceeded for survey API`);
     const response = createRateLimitResponse(rateLimit.retryAfter);
     Object.entries(CORS_HEADERS).forEach(([key, value]) => {
       response.headers.set(key, value);
