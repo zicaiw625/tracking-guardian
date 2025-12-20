@@ -351,14 +351,164 @@ export async function getExistingWebPixels(
   }
 }
 
+/**
+ * P0-04: ScriptTag deletion with detailed guidance
+ * 
+ * ScriptTags can only be deleted by the app that created them.
+ * Since we're not the creator, we provide:
+ * 1. Option to attempt deletion (may fail if created by another app)
+ * 2. Detailed manual deletion instructions
+ * 3. Admin console link for the shop
+ */
+export interface ScriptTagDeletionResult {
+  success: boolean;
+  error?: string;
+  manualSteps?: string[];
+  adminUrl?: string;
+  platform?: string;
+}
+
 export async function deleteScriptTag(
-  _admin: AdminApiContext,
-  _scriptTagId: number
-): Promise<{ success: boolean; error?: string }> {
+  admin: AdminApiContext,
+  scriptTagId: number,
+  shopDomain?: string
+): Promise<ScriptTagDeletionResult> {
+  const gid = `gid://shopify/ScriptTag/${scriptTagId}`;
   
+  // P0-04: Attempt to delete the ScriptTag
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      mutation ScriptTagDelete($id: ID!) {
+        scriptTagDelete(id: $id) {
+          deletedScriptTagId
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+      `,
+      {
+        variables: { id: gid },
+      }
+    );
+
+    const result = await response.json();
+    const data = result.data?.scriptTagDelete;
+
+    if (data?.deletedScriptTagId) {
+      logger.info(`[P0-04] ScriptTag ${scriptTagId} deleted successfully`);
+      return { success: true };
+    }
+
+    if (data?.userErrors && data.userErrors.length > 0) {
+      const errorMessage = data.userErrors.map((e: { message: string }) => e.message).join(", ");
+      logger.warn(`[P0-04] ScriptTag deletion failed: ${errorMessage}`);
+      
+      // Return detailed manual steps if deletion fails
+      return getManualDeletionInstructions(scriptTagId, shopDomain, errorMessage);
+    }
+
+    return getManualDeletionInstructions(scriptTagId, shopDomain, "Unknown error");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    logger.warn(`[P0-04] ScriptTag deletion error: ${errorMessage}`);
+    
+    return getManualDeletionInstructions(scriptTagId, shopDomain, errorMessage);
+  }
+}
+
+/**
+ * P0-04: Generate manual deletion instructions for ScriptTags
+ */
+function getManualDeletionInstructions(
+  scriptTagId: number,
+  shopDomain?: string,
+  errorReason?: string
+): ScriptTagDeletionResult {
+  const adminUrl = shopDomain 
+    ? `https://${shopDomain}/admin/settings/apps`
+    : undefined;
+
   return {
     success: false,
-    error: "自动删除功能已停用。请在 Shopify 后台「设置 → 应用和销售渠道」中找到创建该 ScriptTag 的应用，手动删除。或者联系 Shopify 支持获取帮助。",
+    error: errorReason || "无法自动删除此 ScriptTag（可能由其他应用创建）",
+    manualSteps: [
+      "1. 前往 Shopify 后台「设置 → 应用和销售渠道」",
+      "2. 找到创建该 ScriptTag 的应用（通常是追踪/分析类应用）",
+      "3. 点击该应用，选择「卸载」或在应用设置中禁用脚本",
+      "4. 如果找不到对应应用，可能是已卸载的应用残留",
+      "5. 联系 Shopify 支持获取帮助，提供 ScriptTag ID: " + scriptTagId,
+      "",
+      "💡 推荐：安装 Tracking Guardian 的 Web Pixel 后，旧的 ScriptTag 可以安全删除，",
+      "因为 Web Pixel 将接管所有转化追踪功能。",
+    ],
+    adminUrl,
+  };
+}
+
+/**
+ * P0-04: Get platform-specific migration guidance
+ */
+export function getScriptTagMigrationGuidance(platform: string, scriptTagId: number): {
+  title: string;
+  steps: string[];
+  deadline?: string;
+  warning?: string;
+} {
+  const baseSteps = [
+    "1. 在 Tracking Guardian「设置」页面配置该平台的 CAPI 凭证",
+    "2. 在「迁移」页面安装 Web Pixel（如尚未安装）",
+    "3. 验证新的追踪配置正常工作（查看「监控」页面）",
+    "4. 删除旧的 ScriptTag（可使用上方删除按钮或手动操作）",
+  ];
+
+  const platformGuidance: Record<string, { title: string; extraSteps?: string[]; warning?: string }> = {
+    google: {
+      title: "Google Analytics / Google Ads 迁移",
+      extraSteps: [
+        "• GA4: 配置 Measurement ID (G-XXXXXX) 和 API Secret",
+        "• Google Ads: 在 GA4 中设置「从 GA4 导入转化」",
+      ],
+    },
+    meta: {
+      title: "Meta (Facebook) Pixel 迁移",
+      extraSteps: [
+        "• 在 Meta Events Manager 生成 Conversions API Access Token",
+        "• 配置 Pixel ID 和 Access Token",
+        "• 可选: 使用 Test Event Code 进行测试",
+      ],
+    },
+    tiktok: {
+      title: "TikTok Pixel 迁移",
+      extraSteps: [
+        "• 在 TikTok Events Manager 生成 Access Token",
+        "• 配置 Pixel ID 和 Access Token",
+      ],
+    },
+    bing: {
+      title: "Microsoft UET 迁移",
+      warning: "Tracking Guardian 目前不支持 Bing UET 的服务端追踪。建议使用 Microsoft 官方 Shopify 应用。",
+    },
+    clarity: {
+      title: "Microsoft Clarity 迁移",
+      warning: "Clarity 是会话回放工具，不适合服务端追踪。请在 Shopify 主题中直接添加 Clarity 代码。",
+    },
+  };
+
+  const guidance = platformGuidance[platform] || {
+    title: `${platform} 平台迁移`,
+  };
+
+  return {
+    title: guidance.title,
+    steps: [
+      ...(guidance.extraSteps || []),
+      ...baseSteps,
+    ],
+    deadline: platform === "unknown" ? undefined : "Plus 商家: 2025-08-28; 非 Plus: 2026-08-26",
+    warning: guidance.warning,
   };
 }
 

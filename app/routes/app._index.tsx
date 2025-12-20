@@ -86,6 +86,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const weeklyConversions = shop?._count?.conversionLogs || 0;
   const hasAlertConfig = (shop?.alertConfigs?.length || 0) > 0;
 
+  // P2-11: Extract ScriptTags info for migration warning
+  let scriptTagsCount = 0;
+  let hasOrderStatusScripts = false;
+  if (latestScan?.scriptTags) {
+    const scriptTags = latestScan.scriptTags as Array<{ display_scope?: string }>;
+    scriptTagsCount = scriptTags.length;
+    hasOrderStatusScripts = scriptTags.some(tag => tag.display_scope === "order_status");
+  }
+
   return json({
     shopDomain,
     healthScore,
@@ -102,6 +111,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     weeklyConversions,
     hasAlertConfig,
     plan: shop?.plan || "free",
+    // P2-11: Migration risk info
+    scriptTagsCount,
+    hasOrderStatusScripts,
   });
 };
 
@@ -115,6 +127,8 @@ export default function Index() {
     weeklyConversions,
     hasAlertConfig,
     plan,
+    scriptTagsCount,
+    hasOrderStatusScripts,
   } = useLoaderData<typeof loader>();
 
   const setupSteps = [
@@ -400,10 +414,49 @@ export default function Index() {
           </Layout.Section>
         </Layout>
 
-        {}
+        {/* P2-11: 迁移风险提醒卡片 - 基于扫描结果 */}
+        {scriptTagsCount > 0 && (
+          <Banner
+            title={`检测到 ${scriptTagsCount} 个 ScriptTag 需要迁移`}
+            tone="critical"
+            action={{
+              content: "查看迁移方案",
+              url: "/app/migrate",
+            }}
+            secondaryAction={{
+              content: "查看扫描详情",
+              url: "/app/scan",
+            }}
+          >
+            <BlockStack gap="300">
+              {hasOrderStatusScripts && (
+                <Text as="p">
+                  ⚠️ 检测到 <strong>订单状态页 ScriptTag</strong>，这是 Shopify 废弃公告的主要目标。
+                  请尽快迁移到 Web Pixel 以避免追踪中断。
+                </Text>
+              )}
+              <BlockStack gap="100">
+                <Text as="p" fontWeight="semibold">
+                  推荐迁移步骤：
+                </Text>
+                <Text as="p" variant="bodySm">
+                  1. 在「设置」页面配置平台凭证（Meta CAPI / GA4 / TikTok）
+                </Text>
+                <Text as="p" variant="bodySm">
+                  2. 在「迁移」页面安装 Tracking Guardian Web Pixel
+                </Text>
+                <Text as="p" variant="bodySm">
+                  3. 验证新配置正常工作后，删除旧的 ScriptTag
+                </Text>
+              </BlockStack>
+            </BlockStack>
+          </Banner>
+        )}
+
+        {/* 通用迁移截止日期提醒 */}
         <Banner
           title="重要迁移截止日期"
-          tone="warning"
+          tone={scriptTagsCount > 0 ? "warning" : "info"}
           action={{
             content: "了解更多",
             url: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",

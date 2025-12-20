@@ -148,13 +148,15 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     log("Customer privacy API not available, defaulting to no tracking");
   }
 
-  // P1-1: Updated consent check
-  // We require EITHER marketing OR analytics consent
-  // AND we must NOT have sale_of_data opt-out (for CCPA compliance)
+  // P0-03: Updated consent check to match customer_privacy declaration
+  // Since marketing=true in extension.toml, pixel only loads when marketing consent is granted
+  // We still check saleOfDataAllowed for CCPA compliance
   function hasAnyConsent(): boolean {
-    const hasBasicConsent = marketingAllowed === true || analyticsAllowed === true;
-    // If customer explicitly opted out of sale of data, we must respect that
-    return hasBasicConsent && saleOfDataAllowed;
+    // P0-03: Both marketing and analytics are required for this pixel to load
+    // So if we reach here, both consents should be true
+    // We only need to check saleOfDataAllowed (CCPA opt-out)
+    const hasRequiredConsent = marketingAllowed === true && analyticsAllowed === true;
+    return hasRequiredConsent && saleOfDataAllowed;
   }
 
   function hasMarketingConsent(): boolean {

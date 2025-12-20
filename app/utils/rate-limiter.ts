@@ -275,10 +275,16 @@ if (process.env.REDIS_URL) {
 }
 
 /**
- * P1-05: Rate limit configurations
+ * P1-05 + P1-08: Rate limit configurations
  * 
  * These values balance protection against abuse while allowing legitimate traffic.
  * For high-volume shops, consider adjusting via environment variables.
+ * 
+ * P1-08: Separate buckets for different scenarios:
+ * - checkout_completed: Legitimate conversion events (moderate limit)
+ * - invalid_key: Requests with missing/invalid ingestion key (strict limit)
+ * - invalid_origin: Requests from non-Shopify origins (very strict)
+ * - page_view: Browsing events (not currently collected, but ready for future)
  */
 const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
   api: {
@@ -297,9 +303,26 @@ const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
     maxRequests: 1000,
     windowMs: 60 * 1000, // 1 minute
   },
-  // P1-05: Separate configs for pixel events
+  // P1-05 + P1-08: Granular pixel event limits
   "pixel-events": {
-    maxRequests: 200, // Higher limit for pixel (many page views per session)
+    maxRequests: 200, // Higher limit for legitimate checkout_completed events
+    windowMs: 60 * 1000,
+  },
+  "pixel-events-checkout": {
+    maxRequests: 50, // Per-shop limit for checkout_completed
+    windowMs: 60 * 1000,
+  },
+  // P1-08: Stricter limits for anomalous patterns
+  "pixel-events-invalid-key": {
+    maxRequests: 10, // Very strict for requests with invalid/missing key
+    windowMs: 60 * 1000,
+  },
+  "pixel-events-invalid-origin": {
+    maxRequests: 5, // Strictest for non-Shopify origins
+    windowMs: 60 * 1000,
+  },
+  "pixel-events-invalid-timestamp": {
+    maxRequests: 10, // Strict for requests with invalid/expired timestamps
     windowMs: 60 * 1000,
   },
   "pixel-events-unsigned": {
@@ -307,6 +330,121 @@ const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
     windowMs: 60 * 1000,
   },
 };
+
+/**
+ * P1-08: Anomaly tracking for circuit breaking
+ * Tracks patterns that indicate potential abuse
+ */
+interface AnomalyTracker {
+  invalidKeyCount: number;
+  invalidOriginCount: number;
+  invalidTimestampCount: number;
+  lastReset: number;
+}
+
+const anomalyTrackers = new Map<string, AnomalyTracker>();
+const ANOMALY_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const ANOMALY_THRESHOLD = 50; // Threshold to trigger circuit break
+
+/**
+ * P1-08: Track anomalous requests for potential circuit breaking
+ */
+export function trackAnomaly(
+  shopDomain: string,
+  type: "invalid_key" | "invalid_origin" | "invalid_timestamp"
+): { shouldBlock: boolean; reason?: string } {
+  const now = Date.now();
+  let tracker = anomalyTrackers.get(shopDomain);
+
+  if (!tracker || (now - tracker.lastReset) > ANOMALY_WINDOW_MS) {
+    tracker = {
+      invalidKeyCount: 0,
+      invalidOriginCount: 0,
+      invalidTimestampCount: 0,
+      lastReset: now,
+    };
+    anomalyTrackers.set(shopDomain, tracker);
+  }
+
+  switch (type) {
+    case "invalid_key":
+      tracker.invalidKeyCount++;
+      break;
+    case "invalid_origin":
+      tracker.invalidOriginCount++;
+      break;
+    case "invalid_timestamp":
+      tracker.invalidTimestampCount++;
+      break;
+  }
+
+  // Check if any anomaly type exceeds threshold
+  if (tracker.invalidKeyCount >= ANOMALY_THRESHOLD) {
+    return { shouldBlock: true, reason: `Too many invalid key requests (${tracker.invalidKeyCount})` };
+  }
+  if (tracker.invalidOriginCount >= ANOMALY_THRESHOLD) {
+    return { shouldBlock: true, reason: `Too many invalid origin requests (${tracker.invalidOriginCount})` };
+  }
+  if (tracker.invalidTimestampCount >= ANOMALY_THRESHOLD) {
+    return { shouldBlock: true, reason: `Too many invalid timestamp requests (${tracker.invalidTimestampCount})` };
+  }
+
+  return { shouldBlock: false };
+}
+
+/**
+ * P1-08: Get anomaly statistics for monitoring
+ */
+export function getAnomalyStats(): Array<{
+  shopDomain: string;
+  invalidKeyCount: number;
+  invalidOriginCount: number;
+  invalidTimestampCount: number;
+  ageMs: number;
+}> {
+  const now = Date.now();
+  const stats: Array<{
+    shopDomain: string;
+    invalidKeyCount: number;
+    invalidOriginCount: number;
+    invalidTimestampCount: number;
+    ageMs: number;
+  }> = [];
+
+  anomalyTrackers.forEach((tracker, shopDomain) => {
+    if ((now - tracker.lastReset) <= ANOMALY_WINDOW_MS) {
+      stats.push({
+        shopDomain,
+        invalidKeyCount: tracker.invalidKeyCount,
+        invalidOriginCount: tracker.invalidOriginCount,
+        invalidTimestampCount: tracker.invalidTimestampCount,
+        ageMs: now - tracker.lastReset,
+      });
+    }
+  });
+
+  return stats.sort((a, b) => 
+    (b.invalidKeyCount + b.invalidOriginCount + b.invalidTimestampCount) -
+    (a.invalidKeyCount + a.invalidOriginCount + a.invalidTimestampCount)
+  );
+}
+
+/**
+ * P1-08: Clean up old anomaly tracking data
+ */
+export function cleanupAnomalyTrackers(): number {
+  const now = Date.now();
+  let cleaned = 0;
+
+  anomalyTrackers.forEach((tracker, shopDomain) => {
+    if ((now - tracker.lastReset) > ANOMALY_WINDOW_MS) {
+      anomalyTrackers.delete(shopDomain);
+      cleaned++;
+    }
+  });
+
+  return cleaned;
+}
 
 const CLEANUP_INTERVAL = 5 * 60 * 1000; 
 let lastCleanup = Date.now();

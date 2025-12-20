@@ -132,6 +132,120 @@ We fully implement Shopify's mandatory compliance webhooks:
 - **Scope**: Complete data deletion including Sessions, all conversion data, configs
 - **Independence**: Executes regardless of shop active status
 
+### GDPR Webhook Testing Steps
+
+#### Prerequisites
+1. A development store with the app installed
+2. At least one test order completed
+3. Access to Shopify Partner Dashboard
+
+#### Test 1: customers/data_request
+
+**How to trigger:**
+```bash
+# Option A: Via Shopify Admin (Recommended)
+# 1. Go to Settings > Privacy & security > View customer data
+# 2. Search for a customer by email
+# 3. Click "Request data"
+
+# Option B: Via Shopify CLI (Development)
+shopify app webhook trigger --topic customers/data_request --address https://your-app-url.com/webhooks
+```
+
+**Expected behavior:**
+1. GDPRJob created with status="queued"
+2. Job processed within cron cycle
+3. GDPRJob status updated to "completed"
+4. Result contains data counts for the customer
+
+**Verification query:**
+```sql
+SELECT * FROM "GDPRJob" 
+WHERE "jobType" = 'data_request' 
+ORDER BY "createdAt" DESC 
+LIMIT 1;
+```
+
+#### Test 2: customers/redact
+
+**How to trigger:**
+```bash
+# Option A: Via Shopify Admin
+# 1. Go to Settings > Privacy & security > Customer data erasure requests
+# 2. Click "Submit erasure request" for a customer
+
+# Option B: Via Shopify CLI (Development)
+shopify app webhook trigger --topic customers/redact --address https://your-app-url.com/webhooks
+```
+
+**Expected behavior:**
+1. GDPRJob created with status="queued"
+2. All customer data deleted from:
+   - ConversionLog (matching order IDs)
+   - ConversionJob (matching order IDs)
+   - PixelEventReceipt (matching order IDs)
+   - SurveyResponse (matching order IDs)
+3. GDPRJob status updated to "completed" with deletion counts
+
+**Verification query:**
+```sql
+-- Check deletion job
+SELECT * FROM "GDPRJob" 
+WHERE "jobType" = 'customer_redact' 
+ORDER BY "createdAt" DESC 
+LIMIT 1;
+
+-- Verify data removed (should return 0)
+SELECT COUNT(*) FROM "ConversionLog" 
+WHERE "orderId" IN ('order_id_1', 'order_id_2');
+```
+
+#### Test 3: shop/redact
+
+**How to trigger:**
+```bash
+# Option A: Uninstall and wait 48 hours
+# The webhook fires automatically after uninstall
+
+# Option B: Via Shopify CLI (Development - immediate test)
+shopify app webhook trigger --topic shop/redact --address https://your-app-url.com/webhooks
+```
+
+**Expected behavior:**
+1. GDPRJob created with status="queued"
+2. ALL shop data deleted:
+   - Shop record (cascading to all related records)
+   - Sessions
+   - All ConversionLogs
+   - All PixelConfigs
+   - All AlertConfigs
+   - etc.
+3. GDPRJob status updated to "completed"
+
+**Verification query:**
+```sql
+-- Check shop no longer exists
+SELECT * FROM "Shop" WHERE "shopDomain" = 'test-store.myshopify.com';
+
+-- Check GDPR job completed
+SELECT * FROM "GDPRJob" 
+WHERE "jobType" = 'shop_redact' 
+AND "shopDomain" = 'test-store.myshopify.com';
+```
+
+#### Automated Test Suite
+
+Run the GDPR test suite:
+```bash
+npm run test -- tests/webhooks/gdpr.test.ts
+```
+
+This covers:
+- Webhook signature verification
+- Job creation and processing
+- Data deletion validation
+- Idempotency checks
+
 ---
 
 ## 4.5 Partner Dashboard - Protected Customer Data Declaration

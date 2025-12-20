@@ -6,40 +6,40 @@ type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
 
-# Privacy & Consent Configuration (P3)
+# Privacy & Consent Configuration (P0-03)
 # 
-# DESIGN PRINCIPLE: Lower the pixel loading threshold, control sending in code
+# DESIGN PRINCIPLE: Declare accurately what the pixel does
 # ============================================================================
 # 
-# Problem with requiring BOTH analytics=true AND marketing=true:
-#   - Shopify may only load the pixel when BOTH consents are granted
-#   - This significantly reduces pixel load coverage
-#   - Our code-level consent checking becomes useless if pixel never loads
+# This pixel sends checkout_completed events to our backend, which then
+# forwards conversion data to advertising platforms (Meta CAPI, TikTok Events API, etc.)
+# This constitutes both analytics AND marketing use, as well as data sharing.
 #
-# Solution: Only require analytics consent for pixel loading
-#   - analytics=true: Pixel loads when user consents to analytics
-#   - marketing=false: Don't require marketing consent to LOAD the pixel
-#   - sale_of_data="enabled": Respect user opt-out for data sharing
+# CONSENT REQUIREMENTS:
+# - analytics=true: Required for conversion measurement functionality
+# - marketing=true: Required because we send data to ad platforms for attribution
+# - sale_of_data="enabled": We share conversion data with third parties (ad platforms)
 #
-# Code-level consent checking (in index.ts):
-#   - hasAnyConsent() checks: (marketing OR analytics) AND saleOfDataAllowed
-#   - If user only consented to analytics but not marketing: we can still load
-#   - If user opted out of sale_of_data: we DON'T send to ad platforms
+# HOW IT WORKS:
+# 1. Shopify only loads this pixel when BOTH analytics AND marketing consent are granted
+# 2. Our code additionally checks saleOfDataAllowed before sending any data
+# 3. If customer opts out of any: no data is sent to backend or ad platforms
 #
-# This gives us maximum flexibility while respecting user consent choices
+# This is the most compliant configuration for App Store review, ensuring:
+# - Privacy disclosure in Partner Dashboard matches actual behavior
+# - Customers must explicitly consent to marketing before any data is shared
+# - CCPA sale_of_data opt-out is respected
 #
 [customer_privacy]
-  # Analytics: pixel loads when analytics consent is granted
-  # Conversion tracking is fundamentally an analytics/measurement function
+  # Analytics: required for conversion tracking measurement
   analytics = true
-  # Marketing: NOT required for pixel loading
-  # Our code checks marketing consent before sending to ad platforms
-  # Setting to false allows pixel to load even without marketing consent
-  marketing = false
+  # Marketing: required because we share data with ad platforms (Meta, TikTok, etc.)
+  # This ensures pixel only loads when user explicitly consents to marketing
+  marketing = true
   # Preferences: not used by this pixel
   preferences = false
-  # Sale of data: enabled - we share conversion data with ad platforms
-  # When user opts out, our code respects that and doesn't send data
+  # Sale of data: enabled - we share conversion data with third-party ad platforms
+  # When user opts out (CCPA), our code respects that and doesn't send data
   sale_of_data = "enabled"
 
 # P0-01: Backend URL is hardcoded in the pixel extension for security

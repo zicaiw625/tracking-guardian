@@ -51,6 +51,16 @@ interface DiagnosticsData {
   lastUpdated: string;
 }
 
+// P3-13: Event processing funnel data
+interface EventFunnel {
+  pixelRequests: number;        // Total pixel requests received
+  passedOrigin: number;         // Passed origin validation
+  passedKey: number;            // Passed ingestion key validation
+  matchedWebhook: number;       // Matched with order webhook
+  sentToPlatforms: number;      // Successfully sent to ad platforms
+  period: string;               // Time period (e.g., "24h")
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -234,12 +244,106 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     warnings: checks.filter(c => c.status === "warning").length,
   };
 
+  // P3-13: Calculate event processing funnel
+  const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  
+  // Count pixel receipts (represents requests that passed validation)
+  const pixelReceiptsCount = await prisma.pixelEventReceipt.count({
+    where: {
+      shopId: shop.id,
+      createdAt: { gte: last24h },
+    },
+  });
+
+  // Count trusted receipts (passed origin + key validation)
+  const trustedReceiptsCount = await prisma.pixelEventReceipt.count({
+    where: {
+      shopId: shop.id,
+      createdAt: { gte: last24h },
+      isTrusted: true,
+    },
+  });
+
+  // Count matched with webhook (have corresponding ConversionJob)
+  const matchedWebhookCount = await prisma.conversionJob.count({
+    where: {
+      shopId: shop.id,
+      createdAt: { gte: last24h },
+    },
+  });
+
+  // Count successfully sent to platforms
+  const sentToPlatformsCount = await prisma.conversionLog.count({
+    where: {
+      shopId: shop.id,
+      createdAt: { gte: last24h },
+      serverSideSent: true,
+    },
+  });
+
+  const eventFunnel: EventFunnel = {
+    pixelRequests: pixelReceiptsCount,
+    passedOrigin: pixelReceiptsCount, // All receipts passed origin validation
+    passedKey: trustedReceiptsCount,
+    matchedWebhook: matchedWebhookCount,
+    sentToPlatforms: sentToPlatformsCount,
+    period: "24h",
+  };
+
   return json({
     checks,
     summary,
+    eventFunnel,
     lastUpdated: new Date().toISOString(),
   });
 };
+
+// P3-13: Funnel Stage Component
+function FunnelStage({
+  label,
+  count,
+  total,
+  description,
+}: {
+  label: string;
+  count: number;
+  total: number;
+  description: string;
+}) {
+  const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+  const widthPercent = Math.max(percentage, 10); // Minimum 10% width for visibility
+  
+  const getTone = (pct: number): "success" | "warning" | "critical" => {
+    if (pct >= 80) return "success";
+    if (pct >= 50) return "warning";
+    return "critical";
+  };
+
+  return (
+    <Box>
+      <InlineStack align="space-between" blockAlign="center">
+        <BlockStack gap="100">
+          <Text as="span" fontWeight="semibold">
+            {label}
+          </Text>
+          <Text as="span" variant="bodySm" tone="subdued">
+            {description}
+          </Text>
+        </BlockStack>
+        <Text as="span" fontWeight="bold">
+          {count} ({percentage}%)
+        </Text>
+      </InlineStack>
+      <Box paddingBlockStart="200">
+        <ProgressBar
+          progress={widthPercent}
+          tone={total > 0 ? getTone(percentage) : "primary"}
+          size="small"
+        />
+      </Box>
+    </Box>
+  );
+}
 
 export default function DiagnosticsPage() {
   const data = useLoaderData<typeof loader>();
@@ -346,6 +450,87 @@ export default function DiagnosticsPage() {
                   )}
                 </Box>
               ))}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* P3-13: Event Processing Funnel Visualization */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  事件处理漏斗 (过去 {data.eventFunnel.period})
+                </Text>
+                <Badge tone="info">诊断</Badge>
+              </InlineStack>
+
+              <Text as="p" variant="bodySm" tone="subdued">
+                显示像素事件从接收到发送到广告平台的各个阶段
+              </Text>
+
+              <Divider />
+
+              <BlockStack gap="300">
+                {/* Stage 1: Pixel Requests */}
+                <FunnelStage
+                  label="1. Pixel 请求"
+                  count={data.eventFunnel.pixelRequests}
+                  total={data.eventFunnel.pixelRequests}
+                  description="收到的 checkout_completed 事件"
+                />
+
+                {/* Stage 2: Passed Origin */}
+                <FunnelStage
+                  label="2. 通过 Origin 验证"
+                  count={data.eventFunnel.passedOrigin}
+                  total={data.eventFunnel.pixelRequests}
+                  description="来自 Shopify 域名/沙箱的请求"
+                />
+
+                {/* Stage 3: Passed Key */}
+                <FunnelStage
+                  label="3. 通过 Key 验证"
+                  count={data.eventFunnel.passedKey}
+                  total={data.eventFunnel.pixelRequests}
+                  description="Ingestion Key 匹配的请求"
+                />
+
+                {/* Stage 4: Matched Webhook */}
+                <FunnelStage
+                  label="4. 匹配订单 Webhook"
+                  count={data.eventFunnel.matchedWebhook}
+                  total={data.eventFunnel.pixelRequests}
+                  description="关联到 orders/paid webhook 的事件"
+                />
+
+                {/* Stage 5: Sent to Platforms */}
+                <FunnelStage
+                  label="5. 成功发送到平台"
+                  count={data.eventFunnel.sentToPlatforms}
+                  total={data.eventFunnel.pixelRequests}
+                  description="通过 CAPI 发送到广告平台"
+                />
+              </BlockStack>
+
+              {data.eventFunnel.pixelRequests === 0 && (
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    尚无事件数据。完成测试订单后，此漏斗将显示事件处理情况。
+                  </Text>
+                </Banner>
+              )}
+
+              {data.eventFunnel.pixelRequests > 0 && data.eventFunnel.sentToPlatforms === 0 && (
+                <Banner tone="warning">
+                  <Text as="p" variant="bodySm">
+                    有像素事件但未成功发送到平台。可能原因：
+                    <br />• 未配置 CAPI 平台凭证
+                    <br />• 用户未授予 marketing 同意
+                    <br />• Webhook 尚未到达
+                  </Text>
+                </Banner>
+              )}
             </BlockStack>
           </Card>
         </Layout.Section>

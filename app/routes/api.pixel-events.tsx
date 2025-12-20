@@ -28,15 +28,26 @@ import { json } from "@remix-run/node";
 import prisma from "../db.server";
 // P1-04: Use unified match key generation for consistent deduplication
 import { generateEventId, generateMatchKey } from "../utils/crypto";
-import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limiter";
+import { checkRateLimitAsync, createRateLimitResponse, trackAnomaly } from "../utils/rate-limiter";
 import { checkCircuitBreaker } from "../utils/circuit-breaker";
 import { getShopForVerification } from "../utils/shop-access";
 // P1-2: Import platform consent functions for pre-filtering
 import { isMarketingPlatform, isAnalyticsPlatform } from "../utils/platform-consent";
+// P1-06: Centralized origin validation
+import { 
+  isValidShopifyOrigin, 
+  isValidDevOrigin, 
+  isDevMode,
+  validateOrigin,
+} from "../utils/origin-validation";
 
 import { logger } from "../utils/logger";
 
 const MAX_BODY_SIZE = 32 * 1024;
+
+// P1-05: Timestamp validation window (±10 minutes)
+// Allows for minor clock drift between client and server
+const TIMESTAMP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
 // P0-03: Single rate limit config (no more signed/unsigned distinction)
 const RATE_LIMIT_CONFIG = { maxRequests: 50, windowMs: 60 * 1000 };
@@ -46,76 +57,8 @@ const CIRCUIT_BREAKER_CONFIG = {
   windowMs: 60 * 1000,  
 };
 
-/**
- * P0-03: Check if running in development mode
- * In dev mode, we allow requests from localhost origins
- */
-function isDevMode(): boolean {
-  const nodeEnv = process.env.NODE_ENV;
-  return nodeEnv === "development" || nodeEnv === "test";
-}
-
-/**
- * P0-03 + P1-01 + P1-02: Strict Origin validation
- * Only accept requests from Shopify domains or sandboxed iframes
- * 
- * P1-02: Changed from `!origin` to `origin === "null"` to reject server-to-server
- * requests that completely lack an Origin header.
- */
-function isValidShopifyOrigin(origin: string | null): boolean {
-  // P1-02: Only accept string "null" (sandboxed iframe), not missing Origin header
-  // Web Pixel sandbox sends Origin: null (the string "null")
-  // Server-to-server requests send no Origin header (null value)
-  if (origin === "null") {
-    return true;
-  }
-
-  // P1-02: Missing Origin header (!origin) is now rejected
-  // This prevents server-to-server requests from bypassing Origin validation
-  if (!origin) {
-    return false;
-  }
-
-  // Validate Shopify origins
-  return (
-    /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/.test(origin) ||
-    /^https:\/\/checkout\.[a-zA-Z0-9][a-zA-Z0-9\-]*\.com$/.test(origin) ||
-    origin === "https://shopify.com" ||
-    /^https:\/\/[a-zA-Z0-9\-]+\.shopify\.com$/.test(origin)
-  );
-}
-
-function isValidDevOrigin(origin: string | null): boolean {
-  if (!origin) return false;
-  return (
-    /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
-    /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)
-  );
-}
-
-/**
- * P0-03: Tracking for rejected non-Shopify origins
- */
-const rejectedOriginCounts = new Map<string, { count: number; firstSeen: number }>();
-const REJECTED_ORIGIN_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const REJECTED_ORIGIN_ALERT_THRESHOLD = 10;
-
-function trackRejectedOrigin(origin: string): void {
-  const now = Date.now();
-  const existing = rejectedOriginCounts.get(origin);
-  
-  if (!existing || (now - existing.firstSeen) > REJECTED_ORIGIN_WINDOW_MS) {
-    rejectedOriginCounts.set(origin, { count: 1, firstSeen: now });
-  } else {
-    existing.count++;
-    if (existing.count === REJECTED_ORIGIN_ALERT_THRESHOLD) {
-      logger.warn(`[P0-03 SECURITY] Repeated requests from non-Shopify origin: ${origin.substring(0, 100)}`, {
-        count: existing.count,
-        securityAlert: "rejected_origin_abuse",
-      });
-    }
-  }
-}
+// P1-06: Origin validation functions moved to utils/origin-validation.ts
+// See that module for documentation on allowed origins and security model
 
 function getCorsHeaders(request: Request): HeadersInit {
   const origin = request.headers.get("Origin");
@@ -172,7 +115,7 @@ function getCorsHeaders(request: Request): HeadersInit {
 
   // P0-03 + P1-01: Reject non-Shopify origins in production
   // Return minimal CORS headers (no Access-Control-Allow-Origin)
-  trackRejectedOrigin(origin);
+  // P1-06: Origin tracking is handled by origin-validation module
   return {
     ...baseSecurityHeaders,
     "Vary": "Origin",
@@ -335,11 +278,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
 
-  // P0-03 + P1-01: Strict Origin validation
+  // P0-03 + P1-01 + P1-08: Strict Origin validation with anomaly tracking
   const origin = request.headers.get("Origin");
   if (!isValidShopifyOrigin(origin)) {
     // In dev mode, allow localhost
     if (!(isDevMode() && isValidDevOrigin(origin))) {
+      // P1-08: Track anomaly for invalid origins
+      const originShopDomain = request.headers.get("x-shopify-shop-domain") || "unknown";
+      const anomalyCheck = trackAnomaly(originShopDomain, "invalid_origin");
+      if (anomalyCheck.shouldBlock) {
+        logger.warn(`[P1-08] Circuit breaker triggered for ${originShopDomain}: ${anomalyCheck.reason}`);
+      }
       logger.warn(`[P0-03] Rejected non-Shopify origin: ${origin?.substring(0, 100) || "null"}`);
       return jsonWithCors(
         { error: "Invalid origin" },
@@ -347,6 +296,43 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
   }
+
+  // P1-05 + P1-08: Validate timestamp header to prevent replay attacks and filter noise
+  const timestampHeader = request.headers.get("X-Tracking-Guardian-Timestamp");
+  const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+  
+  if (timestampHeader) {
+    const timestamp = parseInt(timestampHeader, 10);
+    if (isNaN(timestamp)) {
+      // P1-08: Track anomaly for invalid timestamp format
+      const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_timestamp");
+      if (anomalyCheck.shouldBlock) {
+        logger.warn(`[P1-08] Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+      }
+      logger.debug("[P1-05] Invalid timestamp format, dropping request");
+      return new Response(null, {
+        status: 204,
+        headers: getCorsHeaders(request),
+      });
+    }
+
+    const now = Date.now();
+    const timeDiff = Math.abs(now - timestamp);
+    if (timeDiff > TIMESTAMP_WINDOW_MS) {
+      // P1-08: Track anomaly for expired timestamps
+      const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_timestamp");
+      if (anomalyCheck.shouldBlock) {
+        logger.warn(`[P1-08] Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+      }
+      logger.debug(`[P1-05] Timestamp outside window: diff=${timeDiff}ms, dropping request`);
+      return new Response(null, {
+        status: 204,
+        headers: getCorsHeaders(request),
+      });
+    }
+  }
+  // Note: Missing timestamp is allowed for backwards compatibility
+  // New pixel versions always send timestamp
 
   // P0-03: Single rate limit config (no signed/unsigned distinction)
   // P0-2 FIX: Use async rate limiter to ensure Redis mode actually blocks requests
@@ -449,9 +435,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       keyValidation = { matched: false, reason: "shop_no_key_configured" };
       logger.info(`[P0-03] Shop ${shop.shopDomain} has no ingestion key configured - allowing request`);
     } else if (!ingestionKey) {
-      // P1-03: Request missing ingestion key when shop has one configured
+      // P1-03 + P1-08: Request missing ingestion key when shop has one configured
       // Silent drop to filter misconfigured or stale pixel installations
       // NOTE: This is filtering, not security - forged receipts are blocked by webhook verification
+      const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
+      if (anomalyCheck.shouldBlock) {
+        logger.warn(`[P1-08] Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+      }
       logger.warn(`[P1-03] Dropped: Pixel request from ${shop.shopDomain} missing ingestion key`);
       return new Response(null, {
         status: 204, // Silent rejection - don't reveal we're blocking
@@ -469,9 +459,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           usedPreviousSecret: matchResult.usedPreviousSecret,
         };
       } else {
-        // P1-03: Key provided but doesn't match
+        // P1-03 + P1-08: Key provided but doesn't match
         // Likely stale pixel configuration or key rotation issue
-        // Silent drop - not a security block, just correlation filtering
+        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
+        if (anomalyCheck.shouldBlock) {
+          logger.warn(`[P1-08] Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+        }
         logger.warn(`[P1-03] Dropped: Ingestion key mismatch for shop ${shop.shopDomain}`);
         return new Response(null, {
           status: 204, // Silent rejection
