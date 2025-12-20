@@ -101,55 +101,45 @@ export async function sendConversionToGoogle(
   }
 }
 
-export function generateGooglePixelCode(config: {
+/**
+ * @deprecated This function is deprecated and should not be used.
+ * 
+ * Tracking Guardian now uses a pure server-side CAPI approach:
+ * - Our App Pixel Extension handles checkout_completed event collection
+ * - Server-side receives orders/paid webhook and sends CAPI to Google GA4
+ * - No merchant-pasted Custom Pixel code is needed
+ * 
+ * The old approach (generating code for merchants to paste) doesn't work because:
+ * - Custom Pixels don't support the `settings` API
+ * - Custom Pixels don't have access to `register` from @shopify/web-pixels-extension
+ * 
+ * To track conversions in Google:
+ * 1. Configure GA4 Measurement Protocol credentials in Settings
+ * 2. Enable server-side tracking
+ * 3. Tracking Guardian will automatically send conversions via GA4 MP
+ */
+export function generateGooglePixelCode(_config: {
   measurementId: string;
   conversionId?: string;
   conversionLabel?: string;
 }): string {
-  return `// Google Analytics 4 - Tracking Guardian Web Pixel
-// This pixel forwards events to the backend for server-side processing
-// Configure backend_url in pixel settings
+  // Return instructions instead of code
+  return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
 
-import { register } from '@shopify/web-pixels-extension';
+Tracking Guardian no longer generates client-side pixel code.
 
-register(({ analytics, settings, init }) => {
-  const backendUrl = settings.backend_url;
-  const shopDomain = init.data?.shop?.myshopifyDomain || "";
-  
-  if (!backendUrl) {
-    console.warn("[Tracking Guardian] backend_url not configured");
-    return;
-  }
+To track Google conversions:
+1. Go to Tracking Guardian Settings → Server-side Tracking
+2. Enter your GA4 Measurement ID and API Secret
+3. Enable server-side tracking
 
-  function sendEvent(eventName, data) {
-    fetch(backendUrl + "/api/pixel-events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        eventName,
-        timestamp: Date.now(),
-        shopDomain,
-        data,
-      }),
-    }).catch(() => {});
-  }
+Tracking Guardian will automatically send Purchase events to GA4
+via the Measurement Protocol when orders are placed.
 
-  analytics.subscribe("checkout_completed", (event) => {
-    const checkout = event.data?.checkout;
-    if (!checkout) return;
-    
-    sendEvent("checkout_completed", {
-      orderId: checkout.order?.id || checkout.token,
-      value: parseFloat(checkout.totalPrice?.amount || "0"),
-      currency: checkout.currencyCode || "USD",
-      items: (checkout.lineItems || []).map((item) => ({
-        id: item.id,
-        name: item.title,
-        price: parseFloat(item.variant?.price?.amount || "0"),
-        quantity: item.quantity || 1,
-      })),
-    });
-  });
-});
-`;
+Benefits of server-side tracking:
+- Not affected by ad blockers
+- More accurate attribution
+- Works even if customer closes browser quickly
+- GDPR/privacy compliant (server-side hashing)
+*/`;
 }

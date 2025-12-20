@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useActionData, useSearchParams } from "@remix-run/react";
-import { useState, useCallback, useEffect } from "react";
+import { useLoaderData, useSubmit, useNavigation, useActionData } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -13,32 +13,24 @@ import {
   Button,
   Banner,
   Box,
-  TextField,
-  Select,
   Divider,
   Icon,
   ProgressBar,
   Link,
+  List,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
-  ClipboardIcon,
-  PlayIcon,
+  AlertCircleIcon,
   SettingsIcon,
+  LockIcon,
 } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
-  generatePixelCode,
-  savePixelConfig,
-  getPixelConfigs,
   createWebPixel,
   getExistingWebPixels,
-  
-  type Platform,
-  type MigrationResult,
-  type SavePixelConfigOptions,
 } from "../services/migration.server";
 import { decryptIngestionSecret, isTokenEncrypted, encryptIngestionSecret } from "../utils/token-encryption";
 import { randomBytes } from "crypto";
@@ -48,7 +40,7 @@ function generateIngestionSecret(): string {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
 
   const shop = await prisma.shop.findUnique({
@@ -56,15 +48,40 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     select: {
       id: true,
       shopDomain: true,
-      ingestionSecret: true, 
+      ingestionSecret: true,
     },
   });
 
   if (!shop) {
-    return json({ shop: null, pixelConfigs: [], latestScan: null });
+    return json({ 
+      shop: null, 
+      pixelStatus: "not_installed" as const,
+      hasCapiConfig: false,
+      latestScan: null,
+    });
   }
 
-  const pixelConfigs = await getPixelConfigs(shop.id);
+  // Check if App Pixel is already installed
+  const existingPixels = await getExistingWebPixels(admin);
+  
+  // Our pixel is identified by having an ingestion_secret setting
+  const ourPixel = existingPixels.find((p) => {
+    if (!p.settings) return false;
+    try {
+      const settings = JSON.parse(p.settings);
+      return typeof settings.ingestion_secret === "string";
+    } catch {
+      return false;
+    }
+  });
+
+  // Check if CAPI is configured (any platform)
+  const hasCapiConfig = await prisma.platformCredential.count({
+    where: { 
+      shopId: shop.id,
+      isActive: true,
+    },
+  }) > 0;
 
   const latestScan = await prisma.scanReport.findFirst({
     where: { shopId: shop.id },
@@ -73,7 +90,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return json({
     shop: { id: shop.id, domain: shopDomain },
-    pixelConfigs,
+    pixelStatus: ourPixel ? "installed" as const : "not_installed" as const,
+    pixelId: ourPixel?.id,
+    hasCapiConfig,
     latestScan,
   });
 };
@@ -87,7 +106,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     select: {
       id: true,
       shopDomain: true,
-      ingestionSecret: true, 
+      ingestionSecret: true,
     },
   });
 
@@ -98,71 +117,46 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const actionType = formData.get("_action");
 
-  if (actionType === "generateSecret") {
-    if (shop.ingestionSecret) {
-      return json({
-        _action: "generateSecret",
-        success: true,
-        message: "Shop already has an ingestion secret configured",
-        alreadyExists: true,
-      });
-    }
-    
-    try {
-      const plainSecret = generateIngestionSecret();
-      const encryptedSecret = encryptIngestionSecret(plainSecret);
-      
-      await prisma.shop.update({
-        where: { id: shop.id },
-        data: { ingestionSecret: encryptedSecret },
-      });
-      
-      console.log(`[P1-01] Generated ingestionSecret for shop ${shopDomain}`);
-      
-      return json({
-        _action: "generateSecret",
-        success: true,
-        message: "Ingestion secret generated successfully",
-        
-        secret: plainSecret,
-      });
-    } catch (error) {
-      console.error(`[P1-01] Failed to generate ingestionSecret for ${shopDomain}:`, error);
-      return json({
-        _action: "generateSecret",
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to generate secret",
-      });
-    }
-  }
-
   if (actionType === "enablePixel") {
-    // P0-01: Backend URL is no longer configurable - pixel uses hardcoded production URL
-    // This prevents merchants from configuring arbitrary data exfiltration endpoints
-
+    // Ensure shop has an ingestion secret
     let ingestionSecret: string | undefined = undefined;
+    
     if (shop.ingestionSecret) {
       try {
         if (isTokenEncrypted(shop.ingestionSecret)) {
           ingestionSecret = decryptIngestionSecret(shop.ingestionSecret);
         } else {
+          // Migrate unencrypted secret
           ingestionSecret = shop.ingestionSecret;
-          console.warn(`[P0-02] Shop ${shopDomain} has unencrypted ingestionSecret - migration needed`);
+          const encryptedSecret = encryptIngestionSecret(ingestionSecret);
+          await prisma.shop.update({
+            where: { id: shop.id },
+            data: { ingestionSecret: encryptedSecret },
+          });
+          console.log(`[Migration] Migrated unencrypted ingestionSecret for ${shopDomain}`);
         }
       } catch (error) {
-        console.error(`[P0-02] Failed to decrypt ingestionSecret for ${shopDomain}:`, error);
-        ingestionSecret = undefined;
+        console.error(`[Migration] Failed to decrypt ingestionSecret for ${shopDomain}:`, error);
       }
     }
+    
+    // Generate new secret if none exists
+    if (!ingestionSecret) {
+      ingestionSecret = generateIngestionSecret();
+      const encryptedSecret = encryptIngestionSecret(ingestionSecret);
+      await prisma.shop.update({
+        where: { id: shop.id },
+        data: { ingestionSecret: encryptedSecret },
+      });
+      console.log(`[Migration] Generated new ingestionSecret for ${shopDomain}`);
+    }
 
+    // Check for existing pixel
     const existingPixels = await getExistingWebPixels(admin);
-
-    // P0-01: Find our pixel by checking for ingestion_secret field (not backend_url)
-    let ourPixel = existingPixels.find((p) => {
+    const ourPixel = existingPixels.find((p) => {
       if (!p.settings) return false;
       try {
         const settings = JSON.parse(p.settings);
-        // Our pixel is identified by having an ingestion_secret setting
         return typeof settings.ingestion_secret === "string";
       } catch {
         return false;
@@ -171,11 +165,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     let result;
     if (ourPixel) {
+      // Update existing pixel
       const { updateWebPixel } = await import("../services/migration.server");
-      // P0-01: No backendUrl parameter needed
       result = await updateWebPixel(admin, ourPixel.id, ingestionSecret);
     } else {
-      // P0-01: No backendUrl parameter needed
+      // Create new pixel
       result = await createWebPixel(admin, ingestionSecret);
     }
 
@@ -183,7 +177,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({
         _action: "enablePixel",
         success: true,
-        message: ourPixel ? "Web Pixel 已更新" : "Web Pixel 已启用",
+        message: ourPixel ? "App Pixel 已更新" : "App Pixel 已启用",
         webPixelId: result.webPixelId,
       });
     } else {
@@ -191,197 +185,93 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         _action: "enablePixel",
         success: false,
         error: result.error,
+        userErrors: result.userErrors,
       });
     }
-  }
-
-  if (actionType === "deleteScriptTag") {
-    return json({
-      _action: "deleteScriptTag",
-      success: false,
-      error: "自动删除功能已停用。请在 Shopify 后台「设置 → 应用和销售渠道」中手动删除 ScriptTag，或联系创建该 ScriptTag 的应用进行删除。",
-    });
-  }
-
-  if (actionType === "generate") {
-    const platform = formData.get("platform") as Platform;
-    const platformId = formData.get("platformId") as string;
-    const conversionId = formData.get("conversionId") as string;
-    const conversionLabel = formData.get("conversionLabel") as string;
-
-    if (!platform || !platformId) {
-      return json({ error: "Platform and ID are required" }, { status: 400 });
-    }
-
-    const clientConfig: Record<string, string> = {};
-    if (conversionId) clientConfig.conversionId = conversionId;
-    if (conversionLabel) clientConfig.conversionLabel = conversionLabel;
-
-    const result = generatePixelCode({
-      platform,
-      platformId,
-      additionalConfig: clientConfig,
-    });
-
-    if (result.success) {
-
-      const options: SavePixelConfigOptions = {
-        clientConfig: Object.keys(clientConfig).length > 0 ? clientConfig : undefined,
-      };
-      await savePixelConfig(shop.id, platform, platformId, options);
-    }
-
-    return json({ result, _action: "generate" });
-  }
-
-  if (actionType === "verify") {
-    const platform = formData.get("platform") as Platform;
-    const platformId = formData.get("platformId") as string;
-
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    return json({
-      _action: "verify",
-      success: true,
-      message: "测试事件已发送，请在平台后台查看事件是否到达",
-      verifiedAt: new Date().toISOString(),
-    });
   }
 
   return json({ error: "Unknown action" }, { status: 400 });
 };
 
-const PLATFORMS = [
-  { label: "Google Analytics 4 / Google Ads", value: "google" },
-  { label: "Meta (Facebook) Pixel", value: "meta" },
-  { label: "TikTok Pixel", value: "tiktok" },
-  { label: "Microsoft Advertising (Bing UET)", value: "bing" },
-  { label: "Microsoft Clarity", value: "clarity" },
-];
-
-type WizardStep = "select" | "install" | "verify";
+type SetupStep = "pixel" | "capi" | "complete";
 
 export default function MigratePage() {
-  const { shop, pixelConfigs, latestScan } = useLoaderData<typeof loader>();
+  const { shop, pixelStatus, hasCapiConfig, latestScan } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
-  const [searchParams] = useSearchParams();
 
-  const urlPlatform = searchParams.get("platform");
-
-  const [currentStep, setCurrentStep] = useState<WizardStep>("select");
-  const [selectedPlatform, setSelectedPlatform] = useState<Platform>(
-    (urlPlatform as Platform) || "google"
+  const [currentStep, setCurrentStep] = useState<SetupStep>(
+    pixelStatus === "installed" 
+      ? (hasCapiConfig ? "complete" : "capi")
+      : "pixel"
   );
-  const [platformId, setPlatformId] = useState("");
-  const [conversionId, setConversionId] = useState("");
-  const [conversionLabel, setConversionLabel] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<"idle" | "pending" | "success" | "failed">("idle");
 
   const isSubmitting = navigation.state === "submitting";
 
+  // Update step based on action result
   useEffect(() => {
-    const data = actionData as any;
-    if (data?._action === "generate" && data?.result?.success) {
-      setCurrentStep("install");
-    }
-    if (data?._action === "verify") {
-      setVerificationStatus(data.success ? "success" : "failed");
+    const data = actionData as { _action?: string; success?: boolean } | undefined;
+    if (data?._action === "enablePixel" && data?.success) {
+      setCurrentStep("capi");
     }
   }, [actionData]);
 
-  const handleGenerate = () => {
+  // Update step based on loader data changes
+  useEffect(() => {
+    if (pixelStatus === "installed" && hasCapiConfig) {
+      setCurrentStep("complete");
+    } else if (pixelStatus === "installed") {
+      setCurrentStep("capi");
+    }
+  }, [pixelStatus, hasCapiConfig]);
+
+  const handleEnablePixel = () => {
     const formData = new FormData();
-    formData.append("_action", "generate");
-    formData.append("platform", selectedPlatform);
-    formData.append("platformId", platformId);
-    if (conversionId) formData.append("conversionId", conversionId);
-    if (conversionLabel) formData.append("conversionLabel", conversionLabel);
+    formData.append("_action", "enablePixel");
     submit(formData, { method: "post" });
   };
-
-  const handleVerify = () => {
-    setVerificationStatus("pending");
-    const formData = new FormData();
-    formData.append("_action", "verify");
-    formData.append("platform", selectedPlatform);
-    formData.append("platformId", platformId);
-    submit(formData, { method: "post" });
-  };
-
-  const handleCopyCode = useCallback(() => {
-    const data = actionData as { result?: { pixelCode?: string } } | undefined;
-    if (data?.result?.pixelCode) {
-      navigator.clipboard.writeText(data.result.pixelCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }, [actionData]);
-
-  const getPlatformIdLabel = () => {
-    switch (selectedPlatform) {
-      case "google":
-        return "Measurement ID (如: G-XXXXXXXXXX)";
-      case "meta":
-        return "Pixel ID (15-16位数字)";
-      case "tiktok":
-        return "Pixel ID";
-      case "bing":
-        return "UET Tag ID";
-      case "clarity":
-        return "Project ID";
-      default:
-        return "Platform ID";
-    }
-  };
-
-  const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
-
-  const existingConfig = pixelConfigs.find(
-    (config) => config?.platform === selectedPlatform
-  );
 
   const steps = [
-    { id: "select", label: "选择平台", number: 1 },
-    { id: "install", label: "安装像素", number: 2 },
-    { id: "verify", label: "验证事件", number: 3 },
+    { id: "pixel", label: "启用 App Pixel", number: 1 },
+    { id: "capi", label: "配置服务端追踪", number: 2 },
+    { id: "complete", label: "完成设置", number: 3 },
   ];
 
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
 
+  const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
+
   return (
     <Page
-      title="迁移工具"
-      subtitle="将追踪脚本迁移到 Shopify Web Pixel / Customer Events"
+      title="设置追踪"
+      subtitle="配置服务端转化追踪（Server-side CAPI）"
     >
       <BlockStack gap="500">
-        {}
+        {/* Info Banner */}
         <Banner
-          title="为什么需要迁移到 Web Pixels？"
+          title="服务端转化追踪 (Server-side CAPI)"
           tone="info"
           action={{
-            content: "查看官方文档",
+            content: "了解更多",
             url: "https://shopify.dev/docs/api/web-pixels-api",
             external: true,
           }}
         >
           <BlockStack gap="200">
             <Text as="p">
-              Shopify 推荐使用 <strong>Web Pixels API</strong> 和 <strong>Customer Events</strong> 来实现追踪功能。
-              新的方式提供更好的性能、隐私合规性，并与 Checkout Extensibility 原生集成。
+              Tracking Guardian 使用 <strong>服务端 Conversions API</strong> 来发送转化数据。
+              这种方式比客户端像素更准确、更隐私友好，并且不受广告拦截器影响。
             </Text>
-            <Link
-              url="https://help.shopify.com/en/manual/promoting-marketing/pixels"
-              external
-            >
-              了解 Pixels 和 Customer Events
-            </Link>
+            <List type="bullet">
+              <List.Item>准确率提高 15-30%</List.Item>
+              <List.Item>不受 iOS 14+ 隐私限制影响</List.Item>
+              <List.Item>符合 GDPR/CCPA 要求</List.Item>
+            </List>
           </BlockStack>
         </Banner>
 
-        {}
+        {/* Progress Steps */}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -436,225 +326,38 @@ export default function MigratePage() {
           </BlockStack>
         </Card>
 
-        {}
-        {identifiedPlatforms.length > 0 && currentStep === "select" && (
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                扫描检测到的平台
+        {/* Warning about old tracking scripts */}
+        {identifiedPlatforms.length > 0 && currentStep === "pixel" && (
+          <Banner tone="warning" title="检测到旧版追踪代码">
+            <BlockStack gap="200">
+              <Text as="p">
+                扫描发现您的店铺可能有旧版追踪脚本。启用服务端追踪后，建议删除这些旧代码以避免重复追踪：
               </Text>
               <InlineStack gap="200">
                 {identifiedPlatforms.map((platform) => (
-                  <Badge key={platform} tone="info">
-                    {PLATFORMS.find((p) => p.value === platform)?.label || platform}
+                  <Badge key={platform} tone="attention">
+                    {platform}
                   </Badge>
                 ))}
               </InlineStack>
-              <Text as="p" variant="bodySm" tone="subdued">
-                这些平台可能需要迁移到 Web Pixels 格式
-              </Text>
+              <Link url="/app/scan">运行扫描查看详情</Link>
             </BlockStack>
-          </Card>
+          </Banner>
         )}
 
         <Layout>
-          {}
           <Layout.Section>
-            {}
-            {currentStep === "select" && (
+            {/* Step 1: Enable App Pixel */}
+            {currentStep === "pixel" && (
               <Card>
                 <BlockStack gap="400">
                   <Text as="h2" variant="headingMd">
-                    第 1 步：选择追踪平台并填写 ID
+                    第 1 步：启用 App Pixel
                   </Text>
-
-                  <Select
-                    label="选择追踪平台"
-                    options={PLATFORMS}
-                    value={selectedPlatform}
-                    onChange={(value) => setSelectedPlatform(value as Platform)}
-                  />
-
-                  <TextField
-                    label={getPlatformIdLabel()}
-                    value={platformId}
-                    onChange={setPlatformId}
-                    autoComplete="off"
-                    placeholder={
-                      selectedPlatform === "google"
-                        ? "G-XXXXXXXXXX"
-                        : selectedPlatform === "meta"
-                          ? "1234567890123456"
-                          : ""
-                    }
-                  />
-
-                  {selectedPlatform === "google" && (
-                    <>
-                      <Divider />
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        可选：添加 Google Ads 转化追踪
-                      </Text>
-                      <TextField
-                        label="Conversion ID (可选)"
-                        value={conversionId}
-                        onChange={setConversionId}
-                        autoComplete="off"
-                        placeholder="AW-XXXXXXXXXX"
-                      />
-                      <TextField
-                        label="Conversion Label (可选)"
-                        value={conversionLabel}
-                        onChange={setConversionLabel}
-                        autoComplete="off"
-                        placeholder="AbCdEfGhIjKlMnOp"
-                      />
-                    </>
-                  )}
-
-                  <InlineStack gap="200">
-                    <Button
-                      variant="primary"
-                      onClick={handleGenerate}
-                      loading={isSubmitting}
-                      disabled={!platformId}
-                    >
-                      生成并启用像素
-                    </Button>
-                    <Button
-                      onClick={handleGenerate}
-                      disabled={!platformId}
-                      loading={isSubmitting}
-                    >
-                      仅生成代码
-                    </Button>
-                  </InlineStack>
-                </BlockStack>
-              </Card>
-            )}
-
-            {}
-            {currentStep === "install" && (
-              <Card>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between">
-                    <Text as="h2" variant="headingMd">
-                      第 2 步：安装 Web Pixel 代码
-                    </Text>
-                    <Button
-                      onClick={handleCopyCode}
-                      icon={copied ? CheckCircleIcon : ClipboardIcon}
-                    >
-                      {copied ? "已复制" : "复制代码"}
-                    </Button>
-                  </InlineStack>
-
-                  {}
-                  {existingConfig ? (
-                    <Banner tone="success">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" fontWeight="semibold">已安装</Text>
-                        <Text as="span" variant="bodySm" tone="subdued">
-                          上次更新: {new Date(existingConfig.updatedAt).toLocaleDateString("zh-CN")}
-                        </Text>
-                      </InlineStack>
-                    </Banner>
-                  ) : (
-                    <Banner tone="info">
-                      <Text as="span">未安装 - 请按照下方步骤完成安装</Text>
-                    </Banner>
-                  )}
-
-                  {(() => {
-                    const data = actionData as { result?: MigrationResult } | undefined;
-                    if (!data?.result?.success) return null;
-                    const result = data.result;
-                    return (
-                      <BlockStack gap="400">
-                        <Box
-                          background="bg-surface-secondary"
-                          padding="400"
-                          borderRadius="200"
-                        >
-                          <pre
-                            style={{
-                              overflow: "auto",
-                              maxHeight: "300px",
-                              fontSize: "12px",
-                              lineHeight: "1.5",
-                              margin: 0,
-                            }}
-                          >
-                            {result.pixelCode}
-                          </pre>
-                        </Box>
-
-                        <Divider />
-
-                        <Text as="h3" variant="headingSm">
-                          安装步骤
-                        </Text>
-                        <BlockStack gap="200">
-                          {result.instructions.map((instruction: string, index: number) => (
-                            <InlineStack key={index} gap="200" align="start">
-                              <Icon source={CheckCircleIcon} tone="success" />
-                              <Text as="span">{instruction}</Text>
-                            </InlineStack>
-                          ))}
-                        </BlockStack>
-
-                        <Banner tone="info">
-                          <BlockStack gap="200">
-                            <Text as="p">
-                              在 Shopify 后台，前往 <strong>Settings → Customer events → Add custom pixel</strong> 来创建新的 Web Pixel。
-                            </Text>
-                            <Link
-                              url="https://admin.shopify.com/settings/customer_events"
-                              external
-                            >
-                              打开 Customer Events 设置
-                            </Link>
-                          </BlockStack>
-                        </Banner>
-
-                        <InlineStack gap="200">
-                          <Button
-                            variant="primary"
-                            onClick={() => setCurrentStep("verify")}
-                          >
-                            已完成安装，下一步
-                          </Button>
-                          <Button onClick={() => setCurrentStep("select")}>
-                            返回修改
-                          </Button>
-                        </InlineStack>
-                      </BlockStack>
-                    );
-                  })()}
-                </BlockStack>
-              </Card>
-            )}
-
-            {}
-            {currentStep === "verify" && (
-              <Card>
-                <BlockStack gap="400">
-                  <Text as="h2" variant="headingMd">
-                    第 3 步：验证事件是否正常触发
-                  </Text>
-
-                  {}
-                  {existingConfig?.lastVerifiedAt && (
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="success">上次验证通过</Badge>
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        {new Date(existingConfig.lastVerifiedAt).toLocaleString("zh-CN")}
-                      </Text>
-                    </InlineStack>
-                  )}
 
                   <Text as="p" tone="subdued">
-                    点击下方按钮发送测试事件，然后在平台后台检查事件是否正确到达。
+                    App Pixel 是一个轻量级的追踪组件，仅在顾客完成结账时触发。
+                    它不会收集浏览历史或个人信息，完全符合隐私要求。
                   </Text>
 
                   <Box
@@ -663,77 +366,183 @@ export default function MigratePage() {
                     borderRadius="200"
                   >
                     <BlockStack gap="300">
-                      <InlineStack align="space-between" blockAlign="center">
-                        <BlockStack gap="100">
-                          <Text as="span" fontWeight="semibold">
-                            {PLATFORMS.find((p) => p.value === selectedPlatform)?.label}
-                          </Text>
-                          <Text as="span" variant="bodySm" tone="subdued">
-                            ID: {platformId}
-                          </Text>
-                        </BlockStack>
-                        <Button
-                          onClick={handleVerify}
-                          loading={verificationStatus === "pending"}
-                          icon={PlayIcon}
-                        >
-                          发送测试事件
-                        </Button>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Icon source={LockIcon} tone="success" />
+                        <Text as="span" fontWeight="semibold">隐私保护</Text>
                       </InlineStack>
+                      <List type="bullet">
+                        <List.Item>仅追踪 checkout_completed 事件</List.Item>
+                        <List.Item>不收集浏览历史或个人行为</List.Item>
+                        <List.Item>遵守 Shopify Customer Privacy API</List.Item>
+                        <List.Item>数据发送前经过 SHA-256 哈希处理</List.Item>
+                      </List>
+                    </BlockStack>
+                  </Box>
 
-                      {verificationStatus === "success" && (
-                        <Banner tone="success">
-                          <BlockStack gap="100">
-                            <Text as="p" fontWeight="semibold">
-                              测试事件已发送！
-                            </Text>
-                            <Text as="p" variant="bodySm">
-                              请在 {PLATFORMS.find((p) => p.value === selectedPlatform)?.label} 后台检查事件是否到达。
-                              通常需要等待 1-5 分钟。
-                            </Text>
-                          </BlockStack>
-                        </Banner>
-                      )}
+                  {/* Action result messages */}
+                  {(() => {
+                    const data = actionData as { _action?: string; success?: boolean; error?: string; message?: string } | undefined;
+                    if (data?._action === "enablePixel") {
+                      if (data.success) {
+                        return (
+                          <Banner tone="success">
+                            <Text as="p">{data.message}</Text>
+                          </Banner>
+                        );
+                      } else {
+                        return (
+                          <Banner tone="critical">
+                            <Text as="p">启用失败: {data.error}</Text>
+                          </Banner>
+                        );
+                      }
+                    }
+                    return null;
+                  })()}
 
-                      {verificationStatus === "failed" && (
-                        <Banner tone="critical">
-                          <Text as="p">
-                            测试事件发送失败，请检查配置是否正确。
-                          </Text>
-                        </Banner>
-                      )}
+                  <Button
+                    variant="primary"
+                    onClick={handleEnablePixel}
+                    loading={isSubmitting}
+                    size="large"
+                  >
+                    一键启用 App Pixel
+                  </Button>
+                </BlockStack>
+              </Card>
+            )}
+
+            {/* Step 2: Configure CAPI */}
+            {currentStep === "capi" && (
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Icon source={CheckCircleIcon} tone="success" />
+                    <Text as="h2" variant="headingMd">
+                      App Pixel 已启用
+                    </Text>
+                  </InlineStack>
+
+                  <Divider />
+
+                  <Text as="h2" variant="headingMd">
+                    第 2 步：配置服务端追踪 (CAPI)
+                  </Text>
+
+                  <Text as="p" tone="subdued">
+                    配置广告平台的 Conversions API 凭证，让 Tracking Guardian 自动发送转化数据。
+                  </Text>
+
+                  <Box
+                    background="bg-surface-secondary"
+                    padding="400"
+                    borderRadius="200"
+                  >
+                    <BlockStack gap="300">
+                      <Text as="span" fontWeight="semibold">支持的平台：</Text>
+                      <List type="bullet">
+                        <List.Item>Google Analytics 4 (Measurement Protocol)</List.Item>
+                        <List.Item>Meta Conversions API (Facebook CAPI)</List.Item>
+                        <List.Item>TikTok Events API</List.Item>
+                      </List>
+                    </BlockStack>
+                  </Box>
+
+                  <Banner tone="info">
+                    <BlockStack gap="200">
+                      <Text as="p">
+                        在设置页面配置您需要的平台凭证。您可以同时启用多个平台。
+                      </Text>
+                    </BlockStack>
+                  </Banner>
+
+                  <InlineStack gap="200">
+                    <Button
+                      variant="primary"
+                      url="/app/settings"
+                      size="large"
+                    >
+                      前往配置 CAPI 凭证
+                    </Button>
+                    <Button
+                      onClick={() => setCurrentStep("complete")}
+                    >
+                      稍后配置
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              </Card>
+            )}
+
+            {/* Step 3: Complete */}
+            {currentStep === "complete" && (
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Icon source={CheckCircleIcon} tone="success" />
+                    <Text as="h2" variant="headingMd">
+                      设置完成！
+                    </Text>
+                  </InlineStack>
+
+                  <Banner tone="success">
+                    <BlockStack gap="200">
+                      <Text as="p" fontWeight="semibold">
+                        Tracking Guardian 已开始追踪您的转化数据
+                      </Text>
+                      <Text as="p">
+                        当顾客完成订单后，转化事件将自动发送到您配置的广告平台。
+                      </Text>
+                    </BlockStack>
+                  </Banner>
+
+                  <Box
+                    background="bg-surface-secondary"
+                    padding="400"
+                    borderRadius="200"
+                  >
+                    <BlockStack gap="300">
+                      <Text as="span" fontWeight="semibold">当前状态：</Text>
+                      <InlineStack gap="400">
+                        <InlineStack gap="100" blockAlign="center">
+                          <Icon source={CheckCircleIcon} tone="success" />
+                          <Text as="span">App Pixel 已启用</Text>
+                        </InlineStack>
+                        {hasCapiConfig ? (
+                          <InlineStack gap="100" blockAlign="center">
+                            <Icon source={CheckCircleIcon} tone="success" />
+                            <Text as="span">CAPI 已配置</Text>
+                          </InlineStack>
+                        ) : (
+                          <InlineStack gap="100" blockAlign="center">
+                            <Icon source={AlertCircleIcon} tone="caution" />
+                            <Text as="span">CAPI 未配置</Text>
+                          </InlineStack>
+                        )}
+                      </InlineStack>
                     </BlockStack>
                   </Box>
 
                   <Divider />
 
                   <Text as="h3" variant="headingSm">
-                    验证清单
+                    下一步建议：
                   </Text>
-                  <BlockStack gap="200">
-                    <InlineStack gap="200" blockAlign="start">
-                      <Icon source={CheckCircleIcon} tone="subdued" />
-                      <Text as="span">在平台后台检查 Purchase / 购买 事件是否触发</Text>
-                    </InlineStack>
-                    <InlineStack gap="200" blockAlign="start">
-                      <Icon source={CheckCircleIcon} tone="subdued" />
-                      <Text as="span">确认事件包含正确的订单金额和订单号</Text>
-                    </InlineStack>
-                    <InlineStack gap="200" blockAlign="start">
-                      <Icon source={CheckCircleIcon} tone="subdued" />
-                      <Text as="span">检查是否有重复事件触发</Text>
-                    </InlineStack>
-                  </BlockStack>
+                  <List type="bullet">
+                    <List.Item>在监控面板查看实时转化数据</List.Item>
+                    <List.Item>创建测试订单验证追踪是否正常</List.Item>
+                    <List.Item>如有旧版追踪代码，建议删除以避免重复</List.Item>
+                  </List>
 
                   <InlineStack gap="200">
                     <Button
                       variant="primary"
                       url="/app/monitor"
                     >
-                      完成，前往监控面板
+                      前往监控面板
                     </Button>
-                    <Button onClick={() => setCurrentStep("install")}>
-                      返回上一步
+                    <Button url="/app/settings">
+                      管理 CAPI 设置
                     </Button>
                   </InlineStack>
                 </BlockStack>
@@ -741,83 +550,71 @@ export default function MigratePage() {
             )}
           </Layout.Section>
 
-          {}
+          {/* Sidebar */}
           <Layout.Section variant="oneThird">
             <Card>
               <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  已配置的平台
-                </Text>
-                {pixelConfigs.length > 0 ? (
-                  <BlockStack gap="300">
-                    {pixelConfigs.filter((config): config is NonNullable<typeof config> => config !== null).map((config) => (
-                      <Box
-                        key={config.id}
-                        background="bg-surface-secondary"
-                        padding="300"
-                        borderRadius="200"
-                      >
-                        <BlockStack gap="200">
-                          <InlineStack align="space-between">
-                            <Text as="span" fontWeight="semibold">
-                              {PLATFORMS.find((p) => p.value === config.platform)?.label || config.platform}
-                            </Text>
-                            <Badge
-                              tone={
-                                config.migrationStatus === "completed"
-                                  ? "success"
-                                  : config.migrationStatus === "in_progress"
-                                    ? "attention"
-                                    : "info"
-                              }
-                            >
-                              {config.migrationStatus === "completed"
-                                ? "已完成"
-                                : config.migrationStatus === "in_progress"
-                                  ? "进行中"
-                                  : "未开始"}
-                            </Badge>
-                          </InlineStack>
-                          <Text as="span" variant="bodySm" tone="subdued">
-                            {config.platformId}
-                          </Text>
-                          {config.lastVerifiedAt && (
-                            <Text as="span" variant="bodySm" tone="success">
-                              上次验证: {new Date(config.lastVerifiedAt).toLocaleDateString("zh-CN")}
-                            </Text>
-                          )}
-                        </BlockStack>
-                      </Box>
-                    ))}
-                  </BlockStack>
-                ) : (
-                  <Text as="p" tone="subdued">
-                    尚未配置任何平台
+                <InlineStack gap="200" blockAlign="center">
+                  <Icon source={SettingsIcon} tone="base" />
+                  <Text as="h2" variant="headingMd">
+                    工作原理
                   </Text>
-                )}
+                </InlineStack>
+                
+                <BlockStack gap="300">
+                  <Box
+                    background="bg-surface-secondary"
+                    padding="300"
+                    borderRadius="200"
+                  >
+                    <BlockStack gap="200">
+                      <Text as="span" fontWeight="semibold">1. 顾客完成结账</Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        App Pixel 检测到 checkout_completed 事件
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  
+                  <Box
+                    background="bg-surface-secondary"
+                    padding="300"
+                    borderRadius="200"
+                  >
+                    <BlockStack gap="200">
+                      <Text as="span" fontWeight="semibold">2. 服务端接收 Webhook</Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        Shopify 发送 orders/paid webhook 到我们的服务器
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  
+                  <Box
+                    background="bg-surface-secondary"
+                    padding="300"
+                    borderRadius="200"
+                  >
+                    <BlockStack gap="200">
+                      <Text as="span" fontWeight="semibold">3. 发送 CAPI 转化</Text>
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        服务器将哈希后的数据发送到广告平台
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                </BlockStack>
+
+                <Divider />
+
+                <BlockStack gap="200">
+                  <Text as="span" fontWeight="semibold">为什么使用服务端追踪？</Text>
+                  <List type="bullet">
+                    <List.Item>绕过广告拦截器</List.Item>
+                    <List.Item>更高的数据匹配率</List.Item>
+                    <List.Item>更好的隐私合规性</List.Item>
+                    <List.Item>更稳定的追踪准确性</List.Item>
+                  </List>
+                </BlockStack>
               </BlockStack>
             </Card>
-
-            {}
-            <Box paddingBlockStart="400">
-              <Card>
-                <BlockStack gap="400">
-                  <InlineStack gap="200" blockAlign="center">
-                    <Icon source={SettingsIcon} tone="base" />
-                    <Text as="h2" variant="headingMd">
-                      服务端追踪
-                    </Text>
-                    <Badge tone="info">专业版</Badge>
-                  </InlineStack>
-                  <Text as="p" variant="bodySm">
-                    配置 Conversions API（CAPI）可将追踪准确率提高 15-30%，不受广告拦截器影响。
-                  </Text>
-                  <Button url="/app/settings">
-                    配置服务端追踪
-                  </Button>
-                </BlockStack>
-              </Card>
-            </Box>
           </Layout.Section>
         </Layout>
       </BlockStack>
