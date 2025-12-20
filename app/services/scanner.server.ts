@@ -1,6 +1,11 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
 import type { ScanResult, RiskItem, ScriptTag, CheckoutConfig, RiskSeverity } from "../types";
+import { 
+  getScriptTagDeprecationStatus, 
+  getAdditionalScriptsDeprecationStatus,
+  type ShopTier 
+} from "../utils/deprecation-dates";
 
 export interface WebPixelInfo {
   id: string;
@@ -400,6 +405,11 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{ platform: st
 
 function generateMigrationActions(result: EnhancedScanResult): MigrationAction[] {
   const actions: MigrationAction[] = [];
+  
+  // P0-1: Get dynamic deprecation status based on current date
+  const scriptTagStatus = getScriptTagDeprecationStatus();
+  const plusStatus = getAdditionalScriptsDeprecationStatus("plus");
+  const nonPlusStatus = getAdditionalScriptsDeprecationStatus("non_plus");
 
   for (const tag of result.scriptTags) {
     let platform = "unknown";
@@ -415,16 +425,31 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     }
 
     const isOrderStatusScript = tag.display_scope === "order_status";
-    const deadlineNote = isOrderStatusScript
-      ? "Plus 商家: 2025-08-28 停用；非 Plus 商家: 2026-08-26 停用"
-      : "建议尽早迁移以确保兼容性";
+    
+    // P0-1: Dynamic deadline messaging based on current date
+    let deadlineNote: string;
+    let priority: "high" | "medium" | "low" = "high";
+    
+    if (scriptTagStatus.isExpired && isOrderStatusScript) {
+      // ScriptTag already blocked
+      deadlineNote = "⚠️ ScriptTag 在订单状态页的功能已被禁用，请立即迁移！";
+      priority = "high";
+    } else if (plusStatus.isExpired) {
+      // Plus deadline passed
+      deadlineNote = `Plus 商家: 已过期；非 Plus 商家: ${nonPlusStatus.isExpired ? "已过期" : `剩余 ${nonPlusStatus.daysRemaining} 天`}`;
+      priority = "high";
+    } else {
+      // Both still in future
+      deadlineNote = `Plus 商家: 剩余 ${plusStatus.daysRemaining} 天（2025-08-28）；非 Plus 商家: 剩余 ${nonPlusStatus.daysRemaining} 天（2026-08-26）`;
+      priority = plusStatus.isWarning ? "high" : "medium";
+    }
     
     actions.push({
       type: "delete_script_tag",
-      priority: "high",
+      priority,
       platform,
       title: `删除 ScriptTag: ${platform}`,
-      description: `ScriptTag API 即将关闭。${deadlineNote}。请先配置 Web Pixel，然后删除此 ScriptTag。`,
+      description: `${deadlineNote}。请先配置 Web Pixel，然后删除此 ScriptTag。`,
       scriptTagId: tag.id,
       
       deadline: isOrderStatusScript ? "2026-08-26" : undefined,

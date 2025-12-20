@@ -292,7 +292,90 @@ Pixel event includes consent → Server respects consent for CAPI
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: 2024-12*
+## 9. Partner Dashboard PCD Configuration
+
+### P0-3: PCD Level Application
+
+**Important**: Before submitting to the App Store, you MUST configure Protected Customer Data settings in the Partner Dashboard.
+
+#### Step 1: Determine Your PCD Level
+
+Based on our data collection practices, we should apply for **PCD Level 1**:
+
+| Level | Description | Our Status |
+|-------|-------------|------------|
+| Level 1 | Order data (IDs, values, items) | ✅ This is what we collect |
+| Level 2 | Customer PII (email, phone, address) | ❌ We do NOT collect |
+| Level 3 | Sensitive data (health, financial) | ❌ We do NOT collect |
+
+#### Step 2: Configure in Partner Dashboard
+
+1. Go to Partner Dashboard → Apps → [Your App] → Configuration → Protected customer data
+2. Select "Level 1" for your data access level
+3. Fill in Data Protection Details:
+
+**Data Collection Purpose:**
+> We collect order IDs, values, and product information to send server-side conversion events to advertising platforms (Google Analytics 4, Meta Conversions API, TikTok Events API). This enables accurate attribution for merchants' advertising campaigns.
+
+**Data Minimization:**
+> - We ONLY collect checkout_completed events (no browsing history, no page views)
+> - We do NOT collect or store customer email, phone, or address
+> - We do NOT request PII fields from Web Pixel events (email, phone fields will be null)
+> - Conversion data is deleted according to merchant-configured retention period (30-365 days)
+
+**Data Retention:**
+> Merchants can configure retention period from 30 to 365 days. Default is 90 days. All data is automatically deleted after the retention period expires.
+
+**Third-Party Sharing:**
+> Conversion data (order ID, value, currency, products) is shared with advertising platforms only when:
+> 1. Merchant has configured the platform credentials
+> 2. Customer has given marketing consent (verified via Shopify Customer Privacy API)
+> No PII is shared - only transaction data for conversion attribution.
+
+#### Step 3: Web Pixel PII Handling (2025-12-10 Update)
+
+As of December 10, 2025, Shopify enforces PCD requirements for Web Pixel PII fields:
+
+| Field | Our Usage | PCD Requirement |
+|-------|-----------|-----------------|
+| `email` | NOT accessed | No PCD needed |
+| `phone` | NOT accessed | No PCD needed |
+| `address` | NOT accessed | No PCD needed |
+| `name` | NOT accessed | No PCD needed |
+
+**Our pixel code explicitly does NOT access these fields:**
+
+```typescript
+// extensions/tracking-pixel/src/index.ts
+// P3-1 NOTE: email/phone fields exist in Shopify's checkout object but are 
+// intentionally NOT accessed or sent by this pixel to comply with data minimization.
+```
+
+Since we don't use PII fields, we're NOT affected by the 2025-12-10 PCD enforcement change.
+
+---
+
+## 10. Pre-Submission Checklist
+
+### Partner Dashboard Configuration
+- [ ] PCD Level set to Level 1
+- [ ] Data Protection Details filled in (copy from Section 9)
+- [ ] Privacy policy URL configured
+- [ ] App scopes reviewed and minimal
+
+### Code Verification
+- [ ] Run `grep -r "email\|phone\|address" extensions/` - should NOT show any data access
+- [ ] Run `./scripts/check-extension-urls.sh` - all URLs correct
+- [ ] All tests passing (`yarn test`)
+
+### Documentation
+- [ ] COMPLIANCE.md updated with correct dates
+- [ ] PRIVACY_POLICY.md matches actual data collection
+- [ ] This PCD_REVIEW_PACKAGE.md reviewed
+
+---
+
+*Document Version: 1.1*
+*Last Updated: 2025-12*
 *For Shopify App Store Review*
 

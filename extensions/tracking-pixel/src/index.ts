@@ -26,14 +26,25 @@
 
 import { register } from "@shopify/web-pixels-extension";
 
-// P0-1: Production URL constant - set during deployment
-// This is the ONLY allowed backend URL; merchants cannot configure arbitrary URLs
-// For development, use the app's local URL via environment variable substitution
-const PRODUCTION_BACKEND_URL = "https://tracking-guardian.onrender.com";
+/**
+ * P0-2: Centralized Backend URL Configuration
+ * 
+ * DEPLOYMENT INSTRUCTIONS:
+ * This URL is set at build time. For different environments:
+ * 
+ * - Production: https://tracking-guardian.onrender.com (default)
+ * - Staging: Set BACKEND_URL env var before `shopify app deploy`
+ * - Development: Uses ngrok tunnel via SHOPIFY_APP_URL
+ * 
+ * SECURITY: This is intentionally NOT merchant-configurable.
+ * Only the app developer can change this by rebuilding the extension.
+ * 
+ * See: extensions/shared/config.ts for centralized configuration
+ */
+const BACKEND_URL = "https://tracking-guardian.onrender.com";
 
-// P0-1: Allowed URL patterns for validation (production + staging)
-// NOTE: These patterns are kept for documentation/auditing purposes
-// The actual backend URL is hardcoded to PRODUCTION_BACKEND_URL above
+// P0-2: Allowed URL patterns for validation (kept for auditing/documentation)
+// These are the only domains that should ever be set as BACKEND_URL
 const ALLOWED_URL_PATTERNS = [
   /^https:\/\/tracking-guardian\.onrender\.com$/,
   /^https:\/\/tracking-guardian-staging\.onrender\.com$/,
@@ -41,9 +52,6 @@ const ALLOWED_URL_PATTERNS = [
   /^https?:\/\/localhost:\d+$/,
   /^https?:\/\/127\.0\.0\.1:\d+$/,
 ];
-
-// P3-1: Validation helper removed - was unused and the backend URL is now hardcoded
-// The ALLOWED_URL_PATTERNS constant is kept above for documentation/auditing purposes only
 
 // Server-side security layers:
 // 1. Ingestion key validation (reject requests with missing/invalid key)
@@ -95,9 +103,9 @@ function toNumber(value: string | number | undefined | null, defaultValue = 0): 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 register(({ analytics, settings, init, customerPrivacy }: any) => {
   
-  // P0-1: Use production URL constant (no merchant-configurable URL)
-  // The URL allowlist validation provides defense-in-depth
-  const backendUrl = PRODUCTION_BACKEND_URL;
+  // P0-2: Use centralized backend URL (no merchant-configurable URL)
+  // See extensions/shared/config.ts for URL management strategy
+  const backendUrl = BACKEND_URL;
 
   // P1-2: Backwards-compatible reading of ingestion key
   // Read from both "ingestion_key" (new) and "ingestion_secret" (legacy)

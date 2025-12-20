@@ -5,10 +5,12 @@
 ## 功能特性
 
 ### 1. 一键扫描与风险报告
-- 自动扫描店铺的 ScriptTags 和 Web Pixels
-- 支持手动粘贴 Additional Scripts 内容进行分析
+- **自动扫描**：通过 Shopify API 读取已安装的 ScriptTags 和 Web Pixels
+- **手动分析**：支持手动粘贴 Additional Scripts 内容进行分析
+  - ⚠️ **注意**：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts，需要商家手动复制粘贴
 - 识别 Google、Meta、TikTok 等常见追踪平台
 - 生成风险评分和迁移建议
+- 动态显示截止日期状态（根据当前日期和店铺类型）
 
 ### 2. 一键迁移模板
 - Google Analytics 4 / Google Ads
@@ -149,9 +151,14 @@ railway up
 
 ## Webhook 订阅
 
-- `orders/create` - 新订单创建时发送转化
-- `orders/paid` - 订单支付时确认转化
-- `app/uninstalled` - 应用卸载清理
+- `orders/paid` - 订单支付时发送转化（主要使用）
+- `orders/updated` - 订单更新时同步状态
+- `app/uninstalled` - 应用卸载时清理数据
+
+### GDPR 合规 Webhook（自动处理）
+- `customers/data_request` - 客户数据导出请求
+- `customers/redact` - 客户数据删除请求
+- `shop/redact` - 店铺数据完全删除
 
 ## 贡献指南
 

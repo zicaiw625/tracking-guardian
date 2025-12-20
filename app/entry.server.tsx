@@ -8,6 +8,7 @@ import {
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets";
+import { validateConfig, logConfigStatus } from "./utils/config";
 import { logger } from "./utils/logger";
 import { 
   EMBEDDED_APP_HEADERS, 
@@ -20,6 +21,7 @@ const ABORT_DELAY = 5000;
 let secretsValidated = false;
 let securityChecked = false;
 let headersValidated = false;
+let configValidated = false;
 
 /**
  * P0-04: Enforce security checks BEFORE any request processing
@@ -58,6 +60,34 @@ function validateSecretsOnce() {
   }
 }
 
+/**
+ * P0-2 (Mid Priority): Validate configuration at startup
+ * This ensures critical environment variables are set before processing requests.
+ * In production, missing required vars will throw and crash the app.
+ */
+function validateConfigOnce() {
+  if (!configValidated) {
+    const result = validateConfig();
+    
+    if (result.errors.length > 0) {
+      logger.error("Configuration errors:", result.errors);
+      // In production, this is fatal - better to crash than run misconfigured
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(`Configuration errors: ${result.errors.join(", ")}`);
+      }
+    }
+    
+    if (result.warnings.length > 0) {
+      logger.warn("Configuration warnings:", result.warnings);
+    }
+    
+    // Also log full config status for debugging
+    logConfigStatus();
+    
+    configValidated = true;
+  }
+}
+
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
@@ -68,6 +98,9 @@ export default async function handleRequest(
   enforceSecurityOnce();
   
   validateSecretsOnce();
+  
+  // P0-2 (Mid Priority): Validate configuration (SHOPIFY_APP_URL, etc.)
+  validateConfigOnce();
   
   // P1-05: Validate security headers configuration
   validateHeadersOnce();

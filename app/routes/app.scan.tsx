@@ -34,6 +34,13 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, analyzeScriptContent, type ScriptAnalysisResult } from "../services/scanner.server";
+import { 
+  getScriptTagDeprecationStatus, 
+  getAdditionalScriptsDeprecationStatus,
+  getMigrationUrgencyStatus,
+  formatDeadlineForUI,
+  type ShopTier 
+} from "../utils/deprecation-dates";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -44,7 +51,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   if (!shop) {
-    return json({ shop: null, latestScan: null, scanHistory: [] });
+    return json({ 
+      shop: null, 
+      latestScan: null, 
+      scanHistory: [],
+      deprecationStatus: null,
+    });
   }
 
   const latestScan = await prisma.scanReport.findFirst({
@@ -54,10 +66,39 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const scanHistory = await getScanHistory(shop.id, 5);
 
+  // P0-1: Calculate dynamic deprecation status based on current date
+  // TODO: In production, determine shop tier from Shopify API (shop.plan_name)
+  // For now, default to "unknown" which shows the more conservative Plus deadline
+  const shopTier: ShopTier = "unknown";
+  
+  const hasScriptTags = ((latestScan?.scriptTags as unknown[]) || []).length > 0;
+  const hasOrderStatusScriptTags = ((latestScan?.scriptTags as Array<{ display_scope?: string }>) || [])
+    .some(tag => tag.display_scope === "order_status");
+  
+  const scriptTagStatus = getScriptTagDeprecationStatus();
+  const additionalScriptsStatus = getAdditionalScriptsDeprecationStatus(shopTier);
+  const migrationUrgency = getMigrationUrgencyStatus(
+    shopTier, 
+    hasScriptTags, 
+    hasOrderStatusScriptTags
+  );
+
   return json({
     shop: { id: shop.id, domain: shopDomain },
     latestScan,
     scanHistory,
+    deprecationStatus: {
+      shopTier,
+      scriptTag: {
+        ...formatDeadlineForUI(scriptTagStatus),
+        isExpired: scriptTagStatus.isExpired,
+      },
+      additionalScripts: {
+        ...formatDeadlineForUI(additionalScriptsStatus),
+        isExpired: additionalScriptsStatus.isExpired,
+      },
+      migrationUrgency,
+    },
   });
 };
 
@@ -112,7 +153,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function ScanPage() {
-  const { shop, latestScan, scanHistory } = useLoaderData<typeof loader>();
+  const { shop, latestScan, scanHistory, deprecationStatus } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -319,9 +360,16 @@ export default function ScanPage() {
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
-                  <Text as="h2" variant="headingMd">
-                    ScriptTags
-                  </Text>
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      ScriptTags
+                    </Text>
+                    {deprecationStatus?.scriptTag && (
+                      <Badge tone={deprecationStatus.scriptTag.isExpired ? "critical" : "warning"}>
+                        {deprecationStatus.scriptTag.badge.text}
+                      </Badge>
+                    )}
+                  </InlineStack>
                   <BlockStack gap="200">
                     <InlineStack align="space-between">
                       <Text as="span">已安装数量</Text>
@@ -329,9 +377,9 @@ export default function ScanPage() {
                         {(latestScan.scriptTags as any[])?.length || 0}
                       </Text>
                     </InlineStack>
-                    {((latestScan.scriptTags as any[])?.length || 0) > 0 && (
-                      <Banner tone="warning">
-                        <p>ScriptTags 即将被弃用，建议迁移到 Web Pixels</p>
+                    {((latestScan.scriptTags as any[])?.length || 0) > 0 && deprecationStatus?.scriptTag && (
+                      <Banner tone={deprecationStatus.scriptTag.isExpired ? "critical" : "warning"}>
+                        <p>{deprecationStatus.scriptTag.description}</p>
                       </Banner>
                     )}
                   </BlockStack>

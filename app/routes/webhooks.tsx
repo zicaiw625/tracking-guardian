@@ -247,10 +247,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         break;
       
-      case "ORDERS_CREATE":
-
-        logger.info(`ORDERS_CREATE received for shop ${shop}, order ${(payload as { id?: number })?.id} - skipping (using ORDERS_PAID instead)`);
-        break;
+      // NOTE: ORDERS_CREATE is not registered in shopify.server.ts
+      // We use ORDERS_PAID instead for conversion tracking (more reliable for completed purchases)
+      // If you see ORDERS_CREATE here, it's likely a legacy subscription - ignore it
 
       case "ORDERS_UPDATED":
         

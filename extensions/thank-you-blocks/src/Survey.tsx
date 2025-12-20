@@ -1,15 +1,17 @@
 /**
  * Post-purchase Survey Component
  * 
- * P0-1 + P1-2: App URL Configuration
+ * P0-2: Centralized URL Configuration
  * The app URL is hardcoded as a constant (not merchant-configurable).
  * This prevents arbitrary URL configuration which could be flagged as 
  * data exfiltration during App Store review.
  * 
- * NOTE: We previously attempted to use app metafields, but since the
- * server-side metafield writing was never implemented, we simplified
- * to use a single trusted constant. This is the same approach as the
- * Web Pixel extension (tracking-pixel/src/index.ts).
+ * DEPLOYMENT INSTRUCTIONS:
+ * For different environments, update BACKEND_URL before building:
+ * - Production: https://tracking-guardian.onrender.com (default)
+ * - Staging: Modify this constant before `shopify app deploy`
+ * 
+ * See: extensions/shared/config.ts for centralized configuration strategy
  */
 
 import {
@@ -26,10 +28,13 @@ import {
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
 
-// P0-1 + P1-2: Production URL constant - single source of truth
-// This is hardcoded to prevent data exfiltration concerns during App Store review
-// For multi-environment deployments, use different extension builds with different constants
-const APP_URL = "https://tracking-guardian.onrender.com";
+/**
+ * P0-2: Backend URL - Single Source of Truth for Survey Extension
+ * 
+ * SECURITY: This is intentionally NOT merchant-configurable.
+ * Only the app developer can change this by rebuilding the extension.
+ */
+const BACKEND_URL = "https://tracking-guardian.onrender.com";
 
 export default reactExtension(
   "purchase.thank-you.block.render",
@@ -98,9 +103,9 @@ function Survey() {
 
       const shopDomain = shop?.myshopifyDomain || "";
 
-      // P0-1 + P1-2: App URL is hardcoded constant (single source of truth)
+      // P0-2: Backend URL is hardcoded constant (single source of truth)
       if (shopDomain) {
-        const response = await fetch(`${APP_URL}/api/survey`, {
+        const response = await fetch(`${BACKEND_URL}/api/survey`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
