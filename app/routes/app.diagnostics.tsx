@@ -115,14 +115,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 
   // Check 2: Web Pixel Status
-  // Our App Pixel is identified by having an ingestion_secret setting
+  // P1-2: Our App Pixel is identified by having ingestion_key OR ingestion_secret setting
   try {
     const existingPixels = await getExistingWebPixels(admin);
     const ourPixel = existingPixels.find((p) => {
       try {
         const settings = JSON.parse(p.settings || "{}");
-        // Our App Pixel is identified by having an ingestion_secret setting
-        return typeof settings.ingestion_secret === "string";
+        // P1-2: Check for both new (ingestion_key) and legacy (ingestion_secret) field names
+        return typeof settings.ingestion_key === "string" || 
+               typeof settings.ingestion_secret === "string";
       } catch {
         return false;
       }

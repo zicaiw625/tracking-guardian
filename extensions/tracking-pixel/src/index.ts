@@ -32,6 +32,8 @@ import { register } from "@shopify/web-pixels-extension";
 const PRODUCTION_BACKEND_URL = "https://tracking-guardian.onrender.com";
 
 // P0-1: Allowed URL patterns for validation (production + staging)
+// NOTE: These patterns are kept for documentation/auditing purposes
+// The actual backend URL is hardcoded to PRODUCTION_BACKEND_URL above
 const ALLOWED_URL_PATTERNS = [
   /^https:\/\/tracking-guardian\.onrender\.com$/,
   /^https:\/\/tracking-guardian-staging\.onrender\.com$/,
@@ -40,9 +42,8 @@ const ALLOWED_URL_PATTERNS = [
   /^https?:\/\/127\.0\.0\.1:\d+$/,
 ];
 
-function isAllowedBackendUrl(url: string): boolean {
-  return ALLOWED_URL_PATTERNS.some(pattern => pattern.test(url));
-}
+// P3-1: Validation helper removed - was unused and the backend URL is now hardcoded
+// The ALLOWED_URL_PATTERNS constant is kept above for documentation/auditing purposes only
 
 // Server-side security layers:
 // 1. Ingestion key validation (reject requests with missing/invalid key)
@@ -65,6 +66,10 @@ interface CheckoutData {
     variant?: { price?: { amount?: string | number } };
   }>;
   
+  // P3-1 NOTE: email/phone fields exist in Shopify's checkout object but are 
+  // intentionally NOT accessed or sent by this pixel to comply with data minimization.
+  // These type definitions are kept only for TypeScript compatibility with Shopify's types.
+  // DO NOT access these fields - they contain PII that should not leave the client.
   email?: string;
   phone?: string;
 }
@@ -94,9 +99,10 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   // The URL allowlist validation provides defense-in-depth
   const backendUrl = PRODUCTION_BACKEND_URL;
 
-  // P0-03: Renamed from ingestion_secret to ingestion_key conceptually
+  // P1-2: Backwards-compatible reading of ingestion key
+  // Read from both "ingestion_key" (new) and "ingestion_secret" (legacy)
   // This is NOT a security credential - it's used for request correlation and diagnostics
-  const ingestionKey = settings.ingestion_secret as string | undefined;
+  const ingestionKey = (settings.ingestion_key || settings.ingestion_secret) as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
   
   // P0-03: Debug mode removed - Shopify settings are strings, not booleans

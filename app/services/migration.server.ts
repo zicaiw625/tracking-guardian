@@ -175,8 +175,8 @@ export interface CreateWebPixelResult {
  * P0-01: Create Web Pixel with settings matching shopify.extension.toml schema
  * 
  * Settings schema (must match extension toml):
- * - ingestion_secret: Key for request association and diagnostics
- * - debug: Enable debug logging in browser console
+ * - ingestion_key: Key for request correlation and diagnostics (P1-2: renamed from ingestion_secret)
+ * - ingestion_secret: Legacy field name (kept for backwards compatibility)
  * 
  * Note: backend_url is NOT included - the pixel uses a hardcoded production URL
  * to prevent merchants from configuring arbitrary data exfiltration endpoints.
@@ -186,10 +186,10 @@ export async function createWebPixel(
   ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
   // P0-01: Settings must match shopify.extension.toml schema exactly
-  // Only include fields defined in the extension's settings.fields
-  // Note: debug field removed to avoid type mismatch (Shopify settings are always strings)
+  // P1-2: Use new field name "ingestion_key" for new installations
+  // The pixel code reads both ingestion_key and ingestion_secret for backwards compatibility
   const settings = JSON.stringify({
-    ingestion_secret: ingestionSecret || "",
+    ingestion_key: ingestionSecret || "",
   });
 
   try {
@@ -251,6 +251,7 @@ export async function createWebPixel(
 
 /**
  * P0-01: Update Web Pixel with settings matching shopify.extension.toml schema
+ * P1-2: Use new field name "ingestion_key" for updates
  */
 export async function updateWebPixel(
   admin: AdminApiContext,
@@ -258,9 +259,9 @@ export async function updateWebPixel(
   ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
   // P0-01: Settings must match shopify.extension.toml schema exactly
-  // Note: debug field removed to avoid type mismatch
+  // P1-2: Use new field name "ingestion_key" for updates
   const settings = JSON.stringify({
-    ingestion_secret: ingestionSecret || "",
+    ingestion_key: ingestionSecret || "",
   });
 
   try {
@@ -430,7 +431,7 @@ function getManualDeletionInstructions(
   const adminUrl = shopDomain 
     ? `https://${shopDomain}/admin/settings/apps`
     : undefined;
-
+  
   return {
     success: false,
     error: errorReason || "无法自动删除此 ScriptTag（可能由其他应用创建）",

@@ -393,11 +393,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       try {
         const existingPixels = await getExistingWebPixels(admin);
 
-        // P0-01: Find our pixel by checking for ingestion_secret field (not backend_url)
+        // P1-2: Find our pixel by checking for ingestion_key OR ingestion_secret field
         const ourPixel = existingPixels.find((p) => {
           try {
             const settings = JSON.parse(p.settings || "{}");
-            return typeof settings.ingestion_secret === "string";
+            return typeof settings.ingestion_key === "string" ||
+                   typeof settings.ingestion_secret === "string";
           } catch {
             return false;
           }

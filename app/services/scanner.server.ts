@@ -478,14 +478,15 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     });
   }
 
-  // Check if our App Pixel is configured (identified by having ingestion_secret)
+  // P1-2: Check if our App Pixel is configured (identified by ingestion_key or ingestion_secret)
   // Note: backend_url was removed from pixel settings - we now use a hardcoded production URL
   const hasAppPixelConfigured = result.webPixels.some(p => {
     if (!p.settings) return false;
     try {
       const settings = typeof p.settings === "string" ? JSON.parse(p.settings) : p.settings;
-      // Our App Pixel is identified by having an ingestion_secret setting
-      return typeof (settings as Record<string, unknown>).ingestion_secret === "string";
+      // P1-2: Check for both new (ingestion_key) and legacy (ingestion_secret) field names
+      const s = settings as Record<string, unknown>;
+      return typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string";
     } catch {
       return false;
     }

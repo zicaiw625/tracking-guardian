@@ -344,16 +344,42 @@ interface AnomalyTracker {
 
 const anomalyTrackers = new Map<string, AnomalyTracker>();
 const ANOMALY_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-const ANOMALY_THRESHOLD = 50; // Threshold to trigger circuit break
+
+// P1-3: Enhanced anomaly thresholds with different severity levels
+const ANOMALY_THRESHOLDS = {
+  // Individual type thresholds
+  invalidKey: 50,         // Likely misconfigured pixel or stale key
+  invalidOrigin: 25,      // Higher risk - potential attack or unauthorized use
+  invalidTimestamp: 50,   // Clock drift or replay attempt
+  
+  // Composite threshold - total anomalies across all types
+  // Triggers faster blocking for diverse attack patterns
+  composite: 75,
+  
+  // Warning threshold for logging (50% of block threshold)
+  warningRatio: 0.5,
+};
+
+// P1-3: Track blocked shops to prevent log spam
+const blockedShops = new Map<string, { blockedAt: number; reason: string }>();
+const BLOCKED_SHOP_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * P1-08: Track anomalous requests for potential circuit breaking
+ * P1-3: Enhanced with composite detection and severity levels
  */
 export function trackAnomaly(
   shopDomain: string,
   type: "invalid_key" | "invalid_origin" | "invalid_timestamp"
-): { shouldBlock: boolean; reason?: string } {
+): { shouldBlock: boolean; reason?: string; severity?: "warning" | "critical" } {
   const now = Date.now();
+  
+  // P1-3: Check if already blocked (reduce log spam)
+  const blocked = blockedShops.get(shopDomain);
+  if (blocked && (now - blocked.blockedAt) < BLOCKED_SHOP_COOLDOWN_MS) {
+    return { shouldBlock: true, reason: blocked.reason, severity: "critical" };
+  }
+  
   let tracker = anomalyTrackers.get(shopDomain);
 
   if (!tracker || (now - tracker.lastReset) > ANOMALY_WINDOW_MS) {
@@ -378,18 +404,98 @@ export function trackAnomaly(
       break;
   }
 
-  // Check if any anomaly type exceeds threshold
-  if (tracker.invalidKeyCount >= ANOMALY_THRESHOLD) {
-    return { shouldBlock: true, reason: `Too many invalid key requests (${tracker.invalidKeyCount})` };
+  // P1-3: Calculate composite anomaly score
+  const totalAnomalies = 
+    tracker.invalidKeyCount + 
+    tracker.invalidOriginCount + 
+    tracker.invalidTimestampCount;
+
+  // P1-3: Check for warning level (for monitoring/alerting)
+  const warningThreshold = Math.floor(ANOMALY_THRESHOLDS.composite * ANOMALY_THRESHOLDS.warningRatio);
+  if (totalAnomalies >= warningThreshold && totalAnomalies < ANOMALY_THRESHOLDS.composite) {
+    // Log warning but don't block yet
+    return { 
+      shouldBlock: false, 
+      reason: `Approaching anomaly threshold (${totalAnomalies}/${ANOMALY_THRESHOLDS.composite})`,
+      severity: "warning",
+    };
   }
-  if (tracker.invalidOriginCount >= ANOMALY_THRESHOLD) {
-    return { shouldBlock: true, reason: `Too many invalid origin requests (${tracker.invalidOriginCount})` };
+
+  // P1-3: Check composite threshold first (detects diverse attack patterns)
+  if (totalAnomalies >= ANOMALY_THRESHOLDS.composite) {
+    const reason = `Too many total anomalies (${totalAnomalies}): ` +
+      `key=${tracker.invalidKeyCount}, origin=${tracker.invalidOriginCount}, ` +
+      `timestamp=${tracker.invalidTimestampCount}`;
+    blockedShops.set(shopDomain, { blockedAt: now, reason });
+    return { shouldBlock: true, reason, severity: "critical" };
   }
-  if (tracker.invalidTimestampCount >= ANOMALY_THRESHOLD) {
-    return { shouldBlock: true, reason: `Too many invalid timestamp requests (${tracker.invalidTimestampCount})` };
+
+  // Check individual thresholds with type-specific limits
+  if (tracker.invalidKeyCount >= ANOMALY_THRESHOLDS.invalidKey) {
+    const reason = `Too many invalid key requests (${tracker.invalidKeyCount})`;
+    blockedShops.set(shopDomain, { blockedAt: now, reason });
+    return { shouldBlock: true, reason, severity: "critical" };
+  }
+  
+  // P1-3: Origin attacks are higher severity - lower threshold
+  if (tracker.invalidOriginCount >= ANOMALY_THRESHOLDS.invalidOrigin) {
+    const reason = `Too many invalid origin requests (${tracker.invalidOriginCount})`;
+    blockedShops.set(shopDomain, { blockedAt: now, reason });
+    return { shouldBlock: true, reason, severity: "critical" };
+  }
+  
+  if (tracker.invalidTimestampCount >= ANOMALY_THRESHOLDS.invalidTimestamp) {
+    const reason = `Too many invalid timestamp requests (${tracker.invalidTimestampCount})`;
+    blockedShops.set(shopDomain, { blockedAt: now, reason });
+    return { shouldBlock: true, reason, severity: "critical" };
   }
 
   return { shouldBlock: false };
+}
+
+/**
+ * P1-3: Clear blocked shop status (for admin override)
+ */
+export function unblockShop(shopDomain: string): boolean {
+  const wasBlocked = blockedShops.has(shopDomain);
+  blockedShops.delete(shopDomain);
+  anomalyTrackers.delete(shopDomain);
+  return wasBlocked;
+}
+
+/**
+ * P1-3: Get blocked shops list for monitoring
+ */
+export function getBlockedShops(): Array<{
+  shopDomain: string;
+  blockedAt: Date;
+  reason: string;
+  remainingMs: number;
+}> {
+  const now = Date.now();
+  const result: Array<{
+    shopDomain: string;
+    blockedAt: Date;
+    reason: string;
+    remainingMs: number;
+  }> = [];
+
+  blockedShops.forEach((info, shopDomain) => {
+    const remainingMs = BLOCKED_SHOP_COOLDOWN_MS - (now - info.blockedAt);
+    if (remainingMs > 0) {
+      result.push({
+        shopDomain,
+        blockedAt: new Date(info.blockedAt),
+        reason: info.reason,
+        remainingMs,
+      });
+    } else {
+      // Clean up expired blocks
+      blockedShops.delete(shopDomain);
+    }
+  });
+
+  return result;
 }
 
 /**

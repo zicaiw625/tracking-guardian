@@ -20,15 +20,34 @@ runtime_context = "strict"
 # - marketing=true: Required because we send data to ad platforms for attribution
 # - sale_of_data="enabled": We share conversion data with third parties (ad platforms)
 #
-# HOW IT WORKS:
-# 1. Shopify only loads this pixel when BOTH analytics AND marketing consent are granted
-# 2. Our code additionally checks saleOfDataAllowed before sending any data
-# 3. If customer opts out of any: no data is sent to backend or ad platforms
+# HOW SHOPIFY'S CONSENT GATING WORKS:
+# ============================================================================
+# IMPORTANT: Shopify ONLY loads this pixel when ALL declared purposes are satisfied.
+# This is NOT just analytics+marketing, it includes ALL declared requirements:
+#   1. analytics consent granted (if analytics=true)
+#   2. marketing consent granted (if marketing=true)
+#   3. preferences consent granted (if preferences=true) - not used by this pixel
+#   4. sale_of_data NOT opted-out (if sale_of_data="enabled")
+# 
+# If ANY of the above conditions is not met, Shopify will NOT load this pixel at all.
+# This means:
+#   - If customer denies marketing consent → pixel will NOT load
+#   - If customer opts out of sale_of_data (CCPA) → pixel will NOT load
+#   - Our code still checks saleOfDataAllowed as defense-in-depth
+#
+# SALE_OF_DATA OPTIONS:
+# ============================================================================
+# - "enabled": Pixel requires sale_of_data consent. If customer opts out (CCPA),
+#              Shopify will NOT load the pixel at all. (CURRENT CHOICE)
+# - "ldu": Limited Data Use mode. Pixel loads even if customer opts out, but
+#          we must implement LDU logic (send only non-identifying data to ad platforms).
+#          Choose this if you want to send restricted signals even after opt-out.
+# - "disabled": We don't share data with third parties (not applicable for CAPI apps).
 #
 # This is the most compliant configuration for App Store review, ensuring:
 # - Privacy disclosure in Partner Dashboard matches actual behavior
 # - Customers must explicitly consent to marketing before any data is shared
-# - CCPA sale_of_data opt-out is respected
+# - CCPA sale_of_data opt-out is fully respected (pixel doesn't load)
 #
 [customer_privacy]
   # Analytics: required for conversion tracking measurement
@@ -58,8 +77,24 @@ runtime_context = "strict"
   # Server behavior:
   # - Missing/invalid key: request rejected (204 No Content)
   # - Valid key: request processed (correlated with shop for diagnostics)
+  #
+  # NAMING NOTE (P1-2): This field is named "ingestion_secret" for backwards compatibility.
+  # The name is misleading - it's NOT a cryptographic secret. It functions as a correlation
+  # token (like an API key for rate limiting, not for security).
+  # 
+  # BACKWARDS COMPATIBILITY:
+  # The pixel code reads BOTH "ingestion_key" (new) and "ingestion_secret" (legacy).
+  # When updating existing pixels, merchants can use either field name.
+  # New installations should use "ingestion_key" for clarity.
   [[settings.fields]]
     key = "ingestion_secret"
+    name = "Ingestion Key (Legacy)"
+    description = "Store-scoped key for event correlation. Use 'ingestion_key' for new installations."
+    type = "single_line_text_field"
+  
+  # P1-2: New field with correct naming (correlation key, not secret)
+  [[settings.fields]]
+    key = "ingestion_key"
     name = "Ingestion Key"
     description = "Store-scoped key for event correlation. Validated by server for noise filtering (not a security credential)."
     type = "single_line_text_field"

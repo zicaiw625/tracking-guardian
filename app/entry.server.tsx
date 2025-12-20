@@ -9,11 +9,17 @@ import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets";
 import { logger } from "./utils/logger";
+import { 
+  EMBEDDED_APP_HEADERS, 
+  addSecurityHeadersToHeaders,
+  validateSecurityHeaders,
+} from "./utils/security-headers";
 
 const ABORT_DELAY = 5000;
 
 let secretsValidated = false;
 let securityChecked = false;
+let headersValidated = false;
 
 /**
  * P0-04: Enforce security checks BEFORE any request processing
@@ -24,6 +30,19 @@ function enforceSecurityOnce() {
     // P0-04: This will throw and crash the app if ALLOW_UNSIGNED_PIXEL_EVENTS=true in production
     enforceSecurityChecks();
     securityChecked = true;
+  }
+}
+
+/**
+ * P1-05: Validate security headers configuration at startup
+ */
+function validateHeadersOnce() {
+  if (!headersValidated) {
+    const validation = validateSecurityHeaders();
+    if (!validation.valid) {
+      logger.warn("Security headers configuration issues:", validation.issues);
+    }
+    headersValidated = true;
   }
 }
 
@@ -50,7 +69,16 @@ export default async function handleRequest(
   
   validateSecretsOnce();
   
+  // P1-05: Validate security headers configuration
+  validateHeadersOnce();
+  
+  // Add Shopify document response headers (App Bridge compatibility)
   addDocumentResponseHeaders(request, responseHeaders);
+  
+  // P1-05: Add security headers for embedded app pages
+  // These headers protect against XSS, clickjacking, etc.
+  // The CSP uses frame-ancestors to allow Shopify Admin iframe embedding
+  addSecurityHeadersToHeaders(responseHeaders, EMBEDDED_APP_HEADERS);
 
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";

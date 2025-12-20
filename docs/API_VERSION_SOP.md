@@ -227,5 +227,32 @@ grep -i "graphql" logs/app.log | grep -i "error"
 
 ---
 
+## Deprecation Schedules
+
+### Pixel Events Timestamp Header
+
+The `X-Tracking-Guardian-Timestamp` header is being made mandatory for pixel events.
+
+| Phase | Timeline | Behavior |
+|-------|----------|----------|
+| v1.1.0 (current) | Now | Timestamp optional, warning logged for missing |
+| v1.2.0 | Q2 2025 | Required for new shop installations |
+| v1.3.0 | Q3 2025 | Required for all shops, requests rejected without timestamp |
+
+**Merchant Impact:** Shops using old Web Pixel versions will need to reinstall/update the pixel before Q3 2025 to avoid service interruption.
+
+### Ingestion Key Field Naming
+
+The `ingestion_secret` field is being renamed to `ingestion_key` for clarity.
+
+| Phase | Status | Behavior |
+|-------|--------|----------|
+| Current | Active | Both `ingestion_key` and `ingestion_secret` are accepted |
+| Future | Planned | `ingestion_secret` will be deprecated (reading still supported) |
+
+**No action required:** The pixel code reads both field names automatically.
+
+---
+
 *Last Updated: December 2024*
 

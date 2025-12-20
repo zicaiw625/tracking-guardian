@@ -89,6 +89,8 @@ const SENSITIVE_FIELD_PATTERNS = [
   // Platform-specific secrets
   "ingestionsecret",
   "ingestion_secret",
+  "ingestion_key",  // P1-2: New field name for correlation key
+  "ingestionkey",
   "pixelid",
   "pixel_id",
   "measurementid",

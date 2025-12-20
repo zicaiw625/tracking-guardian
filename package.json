@@ -19,7 +19,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "check:api-version": "npx ts-node scripts/check-api-version.ts",
+    "lint:all": "npm run lint && npm run typecheck && npm run check:api-version"
   },
   "type": "module",
   "engines": {

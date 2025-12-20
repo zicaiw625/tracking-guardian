@@ -64,12 +64,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Check if App Pixel is already installed
   const existingPixels = await getExistingWebPixels(admin);
   
-  // Our pixel is identified by having an ingestion_secret setting
+  // P1-2: Our pixel is identified by having ingestion_key OR ingestion_secret setting
   const ourPixel = existingPixels.find((p) => {
     if (!p.settings) return false;
     try {
       const settings = JSON.parse(p.settings);
-      return typeof settings.ingestion_secret === "string";
+      return typeof settings.ingestion_key === "string" ||
+             typeof settings.ingestion_secret === "string";
     } catch {
       return false;
     }
@@ -161,7 +162,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!p.settings) return false;
         try {
           const settings = JSON.parse(p.settings);
-          return typeof settings.ingestion_secret === "string";
+          // P1-2: Check for both new (ingestion_key) and legacy (ingestion_secret) field names
+          return typeof settings.ingestion_key === "string" ||
+                 typeof settings.ingestion_secret === "string";
         } catch {
           return false;
         }

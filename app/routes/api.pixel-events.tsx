@@ -330,9 +330,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         headers: getCorsHeaders(request),
       });
     }
+  } else {
+    // P1-2: DEPRECATION WARNING - Missing timestamp header
+    // Current behavior: Allow for backwards compatibility with old pixel versions
+    // 
+    // DEPRECATION TIMELINE:
+    // - v1.1.0 (current): Timestamp optional, log warning for missing
+    // - v1.2.0 (Q2 2025): Timestamp required for new shops, existing shops grandfathered
+    // - v1.3.0 (Q3 2025): Timestamp required for all shops, requests without timestamp rejected
+    // 
+    // Merchants should update their Web Pixel to the latest version to ensure
+    // uninterrupted service after the deprecation period.
+    logger.debug(`[P1-2 DEPRECATION] Request from ${shopDomainHeader} missing timestamp header`);
   }
-  // Note: Missing timestamp is allowed for backwards compatibility
-  // New pixel versions always send timestamp
 
   // P0-03: Single rate limit config (no signed/unsigned distinction)
   // P0-2 FIX: Use async rate limiter to ensure Redis mode actually blocks requests
