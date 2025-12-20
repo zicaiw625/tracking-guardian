@@ -18,6 +18,8 @@ import {
   incrementMonthlyUsage,
   type PlanId 
 } from "../services/billing.server";
+// P1-05: Use logger instead of console for proper sanitization
+import { logger } from "../utils/logger";
 import type {
   OrderWebhookPayload,
   PixelConfigData,
@@ -49,7 +51,7 @@ async function tryAcquireWebhookLock(
   if (!webhookId) {
     // No webhook ID means we can't deduplicate - allow processing
     // This shouldn't happen with valid Shopify webhooks
-    console.warn(`[Webhook] Missing X-Shopify-Webhook-Id for topic ${topic} from ${shopDomain}`);
+    logger.warn(`[Webhook] Missing X-Shopify-Webhook-Id for topic ${topic} from ${shopDomain}`);
     return { acquired: true };
   }
   
@@ -69,14 +71,14 @@ async function tryAcquireWebhookLock(
   } catch (error) {
     // P2002 is Prisma's unique constraint violation error
     if ((error as { code?: string })?.code === "P2002") {
-      console.log(
+      logger.info(
         `[Webhook Idempotency] Duplicate webhook detected: ${topic} for ${shopDomain}, ` +
         `webhookId=${webhookId}`
       );
       return { acquired: false, existing: true };
     }
     // For other errors, log and allow processing (fail-open)
-    console.error(`[Webhook] Failed to acquire lock: ${error}`);
+    logger.error(`[Webhook] Failed to acquire lock: ${error}`);
     return { acquired: true };
   }
 }
@@ -108,7 +110,7 @@ async function updateWebhookStatus(
     });
   } catch (error) {
     // Log but don't throw - webhook was already processed
-    console.error(`[Webhook] Failed to update status: ${error}`);
+    logger.error(`[Webhook] Failed to update status: ${error}`);
   }
 }
 
@@ -136,16 +138,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // P0-02: Handle HMAC validation failure - return 401
     if (error instanceof Response) {
       // Shopify's authenticate.webhook throws Response on auth failure
-      console.warn("[Webhook] HMAC validation failed - returning 401");
+      logger.warn("[Webhook] HMAC validation failed - returning 401");
       return new Response("Unauthorized", { status: 401 });
     }
     // P0-02: Handle JSON parsing errors - return 400
     if (error instanceof SyntaxError) {
-      console.warn("[Webhook] Payload JSON parse error - returning 400");
+      logger.warn("[Webhook] Payload JSON parse error - returning 400");
       return new Response("Bad Request: Invalid JSON", { status: 400 });
     }
     // P0-02: For other errors, log and return 500
-    console.error("[Webhook] Authentication error:", error);
+    logger.error("[Webhook] Authentication error:", error);
     return new Response("Webhook authentication failed", { status: 500 });
   }
 
@@ -159,14 +161,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const lock = await tryAcquireWebhookLock(shop, webhookId, topic);
       if (!lock.acquired) {
         // Already processed - return 200 to acknowledge receipt
-        console.log(`[Webhook Idempotency] Skipping duplicate: ${topic} for ${shop}`);
+        logger.info(`[Webhook Idempotency] Skipping duplicate: ${topic} for ${shop}`);
         return new Response("OK (duplicate)", { status: 200 });
       }
     }
 
     if (!admin && topic !== "SHOP_REDACT" && topic !== "CUSTOMERS_DATA_REQUEST" && topic !== "CUSTOMERS_REDACT") {
       // The admin context isn't returned if the webhook fired after a shop uninstalled
-      console.log(`Webhook ${topic} received for uninstalled shop ${shop}`);
+      logger.info(`Webhook ${topic} received for uninstalled shop ${shop}`);
       return new Response("OK", { status: 200 });
     }
 
@@ -182,7 +184,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     switch (topic) {
       case "APP_UNINSTALLED":
-        console.log(`Processing APP_UNINSTALLED for shop ${shop}`);
+        logger.info(`Processing APP_UNINSTALLED for shop ${shop}`);
         if (session) {
           await prisma.session.deleteMany({ where: { shop } });
         }
@@ -200,7 +202,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (webhookId) {
           await updateWebhookStatus(shop, webhookId, topic, "processed");
         }
-        console.log(`Successfully processed APP_UNINSTALLED for shop ${shop}`);
+        logger.info(`Successfully processed APP_UNINSTALLED for shop ${shop}`);
         break;
 
       case "ORDERS_PAID":
@@ -210,7 +212,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (shopRecord && payload) {
           const orderPayload = payload as OrderWebhookPayload;
           const orderId = normalizeOrderId(String(orderPayload.id));
-          console.log(`Processing ${topic} webhook for shop ${shop}, order ${orderId}`);
+          logger.info(`Processing ${topic} webhook for shop ${shop}, order ${orderId}`);
           
           // P0-1: Check billing gate BEFORE processing
           const billingCheck = await checkBillingGate(
@@ -219,7 +221,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           );
           
           if (!billingCheck.allowed) {
-            console.log(
+            logger.info(
               `Billing gate blocked order ${orderId}: ${billingCheck.reason}, ` +
               `usage=${billingCheck.usage.current}/${billingCheck.usage.limit}`
             );
@@ -281,27 +283,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             await updateWebhookStatus(shop, webhookId, topic, "processed", orderId);
           }
           
-          console.log(`Order ${orderId} queued for processing`);
+          logger.info(`Order ${orderId} queued for processing`);
         } else {
-          console.warn(`Skipping ${topic}: shopRecord=${!!shopRecord}, payload=${!!payload}`);
+          logger.warn(`Skipping ${topic}: shopRecord=${!!shopRecord}, payload=${!!payload}`);
         }
         break;
       
       case "ORDERS_CREATE":
         // NOTE: ORDERS_CREATE is intentionally not processed for conversion tracking
         // We use ORDERS_PAID instead to ensure payment is confirmed
-        console.log(`ORDERS_CREATE received for shop ${shop}, order ${(payload as { id?: number })?.id} - skipping (using ORDERS_PAID instead)`);
+        logger.info(`ORDERS_CREATE received for shop ${shop}, order ${(payload as { id?: number })?.id} - skipping (using ORDERS_PAID instead)`);
         break;
 
       case "ORDERS_UPDATED":
         // Handle order updates if needed (e.g., refunds)
-        console.log(`Order updated for shop ${shop}: order_id=${(payload as { id?: number })?.id}`);
+        logger.info(`Order updated for shop ${shop}: order_id=${(payload as { id?: number })?.id}`);
         break;
 
       case "CUSTOMERS_DATA_REQUEST":
         // P0-08: Customer data request - Queue for async processing
         // Shopify requires quick acknowledgment, actual processing done by cron
-        console.log(`GDPR data request received for shop ${shop}`);
+        logger.info(`GDPR data request received for shop ${shop}`);
         try {
           await prisma.gDPRJob.create({
             data: {
@@ -311,9 +313,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               status: "queued",
             },
           });
-          console.log(`GDPR data request queued for ${shop}`);
+          logger.info(`GDPR data request queued for ${shop}`);
         } catch (queueError) {
-          console.error("Failed to queue GDPR data request:", queueError);
+          logger.error("Failed to queue GDPR data request:", queueError);
           // Still return 200 - Shopify expects acknowledgment
         }
         break;
@@ -321,7 +323,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "CUSTOMERS_REDACT":
         // P0-08: Customer data deletion request - Queue for async processing
         // This is a mandatory webhook for GDPR compliance
-        console.log(`GDPR customer redact request for shop ${shop}`);
+        logger.info(`GDPR customer redact request for shop ${shop}`);
         try {
           await prisma.gDPRJob.create({
             data: {
@@ -331,9 +333,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               status: "queued",
             },
           });
-          console.log(`GDPR customer redact queued for ${shop}`);
+          logger.info(`GDPR customer redact queued for ${shop}`);
         } catch (queueError) {
-          console.error("Failed to queue GDPR customer redact:", queueError);
+          logger.error("Failed to queue GDPR customer redact:", queueError);
           // Still return 200 - Shopify expects acknowledgment
         }
         break;
@@ -341,7 +343,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "SHOP_REDACT":
         // P0-08: Shop data deletion - Queue for async processing
         // This is a mandatory webhook - happens 48 hours after uninstall
-        console.log(`GDPR shop redact request for shop ${shop}`);
+        logger.info(`GDPR shop redact request for shop ${shop}`);
         try {
           await prisma.gDPRJob.create({
             data: {
@@ -351,15 +353,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               status: "queued",
             },
           });
-          console.log(`GDPR shop redact queued for ${shop}`);
+          logger.info(`GDPR shop redact queued for ${shop}`);
         } catch (queueError) {
-          console.error("Failed to queue GDPR shop redact:", queueError);
+          logger.error("Failed to queue GDPR shop redact:", queueError);
           // Still return 200 - Shopify expects acknowledgment
         }
         break;
 
       default:
-        console.warn(`Unhandled webhook topic: ${topic}`);
+        logger.warn(`Unhandled webhook topic: ${topic}`);
         return new Response(`Unhandled webhook topic: ${topic}`, { status: 404 });
     }
 
@@ -369,7 +371,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     
     // Log error with stack trace for debugging, but don't expose details to client
-    console.error("Webhook processing error:", {
+    logger.error("Webhook processing error:", {
       message: errorMessage,
       stack: error instanceof Error ? error.stack : undefined,
     });
@@ -382,6 +384,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 /**
  * P0-05: Build minimal CAPI input from order payload
+ * P0-03: Now includes checkoutToken for PixelEventReceipt matching
+ * P1-01: Enhanced for audit trail and reproducibility
  * Only includes fields necessary for platform API calls - NO raw PII
  */
 function buildCapiInput(orderPayload: OrderWebhookPayload, orderId: string): object {
@@ -390,23 +394,45 @@ function buildCapiInput(orderPayload: OrderWebhookPayload, orderId: string): obj
   const items = orderPayload.line_items?.map((item) => ({
     productId: item.product_id ? String(item.product_id) : undefined,
     variantId: item.variant_id ? String(item.variant_id) : undefined,
+    sku: item.sku || undefined,
     name: item.title || item.name || "",
     quantity: item.quantity || 1,
     price: parseFloat(item.price || "0"),
   })) || [];
 
+  // P1-01: Calculate content_ids for platform API (product IDs)
+  const contentIds = items
+    .map(item => item.productId)
+    .filter((id): id is string => !!id);
+
   return {
+    // Core order data
     orderId,
     value: parseFloat(orderPayload.total_price || "0"),
     currency: orderPayload.currency || "USD",
     orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
+    
+    // Line items for product-level attribution
     items,
+    // P1-01: Content IDs for Meta/TikTok content parameters
+    contentIds,
+    numItems: items.reduce((sum, item) => sum + item.quantity, 0),
+    
     // P0-05: Store tax and shipping for accurate conversion value
     tax: parseFloat(orderPayload.total_tax || "0"),
     shipping: parseFloat(orderPayload.total_shipping_price_set?.shop_money?.amount || "0"),
-    // Timestamp for event timing
+    
+    // P1-01: Timestamps for audit trail
     processedAt: orderPayload.processed_at || new Date().toISOString(),
-    // P0-05: Do NOT include raw email/phone/address - only if piiEnabled and hashed
+    webhookReceivedAt: new Date().toISOString(),
+    
+    // P0-03: Include checkout_token for PixelEventReceipt fallback matching
+    checkoutToken: orderPayload.checkout_token || null,
+    
+    // P1-01: Shopify order ID (numeric) for reference
+    shopifyOrderId: orderPayload.id,
+    
+    // P0-05: Do NOT include raw email/phone/address - only hashed if piiEnabled
   };
 }
 
@@ -477,10 +503,10 @@ async function queueOrderForProcessing(
       update: updateData as Parameters<typeof prisma.conversionJob.upsert>[0]["update"],
     });
     
-    console.log(`[P0-07] Order ${orderId} queued for async processing`);
+    logger.info(`[P0-07] Order ${orderId} queued for async processing`);
   } catch (error) {
     // Log but don't throw - we still want to return 200 to Shopify
-    console.error(`[P0-07] Failed to queue order ${orderId}:`, error);
+    logger.error(`[P0-07] Failed to queue order ${orderId}:`, error);
   }
 }
 

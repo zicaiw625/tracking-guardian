@@ -300,6 +300,8 @@ export interface OrderWebhookPayload {
   order_number?: number | null;
   total_price?: string | null;
   currency?: string | null;
+  // P0-03: checkout_token for linking to pixel events
+  checkout_token?: string | null;
   // P0-05: Additional order value fields for accurate conversion tracking
   total_tax?: string | null;
   total_shipping_price_set?: {
@@ -328,6 +330,7 @@ export interface OrderWebhookPayload {
   line_items?: Array<{
     product_id?: number;
     variant_id?: number;
+    sku?: string;
     title?: string;
     name?: string;
     quantity?: number;

@@ -15,6 +15,7 @@
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger";
+import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
 import type { AlertChannel, AlertSettings } from "../types";
 
 // ==========================================
@@ -57,6 +58,7 @@ export interface ReconciliationSummary {
 
 /**
  * P0-02: Fetch real order count and revenue from Shopify Admin API
+ * P1-03: Enhanced with rate-limit handling and pagination
  * 
  * This provides the "ground truth" for reconciliation - what Shopify
  * actually recorded as paid orders in the given time period.
@@ -73,11 +75,11 @@ async function getShopifyOrderStats(
   }
   
   const query = `
-    query OrdersStats($query: String!) {
+    query OrdersStats($query: String!, $cursor: String) {
       ordersCount(query: $query) {
         count
       }
-      orders(first: 250, query: $query) {
+      orders(first: 250, query: $query, after: $cursor) {
         edges {
           node {
             totalPriceSet {
@@ -89,6 +91,7 @@ async function getShopifyOrderStats(
         }
         pageInfo {
           hasNextPage
+          endCursor
         }
       }
     }
@@ -97,57 +100,121 @@ async function getShopifyOrderStats(
   // Query for paid orders in the date range
   const dateQuery = `financial_status:paid created_at:>=${startDate.toISOString()} created_at:<${endDate.toISOString()}`;
   
-  try {
+  // P1-03: Helper function to make request with retry on rate limit
+  async function makeRequest(cursor: string | null = null, retryCount = 0): Promise<{
+    data: {
+      ordersCount?: { count: number };
+      orders?: {
+        edges: Array<{ node: { totalPriceSet: { shopMoney: { amount: string } } } }>;
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      };
+    } | null;
+    errors?: unknown[];
+  }> {
     const response = await fetch(
       `https://${shopDomain}/admin/api/2024-01/graphql.json`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Access-Token": accessToken,
+          "X-Shopify-Access-Token": accessToken!,
         },
-        body: JSON.stringify({ query, variables: { query: dateQuery } }),
+        body: JSON.stringify({ 
+          query, 
+          variables: { query: dateQuery, cursor } 
+        }),
       }
     );
     
+    // P1-03: Handle rate limiting with exponential backoff
+    if (response.status === 429) {
+      const retryAfter = parseInt(response.headers.get("Retry-After") || "2", 10);
+      const maxRetries = 3;
+      
+      if (retryCount < maxRetries) {
+        logger.warn(
+          `[P1-03] Rate limited by Shopify for ${shopDomain}, ` +
+          `retrying in ${retryAfter}s (attempt ${retryCount + 1}/${maxRetries})`
+        );
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        return makeRequest(cursor, retryCount + 1);
+      } else {
+        logger.error(`[P1-03] Rate limit exceeded max retries for ${shopDomain}`);
+        return { data: null, errors: [{ message: "Rate limit exceeded" }] };
+      }
+    }
+    
     if (!response.ok) {
       logger.error(`Shopify API error for ${shopDomain}: ${response.status}`);
-      return null;
+      return { data: null, errors: [{ message: `HTTP ${response.status}` }] };
     }
     
-    const data = await response.json();
+    return await response.json();
+  }
+  
+  try {
+    // P1-03: Paginate through all orders for accurate revenue
+    let totalRevenue = 0;
+    let orderCount = 0;
+    let cursor: string | null = null;
+    let hasMorePages = true;
+    let pageCount = 0;
+    const maxPages = 10; // Safety limit: 10 pages × 250 orders = 2500 orders max
     
-    if (data.errors) {
-      logger.error(`Shopify GraphQL errors for ${shopDomain}`, undefined, { errors: data.errors });
-      return null;
-    }
-    
-    const count = data.data?.ordersCount?.count || 0;
-    
-    // Sum up revenue from order edges
-    interface OrderEdge {
-      node: {
-        totalPriceSet: {
-          shopMoney: {
-            amount: string;
+    while (hasMorePages && pageCount < maxPages) {
+      const result = await makeRequest(cursor);
+      
+      if (result.errors || !result.data) {
+        logger.error(`Shopify GraphQL errors for ${shopDomain}`, undefined, { errors: result.errors });
+        // Return partial data if we have some
+        if (pageCount > 0) {
+          logger.warn(`[P1-03] Returning partial data for ${shopDomain} after ${pageCount} pages`);
+          return { count: orderCount, revenue: totalRevenue };
+        }
+        return null;
+      }
+      
+      // Get count from first page only
+      if (pageCount === 0 && result.data.ordersCount) {
+        orderCount = result.data.ordersCount.count;
+      }
+      
+      // Sum revenue from this page
+      interface OrderEdge {
+        node: {
+          totalPriceSet: {
+            shopMoney: {
+              amount: string;
+            };
           };
         };
-      };
+      }
+      const pageRevenue = result.data.orders?.edges?.reduce(
+        (sum: number, edge: OrderEdge) => 
+          sum + parseFloat(edge.node.totalPriceSet?.shopMoney?.amount || "0"),
+        0
+      ) || 0;
+      totalRevenue += pageRevenue;
+      
+      // Check for more pages
+      hasMorePages = result.data.orders?.pageInfo?.hasNextPage || false;
+      cursor = result.data.orders?.pageInfo?.endCursor || null;
+      pageCount++;
     }
-    const revenue = data.data?.orders?.edges?.reduce(
-      (sum: number, edge: OrderEdge) => 
-        sum + parseFloat(edge.node.totalPriceSet?.shopMoney?.amount || "0"),
-      0
-    ) || 0;
     
-    // Note: If hasNextPage is true, this revenue is incomplete
-    // For full accuracy with large order volumes, we'd need to paginate
-    const hasNextPage = data.data?.orders?.pageInfo?.hasNextPage;
-    if (hasNextPage) {
-      logger.warn(`Shop ${shopDomain} has more than 250 orders in period, revenue may be incomplete`);
+    if (hasMorePages) {
+      logger.warn(
+        `[P1-03] Shop ${shopDomain} has more than ${maxPages * 250} orders, ` +
+        `revenue calculation truncated at ${pageCount} pages`
+      );
     }
     
-    return { count, revenue };
+    logger.debug(
+      `[P1-03] Fetched Shopify stats for ${shopDomain}: ` +
+      `${orderCount} orders, $${totalRevenue.toFixed(2)} revenue (${pageCount} pages)`
+    );
+    
+    return { count: orderCount, revenue: totalRevenue };
   } catch (error) {
     logger.error(`Failed to fetch Shopify orders for ${shopDomain}`, error);
     return null;
@@ -161,9 +228,28 @@ async function getShopifyOrderStats(
 /**
  * Run daily reconciliation for a single shop
  * P0-02: Now compares real Shopify orders with conversion logs
+ * P0-02 FIX: Uses decrypted accessToken for Admin API calls
  */
 export async function runDailyReconciliation(shopId: string): Promise<ReconciliationResult[]> {
-  const shop = await prisma.shop.findUnique({
+  // P0-02 FIX: Get shop with decrypted accessToken
+  const decryptedShop = await getShopByIdWithDecryptedFields(shopId);
+  
+  if (!decryptedShop || !decryptedShop.isActive) {
+    logger.debug(`Skipping reconciliation for inactive shop: ${shopId}`);
+    return [];
+  }
+  
+  // P0-02 FIX: Check if accessToken was decrypted successfully
+  if (!decryptedShop.accessToken) {
+    logger.warn(
+      `[P0-02] Cannot run reconciliation for shop ${decryptedShop.shopDomain}: ` +
+      "accessToken decryption failed. Shop may need to re-authenticate."
+    );
+    return [];
+  }
+  
+  // Get related data (pixelConfigs, alertConfigs)
+  const shopWithRelations = await prisma.shop.findUnique({
     where: { id: shopId },
     include: {
       pixelConfigs: {
@@ -183,8 +269,8 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
     },
   });
 
-  if (!shop || !shop.isActive) {
-    logger.debug(`Skipping reconciliation for inactive shop: ${shopId}`);
+  if (!shopWithRelations) {
+    logger.debug(`Shop not found after decryption: ${shopId}`);
     return [];
   }
 
@@ -200,17 +286,17 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
   const reportDate = new Date(yesterday);
   
   // Get distinct platforms from pixel configs
-  const platforms = [...new Set(shop.pixelConfigs.map(c => c.platform))];
+  const platforms = [...new Set(shopWithRelations.pixelConfigs.map(c => c.platform))];
   
   if (platforms.length === 0) {
     logger.debug(`No active platforms for shop ${shopId}`);
     return [];
   }
 
-  // P0-02: Get real Shopify order data for the period
+  // P0-02 FIX: Use decrypted accessToken for Shopify API calls
   const shopifyStats = await getShopifyOrderStats(
-    shop.shopDomain,
-    shop.accessToken,
+    decryptedShop.shopDomain,
+    decryptedShop.accessToken,
     yesterday,
     today
   );
@@ -220,7 +306,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
   const shopifyRevenue = shopifyStats?.revenue ?? 0;
   
   if (!shopifyStats) {
-    logger.warn(`Could not fetch Shopify order data for ${shop.shopDomain}, using ConversionLog data`);
+    logger.warn(`Could not fetch Shopify order data for ${decryptedShop.shopDomain}, using ConversionLog data`);
   }
 
   // Get Shopify conversion logs for the period
@@ -269,7 +355,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
 
     // Check if we should send an alert
     let alertSent = false;
-    const matchingAlerts = shop.alertConfigs.filter(
+    const matchingAlerts = shopWithRelations.alertConfigs.filter(
       a => totalOrders >= a.minOrdersForAlert && orderDiscrepancy >= a.discrepancyThreshold
     );
 
@@ -293,7 +379,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
               platformConversions: sentOrders,
               orderDiscrepancy,
               revenueDiscrepancy,
-              shopDomain: shop.shopDomain,
+              shopDomain: decryptedShop.shopDomain,
             }
           );
           alertSent = true;
@@ -354,7 +440,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
       alertSent,
     });
 
-    logger.info(`Reconciliation completed for ${shop.shopDomain}/${platform}`, {
+    logger.info(`Reconciliation completed for ${decryptedShop.shopDomain}/${platform}`, {
       shopifyOrders: totalOrders,
       platformConversions: sentOrders,
       orderDiscrepancy: (orderDiscrepancy * 100).toFixed(1) + "%",

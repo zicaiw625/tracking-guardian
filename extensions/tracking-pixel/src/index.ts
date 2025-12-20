@@ -139,23 +139,33 @@ register(({ analytics, settings, init }) => {
     log("backend_url not configured in pixel settings");
     return;
   }
+  
+  // P0-06: Warn if ingestion secret is not configured
+  // Without a secret, requests will be sent unsigned and may be rejected by the server
+  if (!ingestionSecret) {
+    console.warn(
+      "[Tracking Guardian] WARNING: ingestion_secret not configured. " +
+      "Requests will be sent unsigned and may be rejected in production. " +
+      "Please configure the Ingestion Key in your Web Pixel settings."
+    );
+  }
 
   // ==========================================
   // P0-01: REQUEST SIGNING (@noble/hashes)
   // ==========================================
   
   /**
-   * Generate HMAC-SHA256 signature for request authentication
+   * P0-06: Generate HMAC-SHA256 signature for request authentication
    * Uses @noble/hashes - a proven, audited crypto library
    * 
-   * P0-01: This function always succeeds if ingestionSecret is configured.
-   * The @noble/hashes library ensures correct implementation.
+   * SECURITY: In production, server will REJECT unsigned requests if shop has secret.
+   * This ensures shopDomain cannot be spoofed.
    */
   function generateSignature(timestamp: number, body: string): string | null {
     if (!ingestionSecret) {
-      // No secret configured - requests will be sent unsigned
-      // Server will accept but apply stricter rate limiting
-      log("No ingestion secret configured - request will be unsigned");
+      // P0-06: No secret configured - requests will be unsigned
+      // Server will REJECT in production if shop has secret configured
+      // This is only acceptable for new shops during initial setup
       return null;
     }
     

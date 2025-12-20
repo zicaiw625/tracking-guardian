@@ -6,6 +6,7 @@ import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.serv
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
 import { processPendingConversions, processRetries, processConversionJobs } from "../services/retry.server";
 import { reconcilePendingConsent } from "../services/consent-reconciler.server";
+import { processGDPRJobs } from "../services/gdpr.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 import { createAuditLog } from "../services/audit.server";
 
@@ -18,10 +19,25 @@ function generateRequestId(): string {
 const REPLAY_PROTECTION_WINDOW_MS = 5 * 60 * 1000;
 
 /**
- * P2-2 / P3-2 / P0-06: Clean up old data based on each shop's retention settings
+ * P2-2 / P3-2 / P0-06 / P1-04: Clean up old data based on each shop's retention settings
  * This runs as part of the daily cron job
  * 
- * P0-06: Now covers ALL data tables including:
+ * IMPORTANT: This is for NORMAL DATA RETENTION, not GDPR compliance!
+ * 
+ * P1-04 DISTINCTION:
+ * - This function: Routine cleanup of old data based on shop's dataRetentionDays setting
+ *   - Only applies to ACTIVE shops (isActive: true)
+ *   - Only deletes data older than retention period
+ *   - Respects business rules (e.g., keeps failed jobs for debugging)
+ * 
+ * - GDPR shop_redact (gdpr.server.ts): Mandatory complete data deletion
+ *   - IGNORES isActive status (runs 48h after uninstall regardless)
+ *   - Deletes ALL data immediately (no retention period)
+ *   - Required by Shopify/GDPR compliance
+ * 
+ * These two systems are INDEPENDENT - do not conflate them.
+ * 
+ * P0-06: Covers ALL data tables including:
  * - ConversionLog, SurveyResponse, AuditLog (original)
  * - ConversionJob, PixelEventReceipt, WebhookLog (P0-06 additions)
  * - ScanReport, ReconciliationReport (P0-06 additions)
@@ -350,6 +366,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
+    // P0-01: Process GDPR jobs (data_request, customer_redact, shop_redact)
+    console.log(`[${requestId}] Processing GDPR jobs...`);
+    const gdprResults = await processGDPRJobs();
+    console.log(`GDPR: ${gdprResults.processed} processed, ${gdprResults.succeeded} succeeded, ${gdprResults.failed} failed`);
+
     // P0-6: Reconcile pending_consent logs (check if pixel events have arrived)
     console.log(`[${requestId}] Reconciling pending consent...`);
     const consentResults = await reconcilePendingConsent();
@@ -403,6 +424,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       message: `Cron completed`,
       requestId, // P0-4: Include requestId for tracing
       durationMs,
+      gdpr: gdprResults,
       consent: consentResults,
       jobs: jobResults,
       pending: pendingResults,
@@ -457,6 +479,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   try {
+    // P0-01: Process GDPR jobs (data_request, customer_redact, shop_redact)
+    console.log(`[${requestId}] Processing GDPR jobs...`);
+    const gdprResults = await processGDPRJobs();
+    console.log(`GDPR: ${gdprResults.processed} processed, ${gdprResults.succeeded} succeeded, ${gdprResults.failed} failed`);
+
     // P0-6: Reconcile pending_consent logs (check if pixel events have arrived)
     console.log(`[${requestId}] Reconciling pending consent...`);
     const consentResults = await reconcilePendingConsent();
@@ -510,6 +537,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       message: `Cron completed`,
       requestId, // P0-4: Include requestId for tracing
       durationMs,
+      gdpr: gdprResults,
       consent: consentResults,
       jobs: jobResults,
       pending: pendingResults,

@@ -775,11 +775,22 @@ export async function processConversionJobs(): Promise<{
   
   for (const job of jobsToProcess) {
     try {
-      // Mark as processing to prevent duplicate processing
-      await prisma.conversionJob.update({
-        where: { id: job.id },
+      // P1-02: Atomic lock acquisition using updateMany with status check
+      // This prevents race conditions when multiple workers process the same job
+      const lockResult = await prisma.conversionJob.updateMany({
+        where: {
+          id: job.id,
+          status: { in: ["queued", "failed"] }, // Only grab if still in expected state
+        },
         data: { status: "processing" },
       });
+      
+      // P1-02: If no rows updated, another worker already grabbed this job
+      if (lockResult.count === 0) {
+        logger.debug(`[P1-02] Job ${job.id} already being processed by another worker, skipping`);
+        skipped++;
+        continue;
+      }
       
       // P0-1: Check billing gate
       const billingCheck = await checkBillingGate(
@@ -825,8 +836,9 @@ export async function processConversionJobs(): Promise<{
       // Generate eventId for deduplication
       const eventId = generateEventId(job.orderId, "purchase", job.shop.shopDomain);
       
-      // P0-08: Get PixelEventReceipt to check consent state
-      const receipt = await prisma.pixelEventReceipt.findUnique({
+      // P0-03 FIX: Get PixelEventReceipt with checkoutToken fallback
+      // First try to find by orderId (preferred)
+      let receipt = await prisma.pixelEventReceipt.findUnique({
         where: {
           shopId_orderId_eventType: {
             shopId: job.shopId,
@@ -834,8 +846,42 @@ export async function processConversionJobs(): Promise<{
             eventType: "purchase",
           },
         },
-        select: { consentState: true, isTrusted: true },
+        select: { 
+          consentState: true, 
+          isTrusted: true,
+          checkoutToken: true,
+        },
       });
+      
+      // P0-03 FIX: If not found by orderId, try by checkoutToken
+      // This handles cases where pixel used checkoutToken as fallback
+      if (!receipt) {
+        // Get checkoutToken from capiInput if available
+        const capiInputRaw = job.capiInput as { checkoutToken?: string } | null;
+        const checkoutToken = capiInputRaw?.checkoutToken;
+        
+        if (checkoutToken) {
+          // Search by checkoutToken
+          receipt = await prisma.pixelEventReceipt.findFirst({
+            where: {
+              shopId: job.shopId,
+              checkoutToken: checkoutToken,
+              eventType: "purchase",
+            },
+            select: { 
+              consentState: true, 
+              isTrusted: true,
+              checkoutToken: true,
+            },
+          });
+          
+          if (receipt) {
+            logger.debug(
+              `[P0-03] Found PixelEventReceipt via checkoutToken fallback for job ${job.id}`
+            );
+          }
+        }
+      }
       
       const consentState = receipt?.consentState as { 
         marketing?: boolean; 
@@ -848,32 +894,81 @@ export async function processConversionJobs(): Promise<{
       let anySucceeded = false;
       
       for (const pixelConfig of job.shop.pixelConfigs) {
-        // P0-08: Platform-level consent gating
-        // Marketing platforms (Meta, TikTok) require marketing consent
-        // Analytics platforms (Google) require analytics consent
+        // P0-04: Platform classification for consent gating
+        // Marketing platforms (Meta, TikTok) require marketing consent - MOST SENSITIVE
+        // Analytics platforms (Google GA4) require analytics consent - LESS SENSITIVE
         const isMarketingPlatform = ["meta", "tiktok"].includes(pixelConfig.platform);
         const isAnalyticsPlatform = ["google"].includes(pixelConfig.platform);
         
-        // P0-08: Check consent - if we have receipt with explicit denial, skip
-        // Note: If no receipt exists, we follow the shop's consentStrategy
+        // P0-04 ENHANCED: Consent evaluation with three strategies
+        // 
+        // Strategy "strict" (RECOMMENDED FOR PRODUCTION):
+        //   - Requires PixelEventReceipt for ALL platforms
+        //   - No receipt = no send (safest approach)
+        //
+        // Strategy "balanced":
+        //   - If receipt exists: respect explicit consent choices
+        //   - If NO receipt:
+        //     - Analytics platforms (GA4): ALLOW (lower risk)
+        //     - Marketing platforms (Meta/TikTok): BLOCK (higher risk)
+        //
+        // Strategy "weak" (NOT RECOMMENDED):
+        //   - Allow all sends regardless of consent
+        //   - Only for regions with implied consent laws
+        
+        const strategy = job.shop.consentStrategy || "strict";
+        
+        // P0-04: Check consent when we have a receipt
         if (receipt && consentState) {
+          // Explicit denial - always respect
           if (isMarketingPlatform && consentState.marketing === false) {
-            logger.debug(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: marketing consent denied`);
-            platformResults[pixelConfig.platform] = "skipped:no_marketing_consent";
+            logger.debug(`[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: marketing consent explicitly denied`);
+            platformResults[pixelConfig.platform] = "skipped:marketing_consent_denied";
             continue;
           }
           if (isAnalyticsPlatform && consentState.analytics === false) {
-            logger.debug(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: analytics consent denied`);
-            platformResults[pixelConfig.platform] = "skipped:no_analytics_consent";
+            logger.debug(`[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: analytics consent explicitly denied`);
+            platformResults[pixelConfig.platform] = "skipped:analytics_consent_denied";
             continue;
           }
+          // Has receipt with positive or undefined consent - proceed
+          logger.debug(`[P0-04] Consent check passed for ${pixelConfig.platform} (job ${job.id}): receipt found with consent`);
         }
-        // P0-08: If no receipt exists, use shop's consentStrategy
-        // "strict" = require receipt, "balanced" = allow if no denial, "weak" = allow all
-        else if (job.shop.consentStrategy === "strict") {
-          logger.debug(`[P0-08] Skipping ${pixelConfig.platform} for job ${job.id}: strict mode requires consent receipt`);
-          platformResults[pixelConfig.platform] = "skipped:no_consent_receipt";
-          continue;
+        // P0-04: No receipt - apply strategy
+        else {
+          if (strategy === "strict") {
+            // STRICT: No receipt = no send for ANY platform
+            logger.info(
+              `[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: ` +
+              `strict mode requires consent receipt (none found)`
+            );
+            platformResults[pixelConfig.platform] = "skipped:no_receipt_strict_mode";
+            continue;
+          }
+          
+          if (strategy === "balanced") {
+            // BALANCED: Allow analytics, block marketing
+            if (isMarketingPlatform) {
+              logger.info(
+                `[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: ` +
+                `balanced mode blocks marketing platforms without consent receipt`
+              );
+              platformResults[pixelConfig.platform] = "skipped:no_receipt_marketing_blocked";
+              continue;
+            }
+            // Analytics platforms allowed in balanced mode without receipt
+            logger.debug(
+              `[P0-04] Allowing ${pixelConfig.platform} for job ${job.id}: ` +
+              `balanced mode allows analytics without receipt`
+            );
+          }
+          
+          // strategy === "weak": allow all (fall through)
+          if (strategy === "weak") {
+            logger.debug(
+              `[P0-04] Allowing ${pixelConfig.platform} for job ${job.id}: weak consent mode`
+            );
+          }
         }
         try {
           // Get credentials

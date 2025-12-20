@@ -55,11 +55,12 @@ model Shop {
   // Kept for backwards compatibility
   weakConsentMode Boolean @default(false)
 
-  // P0-5: Consent strategy for CAPI sending
-  // - strict: Must have PixelEventReceipt with consent allowed
-  // - balanced: Use receipt if available, otherwise use region/shop defaults
+  // P0-04: Consent strategy for CAPI sending (UPDATED DEFAULT)
+  // - strict: Must have PixelEventReceipt with consent allowed (RECOMMENDED)
+  // - balanced: Use receipt if available; without receipt: allow analytics, block marketing
   // - weak: Allow sending without consent (for regions with implied consent)
-  consentStrategy String @default("balanced")
+  // DEFAULT CHANGED TO "strict" FOR PRIVACY COMPLIANCE
+  consentStrategy String @default("strict")
 
   // Data retention settings (in days)
   // 0 means no auto-deletion (manual deletion required)

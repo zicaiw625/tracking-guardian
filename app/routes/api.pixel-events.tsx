@@ -35,6 +35,8 @@ import { generateEventId, normalizeOrderId } from "../utils/crypto";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 import { checkCircuitBreaker } from "../utils/circuit-breaker";
 import { getShopForVerification, verifyWithGraceWindow } from "../utils/shop-access";
+// P1-05: Use logger for proper sanitization
+import { logger } from "../utils/logger";
 
 // Signature verification time window (5 minutes)
 const SIGNATURE_TIME_WINDOW_MS = 5 * 60 * 1000;
@@ -67,14 +69,28 @@ type SignatureResult =
   | { status: "invalid"; trusted: false; error: string };
 
 /**
- * Check if we're in development/test mode
- * In dev mode, we allow unsigned requests even if secret is configured
+ * P0-06: Check if we're in development/test mode
+ * 
+ * SECURITY: In production, unsigned requests are ALWAYS rejected if shop has secret.
+ * ALLOW_UNSIGNED_PIXEL_EVENTS should NEVER be set in production.
  */
 function isDevMode(): boolean {
+  const nodeEnv = process.env.NODE_ENV;
+  const allowUnsigned = process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true";
+  
+  // P0-06: Log warning if ALLOW_UNSIGNED is set in production
+  if (allowUnsigned && nodeEnv === "production") {
+    logger.warn(
+      "[P0-06 SECURITY WARNING] ALLOW_UNSIGNED_PIXEL_EVENTS is set in production! " +
+      "This allows unsigned requests and defeats signature security. " +
+      "Remove this environment variable immediately."
+    );
+  }
+  
   return (
-    process.env.NODE_ENV === "development" ||
-    process.env.NODE_ENV === "test" ||
-    process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true"
+    nodeEnv === "development" ||
+    nodeEnv === "test" ||
+    allowUnsigned
   );
 }
 
@@ -112,7 +128,7 @@ function verifySignature(
   if (isExplicitlyUnsigned || (!signature && !timestamp)) {
     if (isDevMode()) {
       // Allow in dev mode for testing
-      console.info(
+      logger.info(
         `[DEV MODE] Allowing unsigned request despite shop having ingestionSecret configured`
       );
       return { 
@@ -235,7 +251,7 @@ function getCorsHeaders(request: Request): HeadersInit {
   
   // Log unexpected origins for monitoring
   if (!isValidShopifyOrigin) {
-    console.warn(`Non-Shopify origin in pixel request: ${origin}`);
+    logger.warn(`Non-Shopify origin in pixel request: ${origin}`);
   }
   
   return {
@@ -420,7 +436,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // P1-02: Check Content-Length before reading body
     const contentLength = parseInt(request.headers.get("Content-Length") || "0", 10);
     if (contentLength > MAX_BODY_SIZE) {
-      console.warn(`[P1-02] Payload too large: ${contentLength} bytes (max ${MAX_BODY_SIZE})`);
+      logger.warn(`[P1-02] Payload too large: ${contentLength} bytes (max ${MAX_BODY_SIZE})`);
       return jsonWithCors(
         { error: "Payload too large", maxSize: MAX_BODY_SIZE },
         { status: 413, request }
@@ -432,7 +448,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     // P1-02: Double-check actual body size (in case Content-Length was missing/wrong)
     if (bodyText.length > MAX_BODY_SIZE) {
-      console.warn(`[P1-02] Actual payload too large: ${bodyText.length} bytes (max ${MAX_BODY_SIZE})`);
+      logger.warn(`[P1-02] Actual payload too large: ${bodyText.length} bytes (max ${MAX_BODY_SIZE})`);
       return jsonWithCors(
         { error: "Payload too large", maxSize: MAX_BODY_SIZE },
         { status: 413, request }
@@ -459,7 +475,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Now uses shared storage (Redis when available) for multi-instance deployments
     const circuitCheck = await checkCircuitBreaker(payload.shopDomain, CIRCUIT_BREAKER_CONFIG);
     if (circuitCheck.blocked) {
-      console.warn(`Circuit breaker blocked request for ${payload.shopDomain}`);
+      logger.warn(`Circuit breaker blocked request for ${payload.shopDomain}`);
       return jsonWithCors(
         { 
           error: circuitCheck.reason,
@@ -517,7 +533,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (previousResult.status === "signed") {
         signatureResult = previousResult;
         usedPreviousSecret = true;
-        console.info(
+        logger.info(
           `[Grace Window] Request verified using previous secret for ${shop.shopDomain}. ` +
           `Previous secret expires: ${shop.previousSecretExpiry?.toISOString()}`
         );
@@ -526,7 +542,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     // Reject requests with INVALID signatures (spoofing attempt)
     if (signatureResult.status === "invalid") {
-      console.warn(
+      logger.warn(
         `Invalid signature for shop ${shop.shopDomain}: ${signatureResult.error}`,
         { hasSignature: !!signature, hasTimestamp: !!timestamp }
       );
@@ -539,7 +555,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // P0-2: Reject unsigned requests when shop has ingestionSecret configured (production)
     // This prevents shopDomain spoofing attacks
     if (signatureResult.status === "unsigned_rejected") {
-      console.warn(
+      logger.warn(
         `Unsigned request rejected for shop ${shop.shopDomain}: ${signatureResult.error}`,
         { shopHasSecret: !!shop.ingestionSecret }
       );
@@ -555,7 +571,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     // Log unsigned requests for monitoring (allowed in dev mode or when no secret configured)
     if (signatureResult.status === "unsigned") {
-      console.info(
+      logger.info(
         `Unsigned pixel request from ${shop.shopDomain}: ${signatureResult.reason}`
       );
     }
@@ -592,7 +608,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       // This happens when checkout.order.id is not yet available
       orderId = checkoutToken;
       usedCheckoutTokenAsFallback = true;
-      console.info(
+      logger.info(
         `[P0-03] Using checkoutToken as fallback for shop ${shop.shopDomain}. ` +
         `This may affect webhook matching.`
       );
@@ -684,7 +700,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
     } catch (error) {
-      console.warn(`Failed to write PixelEventReceipt for order ${orderId}:`, error);
+      logger.warn(`Failed to write PixelEventReceipt for order ${orderId}:`, error);
       // Continue - this is not critical for the flow
     }
 
@@ -727,7 +743,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
         recordedPlatforms.push(config.platform);
       } catch (error) {
-        console.warn(`Failed to record client event for ${config.platform}:`, error);
+        logger.warn(`Failed to record client event for ${config.platform}:`, error);
       }
     }
 
@@ -743,7 +759,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       consent: payload.consent || null,
     }, { request });
   } catch (error) {
-    console.error("Pixel events API error:", error);
+    logger.error("Pixel events API error:", error);
     return jsonWithCors(
       { error: "Internal server error" },
       { status: 500, request }
