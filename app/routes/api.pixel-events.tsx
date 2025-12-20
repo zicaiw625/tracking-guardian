@@ -31,6 +31,8 @@ import { generateEventId, generateMatchKey } from "../utils/crypto";
 import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limiter";
 import { checkCircuitBreaker } from "../utils/circuit-breaker";
 import { getShopForVerification } from "../utils/shop-access";
+// P1-2: Import platform consent functions for pre-filtering
+import { isMarketingPlatform, isAnalyticsPlatform } from "../utils/platform-consent";
 
 import { logger } from "../utils/logger";
 
@@ -583,8 +585,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     const recordedPlatforms: string[] = [];
+    const skippedPlatforms: string[] = [];
+    
+    // P1-2: Pre-filter platforms based on consent before writing ConversionLog
+    // This ensures we don't create marketing platform records when only analytics is consented
+    const consent = payload.consent;
+    const hasMarketingConsent = consent?.marketing === true;
+    const hasAnalyticsConsent = consent?.analytics === true;
     
     for (const config of pixelConfigs) {
+      // P1-2: Consent-based pre-filtering
+      // Marketing platforms (Meta, TikTok, etc.) require marketing consent
+      // Analytics platforms (Google GA4) require analytics consent
+      if (isMarketingPlatform(config.platform) && !hasMarketingConsent) {
+        logger.debug(
+          `[P1-2] Skipping ${config.platform} ConversionLog: ` +
+          `marketing consent not granted (marketing=${consent?.marketing})`
+        );
+        skippedPlatforms.push(config.platform);
+        continue;
+      }
+      
+      if (isAnalyticsPlatform(config.platform) && !hasAnalyticsConsent) {
+        logger.debug(
+          `[P1-2] Skipping ${config.platform} ConversionLog: ` +
+          `analytics consent not granted (analytics=${consent?.analytics})`
+        );
+        skippedPlatforms.push(config.platform);
+        continue;
+      }
+      
       try {
         await prisma.conversionLog.upsert({
           where: {
@@ -596,9 +626,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             },
           },
           update: {
-            
             clientSideSent: true,
-            
             eventId,
           },
           create: {
@@ -609,7 +637,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             currency: payload.data.currency || "USD",
             platform: config.platform,
             eventType: "purchase",
-            
             eventId,
             status: "pending",
             attempts: 0,
@@ -622,6 +649,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         logger.warn(`Failed to record client event for ${config.platform}:`, error);
       }
     }
+    
+    if (skippedPlatforms.length > 0) {
+      logger.info(
+        `[P1-2] Consent-filtered platforms for order ${orderId}: ` +
+        `skipped=${skippedPlatforms.join(",")}, recorded=${recordedPlatforms.join(",")}`
+      );
+    }
 
     return jsonWithCors({
       success: true,
@@ -629,9 +663,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       message: "Pixel event recorded, CAPI will be sent via webhook",
       clientSideSent: true,
       platforms: recordedPlatforms,
-      
+      // P1-2: Include skipped platforms for transparency
+      skippedPlatforms: skippedPlatforms.length > 0 ? skippedPlatforms : undefined,
       trusted: isTrusted,
-      
       consent: payload.consent || null,
     }, { request });
   } catch (error) {
