@@ -167,7 +167,19 @@ model AlertConfig {
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   channel  String // email, slack, telegram
-  settings Json // Channel-specific settings (email address, webhook URL, etc.)
+  
+  // P0-2: Deprecated - use settingsEncrypted instead
+  // Kept for backwards compatibility during migration
+  // Contains non-sensitive settings only (thresholds, channel type, etc.)
+  settings Json?
+  
+  // P0-2: Encrypted storage for sensitive settings (webhook URLs, tokens, etc.)
+  // Uses AES-256-GCM encryption via token-encryption.ts
+  // Structure depends on channel:
+  // - email: { email: string }
+  // - slack: { webhookUrl: string (encrypted) }
+  // - telegram: { botToken: string (encrypted), chatId: string }
+  settingsEncrypted String?
 
   // Alert thresholds
   discrepancyThreshold Float @default(0.1) // 10% default threshold

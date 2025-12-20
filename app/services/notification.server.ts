@@ -1,4 +1,9 @@
-
+/**
+ * Notification Service
+ * 
+ * P0-2: Updated to support encrypted alert settings
+ * Sensitive data (webhook URLs, bot tokens) are now stored encrypted
+ */
 
 import { Resend } from "resend";
 import type {
@@ -8,7 +13,7 @@ import type {
   SlackAlertSettings,
   TelegramAlertSettings,
 } from "../types";
-
+import { decryptJson } from "../utils/crypto";
 import { logger } from "../utils/logger";
 
 const resend = process.env.RESEND_API_KEY
@@ -23,18 +28,51 @@ const getEmailSender = (): string => {
   return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";
 };
 
+// P0-2: Extended AlertConfig type with encrypted settings
+interface AlertConfigWithEncryption extends AlertConfig {
+  settingsEncrypted?: string | null;
+}
+
+// P0-2: Helper to get decrypted settings from AlertConfig
+function getDecryptedSettings(config: AlertConfigWithEncryption): Record<string, unknown> | null {
+  // First try encrypted settings (P0-2)
+  if (config.settingsEncrypted) {
+    try {
+      return decryptJson<Record<string, unknown>>(config.settingsEncrypted);
+    } catch (error) {
+      logger.error(`Failed to decrypt settings for alert config ${config.id}`, error);
+      // Fall through to try legacy settings
+    }
+  }
+  
+  // Fall back to legacy plain settings (backwards compatibility)
+  if (config.settings && typeof config.settings === "object") {
+    logger.warn(`[P0-2] Using legacy plain settings for alert config - migration needed`);
+    return config.settings as Record<string, unknown>;
+  }
+  
+  return null;
+}
+
 export async function sendAlert(
-  config: AlertConfig,
+  config: AlertConfigWithEncryption,
   data: AlertData
 ): Promise<boolean> {
   try {
+    // P0-2: Get decrypted settings
+    const settings = getDecryptedSettings(config);
+    if (!settings) {
+      logger.error(`No valid settings found for alert config ${config.id}`);
+      return false;
+    }
+
     switch (config.channel) {
       case "email":
-        return await sendEmailAlert(config.settings as EmailAlertSettings, data);
+        return await sendEmailAlert(settings as EmailAlertSettings, data);
       case "slack":
-        return await sendSlackAlert(config.settings as SlackAlertSettings, data);
+        return await sendSlackAlert(settings as SlackAlertSettings, data);
       case "telegram":
-        return await sendTelegramAlert(config.settings as TelegramAlertSettings, data);
+        return await sendTelegramAlert(settings as TelegramAlertSettings, data);
       default:
         logger.warn(`Unknown alert channel: ${config.channel}`);
         return false;

@@ -52,13 +52,11 @@ handle = "order-status-survey"
 #   module = "./src/UpsellOffer.tsx"
 #   target = "purchase.thank-you.block.render"
 
-[settings]
-  [[settings.fields]]
-  key = "app_url"
-  name = "App URL"
-  description = "Your Tracking Guardian app URL (e.g., https://your-app.onrender.com)"
-  type = "single_line_text_field"
+# P0-1: App URL is now retrieved from app metafields (set during installation)
+# This prevents merchants from configuring arbitrary URLs
+# The app automatically sets the correct URL during installation
 
+[settings]
   [[settings.fields]]
   key = "survey_title"
   name = "Survey Title"

@@ -25,12 +25,87 @@ import { randomBytes } from "crypto";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { testNotification } from "../services/notification.server";
-import { encryptJson } from "../utils/crypto";
+import { encryptJson, decryptJson } from "../utils/crypto";
 import { checkTokenExpirationIssues } from "../services/retry.server";
 import { createAuditLog } from "../services/audit.server";
 import { getExistingWebPixels, updateWebPixel } from "../services/migration.server";
 import { encryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
+import { logger } from "../utils/logger";
+
+// P0-2: Alert settings types for encrypted storage
+interface AlertSettingsEmail {
+  email: string;
+}
+
+interface AlertSettingsSlack {
+  webhookUrl: string; // Sensitive - encrypted
+}
+
+interface AlertSettingsTelegram {
+  botToken: string;  // Sensitive - encrypted
+  chatId: string;    // Non-sensitive but stored together
+}
+
+type AlertSettings = AlertSettingsEmail | AlertSettingsSlack | AlertSettingsTelegram;
+
+// P0-2: Helper to encrypt alert settings based on channel
+function encryptAlertSettings(channel: string, settings: Record<string, unknown>): string | null {
+  const sensitiveSettings: Record<string, unknown> = {};
+  
+  if (channel === "slack" && settings.webhookUrl) {
+    sensitiveSettings.webhookUrl = settings.webhookUrl;
+  } else if (channel === "telegram" && settings.botToken) {
+    sensitiveSettings.botToken = settings.botToken;
+    sensitiveSettings.chatId = settings.chatId;
+  } else if (channel === "email") {
+    // Email is not sensitive, but we store it encrypted for consistency
+    sensitiveSettings.email = settings.email;
+  }
+  
+  if (Object.keys(sensitiveSettings).length === 0) {
+    return null;
+  }
+  
+  return encryptJson(sensitiveSettings);
+}
+
+// P0-2: Helper to decrypt alert settings
+function decryptAlertSettings(encryptedSettings: string | null): Record<string, unknown> | null {
+  if (!encryptedSettings) {
+    return null;
+  }
+  
+  try {
+    return decryptJson<Record<string, unknown>>(encryptedSettings);
+  } catch (error) {
+    logger.warn("[P0-2] Failed to decrypt alert settings", error);
+    return null;
+  }
+}
+
+// P0-2: Helper to get display-safe settings (masked sensitive values)
+function getMaskedAlertSettings(channel: string, settings: Record<string, unknown> | null): Record<string, unknown> {
+  if (!settings) {
+    return {};
+  }
+  
+  const masked = { ...settings };
+  
+  if (channel === "slack" && masked.webhookUrl) {
+    const url = String(masked.webhookUrl);
+    // Show only last 8 characters of webhook URL
+    masked.webhookUrl = url.length > 12 ? `****${url.slice(-8)}` : "****";
+  }
+  
+  if (channel === "telegram" && masked.botToken) {
+    const token = String(masked.botToken);
+    // Show only first 8 characters of bot token
+    masked.botToken = token.length > 12 ? `${token.slice(0, 8)}****` : "****";
+  }
+  
+  return masked;
+}
 
 function generateIngestionSecret(): string {
   return randomBytes(32).toString("hex");
@@ -109,16 +184,41 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const threshold = parseFloat(formData.get("threshold") as string) / 100;
       const enabled = formData.get("enabled") === "true";
 
-      const settings: Record<string, any> = {};
+      // P0-2: Separate sensitive and non-sensitive settings
+      const rawSettings: Record<string, unknown> = {};
 
       if (channel === "email") {
-        settings.email = formData.get("email");
+        rawSettings.email = formData.get("email");
       } else if (channel === "slack") {
-        settings.webhookUrl = formData.get("webhookUrl");
+        rawSettings.webhookUrl = formData.get("webhookUrl");
       } else if (channel === "telegram") {
-        settings.botToken = formData.get("botToken");
-        settings.chatId = formData.get("chatId");
+        rawSettings.botToken = formData.get("botToken");
+        rawSettings.chatId = formData.get("chatId");
       }
+
+      // P0-2: Encrypt sensitive settings
+      const encryptedSettings = encryptAlertSettings(channel, rawSettings);
+      
+      // P0-2: Store non-sensitive metadata in settings JSON (for display purposes)
+      // Never store actual sensitive values in plain text
+      const nonSensitiveSettings: Record<string, unknown> = {
+        channel,
+        // For email, we can show a masked version
+        ...(channel === "email" && rawSettings.email 
+          ? { emailMasked: String(rawSettings.email).replace(/(.{2}).*(@.*)/, "$1***$2") }
+          : {}),
+        // For slack, just indicate it's configured
+        ...(channel === "slack" && rawSettings.webhookUrl 
+          ? { configured: true }
+          : {}),
+        // For telegram, show masked bot token and chat ID
+        ...(channel === "telegram" && rawSettings.botToken
+          ? { 
+              botTokenMasked: String(rawSettings.botToken).slice(0, 8) + "****",
+              chatId: rawSettings.chatId,
+            }
+          : {}),
+      };
 
       await prisma.alertConfig.upsert({
         where: {
@@ -126,16 +226,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
         update: {
           channel,
-          settings,
+          settings: nonSensitiveSettings, // P0-2: Non-sensitive only
+          settingsEncrypted: encryptedSettings, // P0-2: Encrypted sensitive data
           discrepancyThreshold: threshold,
           isEnabled: enabled,
         },
         create: {
           shopId: shop.id,
           channel,
-          settings,
+          settings: nonSensitiveSettings, // P0-2: Non-sensitive only
+          settingsEncrypted: encryptedSettings, // P0-2: Encrypted sensitive data
           discrepancyThreshold: threshold,
           isEnabled: enabled,
+        },
+      });
+
+      // P0-2: Audit log for alert config change
+      await createAuditLog({
+        shopId: shop.id,
+        actorType: "user",
+        actorId: session.shop,
+        action: "alert_config_updated",
+        resourceType: "alert_config",
+        resourceId: (formData.get("configId") as string) || "new",
+        metadata: { 
+          channel, 
+          threshold,
+          // Never log sensitive values
         },
       });
 
@@ -144,8 +261,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     case "testAlert": {
       const channel = formData.get("channel") as string;
-      const settings: Record<string, any> = {};
+      const settings: Record<string, unknown> = {};
 
+      // P0-2: Get settings from form for testing
+      // Note: For testing, we use the values directly from the form
+      // since the user may be testing before saving
       if (channel === "email") {
         settings.email = formData.get("email");
       } else if (channel === "slack") {

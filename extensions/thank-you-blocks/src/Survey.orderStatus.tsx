@@ -1,3 +1,10 @@
+/**
+ * Order Status Survey Component
+ * 
+ * P0-1: App URL Configuration
+ * The app URL is now retrieved from app metafields (set during installation)
+ * rather than merchant-configurable settings. This prevents arbitrary URL configuration.
+ */
 
 import {
   reactExtension,
@@ -10,8 +17,24 @@ import {
   Icon,
   useSettings,
   useApi,
+  useAppMetafields,
 } from "@shopify/ui-extensions-react/customer-account";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+
+// P0-1: Production URL constant - set during deployment
+const PRODUCTION_APP_URL = "https://tracking-guardian.onrender.com";
+
+// P0-1: Allowed URL patterns for validation
+const ALLOWED_URL_PATTERNS = [
+  /^https:\/\/tracking-guardian\.onrender\.com$/,
+  /^https:\/\/tracking-guardian-staging\.onrender\.com$/,
+  /^https?:\/\/localhost:\d+$/,
+  /^https?:\/\/127\.0\.0\.1:\d+$/,
+];
+
+function isAllowedAppUrl(url: string): boolean {
+  return ALLOWED_URL_PATTERNS.some(pattern => pattern.test(url));
+}
 
 export default reactExtension(
   "customer-account.order-status.block.render",
@@ -21,6 +44,22 @@ export default reactExtension(
 function SurveyOrderStatus() {
   const settings = useSettings();
   const api = useApi();
+  
+  // P0-1: Get app URL from app metafields instead of settings
+  const appMetafields = useAppMetafields();
+  const appUrl = useMemo(() => {
+    const metafield = appMetafields.find(
+      (mf) => mf.metafield?.key === "backend_url"
+    );
+    const url = metafield?.metafield?.value || PRODUCTION_APP_URL;
+    
+    // P0-1: Validate URL is in allowlist
+    if (!isAllowedAppUrl(url)) {
+      console.warn("[Tracking Guardian] App URL not in allowlist, using production URL");
+      return PRODUCTION_APP_URL;
+    }
+    return url;
+  }, [appMetafields]);
   
   const [orderId, setOrderId] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
@@ -32,7 +71,6 @@ function SurveyOrderStatus() {
 
   const title = (settings.survey_title as string) || "我们想听听您的意见";
   const question = (settings.survey_question as string) || "您是如何了解到我们的？";
-  const appUrl = (settings.app_url as string) || "";
 
   const sources = [
     { id: "search", label: "搜索引擎" },
@@ -78,12 +116,15 @@ function SurveyOrderStatus() {
         source: selectedSource,
       };
 
-      if (appUrl && token) {
+      // P0-1: App URL is now always available (uses constant as fallback)
+      const shopDomain = api.shop?.myshopifyDomain || "";
+      
+      if (token && shopDomain) {
         const response = await fetch(`${appUrl}/api/survey`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Shopify-Shop-Domain": api.shop?.myshopifyDomain || "",
+            "X-Shopify-Shop-Domain": shopDomain,
             "Authorization": `Bearer ${token}`,
           },
           body: JSON.stringify(surveyData),
@@ -96,8 +137,9 @@ function SurveyOrderStatus() {
 
         console.log("Survey submitted successfully to backend");
       } else {
-        
-        console.log("Survey submitted (app URL not configured):", surveyData);
+        // Missing token or shop domain - this should not happen in production
+        console.warn("Survey submission skipped: missing authentication or shop domain");
+        throw new Error("Authentication or shop domain not available");
       }
 
       setSubmitted(true);

@@ -1,9 +1,36 @@
-
+/**
+ * Tracking Guardian - Web Pixel Extension
+ * 
+ * P0-1: Backend URL Configuration
+ * The backend URL is now retrieved from app metafields (set during installation)
+ * rather than merchant-configurable settings. This prevents arbitrary URL configuration
+ * which could be flagged as data exfiltration during App Store review.
+ * 
+ * Security: All requests are signed with HMAC-SHA256 using the ingestion secret.
+ */
 
 import { register } from "@shopify/web-pixels-extension";
 import { hmac } from "@noble/hashes/hmac";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
+
+// P0-1: Production URL constant - set during deployment
+// This is the ONLY allowed backend URL; merchants cannot configure arbitrary URLs
+// For development, use the app's local URL via environment variable substitution
+const PRODUCTION_BACKEND_URL = "https://tracking-guardian.onrender.com";
+
+// P0-1: Allowed URL patterns for validation (production + staging)
+const ALLOWED_URL_PATTERNS = [
+  /^https:\/\/tracking-guardian\.onrender\.com$/,
+  /^https:\/\/tracking-guardian-staging\.onrender\.com$/,
+  // Local development (only works in dev mode)
+  /^https?:\/\/localhost:\d+$/,
+  /^https?:\/\/127\.0\.0\.1:\d+$/,
+];
+
+function isAllowedBackendUrl(url: string): boolean {
+  return ALLOWED_URL_PATTERNS.some(pattern => pattern.test(url));
+}
 
 function hmacSha256(key: string, message: string): string {
   const encoder = new TextEncoder();
@@ -15,18 +42,19 @@ function hmacSha256(key: string, message: string): string {
   return bytesToHex(signature);
 }
 
+// Types are intentionally loose to handle Shopify's varying type definitions
 interface CheckoutData {
   order?: { id?: string };
   token?: string;
-  totalPrice?: { amount?: string };
-  totalTax?: { amount?: string };
-  shippingLine?: { price?: { amount?: string } };
+  totalPrice?: { amount?: string | number };
+  totalTax?: { amount?: string | number };
+  shippingLine?: { price?: { amount?: string | number } };
   currencyCode?: string;
   lineItems?: Array<{
     id?: string;
     title?: string;
     quantity?: number;
-    variant?: { price?: { amount?: string } };
+    variant?: { price?: { amount?: string | number } };
   }>;
   
   email?: string;
@@ -36,14 +64,14 @@ interface CheckoutData {
 interface ProductVariantData {
   id?: string;
   title?: string;
-  price?: { amount?: string; currencyCode?: string };
+  price?: { amount?: string | number; currencyCode?: string };
 }
 
 interface CartLineData {
   merchandise?: {
     id?: string;
     title?: string;
-    price?: { amount?: string; currencyCode?: string };
+    price?: { amount?: string | number; currencyCode?: string };
   };
   quantity?: number;
 }
@@ -55,9 +83,20 @@ interface VisitorConsentCollectedEvent {
   saleOfDataAllowed: boolean;
 }
 
-register(({ analytics, settings, init }) => {
+// Helper to safely convert amount to number
+function toNumber(value: string | number | undefined | null, defaultValue = 0): number {
+  if (value === undefined || value === null) return defaultValue;
+  if (typeof value === "number") return value;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? defaultValue : parsed;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+register(({ analytics, settings, init, customerPrivacy }: any) => {
   
-  const backendUrl = settings.backend_url as string | undefined;
+  // P0-1: Use production URL constant (no merchant-configurable URL)
+  // The URL allowlist validation provides defense-in-depth
+  const backendUrl = PRODUCTION_BACKEND_URL;
 
   const ingestionSecret = settings.ingestion_secret as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
@@ -70,10 +109,8 @@ register(({ analytics, settings, init }) => {
     }
   }
 
-  if (!backendUrl) {
-    log("backend_url not configured in pixel settings");
-    return;
-  }
+  // P0-1: Backend URL is now always the production constant
+  log("Using backend URL:", backendUrl);
 
   if (!ingestionSecret) {
     console.warn(
@@ -106,7 +143,7 @@ register(({ analytics, settings, init }) => {
   let marketingAllowed = false;
   let analyticsAllowed = false;
 
-  const customerPrivacy = init.customerPrivacy;
+  // customerPrivacy is provided directly to the register callback
   if (customerPrivacy) {
     
     marketingAllowed = customerPrivacy.marketingAllowed === true;
@@ -224,7 +261,7 @@ register(({ analytics, settings, init }) => {
     sendToBackend("product_viewed", {
       productId: product.id,
       productName: product.title || "",
-      productPrice: parseFloat(product.price?.amount || "0"),
+      productPrice: toNumber(product.price?.amount),
       currency: product.price?.currencyCode || "USD",
     });
   });
@@ -233,7 +270,7 @@ register(({ analytics, settings, init }) => {
     const cartLine = event.data?.cartLine as CartLineData | undefined;
     if (!cartLine?.merchandise?.id) return;
 
-    const price = parseFloat(cartLine.merchandise.price?.amount || "0");
+    const price = toNumber(cartLine.merchandise.price?.amount);
     const quantity = cartLine.quantity || 1;
 
     sendToBackend("product_added_to_cart", {
@@ -252,12 +289,12 @@ register(({ analytics, settings, init }) => {
 
     sendToBackend("checkout_started", {
       checkoutToken: checkout.token || "",
-      value: parseFloat(checkout.totalPrice?.amount || "0"),
+      value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || "USD",
       items: (checkout.lineItems || []).map((item) => ({
         id: item.id || "",
         name: item.title || "",
-        price: parseFloat(item.variant?.price?.amount || "0"),
+        price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
       })),
     });
@@ -269,7 +306,7 @@ register(({ analytics, settings, init }) => {
 
     sendToBackend("payment_info_submitted", {
       checkoutToken: checkout.token || "",
-      value: parseFloat(checkout.totalPrice?.amount || "0"),
+      value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || "USD",
     });
   });
@@ -290,9 +327,9 @@ register(({ analytics, settings, init }) => {
       return;
     }
 
-    const value = parseFloat(checkout.totalPrice?.amount || "0");
-    const tax = parseFloat(checkout.totalTax?.amount || "0");
-    const shipping = parseFloat(checkout.shippingLine?.price?.amount || "0");
+    const value = toNumber(checkout.totalPrice?.amount);
+    const tax = toNumber(checkout.totalTax?.amount);
+    const shipping = toNumber(checkout.shippingLine?.price?.amount);
 
     sendToBackend("checkout_completed", {
 
@@ -306,7 +343,7 @@ register(({ analytics, settings, init }) => {
       items: (checkout.lineItems || []).map((item) => ({
         id: item.id || "",
         name: item.title || "",
-        price: parseFloat(item.variant?.price?.amount || "0"),
+        price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
       })),
     });

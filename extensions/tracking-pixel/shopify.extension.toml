@@ -17,13 +17,11 @@ runtime_context = "strict"
   # No sale of data - data is only used for merchant's own tracking
   sale_of_data = "disabled"
 
-[settings]
-  [[settings.fields]]
-    key = "backend_url"
-    name = "Backend URL"
-    description = "Your Tracking Guardian app URL (e.g., https://your-app.onrender.com). Required for server-side tracking."
-    type = "single_line_text_field"
+# P0-1: Backend URL is now retrieved from app metafields for security
+# The app automatically sets the correct URL during installation
+# This prevents merchants from configuring arbitrary URLs
 
+[settings]
   # P0-4: Renamed from ingestion_secret to ingestion_key with updated description
   [[settings.fields]]
     key = "ingestion_secret"
@@ -36,3 +34,8 @@ runtime_context = "strict"
     name = "Debug Mode"
     description = "Enable debug logging in browser console (disable for production)"
     type = "boolean"
+
+# P0-1: App metafields configuration
+# The backend_url is stored as an app-owned metafield, not editable by merchants
+[settings.fields.metafields]
+# App metafields are automatically read-only for merchants

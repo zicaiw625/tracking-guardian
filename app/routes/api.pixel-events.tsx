@@ -376,6 +376,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
   }
 
+  // P1-2: Validate Content-Type header
+  const contentType = request.headers.get("Content-Type");
+  if (!contentType || !contentType.includes("application/json")) {
+    return jsonWithCors(
+      { error: "Content-Type must be application/json" },
+      { status: 415, request }
+    );
+  }
+
   const signature = request.headers.get("X-Tracking-Guardian-Signature");
   const timestamp = request.headers.get("X-Tracking-Guardian-Timestamp");
   const isExplicitlyUnsigned = request.headers.get("X-Tracking-Guardian-Unsigned") === "true";

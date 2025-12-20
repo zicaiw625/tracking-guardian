@@ -155,6 +155,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405 });
   }
 
+  // P1-2: Validate Content-Type header
+  const contentType = request.headers.get("Content-Type");
+  if (!contentType || !contentType.includes("application/json")) {
+    return jsonWithCors(
+      { error: "Content-Type must be application/json" },
+      { status: 415 }
+    );
+  }
+
+  // P1-2: Validate body size (max 16KB for survey data)
+  const MAX_SURVEY_BODY_SIZE = 16 * 1024; // 16KB
+  const contentLength = parseInt(request.headers.get("Content-Length") || "0", 10);
+  if (contentLength > MAX_SURVEY_BODY_SIZE) {
+    return jsonWithCors(
+      { error: "Request body too large", maxSize: MAX_SURVEY_BODY_SIZE },
+      { status: 413 }
+    );
+  }
+
   try {
     
     const shopHeader = request.headers.get("X-Shopify-Shop-Domain");

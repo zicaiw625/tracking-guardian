@@ -207,9 +207,121 @@ For data-related inquiries or requests:
 
 ---
 
+---
+
+## App Store Review Checklist
+
+本节提供 Shopify App Store 审核所需的自检清单和测试步骤。
+
+### Pre-Submission Checklist
+
+#### Data Protection Details (Partner Dashboard)
+- [ ] 声明收集的数据类型: Order ID, Order Value, Currency, Line Items
+- [ ] 声明数据用途: Conversion tracking, Attribution, Reconciliation
+- [ ] 声明数据保留期: Configurable 30-365 days
+- [ ] 声明数据删除方式: Automatic retention-based + GDPR webhooks
+- [ ] 声明第三方分享: Google, Meta, TikTok (仅哈希后的转化数据)
+
+#### Privacy & Security
+- [ ] Privacy Policy 链接可访问且内容匹配应用功能
+- [ ] Terms of Service 链接可访问
+- [ ] Support 联系方式有效
+- [ ] 确认 scopes 最小化 (见下方)
+
+#### Scopes Justification
+| Scope | 必要性解释 | 对应功能 |
+|-------|-----------|---------|
+| `read_orders` | 接收 orders/paid webhook 以发送转化事件 | CAPI 发送 |
+| `read_script_tags` | 扫描旧版 ScriptTag 用于迁移建议 | 扫描报告 |
+| `write_pixels` | 创建/管理 Web Pixel extension | 像素安装 |
+| `read_customer_events` | 接收 Web Pixel 客户端事件 | 客户端追踪 |
+
+### Test Steps for Reviewers
+
+#### 1. 安装与配置 (5 分钟)
+```
+1. 从 App Store 安装应用
+2. 完成 OAuth 授权
+3. 进入应用首页 → 确认无错误提示
+4. 进入「设置」页面 → 检查 Ingestion Key 已自动生成 (绿色 Badge)
+```
+
+#### 2. 像素激活验证 (3 分钟)
+```
+1. 进入「迁移」页面
+2. 点击「安装 Web Pixel」
+3. 确认像素状态变为「已安装」
+4. 打开店铺 checkout 页面完成测试订单
+```
+
+#### 3. 事件追踪验证 (3 分钟)
+```
+1. 完成测试订单后等待 30 秒
+2. 进入「监控」页面
+3. 确认看到订单记录 (Shopify 列)
+4. 如已配置平台，确认平台状态显示「已发送」或「待同步」
+```
+
+#### 4. GDPR 删除验证 (2 分钟)
+```
+1. 卸载应用
+2. 等待 48 小时（或触发 shop/redact webhook）
+3. 确认所有店铺数据被删除
+```
+
+### Data Flow Diagram
+
+```
+Customer Browser              Shopify                 Tracking Guardian            Ad Platforms
+      │                          │                           │                          │
+      │──── Page View ───────────│                           │                          │
+      │                          │                           │                          │
+      │                          │                           │                          │
+      │──── Checkout Complete ───│                           │                          │
+      │                          │                           │                          │
+      │                          │──── Web Pixel Event ──────│                          │
+      │                          │    (signed, consent)      │                          │
+      │                          │                           │                          │
+      │                          │──── orders/paid Webhook ──│                          │
+      │                          │    (HMAC verified)        │                          │
+      │                          │                           │                          │
+      │                          │                           │── CAPI (if consented) ──│
+      │                          │                           │   (hashed PII only)      │
+```
+
+---
+
 ## P0 优化实施记录 (2025-12-20)
 
 本节记录了针对 Shopify App Store 上架合规和安全性的 P0/P1 级别优化。
+
+### P0-01: 移除商家可配置任意后端 URL
+
+**问题**: 允许商家配置任意 `backend_url` 可能被审核判定为数据外流风险。
+
+**解决方案**:
+- 从 `tracking-pixel/shopify.extension.toml` 删除 `backend_url` 设置
+- 从 `thank-you-blocks/shopify.extension.toml` 删除 `app_url` 设置
+- Extension 代码使用 allowlist 验证，只允许预定义的生产 URL
+- 非 allowlist URL 自动回退到生产 URL 常量
+
+**验收**: 商家配置界面不再显示 URL 输入框。
+
+### P0-02: 告警渠道密钥加密存储
+
+**问题**: Slack webhook URL 和 Telegram token 以明文存储在数据库中。
+
+**解决方案**:
+- AlertConfig 表新增 `settingsEncrypted` 字段
+- 敏感设置 (webhookUrl, botToken) 使用 AES-256-GCM 加密存储
+- `settings` 字段仅存储非敏感元数据 (channel, masked values)
+- 提供数据迁移脚本 `scripts/migrate-alert-settings.ts`
+
+**验收**: 数据库中搜索不到明文 Slack webhook URL 或 Telegram token。
+
+### P0-03: 生产环境强制签名验证
+
+**改进**: 确认现有实现已满足要求。
 
 ### P0-04: 生产环境 Unsigned Pixel Events 硬化
 
