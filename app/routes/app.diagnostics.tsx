@@ -92,7 +92,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // Check 1: Ingestion Secret
+  // Check 1: Ingestion Key (used for request correlation and noise filtering)
   checks.push({
     name: "Ingestion Key",
     status: shop.ingestionSecret ? "pass" : "fail",
@@ -100,18 +100,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       ? "已配置 Ingestion Key"
       : "Ingestion Key 未配置",
     details: shop.ingestionSecret
-      ? "像素事件签名验证已启用"
+      ? "像素事件关联与过滤已启用"
       : "请在设置页面生成 Ingestion Key",
   });
 
   // Check 2: Web Pixel Status
+  // Our App Pixel is identified by having an ingestion_secret setting
   try {
     const existingPixels = await getExistingWebPixels(admin);
-    const backendUrl = process.env.SHOPIFY_APP_URL || "";
     const ourPixel = existingPixels.find((p) => {
       try {
         const settings = JSON.parse(p.settings || "{}");
-        return settings.backend_url === backendUrl || settings.ingestion_secret;
+        // Our App Pixel is identified by having an ingestion_secret setting
+        return typeof settings.ingestion_secret === "string";
       } catch {
         return false;
       }

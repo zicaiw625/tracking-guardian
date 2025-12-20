@@ -416,22 +416,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Shop not found or inactive" }, { status: 404, request });
     }
 
-    // P0-03 + P1-03: Ingestion key validation with actual matching
+    // P0-03 + P1-03: Ingestion key validation with actual matching and HARD BLOCKING
     // The ingestion key helps correlate pixel events with shops and filter noise
+    // When shop has a key configured, we MUST validate it - otherwise reject silently (no database writes)
     const ingestionKey = request.headers.get("X-Tracking-Guardian-Key");
     let keyValidation: { matched: boolean; reason: string; usedPreviousSecret?: boolean };
     
     if (!shop.ingestionSecret) {
-      // Shop doesn't have a key configured - this is unusual but not a security issue
+      // Shop doesn't have a key configured - unusual, but allow for backwards compatibility
+      // New shops will always have a key generated on install
       keyValidation = { matched: false, reason: "shop_no_key_configured" };
-      logger.info(`[P0-03] Shop ${shop.shopDomain} has no ingestion key configured`);
+      logger.info(`[P0-03] Shop ${shop.shopDomain} has no ingestion key configured - allowing request`);
     } else if (!ingestionKey) {
-      // Request doesn't include a key - might be misconfigured pixel
-      keyValidation = { matched: false, reason: "request_no_key" };
-      logger.info(`[P0-03] Pixel request from ${shop.shopDomain} missing ingestion key`);
+      // P1-03 HARD BLOCK: Shop has a key but request doesn't include one
+      // This prevents forged pixel receipts that could manipulate consent state
+      logger.warn(`[P1-03] BLOCKED: Pixel request from ${shop.shopDomain} missing ingestion key`);
+      return new Response(null, {
+        status: 204, // Silent rejection - don't reveal we're blocking
+        headers: getCorsHeaders(request),
+      });
     } else {
-      // P1-03: Actually verify the ingestion key matches
-      // Import verifyWithGraceWindow for key matching with grace window support
+      // P1-03: Actually verify the ingestion key matches (with grace window support)
       const { verifyWithGraceWindow } = await import("../utils/shop-access");
       const matchResult = verifyWithGraceWindow(shop, (secret) => secret === ingestionKey);
       
@@ -442,15 +447,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           usedPreviousSecret: matchResult.usedPreviousSecret,
         };
       } else {
-        // Key provided but doesn't match - could be stale pixel configuration or abuse
-        keyValidation = { matched: false, reason: "key_mismatch" };
-        logger.warn(`[P1-03] Ingestion key mismatch for shop ${shop.shopDomain} - stale pixel config or potential abuse`);
+        // P1-03 HARD BLOCK: Key provided but doesn't match
+        // Could be stale pixel configuration, key rotation issue, or potential abuse
+        logger.warn(`[P1-03] BLOCKED: Ingestion key mismatch for shop ${shop.shopDomain}`);
+        return new Response(null, {
+          status: 204, // Silent rejection
+          headers: getCorsHeaders(request),
+        });
       }
     }
 
-    // P0-03: Trust is now based on Origin validation (done at CORS level) + rate limiting
-    // NOT on client-side HMAC signatures (which provide no real security)
-    const isTrusted = isValidShopifyOrigin(origin);
+    // P0-03: Trust is now based on Origin validation (done at CORS level) + rate limiting + key validation
+    // Key validation provides the primary defense against forged pixel receipts
+    const isTrusted = isValidShopifyOrigin(origin) && keyValidation.matched;
 
     const rawOrderId = payload.data.orderId;
     const checkoutToken = payload.data.checkoutToken;

@@ -21,12 +21,12 @@ embedded = true
 # - read_orders: Required for webhook order data and reconciliation reports
 # - read_script_tags: Required for migration scanning (detecting old tracking scripts)
 # - write_pixels: Required to create/manage the App Pixel extension
+# - read_customer_events: Required by Shopify for webPixelCreate mutation
+#   (see https://shopify.dev/docs/api/admin-graphql/latest/mutations/webpixelcreate)
 #
-# Note: read_customer_events removed - our pixel sends data directly to our backend
-# via HTTP, not through Shopify's Customer Events API.
 # Note: read_checkouts removed (P3-1) - checkout data comes via Web Pixel events,
 # not via Admin API.
-scopes = "read_orders,read_script_tags,write_pixels"
+scopes = "read_orders,read_script_tags,write_pixels,read_customer_events"
 
 [auth]
 # Update these URLs with your deployed app URL

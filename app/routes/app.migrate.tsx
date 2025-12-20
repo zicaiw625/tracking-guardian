@@ -374,7 +374,7 @@ export default function MigratePage() {
                         <List.Item>仅追踪 checkout_completed 事件</List.Item>
                         <List.Item>不收集浏览历史或个人行为</List.Item>
                         <List.Item>遵守 Shopify Customer Privacy API</List.Item>
-                        <List.Item>数据发送前经过 SHA-256 哈希处理</List.Item>
+                        <List.Item>不传输可识别个人身份信息（PII）</List.Item>
                       </List>
                     </BlockStack>
                   </Box>
@@ -596,7 +596,7 @@ export default function MigratePage() {
                     <BlockStack gap="200">
                       <Text as="span" fontWeight="semibold">3. 发送 CAPI 转化</Text>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        服务器将哈希后的数据发送到广告平台
+                        服务器发送订单金额和商品信息到广告平台
                       </Text>
                     </BlockStack>
                   </Box>

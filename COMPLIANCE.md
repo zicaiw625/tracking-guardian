@@ -243,11 +243,12 @@ For data-related inquiries or requests:
 |-------|-----------|-----------|---------|
 | `read_orders` | 接收 orders/paid webhook 以发送转化事件 | `app/routes/webhooks.tsx:175-248` | CAPI 发送 |
 | `read_script_tags` | 扫描旧版 ScriptTag 用于迁移建议 | `app/services/scanner.server.ts:132-199` | 扫描报告 |
-| `write_pixels` | 创建/管理 Web Pixel extension | `app/services/migration.server.ts:193-266` | 像素安装 |
+| `write_pixels` | 创建/管理 App Pixel extension | `app/services/migration.server.ts:203-268` | 像素安装 |
+| `read_customer_events` | Shopify webPixelCreate API 必需 | `app/services/migration.server.ts:214-237` | 像素创建 |
 
 **P0-04 验证**: 所有 scopes 都有明确的代码调用点和业务理由。
 
-> **Note**: `read_customer_events` 已移除 - 我们的 App Pixel 直接通过 HTTP 发送数据到后端，不使用 Shopify Customer Events API 读取事件。
+> **Note**: `read_customer_events` 是 Shopify `webPixelCreate` mutation 的必需权限，见 [官方文档](https://shopify.dev/docs/api/admin-graphql/latest/mutations/webpixelcreate)。
 
 ### Test Steps for Reviewers
 

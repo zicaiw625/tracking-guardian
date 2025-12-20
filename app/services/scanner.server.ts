@@ -478,17 +478,20 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     });
   }
 
-  const hasCAPIConfigured = result.webPixels.some(p => {
+  // Check if our App Pixel is configured (identified by having ingestion_secret)
+  // Note: backend_url was removed from pixel settings - we now use a hardcoded production URL
+  const hasAppPixelConfigured = result.webPixels.some(p => {
     if (!p.settings) return false;
     try {
       const settings = typeof p.settings === "string" ? JSON.parse(p.settings) : p.settings;
-      return (settings as Record<string, unknown>).backend_url;
+      // Our App Pixel is identified by having an ingestion_secret setting
+      return typeof (settings as Record<string, unknown>).ingestion_secret === "string";
     } catch {
       return false;
     }
   });
   
-  if (!hasCAPIConfigured && result.identifiedPlatforms.length > 0) {
+  if (!hasAppPixelConfigured && result.identifiedPlatforms.length > 0) {
     actions.push({
       type: "enable_capi",
       priority: "low",

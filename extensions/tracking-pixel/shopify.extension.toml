@@ -5,38 +5,40 @@ type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
 
-# Privacy & Consent Configuration (P1-05)
-# This pixel respects customer consent and only sends data when allowed
+# Privacy & Consent Configuration (P3)
+# 
+# DESIGN PRINCIPLE: Lower the pixel loading threshold, control sending in code
+# ============================================================================
+# 
+# Problem with requiring BOTH analytics=true AND marketing=true:
+#   - Shopify may only load the pixel when BOTH consents are granted
+#   - This significantly reduces pixel load coverage
+#   - Our code-level consent checking becomes useless if pixel never loads
 #
-# Why marketing=true?
-# - We send conversion data to ad platforms (Meta CAPI, TikTok Events, Google GA4)
-# - This is for advertising attribution and optimization
-# - If a customer denies marketing consent, the pixel will NOT send any data
+# Solution: Only require analytics consent for pixel loading
+#   - analytics=true: Pixel loads when user consents to analytics
+#   - marketing=false: Don't require marketing consent to LOAD the pixel
+#   - sale_of_data="enabled": Respect user opt-out for data sharing
 #
-# Why analytics=true?
-# - Conversion tracking is also considered analytics
-# - Some shops may only use analytics consent (not marketing)
-# - We check EITHER marketing OR analytics consent before sending
+# Code-level consent checking (in index.ts):
+#   - hasAnyConsent() checks: (marketing OR analytics) AND saleOfDataAllowed
+#   - If user only consented to analytics but not marketing: we can still load
+#   - If user opted out of sale_of_data: we DON'T send to ad platforms
 #
-# Why sale_of_data="enabled"?
-# - We share conversion data with third-party ad platforms for attribution
-# - This falls under "sale of data" semantics in some jurisdictions (e.g., CCPA)
-# - When enabled: if customer opts out of sale_of_data, pixel respects that
-# - The pixel code checks saleOfDataAllowed in addition to marketing/analytics
+# This gives us maximum flexibility while respecting user consent choices
 #
-# Merchant Visibility:
-# - If a customer denies marketing OR sale_of_data consent, CAPI data will NOT be sent
-# - Merchants should be aware of this in their consent banner settings
-# - This is compliant with GDPR/CCPA and other privacy regulations
 [customer_privacy]
-  # Analytics: conversion tracking and reporting
+  # Analytics: pixel loads when analytics consent is granted
+  # Conversion tracking is fundamentally an analytics/measurement function
   analytics = true
-  # Marketing: data sent to ad platforms for optimization
-  marketing = true
+  # Marketing: NOT required for pixel loading
+  # Our code checks marketing consent before sending to ad platforms
+  # Setting to false allows pixel to load even without marketing consent
+  marketing = false
   # Preferences: not used by this pixel
   preferences = false
   # Sale of data: enabled - we share conversion data with ad platforms
-  # If customer opts out, the pixel will NOT send any data
+  # When user opts out, our code respects that and doesn't send data
   sale_of_data = "enabled"
 
 # P0-01: Backend URL is hardcoded in the pixel extension for security
