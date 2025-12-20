@@ -52,6 +52,10 @@ const shopify = shopifyApp({
   
   sessionStorage: encryptedSessionStorage,
   distribution: AppDistribution.AppStore,
+  // P0-1 (Review Fix): Only register BUSINESS webhooks here
+  // Mandatory compliance webhooks (customers/data_request, customers/redact, shop/redact)
+  // are subscribed via shopify.app.toml [webhooks.subscriptions] compliance_topics
+  // to avoid duplicate deliveries
   webhooks: {
     APP_UNINSTALLED: {
       deliveryMethod: DeliveryMethod.Http,
@@ -67,19 +71,9 @@ const shopify = shopifyApp({
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-
-    CUSTOMERS_DATA_REQUEST: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    CUSTOMERS_REDACT: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    SHOP_REDACT: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
+    // NOTE: CUSTOMERS_DATA_REQUEST, CUSTOMERS_REDACT, SHOP_REDACT
+    // are NOT registered here - they come from shopify.app.toml compliance_topics
+    // to prevent duplicate webhook deliveries and GDPRJob creation
   },
   hooks: {
     afterAuth: async ({ session }) => {

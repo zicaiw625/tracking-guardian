@@ -99,9 +99,11 @@ Tracking Guardian processes order data to:
 We fully implement Shopify's mandatory compliance webhooks:
 
 #### `customers/data_request`
-- **Response**: Export all data associated with specified order IDs
-- **Timeline**: Completed within 30 days
-- **Data included**: Conversion logs, survey responses, pixel receipts
+- **Response**: Locate and count all data associated with specified order IDs
+- **Timeline**: Job queued immediately, completed within 30 days
+- **Data located**: Conversion logs, survey responses, pixel receipts
+- **Output**: Returns counts and metadata; full data export available via support request
+- **Note**: For complete data export, contact support with the data_request_id from the job result
 
 #### `customers/redact`
 - **Action**: Delete all data for specified orders
@@ -112,6 +114,51 @@ We fully implement Shopify's mandatory compliance webhooks:
 - **Action**: Delete ALL data for the shop (mandatory 48h after uninstall)
 - **Scope**: Complete data deletion including Sessions, all conversion data, configs
 - **Independence**: Executes regardless of shop active status
+
+---
+
+## 4.5 Partner Dashboard - Protected Customer Data Declaration
+
+### Required Actions Before App Store Submission
+
+Before submitting to Shopify App Store, you MUST complete these steps in Partner Dashboard:
+
+#### Step 1: Navigate to App Settings
+1. Go to [partners.shopify.com](https://partners.shopify.com)
+2. Select your app → "Configuration" → "App access"
+3. Find "Protected customer data access" section
+
+#### Step 2: Declare Data Access Levels
+
+Based on our implementation, declare the following:
+
+| Data Type | Access Level | Justification |
+|-----------|--------------|---------------|
+| Orders | Level 1 | Required for conversion tracking reconciliation (`reconciliation.server.ts`) |
+| Customer data | Not Required | We do NOT access email/phone/name/address |
+| Marketing | Optional | Only if merchant enables enhanced matching (currently disabled) |
+
+#### Step 3: Complete Privacy Policy
+
+Ensure your privacy policy includes:
+- What data is collected (order ID, value, currency, items)
+- How data is used (conversion tracking, reconciliation)
+- Data retention period (configurable, default 90 days)
+- GDPR rights (access, deletion)
+- Third-party sharing (Google, Meta, TikTok with consent)
+
+#### Step 4: Verify Webhook Compliance
+
+Confirm mandatory webhooks are registered:
+- ✅ `customers/data_request` - Implemented
+- ✅ `customers/redact` - Implemented
+- ✅ `shop/redact` - Implemented
+
+#### Important Notes
+
+1. **Level 1 Access**: Our `read_orders` scope for reconciliation reports falls under Level 1 protected data
+2. **No PII Storage**: We don't store email/phone/name, so Level 2+ is NOT required
+3. **Review Timeline**: Protected Customer Data review may take 2-4 weeks
 
 ---
 

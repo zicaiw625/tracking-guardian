@@ -28,15 +28,28 @@ interface ShopRedactPayload {
   shop_domain?: string;
 }
 
+// P2-1: Enhanced data request result for GDPR compliance
+// Returns counts AND record IDs for easier data export via support
 interface DataRequestResult {
   dataRequestId?: number;
   customerId?: number;
   ordersIncluded: number[];
-  dataExported: {
-    conversionLogs: number;
-    surveyResponses: number;
-    pixelEventReceipts: number;
+  dataLocated: {
+    conversionLogs: {
+      count: number;
+      recordIds: string[];  // For support-assisted export
+    };
+    surveyResponses: {
+      count: number;
+      recordIds: string[];
+    };
+    pixelEventReceipts: {
+      count: number;
+      recordIds: string[];
+    };
   };
+  // Note: Full data export available via support request
+  // Use the recordIds to locate and export complete records
   exportedAt: string;
 }
 
@@ -96,10 +109,10 @@ async function processDataRequest(
       dataRequestId,
       customerId,
       ordersIncluded: [],
-      dataExported: {
-        conversionLogs: 0,
-        surveyResponses: 0,
-        pixelEventReceipts: 0,
+      dataLocated: {
+        conversionLogs: { count: 0, recordIds: [] },
+        surveyResponses: { count: 0, recordIds: [] },
+        pixelEventReceipts: { count: 0, recordIds: [] },
       },
       exportedAt: new Date().toISOString(),
     };
@@ -154,21 +167,33 @@ async function processDataRequest(
     },
   });
   
+  // P2-1: Return counts AND record IDs for support-assisted export
   const result: DataRequestResult = {
     dataRequestId,
     customerId,
     ordersIncluded: ordersRequested,
-    dataExported: {
-      conversionLogs: conversionLogs.length,
-      surveyResponses: surveyResponses.length,
-      pixelEventReceipts: pixelReceipts.length,
+    dataLocated: {
+      conversionLogs: {
+        count: conversionLogs.length,
+        recordIds: conversionLogs.map(log => log.id),
+      },
+      surveyResponses: {
+        count: surveyResponses.length,
+        recordIds: surveyResponses.map(survey => survey.id),
+      },
+      pixelEventReceipts: {
+        count: pixelReceipts.length,
+        recordIds: pixelReceipts.map(receipt => receipt.id),
+      },
     },
     exportedAt: new Date().toISOString(),
   };
   
   logger.info(`[GDPR] Data request completed for ${shopDomain}`, {
     dataRequestId,
-    ...result.dataExported,
+    conversionLogs: result.dataLocated.conversionLogs.count,
+    surveyResponses: result.dataLocated.surveyResponses.count,
+    pixelEventReceipts: result.dataLocated.pixelEventReceipts.count,
   });
   
   return result;

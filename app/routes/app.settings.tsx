@@ -445,8 +445,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
 
-      const baseMessage = "Ingestion Key 已更新。";
-      const graceMessage = ` 旧密钥将在 ${graceWindowMinutes} 分钟内继续有效。`;
+      const baseMessage = "关联令牌已更新。";
+      const graceMessage = ` 旧令牌将在 ${graceWindowMinutes} 分钟内继续有效。`;
       const syncMessage = pixelSyncResult.success 
         ? pixelSyncResult.message 
         : `⚠️ ${pixelSyncResult.message}`;
@@ -731,8 +731,8 @@ export default function SettingsPage() {
 
   const handleRotateSecret = () => {
     const message = shop?.hasIngestionSecret 
-      ? "确定要更换 Ingestion Key 吗？更换后 Web Pixel 将自动更新。"
-      : "确定要生成 Ingestion Key 吗？";
+      ? "确定要更换关联令牌吗？更换后 Web Pixel 将自动更新。"
+      : "确定要生成关联令牌吗？";
     if (confirm(message)) {
       const formData = new FormData();
       formData.append("_action", "rotateIngestionSecret");
@@ -1148,7 +1148,7 @@ export default function SettingsPage() {
                       安全设置
                     </Text>
                     <Text as="p" tone="subdued">
-                      管理 Pixel 事件签名密钥和数据安全设置。
+                      管理 Pixel 事件关联令牌和数据安全设置。
                     </Text>
 
                     <Divider />
@@ -1156,15 +1156,19 @@ export default function SettingsPage() {
                     {}
                     <BlockStack gap="300">
                       <Text as="h3" variant="headingMd">
-                        Ingestion Key
+                        Ingestion Key（关联令牌）
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        用于关联和验证来自 Web Pixel 的事件请求。此密钥帮助我们：
+                        用于关联来自 Web Pixel 的事件请求。此令牌帮助我们：
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        • 过滤无效或恶意请求（抗噪）
+                        • 过滤误配置或无效请求（抗噪）
                         <br />• 将像素事件与订单正确关联（诊断）
-                        <br />• 在多实例部署中识别请求来源
+                        <br />• 在多店铺场景中识别请求来源
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="caution">
+                        ⚠️ 注意：此令牌在浏览器网络请求中可见，不是安全凭证。
+                        真正的安全由 TLS 加密、Origin 验证、速率限制和数据最小化提供。
                       </Text>
                       
                       <Box
@@ -1182,14 +1186,14 @@ export default function SettingsPage() {
                                 <>
                                   <Badge tone="success">已配置</Badge>
                                   <Text as="span" variant="bodySm" tone="subdued">
-                                    密钥已安全存储
+                                    令牌已配置
                                   </Text>
                                 </>
                               ) : (
                                 <>
                                   <Badge tone="attention">未配置</Badge>
                                   <Text as="span" variant="bodySm" tone="subdued">
-                                    请重新安装应用或点击生成密钥
+                                    请重新安装应用或点击生成令牌
                                   </Text>
                                 </>
                               )}
@@ -1200,15 +1204,15 @@ export default function SettingsPage() {
                             onClick={handleRotateSecret}
                             loading={isSubmitting}
                           >
-                            {shop?.hasIngestionSecret ? "更换密钥" : "生成密钥"}
+                            {shop?.hasIngestionSecret ? "更换令牌" : "生成令牌"}
                           </Button>
                         </InlineStack>
                       </Box>
 
                       <Banner tone="info">
                         <p>
-                          <strong>注意：</strong>Ingestion Key 会被服务端验证。缺少或错误的密钥会导致像素事件被拒绝。
-                          更换密钥后，App Pixel 会自动更新，通常无需手动操作。
+                          <strong>工作原理：</strong>服务端会验证此令牌，缺少或错误的令牌会导致像素事件被拒绝（204 响应）。
+                          更换令牌后，App Pixel 会自动更新，通常无需手动操作。
                         </p>
                       </Banner>
                     </BlockStack>

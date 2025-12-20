@@ -10,14 +10,21 @@
  * Other events (page_viewed, product_viewed, etc.) are NOT collected.
  * This aligns with our privacy disclosure that we don't collect browsing history.
  * 
- * Ingestion Key:
- * The ingestion_secret is a store-scoped key that IS validated server-side.
- * Requests with missing or invalid keys are rejected with 204 No Content.
- * This provides access control for the pixel event ingestion endpoint.
+ * P1-1: Ingestion Key Clarification
+ * The ingestion_secret is a CORRELATION TOKEN, NOT a security credential.
+ * - It is visible in browser network traffic (anyone can see it)
+ * - Primary purpose: correlate pixel events with webhooks, filter noise/misconfigured requests
+ * - Server validates it to reject obviously invalid requests (204 No Content)
+ * 
+ * REAL SECURITY BOUNDARIES (defense in depth):
+ * 1. TLS encryption (all traffic is HTTPS)
+ * 2. Origin validation (only Shopify checkout/thank-you page origins accepted)
+ * 3. Rate limiting (per-shop and global limits)
+ * 4. Data minimization (no PII collected, only order IDs and values)
+ * 5. Webhook verification (orderId must match ORDERS_PAID webhook for CAPI sending)
  */
 
 import { register } from "@shopify/web-pixels-extension";
-// Ingestion key is validated server-side - invalid keys cause request rejection
 
 // P0-1: Production URL constant - set during deployment
 // This is the ONLY allowed backend URL; merchants cannot configure arbitrary URLs
