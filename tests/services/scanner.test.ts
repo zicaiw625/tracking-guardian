@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock Prisma
 vi.mock("../../app/db.server", () => ({
   default: {
     scanReport: {
@@ -10,14 +9,9 @@ vi.mock("../../app/db.server", () => ({
   },
 }));
 
-// We need to test the detection functions which are private
-// For now, we'll test through the public API
-
 describe("Scanner Service", () => {
   describe("Platform Detection Patterns", () => {
-    // Test the patterns directly since detectPlatforms is a private function
-    // These tests validate that our regex patterns correctly identify platforms
-    
+
     const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
       google: [
         /gtag\s*\(/i,
@@ -220,7 +214,7 @@ describe("Scanner Service", () => {
           points: 20,
         },
       ];
-      // 20 * 1.5 = 30
+      
       expect(calculateRiskScore(items)).toBe(30);
     });
 
@@ -234,7 +228,7 @@ describe("Scanner Service", () => {
           points: 20,
         },
       ];
-      // 20 * 1.0 = 20
+      
       expect(calculateRiskScore(items)).toBe(20);
     });
 
@@ -248,7 +242,7 @@ describe("Scanner Service", () => {
           points: 20,
         },
       ];
-      // 20 * 0.5 = 10
+      
       expect(calculateRiskScore(items)).toBe(10);
     });
 
@@ -258,7 +252,7 @@ describe("Scanner Service", () => {
         { id: "2", name: "B", description: "", severity: "high", points: 50 },
         { id: "3", name: "C", description: "", severity: "high", points: 50 },
       ];
-      // 150 * 1.5 = 225, but capped at 100
+      
       expect(calculateRiskScore(items)).toBe(100);
     });
 
@@ -268,7 +262,7 @@ describe("Scanner Service", () => {
         { id: "2", name: "B", description: "", severity: "medium", points: 20 },
         { id: "3", name: "C", description: "", severity: "low", points: 10 },
       ];
-      // (30 * 1.5) + (20 * 1.0) + (10 * 0.5) = 45 + 20 + 5 = 70
+      
       expect(calculateRiskScore(items)).toBe(70);
     });
   });

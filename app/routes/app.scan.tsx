@@ -76,7 +76,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const actionType = formData.get("_action");
 
-  // P2-1: Handle manual script analysis
   if (actionType === "analyzeScript") {
     const scriptContent = formData.get("scriptContent") as string;
     
@@ -100,7 +99,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
-  // Default: Full shop scan
   try {
     const scanResult = await scanShopTracking(admin, shop.id);
     return json({ success: true, actionType: "scan", result: scanResult });
@@ -137,7 +135,6 @@ export default function ScanPage() {
     submit(formData, { method: "post" });
   };
 
-  // Get analysis result from action data
   const analysisResult = actionData && "analysisResult" in actionData 
     ? actionData.analysisResult as ScriptAnalysisResult
     : null;
@@ -184,7 +181,7 @@ export default function ScanPage() {
     >
       <BlockStack gap="500">
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-          {/* Auto Scan Tab */}
+          {}
           {selectedTab === 0 && (
             <BlockStack gap="500">
               <Box paddingBlockStart="400">
@@ -200,7 +197,7 @@ export default function ScanPage() {
                 </InlineStack>
               </Box>
 
-              {/* Scanning Progress */}
+              {}
               {isScanning && (
                 <Card>
                   <BlockStack gap="400">
@@ -213,7 +210,7 @@ export default function ScanPage() {
                 </Card>
               )}
 
-              {/* No Scan Yet - Empty State with primary CTA */}
+              {}
               {!latestScan && !isScanning && (
                 <Card>
                   <EmptyState
@@ -251,10 +248,10 @@ export default function ScanPage() {
                 </Card>
               )}
 
-        {/* Latest Scan Results */}
+        {}
         {latestScan && !isScanning && (
           <Layout>
-            {/* Risk Score Overview */}
+            {}
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
@@ -293,7 +290,7 @@ export default function ScanPage() {
               </Card>
             </Layout.Section>
 
-            {/* Identified Platforms */}
+            {}
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
@@ -318,7 +315,7 @@ export default function ScanPage() {
               </Card>
             </Layout.Section>
 
-            {/* Script Tags Count */}
+            {}
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
@@ -344,7 +341,7 @@ export default function ScanPage() {
           </Layout>
         )}
 
-        {/* Risk Items Detail */}
+        {}
         {latestScan && riskItems.length > 0 && !isScanning && (
           <Card>
             <BlockStack gap="400">
@@ -386,7 +383,7 @@ export default function ScanPage() {
                           {item.details}
                         </Text>
                       )}
-                      {/* Impact and Action Row */}
+                      {}
                       <InlineStack align="space-between" blockAlign="center">
                         <InlineStack gap="200">
                           {item.platform && (
@@ -414,7 +411,7 @@ export default function ScanPage() {
           </Card>
         )}
 
-        {/* Scan History */}
+        {}
         {scanHistory.length > 1 && (
           <Card>
             <BlockStack gap="400">
@@ -435,7 +432,7 @@ export default function ScanPage() {
           </Card>
         )}
 
-              {/* Migration CTA */}
+              {}
               {latestScan && latestScan.riskScore > 0 && (
                 <Banner
                   title="建议进行迁移"
@@ -451,7 +448,7 @@ export default function ScanPage() {
             </BlockStack>
           )}
 
-          {/* Manual Analysis Tab */}
+          {}
           {selectedTab === 1 && (
             <BlockStack gap="500">
               <Box paddingBlockStart="400">
@@ -506,10 +503,10 @@ export default function ScanPage() {
                 </Card>
               </Box>
 
-              {/* Analysis Results */}
+              {}
               {analysisResult && (
                 <Layout>
-                  {/* Risk Score */}
+                  {}
                   <Layout.Section variant="oneThird">
                     <Card>
                       <BlockStack gap="400">
@@ -540,7 +537,7 @@ export default function ScanPage() {
                     </Card>
                   </Layout.Section>
 
-                  {/* Detected Platforms */}
+                  {}
                   <Layout.Section variant="oneThird">
                     <Card>
                       <BlockStack gap="400">
@@ -565,7 +562,7 @@ export default function ScanPage() {
                     </Card>
                   </Layout.Section>
 
-                  {/* Platform Details */}
+                  {}
                   <Layout.Section variant="oneThird">
                     <Card>
                       <BlockStack gap="400">
@@ -608,7 +605,7 @@ export default function ScanPage() {
                 </Layout>
               )}
 
-              {/* Risk Items */}
+              {}
               {analysisResult && analysisResult.risks.length > 0 && (
                 <Card>
                   <BlockStack gap="400">
@@ -658,7 +655,7 @@ export default function ScanPage() {
                 </Card>
               )}
 
-              {/* Recommendations */}
+              {}
               {analysisResult && analysisResult.recommendations.length > 0 && (
                 <Card>
                   <BlockStack gap="400">

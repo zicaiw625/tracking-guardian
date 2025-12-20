@@ -2,17 +2,12 @@ import { vitePlugin as remix } from "@remix-run/dev";
 import { defineConfig, type UserConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
-// Related: https://github.com/remix-run/remix/issues/2835#issuecomment-1144102176
-// Replace the host with your own
 declare module "@remix-run/node" {
   interface Future {
     v3_singleFetch: true;
   }
 }
 
-// HMR/HDR will not work on a port different from the
-// having a different port number than the default
-// Related discussion: https://github.com/remix-run/remix/discussions/8571#discussioncomment-8811303
 if (
   process.env.HOST &&
   (!process.env.SHOPIFY_APP_URL ||

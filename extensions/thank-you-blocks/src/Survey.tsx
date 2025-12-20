@@ -19,7 +19,7 @@ export default reactExtension(
 
 function Survey() {
   const settings = useSettings();
-  // Use useApi() for thank-you page - orderConfirmation is the recommended approach
+  
   const { sessionToken, orderConfirmation, shop } = useApi();
   
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -33,12 +33,11 @@ function Survey() {
   const title = (settings.survey_title as string) || "我们想听听您的意见";
   const question = (settings.survey_question as string) || "您是如何了解到我们的？";
   const appUrl = (settings.app_url as string) || "";
-  
-  // Subscribe to orderConfirmation to get order details
+
   useEffect(() => {
     async function fetchOrderInfo() {
       try {
-        // orderConfirmation is the recommended API for thank-you pages
+        
         if (orderConfirmation) {
           const orderData = await orderConfirmation;
           if (orderData) {
@@ -69,10 +68,9 @@ function Survey() {
     setError(null);
 
     try {
-      // Get session token for authentication
-      const token = await sessionToken.get();
       
-      // Submit survey response to backend
+      const token = await sessionToken.get();
+
       const surveyData = {
         orderId,
         orderNumber,
@@ -80,10 +78,8 @@ function Survey() {
         source: selectedSource,
       };
 
-      // Get shop domain from API
       const shopDomain = shop?.myshopifyDomain || "";
 
-      // If app URL is configured, send to backend
       if (appUrl && shopDomain) {
         const response = await fetch(`${appUrl}/api/survey`, {
           method: "POST",
@@ -102,7 +98,7 @@ function Survey() {
 
         console.log("Survey submitted successfully to backend");
       } else {
-        // Fallback: just log if app URL not configured
+        
         console.log("Survey submitted (app URL not configured):", surveyData);
       }
 
@@ -137,7 +133,7 @@ function Survey() {
         {title}
       </Text>
 
-      {/* Star Rating */}
+      {}
       <BlockStack spacing="tight">
         <Text size="small">请为本次购物体验打分：</Text>
         <InlineLayout spacing="tight" columns={["auto", "auto", "auto", "auto", "auto"]}>
@@ -157,7 +153,7 @@ function Survey() {
         </InlineLayout>
       </BlockStack>
 
-      {/* Source Question */}
+      {}
       <BlockStack spacing="tight">
         <Text size="small">{question}</Text>
         <InlineLayout spacing="tight" columns={["auto", "auto", "auto"]}>

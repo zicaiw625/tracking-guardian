@@ -1,27 +1,10 @@
-/**
- * Consent Reconciliation Service
- * 
- * P0-6: Handles the case where webhook arrives before pixel event
- * 
- * Problem:
- * - Webhook creates ConversionLog with status="pending_consent" when no pixel receipt exists
- * - User may later accept cookies, causing pixel to fire (and PixelEventReceipt to be created)
- * - Without this reconciler, the order stays stuck in pending_consent forever
- * 
- * Solution:
- * - Periodically scan pending_consent logs
- * - Check if PixelEventReceipt has arrived
- * - If consent allows (based on shop's strategy), move to pending for processing
- * - If timeout (24h), move to dead_letter with explanation
- */
+
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger";
 
-// Timeout after which pending_consent logs are moved to dead_letter
 const CONSENT_TIMEOUT_HOURS = 24;
 
-// Batch size for processing
 const BATCH_SIZE = 100;
 
 interface ConsentReconciliationResult {
@@ -31,17 +14,13 @@ interface ConsentReconciliationResult {
   errors: number;
 }
 
-/**
- * Evaluate consent based on shop strategy and pixel receipt
- * Returns whether CAPI sending should be allowed
- */
 function evaluateConsent(
   strategy: string,
   consentState: { marketing?: boolean; analytics?: boolean } | null
 ): { allowed: boolean; reason: string } {
   switch (strategy) {
     case "strict":
-      // Must have explicit marketing consent
+      
       if (!consentState) {
         return { allowed: false, reason: "No consent state (strict mode)" };
       }
@@ -51,23 +30,23 @@ function evaluateConsent(
       return { allowed: true, reason: "Marketing consent granted" };
       
     case "balanced":
-      // If we have consent state, respect it
+      
       if (consentState) {
         if (consentState.marketing === false) {
           return { allowed: false, reason: "Marketing consent explicitly denied" };
         }
-        // If marketing is true or undefined (not explicitly denied), allow
+        
         return { allowed: true, reason: "Consent received, marketing not denied" };
       }
-      // No consent state - don't send
+      
       return { allowed: false, reason: "No consent state (balanced mode)" };
       
     case "weak":
-      // Always allow (for regions with implied consent)
+      
       return { allowed: true, reason: "Weak consent mode - always allow" };
       
     default:
-      // Default to balanced behavior
+      
       if (consentState && consentState.marketing !== false) {
         return { allowed: true, reason: "Default: consent received" };
       }
@@ -75,22 +54,9 @@ function evaluateConsent(
   }
 }
 
-/**
- * Reconcile pending_consent ConversionLogs
- * 
- * This function:
- * 1. Finds all pending_consent logs
- * 2. Checks if corresponding PixelEventReceipt exists
- * 3. If receipt exists and consent allows, moves to pending
- * 4. If receipt exists and consent denies, moves to dead_letter
- * 5. If no receipt and timeout exceeded, moves to dead_letter
- * 
- * @returns Statistics about what was processed
- */
 export async function reconcilePendingConsent(): Promise<ConsentReconciliationResult> {
   const cutoffTime = new Date(Date.now() - CONSENT_TIMEOUT_HOURS * 60 * 60 * 1000);
-  
-  // Find pending_consent logs
+
   const pendingLogs = await prisma.conversionLog.findMany({
     where: { 
       status: "pending_consent",
@@ -101,12 +67,12 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
           id: true,
           shopDomain: true,
           consentStrategy: true,
-          weakConsentMode: true, // Legacy fallback
+          weakConsentMode: true, 
         },
       },
     },
     take: BATCH_SIZE,
-    orderBy: { createdAt: "asc" }, // Process oldest first
+    orderBy: { createdAt: "asc" }, 
   });
   
   if (pendingLogs.length === 0) {
@@ -121,8 +87,7 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
   
   for (const log of pendingLogs) {
     try {
-      // P0-11: Check if PixelEventReceipt exists for this order
-      // First try by orderId, then fall back to checkoutToken
+
       let receipt = await prisma.pixelEventReceipt.findUnique({
         where: {
           shopId_orderId_eventType: {
@@ -137,10 +102,9 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
           pixelTimestamp: true,
         },
       });
-      
-      // P0-11: If not found by orderId, try to find by checkoutToken
+
       if (!receipt) {
-        // Get checkoutToken from ConversionJob if available
+        
         const job = await prisma.conversionJob.findUnique({
           where: { shopId_orderId: { shopId: log.shopId, orderId: log.orderId } },
           select: { capiInput: true },
@@ -148,7 +112,7 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
         
         const checkoutToken = (job?.capiInput as { checkoutToken?: string } | null)?.checkoutToken;
         if (checkoutToken) {
-          // Try to find receipt by checkoutToken
+          
           receipt = await prisma.pixelEventReceipt.findFirst({
             where: {
               shopId: log.shopId,
@@ -172,14 +136,14 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
       }
       
       if (receipt) {
-        // Receipt exists - evaluate consent
+        
         const strategy = log.shop.consentStrategy || (log.shop.weakConsentMode ? "weak" : "balanced");
         const consentState = receipt.consentState as { marketing?: boolean; analytics?: boolean } | null;
         
         const decision = evaluateConsent(strategy, consentState);
         
         if (decision.allowed) {
-          // Move to pending for processing
+          
           await prisma.conversionLog.update({
             where: { id: log.id },
             data: {
@@ -187,7 +151,7 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
               attempts: 0,
               nextRetryAt: null,
               errorMessage: null,
-              // Mark that we received consent via reconciliation
+              
               clientSideSent: true,
             },
           });
@@ -201,7 +165,7 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
           
           resolved++;
         } else {
-          // Consent denied - move to dead_letter
+          
           await prisma.conversionLog.update({
             where: { id: log.id },
             data: {
@@ -216,14 +180,13 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
             platform: log.platform,
             strategy,
           });
-          
-          // This counts as "resolved" in terms of processing
+
           resolved++;
         }
       } else {
-        // No receipt yet - check if we've exceeded timeout
+        
         if (log.createdAt < cutoffTime) {
-          // Timeout exceeded - move to dead_letter
+          
           await prisma.conversionLog.update({
             where: { id: log.id },
             data: {
@@ -242,7 +205,7 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
           
           expired++;
         }
-        // else: Still waiting for pixel event, leave as pending_consent
+        
       }
     } catch (error) {
       logger.error(`Error reconciling consent for ${log.id}`, error);
@@ -262,10 +225,6 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
   return result;
 }
 
-/**
- * Get statistics about pending_consent logs
- * Useful for monitoring dashboard
- */
 export async function getConsentPendingStats(): Promise<{
   total: number;
   approaching_timeout: number;
@@ -273,7 +232,7 @@ export async function getConsentPendingStats(): Promise<{
 }> {
   const approachingTimeoutCutoff = new Date(
     Date.now() - (CONSENT_TIMEOUT_HOURS - 4) * 60 * 60 * 1000
-  ); // Within 4 hours of timeout
+  ); 
   
   const [total, approachingTimeout, byShop] = await Promise.all([
     prisma.conversionLog.count({
@@ -290,7 +249,7 @@ export async function getConsentPendingStats(): Promise<{
       where: { status: "pending_consent" },
       _count: true,
     }).then(async (groups) => {
-      // Get shop domains for the group
+      
       const shopIds = groups.map(g => g.shopId);
       const shops = await prisma.shop.findMany({
         where: { id: { in: shopIds } },

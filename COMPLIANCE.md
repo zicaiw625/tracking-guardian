@@ -203,6 +203,75 @@ For data-related inquiries or requests:
 |---------|------|---------|
 | 1.0 | 2024-12 | Initial compliance documentation |
 | 1.1 | 2024-12 | Updated consent strategy (default: strict) |
+| 1.2 | 2025-12 | P0/P1 security and compliance hardening (see below) |
+
+---
+
+## P0 优化实施记录 (2025-12-20)
+
+本节记录了针对 Shopify App Store 上架合规和安全性的 P0/P1 级别优化。
+
+### P0-04: 生产环境 Unsigned Pixel Events 硬化
+
+**问题**: 如果 `ALLOW_UNSIGNED_PIXEL_EVENTS=true` 被错误地设置在生产环境，会完全绕过签名验证安全机制。
+
+**解决方案**:
+- 在 `app/utils/secrets.ts` 添加 `enforceSecurityChecks()` 函数
+- 在 `app/entry.server.tsx` 启动时调用安全检查
+- 生产环境下如果设置了 `ALLOW_UNSIGNED_PIXEL_EVENTS=true`，应用会**立即崩溃**并显示错误信息
+- `api.pixel-events.tsx` 中的运行时检查作为双重保障
+
+**验收**: 生产环境无法启动带有不安全配置的应用。
+
+### P0-06: App Proxy 路由安全收敛
+
+**问题**: `api.tracking.tsx` 使用 App Proxy 但缺乏用户身份验证，可能导致订单信息枚举。
+
+**解决方案**:
+- 默认禁用该端点 (返回 503)
+- 需要通过 `ENABLE_TRACKING_API=true` 环境变量启用
+- 保留原始实现作为注释，待添加客户身份验证后重新启用
+
+**验收**: 外部用户无法访问订单追踪信息。
+
+### P0-07: 统一 Consent 策略逻辑
+
+**问题**: `retry.server.ts` 中硬编码了平台分类，与 `platform-consent.ts` 存在重复。
+
+**解决方案**:
+- 在 `platform-consent.ts` 新增 `getEffectiveConsentCategory()` 函数
+- 更新 `evaluatePlatformConsentWithStrategy()` 支持 `treatAsMarketing` 参数
+- 修改 `retry.server.ts` 使用统一的 consent 评估函数
+- 新增 PixelConfig.clientConfig 读取以支持 Google 的双用途配置
+
+**验收**: 新增平台只需修改 `PLATFORM_CONSENT_CONFIG`，无需修改 retry 逻辑。
+
+### P0-02 & P0-03: 测试增强
+
+**新增测试文件**:
+- `tests/pixel/pii-null-regression.test.ts` - PII 为 null 时的回归测试
+- `tests/utils/platform-consent.test.ts` - Consent 策略矩阵测试
+- `tests/webhooks/gdpr.test.ts` - 增强的 GDPR 合规测试
+
+### P1-02: 日志脱敏增强
+
+**改动**:
+- 扩展 `logger.ts` 的敏感字段黑名单 (PII、金融信息、平台密钥)
+- 新增 `EXCLUDED_FIELDS` 完全排除大型 payload 字段
+- 替换 `api.cron.tsx` 中的 `console.log` 为统一 logger
+- 使用 `createRequestLogger` 支持 requestId 追踪
+
+### P1-03: Cron 互斥锁
+
+**问题**: 多实例部署时可能并发执行 cron 任务，导致重复处理。
+
+**解决方案**:
+- 新增 `app/utils/cron-lock.ts` 分布式锁实现
+- 使用 WebhookLog 表作为锁存储 (避免新增表)
+- `withCronLock()` 包装器自动获取和释放锁
+- 更新 `api.cron.tsx` 使用锁保护
+
+**验收**: 多实例环境下只有一个实例执行 cron 任务。
 
 ---
 

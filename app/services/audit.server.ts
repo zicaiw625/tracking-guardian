@@ -1,25 +1,7 @@
-/**
- * Audit Log Service
- * 
- * Records security-sensitive operations for compliance and debugging.
- * 
- * Usage:
- *   await auditLog.record(shopId, {
- *     actorType: "user",
- *     actorId: "user@example.com",
- *     action: "token_updated",
- *     resourceType: "pixel_config",
- *     resourceId: configId,
- *     metadata: { platform: "meta" }
- *   });
- */
+
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger";
-
-// ==========================================
-// Types
-// ==========================================
 
 export type ActorType = "user" | "webhook" | "cron" | "api" | "system";
 
@@ -41,11 +23,11 @@ export type AuditAction =
   | "dead_letter_retry"
   | "ingestion_secret_rotated"
   | "privacy_settings_updated"
-  // P0-3: Billing actions
+  
   | "subscription_created"
   | "subscription_cancelled"
   | "subscription_activated"
-  // P2-2: Data cleanup action
+  
   | "data_cleanup_completed";
 
 export type ResourceType =
@@ -70,13 +52,6 @@ export interface AuditLogEntry {
   userAgent?: string;
 }
 
-// ==========================================
-// Helper Functions
-// ==========================================
-
-/**
- * Redact sensitive fields from audit log values
- */
 function redactSensitiveFields(obj: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
   if (!obj) return obj;
 
@@ -109,9 +84,6 @@ function redactSensitiveFields(obj: Record<string, unknown> | undefined): Record
   return redacted;
 }
 
-/**
- * Extract request context from a Request object
- */
 export function extractRequestContext(request: Request): {
   ipAddress?: string;
   userAgent?: string;
@@ -125,14 +97,8 @@ export function extractRequestContext(request: Request): {
   };
 }
 
-// ==========================================
-// Main Audit Log Service
-// ==========================================
-
 export const auditLog = {
-  /**
-   * Record an audit log entry
-   */
+  
   async record(shopId: string, entry: AuditLogEntry): Promise<void> {
     try {
       await prisma.auditLog.create({
@@ -158,7 +124,7 @@ export const auditLog = {
         resourceId: entry.resourceId,
       });
     } catch (error) {
-      // Don't throw - audit logging should never break the main operation
+      
       logger.error("Failed to write audit log", error, {
         shopId,
         action: entry.action,
@@ -166,9 +132,6 @@ export const auditLog = {
     }
   },
 
-  /**
-   * Get audit logs for a shop
-   */
   async getForShop(
     shopId: string,
     options?: {
@@ -217,9 +180,6 @@ export const auditLog = {
     });
   },
 
-  /**
-   * Get a specific audit log entry with full details
-   */
   async getEntry(id: string): Promise<{
     id: string;
     shopId: string;
@@ -240,9 +200,6 @@ export const auditLog = {
     });
   },
 
-  /**
-   * Clean up old audit logs (retention policy)
-   */
   async cleanup(retentionDays = 90): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
@@ -258,10 +215,6 @@ export const auditLog = {
   },
 };
 
-/**
- * Convenience function to create an audit log entry
- * @param entry - The audit log entry to create
- */
 export async function createAuditLog(entry: AuditLogEntry & { shopId: string }): Promise<void> {
   const { shopId, ...logEntry } = entry;
   return auditLog.record(shopId, logEntry);

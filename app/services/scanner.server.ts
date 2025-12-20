@@ -2,10 +2,6 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
 import type { ScanResult, RiskItem, ScriptTag, CheckoutConfig, RiskSeverity } from "../types";
 
-// ==========================================
-// Types for enhanced scan
-// ==========================================
-
 export interface WebPixelInfo {
   id: string;
   settings: string | null;
@@ -27,58 +23,54 @@ export interface EnhancedScanResult extends ScanResult {
   migrationActions: MigrationAction[];
 }
 
-// Platform detection patterns
-// Each platform has patterns that uniquely identify it
-// Patterns are tested in order - more specific patterns first
 const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
   google: [
-    /gtag\s*\(/i,                    // gtag() function call
-    /google-analytics/i,            // GA script reference
-    /googletagmanager/i,            // GTM script reference
-    /G-[A-Z0-9]{10,}/i,            // GA4 Measurement ID (G-XXXXXXXXXX)
-    /AW-\d{9,}/i,                   // Google Ads conversion ID
-    /google_conversion/i,           // Legacy conversion tracking
-    /gtm\.js/i,                     // GTM script file
-    /UA-\d+-\d+/i,                  // Universal Analytics (legacy)
+    /gtag\s*\(/i,                    
+    /google-analytics/i,            
+    /googletagmanager/i,            
+    /G-[A-Z0-9]{10,}/i,            
+    /AW-\d{9,}/i,                   
+    /google_conversion/i,           
+    /gtm\.js/i,                     
+    /UA-\d+-\d+/i,                  
   ],
   meta: [
-    /fbq\s*\(/i,                    // Meta Pixel function call
-    /facebook\.net\/.*fbevents/i,  // Facebook events script
-    /connect\.facebook\.net/i,      // Facebook connect script
-    /fb-pixel/i,                    // FB pixel reference
-    // Meta Pixel IDs are 15-16 digits, but require context to avoid false positives
+    /fbq\s*\(/i,                    
+    /facebook\.net\/.*fbevents/i,  
+    /connect\.facebook\.net/i,      
+    /fb-pixel/i,                    
+    
     /pixel[_\-]?id['":\s]+\d{15,16}/i,
   ],
   tiktok: [
-    /ttq\s*\(/i,                    // TikTok Pixel function call
-    /tiktok.*pixel/i,               // TikTok pixel reference
-    /analytics\.tiktok\.com/i,      // TikTok analytics domain
+    /ttq\s*\(/i,                    
+    /tiktok.*pixel/i,               
+    /analytics\.tiktok\.com/i,      
   ],
   bing: [
-    /uetq/i,                        // UET tag queue
-    /bing.*uet/i,                   // Bing UET reference
-    /bat\.bing\.com/i,              // Bing bat.js domain
+    /uetq/i,                        
+    /bing.*uet/i,                   
+    /bat\.bing\.com/i,              
   ],
   clarity: [
-    /clarity\s*\(/i,                // Clarity function call
-    /clarity\.ms/i,                 // Clarity domain
+    /clarity\s*\(/i,                
+    /clarity\.ms/i,                 
   ],
   pinterest: [
-    /pintrk/i,                      // Pinterest tag
-    /pinimg\.com.*tag/i,            // Pinterest tag image
+    /pintrk/i,                      
+    /pinimg\.com.*tag/i,            
   ],
   snapchat: [
-    /snaptr/i,                      // Snapchat pixel
-    /sc-static\.net.*scevent/i,     // Snapchat event script
+    /snaptr/i,                      
+    /sc-static\.net.*scevent/i,     
   ],
   twitter: [
-    /twq\s*\(/i,                    // Twitter pixel function
-    /twitter.*pixel/i,              // Twitter pixel reference
-    /static\.ads-twitter\.com/i,    // Twitter ads domain
+    /twq\s*\(/i,                    
+    /twitter.*pixel/i,              
+    /static\.ads-twitter\.com/i,    
   ],
 };
 
-// Risk assessment rules
 interface RiskRule {
   id: string;
   name: string;
@@ -87,18 +79,6 @@ interface RiskRule {
   points: number;
 }
 
-/**
- * Risk assessment rules
- * 
- * NOTE on Additional Scripts:
- * We CANNOT automatically read Additional Scripts content via API.
- * The Shopify Admin API does not provide access to checkout.liquid Additional Scripts.
- * 
- * For Additional Scripts analysis, users should:
- * 1. Copy their Additional Scripts content from Shopify Admin → Settings → Checkout
- * 2. Use our "脚本分析器" feature (if implemented) to analyze the pasted content
- * 3. Follow our migration guide to move scripts to Web Pixels
- */
 const RISK_RULES: RiskRule[] = [
   {
     id: "deprecated_script_tag",
@@ -107,8 +87,7 @@ const RISK_RULES: RiskRule[] = [
     severity: "high",
     points: 30,
   },
-  // REMOVED: additional_scripts rule - we cannot detect this automatically
-  // The old rule incorrectly suggested we could scan Additional Scripts
+
   {
     id: "inline_tracking",
     name: "内联追踪代码",
@@ -132,17 +111,14 @@ const RISK_RULES: RiskRule[] = [
   },
 ];
 
-// Re-export types from types module
 export type { ScanResult, RiskItem } from "../types";
 
-// Error tracking for scan
 interface ScanError {
   stage: string;
   message: string;
   timestamp: Date;
 }
 
-// GraphQL edge type for pagination
 interface GraphQLEdge<T> {
   node: T;
   cursor: string;
@@ -153,10 +129,6 @@ interface GraphQLPageInfo {
   endCursor: string | null;
 }
 
-/**
- * P2-2: Fetch all ScriptTags with pagination
- * Handles stores with more than 100 script tags
- */
 async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> {
   const allTags: ScriptTag[] = [];
   let hasNextPage = true;
@@ -192,7 +164,6 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
     const edges = data.data?.scriptTags?.edges || [];
     const pageInfo: GraphQLPageInfo = data.data?.scriptTags?.pageInfo || { hasNextPage: false, endCursor: null };
 
-    // Transform and add to results
     for (const edge of edges as GraphQLEdge<{
       id: string;
       src: string;
@@ -218,7 +189,6 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
     hasNextPage = pageInfo.hasNextPage;
     cursor = pageInfo.endCursor;
 
-    // Safety limit to prevent infinite loops
     if (allTags.length > 1000) {
       console.warn("ScriptTags pagination limit reached (1000)");
       break;
@@ -228,10 +198,6 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
   return allTags;
 }
 
-/**
- * P2-2: Fetch all Web Pixels with pagination
- * Handles stores with more than 50 web pixels
- */
 async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]> {
   const allPixels: WebPixelInfo[] = [];
   let hasNextPage = true;
@@ -273,7 +239,6 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
     hasNextPage = pageInfo.hasNextPage;
     cursor = pageInfo.endCursor;
 
-    // Safety limit
     if (allPixels.length > 200) {
       console.warn("WebPixels pagination limit reached (200)");
       break;
@@ -283,9 +248,6 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
   return allPixels;
 }
 
-/**
- * Enhanced scan that provides actionable migration recommendations
- */
 export async function scanShopTracking(
   admin: AdminApiContext,
   shopId: string
@@ -293,7 +255,7 @@ export async function scanShopTracking(
   const errors: ScanError[] = [];
   const result: EnhancedScanResult = {
     scriptTags: [],
-    additionalScripts: null, // NOTE: Cannot be read via API - documented limitation
+    additionalScripts: null, 
     checkoutConfig: null,
     identifiedPlatforms: [],
     riskItems: [],
@@ -305,8 +267,6 @@ export async function scanShopTracking(
 
   console.log(`Starting enhanced scan for shop ${shopId}`);
 
-  // 1. Fetch ScriptTags using GraphQL API with pagination (P2-2)
-  // Reference: https://shopify.dev/docs/api/admin-graphql/latest/queries/scriptTags
   try {
     result.scriptTags = await fetchAllScriptTags(admin);
     console.log(`Found ${result.scriptTags.length} script tags (with pagination)`);
@@ -320,7 +280,6 @@ export async function scanShopTracking(
     });
   }
 
-  // 2. Fetch checkout configuration using GraphQL
   try {
     const checkoutResponse = await admin.graphql(
       `#graphql
@@ -347,7 +306,6 @@ export async function scanShopTracking(
     });
   }
 
-  // 3. Fetch Web Pixels (App Pixels) using GraphQL with pagination (P2-2)
   try {
     result.webPixels = await fetchAllWebPixels(admin);
     console.log(`Found ${result.webPixels.length} web pixels (with pagination)`);
@@ -361,25 +319,20 @@ export async function scanShopTracking(
     });
   }
 
-  // 4. Analyze scripts for platform detection
   const allScriptContent = collectScriptContent(result);
   result.identifiedPlatforms = detectPlatforms(allScriptContent);
   console.log(`Identified platforms: ${result.identifiedPlatforms.join(", ") || "none"}`);
 
-  // 5. Detect duplicate pixels
   result.duplicatePixels = detectDuplicatePixels(result);
   console.log(`Duplicate pixels found: ${result.duplicatePixels.length}`);
 
-  // 6. Assess risks
   result.riskItems = assessRisks(result);
   result.riskScore = calculateRiskScore(result.riskItems);
   console.log(`Risk assessment complete: score=${result.riskScore}, items=${result.riskItems.length}`);
 
-  // 7. Generate actionable migration recommendations
   result.migrationActions = generateMigrationActions(result);
   console.log(`Generated ${result.migrationActions.length} migration actions`);
 
-  // 8. Save scan report to database
   try {
     await saveScanReport(shopId, result, errors.length > 0 ? JSON.stringify(errors) : null);
     console.log(`Scan report saved for shop ${shopId}`);
@@ -392,13 +345,9 @@ export async function scanShopTracking(
   return result;
 }
 
-/**
- * Detect duplicate pixels (same platform configured multiple times)
- */
 function detectDuplicatePixels(result: EnhancedScanResult): Array<{ platform: string; count: number; ids: string[] }> {
   const duplicates: Array<{ platform: string; count: number; ids: string[] }> = [];
-  
-  // Count pixels per platform from ScriptTags
+
   const platformCounts: Record<string, string[]> = {};
   
   for (const tag of result.scriptTags) {
@@ -415,16 +364,14 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{ platform: st
       }
     }
   }
-  
-  // Also check web pixels settings for platform IDs
+
   for (const pixel of result.webPixels) {
     if (pixel.settings) {
       try {
         const settings = typeof pixel.settings === "string" 
           ? JSON.parse(pixel.settings) 
           : pixel.settings;
-        
-        // Check for common platform ID patterns in settings
+
         for (const [key, value] of Object.entries(settings as Record<string, unknown>)) {
           if (typeof value === "string") {
             if (/^G-[A-Z0-9]+$/.test(value) || /^AW-\d+$/.test(value)) {
@@ -437,12 +384,11 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{ platform: st
           }
         }
       } catch {
-        // Ignore parse errors
+        
       }
     }
   }
-  
-  // Report duplicates
+
   for (const [platform, ids] of Object.entries(platformCounts)) {
     if (ids.length > 1) {
       duplicates.push({ platform, count: ids.length, ids });
@@ -452,19 +398,9 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{ platform: st
   return duplicates;
 }
 
-/**
- * Generate actionable migration recommendations
- * 
- * ScriptTag API Deprecation Timeline (Official):
- * - Plus merchants: Order status page ScriptTags blocked from 2025-08-28
- * - Non-Plus merchants: Order status page ScriptTags blocked from 2026-08-26
- * 
- * Reference: https://shopify.dev/docs/apps/build/online-store/blocking-script-tags
- */
 function generateMigrationActions(result: EnhancedScanResult): MigrationAction[] {
   const actions: MigrationAction[] = [];
-  
-  // Action 1: Delete deprecated ScriptTags
+
   for (const tag of result.scriptTags) {
     let platform = "unknown";
     const src = tag.src || "";
@@ -477,9 +413,7 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
       }
       if (platform !== "unknown") break;
     }
-    
-    // Determine deadline based on display_scope
-    // Order status page scripts have hard deadlines
+
     const isOrderStatusScript = tag.display_scope === "order_status";
     const deadlineNote = isOrderStatusScript
       ? "Plus 商家: 2025-08-28 停用；非 Plus 商家: 2026-08-26 停用"
@@ -492,12 +426,11 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
       title: `删除 ScriptTag: ${platform}`,
       description: `ScriptTag API 即将关闭。${deadlineNote}。请先配置 Web Pixel，然后删除此 ScriptTag。`,
       scriptTagId: tag.id,
-      // Use the later deadline (non-Plus) as default, UI should show both dates
+      
       deadline: isOrderStatusScript ? "2026-08-26" : undefined,
     });
   }
-  
-  // Action 2: Configure pixels for detected platforms without web pixel
+
   const configuredPlatforms = new Set<string>();
   for (const pixel of result.webPixels) {
     if (pixel.settings) {
@@ -505,8 +438,7 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
         const settings = typeof pixel.settings === "string" 
           ? JSON.parse(pixel.settings) 
           : pixel.settings;
-        
-        // Check what platforms are configured
+
         for (const [, value] of Object.entries(settings as Record<string, unknown>)) {
           if (typeof value === "string") {
             if (/^G-[A-Z0-9]+$/.test(value) || /^AW-\d+$/.test(value)) {
@@ -519,7 +451,7 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
           }
         }
       } catch {
-        // Ignore
+        
       }
     }
   }
@@ -535,8 +467,7 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
       });
     }
   }
-  
-  // Action 3: Remove duplicate pixels
+
   for (const dup of result.duplicatePixels) {
     actions.push({
       type: "remove_duplicate",
@@ -546,8 +477,7 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
       description: `检测到 ${dup.count} 个 ${dup.platform} 像素配置，可能导致重复追踪。建议只保留一个。`,
     });
   }
-  
-  // Action 4: Enable CAPI for conversion accuracy
+
   const hasCAPIConfigured = result.webPixels.some(p => {
     if (!p.settings) return false;
     try {
@@ -566,8 +496,7 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
       description: "启用 Conversions API 可将追踪准确率提高 15-30%，不受广告拦截器影响。",
     });
   }
-  
-  // Sort by priority
+
   const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
   actions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
   
@@ -577,12 +506,10 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
 function collectScriptContent(result: EnhancedScanResult): string {
   let content = "";
 
-  // Collect from script tags
   for (const tag of result.scriptTags) {
     content += ` ${tag.src || ""} ${tag.event || ""}`;
   }
 
-  // Collect from additional scripts if available
   if (result.additionalScripts) {
     if (typeof result.additionalScripts === "string") {
       content += ` ${result.additionalScripts}`;
@@ -613,9 +540,8 @@ function detectPlatforms(content: string): string[] {
 
 function assessRisks(result: EnhancedScanResult): RiskItem[] {
   const risks: RiskItem[] = [];
-  const seenRiskKeys = new Set<string>(); // For deduplication
+  const seenRiskKeys = new Set<string>(); 
 
-  // Helper to add risk with deduplication
   function addRisk(risk: RiskItem, dedupeKey?: string): void {
     const key = dedupeKey || `${risk.id}_${risk.platform || ""}`;
     if (!seenRiskKeys.has(key)) {
@@ -624,16 +550,12 @@ function assessRisks(result: EnhancedScanResult): RiskItem[] {
     }
   }
 
-  // Check for deprecated script tags
-  // NOTE: Shopify's deprecation specifically targets order_status and thank_you pages
-  // ScriptTags with display_scope="order_status" are high priority
-  // Other display_scope values (online_store, all) are medium priority
   if (result.scriptTags.length > 0) {
-    // Group by platform for cleaner risk reporting
+    
     const platformScriptTags: Record<string, { orderStatus: ScriptTag[]; other: ScriptTag[] }> = {};
     
     for (const tag of result.scriptTags) {
-      // Detect which platform this script tag is for
+      
       let platform = "unknown";
       const src = tag.src || "";
       for (const [p, patterns] of Object.entries(PLATFORM_PATTERNS)) {
@@ -649,8 +571,7 @@ function assessRisks(result: EnhancedScanResult): RiskItem[] {
       if (!platformScriptTags[platform]) {
         platformScriptTags[platform] = { orderStatus: [], other: [] };
       }
-      
-      // Check display_scope - Shopify's deprecation focuses on order_status
+
       const displayScope = tag.display_scope || "all";
       if (displayScope === "order_status") {
         platformScriptTags[platform].orderStatus.push(tag);
@@ -658,10 +579,9 @@ function assessRisks(result: EnhancedScanResult): RiskItem[] {
         platformScriptTags[platform].other.push(tag);
       }
     }
-    
-    // Create deduplicated risks per platform
+
     for (const [platform, tags] of Object.entries(platformScriptTags)) {
-      // High priority: order_status scripts (directly affected by deprecation)
+      
       if (tags.orderStatus.length > 0) {
         addRisk({
           id: "deprecated_script_tag_order_status",
@@ -673,8 +593,7 @@ function assessRisks(result: EnhancedScanResult): RiskItem[] {
           platform,
         }, `order_status_${platform}`);
       }
-      
-      // Medium priority: other scripts (general ScriptTag API deprecation)
+
       if (tags.other.length > 0) {
         addRisk({
           id: "deprecated_script_tag",
@@ -689,7 +608,6 @@ function assessRisks(result: EnhancedScanResult): RiskItem[] {
     }
   }
 
-  // Check if using old tracking methods without web pixels
   if (result.identifiedPlatforms.length > 0 && result.scriptTags.length > 0) {
     addRisk({
       id: "inline_tracking",
@@ -701,7 +619,6 @@ function assessRisks(result: EnhancedScanResult): RiskItem[] {
     }, "inline_tracking");
   }
 
-  // Recommend server-side tracking
   if (result.identifiedPlatforms.length > 0) {
     addRisk({
       id: "no_server_side",
@@ -716,29 +633,22 @@ function assessRisks(result: EnhancedScanResult): RiskItem[] {
   return risks;
 }
 
-/**
- * Calculate overall risk score from risk items
- * Score is 0-100, weighted by severity
- */
 function calculateRiskScore(riskItems: RiskItem[]): number {
   if (riskItems.length === 0) {
     return 0;
   }
-  
-  // Severity weights
+
   const severityWeight: Record<RiskSeverity, number> = {
     high: 1.5,
     medium: 1.0,
     low: 0.5,
   };
-  
-  // Calculate weighted points
+
   const weightedPoints = riskItems.reduce((sum, item) => {
     const weight = severityWeight[item.severity] || 1.0;
     return sum + item.points * weight;
   }, 0);
-  
-  // Cap at 100
+
   return Math.min(100, Math.round(weightedPoints));
 }
 
@@ -771,19 +681,6 @@ export async function getScanHistory(shopId: string, limit = 10) {
   });
 }
 
-// ==========================================
-// P2-1: Manual Script Analysis
-// ==========================================
-
-/**
- * Analyze pasted script content (e.g., Additional Scripts from Shopify Admin)
- * 
- * This is used when the user manually pastes their Additional Scripts content
- * since we cannot read it via the Admin API.
- * 
- * @param content - The raw script content to analyze
- * @returns Analysis result with detected platforms, risks, and recommendations
- */
 export interface ScriptAnalysisResult {
   identifiedPlatforms: string[];
   platformDetails: Array<{
@@ -810,7 +707,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     return result;
   }
 
-  // Platform detection with detailed matching
   const platformMatches: Map<string, { type: string; pattern: string }[]> = new Map();
 
   for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
@@ -828,7 +724,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     }
   }
 
-  // Build platform details
   for (const [platform, matches] of platformMatches.entries()) {
     result.identifiedPlatforms.push(platform);
     
@@ -842,7 +737,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     }
   }
 
-  // Detect specific ID patterns and add to platform details
   const ga4Match = content.match(/G-[A-Z0-9]{10,}/gi);
   if (ga4Match) {
     for (const id of ga4Match) {
@@ -872,7 +766,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     }
   }
 
-  // Assess risks for Additional Scripts
   if (result.identifiedPlatforms.length > 0) {
     result.risks.push({
       id: "additional_scripts_detected",
@@ -883,7 +776,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
       details: `检测到平台: ${result.identifiedPlatforms.join(", ")}`,
     });
 
-    // Add platform-specific risks
     if (result.identifiedPlatforms.includes("google") && content.includes("UA-")) {
       result.risks.push({
         id: "legacy_ua",
@@ -905,10 +797,8 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     }
   }
 
-  // Calculate risk score
   result.riskScore = calculateRiskScore(result.risks);
 
-  // Generate recommendations
   for (const platform of result.identifiedPlatforms) {
     switch (platform) {
       case "google":
@@ -952,9 +842,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
   return result;
 }
 
-/**
- * Get a human-readable type for a matched pattern
- */
 function getPatternType(platform: string, pattern: RegExp): string {
   const patternStr = pattern.source;
   
@@ -983,5 +870,4 @@ function getPatternType(platform: string, pattern: RegExp): string {
       return "追踪代码";
   }
 }
-
 

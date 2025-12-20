@@ -8,6 +8,11 @@ import {
   normalizePhone,
   normalizeEmail,
   validateEncryptionConfig,
+  normalizeOrderId,
+  generateEventId,
+  generateMatchKey,
+  matchKeysEqual,
+  generateDeduplicationFingerprint,
 } from "../../app/utils/crypto";
 
 describe("Crypto Utils", () => {
@@ -25,10 +30,8 @@ describe("Crypto Utils", () => {
       const encrypted1 = encrypt(plaintext);
       const encrypted2 = encrypt(plaintext);
 
-      // Due to random IV, encrypted values should be different
       expect(encrypted1).not.toBe(encrypted2);
 
-      // But both should decrypt to the same value
       expect(decrypt(encrypted1)).toBe(plaintext);
       expect(decrypt(encrypted2)).toBe(plaintext);
     });
@@ -178,17 +181,14 @@ describe("Crypto Utils", () => {
     it("should produce ciphertext longer than plaintext (includes IV and auth tag)", () => {
       const plaintext = "short";
       const encrypted = encrypt(plaintext);
-      
-      // Encrypted format: iv(32 hex chars):authTag(32 hex chars):ciphertext
-      // So minimum length should be 32 + 1 + 32 + 1 + some ciphertext
+
       expect(encrypted.length).toBeGreaterThan(66);
     });
 
     it("should fail decryption with tampered ciphertext", () => {
       const plaintext = "sensitive data";
       const encrypted = encrypt(plaintext);
-      
-      // Tamper with the ciphertext part
+
       const parts = encrypted.split(":");
       const tamperedCiphertext = parts[2].slice(0, -2) + "ff";
       const tampered = `${parts[0]}:${parts[1]}:${tamperedCiphertext}`;
@@ -199,13 +199,160 @@ describe("Crypto Utils", () => {
     it("should fail decryption with tampered auth tag", () => {
       const plaintext = "sensitive data";
       const encrypted = encrypt(plaintext);
-      
-      // Tamper with the auth tag
+
       const parts = encrypted.split(":");
       const tamperedAuthTag = "00".repeat(16);
       const tampered = `${parts[0]}:${tamperedAuthTag}:${parts[2]}`;
       
       expect(() => decrypt(tampered)).toThrow();
+    });
+  });
+
+  // P1-04: Match Key Generation Tests
+  describe("normalizeOrderId", () => {
+    it("should extract numeric ID from GID format", () => {
+      expect(normalizeOrderId("gid://shopify/Order/12345")).toBe("12345");
+      expect(normalizeOrderId("gid://shopify/Order/9876543210")).toBe("9876543210");
+    });
+
+    it("should handle plain numeric strings", () => {
+      expect(normalizeOrderId("12345")).toBe("12345");
+      expect(normalizeOrderId(12345)).toBe("12345");
+    });
+
+    it("should extract trailing numeric from mixed strings", () => {
+      expect(normalizeOrderId("order_12345")).toBe("12345");
+      expect(normalizeOrderId("prefix-99999")).toBe("99999");
+    });
+
+    it("should return original string if no numeric found", () => {
+      expect(normalizeOrderId("abc")).toBe("abc");
+    });
+  });
+
+  describe("generateEventId", () => {
+    it("should generate consistent eventId for same inputs", () => {
+      const eventId1 = generateEventId("12345", "purchase", "test.myshopify.com");
+      const eventId2 = generateEventId("12345", "purchase", "test.myshopify.com");
+      expect(eventId1).toBe(eventId2);
+    });
+
+    it("should generate different eventId for different orders", () => {
+      const eventId1 = generateEventId("12345", "purchase", "test.myshopify.com");
+      const eventId2 = generateEventId("99999", "purchase", "test.myshopify.com");
+      expect(eventId1).not.toBe(eventId2);
+    });
+
+    it("should include orderId and eventType in output", () => {
+      const eventId = generateEventId("12345", "purchase", "test.myshopify.com");
+      expect(eventId).toContain("12345");
+      expect(eventId).toContain("purchase");
+    });
+  });
+
+  describe("generateMatchKey (P1-04)", () => {
+    it("should use orderId when available", () => {
+      const result = generateMatchKey({ orderId: "12345", checkoutToken: "token123" });
+      expect(result.matchKey).toBe("12345");
+      expect(result.isOrderId).toBe(true);
+      expect(result.normalizedOrderId).toBe("12345");
+      expect(result.checkoutToken).toBe("token123");
+    });
+
+    it("should normalize GID orderId", () => {
+      const result = generateMatchKey({ 
+        orderId: "gid://shopify/Order/12345", 
+        checkoutToken: null 
+      });
+      expect(result.matchKey).toBe("12345");
+      expect(result.isOrderId).toBe(true);
+    });
+
+    it("should fall back to checkoutToken when orderId is null", () => {
+      const result = generateMatchKey({ orderId: null, checkoutToken: "token123" });
+      expect(result.matchKey).toBe("token123");
+      expect(result.isOrderId).toBe(false);
+      expect(result.normalizedOrderId).toBeNull();
+      expect(result.checkoutToken).toBe("token123");
+    });
+
+    it("should fall back to checkoutToken when orderId is empty string", () => {
+      const result = generateMatchKey({ orderId: "", checkoutToken: "token456" });
+      expect(result.matchKey).toBe("token456");
+      expect(result.isOrderId).toBe(false);
+    });
+
+    it("should throw error when both orderId and checkoutToken are null", () => {
+      expect(() => generateMatchKey({ orderId: null, checkoutToken: null }))
+        .toThrow("Cannot generate match key");
+    });
+
+    it("should throw error when both orderId and checkoutToken are empty", () => {
+      expect(() => generateMatchKey({ orderId: "", checkoutToken: "" }))
+        .toThrow("Cannot generate match key");
+    });
+  });
+
+  describe("matchKeysEqual (P1-04)", () => {
+    it("should match when both have same orderId", () => {
+      expect(matchKeysEqual(
+        { orderId: "12345", checkoutToken: null },
+        { orderId: "12345", checkoutToken: "different" }
+      )).toBe(true);
+    });
+
+    it("should match normalized orderIds", () => {
+      expect(matchKeysEqual(
+        { orderId: "gid://shopify/Order/12345", checkoutToken: null },
+        { orderId: "12345", checkoutToken: null }
+      )).toBe(true);
+    });
+
+    it("should not match different orderIds", () => {
+      expect(matchKeysEqual(
+        { orderId: "12345", checkoutToken: null },
+        { orderId: "99999", checkoutToken: null }
+      )).toBe(false);
+    });
+
+    it("should match when both have same checkoutToken", () => {
+      expect(matchKeysEqual(
+        { orderId: null, checkoutToken: "token123" },
+        { orderId: null, checkoutToken: "token123" }
+      )).toBe(true);
+    });
+
+    it("should not match different checkoutTokens", () => {
+      expect(matchKeysEqual(
+        { orderId: null, checkoutToken: "token123" },
+        { orderId: null, checkoutToken: "token456" }
+      )).toBe(false);
+    });
+
+    it("should not match when one has orderId and other has only different checkoutToken", () => {
+      expect(matchKeysEqual(
+        { orderId: "12345", checkoutToken: null },
+        { orderId: null, checkoutToken: "unrelated_token" }
+      )).toBe(false);
+    });
+  });
+
+  describe("generateDeduplicationFingerprint (P1-04)", () => {
+    it("should generate consistent fingerprint", () => {
+      const fp1 = generateDeduplicationFingerprint("shop1", "12345", "purchase");
+      const fp2 = generateDeduplicationFingerprint("shop1", "12345", "purchase");
+      expect(fp1).toBe(fp2);
+    });
+
+    it("should generate different fingerprints for different shops", () => {
+      const fp1 = generateDeduplicationFingerprint("shop1", "12345", "purchase");
+      const fp2 = generateDeduplicationFingerprint("shop2", "12345", "purchase");
+      expect(fp1).not.toBe(fp2);
+    });
+
+    it("should generate 64-char hex string", () => {
+      const fp = generateDeduplicationFingerprint("shop1", "12345", "purchase");
+      expect(fp).toMatch(/^[0-9a-f]{64}$/);
     });
   });
 });

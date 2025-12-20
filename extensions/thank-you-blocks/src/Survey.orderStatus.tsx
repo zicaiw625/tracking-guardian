@@ -1,9 +1,4 @@
-/**
- * Survey component for Order Status page (Customer Account)
- * 
- * This uses the customer-account surface which is required for order-status pages.
- * The checkout surface is deprecated for order-status.
- */
+
 import {
   reactExtension,
   BlockStack,
@@ -18,7 +13,6 @@ import {
 } from "@shopify/ui-extensions-react/customer-account";
 import { useState, useEffect } from "react";
 
-// Target for customer account order status page
 export default reactExtension(
   "customer-account.order-status.block.render",
   () => <SurveyOrderStatus />
@@ -48,11 +42,10 @@ function SurveyOrderStatus() {
     { id: "other", label: "其他" },
   ];
 
-  // Get order information from customer account API
   useEffect(() => {
     async function fetchOrderInfo() {
       try {
-        // For customer-account surface, use the order API
+        
         if (api.order) {
           const order = await api.order.current;
           if (order) {
@@ -75,10 +68,9 @@ function SurveyOrderStatus() {
     setError(null);
 
     try {
-      // Get session token for authentication
-      const token = await api.sessionToken?.get();
       
-      // Submit survey response to backend
+      const token = await api.sessionToken?.get();
+
       const surveyData = {
         orderId,
         orderNumber,
@@ -86,7 +78,6 @@ function SurveyOrderStatus() {
         source: selectedSource,
       };
 
-      // If app URL is configured, send to backend
       if (appUrl && token) {
         const response = await fetch(`${appUrl}/api/survey`, {
           method: "POST",
@@ -105,7 +96,7 @@ function SurveyOrderStatus() {
 
         console.log("Survey submitted successfully to backend");
       } else {
-        // Fallback: just log if app URL not configured
+        
         console.log("Survey submitted (app URL not configured):", surveyData);
       }
 
@@ -140,7 +131,7 @@ function SurveyOrderStatus() {
         {title}
       </Text>
 
-      {/* Star Rating */}
+      {}
       <BlockStack spacing="tight">
         <Text size="small">请为本次购物体验打分：</Text>
         <InlineLayout spacing="tight" columns={["auto", "auto", "auto", "auto", "auto"]}>
@@ -160,7 +151,7 @@ function SurveyOrderStatus() {
         </InlineLayout>
       </BlockStack>
 
-      {/* Source Question */}
+      {}
       <BlockStack spacing="tight">
         <Text size="small">{question}</Text>
         <InlineLayout spacing="tight" columns={["auto", "auto", "auto"]}>

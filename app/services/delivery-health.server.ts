@@ -1,24 +1,4 @@
-/**
- * Delivery Health Service
- * 
- * Monitors the health of conversion event delivery to advertising platforms.
- * 
- * What this service does:
- * - Calculates send success rate (sent vs attempted)
- * - Identifies delivery failures and their causes
- * - Tracks delivery latency
- * - Sends alerts when success rate drops below threshold
- * 
- * What this service does NOT do:
- * - Pull data from platform APIs (would require Platform Reporting API access)
- * - Compare Shopify orders with platform-reported conversions
- * - Validate if platforms actually recorded the conversions
- * 
- * For true reconciliation with platform data, you would need to:
- * 1. Integrate with platform Reporting APIs (Google Ads API, Meta Marketing API)
- * 2. Pull conversion reports from each platform
- * 3. Compare platform-reported conversions with our logs
- */
+
 
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
@@ -27,10 +7,6 @@ import type {
   AlertSettings,
   AlertChannel,
 } from "../types";
-
-// ==========================================
-// Types
-// ==========================================
 
 export interface DeliveryHealthResult {
   platform: string;
@@ -61,13 +37,6 @@ export interface DeliveryHealthReport {
   alertSent: boolean;
 }
 
-// ==========================================
-// Helper Functions
-// ==========================================
-
-/**
- * Safely parse alert config from Prisma model to typed AlertConfig
- */
 function parseAlertConfig(dbConfig: {
   id: string;
   channel: string;
@@ -98,9 +67,6 @@ function parseAlertConfig(dbConfig: {
   };
 }
 
-/**
- * Categorize error messages into failure reasons
- */
 function categorizeFailureReason(errorMessage: string | null): string {
   if (!errorMessage) return "unknown";
   
@@ -128,13 +94,6 @@ function categorizeFailureReason(errorMessage: string | null): string {
   return "other";
 }
 
-// ==========================================
-// Main Functions
-// ==========================================
-
-/**
- * Run daily delivery health check for a shop
- */
 export async function runDailyDeliveryHealthCheck(shopId: string): Promise<DeliveryHealthResult[]> {
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
@@ -163,7 +122,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get all conversion logs for yesterday
   const conversionLogs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -178,7 +136,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     },
   });
 
-  // Group by platform
   const platformGroups = new Map<string, typeof conversionLogs>();
   for (const log of conversionLogs) {
     const existing = platformGroups.get(log.platform) || [];
@@ -195,7 +152,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     const totalFailed = logs.filter((l) => l.status === "failed" || l.status === "dead_letter").length;
     const successRate = totalAttempted > 0 ? totalSent / totalAttempted : 0;
 
-    // Categorize failure reasons
     const failureReasons: Record<string, number> = {};
     for (const log of logs) {
       if (log.status === "failed" || log.status === "dead_letter") {
@@ -204,7 +160,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
       }
     }
 
-    // Calculate average latency for successful sends
     let avgLatencyMs: number | null = null;
     const latencies: number[] = [];
     for (const log of sentLogs) {
@@ -229,7 +184,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
 
     results.push(result);
 
-    // Save to database (reusing ReconciliationReport table for now)
     await prisma.reconciliationReport.upsert({
       where: {
         shopId_platform_reportDate: { shopId, platform, reportDate: yesterday },
@@ -254,7 +208,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
       },
     });
 
-    // Check if alert is needed (low success rate)
     const failureRate = 1 - successRate;
     for (const alertConfig of shop.alertConfigs) {
       const typedAlertConfig = parseAlertConfig(alertConfig);
@@ -287,9 +240,6 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
   return results;
 }
 
-/**
- * Get delivery health history for a shop
- */
 export async function getDeliveryHealthHistory(
   shopId: string,
   days = 30
@@ -325,16 +275,12 @@ export async function getDeliveryHealthHistory(
   }));
 }
 
-/**
- * Get delivery health summary for dashboard
- */
 export async function getDeliveryHealthSummary(
   shopId: string
 ): Promise<Record<string, DeliveryHealthSummary>> {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  // Get conversion logs for failure reason analysis
   const logs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -347,7 +293,6 @@ export async function getDeliveryHealthSummary(
     },
   });
 
-  // Get reports for success rate
   const reports = await prisma.reconciliationReport.findMany({
     where: {
       shopId,
@@ -357,7 +302,6 @@ export async function getDeliveryHealthSummary(
 
   const summary: Record<string, DeliveryHealthSummary> = {};
 
-  // Group logs by platform
   const platformLogs = new Map<string, typeof logs>();
   for (const log of logs) {
     const existing = platformLogs.get(log.platform) || [];
@@ -369,7 +313,6 @@ export async function getDeliveryHealthSummary(
     const attempted = pLogs.length;
     const sent = pLogs.filter((l) => l.status === "sent").length;
 
-    // Count failure reasons
     const reasonCounts: Record<string, number> = {};
     for (const log of pLogs) {
       if (log.status === "failed" || log.status === "dead_letter") {
@@ -378,13 +321,11 @@ export async function getDeliveryHealthSummary(
       }
     }
 
-    // Sort by count
     const topFailureReasons = Object.entries(reasonCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([reason, count]) => ({ reason, count }));
 
-    // Calculate average success rate from reports
     const platformReports = reports.filter((r) => r.platform === platform);
     const avgSuccessRate =
       platformReports.length > 0
@@ -406,10 +347,6 @@ export async function getDeliveryHealthSummary(
   return summary;
 }
 
-// ==========================================
-// Cron Job Handler
-// ==========================================
-
 interface DeliveryHealthJobResult {
   shopId: string;
   success: boolean;
@@ -417,10 +354,6 @@ interface DeliveryHealthJobResult {
   error?: string;
 }
 
-/**
- * Run delivery health check for all active shops
- * Called by cron job
- */
 export async function runAllShopsDeliveryHealthCheck(): Promise<DeliveryHealthJobResult[]> {
   const activeShops = await prisma.shop.findMany({
     where: { isActive: true },
@@ -469,11 +402,6 @@ export async function runAllShopsDeliveryHealthCheck(): Promise<DeliveryHealthJo
   return results;
 }
 
-// ==========================================
-// Backwards compatibility exports
-// ==========================================
-
-// Re-export with old names for backwards compatibility
 export {
   runDailyDeliveryHealthCheck as runDailyReconciliation,
   runAllShopsDeliveryHealthCheck as runAllShopsReconciliation,

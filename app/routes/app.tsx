@@ -37,7 +37,6 @@ export default function App() {
   );
 }
 
-// Shopify needs Alarm to ensure the App Proxy response is sent correctly
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };

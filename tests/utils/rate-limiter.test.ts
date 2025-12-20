@@ -20,7 +20,7 @@ function createMockRequest(
 
 describe("Rate Limiter", () => {
   beforeEach(() => {
-    // Reset rate limits between tests
+    
     const request = createMockRequest();
     resetRateLimit(request, "test");
     resetRateLimit(request, "api");
@@ -31,7 +31,6 @@ describe("Rate Limiter", () => {
     it("should allow requests within limit", () => {
       const request = createMockRequest();
 
-      // First request should be allowed
       const result = checkRateLimit(request, "api");
       
       expect(result.isLimited).toBe(false);
@@ -41,14 +40,12 @@ describe("Rate Limiter", () => {
     it("should block requests over limit", () => {
       const request = createMockRequest();
 
-      // Exceed the rate limit
       const customConfig = { maxRequests: 3, windowMs: 60000 };
       
       for (let i = 0; i < 3; i++) {
         checkRateLimit(request, "test", customConfig);
       }
 
-      // Fourth request should be blocked
       const result = checkRateLimit(request, "test", customConfig);
       
       expect(result.isLimited).toBe(true);
@@ -68,12 +65,10 @@ describe("Rate Limiter", () => {
 
       const customConfig = { maxRequests: 2, windowMs: 60000 };
 
-      // Exhaust shop1's limit
       checkRateLimit(request1, "test", customConfig);
       checkRateLimit(request1, "test", customConfig);
       const result1 = checkRateLimit(request1, "test", customConfig);
 
-      // Shop2 should still have requests available
       const result2 = checkRateLimit(request2, "test", customConfig);
 
       expect(result1.isLimited).toBe(true);
@@ -83,14 +78,12 @@ describe("Rate Limiter", () => {
     it("should use different limits for different endpoints", () => {
       const request = createMockRequest();
 
-      // Cron endpoint has lower limit (5 per hour)
       const cronConfig = { maxRequests: 2, windowMs: 3600000 };
       
       checkRateLimit(request, "cron", cronConfig);
       checkRateLimit(request, "cron", cronConfig);
       const cronResult = checkRateLimit(request, "cron", cronConfig);
 
-      // API endpoint should still be available
       const apiResult = checkRateLimit(request, "api");
 
       expect(cronResult.isLimited).toBe(true);
@@ -115,8 +108,7 @@ describe("Rate Limiter", () => {
   describe("getRateLimitStats", () => {
     it("should return current rate limit statistics", () => {
       const request = createMockRequest();
-      
-      // Make some requests
+
       checkRateLimit(request, "api");
       checkRateLimit(request, "api");
 
@@ -132,16 +124,13 @@ describe("Rate Limiter", () => {
       const request = createMockRequest();
       const customConfig = { maxRequests: 2, windowMs: 60000 };
 
-      // Use up the limit
       checkRateLimit(request, "test", customConfig);
       checkRateLimit(request, "test", customConfig);
       const beforeReset = checkRateLimit(request, "test", customConfig);
       expect(beforeReset.isLimited).toBe(true);
 
-      // Reset the limit
       resetRateLimit(request, "test");
 
-      // Should be able to make requests again
       const afterReset = checkRateLimit(request, "test", customConfig);
       expect(afterReset.isLimited).toBe(false);
     });

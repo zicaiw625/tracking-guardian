@@ -1,15 +1,4 @@
-/**
- * Circuit Breaker for API endpoints
- * 
- * P0-3: Supports both in-memory (single instance) and Redis (multi-instance) stores
- * 
- * Automatically uses Redis when REDIS_URL is set, otherwise falls back to in-memory.
- * 
- * Purpose:
- * - Prevents abuse from misconfigured or malicious sources
- * - Trips when a single shopDomain exceeds request threshold
- * - Shares state across multiple server instances when using Redis
- */
+
 
 interface CircuitBreakerState {
   count: number;
@@ -18,14 +7,11 @@ interface CircuitBreakerState {
 }
 
 interface CircuitBreakerConfig {
-  threshold: number;      // Request count to trip
-  windowMs: number;       // Time window for counting
-  cooldownMs?: number;    // How long to stay tripped (default: same as windowMs)
+  threshold: number;      
+  windowMs: number;       
+  cooldownMs?: number;    
 }
 
-/**
- * Abstract interface for circuit breaker storage
- */
 interface CircuitBreakerStore {
   getState(key: string): Promise<CircuitBreakerState | null>;
   setState(key: string, state: CircuitBreakerState): Promise<void>;
@@ -35,9 +21,6 @@ interface CircuitBreakerStore {
   cleanup(): Promise<void>;
 }
 
-/**
- * In-memory circuit breaker store (single instance only)
- */
 class InMemoryCircuitBreakerStore implements CircuitBreakerStore {
   private store = new Map<string, CircuitBreakerState>();
   private maxSize: number;
@@ -49,8 +32,7 @@ class InMemoryCircuitBreakerStore implements CircuitBreakerStore {
   async getState(key: string): Promise<CircuitBreakerState | null> {
     const state = this.store.get(key);
     if (!state) return null;
-    
-    // Check if expired
+
     if (state.resetTime < Date.now()) {
       this.store.delete(key);
       return null;
@@ -60,7 +42,7 @@ class InMemoryCircuitBreakerStore implements CircuitBreakerStore {
   }
 
   async setState(key: string, state: CircuitBreakerState): Promise<void> {
-    // Prevent unbounded memory growth
+    
     if (this.store.size >= this.maxSize && !this.store.has(key)) {
       this.cleanup();
     }
@@ -78,12 +60,11 @@ class InMemoryCircuitBreakerStore implements CircuitBreakerStore {
         tripped: false,
       };
     } else if (state.tripped) {
-      // If already tripped, just return current state
+      
       return state;
     } else {
       state.count++;
-      
-      // Check if threshold exceeded
+
       if (state.count > config.threshold) {
         state.tripped = true;
         state.resetTime = now + (config.cooldownMs || config.windowMs);
@@ -109,17 +90,15 @@ class InMemoryCircuitBreakerStore implements CircuitBreakerStore {
   }
 
   async cleanup(): Promise<void> {
-    // P0-04: Fixed cleanup logic - first delete expired, then oldest if still over limit
-    const now = Date.now();
     
-    // Step 1: Delete all expired entries
+    const now = Date.now();
+
     for (const [key, state] of this.store.entries()) {
       if (state.resetTime < now) {
         this.store.delete(key);
       }
     }
-    
-    // Step 2: If still over 80% capacity, delete oldest entries
+
     if (this.store.size >= this.maxSize * 0.8) {
       const entries = Array.from(this.store.entries())
         .sort((a, b) => a[1].resetTime - b[1].resetTime);
@@ -132,9 +111,6 @@ class InMemoryCircuitBreakerStore implements CircuitBreakerStore {
   }
 }
 
-/**
- * Redis-based circuit breaker store for multi-instance deployments
- */
 class RedisCircuitBreakerStore implements CircuitBreakerStore {
   private redisUrl: string;
   private redis: {
@@ -149,7 +125,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
   private prefix = "tg:cb:";
   private initPromise: Promise<void>;
   private fallbackStore = new InMemoryCircuitBreakerStore();
-  // P0-05: Track if Redis init failed for graceful degradation
+  
   private initFailed = false;
 
   constructor(redisUrl: string) {
@@ -164,7 +140,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
 
       client.on("error", (err) => {
         console.error("Redis circuit breaker error:", err);
-        // P0-05: Mark as unavailable on error
+        
         this.redis = null;
         this.initFailed = true;
       });
@@ -200,8 +176,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
 
   async getState(key: string): Promise<CircuitBreakerState | null> {
     await this.initPromise;
-    
-    // P0-05: Use fallback if Redis unavailable
+
     if (!this.redis || this.initFailed) {
       return this.fallbackStore.getState(key);
     }
@@ -232,8 +207,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
 
   async setState(key: string, state: CircuitBreakerState): Promise<void> {
     await this.initPromise;
-    
-    // P0-05: Use fallback if Redis unavailable
+
     if (!this.redis || this.initFailed) {
       return this.fallbackStore.setState(key, state);
     }
@@ -255,8 +229,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
 
   async increment(key: string, config: CircuitBreakerConfig): Promise<CircuitBreakerState> {
     await this.initPromise;
-    
-    // P0-05: Use fallback if Redis unavailable
+
     if (!this.redis || this.initFailed) {
       return this.fallbackStore.increment(key, config);
     }
@@ -265,15 +238,12 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
       const redisKey = this.getRedisKey(key);
       const windowSeconds = Math.ceil(config.windowMs / 1000);
 
-      // Atomically increment count
       const count = await this.redis.hIncrBy(redisKey, "count", 1);
 
-      // Set expire on first increment
       if (count === 1) {
         await this.redis.expire(redisKey, windowSeconds);
       }
 
-      // Check if should trip
       const tripped = count > config.threshold;
       if (tripped) {
         const cooldownSeconds = Math.ceil((config.cooldownMs || config.windowMs) / 1000);
@@ -296,8 +266,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
 
   async trip(key: string, config: CircuitBreakerConfig): Promise<void> {
     await this.initPromise;
-    
-    // P0-05: Use fallback if Redis unavailable
+
     if (!this.redis || this.initFailed) {
       return this.fallbackStore.trip(key, config);
     }
@@ -319,8 +288,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
 
   async reset(key: string): Promise<void> {
     await this.initPromise;
-    
-    // P0-05: Use fallback if Redis unavailable
+
     if (!this.redis || this.initFailed) {
       return this.fallbackStore.reset(key);
     }
@@ -334,11 +302,10 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
   }
 
   async cleanup(): Promise<void> {
-    // Redis handles TTL-based cleanup automatically
+    
   }
 }
 
-// Create store instance based on environment
 let circuitBreakerStore: CircuitBreakerStore;
 
 if (process.env.REDIS_URL) {
@@ -357,20 +324,12 @@ if (process.env.REDIS_URL) {
   }
 }
 
-// Default configuration
 const DEFAULT_CONFIG: CircuitBreakerConfig = {
-  threshold: 10000,     // 10k requests per minute
-  windowMs: 60 * 1000,  // 1 minute window
-  cooldownMs: 60 * 1000, // 1 minute cooldown after trip
+  threshold: 10000,     
+  windowMs: 60 * 1000,  
+  cooldownMs: 60 * 1000, 
 };
 
-/**
- * Check if a request should be circuit-broken
- * 
- * @param identifier - Unique identifier (e.g., shopDomain)
- * @param config - Optional custom configuration
- * @returns Object with blocked flag and reason
- */
 export async function checkCircuitBreaker(
   identifier: string,
   config: Partial<CircuitBreakerConfig> = {}
@@ -387,8 +346,7 @@ export async function checkCircuitBreaker(
     
     if (state.tripped) {
       const retryAfter = Math.ceil((state.resetTime - Date.now()) / 1000);
-      
-      // Log when circuit breaker trips (not on every blocked request)
+
       if (state.count === finalConfig.threshold + 1) {
         console.error(
           `🚨 Circuit breaker TRIPPED for ${identifier}: ${state.count} requests in ${finalConfig.windowMs}ms`
@@ -409,14 +367,11 @@ export async function checkCircuitBreaker(
     };
   } catch (error) {
     console.error("Circuit breaker check error:", error);
-    // Fail open - don't block on errors
+    
     return { blocked: false };
   }
 }
 
-/**
- * Manually trip the circuit breaker for an identifier
- */
 export async function tripCircuitBreaker(
   identifier: string,
   config: Partial<CircuitBreakerConfig> = {}
@@ -426,16 +381,10 @@ export async function tripCircuitBreaker(
   console.warn(`Circuit breaker manually tripped for ${identifier}`);
 }
 
-/**
- * Reset the circuit breaker for an identifier
- */
 export async function resetCircuitBreaker(identifier: string): Promise<void> {
   await circuitBreakerStore.reset(identifier);
 }
 
-/**
- * Get the current state of the circuit breaker
- */
 export async function getCircuitBreakerState(
   identifier: string
 ): Promise<CircuitBreakerState | null> {

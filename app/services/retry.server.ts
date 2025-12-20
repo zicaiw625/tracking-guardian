@@ -1,15 +1,4 @@
-/**
- * Retry Service for Server-Side Conversions
- * 
- * P1-5: Enhanced with standardized error handling from platform services
- * 
- * Implements:
- * - Exponential backoff retry strategy
- * - Dead letter queue for permanently failed conversions
- * - Manual retry capability for dead letter items
- * - Failure reason classification for better diagnostics
- * - Integration with platform-specific error parsers
- */
+
 
 import prisma from "../db.server";
 import { 
@@ -23,28 +12,28 @@ import {
   incrementMonthlyUsage, 
   type PlanId 
 } from "./billing.server";
-import { generateEventId, normalizeOrderId } from "../utils/crypto";
+// P1-04: Import unified match key functions for consistent deduplication
+import { generateEventId, normalizeOrderId, generateMatchKey, matchKeysEqual } from "../utils/crypto";
 import { extractPIISafely, logPIIStatus } from "../utils/pii";
 import type { OrderWebhookPayload } from "../types";
-// P0-13: Use logger instead of console for proper sanitization
-import { logger } from "../utils/logger";
 
-// ==========================================
-// Failure Reason Classification
-// ==========================================
+import { logger } from "../utils/logger";
+// P0-07: Import unified consent functions instead of hardcoding
+import { 
+  evaluatePlatformConsentWithStrategy,
+  getEffectiveConsentCategory,
+  type ConsentState,
+} from "../utils/platform-consent";
 
 export type FailureReason = 
-  | "token_expired"     // 401 - needs re-authorization
-  | "rate_limited"      // 429 - retry later
-  | "platform_error"    // 5xx - platform issue
-  | "validation_error"  // 4xx - field/data issue
-  | "network_error"     // timeout/connection issue
-  | "config_error"      // credential/config issue
-  | "unknown";          // unclassified
+  | "token_expired"     
+  | "rate_limited"      
+  | "platform_error"    
+  | "validation_error"  
+  | "network_error"     
+  | "config_error"      
+  | "unknown";          
 
-/**
- * P1-5: Convert PlatformError type to FailureReason
- */
 export function platformErrorToFailureReason(error: PlatformError): FailureReason {
   switch (error.type) {
     case "auth_error":
@@ -61,15 +50,12 @@ export function platformErrorToFailureReason(error: PlatformError): FailureReaso
     case "invalid_config":
       return "config_error";
     case "quota_exceeded":
-      return "config_error"; // Treat as config issue (needs plan upgrade)
+      return "config_error"; 
     default:
       return "unknown";
   }
 }
 
-/**
- * P1-5: Determine if an error should be retried based on PlatformError
- */
 export function shouldRetryFromPlatformError(
   error: PlatformError, 
   currentAttempt: number, 
@@ -78,28 +64,20 @@ export function shouldRetryFromPlatformError(
   return shouldRetryPlatform(error, currentAttempt, maxAttempts);
 }
 
-/**
- * P1-5: Get retry delay based on PlatformError
- */
 export function getRetryDelay(error: PlatformError, attempt: number): number {
-  // If platform specified a retry-after, use it
-  if (error.retryAfter) {
-    return error.retryAfter * 1000; // Convert to ms
-  }
   
-  // Otherwise use exponential backoff
+  if (error.retryAfter) {
+    return error.retryAfter * 1000; 
+  }
+
   return calculateBackoff(attempt);
 }
 
-/**
- * Classify error message into a failure reason category
- */
 export function classifyFailureReason(errorMessage: string | null): FailureReason {
   if (!errorMessage) return "unknown";
   
   const lowerError = errorMessage.toLowerCase();
-  
-  // Token/Auth issues
+
   if (
     lowerError.includes("401") ||
     lowerError.includes("unauthorized") ||
@@ -109,8 +87,7 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "token_expired";
   }
-  
-  // Rate limiting
+
   if (
     lowerError.includes("429") ||
     lowerError.includes("rate limit") ||
@@ -118,8 +95,7 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "rate_limited";
   }
-  
-  // Platform errors (5xx)
+
   if (
     lowerError.includes("500") ||
     lowerError.includes("502") ||
@@ -130,8 +106,7 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "platform_error";
   }
-  
-  // Network errors
+
   if (
     lowerError.includes("timeout") ||
     lowerError.includes("network") ||
@@ -141,8 +116,7 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "network_error";
   }
-  
-  // Validation errors
+
   if (
     lowerError.includes("400") ||
     lowerError.includes("invalid") ||
@@ -151,8 +125,7 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   ) {
     return "validation_error";
   }
-  
-  // Config errors
+
   if (
     lowerError.includes("credential") ||
     lowerError.includes("decrypt") ||
@@ -165,11 +138,8 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   return "unknown";
 }
 
-/**
- * Check if a failure reason should trigger immediate notification
- */
 export function shouldNotifyImmediately(reason: FailureReason): boolean {
-  // Token expiration needs immediate attention
+  
   return reason === "token_expired" || reason === "config_error";
 }
 import { sendConversionToGoogle } from "./platforms/google.server";
@@ -184,43 +154,22 @@ import type {
   PlatformCredentials,
 } from "../types";
 
-// Retry configuration
 const MAX_ATTEMPTS = 5;
-const BASE_DELAY_MS = 60 * 1000; // 1 minute
-const MAX_DELAY_MS = 2 * 60 * 60 * 1000; // 2 hours
+const BASE_DELAY_MS = 60 * 1000; 
+const MAX_DELAY_MS = 2 * 60 * 60 * 1000; 
 
-/**
- * Calculate next retry time using exponential backoff
- * Delays: 1m, 5m, 25m, 2h, 2h (capped)
- */
 export function calculateNextRetryTime(attempts: number): Date {
-  // Exponential backoff: baseDelay * 5^(attempts-1)
+  
   const delayMs = Math.min(
     BASE_DELAY_MS * Math.pow(5, attempts - 1),
     MAX_DELAY_MS
   );
-  
-  // Add some jitter (±10%) to prevent thundering herd
+
   const jitter = delayMs * 0.1 * (Math.random() * 2 - 1);
   
   return new Date(Date.now() + delayMs + jitter);
 }
 
-/**
- * Mark a conversion log for retry with exponential backoff
- * Classifies the failure reason for better diagnostics
- * 
- * NOTE: This function does NOT increment attempts - the caller is responsible for
- * incrementing attempts after each send attempt (success or failure).
- * This function only schedules the next retry based on the current attempts count.
- * 
- * Retry delays based on attempts:
- * - attempts=1 (first failure): retry in 1 minute
- * - attempts=2: retry in 5 minutes  
- * - attempts=3: retry in 25 minutes
- * - attempts=4: retry in 2 hours
- * - attempts=5: move to dead letter
- */
 export async function scheduleRetry(
   logId: string,
   errorMessage: string
@@ -232,11 +181,10 @@ export async function scheduleRetry(
   if (!log) return { scheduled: false, failureReason: "unknown" };
 
   const failureReason = classifyFailureReason(errorMessage);
-  // Use current attempts (already incremented by caller) to determine next action
+  
   const currentAttempts = log.attempts;
   const maxAttempts = log.maxAttempts || MAX_ATTEMPTS;
 
-  // For token_expired or config errors, don't retry - it won't help without re-auth
   if (failureReason === "token_expired" || failureReason === "config_error") {
     await prisma.conversionLog.update({
       where: { id: logId },
@@ -252,7 +200,7 @@ export async function scheduleRetry(
   }
 
   if (currentAttempts >= maxAttempts) {
-    // Move to dead letter queue
+    
     await prisma.conversionLog.update({
       where: { id: logId },
       data: {
@@ -265,7 +213,7 @@ export async function scheduleRetry(
     logger.warn(`Conversion ${logId} moved to dead letter after ${currentAttempts} attempts`);
     return { scheduled: false, failureReason };
   } else {
-    // Schedule retry with exponential backoff based on current attempts
+    
     const nextRetryAt = calculateNextRetryTime(currentAttempts);
     await prisma.conversionLog.update({
       where: { id: logId },
@@ -281,23 +229,17 @@ export async function scheduleRetry(
   }
 }
 
-/**
- * P1-2: Process pending conversions (newly created, not yet sent)
- * P0-1: Includes billing gate check before processing
- * This is called by the cron job to process webhooks asynchronously
- * Should be called frequently (e.g., every minute)
- */
 export async function processPendingConversions(): Promise<{
   processed: number;
   succeeded: number;
   failed: number;
   limitExceeded: number;
 }> {
-  // Find logs that are pending and have never been attempted
+  
   const pendingLogs = await prisma.conversionLog.findMany({
     where: {
       status: "pending",
-      attempts: 0, // Only process new logs, not ones that have failed
+      attempts: 0, 
     },
     include: {
       shop: {
@@ -319,8 +261,8 @@ export async function processPendingConversions(): Promise<{
         },
       },
     },
-    take: 100, // Process in batches
-    orderBy: { createdAt: "asc" }, // Process oldest first
+    take: 100, 
+    orderBy: { createdAt: "asc" }, 
   });
 
   logger.info(`Processing ${pendingLogs.length} pending conversions`);
@@ -331,7 +273,7 @@ export async function processPendingConversions(): Promise<{
 
   for (const log of pendingLogs) {
     try {
-      // P0-1: Check billing gate BEFORE processing
+      
       const billingCheck = await checkBillingGate(
         log.shopId,
         (log.shop.plan || "free") as PlanId
@@ -356,13 +298,12 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
 
-      // Find the pixel config for this platform
       const pixelConfig = log.shop.pixelConfigs.find(
         (pc) => pc.platform === log.platform
       );
 
       if (!pixelConfig) {
-        // Mark as failed if no config
+        
         await prisma.conversionLog.update({
           where: { id: log.id },
           data: {
@@ -376,7 +317,6 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
 
-      // Get credentials
       let credentials: PlatformCredentials | null = null;
       
       if (pixelConfig.credentialsEncrypted) {
@@ -385,7 +325,7 @@ export async function processPendingConversions(): Promise<{
             pixelConfig.credentialsEncrypted
           );
         } catch {
-          // Fall through to try legacy field
+          
         }
       }
       
@@ -398,7 +338,7 @@ export async function processPendingConversions(): Promise<{
             credentials = legacyCredentials as PlatformCredentials;
           }
         } catch {
-          // Continue with null credentials
+          
         }
       }
 
@@ -416,10 +356,8 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
 
-      // P0-1: Get or generate eventId for platform deduplication
       const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.shop.shopDomain);
 
-      // Build conversion data (minimal - no PII stored in logs)
       const conversionData: ConversionData = {
         orderId: log.orderId,
         orderNumber: log.orderNumber,
@@ -427,7 +365,6 @@ export async function processPendingConversions(): Promise<{
         currency: log.currency,
       };
 
-      // Send to platform with eventId for deduplication
       let result;
       switch (log.platform) {
         case "google":
@@ -455,7 +392,6 @@ export async function processPendingConversions(): Promise<{
           throw new Error(`Unsupported platform: ${log.platform}`);
       }
 
-      // Success!
       await prisma.conversionLog.update({
         where: { id: log.id },
         data: {
@@ -469,14 +405,12 @@ export async function processPendingConversions(): Promise<{
         },
       });
 
-      // P0-1: Increment monthly usage on successful send
       await incrementMonthlyUsage(log.shopId, log.orderId);
 
       succeeded++;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      
-      // Mark as failed and schedule retry
+
       await prisma.conversionLog.update({
         where: { id: log.id },
         data: { attempts: 1, lastAttemptAt: new Date() },
@@ -490,11 +424,6 @@ export async function processPendingConversions(): Promise<{
   return { processed: pendingLogs.length, succeeded, failed, limitExceeded };
 }
 
-/**
- * Process pending retries
- * P0-1: Includes billing gate check before retrying
- * Should be called periodically (e.g., by a cron job)
- */
 export async function processRetries(): Promise<{
   processed: number;
   succeeded: number;
@@ -502,8 +431,7 @@ export async function processRetries(): Promise<{
   limitExceeded: number;
 }> {
   const now = new Date();
-  
-  // Find logs that are due for retry
+
   const logsToRetry = await prisma.conversionLog.findMany({
     where: {
       status: "retrying",
@@ -521,7 +449,7 @@ export async function processRetries(): Promise<{
         },
       },
     },
-    take: 50, // Process in batches
+    take: 50, 
   });
 
   logger.info(`Processing ${logsToRetry.length} pending retries`);
@@ -532,7 +460,7 @@ export async function processRetries(): Promise<{
 
   for (const log of logsToRetry) {
     try {
-      // P0-1: Check billing gate BEFORE retrying
+      
       const billingCheck = await checkBillingGate(
         log.shopId,
         (log.shop.plan || "free") as PlanId
@@ -557,7 +485,6 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      // Find the pixel config for this platform
       const pixelConfig = log.shop.pixelConfigs.find(
         (pc) => pc.platform === log.platform
       );
@@ -568,10 +495,8 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      // Get credentials - prefer credentialsEncrypted, fallback to legacy credentials field
       let credentials: PlatformCredentials | null = null;
-      
-      // Try credentialsEncrypted first (new field)
+
       if (pixelConfig.credentialsEncrypted) {
         try {
           credentials = decryptJson<PlatformCredentials>(
@@ -580,18 +505,14 @@ export async function processRetries(): Promise<{
         } catch (decryptError) {
           const errorMsg = decryptError instanceof Error ? decryptError.message : "Unknown error";
           logger.warn(`Failed to decrypt credentialsEncrypted for ${log.platform}: ${errorMsg}`);
-          // Fall through to try legacy field
+          
         }
       }
-      
-      // Fallback: try legacy credentials field (for backwards compatibility with old data)
-      // Note: Prisma schema maps this to credentials_legacy column
+
       if (!credentials && (pixelConfig as Record<string, unknown>).credentials) {
         try {
           const legacyCredentials = (pixelConfig as Record<string, unknown>).credentials;
-          // Legacy field might be:
-          // 1. An encrypted string (old format)
-          // 2. A JSON object stored directly
+
           if (typeof legacyCredentials === "string") {
             credentials = decryptJson<PlatformCredentials>(legacyCredentials);
           } else if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
@@ -605,7 +526,7 @@ export async function processRetries(): Promise<{
       }
       
       if (!credentials) {
-        // Increment attempts before scheduling retry
+        
         await prisma.conversionLog.update({
           where: { id: log.id },
           data: { attempts: { increment: 1 } },
@@ -621,20 +542,16 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      // P0-1: Get or generate eventId for platform deduplication
       const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.shop.shopDomain);
 
-      // Build conversion data
       const conversionData: ConversionData = {
         orderId: log.orderId,
         orderNumber: log.orderNumber,
         value: Number(log.orderValue),
         currency: log.currency,
-        // Note: We don't have customer details stored, so we can't retry with enhanced matching
-        // This is a trade-off between privacy and retry capability
+
       };
 
-      // Send to platform with eventId for deduplication
       let result;
       switch (log.platform) {
         case "google":
@@ -662,7 +579,6 @@ export async function processRetries(): Promise<{
           throw new Error(`Unsupported platform: ${log.platform}`);
       }
 
-      // Success! Increment attempts to mark this retry as completed
       await prisma.conversionLog.update({
         where: { id: log.id },
         data: {
@@ -672,20 +588,17 @@ export async function processRetries(): Promise<{
           platformResponse: result as object,
           errorMessage: null,
           nextRetryAt: null,
-          attempts: { increment: 1 }, // Increment after successful retry
+          attempts: { increment: 1 }, 
         },
       });
 
-      // P0-1: Increment monthly usage on successful retry
-      // Note: This is idempotent - it checks if already counted
       await incrementMonthlyUsage(log.shopId, log.orderId);
 
       succeeded++;
       logger.info(`Retry succeeded for ${log.id}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      
-      // Increment attempts first, then schedule next retry
+
       await prisma.conversionLog.update({
         where: { id: log.id },
         data: { attempts: { increment: 1 } },
@@ -700,17 +613,6 @@ export async function processRetries(): Promise<{
   return { processed: logsToRetry.length, succeeded, failed, limitExceeded };
 }
 
-/**
- * P0-2 & P1-9: Process queued ConversionJobs
- * This is the main worker function that processes the async webhook queue
- * 
- * Features:
- * - Processes jobs in batches with locking to prevent duplicate processing
- * - P0-1: Billing gate check before processing
- * - Sends to all configured platforms
- * - Updates job status on success/failure
- * - Moves permanently failed jobs to dead letter
- */
 export async function processConversionJobs(): Promise<{
   processed: number;
   succeeded: number;
@@ -720,11 +622,7 @@ export async function processConversionJobs(): Promise<{
 }> {
   const now = new Date();
   const batchSize = 50;
-  
-  // Find jobs ready to process:
-  // - Status: queued or failed (for retry)
-  // - nextRetryAt: null or in the past
-  // - attempts < maxAttempts
+
   const jobsToProcess = await prisma.conversionJob.findMany({
     where: {
       OR: [
@@ -752,6 +650,8 @@ export async function processConversionJobs(): Promise<{
               platformId: true,
               credentialsEncrypted: true,
               credentials: true,
+              // P0-07: Include clientConfig to check treatAsMarketing for dual-use platforms
+              clientConfig: true,
             },
           },
         },
@@ -775,24 +675,21 @@ export async function processConversionJobs(): Promise<{
   
   for (const job of jobsToProcess) {
     try {
-      // P1-02: Atomic lock acquisition using updateMany with status check
-      // This prevents race conditions when multiple workers process the same job
+
       const lockResult = await prisma.conversionJob.updateMany({
         where: {
           id: job.id,
-          status: { in: ["queued", "failed"] }, // Only grab if still in expected state
+          status: { in: ["queued", "failed"] }, 
         },
         data: { status: "processing" },
       });
-      
-      // P1-02: If no rows updated, another worker already grabbed this job
+
       if (lockResult.count === 0) {
         logger.debug(`[P1-02] Job ${job.id} already being processed by another worker, skipping`);
         skipped++;
         continue;
       }
-      
-      // P0-1: Check billing gate
+
       const billingCheck = await checkBillingGate(
         job.shopId,
         (job.shop.plan || "free") as PlanId
@@ -816,8 +713,7 @@ export async function processConversionJobs(): Promise<{
         limitExceeded++;
         continue;
       }
-      
-      // Check if shop has any configured platforms
+
       if (job.shop.pixelConfigs.length === 0) {
         logger.debug(`Job ${job.id}: No active platforms configured`);
         await prisma.conversionJob.update({
@@ -832,12 +728,14 @@ export async function processConversionJobs(): Promise<{
         skipped++;
         continue;
       }
-      
-      // Generate eventId for deduplication
+
       const eventId = generateEventId(job.orderId, "purchase", job.shop.shopDomain);
+
+      // P1-04: Use unified matching strategy for pixel receipt lookup
+      const capiInputRaw = job.capiInput as { checkoutToken?: string } | null;
+      const checkoutToken = capiInputRaw?.checkoutToken;
       
-      // P0-03 FIX: Get PixelEventReceipt with checkoutToken fallback
-      // First try to find by orderId (preferred)
+      // First try: Match by orderId (primary key)
       let receipt = await prisma.pixelEventReceipt.findUnique({
         where: {
           shopId_orderId_eventType: {
@@ -850,35 +748,75 @@ export async function processConversionJobs(): Promise<{
           consentState: true, 
           isTrusted: true,
           checkoutToken: true,
+          orderId: true,
         },
       });
-      
-      // P0-03 FIX: If not found by orderId, try by checkoutToken
-      // This handles cases where pixel used checkoutToken as fallback
-      if (!receipt) {
-        // Get checkoutToken from capiInput if available
-        const capiInputRaw = job.capiInput as { checkoutToken?: string } | null;
-        const checkoutToken = capiInputRaw?.checkoutToken;
+
+      // Second try: Match by checkoutToken (fallback)
+      if (!receipt && checkoutToken) {
+        receipt = await prisma.pixelEventReceipt.findFirst({
+          where: {
+            shopId: job.shopId,
+            checkoutToken: checkoutToken,
+            eventType: "purchase",
+          },
+          select: { 
+            consentState: true, 
+            isTrusted: true,
+            checkoutToken: true,
+            orderId: true,
+          },
+        });
         
-        if (checkoutToken) {
-          // Search by checkoutToken
-          receipt = await prisma.pixelEventReceipt.findFirst({
-            where: {
-              shopId: job.shopId,
+        if (receipt) {
+          logger.debug(
+            `[P1-04] Found PixelEventReceipt via checkoutToken fallback for job ${job.id}`,
+            { 
+              jobOrderId: job.orderId,
+              receiptOrderId: receipt.orderId,
               checkoutToken: checkoutToken,
-              eventType: "purchase",
+            }
+          );
+        }
+      }
+      
+      // Third try: Cross-match using matchKeysEqual
+      // This handles edge cases where pixel used checkoutToken but we have orderId
+      if (!receipt && checkoutToken) {
+        const potentialReceipts = await prisma.pixelEventReceipt.findMany({
+          where: {
+            shopId: job.shopId,
+            eventType: "purchase",
+            // Look for receipts created around the same time (within 1 hour)
+            createdAt: {
+              gte: new Date(job.createdAt.getTime() - 60 * 60 * 1000),
+              lte: new Date(job.createdAt.getTime() + 60 * 60 * 1000),
             },
-            select: { 
-              consentState: true, 
-              isTrusted: true,
-              checkoutToken: true,
-            },
-          });
-          
-          if (receipt) {
+          },
+          select: { 
+            consentState: true, 
+            isTrusted: true,
+            checkoutToken: true,
+            orderId: true,
+          },
+          take: 10, // Limit to prevent excessive queries
+        });
+        
+        // Use matchKeysEqual to find matching receipt
+        for (const candidate of potentialReceipts) {
+          if (matchKeysEqual(
+            { orderId: job.orderId, checkoutToken },
+            { orderId: candidate.orderId, checkoutToken: candidate.checkoutToken }
+          )) {
+            receipt = candidate;
             logger.debug(
-              `[P0-03] Found PixelEventReceipt via checkoutToken fallback for job ${job.id}`
+              `[P1-04] Found PixelEventReceipt via cross-match for job ${job.id}`,
+              { 
+                jobOrderId: job.orderId,
+                receiptOrderId: candidate.orderId,
+              }
             );
+            break;
           }
         }
       }
@@ -887,98 +825,53 @@ export async function processConversionJobs(): Promise<{
         marketing?: boolean; 
         analytics?: boolean; 
       } | null;
-      
-      // Process each platform
+
       const platformResults: Record<string, string> = {};
       let allSucceeded = true;
       let anySucceeded = false;
       
       for (const pixelConfig of job.shop.pixelConfigs) {
-        // P0-04: Platform classification for consent gating
-        // Marketing platforms (Meta, TikTok) require marketing consent - MOST SENSITIVE
-        // Analytics platforms (Google GA4) require analytics consent - LESS SENSITIVE
-        const isMarketingPlatform = ["meta", "tiktok"].includes(pixelConfig.platform);
-        const isAnalyticsPlatform = ["google"].includes(pixelConfig.platform);
-        
-        // P0-04 ENHANCED: Consent evaluation with three strategies
-        // 
-        // Strategy "strict" (RECOMMENDED FOR PRODUCTION):
-        //   - Requires PixelEventReceipt for ALL platforms
-        //   - No receipt = no send (safest approach)
-        //
-        // Strategy "balanced":
-        //   - If receipt exists: respect explicit consent choices
-        //   - If NO receipt:
-        //     - Analytics platforms (GA4): ALLOW (lower risk)
-        //     - Marketing platforms (Meta/TikTok): BLOCK (higher risk)
-        //
-        // Strategy "weak" (NOT RECOMMENDED):
-        //   - Allow all sends regardless of consent
-        //   - Only for regions with implied consent laws
-        
         const strategy = job.shop.consentStrategy || "strict";
         
-        // P0-04: Check consent when we have a receipt
-        if (receipt && consentState) {
-          // Explicit denial - always respect
-          if (isMarketingPlatform && consentState.marketing === false) {
-            logger.debug(`[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: marketing consent explicitly denied`);
-            platformResults[pixelConfig.platform] = "skipped:marketing_consent_denied";
-            continue;
-          }
-          if (isAnalyticsPlatform && consentState.analytics === false) {
-            logger.debug(`[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: analytics consent explicitly denied`);
-            platformResults[pixelConfig.platform] = "skipped:analytics_consent_denied";
-            continue;
-          }
-          // Has receipt with positive or undefined consent - proceed
-          logger.debug(`[P0-04] Consent check passed for ${pixelConfig.platform} (job ${job.id}): receipt found with consent`);
-        }
-        // P0-04: No receipt - apply strategy
-        else {
-          if (strategy === "strict") {
-            // STRICT: No receipt = no send for ANY platform
-            logger.info(
-              `[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: ` +
-              `strict mode requires consent receipt (none found)`
-            );
-            platformResults[pixelConfig.platform] = "skipped:no_receipt_strict_mode";
-            continue;
-          }
+        // P0-07: Check if this platform config has treatAsMarketing flag set
+        // This is stored in PixelConfig.clientConfig for dual-use platforms like Google
+        const clientConfig = pixelConfig.clientConfig as { treatAsMarketing?: boolean } | null;
+        const treatAsMarketing = clientConfig?.treatAsMarketing === true;
+
+        // P0-07: Use unified consent evaluation function - no more hardcoded platform lists!
+        const consentDecision = evaluatePlatformConsentWithStrategy(
+          pixelConfig.platform,
+          strategy,
+          consentState as ConsentState | null,
+          !!receipt, // hasPixelReceipt
+          treatAsMarketing // for dual-use platforms
+        );
+
+        if (!consentDecision.allowed) {
+          const skipReason = consentDecision.reason || "consent_denied";
+          const usedConsent = consentDecision.usedConsent || "unknown";
           
-          if (strategy === "balanced") {
-            // BALANCED: Allow analytics, block marketing
-            if (isMarketingPlatform) {
-              logger.info(
-                `[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: ` +
-                `balanced mode blocks marketing platforms without consent receipt`
-              );
-              platformResults[pixelConfig.platform] = "skipped:no_receipt_marketing_blocked";
-              continue;
-            }
-            // Analytics platforms allowed in balanced mode without receipt
-            logger.debug(
-              `[P0-04] Allowing ${pixelConfig.platform} for job ${job.id}: ` +
-              `balanced mode allows analytics without receipt`
-            );
-          }
-          
-          // strategy === "weak": allow all (fall through)
-          if (strategy === "weak") {
-            logger.debug(
-              `[P0-04] Allowing ${pixelConfig.platform} for job ${job.id}: weak consent mode`
-            );
-          }
+          logger.debug(
+            `[P0-07] Skipping ${pixelConfig.platform} for job ${job.id}: ` +
+            `${skipReason} (consent type: ${usedConsent}, strategy: ${strategy})`
+          );
+          platformResults[pixelConfig.platform] = `skipped:${skipReason.replace(/\s+/g, "_").toLowerCase()}`;
+          continue;
         }
+        
+        logger.debug(
+          `[P0-07] Consent check passed for ${pixelConfig.platform} (job ${job.id}): ` +
+          `strategy=${strategy}, usedConsent=${consentDecision.usedConsent}`
+        );
         try {
-          // Get credentials
+          
           let credentials: PlatformCredentials | null = null;
           
           if (pixelConfig.credentialsEncrypted) {
             try {
               credentials = decryptJson<PlatformCredentials>(pixelConfig.credentialsEncrypted);
             } catch {
-              // Fall through
+              
             }
           }
           
@@ -991,7 +884,7 @@ export async function processConversionJobs(): Promise<{
                 credentials = legacyCreds as PlatformCredentials;
               }
             } catch {
-              // Continue
+              
             }
           }
           
@@ -1000,17 +893,13 @@ export async function processConversionJobs(): Promise<{
             allSucceeded = false;
             continue;
           }
-          
-          // P0-05: Build conversion data from job fields + capiInput
-          // capiInput contains minimal CAPI-specific data (items, tax, etc.)
-          // Prefer capiInput values when available for richer conversion data
+
           const capiInput = job.capiInput as {
             items?: Array<{ productId?: string; variantId?: string; name?: string; quantity?: number; price?: number }>;
             tax?: number;
             shipping?: number;
           } | null;
-          
-          // P0-05: Convert capiInput.items to LineItem format for ConversionData
+
           const lineItems = capiInput?.items?.map(item => ({
             productId: item.productId || "",
             variantId: item.variantId || "",
@@ -1024,11 +913,10 @@ export async function processConversionJobs(): Promise<{
             orderNumber: job.orderNumber,
             value: Number(job.orderValue),
             currency: job.currency,
-            // P0-05: Include lineItems from capiInput if available
+            
             lineItems,
           };
-          
-          // Send to platform
+
           let result;
           switch (pixelConfig.platform) {
             case "google":
@@ -1067,12 +955,11 @@ export async function processConversionJobs(): Promise<{
           allSucceeded = false;
         }
       }
-      
-      // Update job status based on results
+
       const newAttempts = job.attempts + 1;
       
       if (allSucceeded || anySucceeded) {
-        // At least some platforms succeeded
+        
         await prisma.conversionJob.update({
           where: { id: job.id },
           data: {
@@ -1085,15 +972,14 @@ export async function processConversionJobs(): Promise<{
             errorMessage: null,
           },
         });
-        
-        // Increment monthly usage
+
         await incrementMonthlyUsage(job.shopId, job.orderId);
         
         succeeded++;
       } else {
-        // All platforms failed
+        
         if (newAttempts >= job.maxAttempts) {
-          // Move to dead letter
+          
           await prisma.conversionJob.update({
             where: { id: job.id },
             data: {
@@ -1105,7 +991,7 @@ export async function processConversionJobs(): Promise<{
             },
           });
         } else {
-          // Schedule retry with exponential backoff
+          
           const nextRetryAt = calculateNextRetryTime(newAttempts);
           await prisma.conversionJob.update({
             where: { id: job.id },
@@ -1125,8 +1011,7 @@ export async function processConversionJobs(): Promise<{
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
       logger.error(`Failed to process job ${job.id}: ${errorMsg}`);
-      
-      // Mark as failed
+
       await prisma.conversionJob.update({
         where: { id: job.id },
         data: {
@@ -1137,7 +1022,7 @@ export async function processConversionJobs(): Promise<{
           errorMessage: errorMsg,
         },
       }).catch(() => {
-        // Ignore update errors - job will be retried
+        
       });
       
       failed++;
@@ -1159,9 +1044,6 @@ export async function processConversionJobs(): Promise<{
   };
 }
 
-/**
- * Get dead letter items for a shop
- */
 export async function getDeadLetterItems(
   shopId: string,
   limit = 50
@@ -1195,9 +1077,6 @@ export async function getDeadLetterItems(
   return items;
 }
 
-/**
- * Manually retry a dead letter item
- */
 export async function retryDeadLetter(logId: string): Promise<boolean> {
   const log = await prisma.conversionLog.findUnique({
     where: { id: logId },
@@ -1207,14 +1086,13 @@ export async function retryDeadLetter(logId: string): Promise<boolean> {
     return false;
   }
 
-  // Reset for retry
   await prisma.conversionLog.update({
     where: { id: logId },
     data: {
       status: "retrying",
       attempts: 0,
-      maxAttempts: 3, // Give it 3 more attempts
-      nextRetryAt: new Date(), // Retry immediately
+      maxAttempts: 3, 
+      nextRetryAt: new Date(), 
       manuallyRetried: true,
       errorMessage: null,
     },
@@ -1224,9 +1102,6 @@ export async function retryDeadLetter(logId: string): Promise<boolean> {
   return true;
 }
 
-/**
- * Batch retry all dead letter items for a shop
- */
 export async function retryAllDeadLetters(shopId: string): Promise<number> {
   const result = await prisma.conversionLog.updateMany({
     where: {
@@ -1247,15 +1122,11 @@ export async function retryAllDeadLetters(shopId: string): Promise<number> {
   return result.count;
 }
 
-/**
- * Check if shop has token expiration issues
- * Returns platforms that have recent token_expired failures
- */
 export async function checkTokenExpirationIssues(shopId: string): Promise<{
   hasIssues: boolean;
   affectedPlatforms: string[];
 }> {
-  // Look for recent failures (last 24 hours) with token_expired reason
+  
   const oneDayAgo = new Date();
   oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
@@ -1280,9 +1151,6 @@ export async function checkTokenExpirationIssues(shopId: string): Promise<{
   };
 }
 
-/**
- * Get retry statistics for a shop
- */
 export async function getRetryStats(shopId: string): Promise<{
   pending: number;
   retrying: number;

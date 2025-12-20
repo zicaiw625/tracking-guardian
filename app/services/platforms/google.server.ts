@@ -1,29 +1,9 @@
-/**
- * Google GA4 Measurement Protocol Integration
- * 
- * This module provides server-side conversion tracking via GA4 Measurement Protocol.
- * 
- * Why GA4 MP only (not Google Ads API)?
- * - Simple setup: Only needs measurementId + apiSecret
- * - No OAuth required
- * - Works for purchase events which is the primary use case
- * - Google Ads can import GA4 conversions for attribution
- * 
- * For Google Ads Enhanced Conversions, users should:
- * 1. Set up GA4 Measurement Protocol here
- * 2. Import GA4 conversions into Google Ads (recommended by Google)
- */
+
 
 import type { ConversionData, GoogleCredentials, ConversionApiResponse } from "../../types";
-// NOTE: hashValue and normalizeEmail removed - GA4 MP prohibits any PII (including hashed)
-// Reference: https://developers.google.com/analytics/devguides/collection/protocol/ga4/policy
 
-// API configuration
 const API_TIMEOUT_MS = 30000;
 
-/**
- * Fetch with timeout support
- */
 async function fetchWithTimeout(
   url: string,
   options: RequestInit,
@@ -39,17 +19,6 @@ async function fetchWithTimeout(
   }
 }
 
-/**
- * Send conversion to Google via GA4 Measurement Protocol
- * 
- * Requirements:
- * - measurementId: GA4 Property Measurement ID (e.g., G-XXXXXXXXXX)
- * - apiSecret: GA4 Measurement Protocol API secret (from GA4 Admin > Data Streams)
- * 
- * @param credentials - GA4 credentials (measurementId + apiSecret)
- * @param conversionData - Conversion event data
- * @param eventId - Optional event ID for deduplication
- */
 export async function sendConversionToGoogle(
   credentials: GoogleCredentials | null,
   conversionData: ConversionData,
@@ -59,7 +28,6 @@ export async function sendConversionToGoogle(
     throw new Error("Google credentials not configured");
   }
 
-  // Validate required GA4 credentials
   if (!credentials.measurementId || !credentials.apiSecret) {
     throw new Error(
       "GA4 Measurement Protocol requires measurementId and apiSecret. " +
@@ -67,7 +35,6 @@ export async function sendConversionToGoogle(
     );
   }
 
-  // Validate measurementId format
   if (!credentials.measurementId.match(/^G-[A-Z0-9]+$/)) {
     throw new Error(
       `Invalid GA4 Measurement ID format: ${credentials.measurementId}. ` +
@@ -77,30 +44,16 @@ export async function sendConversionToGoogle(
 
   console.log(`Sending GA4 MP conversion for order=${conversionData.orderId}`);
 
-  // Generate event ID for deduplication
   const dedupeEventId = eventId || `${conversionData.orderId}_purchase_${Date.now()}`;
 
-  // P0 COMPLIANCE: GA4 Measurement Protocol PII Policy
-  // Google Analytics explicitly prohibits uploading any PII (including hashed email/phone)
-  // Reference: https://developers.google.com/analytics/devguides/collection/protocol/ga4/policy
-  // 
-  // REMOVED: user_id from hashed email, user_properties.hashed_email
-  // 
-  // For cross-device tracking in GA4, merchants should:
-  // 1. Use GA4's built-in User-ID feature with their own internal IDs (not email-derived)
-  // 2. Import GA4 conversions into Google Ads for attribution
-  // 3. Use Google Ads Enhanced Conversions separately (which DOES support hashed PII)
-
-  // Build the payload - NO PII or hashed PII included
   const payload: Record<string, unknown> = {
-    // client_id is required - use order ID as a server-side identifier
-    // This is NOT PII - it's an internal order reference
+
     client_id: `server.${conversionData.orderId}`,
     events: [
       {
         name: "purchase",
         params: {
-          // engagement_time_msec is required for events to be processed
+          
           engagement_time_msec: "1",
           transaction_id: conversionData.orderId,
           value: conversionData.value,
@@ -129,10 +82,6 @@ export async function sendConversionToGoogle(
       API_TIMEOUT_MS
     );
 
-    // GA4 Measurement Protocol returns 204 No Content on success
-    // Note: It also returns 2xx for invalid data (fire-and-forget design)
-    // To debug, use the validation endpoint:
-    // https://www.google-analytics.com/debug/mp/collect
     if (response.status === 204 || response.ok) {
       console.log(`GA4 MP: conversion sent successfully for order=${conversionData.orderId}, eventId=${dedupeEventId}`);
       return {
@@ -152,11 +101,6 @@ export async function sendConversionToGoogle(
   }
 }
 
-/**
- * Generate Web Pixel code for Google Analytics 4
- * Note: This is kept for backwards compatibility with the migrate page
- * The new architecture sends events to /api/pixel-events instead
- */
 export function generateGooglePixelCode(config: {
   measurementId: string;
   conversionId?: string;

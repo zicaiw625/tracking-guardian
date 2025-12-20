@@ -1,5 +1,4 @@
-// Cryptographic utilities for secure credential storage
-// Uses AES-256-GCM for encryption with proper key derivation
+
 
 import { 
   createCipheriv, 
@@ -9,30 +8,20 @@ import {
   scryptSync 
 } from "crypto";
 
-// Scrypt parameters for key derivation (OWASP recommended)
-// N = 2^17 (131072) - CPU/memory cost parameter
-// r = 8 - block size parameter
-// p = 1 - parallelization parameter
 const SCRYPT_PARAMS = {
-  N: 131072, // 2^17, recommended minimum for sensitive data
+  N: 131072, 
   r: 8,
   p: 1,
-  maxmem: 256 * 1024 * 1024, // 256 MB max memory
+  maxmem: 256 * 1024 * 1024, 
 };
 
-// Cache for derived key to avoid repeated expensive scrypt operations
 let cachedKey: Buffer | null = null;
 let cachedKeySecret: string | null = null;
 
-/**
- * Get or derive encryption key from environment variables
- * Uses scrypt with OWASP-recommended parameters for key derivation
- */
 const getEncryptionKey = (): Buffer => {
   const secret = process.env.ENCRYPTION_SECRET;
   const salt = process.env.ENCRYPTION_SALT;
-  
-  // Always require ENCRYPTION_SECRET in production
+
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
       throw new Error(
@@ -40,32 +29,28 @@ const getEncryptionKey = (): Buffer => {
         "Generate a secure secret using: openssl rand -base64 32"
       );
     }
-    // Development fallback with clear warning
+    
     console.warn(
       "⚠️ ENCRYPTION_SECRET not set. Using insecure default for development only. " +
       "Set ENCRYPTION_SECRET environment variable for production."
     );
-    // Use a deterministic but clearly dev-only key
+    
     const devSecret = "INSECURE_DEV_SECRET_DO_NOT_USE_IN_PRODUCTION";
     const devSalt = "dev-salt-not-for-production";
     return scryptSync(devSecret, devSalt, 32, SCRYPT_PARAMS);
   }
-  
-  // Validate secret length (minimum 32 characters recommended)
+
   if (secret.length < 32) {
     console.warn(
       "⚠️ ENCRYPTION_SECRET is shorter than 32 characters. " +
       "Consider using a longer secret for better security."
     );
   }
-  
-  // Use cached key if secret hasn't changed (avoid expensive scrypt on every call)
+
   if (cachedKey && cachedKeySecret === secret) {
     return cachedKey;
   }
-  
-  // Get salt from environment or generate a secure default
-  // Note: In production, ENCRYPTION_SALT should be set and consistent across deploys
+
   const effectiveSalt = salt || `tracking-guardian-${secret.slice(0, 8)}`;
   
   if (!salt && process.env.NODE_ENV === "production") {
@@ -74,18 +59,13 @@ const getEncryptionKey = (): Buffer => {
       "Set ENCRYPTION_SALT environment variable for consistent encryption across deployments."
     );
   }
-  
-  // Derive a 256-bit key from the secret using scrypt
+
   cachedKey = scryptSync(secret, effectiveSalt, 32, SCRYPT_PARAMS);
   cachedKeySecret = secret;
   
   return cachedKey;
 };
 
-/**
- * Validates encryption configuration
- * Call this during app startup to ensure proper configuration
- */
 export function validateEncryptionConfig(): { valid: boolean; warnings: string[] } {
   const warnings: string[] = [];
   const isProduction = process.env.NODE_ENV === "production";
@@ -107,14 +87,9 @@ export function validateEncryptionConfig(): { valid: boolean; warnings: string[]
 }
 
 const ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 16; // 128 bits for AES-GCM
-const AUTH_TAG_LENGTH = 16; // 128 bits authentication tag
+const IV_LENGTH = 16; 
+const AUTH_TAG_LENGTH = 16; 
 
-/**
- * Encrypts sensitive data using AES-256-GCM
- * @param plaintext - The data to encrypt
- * @returns Base64-encoded encrypted string (iv:authTag:ciphertext)
- */
 export function encrypt(plaintext: string): string {
   const key = getEncryptionKey();
   const iv = randomBytes(IV_LENGTH);
@@ -124,15 +99,9 @@ export function encrypt(plaintext: string): string {
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag();
 
-  // Format: iv:authTag:ciphertext (all in hex)
   return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
 }
 
-/**
- * Decrypts data encrypted with the encrypt function
- * @param encryptedData - The encrypted string (iv:authTag:ciphertext)
- * @returns The original plaintext
- */
 export function decrypt(encryptedData: string): string {
   const key = getEncryptionKey();
   const parts = encryptedData.split(":");
@@ -154,155 +123,186 @@ export function decrypt(encryptedData: string): string {
   return decrypted;
 }
 
-/**
- * Encrypts a JSON object
- * @param data - Object to encrypt
- * @returns Base64-encoded encrypted string
- */
 export function encryptJson<T extends object>(data: T): string {
   return encrypt(JSON.stringify(data));
 }
 
-/**
- * Decrypts and parses a JSON object
- * @param encryptedData - Encrypted string
- * @returns The original object
- */
 export function decryptJson<T extends object>(encryptedData: string): T {
   const jsonString = decrypt(encryptedData);
   return JSON.parse(jsonString) as T;
 }
 
-/**
- * SHA-256 hash function for PII data (email, phone, etc.)
- * Used for sending hashed data to ad platforms
- * 
- * Uses Node.js crypto module for guaranteed compatibility across all Node.js versions
- * Note: This function is async for API compatibility, but the implementation is sync
- */
 export async function hashValue(value: string): Promise<string> {
-  // Use Node.js createHash for reliable cross-runtime compatibility
-  // This avoids issues with crypto.subtle not being available in some environments
+
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-/**
- * Synchronous version of hashValue for use in synchronous contexts
- * Prefer the async version when possible
- */
 export function hashValueSync(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-/**
- * Normalizes a phone number by removing all non-numeric characters
- * @param phone - Phone number string
- * @returns Normalized phone number
- */
 export function normalizePhone(phone: string): string {
-  // Remove all non-numeric characters except leading +
+  
   return phone.replace(/[^\d+]/g, "");
 }
 
-/**
- * Normalizes an email address for hashing
- * @param email - Email address
- * @returns Normalized email (lowercase, trimmed)
- */
 export function normalizeEmail(email: string): string {
   return email.toLowerCase().trim();
 }
 
-// ==========================================
-// Event Deduplication
-// ==========================================
-
-/**
- * Generate a deterministic event ID for deduplication
- * 
- * This function generates a consistent eventId that can be used for:
- * 1. ConversionLog internal deduplication (prevent double processing)
- * 2. Platform CAPI deduplication (Meta event_id, TikTok event_id, GA4 transaction_id)
- * 
- * The eventId is deterministic based on orderId and eventType, ensuring:
- * - Same order + same event type = same eventId
- * - Pixel flow and Webhook flow generate identical eventIds
- * - Platforms can deduplicate events from different sources
- * 
- * Format: {orderId}_{eventType}_{short_hash}
- * Example: gid://shopify/Order/123456_purchase_a1b2c3d4
- * 
- * @param orderId - The order ID (can be Shopify GID or numeric ID)
- * @param eventType - Event type (e.g., "purchase", "checkout_started")
- * @param shopDomain - Optional shop domain for additional uniqueness
- * @returns Deterministic event ID for deduplication
- */
 export function generateEventId(
   orderId: string,
   eventType: string,
   shopDomain?: string
 ): string {
-  // Normalize orderId - extract numeric ID if it's a GID
-  const normalizedOrderId = normalizeOrderId(orderId);
   
-  // Create a deterministic hash based on the inputs
+  const normalizedOrderId = normalizeOrderId(orderId);
+
   const hashInput = shopDomain 
     ? `${shopDomain}:${normalizedOrderId}:${eventType}`
     : `${normalizedOrderId}:${eventType}`;
-  
-  // Generate short hash (first 8 characters of SHA-256)
+
   const shortHash = createHash("sha256")
     .update(hashInput, "utf8")
     .digest("hex")
     .slice(0, 8);
-  
-  // Format: orderId_eventType_hash
-  // This format is readable for debugging while being unique
+
   return `${normalizedOrderId}_${eventType}_${shortHash}`;
 }
 
-/**
- * P2-5: Normalize order ID by extracting numeric ID from Shopify GID
- * 
- * STORAGE SPECIFICATION:
- * ======================
- * ConversionLog.orderId always stores the NUMERIC order ID as a string.
- * Example: "1234567890" (not "gid://shopify/Order/1234567890")
- * 
- * This ensures:
- * - Consistent unique key behavior (shopId + orderId + platform + eventType)
- * - Proper deduplication between pixel events and webhooks
- * - Easier querying and debugging
- * 
- * Input formats accepted:
- * - GID: "gid://shopify/Order/1234567890" → "1234567890"
- * - Numeric string: "1234567890" → "1234567890"
- * - Number: 1234567890 → "1234567890"
- * 
- * IMPORTANT: All code paths that write to ConversionLog.orderId MUST call
- * normalizeOrderId() first:
- * - api.pixel-events.tsx (pixel event recording)
- * - webhooks.tsx (webhook conversion processing)
- * 
- * @param orderId - Order ID in any format
- * @returns Normalized numeric order ID as string
- */
 export function normalizeOrderId(orderId: string | number): string {
   const orderIdStr = String(orderId);
-  
-  // Check if it's a Shopify GID format
+
   const gidMatch = orderIdStr.match(/gid:\/\/shopify\/Order\/(\d+)/);
   if (gidMatch) {
     return gidMatch[1];
   }
-  
-  // Check if it contains a numeric ID at the end (handles various formats)
+
   const numericMatch = orderIdStr.match(/(\d+)$/);
   if (numericMatch) {
     return numericMatch[1];
   }
-  
-  // Return as-is if no pattern matches (shouldn't happen with valid Shopify order IDs)
+
   console.warn(`[normalizeOrderId] Unable to extract numeric ID from: ${orderIdStr}`);
   return orderIdStr;
+}
+
+/**
+ * P1-04: Unified match key generation for pixel receipt and webhook deduplication
+ * 
+ * Match Priority:
+ * 1. orderId (normalized numeric ID) - highest priority, most reliable
+ * 2. checkoutToken - fallback when orderId is not available
+ * 
+ * This ensures consistent matching between:
+ * - PixelEventReceipt (from pixel events)
+ * - ConversionJob (from webhooks)
+ * - ConversionLog (final tracking records)
+ */
+
+export interface MatchKeyInput {
+  orderId?: string | number | null;
+  checkoutToken?: string | null;
+}
+
+export interface MatchKeyResult {
+  /** The primary key used for matching */
+  matchKey: string;
+  /** Whether the key is an orderId (true) or checkoutToken fallback (false) */
+  isOrderId: boolean;
+  /** Original orderId if available */
+  normalizedOrderId: string | null;
+  /** Original checkoutToken if available */
+  checkoutToken: string | null;
+}
+
+/**
+ * Generate a consistent match key for deduplication
+ * 
+ * @param input - Object containing orderId and/or checkoutToken
+ * @returns MatchKeyResult with the key and metadata
+ * @throws Error if neither orderId nor checkoutToken is provided
+ */
+export function generateMatchKey(input: MatchKeyInput): MatchKeyResult {
+  const { orderId, checkoutToken } = input;
+  
+  // Priority 1: Use orderId if available and valid
+  if (orderId != null && orderId !== "") {
+    const normalizedOrderId = normalizeOrderId(orderId);
+    return {
+      matchKey: normalizedOrderId,
+      isOrderId: true,
+      normalizedOrderId,
+      checkoutToken: checkoutToken || null,
+    };
+  }
+  
+  // Priority 2: Fall back to checkoutToken
+  if (checkoutToken != null && checkoutToken !== "") {
+    return {
+      matchKey: checkoutToken,
+      isOrderId: false,
+      normalizedOrderId: null,
+      checkoutToken,
+    };
+  }
+  
+  // Neither available - this is an error condition
+  throw new Error(
+    "[P1-04] Cannot generate match key: both orderId and checkoutToken are null/empty"
+  );
+}
+
+/**
+ * Check if two match key inputs would produce the same match key
+ * 
+ * @param a - First input
+ * @param b - Second input
+ * @returns true if they match by either orderId or checkoutToken
+ */
+export function matchKeysEqual(a: MatchKeyInput, b: MatchKeyInput): boolean {
+  // First check if both have orderId
+  if (a.orderId && b.orderId) {
+    return normalizeOrderId(a.orderId) === normalizeOrderId(b.orderId);
+  }
+  
+  // Check if orderId from one matches checkoutToken from the other
+  // (This handles the case where pixel uses checkoutToken but webhook has orderId)
+  if (a.orderId && b.checkoutToken) {
+    const normalizedA = normalizeOrderId(a.orderId);
+    // checkoutToken might contain the order ID in some formats
+    if (b.checkoutToken.includes(normalizedA)) {
+      return true;
+    }
+  }
+  if (b.orderId && a.checkoutToken) {
+    const normalizedB = normalizeOrderId(b.orderId);
+    if (a.checkoutToken.includes(normalizedB)) {
+      return true;
+    }
+  }
+  
+  // Check if both have the same checkoutToken
+  if (a.checkoutToken && b.checkoutToken) {
+    return a.checkoutToken === b.checkoutToken;
+  }
+  
+  return false;
+}
+
+/**
+ * P1-04: Generate a stable fingerprint for deduplication across services
+ * 
+ * This creates a hash that can be used as a unique identifier regardless
+ * of whether the source was pixel or webhook.
+ */
+export function generateDeduplicationFingerprint(
+  shopId: string,
+  matchKey: string,
+  eventType: string
+): string {
+  const input = `${shopId}:${matchKey}:${eventType}`;
+  return createHash("sha256")
+    .update(input, "utf8")
+    .digest("hex");
 }

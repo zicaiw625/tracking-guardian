@@ -36,7 +36,6 @@ import {
 import type { Platform } from "../types";
 import { PLATFORM_NAMES } from "../types";
 
-// Type alias for backwards compatibility
 interface DeliverySummary {
   platform: string;
   last7DaysAttempted: number;
@@ -76,7 +75,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const summary = await getDeliveryHealthSummary(shop.id);
   const history = await getDeliveryHealthHistory(shop.id, 30);
 
-  // Get conversion stats for the last 7 days
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -98,14 +96,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
 };
 
-// PLATFORM_NAMES imported from types
-
 export default function MonitorPage() {
   const { shop, summary, history, conversionStats } =
     useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 
-  // Cast summary to proper type and handle serialization
   const summaryData = summary as unknown as Record<string, DeliverySummary>;
   const historyData = (history as unknown as DeliveryHealthReport[]).map((h) => ({
     ...h,
@@ -113,36 +108,30 @@ export default function MonitorPage() {
   }));
   const statsData = conversionStats as ConversionStat[] | null;
 
-  // Calculate overall health score based on success rate
-  // Note: This is send success rate, not platform reconciliation
   const calculateHealthScore = (): number | null => {
     const platforms = Object.keys(summaryData);
     if (platforms.length === 0) return null;
 
-    // Calculate average success rate across platforms
     const avgSuccessRate =
       platforms.reduce(
         (sum, p) => sum + (summaryData[p]?.avgSuccessRate || 0),
         0
       ) / platforms.length;
 
-    // Health score is based on success rate
-    if (avgSuccessRate < 0.8) return 40;   // <80% success = critical
-    if (avgSuccessRate < 0.9) return 70;   // <90% success = warning  
-    if (avgSuccessRate < 0.95) return 85;  // <95% success = attention
-    return 95;                              // >=95% success = healthy
+    if (avgSuccessRate < 0.8) return 40;   
+    if (avgSuccessRate < 0.9) return 70;   
+    if (avgSuccessRate < 0.95) return 85;  
+    return 95;                              
   };
 
   const healthScore = calculateHealthScore();
   const hasData = Object.keys(summaryData).length > 0;
 
-  // Filter history by platform
   const filteredHistory =
     selectedPlatform === "all"
       ? historyData
       : historyData.filter((h) => h.platform === selectedPlatform);
 
-  // Process conversion stats for display
   const processedStats = statsData?.reduce<Record<string, ProcessedStat>>(
     (acc, stat) => {
       if (!acc[stat.platform]) {
@@ -178,7 +167,7 @@ export default function MonitorPage() {
       }}
     >
       <BlockStack gap="500">
-        {/* Empty State - Show when no data */}
+        {}
         {!hasData && (
           <Card>
             <BlockStack gap="500">
@@ -240,7 +229,7 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {/* Health Overview - Only show when has data */}
+        {}
         {hasData && (
           <Layout>
             <Layout.Section variant="oneThird">
@@ -303,7 +292,7 @@ export default function MonitorPage() {
               </Card>
             </Layout.Section>
 
-            {/* Platform Summary Cards */}
+            {}
             {Object.entries(summaryData).map(([platform, data]) => (
               <Layout.Section key={platform} variant="oneThird">
                 <Card>
@@ -356,7 +345,7 @@ export default function MonitorPage() {
           </Layout>
         )}
 
-        {/* Conversion Stats */}
+        {}
         {processedStats && Object.keys(processedStats).length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -382,7 +371,7 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {/* Historical Reports */}
+        {}
         {historyData.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -428,14 +417,14 @@ export default function MonitorPage() {
           </Card>
         )}
 
-        {/* Actionable Tips */}
+        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
               提高追踪准确性的建议
             </Text>
             <BlockStack gap="300">
-              {/* Tip 1: Server-side tracking */}
+              {}
               <Box
                 background="bg-surface-secondary"
                 padding="400"
@@ -459,7 +448,7 @@ export default function MonitorPage() {
                 </InlineStack>
               </Box>
 
-              {/* Tip 2: Check Web Pixel */}
+              {}
               <Box
                 background="bg-surface-secondary"
                 padding="400"
@@ -483,7 +472,7 @@ export default function MonitorPage() {
                 </InlineStack>
               </Box>
 
-              {/* Tip 3: Regular scan */}
+              {}
               <Box
                 background="bg-surface-secondary"
                 padding="400"

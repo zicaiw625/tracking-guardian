@@ -35,7 +35,7 @@ import {
   getPixelConfigs,
   createWebPixel,
   getExistingWebPixels,
-  // NOTE: deleteScriptTag removed - P0 compliance (no write_script_tags scope)
+  
   type Platform,
   type MigrationResult,
   type SavePixelConfigOptions,
@@ -43,10 +43,6 @@ import {
 import { decryptIngestionSecret, isTokenEncrypted, encryptIngestionSecret } from "../utils/token-encryption";
 import { randomBytes } from "crypto";
 
-/**
- * P1-01: Generate a secure random ingestion secret for pixel request signing
- * The secret is 32 bytes (256 bits) encoded as hex (64 characters)
- */
 function generateIngestionSecret(): string {
   return randomBytes(32).toString("hex");
 }
@@ -60,7 +56,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     select: {
       id: true,
       shopDomain: true,
-      ingestionSecret: true, // P1-1: For Web Pixel request signing
+      ingestionSecret: true, 
     },
   });
 
@@ -70,7 +66,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const pixelConfigs = await getPixelConfigs(shop.id);
 
-  // Get latest scan for detected platforms
   const latestScan = await prisma.scanReport.findFirst({
     where: { shopId: shop.id },
     orderBy: { createdAt: "desc" },
@@ -92,7 +87,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     select: {
       id: true,
       shopDomain: true,
-      ingestionSecret: true, // P1-1: For Web Pixel request signing
+      ingestionSecret: true, 
     },
   });
 
@@ -103,7 +98,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const actionType = formData.get("_action");
 
-  // P1-01: Generate ingestionSecret for shop if missing
   if (actionType === "generateSecret") {
     if (shop.ingestionSecret) {
       return json({
@@ -129,7 +123,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         _action: "generateSecret",
         success: true,
         message: "Ingestion secret generated successfully",
-        // Return the plaintext secret so user can configure Web Pixel
+        
         secret: plainSecret,
       });
     } catch (error) {
@@ -142,7 +136,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
-  // New: Auto-enable Web Pixel
   if (actionType === "enablePixel") {
     const backendUrl = formData.get("backendUrl") as string;
     
@@ -150,37 +143,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "Backend URL is required" }, { status: 400 });
     }
 
-    // P0-02: Get shop's ingestion secret and DECRYPT it before sending to Web Pixel
-    // The database stores encrypted secrets; Web Pixel needs the plaintext version
     let ingestionSecret: string | undefined = undefined;
     if (shop.ingestionSecret) {
       try {
-        // Check if the secret is encrypted (has v1: prefix)
+        
         if (isTokenEncrypted(shop.ingestionSecret)) {
-          // Decrypt it before sending to Web Pixel
+          
           ingestionSecret = decryptIngestionSecret(shop.ingestionSecret);
         } else {
-          // Legacy unencrypted secret (should be migrated)
+          
           ingestionSecret = shop.ingestionSecret;
           console.warn(`[P0-02] Shop ${shopDomain} has unencrypted ingestionSecret - migration needed`);
         }
       } catch (error) {
         console.error(`[P0-02] Failed to decrypt ingestionSecret for ${shopDomain}:`, error);
-        // Continue without secret - pixel will work but requests will be unsigned
+        
         ingestionSecret = undefined;
       }
     }
 
-    // Check if a Web Pixel already exists
     const existingPixels = await getExistingWebPixels(admin);
-    
-    // P0-05: Look for our pixel with STRICT matching
-    // Must match our backendUrl exactly, not just have "backend_url" field
+
     let ourPixel = existingPixels.find((p) => {
       if (!p.settings) return false;
       try {
         const settings = JSON.parse(p.settings);
-        // P0-05: Strict matching - backend_url must match our URL
+        
         return settings.backend_url === backendUrl;
       } catch {
         return false;
@@ -189,11 +177,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     let result;
     if (ourPixel) {
-      // Update existing pixel with ingestionSecret
+      
       const { updateWebPixel } = await import("../services/migration.server");
       result = await updateWebPixel(admin, ourPixel.id, backendUrl, ingestionSecret);
     } else {
-      // Create new pixel with ingestionSecret
+      
       result = await createWebPixel(admin, backendUrl, ingestionSecret);
     }
 
@@ -213,11 +201,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
-  // Delete ScriptTag - DEPRECATED (P0 Compliance)
-  // We no longer support automatic ScriptTag deletion because:
-  // 1. Our app only has read_script_tags scope (not write_script_tags)
-  // 2. Shopify requires GraphQL-only for new public apps
-  // 3. ScriptTags are being deprecated - users should delete manually
   if (actionType === "deleteScriptTag") {
     return json({
       _action: "deleteScriptTag",
@@ -236,7 +219,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "Platform and ID are required" }, { status: 400 });
     }
 
-    // Separate client-side config (non-sensitive) from server-side credentials (sensitive)
     const clientConfig: Record<string, string> = {};
     if (conversionId) clientConfig.conversionId = conversionId;
     if (conversionLabel) clientConfig.conversionLabel = conversionLabel;
@@ -248,9 +230,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
 
     if (result.success) {
-      // Save the config with properly separated fields
-      // Note: credentialsEncrypted should be set separately via Settings page
-      // where users configure server-side API access tokens
+
       const options: SavePixelConfigOptions = {
         clientConfig: Object.keys(clientConfig).length > 0 ? clientConfig : undefined,
       };
@@ -264,11 +244,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const platform = formData.get("platform") as Platform;
     const platformId = formData.get("platformId") as string;
 
-    // Simulate verification - in real implementation, this would send a test event
-    // and check if it's received by the platform
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // For demo, return success
     return json({
       _action: "verify",
       success: true,
@@ -297,7 +274,6 @@ export default function MigratePage() {
   const navigation = useNavigation();
   const [searchParams] = useSearchParams();
 
-  // Get platform from URL query parameter (from scan page "一键迁移")
   const urlPlatform = searchParams.get("platform");
 
   const [currentStep, setCurrentStep] = useState<WizardStep>("select");
@@ -312,7 +288,6 @@ export default function MigratePage() {
 
   const isSubmitting = navigation.state === "submitting";
 
-  // Handle action results
   useEffect(() => {
     const data = actionData as any;
     if (data?._action === "generate" && data?.result?.success) {
@@ -370,12 +345,10 @@ export default function MigratePage() {
 
   const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
 
-  // Get existing config for selected platform
   const existingConfig = pixelConfigs.find(
     (config) => config?.platform === selectedPlatform
   );
 
-  // Step indicator
   const steps = [
     { id: "select", label: "选择平台", number: 1 },
     { id: "install", label: "安装像素", number: 2 },
@@ -390,7 +363,7 @@ export default function MigratePage() {
       subtitle="将追踪脚本迁移到 Shopify Web Pixel / Customer Events"
     >
       <BlockStack gap="500">
-        {/* Info Banner with official docs link */}
+        {}
         <Banner
           title="为什么需要迁移到 Web Pixels？"
           tone="info"
@@ -414,7 +387,7 @@ export default function MigratePage() {
           </BlockStack>
         </Banner>
 
-        {/* Step Progress Indicator */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -469,7 +442,7 @@ export default function MigratePage() {
           </BlockStack>
         </Card>
 
-        {/* Detected Platforms from Scan */}
+        {}
         {identifiedPlatforms.length > 0 && currentStep === "select" && (
           <Card>
             <BlockStack gap="400">
@@ -491,9 +464,9 @@ export default function MigratePage() {
         )}
 
         <Layout>
-          {/* Main Content Area */}
+          {}
           <Layout.Section>
-            {/* Step 1: Select Platform */}
+            {}
             {currentStep === "select" && (
               <Card>
                 <BlockStack gap="400">
@@ -566,7 +539,7 @@ export default function MigratePage() {
               </Card>
             )}
 
-            {/* Step 2: Install Pixel */}
+            {}
             {currentStep === "install" && (
               <Card>
                 <BlockStack gap="400">
@@ -582,7 +555,7 @@ export default function MigratePage() {
                     </Button>
                   </InlineStack>
 
-                  {/* Installation status */}
+                  {}
                   {existingConfig ? (
                     <Banner tone="success">
                       <InlineStack gap="200" blockAlign="center">
@@ -668,7 +641,7 @@ export default function MigratePage() {
               </Card>
             )}
 
-            {/* Step 3: Verify Events */}
+            {}
             {currentStep === "verify" && (
               <Card>
                 <BlockStack gap="400">
@@ -676,7 +649,7 @@ export default function MigratePage() {
                     第 3 步：验证事件是否正常触发
                   </Text>
 
-                  {/* Previous verification status */}
+                  {}
                   {existingConfig?.lastVerifiedAt && (
                     <InlineStack gap="200" blockAlign="center">
                       <Badge tone="success">上次验证通过</Badge>
@@ -774,7 +747,7 @@ export default function MigratePage() {
             )}
           </Layout.Section>
 
-          {/* Sidebar - Configured Platforms */}
+          {}
           <Layout.Section variant="oneThird">
             <Card>
               <BlockStack gap="400">
@@ -831,7 +804,7 @@ export default function MigratePage() {
               </BlockStack>
             </Card>
 
-            {/* Server-side tracking info */}
+            {}
             <Box paddingBlockStart="400">
               <Card>
                 <BlockStack gap="400">

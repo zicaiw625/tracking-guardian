@@ -15,7 +15,6 @@ import {
   validateTokenEncryptionConfig 
 } from "./utils/token-encryption";
 
-// P0-1: Validate token encryption configuration at startup
 try {
   const encryptionValidation = validateTokenEncryptionConfig();
   if (encryptionValidation.warnings.length > 0) {
@@ -28,25 +27,16 @@ try {
   }
 }
 
-/**
- * P1-1: Generate a secure random ingestion secret for pixel request signing
- * The secret is 32 bytes (256 bits) encoded as hex (64 characters)
- */
 function generateIngestionSecret(): string {
   return randomBytes(32).toString("hex");
 }
 
-/**
- * P0-1: Generate and encrypt ingestion secret for new shops
- * Returns the encrypted version for storage
- */
 function generateEncryptedIngestionSecret(): { plain: string; encrypted: string } {
   const plain = generateIngestionSecret();
   const encrypted = encryptIngestionSecret(plain);
   return { plain, encrypted };
 }
 
-// P0-1: Create encrypted session storage wrapper
 const baseSessionStorage = new PrismaSessionStorage(prisma);
 const encryptedSessionStorage = createEncryptedSessionStorage(baseSessionStorage);
 
@@ -57,7 +47,7 @@ const shopify = shopifyApp({
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
-  // P0-1: Use encrypted session storage for accessToken protection
+  
   sessionStorage: encryptedSessionStorage,
   distribution: AppDistribution.AppStore,
   webhooks: {
@@ -65,20 +55,17 @@ const shopify = shopifyApp({
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-    // NOTE: Only using ORDERS_PAID for conversion tracking
-    // ORDERS_PAID is more accurate for "purchase" semantics (payment confirmed)
-    // Using both ORDERS_CREATE and ORDERS_PAID would cause duplicate events
+
     ORDERS_PAID: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-    // ORDERS_UPDATED is kept for handling refunds and order changes
+    
     ORDERS_UPDATED: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-    // P0-01: Mandatory compliance webhooks for GDPR/privacy compliance
-    // These are REQUIRED for App Store approval - Shopify will verify these are registered
+
     CUSTOMERS_DATA_REQUEST: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
@@ -94,44 +81,36 @@ const shopify = shopifyApp({
   },
   hooks: {
     afterAuth: async ({ session }) => {
-      // Register webhooks after authentication
+      
       shopify.registerWebhooks({ session });
 
-      // Check if shop already exists
       const existingShop = await prisma.shop.findUnique({
         where: { shopDomain: session.shop },
         select: { ingestionSecret: true },
       });
 
-      // P0-1: Encrypt accessToken before storing in Shop table
-      // Note: The Session table accessToken is already encrypted by the session storage wrapper
       const encryptedAccessToken = session.accessToken 
         ? encryptAccessToken(session.accessToken) 
         : null;
 
-      // P0-2: Generate encrypted ingestion secret for new shops
       const newIngestionSecret = generateEncryptedIngestionSecret();
 
-      // Create or update shop record in our database
-      // P0-1: Store encrypted accessToken
-      // P0-2: Store encrypted ingestionSecret
       await prisma.shop.upsert({
         where: { shopDomain: session.shop },
         update: {
           accessToken: encryptedAccessToken,
           isActive: true,
           uninstalledAt: null,
-          // Don't overwrite existing ingestion secret on re-auth
+          
         },
         create: {
           shopDomain: session.shop,
           accessToken: encryptedAccessToken,
-          // P0-2: Store encrypted ingestion secret for new shops
+          
           ingestionSecret: newIngestionSecret.encrypted,
         },
       });
 
-      // If existing shop had no secret, generate one
       if (existingShop && !existingShop.ingestionSecret) {
         const secretForExisting = generateEncryptedIngestionSecret();
         await prisma.shop.update({

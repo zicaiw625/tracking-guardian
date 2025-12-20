@@ -1,4 +1,4 @@
-// Migration service for converting old tracking scripts to Web Pixels
+
 
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
@@ -22,7 +22,6 @@ export interface MigrationResult {
   error?: string;
 }
 
-// Generate pixel code based on platform
 export function generatePixelCode(config: MigrationConfig): MigrationResult {
   try {
     let pixelCode = "";
@@ -118,30 +117,15 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
   }
 }
 
-/**
- * Options for saving pixel configuration
- */
 export interface SavePixelConfigOptions {
-  /** Non-sensitive client-side configuration (e.g., conversionLabel, eventMappings) */
+  
   clientConfig?: Record<string, string | number | boolean>;
-  /** Pre-encrypted credentials string for server-side API (use encryptJson from crypto.ts) */
+  
   credentialsEncrypted?: string;
-  /** Enable server-side tracking */
+  
   serverSideEnabled?: boolean;
 }
 
-/**
- * Save pixel configuration to database
- * 
- * IMPORTANT: Separation of concerns:
- * - clientConfig: Non-sensitive data like conversion labels, stored as JSON
- * - credentialsEncrypted: Sensitive data like access tokens, must be pre-encrypted
- * 
- * @param shopId - Shop identifier
- * @param platform - Platform name (google, meta, tiktok, etc.)
- * @param platformId - Platform-specific ID (e.g., GA4 Measurement ID)
- * @param options - Additional configuration options
- */
 export async function savePixelConfig(
   shopId: string,
   platform: Platform,
@@ -177,7 +161,6 @@ export async function savePixelConfig(
   });
 }
 
-// Mark migration as completed
 export async function completeMigration(shopId: string, platform: Platform) {
   return prisma.pixelConfig.update({
     where: {
@@ -193,17 +176,12 @@ export async function completeMigration(shopId: string, platform: Platform) {
   });
 }
 
-// Get all pixel configs for a shop
 export async function getPixelConfigs(shopId: string) {
   return prisma.pixelConfig.findMany({
     where: { shopId },
     orderBy: { createdAt: "desc" },
   });
 }
-
-// ==========================================
-// Automatic Web Pixel Creation
-// ==========================================
 
 export interface CreateWebPixelResult {
   success: boolean;
@@ -212,22 +190,12 @@ export interface CreateWebPixelResult {
   userErrors?: Array<{ field: string; message: string }>;
 }
 
-/**
- * Create a Web Pixel using Shopify Admin GraphQL API
- * 
- * This automatically configures the Tracking Guardian pixel in the shop's
- * Customer Events settings without requiring manual copy/paste.
- * 
- * @param admin - Shopify Admin API context
- * @param backendUrl - URL of the Tracking Guardian backend (e.g., https://your-app.onrender.com)
- * @param ingestionSecret - Secret for request signing (P1-1)
- */
 export async function createWebPixel(
   admin: AdminApiContext,
   backendUrl: string,
   ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
-  // Validate backend URL
+  
   if (!backendUrl || !backendUrl.startsWith("https://")) {
     return {
       success: false,
@@ -235,8 +203,6 @@ export async function createWebPixel(
     };
   }
 
-  // Web Pixel settings - include both backend_url and ingestion_secret
-  // The ingestion_secret is used by the pixel to sign requests (P1-1)
   const settings = JSON.stringify({
     backend_url: backendUrl,
     ...(ingestionSecret && { ingestion_secret: ingestionSecret }),
@@ -299,21 +265,13 @@ export async function createWebPixel(
   }
 }
 
-/**
- * Update an existing Web Pixel's settings
- * 
- * @param admin - Shopify Admin API context
- * @param webPixelId - Existing Web Pixel ID to update
- * @param backendUrl - URL of the Tracking Guardian backend
- * @param ingestionSecret - Secret for request signing (P1-1)
- */
 export async function updateWebPixel(
   admin: AdminApiContext,
   webPixelId: string,
   backendUrl: string,
   ingestionSecret?: string
 ): Promise<CreateWebPixelResult> {
-  // Include ingestion_secret in settings for request signing
+  
   const settings = JSON.stringify({
     backend_url: backendUrl,
     ...(ingestionSecret && { ingestion_secret: ingestionSecret }),
@@ -375,9 +333,6 @@ export async function updateWebPixel(
   }
 }
 
-/**
- * Get existing Web Pixels for the shop
- */
 export async function getExistingWebPixels(
   admin: AdminApiContext
 ): Promise<Array<{ id: string; settings: string | null }>> {
@@ -410,43 +365,17 @@ export async function getExistingWebPixels(
   }
 }
 
-/**
- * Delete a ScriptTag (for migration cleanup)
- * 
- * NOTE (P0 Compliance): This function is DEPRECATED and should not be called.
- * 
- * Reasons:
- * 1. Shopify requires new public apps to use GraphQL-only (no REST API) as of 2025-04-01
- * 2. Our app only has read_script_tags scope, not write_script_tags
- * 3. ScriptTags are being deprecated by Shopify - we should guide users to delete manually
- * 
- * Instead, guide merchants to delete ScriptTags manually via:
- * - Shopify Admin → Settings → Custom data → ScriptTags
- * - Or via the app that originally created the ScriptTag
- * 
- * @deprecated Do not use - returns error with guidance message
- */
 export async function deleteScriptTag(
   _admin: AdminApiContext,
   _scriptTagId: number
 ): Promise<{ success: boolean; error?: string }> {
-  // Return a helpful error message instead of attempting the delete
+  
   return {
     success: false,
     error: "自动删除功能已停用。请在 Shopify 后台「设置 → 应用和销售渠道」中找到创建该 ScriptTag 的应用，手动删除。或者联系 Shopify 支持获取帮助。",
   };
 }
 
-// Microsoft Bing/UET pixel code generator
-// 
-// WARNING (P2-1): This template uses browser.window/browser.document for DOM injection.
-// This is only compatible with "lax" or "custom pixel" sandbox mode, NOT strict mode.
-// For strict sandbox compatibility, use Tracking Guardian's built-in pixel + server-side CAPI.
-//
-// Shopify sandbox modes:
-// - strict: No DOM access, recommended for privacy compliance
-// - lax: Limited DOM access via browser.* APIs, allows SDK injection
-// - custom: Full DOM access (legacy)
 function generateBingPixelCode(config: { tagId: string }): string {
   return `// Microsoft Advertising UET Tag - Web Pixel Implementation
 // Auto-generated by Tracking Guardian
@@ -547,25 +476,10 @@ register(({ analytics, browser }) => {
 `;
 }
 
-// ==========================================
-// P0-09: Credentials Encryption Migration
-// ==========================================
-
 import { encryptJson, decryptJson } from "../utils/crypto";
 import type { PlatformCredentials } from "../types";
 import { logger } from "../utils/logger";
 
-/**
- * P0-09: Migrate legacy credentials to encrypted format
- * 
- * This function:
- * 1. Finds all PixelConfigs with non-null credentials (legacy field)
- * 2. Encrypts the credentials using encryptJson
- * 3. Stores in credentialsEncrypted field
- * 4. Clears the legacy credentials field
- * 
- * Should be run as a one-time migration or via the admin migrate endpoint.
- */
 export async function migrateCredentialsToEncrypted(): Promise<{
   migrated: number;
   failed: number;
@@ -575,7 +489,6 @@ export async function migrateCredentialsToEncrypted(): Promise<{
   let migrated = 0;
   let failed = 0;
 
-  // Find configs with legacy credentials that haven't been migrated
   const configs = await prisma.pixelConfig.findMany({
     where: {
       credentials: { not: null },
@@ -593,10 +506,10 @@ export async function migrateCredentialsToEncrypted(): Promise<{
 
   for (const config of configs) {
     try {
-      // Skip if already has encrypted credentials
+      
       if (config.credentialsEncrypted) {
         logger.info(`P0-09: Skipping ${config.id} - already has encrypted credentials`);
-        // Still clear the legacy field
+        
         await prisma.pixelConfig.update({
           where: { id: config.id },
           data: { credentials: null },
@@ -610,10 +523,8 @@ export async function migrateCredentialsToEncrypted(): Promise<{
         continue;
       }
 
-      // Encrypt the credentials
       const encrypted = encryptJson(legacyCreds as PlatformCredentials);
 
-      // Update: set encrypted, clear legacy
       await prisma.pixelConfig.update({
         where: { id: config.id },
         data: {
@@ -636,10 +547,6 @@ export async function migrateCredentialsToEncrypted(): Promise<{
   return { migrated, failed, errors };
 }
 
-/**
- * P0-09: Verify all credentials are properly encrypted
- * Returns configs that still have unencrypted credentials
- */
 export async function verifyCredentialsEncryption(): Promise<{
   total: number;
   encrypted: number;
@@ -681,20 +588,6 @@ export async function verifyCredentialsEncryption(): Promise<{
   };
 }
 
-// ==========================================
-// P0-10: OrderPayload PII Sanitization
-// ==========================================
-
-/**
- * P0-10: Sanitize existing ConversionJob orderPayloads to remove PII
- * 
- * This function:
- * 1. Finds ConversionJobs with non-empty orderPayload
- * 2. Clears the orderPayload field (PII data)
- * 3. Jobs should already have capiInput which contains only necessary data
- * 
- * Run in batches to avoid overwhelming the database.
- */
 export async function sanitizeExistingOrderPayloads(batchSize = 500): Promise<{
   processed: number;
   cleaned: number;
@@ -704,7 +597,6 @@ export async function sanitizeExistingOrderPayloads(batchSize = 500): Promise<{
   let cleaned = 0;
   let errors = 0;
 
-  // Process in batches
   while (true) {
     const jobs = await prisma.conversionJob.findMany({
       where: {
@@ -737,9 +629,6 @@ export async function sanitizeExistingOrderPayloads(batchSize = 500): Promise<{
   return { processed, cleaned, errors };
 }
 
-/**
- * P0-10: Get statistics about orderPayload data
- */
 export async function getOrderPayloadStats(): Promise<{
   totalJobs: number;
   withOrderPayload: number;
@@ -764,11 +653,6 @@ export async function getOrderPayloadStats(): Promise<{
   };
 }
 
-// Microsoft Clarity pixel code generator
-//
-// WARNING (P2-1): This template uses browser.window/browser.document for DOM injection.
-// This is only compatible with "lax" or "custom pixel" sandbox mode, NOT strict mode.
-// Microsoft Clarity requires page DOM access which is not available in strict sandbox.
 function generateClarityPixelCode(config: { projectId: string }): string {
   return `// Microsoft Clarity - Web Pixel Implementation
 // Auto-generated by Tracking Guardian

@@ -32,18 +32,10 @@ import { getExistingWebPixels, updateWebPixel } from "../services/migration.serv
 import { encryptIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
 
-/**
- * P1-1: Generate a secure random ingestion secret for pixel request signing
- * The secret is 32 bytes (256 bits) encoded as hex (64 characters)
- */
 function generateIngestionSecret(): string {
   return randomBytes(32).toString("hex");
 }
 
-/**
- * P0-2: Generate and encrypt ingestion secret
- * Returns both plain (for Web Pixel sync) and encrypted (for storage) versions
- */
 function generateEncryptedIngestionSecret(): { plain: string; encrypted: string } {
   const plain = generateIngestionSecret();
   const encrypted = encryptIngestionSecret(plain);
@@ -62,7 +54,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       ingestionSecret: true,
       piiEnabled: true,
       weakConsentMode: true,
-      consentStrategy: true, // P0-5
+      consentStrategy: true, 
       dataRetentionDays: true,
       alertConfigs: true,
       pixelConfigs: {
@@ -71,7 +63,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  // Check for token expiration issues
   let tokenIssues = { hasIssues: false, affectedPlatforms: [] as string[] };
   if (shop) {
     tokenIssues = await checkTokenExpirationIssues(shop.id);
@@ -85,11 +76,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           plan: shop.plan,
           alertConfigs: shop.alertConfigs,
           pixelConfigs: shop.pixelConfigs,
-          // P1-1: Return whether ingestion secret is configured (not the actual value)
+          
           hasIngestionSecret: !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
           piiEnabled: shop.piiEnabled,
-          weakConsentMode: shop.weakConsentMode, // P1-3 (deprecated)
-          consentStrategy: shop.consentStrategy || "balanced", // P0-5
+          weakConsentMode: shop.weakConsentMode, 
+          consentStrategy: shop.consentStrategy || "balanced", 
           dataRetentionDays: shop.dataRetentionDays,
         }
       : null,
@@ -175,7 +166,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       let platformId = "";
 
       if (platform === "google") {
-        // GA4 Measurement Protocol credentials
+        
         const googleCreds: GoogleCredentials = {
           measurementId: formData.get("measurementId") as string || "",
           apiSecret: formData.get("apiSecret") as string || "",
@@ -201,8 +192,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "Unsupported platform" }, { status: 400 });
       }
 
-      // Encrypt credentials before storing
-      // IMPORTANT: Use credentialsEncrypted field (not legacy credentials field)
       const encryptedCredentials = encryptJson(credentials);
 
       await prisma.pixelConfig.upsert({
@@ -239,11 +228,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     case "testConnection": {
       const platform = formData.get("platform") as string;
 
-      // Simulate testing connection - in real implementation this would
-      // send a test event to the platform's API
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // For demo purposes, return success if credentials are provided
       if (platform === "meta") {
         const pixelId = formData.get("pixelId") as string;
         const accessToken = formData.get("accessToken") as string;
@@ -259,47 +245,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     case "rotateIngestionSecret": {
-      // P0-2: Rotate the ingestion secret with encryption and grace window
-      
-      // Get current secret for grace window (already encrypted in DB)
+
       const currentShop = await prisma.shop.findUnique({
         where: { id: shop.id },
         select: { ingestionSecret: true },
       });
-      
-      // Generate new secret (both plain and encrypted versions)
+
       const { plain: newPlainSecret, encrypted: newEncryptedSecret } = generateEncryptedIngestionSecret();
-      
-      // P0-2: Grace window configuration
-      // Old secret remains valid for 30 minutes to handle in-flight requests
+
       const graceWindowMinutes = 30;
       const graceWindowExpiry = new Date(Date.now() + graceWindowMinutes * 60 * 1000);
-      
-      // Update shop with new secret and preserve old secret for grace period
+
       await prisma.shop.update({
         where: { id: shop.id },
         data: { 
           ingestionSecret: newEncryptedSecret,
-          // Store the previous secret (already encrypted) for grace window
+          
           previousIngestionSecret: currentShop?.ingestionSecret || null,
           previousSecretExpiry: graceWindowExpiry,
         },
       });
 
-      // P0-2: Automatically sync new secret to Web Pixel
       const backendUrl = process.env.SHOPIFY_APP_URL || "";
       let pixelSyncResult = { success: false, message: "" };
       
       try {
-        // Find existing Tracking Guardian pixel
-        const existingPixels = await getExistingWebPixels(admin);
         
-        // P0-05: Look for our pixel with STRICT matching
-        // backend_url must exactly match our URL to prevent updating other apps' pixels
+        const existingPixels = await getExistingWebPixels(admin);
+
         const ourPixel = existingPixels.find((p) => {
           try {
             const settings = JSON.parse(p.settings || "{}");
-            // P0-05: Strict equality check, not includes()
+            
             return settings.backend_url === backendUrl;
           } catch {
             return false;
@@ -307,7 +284,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
         
         if (ourPixel) {
-          // Update existing pixel with new plain secret (pixel needs unencrypted version)
+          
           const result = await updateWebPixel(admin, ourPixel.id, backendUrl, newPlainSecret);
           if (result.success) {
             pixelSyncResult = {
@@ -334,7 +311,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         };
       }
 
-      // Create audit log for security tracking
       await createAuditLog({
         shopId: shop.id,
         actorType: "user",
@@ -368,7 +344,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const consentStrategy = formData.get("consentStrategy") as string || "balanced";
       const dataRetentionDays = parseInt(formData.get("dataRetentionDays") as string) || 90;
 
-      // P0-5: Map consent strategy to legacy weakConsentMode for backwards compatibility
       const weakConsentMode = consentStrategy === "weak";
 
       await prisma.shop.update({
@@ -404,8 +379,7 @@ export default function SettingsPage() {
   const navigation = useNavigation();
 
   const [selectedTab, setSelectedTab] = useState(0);
-  
-  // Alert settings state
+
   const [alertChannel, setAlertChannel] = useState("email");
   const [alertEmail, setAlertEmail] = useState("");
   const [slackWebhook, setSlackWebhook] = useState("");
@@ -414,25 +388,22 @@ export default function SettingsPage() {
   const [alertThreshold, setAlertThreshold] = useState("10");
   const [alertEnabled, setAlertEnabled] = useState(true);
 
-  // Server-side tracking state
   const [serverPlatform, setServerPlatform] = useState("meta");
   const [serverEnabled, setServerEnabled] = useState(false);
-  // Meta fields
+  
   const [metaPixelId, setMetaPixelId] = useState("");
   const [metaAccessToken, setMetaAccessToken] = useState("");
   const [metaTestCode, setMetaTestCode] = useState("");
-  // Google GA4 fields
+  
   const [googleMeasurementId, setGoogleMeasurementId] = useState("");
   const [googleApiSecret, setGoogleApiSecret] = useState("");
-  // TikTok fields
+  
   const [tiktokPixelId, setTiktokPixelId] = useState("");
   const [tiktokAccessToken, setTiktokAccessToken] = useState("");
 
-  // Track form changes for Save bar
   const [alertFormDirty, setAlertFormDirty] = useState(false);
   const [serverFormDirty, setServerFormDirty] = useState(false);
-  
-  // Initial values refs for comparison
+
   const initialAlertValues = useRef({
     channel: "email",
     email: "",
@@ -457,7 +428,6 @@ export default function SettingsPage() {
 
   const isSubmitting = navigation.state === "submitting";
 
-  // Check if alert form has changes
   const checkAlertFormDirty = useCallback(() => {
     const initial = initialAlertValues.current;
     const isDirty = 
@@ -471,7 +441,6 @@ export default function SettingsPage() {
     setAlertFormDirty(isDirty);
   }, [alertChannel, alertEmail, slackWebhook, telegramToken, telegramChatId, alertThreshold, alertEnabled]);
 
-  // Check if server form has changes
   const checkServerFormDirty = useCallback(() => {
     const initial = initialServerValues.current;
     const isDirty =
@@ -487,7 +456,6 @@ export default function SettingsPage() {
     setServerFormDirty(isDirty);
   }, [serverPlatform, serverEnabled, metaPixelId, metaAccessToken, metaTestCode, googleMeasurementId, googleApiSecret, tiktokPixelId, tiktokAccessToken]);
 
-  // Update dirty state when form values change
   useEffect(() => {
     if (selectedTab === 0) {
       checkAlertFormDirty();
@@ -496,10 +464,9 @@ export default function SettingsPage() {
     }
   }, [selectedTab, checkAlertFormDirty, checkServerFormDirty]);
 
-  // Reset dirty state after successful save
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
-      // Update initial values to current values after save
+      
       if (selectedTab === 0) {
         initialAlertValues.current = {
           channel: alertChannel,
@@ -528,7 +495,6 @@ export default function SettingsPage() {
     }
   }, [actionData, selectedTab, serverPlatform, serverEnabled, metaPixelId, metaAccessToken, metaTestCode, googleMeasurementId, googleApiSecret, tiktokPixelId, tiktokAccessToken]);
 
-  // Discard changes handler
   const handleDiscardChanges = useCallback(() => {
     if (selectedTab === 0) {
       const initial = initialAlertValues.current;
@@ -555,7 +521,6 @@ export default function SettingsPage() {
     }
   }, [selectedTab]);
 
-  // Determine if save bar should show
   const showSaveBar = (selectedTab === 0 && alertFormDirty) || (selectedTab === 1 && serverFormDirty);
 
   const handleSaveAlert = () => {
@@ -629,7 +594,6 @@ export default function SettingsPage() {
     submit(formData, { method: "post" });
   };
 
-  // Handle save action from save bar
   const handleSaveBarSave = useCallback(() => {
     if (selectedTab === 0) {
       handleSaveAlert();
@@ -645,7 +609,6 @@ export default function SettingsPage() {
     { id: "subscription", content: "订阅计划" },
   ];
 
-  // Handler for rotating ingestion key
   const handleRotateSecret = () => {
     const message = shop?.hasIngestionSecret 
       ? "确定要更换 Ingestion Key 吗？更换后 Web Pixel 将自动更新。"
@@ -684,7 +647,7 @@ export default function SettingsPage() {
         )}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-          {/* Alert Settings Tab */}
+          {}
           {selectedTab === 0 && (
             <Layout>
               <Layout.Section>
@@ -796,7 +759,7 @@ export default function SettingsPage() {
                 </Card>
               </Layout.Section>
 
-              {/* Existing Alert Configs */}
+              {}
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="300">
@@ -841,7 +804,7 @@ export default function SettingsPage() {
             </Layout>
           )}
 
-          {/* Server-side Tracking Tab */}
+          {}
           {selectedTab === 1 && (
             <Layout>
               <Layout.Section>
@@ -851,7 +814,7 @@ export default function SettingsPage() {
                       服务端转化追踪（Conversions API）
                     </Text>
 
-                    {/* Token Expiration Warning */}
+                    {}
                     {tokenIssues.hasIssues && (
                       <Banner
                         title="需要重新授权"
@@ -1055,7 +1018,7 @@ export default function SettingsPage() {
             </Layout>
           )}
 
-          {/* Security & Privacy Tab */}
+          {}
           {selectedTab === 2 && (
             <Layout>
               <Layout.Section>
@@ -1070,7 +1033,7 @@ export default function SettingsPage() {
 
                     <Divider />
 
-                    {/* P0-4: Ingestion Key Section (renamed from Ingestion Secret) */}
+                    {}
                     <BlockStack gap="300">
                       <Text as="h3" variant="headingMd">
                         Ingestion Key
@@ -1132,7 +1095,7 @@ export default function SettingsPage() {
 
                     <Divider />
 
-                    {/* PII Settings Section */}
+                    {}
                     <BlockStack gap="300">
                       <Text as="h3" variant="headingMd">
                         隐私设置
@@ -1175,7 +1138,7 @@ export default function SettingsPage() {
                         </BlockStack>
                       </Box>
 
-                      {/* P0-6: PII Warning Banner */}
+                      {}
                       {shop?.piiEnabled && (
                         <Banner 
                           title="需要 Protected Customer Data 权限" 
@@ -1213,7 +1176,71 @@ export default function SettingsPage() {
 
                     <Divider />
 
-                    {/* P0-5: Consent Strategy Section */}
+                    {/* P1-01: Data Minimization & Retention UI */}
+                    <BlockStack gap="300">
+                      <Text as="h3" variant="headingMd">
+                        数据保留策略
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        配置数据保留期限，控制转化日志和相关记录的存储时间。
+                      </Text>
+
+                      <Select
+                        label="数据保留天数"
+                        options={[
+                          { label: "30 天（推荐用于高流量店铺）", value: "30" },
+                          { label: "60 天", value: "60" },
+                          { label: "90 天（默认）", value: "90" },
+                          { label: "180 天", value: "180" },
+                          { label: "365 天（最大）", value: "365" },
+                        ]}
+                        value={String(shop?.dataRetentionDays || 90)}
+                        onChange={(value) => {
+                          const formData = new FormData();
+                          formData.append("_action", "updatePrivacySettings");
+                          formData.append("piiEnabled", String(shop?.piiEnabled || false));
+                          formData.append("consentStrategy", shop?.consentStrategy || "balanced");
+                          formData.append("dataRetentionDays", value);
+                          submit(formData, { method: "post" });
+                        }}
+                        helpText="超过此期限的数据将被自动清理"
+                      />
+
+                      <Banner tone="info">
+                        <BlockStack gap="200">
+                          <Text as="span" fontWeight="semibold">数据保留说明：</Text>
+                          <Text as="p" variant="bodySm">
+                            以下数据受保留期限控制，超期后将被自动删除：
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            • <strong>转化日志 (ConversionLog)</strong>：订单转化追踪记录
+                            <br />• <strong>像素事件回执 (PixelEventReceipt)</strong>：客户端同意证据
+                            <br />• <strong>扫描报告 (ScanReport)</strong>：网站扫描结果
+                            <br />• <strong>对账报告 (ReconciliationReport)</strong>：平台数据对比
+                            <br />• <strong>失败任务 (dead_letter)</strong>：无法重试的转化任务
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            清理任务每日自动执行。审计日志保留 365 天，不受此设置影响。
+                          </Text>
+                        </BlockStack>
+                      </Banner>
+
+                      <Banner tone="warning">
+                        <BlockStack gap="100">
+                          <Text as="span" fontWeight="semibold">数据最小化原则：</Text>
+                          <Text as="p" variant="bodySm">
+                            我们仅存储转化追踪必需的数据：
+                            <br />• 订单 ID、金额、货币（来自 Webhook）
+                            <br />• 同意状态、事件签名（来自 Pixel）
+                            <br />• <strong>不存储原始 PII</strong>：邮箱和电话仅在发送时临时哈希处理
+                          </Text>
+                        </BlockStack>
+                      </Banner>
+                    </BlockStack>
+
+                    <Divider />
+
+                    {/* Consent Strategy Section */}
                     <BlockStack gap="300">
                       <Text as="h3" variant="headingMd">
                         Consent 策略
@@ -1285,7 +1312,7 @@ export default function SettingsPage() {
             </Layout>
           )}
 
-          {/* Subscription Tab */}
+          {}
           {selectedTab === 3 && (
             <Layout>
               <Layout.Section>
@@ -1308,7 +1335,7 @@ export default function SettingsPage() {
                     <Divider />
 
                     <BlockStack gap="400">
-                      {/* Current Free Plan */}
+                      {}
                       <Box
                         background="bg-surface-selected"
                         padding="400"
@@ -1331,7 +1358,7 @@ export default function SettingsPage() {
                         </BlockStack>
                       </Box>
 
-                      {/* Coming Soon Plans */}
+                      {}
                       <Box
                         background="bg-surface-secondary"
                         padding="400"

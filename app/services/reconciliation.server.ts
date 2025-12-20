@@ -1,26 +1,10 @@
-/**
- * Reconciliation Service
- * 
- * Compares Shopify orders with platform conversion data to identify tracking gaps.
- * Generates daily reports and triggers alerts when discrepancies exceed thresholds.
- * 
- * This service:
- * 1. Queries Shopify orders (paid) for a given period
- * 2. Compares with ConversionLog entries for each platform
- * 3. Calculates discrepancy rates (order count and revenue)
- * 4. Creates ReconciliationReport records
- * 5. Triggers alerts if discrepancy exceeds configured thresholds
- */
+
 
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger";
 import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
 import type { AlertChannel, AlertSettings } from "../types";
-
-// ==========================================
-// Types
-// ==========================================
 
 export interface ReconciliationResult {
   shopId: string;
@@ -52,17 +36,6 @@ export interface ReconciliationSummary {
   };
 }
 
-// ==========================================
-// P0-02: Shopify Order Data Fetching
-// ==========================================
-
-/**
- * P0-02: Fetch real order count and revenue from Shopify Admin API
- * P1-03: Enhanced with rate-limit handling and pagination
- * 
- * This provides the "ground truth" for reconciliation - what Shopify
- * actually recorded as paid orders in the given time period.
- */
 async function getShopifyOrderStats(
   shopDomain: string,
   accessToken: string | null,
@@ -96,11 +69,9 @@ async function getShopifyOrderStats(
       }
     }
   `;
-  
-  // Query for paid orders in the date range
+
   const dateQuery = `financial_status:paid created_at:>=${startDate.toISOString()} created_at:<${endDate.toISOString()}`;
-  
-  // P1-03: Helper function to make request with retry on rate limit
+
   async function makeRequest(cursor: string | null = null, retryCount = 0): Promise<{
     data: {
       ordersCount?: { count: number };
@@ -125,8 +96,7 @@ async function getShopifyOrderStats(
         }),
       }
     );
-    
-    // P1-03: Handle rate limiting with exponential backoff
+
     if (response.status === 429) {
       const retryAfter = parseInt(response.headers.get("Retry-After") || "2", 10);
       const maxRetries = 3;
@@ -153,33 +123,31 @@ async function getShopifyOrderStats(
   }
   
   try {
-    // P1-03: Paginate through all orders for accurate revenue
+    
     let totalRevenue = 0;
     let orderCount = 0;
     let cursor: string | null = null;
     let hasMorePages = true;
     let pageCount = 0;
-    const maxPages = 10; // Safety limit: 10 pages × 250 orders = 2500 orders max
+    const maxPages = 10; 
     
     while (hasMorePages && pageCount < maxPages) {
       const result = await makeRequest(cursor);
       
       if (result.errors || !result.data) {
         logger.error(`Shopify GraphQL errors for ${shopDomain}`, undefined, { errors: result.errors });
-        // Return partial data if we have some
+        
         if (pageCount > 0) {
           logger.warn(`[P1-03] Returning partial data for ${shopDomain} after ${pageCount} pages`);
           return { count: orderCount, revenue: totalRevenue };
         }
         return null;
       }
-      
-      // Get count from first page only
+
       if (pageCount === 0 && result.data.ordersCount) {
         orderCount = result.data.ordersCount.count;
       }
-      
-      // Sum revenue from this page
+
       interface OrderEdge {
         node: {
           totalPriceSet: {
@@ -195,8 +163,7 @@ async function getShopifyOrderStats(
         0
       ) || 0;
       totalRevenue += pageRevenue;
-      
-      // Check for more pages
+
       hasMorePages = result.data.orders?.pageInfo?.hasNextPage || false;
       cursor = result.data.orders?.pageInfo?.endCursor || null;
       pageCount++;
@@ -221,25 +188,15 @@ async function getShopifyOrderStats(
   }
 }
 
-// ==========================================
-// Core Reconciliation Functions
-// ==========================================
-
-/**
- * Run daily reconciliation for a single shop
- * P0-02: Now compares real Shopify orders with conversion logs
- * P0-02 FIX: Uses decrypted accessToken for Admin API calls
- */
 export async function runDailyReconciliation(shopId: string): Promise<ReconciliationResult[]> {
-  // P0-02 FIX: Get shop with decrypted accessToken
+  
   const decryptedShop = await getShopByIdWithDecryptedFields(shopId);
   
   if (!decryptedShop || !decryptedShop.isActive) {
     logger.debug(`Skipping reconciliation for inactive shop: ${shopId}`);
     return [];
   }
-  
-  // P0-02 FIX: Check if accessToken was decrypted successfully
+
   if (!decryptedShop.accessToken) {
     logger.warn(
       `[P0-02] Cannot run reconciliation for shop ${decryptedShop.shopDomain}: ` +
@@ -247,8 +204,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
     );
     return [];
   }
-  
-  // Get related data (pixelConfigs, alertConfigs)
+
   const shopWithRelations = await prisma.shop.findUnique({
     where: { id: shopId },
     include: {
@@ -275,8 +231,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
   }
 
   const results: ReconciliationResult[] = [];
-  
-  // Calculate date range for yesterday (UTC)
+
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
   
@@ -284,8 +239,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
   yesterday.setDate(yesterday.getDate() - 1);
   
   const reportDate = new Date(yesterday);
-  
-  // Get distinct platforms from pixel configs
+
   const platforms = [...new Set(shopWithRelations.pixelConfigs.map(c => c.platform))];
   
   if (platforms.length === 0) {
@@ -293,15 +247,13 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
     return [];
   }
 
-  // P0-02 FIX: Use decrypted accessToken for Shopify API calls
   const shopifyStats = await getShopifyOrderStats(
     decryptedShop.shopDomain,
     decryptedShop.accessToken,
     yesterday,
     today
   );
-  
-  // P0-02: Use real Shopify data if available, otherwise fall back to ConversionLog data
+
   const shopifyOrderCount = shopifyStats?.count ?? 0;
   const shopifyRevenue = shopifyStats?.revenue ?? 0;
   
@@ -309,7 +261,6 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
     logger.warn(`Could not fetch Shopify order data for ${decryptedShop.shopDomain}, using ConversionLog data`);
   }
 
-  // Get Shopify conversion logs for the period
   const conversionLogs = await prisma.conversionLog.groupBy({
     by: ["platform", "status"],
     where: {
@@ -326,26 +277,20 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
     },
   });
 
-  // Process each platform
   for (const platform of platforms) {
-    // Calculate platform-specific metrics from ConversionLog
-    const platformLogs = conversionLogs.filter(l => l.platform === platform);
     
-    // P0-02: sentOrders = what we successfully sent to the platform
+    const platformLogs = conversionLogs.filter(l => l.platform === platform);
+
     const sentOrders = platformLogs
       .filter(l => l.status === "sent")
       .reduce((sum, l) => sum + l._count, 0);
     const sentRevenue = platformLogs
       .filter(l => l.status === "sent")
       .reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
-    
-    // P0-02: Use real Shopify data for comparison
-    // shopifyOrderCount = total paid orders in Shopify (ground truth)
-    // sentOrders = what we sent to this platform
+
     const totalOrders = shopifyStats ? shopifyOrderCount : platformLogs.reduce((sum, l) => sum + l._count, 0);
     const totalRevenue = shopifyStats ? shopifyRevenue : platformLogs.reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
 
-    // P0-02: Calculate discrepancy: how many Shopify orders did we NOT send to the platform
     const orderDiscrepancy = totalOrders > 0 
       ? (totalOrders - sentOrders) / totalOrders 
       : 0;
@@ -353,7 +298,6 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
       ? (totalRevenue - sentRevenue) / totalRevenue 
       : 0;
 
-    // Check if we should send an alert
     let alertSent = false;
     const matchingAlerts = shopWithRelations.alertConfigs.filter(
       a => totalOrders >= a.minOrdersForAlert && orderDiscrepancy >= a.discrepancyThreshold
@@ -362,7 +306,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
     if (matchingAlerts.length > 0) {
       for (const alertConfig of matchingAlerts) {
         try {
-          // P0-01: Fixed sendAlert signature - now passes AlertConfig and AlertData correctly
+          
           await sendAlert(
             {
               id: alertConfig.id,
@@ -393,7 +337,6 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
       }
     }
 
-    // Create or update reconciliation report
     const report = await prisma.reconciliationReport.upsert({
       where: {
         shopId_platform_reportDate: {
@@ -450,10 +393,6 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
   return results;
 }
 
-/**
- * Run reconciliation for all active shops
- * Called by the daily cron job
- */
 export async function runAllShopsReconciliation(): Promise<{
   processed: number;
   succeeded: number;
@@ -495,13 +434,6 @@ export async function runAllShopsReconciliation(): Promise<{
   };
 }
 
-// ==========================================
-// Query Functions (for UI)
-// ==========================================
-
-/**
- * Get reconciliation history for a shop
- */
 export async function getReconciliationHistory(
   shopId: string,
   days: number = 30
@@ -542,9 +474,6 @@ export async function getReconciliationHistory(
   }));
 }
 
-/**
- * Get reconciliation summary grouped by platform
- */
 export async function getReconciliationSummary(
   shopId: string,
   days: number = 30
@@ -578,8 +507,7 @@ export async function getReconciliationSummary(
       alertSent: report.alertSent,
     });
   }
-  
-  // Calculate average discrepancy for each platform
+
   for (const platform of Object.keys(summary)) {
     const platformSummary = summary[platform];
     if (platformSummary.reports.length > 0) {
@@ -594,9 +522,6 @@ export async function getReconciliationSummary(
   return summary;
 }
 
-/**
- * Get the latest reconciliation report for each platform
- */
 export async function getLatestReconciliation(
   shopId: string
 ): Promise<Map<string, ReconciliationResult>> {

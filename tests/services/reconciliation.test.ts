@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock Prisma
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
@@ -22,12 +21,10 @@ vi.mock("../../app/db.server", () => ({
   },
 }));
 
-// Mock notification service
 vi.mock("../../app/services/notification.server", () => ({
   sendAlert: vi.fn().mockResolvedValue(true),
 }));
 
-// Mock logger
 vi.mock("../../app/utils/logger", () => ({
   logger: {
     debug: vi.fn(),
@@ -150,8 +147,8 @@ describe("Reconciliation Service", () => {
 
       expect(result.meta).toBeDefined();
       expect(result.google).toBeDefined();
-      expect(result.meta.totalShopifyOrders).toBe(110); // 50 + 60
-      expect(result.meta.totalPlatformConversions).toBe(103); // 48 + 55
+      expect(result.meta.totalShopifyOrders).toBe(110); 
+      expect(result.meta.totalPlatformConversions).toBe(103); 
       expect(result.meta.reports).toHaveLength(2);
       expect(result.google.totalShopifyOrders).toBe(30);
     });
@@ -188,7 +185,6 @@ describe("Reconciliation Service", () => {
 
       const result = await getReconciliationSummary("shop1");
 
-      // Average of 0.10 and 0.20 should be 0.15
       expect(result.meta.avgDiscrepancy).toBeCloseTo(0.15, 2);
     });
 

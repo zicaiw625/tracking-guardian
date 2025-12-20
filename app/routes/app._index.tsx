@@ -28,7 +28,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
 
-  // Get shop data
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     include: {
@@ -60,14 +59,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  // Calculate health score based on recent reconciliation
-  // Return null if no data to indicate "uninitialized" state
   let healthScore: number | null = null;
   let healthStatus: "success" | "warning" | "critical" | "uninitialized" = "uninitialized";
   const recentReports = shop?.reconciliationReports || [];
   const configuredPlatforms = shop?.pixelConfigs?.length || 0;
 
-  // Only calculate health score if there's meaningful data
   if (recentReports.length > 0 && configuredPlatforms > 0) {
     const avgDiscrepancy =
       recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) /
@@ -121,7 +117,6 @@ export default function Index() {
     plan,
   } = useLoaderData<typeof loader>();
 
-  // Setup checklist steps
   const setupSteps = [
     {
       id: "scan",
@@ -165,7 +160,6 @@ export default function Index() {
     }
   };
 
-  // Find the first uncompleted step
   const nextStep = setupSteps.find((s) => !s.done);
 
   return (
@@ -181,7 +175,7 @@ export default function Index() {
       }
     >
       <BlockStack gap="500">
-        {/* Welcome Banner */}
+        {}
         <Banner
           title="欢迎使用 Tracking Guardian"
           tone="info"
@@ -193,7 +187,7 @@ export default function Index() {
           </p>
         </Banner>
 
-        {/* Setup Checklist - Show when not all steps completed */}
+        {}
         {!allStepsCompleted && (
           <Card>
             <BlockStack gap="400">
@@ -260,7 +254,7 @@ export default function Index() {
         )}
 
         <Layout>
-          {/* Health Score Card */}
+          {}
           <Layout.Section variant="oneThird">
             <Card>
               <BlockStack gap="400">
@@ -314,7 +308,7 @@ export default function Index() {
             </Card>
           </Layout.Section>
 
-          {/* Quick Stats */}
+          {}
           <Layout.Section variant="oneThird">
             <Card>
               <BlockStack gap="400">
@@ -345,7 +339,7 @@ export default function Index() {
             </Card>
           </Layout.Section>
 
-          {/* Latest Scan */}
+          {}
           <Layout.Section variant="oneThird">
             <Card>
               <BlockStack gap="400">
@@ -406,7 +400,7 @@ export default function Index() {
           </Layout.Section>
         </Layout>
 
-        {/* Migration Deadline Warning */}
+        {}
         <Banner
           title="重要迁移截止日期"
           tone="warning"

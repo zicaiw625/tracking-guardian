@@ -1,179 +1,88 @@
 /**
- * Tracking API Endpoint
+ * P0-06: App Proxy Route - CURRENTLY DISABLED FOR SECURITY
  * 
- * Provides order fulfillment and tracking information for the ShippingTracker
- * thank-you page extension.
+ * This endpoint was designed to return order tracking/fulfillment information
+ * via Shopify's App Proxy mechanism. However, it has security concerns:
  * 
- * P2-4: This endpoint is called by the ShippingTracker extension via App Proxy
- * to get real-time tracking information for a customer's order.
+ * SECURITY ISSUES:
+ * 1. App Proxy only verifies the request came from Shopify, NOT that the
+ *    requesting customer owns the order
+ * 2. Without additional authorization, any customer could enumerate order IDs
+ *    and retrieve tracking information for orders they don't own
+ * 3. Tracking numbers and URLs could be considered sensitive information
+ * 
+ * TO ENABLE THIS ENDPOINT SAFELY:
+ * 1. Implement customer authentication via Customer Account API or session tokens
+ * 2. Verify the logged-in customer owns the requested order
+ * 3. Consider only returning non-sensitive status information (no tracking URLs/numbers)
+ * 4. Add rate limiting per customer/session
+ * 
+ * For now, the ShippingTracker extension should use Shopify's native
+ * order fulfillment data available in the checkout surfaces.
  */
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { logger } from "../utils/logger";
 
-interface TrackingInfo {
-  number: string | null;
-  url: string | null;
-  company: string | null;
-}
+// P0-06: Feature flag to enable this endpoint (default: disabled)
+const TRACKING_API_ENABLED = process.env.ENABLE_TRACKING_API === "true";
 
-interface FulfillmentInfo {
-  id: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  trackingInfo: TrackingInfo[];
-}
-
-interface OrderTrackingResponse {
-  orderId: string;
-  orderNumber: string;
-  orderStatus: string;
-  fulfillments: FulfillmentInfo[];
-  shippingStatus: "unfulfilled" | "partially_fulfilled" | "fulfilled" | "delivered";
-  estimatedDelivery: string | null;
-}
-
-/**
- * Get tracking information for an order
- * 
- * This is accessed via Shopify App Proxy to allow the checkout extension
- * to fetch tracking data securely.
- * 
- * Query params:
- * - orderId: The Shopify order ID (GID format or numeric)
- * - orderToken: Optional token for validation
- */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  try {
-    // Authenticate the request via App Proxy
-    const { admin, session } = await authenticate.public.appProxy(request);
-    
-    if (!admin) {
-      return json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const url = new URL(request.url);
-    const orderId = url.searchParams.get("orderId");
-    
-    if (!orderId) {
-      return json({ error: "Missing orderId parameter" }, { status: 400 });
-    }
-
-    // Normalize order ID to GID format
-    const orderGid = orderId.startsWith("gid://")
-      ? orderId
-      : `gid://shopify/Order/${orderId}`;
-
-    // Fetch order with fulfillment data
-    const response = await admin.graphql(
-      `#graphql
-      query GetOrderFulfillments($orderId: ID!) {
-        order(id: $orderId) {
-          id
-          name
-          displayFulfillmentStatus
-          createdAt
-          fulfillments(first: 10) {
-            id
-            status
-            createdAt
-            updatedAt
-            trackingInfo(first: 5) {
-              number
-              url
-              company
-            }
-          }
-        }
-      }
-    `,
-      { variables: { orderId: orderGid } }
-    );
-
-    const data = await response.json();
-    
-    if (!data.data?.order) {
-      return json({ error: "Order not found" }, { status: 404 });
-    }
-
-    const order = data.data.order;
-
-    // Transform fulfillment data
-    const fulfillments: FulfillmentInfo[] = order.fulfillments.map((f: {
-      id: string;
-      status: string;
-      createdAt: string;
-      updatedAt: string;
-      trackingInfo: TrackingInfo[];
-    }) => ({
-      id: f.id,
-      status: f.status,
-      createdAt: f.createdAt,
-      updatedAt: f.updatedAt,
-      trackingInfo: f.trackingInfo || [],
-    }));
-
-    // Determine overall shipping status
-    let shippingStatus: OrderTrackingResponse["shippingStatus"] = "unfulfilled";
-    
-    switch (order.displayFulfillmentStatus) {
-      case "FULFILLED":
-        shippingStatus = "fulfilled";
-        break;
-      case "PARTIALLY_FULFILLED":
-        shippingStatus = "partially_fulfilled";
-        break;
-      case "UNFULFILLED":
-      case "ON_HOLD":
-      default:
-        shippingStatus = "unfulfilled";
-    }
-
-    // Check if any fulfillment shows delivered status
-    if (fulfillments.some(f => f.status === "DELIVERED")) {
-      shippingStatus = "delivered";
-    }
-
-    // Calculate estimated delivery (simple estimation: 5-7 business days from fulfillment)
-    let estimatedDelivery: string | null = null;
-    if (fulfillments.length > 0 && shippingStatus === "fulfilled") {
-      const latestFulfillment = fulfillments[0];
-      const shippedDate = new Date(latestFulfillment.createdAt);
-      const deliveryDate = new Date(shippedDate);
-      deliveryDate.setDate(deliveryDate.getDate() + 7); // Add 7 days
-      estimatedDelivery = deliveryDate.toISOString().split("T")[0];
-    }
-
-    const result: OrderTrackingResponse = {
-      orderId: order.id,
-      orderNumber: order.name,
-      orderStatus: order.displayFulfillmentStatus,
-      fulfillments,
-      shippingStatus,
-      estimatedDelivery,
-    };
-
-    return json(result);
-  } catch (error) {
-    console.error("Tracking API error:", error);
-    
-    // Handle authentication errors gracefully
-    if (error instanceof Error && error.message.includes("authentication")) {
-      return json({ error: "Authentication failed" }, { status: 401 });
-    }
-    
+  // P0-06: Return 503 Service Unavailable when disabled
+  if (!TRACKING_API_ENABLED) {
+    logger.info("[P0-06] Tracking API request rejected - endpoint disabled for security review");
     return json(
-      { error: "Failed to fetch tracking information" },
-      { status: 500 }
+      { 
+        error: "This endpoint is currently disabled for security review",
+        code: "ENDPOINT_DISABLED",
+        message: "Order tracking information is available directly through Shopify's order status page."
+      }, 
+      { status: 503 }
     );
   }
+
+  // If enabled in the future, the full implementation would go here
+  // with proper customer authentication
+  return json(
+    { error: "Not implemented" },
+    { status: 501 }
+  );
 };
 
-/**
- * Health check for the tracking API
- */
 export const action = async () => {
   return json({ error: "Method not allowed" }, { status: 405 });
 };
+
+/*
+ * ARCHIVED: Original implementation for reference when implementing proper auth
+ * 
+ * import { authenticate } from "../shopify.server";
+ * 
+ * interface TrackingInfo {
+ *   number: string | null;
+ *   url: string | null;
+ *   company: string | null;
+ * }
+ * 
+ * interface FulfillmentInfo {
+ *   id: string;
+ *   status: string;
+ *   createdAt: string;
+ *   updatedAt: string;
+ *   trackingInfo: TrackingInfo[];
+ * }
+ * 
+ * interface OrderTrackingResponse {
+ *   orderId: string;
+ *   orderNumber: string;
+ *   orderStatus: string;
+ *   fulfillments: FulfillmentInfo[];
+ *   shippingStatus: "unfulfilled" | "partially_fulfilled" | "fulfilled" | "delivered";
+ *   estimatedDelivery: string | null;
+ * }
+ * 
+ * // The original loader function would authenticate via app proxy,
+ * // fetch order data, and return tracking information.
+ * // See git history for full implementation.
+ */

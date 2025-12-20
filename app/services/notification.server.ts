@@ -1,4 +1,4 @@
-// Notification service for sending alerts via email, Slack, and Telegram
+
 
 import { Resend } from "resend";
 import type {
@@ -8,24 +8,21 @@ import type {
   SlackAlertSettings,
   TelegramAlertSettings,
 } from "../types";
-// P0-13: Use logger for proper sanitization
+
 import { logger } from "../utils/logger";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-// Get the app URL from environment
 const getAppUrl = (): string => {
   return process.env.SHOPIFY_APP_URL || "https://your-app-url.com";
 };
 
-// Get the email sender address
 const getEmailSender = (): string => {
   return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";
 };
 
-// Main alert dispatcher
 export async function sendAlert(
   config: AlertConfig,
   data: AlertData
@@ -48,7 +45,6 @@ export async function sendAlert(
   }
 }
 
-// Email alert
 async function sendEmailAlert(
   settings: EmailAlertSettings,
   data: AlertData
@@ -117,7 +113,6 @@ async function sendEmailAlert(
   return true;
 }
 
-// Slack alert
 async function sendSlackAlert(
   settings: SlackAlertSettings,
   data: AlertData
@@ -196,7 +191,6 @@ async function sendSlackAlert(
   return response.ok;
 }
 
-// Telegram alert
 async function sendTelegramAlert(
   settings: TelegramAlertSettings,
   data: AlertData
@@ -234,7 +228,6 @@ async function sendTelegramAlert(
   return response.ok;
 }
 
-// Test notification channel
 export async function testNotification(
   channel: string,
   settings: EmailAlertSettings | SlackAlertSettings | TelegramAlertSettings

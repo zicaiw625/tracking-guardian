@@ -1,40 +1,56 @@
-// TikTok Events API integration
+/**
+ * TikTok Events API Service
+ * 
+ * P0-01: This service handles Protected Customer Data gracefully:
+ * - All PII fields are optional and may be null
+ * - Conversions are sent with whatever data is available
+ * - Missing PII is logged for debugging but does not cause failures
+ */
 
 import type { ConversionData, TikTokCredentials, ConversionApiResponse } from "../../types";
 import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto";
+import { logger } from "../../utils/logger";
 
-// Timeout configuration
-const TIKTOK_API_TIMEOUT_MS = 30000; // 30 seconds
+const TIKTOK_API_TIMEOUT_MS = 30000; 
 
-// TikTok user data interface
 interface TikTokUserData {
-  email?: string;  // SHA-256 hashed
-  phone_number?: string;  // SHA-256 hashed
+  email?: string;  // hashed email
+  phone_number?: string;  // hashed phone
 }
 
 /**
- * Builds hashed user data for TikTok Events API
+ * P0-01: Build user data for TikTok Events API
+ * 
+ * TikTok requires either email or phone for better matching.
+ * This function handles missing PII gracefully.
  */
-async function buildHashedUserData(conversionData: ConversionData): Promise<TikTokUserData> {
+async function buildHashedUserData(
+  conversionData: ConversionData,
+  orderId: string
+): Promise<{ user: TikTokUserData; hasPii: boolean }> {
   const user: TikTokUserData = {};
+  let hasPii = false;
   
   if (conversionData.email) {
     user.email = await hashValue(normalizeEmail(conversionData.email));
+    hasPii = true;
   }
   if (conversionData.phone) {
     user.phone_number = await hashValue(normalizePhone(conversionData.phone));
+    hasPii = true;
   }
   
-  return user;
+  // P0-01: Log when no PII is available
+  if (!hasPii && process.env.NODE_ENV !== "test") {
+    logger.debug(`[P0-01] TikTok Events API: No PII for order ${orderId.slice(0, 8)}...`, {
+      platform: "tiktok",
+      note: "Conversion will still be recorded but may have lower match rate",
+    });
+  }
+  
+  return { user, hasPii };
 }
 
-/**
- * Sends conversion data to TikTok Events API
- * 
- * Deduplication:
- * - Uses event_id for client/server deduplication
- * - TikTok will ignore duplicate events with same event_id
- */
 export async function sendConversionToTikTok(
   credentials: TikTokCredentials | null,
   conversionData: ConversionData,
@@ -44,17 +60,26 @@ export async function sendConversionToTikTok(
     throw new Error("TikTok Pixel credentials not configured");
   }
 
-  // Validate pixel ID format
   if (!/^[A-Z0-9]{20,}$/i.test(credentials.pixelId)) {
     throw new Error("Invalid TikTok Pixel ID format");
   }
 
   const timestamp = new Date().toISOString();
 
-  // Build user data with hashed PII
-  const user = await buildHashedUserData(conversionData);
+  // P0-01: Build user data with PII tracking
+  const { user, hasPii } = await buildHashedUserData(
+    conversionData,
+    conversionData.orderId
+  );
 
-  // Build contents array (no PII)
+  // P0-01: Log when sending conversion with no PII
+  if (!hasPii) {
+    logger.info(`[P0-01] Sending TikTok conversion with no PII for order ${conversionData.orderId.slice(0, 8)}...`, {
+      platform: "tiktok",
+      note: "Conversion will still be recorded",
+    });
+  }
+
   const contents = conversionData.lineItems?.map((item) => ({
     content_id: item.productId,
     content_name: item.name,
@@ -62,13 +87,12 @@ export async function sendConversionToTikTok(
     price: item.price,
   })) || [];
 
-  // Generate event_id for deduplication if not provided
   const dedupeEventId = eventId || `${conversionData.orderId}_purchase_${Date.now()}`;
 
   const eventPayload = {
     pixel_code: credentials.pixelId,
     event: "CompletePayment",
-    event_id: dedupeEventId, // For client/server deduplication
+    event_id: dedupeEventId, 
     timestamp,
     context: {
       user,
@@ -83,12 +107,11 @@ export async function sendConversionToTikTok(
     ...(credentials.testEventCode && { test_event_code: credentials.testEventCode }),
   };
 
-  // Create abort controller for timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIKTOK_API_TIMEOUT_MS);
 
   try {
-  // Make the API call to TikTok Events API
+  
   const response = await fetch(
     "https://business-api.tiktok.com/open_api/v1.3/pixel/track/",
     {
@@ -104,14 +127,14 @@ export async function sendConversionToTikTok(
 
   if (!response.ok) {
     const errorData = await response.json();
-      // Don't expose full error details
+      
       const errorMessage = errorData.message || "Unknown TikTok API error";
       throw new Error(`TikTok API error: ${errorMessage}`);
     }
 
     const result = await response.json();
     
-    console.log(`TikTok conversion sent: order=${conversionData.orderId}`);
+    logger.info(`TikTok conversion sent: order=${conversionData.orderId.slice(0, 8)}...`);
 
     return {
       success: true,
@@ -128,11 +151,6 @@ export async function sendConversionToTikTok(
   }
 }
 
-// Generate Web Pixel code for TikTok
-//
-// WARNING (P2-1): This template uses browser.window/browser.document for DOM injection.
-// This is only compatible with "lax" or "custom pixel" sandbox mode, NOT strict mode.
-// For strict sandbox compatibility, use Tracking Guardian's built-in pixel + server-side CAPI.
 export function generateTikTokPixelCode(config: { pixelId: string }): string {
   return `// TikTok Pixel - Web Pixel Implementation
 // Auto-generated by Tracking Guardian
@@ -260,6 +278,4 @@ register(({ analytics, browser }) => {
 });
 `;
 }
-
-// Helper functions imported from utils/crypto
 

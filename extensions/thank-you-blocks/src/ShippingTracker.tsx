@@ -21,13 +21,11 @@ function ShippingTracker() {
   const settings = useSettings();
   const order = useOrder();
 
-  // Get tracking info from order (this would come from fulfillment data)
-  const trackingNumber = order?.confirmationNumber || ""; // Placeholder
+  const trackingNumber = order?.confirmationNumber || ""; 
   const trackingUrl = settings.tracking_provider_url
     ? (settings.tracking_provider_url as string).replace("{tracking_number}", trackingNumber)
     : `https://t.17track.net/en#nums=${trackingNumber}`;
 
-  // Simulated shipping status
   const shippingSteps = [
     { id: "ordered", label: "订单已确认", completed: true, date: "今天" },
     { id: "processing", label: "处理中", completed: true, date: "预计 1-2 天" },
@@ -46,7 +44,7 @@ function ShippingTracker() {
 
       <Divider />
 
-      {/* Shipping Progress */}
+      {}
       <BlockStack spacing="tight">
         {shippingSteps.map((step, index) => (
           <InlineLayout
@@ -82,7 +80,7 @@ function ShippingTracker() {
 
       <Divider />
 
-      {/* Tracking Number & Link */}
+      {}
       <BlockStack spacing="tight">
         <InlineLayout columns={["fill", "auto"]} spacing="base">
           <Text size="small" appearance="subdued">
@@ -102,7 +100,7 @@ function ShippingTracker() {
         </Link>
       )}
 
-      {/* Helpful Info */}
+      {}
       <View padding="tight" background="subdued" cornerRadius="base">
         <BlockStack spacing="extraTight">
           <Text size="small" appearance="subdued">

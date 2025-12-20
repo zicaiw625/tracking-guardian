@@ -1,5 +1,11 @@
-// Meta (Facebook) Conversions API integration
-// P1-5: Enhanced with standardized error handling
+/**
+ * Meta (Facebook) Conversions API Service
+ * 
+ * P0-01: This service handles Protected Customer Data gracefully:
+ * - All PII fields are optional and may be null
+ * - Conversions are sent with whatever data is available
+ * - Missing PII is logged for debugging but does not cause failures
+ */
 
 import type { ConversionData, MetaCredentials, ConversionApiResponse } from "../../types";
 import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto";
@@ -9,103 +15,123 @@ import {
   parseMetaError,
   type PlatformError,
 } from "./base.server";
+import { logger } from "../../utils/logger";
 
-// API configuration
 const META_API_VERSION = "v18.0";
-const META_API_TIMEOUT_MS = 30000; // 30 seconds
+const META_API_TIMEOUT_MS = 30000; 
 
-// User data field types for Meta CAPI
 interface MetaUserData {
-  em?: string[];  // hashed email
-  ph?: string[];  // hashed phone
-  fn?: string[];  // hashed first name
-  ln?: string[];  // hashed last name
-  ct?: string[];  // hashed city
-  st?: string[];  // hashed state
-  country?: string[];  // hashed country
-  zp?: string[];  // hashed zip
+  em?: string[];  // email hash
+  ph?: string[];  // phone hash
+  fn?: string[];  // first name hash
+  ln?: string[];  // last name hash
+  ct?: string[];  // city hash
+  st?: string[];  // state hash
+  country?: string[];  // country hash
+  zp?: string[];  // zip hash
 }
 
 /**
- * Builds hashed user data for Meta Conversions API
- * All PII is normalized and hashed with SHA-256 before sending
+ * P0-01: Build user data for Meta CAPI
+ * 
+ * This function gracefully handles missing PII:
+ * - Returns whatever data is available
+ * - Never fails due to missing PII
+ * - Logs the data quality for debugging
  */
-async function buildHashedUserData(conversionData: ConversionData): Promise<MetaUserData> {
+async function buildHashedUserData(
+  conversionData: ConversionData,
+  orderId: string
+): Promise<{ userData: MetaUserData; piiQuality: string }> {
   const userData: MetaUserData = {};
-  
-  // Hash email (normalize: lowercase, trim)
+  const availableFields: string[] = [];
+  const missingFields: string[] = [];
+
+  // P0-01: Process each PII field, tracking what's available
   if (conversionData.email) {
     userData.em = [await hashValue(normalizeEmail(conversionData.email))];
+    availableFields.push("email");
+  } else {
+    missingFields.push("email");
   }
-  
-  // Hash phone (normalize: remove non-digits except +)
+
   if (conversionData.phone) {
     userData.ph = [await hashValue(normalizePhone(conversionData.phone))];
+    availableFields.push("phone");
+  } else {
+    missingFields.push("phone");
   }
-  
-  // Hash first name (normalize: lowercase, trim)
+
   if (conversionData.firstName) {
     const normalized = conversionData.firstName.toLowerCase().trim();
     if (normalized) {
       userData.fn = [await hashValue(normalized)];
+      availableFields.push("firstName");
     }
   }
-  
-  // Hash last name (normalize: lowercase, trim)
+
   if (conversionData.lastName) {
     const normalized = conversionData.lastName.toLowerCase().trim();
     if (normalized) {
       userData.ln = [await hashValue(normalized)];
+      availableFields.push("lastName");
     }
   }
-  
-  // Hash city (normalize: lowercase, remove spaces)
+
   if (conversionData.city) {
     const normalized = conversionData.city.toLowerCase().replace(/\s/g, '');
     if (normalized) {
       userData.ct = [await hashValue(normalized)];
+      availableFields.push("city");
     }
   }
-  
-  // Hash state (normalize: lowercase)
+
   if (conversionData.state) {
     const normalized = conversionData.state.toLowerCase().trim();
     if (normalized) {
       userData.st = [await hashValue(normalized)];
+      availableFields.push("state");
     }
   }
-  
-  // Hash country (normalize: lowercase, 2-letter code)
+
   if (conversionData.country) {
     const normalized = conversionData.country.toLowerCase().trim();
     if (normalized) {
       userData.country = [await hashValue(normalized)];
+      availableFields.push("country");
     }
   }
-  
-  // Hash zip (normalize: remove spaces)
+
   if (conversionData.zip) {
     const normalized = conversionData.zip.replace(/\s/g, '');
     if (normalized) {
       userData.zp = [await hashValue(normalized)];
+      availableFields.push("zip");
     }
   }
   
-  return userData;
+  // P0-01: Determine PII quality level
+  let piiQuality: string;
+  if (availableFields.length === 0) {
+    piiQuality = "none";
+  } else if (availableFields.includes("email") || availableFields.includes("phone")) {
+    piiQuality = "good"; // Primary identifiers available
+  } else {
+    piiQuality = "partial"; // Only secondary identifiers
+  }
+
+  // Log for debugging (not as an error, just info)
+  if (missingFields.length > 0 && process.env.NODE_ENV !== "test") {
+    logger.debug(`[P0-01] Meta CAPI PII status for order ${orderId.slice(0, 8)}...`, {
+      piiQuality,
+      availableFieldCount: availableFields.length,
+      totalPossibleFields: 8,
+    });
+  }
+
+  return { userData, piiQuality };
 }
 
-/**
- * Sends conversion data to Meta Conversions API
- * 
- * Security notes:
- * - All PII is hashed with SHA-256 before transmission
- * - Access token is sent via secure header, not URL parameter
- * - Request has timeout to prevent hanging
- * 
- * Deduplication:
- * - Uses event_id for client/server deduplication
- * - Meta will ignore duplicate events with same event_id within 48 hours
- */
 export async function sendConversionToMeta(
   credentials: MetaCredentials | null,
   conversionData: ConversionData,
@@ -115,25 +141,34 @@ export async function sendConversionToMeta(
     throw new Error("Meta Pixel credentials not configured");
   }
 
-  // Validate pixel ID format (should be 15-16 digits)
   if (!/^\d{15,16}$/.test(credentials.pixelId)) {
     throw new Error("Invalid Meta Pixel ID format");
   }
 
   const eventTime = Math.floor(Date.now() / 1000);
 
-  // Build user data with hashed PII
-  const userData = await buildHashedUserData(conversionData);
+  // P0-01: Build user data with PII quality tracking
+  const { userData, piiQuality } = await buildHashedUserData(
+    conversionData, 
+    conversionData.orderId
+  );
 
-  // Build contents array for product data (no PII)
+  // P0-01: Log when sending conversion with limited data
+  if (piiQuality === "none") {
+    logger.info(`[P0-01] Sending Meta conversion with no PII for order ${conversionData.orderId.slice(0, 8)}...`, {
+      platform: "meta",
+      piiQuality,
+      // This is expected when Protected Customer Data scope is not granted
+      note: "Conversion will still be recorded but may have lower match rate",
+    });
+  }
+
   const contents = conversionData.lineItems?.map((item) => ({
     id: item.productId,
     quantity: item.quantity,
     item_price: item.price,
   })) || [];
 
-  // Generate event_id for deduplication if not provided
-  // Format: orderId_purchase_timestamp (unique per order)
   const dedupeEventId = eventId || `${conversionData.orderId}_purchase_${eventTime}`;
 
   const eventPayload = {
@@ -141,7 +176,7 @@ export async function sendConversionToMeta(
       {
         event_name: "Purchase",
         event_time: eventTime,
-        event_id: dedupeEventId, // For client/server deduplication
+        event_id: dedupeEventId, 
         action_source: "website",
         user_data: userData,
         custom_data: {
@@ -156,22 +191,18 @@ export async function sendConversionToMeta(
     ...(credentials.testEventCode && { test_event_code: credentials.testEventCode }),
   };
 
-  // Create abort controller for timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), META_API_TIMEOUT_MS);
 
   try {
-  // Make the API call to Meta Conversions API
-    // Note: Using access_token as query param is required by Meta's API design
-    // The token is sent over HTTPS so it's encrypted in transit
+
   const response = await fetch(
       `https://graph.facebook.com/${META_API_VERSION}/${credentials.pixelId}/events`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-          // Meta requires access_token as query param, but we can also include it in header
-          // for additional security layers that inspect headers
+
           "Authorization": `Bearer ${credentials.accessToken}`,
       },
         body: JSON.stringify({
@@ -184,16 +215,14 @@ export async function sendConversionToMeta(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    
-    // P1-5: Use standardized error classification
+
     let platformError: PlatformError;
     if (errorData.error) {
       platformError = parseMetaError(errorData);
     } else {
       platformError = classifyHttpError(response.status, errorData);
     }
-    
-    // Create enhanced error with platform details
+
     const enhancedError = new Error(`Meta API error: ${platformError.message}`) as Error & { 
       platformError: PlatformError;
     };
@@ -210,14 +239,13 @@ export async function sendConversionToMeta(
     timestamp: new Date().toISOString(),
   };
 } catch (error) {
-  // P1-5: Classify and enhance error
+  
   if (error instanceof Error) {
-    // If already has platformError, rethrow
+    
     if ((error as Error & { platformError?: PlatformError }).platformError) {
       throw error;
     }
-    
-    // Classify JS errors (timeout, network, etc.)
+
     const platformError = classifyJsError(error);
     const enhancedError = new Error(error.message) as Error & { platformError: PlatformError };
     enhancedError.platformError = platformError;
@@ -229,9 +257,6 @@ export async function sendConversionToMeta(
 }
 }
 
-/**
- * P1-5: Extract platform error from thrown error
- */
 export function extractMetaError(error: unknown): PlatformError | null {
   if (error instanceof Error) {
     return (error as Error & { platformError?: PlatformError }).platformError || null;
@@ -239,26 +264,6 @@ export function extractMetaError(error: unknown): PlatformError | null {
   return null;
 }
 
-/**
- * Generate Web Pixel code for Meta (Facebook)
- * 
- * P2-1: IMPORTANT COMPATIBILITY WARNING
- * =====================================
- * This template uses browser.window/browser.document for DOM injection.
- * 
- * Sandbox Compatibility:
- * - ✅ "lax" mode: Works correctly
- * - ✅ "custom pixel" mode: Works correctly  
- * - ❌ "strict" mode: WILL NOT WORK
- * 
- * For strict sandbox mode, use Tracking Guardian's built-in pixel 
- * (which doesn't inject scripts) combined with Meta CAPI for server-side tracking.
- * 
- * Customer Privacy Compliance:
- * - This pixel must respect Shopify's Customer Privacy API
- * - Marketing consent is required before loading the Meta SDK
- * - The generated code includes consent checks
- */
 export function generateMetaPixelCode(config: { pixelId: string }): string {
   return `/**
  * Meta (Facebook) Pixel - Web Pixel Implementation
@@ -416,6 +421,4 @@ register(({ analytics, browser }) => {
 });
 `;
 }
-
-// Helper functions imported from utils/crypto
 

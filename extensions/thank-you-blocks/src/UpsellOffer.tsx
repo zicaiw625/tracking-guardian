@@ -28,11 +28,10 @@ function UpsellOffer() {
   const discountCode = (settings.upsell_discount_code as string) || "THANKYOU10";
   const discountPercent = (settings.upsell_discount_percent as number) || 10;
 
-  // Calculate time left for the offer (simulated countdown)
   const expiryHours = 24;
 
   const handleCopyCode = () => {
-    // In a real implementation, this would use clipboard API
+    
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -43,7 +42,7 @@ function UpsellOffer() {
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
-      {/* Header with dismiss */}
+      {}
       <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
         <Text size="medium" emphasis="bold">
           🎁 专属感谢优惠
@@ -53,7 +52,7 @@ function UpsellOffer() {
         </Button>
       </InlineLayout>
 
-      {/* Offer Banner */}
+      {}
       <Banner status="success">
         <BlockStack spacing="extraTight">
           <Text size="medium" emphasis="bold">
@@ -65,7 +64,7 @@ function UpsellOffer() {
         </BlockStack>
       </Banner>
 
-      {/* Discount Code Display */}
+      {}
       <View padding="base" background="subdued" cornerRadius="base">
         <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
           <BlockStack spacing="none">
@@ -82,7 +81,7 @@ function UpsellOffer() {
         </InlineLayout>
       </View>
 
-      {/* Urgency & Terms */}
+      {}
       <BlockStack spacing="tight">
         <InlineLayout columns={["auto", "fill"]} spacing="tight" blockAlignment="center">
           <Text size="small">⏰</Text>
@@ -106,12 +105,12 @@ function UpsellOffer() {
 
       <Divider />
 
-      {/* CTA Button */}
+      {}
       <Button kind="primary" onPress={() => {}}>
         继续购物 →
       </Button>
 
-      {/* Social Sharing */}
+      {}
       <View padding="tight">
         <BlockStack spacing="tight">
           <Text size="small" appearance="subdued" alignment="center">

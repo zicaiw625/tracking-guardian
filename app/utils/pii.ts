@@ -1,16 +1,7 @@
-/**
- * P0-6: PII (Personally Identifiable Information) Utilities
- * 
- * Provides null-safe extraction and sanitization of PII fields.
- * When Shopify's Protected Customer Data rules are enforced,
- * PII fields may be empty even if piiEnabled is true.
- */
+
 
 import type { OrderWebhookPayload } from "../types";
 
-/**
- * Extracted PII from an order, with all fields normalized to string | undefined
- */
 export interface ExtractedPII {
   email?: string;
   phone?: string;
@@ -22,26 +13,15 @@ export interface ExtractedPII {
   zip?: string;
 }
 
-/**
- * P0-6: Safely extract PII from order webhook payload
- * 
- * Returns undefined for any field that is null, empty, or invalid.
- * This function handles all the null-safety checks in one place.
- * 
- * @param payload - The order webhook payload from Shopify
- * @param piiEnabled - Whether PII extraction is enabled for this shop
- * @returns Extracted PII object with only valid, non-empty values
- */
 export function extractPIISafely(
   payload: OrderWebhookPayload | null | undefined,
   piiEnabled: boolean
 ): ExtractedPII {
-  // If PII is disabled or no payload, return empty object
+  
   if (!piiEnabled || !payload) {
     return {};
   }
 
-  // Helper to normalize string values
   const normalize = (value: string | null | undefined): string | undefined => {
     if (value === null || value === undefined) {
       return undefined;
@@ -65,12 +45,6 @@ export function extractPIISafely(
   };
 }
 
-/**
- * P0-6: Check if any PII fields are available
- * 
- * Useful for logging and diagnostics to see if Protected Customer Data
- * restrictions are preventing PII from being sent.
- */
 export function hasPII(pii: ExtractedPII): boolean {
   return !!(
     pii.email ||
@@ -84,11 +58,6 @@ export function hasPII(pii: ExtractedPII): boolean {
   );
 }
 
-/**
- * P0-6: Log PII availability status (for diagnostics)
- * 
- * Logs a summary of which PII fields are available without logging the actual values.
- */
 export function logPIIStatus(
   orderId: string,
   pii: ExtractedPII,

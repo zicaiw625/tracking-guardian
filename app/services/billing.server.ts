@@ -1,23 +1,11 @@
-/**
- * Shopify Billing API Service
- * 
- * P0-3: Implements subscription management for App Store compliance
- * 
- * Supports:
- * - Free trial (7 days)
- * - Monthly subscription plans
- * - Plan upgrades/downgrades
- * - Subscription status verification
- */
 
-// Admin type for GraphQL operations
+
 interface AdminGraphQL {
   graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response>;
 }
 import prisma from "../db.server";
 import { createAuditLog } from "./audit.server";
 
-// Plan definitions
 export const BILLING_PLANS = {
   free: {
     id: "free",
@@ -80,7 +68,6 @@ export const BILLING_PLANS = {
 
 export type PlanId = keyof typeof BILLING_PLANS;
 
-// GraphQL mutation for creating subscription
 const CREATE_SUBSCRIPTION_MUTATION = `
   mutation AppSubscriptionCreate(
     $name: String!
@@ -110,7 +97,6 @@ const CREATE_SUBSCRIPTION_MUTATION = `
   }
 `;
 
-// GraphQL query for getting current subscription
 const GET_SUBSCRIPTION_QUERY = `
   query GetSubscription {
     appInstallation {
@@ -139,7 +125,6 @@ const GET_SUBSCRIPTION_QUERY = `
   }
 `;
 
-// GraphQL mutation for canceling subscription
 const CANCEL_SUBSCRIPTION_MUTATION = `
   mutation AppSubscriptionCancel($id: ID!) {
     appSubscriptionCancel(id: $id) {
@@ -172,9 +157,6 @@ interface SubscriptionStatus {
   isTrialing?: boolean;
 }
 
-/**
- * Create a new subscription for the shop
- */
 export async function createSubscription(
   admin: AdminGraphQL,
   shopDomain: string,
@@ -218,7 +200,7 @@ export async function createSubscription(
     }
 
     if (result?.confirmationUrl) {
-      // Log the subscription attempt
+      
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },
@@ -253,9 +235,6 @@ export async function createSubscription(
   }
 }
 
-/**
- * Get current subscription status for a shop
- */
 export async function getSubscriptionStatus(
   admin: AdminGraphQL,
   shopDomain: string
@@ -267,7 +246,7 @@ export async function getSubscriptionStatus(
     const subscriptions = data.data?.appInstallation?.activeSubscriptions || [];
     
     if (subscriptions.length === 0) {
-      // No active subscription - check if shop has free plan in our DB
+      
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { plan: true },
@@ -279,11 +258,9 @@ export async function getSubscriptionStatus(
       };
     }
 
-    // Get the first active subscription
     const subscription = subscriptions[0];
     const price = subscription.lineItems?.[0]?.plan?.pricingDetails?.price?.amount;
-    
-    // Determine plan from price
+
     let detectedPlan: PlanId = "free";
     if (price) {
       const priceNum = parseFloat(price);
@@ -314,9 +291,6 @@ export async function getSubscriptionStatus(
   }
 }
 
-/**
- * Cancel an active subscription
- */
 export async function cancelSubscription(
   admin: AdminGraphQL,
   shopDomain: string,
@@ -335,13 +309,11 @@ export async function cancelSubscription(
       return { success: false, error: errorMessage };
     }
 
-    // Update shop plan to free
     await prisma.shop.update({
       where: { shopDomain },
       data: { plan: "free", monthlyOrderLimit: BILLING_PLANS.free.monthlyOrderLimit },
     });
 
-    // Log the cancellation
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { id: true },
@@ -369,9 +341,6 @@ export async function cancelSubscription(
   }
 }
 
-/**
- * Verify and sync subscription status from Shopify to our database
- */
 export async function syncSubscriptionStatus(
   admin: AdminGraphQL,
   shopDomain: string
@@ -390,9 +359,6 @@ export async function syncSubscriptionStatus(
   });
 }
 
-/**
- * P0-1: Get current year-month string in YYYY-MM format
- */
 export function getCurrentYearMonth(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -400,9 +366,6 @@ export function getCurrentYearMonth(): string {
   return `${year}-${month}`;
 }
 
-/**
- * P0-1: Get or create MonthlyUsage record for a shop
- */
 export async function getOrCreateMonthlyUsage(
   shopId: string,
   yearMonth?: string
@@ -425,21 +388,12 @@ export async function getOrCreateMonthlyUsage(
   return usage;
 }
 
-/**
- * P0-5: Check if an order has already been counted for usage this month
- * Uses ConversionLog.serverSideSent as the indicator that an order was successfully sent
- * 
- * @param shopId - Shop ID
- * @param orderId - Order ID
- * @param yearMonth - Year-month string (YYYY-MM)
- * @returns true if order was already counted
- */
 async function isOrderAlreadyCounted(
   shopId: string,
   orderId: string,
   yearMonth: string
 ): Promise<boolean> {
-  // First check ConversionJob if it exists
+  
   const existingJob = await prisma.conversionJob.findUnique({
     where: { shopId_orderId: { shopId, orderId } },
     select: { status: true },
@@ -448,9 +402,7 @@ async function isOrderAlreadyCounted(
   if (existingJob?.status === "completed") {
     return true;
   }
-  
-  // Fallback: Check if any ConversionLog for this order has serverSideSent=true
-  // and was created in the current month
+
   const startOfMonth = new Date(`${yearMonth}-01T00:00:00.000Z`);
   const endOfMonth = new Date(startOfMonth);
   endOfMonth.setMonth(endOfMonth.getMonth() + 1);
@@ -471,26 +423,14 @@ async function isOrderAlreadyCounted(
   return !!sentLog;
 }
 
-/**
- * P0-1 & P0-5: Increment monthly usage count when an order is successfully sent
- * 
- * IMPORTANT: This is idempotent - each order is only counted ONCE per month,
- * regardless of how many platforms it was sent to.
- * 
- * @param shopId - Shop ID
- * @param orderId - Order ID (for deduplication - we only count each order once)
- * @returns Object with incremented flag and current count
- */
 export async function incrementMonthlyUsage(
   shopId: string,
   orderId: string
 ): Promise<number> {
   const yearMonth = getCurrentYearMonth();
-  
-  // Use a transaction to ensure atomicity and prevent double-counting
+
   const result = await prisma.$transaction(async (tx) => {
-    // P0-5: Check if this order was already counted this month
-    // First check ConversionJob if it exists
+
     const existingJob = await tx.conversionJob.findUnique({
       where: { shopId_orderId: { shopId, orderId } },
       select: { status: true },
@@ -503,8 +443,7 @@ export async function incrementMonthlyUsage(
       });
       return { incremented: false, count: usage?.sentCount || 0 };
     }
-    
-    // Fallback: Check if any ConversionLog for this order has serverSideSent=true
+
     const startOfMonth = new Date(`${yearMonth}-01T00:00:00.000Z`);
     const endOfMonth = new Date(startOfMonth);
     endOfMonth.setMonth(endOfMonth.getMonth() + 1);
@@ -521,8 +460,7 @@ export async function incrementMonthlyUsage(
       },
       select: { id: true },
     });
-    
-    // If already sent, don't increment
+
     if (sentLog) {
       const usage = await tx.monthlyUsage.findUnique({
         where: { shopId_yearMonth: { shopId, yearMonth } },
@@ -530,8 +468,7 @@ export async function incrementMonthlyUsage(
       });
       return { incremented: false, count: usage?.sentCount || 0 };
     }
-    
-    // Increment usage - this is the first successful send for this order
+
     const usage = await tx.monthlyUsage.upsert({
       where: {
         shopId_yearMonth: { shopId, yearMonth },
@@ -557,10 +494,6 @@ export async function incrementMonthlyUsage(
   return result.count;
 }
 
-/**
- * P0-5: Idempotent version that explicitly returns whether increment happened
- * Use this when you need to know if this was the first successful send
- */
 export async function incrementMonthlyUsageIdempotent(
   shopId: string,
   orderId: string
@@ -568,7 +501,7 @@ export async function incrementMonthlyUsageIdempotent(
   const yearMonth = getCurrentYearMonth();
   
   const result = await prisma.$transaction(async (tx) => {
-    // Check ConversionJob first
+    
     const existingJob = await tx.conversionJob.findUnique({
       where: { shopId_orderId: { shopId, orderId } },
       select: { status: true },
@@ -580,8 +513,7 @@ export async function incrementMonthlyUsageIdempotent(
       });
       return { incremented: false, current: usage?.sentCount || 0 };
     }
-    
-    // Check ConversionLog fallback
+
     const startOfMonth = new Date(`${yearMonth}-01T00:00:00.000Z`);
     const endOfMonth = new Date(startOfMonth);
     endOfMonth.setMonth(endOfMonth.getMonth() + 1);
@@ -602,8 +534,7 @@ export async function incrementMonthlyUsageIdempotent(
       });
       return { incremented: false, current: usage?.sentCount || 0 };
     }
-    
-    // Increment usage
+
     const usage = await tx.monthlyUsage.upsert({
       where: { shopId_yearMonth: { shopId, yearMonth } },
       create: { shopId, yearMonth, sentCount: 1 },
@@ -616,10 +547,6 @@ export async function incrementMonthlyUsageIdempotent(
   return result;
 }
 
-/**
- * P0-1: Check if shop has exceeded their monthly order limit
- * Uses MonthlyUsage table for accurate tracking (only counts successfully sent orders)
- */
 export async function checkOrderLimit(
   shopId: string,
   shopPlan: PlanId
@@ -638,10 +565,6 @@ export async function checkOrderLimit(
   };
 }
 
-/**
- * P0-1: Check billing gate before processing an order
- * Returns whether the order can be processed and why not if blocked
- */
 export async function checkBillingGate(
   shopId: string,
   shopPlan: PlanId
@@ -673,22 +596,6 @@ export async function checkBillingGate(
   };
 }
 
-/**
- * P0-12: Atomic usage increment with limit check
- * 
- * This function prevents concurrent "overselling" by combining the
- * limit check and increment into a single atomic transaction.
- * 
- * Uses a conditional UPDATE to ensure sentCount never exceeds limit:
- * - If sentCount < limit, increment and return success
- * - If sentCount >= limit, return failure without incrementing
- * 
- * @param shopId - Shop ID
- * @param orderId - Order ID (for idempotency)
- * @param limit - Maximum allowed count
- * @returns { success: true, current } if increment succeeded
- * @returns { success: false, current } if limit exceeded
- */
 export async function tryReserveUsageSlot(
   shopId: string,
   orderId: string,
@@ -697,7 +604,7 @@ export async function tryReserveUsageSlot(
   const yearMonth = getCurrentYearMonth();
   
   const result = await prisma.$transaction(async (tx) => {
-    // Step 1: Check if this order was already counted (idempotency)
+    
     const existingJob = await tx.conversionJob.findUnique({
       where: { shopId_orderId: { shopId, orderId } },
       select: { status: true },
@@ -709,16 +616,13 @@ export async function tryReserveUsageSlot(
       });
       return { success: true, current: usage?.sentCount || 0, alreadyCounted: true };
     }
-    
-    // Step 2: Ensure usage record exists
+
     await tx.monthlyUsage.upsert({
       where: { shopId_yearMonth: { shopId, yearMonth } },
       create: { shopId, yearMonth, sentCount: 0 },
       update: {},
     });
-    
-    // Step 3: Atomic conditional update
-    // This raw query ensures we only increment if under limit
+
     const updated = await tx.$executeRaw`
       UPDATE "MonthlyUsage"
       SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
@@ -726,14 +630,13 @@ export async function tryReserveUsageSlot(
         AND "yearMonth" = ${yearMonth}
         AND "sentCount" < ${limit}
     `;
-    
-    // Step 4: Get final count
+
     const finalUsage = await tx.monthlyUsage.findUnique({
       where: { shopId_yearMonth: { shopId, yearMonth } },
     });
     
     if (updated === 0) {
-      // Either no record (shouldn't happen) or limit exceeded
+      
       return { 
         success: false, 
         current: finalUsage?.sentCount || 0, 
@@ -751,21 +654,17 @@ export async function tryReserveUsageSlot(
   return result;
 }
 
-/**
- * Handle subscription confirmation callback
- * Called when merchant returns from Shopify billing confirmation page
- */
 export async function handleSubscriptionConfirmation(
   admin: AdminGraphQL,
   shopDomain: string,
   chargeId: string
 ): Promise<{ success: boolean; plan?: PlanId; error?: string }> {
   try {
-    // Verify the subscription is active
+    
     const status = await getSubscriptionStatus(admin, shopDomain);
     
     if (status.hasActiveSubscription) {
-      // Update shop plan
+      
       const planConfig = BILLING_PLANS[status.plan];
       await prisma.shop.update({
         where: { shopDomain },
@@ -775,7 +674,6 @@ export async function handleSubscriptionConfirmation(
         },
       });
 
-      // Log the activation
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },

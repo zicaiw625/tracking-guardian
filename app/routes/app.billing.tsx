@@ -1,14 +1,4 @@
-/**
- * Billing Management Page
- * 
- * P0-3: Required for Shopify App Store compliance
- * 
- * Features:
- * - View current plan and usage
- * - Upgrade/downgrade plans
- * - Cancel subscription
- * - View billing history
- */
+
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
@@ -44,18 +34,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
 
-  // Check for subscription confirmation callback
   const url = new URL(request.url);
   const chargeId = url.searchParams.get("charge_id");
   
   if (chargeId) {
-    // Handle subscription confirmation
+    
     await handleSubscriptionConfirmation(admin, shopDomain, chargeId);
-    // Redirect to remove charge_id from URL
+    
     return redirect("/app/billing");
   }
 
-  // Get shop from database
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, plan: true },
@@ -77,10 +65,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // Get current subscription status
   const subscriptionStatus = await getSubscriptionStatus(admin, shopDomain);
-  
-  // Get order usage
+
   const orderUsage = await checkOrderLimit(
     shop.id,
     subscriptionStatus.plan
@@ -206,7 +192,7 @@ export default function BillingPage() {
           </Banner>
         )}
 
-        {/* Current Plan */}
+        {}
         <Layout>
           <Layout.Section>
             <Card>
@@ -220,7 +206,7 @@ export default function BillingPage() {
 
                 <Divider />
 
-                {/* Usage */}
+                {}
                 <BlockStack gap="200">
                   <InlineStack align="space-between">
                     <Text as="span" variant="bodySm" tone="subdued">本月订单追踪</Text>
@@ -234,7 +220,7 @@ export default function BillingPage() {
                   />
                 </BlockStack>
 
-                {/* Plan Features */}
+                {}
                 <BlockStack gap="200">
                   <Text as="span" variant="headingSm">套餐功能</Text>
                   <List>
@@ -244,7 +230,7 @@ export default function BillingPage() {
                   </List>
                 </BlockStack>
 
-                {/* Subscription Info */}
+                {}
                 {subscription.hasActiveSubscription && subscription.plan !== "free" && (
                   <>
                     <Divider />
@@ -277,7 +263,7 @@ export default function BillingPage() {
           </Layout.Section>
         </Layout>
 
-        {/* Available Plans */}
+        {}
         <Text as="h2" variant="headingMd">可用套餐</Text>
         
         <Layout>
@@ -350,7 +336,7 @@ export default function BillingPage() {
           })}
         </Layout>
 
-        {/* FAQ */}
+        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">常见问题</Text>

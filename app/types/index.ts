@@ -1,8 +1,4 @@
-// Shared type definitions for Tracking Guardian
 
-// ==========================================
-// Platform Types
-// ==========================================
 
 export type Platform = "google" | "meta" | "tiktok" | "bing" | "clarity";
 
@@ -14,27 +10,10 @@ export const PLATFORM_NAMES: Record<Platform | string, string> = {
   clarity: "Microsoft Clarity",
 };
 
-// ==========================================
-// Credential Types (Encrypted Storage)
-// ==========================================
-
-/**
- * Google Credentials - GA4 Measurement Protocol
- * 
- * For server-side conversion tracking via GA4 Measurement Protocol.
- * This is the recommended approach because:
- * - Simple setup (no OAuth required)
- * - Works with GA4 properties
- * - Google Ads can import GA4 conversions for attribution
- * 
- * Get these values from GA4 Admin > Data Streams > Your Stream:
- * - measurementId: The Measurement ID (e.g., G-XXXXXXXXXX)
- * - apiSecret: Create via "Measurement Protocol API secrets"
- */
 export interface GoogleCredentials {
-  /** GA4 Measurement ID (e.g., G-XXXXXXXXXX) */
+  
   measurementId: string;
-  /** GA4 Measurement Protocol API Secret */
+  
   apiSecret: string;
 }
 
@@ -66,10 +45,6 @@ export type PlatformCredentials =
   | BingCredentials
   | ClarityCredentials;
 
-// ==========================================
-// Conversion Data Types
-// ==========================================
-
 export interface LineItem {
   productId: string;
   variantId: string;
@@ -79,20 +54,31 @@ export interface LineItem {
 }
 
 /**
- * Conversion data sent to ad platforms
+ * P0-01: ConversionData for CAPI transmission
  * 
- * P0-6: All PII fields are optional and may be null/undefined.
- * When Shopify's Protected Customer Data rules are enforced,
- * these fields may be empty even if piiEnabled is true.
- * Always handle these fields defensively.
+ * IMPORTANT: PII fields may be null/undefined due to:
+ * 1. Protected Customer Data scope not granted
+ * 2. Data already redacted by Shopify
+ * 3. Customer did not provide the information
+ * 
+ * Platform services MUST handle null PII gracefully:
+ * - Still send the conversion with available data
+ * - Log when PII is unavailable (for debugging, not as an error)
+ * - Never crash or fail the conversion due to missing PII
  */
 export interface ConversionData {
+  /** Required: Shopify order ID (always available) */
   orderId: string;
+  /** Optional: Order display number */
   orderNumber: string | null;
+  /** Required: Order value (always available) */
   value: number;
+  /** Required: Currency code (always available) */
   currency: string;
-  // P0-6: PII fields - may be null/undefined even when piiEnabled=true
-  // due to Shopify's Protected Customer Data enforcement
+
+  // P0-01: PII fields - all optional
+  // These may be null if Protected Customer Data scope is not granted
+  // or if customer data is redacted
   email?: string | null;
   phone?: string | null;
   firstName?: string | null;
@@ -101,12 +87,9 @@ export interface ConversionData {
   state?: string | null;
   country?: string | null;
   zip?: string | null;
+  
   lineItems?: LineItem[];
 }
-
-// ==========================================
-// Scan Report Types
-// ==========================================
 
 export type RiskSeverity = "high" | "medium" | "low";
 
@@ -144,10 +127,6 @@ export interface CheckoutConfig {
     storefront?: boolean;
   };
 }
-
-// ==========================================
-// Alert Types
-// ==========================================
 
 export type AlertChannel = "email" | "slack" | "telegram";
 
@@ -188,10 +167,6 @@ export interface AlertData {
   shopDomain: string;
 }
 
-// ==========================================
-// Reconciliation Types
-// ==========================================
-
 export interface ReconciliationResult {
   platform: string;
   reportDate: Date;
@@ -223,10 +198,6 @@ export interface ReconciliationReportData {
   alertSent: boolean;
 }
 
-// ==========================================
-// Migration Types
-// ==========================================
-
 export interface MigrationConfig {
   platform: Platform;
   platformId: string;
@@ -241,19 +212,15 @@ export interface MigrationResult {
   error?: string;
 }
 
-// ==========================================
-// Pixel Config Types
-// ==========================================
-
 export interface PixelConfigData {
   id: string;
   platform: string;
   platformId: string | null;
-  /** Non-sensitive client configuration (JSON object) */
+  
   clientConfig: Record<string, unknown> | null;
-  /** Encrypted credentials string for server-side API */
+  
   credentialsEncrypted: string | null;
-  /** @deprecated Use credentialsEncrypted instead */
+  
   credentials?: unknown;
   clientSideEnabled: boolean;
   serverSideEnabled: boolean;
@@ -265,10 +232,6 @@ export interface PixelConfigData {
   lastVerifiedAt?: Date;
 }
 
-// ==========================================
-// Shop Types
-// ==========================================
-
 export interface ShopData {
   id: string;
   shopDomain: string;
@@ -279,30 +242,18 @@ export interface ShopData {
   monthlyOrderLimit: number;
   isActive: boolean;
   piiEnabled?: boolean;
-  weakConsentMode?: boolean; // P1-3: Weak consent mode (deprecated)
-  consentStrategy?: string; // P0-5: "strict" | "balanced" | "weak"
+  weakConsentMode?: boolean; 
+  consentStrategy?: string; 
 }
 
-// ==========================================
-// Order Webhook Payload Types
-// ==========================================
-
-/**
- * Order webhook payload from Shopify
- * 
- * P0-6: All fields except 'id' may be null/undefined.
- * When Protected Customer Data access is not granted,
- * PII fields (email, phone, customer, billing_address) will be null.
- * Always use null-coalescing when accessing these fields.
- */
 export interface OrderWebhookPayload {
   id: number;
   order_number?: number | null;
   total_price?: string | null;
   currency?: string | null;
-  // P0-03: checkout_token for linking to pixel events
+  
   checkout_token?: string | null;
-  // P0-05: Additional order value fields for accurate conversion tracking
+  
   total_tax?: string | null;
   total_shipping_price_set?: {
     shop_money?: {
@@ -311,7 +262,7 @@ export interface OrderWebhookPayload {
     } | null;
   } | null;
   processed_at?: string | null;
-  // P0-6: PII fields - may be null if Protected Customer Data not granted
+  
   email?: string | null;
   phone?: string | null;
   customer?: {
@@ -338,10 +289,6 @@ export interface OrderWebhookPayload {
   }> | null;
 }
 
-// ==========================================
-// API Response Types
-// ==========================================
-
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -357,19 +304,14 @@ export interface ConversionApiResponse {
   fbtrace_id?: string;
 }
 
-// ==========================================
-// Conversion Log Types
-// ==========================================
-
-// P0-1 & P0-5: Extended conversion statuses
 export type ConversionStatus = 
-  | "pending"           // Initial state, waiting to be processed
-  | "pending_consent"   // Waiting for consent confirmation
-  | "sent"              // Successfully sent to platform
-  | "failed"            // Failed, may retry
-  | "retrying"          // Scheduled for retry
-  | "limit_exceeded"    // Blocked due to billing limit
-  | "dead_letter";      // Permanently failed
+  | "pending"           
+  | "pending_consent"   
+  | "sent"              
+  | "failed"            
+  | "retrying"          
+  | "limit_exceeded"    
+  | "dead_letter";      
 
 export interface ConversionLogData {
   id: string;
@@ -390,10 +332,6 @@ export interface ConversionLogData {
   createdAt: Date;
   sentAt: Date | null;
 }
-
-// ==========================================
-// Survey Types
-// ==========================================
 
 export interface SurveyResponseData {
   orderId: string;

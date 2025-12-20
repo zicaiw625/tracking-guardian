@@ -1,9 +1,4 @@
-/**
- * Secrets validation utility
- * 
- * Validates that required secrets are configured properly.
- * Should be called during app startup.
- */
+
 
 import { logger } from "./logger";
 
@@ -42,18 +37,85 @@ const REQUIRED_SECRETS: SecretConfig[] = [
   },
 ];
 
+// P0-04: Security-critical environment variable checks
+interface SecurityViolation {
+  type: "fatal" | "warning";
+  message: string;
+}
+
+/**
+ * P0-04: Check for insecure production configurations that MUST cause startup failure
+ * This is separate from validateSecrets because these are security-critical violations
+ */
+export function checkSecurityViolations(): SecurityViolation[] {
+  const isProduction = process.env.NODE_ENV === "production";
+  const violations: SecurityViolation[] = [];
+
+  // P0-04: ALLOW_UNSIGNED_PIXEL_EVENTS in production is a FATAL error
+  // This defeats the entire signature security mechanism
+  if (isProduction && process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true") {
+    violations.push({
+      type: "fatal",
+      message: 
+        "[P0-04 SECURITY VIOLATION] ALLOW_UNSIGNED_PIXEL_EVENTS=true is set in production! " +
+        "This allows unsigned requests and completely defeats signature security. " +
+        "The application MUST NOT start with this configuration. " +
+        "Remove this environment variable immediately to proceed.",
+    });
+  }
+
+  // Warn about ALLOW_UNSIGNED_PIXEL_EVENTS in non-production (it's expected for dev)
+  if (!isProduction && process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true") {
+    violations.push({
+      type: "warning",
+      message:
+        "[P0-04] ALLOW_UNSIGNED_PIXEL_EVENTS=true is set (development mode). " +
+        "This is acceptable for development but MUST be removed before production deployment.",
+    });
+  }
+
+  return violations;
+}
+
+/**
+ * P0-04: Enforce security checks at startup - throws on fatal violations
+ * This MUST be called early in the application lifecycle
+ */
+export function enforceSecurityChecks(): void {
+  const violations = checkSecurityViolations();
+  
+  const fatalViolations = violations.filter(v => v.type === "fatal");
+  const warnings = violations.filter(v => v.type === "warning");
+
+  // Log warnings
+  for (const warning of warnings) {
+    logger.warn(warning.message);
+  }
+
+  // Fatal violations cause immediate crash
+  if (fatalViolations.length > 0) {
+    const errorMessage = fatalViolations.map(v => v.message).join("\n");
+    logger.error("FATAL SECURITY VIOLATION - Application startup aborted", undefined, {
+      violations: fatalViolations.map(v => v.message),
+    });
+    
+    // Throw error to prevent application from starting
+    throw new Error(
+      `\n\n${"=".repeat(80)}\n` +
+      `FATAL SECURITY VIOLATION - APPLICATION STARTUP ABORTED\n` +
+      `${"=".repeat(80)}\n\n` +
+      `${errorMessage}\n\n` +
+      `${"=".repeat(80)}\n`
+    );
+  }
+}
+
 interface ValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
 }
 
-/**
- * Validate all required secrets
- * 
- * In production: Throws error if required secrets are missing
- * In development: Logs warnings but continues
- */
 export function validateSecrets(): ValidationResult {
   const isProduction = process.env.NODE_ENV === "production";
   const errors: string[] = [];
@@ -62,7 +124,6 @@ export function validateSecrets(): ValidationResult {
   for (const secret of REQUIRED_SECRETS) {
     const value = process.env[secret.envVar];
 
-    // Check if set
     if (!value) {
       if (secret.required) {
         if (isProduction) {
@@ -74,7 +135,6 @@ export function validateSecrets(): ValidationResult {
       continue;
     }
 
-    // Check minimum length
     if (secret.minLength && value.length < secret.minLength) {
       const message = `${secret.name} (${secret.envVar}) is shorter than recommended ${secret.minLength} characters`;
       if (isProduction) {
@@ -84,7 +144,6 @@ export function validateSecrets(): ValidationResult {
       }
     }
 
-    // Check pattern
     if (secret.pattern && !secret.pattern.test(value)) {
       const message = `${secret.name} (${secret.envVar}) does not match expected format`;
       if (isProduction) {
@@ -95,7 +154,6 @@ export function validateSecrets(): ValidationResult {
     }
   }
 
-  // Log results
   for (const warning of warnings) {
     logger.warn(`Secret validation: ${warning}`);
   }
@@ -111,9 +169,6 @@ export function validateSecrets(): ValidationResult {
   };
 }
 
-/**
- * Validate secrets and throw if invalid in production
- */
 export function ensureSecretsValid(): void {
   const result = validateSecrets();
 
@@ -130,9 +185,6 @@ export function ensureSecretsValid(): void {
   }
 }
 
-/**
- * Get a required secret value, throwing if not set in production
- */
 export function getRequiredSecret(envVar: string): string {
   const value = process.env[envVar];
 
@@ -147,9 +199,6 @@ export function getRequiredSecret(envVar: string): string {
   return value;
 }
 
-/**
- * Get an optional secret value with a default
- */
 export function getOptionalSecret(envVar: string, defaultValue: string): string {
   return process.env[envVar] || defaultValue;
 }
