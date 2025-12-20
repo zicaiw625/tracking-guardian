@@ -77,8 +77,36 @@ const shopify = shopifyApp({
   },
   hooks: {
     afterAuth: async ({ session }) => {
-      
-      shopify.registerWebhooks({ session });
+      // P0-1 (Review Fix): Must await registerWebhooks to ensure business webhooks are registered
+      // Without await, registration failures are silent and core functionality may break
+      try {
+        const webhookResult = await shopify.registerWebhooks({ session });
+        
+        // Log registration results for debugging
+        const registered = Object.entries(webhookResult).filter(
+          ([, results]) => results.some((r: { success: boolean }) => r.success)
+        );
+        const failed = Object.entries(webhookResult).filter(
+          ([, results]) => results.some((r: { success: boolean }) => !r.success)
+        );
+        
+        if (registered.length > 0) {
+          console.log(`[Webhooks] Registered for ${session.shop}:`, registered.map(([topic]) => topic).join(", "));
+        }
+        if (failed.length > 0) {
+          console.error(`[Webhooks] Failed to register for ${session.shop}:`, 
+            failed.map(([topic, results]) => 
+              `${topic}: ${results.map((r: { result: { message?: string } }) => r.result?.message || "unknown error").join(", ")}`
+            ).join("; ")
+          );
+        }
+      } catch (webhookError) {
+        // Log but don't throw - shop setup should continue even if webhook registration fails
+        // Failed webhooks will be retried on next OAuth flow or can be manually triggered
+        console.error(`[Webhooks] Registration error for ${session.shop}:`, 
+          webhookError instanceof Error ? webhookError.message : webhookError
+        );
+      }
 
       const existingShop = await prisma.shop.findUnique({
         where: { shopDomain: session.shop },

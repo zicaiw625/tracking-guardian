@@ -1,10 +1,15 @@
 /**
  * Post-purchase Survey Component
  * 
- * P0-1: App URL Configuration
- * The app URL is now retrieved from app metafields (set during installation)
- * rather than merchant-configurable settings. This prevents arbitrary URL configuration
- * which could be flagged as data exfiltration during App Store review.
+ * P0-1 + P1-2: App URL Configuration
+ * The app URL is hardcoded as a constant (not merchant-configurable).
+ * This prevents arbitrary URL configuration which could be flagged as 
+ * data exfiltration during App Store review.
+ * 
+ * NOTE: We previously attempted to use app metafields, but since the
+ * server-side metafield writing was never implemented, we simplified
+ * to use a single trusted constant. This is the same approach as the
+ * Web Pixel extension (tracking-pixel/src/index.ts).
  */
 
 import {
@@ -18,24 +23,13 @@ import {
   Icon,
   useSettings,
   useApi,
-  useAppMetafields,
 } from "@shopify/ui-extensions-react/checkout";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 
-// P0-1: Production URL constant - set during deployment
-const PRODUCTION_APP_URL = "https://tracking-guardian.onrender.com";
-
-// P0-1: Allowed URL patterns for validation
-const ALLOWED_URL_PATTERNS = [
-  /^https:\/\/tracking-guardian\.onrender\.com$/,
-  /^https:\/\/tracking-guardian-staging\.onrender\.com$/,
-  /^https?:\/\/localhost:\d+$/,
-  /^https?:\/\/127\.0\.0\.1:\d+$/,
-];
-
-function isAllowedAppUrl(url: string): boolean {
-  return ALLOWED_URL_PATTERNS.some(pattern => pattern.test(url));
-}
+// P0-1 + P1-2: Production URL constant - single source of truth
+// This is hardcoded to prevent data exfiltration concerns during App Store review
+// For multi-environment deployments, use different extension builds with different constants
+const APP_URL = "https://tracking-guardian.onrender.com";
 
 export default reactExtension(
   "purchase.thank-you.block.render",
@@ -46,24 +40,6 @@ function Survey() {
   const settings = useSettings();
   
   const { sessionToken, orderConfirmation, shop } = useApi();
-  
-  // P0-1: Get app URL from app metafields instead of settings
-  // Note: Metafield key changed from "backend_url" to "app_url" to avoid confusion
-  const appMetafields = useAppMetafields();
-  const appUrl = useMemo(() => {
-    // Try new key first, fall back to old key for backwards compatibility
-    const metafield = appMetafields.find(
-      (mf) => mf.metafield?.key === "app_url" || mf.metafield?.key === "backend_url"
-    );
-    const url = metafield?.metafield?.value || PRODUCTION_APP_URL;
-    
-    // P0-1: Validate URL is in allowlist
-    if (!isAllowedAppUrl(url)) {
-      console.warn("[Tracking Guardian] App URL not in allowlist, using production URL");
-      return PRODUCTION_APP_URL;
-    }
-    return url;
-  }, [appMetafields]);
   
   const [orderId, setOrderId] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
@@ -122,9 +98,9 @@ function Survey() {
 
       const shopDomain = shop?.myshopifyDomain || "";
 
-      // P0-1: App URL is now always available (uses constant as fallback)
+      // P0-1 + P1-2: App URL is hardcoded constant (single source of truth)
       if (shopDomain) {
-        const response = await fetch(`${appUrl}/api/survey`, {
+        const response = await fetch(`${APP_URL}/api/survey`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

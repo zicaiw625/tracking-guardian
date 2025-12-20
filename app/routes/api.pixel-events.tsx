@@ -1,13 +1,26 @@
 /**
  * Pixel Events API - Ingests checkout_completed events from App Pixel
  * 
- * Security Model:
- * 1. Ingestion Key Validation: Store-scoped key must match - invalid/missing keys are rejected
- * 2. Origin Validation: Only accept requests from Shopify domains or sandbox "null" origin
- * 3. Rate Limiting: Per-shop and global limits prevent abuse
- * 4. Order Verification: orderId is validated against shop's orders via webhook
+ * Security Model (Defense in Depth):
+ * ===================================
  * 
- * The ingestion_key IS validated and used for access control, not just diagnostics.
+ * PRIMARY SECURITY BOUNDARIES:
+ * 1. TLS Encryption - All traffic is HTTPS
+ * 2. Origin Validation - Only Shopify domains and sandbox "null" origin accepted (403 for others)
+ * 3. Rate Limiting - Per-shop and global limits prevent abuse
+ * 4. Order Verification - orderId must match ORDERS_PAID webhook before CAPI is sent
+ * 
+ * SECONDARY FILTERING (ingestion_key):
+ * - The ingestion_key is a CORRELATION TOKEN, NOT a security credential
+ * - It is visible in browser network traffic (anyone viewing checkout can see it)
+ * - Purpose: Filter noise/misconfigured requests, correlate events with shops
+ * - Missing/invalid key results in 204 (silent drop) - defense against misconfiguration
+ * - NOT the primary defense against forged receipts - that's handled by webhook verification
+ * 
+ * CONSENT VERIFICATION:
+ * - Pixel sends consent state, but this is EVIDENCE, not proof
+ * - In strict mode, we require PixelEventReceipt with consent to send marketing CAPI
+ * - Receipt existence + consent + webhook order confirmation = trusted conversion
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
@@ -416,9 +429,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Shop not found or inactive" }, { status: 404, request });
     }
 
-    // P0-03 + P1-03: Ingestion key validation with actual matching and HARD BLOCKING
-    // The ingestion key helps correlate pixel events with shops and filter noise
-    // When shop has a key configured, we MUST validate it - otherwise reject silently (no database writes)
+    // P0-03 + P1-03: Ingestion key validation
+    // PURPOSE: Correlation token for filtering noise/misconfiguration, NOT a security boundary
+    // - Valid key: Request is processed and correlated with shop
+    // - Invalid/missing key: Silent 204 rejection (no database writes)
+    // NOTE: Real security comes from Origin validation + webhook order verification
     const ingestionKey = request.headers.get("X-Tracking-Guardian-Key");
     let keyValidation: { matched: boolean; reason: string; usedPreviousSecret?: boolean };
     
@@ -428,9 +443,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       keyValidation = { matched: false, reason: "shop_no_key_configured" };
       logger.info(`[P0-03] Shop ${shop.shopDomain} has no ingestion key configured - allowing request`);
     } else if (!ingestionKey) {
-      // P1-03 HARD BLOCK: Shop has a key but request doesn't include one
-      // This prevents forged pixel receipts that could manipulate consent state
-      logger.warn(`[P1-03] BLOCKED: Pixel request from ${shop.shopDomain} missing ingestion key`);
+      // P1-03: Request missing ingestion key when shop has one configured
+      // Silent drop to filter misconfigured or stale pixel installations
+      // NOTE: This is filtering, not security - forged receipts are blocked by webhook verification
+      logger.warn(`[P1-03] Dropped: Pixel request from ${shop.shopDomain} missing ingestion key`);
       return new Response(null, {
         status: 204, // Silent rejection - don't reveal we're blocking
         headers: getCorsHeaders(request),
@@ -447,9 +463,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           usedPreviousSecret: matchResult.usedPreviousSecret,
         };
       } else {
-        // P1-03 HARD BLOCK: Key provided but doesn't match
-        // Could be stale pixel configuration, key rotation issue, or potential abuse
-        logger.warn(`[P1-03] BLOCKED: Ingestion key mismatch for shop ${shop.shopDomain}`);
+        // P1-03: Key provided but doesn't match
+        // Likely stale pixel configuration or key rotation issue
+        // Silent drop - not a security block, just correlation filtering
+        logger.warn(`[P1-03] Dropped: Ingestion key mismatch for shop ${shop.shopDomain}`);
         return new Response(null, {
           status: 204, // Silent rejection
           headers: getCorsHeaders(request),
@@ -457,8 +474,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    // P0-03: Trust is now based on Origin validation (done at CORS level) + rate limiting + key validation
-    // Key validation provides the primary defense against forged pixel receipts
+    // P0-03: Trust level for this receipt
+    // - Origin must be valid Shopify domain/sandbox
+    // - Key correlation must match (for diagnostics/filtering)
+    // NOTE: This "trust" is for receipt recording, not for CAPI authorization
+    // CAPI authorization requires: webhook order confirmation + consent strategy check
     const isTrusted = isValidShopifyOrigin(origin) && keyValidation.matched;
 
     const rawOrderId = payload.data.orderId;

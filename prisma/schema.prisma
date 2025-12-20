@@ -429,8 +429,11 @@ model WebhookLog {
   webhookId    String    // Shopify's X-Shopify-Webhook-Id header
   topic        String    // Webhook topic (e.g., ORDERS_PAID)
   
-  // Processing status
-  status       String    @default("processed") // processed, failed
+  // Processing status:
+  // - "processing": Currently being processed (set on initial lock acquisition)
+  // - "processed": Successfully processed
+  // - "failed": Processing failed
+  status       String    @default("processing")
   
   // Order details (for reference)
   orderId      String?   // Order ID from payload (if applicable)
