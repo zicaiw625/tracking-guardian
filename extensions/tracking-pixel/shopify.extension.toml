@@ -18,10 +18,16 @@ runtime_context = "strict"
 # - Some shops may only use analytics consent (not marketing)
 # - We check EITHER marketing OR analytics consent before sending
 #
+# Why sale_of_data="enabled"?
+# - We share conversion data with third-party ad platforms for attribution
+# - This falls under "sale of data" semantics in some jurisdictions (e.g., CCPA)
+# - When enabled: if customer opts out of sale_of_data, pixel respects that
+# - The pixel code checks saleOfDataAllowed in addition to marketing/analytics
+#
 # Merchant Visibility:
-# - If a customer denies marketing consent, CAPI data will NOT be sent
+# - If a customer denies marketing OR sale_of_data consent, CAPI data will NOT be sent
 # - Merchants should be aware of this in their consent banner settings
-# - This is compliant with GDPR and other privacy regulations
+# - This is compliant with GDPR/CCPA and other privacy regulations
 [customer_privacy]
   # Analytics: conversion tracking and reporting
   analytics = true
@@ -29,8 +35,9 @@ runtime_context = "strict"
   marketing = true
   # Preferences: not used by this pixel
   preferences = false
-  # No sale of data - data is only used for merchant's own tracking
-  sale_of_data = "disabled"
+  # Sale of data: enabled - we share conversion data with ad platforms
+  # If customer opts out, the pixel will NOT send any data
+  sale_of_data = "enabled"
 
 # P0-01: Backend URL is hardcoded in the pixel extension for security
 # This prevents merchants from configuring arbitrary data exfiltration endpoints
@@ -47,9 +54,7 @@ runtime_context = "strict"
     name = "Ingestion Key"
     description = "Key for request association and diagnostics (auto-generated). NOT used for security - the security boundary is server-side validation."
     type = "single_line_text_field"
-
-  [[settings.fields]]
-    key = "debug"
-    name = "Debug Mode"
-    description = "Enable debug logging in browser console (disable for production)"
-    type = "boolean"
+  
+  # Note: debug field removed - Shopify settings are always strings (single_line_text_field)
+  # and parsing boolean strings correctly across create/update/read cycles is error-prone.
+  # For debugging, developers can use browser DevTools to inspect network requests.

@@ -94,20 +94,13 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   const ingestionKey = settings.ingestion_secret as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
   
-  const debugMode = settings.debug === true;
-
-  function log(...args: unknown[]): void {
-    if (debugMode) {
-      console.log("[Tracking Guardian]", ...args);
-    }
-  }
-
-  // P0-01: Backend URL is now always the production constant
-  log("Using backend URL:", backendUrl);
-
-  // P0-03: Ingestion key is optional - used for diagnostics only
-  if (!ingestionKey) {
-    log("No ingestion_key configured - requests will be sent without correlation key");
+  // P0-03: Debug mode removed - Shopify settings are strings, not booleans
+  // For debugging, use browser DevTools Network tab to inspect requests
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function log(..._args: unknown[]): void {
+    // No-op: debug logging disabled in production
+    // To enable: uncomment the line below
+    // console.log("[Tracking Guardian]", ..._args);
   }
 
   // P0-03: generateSignature function removed
@@ -118,20 +111,28 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
 
   let marketingAllowed = false;
   let analyticsAllowed = false;
+  // P1-1: Track sale_of_data consent (for CCPA compliance)
+  // When sale_of_data="enabled" in extension.toml, if customer opts out, we must respect it
+  let saleOfDataAllowed = true; // Default true (no opt-out detected)
 
   // customerPrivacy is provided directly to the register callback
   if (customerPrivacy) {
     
     marketingAllowed = customerPrivacy.marketingAllowed === true;
     analyticsAllowed = customerPrivacy.analyticsProcessingAllowed === true;
+    // P1-1: Check sale of data consent
+    // Note: saleOfDataAllowed is true by default, becomes false when customer explicitly opts out
+    saleOfDataAllowed = customerPrivacy.saleOfDataAllowed !== false;
     
-    log("Initial consent state:", { marketingAllowed, analyticsAllowed });
+    log("Initial consent state:", { marketingAllowed, analyticsAllowed, saleOfDataAllowed });
 
     try {
       customerPrivacy.subscribe("visitorConsentCollected", (event: VisitorConsentCollectedEvent) => {
         marketingAllowed = event.marketingAllowed === true;
         analyticsAllowed = event.analyticsProcessingAllowed === true;
-        log("Consent updated:", { marketingAllowed, analyticsAllowed });
+        // P1-1: Also track sale of data opt-out
+        saleOfDataAllowed = event.saleOfDataAllowed !== false;
+        log("Consent updated:", { marketingAllowed, analyticsAllowed, saleOfDataAllowed });
       });
     } catch {
       
@@ -142,12 +143,17 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     log("Customer privacy API not available, defaulting to no tracking");
   }
 
+  // P1-1: Updated consent check
+  // We require EITHER marketing OR analytics consent
+  // AND we must NOT have sale_of_data opt-out (for CCPA compliance)
   function hasAnyConsent(): boolean {
-    return marketingAllowed === true || analyticsAllowed === true;
+    const hasBasicConsent = marketingAllowed === true || analyticsAllowed === true;
+    // If customer explicitly opted out of sale of data, we must respect that
+    return hasBasicConsent && saleOfDataAllowed;
   }
 
   function hasMarketingConsent(): boolean {
-    return marketingAllowed === true;
+    return marketingAllowed === true && saleOfDataAllowed;
   }
 
   function hasAnalyticsConsent(): boolean {
@@ -170,7 +176,7 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   ): Promise<void> {
 
     if (!hasAnyConsent()) {
-      log(`Skipping ${eventName} - no consent (marketing: ${marketingAllowed}, analytics: ${analyticsAllowed})`);
+      log(`Skipping ${eventName} - no consent (marketing: ${marketingAllowed}, analytics: ${analyticsAllowed}, saleOfData: ${saleOfDataAllowed})`);
       return;
     }
 
@@ -183,6 +189,8 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
         consent: {
           marketing: marketingAllowed,
           analytics: analyticsAllowed,
+          // P1-1: Include sale_of_data consent state
+          saleOfData: saleOfDataAllowed,
         },
         data,
       };
@@ -203,9 +211,11 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
 
       const { signal, cleanup } = createTimeoutSignal(5000);
 
+      // P1-4: Use keepalive to prevent request cancellation on page unload
       fetch(`${backendUrl}/api/pixel-events`, {
         method: "POST",
         headers,
+        keepalive: true,
         body,
         signal,
       })

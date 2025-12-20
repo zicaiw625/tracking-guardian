@@ -41,13 +41,24 @@ function isDevMode(): boolean {
 }
 
 /**
- * P0-03 + P1-01: Strict Origin validation
- * Only accept requests from Shopify domains
+ * P0-03 + P1-01 + P1-02: Strict Origin validation
+ * Only accept requests from Shopify domains or sandboxed iframes
+ * 
+ * P1-02: Changed from `!origin` to `origin === "null"` to reject server-to-server
+ * requests that completely lack an Origin header.
  */
 function isValidShopifyOrigin(origin: string | null): boolean {
-  // Null origin is expected from Web Pixel sandbox (sandboxed iframe)
-  if (!origin || origin === "null") {
+  // P1-02: Only accept string "null" (sandboxed iframe), not missing Origin header
+  // Web Pixel sandbox sends Origin: null (the string "null")
+  // Server-to-server requests send no Origin header (null value)
+  if (origin === "null") {
     return true;
+  }
+
+  // P1-02: Missing Origin header (!origin) is now rejected
+  // This prevents server-to-server requests from bypassing Origin validation
+  if (!origin) {
+    return false;
   }
 
   // Validate Shopify origins
@@ -98,14 +109,34 @@ function getCorsHeaders(request: Request): HeadersInit {
     "X-Content-Type-Options": "nosniff",
   };
 
-  // Null origin or Shopify origins get full CORS headers
-  if (!origin || origin === "null" || isValidShopifyOrigin(origin)) {
-    const allowOrigin = (!origin || origin === "null") ? "*" : origin;
+  // P1-02: Handle sandboxed iframe (origin === "null") 
+  // This is the expected case for Web Pixel sandbox
+  if (origin === "null") {
     return {
       ...baseSecurityHeaders,
-      "Access-Control-Allow-Origin": allowOrigin,
+      "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      // P0-03: Updated headers - removed signature headers, added Key header
+      "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Key, X-Tracking-Guardian-Timestamp",
+      "Access-Control-Max-Age": "86400",
+      "Vary": "Origin",
+    };
+  }
+
+  // P1-02: Missing Origin header is now rejected (no CORS headers)
+  // This prevents server-to-server requests without Origin
+  if (!origin) {
+    return {
+      ...baseSecurityHeaders,
+      "Vary": "Origin",
+    };
+  }
+
+  // Valid Shopify origins get full CORS headers with the actual origin
+  if (isValidShopifyOrigin(origin)) {
+    return {
+      ...baseSecurityHeaders,
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Key, X-Tracking-Guardian-Timestamp",
       "Access-Control-Max-Age": "86400",
       "Vary": "Origin",
@@ -385,10 +416,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Shop not found or inactive" }, { status: 404, request });
     }
 
-    // P0-03: Ingestion key validation (for correlation, not security)
+    // P0-03 + P1-03: Ingestion key validation with actual matching
     // The ingestion key helps correlate pixel events with shops and filter noise
     const ingestionKey = request.headers.get("X-Tracking-Guardian-Key");
-    let keyValidation: { matched: boolean; reason: string };
+    let keyValidation: { matched: boolean; reason: string; usedPreviousSecret?: boolean };
     
     if (!shop.ingestionSecret) {
       // Shop doesn't have a key configured - this is unusual but not a security issue
@@ -399,9 +430,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       keyValidation = { matched: false, reason: "request_no_key" };
       logger.info(`[P0-03] Pixel request from ${shop.shopDomain} missing ingestion key`);
     } else {
-      // Compare keys (ingestion key is stored encrypted, need to decrypt for comparison)
-      // For now, we just check if a key was provided - actual matching requires decryption
-      keyValidation = { matched: true, reason: "key_provided" };
+      // P1-03: Actually verify the ingestion key matches
+      // Import verifyWithGraceWindow for key matching with grace window support
+      const { verifyWithGraceWindow } = await import("../utils/shop-access");
+      const matchResult = verifyWithGraceWindow(shop, (secret) => secret === ingestionKey);
+      
+      if (matchResult.matched) {
+        keyValidation = { 
+          matched: true, 
+          reason: matchResult.usedPreviousSecret ? "matched_previous_secret" : "matched",
+          usedPreviousSecret: matchResult.usedPreviousSecret,
+        };
+      } else {
+        // Key provided but doesn't match - could be stale pixel configuration or abuse
+        keyValidation = { matched: false, reason: "key_mismatch" };
+        logger.warn(`[P1-03] Ingestion key mismatch for shop ${shop.shopDomain} - stale pixel config or potential abuse`);
+      }
     }
 
     // P0-03: Trust is now based on Origin validation (done at CORS level) + rate limiting
