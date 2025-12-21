@@ -135,7 +135,6 @@ function SurveyOrderStatus() {
         {title}
       </Text>
 
-      {}
       <BlockStack spacing="tight">
         <Text size="small">请为本次购物体验打分：</Text>
         <InlineLayout spacing="tight" columns={["auto", "auto", "auto", "auto", "auto"]}>
@@ -155,7 +154,6 @@ function SurveyOrderStatus() {
         </InlineLayout>
       </BlockStack>
 
-      {}
       <BlockStack spacing="tight">
         <Text size="small">{question}</Text>
         <InlineLayout spacing="tight" columns={["auto", "auto", "auto"]}>

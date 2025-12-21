@@ -134,24 +134,5 @@ export async function sendConversionToTikTok(
 }
 
 export function generateTikTokPixelCode(_config: { pixelId: string }): string {
-  return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
-
-Tracking Guardian no longer generates client-side pixel code.
-
-To track TikTok conversions:
-1. Go to Tracking Guardian Settings → Server-side Tracking
-2. Select "TikTok Events API"
-3. Enter your TikTok Pixel ID and Access Token
-4. Enable server-side tracking
-
-Tracking Guardian will automatically send CompletePayment events
-to TikTok Events API when orders are placed.
-
-Benefits of server-side tracking:
-- Not affected by ad blockers
-- Works in strict sandbox mode
-- More accurate attribution
-- Privacy-first: no PII is collected or sent
-- GDPR compliant (data minimization)
-*/`;
+  return "";
 }

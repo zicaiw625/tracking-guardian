@@ -102,22 +102,5 @@ export function generateGooglePixelCode(_config: {
   conversionId?: string;
   conversionLabel?: string;
 }): string {
-  return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
-
-Tracking Guardian no longer generates client-side pixel code.
-
-To track Google conversions:
-1. Go to Tracking Guardian Settings → Server-side Tracking
-2. Enter your GA4 Measurement ID and API Secret
-3. Enable server-side tracking
-
-Tracking Guardian will automatically send Purchase events to GA4
-via the Measurement Protocol when orders are placed.
-
-Benefits of server-side tracking:
-- Not affected by ad blockers
-- More accurate attribution
-- Works even if customer closes browser quickly
-- GDPR/privacy compliant (server-side hashing)
-*/`;
+  return "";
 }

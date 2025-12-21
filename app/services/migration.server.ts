@@ -416,24 +416,7 @@ export function getScriptTagMigrationGuidance(platform: string, scriptTagId: num
 }
 
 function generateBingPixelCode(_config: { tagId: string }): string {
-  return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
-
-Tracking Guardian no longer generates client-side pixel code.
-
-For Microsoft Advertising / Bing UET tracking:
-1. Use Microsoft's native Shopify integration (if available)
-2. Or implement server-side conversion import
-
-Tracking Guardian focuses on server-side CAPI for:
-- Google Analytics 4 (Measurement Protocol)
-- Meta Conversions API
-- TikTok Events API
-
-Benefits of server-side tracking:
-- Not affected by ad blockers
-- More accurate attribution
-- Privacy compliant
-*/`;
+  return "";
 }
 
 import { encryptJson, decryptJson } from "../utils/crypto";
@@ -578,21 +561,5 @@ export async function getOrderPayloadStats(): Promise<{
 }
 
 function generateClarityPixelCode(_config: { projectId: string }): string {
-  return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
-
-Tracking Guardian no longer generates client-side pixel code.
-
-For Microsoft Clarity:
-- Clarity is a session replay / heatmap tool
-- It requires DOM access (lax sandbox mode only)
-- This is outside Tracking Guardian's scope
-
-Tracking Guardian focuses on server-side conversion tracking (CAPI) for:
-- Google Analytics 4 (Measurement Protocol)
-- Meta Conversions API
-- TikTok Events API
-
-For Clarity, please install it directly via Shopify's theme editor
-or use a dedicated Clarity app.
-*/`;
+  return "";
 }

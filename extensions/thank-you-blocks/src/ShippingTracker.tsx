@@ -44,7 +44,6 @@ function ShippingTracker() {
 
       <Divider />
 
-      {}
       <BlockStack spacing="tight">
         {shippingSteps.map((step, index) => (
           <InlineLayout
@@ -80,7 +79,6 @@ function ShippingTracker() {
 
       <Divider />
 
-      {}
       <BlockStack spacing="tight">
         <InlineLayout columns={["fill", "auto"]} spacing="base">
           <Text size="small" appearance="subdued">
@@ -100,7 +98,6 @@ function ShippingTracker() {
         </Link>
       )}
 
-      {}
       <View padding="tight" background="subdued" cornerRadius="base">
         <BlockStack spacing="extraTight">
           <Text size="small" appearance="subdued">

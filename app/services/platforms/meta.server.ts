@@ -240,24 +240,5 @@ export function extractMetaError(error: unknown): PlatformError | null {
 }
 
 export function generateMetaPixelCode(_config: { pixelId: string }): string {
-  return `/* ⚠️ DEPRECATED - DO NOT USE ⚠️
-
-Tracking Guardian no longer generates client-side pixel code.
-
-To track Meta conversions:
-1. Go to Tracking Guardian Settings → Server-side Tracking
-2. Select "Meta Conversions API (CAPI)"
-3. Enter your Pixel ID and Access Token
-4. Enable server-side tracking
-
-Tracking Guardian will automatically send Purchase events to Meta CAPI
-when orders are placed.
-
-Benefits of server-side tracking:
-- Not affected by ad blockers or iOS 14+ restrictions
-- More reliable conversion attribution
-- Works in strict sandbox mode
-- Privacy-first: no PII is collected or sent
-- GDPR compliant (data minimization)
-*/`;
+  return "";
 }

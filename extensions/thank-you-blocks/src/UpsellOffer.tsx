@@ -42,7 +42,6 @@ function UpsellOffer() {
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
-      {}
       <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
         <Text size="medium" emphasis="bold">
           🎁 专属感谢优惠
@@ -52,7 +51,6 @@ function UpsellOffer() {
         </Button>
       </InlineLayout>
 
-      {}
       <Banner status="success">
         <BlockStack spacing="extraTight">
           <Text size="medium" emphasis="bold">
@@ -64,7 +62,6 @@ function UpsellOffer() {
         </BlockStack>
       </Banner>
 
-      {}
       <View padding="base" background="subdued" cornerRadius="base">
         <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
           <BlockStack spacing="none">
@@ -81,7 +78,6 @@ function UpsellOffer() {
         </InlineLayout>
       </View>
 
-      {}
       <BlockStack spacing="tight">
         <InlineLayout columns={["auto", "fill"]} spacing="tight" blockAlignment="center">
           <Text size="small">⏰</Text>
@@ -105,12 +101,10 @@ function UpsellOffer() {
 
       <Divider />
 
-      {}
       <Button kind="primary" onPress={() => {}}>
         继续购物 →
       </Button>
 
-      {}
       <View padding="tight">
         <BlockStack spacing="tight">
           <Text size="small" appearance="subdued" alignment="center">
