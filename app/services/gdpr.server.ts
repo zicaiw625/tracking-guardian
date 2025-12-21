@@ -663,3 +663,142 @@ export async function getGDPRJobStatus(shopDomain?: string): Promise<{
     recentJobs,
   };
 }
+
+/**
+ * P0-9: Monitor GDPR job queue for compliance violations.
+ * 
+ * GDPR requires data requests to be fulfilled within 30 days.
+ * This function checks for overdue jobs and returns alerts.
+ */
+export async function checkGDPRCompliance(): Promise<{
+  isCompliant: boolean;
+  pendingCount: number;
+  overdueCount: number;
+  oldestPendingAge: number | null; // Days
+  warnings: string[];
+  criticals: string[];
+}> {
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  
+  // Find all pending jobs
+  const pendingJobs = await prisma.gDPRJob.findMany({
+    where: {
+      status: { in: ["queued", "processing", "failed"] },
+    },
+    select: {
+      id: true,
+      shopDomain: true,
+      jobType: true,
+      status: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  
+  const warnings: string[] = [];
+  const criticals: string[] = [];
+  
+  let overdueCount = 0;
+  let oldestPendingAge: number | null = null;
+  
+  for (const job of pendingJobs) {
+    const ageMs = now.getTime() - job.createdAt.getTime();
+    const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
+    
+    if (oldestPendingAge === null || ageDays > oldestPendingAge) {
+      oldestPendingAge = ageDays;
+    }
+    
+    if (job.createdAt < thirtyDaysAgo) {
+      overdueCount++;
+      criticals.push(
+        `[CRITICAL] GDPR ${job.jobType} for ${job.shopDomain} is ${ageDays} days old (> 30 day limit). Job ID: ${job.id}`
+      );
+    } else if (job.createdAt < sevenDaysAgo) {
+      warnings.push(
+        `[WARNING] GDPR ${job.jobType} for ${job.shopDomain} is ${ageDays} days old. Job ID: ${job.id}`
+      );
+    }
+  }
+  
+  const isCompliant = criticals.length === 0;
+  
+  // Log compliance check results
+  if (!isCompliant) {
+    logger.error("[GDPR] Compliance violation detected!", {
+      overdueCount,
+      criticals: criticals.length,
+      oldestPendingAge,
+    });
+  } else if (warnings.length > 0) {
+    logger.warn("[GDPR] Compliance warnings:", {
+      pendingCount: pendingJobs.length,
+      warnings: warnings.length,
+      oldestPendingAge,
+    });
+  }
+  
+  return {
+    isCompliant,
+    pendingCount: pendingJobs.length,
+    overdueCount,
+    oldestPendingAge,
+    warnings,
+    criticals,
+  };
+}
+
+/**
+ * P0-9: Get detailed deletion audit summary for compliance reporting.
+ */
+export async function getGDPRDeletionSummary(
+  startDate: Date,
+  endDate: Date
+): Promise<{
+  totalJobsCompleted: number;
+  byJobType: Record<string, number>;
+  totalRecordsDeleted: number;
+  deletionsByTable: Record<string, number>;
+}> {
+  const completedJobs = await prisma.gDPRJob.findMany({
+    where: {
+      status: "completed",
+      completedAt: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+    select: {
+      jobType: true,
+      result: true,
+    },
+  });
+  
+  const byJobType: Record<string, number> = {};
+  const deletionsByTable: Record<string, number> = {};
+  let totalRecordsDeleted = 0;
+  
+  for (const job of completedJobs) {
+    byJobType[job.jobType] = (byJobType[job.jobType] || 0) + 1;
+    
+    const result = job.result as Record<string, unknown> | null;
+    if (result?.deletedCounts && typeof result.deletedCounts === "object") {
+      const counts = result.deletedCounts as Record<string, number>;
+      for (const [table, count] of Object.entries(counts)) {
+        if (typeof count === "number") {
+          deletionsByTable[table] = (deletionsByTable[table] || 0) + count;
+          totalRecordsDeleted += count;
+        }
+      }
+    }
+  }
+  
+  return {
+    totalJobsCompleted: completedJobs.length,
+    byJobType,
+    totalRecordsDeleted,
+    deletionsByTable,
+  };
+}

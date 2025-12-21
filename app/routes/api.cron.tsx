@@ -6,7 +6,8 @@ import { runAllShopsDeliveryHealthCheck } from "../services/delivery-health.serv
 import { runAllShopsReconciliation } from "../services/reconciliation.server";
 import { processPendingConversions, processRetries, processConversionJobs } from "../services/retry.server";
 import { reconcilePendingConsent } from "../services/consent-reconciler.server";
-import { processGDPRJobs } from "../services/gdpr.server";
+import { processGDPRJobs, checkGDPRCompliance } from "../services/gdpr.server";
+import { createAuditLog } from "../services/audit.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
 import { createAuditLog } from "../services/audit.server";
 import { logger, createRequestLogger } from "../utils/logger";
@@ -392,6 +393,7 @@ function validateCronAuth(request: Request): Response | null {
 
 interface CronResult {
   gdpr: Awaited<ReturnType<typeof processGDPRJobs>>;
+  gdprCompliance: Awaited<ReturnType<typeof checkGDPRCompliance>>;
   consent: Awaited<ReturnType<typeof reconcilePendingConsent>>;
   jobs: Awaited<ReturnType<typeof processConversionJobs>>;
   pending: Awaited<ReturnType<typeof processPendingConversions>>;
@@ -416,6 +418,25 @@ async function executeCronTasks(
   cronLogger.info("Processing GDPR jobs...");
   const gdprResults = await processGDPRJobs();
   cronLogger.info("GDPR processing completed", gdprResults);
+
+  // P0-9: Check GDPR compliance status
+  cronLogger.info("Checking GDPR compliance...");
+  const gdprCompliance = await checkGDPRCompliance();
+  if (!gdprCompliance.isCompliant) {
+    cronLogger.error("GDPR COMPLIANCE VIOLATION!", {
+      overdueCount: gdprCompliance.overdueCount,
+      criticals: gdprCompliance.criticals,
+    });
+  } else if (gdprCompliance.warnings.length > 0) {
+    cronLogger.warn("GDPR compliance warnings", {
+      pendingCount: gdprCompliance.pendingCount,
+      oldestAge: gdprCompliance.oldestPendingAge,
+    });
+  } else {
+    cronLogger.info("GDPR compliance check passed", {
+      pendingCount: gdprCompliance.pendingCount,
+    });
+  }
 
   cronLogger.info("Reconciling pending consent...");
   const consentResults = await reconcilePendingConsent();
@@ -451,8 +472,29 @@ async function executeCronTasks(
   const cleanupResults = await cleanupExpiredData();
   cronLogger.info("Cleanup completed", cleanupResults);
 
+  // P0-9: Log cleanup metrics for audit trail
+  const totalDeleted = 
+    cleanupResults.conversionLogsDeleted +
+    cleanupResults.conversionJobsDeleted +
+    cleanupResults.pixelEventReceiptsDeleted +
+    cleanupResults.surveyResponsesDeleted +
+    cleanupResults.auditLogsDeleted +
+    cleanupResults.webhookLogsDeleted +
+    cleanupResults.scanReportsDeleted +
+    cleanupResults.reconciliationReportsDeleted +
+    cleanupResults.gdprJobsDeleted;
+
+  if (totalDeleted > 0) {
+    cronLogger.info("[METRIC] retention_cleanup", {
+      _metric: "retention_cleanup",
+      totalDeleted,
+      ...cleanupResults,
+    });
+  }
+
   return {
     gdpr: gdprResults,
+    gdprCompliance,
     consent: consentResults,
     jobs: jobResults,
     pending: pendingResults,

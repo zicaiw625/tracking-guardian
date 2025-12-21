@@ -416,9 +416,84 @@ For data-related inquiries or requests:
 |---------|------|---------|
 | 1.0 | 2024-12 | Initial compliance documentation |
 | 1.1 | 2024-12 | Updated consent strategy (default: strict) |
-| 1.2 | 2025-12 | P0/P1 security and compliance hardening (see below) |
+| 1.2 | 2025-12 | P0/P1 security and compliance hardening |
+| 1.3 | 2025-12 | P0 minimum viable: orderPayload removal, additionalScripts removal, GDPR monitoring |
 
 ---
+
+## 11. Field-Level Data Inventory (PCD Review Ready)
+
+This section provides a complete inventory of all database fields for Shopify Protected Customer Data review.
+
+### Table: ConversionLog
+
+| Field | Type | Contains PII | Purpose | Retention |
+|-------|------|--------------|---------|-----------|
+| id | String | ❌ No | Primary key | Configurable |
+| shopId | String | ❌ No | Shop reference | Configurable |
+| orderId | String | ❌ No | Shopify order ID | Configurable |
+| orderNumber | String | ❌ No | Display order number | Configurable |
+| orderValue | Decimal | ❌ No | Order total for attribution | Configurable |
+| currency | String | ❌ No | Currency code | Configurable |
+| eventId | String | ❌ No | Deduplication ID | Configurable |
+| platform | String | ❌ No | Target platform | Configurable |
+| eventType | String | ❌ No | Event type (purchase) | Configurable |
+| status | String | ❌ No | Processing status | Configurable |
+| platformResponse | Json | ❌ No | Platform API response | Configurable |
+
+### Table: ConversionJob
+
+| Field | Type | Contains PII | Purpose | Retention |
+|-------|------|--------------|---------|-----------|
+| id | String | ❌ No | Primary key | Configurable |
+| orderId | String | ❌ No | Shopify order ID | Configurable |
+| capiInput | Json | ❌ No | Minimal CAPI payload (NO raw PII) | Configurable |
+| consentEvidence | Json | ❌ No | Audit trail of consent decision | Configurable |
+| trustMetadata | Json | ❌ No | Trust verification audit | Configurable |
+
+**Note**: `orderPayload` field has been **REMOVED** (Migration 20251221100000).
+
+### Table: ScanReport
+
+| Field | Type | Contains PII | Purpose | Retention |
+|-------|------|--------------|---------|-----------|
+| scriptTags | Json | ❌ No | ScriptTag URLs only (no content) | Keep last 5 |
+| identifiedPlatforms | String[] | ❌ No | Detected tracking platforms | Keep last 5 |
+| riskItems | Json | ❌ No | Risk assessment results | Keep last 5 |
+
+**Note**: `additionalScripts` field has been **REMOVED** (Migration 20251221100001).
+
+### Table: AuditLog
+
+| Field | Type | Contains PII | Purpose | Retention |
+|-------|------|--------------|---------|-----------|
+| actorId | String | ⚠️ May | Actor identifier (may be staff email) | 180 days |
+| ipAddress | String | ⚠️ May | Request IP (GDPR: personal data) | 180 days |
+| userAgent | String | ⚠️ May | Browser/device info | 180 days |
+
+### Table: Session (Shopify OAuth)
+
+| Field | Type | Contains PII | Purpose | Retention |
+|-------|------|--------------|---------|-----------|
+| accessToken | String | 🔒 Encrypted | AES-256-GCM encrypted | Until logout |
+| email | String | ⚠️ May | Staff member email | Until logout |
+| firstName | String | ⚠️ May | Staff member first name | Until logout |
+| lastName | String | ⚠️ May | Staff member last name | Until logout |
+
+**Note**: Session data contains **store staff/admin** information, NOT customer PII.
+
+### Legend
+
+- ❌ No = Does NOT contain PII
+- ⚠️ May = May contain PII (requires GDPR handling)
+- 🔒 Encrypted = Contains secrets (encrypted at rest)
+
+### Data Deletion Guarantees
+
+All ⚠️ marked fields are deleted upon:
+- `customers/redact` webhook (customer-specific data)
+- `shop/redact` webhook (all shop data)
+- Automatic retention cleanup (based on `Shop.dataRetentionDays`)
 
 ---
 

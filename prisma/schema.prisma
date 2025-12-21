@@ -112,8 +112,9 @@ model ScanReport {
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   // Scan results
-  additionalScripts Json? // Raw additional scripts content
-  scriptTags        Json? // ScriptTag API results
+  // P0-02: additionalScripts field REMOVED - raw scripts may contain PII
+  // Platform detection results are stored in identifiedPlatforms + riskItems
+  scriptTags        Json? // ScriptTag API results (src URLs only, no inline content)
   checkoutConfig    Json? // Checkout configuration
 
   // Risk analysis
@@ -476,10 +477,6 @@ model ConversionJob {
   orderNumber  String?
   orderValue   Decimal  @db.Decimal(10, 2)
   currency     String   @default("USD")
-  
-  // P0-05: DEPRECATED - Full webhook payload (contains PII, being phased out)
-  // This field will be removed in a future migration after all data is migrated to capiInput
-  orderPayload Json?    // Full webhook payload for retry - DEPRECATED
   
   // P0-05: Minimal CAPI input - only stores data needed for platform API calls
   // Contains: {value, currency, orderId, items?, hashedIdentifiers?, consentEvidence?}

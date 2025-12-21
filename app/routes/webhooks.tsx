@@ -444,16 +444,15 @@ async function queueOrderForProcessing(
 
   try {
 
+    // P0-01: orderPayload field removed for PCD compliance
+    // Only capiInput (minimal fields for CAPI) is stored
     const createData = {
       shopId: shopRecord.id,
       orderId,
       orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
       orderValue: parseFloat(orderPayload.total_price || "0"),
       currency: orderPayload.currency || "USD",
-      
       capiInput: capiInput as object,
-      
-      orderPayload: {},
       status: "queued",
     };
     

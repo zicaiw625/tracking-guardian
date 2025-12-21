@@ -6,6 +6,7 @@ import {
   getAdditionalScriptsDeprecationStatus,
   type ShopTier 
 } from "../utils/deprecation-dates";
+import { logger } from "../utils/logger";
 
 export interface WebPixelInfo {
   id: string;
@@ -195,7 +196,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
     cursor = pageInfo.endCursor;
 
     if (allTags.length > 1000) {
-      console.warn("ScriptTags pagination limit reached (1000)");
+      logger.warn("ScriptTags pagination limit reached (1000)");
       break;
     }
   }
@@ -245,7 +246,7 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
     cursor = pageInfo.endCursor;
 
     if (allPixels.length > 200) {
-      console.warn("WebPixels pagination limit reached (200)");
+      logger.warn("WebPixels pagination limit reached (200)");
       break;
     }
   }
@@ -258,9 +259,10 @@ export async function scanShopTracking(
   shopId: string
 ): Promise<EnhancedScanResult> {
   const errors: ScanError[] = [];
+  // P0-02: additionalScripts removed from storage - raw scripts may contain PII
+  // Platform detection is stored in identifiedPlatforms + riskItems
   const result: EnhancedScanResult = {
     scriptTags: [],
-    additionalScripts: null, 
     checkoutConfig: null,
     identifiedPlatforms: [],
     riskItems: [],
@@ -270,14 +272,14 @@ export async function scanShopTracking(
     migrationActions: [],
   };
 
-  console.log(`Starting enhanced scan for shop ${shopId}`);
+  logger.info(`Starting enhanced scan for shop ${shopId}`);
 
   try {
     result.scriptTags = await fetchAllScriptTags(admin);
-    console.log(`Found ${result.scriptTags.length} script tags (with pagination)`);
+    logger.info(`Found ${result.scriptTags.length} script tags (with pagination)`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error fetching script tags:", errorMessage);
+    logger.error("Error fetching script tags:", error);
     errors.push({
       stage: "script_tags",
       message: errorMessage,
@@ -300,10 +302,10 @@ export async function scanShopTracking(
     );
     const checkoutData = await checkoutResponse.json();
     result.checkoutConfig = checkoutData.data?.shop as CheckoutConfig;
-    console.log(`Checkout config fetched successfully`);
+    logger.info(`Checkout config fetched successfully`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error fetching checkout config:", errorMessage);
+    logger.error("Error fetching checkout config:", error);
     errors.push({
       stage: "checkout_config",
       message: errorMessage,
@@ -313,10 +315,10 @@ export async function scanShopTracking(
 
   try {
     result.webPixels = await fetchAllWebPixels(admin);
-    console.log(`Found ${result.webPixels.length} web pixels (with pagination)`);
+    logger.info(`Found ${result.webPixels.length} web pixels (with pagination)`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error fetching web pixels:", errorMessage);
+    logger.error("Error fetching web pixels:", error);
     errors.push({
       stage: "web_pixels",
       message: errorMessage,
@@ -326,24 +328,24 @@ export async function scanShopTracking(
 
   const allScriptContent = collectScriptContent(result);
   result.identifiedPlatforms = detectPlatforms(allScriptContent);
-  console.log(`Identified platforms: ${result.identifiedPlatforms.join(", ") || "none"}`);
+  logger.info(`Identified platforms: ${result.identifiedPlatforms.join(", ") || "none"}`);
 
   result.duplicatePixels = detectDuplicatePixels(result);
-  console.log(`Duplicate pixels found: ${result.duplicatePixels.length}`);
+  logger.info(`Duplicate pixels found: ${result.duplicatePixels.length}`);
 
   result.riskItems = assessRisks(result);
   result.riskScore = calculateRiskScore(result.riskItems);
-  console.log(`Risk assessment complete: score=${result.riskScore}, items=${result.riskItems.length}`);
+  logger.info(`Risk assessment complete: score=${result.riskScore}, items=${result.riskItems.length}`);
 
   result.migrationActions = generateMigrationActions(result);
-  console.log(`Generated ${result.migrationActions.length} migration actions`);
+  logger.info(`Generated ${result.migrationActions.length} migration actions`);
 
   try {
     await saveScanReport(shopId, result, errors.length > 0 ? JSON.stringify(errors) : null);
-    console.log(`Scan report saved for shop ${shopId}`);
+    logger.info(`Scan report saved for shop ${shopId}`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error saving scan report:", errorMessage);
+    logger.error("Error saving scan report:", error);
     throw new Error(`Failed to save scan report: ${errorMessage}`);
   }
 
@@ -524,18 +526,13 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
 }
 
 function collectScriptContent(result: EnhancedScanResult): string {
+  // P0-02: Only collect script tag URLs for platform detection
+  // Raw script content is NOT collected to avoid storing PII
   let content = "";
 
   for (const tag of result.scriptTags) {
+    // Only use src URL for detection, not inline content
     content += ` ${tag.src || ""} ${tag.event || ""}`;
-  }
-
-  if (result.additionalScripts) {
-    if (typeof result.additionalScripts === "string") {
-      content += ` ${result.additionalScripts}`;
-    } else if (typeof result.additionalScripts === "object") {
-      content += ` ${JSON.stringify(result.additionalScripts)}`;
-    }
   }
 
   return content;
@@ -677,11 +674,12 @@ async function saveScanReport(
   result: ScanResult,
   errorMessage: string | null = null
 ): Promise<void> {
+  // P0-02: additionalScripts field removed - only store structured findings
   await prisma.scanReport.create({
     data: {
       shopId,
       scriptTags: JSON.parse(JSON.stringify(result.scriptTags)),
-      additionalScripts: result.additionalScripts ? JSON.parse(JSON.stringify(result.additionalScripts)) : undefined,
+      // P0-02: additionalScripts removed for PII compliance
       checkoutConfig: result.checkoutConfig ? JSON.parse(JSON.stringify(result.checkoutConfig)) : undefined,
       identifiedPlatforms: result.identifiedPlatforms,
       riskItems: JSON.parse(JSON.stringify(result.riskItems)),

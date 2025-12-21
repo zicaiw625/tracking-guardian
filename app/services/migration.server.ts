@@ -203,7 +203,7 @@ export async function createWebPixel(
     }
 
     if (data?.webPixel?.id) {
-      console.log(`Web Pixel created successfully: ${data.webPixel.id}`);
+      logger.info(`Web Pixel created successfully: ${data.webPixel.id}`);
       return {
         success: true,
         webPixelId: data.webPixel.id,
@@ -215,7 +215,7 @@ export async function createWebPixel(
       error: "Unexpected response from Shopify API",
     };
   } catch (error) {
-    console.error("Failed to create Web Pixel:", error);
+    logger.error("Failed to create Web Pixel:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -315,7 +315,7 @@ export async function getExistingWebPixels(
       settings: edge.node.settings,
     }));
   } catch (error) {
-    console.error("Failed to get Web Pixels:", error);
+    logger.error("Failed to get Web Pixels:", error);
     return [];
   }
 }
@@ -560,58 +560,32 @@ export async function verifyCredentialsEncryption(): Promise<{
   };
 }
 
-export async function sanitizeExistingOrderPayloads(batchSize = 500): Promise<{
+/**
+ * @deprecated The orderPayload field has been removed from the schema.
+ * This function is no longer needed and will be removed in a future version.
+ * Migration 20251221100000_p0_01_remove_order_payload handles the schema change.
+ */
+export async function sanitizeExistingOrderPayloads(_batchSize = 500): Promise<{
   processed: number;
   cleaned: number;
   errors: number;
 }> {
-  let processed = 0;
-  let cleaned = 0;
-  let errors = 0;
-
-  while (true) {
-    const jobs = await prisma.conversionJob.findMany({
-      where: {
-        orderPayload: { not: {} },
-      },
-      select: { id: true },
-      take: batchSize,
-    });
-
-    if (jobs.length === 0) break;
-
-    for (const job of jobs) {
-      try {
-        await prisma.conversionJob.update({
-          where: { id: job.id },
-          data: { orderPayload: {} },
-        });
-        cleaned++;
-      } catch (error) {
-        errors++;
-        logger.error(`P0-10: Failed to sanitize job ${job.id}`, error);
-      }
-      processed++;
-    }
-
-    logger.info(`P0-10: Processed ${processed} jobs, cleaned ${cleaned}`);
-  }
-
-  logger.info(`P0-10: Sanitization complete - ${cleaned} cleaned, ${errors} errors`);
-  return { processed, cleaned, errors };
+  logger.info("P0-01: sanitizeExistingOrderPayloads is deprecated - orderPayload field has been removed");
+  return { processed: 0, cleaned: 0, errors: 0 };
 }
 
+/**
+ * @deprecated The orderPayload field has been removed from the schema.
+ * This function now only returns capiInput stats.
+ */
 export async function getOrderPayloadStats(): Promise<{
   totalJobs: number;
   withOrderPayload: number;
   withCapiInput: number;
   needsSanitization: number;
 }> {
-  const [totalJobs, withOrderPayload, withCapiInput] = await Promise.all([
+  const [totalJobs, withCapiInput] = await Promise.all([
     prisma.conversionJob.count(),
-    prisma.conversionJob.count({
-      where: { orderPayload: { not: Prisma.JsonNull } },
-    }),
     prisma.conversionJob.count({
       where: { capiInput: { not: Prisma.JsonNull } },
     }),
@@ -619,9 +593,9 @@ export async function getOrderPayloadStats(): Promise<{
 
   return {
     totalJobs,
-    withOrderPayload,
+    withOrderPayload: 0, // Field removed
     withCapiInput,
-    needsSanitization: withOrderPayload,
+    needsSanitization: 0, // No longer applicable
   };
 }
 

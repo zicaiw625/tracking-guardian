@@ -80,7 +80,7 @@ export interface RiskItem {
 
 export interface ScanResult {
   scriptTags: ScriptTag[];
-  additionalScripts: string | object | null;
+  // P0-02: additionalScripts removed for PCI compliance - raw scripts may contain PII
   checkoutConfig: CheckoutConfig | null;
   identifiedPlatforms: string[];
   riskItems: RiskItem[];

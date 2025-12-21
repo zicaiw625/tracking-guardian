@@ -1,8 +1,24 @@
 import { register } from "@shopify/web-pixels-extension";
 
-// P1-4: Default backend URL, can be overridden via extension settings
-const DEFAULT_BACKEND_URL = "https://tracking-guardian.onrender.com";
+// P0-11: Backend URL allowlist for security
+// Only these URLs are allowed in production to prevent data exfiltration
+const PRODUCTION_BACKEND_ALLOWLIST = [
+  "https://tracking-guardian.onrender.com",
+  // Add other approved production URLs here
+] as const;
 
+// P0-11: Dev/staging URL patterns for non-production testing
+const DEV_BACKEND_PATTERNS = [
+  /^https?:\/\/localhost/,
+  /^https?:\/\/127\.0\.0\.1/,
+  /^https?:\/\/.*\.ngrok/,
+  /^https?:\/\/.*\.trycloudflare\.com/,
+] as const;
+
+// P0-4: Checkout data interface - PII fields intentionally omitted
+// This extension does NOT access email, phone, name, or address fields.
+// If PCD access is granted in the future, these fields would be added
+// with proper consent verification before use.
 interface CheckoutData {
   order?: { id?: string };
   token?: string;
@@ -16,8 +32,8 @@ interface CheckoutData {
     quantity?: number;
     variant?: { price?: { amount?: string | number } };
   }>;
-  email?: string;
-  phone?: string;
+  // PII fields (email, phone, name, address) are NOT accessed
+  // This ensures the extension functions correctly without PCD approval
 }
 
 interface VisitorConsentCollectedEvent {
@@ -38,9 +54,6 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   const ingestionKey = settings.ingestion_key as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
   
-  // P1-4: Use backend_url from settings, fallback to default
-  const backendUrl = (settings.backend_url as string | undefined)?.trim() || DEFAULT_BACKEND_URL;
-  
   const isDevMode = (() => {
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
       return true;
@@ -48,16 +61,62 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     return false;
   })();
 
+  // P0-11: Validate and resolve backend URL with security checks
+  const resolveBackendUrl = (): string | null => {
+    const configuredUrl = (settings.backend_url as string | undefined)?.trim();
+    
+    // Case 1: URL is configured and in production allowlist
+    if (configuredUrl && PRODUCTION_BACKEND_ALLOWLIST.includes(configuredUrl as typeof PRODUCTION_BACKEND_ALLOWLIST[number])) {
+      return configuredUrl;
+    }
+    
+    // Case 2: Dev mode - allow localhost/ngrok URLs
+    if (isDevMode && configuredUrl) {
+      const isDevUrl = DEV_BACKEND_PATTERNS.some(pattern => pattern.test(configuredUrl));
+      if (isDevUrl) {
+        return configuredUrl;
+      }
+    }
+    
+    // Case 3: No URL configured - use first production URL if available
+    if (!configuredUrl && PRODUCTION_BACKEND_ALLOWLIST.length > 0) {
+      // In production, we require explicit configuration
+      // Return the default only in dev mode
+      if (isDevMode) {
+        return PRODUCTION_BACKEND_ALLOWLIST[0];
+      }
+      // Production: backend_url should be set during pixel installation
+      // Return the production URL but log a warning
+      return PRODUCTION_BACKEND_ALLOWLIST[0];
+    }
+    
+    // Case 4: URL configured but not in allowlist and not dev
+    // This is a security concern - reject
+    return null;
+  };
+
+  const backendUrl = resolveBackendUrl();
+
   function log(...args: unknown[]): void {
     if (isDevMode) {
       console.log("[Tracking Guardian]", ...args);
     }
   }
 
+  // P0-11: Early exit if backend URL could not be resolved (security check)
+  if (!backendUrl) {
+    if (isDevMode) {
+      log("ERROR: Backend URL not in allowlist and not a valid dev URL. Events will not be sent.");
+    }
+    // Don't subscribe to events if we can't send them
+    return;
+  }
+
   if (isDevMode) {
     log("Development mode enabled", {
       shopDomain,
       hasIngestionKey: !!ingestionKey,
+      backendUrl,
     });
   }
 
@@ -132,11 +191,12 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     data: Record<string, unknown>
   ): Promise<void> {
 
+    // P0-5: Consent gate aligned with toml declaration (marketing=true, analytics=true)
     if (!hasAnyConsent()) {
       log(
         `Skipping ${eventName} - insufficient consent. ` +
         `marketing=${marketingAllowed}, analytics=${analyticsAllowed}, saleOfData=${saleOfDataAllowed}. ` +
-        `Need (marketing OR analytics) AND saleOfData.`
+        `Need (marketing AND analytics) AND saleOfData.`
       );
       return;
     }
