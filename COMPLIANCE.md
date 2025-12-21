@@ -617,4 +617,156 @@ are NOT collected, NOT transmitted, and NOT processed.
 
 ---
 
+## P0 优化实施记录 - 第二阶段 (2025-12-21)
+
+本节记录第二阶段的 P0 级别安全和合规优化。
+
+### P0-1: 重新定义"可信请求"模型
+
+**问题**: `isTrusted` 仅基于 ingestion key 匹配，但 ingestion key 可被客户端读取，不是严格的机密。
+
+**解决方案**:
+1. **新增 `receipt-trust.ts` 模块** (`app/utils/receipt-trust.ts`):
+   - 定义三级信任模型: `trusted` (完全可信), `partial` (部分可信), `untrusted` (不可信)
+   - `verifyReceiptTrust()` 函数验证 checkout token 绑定
+   - `isSendAllowedByTrust()` 函数基于信任级别和策略决定是否发送
+
+2. **Checkout Token 绑定验证**:
+   - Pixel 发送 `checkoutToken` 到后端
+   - 后端在处理 ConversionJob 时验证 webhook 的 `checkout_token` 是否匹配
+   - 匹配成功才提升到 `trusted` 级别
+
+3. **数据库字段增强** (`PixelEventReceipt`):
+   - `trustLevel`: 信任级别 (trusted/partial/untrusted/unknown)
+   - `untrustedReason`: 不可信原因
+   - `originHost`: 请求来源域名 (审计追踪)
+
+4. **策略集成**:
+   - `strict` 模式: 必须 `trusted` 才发送 marketing 平台
+   - `balanced` 模式: `partial` 可发送 analytics，marketing 需要 `trusted`
+   - `weak` 模式: 始终允许 (适用于隐含同意地区)
+
+**验收**:
+- 伪造的 pixel 事件无法获得 `trusted` 级别
+- 没有 checkoutToken 的请求停留在 `partial` 级别
+- ConversionJob 记录 `trustMetadata` 供审计
+
+### P0-2: 收紧 Origin/Referrer 校验
+
+**问题**: Origin 验证过于宽松，允许任何 HTTPS 来源。
+
+**解决方案**:
+1. **Per-Shop 域名白名单** (数据库):
+   - `Shop.storefrontDomains`: 允许的域名列表
+   - `Shop.primaryDomain`: 主域名
+
+2. **新增验证函数** (`origin-validation.ts`):
+   - `isOriginInAllowlist()`: 验证 origin 是否在白名单中
+   - `buildDefaultAllowedDomains()`: 构建默认白名单
+
+3. **Origin 记录**:
+   - `PixelEventReceipt.originHost` 记录请求来源
+   - 用于安全审计和异常检测
+
+**验收**: 
+- 生产环境可配置严格的 origin 白名单
+- 所有请求的 origin 被记录用于审计
+
+### P0-3: 强化时间窗与重放防护
+
+**问题**: 可能被重放攻击，同一事件多次提交。
+
+**解决方案**:
+1. **Nonce 机制**:
+   - 新增 `EventNonce` 表存储短期 nonce
+   - Nonce = `orderId:timestamp`，1小时过期
+   - 重复 nonce 立即返回 204 (静默丢弃)
+
+2. **时间戳一致性检查**:
+   - Header timestamp 与 payload timestamp 对比
+   - 过大差异降低信任级别
+
+**验收**:
+- 相同事件 1 小时内重复提交被自动去重
+- 重放攻击被 nonce 机制阻止
+
+### P0-4: Consent 逻辑可审计化
+
+**问题**: Consent 决策过程不透明，难以审计。
+
+**解决方案**:
+1. **ConversionJob 增加审计字段**:
+   - `consentEvidence`: 同意证据 (策略、consent state、receipt 状态)
+   - `trustMetadata`: 信任验证元数据
+
+2. **日志增强**:
+   - 所有 consent 决策记录详细原因
+   - 信任验证结果记录到 metrics
+
+**验收**:
+- 每个 ConversionJob 都有完整的 consent 和 trust 审计记录
+- 可追溯为什么某个事件被发送或跳过
+
+### P0-5: 数据导出 API
+
+**问题**: 商家无法导出自己的数据，不符合 GDPR 数据可携权。
+
+**解决方案**:
+新增 `/api/exports` 端点 (`app/routes/api.exports.tsx`):
+- 支持导出类型: `conversions`, `audit`, `receipts`, `jobs`
+- 支持格式: `csv`, `json`
+- 支持日期范围过滤
+- 包含字段定义和 PII 标记
+
+**使用示例**:
+```
+GET /api/exports?type=conversions&format=csv&start_date=2024-01-01
+GET /api/exports?type=audit&format=json&include_meta=true
+```
+
+**验收**:
+- 商家可在 Admin 中导出所有数据
+- 导出包含字段说明和 PII 标记
+
+### P1-4: 静默 204 可观测性增强
+
+**问题**: 很多无效请求返回 204，排查困难。
+
+**解决方案**:
+1. **增强 metrics** (`logger.ts`):
+   - `pixelRejection`: 拒绝原因细分
+   - `silentDrop`: 静默丢弃追踪
+   - `trustVerification`: 信任验证结果
+
+2. **采样记录**:
+   - 高频率拒绝可设置采样率避免日志爆炸
+   - 保留指纹用于模式分析 (不含 PII)
+
+**验收**:
+- 所有静默 204 都有对应的 metric
+- 可通过日志聚合发现异常模式
+
+---
+
+## 数据库迁移说明
+
+### Migration: 20251221000000_p0_storefront_domains
+
+新增字段:
+- `Shop.storefrontDomains` (TEXT[]): 允许的店铺域名
+- `Shop.primaryDomain` (TEXT): 主域名
+- `PixelEventReceipt.trustLevel` (TEXT): 信任级别
+- `PixelEventReceipt.untrustedReason` (TEXT): 不可信原因
+- `PixelEventReceipt.originHost` (TEXT): 请求来源域名
+- `ConversionJob.consentEvidence` (JSONB): 同意证据
+- `ConversionJob.trustMetadata` (JSONB): 信任元数据
+
+新增表:
+- `EventNonce`: 事件 nonce 用于重放防护
+
+新增索引:
+- `PixelEventReceipt.checkoutToken`: 独立索引加速查找
+
+---
+
 *This document is provided for Shopify App Review and merchant transparency.*

@@ -121,6 +121,117 @@ export function isValidPixelOrigin(origin: string | null): {
   }
 }
 
+/**
+ * P0-2: Validate origin against a shop's allowed storefront domains.
+ * 
+ * This provides stronger security than isValidPixelOrigin by checking
+ * the origin against a known list of the shop's storefront domains.
+ * 
+ * Use this for strict origin validation when you have the shop context.
+ * 
+ * @param origin The Origin header value
+ * @param allowedDomains List of allowed domains for this shop
+ * @returns Object with validation result
+ */
+export function isOriginInAllowlist(
+  origin: string | null,
+  allowedDomains: string[]
+): {
+  valid: boolean;
+  reason: string;
+  matched?: string;
+} {
+  // Sandbox origin is always allowed
+  if (origin === "null" || origin === null) {
+    return { valid: true, reason: "sandbox_origin" };
+  }
+
+  if (!origin) {
+    return { valid: true, reason: "no_origin_header" };
+  }
+
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname.toLowerCase();
+
+    // Check protocol first
+    if (url.protocol !== "https:" && !isDevMode()) {
+      return { valid: false, reason: "https_required" };
+    }
+
+    // Check against allowlist
+    for (const domain of allowedDomains) {
+      const normalizedDomain = domain.toLowerCase();
+      
+      // Exact match
+      if (hostname === normalizedDomain) {
+        return { valid: true, reason: "exact_match", matched: domain };
+      }
+      
+      // Subdomain match (e.g., www.example.com matches example.com)
+      if (hostname.endsWith(`.${normalizedDomain}`)) {
+        return { valid: true, reason: "subdomain_match", matched: domain };
+      }
+    }
+
+    // Always allow Shopify checkout domain
+    if (hostname === "checkout.shopify.com" || hostname.endsWith(".shopify.com")) {
+      return { valid: true, reason: "shopify_domain" };
+    }
+
+    // Dev mode: allow localhost
+    if (isDevMode() && (hostname === "localhost" || hostname === "127.0.0.1")) {
+      return { valid: true, reason: "dev_localhost" };
+    }
+
+    return {
+      valid: false,
+      reason: `origin_not_in_allowlist:${hostname}`,
+    };
+  } catch {
+    return { valid: false, reason: "malformed_origin" };
+  }
+}
+
+/**
+ * P0-2: Build the default allowed domains list for a shop.
+ * 
+ * This should be called when a shop is installed or updated to populate
+ * the storefrontDomains field.
+ * 
+ * @param myshopifyDomain The shop's .myshopify.com domain
+ * @param primaryDomain Optional primary custom domain
+ * @param additionalDomains Optional additional custom domains
+ */
+export function buildDefaultAllowedDomains(
+  myshopifyDomain: string,
+  primaryDomain?: string | null,
+  additionalDomains?: string[]
+): string[] {
+  const domains = new Set<string>();
+  
+  // Always add myshopify domain
+  if (myshopifyDomain) {
+    domains.add(myshopifyDomain.toLowerCase());
+  }
+  
+  // Add primary domain if set
+  if (primaryDomain) {
+    domains.add(primaryDomain.toLowerCase());
+  }
+  
+  // Add any additional domains
+  if (additionalDomains) {
+    for (const domain of additionalDomains) {
+      if (domain) {
+        domains.add(domain.toLowerCase());
+      }
+    }
+  }
+  
+  return Array.from(domains);
+}
+
 export function isValidDevOrigin(origin: string | null): boolean {
   if (!origin) return false;
   return DEV_ORIGIN_PATTERNS.some(({ pattern }) => pattern.test(origin));

@@ -79,6 +79,11 @@ model Shop {
   previousIngestionSecret String?
   previousSecretExpiry    DateTime?
 
+  // P0-2: Storefront domain allowlist for origin validation
+  // Includes myshopify domain + primary domain + custom domains
+  primaryDomain      String?
+  storefrontDomains  String[]
+
   // P1: Web Pixel ID for reliable pixel identification
   // Stored after webPixelCreate succeeds; used for webPixelUpdate
   // Avoids relying on settings key guessing to identify "our" pixel
@@ -403,6 +408,11 @@ model PixelEventReceipt {
   isTrusted      Boolean  @default(false) // True if signature was valid
   signatureStatus String  @default("unsigned") // signed, unsigned, invalid
   
+  // P0-1: Enhanced trust tracking
+  trustLevel      String  @default("unknown") // trusted, partial, untrusted, unknown
+  untrustedReason String? // Reason if not trusted
+  originHost      String? // Origin host for audit trail
+  
   // P0-03: Flag indicating orderId was derived from checkoutToken (fallback)
   usedCheckoutTokenFallback Boolean @default(false)
   
@@ -417,6 +427,8 @@ model PixelEventReceipt {
   @@index([shopId, orderId])
   // P0-03: Index for checkoutToken lookup
   @@index([shopId, checkoutToken])
+  // P1-1: Additional index for checkoutToken-only lookups
+  @@index([checkoutToken])
 }
 
 // P0-5: Webhook processing log for idempotency
@@ -474,6 +486,10 @@ model ConversionJob {
   // NO raw PII (email/phone/address) - only hashed versions if needed
   capiInput    Json?    // Minimal fields for CAPI sending
 
+  // P0-4: Consent and trust audit trail
+  consentEvidence Json? // {strategy, usedConsent, hasReceipt, receiptTrusted, reason}
+  trustMetadata   Json? // {trustLevel, reason, verifiedAt}
+
   // Job status
   // queued: waiting to be processed
   // processing: currently being processed
@@ -503,6 +519,20 @@ model ConversionJob {
   @@index([status])
   @@index([status, nextRetryAt])
   @@index([createdAt])
+}
+
+// P0-3: Event nonce for replay prevention
+// Short-lived records to prevent same event from being processed multiple times
+model EventNonce {
+  id        String   @id @default(cuid())
+  shopId    String
+  nonce     String   // Unique nonce value (orderId + eventType hash)
+  eventType String   // checkout_completed, etc.
+  createdAt DateTime @default(now())
+  expiresAt DateTime // When this nonce expires (typically 1 hour)
+
+  @@unique([shopId, nonce, eventType])
+  @@index([expiresAt]) // For cleanup job
 }
 
 // P0-07 & P0-08: GDPR Job Queue for async processing

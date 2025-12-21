@@ -18,6 +18,7 @@ import {
   handleCorsPreFlight,
   addCorsHeaders,
 } from "../utils/cors";
+import { extractOriginHost, type TrustLevel } from "../utils/receipt-trust";
 
 import { logger, metrics } from "../utils/logger";
 
@@ -397,10 +398,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    // P0-2: Trust is now based primarily on ingestion key validation
-    // Since we allow custom domains, origin check is secondary
-    // A request is trusted if the ingestion key matches
+    // P0-1: Determine trust level based on verification results
+    // Trust levels: trusted (key matched), partial (key matched but issues), untrusted
     const isTrusted = keyValidation.matched;
+    let trustLevel: TrustLevel = keyValidation.matched ? "partial" : "untrusted";
+    let untrustedReason: string | undefined;
+    
+    // P0-2: Extract origin host for audit trail
+    const originHost = extractOriginHost(origin);
+
+    // P0-1: Checkout token is required for full trust
+    // If present, will be verified against webhook later
+    if (keyValidation.matched && payload.data.checkoutToken) {
+      // Will be promoted to "trusted" after webhook verification
+      trustLevel = "partial";
+    } else if (!keyValidation.matched) {
+      trustLevel = "untrusted";
+      untrustedReason = keyValidation.reason || "ingestion_key_invalid";
+    } else if (!payload.data.checkoutToken) {
+      trustLevel = "partial";
+      untrustedReason = "missing_checkout_token";
+    }
 
     const rawOrderId = payload.data.orderId;
     const checkoutToken = payload.data.checkoutToken;
@@ -459,6 +477,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }, { request });
     }
 
+    // P0-3: Check for replay using nonce (order + timestamp hash)
+    const nonceValue = `${orderId}:${payload.timestamp}`;
+    const nonceExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    
+    try {
+      // Try to create nonce - if it already exists, this is a replay
+      await prisma.eventNonce.create({
+        data: {
+          shopId: shop.id,
+          nonce: nonceValue,
+          eventType: "purchase",
+          expiresAt: nonceExpiresAt,
+        },
+      });
+    } catch (nonceError) {
+      // Unique constraint violation = replay detected
+      if ((nonceError as { code?: string })?.code === "P2002") {
+        logger.debug(`Replay detected for order ${orderId}, dropping duplicate`);
+        metrics.pixelRejection({
+          shopDomain: shop.shopDomain,
+          reason: "replay_detected",
+          originType: "nonce_collision",
+        });
+        return new Response(null, {
+          status: 204,
+          headers: getCorsHeaders(request),
+        });
+      }
+      // Other errors - log but continue
+      logger.warn(`Nonce check failed: ${String(nonceError)}`);
+    }
+
     try {
       await prisma.pixelEventReceipt.upsert({
         where: {
@@ -479,6 +529,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           isTrusted: isTrusted,
           signatureStatus: keyValidation.matched ? "key_matched" : keyValidation.reason,
           usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
+          // P0-1: Enhanced trust tracking
+          trustLevel: trustLevel,
+          untrustedReason: untrustedReason,
+          originHost: originHost,
         },
         update: {
           eventId,
@@ -488,6 +542,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           isTrusted: isTrusted,
           signatureStatus: keyValidation.matched ? "key_matched" : keyValidation.reason,
           usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
+          // P0-1: Enhanced trust tracking
+          trustLevel: trustLevel,
+          untrustedReason: untrustedReason,
+          originHost: originHost,
         },
       });
     } catch (error) {

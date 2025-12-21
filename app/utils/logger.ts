@@ -323,17 +323,75 @@ export const metrics = {
   },
 
   /**
-   * P3-3: Track pixel request rejections by reason for monitoring
+   * P1-4 & P3-3: Track pixel request rejections by reason for monitoring.
+   * 
+   * These metrics are critical for observability since many rejections
+   * return silent 204 responses to avoid leaking information.
    */
   pixelRejection(context: {
     requestId?: string;
     shopDomain: string;
-    reason: "invalid_origin" | "invalid_key" | "invalid_timestamp" | "body_too_large" | "invalid_payload" | "rate_limited";
+    reason: 
+      | "invalid_origin" 
+      | "invalid_key" 
+      | "invalid_timestamp" 
+      | "body_too_large" 
+      | "invalid_payload" 
+      | "rate_limited"
+      | "replay_detected"
+      | "shop_not_found"
+      | "shop_inactive"
+      | "no_ingestion_key";
     originType?: string;
+    /** P1-4: Fingerprint for pattern analysis (no PII) */
+    fingerprint?: string;
   }): void {
     logger.info(`[METRIC] pixel_rejection`, {
       ...context,
       _metric: "pixel_rejection",
+      _severity: context.reason === "rate_limited" || context.reason === "replay_detected" ? "warning" : "info",
+    });
+  },
+
+  /**
+   * P1-4: Track silent 204 drops with detailed reason for debugging.
+   * 
+   * These are requests that were intentionally dropped without error response.
+   * Useful for security monitoring and debugging legitimate issues.
+   */
+  silentDrop(context: {
+    requestId?: string;
+    shopDomain?: string;
+    reason: string;
+    category: "security" | "validation" | "duplicate" | "rate_limit";
+    /** Sample rate for high-volume drops (0-1) */
+    sampleRate?: number;
+  }): void {
+    // Only log based on sample rate (default 100%)
+    const rate = context.sampleRate ?? 1;
+    if (Math.random() > rate) return;
+
+    logger.info(`[METRIC] silent_drop`, {
+      ...context,
+      _metric: "silent_drop",
+      sampled: rate < 1,
+    });
+  },
+
+  /**
+   * P1-4: Track trust verification outcomes
+   */
+  trustVerification(context: {
+    shopDomain: string;
+    orderId: string;
+    trustLevel: "trusted" | "partial" | "untrusted";
+    reason?: string;
+    checkoutTokenMatch: boolean;
+    hasReceipt: boolean;
+  }): void {
+    logger.info(`[METRIC] trust_verification`, {
+      ...context,
+      _metric: "trust_verification",
     });
   },
 

@@ -22,6 +22,12 @@ import {
   getEffectiveConsentCategory,
   type ConsentState,
 } from "../utils/platform-consent";
+import {
+  verifyReceiptTrust,
+  isSendAllowedByTrust,
+  buildTrustMetadata,
+  type ReceiptTrustResult,
+} from "../utils/receipt-trust";
 
 export type FailureReason = 
   | "token_expired"     
@@ -737,8 +743,9 @@ export async function processConversionJobs(): Promise<{
 
       const eventId = generateEventId(job.orderId, "purchase", job.shop.shopDomain);
 
+      // P0-1: Get webhook checkout_token for trust verification
       const capiInputRaw = job.capiInput as { checkoutToken?: string } | null;
-      const checkoutToken = capiInputRaw?.checkoutToken;
+      const webhookCheckoutToken = capiInputRaw?.checkoutToken;
       
       let receipt = await prisma.pixelEventReceipt.findUnique({
         where: {
@@ -753,14 +760,16 @@ export async function processConversionJobs(): Promise<{
           isTrusted: true,
           checkoutToken: true,
           orderId: true,
+          trustLevel: true,
+          signatureStatus: true,
         },
       });
 
-      if (!receipt && checkoutToken) {
+      if (!receipt && webhookCheckoutToken) {
         receipt = await prisma.pixelEventReceipt.findFirst({
           where: {
             shopId: job.shopId,
-            checkoutToken: checkoutToken,
+            checkoutToken: webhookCheckoutToken,
             eventType: "purchase",
           },
           select: { 
@@ -768,11 +777,13 @@ export async function processConversionJobs(): Promise<{
             isTrusted: true,
             checkoutToken: true,
             orderId: true,
+            trustLevel: true,
+            signatureStatus: true,
           },
         });
       }
 
-      if (!receipt && checkoutToken) {
+      if (!receipt && webhookCheckoutToken) {
         const potentialReceipts = await prisma.pixelEventReceipt.findMany({
           where: {
             shopId: job.shopId,
@@ -787,13 +798,15 @@ export async function processConversionJobs(): Promise<{
             isTrusted: true,
             checkoutToken: true,
             orderId: true,
+            trustLevel: true,
+            signatureStatus: true,
           },
           take: 10,
         });
         
         for (const candidate of potentialReceipts) {
           if (matchKeysEqual(
-            { orderId: job.orderId, checkoutToken },
+            { orderId: job.orderId, checkoutToken: webhookCheckoutToken },
             { orderId: candidate.orderId, checkoutToken: candidate.checkoutToken }
           )) {
             receipt = candidate;
@@ -802,26 +815,86 @@ export async function processConversionJobs(): Promise<{
         }
       }
       
+      // P0-1: Verify receipt trust against webhook data
+      const trustResult: ReceiptTrustResult = verifyReceiptTrust({
+        receiptCheckoutToken: receipt?.checkoutToken,
+        webhookCheckoutToken: webhookCheckoutToken,
+        ingestionKeyMatched: receipt?.signatureStatus === "key_matched",
+        receiptExists: !!receipt,
+      });
+
+      // P0-1: Update receipt trust level if we now have webhook verification
+      if (receipt && webhookCheckoutToken && receipt.checkoutToken === webhookCheckoutToken) {
+        // Promote trust level to "trusted" since checkout tokens match
+        try {
+          await prisma.pixelEventReceipt.update({
+            where: {
+              shopId_orderId_eventType: {
+                shopId: job.shopId,
+                orderId: receipt.orderId,
+                eventType: "purchase",
+              },
+            },
+            data: {
+              trustLevel: trustResult.level,
+              untrustedReason: trustResult.reason,
+            },
+          });
+        } catch {
+          // Non-critical, continue processing
+        }
+      }
+      
       const consentState = receipt?.consentState as { 
         marketing?: boolean; 
         analytics?: boolean; 
       } | null;
 
+      // P0-4: Build trust metadata for audit trail
+      const trustMetadata = buildTrustMetadata(trustResult, {
+        hasReceipt: !!receipt,
+        receiptTrustLevel: receipt?.trustLevel,
+        webhookHasCheckoutToken: !!webhookCheckoutToken,
+      });
+
       const platformResults: Record<string, string> = {};
       let allSucceeded = true;
       let anySucceeded = false;
       
+      // P0-4: Get consent strategy at job level for audit
+      const strategy = job.shop.consentStrategy || "strict";
+      
       for (const pixelConfig of job.shop.pixelConfigs) {
-        const strategy = job.shop.consentStrategy || "strict";
         
         const clientConfig = pixelConfig.clientConfig as { treatAsMarketing?: boolean } | null;
         const treatAsMarketing = clientConfig?.treatAsMarketing === true;
+        const platformCategory = getEffectiveConsentCategory(pixelConfig.platform, treatAsMarketing);
+
+        // P0-1: Check trust-based sending first
+        const trustAllowed = isSendAllowedByTrust(
+          trustResult,
+          pixelConfig.platform,
+          platformCategory,
+          strategy
+        );
+
+        if (!trustAllowed.allowed) {
+          logger.debug(
+            `[P0-01] Skipping ${pixelConfig.platform} for job ${job.id}: ` +
+            `trust check failed - ${trustAllowed.reason}`
+          );
+          platformResults[pixelConfig.platform] = `skipped:trust_${trustAllowed.reason}`;
+          continue;
+        }
+
+        // P0-1: Use trust-verified receipt presence instead of just !!receipt
+        const hasVerifiedReceipt = trustResult.trusted || trustResult.level === "partial";
 
         const consentDecision = evaluatePlatformConsentWithStrategy(
           pixelConfig.platform,
           strategy,
           consentState as ConsentState | null,
-          !!receipt,
+          hasVerifiedReceipt,
           treatAsMarketing
         );
 
@@ -839,7 +912,8 @@ export async function processConversionJobs(): Promise<{
         
         logger.debug(
           `[P0-07] Consent check passed for ${pixelConfig.platform} (job ${job.id}): ` +
-          `strategy=${strategy}, usedConsent=${consentDecision.usedConsent}`
+          `strategy=${strategy}, usedConsent=${consentDecision.usedConsent}, ` +
+          `trustLevel=${trustResult.level}`
         );
         try {
           
@@ -948,6 +1022,15 @@ export async function processConversionJobs(): Promise<{
             completedAt: now,
             platformResults,
             errorMessage: null,
+            // P0-4: Store trust and consent audit trail
+            trustMetadata: trustMetadata,
+            consentEvidence: {
+              strategy,
+              hasReceipt: !!receipt,
+              receiptTrusted: trustResult.trusted,
+              trustLevel: trustResult.level,
+              consentState: consentState || null,
+            },
           },
         });
 
