@@ -26,10 +26,56 @@ interface ShopRedactPayload {
   shop_domain?: string;
 }
 
+/**
+ * Exported conversion log data structure (GDPR Article 20 compliant)
+ */
+interface ExportedConversionLog {
+  orderId: string;
+  orderNumber: string | null;
+  orderValue: number;
+  currency: string;
+  platform: string;
+  eventType: string;
+  status: string;
+  clientSideSent: boolean;
+  serverSideSent: boolean;
+  createdAt: string;
+  sentAt: string | null;
+}
+
+/**
+ * Exported survey response data structure (GDPR Article 20 compliant)
+ */
+interface ExportedSurveyResponse {
+  orderId: string;
+  orderNumber: string | null;
+  rating: number | null;
+  source: string | null;
+  feedback: string | null;
+  createdAt: string;
+}
+
+/**
+ * Exported pixel event receipt data structure (GDPR Article 20 compliant)
+ */
+interface ExportedPixelEventReceipt {
+  orderId: string;
+  eventType: string;
+  eventId: string;
+  consentState: {
+    marketing?: boolean;
+    analytics?: boolean;
+  } | null;
+  isTrusted: boolean;
+  pixelTimestamp: string | null;
+  createdAt: string;
+}
+
 interface DataRequestResult {
   dataRequestId?: number;
   customerId?: number;
   ordersIncluded: number[];
+  /** Summary of data located */
   dataLocated: {
     conversionLogs: {
       count: number;
@@ -44,7 +90,18 @@ interface DataRequestResult {
       recordIds: string[];
     };
   };
+  /** 
+   * Full data export in portable JSON format (GDPR Article 20 compliant).
+   * Contains all personal data associated with the requested orders.
+   */
+  exportedData: {
+    conversionLogs: ExportedConversionLog[];
+    surveyResponses: ExportedSurveyResponse[];
+    pixelEventReceipts: ExportedPixelEventReceipt[];
+  };
   exportedAt: string;
+  exportFormat: "json";
+  exportVersion: "1.0";
 }
 
 interface CustomerRedactResult {
@@ -107,12 +164,20 @@ async function processDataRequest(
         surveyResponses: { count: 0, recordIds: [] },
         pixelEventReceipts: { count: 0, recordIds: [] },
       },
+      exportedData: {
+        conversionLogs: [],
+        surveyResponses: [],
+        pixelEventReceipts: [],
+      },
       exportedAt: new Date().toISOString(),
+      exportFormat: "json",
+      exportVersion: "1.0",
     };
   }
 
   const orderIdStrings = ordersRequested.map(id => String(id));
 
+  // Fetch full data for GDPR Article 20 compliant export
   const conversionLogs = await prisma.conversionLog.findMany({
     where: {
       shopId: shop.id,
@@ -122,9 +187,13 @@ async function processDataRequest(
       id: true,
       orderId: true,
       orderNumber: true,
+      orderValue: true,
+      currency: true,
       platform: true,
       eventType: true,
       status: true,
+      clientSideSent: true,
+      serverSideSent: true,
       createdAt: true,
       sentAt: true,
     },
@@ -141,8 +210,8 @@ async function processDataRequest(
       orderNumber: true,
       rating: true,
       source: true,
+      feedback: true,
       createdAt: true,
-      
     },
   });
 
@@ -155,10 +224,47 @@ async function processDataRequest(
       id: true,
       orderId: true,
       eventType: true,
+      eventId: true,
       consentState: true,
-      createdAt: true,      
+      isTrusted: true,
+      pixelTimestamp: true,
+      createdAt: true,
     },
   });
+
+  // Transform to portable export format
+  const exportedConversionLogs: ExportedConversionLog[] = conversionLogs.map(log => ({
+    orderId: log.orderId,
+    orderNumber: log.orderNumber,
+    orderValue: log.orderValue,
+    currency: log.currency,
+    platform: log.platform,
+    eventType: log.eventType,
+    status: log.status,
+    clientSideSent: log.clientSideSent,
+    serverSideSent: log.serverSideSent,
+    createdAt: log.createdAt.toISOString(),
+    sentAt: log.sentAt?.toISOString() ?? null,
+  }));
+
+  const exportedSurveyResponses: ExportedSurveyResponse[] = surveyResponses.map(survey => ({
+    orderId: survey.orderId,
+    orderNumber: survey.orderNumber,
+    rating: survey.rating,
+    source: survey.source,
+    feedback: survey.feedback,
+    createdAt: survey.createdAt.toISOString(),
+  }));
+
+  const exportedPixelReceipts: ExportedPixelEventReceipt[] = pixelReceipts.map(receipt => ({
+    orderId: receipt.orderId,
+    eventType: receipt.eventType,
+    eventId: receipt.eventId,
+    consentState: receipt.consentState as { marketing?: boolean; analytics?: boolean } | null,
+    isTrusted: receipt.isTrusted,
+    pixelTimestamp: receipt.pixelTimestamp?.toISOString() ?? null,
+    createdAt: receipt.createdAt.toISOString(),
+  }));
   
   const result: DataRequestResult = {
     dataRequestId,
@@ -178,7 +284,14 @@ async function processDataRequest(
         recordIds: pixelReceipts.map(receipt => receipt.id),
       },
     },
+    exportedData: {
+      conversionLogs: exportedConversionLogs,
+      surveyResponses: exportedSurveyResponses,
+      pixelEventReceipts: exportedPixelReceipts,
+    },
     exportedAt: new Date().toISOString(),
+    exportFormat: "json",
+    exportVersion: "1.0",
   };
   
   logger.info(`[GDPR] Data request completed for ${shopDomain}`, {
@@ -186,6 +299,8 @@ async function processDataRequest(
     conversionLogs: result.dataLocated.conversionLogs.count,
     surveyResponses: result.dataLocated.surveyResponses.count,
     pixelEventReceipts: result.dataLocated.pixelEventReceipts.count,
+    exportFormat: result.exportFormat,
+    exportVersion: result.exportVersion,
   });
   
   return result;

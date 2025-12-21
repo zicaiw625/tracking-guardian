@@ -604,6 +604,62 @@ export async function processRetries(): Promise<{
   return { processed: logsToRetry.length, succeeded, failed, limitExceeded };
 }
 
+/**
+ * Atomically claim jobs for processing using PostgreSQL's FOR UPDATE SKIP LOCKED.
+ * This prevents race conditions where multiple workers try to process the same job.
+ * 
+ * @returns Array of job IDs that were successfully claimed by this worker
+ */
+async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
+  const now = new Date();
+  
+  // Use a transaction with FOR UPDATE SKIP LOCKED to atomically:
+  // 1. Select available jobs (skipping any locked by other workers)
+  // 2. Update their status to 'processing'
+  // 3. Return the claimed job IDs
+  //
+  // This is the proper way to implement distributed job processing
+  // without race conditions.
+  const claimedIds = await prisma.$transaction(async (tx) => {
+    // Use raw query to leverage FOR UPDATE SKIP LOCKED
+    // This atomically locks the selected rows, preventing other workers from claiming them
+    const availableJobs = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "ConversionJob"
+      WHERE (
+        status = 'queued'
+        OR (
+          status = 'failed'
+          AND "nextRetryAt" <= ${now}
+          AND attempts < "maxAttempts"
+        )
+      )
+      ORDER BY "createdAt" ASC
+      LIMIT ${batchSize}
+      FOR UPDATE SKIP LOCKED
+    `;
+    
+    if (availableJobs.length === 0) {
+      return [];
+    }
+    
+    const jobIds = availableJobs.map(j => j.id);
+    
+    // Update all claimed jobs to 'processing' status
+    await tx.conversionJob.updateMany({
+      where: { id: { in: jobIds } },
+      data: { status: "processing" },
+    });
+    
+    return jobIds;
+  }, {
+    // Use serializable isolation for maximum safety (optional, READ COMMITTED is usually sufficient)
+    // isolationLevel: 'Serializable',
+    timeout: 10000, // 10 second timeout for the transaction
+  });
+  
+  return claimedIds;
+}
+
 export async function processConversionJobs(): Promise<{
   processed: number;
   succeeded: number;
@@ -614,16 +670,20 @@ export async function processConversionJobs(): Promise<{
   const now = new Date();
   const batchSize = 50;
 
+  // Step 1: Atomically claim jobs using FOR UPDATE SKIP LOCKED
+  const claimedJobIds = await claimJobsForProcessing(batchSize);
+  
+  if (claimedJobIds.length === 0) {
+    logger.debug("processConversionJobs: No jobs to process");
+    return { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0, skipped: 0 };
+  }
+  
+  logger.info(`processConversionJobs: Claimed ${claimedJobIds.length} jobs for processing`);
+
+  // Step 2: Fetch the full job data for claimed jobs
   const jobsToProcess = await prisma.conversionJob.findMany({
     where: {
-      OR: [
-        { status: "queued" },
-        {
-          status: "failed",
-          nextRetryAt: { lte: now },
-          attempts: { lt: prisma.conversionJob.fields.maxAttempts },
-        },
-      ],
+      id: { in: claimedJobIds },
     },
     include: {
       shop: {
@@ -647,16 +707,7 @@ export async function processConversionJobs(): Promise<{
         },
       },
     },
-    take: batchSize,
-    orderBy: { createdAt: "asc" },
   });
-  
-  if (jobsToProcess.length === 0) {
-    logger.debug("processConversionJobs: No jobs to process");
-    return { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0, skipped: 0 };
-  }
-  
-  logger.info(`processConversionJobs: Processing ${jobsToProcess.length} jobs`);
   
   let succeeded = 0;
   let failed = 0;
@@ -665,20 +716,8 @@ export async function processConversionJobs(): Promise<{
   
   for (const job of jobsToProcess) {
     try {
-
-      const lockResult = await prisma.conversionJob.updateMany({
-        where: {
-          id: job.id,
-          status: { in: ["queued", "failed"] }, 
-        },
-        data: { status: "processing" },
-      });
-
-      if (lockResult.count === 0) {
-        logger.debug(`[P1-02] Job ${job.id} already being processed by another worker, skipping`);
-        skipped++;
-        continue;
-      }
+      // Job is already locked and marked as 'processing' by claimJobsForProcessing()
+      // No need for additional locking here
 
       const billingCheck = await checkBillingGate(
         job.shopId,

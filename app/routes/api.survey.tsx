@@ -1,33 +1,29 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import prisma from "../db.server";
 import type { SurveyResponseData } from "../types";
-import { checkRateLimitAsync, createRateLimitResponse, SECURITY_HEADERS } from "../utils/rate-limiter";
+import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limiter";
 import {
   verifyShopifyJwt,
   extractAuthToken,
   getShopifyApiSecret,
 } from "../utils/shopify-jwt";
+import {
+  STATIC_CORS_HEADERS,
+  jsonWithCors as jsonWithCorsBase,
+  handleCorsPreFlight,
+  addCorsHeaders,
+} from "../utils/cors";
 
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Shopify-Shop-Domain",
-  "Access-Control-Max-Age": "86400",
-  ...SECURITY_HEADERS,
-};
+// Use the shared static CORS headers for survey endpoint
+const CORS_HEADERS = STATIC_CORS_HEADERS;
 
 function jsonWithCors<T>(data: T, init?: ResponseInit): Response {
-  const headers = new Headers(init?.headers);
-  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
-    headers.set(key, value);
-  });
-  
-  return json(data, {
+  return jsonWithCorsBase(data, {
     ...init,
-    headers,
+    staticCors: true,
+    headers: init?.headers as HeadersInit | undefined,
   });
 }
 

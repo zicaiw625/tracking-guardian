@@ -1,13 +1,52 @@
 import { register } from "@shopify/web-pixels-extension";
 
-const BACKEND_URL = "https://tracking-guardian.onrender.com";
+/** Default production backend URL */
+const DEFAULT_BACKEND_URL = "https://tracking-guardian.onrender.com";
 
+/**
+ * Allowed URL patterns for security - prevents data exfiltration to arbitrary endpoints.
+ * Only URLs matching these patterns are accepted as valid backend targets.
+ */
 const ALLOWED_URL_PATTERNS = [
   /^https:\/\/tracking-guardian\.onrender\.com$/,
   /^https:\/\/tracking-guardian-staging\.onrender\.com$/,
   /^https?:\/\/localhost:\d+$/,
   /^https?:\/\/127\.0\.0\.1:\d+$/,
 ];
+
+/**
+ * Validates that a URL matches one of the allowed patterns.
+ * This is a security measure to prevent merchants from configuring
+ * arbitrary data exfiltration endpoints.
+ */
+function isAllowedBackendUrl(url: string): boolean {
+  return ALLOWED_URL_PATTERNS.some((pattern) => pattern.test(url));
+}
+
+/**
+ * Get the backend URL from settings with validation.
+ * Falls back to default production URL if settings URL is invalid or not provided.
+ */
+function getValidatedBackendUrl(settings: { backend_url?: string }): string {
+  const configuredUrl = settings.backend_url?.trim();
+  
+  if (!configuredUrl) {
+    return DEFAULT_BACKEND_URL;
+  }
+  
+  // Validate against allowed patterns for security
+  if (isAllowedBackendUrl(configuredUrl)) {
+    return configuredUrl;
+  }
+  
+  // Log warning in development (console visible in browser DevTools)
+  console.warn(
+    "[Tracking Guardian] Configured backend_url does not match allowed patterns. " +
+    "Using default URL. Configured: " + configuredUrl
+  );
+  
+  return DEFAULT_BACKEND_URL;
+}
 
 interface CheckoutData {
   order?: { id?: string };
@@ -42,7 +81,7 @@ function toNumber(value: string | number | undefined | null, defaultValue = 0): 
 
 register(({ analytics, settings, init, customerPrivacy }: any) => {
   
-  const backendUrl = BACKEND_URL;
+  const backendUrl = getValidatedBackendUrl(settings);
 
   const ingestionKey = (settings.ingestion_key || settings.ingestion_secret) as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";

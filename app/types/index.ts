@@ -75,6 +75,8 @@ export interface RiskItem {
   points: number;
   details?: string;
   platform?: string;
+  /** Optional impact description for display in UI */
+  impact?: string;
 }
 
 export interface ScanResult {

@@ -101,12 +101,14 @@ export default function MonitorPage() {
     useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 
-  const summaryData = summary as unknown as Record<string, DeliverySummary>;
-  const historyData = (history as unknown as DeliveryHealthReport[]).map((h) => ({
-    ...h,
-    reportDate: new Date(h.reportDate),
-  }));
-  const statsData = conversionStats as ConversionStat[] | null;
+  // Type assertion for loader data with proper null handling
+  const summaryData: Record<string, DeliverySummary> = (summary ?? {}) as Record<string, DeliverySummary>;
+  const historyData: Array<DeliveryHealthReport & { reportDate: Date }> = 
+    ((history ?? []) as DeliveryHealthReport[]).map((h) => ({
+      ...h,
+      reportDate: new Date(h.reportDate),
+    }));
+  const statsData: ConversionStat[] | null = conversionStats as ConversionStat[] | null;
 
   const calculateHealthScore = (): number | null => {
     const platforms = Object.keys(summaryData);

@@ -18,6 +18,57 @@ function generateRequestId(): string {
 
 const REPLAY_PROTECTION_WINDOW_MS = 5 * 60 * 1000;
 
+/**
+ * Batch size for deletion operations.
+ * Smaller batches prevent database blocking and timeouts.
+ */
+const CLEANUP_BATCH_SIZE = 1000;
+
+/**
+ * Maximum number of batches to process per cleanup run.
+ * This prevents the cleanup from running too long.
+ */
+const MAX_BATCHES_PER_RUN = 10;
+
+/**
+ * Deletes records in batches to avoid blocking the database.
+ * Returns the total number of records deleted.
+ */
+async function batchDelete<T extends { id: string }>(
+  tableName: string,
+  findQuery: () => Promise<T[]>,
+  deleteByIds: (ids: string[]) => Promise<{ count: number }>
+): Promise<number> {
+  let totalDeleted = 0;
+  let batchCount = 0;
+  
+  while (batchCount < MAX_BATCHES_PER_RUN) {
+    const records = await findQuery();
+    
+    if (records.length === 0) {
+      break;
+    }
+    
+    const ids = records.map(r => r.id);
+    const result = await deleteByIds(ids);
+    totalDeleted += result.count;
+    batchCount++;
+    
+    logger.debug(`[Cleanup] Deleted ${result.count} ${tableName} (batch ${batchCount})`);
+    
+    // If we got fewer records than the batch size, we're done
+    if (records.length < CLEANUP_BATCH_SIZE) {
+      break;
+    }
+  }
+  
+  if (batchCount >= MAX_BATCHES_PER_RUN) {
+    logger.info(`[Cleanup] ${tableName}: Reached max batch limit, more records may remain`);
+  }
+  
+  return totalDeleted;
+}
+
 async function cleanupExpiredData(): Promise<{
   shopsProcessed: number;
   conversionLogsDeleted: number;
@@ -33,6 +84,7 @@ async function cleanupExpiredData(): Promise<{
   const gdprCutoff = new Date();
   gdprCutoff.setDate(gdprCutoff.getDate() - 30);
   
+  // GDPR jobs are typically small, can use regular deleteMany
   const gdprJobResult = await prisma.gDPRJob.deleteMany({
     where: {
       status: { in: ["completed", "failed"] },
@@ -83,69 +135,126 @@ async function cleanupExpiredData(): Promise<{
     const auditCutoff = new Date();
     auditCutoff.setDate(auditCutoff.getDate() - Math.max(retentionDays, 180));
 
+    // Use batched deletion for large tables to prevent database blocking
     const [
-      conversionResult,
-      surveyResult,
-      auditResult,
-      conversionJobResult,
-      pixelReceiptResult,
-      webhookLogResult,
-      reconciliationResult,
+      conversionLogsCount,
+      surveyResponsesCount,
+      auditLogsCount,
+      conversionJobsCount,
+      pixelReceiptsCount,
+      webhookLogsCount,
+      reconciliationCount,
     ] = await Promise.all([
-      prisma.conversionLog.deleteMany({
-        where: {
-          shopId: { in: shopIds },
-          createdAt: { lt: cutoffDate },
-          status: { in: ["sent", "dead_letter"] },
-        },
-      }),
-      prisma.surveyResponse.deleteMany({
-        where: {
-          shopId: { in: shopIds },
-          createdAt: { lt: cutoffDate },
-        },
-      }),
-      prisma.auditLog.deleteMany({
-        where: {
-          shopId: { in: shopIds },
-          createdAt: { lt: auditCutoff },
-        },
-      }),
-      prisma.conversionJob.deleteMany({
-        where: {
-          shopId: { in: shopIds },
-          createdAt: { lt: cutoffDate },
-          status: { in: ["completed", "dead_letter"] },
-        },
-      }),
-      prisma.pixelEventReceipt.deleteMany({
-        where: {
-          shopId: { in: shopIds },
-          createdAt: { lt: cutoffDate },
-        },
-      }),
-      prisma.webhookLog.deleteMany({
-        where: {
-          shopDomain: { in: shopDomains },
-          receivedAt: { lt: cutoffDate },
-        },
-      }),
-      prisma.reconciliationReport.deleteMany({
-        where: {
-          shopId: { in: shopIds },
-          createdAt: { lt: cutoffDate },
-        },
-      }),
+      // ConversionLog - potentially large, use batch delete
+      batchDelete(
+        "ConversionLog",
+        () => prisma.conversionLog.findMany({
+          where: {
+            shopId: { in: shopIds },
+            createdAt: { lt: cutoffDate },
+            status: { in: ["sent", "dead_letter"] },
+          },
+          select: { id: true },
+          take: CLEANUP_BATCH_SIZE,
+        }),
+        (ids) => prisma.conversionLog.deleteMany({ where: { id: { in: ids } } })
+      ),
+      
+      // SurveyResponse - typically smaller, but use batch for safety
+      batchDelete(
+        "SurveyResponse",
+        () => prisma.surveyResponse.findMany({
+          where: {
+            shopId: { in: shopIds },
+            createdAt: { lt: cutoffDate },
+          },
+          select: { id: true },
+          take: CLEANUP_BATCH_SIZE,
+        }),
+        (ids) => prisma.surveyResponse.deleteMany({ where: { id: { in: ids } } })
+      ),
+      
+      // AuditLog - can be large, use batch delete
+      batchDelete(
+        "AuditLog",
+        () => prisma.auditLog.findMany({
+          where: {
+            shopId: { in: shopIds },
+            createdAt: { lt: auditCutoff },
+          },
+          select: { id: true },
+          take: CLEANUP_BATCH_SIZE,
+        }),
+        (ids) => prisma.auditLog.deleteMany({ where: { id: { in: ids } } })
+      ),
+      
+      // ConversionJob - potentially large, use batch delete
+      batchDelete(
+        "ConversionJob",
+        () => prisma.conversionJob.findMany({
+          where: {
+            shopId: { in: shopIds },
+            createdAt: { lt: cutoffDate },
+            status: { in: ["completed", "dead_letter"] },
+          },
+          select: { id: true },
+          take: CLEANUP_BATCH_SIZE,
+        }),
+        (ids) => prisma.conversionJob.deleteMany({ where: { id: { in: ids } } })
+      ),
+      
+      // PixelEventReceipt - can be large, use batch delete
+      batchDelete(
+        "PixelEventReceipt",
+        () => prisma.pixelEventReceipt.findMany({
+          where: {
+            shopId: { in: shopIds },
+            createdAt: { lt: cutoffDate },
+          },
+          select: { id: true },
+          take: CLEANUP_BATCH_SIZE,
+        }),
+        (ids) => prisma.pixelEventReceipt.deleteMany({ where: { id: { in: ids } } })
+      ),
+      
+      // WebhookLog - can be large, use batch delete
+      batchDelete(
+        "WebhookLog",
+        () => prisma.webhookLog.findMany({
+          where: {
+            shopDomain: { in: shopDomains },
+            receivedAt: { lt: cutoffDate },
+          },
+          select: { id: true },
+          take: CLEANUP_BATCH_SIZE,
+        }),
+        (ids) => prisma.webhookLog.deleteMany({ where: { id: { in: ids } } })
+      ),
+      
+      // ReconciliationReport - typically smaller
+      batchDelete(
+        "ReconciliationReport",
+        () => prisma.reconciliationReport.findMany({
+          where: {
+            shopId: { in: shopIds },
+            createdAt: { lt: cutoffDate },
+          },
+          select: { id: true },
+          take: CLEANUP_BATCH_SIZE,
+        }),
+        (ids) => prisma.reconciliationReport.deleteMany({ where: { id: { in: ids } } })
+      ),
     ]);
 
-    totalConversionLogs += conversionResult.count;
-    totalSurveyResponses += surveyResult.count;
-    totalAuditLogs += auditResult.count;
-    totalConversionJobs += conversionJobResult.count;
-    totalPixelEventReceipts += pixelReceiptResult.count;
-    totalWebhookLogs += webhookLogResult.count;
-    totalReconciliationReports += reconciliationResult.count;
+    totalConversionLogs += conversionLogsCount;
+    totalSurveyResponses += surveyResponsesCount;
+    totalAuditLogs += auditLogsCount;
+    totalConversionJobs += conversionJobsCount;
+    totalPixelEventReceipts += pixelReceiptsCount;
+    totalWebhookLogs += webhookLogsCount;
+    totalReconciliationReports += reconciliationCount;
 
+    // ScanReports - keep only last N per shop (small numbers, no batching needed)
     for (const shop of shopsInGroup) {
       const scanReportsToKeep = 5;
       const oldScanReports = await prisma.scanReport.findMany({
@@ -163,9 +272,9 @@ async function cleanupExpiredData(): Promise<{
     }
 
     const totalDeleted = 
-      conversionResult.count + surveyResult.count + auditResult.count +
-      conversionJobResult.count + pixelReceiptResult.count + webhookLogResult.count +
-      reconciliationResult.count;
+      conversionLogsCount + surveyResponsesCount + auditLogsCount +
+      conversionJobsCount + pixelReceiptsCount + webhookLogsCount +
+      reconciliationCount;
 
     if (totalDeleted > 0) {
       logger.info(
@@ -173,13 +282,13 @@ async function cleanupExpiredData(): Promise<{
         {
           shopsCount: shopsInGroup.length,
           retentionDays,
-          conversions: conversionResult.count,
-          surveys: surveyResult.count,
-          auditLogs: auditResult.count,
-          jobs: conversionJobResult.count,
-          receipts: pixelReceiptResult.count,
-          webhookLogs: webhookLogResult.count,
-          reconciliations: reconciliationResult.count,
+          conversions: conversionLogsCount,
+          surveys: surveyResponsesCount,
+          auditLogs: auditLogsCount,
+          jobs: conversionJobsCount,
+          receipts: pixelReceiptsCount,
+          webhookLogs: webhookLogsCount,
+          reconciliations: reconciliationCount,
         }
       );
     }

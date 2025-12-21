@@ -1,17 +1,21 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import prisma from "../db.server";
 import { generateEventId, generateMatchKey } from "../utils/crypto";
 import { checkRateLimitAsync, createRateLimitResponse, trackAnomaly } from "../utils/rate-limiter";
 import { checkCircuitBreaker } from "../utils/circuit-breaker";
-import { getShopForVerification } from "../utils/shop-access";
+import { getShopForVerification, timingSafeEquals } from "../utils/shop-access";
 import { isMarketingPlatform, isAnalyticsPlatform } from "../utils/platform-consent";
 import { 
   isValidShopifyOrigin, 
   isValidDevOrigin, 
   isDevMode,
-  validateOrigin,
 } from "../utils/origin-validation";
+import {
+  getDynamicCorsHeaders,
+  jsonWithCors as jsonWithCorsBase,
+  handleCorsPreFlight,
+  addCorsHeaders,
+} from "../utils/cors";
 
 import { logger } from "../utils/logger";
 
@@ -26,68 +30,22 @@ const CIRCUIT_BREAKER_CONFIG = {
   windowMs: 60 * 1000,  
 };
 
+/** Custom headers allowed for pixel events */
+const PIXEL_CUSTOM_HEADERS = [
+  "X-Tracking-Guardian-Key",
+  "X-Tracking-Guardian-Timestamp",
+];
+
 function getCorsHeaders(request: Request): HeadersInit {
-  const origin = request.headers.get("Origin");
-
-  const baseSecurityHeaders = {
-    "X-Content-Type-Options": "nosniff",
-  };
-
-  if (origin === "null") {
-    return {
-      ...baseSecurityHeaders,
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Key, X-Tracking-Guardian-Timestamp",
-      "Access-Control-Max-Age": "86400",
-      "Vary": "Origin",
-    };
-  }
-
-  if (!origin) {
-    return {
-      ...baseSecurityHeaders,
-      "Vary": "Origin",
-    };
-  }
-
-  if (isValidShopifyOrigin(origin)) {
-    return {
-      ...baseSecurityHeaders,
-      "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Key, X-Tracking-Guardian-Timestamp",
-      "Access-Control-Max-Age": "86400",
-      "Vary": "Origin",
-    };
-  }
-
-  if (isDevMode() && isValidDevOrigin(origin)) {
-    return {
-      ...baseSecurityHeaders,
-      "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-Tracking-Guardian-Key, X-Tracking-Guardian-Timestamp",
-      "Access-Control-Max-Age": "86400",
-      "Vary": "Origin",
-    };
-  }
-
-  return {
-    ...baseSecurityHeaders,
-    "Vary": "Origin",
-  };
+  return getDynamicCorsHeaders(request, PIXEL_CUSTOM_HEADERS);
 }
 
 function jsonWithCors<T>(data: T, init: ResponseInit & { request: Request }): Response {
   const { request, ...responseInit } = init;
-  const corsHeaders = getCorsHeaders(request);
-  return json(data, {
+  return jsonWithCorsBase(data, {
     ...responseInit,
-    headers: {
-      ...corsHeaders,
-      ...(responseInit.headers || {}),
-    },
+    request,
+    headers: responseInit.headers as HeadersInit | undefined,
   });
 }
 
@@ -372,7 +330,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     } else {
       const { verifyWithGraceWindow } = await import("../utils/shop-access");
-      const matchResult = verifyWithGraceWindow(shop, (secret) => secret === ingestionKey);
+      const matchResult = verifyWithGraceWindow(shop, (secret) => timingSafeEquals(secret, ingestionKey));
       
       if (matchResult.matched) {
         keyValidation = { 

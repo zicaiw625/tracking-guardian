@@ -41,6 +41,7 @@ import {
   formatDeadlineForUI,
   type ShopTier 
 } from "../utils/deprecation-dates";
+import type { ScriptTag, RiskItem } from "../types";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -68,9 +69,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const shopTier: ShopTier = "unknown";
   
-  const hasScriptTags = ((latestScan?.scriptTags as unknown[]) || []).length > 0;
-  const hasOrderStatusScriptTags = ((latestScan?.scriptTags as Array<{ display_scope?: string }>) || [])
-    .some(tag => tag.display_scope === "order_status");
+  const scriptTags = (latestScan?.scriptTags as ScriptTag[] | null) || [];
+  const hasScriptTags = scriptTags.length > 0;
+  const hasOrderStatusScriptTags = scriptTags.some(tag => tag.display_scope === "order_status");
   
   const scriptTagStatus = getScriptTagDeprecationStatus();
   const additionalScriptsStatus = getAdditionalScriptsDeprecationStatus(shopTier);
@@ -209,8 +210,8 @@ export default function ScanPage() {
     return names[platform] || platform;
   };
 
-  const riskItems = (latestScan?.riskItems as any[]) || [];
-  const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
+  const riskItems = (latestScan?.riskItems as RiskItem[] | null) || [];
+  const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
 
   return (
     <Page
@@ -371,10 +372,10 @@ export default function ScanPage() {
                     <InlineStack align="space-between">
                       <Text as="span">已安装数量</Text>
                       <Text as="span" fontWeight="semibold">
-                        {(latestScan.scriptTags as any[])?.length || 0}
+                        {((latestScan.scriptTags as ScriptTag[] | null) || []).length}
                       </Text>
                     </InlineStack>
-                    {((latestScan.scriptTags as any[])?.length || 0) > 0 && deprecationStatus?.scriptTag && (
+                    {((latestScan.scriptTags as ScriptTag[] | null) || []).length > 0 && deprecationStatus?.scriptTag && (
                       <Banner tone={deprecationStatus.scriptTag.isExpired ? "critical" : "warning"}>
                         <p>{deprecationStatus.scriptTag.description}</p>
                       </Banner>

@@ -61,11 +61,20 @@ runtime_context = "strict"
   # When user opts out (CCPA), our code respects that and doesn't send data
   sale_of_data = "enabled"
 
-# P0-01: Backend URL is hardcoded in the pixel extension for security
-# This prevents merchants from configuring arbitrary data exfiltration endpoints
-# The production URL is set as a constant in the extension source code
+# P0-01: Backend URL configuration with security validation
+# The pixel validates URLs against an allowed patterns whitelist to prevent
+# arbitrary data exfiltration. Only trusted endpoints are accepted.
+# Default: https://tracking-guardian.onrender.com
 
 [settings]
+  # Backend URL - optional override for development/staging environments
+  # If not provided or invalid, defaults to production URL.
+  # URL must match allowed patterns defined in the extension code.
+  [[settings.fields]]
+    key = "backend_url"
+    name = "Backend URL (Advanced)"
+    description = "Backend endpoint URL. Only allowed patterns are accepted (production, staging, localhost). Leave empty for production."
+    type = "single_line_text_field"
   # Ingestion Key - store-scoped key for request correlation and noise filtering
   # 
   # SECURITY CLARIFICATION (P1-2):
