@@ -845,10 +845,21 @@ export async function processConversionJobs(): Promise<{
         }
       }
       
-      const consentState = receipt?.consentState as { 
+      const rawConsentState = receipt?.consentState as { 
         marketing?: boolean; 
-        analytics?: boolean; 
+        analytics?: boolean;
+        // P0-4: saleOfData is written by api.pixel-events.tsx in consent object
+        saleOfData?: boolean;
       } | null;
+      
+      // P0-4: Normalize consent state to include saleOfDataAllowed
+      const consentState: ConsentState | null = rawConsentState
+        ? {
+            marketing: rawConsentState.marketing,
+            analytics: rawConsentState.analytics,
+            saleOfDataAllowed: rawConsentState.saleOfData !== false, // false => opt-out
+          }
+        : null;
 
       // P0-4: Build trust metadata for audit trail
       const trustMetadata = buildTrustMetadata(trustResult, {
@@ -870,6 +881,16 @@ export async function processConversionJobs(): Promise<{
         const treatAsMarketing = clientConfig?.treatAsMarketing === true;
         const platformCategory = getEffectiveConsentCategory(pixelConfig.platform, treatAsMarketing);
 
+        // P0-4: Global sale_of_data opt-out check before any platform processing
+        if (consentState?.saleOfDataAllowed === false) {
+          logger.debug(
+            `[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: ` +
+            `sale_of_data opt-out`
+          );
+          platformResults[pixelConfig.platform] = "skipped:sale_of_data_opted_out";
+          continue;
+        }
+        
         // P0-1: Check trust-based sending first
         const trustAllowed = isSendAllowedByTrust(
           trustResult,

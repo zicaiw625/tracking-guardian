@@ -49,6 +49,16 @@ vi.mock("../../app/services/billing.server", () => ({
   incrementMonthlyUsage: vi.fn(),
 }));
 
+// P0-3: Mock webhook validation to allow test payloads through
+vi.mock("../../app/utils/webhook-validation", () => ({
+  parseOrderWebhookPayload: vi.fn().mockImplementation((payload) => {
+    if (!payload || typeof payload !== "object" || !("id" in payload)) {
+      return null;
+    }
+    return payload;
+  }),
+}));
+
 import { authenticate } from "../../app/shopify.server";
 import prisma from "../../app/db.server";
 
@@ -80,7 +90,8 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       const response = await action({ request, params: {}, context: {} });
 
       expect(response.status).toBe(401);
-      expect(await response.text()).toBe("Unauthorized");
+      // P0-3: Updated response message
+      expect(await response.text()).toBe("Unauthorized: Invalid HMAC");
     });
 
     it("returns 401 when HMAC header is missing", async () => {

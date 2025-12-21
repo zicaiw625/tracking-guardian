@@ -78,6 +78,9 @@ interface PixelEventPayload {
   consent?: {
     marketing?: boolean;
     analytics?: boolean;
+    // P0-4: From customerPrivacyStatus.saleOfDataAllowed
+    // true/false/undefined (undefined -> not provided, treated as allowed)
+    saleOfData?: boolean;
   };
   
   data: {
@@ -559,6 +562,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const consent = payload.consent;
     const hasMarketingConsent = consent?.marketing === true;
     const hasAnalyticsConsent = consent?.analytics === true;
+    const saleOfDataAllowed = consent?.saleOfData !== false; // false => opt-out
+
+    // P0-4: Global interception - sale_of_data opt-out blocks ALL platform recording
+    if (!saleOfDataAllowed) {
+      logger.debug(
+        `Skipping ConversionLog recording: sale_of_data opt-out (saleOfData=${String(consent?.saleOfData)})`
+      );
+      return jsonWithCors(
+        { success: true, eventId, message: "Sale of data opted out - event acknowledged" },
+        { request }
+      );
+    }
     
     // Filter platforms based on consent
     const platformsToRecord: string[] = [];

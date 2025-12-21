@@ -3,23 +3,22 @@ type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
 
-# P1-2: Customer Privacy Configuration
+# P0-2: Customer Privacy Configuration (Strict-only for App Store compliance)
 # 
-# We use a "minimum necessary" declaration approach:
-# - analytics = true: Required for checkout_completed event tracking
-# - marketing = false: Marketing consent is checked at runtime, not required for pixel load
-# - sale_of_data = "disabled": The pixel itself does NOT sell/share data with third parties.
-#   Data is only sent to our first-party backend, which then (with proper consent checks)
-#   sends to ad platforms via server-side CAPI.
+# We require both marketing AND analytics consent for the pixel to load.
+# This ensures declaration-behavior consistency with runtime logic.
+# 
+# - analytics = true (required): Needed for checkout tracking
+# - marketing = true (required): Needed for conversion tracking to ad platforms  
+# - sale_of_data = "enabled": Treated as data sharing, opt-out stops pixel firing
 #
-# This approach prevents the pixel from being blocked unnecessarily while still
-# respecting user privacy through runtime consent checks in the pixel code itself.
-# See: extensions/tracking-pixel/src/index.ts for runtime consent gating
+# Shopify loads pixel only when ALL required permissions are granted.
+# This is the strictest, most compliant configuration.
 [customer_privacy]
   analytics = true
-  marketing = false
+  marketing = true
   preferences = false
-  sale_of_data = "disabled"
+  sale_of_data = "enabled"
 
 [settings]
   [[settings.fields]]

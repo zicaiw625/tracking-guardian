@@ -90,24 +90,23 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   }
 
   /**
-   * P0-3: Check if we have any consent that allows data collection.
+   * P0-2: Strict consent check - aligned with shopify.extension.toml declaration.
    * 
-   * Changed from requiring BOTH marketing AND analytics to requiring EITHER.
-   * The backend will filter events per-platform based on the consent state we send.
+   * Our toml declares: marketing=true, analytics=true, sale_of_data="enabled"
+   * Shopify will only load this pixel when ALL these conditions are met.
    * 
-   * Previous (too restrictive): marketing && analytics && saleOfData
-   * New (correct): (marketing || analytics) && saleOfData
+   * At runtime, we enforce the same rules:
+   * - BOTH marketing AND analytics consent must be granted
+   * - sale_of_data must not be opted out (false)
    * 
-   * This ensures:
-   * - User who only consents to marketing → marketing platforms get data
-   * - User who only consents to analytics → analytics platforms get data
-   * - User who denies sale of data → no data sent at all
+   * This ensures declaration-behavior consistency for App Store review.
    */
   function hasAnyConsent(): boolean {
-    // At least one tracking type must be allowed
-    const hasTrackingConsent = marketingAllowed === true || analyticsAllowed === true;
-    // Sale of data must not be explicitly denied (defaults to true)
-    return hasTrackingConsent && saleOfDataAllowed;
+    // Strict: require BOTH marketing AND analytics (matches toml declaration)
+    const hasMarketing = marketingAllowed === true;
+    const hasAnalytics = analyticsAllowed === true;
+    // Sale of data must not be explicitly denied (undefined -> allowed)
+    return hasMarketing && hasAnalytics && saleOfDataAllowed;
   }
 
   function hasMarketingConsent(): boolean {

@@ -2,6 +2,10 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger";
+import { 
+  evaluatePlatformConsentWithStrategy, 
+  type ConsentState 
+} from "../utils/platform-consent";
 
 const CONSENT_TIMEOUT_HOURS = 24;
 
@@ -14,44 +18,30 @@ interface ConsentReconciliationResult {
   errors: number;
 }
 
-function evaluateConsent(
+/**
+ * P0-1: Evaluate consent for a platform using the unified platform-consent logic.
+ * This delegates to evaluatePlatformConsentWithStrategy which now handles:
+ * - sale_of_data opt-out (global block)
+ * - strict/balanced modes (balanced no longer allows analytics without receipt)
+ * - weak mode removed (falls through to strict behavior)
+ */
+function evaluateConsentForPlatform(
+  platform: string,
   strategy: string,
-  consentState: { marketing?: boolean; analytics?: boolean } | null
+  consentState: ConsentState | null,
+  hasVerifiedReceipt: boolean
 ): { allowed: boolean; reason: string } {
-  switch (strategy) {
-    case "strict":
-      
-      if (!consentState) {
-        return { allowed: false, reason: "No consent state (strict mode)" };
-      }
-      if (consentState.marketing !== true) {
-        return { allowed: false, reason: "Marketing consent not granted (strict mode)" };
-      }
-      return { allowed: true, reason: "Marketing consent granted" };
-      
-    case "balanced":
-      
-      if (consentState) {
-        if (consentState.marketing === false) {
-          return { allowed: false, reason: "Marketing consent explicitly denied" };
-        }
-        
-        return { allowed: true, reason: "Consent received, marketing not denied" };
-      }
-      
-      return { allowed: false, reason: "No consent state (balanced mode)" };
-      
-    case "weak":
-      
-      return { allowed: true, reason: "Weak consent mode - always allow" };
-      
-    default:
-      
-      if (consentState && consentState.marketing !== false) {
-        return { allowed: true, reason: "Default: consent received" };
-      }
-      return { allowed: false, reason: "Default: no consent or denied" };
-  }
+  const decision = evaluatePlatformConsentWithStrategy(
+    platform,
+    strategy,
+    consentState,
+    hasVerifiedReceipt,
+    /* treatAsMarketing */ false
+  );
+  return { 
+    allowed: decision.allowed, 
+    reason: decision.reason || (decision.allowed ? "consent_granted" : "consent_denied"),
+  };
 }
 
 export async function reconcilePendingConsent(): Promise<ConsentReconciliationResult> {
@@ -136,11 +126,33 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
       }
       
       if (receipt) {
+        // P0-1: Default to strict (not balanced/weak) for safety
+        const strategy = log.shop.consentStrategy || "strict";
+        const rawConsentState = receipt.consentState as { 
+          marketing?: boolean; 
+          analytics?: boolean; 
+          saleOfData?: boolean;
+        } | null;
         
-        const strategy = log.shop.consentStrategy || (log.shop.weakConsentMode ? "weak" : "balanced");
-        const consentState = receipt.consentState as { marketing?: boolean; analytics?: boolean } | null;
+        // P0-4: Normalize consent state to include saleOfDataAllowed
+        const consentState: ConsentState | null = rawConsentState
+          ? {
+              marketing: rawConsentState.marketing,
+              analytics: rawConsentState.analytics,
+              saleOfDataAllowed: rawConsentState.saleOfData !== false,
+            }
+          : null;
         
-        const decision = evaluateConsent(strategy, consentState);
+        // P0-1: Use verified receipt for consent check
+        // receipt.isTrusted indicates the receipt was verified via ingestion key
+        const hasVerifiedReceipt = receipt.isTrusted === true;
+        
+        const decision = evaluateConsentForPlatform(
+          log.platform,
+          strategy,
+          consentState,
+          hasVerifiedReceipt
+        );
         
         if (decision.allowed) {
           

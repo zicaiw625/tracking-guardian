@@ -125,15 +125,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     admin = authResult.admin;
     payload = authResult.payload;
   } catch (error) {
-    // P1-5: Return appropriate status codes for webhook errors
-    // Shopify expects 4xx for client errors, 5xx for server errors
-    // 4xx tells Shopify not to retry; 5xx tells it to retry
+    // P0-3: Return appropriate status codes for webhook errors
+    // For mandatory compliance webhooks (GDPR), Shopify expects 401 for invalid HMAC
+    // See: https://shopify.dev/docs/apps/webhooks/configuration/mandatory-webhooks
     
     if (error instanceof Response) {
-      // HMAC validation failed - return 400 (not 401) per Shopify best practices
-      // This tells Shopify the request was malformed/tampered, don't retry
-      logger.warn("[Webhook] HMAC validation failed - returning 400");
-      return new Response("Bad Request: Invalid HMAC", { status: 400 });
+      // P0-3: HMAC validation failed - return 401 for mandatory compliance webhooks
+      // This is required by Shopify for CUSTOMERS_DATA_REQUEST, CUSTOMERS_REDACT, SHOP_REDACT
+      logger.warn("[Webhook] HMAC validation failed - returning 401");
+      return new Response("Unauthorized: Invalid HMAC", { status: 401 });
     }
     
     if (error instanceof SyntaxError) {

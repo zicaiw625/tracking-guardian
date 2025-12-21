@@ -460,14 +460,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     case "updatePrivacySettings": {
       const piiEnabled = formData.get("piiEnabled") === "true";
-      const consentStrategy = formData.get("consentStrategy") as string || "balanced";
+      // P0-1: Default to strict, not balanced
+      const consentStrategy = (formData.get("consentStrategy") as string) || "strict";
       const dataRetentionDays = parseInt(formData.get("dataRetentionDays") as string) || 90;
 
-      const weakConsentMode = consentStrategy === "weak";
-
+      // P0-1: Always set weakConsentMode to false (deprecated)
       await prisma.shop.update({
         where: { id: shop.id },
-        data: { piiEnabled, weakConsentMode, consentStrategy, dataRetentionDays },
+        data: { piiEnabled, weakConsentMode: false, consentStrategy, dataRetentionDays },
       });
 
       await createAuditLog({
@@ -1391,17 +1391,13 @@ export default function SettingsPage() {
                             label: "⚖️ 平衡模式（Balanced）", 
                             value: "balanced",
                           },
-                          { 
-                            label: "⚠️ 宽松模式（Weak）", 
-                            value: "weak",
-                          },
+                          // P0-1: Weak mode removed for App Store compliance
                         ]}
                         value={shop?.consentStrategy || "strict"}
                         onChange={(value) => {
                           if (value !== "strict") {
-                            const warning = value === "balanced" 
-                              ? "平衡模式对分析类平台（如 GA4）可能在没有明确同意的情况下发送数据。在 GDPR 等严格隐私法规地区可能存在合规风险。\n\n确定要切换吗？"
-                              : "宽松模式将在没有任何同意证据的情况下发送数据。这可能违反 GDPR、CCPA 等隐私法规。\n\n仅在您确定目标市场允许默示同意时使用。确定要切换吗？";
+                            // P0-1: Updated warning - balanced still requires receipt + consent
+                            const warning = "平衡模式仍要求像素回执与明确同意，但允许"部分可信"的回执（trust=partial）。\n\n在 GDPR 等严格隐私法规地区，推荐使用严格模式。\n\n确定要切换吗？";
                             if (!confirm(warning)) {
                               return;
                             }
@@ -1415,15 +1411,13 @@ export default function SettingsPage() {
                         }}
                         helpText={
                           shop?.consentStrategy === "strict" 
-                            ? "必须有明确的用户同意才发送数据。适用于 GDPR/CCPA 等严格隐私法规地区。推荐设置。"
-                            : shop?.consentStrategy === "weak"
-                            ? "即使没有同意证据也发送数据。仅适用于允许默示同意的地区。有合规风险。"
-                            : "分析平台（如 GA4）可能在无同意记录时仍发送数据。可能不满足 GDPR 等严格要求。"
+                            ? "必须有可信的像素回执 + 明确同意才发送数据。适用于 GDPR/CCPA 等严格隐私法规地区。推荐设置。"
+                            : "仍要求像素回执与明确同意；仅在回执信任等级为 partial 时也可发送（比严格模式略宽）。"
                         }
                       />
 
                       <Banner 
-                        tone={shop?.consentStrategy === "strict" ? "success" : "warning"}
+                        tone={shop?.consentStrategy === "strict" ? "success" : "info"}
                       >
                         {shop?.consentStrategy === "strict" && (
                           <BlockStack gap="100">
@@ -1437,25 +1431,22 @@ export default function SettingsPage() {
                         )}
                         {shop?.consentStrategy === "balanced" && (
                           <BlockStack gap="100">
-                            <Text as="span" fontWeight="semibold">⚠️ 平衡模式 - 潜在合规风险</Text>
+                            <Text as="span" fontWeight="semibold">⚖️ 平衡模式</Text>
                             <Text as="p" variant="bodySm">
-                              分析类平台（如 Google Analytics 4）在没有像素回执时仍可能发送数据。
-                              这在 GDPR 等严格隐私法规地区可能不满足合规要求。
+                              仍要求像素回执与明确用户同意，但允许信任等级为"部分可信"的回执。
+                              这比严格模式略宽松，但仍然确保有用户同意证据才发送数据。
                             </Text>
                             <Text as="p" variant="bodySm" tone="subdued">
-                              建议：如果您的客户主要来自欧盟、英国等地区，请使用严格模式。
+                              建议：如果您的客户主要来自欧盟、英国等地区，推荐使用严格模式。
                             </Text>
                           </BlockStack>
                         )}
-                        {shop?.consentStrategy === "weak" && (
+                        {/* P0-1: Weak mode removed - show migration message if still set */}
+                        {shop?.consentStrategy !== "strict" && shop?.consentStrategy !== "balanced" && (
                           <BlockStack gap="100">
-                            <Text as="span" fontWeight="semibold">🚨 宽松模式 - 高合规风险</Text>
+                            <Text as="span" fontWeight="semibold">⚠️ 未知策略</Text>
                             <Text as="p" variant="bodySm">
-                              无论是否收到像素事件或同意状态，都会发送 CAPI 数据。
-                              这可能违反 GDPR、CCPA 等隐私法规，仅适用于允许默示同意的地区（如部分亚洲市场）。
-                            </Text>
-                            <Text as="p" variant="bodySm" tone="critical">
-                              警告：使用此模式前，请咨询法律顾问确认您的目标市场允许此做法。
+                              当前策略设置无效，将自动按严格模式处理。请选择一个有效的策略。
                             </Text>
                           </BlockStack>
                         )}

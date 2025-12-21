@@ -90,6 +90,8 @@ export function isAnalyticsPlatform(platform: string): boolean {
 export interface ConsentState {
   marketing?: boolean;
   analytics?: boolean;
+  // P0-4: sale_of_data tracking - false means user opted out of data sale/sharing
+  saleOfDataAllowed?: boolean;
 }
 
 export interface ConsentDecision {
@@ -162,64 +164,58 @@ export function evaluatePlatformConsentWithStrategy(
   hasPixelReceipt: boolean,
   treatAsMarketing = false
 ): ConsentDecision {
-  const category = getEffectiveConsentCategory(platform, treatAsMarketing);
+  // P0-4: Global sale_of_data check - opt-out blocks ALL platforms
+  if (consentState?.saleOfDataAllowed === false) {
+    return {
+      allowed: false,
+      reason: "sale_of_data_opted_out",
+      usedConsent: "none",
+    };
+  }
   
   switch (consentStrategy) {
-    case "strict":
+    case "strict": {
+      // Strict: require verified receipt + explicit consent=true
       if (!hasPixelReceipt) {
         return {
           allowed: false,
-          reason: "No pixel event received (strict mode)",
+          reason: "no_receipt_strict_mode",
+          usedConsent: "none",
+        };
+      }
+      // evaluatePlatformConsent checks consent by platform category
+      return evaluatePlatformConsent(platform, consentState, treatAsMarketing);
+    }
+      
+    case "balanced": {
+      // P0-1 Fix: balanced still requires receipt, but allows trust=partial
+      // (The trust level distinction is handled by the caller passing hasPixelReceipt)
+      // We no longer allow "analytics without receipt"
+      if (!hasPixelReceipt) {
+        return {
+          allowed: false,
+          reason: "no_receipt_balanced_mode",
+          usedConsent: "none",
+        };
+      }
+      // Still require explicit consent=true for the platform category
+      return evaluatePlatformConsent(platform, consentState, treatAsMarketing);
+    }
+    
+    // P0-1: "weak" mode removed - it was a compliance risk
+    // If someone still has "weak" in DB, fall through to default (strict behavior)
+      
+    default: {
+      // Default to strict behavior for unknown strategies
+      if (!hasPixelReceipt) {
+        return {
+          allowed: false,
+          reason: "no_receipt_default_mode",
           usedConsent: "none",
         };
       }
       return evaluatePlatformConsent(platform, consentState, treatAsMarketing);
-      
-    case "balanced":
-      if (hasPixelReceipt && consentState) {
-        if (category === "marketing" && consentState.marketing === false) {
-          return {
-            allowed: false,
-            reason: "Marketing consent explicitly denied",
-            usedConsent: "marketing",
-          };
-        }
-        if (category === "analytics" && consentState.analytics === false) {
-          return {
-            allowed: false,
-            reason: "Analytics consent explicitly denied",
-            usedConsent: "analytics",
-          };
-        }
-        return { allowed: true, usedConsent: category };
-      }
-      
-      if (category === "analytics") {
-        return { 
-          allowed: true, 
-          usedConsent: category,
-          reason: "Analytics allowed without receipt (balanced mode)",
-        };
-      }
-      
-      return {
-        allowed: false,
-        reason: `No pixel event received for ${platform} (balanced mode requires consent for marketing)`,
-        usedConsent: "none",
-      };
-      
-    case "weak":
-      return { allowed: true, usedConsent: category };
-      
-    default:
-      if (hasPixelReceipt) {
-        return { allowed: true, usedConsent: category };
-      }
-      return {
-        allowed: false,
-        reason: "No pixel event received",
-        usedConsent: "none",
-      };
+    }
   }
 }
 

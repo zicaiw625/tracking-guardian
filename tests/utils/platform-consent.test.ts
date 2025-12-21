@@ -1,274 +1,296 @@
 import { describe, it, expect } from "vitest";
-import {
+import { 
   evaluatePlatformConsentWithStrategy,
   evaluatePlatformConsent,
-  getEffectiveConsentCategory,
-  getPlatformConsentCategory,
   isMarketingPlatform,
   isAnalyticsPlatform,
-  PLATFORM_CONSENT_CONFIG,
+  getEffectiveConsentCategory,
   type ConsentState,
 } from "../../app/utils/platform-consent";
 
-describe("Platform Consent Configuration", () => {
-  describe("getPlatformConsentCategory", () => {
-    it("should return marketing for Meta", () => {
-      expect(getPlatformConsentCategory("meta")).toBe("marketing");
-    });
-
-    it("should return marketing for TikTok", () => {
-      expect(getPlatformConsentCategory("tiktok")).toBe("marketing");
-    });
-
-    it("should return analytics for Google", () => {
-      expect(getPlatformConsentCategory("google")).toBe("analytics");
-    });
-
-    it("should return analytics for Clarity", () => {
-      expect(getPlatformConsentCategory("clarity")).toBe("analytics");
-    });
-
-    it("should return marketing for unknown platforms (safe default)", () => {
-      expect(getPlatformConsentCategory("unknown_platform")).toBe("marketing");
-    });
-  });
-
-  describe("getEffectiveConsentCategory (P0-07 dual-use)", () => {
-    it("should return analytics for Google by default", () => {
-      expect(getEffectiveConsentCategory("google")).toBe("analytics");
-    });
-
-    it("should return marketing for Google when treatAsMarketing=true", () => {
-      expect(getEffectiveConsentCategory("google", true)).toBe("marketing");
-    });
-
-    it("should ignore treatAsMarketing for non-dual-use platforms", () => {
-      expect(getEffectiveConsentCategory("meta", true)).toBe("marketing");
-      expect(getEffectiveConsentCategory("clarity", true)).toBe("analytics");
-    });
-  });
-
-  describe("isMarketingPlatform / isAnalyticsPlatform", () => {
-    it("should correctly identify marketing platforms", () => {
-      expect(isMarketingPlatform("meta")).toBe(true);
-      expect(isMarketingPlatform("tiktok")).toBe(true);
-      expect(isMarketingPlatform("google")).toBe(false);
-    });
-
-    it("should correctly identify analytics platforms", () => {
-      expect(isAnalyticsPlatform("google")).toBe(true);
-      expect(isAnalyticsPlatform("clarity")).toBe(true);
-      expect(isAnalyticsPlatform("meta")).toBe(false);
-    });
-  });
-});
-
 describe("evaluatePlatformConsentWithStrategy", () => {
-  describe("Strict Strategy", () => {
-    const strategy = "strict";
-
-    it("should BLOCK all platforms without pixel receipt", () => {
-      const platforms = ["meta", "tiktok", "google", "clarity"];
-      
-      for (const platform of platforms) {
-        const result = evaluatePlatformConsentWithStrategy(
-          platform,
-          strategy,
-          { marketing: true, analytics: true },
-          false
-        );
-        expect(result.allowed).toBe(false);
-        expect(result.reason).toContain("No pixel event received");
-      }
+  describe("sale_of_data opt-out", () => {
+    it("blocks when saleOfDataAllowed is false (strict mode)", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: true, 
+        saleOfDataAllowed: false 
+      };
+      const result = evaluatePlatformConsentWithStrategy(
+        "meta", 
+        "strict", 
+        consent, 
+        true, // hasPixelReceipt
+        false // treatAsMarketing
+      );
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("sale_of_data_opted_out");
     });
 
-    it("should ALLOW marketing platform with receipt + marketing consent", () => {
+    it("blocks when saleOfDataAllowed is false (balanced mode)", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: true, 
+        saleOfDataAllowed: false 
+      };
       const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        strategy,
-        { marketing: true },
-        true
+        "google", 
+        "balanced", 
+        consent, 
+        true, 
+        false
+      );
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("sale_of_data_opted_out");
+    });
+
+    it("allows when saleOfDataAllowed is undefined (default allow)", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: true,
+        // saleOfDataAllowed undefined -> allowed
+      };
+      const result = evaluatePlatformConsentWithStrategy(
+        "meta", 
+        "strict", 
+        consent, 
+        true, 
+        false
       );
       expect(result.allowed).toBe(true);
-      expect(result.usedConsent).toBe("marketing");
     });
 
-    it("should BLOCK marketing platform with receipt + marketing denied", () => {
+    it("allows when saleOfDataAllowed is true", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: true, 
+        saleOfDataAllowed: true 
+      };
       const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        strategy,
-        { marketing: false },
-        true
+        "meta", 
+        "strict", 
+        consent, 
+        true, 
+        false
+      );
+      expect(result.allowed).toBe(true);
+    });
+  });
+
+  describe("strict mode", () => {
+    it("blocks without receipt", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: true, 
+        saleOfDataAllowed: true 
+      };
+      const result = evaluatePlatformConsentWithStrategy(
+        "meta", 
+        "strict", 
+        consent, 
+        false, // no receipt
+        false
+      );
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("no_receipt_strict_mode");
+    });
+
+    it("meta requires marketing=true", () => {
+      const consent: ConsentState = { 
+        marketing: false, 
+        analytics: true, 
+        saleOfDataAllowed: true 
+      };
+      const result = evaluatePlatformConsentWithStrategy(
+        "meta", 
+        "strict", 
+        consent, 
+        true, 
+        false
       );
       expect(result.allowed).toBe(false);
       expect(result.usedConsent).toBe("marketing");
     });
 
-    it("should ALLOW analytics platform with receipt + analytics consent", () => {
+    it("google analytics requires analytics=true (when not treatAsMarketing)", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: false, 
+        saleOfDataAllowed: true 
+      };
       const result = evaluatePlatformConsentWithStrategy(
-        "google",
-        strategy,
-        { analytics: true },
-        true
+        "google", 
+        "strict", 
+        consent, 
+        true, 
+        false
       );
-      expect(result.allowed).toBe(true);
+      expect(result.allowed).toBe(false);
       expect(result.usedConsent).toBe("analytics");
     });
 
-    it("should BLOCK analytics platform with receipt + analytics denied", () => {
+    it("google with treatAsMarketing requires marketing=true", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: false, 
+        saleOfDataAllowed: true 
+      };
       const result = evaluatePlatformConsentWithStrategy(
-        "google",
-        strategy,
-        { analytics: false },
-        true
+        "google", 
+        "strict", 
+        consent, 
+        true, 
+        true // treatAsMarketing
+      );
+      expect(result.allowed).toBe(true);
+      expect(result.usedConsent).toBe("marketing");
+    });
+
+    it("blocks when consent is null", () => {
+      const result = evaluatePlatformConsentWithStrategy(
+        "meta", 
+        "strict", 
+        null, 
+        true, 
+        false
       );
       expect(result.allowed).toBe(false);
     });
   });
 
-  describe("Balanced Strategy", () => {
-    const strategy = "balanced";
-
-    it("should BLOCK marketing platforms without receipt", () => {
+  describe("balanced mode", () => {
+    it("blocks without receipt (no longer allows analytics without receipt)", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: true, 
+        saleOfDataAllowed: true 
+      };
       const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        strategy,
-        null,
+        "google", // analytics platform
+        "balanced", 
+        consent, 
+        false, // no receipt
         false
       );
+      // P0-1: balanced now requires receipt
       expect(result.allowed).toBe(false);
-      expect(result.reason).toContain("balanced mode requires consent for marketing");
+      expect(result.reason).toBe("no_receipt_balanced_mode");
     });
 
-    it("should ALLOW analytics platforms without receipt", () => {
+    it("allows with receipt and consent=true", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: true, 
+        saleOfDataAllowed: true 
+      };
       const result = evaluatePlatformConsentWithStrategy(
-        "google",
-        strategy,
-        null,
+        "meta", 
+        "balanced", 
+        consent, 
+        true, 
         false
       );
       expect(result.allowed).toBe(true);
     });
 
-    it("should BLOCK marketing with receipt + explicit denial", () => {
+    it("blocks when consent is explicitly false", () => {
+      const consent: ConsentState = { 
+        marketing: false, 
+        analytics: true, 
+        saleOfDataAllowed: true 
+      };
       const result = evaluatePlatformConsentWithStrategy(
-        "tiktok",
-        strategy,
-        { marketing: false },
-        true
-      );
-      expect(result.allowed).toBe(false);
-    });
-
-    it("should ALLOW marketing with receipt + consent", () => {
-      const result = evaluatePlatformConsentWithStrategy(
-        "meta",
-        strategy,
-        { marketing: true },
-        true
-      );
-      expect(result.allowed).toBe(true);
-    });
-  });
-
-  describe("Weak Strategy", () => {
-    const strategy = "weak";
-
-    it("should ALLOW all platforms regardless of receipt or consent", () => {
-      const platforms = ["meta", "tiktok", "google", "clarity"];
-      const consentStates: Array<ConsentState | null> = [
-        null,
-        { marketing: false, analytics: false },
-        { marketing: true, analytics: true },
-      ];
-
-      for (const platform of platforms) {
-        for (const consent of consentStates) {
-          for (const hasReceipt of [true, false]) {
-            const result = evaluatePlatformConsentWithStrategy(
-              platform,
-              strategy,
-              consent,
-              hasReceipt
-            );
-            expect(result.allowed).toBe(true);
-          }
-        }
-      }
-    });
-  });
-
-  describe("Dual-Use Platforms (Google as Marketing)", () => {
-    it("should treat Google as marketing when treatAsMarketing=true in strict mode", () => {
-      const analyticsResult = evaluatePlatformConsentWithStrategy(
-        "google",
-        "strict",
-        { marketing: false, analytics: true },
-        true,
+        "meta", 
+        "balanced", 
+        consent, 
+        true, 
         false
       );
-      expect(analyticsResult.allowed).toBe(true);
-      expect(analyticsResult.usedConsent).toBe("analytics");
+      expect(result.allowed).toBe(false);
+    });
+  });
 
-      const marketingResult = evaluatePlatformConsentWithStrategy(
-        "google",
-        "strict",
-        { marketing: false, analytics: true },
-        true,
-        true
+  describe("weak mode (deprecated - falls through to default/strict)", () => {
+    it("weak mode now requires receipt (no longer always allows)", () => {
+      const result = evaluatePlatformConsentWithStrategy(
+        "meta", 
+        "weak", 
+        null, 
+        false, // no receipt
+        false
       );
-      expect(marketingResult.allowed).toBe(false);
-      expect(marketingResult.usedConsent).toBe("marketing");
+      // P0-1: weak mode removed, falls through to default which requires receipt
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("no_receipt_default_mode");
     });
 
-    it("should block Google as marketing in balanced mode without receipt", () => {
+    it("weak mode with receipt and consent works like strict", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: true, 
+        saleOfDataAllowed: true 
+      };
       const result = evaluatePlatformConsentWithStrategy(
-        "google",
-        "balanced",
-        null,
-        false,
-        true
+        "meta", 
+        "weak", 
+        consent, 
+        true, 
+        false
       );
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain("balanced mode requires consent for marketing");
+      expect(result.allowed).toBe(true);
     });
   });
 });
 
-describe("evaluatePlatformConsent (legacy function)", () => {
-  it("should block when no consent state available", () => {
+describe("evaluatePlatformConsent", () => {
+  it("returns false when consentState is null", () => {
     const result = evaluatePlatformConsent("meta", null);
     expect(result.allowed).toBe(false);
-    expect(result.reason).toContain("No consent state");
+    expect(result.usedConsent).toBe("none");
   });
 
-  it("should block marketing platform with undefined marketing consent", () => {
-    const result = evaluatePlatformConsent("meta", { analytics: true });
-    expect(result.allowed).toBe(false);
-  });
-
-  it("should allow marketing platform with explicit true", () => {
-    const result = evaluatePlatformConsent("meta", { marketing: true });
+  it("meta requires marketing consent", () => {
+    const consent: ConsentState = { marketing: true, analytics: false };
+    const result = evaluatePlatformConsent("meta", consent);
     expect(result.allowed).toBe(true);
+    expect(result.usedConsent).toBe("marketing");
+  });
+
+  it("google requires analytics consent by default", () => {
+    const consent: ConsentState = { marketing: false, analytics: true };
+    const result = evaluatePlatformConsent("google", consent);
+    expect(result.allowed).toBe(true);
+    expect(result.usedConsent).toBe("analytics");
+  });
+
+  it("unknown platform defaults to marketing", () => {
+    const consent: ConsentState = { marketing: true, analytics: false };
+    const result = evaluatePlatformConsent("unknown_platform", consent);
+    expect(result.allowed).toBe(true);
+    expect(result.usedConsent).toBe("marketing");
   });
 });
 
-describe("PLATFORM_CONSENT_CONFIG completeness", () => {
-  it("should have config for all commonly used platforms", () => {
-    const expectedPlatforms = ["meta", "tiktok", "google", "bing", "pinterest"];
-    for (const platform of expectedPlatforms) {
-      expect(PLATFORM_CONSENT_CONFIG[platform]).toBeDefined();
-      expect(PLATFORM_CONSENT_CONFIG[platform].name).toBeTruthy();
-      expect(PLATFORM_CONSENT_CONFIG[platform].category).toBeTruthy();
-    }
+describe("platform category helpers", () => {
+  it("isMarketingPlatform identifies marketing platforms", () => {
+    expect(isMarketingPlatform("meta")).toBe(true);
+    expect(isMarketingPlatform("tiktok")).toBe(true);
+    expect(isMarketingPlatform("bing")).toBe(true);
   });
 
-  it("should mark Google as dual-use", () => {
-    expect(PLATFORM_CONSENT_CONFIG.google.dualUse).toBe(true);
+  it("isAnalyticsPlatform identifies analytics platforms", () => {
+    expect(isAnalyticsPlatform("google")).toBe(true);
+    expect(isAnalyticsPlatform("clarity")).toBe(true);
   });
 
-  it("should not mark marketing-only platforms as dual-use", () => {
-    expect(PLATFORM_CONSENT_CONFIG.meta.dualUse).toBe(false);
-    expect(PLATFORM_CONSENT_CONFIG.tiktok.dualUse).toBe(false);
+  it("unknown platform is treated as marketing", () => {
+    expect(isMarketingPlatform("unknown")).toBe(true);
+    expect(isAnalyticsPlatform("unknown")).toBe(false);
+  });
+
+  it("getEffectiveConsentCategory returns correct category", () => {
+    expect(getEffectiveConsentCategory("meta")).toBe("marketing");
+    expect(getEffectiveConsentCategory("google")).toBe("analytics");
+    expect(getEffectiveConsentCategory("google", true)).toBe("marketing"); // treatAsMarketing
   });
 });

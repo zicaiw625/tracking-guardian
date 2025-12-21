@@ -1,36 +1,41 @@
 /**
- * P0-3 / P3-2: Tests for pixel consent logic
+ * P0-2: Tests for pixel consent logic (Strict-only mode)
  * 
- * These tests verify that consent is evaluated correctly:
- * - (marketing OR analytics) AND saleOfData = can send
- * - neither marketing nor analytics = cannot send
- * - saleOfData denied = cannot send
+ * After P0-2 compliance update, the pixel requires:
+ * - BOTH marketing AND analytics consent (matches toml declaration)
+ * - saleOfData not opted-out
+ * 
+ * This is stricter than before to ensure declaration-behavior consistency
+ * for Shopify App Store compliance.
  */
 
 import { describe, it, expect } from "vitest";
 
 // Simulate the hasAnyConsent function from the pixel extension
+// P0-2: Updated to require BOTH marketing AND analytics (strict mode)
 function hasAnyConsent(
   marketingAllowed: boolean,
   analyticsAllowed: boolean,
   saleOfDataAllowed: boolean
 ): boolean {
-  const hasTrackingConsent = marketingAllowed === true || analyticsAllowed === true;
-  return hasTrackingConsent && saleOfDataAllowed;
+  // Strict: require BOTH marketing AND analytics (matches toml declaration)
+  const hasMarketing = marketingAllowed === true;
+  const hasAnalytics = analyticsAllowed === true;
+  return hasMarketing && hasAnalytics && saleOfDataAllowed;
 }
 
-describe("hasAnyConsent - P0-3 fix", () => {
-  describe("should allow sending when at least one tracking type is consented", () => {
+describe("hasAnyConsent - P0-2 strict mode", () => {
+  describe("should allow sending only when BOTH tracking types are consented", () => {
     it("allows when both marketing and analytics are true", () => {
       expect(hasAnyConsent(true, true, true)).toBe(true);
     });
 
-    it("allows when only marketing is true", () => {
-      expect(hasAnyConsent(true, false, true)).toBe(true);
+    it("denies when only marketing is true (strict requires both)", () => {
+      expect(hasAnyConsent(true, false, true)).toBe(false);
     });
 
-    it("allows when only analytics is true", () => {
-      expect(hasAnyConsent(false, true, true)).toBe(true);
+    it("denies when only analytics is true (strict requires both)", () => {
+      expect(hasAnyConsent(false, true, true)).toBe(false);
     });
   });
 
