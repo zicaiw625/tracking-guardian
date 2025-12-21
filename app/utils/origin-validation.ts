@@ -11,8 +11,8 @@ const ALLOWED_ORIGIN_PATTERNS: Array<{
     example: "https://my-store.myshopify.com",
   },
   {
-    pattern: /^https:\/\/checkout\.[a-zA-Z0-9][a-zA-Z0-9\-]*\.com$/,
-    description: "Shopify checkout domains",
+    pattern: /^https:\/\/checkout\.shopify\.com$/,
+    description: "Shopify checkout domain",
     example: "https://checkout.shopify.com",
   },
   {

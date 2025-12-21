@@ -315,8 +315,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     let keyValidation: { matched: boolean; reason: string; usedPreviousSecret?: boolean };
     
     if (!shop.ingestionSecret) {
-      keyValidation = { matched: false, reason: "shop_no_key_configured" };
-      logger.info(`Shop ${shop.shopDomain} has no ingestion key configured - allowing request`);
+      // Production: reject requests from shops without ingestion key configured
+      // This prevents abuse from shops that haven't completed pixel setup
+      if (!isDevMode()) {
+        logger.warn(`Rejected: Shop ${shop.shopDomain} has no ingestion key configured`);
+        return jsonWithCors(
+          { error: "Pixel not configured", code: "INGESTION_KEY_NOT_CONFIGURED" },
+          { status: 403, request }
+        );
+      }
+      // Dev mode: allow for easier testing
+      keyValidation = { matched: false, reason: "shop_no_key_configured_dev" };
+      logger.info(`[DEV] Shop ${shop.shopDomain} has no ingestion key configured - allowing request`);
     } else if (!ingestionKey) {
       const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
       if (anomalyCheck.shouldBlock) {
