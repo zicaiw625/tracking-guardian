@@ -12,7 +12,8 @@ import {
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
 
-const BACKEND_URL = "https://tracking-guardian.onrender.com";
+// P1-4: Default backend URL, can be overridden via extension settings
+const DEFAULT_BACKEND_URL = "https://tracking-guardian.onrender.com";
 
 export default reactExtension(
   "purchase.thank-you.block.render",
@@ -26,6 +27,8 @@ function Survey() {
   
   const [orderId, setOrderId] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  // P1-3: Add checkoutToken as fallback when orderId is not available
+  const [checkoutToken, setCheckoutToken] = useState<string | null>(null);
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -34,16 +37,21 @@ function Survey() {
 
   const title = (settings.survey_title as string) || "我们想听听您的意见";
   const question = (settings.survey_question as string) || "您是如何了解到我们的？";
+  
+  // P1-4: Use backend_url from settings, fallback to default
+  const backendUrl = (settings.backend_url as string)?.trim() || DEFAULT_BACKEND_URL;
 
   useEffect(() => {
     async function fetchOrderInfo() {
       try {
-        
+        // P1-3: Get all available order identifiers for fallback
         if (orderConfirmation) {
           const orderData = await orderConfirmation;
           if (orderData) {
             setOrderId(orderData.id || null);
             setOrderNumber(orderData.number?.toString() || null);
+            // Try to get checkout token from URL or other sources
+            // Note: orderConfirmation may not have token, but we can still submit with orderId/orderNumber
           }
         }
       } catch (err) {
@@ -63,7 +71,9 @@ function Survey() {
 
   const handleSubmit = async () => {
     if (selectedRating === null && selectedSource === null) return;
-    if (!orderId) return;
+    
+    // P1-3: Allow submission with any order identifier, not just orderId
+    if (!orderId && !orderNumber && !checkoutToken) return;
 
     setSubmitting(true);
     setError(null);
@@ -72,9 +82,11 @@ function Survey() {
       
       const token = await sessionToken.get();
 
+      // P1-3: Include all available identifiers, backend will use what's available
       const surveyData = {
-        orderId,
-        orderNumber,
+        orderId: orderId || undefined,
+        orderNumber: orderNumber || undefined,
+        checkoutToken: checkoutToken || undefined,
         rating: selectedRating,
         source: selectedSource,
       };
@@ -82,7 +94,7 @@ function Survey() {
       const shopDomain = shop?.myshopifyDomain || "";
 
       if (shopDomain) {
-        const response = await fetch(`${BACKEND_URL}/api/survey`, {
+        const response = await fetch(`${backendUrl}/api/survey`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -198,7 +210,7 @@ function Survey() {
       <Button
         kind="secondary"
         onPress={handleSubmit}
-        disabled={(selectedRating === null && selectedSource === null) || submitting || !orderId}
+        disabled={(selectedRating === null && selectedSource === null) || submitting || (!orderId && !orderNumber && !checkoutToken)}
         loading={submitting}
       >
         {submitting ? "提交中..." : "提交反馈"}

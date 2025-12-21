@@ -90,6 +90,25 @@ interface ShopWithPixelConfigs extends Shop {
   pixelConfigs: PixelConfig[];
 }
 
+/**
+ * Shopify Webhook Handler
+ * 
+ * P1-5: Response time and idempotency considerations:
+ * 
+ * 1. FAST ACK: We return 200 as quickly as possible. Heavy processing is
+ *    delegated to async jobs via ConversionJob queue. Shopify expects
+ *    a response within 5 seconds or it will retry.
+ * 
+ * 2. IDEMPOTENCY: We use X-Shopify-Webhook-Id to detect duplicate deliveries.
+ *    Each webhook is logged in WebhookLog with a unique constraint on
+ *    (shopDomain, webhookId, topic). Duplicates get 200 but no processing.
+ * 
+ * 3. ERROR HANDLING:
+ *    - 400 for client errors (bad HMAC, invalid JSON) - Shopify won't retry
+ *    - 500 for server errors - Shopify will retry with exponential backoff
+ *    - Always return 200 for successfully received webhooks, even if
+ *      downstream processing will happen async
+ */
 export const action = async ({ request }: ActionFunctionArgs) => {
   
   let topic: string;
@@ -106,11 +125,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     admin = authResult.admin;
     payload = authResult.payload;
   } catch (error) {
+    // P1-5: Return appropriate status codes for webhook errors
+    // Shopify expects 4xx for client errors, 5xx for server errors
+    // 4xx tells Shopify not to retry; 5xx tells it to retry
     
     if (error instanceof Response) {
-      
-      logger.warn("[Webhook] HMAC validation failed - returning 401");
-      return new Response("Unauthorized", { status: 401 });
+      // HMAC validation failed - return 400 (not 401) per Shopify best practices
+      // This tells Shopify the request was malformed/tampered, don't retry
+      logger.warn("[Webhook] HMAC validation failed - returning 400");
+      return new Response("Bad Request: Invalid HMAC", { status: 400 });
     }
     
     if (error instanceof SyntaxError) {
@@ -119,6 +142,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     
     logger.error("[Webhook] Authentication error:", error);
+    // 500 tells Shopify to retry - appropriate for transient server errors
     return new Response("Webhook authentication failed", { status: 500 });
   }
 

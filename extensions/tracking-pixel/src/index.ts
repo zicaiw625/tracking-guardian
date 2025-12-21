@@ -1,6 +1,7 @@
 import { register } from "@shopify/web-pixels-extension";
 
-const BACKEND_URL = "https://tracking-guardian.onrender.com";
+// P1-4: Default backend URL, can be overridden via extension settings
+const DEFAULT_BACKEND_URL = "https://tracking-guardian.onrender.com";
 
 interface CheckoutData {
   order?: { id?: string };
@@ -36,6 +37,9 @@ function toNumber(value: string | number | undefined | null, defaultValue = 0): 
 register(({ analytics, settings, init, customerPrivacy }: any) => {
   const ingestionKey = settings.ingestion_key as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
+  
+  // P1-4: Use backend_url from settings, fallback to default
+  const backendUrl = (settings.backend_url as string | undefined)?.trim() || DEFAULT_BACKEND_URL;
   
   const isDevMode = (() => {
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
@@ -85,9 +89,25 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     log("Customer privacy API not available, defaulting to no tracking");
   }
 
+  /**
+   * P0-3: Check if we have any consent that allows data collection.
+   * 
+   * Changed from requiring BOTH marketing AND analytics to requiring EITHER.
+   * The backend will filter events per-platform based on the consent state we send.
+   * 
+   * Previous (too restrictive): marketing && analytics && saleOfData
+   * New (correct): (marketing || analytics) && saleOfData
+   * 
+   * This ensures:
+   * - User who only consents to marketing → marketing platforms get data
+   * - User who only consents to analytics → analytics platforms get data
+   * - User who denies sale of data → no data sent at all
+   */
   function hasAnyConsent(): boolean {
-    const hasRequiredConsent = marketingAllowed === true && analyticsAllowed === true;
-    return hasRequiredConsent && saleOfDataAllowed;
+    // At least one tracking type must be allowed
+    const hasTrackingConsent = marketingAllowed === true || analyticsAllowed === true;
+    // Sale of data must not be explicitly denied (defaults to true)
+    return hasTrackingConsent && saleOfDataAllowed;
   }
 
   function hasMarketingConsent(): boolean {
@@ -95,7 +115,7 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   }
 
   function hasAnalyticsConsent(): boolean {
-    return analyticsAllowed === true;
+    return analyticsAllowed === true && saleOfDataAllowed;
   }
 
   function createTimeoutSignal(timeoutMs: number): { signal: AbortSignal; cleanup: () => void } {
@@ -114,7 +134,11 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   ): Promise<void> {
 
     if (!hasAnyConsent()) {
-      log(`Skipping ${eventName} - no consent (marketing: ${marketingAllowed}, analytics: ${analyticsAllowed}, saleOfData: ${saleOfDataAllowed})`);
+      log(
+        `Skipping ${eventName} - insufficient consent. ` +
+        `marketing=${marketingAllowed}, analytics=${analyticsAllowed}, saleOfData=${saleOfDataAllowed}. ` +
+        `Need (marketing OR analytics) AND saleOfData.`
+      );
       return;
     }
 
@@ -145,7 +169,7 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
 
       const { signal, cleanup } = createTimeoutSignal(5000);
 
-      fetch(`${BACKEND_URL}/api/pixel-events`, {
+      fetch(`${backendUrl}/api/pixel-events`, {
         method: "POST",
         headers,
         keepalive: true,

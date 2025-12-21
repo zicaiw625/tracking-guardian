@@ -13,6 +13,7 @@ import {
   handleCorsPreFlight,
   addCorsHeaders,
 } from "../utils/cors";
+import { logger } from "../utils/logger";
 
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
 
@@ -31,6 +32,16 @@ const MAX_ORDER_NUMBER_LENGTH = 32;
 const MAX_FEEDBACK_LENGTH = 2000;
 const MAX_SOURCE_LENGTH = 50;
 
+/**
+ * P1-3: Validate survey input with flexible order identification.
+ * 
+ * Changed from requiring orderId to requiring at least one of:
+ * - orderId (preferred)
+ * - orderNumber
+ * - checkoutToken (for async lookup)
+ * 
+ * This improves compatibility when orderConfirmation.id isn't available.
+ */
 function validateSurveyInput(body: unknown): SurveyResponseData {
   if (!body || typeof body !== "object") {
     throw new Error("Invalid request body");
@@ -38,25 +49,50 @@ function validateSurveyInput(body: unknown): SurveyResponseData {
 
   const data = body as Record<string, unknown>;
 
-  if (!data.orderId || typeof data.orderId !== "string") {
-    throw new Error("Missing or invalid orderId");
-  }
-  
-  const orderId = data.orderId.trim();
-  if (orderId.length === 0 || orderId.length > MAX_ORDER_ID_LENGTH) {
-    throw new Error(`orderId must be 1-${MAX_ORDER_ID_LENGTH} characters`);
-  }
-
-  if (!/^[a-zA-Z0-9_\-:.]+$/.test(orderId)) {
-    throw new Error("orderId contains invalid characters");
+  // P1-3: orderId is now optional, but we need at least one order identifier
+  let orderId: string | undefined;
+  if (data.orderId !== undefined && data.orderId !== null) {
+    if (typeof data.orderId !== "string") {
+      throw new Error("Invalid orderId type");
+    }
+    orderId = data.orderId.trim();
+    if (orderId.length > MAX_ORDER_ID_LENGTH) {
+      throw new Error(`orderId must be at most ${MAX_ORDER_ID_LENGTH} characters`);
+    }
+    if (orderId.length > 0 && !/^[a-zA-Z0-9_\-:.]+$/.test(orderId)) {
+      throw new Error("orderId contains invalid characters");
+    }
+    if (orderId.length === 0) {
+      orderId = undefined;
+    }
   }
 
   let orderNumber: string | undefined;
-  if (data.orderNumber !== undefined) {
+  if (data.orderNumber !== undefined && data.orderNumber !== null) {
     if (typeof data.orderNumber !== "string") {
       throw new Error("Invalid orderNumber type");
     }
     orderNumber = data.orderNumber.trim().slice(0, MAX_ORDER_NUMBER_LENGTH);
+    if (orderNumber.length === 0) {
+      orderNumber = undefined;
+    }
+  }
+
+  // P1-3: Support checkoutToken as fallback identifier
+  let checkoutToken: string | undefined;
+  if (data.checkoutToken !== undefined && data.checkoutToken !== null) {
+    if (typeof data.checkoutToken !== "string") {
+      throw new Error("Invalid checkoutToken type");
+    }
+    checkoutToken = data.checkoutToken.trim().slice(0, 64);
+    if (checkoutToken.length === 0) {
+      checkoutToken = undefined;
+    }
+  }
+
+  // Require at least one order identifier
+  if (!orderId && !orderNumber && !checkoutToken) {
+    throw new Error("At least one order identifier required (orderId, orderNumber, or checkoutToken)");
   }
 
   let rating: number | undefined;
@@ -111,6 +147,7 @@ function validateSurveyInput(body: unknown): SurveyResponseData {
   return {
     orderId,
     orderNumber,
+    checkoutToken,
     rating,
     feedback,
     source,
@@ -134,7 +171,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const rateLimit = await checkRateLimitAsync(request, "survey");
   if (rateLimit.isLimited) {
-    console.warn(`[P0-2] Rate limit exceeded for survey API`);
+    logger.warn(`Rate limit exceeded for survey API`);
     const response = createRateLimitResponse(rateLimit.retryAfter);
     Object.entries(CORS_HEADERS).forEach(([key, value]) => {
       response.headers.set(key, value);
@@ -171,13 +208,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     if (!isValidShopDomain(shopHeader)) {
-      console.warn(`Invalid shop domain format: ${shopHeader}`);
+      logger.warn(`Invalid shop domain format: ${shopHeader?.substring(0, 50)}`);
       return jsonWithCors({ error: "Invalid shop domain format" }, { status: 400 });
     }
 
     const authToken = extractAuthToken(request);
     if (!authToken) {
-      console.warn(`Missing Authorization header for shop ${shopHeader}`);
+      logger.warn(`Missing Authorization header for shop ${shopHeader}`);
       return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
     }
 
@@ -185,14 +222,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
       apiSecret = getShopifyApiSecret();
     } catch (error) {
-      console.error("Failed to get Shopify API secret:", error);
+      logger.error("Failed to get Shopify API secret", error);
       return jsonWithCors({ error: "Server configuration error" }, { status: 500 });
     }
 
     const jwtResult = verifyShopifyJwt(authToken, apiSecret, shopHeader);
     
     if (!jwtResult.valid) {
-      console.warn(`JWT verification failed for shop ${shopHeader}: ${jwtResult.error}`);
+      logger.warn(`JWT verification failed for shop ${shopHeader}: ${jwtResult.error}`);
       return jsonWithCors(
         { error: `Unauthorized: ${jwtResult.error}` },
         { status: 401 }
@@ -200,9 +237,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     if (jwtResult.shopDomain !== shopHeader) {
-      console.warn(
-        `Shop domain mismatch: header=${shopHeader}, token=${jwtResult.shopDomain}`
-      );
+      logger.warn(`Shop domain mismatch`, { 
+        headerShop: shopHeader, 
+        tokenShop: jwtResult.shopDomain 
+      });
       return jsonWithCors(
         { error: "Unauthorized: Shop domain mismatch" },
         { status: 401 }
@@ -237,25 +275,41 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Shop is not active" }, { status: 403 });
     }
 
-    const existingOrderEvidence = await prisma.conversionLog.findFirst({
-      where: {
-        shopId: shop.id,
-        orderId: validatedData.orderId,
-      },
-      select: { id: true },
-    });
-
-    if (!existingOrderEvidence) {
-      console.log(
-        `[P2-1] Survey for untracked order: orderId=${validatedData.orderId.slice(0, 8)}... ` +
-        `shop=${shopHeader} (accepted - JWT validated)`
-      );
+    // P1-3: Generate a composite key for deduplication when orderId is missing
+    // Priority: orderId > orderNumber > checkoutToken
+    const surveyKey = validatedData.orderId 
+      || (validatedData.orderNumber ? `order_num:${validatedData.orderNumber}` : null)
+      || (validatedData.checkoutToken ? `checkout:${validatedData.checkoutToken}` : null);
+    
+    if (!surveyKey) {
+      // This should never happen due to validation, but just in case
+      return jsonWithCors({ error: "No valid order identifier" }, { status: 400 });
     }
 
+    const existingOrderEvidence = validatedData.orderId 
+      ? await prisma.conversionLog.findFirst({
+          where: {
+            shopId: shop.id,
+            orderId: validatedData.orderId,
+          },
+          select: { id: true },
+        })
+      : null;
+
+    if (!existingOrderEvidence && validatedData.orderId) {
+      // P2-2: Only log truncated orderId, not full value
+      logger.info(`Survey for untracked order`, {
+        orderIdPrefix: validatedData.orderId.slice(0, 8),
+        shop: shopHeader,
+        jwtValidated: true,
+      });
+    }
+
+    // P1-3: Check for existing response using composite key
     const existingResponse = await prisma.surveyResponse.findFirst({
       where: {
         shopId: shop.id,
-        orderId: validatedData.orderId,
+        orderId: surveyKey,
       },
     });
 
@@ -270,6 +324,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           customAnswers: validatedData.customAnswers 
             ? JSON.parse(JSON.stringify(validatedData.customAnswers)) 
             : existingResponse.customAnswers,
+          // P1-3: Update orderId if we now have it and previously only had fallback
+          ...(validatedData.orderId && existingResponse.orderId.startsWith("order_num:") 
+            ? { orderId: validatedData.orderId } 
+            : {}),
         },
       });
 
@@ -283,7 +341,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const surveyResponse = await prisma.surveyResponse.create({
       data: {
         shopId: shop.id,
-        orderId: validatedData.orderId,
+        orderId: surveyKey, // Use composite key
         orderNumber: validatedData.orderNumber,
         rating: validatedData.rating,
         feedback: validatedData.feedback,
@@ -294,10 +352,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     });
 
-    console.log(
-      `Survey response saved: shop=${shopHeader}, orderId=${validatedData.orderId.slice(0, 8)}..., ` +
-      `hasRating=${validatedData.rating !== undefined}, hasSource=${validatedData.source !== undefined}`
-    );
+    // P2-2: Log only truncated identifiers, not full values
+    logger.info(`Survey response saved`, {
+      shop: shopHeader,
+      hasOrderId: !!validatedData.orderId,
+      hasOrderNumber: !!validatedData.orderNumber,
+      hasRating: validatedData.rating !== undefined,
+      hasSource: validatedData.source !== undefined,
+    });
 
     return jsonWithCors({
       success: true,
@@ -305,9 +367,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       id: surveyResponse.id,
     });
   } catch (error) {
-    
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Survey API error:", errorMessage);
+    // P2-2: Use sanitized logger, don't log full error which may contain PII
+    logger.error("Survey API error", error);
     
     return jsonWithCors(
       {

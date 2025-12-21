@@ -4,6 +4,22 @@ application_url = "${SHOPIFY_APP_URL}"
 embedded = true
 
 [access_scopes]
+# P1-1: Minimal OAuth scopes with justification
+# Each scope is required for core functionality:
+#
+# - read_orders: Required to reconcile pixel events with actual orders via webhooks
+#   Used in: webhooks.tsx (ORDERS_PAID, ORDERS_UPDATED handlers)
+#
+# - read_script_tags: Required for migration scanner to detect legacy ScriptTag pixels
+#   Used in: services/scanner.server.ts (detectLegacyPixels function)
+#   Note: Read-only, used for scan reports to help merchants migrate
+#
+# - read_pixels, write_pixels: Required to manage Web Pixel extension configuration
+#   Used in: app.settings.tsx (pixel configuration UI)
+#
+# - read_customer_events: Required to access checkout/storefront events data
+#   Used in: pixel extension for checkout_completed event tracking
+#
 scopes = "read_orders,read_script_tags,read_pixels,write_pixels,read_customer_events"
 
 [auth]

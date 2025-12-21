@@ -127,6 +127,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id: true,
       plan: true,
       ingestionSecret: true,
+      // P2-3: Include grace window info for key rotation UI
+      previousIngestionSecret: true,
+      previousSecretExpiry: true,
       piiEnabled: true,
       weakConsentMode: true,
       consentStrategy: true, 
@@ -143,6 +146,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     tokenIssues = await checkTokenExpirationIssues(shop.id);
   }
 
+  // P2-3: Check if there's an active grace window for key rotation
+  const hasActiveGraceWindow = shop?.previousIngestionSecret && 
+    shop?.previousSecretExpiry && 
+    new Date() < shop.previousSecretExpiry;
+
   return json({
     shop: shop
       ? {
@@ -153,6 +161,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           pixelConfigs: shop.pixelConfigs,
           
           hasIngestionSecret: !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
+          // P2-3: Grace window info for UI
+          hasActiveGraceWindow,
+          graceWindowExpiry: hasActiveGraceWindow ? shop.previousSecretExpiry : null,
           piiEnabled: shop.piiEnabled,
           weakConsentMode: shop.weakConsentMode,
           consentStrategy: shop.consentStrategy || "strict", 
@@ -1192,10 +1203,20 @@ export default function SettingsPage() {
                         </InlineStack>
                       </Box>
 
+                      {/* P2-3: Show grace window status */}
+                      {shop?.hasActiveGraceWindow && shop.graceWindowExpiry && (
+                        <Banner tone="warning">
+                          <p>
+                            <strong>旧令牌仍有效：</strong>之前的令牌将于 {new Date(shop.graceWindowExpiry).toLocaleString("zh-CN")} 失效。
+                            在此之前，新旧令牌均可使用，以便平滑过渡。
+                          </p>
+                        </Banner>
+                      )}
+
                       <Banner tone="info">
                         <p>
                           <strong>工作原理：</strong>服务端会验证此令牌，缺少或错误的令牌会导致像素事件被拒绝（204 响应）。
-                          更换令牌后，App Pixel 会自动更新，通常无需手动操作。
+                          更换令牌后，App Pixel 会自动更新，旧令牌会有 72 小时的过渡期。
                         </p>
                       </Banner>
                     </BlockStack>

@@ -332,9 +332,16 @@ export interface ConversionLogData {
   sentAt: Date | null;
 }
 
+/**
+ * P1-3: Survey response data with flexible order identification.
+ * 
+ * At least one of orderId, orderNumber, or checkoutToken must be provided.
+ * The backend will attempt to resolve missing orderId from orderNumber or checkoutToken.
+ */
 export interface SurveyResponseData {
-  orderId: string;
+  orderId?: string;
   orderNumber?: string;
+  checkoutToken?: string;
   rating?: number;
   feedback?: string;
   source?: string;

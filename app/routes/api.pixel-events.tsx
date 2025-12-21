@@ -9,15 +9,17 @@ import {
   isValidShopifyOrigin, 
   isValidDevOrigin, 
   isDevMode,
+  isValidPixelOrigin,
 } from "../utils/origin-validation";
 import {
   getDynamicCorsHeaders,
+  getPixelEventsCorsHeaders,
   jsonWithCors as jsonWithCorsBase,
   handleCorsPreFlight,
   addCorsHeaders,
 } from "../utils/cors";
 
-import { logger } from "../utils/logger";
+import { logger, metrics } from "../utils/logger";
 
 const MAX_BODY_SIZE = 32 * 1024;
 
@@ -35,8 +37,16 @@ const PIXEL_CUSTOM_HEADERS = [
   "X-Tracking-Guardian-Timestamp",
 ];
 
-function getCorsHeaders(request: Request): HeadersInit {
-  return getDynamicCorsHeaders(request, PIXEL_CUSTOM_HEADERS);
+/**
+ * P0-2: Get CORS headers for pixel events endpoint.
+ * 
+ * Uses permissive CORS (Access-Control-Allow-Origin: *) because:
+ * - Web Pixels run on storefronts with custom domains (e.g., https://brand.com)
+ * - We cannot whitelist all possible custom domains
+ * - Authentication is via ingestion key, not origin
+ */
+function getCorsHeaders(_request: Request): HeadersInit {
+  return getPixelEventsCorsHeaders(PIXEL_CUSTOM_HEADERS);
 }
 
 function jsonWithCors<T>(data: T, init: ResponseInit & { request: Request }): Response {
@@ -116,33 +126,49 @@ async function isClientEventRecorded(
   return !!existing;
 }
 
-function validateRequest(body: unknown): { valid: true; payload: PixelEventPayload } | { valid: false; error: string } {
+/**
+ * P1-2: Validation result with detailed error codes for monitoring
+ */
+type ValidationError = 
+  | "invalid_body"
+  | "missing_event_name"
+  | "missing_shop_domain"
+  | "invalid_shop_domain_format"
+  | "missing_timestamp"
+  | "invalid_timestamp_type"
+  | "missing_order_identifiers";
+
+function validateRequest(body: unknown): { valid: true; payload: PixelEventPayload } | { valid: false; error: string; code: ValidationError } {
   if (!body || typeof body !== "object") {
-    return { valid: false, error: "Invalid request body" };
+    return { valid: false, error: "Invalid request body", code: "invalid_body" };
   }
 
   const data = body as Record<string, unknown>;
 
   if (!data.eventName || typeof data.eventName !== "string") {
-    return { valid: false, error: "Missing eventName" };
+    return { valid: false, error: "Missing eventName", code: "missing_event_name" };
   }
 
   if (!data.shopDomain || typeof data.shopDomain !== "string") {
-    return { valid: false, error: "Missing shopDomain" };
+    return { valid: false, error: "Missing shopDomain", code: "missing_shop_domain" };
   }
 
   if (!/^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/.test(data.shopDomain as string)) {
-    return { valid: false, error: "Invalid shop domain format" };
+    return { valid: false, error: "Invalid shop domain format", code: "invalid_shop_domain_format" };
   }
 
-  if (!data.timestamp || typeof data.timestamp !== "number") {
-    return { valid: false, error: "Missing or invalid timestamp" };
+  if (data.timestamp === undefined || data.timestamp === null) {
+    return { valid: false, error: "Missing timestamp", code: "missing_timestamp" };
+  }
+
+  if (typeof data.timestamp !== "number") {
+    return { valid: false, error: "Invalid timestamp type", code: "invalid_timestamp_type" };
   }
 
   if (data.eventName === "checkout_completed") {
     const eventData = data.data as Record<string, unknown> | undefined;
     if (!eventData?.orderId && !eventData?.checkoutToken) {
-      return { valid: false, error: "Missing orderId and checkoutToken for checkout_completed event" };
+      return { valid: false, error: "Missing orderId and checkoutToken for checkout_completed event", code: "missing_order_identifiers" };
     }
   }
 
@@ -181,20 +207,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
 
+  // P0-2: Validate origin for pixel events
+  // Allow any HTTPS origin (storefronts can have custom domains like https://brand.com)
+  // Security is enforced via ingestion key + timestamp, not origin restriction
   const origin = request.headers.get("Origin");
-  if (!isValidShopifyOrigin(origin)) {
-    if (!(isDevMode() && isValidDevOrigin(origin))) {
-      const originShopDomain = request.headers.get("x-shopify-shop-domain") || "unknown";
-      const anomalyCheck = trackAnomaly(originShopDomain, "invalid_origin");
-      if (anomalyCheck.shouldBlock) {
-        logger.warn(`Circuit breaker triggered for ${originShopDomain}: ${anomalyCheck.reason}`);
-      }
-      logger.warn(`Rejected non-Shopify origin: ${origin?.substring(0, 100) || "null"}`);
-      return jsonWithCors(
-        { error: "Invalid origin" },
-        { status: 403, request }
-      );
+  const originValidation = isValidPixelOrigin(origin);
+  
+  if (!originValidation.valid) {
+    const originShopDomain = request.headers.get("x-shopify-shop-domain") || "unknown";
+    const anomalyCheck = trackAnomaly(originShopDomain, "invalid_origin");
+    if (anomalyCheck.shouldBlock) {
+      logger.warn(`Circuit breaker triggered for ${originShopDomain}: ${anomalyCheck.reason}`);
     }
+    // P3-3: Track rejection metric
+    metrics.pixelRejection({
+      shopDomain: originShopDomain,
+      reason: "invalid_origin",
+      originType: originValidation.reason,
+    });
+    logger.warn(`Rejected invalid pixel origin: ${origin?.substring(0, 100) || "null"}, reason: ${originValidation.reason}`);
+    return jsonWithCors(
+      { error: "Invalid origin" },
+      { status: 403, request }
+    );
   }
 
   const timestampHeader = request.headers.get("X-Tracking-Guardian-Timestamp");
@@ -275,7 +310,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const validation = validateRequest(rawBody);
     if (!validation.valid) {
-      return jsonWithCors({ error: validation.error }, { status: 400, request });
+      // P1-2: Log validation failures with error codes for monitoring
+      logger.debug(`Pixel payload validation failed: code=${validation.code}, error=${validation.error}`);
+      return jsonWithCors({ error: validation.error, code: validation.code }, { status: 400, request });
     }
 
     const { payload } = validation;
@@ -360,7 +397,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    const isTrusted = isValidShopifyOrigin(origin) && keyValidation.matched;
+    // P0-2: Trust is now based primarily on ingestion key validation
+    // Since we allow custom domains, origin check is secondary
+    // A request is trusted if the ingestion key matches
+    const isTrusted = keyValidation.matched;
 
     const rawOrderId = payload.data.orderId;
     const checkoutToken = payload.data.checkoutToken;
@@ -454,6 +494,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.warn(`Failed to write PixelEventReceipt for order ${orderId}:`, error);
     }
 
+    // P3-1: Batch upserts in a transaction for better performance
     const recordedPlatforms: string[] = [];
     const skippedPlatforms: string[] = [];
     
@@ -461,6 +502,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const hasMarketingConsent = consent?.marketing === true;
     const hasAnalyticsConsent = consent?.analytics === true;
     
+    // Filter platforms based on consent
+    const platformsToRecord: string[] = [];
     for (const config of pixelConfigs) {
       if (isMarketingPlatform(config.platform) && !hasMarketingConsent) {
         logger.debug(
@@ -480,46 +523,96 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         continue;
       }
       
+      platformsToRecord.push(config.platform);
+    }
+    
+    // P3-1: Execute all upserts in a single transaction
+    if (platformsToRecord.length > 0) {
       try {
-        await prisma.conversionLog.upsert({
-          where: {
-            shopId_orderId_platform_eventType: {
-              shopId: shop.id,
-              orderId: orderId,
-              platform: config.platform,
-              eventType: "purchase",
-            },
-          },
-          update: {
-            clientSideSent: true,
-            eventId,
-          },
-          create: {
-            shopId: shop.id,
-            orderId: orderId,
-            orderNumber: payload.data.orderNumber || null,
-            orderValue: payload.data.value || 0,
-            currency: payload.data.currency || "USD",
-            platform: config.platform,
-            eventType: "purchase",
-            eventId,
-            status: "pending",
-            attempts: 0,
-            clientSideSent: true,  
-            serverSideSent: false,
-          },
-        });
-        recordedPlatforms.push(config.platform);
+        await prisma.$transaction(
+          platformsToRecord.map(platform => 
+            prisma.conversionLog.upsert({
+              where: {
+                shopId_orderId_platform_eventType: {
+                  shopId: shop.id,
+                  orderId: orderId,
+                  platform: platform,
+                  eventType: "purchase",
+                },
+              },
+              update: {
+                clientSideSent: true,
+                eventId,
+              },
+              create: {
+                shopId: shop.id,
+                orderId: orderId,
+                orderNumber: payload.data.orderNumber || null,
+                orderValue: payload.data.value || 0,
+                currency: payload.data.currency || "USD",
+                platform: platform,
+                eventType: "purchase",
+                eventId,
+                status: "pending",
+                attempts: 0,
+                clientSideSent: true,  
+                serverSideSent: false,
+              },
+            })
+          )
+        );
+        recordedPlatforms.push(...platformsToRecord);
       } catch (error) {
-        logger.warn(`Failed to record client event for ${config.platform}:`, error);
+        logger.warn(`Failed to record client events in transaction:`, error);
+        // Fallback: try individual upserts
+        for (const platform of platformsToRecord) {
+          try {
+            await prisma.conversionLog.upsert({
+              where: {
+                shopId_orderId_platform_eventType: {
+                  shopId: shop.id,
+                  orderId: orderId,
+                  platform: platform,
+                  eventType: "purchase",
+                },
+              },
+              update: {
+                clientSideSent: true,
+                eventId,
+              },
+              create: {
+                shopId: shop.id,
+                orderId: orderId,
+                orderNumber: payload.data.orderNumber || null,
+                orderValue: payload.data.value || 0,
+                currency: payload.data.currency || "USD",
+                platform: platform,
+                eventType: "purchase",
+                eventId,
+                status: "pending",
+                attempts: 0,
+                clientSideSent: true,  
+                serverSideSent: false,
+              },
+            });
+            recordedPlatforms.push(platform);
+          } catch (individualError) {
+            logger.warn(`Failed to record client event for ${platform}:`, individualError);
+          }
+        }
       }
     }
     
-    if (skippedPlatforms.length > 0) {
-      logger.info(
-        `Consent-filtered platforms for order ${orderId}: ` +
-        `skipped=${skippedPlatforms.join(",")}, recorded=${recordedPlatforms.join(",")}`
-      );
+    // P3-3: Track consent filtering for monitoring
+    if (skippedPlatforms.length > 0 || recordedPlatforms.length > 0) {
+      metrics.consentFilter({
+        shopDomain: shop.shopDomain,
+        orderId,
+        recordedPlatforms,
+        skippedPlatforms,
+        marketingConsent: hasMarketingConsent,
+        analyticsConsent: hasAnalyticsConsent,
+      });
     }
 
     return jsonWithCors({

@@ -1,5 +1,11 @@
 import { logger } from "./logger";
 
+/**
+ * P0-2: Origin validation patterns for Shopify-owned domains.
+ * 
+ * IMPORTANT: These patterns are for strict Shopify-only validation (admin, webhooks, etc.)
+ * For pixel events from storefronts, use isValidPixelOrigin() which allows custom domains.
+ */
 const ALLOWED_ORIGIN_PATTERNS: Array<{
   pattern: RegExp;
   description: string;
@@ -61,6 +67,58 @@ export function isValidShopifyOrigin(origin: string | null): boolean {
   }
 
   return ALLOWED_ORIGIN_PATTERNS.some(({ pattern }) => pattern.test(origin));
+}
+
+/**
+ * P0-2: Validate origin for pixel events endpoint.
+ * 
+ * Web Pixels run on storefronts which can use custom domains (e.g., https://brand.com).
+ * We cannot whitelist only Shopify domains or we'd reject legitimate traffic.
+ * 
+ * Security model for pixel events:
+ * - Allow any HTTPS origin (custom domains are valid storefronts)
+ * - Reject HTTP origins (security risk)
+ * - Allow "null" origin (sandboxed iframes/web workers)
+ * - Authentication is via ingestion key + timestamp, NOT origin checking
+ * 
+ * @param origin The Origin header value
+ * @returns Object with validation result and reason
+ */
+export function isValidPixelOrigin(origin: string | null): {
+  valid: boolean;
+  reason: string;
+} {
+  // Null origin is valid - Web Pixels may run in sandboxed contexts
+  if (origin === "null" || origin === null) {
+    return { valid: true, reason: "sandbox_or_null_origin" };
+  }
+
+  // No origin header at all - also acceptable for certain environments
+  if (!origin) {
+    return { valid: true, reason: "no_origin_header" };
+  }
+
+  try {
+    const url = new URL(origin);
+    
+    // Reject HTTP - must be HTTPS for security
+    if (url.protocol === "http:") {
+      // Allow localhost in dev mode
+      if (isDevMode() && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) {
+        return { valid: true, reason: "dev_localhost_http" };
+      }
+      return { valid: false, reason: "http_not_allowed" };
+    }
+
+    // Accept any HTTPS origin - storefront can be on custom domain
+    if (url.protocol === "https:") {
+      return { valid: true, reason: "https_origin" };
+    }
+
+    return { valid: false, reason: "invalid_protocol" };
+  } catch {
+    return { valid: false, reason: "malformed_origin" };
+  }
 }
 
 export function isValidDevOrigin(origin: string | null): boolean {

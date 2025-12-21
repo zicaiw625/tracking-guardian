@@ -37,7 +37,14 @@ function formatMessage(level: LogLevel, message: string, context?: LogContext): 
   return `${prefix} ${message}`;
 }
 
+/**
+ * P2-2: Comprehensive list of sensitive field patterns for log sanitization.
+ * 
+ * Any field name containing these patterns (case-insensitive) will be redacted.
+ * This is critical for GDPR compliance and preventing PII leakage in logs.
+ */
 const SENSITIVE_FIELD_PATTERNS = [
+  // Authentication & secrets
   "accesstoken",
   "access_token",
   "apisecret",
@@ -50,12 +57,19 @@ const SENSITIVE_FIELD_PATTERNS = [
   "bearer",
   "apikey",
   "api_key",
+  
+  // Customer PII
   "email",
   "phone",
   "firstname",
   "first_name",
   "lastname", 
   "last_name",
+  "fullname",
+  "full_name",
+  "name", // Catch-all for name fields
+  
+  // Address information
   "address",
   "street",
   "city",
@@ -65,12 +79,20 @@ const SENSITIVE_FIELD_PATTERNS = [
   "zip",
   "postal",
   "postcode",
+  
+  // Payment information
   "creditcard",
   "credit_card",
   "cardnumber",
   "card_number",
   "cvv",
   "expiry",
+  "pan", // Primary Account Number
+  "iban",
+  "accountnumber",
+  "account_number",
+  
+  // Platform-specific secrets
   "ingestionsecret",
   "ingestion_secret",
   "ingestion_key",
@@ -79,11 +101,37 @@ const SENSITIVE_FIELD_PATTERNS = [
   "pixel_id",
   "measurementid",
   "measurement_id",
+  "webhookurl",
+  "webhook_url",
+  "bottoken",
+  "bot_token",
+  "chatid",
+  "chat_id",
+  
+  // Shopify-specific PII fields
   "customer",
   "billing",
   "shipping",
+  "billing_address",
+  "shipping_address",
+  
+  // IP addresses (considered PII in GDPR)
+  "ip_address",
+  "ipaddress",
+  "client_ip",
+  "clientip",
+  "remote_addr",
+  "remoteaddr",
+  "x_forwarded_for",
+  "x-forwarded-for",
 ];
 
+/**
+ * P2-2: Fields that should be completely excluded from logs.
+ * 
+ * These are large payload fields that may contain PII and aren't useful for debugging.
+ * They are replaced with "[EXCLUDED]" rather than being recursively sanitized.
+ */
 const EXCLUDED_FIELDS = [
   "orderpayload",
   "order_payload",
@@ -91,6 +139,14 @@ const EXCLUDED_FIELDS = [
   "webhook_payload",
   "rawpayload",
   "raw_payload",
+  "capiinput",
+  "capi_input",
+  "requestbody",
+  "request_body",
+  "responsebody",
+  "response_body",
+  "lineitems",
+  "line_items",
 ];
 
 function sanitizeContext(context: LogContext): LogContext {
@@ -244,6 +300,12 @@ export function createRequestLogger(
   };
 }
 
+/**
+ * P3-3: Metrics logging for observability.
+ * 
+ * These structured logs can be parsed by log aggregators (Datadog, CloudWatch, etc.)
+ * to create dashboards and alerts. The _metric field identifies the metric type.
+ */
 export const metrics = {
   
   pixelEvent(context: {
@@ -258,6 +320,40 @@ export const metrics = {
       ...context,
       _metric: "pixel_event",
     });
+  },
+
+  /**
+   * P3-3: Track pixel request rejections by reason for monitoring
+   */
+  pixelRejection(context: {
+    requestId?: string;
+    shopDomain: string;
+    reason: "invalid_origin" | "invalid_key" | "invalid_timestamp" | "body_too_large" | "invalid_payload" | "rate_limited";
+    originType?: string;
+  }): void {
+    logger.info(`[METRIC] pixel_rejection`, {
+      ...context,
+      _metric: "pixel_rejection",
+    });
+  },
+
+  /**
+   * P3-3: Track consent-based filtering
+   */
+  consentFilter(context: {
+    shopDomain: string;
+    orderId: string;
+    recordedPlatforms: string[];
+    skippedPlatforms: string[];
+    marketingConsent: boolean;
+    analyticsConsent: boolean;
+  }): void {
+    if (context.skippedPlatforms.length > 0) {
+      logger.info(`[METRIC] consent_filter`, {
+        ...context,
+        _metric: "consent_filter",
+      });
+    }
   },
 
   webhookProcessing(context: {
