@@ -61,23 +61,14 @@ runtime_context = "strict"
   # When user opts out (CCPA), our code respects that and doesn't send data
   sale_of_data = "enabled"
 
-# P0-01: Backend URL configuration with security validation
-# The pixel validates URLs against an allowed patterns whitelist to prevent
-# arbitrary data exfiltration. Only trusted endpoints are accepted.
-# Default: https://tracking-guardian.onrender.com
+# P0-01: Ingestion Key configuration
+# Backend URL is hardcoded in the pixel code for security (no merchant override allowed).
+# This prevents any possibility of data exfiltration to unauthorized endpoints.
 
 [settings]
-  # Backend URL - optional override for development/staging environments
-  # If not provided or invalid, defaults to production URL.
-  # URL must match allowed patterns defined in the extension code.
-  [[settings.fields]]
-    key = "backend_url"
-    name = "Backend URL (Advanced)"
-    description = "Backend endpoint URL. Only allowed patterns are accepted (production, staging, localhost). Leave empty for production."
-    type = "single_line_text_field"
   # Ingestion Key - store-scoped key for request correlation and noise filtering
   # 
-  # SECURITY CLARIFICATION (P1-2):
+  # SECURITY CLARIFICATION:
   # - This is a WEAK validation mechanism, NOT a security boundary
   # - The key is visible in browser network traffic (not truly secret)
   # - Primary purpose: correlate pixel events with webhooks, filter noise/misconfiguration
@@ -86,26 +77,10 @@ runtime_context = "strict"
   # Server behavior:
   # - Missing/invalid key: request rejected (204 No Content)
   # - Valid key: request processed (correlated with shop for diagnostics)
-  #
-  # NAMING NOTE (P1-2): This field is named "ingestion_secret" for backwards compatibility.
-  # The name is misleading - it's NOT a cryptographic secret. It functions as a correlation
-  # token (like an API key for rate limiting, not for security).
-  # 
-  # BACKWARDS COMPATIBILITY:
-  # The pixel code reads BOTH "ingestion_key" (new) and "ingestion_secret" (legacy).
-  # When updating existing pixels, merchants can use either field name.
-  # New installations should use "ingestion_key" for clarity.
-  [[settings.fields]]
-    key = "ingestion_secret"
-    name = "Ingestion Key (Legacy)"
-    description = "Store-scoped key for event correlation. Use 'ingestion_key' for new installations."
-    type = "single_line_text_field"
-  
-  # P1-2: New field with correct naming (correlation key, not secret)
   [[settings.fields]]
     key = "ingestion_key"
     name = "Ingestion Key"
-    description = "Store-scoped key for event correlation. Validated by server for noise filtering (not a security credential)."
+    description = "Store-scoped key for event correlation. Auto-generated during app installation."
     type = "single_line_text_field"
   
   # Note: debug field removed - Shopify settings are always strings (single_line_text_field)

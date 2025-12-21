@@ -46,11 +46,11 @@ This document provides step-by-step testing procedures for Shopify App Store rev
 1. Go to Settings → Customer events
 2. Verify "Tracking Guardian Pixel" is listed
 3. Click to view settings
-4. Verify only "Ingestion Key" and "Debug Mode" settings are visible
-5. NO "Backend URL" setting should exist (P0-01 compliance)
+4. Verify ONLY "Ingestion Key" setting is visible (auto-generated during install)
+5. NO "Backend URL" setting exists (hardcoded for security - P0-01 compliance)
 ```
 
-**Expected Result**: Pixel is installed, settings match extension schema.
+**Expected Result**: Pixel is installed with minimal settings (ingestion_key only).
 
 ---
 

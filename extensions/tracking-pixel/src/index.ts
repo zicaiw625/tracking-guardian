@@ -1,52 +1,13 @@
 import { register } from "@shopify/web-pixels-extension";
 
-/** Default production backend URL */
-const DEFAULT_BACKEND_URL = "https://tracking-guardian.onrender.com";
-
 /**
- * Allowed URL patterns for security - prevents data exfiltration to arbitrary endpoints.
- * Only URLs matching these patterns are accepted as valid backend targets.
+ * Backend URL is hardcoded for security - prevents data exfiltration to arbitrary endpoints.
+ * Merchants cannot configure or override this value.
+ * 
+ * P0-01: Removed backend_url setting per App Store review requirements.
+ * This ensures data only flows to our verified backend.
  */
-const ALLOWED_URL_PATTERNS = [
-  /^https:\/\/tracking-guardian\.onrender\.com$/,
-  /^https:\/\/tracking-guardian-staging\.onrender\.com$/,
-  /^https?:\/\/localhost:\d+$/,
-  /^https?:\/\/127\.0\.0\.1:\d+$/,
-];
-
-/**
- * Validates that a URL matches one of the allowed patterns.
- * This is a security measure to prevent merchants from configuring
- * arbitrary data exfiltration endpoints.
- */
-function isAllowedBackendUrl(url: string): boolean {
-  return ALLOWED_URL_PATTERNS.some((pattern) => pattern.test(url));
-}
-
-/**
- * Get the backend URL from settings with validation.
- * Falls back to default production URL if settings URL is invalid or not provided.
- */
-function getValidatedBackendUrl(settings: { backend_url?: string }): string {
-  const configuredUrl = settings.backend_url?.trim();
-  
-  if (!configuredUrl) {
-    return DEFAULT_BACKEND_URL;
-  }
-  
-  // Validate against allowed patterns for security
-  if (isAllowedBackendUrl(configuredUrl)) {
-    return configuredUrl;
-  }
-  
-  // Log warning in development (console visible in browser DevTools)
-  console.warn(
-    "[Tracking Guardian] Configured backend_url does not match allowed patterns. " +
-    "Using default URL. Configured: " + configuredUrl
-  );
-  
-  return DEFAULT_BACKEND_URL;
-}
+const BACKEND_URL = "https://tracking-guardian.onrender.com";
 
 interface CheckoutData {
   order?: { id?: string };
@@ -80,19 +41,13 @@ function toNumber(value: string | number | undefined | null, defaultValue = 0): 
 }
 
 register(({ analytics, settings, init, customerPrivacy }: any) => {
-  
-  const backendUrl = getValidatedBackendUrl(settings);
-
-  const ingestionKey = (settings.ingestion_key || settings.ingestion_secret) as string | undefined;
+  // P0-01: ingestion_key is the only setting field (backend_url removed for security)
+  const ingestionKey = settings.ingestion_key as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
   
+  // Dev mode detection: based on shop domain patterns only
+  // (backend URL is now hardcoded, so localhost detection removed)
   const isDevMode = (() => {
-    if (/^https?:\/\/(localhost|127\.0\.0\.1):\d+/.test(backendUrl)) {
-      return true;
-    }
-    if (settings.debug_mode === "true" || settings.debug_mode === true) {
-      return true;
-    }
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
       return true;
     }
@@ -107,7 +62,6 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
 
   if (isDevMode) {
     log("Development mode enabled", {
-      backendUrl,
       shopDomain,
       hasIngestionKey: !!ingestionKey,
     });
@@ -201,7 +155,7 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
 
       const { signal, cleanup } = createTimeoutSignal(5000);
 
-      fetch(`${backendUrl}/api/pixel-events`, {
+      fetch(`${BACKEND_URL}/api/pixel-events`, {
         method: "POST",
         headers,
         keepalive: true,
