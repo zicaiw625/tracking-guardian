@@ -418,7 +418,6 @@ async function executeCronTasks(
   const gdprResults = await processGDPRJobs();
   cronLogger.info("GDPR processing completed", gdprResults);
 
-  // P0-9: Check GDPR compliance status
   cronLogger.info("Checking GDPR compliance...");
   const gdprCompliance = await checkGDPRCompliance();
   if (!gdprCompliance.isCompliant) {
@@ -471,7 +470,6 @@ async function executeCronTasks(
   const cleanupResults = await cleanupExpiredData();
   cronLogger.info("Cleanup completed", cleanupResults);
 
-  // P0-9: Log cleanup metrics for audit trail
   const totalDeleted = 
     cleanupResults.conversionLogsDeleted +
     cleanupResults.conversionJobsDeleted +

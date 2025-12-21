@@ -1,24 +1,10 @@
-/**
- * P0-2: Tests for pixel consent logic (Strict-only mode)
- * 
- * After P0-2 compliance update, the pixel requires:
- * - BOTH marketing AND analytics consent (matches toml declaration)
- * - saleOfData not opted-out
- * 
- * This is stricter than before to ensure declaration-behavior consistency
- * for Shopify App Store compliance.
- */
-
 import { describe, it, expect } from "vitest";
 
-// Simulate the hasAnyConsent function from the pixel extension
-// P0-2: Updated to require BOTH marketing AND analytics (strict mode)
 function hasAnyConsent(
   marketingAllowed: boolean,
   analyticsAllowed: boolean,
   saleOfDataAllowed: boolean
 ): boolean {
-  // Strict: require BOTH marketing AND analytics (matches toml declaration)
   const hasMarketing = marketingAllowed === true;
   const hasAnalytics = analyticsAllowed === true;
   return hasMarketing && hasAnalytics && saleOfDataAllowed;
@@ -65,7 +51,6 @@ describe("hasAnyConsent - P0-2 strict mode", () => {
 });
 
 describe("Backend platform filtering with consent", () => {
-  // Simulate the backend logic
   function shouldRecordForPlatform(
     platform: string,
     marketingConsent: boolean,
@@ -82,7 +67,6 @@ describe("Backend platform filtering with consent", () => {
       return analyticsConsent;
     }
     
-    // Unknown platform - require marketing consent as default
     return marketingConsent;
   }
 

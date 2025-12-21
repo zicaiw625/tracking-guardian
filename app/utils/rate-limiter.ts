@@ -246,7 +246,6 @@ class RedisRateLimitStore implements RateLimitStore {
   }
   
   entries(): IterableIterator<[string, RateLimitEntry]> {
-    // Redis doesn't support sync iteration - delegate to fallback
     return this.fallbackStore.entries();
   }
 }
@@ -322,23 +321,11 @@ interface AnomalyTracker {
 const anomalyTrackers = new Map<string, AnomalyTracker>();
 const ANOMALY_WINDOW_MS = 5 * 60 * 1000;
 
-/**
- * P1-2: Anomaly detection thresholds for abuse prevention.
- * 
- * These thresholds are especially important now that we allow custom domain origins.
- * Without origin-based blocking, the ingestion key is the primary security mechanism.
- */
 const ANOMALY_THRESHOLDS = {
-  // Invalid key attempts - primary abuse vector for pixel endpoint
-  // Lower threshold since this indicates potential key guessing/brute force
   invalidKey: 25,
-  // Invalid origin - less critical now that we allow custom domains for pixel events
   invalidOrigin: 50,
-  // Invalid timestamp - can indicate replay attacks
   invalidTimestamp: 50,
-  // Total anomalies before blocking
   composite: 75,
-  // Warning threshold as ratio of composite
   warningRatio: 0.5,
 };
 

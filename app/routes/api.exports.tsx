@@ -1,17 +1,3 @@
-/**
- * P0-5: Data Export API for Compliance
- * 
- * Provides merchants with the ability to export their data in CSV or JSON format.
- * This is required for Shopify App Store compliance and GDPR data portability.
- * 
- * Endpoints:
- * - GET /api/exports?type=conversions&format=csv
- * - GET /api/exports?type=conversions&format=json
- * - GET /api/exports?type=audit&format=json
- * 
- * Authentication: Shopify Admin session required
- */
-
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -27,7 +13,6 @@ const EXPORT_LIMITS = {
   jobs: 5000,
 };
 
-// P0-6: Field definitions with PII status
 const FIELD_DEFINITIONS = {
   conversions: {
     id: { description: "Unique conversion log ID", pii: false },
@@ -83,7 +68,6 @@ const FIELD_DEFINITIONS = {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  // Authenticate admin session
   const { session, admin } = await authenticate.admin(request);
   
   if (!admin) {
@@ -103,7 +87,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const format = (url.searchParams.get("format") || "json") as ExportFormat;
   const includeMeta = url.searchParams.get("include_meta") === "true";
   
-  // Date range filters
   const startDate = url.searchParams.get("start_date");
   const endDate = url.searchParams.get("end_date");
   
@@ -177,7 +160,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             previousValue: true,
             newValue: true,
             metadata: true,
-            // P0-6: Include IP/UA for audit but note they are PII
             ipAddress: true,
             userAgent: true,
             createdAt: true,
@@ -189,7 +171,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         data = logs.map(log => ({
           ...log,
           createdAt: log.createdAt.toISOString(),
-          // Redact sensitive values in export
           previousValue: log.previousValue ? "[REDACTED]" : null,
           newValue: log.newValue ? "[REDACTED]" : null,
         }));
@@ -293,7 +274,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
 
-    // CSV format
     if (data.length === 0) {
       return new Response("", {
         status: 200,
@@ -333,10 +313,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-/**
- * P0-5: Export metadata endpoint
- * Returns field definitions and data dictionary for documentation
- */
 export function getFieldDefinitions(): Record<string, unknown> {
   return {
     version: "1.0",

@@ -31,7 +31,6 @@ export interface DeliveryHealthReport {
   id: string;
   platform: string;
   reportDate: Date;
-  // From ReconciliationReport - used by getDeliveryHealthHistory
   shopifyOrders: number;
   platformConversions: number;
   orderDiscrepancy: number;

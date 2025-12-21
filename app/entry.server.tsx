@@ -87,15 +87,8 @@ export default async function handleRequest(
   
   validateHeadersOnce();
   
-  // P0-1: CRITICAL - Order matters for CSP/frame-ancestors compliance
-  // 1. Shopify's addDocumentResponseHeaders sets CSP with dynamic frame-ancestors
-  //    that includes the specific shop domain (e.g., https://my-store.myshopify.com)
-  // 2. We then add additional security headers that do NOT include CSP
-  //    to avoid overriding Shopify's properly configured frame-ancestors
   addDocumentResponseHeaders(request, responseHeaders);
   
-  // Add non-CSP security headers (X-Content-Type-Options, etc.)
-  // EMBEDDED_APP_HEADERS intentionally excludes Content-Security-Policy
   addSecurityHeadersToHeaders(responseHeaders, EMBEDDED_APP_HEADERS);
 
   const userAgent = request.headers.get("user-agent");

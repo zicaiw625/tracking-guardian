@@ -32,16 +32,6 @@ const MAX_ORDER_NUMBER_LENGTH = 32;
 const MAX_FEEDBACK_LENGTH = 2000;
 const MAX_SOURCE_LENGTH = 50;
 
-/**
- * P1-3: Validate survey input with flexible order identification.
- * 
- * Changed from requiring orderId to requiring at least one of:
- * - orderId (preferred)
- * - orderNumber
- * - checkoutToken (for async lookup)
- * 
- * This improves compatibility when orderConfirmation.id isn't available.
- */
 function validateSurveyInput(body: unknown): SurveyResponseData {
   if (!body || typeof body !== "object") {
     throw new Error("Invalid request body");
@@ -49,7 +39,6 @@ function validateSurveyInput(body: unknown): SurveyResponseData {
 
   const data = body as Record<string, unknown>;
 
-  // P1-3: orderId is now optional, but we need at least one order identifier
   let orderId: string | undefined;
   if (data.orderId !== undefined && data.orderId !== null) {
     if (typeof data.orderId !== "string") {
@@ -78,7 +67,6 @@ function validateSurveyInput(body: unknown): SurveyResponseData {
     }
   }
 
-  // P1-3: Support checkoutToken as fallback identifier
   let checkoutToken: string | undefined;
   if (data.checkoutToken !== undefined && data.checkoutToken !== null) {
     if (typeof data.checkoutToken !== "string") {
@@ -90,7 +78,6 @@ function validateSurveyInput(body: unknown): SurveyResponseData {
     }
   }
 
-  // Require at least one order identifier
   if (!orderId && !orderNumber && !checkoutToken) {
     throw new Error("At least one order identifier required (orderId, orderNumber, or checkoutToken)");
   }
@@ -275,14 +262,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return jsonWithCors({ error: "Shop is not active" }, { status: 403 });
     }
 
-    // P1-3: Generate a composite key for deduplication when orderId is missing
-    // Priority: orderId > orderNumber > checkoutToken
     const surveyKey = validatedData.orderId 
       || (validatedData.orderNumber ? `order_num:${validatedData.orderNumber}` : null)
       || (validatedData.checkoutToken ? `checkout:${validatedData.checkoutToken}` : null);
     
     if (!surveyKey) {
-      // This should never happen due to validation, but just in case
       return jsonWithCors({ error: "No valid order identifier" }, { status: 400 });
     }
 
@@ -297,7 +281,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       : null;
 
     if (!existingOrderEvidence && validatedData.orderId) {
-      // P2-2: Only log truncated orderId, not full value
       logger.info(`Survey for untracked order`, {
         orderIdPrefix: validatedData.orderId.slice(0, 8),
         shop: shopHeader,
@@ -305,7 +288,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
-    // P1-3: Check for existing response using composite key
     const existingResponse = await prisma.surveyResponse.findFirst({
       where: {
         shopId: shop.id,
@@ -324,7 +306,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           customAnswers: validatedData.customAnswers 
             ? JSON.parse(JSON.stringify(validatedData.customAnswers)) 
             : existingResponse.customAnswers,
-          // P1-3: Update orderId if we now have it and previously only had fallback
           ...(validatedData.orderId && existingResponse.orderId.startsWith("order_num:") 
             ? { orderId: validatedData.orderId } 
             : {}),
@@ -341,7 +322,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const surveyResponse = await prisma.surveyResponse.create({
       data: {
         shopId: shop.id,
-        orderId: surveyKey, // Use composite key
+        orderId: surveyKey,
         orderNumber: validatedData.orderNumber,
         rating: validatedData.rating,
         feedback: validatedData.feedback,
@@ -352,7 +333,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     });
 
-    // P2-2: Log only truncated identifiers, not full values
     logger.info(`Survey response saved`, {
       shop: shopHeader,
       hasOrderId: !!validatedData.orderId,
@@ -367,7 +347,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       id: surveyResponse.id,
     });
   } catch (error) {
-    // P2-2: Use sanitized logger, don't log full error which may contain PII
     logger.error("Survey API error", error);
     
     return jsonWithCors(

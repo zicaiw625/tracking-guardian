@@ -12,10 +12,8 @@ export function createEncryptedSessionStorage(
 ): SessionStorage {
   return {
     async storeSession(session: Session): Promise<boolean> {
-      // Store original accessToken for restoration after storage
       const originalToken = session.accessToken;
       
-      // Encrypt the token in-place if it exists
       if (session.accessToken) {
         session.accessToken = encryptAccessToken(session.accessToken);
       }
@@ -23,7 +21,6 @@ export function createEncryptedSessionStorage(
       try {
         return await baseStorage.storeSession(session);
       } finally {
-        // Restore original token to avoid side effects
         session.accessToken = originalToken;
       }
     },

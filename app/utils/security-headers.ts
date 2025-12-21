@@ -1,18 +1,4 @@
-/**
- * Security headers for embedded app pages.
- * 
- * ## P0-1 CSP 去歧义处理 - 重要说明
- * 
- * Content-Security-Policy 完全由 Shopify SDK 的 addDocumentResponseHeaders 处理：
- * - Shopify 会动态生成 frame-ancestors，精确限定到当前 shop 的域名
- * - 例如：frame-ancestors https://my-store.myshopify.com https://admin.shopify.com
- * - 我们 **不要** 自己设置任何 CSP，否则会覆盖 Shopify 的动态值
- * 
- * 这里只设置与 CSP 无关的安全头。addSecurityHeadersToHeaders 使用 "只在不存在时设置"
- * 的逻辑，所以即使不小心调用，也不会覆盖 Shopify 已设置的 CSP。
- */
 export const EMBEDDED_APP_HEADERS: Record<string, string> = {
-  // 不包含 Content-Security-Policy - 完全交给 Shopify addDocumentResponseHeaders
   "X-Content-Type-Options": "nosniff",
   "X-XSS-Protection": "1; mode=block",
   "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -84,8 +70,6 @@ export function getProductionSecurityHeaders(
 export function validateSecurityHeaders(): { valid: boolean; issues: string[] } {
   const issues: string[] = [];
   
-  // P0-1: Verify we're NOT setting CSP in EMBEDDED_APP_HEADERS
-  // CSP must be handled by Shopify's addDocumentResponseHeaders for dynamic frame-ancestors
   if (EMBEDDED_APP_HEADERS["Content-Security-Policy"]) {
     issues.push("EMBEDDED_APP_HEADERS should NOT include Content-Security-Policy - Shopify handles this");
   }

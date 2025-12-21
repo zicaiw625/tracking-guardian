@@ -90,7 +90,6 @@ export function isAnalyticsPlatform(platform: string): boolean {
 export interface ConsentState {
   marketing?: boolean;
   analytics?: boolean;
-  // P0-4: sale_of_data tracking - false means user opted out of data sale/sharing
   saleOfDataAllowed?: boolean;
 }
 
@@ -164,7 +163,6 @@ export function evaluatePlatformConsentWithStrategy(
   hasPixelReceipt: boolean,
   treatAsMarketing = false
 ): ConsentDecision {
-  // P0-4: Global sale_of_data check - opt-out blocks ALL platforms
   if (consentState?.saleOfDataAllowed === false) {
     return {
       allowed: false,
@@ -175,7 +173,6 @@ export function evaluatePlatformConsentWithStrategy(
   
   switch (consentStrategy) {
     case "strict": {
-      // Strict: require verified receipt + explicit consent=true
       if (!hasPixelReceipt) {
         return {
           allowed: false,
@@ -183,14 +180,10 @@ export function evaluatePlatformConsentWithStrategy(
           usedConsent: "none",
         };
       }
-      // evaluatePlatformConsent checks consent by platform category
       return evaluatePlatformConsent(platform, consentState, treatAsMarketing);
     }
       
     case "balanced": {
-      // P0-1 Fix: balanced still requires receipt, but allows trust=partial
-      // (The trust level distinction is handled by the caller passing hasPixelReceipt)
-      // We no longer allow "analytics without receipt"
       if (!hasPixelReceipt) {
         return {
           allowed: false,
@@ -198,15 +191,10 @@ export function evaluatePlatformConsentWithStrategy(
           usedConsent: "none",
         };
       }
-      // Still require explicit consent=true for the platform category
       return evaluatePlatformConsent(platform, consentState, treatAsMarketing);
     }
     
-    // P0-1: "weak" mode removed - it was a compliance risk
-    // If someone still has "weak" in DB, fall through to default (strict behavior)
-      
     default: {
-      // Default to strict behavior for unknown strategies
       if (!hasPixelReceipt) {
         return {
           allowed: false,

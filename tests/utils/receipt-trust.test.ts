@@ -1,7 +1,3 @@
-/**
- * P0-1 & P1-2: Tests for receipt trust verification module
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   verifyReceiptTrust,

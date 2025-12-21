@@ -12,14 +12,10 @@ import {
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
 
-// P0-11: Production backend URL allowlist for security
-// Only these URLs are allowed in production to prevent data exfiltration
 const PRODUCTION_BACKEND_ALLOWLIST = [
   "https://tracking-guardian.onrender.com",
-  // Add other approved production URLs here
 ] as const;
 
-// P0-11: Dev/staging URL patterns for non-production testing
 const DEV_BACKEND_PATTERNS = [
   /^https?:\/\/localhost/,
   /^https?:\/\/127\.0\.0\.1/,
@@ -27,7 +23,6 @@ const DEV_BACKEND_PATTERNS = [
   /^https?:\/\/.*\.trycloudflare\.com/,
 ] as const;
 
-// P1-4: Default backend URL
 const DEFAULT_BACKEND_URL = PRODUCTION_BACKEND_ALLOWLIST[0];
 
 export default reactExtension(
@@ -42,34 +37,28 @@ function Survey() {
   
   const [orderId, setOrderId] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
-  // P1-3: Add checkoutToken as fallback when orderId is not available
   const [checkoutToken, setCheckoutToken] = useState<string | null>(null);
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // P0-11: Track if backend URL is valid
   const [backendUrlValid, setBackendUrlValid] = useState(true);
 
   const title = (settings.survey_title as string) || "我们想听听您的意见";
   const question = (settings.survey_question as string) || "您是如何了解到我们的？";
   
-  // P0-11: Determine if we're in dev mode based on shop domain
   const shopDomain = shop?.myshopifyDomain || "";
   const isDevMode = shopDomain.includes(".myshopify.dev") || 
                     /-(dev|staging|test)\./i.test(shopDomain);
   
-  // P0-11: Validate and resolve backend URL with security checks
   const resolveBackendUrl = (): string | null => {
     const configuredUrl = (settings.backend_url as string)?.trim();
     
-    // Case 1: URL is configured and in production allowlist
     if (configuredUrl && PRODUCTION_BACKEND_ALLOWLIST.includes(configuredUrl as typeof PRODUCTION_BACKEND_ALLOWLIST[number])) {
       return configuredUrl;
     }
     
-    // Case 2: Dev mode - allow localhost/ngrok URLs
     if (isDevMode && configuredUrl) {
       const isDevUrl = DEV_BACKEND_PATTERNS.some(pattern => pattern.test(configuredUrl));
       if (isDevUrl) {
@@ -77,20 +66,16 @@ function Survey() {
       }
     }
     
-    // Case 3: No URL configured - use first production URL
     if (!configuredUrl) {
       return DEFAULT_BACKEND_URL;
     }
     
-    // Case 4: URL configured but not in allowlist and not dev mode
-    // This is a security concern - reject
     console.warn("[Survey] Backend URL not in allowlist:", configuredUrl?.substring(0, 50));
     return null;
   };
 
   const backendUrl = resolveBackendUrl();
   
-  // P0-11: Update validity state when URL changes
   useEffect(() => {
     setBackendUrlValid(backendUrl !== null);
   }, [backendUrl]);
@@ -98,14 +83,11 @@ function Survey() {
   useEffect(() => {
     async function fetchOrderInfo() {
       try {
-        // P1-3: Get all available order identifiers for fallback
         if (orderConfirmation) {
           const orderData = await orderConfirmation;
           if (orderData) {
             setOrderId(orderData.id || null);
             setOrderNumber(orderData.number?.toString() || null);
-            // Try to get checkout token from URL or other sources
-            // Note: orderConfirmation may not have token, but we can still submit with orderId/orderNumber
           }
         }
       } catch (err) {
@@ -126,10 +108,8 @@ function Survey() {
   const handleSubmit = async () => {
     if (selectedRating === null && selectedSource === null) return;
     
-    // P1-3: Allow submission with any order identifier, not just orderId
     if (!orderId && !orderNumber && !checkoutToken) return;
     
-    // P0-11: Block submission if backend URL is invalid (security check)
     if (!backendUrl) {
       console.error("[Survey] Cannot submit: backend URL not in allowlist");
       setError("配置错误，无法提交反馈");
@@ -143,7 +123,6 @@ function Survey() {
       
       const token = await sessionToken.get();
 
-      // P1-3: Include all available identifiers, backend will use what's available
       const surveyData = {
         orderId: orderId || undefined,
         orderNumber: orderNumber || undefined,
@@ -275,7 +254,7 @@ function Survey() {
           (selectedRating === null && selectedSource === null) || 
           submitting || 
           (!orderId && !orderNumber && !checkoutToken) ||
-          !backendUrlValid  // P0-11: Disable if backend URL is invalid
+          !backendUrlValid
         }
         loading={submitting}
       >

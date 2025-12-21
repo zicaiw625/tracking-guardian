@@ -1,12 +1,3 @@
-/**
- * P0-1 / P3-2: Tests for security headers configuration
- * 
- * These tests verify that:
- * - EMBEDDED_APP_HEADERS does NOT include CSP (Shopify handles it dynamically)
- * - Security header validation catches issues
- * - API headers are correctly configured
- */
-
 import { describe, it, expect } from "vitest";
 import { 
   EMBEDDED_APP_HEADERS, 

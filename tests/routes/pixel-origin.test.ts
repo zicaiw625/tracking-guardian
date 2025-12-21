@@ -1,13 +1,3 @@
-/**
- * P0-2 / P3-2: Tests for pixel origin validation
- * 
- * These tests verify that the pixel endpoint correctly handles:
- * - Custom domain origins (https://brand.com)
- * - Shopify origins (https://store.myshopify.com)
- * - Sandbox origins (null)
- * - Invalid origins (http, malformed)
- */
-
 import { describe, it, expect } from "vitest";
 import { isValidPixelOrigin } from "../../app/utils/origin-validation";
 

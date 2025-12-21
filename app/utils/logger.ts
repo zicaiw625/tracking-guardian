@@ -37,14 +37,7 @@ function formatMessage(level: LogLevel, message: string, context?: LogContext): 
   return `${prefix} ${message}`;
 }
 
-/**
- * P2-2: Comprehensive list of sensitive field patterns for log sanitization.
- * 
- * Any field name containing these patterns (case-insensitive) will be redacted.
- * This is critical for GDPR compliance and preventing PII leakage in logs.
- */
 const SENSITIVE_FIELD_PATTERNS = [
-  // Authentication & secrets
   "accesstoken",
   "access_token",
   "apisecret",
@@ -57,8 +50,6 @@ const SENSITIVE_FIELD_PATTERNS = [
   "bearer",
   "apikey",
   "api_key",
-  
-  // Customer PII
   "email",
   "phone",
   "firstname",
@@ -67,9 +58,7 @@ const SENSITIVE_FIELD_PATTERNS = [
   "last_name",
   "fullname",
   "full_name",
-  "name", // Catch-all for name fields
-  
-  // Address information
+  "name",
   "address",
   "street",
   "city",
@@ -79,20 +68,16 @@ const SENSITIVE_FIELD_PATTERNS = [
   "zip",
   "postal",
   "postcode",
-  
-  // Payment information
   "creditcard",
   "credit_card",
   "cardnumber",
   "card_number",
   "cvv",
   "expiry",
-  "pan", // Primary Account Number
+  "pan",
   "iban",
   "accountnumber",
   "account_number",
-  
-  // Platform-specific secrets
   "ingestionsecret",
   "ingestion_secret",
   "ingestion_key",
@@ -107,15 +92,11 @@ const SENSITIVE_FIELD_PATTERNS = [
   "bot_token",
   "chatid",
   "chat_id",
-  
-  // Shopify-specific PII fields
   "customer",
   "billing",
   "shipping",
   "billing_address",
   "shipping_address",
-  
-  // IP addresses (considered PII in GDPR)
   "ip_address",
   "ipaddress",
   "client_ip",
@@ -126,12 +107,6 @@ const SENSITIVE_FIELD_PATTERNS = [
   "x-forwarded-for",
 ];
 
-/**
- * P2-2: Fields that should be completely excluded from logs.
- * 
- * These are large payload fields that may contain PII and aren't useful for debugging.
- * They are replaced with "[EXCLUDED]" rather than being recursively sanitized.
- */
 const EXCLUDED_FIELDS = [
   "orderpayload",
   "order_payload",
@@ -300,12 +275,6 @@ export function createRequestLogger(
   };
 }
 
-/**
- * P3-3: Metrics logging for observability.
- * 
- * These structured logs can be parsed by log aggregators (Datadog, CloudWatch, etc.)
- * to create dashboards and alerts. The _metric field identifies the metric type.
- */
 export const metrics = {
   
   pixelEvent(context: {
@@ -322,12 +291,6 @@ export const metrics = {
     });
   },
 
-  /**
-   * P1-4 & P3-3: Track pixel request rejections by reason for monitoring.
-   * 
-   * These metrics are critical for observability since many rejections
-   * return silent 204 responses to avoid leaking information.
-   */
   pixelRejection(context: {
     requestId?: string;
     shopDomain: string;
@@ -343,7 +306,6 @@ export const metrics = {
       | "shop_inactive"
       | "no_ingestion_key";
     originType?: string;
-    /** P1-4: Fingerprint for pattern analysis (no PII) */
     fingerprint?: string;
   }): void {
     logger.info(`[METRIC] pixel_rejection`, {
@@ -353,21 +315,13 @@ export const metrics = {
     });
   },
 
-  /**
-   * P1-4: Track silent 204 drops with detailed reason for debugging.
-   * 
-   * These are requests that were intentionally dropped without error response.
-   * Useful for security monitoring and debugging legitimate issues.
-   */
   silentDrop(context: {
     requestId?: string;
     shopDomain?: string;
     reason: string;
     category: "security" | "validation" | "duplicate" | "rate_limit";
-    /** Sample rate for high-volume drops (0-1) */
     sampleRate?: number;
   }): void {
-    // Only log based on sample rate (default 100%)
     const rate = context.sampleRate ?? 1;
     if (Math.random() > rate) return;
 
@@ -378,9 +332,6 @@ export const metrics = {
     });
   },
 
-  /**
-   * P1-4: Track trust verification outcomes
-   */
   trustVerification(context: {
     shopDomain: string;
     orderId: string;
@@ -395,9 +346,6 @@ export const metrics = {
     });
   },
 
-  /**
-   * P3-3: Track consent-based filtering
-   */
   consentFilter(context: {
     shopDomain: string;
     orderId: string;

@@ -128,7 +128,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id: true,
       plan: true,
       ingestionSecret: true,
-      // P2-3: Include grace window info for key rotation UI
       previousIngestionSecret: true,
       previousSecretExpiry: true,
       piiEnabled: true,
@@ -147,7 +146,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     tokenIssues = await checkTokenExpirationIssues(shop.id);
   }
 
-  // P2-3: Check if there's an active grace window for key rotation
   const hasActiveGraceWindow = shop?.previousIngestionSecret && 
     shop?.previousSecretExpiry && 
     new Date() < shop.previousSecretExpiry;
@@ -162,7 +160,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           pixelConfigs: shop.pixelConfigs,
           
           hasIngestionSecret: !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
-          // P2-3: Grace window info for UI
           hasActiveGraceWindow,
           graceWindowExpiry: hasActiveGraceWindow ? shop.previousSecretExpiry : null,
           piiEnabled: shop.piiEnabled,
@@ -460,11 +457,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     case "updatePrivacySettings": {
       const piiEnabled = formData.get("piiEnabled") === "true";
-      // P0-1: Default to strict, not balanced
       const consentStrategy = (formData.get("consentStrategy") as string) || "strict";
       const dataRetentionDays = parseInt(formData.get("dataRetentionDays") as string) || 90;
 
-      // P0-1: Always set weakConsentMode to false (deprecated)
       await prisma.shop.update({
         where: { id: shop.id },
         data: { piiEnabled, weakConsentMode: false, consentStrategy, dataRetentionDays },
@@ -1391,12 +1386,10 @@ export default function SettingsPage() {
                             label: "⚖️ 平衡模式（Balanced）", 
                             value: "balanced",
                           },
-                          // P0-1: Weak mode removed for App Store compliance
                         ]}
                         value={shop?.consentStrategy || "strict"}
                         onChange={(value) => {
                           if (value !== "strict") {
-                            // P0-1: Updated warning - balanced still requires receipt + consent
                             const warning = "平衡模式仍要求像素回执与明确同意，但允许"部分可信"的回执（trust=partial）。\n\n在 GDPR 等严格隐私法规地区，推荐使用严格模式。\n\n确定要切换吗？";
                             if (!confirm(warning)) {
                               return;

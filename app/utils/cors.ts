@@ -19,15 +19,6 @@ export const STATIC_CORS_HEADERS = {
   ...SECURITY_HEADERS,
 } as const;
 
-/**
- * P0-2: CORS headers for pixel events endpoint.
- * 
- * Web Pixels run on storefronts with custom domains, so we must allow all origins.
- * Security is enforced via ingestion key + timestamp, NOT via origin restriction.
- * 
- * NOTE: We use Access-Control-Allow-Origin: * and do NOT use credentials.
- * This is intentional - we're relying on the ingestion key for authentication.
- */
 export function getPixelEventsCorsHeaders(customHeaders?: string[]): HeadersInit {
   const allowedHeaders = [
     "Content-Type",
@@ -42,8 +33,6 @@ export function getPixelEventsCorsHeaders(customHeaders?: string[]): HeadersInit
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": allowedHeaders,
     "Access-Control-Max-Age": "86400",
-    // Do NOT include Access-Control-Allow-Credentials since we use * for origin
-    // Authentication is via X-Tracking-Guardian-Key header
   };
 }
 

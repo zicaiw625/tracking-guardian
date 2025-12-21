@@ -80,7 +80,6 @@ export interface RiskItem {
 
 export interface ScanResult {
   scriptTags: ScriptTag[];
-  // P0-02: additionalScripts removed for PCI compliance - raw scripts may contain PII
   checkoutConfig: CheckoutConfig | null;
   identifiedPlatforms: string[];
   riskItems: RiskItem[];
@@ -332,12 +331,6 @@ export interface ConversionLogData {
   sentAt: Date | null;
 }
 
-/**
- * P1-3: Survey response data with flexible order identification.
- * 
- * At least one of orderId, orderNumber, or checkoutToken must be provided.
- * The backend will attempt to resolve missing orderId from orderNumber or checkoutToken.
- */
 export interface SurveyResponseData {
   orderId?: string;
   orderNumber?: string;

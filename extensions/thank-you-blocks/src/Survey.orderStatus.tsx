@@ -12,7 +12,6 @@ import {
 } from "@shopify/ui-extensions-react/customer-account";
 import { useState, useEffect } from "react";
 
-// P1-4: Default backend URL, can be overridden via extension settings
 const DEFAULT_BACKEND_URL = "https://tracking-guardian.onrender.com";
 
 export default reactExtension(
@@ -35,7 +34,6 @@ function SurveyOrderStatus() {
   const title = (settings.survey_title as string) || "我们想听听您的意见";
   const question = (settings.survey_question as string) || "您是如何了解到我们的？";
   
-  // P1-4: Use backend_url from settings, fallback to default
   const backendUrl = (settings.backend_url as string)?.trim() || DEFAULT_BACKEND_URL;
 
   const sources = [

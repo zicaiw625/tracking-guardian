@@ -55,9 +55,6 @@ const shopify = shopifyApp({
       callbackUrl: "/webhooks",
     },
 
-    // P0-3: GDPR mandatory compliance webhooks
-    // These must be registered for App Store approval
-    // See: https://shopify.dev/docs/apps/webhooks/configuration/mandatory-webhooks
     CUSTOMERS_DATA_REQUEST: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",

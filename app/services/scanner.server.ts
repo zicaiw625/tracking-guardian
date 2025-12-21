@@ -259,8 +259,6 @@ export async function scanShopTracking(
   shopId: string
 ): Promise<EnhancedScanResult> {
   const errors: ScanError[] = [];
-  // P0-02: additionalScripts removed from storage - raw scripts may contain PII
-  // Platform detection is stored in identifiedPlatforms + riskItems
   const result: EnhancedScanResult = {
     scriptTags: [],
     checkoutConfig: null,
@@ -526,12 +524,9 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
 }
 
 function collectScriptContent(result: EnhancedScanResult): string {
-  // P0-02: Only collect script tag URLs for platform detection
-  // Raw script content is NOT collected to avoid storing PII
   let content = "";
 
   for (const tag of result.scriptTags) {
-    // Only use src URL for detection, not inline content
     content += ` ${tag.src || ""} ${tag.event || ""}`;
   }
 
@@ -674,12 +669,10 @@ async function saveScanReport(
   result: ScanResult,
   errorMessage: string | null = null
 ): Promise<void> {
-  // P0-02: additionalScripts field removed - only store structured findings
   await prisma.scanReport.create({
     data: {
       shopId,
       scriptTags: JSON.parse(JSON.stringify(result.scriptTags)),
-      // P0-02: additionalScripts removed for PII compliance
       checkoutConfig: result.checkoutConfig ? JSON.parse(JSON.stringify(result.checkoutConfig)) : undefined,
       identifiedPlatforms: result.identifiedPlatforms,
       riskItems: JSON.parse(JSON.stringify(result.riskItems)),

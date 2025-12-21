@@ -38,14 +38,6 @@ const PIXEL_CUSTOM_HEADERS = [
   "X-Tracking-Guardian-Timestamp",
 ];
 
-/**
- * P0-2: Get CORS headers for pixel events endpoint.
- * 
- * Uses permissive CORS (Access-Control-Allow-Origin: *) because:
- * - Web Pixels run on storefronts with custom domains (e.g., https://brand.com)
- * - We cannot whitelist all possible custom domains
- * - Authentication is via ingestion key, not origin
- */
 function getCorsHeaders(_request: Request): HeadersInit {
   return getPixelEventsCorsHeaders(PIXEL_CUSTOM_HEADERS);
 }
@@ -78,8 +70,6 @@ interface PixelEventPayload {
   consent?: {
     marketing?: boolean;
     analytics?: boolean;
-    // P0-4: From customerPrivacyStatus.saleOfDataAllowed
-    // true/false/undefined (undefined -> not provided, treated as allowed)
     saleOfData?: boolean;
   };
   
@@ -130,9 +120,6 @@ async function isClientEventRecorded(
   return !!existing;
 }
 
-/**
- * P1-2: Validation result with detailed error codes for monitoring
- */
 type ValidationError = 
   | "invalid_body"
   | "missing_event_name"
@@ -211,9 +198,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
 
-  // P0-2: Validate origin for pixel events
-  // Allow any HTTPS origin (storefronts can have custom domains like https://brand.com)
-  // Security is enforced via ingestion key + timestamp, not origin restriction
   const origin = request.headers.get("Origin");
   const originValidation = isValidPixelOrigin(origin);
   
@@ -223,7 +207,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (anomalyCheck.shouldBlock) {
       logger.warn(`Circuit breaker triggered for ${originShopDomain}: ${anomalyCheck.reason}`);
     }
-    // P3-3: Track rejection metric
     metrics.pixelRejection({
       shopDomain: originShopDomain,
       reason: "invalid_origin",
@@ -314,7 +297,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const validation = validateRequest(rawBody);
     if (!validation.valid) {
-      // P1-2: Log validation failures with error codes for monitoring
       logger.debug(`Pixel payload validation failed: code=${validation.code}, error=${validation.error}`);
       return jsonWithCors({ error: validation.error, code: validation.code }, { status: 400, request });
     }
@@ -356,8 +338,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     let keyValidation: { matched: boolean; reason: string; usedPreviousSecret?: boolean };
     
     if (!shop.ingestionSecret) {
-      // Production: reject requests from shops without ingestion key configured
-      // This prevents abuse from shops that haven't completed pixel setup
       if (!isDevMode()) {
         logger.warn(`Rejected: Shop ${shop.shopDomain} has no ingestion key configured`);
         return jsonWithCors(
@@ -365,7 +345,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 403, request }
         );
       }
-      // Dev mode: allow for easier testing
       keyValidation = { matched: false, reason: "shop_no_key_configured_dev" };
       logger.info(`[DEV] Shop ${shop.shopDomain} has no ingestion key configured - allowing request`);
     } else if (!ingestionKey) {
@@ -401,19 +380,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    // P0-1: Determine trust level based on verification results
-    // Trust levels: trusted (key matched), partial (key matched but issues), untrusted
     const isTrusted = keyValidation.matched;
     let trustLevel: TrustLevel = keyValidation.matched ? "partial" : "untrusted";
     let untrustedReason: string | undefined;
     
-    // P0-2: Extract origin host for audit trail
     const originHost = extractOriginHost(origin);
 
-    // P0-1: Checkout token is required for full trust
-    // If present, will be verified against webhook later
     if (keyValidation.matched && payload.data.checkoutToken) {
-      // Will be promoted to "trusted" after webhook verification
       trustLevel = "partial";
     } else if (!keyValidation.matched) {
       trustLevel = "untrusted";
@@ -480,12 +453,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }, { request });
     }
 
-    // P0-3: Check for replay using nonce (order + timestamp hash)
     const nonceValue = `${orderId}:${payload.timestamp}`;
-    const nonceExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const nonceExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
     
     try {
-      // Try to create nonce - if it already exists, this is a replay
       await prisma.eventNonce.create({
         data: {
           shopId: shop.id,
@@ -495,7 +466,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
     } catch (nonceError) {
-      // Unique constraint violation = replay detected
       if ((nonceError as { code?: string })?.code === "P2002") {
         logger.debug(`Replay detected for order ${orderId}, dropping duplicate`);
         metrics.pixelRejection({
@@ -508,7 +478,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           headers: getCorsHeaders(request),
         });
       }
-      // Other errors - log but continue
       logger.warn(`Nonce check failed: ${String(nonceError)}`);
     }
 
@@ -532,7 +501,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           isTrusted: isTrusted,
           signatureStatus: keyValidation.matched ? "key_matched" : keyValidation.reason,
           usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
-          // P0-1: Enhanced trust tracking
           trustLevel: trustLevel,
           untrustedReason: untrustedReason,
           originHost: originHost,
@@ -545,7 +513,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           isTrusted: isTrusted,
           signatureStatus: keyValidation.matched ? "key_matched" : keyValidation.reason,
           usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
-          // P0-1: Enhanced trust tracking
           trustLevel: trustLevel,
           untrustedReason: untrustedReason,
           originHost: originHost,
@@ -555,16 +522,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.warn(`Failed to write PixelEventReceipt for order ${orderId}`, { error: String(error) });
     }
 
-    // P3-1: Batch upserts in a transaction for better performance
     const recordedPlatforms: string[] = [];
     const skippedPlatforms: string[] = [];
     
     const consent = payload.consent;
     const hasMarketingConsent = consent?.marketing === true;
     const hasAnalyticsConsent = consent?.analytics === true;
-    const saleOfDataAllowed = consent?.saleOfData !== false; // false => opt-out
+    const saleOfDataAllowed = consent?.saleOfData !== false;
 
-    // P0-4: Global interception - sale_of_data opt-out blocks ALL platform recording
     if (!saleOfDataAllowed) {
       logger.debug(
         `Skipping ConversionLog recording: sale_of_data opt-out (saleOfData=${String(consent?.saleOfData)})`
@@ -575,7 +540,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
     
-    // Filter platforms based on consent
     const platformsToRecord: string[] = [];
     for (const config of pixelConfigs) {
       if (isMarketingPlatform(config.platform) && !hasMarketingConsent) {
@@ -599,7 +563,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       platformsToRecord.push(config.platform);
     }
     
-    // P3-1: Execute all upserts in a single transaction
     if (platformsToRecord.length > 0) {
       try {
         await prisma.$transaction(
@@ -637,7 +600,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         recordedPlatforms.push(...platformsToRecord);
       } catch (error) {
         logger.warn(`Failed to record client events in transaction`, { error: String(error) });
-        // Fallback: try individual upserts
         for (const platform of platformsToRecord) {
           try {
             await prisma.conversionLog.upsert({
@@ -676,7 +638,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
     
-    // P3-3: Track consent filtering for monitoring
     if (skippedPlatforms.length > 0 || recordedPlatforms.length > 0) {
       metrics.consentFilter({
         shopDomain: shop.shopDomain,

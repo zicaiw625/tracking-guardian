@@ -320,19 +320,6 @@ export async function getExistingWebPixels(
   }
 }
 
-/**
- * P1-1: ScriptTag Manual Deletion Guidance
- * 
- * We intentionally do NOT provide automatic ScriptTag deletion to minimize
- * required OAuth scopes. The app only requests `read_script_tags` for scanning,
- * not `write_script_tags` which would be needed for deletion.
- * 
- * Instead, we provide clear manual deletion instructions to merchants.
- * This approach:
- * - Reduces permission footprint (better for app review)
- * - Avoids accidentally deleting ScriptTags created by other apps
- * - Gives merchants control over their store configuration
- */
 export interface ScriptTagDeletionGuidance {
   title: string;
   manualSteps: string[];
@@ -560,11 +547,6 @@ export async function verifyCredentialsEncryption(): Promise<{
   };
 }
 
-/**
- * @deprecated The orderPayload field has been removed from the schema.
- * This function is no longer needed and will be removed in a future version.
- * Migration 20251221100000_p0_01_remove_order_payload handles the schema change.
- */
 export async function sanitizeExistingOrderPayloads(_batchSize = 500): Promise<{
   processed: number;
   cleaned: number;
@@ -574,10 +556,6 @@ export async function sanitizeExistingOrderPayloads(_batchSize = 500): Promise<{
   return { processed: 0, cleaned: 0, errors: 0 };
 }
 
-/**
- * @deprecated The orderPayload field has been removed from the schema.
- * This function now only returns capiInput stats.
- */
 export async function getOrderPayloadStats(): Promise<{
   totalJobs: number;
   withOrderPayload: number;

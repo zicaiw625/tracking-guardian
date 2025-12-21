@@ -49,7 +49,6 @@ vi.mock("../../app/services/billing.server", () => ({
   incrementMonthlyUsage: vi.fn(),
 }));
 
-// P0-3: Mock webhook validation to allow test payloads through
 vi.mock("../../app/utils/webhook-validation", () => ({
   parseOrderWebhookPayload: vi.fn().mockImplementation((payload) => {
     if (!payload || typeof payload !== "object" || !("id" in payload)) {
@@ -90,7 +89,6 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       const response = await action({ request, params: {}, context: {} });
 
       expect(response.status).toBe(401);
-      // P0-3: Updated response message
       expect(await response.text()).toBe("Unauthorized: Invalid HMAC");
     });
 

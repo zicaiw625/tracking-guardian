@@ -18,13 +18,6 @@ interface ConsentReconciliationResult {
   errors: number;
 }
 
-/**
- * P0-1: Evaluate consent for a platform using the unified platform-consent logic.
- * This delegates to evaluatePlatformConsentWithStrategy which now handles:
- * - sale_of_data opt-out (global block)
- * - strict/balanced modes (balanced no longer allows analytics without receipt)
- * - weak mode removed (falls through to strict behavior)
- */
 function evaluateConsentForPlatform(
   platform: string,
   strategy: string,
@@ -36,7 +29,7 @@ function evaluateConsentForPlatform(
     strategy,
     consentState,
     hasVerifiedReceipt,
-    /* treatAsMarketing */ false
+    false
   );
   return { 
     allowed: decision.allowed, 
@@ -126,7 +119,6 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
       }
       
       if (receipt) {
-        // P0-1: Default to strict (not balanced/weak) for safety
         const strategy = log.shop.consentStrategy || "strict";
         const rawConsentState = receipt.consentState as { 
           marketing?: boolean; 
@@ -134,7 +126,6 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
           saleOfData?: boolean;
         } | null;
         
-        // P0-4: Normalize consent state to include saleOfDataAllowed
         const consentState: ConsentState | null = rawConsentState
           ? {
               marketing: rawConsentState.marketing,
@@ -143,8 +134,6 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
             }
           : null;
         
-        // P0-1: Use verified receipt for consent check
-        // receipt.isTrusted indicates the receipt was verified via ingestion key
         const hasVerifiedReceipt = receipt.isTrusted === true;
         
         const decision = evaluateConsentForPlatform(

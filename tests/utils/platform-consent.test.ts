@@ -48,7 +48,6 @@ describe("evaluatePlatformConsentWithStrategy", () => {
       const consent: ConsentState = { 
         marketing: true, 
         analytics: true,
-        // saleOfDataAllowed undefined -> allowed
       };
       const result = evaluatePlatformConsentWithStrategy(
         "meta", 
@@ -172,7 +171,6 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         false, // no receipt
         false
       );
-      // P0-1: balanced now requires receipt
       expect(result.allowed).toBe(false);
       expect(result.reason).toBe("no_receipt_balanced_mode");
     });
@@ -219,7 +217,6 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         false, // no receipt
         false
       );
-      // P0-1: weak mode removed, falls through to default which requires receipt
       expect(result.allowed).toBe(false);
       expect(result.reason).toBe("no_receipt_default_mode");
     });

@@ -102,7 +102,6 @@ export default function MonitorPage() {
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 
   const summaryData: Record<string, DeliverySummary> = (summary ?? {}) as Record<string, DeliverySummary>;
-  // Remix serializes Date to string, so we need to handle the conversion
   const historyData = ((history ?? []) as unknown as Array<Omit<DeliveryHealthReport, 'reportDate'> & { reportDate: string }>).map((h) => ({
     ...h,
     reportDate: new Date(h.reportDate),

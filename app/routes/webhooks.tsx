@@ -90,25 +90,6 @@ interface ShopWithPixelConfigs extends Shop {
   pixelConfigs: PixelConfig[];
 }
 
-/**
- * Shopify Webhook Handler
- * 
- * P1-5: Response time and idempotency considerations:
- * 
- * 1. FAST ACK: We return 200 as quickly as possible. Heavy processing is
- *    delegated to async jobs via ConversionJob queue. Shopify expects
- *    a response within 5 seconds or it will retry.
- * 
- * 2. IDEMPOTENCY: We use X-Shopify-Webhook-Id to detect duplicate deliveries.
- *    Each webhook is logged in WebhookLog with a unique constraint on
- *    (shopDomain, webhookId, topic). Duplicates get 200 but no processing.
- * 
- * 3. ERROR HANDLING:
- *    - 400 for client errors (bad HMAC, invalid JSON) - Shopify won't retry
- *    - 500 for server errors - Shopify will retry with exponential backoff
- *    - Always return 200 for successfully received webhooks, even if
- *      downstream processing will happen async
- */
 export const action = async ({ request }: ActionFunctionArgs) => {
   
   let topic: string;
@@ -125,13 +106,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     admin = authResult.admin;
     payload = authResult.payload;
   } catch (error) {
-    // P0-3: Return appropriate status codes for webhook errors
-    // For mandatory compliance webhooks (GDPR), Shopify expects 401 for invalid HMAC
-    // See: https://shopify.dev/docs/apps/webhooks/configuration/mandatory-webhooks
-    
     if (error instanceof Response) {
-      // P0-3: HMAC validation failed - return 401 for mandatory compliance webhooks
-      // This is required by Shopify for CUSTOMERS_DATA_REQUEST, CUSTOMERS_REDACT, SHOP_REDACT
       logger.warn("[Webhook] HMAC validation failed - returning 401");
       return new Response("Unauthorized: Invalid HMAC", { status: 401 });
     }
@@ -142,7 +117,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     
     logger.error("[Webhook] Authentication error:", error);
-    // 500 tells Shopify to retry - appropriate for transient server errors
     return new Response("Webhook authentication failed", { status: 500 });
   }
 
@@ -444,8 +418,6 @@ async function queueOrderForProcessing(
 
   try {
 
-    // P0-01: orderPayload field removed for PCD compliance
-    // Only capiInput (minimal fields for CAPI) is stored
     const createData = {
       shopId: shopRecord.id,
       orderId,
