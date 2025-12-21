@@ -1,66 +1,24 @@
 /**
- * CSP directives for embedded app - EXCLUDES frame-ancestors
- * 
- * P0-1: frame-ancestors MUST be dynamically set by Shopify's addDocumentResponseHeaders
- * to include only the specific shop domain (https://{shop}.myshopify.com) + admin.shopify.com
- * 
- * Using wildcards like *.myshopify.com is NOT allowed for Shopify App Store approval.
- * Shopify's framework handles this correctly - we must not override it.
- */
-const EMBEDDED_CSP_DIRECTIVES = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.shopify.com https://*.shopify.com",
-  "style-src 'self' 'unsafe-inline' https://cdn.shopify.com",
-  "img-src 'self' https://cdn.shopify.com https://*.shopify.com data: blob:",
-  "font-src 'self' https://cdn.shopify.com",
-  "connect-src 'self' https://*.shopify.com https://*.myshopify.com wss://*.shopify.com",
-  // NOTE: frame-ancestors is intentionally OMITTED - Shopify's addDocumentResponseHeaders sets it dynamically
-  "frame-src 'self' https://*.shopify.com",
-  "form-action 'self' https://*.shopify.com",
-  "base-uri 'self'",
-  "upgrade-insecure-requests",
-];
-
-/**
  * Security headers for embedded app pages.
  * 
- * IMPORTANT (P0-1): Content-Security-Policy is NOT included here.
- * Shopify's addDocumentResponseHeaders MUST set CSP with dynamic frame-ancestors
- * that includes the specific shop domain. Our job is to NOT override that.
+ * ## P0-1 CSP 去歧义处理 - 重要说明
  * 
- * If you need to add CSP directives, use getEmbeddedAppCSP() which can be merged
- * with Shopify's CSP, but never override frame-ancestors.
+ * Content-Security-Policy 完全由 Shopify SDK 的 addDocumentResponseHeaders 处理：
+ * - Shopify 会动态生成 frame-ancestors，精确限定到当前 shop 的域名
+ * - 例如：frame-ancestors https://my-store.myshopify.com https://admin.shopify.com
+ * - 我们 **不要** 自己设置任何 CSP，否则会覆盖 Shopify 的动态值
+ * 
+ * 这里只设置与 CSP 无关的安全头。addSecurityHeadersToHeaders 使用 "只在不存在时设置"
+ * 的逻辑，所以即使不小心调用，也不会覆盖 Shopify 已设置的 CSP。
  */
 export const EMBEDDED_APP_HEADERS: Record<string, string> = {
-  // CSP is intentionally NOT set here - let Shopify's addDocumentResponseHeaders handle it
-  // This ensures frame-ancestors is dynamically set per-shop as required
+  // 不包含 Content-Security-Policy - 完全交给 Shopify addDocumentResponseHeaders
   "X-Content-Type-Options": "nosniff",
   "X-XSS-Protection": "1; mode=block",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-DNS-Prefetch-Control": "on",
   "Permissions-Policy": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
 };
-
-/**
- * Get CSP directives that can be safely merged with Shopify's CSP.
- * Does NOT include frame-ancestors which must be set by Shopify.
- */
-export function getEmbeddedAppCSP(): string {
-  return EMBEDDED_CSP_DIRECTIVES.join("; ");
-}
-
-/**
- * Build dynamic CSP with shop-specific frame-ancestors.
- * Use this ONLY if you need to completely override Shopify's CSP.
- * Prefer letting Shopify handle CSP via addDocumentResponseHeaders.
- */
-export function buildDynamicCSP(shopDomain: string): string {
-  const dynamicDirectives = [
-    ...EMBEDDED_CSP_DIRECTIVES,
-    `frame-ancestors https://${shopDomain} https://admin.shopify.com`,
-  ];
-  return dynamicDirectives.join("; ");
-}
 
 export const API_SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
@@ -126,13 +84,8 @@ export function getProductionSecurityHeaders(
 export function validateSecurityHeaders(): { valid: boolean; issues: string[] } {
   const issues: string[] = [];
   
-  // P0-1: frame-ancestors should NOT be in our CSP directives
-  // It must be set dynamically by Shopify's addDocumentResponseHeaders
-  if (EMBEDDED_CSP_DIRECTIVES.some(d => d.includes("frame-ancestors"))) {
-    issues.push("CSP should NOT include frame-ancestors - let Shopify set it dynamically per-shop");
-  }
-  
-  // Verify we're NOT overriding Shopify's CSP in EMBEDDED_APP_HEADERS
+  // P0-1: Verify we're NOT setting CSP in EMBEDDED_APP_HEADERS
+  // CSP must be handled by Shopify's addDocumentResponseHeaders for dynamic frame-ancestors
   if (EMBEDDED_APP_HEADERS["Content-Security-Policy"]) {
     issues.push("EMBEDDED_APP_HEADERS should NOT include Content-Security-Policy - Shopify handles this");
   }
