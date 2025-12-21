@@ -9,7 +9,6 @@ import { reconcilePendingConsent } from "../services/consent-reconciler.server";
 import { processGDPRJobs, checkGDPRCompliance } from "../services/gdpr.server";
 import { createAuditLog } from "../services/audit.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
-import { createAuditLog } from "../services/audit.server";
 import { logger, createRequestLogger } from "../utils/logger";
 import { withCronLock } from "../utils/cron-lock";
 

@@ -323,6 +323,12 @@ async function processCustomerRedact(
 
   const orderIdStrings = ordersToRedact.map(id => String(id));
 
+  // P0-9: Also generate fallback key patterns for comprehensive deletion
+  // api.survey.tsx stores fallback keys as "order_num:{orderNumber}" or "checkout:{token}"
+  // api.pixel-events.tsx stores checkoutToken separately in PixelEventReceipt
+  const orderNumberPatterns = ordersToRedact.map(id => `order_num:${id}`);
+
+  // Step 1: Delete by exact order IDs
   const conversionLogResult = await prisma.conversionLog.deleteMany({
     where: {
       shopId: shop.id,
@@ -337,6 +343,7 @@ async function processCustomerRedact(
     },
   });
 
+  // Step 2: Delete PixelEventReceipts by orderId
   const pixelReceiptResult = await prisma.pixelEventReceipt.deleteMany({
     where: {
       shopId: shop.id,
@@ -344,27 +351,101 @@ async function processCustomerRedact(
     },
   });
 
-  const surveyResult = await prisma.surveyResponse.deleteMany({
+  // Step 3: Delete SurveyResponses by orderId and fallback patterns
+  // First, delete by exact order IDs
+  const surveyByOrderId = await prisma.surveyResponse.deleteMany({
     where: {
       shopId: shop.id,
       orderId: { in: orderIdStrings },
     },
   });
   
+  // P0-9: Also delete by order_num:* fallback pattern
+  // This handles cases where Survey extension used orderNumber as fallback
+  const surveyByOrderNumberPattern = await prisma.surveyResponse.deleteMany({
+    where: {
+      shopId: shop.id,
+      orderId: { in: orderNumberPatterns },
+    },
+  });
+
+  // P0-9: Find and delete PixelEventReceipts that have matching checkoutTokens
+  // First, find all receipts for these orders that might have checkoutTokens
+  const receiptsWithCheckoutTokens = await prisma.pixelEventReceipt.findMany({
+    where: {
+      shopId: shop.id,
+      orderId: { in: orderIdStrings },
+      checkoutToken: { not: null },
+    },
+    select: { checkoutToken: true },
+  });
+  
+  // Extract unique checkout tokens that are linked to these orders
+  // P0-9: Use Array.from for TypeScript compatibility
+  const linkedCheckoutTokens = Array.from(new Set(
+    receiptsWithCheckoutTokens
+      .map(r => r.checkoutToken)
+      .filter((t): t is string => t !== null)
+  ));
+  
+  // Delete any additional receipts that might be stored under checkoutToken as orderId
+  let pixelReceiptByCheckoutToken = 0;
+  let surveyByCheckoutTokenPattern = 0;
+  
+  if (linkedCheckoutTokens.length > 0) {
+    // Some records might have used checkoutToken as the orderId (fallback)
+    const additionalPixelReceipts = await prisma.pixelEventReceipt.deleteMany({
+      where: {
+        shopId: shop.id,
+        orderId: { in: linkedCheckoutTokens },
+      },
+    });
+    pixelReceiptByCheckoutToken = additionalPixelReceipts.count;
+    
+    // Delete survey responses with checkout:* pattern
+    const checkoutPatterns = linkedCheckoutTokens.map(t => `checkout:${t}`);
+    const additionalSurveys = await prisma.surveyResponse.deleteMany({
+      where: {
+        shopId: shop.id,
+        orderId: { in: checkoutPatterns },
+      },
+    });
+    surveyByCheckoutTokenPattern = additionalSurveys.count;
+  }
+  
+  // Also check ConversionLogs that might have used checkoutToken as orderId
+  let conversionLogByCheckoutToken = 0;
+  if (linkedCheckoutTokens.length > 0) {
+    const additionalConversionLogs = await prisma.conversionLog.deleteMany({
+      where: {
+        shopId: shop.id,
+        orderId: { in: linkedCheckoutTokens },
+      },
+    });
+    conversionLogByCheckoutToken = additionalConversionLogs.count;
+  }
+  
   const result: CustomerRedactResult = {
     customerId,
     ordersRedacted: ordersToRedact,
     deletedCounts: {
-      conversionLogs: conversionLogResult.count,
+      conversionLogs: conversionLogResult.count + conversionLogByCheckoutToken,
       conversionJobs: conversionJobResult.count,
-      pixelEventReceipts: pixelReceiptResult.count,
-      surveyResponses: surveyResult.count,
+      pixelEventReceipts: pixelReceiptResult.count + pixelReceiptByCheckoutToken,
+      surveyResponses: surveyByOrderId.count + surveyByOrderNumberPattern.count + surveyByCheckoutTokenPattern,
     },
   };
   
   logger.info(`[GDPR] Customer redact completed for ${shopDomain}`, {
     customerId,
     ...result.deletedCounts,
+    // P0-9: Log fallback deletion details for audit trail
+    fallbackDeletions: {
+      byOrderNumberPattern: surveyByOrderNumberPattern.count,
+      byCheckoutTokenPattern: surveyByCheckoutTokenPattern,
+      pixelReceiptsByCheckoutToken: pixelReceiptByCheckoutToken,
+      conversionLogsByCheckoutToken: conversionLogByCheckoutToken,
+    },
   });
 
   if (shop) {
@@ -378,6 +459,11 @@ async function processCustomerRedact(
       metadata: {
         ordersRedacted: ordersToRedact,
         deletedCounts: result.deletedCounts,
+        // P0-9: Include fallback deletion info in audit log
+        fallbackDeletions: {
+          orderNumberPatterns: orderNumberPatterns.length,
+          checkoutTokensFound: linkedCheckoutTokens.length,
+        },
       },
     });
   }

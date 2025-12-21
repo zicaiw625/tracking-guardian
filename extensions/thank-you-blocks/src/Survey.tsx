@@ -12,8 +12,23 @@ import {
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
 
-// P1-4: Default backend URL, can be overridden via extension settings
-const DEFAULT_BACKEND_URL = "https://tracking-guardian.onrender.com";
+// P0-11: Production backend URL allowlist for security
+// Only these URLs are allowed in production to prevent data exfiltration
+const PRODUCTION_BACKEND_ALLOWLIST = [
+  "https://tracking-guardian.onrender.com",
+  // Add other approved production URLs here
+] as const;
+
+// P0-11: Dev/staging URL patterns for non-production testing
+const DEV_BACKEND_PATTERNS = [
+  /^https?:\/\/localhost/,
+  /^https?:\/\/127\.0\.0\.1/,
+  /^https?:\/\/.*\.ngrok/,
+  /^https?:\/\/.*\.trycloudflare\.com/,
+] as const;
+
+// P1-4: Default backend URL
+const DEFAULT_BACKEND_URL = PRODUCTION_BACKEND_ALLOWLIST[0];
 
 export default reactExtension(
   "purchase.thank-you.block.render",
@@ -34,12 +49,51 @@ function Survey() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // P0-11: Track if backend URL is valid
+  const [backendUrlValid, setBackendUrlValid] = useState(true);
 
   const title = (settings.survey_title as string) || "我们想听听您的意见";
   const question = (settings.survey_question as string) || "您是如何了解到我们的？";
   
-  // P1-4: Use backend_url from settings, fallback to default
-  const backendUrl = (settings.backend_url as string)?.trim() || DEFAULT_BACKEND_URL;
+  // P0-11: Determine if we're in dev mode based on shop domain
+  const shopDomain = shop?.myshopifyDomain || "";
+  const isDevMode = shopDomain.includes(".myshopify.dev") || 
+                    /-(dev|staging|test)\./i.test(shopDomain);
+  
+  // P0-11: Validate and resolve backend URL with security checks
+  const resolveBackendUrl = (): string | null => {
+    const configuredUrl = (settings.backend_url as string)?.trim();
+    
+    // Case 1: URL is configured and in production allowlist
+    if (configuredUrl && PRODUCTION_BACKEND_ALLOWLIST.includes(configuredUrl as typeof PRODUCTION_BACKEND_ALLOWLIST[number])) {
+      return configuredUrl;
+    }
+    
+    // Case 2: Dev mode - allow localhost/ngrok URLs
+    if (isDevMode && configuredUrl) {
+      const isDevUrl = DEV_BACKEND_PATTERNS.some(pattern => pattern.test(configuredUrl));
+      if (isDevUrl) {
+        return configuredUrl;
+      }
+    }
+    
+    // Case 3: No URL configured - use first production URL
+    if (!configuredUrl) {
+      return DEFAULT_BACKEND_URL;
+    }
+    
+    // Case 4: URL configured but not in allowlist and not dev mode
+    // This is a security concern - reject
+    console.warn("[Survey] Backend URL not in allowlist:", configuredUrl?.substring(0, 50));
+    return null;
+  };
+
+  const backendUrl = resolveBackendUrl();
+  
+  // P0-11: Update validity state when URL changes
+  useEffect(() => {
+    setBackendUrlValid(backendUrl !== null);
+  }, [backendUrl]);
 
   useEffect(() => {
     async function fetchOrderInfo() {
@@ -74,6 +128,13 @@ function Survey() {
     
     // P1-3: Allow submission with any order identifier, not just orderId
     if (!orderId && !orderNumber && !checkoutToken) return;
+    
+    // P0-11: Block submission if backend URL is invalid (security check)
+    if (!backendUrl) {
+      console.error("[Survey] Cannot submit: backend URL not in allowlist");
+      setError("配置错误，无法提交反馈");
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -91,14 +152,14 @@ function Survey() {
         source: selectedSource,
       };
 
-      const shopDomain = shop?.myshopifyDomain || "";
+      const currentShopDomain = shop?.myshopifyDomain || "";
 
-      if (shopDomain) {
+      if (currentShopDomain) {
         const response = await fetch(`${backendUrl}/api/survey`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Shopify-Shop-Domain": shopDomain,
+            "X-Shopify-Shop-Domain": currentShopDomain,
             "Authorization": `Bearer ${token}`,
           },
           body: JSON.stringify(surveyData),
@@ -210,7 +271,12 @@ function Survey() {
       <Button
         kind="secondary"
         onPress={handleSubmit}
-        disabled={(selectedRating === null && selectedSource === null) || submitting || (!orderId && !orderNumber && !checkoutToken)}
+        disabled={
+          (selectedRating === null && selectedSource === null) || 
+          submitting || 
+          (!orderId && !orderNumber && !checkoutToken) ||
+          !backendUrlValid  // P0-11: Disable if backend URL is invalid
+        }
         loading={submitting}
       >
         {submitting ? "提交中..." : "提交反馈"}

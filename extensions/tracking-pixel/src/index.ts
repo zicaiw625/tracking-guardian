@@ -120,32 +120,60 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     });
   }
 
+  /**
+   * P0-2: Consent state management - compliant with Shopify Web Pixel specifications.
+   * 
+   * IMPORTANT: Web Pixels CANNOT call Customer Privacy API directly (e.g., getTrackingConsent()).
+   * Instead, we:
+   * 1. Read the initial consent state from the customerPrivacy object (sandbox-provided snapshot)
+   * 2. Subscribe to "visitorConsentCollected" events for real-time consent updates
+   * 
+   * Shopify's pixel sandbox automatically:
+   * - Blocks pixel execution when consent is not granted (in consent-required regions)
+   * - Replays queued events when consent is later granted
+   * - Provides consent state via the customerPrivacy object
+   * 
+   * This approach ensures declaration-behavior consistency with shopify.extension.toml.
+   */
   let marketingAllowed = false;
   let analyticsAllowed = false;
   let saleOfDataAllowed = true;
 
   if (customerPrivacy) {
-    
+    // Read initial consent state from the sandbox-provided customerPrivacy object
+    // These are direct property reads, NOT API calls (which are not allowed in web pixels)
     marketingAllowed = customerPrivacy.marketingAllowed === true;
     analyticsAllowed = customerPrivacy.analyticsProcessingAllowed === true;
+    // saleOfDataAllowed defaults to true unless explicitly opted out (false)
     saleOfDataAllowed = customerPrivacy.saleOfDataAllowed !== false;
     
-    log("Initial consent state:", { marketingAllowed, analyticsAllowed, saleOfDataAllowed });
+    log("Initial consent state (from customerPrivacy object):", { 
+      marketingAllowed, 
+      analyticsAllowed, 
+      saleOfDataAllowed 
+    });
 
+    // Subscribe to consent changes for real-time updates
+    // This is the Shopify-recommended way to track consent in web pixels
     try {
       customerPrivacy.subscribe("visitorConsentCollected", (event: VisitorConsentCollectedEvent) => {
         marketingAllowed = event.marketingAllowed === true;
         analyticsAllowed = event.analyticsProcessingAllowed === true;
         saleOfDataAllowed = event.saleOfDataAllowed !== false;
-        log("Consent updated:", { marketingAllowed, analyticsAllowed, saleOfDataAllowed });
+        log("Consent updated (via visitorConsentCollected event):", { 
+          marketingAllowed, 
+          analyticsAllowed, 
+          saleOfDataAllowed 
+        });
       });
     } catch {
-      
-      log("Could not subscribe to consent changes");
+      // Subscription may fail in some edge cases, but initial state is still valid
+      log("Could not subscribe to consent changes, using initial state only");
     }
   } else {
-
-    log("Customer privacy API not available, defaulting to no tracking");
+    // When customerPrivacy is not available, we cannot determine consent
+    // Default to no tracking to be safe (privacy-by-default)
+    log("Customer privacy object not available, defaulting to no tracking");
   }
 
   /**
