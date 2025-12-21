@@ -1,35 +1,45 @@
 # Extension Deployment Guide
 
-## P0-2: Backend URL Configuration
+## P0-01: Backend URL Configuration (App Store Compliance)
 
 ### Overview
 
-Shopify extensions (Web Pixel, Checkout UI) need to know the backend URL to send data. This URL is **hardcoded at build time** (not merchant-configurable) for security reasons:
+Shopify extensions (Web Pixel, Checkout UI) need to know the backend URL to send data. This URL is **hardcoded at build time** and **NOT merchant-configurable** for security and App Store compliance:
 
-1. **App Store Compliance**: Prevents data exfiltration concerns
-2. **Security**: Only trusted domains controlled by the app developer are allowed
-3. **Simplicity**: No runtime configuration needed
+1. **App Store Compliance (P0-01)**: No merchant-configurable `backend_url` setting
+2. **Data Exfiltration Prevention**: Events can only be sent to our controlled backend
+3. **Security**: No settings exposed that could redirect customer data
+4. **Simplicity**: No runtime configuration needed
+
+### P0-01 Compliance Checklist
+
+- ✅ No `backend_url` field in TOML settings files
+- ✅ Extensions import `BACKEND_URL` from shared config (hardcoded)
+- ✅ CI script validates no `backend_url` in settings
 
 ### URL Locations
 
-The backend URL is defined in these files:
+The backend URL is defined in the shared config and imported by extensions:
 
-| Extension | File | Constant |
-|-----------|------|----------|
-| Web Pixel | `extensions/tracking-pixel/src/index.ts` | `BACKEND_URL` |
-| Survey Block | `extensions/thank-you-blocks/src/Survey.tsx` | `BACKEND_URL` |
-| Shared Config | `extensions/shared/config.ts` | `BACKEND_URL` |
+| File | Purpose |
+|------|---------|
+| `extensions/shared/config.ts` | **Single source of truth** for `BACKEND_URL` |
+| `extensions/tracking-pixel/src/index.ts` | Imports from shared config |
+| `extensions/thank-you-blocks/src/Survey.tsx` | Imports from shared config |
+| `extensions/thank-you-blocks/src/Survey.orderStatus.tsx` | Imports from shared config |
 
 ### Deployment Workflow
 
 #### Production Deployment
 
 ```bash
-# 1. Verify all BACKEND_URL values are set to production
-grep -r "BACKEND_URL" extensions/*/src/*.ts
+# 1. Run CI validation script
+./scripts/check-extension-urls.sh
 
-# Expected output should show:
-# const BACKEND_URL = "https://tracking-guardian.onrender.com";
+# This checks:
+# - No backend_url in TOML files (P0-01 compliance)
+# - BACKEND_URL constant is correct in shared config
+# - Extensions don't use settings.backend_url
 
 # 2. Deploy to production
 shopify app deploy
@@ -60,36 +70,20 @@ For local development, the extensions still use the production URL by default. T
 
 ### CI/CD Validation
 
-Add this check to your CI pipeline:
+The `scripts/check-extension-urls.sh` script validates P0-01 compliance:
 
 ```bash
-# scripts/check-extension-urls.sh
-#!/bin/bash
+# Run in CI pipeline
+./scripts/check-extension-urls.sh
 
-EXPECTED_URL="https://tracking-guardian.onrender.com"
-
-# Check all extension files
-FILES=(
-  "extensions/tracking-pixel/src/index.ts"
-  "extensions/thank-you-blocks/src/Survey.tsx"
-)
-
-ERRORS=0
-for file in "${FILES[@]}"; do
-  if ! grep -q "BACKEND_URL = \"$EXPECTED_URL\"" "$file"; then
-    echo "ERROR: $file does not have correct BACKEND_URL"
-    ERRORS=$((ERRORS + 1))
-  fi
-done
-
-if [ $ERRORS -gt 0 ]; then
-  echo "Found $ERRORS files with incorrect BACKEND_URL"
-  exit 1
-fi
-
-echo "All extension URLs are correctly configured"
-exit 0
+# For staging deployments
+./scripts/check-extension-urls.sh staging
 ```
+
+The script performs these checks:
+1. **No backend_url in TOML**: Ensures no merchant-configurable settings
+2. **Correct BACKEND_URL**: Verifies the shared config has the expected URL
+3. **No settings.backend_url usage**: Extensions don't read from settings
 
 ### Allowed Domains
 
@@ -103,11 +97,14 @@ Only these domains are allowed (see `extensions/shared/config.ts`):
 ### Troubleshooting
 
 **Q: Extensions are sending data to the wrong URL**
-A: Check that the correct extension version is deployed. Each environment needs its own build.
+A: Check that the correct extension version is deployed. Each environment needs its own build with the correct `BACKEND_URL` in `extensions/shared/config.ts`.
 
 **Q: Can merchants configure the URL?**
-A: No, by design. This is a security measure for App Store compliance.
+A: No, by design. This is a P0-01 App Store compliance requirement. The `backend_url` setting was removed from TOML files.
 
 **Q: How do I test with a custom backend?**
-A: Use staging deployment, or run the app locally with `shopify app dev` (pixel events still go to production URL, but you can filter them server-side by checking the origin).
+A: Use staging deployment with a separate Shopify app, or run the app locally with `shopify app dev` (pixel events still go to production URL, but you can filter them server-side by checking the shop domain).
+
+**Q: What if App Store review asks about data destinations?**
+A: The backend URL is hardcoded and not merchant-configurable. Events are only sent to our controlled backend (`tracking-guardian.onrender.com`). This is verified by CI checks.
 

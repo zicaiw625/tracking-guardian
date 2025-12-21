@@ -2,7 +2,9 @@ import { json } from "@remix-run/node";
 import { 
   isValidShopifyOrigin, 
   isValidDevOrigin, 
-  isDevMode 
+  isDevMode,
+  extractOriginHost,
+  SHOPIFY_ALLOWLIST,
 } from "./origin-validation";
 
 export const SECURITY_HEADERS = {
@@ -19,7 +21,72 @@ export const STATIC_CORS_HEADERS = {
   ...SECURITY_HEADERS,
 } as const;
 
-export function getPixelEventsCorsHeaders(customHeaders?: string[]): HeadersInit {
+export function getPixelEventsCorsHeaders(
+  request: Request,
+  options?: {
+    customHeaders?: string[];
+    originValidation?: { valid: boolean; reason: string };
+  }
+): HeadersInit {
+  const origin = request.headers.get("Origin");
+  
+  const allowedHeaders = [
+    "Content-Type",
+    "X-Tracking-Guardian-Key",
+    "X-Tracking-Guardian-Timestamp",
+    ...(options?.customHeaders || []),
+  ].join(", ");
+
+  const baseHeaders = {
+    ...SECURITY_HEADERS,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": allowedHeaders,
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
+  };
+
+  if (origin === "null" || origin === null || !origin) {
+    return {
+      ...baseHeaders,
+      "Access-Control-Allow-Origin": "*",
+    };
+  }
+
+  if (options?.originValidation) {
+    if (options.originValidation.valid) {
+      return {
+        ...baseHeaders,
+        "Access-Control-Allow-Origin": origin,
+      };
+    } else {
+      return baseHeaders;
+    }
+  }
+
+  if (isValidShopifyOrigin(origin)) {
+    return {
+      ...baseHeaders,
+      "Access-Control-Allow-Origin": origin,
+    };
+  }
+
+  if (isDevMode() && isValidDevOrigin(origin)) {
+    return {
+      ...baseHeaders,
+      "Access-Control-Allow-Origin": origin,
+    };
+  }
+
+  return baseHeaders;
+}
+
+export function getPixelEventsCorsHeadersForShop(
+  request: Request,
+  shopAllowedDomains: string[],
+  customHeaders?: string[]
+): HeadersInit {
+  const origin = request.headers.get("Origin");
+  
   const allowedHeaders = [
     "Content-Type",
     "X-Tracking-Guardian-Key",
@@ -27,13 +94,57 @@ export function getPixelEventsCorsHeaders(customHeaders?: string[]): HeadersInit
     ...(customHeaders || []),
   ].join(", ");
 
-  return {
+  const baseHeaders = {
     ...SECURITY_HEADERS,
-    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": allowedHeaders,
     "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
   };
+
+  if (origin === "null" || origin === null || !origin) {
+    return {
+      ...baseHeaders,
+      "Access-Control-Allow-Origin": "*",
+    };
+  }
+
+  const originHost = extractOriginHost(origin);
+  if (originHost) {
+    const isAllowed = shopAllowedDomains.some(domain => {
+      const normalizedDomain = domain.toLowerCase();
+      return originHost === normalizedDomain || originHost.endsWith(`.${normalizedDomain}`);
+    });
+
+    if (isAllowed) {
+      return {
+        ...baseHeaders,
+        "Access-Control-Allow-Origin": origin,
+      };
+    }
+  }
+
+  if (originHost) {
+    const isShopifyPlatform = SHOPIFY_ALLOWLIST.some(domain =>
+      originHost === domain || originHost.endsWith(`.${domain}`)
+    );
+
+    if (isShopifyPlatform) {
+      return {
+        ...baseHeaders,
+        "Access-Control-Allow-Origin": origin,
+      };
+    }
+  }
+
+  if (isDevMode() && isValidDevOrigin(origin)) {
+    return {
+      ...baseHeaders,
+      "Access-Control-Allow-Origin": origin,
+    };
+  }
+
+  return baseHeaders;
 }
 
 export function getDynamicCorsHeaders(

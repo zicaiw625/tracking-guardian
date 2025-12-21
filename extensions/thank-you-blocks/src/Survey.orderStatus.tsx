@@ -11,8 +11,7 @@ import {
   useApi,
 } from "@shopify/ui-extensions-react/customer-account";
 import { useState, useEffect } from "react";
-
-const DEFAULT_BACKEND_URL = "https://tracking-guardian.onrender.com";
+import { BACKEND_URL } from "../../shared/config";
 
 export default reactExtension(
   "customer-account.order-status.block.render",
@@ -22,6 +21,7 @@ export default reactExtension(
 function SurveyOrderStatus() {
   const settings = useSettings();
   const api = useApi();
+  const backendUrl = BACKEND_URL;
   
   const [orderId, setOrderId] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
@@ -34,7 +34,9 @@ function SurveyOrderStatus() {
   const title = (settings.survey_title as string) || "我们想听听您的意见";
   const question = (settings.survey_question as string) || "您是如何了解到我们的？";
   
-  const backendUrl = (settings.backend_url as string)?.trim() || DEFAULT_BACKEND_URL;
+  const shopDomain = api.shop?.myshopifyDomain || "";
+  const isDevMode = shopDomain.includes(".myshopify.dev") || 
+                    /-(dev|staging|test)\./i.test(shopDomain);
 
   const sources = [
     { id: "search", label: "搜索引擎" },
@@ -47,7 +49,6 @@ function SurveyOrderStatus() {
   useEffect(() => {
     async function fetchOrderInfo() {
       try {
-        
         if (api.order) {
           const order = await api.order.current;
           if (order) {
@@ -70,7 +71,6 @@ function SurveyOrderStatus() {
     setError(null);
 
     try {
-      
       const token = await api.sessionToken?.get();
 
       const surveyData = {
@@ -80,14 +80,14 @@ function SurveyOrderStatus() {
         source: selectedSource,
       };
 
-      const shopDomain = api.shop?.myshopifyDomain || "";
+      const currentShopDomain = api.shop?.myshopifyDomain || "";
       
-      if (token && shopDomain) {
+      if (token && currentShopDomain) {
         const response = await fetch(`${backendUrl}/api/survey`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Shopify-Shop-Domain": shopDomain,
+            "X-Shopify-Shop-Domain": currentShopDomain,
             "Authorization": `Bearer ${token}`,
           },
           body: JSON.stringify(surveyData),
@@ -98,7 +98,9 @@ function SurveyOrderStatus() {
           throw new Error(errorData.error || "Failed to submit survey");
         }
 
-        console.log("Survey submitted successfully to backend");
+        if (isDevMode) {
+          console.log("Survey submitted successfully from order status page");
+        }
       } else {
         console.warn("Survey submission skipped: missing authentication or shop domain");
         throw new Error("Authentication or shop domain not available");

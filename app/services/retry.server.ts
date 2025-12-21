@@ -26,6 +26,7 @@ import {
   verifyReceiptTrust,
   isSendAllowedByTrust,
   buildTrustMetadata,
+  buildShopAllowedDomains,
   type ReceiptTrustResult,
 } from "../utils/receipt-trust";
 
@@ -679,6 +680,8 @@ export async function processConversionJobs(): Promise<{
           plan: true,
           piiEnabled: true,
           consentStrategy: true,
+          primaryDomain: true,
+          storefrontDomains: true,
           pixelConfigs: {
             where: { isActive: true, serverSideEnabled: true },
             select: {
@@ -761,6 +764,9 @@ export async function processConversionJobs(): Promise<{
           orderId: true,
           trustLevel: true,
           signatureStatus: true,
+          originHost: true,
+          pixelTimestamp: true,
+          createdAt: true,
         },
       });
 
@@ -778,6 +784,9 @@ export async function processConversionJobs(): Promise<{
             orderId: true,
             trustLevel: true,
             signatureStatus: true,
+            originHost: true,
+            pixelTimestamp: true,
+            createdAt: true,
           },
         });
       }
@@ -799,6 +808,9 @@ export async function processConversionJobs(): Promise<{
             orderId: true,
             trustLevel: true,
             signatureStatus: true,
+            originHost: true,
+            pixelTimestamp: true,
+            createdAt: true,
           },
           take: 10,
         });
@@ -814,11 +826,27 @@ export async function processConversionJobs(): Promise<{
         }
       }
       
+      const shopAllowedDomains = buildShopAllowedDomains(
+        job.shop.shopDomain,
+        job.shop.primaryDomain,
+        job.shop.storefrontDomains
+      );
+      
       const trustResult: ReceiptTrustResult = verifyReceiptTrust({
         receiptCheckoutToken: receipt?.checkoutToken,
         webhookCheckoutToken: webhookCheckoutToken,
         ingestionKeyMatched: receipt?.signatureStatus === "key_matched",
         receiptExists: !!receipt,
+        receiptOriginHost: receipt?.originHost,
+        allowedDomains: shopAllowedDomains,
+        clientCreatedAt: receipt?.pixelTimestamp,
+        serverCreatedAt: receipt?.createdAt,
+        options: {
+          strictOriginValidation: true,
+          allowNullOrigin: true,
+          maxReceiptAgeMs: 60 * 60 * 1000,
+          maxTimeSkewMs: 15 * 60 * 1000,
+        },
       });
 
       if (receipt && webhookCheckoutToken && receipt.checkoutToken === webhookCheckoutToken) {

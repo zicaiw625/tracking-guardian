@@ -1,5 +1,12 @@
 import { logger } from "./logger";
 
+export const SHOPIFY_ALLOWLIST = [
+  "checkout.shopify.com",
+  "shopify.com",
+  "myshopify.com",
+  "shopifypreview.com",
+] as const;
+
 const ALLOWED_ORIGIN_PATTERNS: Array<{
   pattern: RegExp;
   description: string;
@@ -63,36 +70,146 @@ export function isValidShopifyOrigin(origin: string | null): boolean {
   return ALLOWED_ORIGIN_PATTERNS.some(({ pattern }) => pattern.test(origin));
 }
 
-export function isValidPixelOrigin(origin: string | null): {
+export function validatePixelOriginPreBody(origin: string | null): {
   valid: boolean;
   reason: string;
+  shouldLog: boolean;
 } {
   if (origin === "null" || origin === null) {
-    return { valid: true, reason: "sandbox_or_null_origin" };
+    return { valid: true, reason: "sandbox_origin", shouldLog: false };
   }
 
   if (!origin) {
-    return { valid: true, reason: "no_origin_header" };
+    return { valid: true, reason: "no_origin_header", shouldLog: false };
   }
 
   try {
     const url = new URL(origin);
     
+    if (url.protocol === "file:") {
+      return { valid: false, reason: "file_protocol_blocked", shouldLog: true };
+    }
+    if (url.protocol === "chrome-extension:") {
+      return { valid: false, reason: "chrome_extension_blocked", shouldLog: true };
+    }
+    if (url.protocol === "data:") {
+      return { valid: false, reason: "data_protocol_blocked", shouldLog: true };
+    }
+    if (url.protocol === "blob:") {
+      return { valid: false, reason: "blob_protocol_blocked", shouldLog: true };
+    }
+    
     if (url.protocol === "http:") {
       if (isDevMode() && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) {
-        return { valid: true, reason: "dev_localhost_http" };
+        return { valid: true, reason: "dev_localhost_http", shouldLog: false };
       }
-      return { valid: false, reason: "http_not_allowed" };
+      return { valid: false, reason: "http_not_allowed", shouldLog: true };
     }
 
     if (url.protocol === "https:") {
-      return { valid: true, reason: "https_origin" };
+      return { valid: true, reason: "https_origin", shouldLog: false };
     }
 
-    return { valid: false, reason: "invalid_protocol" };
+    return { valid: false, reason: "invalid_protocol", shouldLog: true };
   } catch {
-    return { valid: false, reason: "malformed_origin" };
+    return { valid: false, reason: "malformed_origin", shouldLog: true };
   }
+}
+
+export function validatePixelOriginForShop(
+  origin: string | null,
+  shopAllowedDomains: string[]
+): {
+  valid: boolean;
+  reason: string;
+  matched?: string;
+  shouldReject: boolean;
+} {
+  if (origin === "null" || origin === null) {
+    return { valid: true, reason: "sandbox_origin", shouldReject: false };
+  }
+
+  if (!origin) {
+    return { valid: true, reason: "no_origin_header", shouldReject: false };
+  }
+
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname.toLowerCase();
+
+    if (url.protocol !== "https:" && !isDevMode()) {
+      return { valid: false, reason: "https_required", shouldReject: true };
+    }
+
+    for (const domain of shopAllowedDomains) {
+      const normalizedDomain = domain.toLowerCase();
+      
+      if (hostname === normalizedDomain) {
+        return { valid: true, reason: "exact_match", matched: domain, shouldReject: false };
+      }
+      
+      if (hostname.endsWith(`.${normalizedDomain}`)) {
+        return { valid: true, reason: "subdomain_match", matched: domain, shouldReject: false };
+      }
+    }
+
+    for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
+      if (hostname === shopifyDomain || hostname.endsWith(`.${shopifyDomain}`)) {
+        return { valid: true, reason: "shopify_platform_domain", matched: shopifyDomain, shouldReject: false };
+      }
+    }
+
+    if (isDevMode() && (hostname === "localhost" || hostname === "127.0.0.1")) {
+      return { valid: true, reason: "dev_localhost", shouldReject: false };
+    }
+
+    trackRejectedOrigin(origin);
+    return {
+      valid: false,
+      reason: `origin_not_allowlisted:${hostname}`,
+      shouldReject: true,
+    };
+  } catch {
+    return { valid: false, reason: "malformed_origin", shouldReject: true };
+  }
+}
+
+export function buildShopAllowedDomains(options: {
+  shopDomain: string;
+  primaryDomain?: string | null;
+  storefrontDomains?: string[];
+}): string[] {
+  const domains = new Set<string>();
+  
+  if (options.shopDomain) {
+    domains.add(options.shopDomain.toLowerCase());
+  }
+  
+  if (options.primaryDomain) {
+    domains.add(options.primaryDomain.toLowerCase());
+  }
+  
+  if (options.storefrontDomains) {
+    for (const domain of options.storefrontDomains) {
+      if (domain) {
+        domains.add(domain.toLowerCase());
+      }
+    }
+  }
+  
+  for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
+    domains.add(shopifyDomain);
+  }
+  
+  return Array.from(domains);
+}
+
+export function isValidPixelOrigin(origin: string | null): {
+  valid: boolean;
+  reason: string;
+} {
+  const preBodyResult = validatePixelOriginPreBody(origin);
+  return { valid: preBodyResult.valid, reason: preBodyResult.reason };
 }
 
 export function isOriginInAllowlist(
@@ -103,49 +220,12 @@ export function isOriginInAllowlist(
   reason: string;
   matched?: string;
 } {
-  if (origin === "null" || origin === null) {
-    return { valid: true, reason: "sandbox_origin" };
-  }
-
-  if (!origin) {
-    return { valid: true, reason: "no_origin_header" };
-  }
-
-  try {
-    const url = new URL(origin);
-    const hostname = url.hostname.toLowerCase();
-
-    if (url.protocol !== "https:" && !isDevMode()) {
-      return { valid: false, reason: "https_required" };
-    }
-
-    for (const domain of allowedDomains) {
-      const normalizedDomain = domain.toLowerCase();
-      
-      if (hostname === normalizedDomain) {
-        return { valid: true, reason: "exact_match", matched: domain };
-      }
-      
-      if (hostname.endsWith(`.${normalizedDomain}`)) {
-        return { valid: true, reason: "subdomain_match", matched: domain };
-      }
-    }
-
-    if (hostname === "checkout.shopify.com" || hostname.endsWith(".shopify.com")) {
-      return { valid: true, reason: "shopify_domain" };
-    }
-
-    if (isDevMode() && (hostname === "localhost" || hostname === "127.0.0.1")) {
-      return { valid: true, reason: "dev_localhost" };
-    }
-
-    return {
-      valid: false,
-      reason: `origin_not_in_allowlist:${hostname}`,
-    };
-  } catch {
-    return { valid: false, reason: "malformed_origin" };
-  }
+  const result = validatePixelOriginForShop(origin, allowedDomains);
+  return {
+    valid: result.valid,
+    reason: result.reason,
+    matched: result.matched,
+  };
 }
 
 export function buildDefaultAllowedDomains(
@@ -153,25 +233,11 @@ export function buildDefaultAllowedDomains(
   primaryDomain?: string | null,
   additionalDomains?: string[]
 ): string[] {
-  const domains = new Set<string>();
-  
-  if (myshopifyDomain) {
-    domains.add(myshopifyDomain.toLowerCase());
-  }
-  
-  if (primaryDomain) {
-    domains.add(primaryDomain.toLowerCase());
-  }
-  
-  if (additionalDomains) {
-    for (const domain of additionalDomains) {
-      if (domain) {
-        domains.add(domain.toLowerCase());
-      }
-    }
-  }
-  
-  return Array.from(domains);
+  return buildShopAllowedDomains({
+    shopDomain: myshopifyDomain,
+    primaryDomain,
+    storefrontDomains: additionalDomains,
+  });
 }
 
 export function isValidDevOrigin(origin: string | null): boolean {
@@ -311,4 +377,17 @@ export function getAllowedPatterns(): Array<{
       description: `[DEV] ${p.description}`,
     })) : []),
   ];
+}
+
+export function extractOriginHost(origin: string | null): string | null {
+  if (!origin || origin === "null") {
+    return null;
+  }
+
+  try {
+    const url = new URL(origin);
+    return url.hostname;
+  } catch {
+    return null;
+  }
 }

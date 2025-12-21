@@ -1,15 +1,5 @@
 import { register } from "@shopify/web-pixels-extension";
-
-const PRODUCTION_BACKEND_ALLOWLIST = [
-  "https://tracking-guardian.onrender.com",
-] as const;
-
-const DEV_BACKEND_PATTERNS = [
-  /^https?:\/\/localhost/,
-  /^https?:\/\/127\.0\.0\.1/,
-  /^https?:\/\/.*\.ngrok/,
-  /^https?:\/\/.*\.trycloudflare\.com/,
-] as const;
+import { BACKEND_URL } from "../../shared/config";
 
 interface CheckoutData {
   order?: { id?: string };
@@ -44,6 +34,8 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   const ingestionKey = settings.ingestion_key as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
   
+  const backendUrl = BACKEND_URL;
+  
   const isDevMode = (() => {
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
       return true;
@@ -51,43 +43,10 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     return false;
   })();
 
-  const resolveBackendUrl = (): string | null => {
-    const configuredUrl = (settings.backend_url as string | undefined)?.trim();
-    
-    if (configuredUrl && PRODUCTION_BACKEND_ALLOWLIST.includes(configuredUrl as typeof PRODUCTION_BACKEND_ALLOWLIST[number])) {
-      return configuredUrl;
-    }
-    
-    if (isDevMode && configuredUrl) {
-      const isDevUrl = DEV_BACKEND_PATTERNS.some(pattern => pattern.test(configuredUrl));
-      if (isDevUrl) {
-        return configuredUrl;
-      }
-    }
-    
-    if (!configuredUrl && PRODUCTION_BACKEND_ALLOWLIST.length > 0) {
-      if (isDevMode) {
-        return PRODUCTION_BACKEND_ALLOWLIST[0];
-      }
-      return PRODUCTION_BACKEND_ALLOWLIST[0];
-    }
-    
-    return null;
-  };
-
-  const backendUrl = resolveBackendUrl();
-
   function log(...args: unknown[]): void {
     if (isDevMode) {
       console.log("[Tracking Guardian]", ...args);
     }
-  }
-
-  if (!backendUrl) {
-    if (isDevMode) {
-      log("ERROR: Backend URL not in allowlist and not a valid dev URL. Events will not be sent.");
-    }
-    return;
   }
 
   if (isDevMode) {
@@ -135,14 +94,6 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     const hasMarketing = marketingAllowed === true;
     const hasAnalytics = analyticsAllowed === true;
     return hasMarketing && hasAnalytics && saleOfDataAllowed;
-  }
-
-  function hasMarketingConsent(): boolean {
-    return marketingAllowed === true && saleOfDataAllowed;
-  }
-
-  function hasAnalyticsConsent(): boolean {
-    return analyticsAllowed === true && saleOfDataAllowed;
   }
 
   function createTimeoutSignal(timeoutMs: number): { signal: AbortSignal; cleanup: () => void } {
@@ -243,14 +194,12 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     const shipping = toNumber(checkout.shippingLine?.price?.amount);
 
     sendToBackend("checkout_completed", {
-
       orderId: orderId || null,
       checkoutToken: checkoutToken || null,
       value,
       tax,
       shipping,
       currency: checkout.currencyCode || "USD",
-      
       items: (checkout.lineItems || []).map((item) => ({
         id: item.id || "",
         name: item.title || "",

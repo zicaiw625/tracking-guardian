@@ -1,4 +1,5 @@
 import { logger } from "./logger";
+import { SHOPIFY_ALLOWLIST } from "./origin-validation";
 
 export type TrustLevel = "trusted" | "partial" | "untrusted";
 
@@ -8,6 +9,8 @@ export type UntrustedReason =
   | "missing_origin"
   | "invalid_origin"
   | "timestamp_mismatch"
+  | "receipt_too_old"
+  | "time_skew_exceeded"
   | "ingestion_key_missing"
   | "ingestion_key_invalid"
   | "order_not_found"
@@ -23,29 +26,40 @@ export interface ReceiptTrustResult {
 export interface VerifyReceiptOptions {
   receiptCheckoutToken: string | null | undefined;
   webhookCheckoutToken: string | null | undefined;
-  originHost?: string | null;
+  receiptOriginHost?: string | null;
   allowedDomains?: string[];
-  pixelTimestamp?: number;
-  webhookTimestamp?: number;
+  clientCreatedAt?: Date | null;
+  serverCreatedAt?: Date | null;
   ingestionKeyMatched: boolean;
   receiptExists: boolean;
-  strictOriginValidation?: boolean;
+  options?: {
+    strictOriginValidation?: boolean;
+    allowNullOrigin?: boolean;
+    maxReceiptAgeMs?: number;
+    maxTimeSkewMs?: number;
+  };
 }
 
-const MAX_TIMESTAMP_DIFF_MS = 5 * 60 * 1000;
+const DEFAULT_MAX_RECEIPT_AGE_MS = 60 * 60 * 1000;
+const DEFAULT_MAX_TIME_SKEW_MS = 15 * 60 * 1000;
 
 export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustResult {
   const {
     receiptCheckoutToken,
     webhookCheckoutToken,
-    originHost,
+    receiptOriginHost,
     allowedDomains,
-    pixelTimestamp,
-    webhookTimestamp,
+    clientCreatedAt,
+    serverCreatedAt,
     ingestionKeyMatched,
     receiptExists,
-    strictOriginValidation = false,
+    options: validationOptions,
   } = options;
+
+  const strictOriginValidation = validationOptions?.strictOriginValidation ?? false;
+  const allowNullOrigin = validationOptions?.allowNullOrigin ?? true;
+  const maxReceiptAgeMs = validationOptions?.maxReceiptAgeMs ?? DEFAULT_MAX_RECEIPT_AGE_MS;
+  const maxTimeSkewMs = validationOptions?.maxTimeSkewMs ?? DEFAULT_MAX_TIME_SKEW_MS;
 
   if (!receiptExists) {
     return {
@@ -96,38 +110,69 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
     };
   }
 
-  if (pixelTimestamp && webhookTimestamp) {
-    const timeDiff = Math.abs(pixelTimestamp - webhookTimestamp);
-    if (timeDiff > MAX_TIMESTAMP_DIFF_MS) {
-      logger.debug("Timestamp difference exceeds threshold", {
-        pixelTimestamp,
-        webhookTimestamp,
-        diffMs: timeDiff,
+  if (strictOriginValidation && allowedDomains && allowedDomains.length > 0) {
+    if (!receiptOriginHost) {
+      if (allowNullOrigin) {
+        logger.debug("Origin is null, allowed by allowNullOrigin setting");
+      } else {
+        return {
+          trusted: false,
+          level: "partial",
+          reason: "missing_origin",
+          details: "No origin header in request for strict validation (null origin not allowed)",
+        };
+      }
+    } else {
+      const isAllowedOrigin = allowedDomains.some(domain => {
+        const normalizedDomain = domain.toLowerCase();
+        const normalizedOrigin = receiptOriginHost.toLowerCase();
+        return normalizedOrigin === normalizedDomain || 
+               normalizedOrigin.endsWith(`.${normalizedDomain}`);
       });
+
+      const isShopifyPlatform = SHOPIFY_ALLOWLIST.some(domain => {
+        const normalizedOrigin = receiptOriginHost.toLowerCase();
+        return normalizedOrigin === domain || normalizedOrigin.endsWith(`.${domain}`);
+      });
+
+      if (!isAllowedOrigin && !isShopifyPlatform) {
+        return {
+          trusted: false,
+          level: "partial",
+          reason: "invalid_origin",
+          details: `Origin ${receiptOriginHost} not in allowed domains`,
+        };
+      }
     }
   }
 
-  if (strictOriginValidation && allowedDomains && allowedDomains.length > 0) {
-    if (!originHost) {
+  if (serverCreatedAt && maxReceiptAgeMs > 0) {
+    const now = Date.now();
+    const receiptAge = now - serverCreatedAt.getTime();
+    if (receiptAge > maxReceiptAgeMs) {
+      logger.debug("Receipt too old", { 
+        receiptAge, 
+        maxReceiptAgeMs,
+        serverCreatedAt: serverCreatedAt.toISOString(),
+      });
       return {
         trusted: false,
         level: "partial",
-        reason: "missing_origin",
-        details: "No origin header in request for strict validation",
+        reason: "receipt_too_old",
+        details: `Receipt is ${Math.round(receiptAge / 1000)}s old, exceeds ${Math.round(maxReceiptAgeMs / 1000)}s limit`,
       };
     }
+  }
 
-    const isAllowedOrigin = allowedDomains.some(domain => 
-      originHost === domain || originHost.endsWith(`.${domain}`)
-    );
-
-    if (!isAllowedOrigin) {
-      return {
-        trusted: false,
-        level: "partial",
-        reason: "invalid_origin",
-        details: `Origin ${originHost} not in allowed domains`,
-      };
+  if (clientCreatedAt && serverCreatedAt && maxTimeSkewMs > 0) {
+    const timeSkew = Math.abs(clientCreatedAt.getTime() - serverCreatedAt.getTime());
+    if (timeSkew > maxTimeSkewMs) {
+      logger.debug("Time skew exceeded", { 
+        timeSkew, 
+        maxTimeSkewMs,
+        clientCreatedAt: clientCreatedAt.toISOString(),
+        serverCreatedAt: serverCreatedAt.toISOString(),
+      });
     }
   }
 
@@ -226,8 +271,9 @@ export function buildShopAllowedDomains(
     customDomains.forEach(d => domains.add(d));
   }
   
-  domains.add("checkout.shopify.com");
+  for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
+    domains.add(shopifyDomain);
+  }
   
   return Array.from(domains);
 }
-

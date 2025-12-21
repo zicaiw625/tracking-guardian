@@ -1,36 +1,25 @@
-export const BACKEND_URL = process.env.BACKEND_URL || "https://tracking-guardian.onrender.com";
+export const BACKEND_URL = "https://tracking-guardian.onrender.com";
 
-const ALLOWED_DOMAINS = [
+export const ALLOWED_BACKEND_HOSTS = [
   "tracking-guardian.onrender.com",
   "tracking-guardian-staging.onrender.com",
+] as const;
+
+export const DEV_HOSTS = [
   "localhost",
   "127.0.0.1",
-];
+] as const;
 
-export function validateBackendUrl(url: string = BACKEND_URL): boolean {
+export function isAllowedBackendUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname;
     
-    const isAllowed = ALLOWED_DOMAINS.some(domain => 
-      host === domain || host.endsWith(`.${domain}`)
+    return (
+      ALLOWED_BACKEND_HOSTS.includes(host as typeof ALLOWED_BACKEND_HOSTS[number]) ||
+      DEV_HOSTS.includes(host as typeof DEV_HOSTS[number])
     );
-    
-    if (!isAllowed) {
-      console.error(
-        `[Config] Invalid BACKEND_URL: ${url}\n` +
-        `Allowed domains: ${ALLOWED_DOMAINS.join(", ")}`
-      );
-      return false;
-    }
-    
-    return true;
   } catch {
-    console.error(`[Config] Invalid BACKEND_URL format: ${url}`);
     return false;
   }
-}
-
-if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
-  validateBackendUrl();
 }

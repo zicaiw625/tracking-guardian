@@ -27,9 +27,3 @@ runtime_context = "strict"
     description = "Store-scoped key for event correlation. Auto-generated during app installation."
     type = "single_line_text_field"
   
-  # P1-4: Backend URL configuration for multi-environment support
-  [[settings.fields]]
-    key = "backend_url"
-    name = "Backend URL"
-    description = "URL for the Tracking Guardian backend. Leave empty to use default."
-    type = "single_line_text_field"

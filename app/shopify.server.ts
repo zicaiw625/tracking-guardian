@@ -36,7 +36,6 @@ const shopify = shopifyApp({
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
-  
   sessionStorage: encryptedSessionStorage,
   distribution: AppDistribution.AppStore,
   webhooks: {
@@ -44,17 +43,14 @@ const shopify = shopifyApp({
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-
     ORDERS_PAID: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-    
     ORDERS_UPDATED: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-
     CUSTOMERS_DATA_REQUEST: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
@@ -69,7 +65,7 @@ const shopify = shopifyApp({
     },
   },
   hooks: {
-    afterAuth: async ({ session }) => {
+    afterAuth: async ({ session, admin }) => {
       try {
         const webhookResult = await shopify.registerWebhooks({ session });
         
@@ -101,6 +97,32 @@ const shopify = shopifyApp({
         );
       }
 
+      let primaryDomainHost: string | null = null;
+      try {
+        if (admin) {
+          const shopQuery = await admin.graphql(`
+            query {
+              shop {
+                primaryDomain {
+                  host
+                }
+              }
+            }
+          `);
+          
+          const shopData = await shopQuery.json();
+          primaryDomainHost = shopData?.data?.shop?.primaryDomain?.host || null;
+          
+          if (primaryDomainHost) {
+            console.log(`[Shop] Fetched primary domain for ${session.shop}: ${primaryDomainHost}`);
+          }
+        }
+      } catch (shopQueryError) {
+        console.warn(`[Shop] Failed to fetch primary domain for ${session.shop}:`, 
+          shopQueryError instanceof Error ? shopQueryError.message : shopQueryError
+        );
+      }
+
       const existingShop = await prisma.shop.findUnique({
         where: { shopDomain: session.shop },
         select: { ingestionSecret: true },
@@ -118,11 +140,14 @@ const shopify = shopifyApp({
           accessToken: encryptedAccessToken,
           isActive: true,
           uninstalledAt: null,
+          ...(primaryDomainHost && { primaryDomain: primaryDomainHost }),
         },
         create: {
           shopDomain: session.shop,
           accessToken: encryptedAccessToken,
           ingestionSecret: newIngestionSecret.encrypted,
+          primaryDomain: primaryDomainHost,
+          storefrontDomains: [],
         },
       });
 

@@ -6,73 +6,67 @@ import { checkCircuitBreaker } from "../utils/circuit-breaker";
 import { getShopForVerification, timingSafeEquals } from "../utils/shop-access";
 import { isMarketingPlatform, isAnalyticsPlatform } from "../utils/platform-consent";
 import { 
-  isValidShopifyOrigin, 
-  isValidDevOrigin, 
   isDevMode,
-  isValidPixelOrigin,
+  validatePixelOriginPreBody,
+  validatePixelOriginForShop,
+  buildShopAllowedDomains,
+  extractOriginHost,
 } from "../utils/origin-validation";
 import {
-  getDynamicCorsHeaders,
   getPixelEventsCorsHeaders,
+  getPixelEventsCorsHeadersForShop,
   jsonWithCors as jsonWithCorsBase,
-  handleCorsPreFlight,
-  addCorsHeaders,
 } from "../utils/cors";
-import { extractOriginHost, type TrustLevel } from "../utils/receipt-trust";
+import { type TrustLevel } from "../utils/receipt-trust";
 
 import { logger, metrics } from "../utils/logger";
 
 const MAX_BODY_SIZE = 32 * 1024;
-
 const TIMESTAMP_WINDOW_MS = 10 * 60 * 1000;
-
 const RATE_LIMIT_CONFIG = { maxRequests: 50, windowMs: 60 * 1000 };
-
-const CIRCUIT_BREAKER_CONFIG = {
-  threshold: 10000,     
-  windowMs: 60 * 1000,  
-};
+const CIRCUIT_BREAKER_CONFIG = { threshold: 10000, windowMs: 60 * 1000 };
 
 const PIXEL_CUSTOM_HEADERS = [
   "X-Tracking-Guardian-Key",
   "X-Tracking-Guardian-Timestamp",
 ];
 
-function getCorsHeaders(_request: Request): HeadersInit {
-  return getPixelEventsCorsHeaders(PIXEL_CUSTOM_HEADERS);
+function getCorsHeadersPreBody(request: Request): HeadersInit {
+  return getPixelEventsCorsHeaders(request, { customHeaders: PIXEL_CUSTOM_HEADERS });
 }
 
-function jsonWithCors<T>(data: T, init: ResponseInit & { request: Request }): Response {
-  const { request, ...responseInit } = init;
+function getCorsHeadersForShop(request: Request, shopAllowedDomains: string[]): HeadersInit {
+  return getPixelEventsCorsHeadersForShop(request, shopAllowedDomains, PIXEL_CUSTOM_HEADERS);
+}
+
+function jsonWithCors<T>(data: T, init: ResponseInit & { request: Request; shopAllowedDomains?: string[] }): Response {
+  const { request, shopAllowedDomains, ...responseInit } = init;
+  
+  const corsHeaders = shopAllowedDomains 
+    ? getCorsHeadersForShop(request, shopAllowedDomains)
+    : getCorsHeadersPreBody(request);
+  
   return jsonWithCorsBase(data, {
     ...responseInit,
     request,
-    headers: responseInit.headers as HeadersInit | undefined,
+    headers: {
+      ...(responseInit.headers as Record<string, string> | undefined),
+      ...corsHeaders,
+    },
   });
 }
 
 type PixelEventName = "checkout_completed";
 
-const FIELD_LIMITS = {
-  orderId: 64,
-  orderNumber: 32,
-  checkoutToken: 64,
-  currency: 8,
-  itemId: 64,
-  itemName: 200,
-};
-
 interface PixelEventPayload {
   eventName: PixelEventName;
   timestamp: number;
   shopDomain: string;
-  
   consent?: {
     marketing?: boolean;
     analytics?: boolean;
     saleOfData?: boolean;
   };
-  
   data: {
     orderId?: string | null;
     orderNumber?: string;
@@ -81,7 +75,6 @@ interface PixelEventPayload {
     tax?: number;
     shipping?: number;
     checkoutToken?: string | null;
-    
     items?: Array<{
       id: string;
       name: string;
@@ -89,18 +82,6 @@ interface PixelEventPayload {
       quantity: number;
     }>;
   };
-}
-
-function sanitizeString(value: string | undefined | null, maxLength: number): string | null {
-  if (!value) return null;
-  
-  let sanitized = String(value).substring(0, maxLength);
-  
-  sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "[REDACTED]");
-  
-  sanitized = sanitized.replace(/\+?[\d\s\-()]{10,}/g, "[REDACTED]");
-  
-  return sanitized;
 }
 
 async function isClientEventRecorded(
@@ -167,10 +148,8 @@ function validateRequest(body: unknown): { valid: true; payload: PixelEventPaylo
     valid: true,
     payload: {
       eventName: data.eventName as PixelEventName,
-      
       timestamp: data.timestamp as number,
       shopDomain: data.shopDomain as string,
-      
       consent: data.consent as PixelEventPayload["consent"] | undefined,
       data: (data.data as PixelEventPayload["data"]) || {},
     },
@@ -178,11 +157,12 @@ function validateRequest(body: unknown): { valid: true; payload: PixelEventPaylo
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  const origin = request.headers.get("Origin");
   
   if (request.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
-      headers: getCorsHeaders(request),
+      headers: getCorsHeadersPreBody(request),
     });
   }
 
@@ -198,21 +178,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
 
-  const origin = request.headers.get("Origin");
-  const originValidation = isValidPixelOrigin(origin);
+  const preBodyValidation = validatePixelOriginPreBody(origin);
   
-  if (!originValidation.valid) {
-    const originShopDomain = request.headers.get("x-shopify-shop-domain") || "unknown";
-    const anomalyCheck = trackAnomaly(originShopDomain, "invalid_origin");
+  if (!preBodyValidation.valid) {
+    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+    const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_origin");
     if (anomalyCheck.shouldBlock) {
-      logger.warn(`Circuit breaker triggered for ${originShopDomain}: ${anomalyCheck.reason}`);
+      logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
     }
     metrics.pixelRejection({
-      shopDomain: originShopDomain,
-      reason: "invalid_origin",
-      originType: originValidation.reason,
+      shopDomain: shopDomainHeader,
+      reason: "invalid_origin_protocol",
+      originType: preBodyValidation.reason,
     });
-    logger.warn(`Rejected invalid pixel origin: ${origin?.substring(0, 100) || "null"}, reason: ${originValidation.reason}`);
+    if (preBodyValidation.shouldLog) {
+      logger.warn(`Rejected pixel origin at Stage 1: ${origin?.substring(0, 100) || "null"}, reason: ${preBodyValidation.reason}`);
+    }
     return jsonWithCors(
       { error: "Invalid origin" },
       { status: 403, request }
@@ -232,7 +213,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.debug("Invalid timestamp format, dropping request");
       return new Response(null, {
         status: 204,
-        headers: getCorsHeaders(request),
+        headers: getCorsHeadersPreBody(request),
       });
     }
 
@@ -246,7 +227,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.debug(`Timestamp outside window: diff=${timeDiff}ms, dropping request`);
       return new Response(null, {
         status: 204,
-        headers: getCorsHeaders(request),
+        headers: getCorsHeadersPreBody(request),
       });
     }
   } else {
@@ -260,7 +241,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       remaining: rateLimit.remaining,
     });
     const rateLimitResponse = createRateLimitResponse(rateLimit.retryAfter);
-    const corsHeaders = getCorsHeaders(request);
+    const corsHeaders = getCorsHeadersPreBody(request);
     Object.entries(corsHeaders).forEach(([key, value]) => {
       rateLimitResponse.headers.set(key, value);
     });
@@ -268,7 +249,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    
     const contentLength = parseInt(request.headers.get("Content-Length") || "0", 10);
     if (contentLength > MAX_BODY_SIZE) {
       logger.warn(`Payload too large: ${contentLength} bytes (max ${MAX_BODY_SIZE})`);
@@ -324,7 +304,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (payload.eventName !== "checkout_completed") {
       return new Response(null, {
         status: 204,
-        headers: getCorsHeaders(request),
+        headers: getCorsHeadersPreBody(request),
       });
     }
 
@@ -332,6 +312,35 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     if (!shop || !shop.isActive) {
       return jsonWithCors({ error: "Shop not found or inactive" }, { status: 404, request });
+    }
+
+    const shopAllowedDomains = buildShopAllowedDomains({
+      shopDomain: shop.shopDomain,
+      primaryDomain: shop.primaryDomain,
+      storefrontDomains: shop.storefrontDomains,
+    });
+    
+    const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains);
+    
+    if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
+      const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
+      if (anomalyCheck.shouldBlock) {
+        logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+      }
+      metrics.pixelRejection({
+        shopDomain: shop.shopDomain,
+        reason: "origin_not_allowlisted",
+        originType: shopOriginValidation.reason,
+      });
+      logger.warn(
+        `Rejected pixel origin at Stage 2 for ${shop.shopDomain}: ` +
+        `origin=${origin?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
+      );
+      
+      return new Response(null, {
+        status: 204,
+        headers: getCorsHeadersForShop(request, shopAllowedDomains),
+      });
     }
 
     const ingestionKey = request.headers.get("X-Tracking-Guardian-Key");
@@ -342,7 +351,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         logger.warn(`Rejected: Shop ${shop.shopDomain} has no ingestion key configured`);
         return jsonWithCors(
           { error: "Pixel not configured", code: "INGESTION_KEY_NOT_CONFIGURED" },
-          { status: 403, request }
+          { status: 403, request, shopAllowedDomains }
         );
       }
       keyValidation = { matched: false, reason: "shop_no_key_configured_dev" };
@@ -355,7 +364,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.warn(`Dropped: Pixel request from ${shop.shopDomain} missing ingestion key`);
       return new Response(null, {
         status: 204,
-        headers: getCorsHeaders(request),
+        headers: getCorsHeadersForShop(request, shopAllowedDomains),
       });
     } else {
       const { verifyWithGraceWindow } = await import("../utils/shop-access");
@@ -375,7 +384,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         logger.warn(`Dropped: Ingestion key mismatch for shop ${shop.shopDomain}`);
         return new Response(null, {
           status: 204,
-          headers: getCorsHeaders(request),
+          headers: getCorsHeadersForShop(request, shopAllowedDomains),
         });
       }
     }
@@ -408,7 +417,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     } catch (error) {
       return jsonWithCors(
         { error: "Missing orderId and checkoutToken" },
-        { status: 400, request }
+        { status: 400, request, shopAllowedDomains }
       );
     }
 
@@ -431,7 +440,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventId,
         message: "Client event already recorded",
         clientSideSent: true,
-      }, { request });
+      }, { request, shopAllowedDomains });
     }
 
     const pixelConfigs = await prisma.pixelConfig.findMany({
@@ -450,7 +459,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         success: true, 
         eventId,
         message: "No server-side tracking configured - client event acknowledged" 
-      }, { request });
+      }, { request, shopAllowedDomains });
     }
 
     const nonceValue = `${orderId}:${payload.timestamp}`;
@@ -475,7 +484,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
         return new Response(null, {
           status: 204,
-          headers: getCorsHeaders(request),
+          headers: getCorsHeadersForShop(request, shopAllowedDomains),
         });
       }
       logger.warn(`Nonce check failed: ${String(nonceError)}`);
@@ -536,7 +545,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
       return jsonWithCors(
         { success: true, eventId, message: "Sale of data opted out - event acknowledged" },
-        { request }
+        { request, shopAllowedDomains }
       );
     }
     
@@ -591,7 +600,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 eventId,
                 status: "pending",
                 attempts: 0,
-                clientSideSent: true,  
+                clientSideSent: true,
                 serverSideSent: false,
               },
             })
@@ -626,7 +635,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 eventId,
                 status: "pending",
                 attempts: 0,
-                clientSideSent: true,  
+                clientSideSent: true,
                 serverSideSent: false,
               },
             });
@@ -658,7 +667,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       skippedPlatforms: skippedPlatforms.length > 0 ? skippedPlatforms : undefined,
       trusted: isTrusted,
       consent: payload.consent || null,
-    }, { request });
+    }, { request, shopAllowedDomains });
   } catch (error) {
     logger.error("Pixel events API error:", error);
     return jsonWithCors(
@@ -669,6 +678,5 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  
   return jsonWithCors({ status: "ok", endpoint: "pixel-events" }, { request });
 };

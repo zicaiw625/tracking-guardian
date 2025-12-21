@@ -11,19 +11,7 @@ import {
   useApi,
 } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect } from "react";
-
-const PRODUCTION_BACKEND_ALLOWLIST = [
-  "https://tracking-guardian.onrender.com",
-] as const;
-
-const DEV_BACKEND_PATTERNS = [
-  /^https?:\/\/localhost/,
-  /^https?:\/\/127\.0\.0\.1/,
-  /^https?:\/\/.*\.ngrok/,
-  /^https?:\/\/.*\.trycloudflare\.com/,
-] as const;
-
-const DEFAULT_BACKEND_URL = PRODUCTION_BACKEND_ALLOWLIST[0];
+import { BACKEND_URL } from "../../shared/config";
 
 export default reactExtension(
   "purchase.thank-you.block.render",
@@ -32,8 +20,8 @@ export default reactExtension(
 
 function Survey() {
   const settings = useSettings();
-  
-  const { sessionToken, orderConfirmation, shop } = useApi();
+  const backendUrl = BACKEND_URL;
+  const api = useApi();
   
   const [orderId, setOrderId] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
@@ -43,59 +31,42 @@ function Survey() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [backendUrlValid, setBackendUrlValid] = useState(true);
 
   const title = (settings.survey_title as string) || "我们想听听您的意见";
   const question = (settings.survey_question as string) || "您是如何了解到我们的？";
   
-  const shopDomain = shop?.myshopifyDomain || "";
+  const shopDomain = api.shop?.myshopifyDomain || "";
   const isDevMode = shopDomain.includes(".myshopify.dev") || 
                     /-(dev|staging|test)\./i.test(shopDomain);
-  
-  const resolveBackendUrl = (): string | null => {
-    const configuredUrl = (settings.backend_url as string)?.trim();
-    
-    if (configuredUrl && PRODUCTION_BACKEND_ALLOWLIST.includes(configuredUrl as typeof PRODUCTION_BACKEND_ALLOWLIST[number])) {
-      return configuredUrl;
-    }
-    
-    if (isDevMode && configuredUrl) {
-      const isDevUrl = DEV_BACKEND_PATTERNS.some(pattern => pattern.test(configuredUrl));
-      if (isDevUrl) {
-        return configuredUrl;
-      }
-    }
-    
-    if (!configuredUrl) {
-      return DEFAULT_BACKEND_URL;
-    }
-    
-    console.warn("[Survey] Backend URL not in allowlist:", configuredUrl?.substring(0, 50));
-    return null;
-  };
-
-  const backendUrl = resolveBackendUrl();
-  
-  useEffect(() => {
-    setBackendUrlValid(backendUrl !== null);
-  }, [backendUrl]);
 
   useEffect(() => {
-    async function fetchOrderInfo() {
+    async function fetchOrderAndCheckoutInfo() {
       try {
-        if (orderConfirmation) {
-          const orderData = await orderConfirmation;
+        if (api.orderConfirmation) {
+          const orderData = await api.orderConfirmation;
           if (orderData) {
             setOrderId(orderData.id || null);
             setOrderNumber(orderData.number?.toString() || null);
           }
         }
+        
+        if (api.checkoutToken) {
+          const tokenValue = typeof api.checkoutToken === 'object' && 'current' in api.checkoutToken
+            ? api.checkoutToken.current
+            : api.checkoutToken;
+          
+          if (typeof tokenValue === 'string') {
+            setCheckoutToken(tokenValue);
+          } else if (tokenValue && typeof tokenValue === 'object' && 'value' in tokenValue) {
+            setCheckoutToken((tokenValue as { value: string }).value || null);
+          }
+        }
       } catch (err) {
-        console.error("Failed to get order confirmation:", err);
+        console.error("Failed to get order/checkout info:", err);
       }
     }
-    fetchOrderInfo();
-  }, [orderConfirmation]);
+    fetchOrderAndCheckoutInfo();
+  }, [api]);
 
   const sources = [
     { id: "search", label: "搜索引擎" },
@@ -108,11 +79,10 @@ function Survey() {
   const handleSubmit = async () => {
     if (selectedRating === null && selectedSource === null) return;
     
-    if (!orderId && !orderNumber && !checkoutToken) return;
-    
-    if (!backendUrl) {
-      console.error("[Survey] Cannot submit: backend URL not in allowlist");
-      setError("配置错误，无法提交反馈");
+    if (!orderId && !orderNumber && !checkoutToken) {
+      if (isDevMode) {
+        console.warn("[Survey] No order identifiers available");
+      }
       return;
     }
 
@@ -120,8 +90,7 @@ function Survey() {
     setError(null);
 
     try {
-      
-      const token = await sessionToken.get();
+      const token = await api.sessionToken.get();
 
       const surveyData = {
         orderId: orderId || undefined,
@@ -131,7 +100,7 @@ function Survey() {
         source: selectedSource,
       };
 
-      const currentShopDomain = shop?.myshopifyDomain || "";
+      const currentShopDomain = api.shop?.myshopifyDomain || "";
 
       if (currentShopDomain) {
         const response = await fetch(`${backendUrl}/api/survey`, {
@@ -149,7 +118,12 @@ function Survey() {
           throw new Error(errorData.error || "Failed to submit survey");
         }
 
-        console.log("Survey submitted successfully to backend");
+        if (isDevMode) {
+          console.log("Survey submitted successfully", { 
+            hasCheckoutToken: !!checkoutToken,
+            hasOrderId: !!orderId 
+          });
+        }
       } else {
         console.warn("Survey submission skipped: shop domain not available");
         throw new Error("Shop domain not available");
@@ -251,8 +225,7 @@ function Survey() {
         disabled={
           (selectedRating === null && selectedSource === null) || 
           submitting || 
-          (!orderId && !orderNumber && !checkoutToken) ||
-          !backendUrlValid
+          (!orderId && !orderNumber && !checkoutToken)
         }
         loading={submitting}
       >
@@ -261,4 +234,3 @@ function Survey() {
     </BlockStack>
   );
 }
-
