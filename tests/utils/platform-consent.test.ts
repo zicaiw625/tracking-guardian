@@ -20,8 +20,8 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         "meta", 
         "strict", 
         consent, 
-        true, // hasPixelReceipt
-        false // treatAsMarketing
+        true,
+        false
       );
       expect(result.allowed).toBe(false);
       expect(result.reason).toBe("sale_of_data_opted_out");
@@ -87,7 +87,7 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         "meta", 
         "strict", 
         consent, 
-        false, // no receipt
+        false,
         false
       );
       expect(result.allowed).toBe(false);
@@ -139,7 +139,7 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         "strict", 
         consent, 
         true, 
-        true // treatAsMarketing
+        true
       );
       expect(result.allowed).toBe(true);
       expect(result.usedConsent).toBe("marketing");
@@ -165,10 +165,10 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         saleOfDataAllowed: true 
       };
       const result = evaluatePlatformConsentWithStrategy(
-        "google", // analytics platform
+        "google",
         "balanced", 
         consent, 
-        false, // no receipt
+        false,
         false
       );
       expect(result.allowed).toBe(false);
@@ -214,7 +214,7 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         "meta", 
         "weak", 
         null, 
-        false, // no receipt
+        false,
         false
       );
       expect(result.allowed).toBe(false);
@@ -288,6 +288,6 @@ describe("platform category helpers", () => {
   it("getEffectiveConsentCategory returns correct category", () => {
     expect(getEffectiveConsentCategory("meta")).toBe("marketing");
     expect(getEffectiveConsentCategory("google")).toBe("analytics");
-    expect(getEffectiveConsentCategory("google", true)).toBe("marketing"); // treatAsMarketing
+    expect(getEffectiveConsentCategory("google", true)).toBe("marketing");
   });
 });

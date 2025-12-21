@@ -288,7 +288,7 @@ function FunnelStage({
   description: string;
 }) {
   const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
-  const widthPercent = Math.max(percentage, 10); // Minimum 10% width for visibility
+  const widthPercent = Math.max(percentage, 10);
   
   const getTone = (pct: number): "success" | "highlight" | "critical" => {
     if (pct >= 80) return "success";

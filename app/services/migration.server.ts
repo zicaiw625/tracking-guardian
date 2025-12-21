@@ -571,9 +571,9 @@ export async function getOrderPayloadStats(): Promise<{
 
   return {
     totalJobs,
-    withOrderPayload: 0, // Field removed
+    withOrderPayload: 0,
     withCapiInput,
-    needsSanitization: 0, // No longer applicable
+    needsSanitization: 0,
   };
 }
 

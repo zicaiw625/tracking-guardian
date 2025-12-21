@@ -761,7 +761,6 @@ export default function SettingsPage() {
         )}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-          {}
           {selectedTab === 0 && (
             <Layout>
               <Layout.Section>
@@ -873,7 +872,6 @@ export default function SettingsPage() {
                 </Card>
               </Layout.Section>
 
-              {}
               <Layout.Section variant="oneThird">
                 <Card>
                   <BlockStack gap="300">
@@ -918,7 +916,6 @@ export default function SettingsPage() {
             </Layout>
           )}
 
-          {}
           {selectedTab === 1 && (
             <Layout>
               <Layout.Section>
@@ -928,7 +925,6 @@ export default function SettingsPage() {
                       服务端转化追踪（Conversions API）
                     </Text>
 
-                    {}
                     {tokenIssues.hasIssues && (
                       <Banner
                         title="需要重新授权"
@@ -1132,7 +1128,6 @@ export default function SettingsPage() {
             </Layout>
           )}
 
-          {}
           {selectedTab === 2 && (
             <Layout>
               <Layout.Section>
@@ -1147,7 +1142,6 @@ export default function SettingsPage() {
 
                     <Divider />
 
-                    {}
                     <BlockStack gap="300">
                       <Text as="h3" variant="headingMd">
                         Ingestion Key（关联令牌）
@@ -1203,8 +1197,7 @@ export default function SettingsPage() {
                         </InlineStack>
                       </Box>
 
-                      {/* P2-3: Show grace window status */}
-                      {shop?.hasActiveGraceWindow && shop.graceWindowExpiry && (
+          {shop?.hasActiveGraceWindow && shop.graceWindowExpiry && (
                         <Banner tone="warning">
                           <p>
                             <strong>旧令牌仍有效：</strong>之前的令牌将于 {new Date(shop.graceWindowExpiry).toLocaleString("zh-CN")} 失效。
@@ -1223,7 +1216,6 @@ export default function SettingsPage() {
 
                     <Divider />
 
-                    {}
                     <BlockStack gap="300">
                       <Text as="h3" variant="headingMd">
                         隐私设置
@@ -1266,7 +1258,6 @@ export default function SettingsPage() {
                         </BlockStack>
                       </Box>
 
-                      {}
                       {shop?.piiEnabled && (
                         <Banner 
                           title="需要 Protected Customer Data 权限" 
@@ -1434,7 +1425,6 @@ export default function SettingsPage() {
                             </Text>
                           </BlockStack>
                         )}
-                        {/* P0-1: Weak mode removed - show migration message if still set */}
                         {shop?.consentStrategy !== "strict" && shop?.consentStrategy !== "balanced" && (
                           <BlockStack gap="100">
                             <Text as="span" fontWeight="semibold">⚠️ 未知策略</Text>
@@ -1451,7 +1441,6 @@ export default function SettingsPage() {
             </Layout>
           )}
 
-          {}
           {selectedTab === 3 && (
             <Layout>
               <Layout.Section>
@@ -1474,7 +1463,6 @@ export default function SettingsPage() {
                     <Divider />
 
                     <BlockStack gap="400">
-                      {}
                       <Box
                         background="bg-surface-selected"
                         padding="400"
@@ -1497,7 +1485,6 @@ export default function SettingsPage() {
                         </BlockStack>
                       </Box>
 
-                      {}
                       <Box
                         background="bg-surface-secondary"
                         padding="400"

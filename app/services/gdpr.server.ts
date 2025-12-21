@@ -29,7 +29,7 @@ interface ShopRedactPayload {
 interface ExportedConversionLog {
   orderId: string;
   orderNumber: string | null;
-  orderValue: number; // Converted from Decimal
+  orderValue: number;
   currency: string;
   platform: string;
   eventType: string;
@@ -735,7 +735,7 @@ export async function checkGDPRCompliance(): Promise<{
   isCompliant: boolean;
   pendingCount: number;
   overdueCount: number;
-  oldestPendingAge: number | null; // Days
+  oldestPendingAge: number | null;
   warnings: string[];
   criticals: string[];
 }> {

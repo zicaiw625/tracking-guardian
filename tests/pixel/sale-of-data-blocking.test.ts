@@ -61,7 +61,7 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
         consent: {
           marketing: true,
           analytics: true,
-          saleOfData: false, // Opted out
+          saleOfData: false,
         },
         data: {
           orderId: "12345",
@@ -98,7 +98,7 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
         consent: {
           marketing: true,
           analytics: true,
-          saleOfData: true, // Explicitly allowed
+          saleOfData: true,
         },
         data: {
           orderId: "12345",
@@ -191,7 +191,7 @@ describe("P0-7: Audit Trail for Consent Decisions", () => {
       usedConsent: {
         marketing: true,
         analytics: true,
-        saleOfData: false, // This is why we blocked
+        saleOfData: false,
       },
       hasReceipt: true,
       receiptTrusted: true,
