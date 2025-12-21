@@ -34,7 +34,7 @@ function validateHeadersOnce() {
   if (!headersValidated) {
     const validation = validateSecurityHeaders();
     if (!validation.valid) {
-      logger.warn("Security headers configuration issues:", validation.issues);
+      logger.warn("Security headers configuration issues:", { issues: validation.issues });
     }
     headersValidated = true;
   }
@@ -57,14 +57,14 @@ function validateConfigOnce() {
     const result = validateConfig();
     
     if (result.errors.length > 0) {
-      logger.error("Configuration errors:", result.errors);
+      logger.error("Configuration errors:", undefined, { errors: result.errors });
       if (process.env.NODE_ENV === "production") {
         throw new Error(`Configuration errors: ${result.errors.join(", ")}`);
       }
     }
     
     if (result.warnings.length > 0) {
-      logger.warn("Configuration warnings:", result.warnings);
+      logger.warn("Configuration warnings:", { warnings: result.warnings });
     }
     
     logConfigStatus();

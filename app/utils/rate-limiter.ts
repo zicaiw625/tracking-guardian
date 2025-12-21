@@ -15,6 +15,7 @@ export interface RateLimitStore {
   delete(key: string): Promise<void>;
   size(): Promise<number>;
   cleanup(): Promise<void>;
+  entries(): IterableIterator<[string, RateLimitEntry]>;
   
   getSync?(key: string): RateLimitEntry | undefined;
 }
@@ -242,6 +243,11 @@ class RedisRateLimitStore implements RateLimitStore {
   }
   
   async cleanup(): Promise<void> {
+  }
+  
+  entries(): IterableIterator<[string, RateLimitEntry]> {
+    // Redis doesn't support sync iteration - delegate to fallback
+    return this.fallbackStore.entries();
   }
 }
 

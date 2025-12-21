@@ -208,7 +208,7 @@ export default function Index() {
                   开始设置
                 </Text>
                 <Badge tone="attention">
-                  {completedSteps}/{setupSteps.length} 已完成
+                  {`${completedSteps}/${setupSteps.length} 已完成`}
                 </Badge>
               </InlineStack>
               <ProgressBar

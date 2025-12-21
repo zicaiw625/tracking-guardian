@@ -82,6 +82,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
       ],
       summary: { total: 1, passed: 0, failed: 1, warnings: 0 },
+      eventFunnel: {
+        pixelRequests: 0,
+        passedOrigin: 0,
+        passedKey: 0,
+        matchedWebhook: 0,
+        sentToPlatforms: 0,
+        period: "24h",
+      } as EventFunnel,
       lastUpdated: new Date().toISOString(),
     });
   }
@@ -282,9 +290,9 @@ function FunnelStage({
   const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
   const widthPercent = Math.max(percentage, 10); // Minimum 10% width for visibility
   
-  const getTone = (pct: number): "success" | "warning" | "critical" => {
+  const getTone = (pct: number): "success" | "highlight" | "critical" => {
     if (pct >= 80) return "success";
-    if (pct >= 50) return "warning";
+    if (pct >= 50) return "highlight";
     return "critical";
   };
 
@@ -334,7 +342,7 @@ export default function DiagnosticsPage() {
   const overallStatus = data.summary.failed > 0
     ? "critical"
     : data.summary.warnings > 0
-    ? "warning"
+    ? "highlight"
     : "success";
 
   const progressPercent = Math.round(
@@ -359,10 +367,10 @@ export default function DiagnosticsPage() {
                 <Text as="h2" variant="headingMd">
                   整体状态
                 </Text>
-                <Badge tone={overallStatus}>
+                <Badge tone={overallStatus === "highlight" ? "warning" : overallStatus}>
                   {overallStatus === "success"
                     ? "正常"
-                    : overallStatus === "warning"
+                    : overallStatus === "highlight"
                     ? "需要注意"
                     : "需要处理"}
                 </Badge>

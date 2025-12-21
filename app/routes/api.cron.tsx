@@ -419,7 +419,7 @@ async function executeCronTasks(
 
   cronLogger.info("Reconciling pending consent...");
   const consentResults = await reconcilePendingConsent();
-  cronLogger.info("Consent reconciliation completed", consentResults);
+  cronLogger.info("Consent reconciliation completed", { ...consentResults });
 
   cronLogger.info("Processing conversion jobs...");
   const jobResults = await processConversionJobs();

@@ -1,5 +1,6 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
+import { Prisma } from "@prisma/client";
 import { generateGooglePixelCode } from "./platforms/google.server";
 import { generateMetaPixelCode } from "./platforms/meta.server";
 import { generateTikTokPixelCode } from "./platforms/tiktok.server";
@@ -120,7 +121,7 @@ export async function savePixelConfig(
       shopId,
       platform,
       platformId,
-      clientConfig: clientConfig ?? null,
+      clientConfig: clientConfig ?? Prisma.JsonNull,
       credentialsEncrypted: credentialsEncrypted ?? null,
       serverSideEnabled: serverSideEnabled ?? false,
       migrationStatus: "in_progress",
@@ -319,75 +320,38 @@ export async function getExistingWebPixels(
   }
 }
 
-export interface ScriptTagDeletionResult {
-  success: boolean;
-  error?: string;
-  manualSteps?: string[];
+/**
+ * P1-1: ScriptTag Manual Deletion Guidance
+ * 
+ * We intentionally do NOT provide automatic ScriptTag deletion to minimize
+ * required OAuth scopes. The app only requests `read_script_tags` for scanning,
+ * not `write_script_tags` which would be needed for deletion.
+ * 
+ * Instead, we provide clear manual deletion instructions to merchants.
+ * This approach:
+ * - Reduces permission footprint (better for app review)
+ * - Avoids accidentally deleting ScriptTags created by other apps
+ * - Gives merchants control over their store configuration
+ */
+export interface ScriptTagDeletionGuidance {
+  title: string;
+  manualSteps: string[];
   adminUrl?: string;
   platform?: string;
+  deadline?: string;
 }
 
-export async function deleteScriptTag(
-  admin: AdminApiContext,
-  scriptTagId: number,
-  shopDomain?: string
-): Promise<ScriptTagDeletionResult> {
-  const gid = `gid://shopify/ScriptTag/${scriptTagId}`;
-  
-  try {
-    const response = await admin.graphql(
-      `#graphql
-      mutation ScriptTagDelete($id: ID!) {
-        scriptTagDelete(id: $id) {
-          deletedScriptTagId
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-      `,
-      {
-        variables: { id: gid },
-      }
-    );
-
-    const result = await response.json();
-    const data = result.data?.scriptTagDelete;
-
-    if (data?.deletedScriptTagId) {
-      logger.info(`[P0-04] ScriptTag ${scriptTagId} deleted successfully`);
-      return { success: true };
-    }
-
-    if (data?.userErrors && data.userErrors.length > 0) {
-      const errorMessage = data.userErrors.map((e: { message: string }) => e.message).join(", ");
-      logger.warn(`[P0-04] ScriptTag deletion failed: ${errorMessage}`);
-      
-      return getManualDeletionInstructions(scriptTagId, shopDomain, errorMessage);
-    }
-
-    return getManualDeletionInstructions(scriptTagId, shopDomain, "Unknown error");
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    logger.warn(`[P0-04] ScriptTag deletion error: ${errorMessage}`);
-    
-    return getManualDeletionInstructions(scriptTagId, shopDomain, errorMessage);
-  }
-}
-
-function getManualDeletionInstructions(
+export function getScriptTagDeletionGuidance(
   scriptTagId: number,
   shopDomain?: string,
-  errorReason?: string
-): ScriptTagDeletionResult {
+  platform?: string
+): ScriptTagDeletionGuidance {
   const adminUrl = shopDomain 
     ? `https://${shopDomain}/admin/settings/apps`
     : undefined;
   
   return {
-    success: false,
-    error: errorReason || "无法自动删除此 ScriptTag（可能由其他应用创建）",
+    title: `删除 ScriptTag #${scriptTagId}`,
     manualSteps: [
       "1. 前往 Shopify 后台「设置 → 应用和销售渠道」",
       "2. 找到创建该 ScriptTag 的应用（通常是追踪/分析类应用）",
@@ -395,10 +359,11 @@ function getManualDeletionInstructions(
       "4. 如果找不到对应应用，可能是已卸载的应用残留",
       "5. 联系 Shopify 支持获取帮助，提供 ScriptTag ID: " + scriptTagId,
       "",
-      "💡 推荐：安装 Tracking Guardian 的 Web Pixel 后，旧的 ScriptTag 可以安全删除，",
-      "因为 Web Pixel 将接管所有转化追踪功能。",
+      "💡 提示：安装 Tracking Guardian 的 Web Pixel 后，旧的 ScriptTag 可以安全删除，",
+      "   因为服务端 CAPI 将接管所有转化追踪功能。",
     ],
     adminUrl,
+    platform,
   };
 }
 
@@ -499,14 +464,14 @@ export async function migrateCredentialsToEncrypted(): Promise<{
 
   const configs = await prisma.pixelConfig.findMany({
     where: {
-      credentials: { not: null },
+      credentials: { not: Prisma.JsonNull },
     },
     select: {
       id: true,
       platform: true,
       credentials: true,
       credentialsEncrypted: true,
-      shop: { select: { shopDomain: true } },
+      shopId: true,
     },
   });
 
@@ -519,7 +484,7 @@ export async function migrateCredentialsToEncrypted(): Promise<{
         
         await prisma.pixelConfig.update({
           where: { id: config.id },
-          data: { credentials: null },
+          data: { credentials: Prisma.JsonNull },
         });
         continue;
       }
@@ -530,17 +495,17 @@ export async function migrateCredentialsToEncrypted(): Promise<{
         continue;
       }
 
-      const encrypted = encryptJson(legacyCreds as PlatformCredentials);
+      const encrypted = encryptJson(legacyCreds as unknown as PlatformCredentials);
 
       await prisma.pixelConfig.update({
         where: { id: config.id },
         data: {
           credentialsEncrypted: encrypted,
-          credentials: null,
+          credentials: Prisma.JsonNull,
         },
       });
 
-      logger.info(`P0-09: Migrated credentials for ${config.platform} on ${config.shop.shopDomain}`);
+      logger.info(`P0-09: Migrated credentials for ${config.platform} on shop ${config.shopId}`);
       migrated++;
     } catch (error) {
       const errorMsg = `Failed to migrate config ${config.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -645,10 +610,10 @@ export async function getOrderPayloadStats(): Promise<{
   const [totalJobs, withOrderPayload, withCapiInput] = await Promise.all([
     prisma.conversionJob.count(),
     prisma.conversionJob.count({
-      where: { orderPayload: { not: {} } },
+      where: { orderPayload: { not: Prisma.JsonNull } },
     }),
     prisma.conversionJob.count({
-      where: { capiInput: { not: null } },
+      where: { capiInput: { not: Prisma.JsonNull } },
     }),
   ]);
 

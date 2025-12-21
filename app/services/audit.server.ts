@@ -1,6 +1,7 @@
 
 
 import prisma from "../db.server";
+import { Prisma } from "@prisma/client";
 import { logger } from "../utils/logger";
 
 export type ActorType = "user" | "webhook" | "cron" | "api" | "system";
@@ -37,7 +38,8 @@ export type AuditAction =
   | "capi_send_success"
   | "capi_send_failed"
   | "capi_retry_scheduled"
-  | "capi_dead_lettered";
+  | "capi_dead_lettered"
+  | "gdpr_customer_redact";
 
 export type ResourceType =
   | "pixel_config"
@@ -49,7 +51,8 @@ export type ResourceType =
   | "billing"
   | "pixel_event"
   | "survey"
-  | "api_request";
+  | "api_request"
+  | "customer";
 
 export interface AuditLogEntry {
   actorType: ActorType;
@@ -121,9 +124,9 @@ export const auditLog = {
           action: entry.action,
           resourceType: entry.resourceType,
           resourceId: entry.resourceId,
-          previousValue: redactSensitiveFields(entry.previousValue),
-          newValue: redactSensitiveFields(entry.newValue),
-          metadata: entry.metadata,
+          previousValue: redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue | undefined,
+          newValue: redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue | undefined,
+          metadata: entry.metadata as Prisma.InputJsonValue | undefined,
           ipAddress: entry.ipAddress,
           userAgent: entry.userAgent,
         },

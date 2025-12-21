@@ -311,7 +311,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
             {
               id: alertConfig.id,
               channel: alertConfig.channel as AlertChannel,
-              settings: alertConfig.settings as AlertSettings,
+              settings: alertConfig.settings as unknown as AlertSettings,
               discrepancyThreshold: alertConfig.discrepancyThreshold,
               minOrdersForAlert: alertConfig.minOrdersForAlert,
               isEnabled: true,

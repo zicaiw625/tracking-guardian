@@ -475,7 +475,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           eventId,
           checkoutToken: checkoutToken || null,
           pixelTimestamp: new Date(payload.timestamp),
-          consentState: payload.consent ?? null,
+          consentState: payload.consent ?? undefined,
           isTrusted: isTrusted,
           signatureStatus: keyValidation.matched ? "key_matched" : keyValidation.reason,
           usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
@@ -484,14 +484,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           eventId,
           checkoutToken: checkoutToken || undefined,
           pixelTimestamp: new Date(payload.timestamp),
-          consentState: payload.consent ?? null,
+          consentState: payload.consent ?? undefined,
           isTrusted: isTrusted,
           signatureStatus: keyValidation.matched ? "key_matched" : keyValidation.reason,
           usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
         },
       });
     } catch (error) {
-      logger.warn(`Failed to write PixelEventReceipt for order ${orderId}:`, error);
+      logger.warn(`Failed to write PixelEventReceipt for order ${orderId}`, { error: String(error) });
     }
 
     // P3-1: Batch upserts in a transaction for better performance
@@ -563,7 +563,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
         recordedPlatforms.push(...platformsToRecord);
       } catch (error) {
-        logger.warn(`Failed to record client events in transaction:`, error);
+        logger.warn(`Failed to record client events in transaction`, { error: String(error) });
         // Fallback: try individual upserts
         for (const platform of platformsToRecord) {
           try {
@@ -597,7 +597,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
             recordedPlatforms.push(platform);
           } catch (individualError) {
-            logger.warn(`Failed to record client event for ${platform}:`, individualError);
+            logger.warn(`Failed to record client event for ${platform}`, { error: String(individualError) });
           }
         }
       }

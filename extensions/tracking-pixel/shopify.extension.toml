@@ -3,11 +3,23 @@ type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
 
+# P1-2: Customer Privacy Configuration
+# 
+# We use a "minimum necessary" declaration approach:
+# - analytics = true: Required for checkout_completed event tracking
+# - marketing = false: Marketing consent is checked at runtime, not required for pixel load
+# - sale_of_data = "disabled": The pixel itself does NOT sell/share data with third parties.
+#   Data is only sent to our first-party backend, which then (with proper consent checks)
+#   sends to ad platforms via server-side CAPI.
+#
+# This approach prevents the pixel from being blocked unnecessarily while still
+# respecting user privacy through runtime consent checks in the pixel code itself.
+# See: extensions/tracking-pixel/src/index.ts for runtime consent gating
 [customer_privacy]
   analytics = true
-  marketing = true
+  marketing = false
   preferences = false
-  sale_of_data = "enabled"
+  sale_of_data = "disabled"
 
 [settings]
   [[settings.fields]]

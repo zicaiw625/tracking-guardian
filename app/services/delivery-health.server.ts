@@ -31,9 +31,10 @@ export interface DeliveryHealthReport {
   id: string;
   platform: string;
   reportDate: Date;
-  totalAttempted: number;
-  totalSent: number;
-  successRate: number;
+  // From ReconciliationReport - used by getDeliveryHealthHistory
+  shopifyOrders: number;
+  platformConversions: number;
+  orderDiscrepancy: number;
   alertSent: boolean;
 }
 
@@ -268,9 +269,9 @@ export async function getDeliveryHealthHistory(
     id: r.id,
     platform: r.platform,
     reportDate: r.reportDate,
-    totalAttempted: r.shopifyOrders,
-    totalSent: r.platformConversions,
-    successRate: 1 - r.orderDiscrepancy,
+    shopifyOrders: r.shopifyOrders,
+    platformConversions: r.platformConversions,
+    orderDiscrepancy: r.orderDiscrepancy,
     alertSent: r.alertSent,
   }));
 }

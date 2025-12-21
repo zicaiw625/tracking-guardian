@@ -36,7 +36,7 @@ function getDecryptedSettings(config: AlertConfigWithEncryption): Record<string,
   
   if (config.settings && typeof config.settings === "object") {
     logger.warn(`[P0-2] Using legacy plain settings for alert config - migration needed`);
-    return config.settings as Record<string, unknown>;
+    return config.settings as unknown as Record<string, unknown>;
   }
   
   return null;
@@ -55,11 +55,11 @@ export async function sendAlert(
 
     switch (config.channel) {
       case "email":
-        return await sendEmailAlert(settings as EmailAlertSettings, data);
+        return await sendEmailAlert(settings as unknown as EmailAlertSettings, data);
       case "slack":
-        return await sendSlackAlert(settings as SlackAlertSettings, data);
+        return await sendSlackAlert(settings as unknown as SlackAlertSettings, data);
       case "telegram":
-        return await sendTelegramAlert(settings as TelegramAlertSettings, data);
+        return await sendTelegramAlert(settings as unknown as TelegramAlertSettings, data);
       default:
         logger.warn(`Unknown alert channel: ${config.channel}`);
         return false;
@@ -272,13 +272,13 @@ export async function testNotification(
 
     switch (channel) {
       case "email":
-        success = await sendEmailAlert(settings, testData);
+        success = await sendEmailAlert(settings as EmailAlertSettings, testData);
         break;
       case "slack":
-        success = await sendSlackAlert(settings, testData);
+        success = await sendSlackAlert(settings as SlackAlertSettings, testData);
         break;
       case "telegram":
-        success = await sendTelegramAlert(settings, testData);
+        success = await sendTelegramAlert(settings as TelegramAlertSettings, testData);
         break;
       default:
         return { success: false, message: "未知的通知渠道" };

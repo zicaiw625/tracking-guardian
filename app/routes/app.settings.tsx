@@ -23,6 +23,7 @@ import {
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { Prisma } from "@prisma/client";
 import { testNotification } from "../services/notification.server";
 import { encryptJson, decryptJson } from "../utils/crypto";
 import { checkTokenExpirationIssues } from "../services/retry.server";
@@ -92,7 +93,7 @@ function decryptAlertSettings(encryptedSettings: string | null): Record<string, 
   try {
     return decryptJson<Record<string, unknown>>(encryptedSettings);
   } catch (error) {
-    logger.warn("[P0-2] Failed to decrypt alert settings", error);
+    logger.warn("[P0-2] Failed to decrypt alert settings", { error: String(error) });
     return null;
   }
 }
@@ -230,7 +231,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
         update: {
           channel,
-          settings: nonSensitiveSettings,
+          settings: nonSensitiveSettings as Prisma.InputJsonValue,
           settingsEncrypted: encryptedSettings,
           discrepancyThreshold: threshold,
           isEnabled: enabled,
@@ -238,7 +239,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         create: {
           shopId: shop.id,
           channel,
-          settings: nonSensitiveSettings,
+          settings: nonSensitiveSettings as Prisma.InputJsonValue,
           settingsEncrypted: encryptedSettings,
           discrepancyThreshold: threshold,
           isEnabled: enabled,
@@ -263,15 +264,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     case "testAlert": {
       const channel = formData.get("channel") as string;
-      const settings: Record<string, unknown> = {};
-
+      
+      let settings: AlertSettings;
       if (channel === "email") {
-        settings.email = formData.get("email");
+        settings = { email: formData.get("email") as string };
       } else if (channel === "slack") {
-        settings.webhookUrl = formData.get("webhookUrl");
+        settings = { webhookUrl: formData.get("webhookUrl") as string };
       } else if (channel === "telegram") {
-        settings.botToken = formData.get("botToken");
-        settings.chatId = formData.get("chatId");
+        settings = { 
+          botToken: formData.get("botToken") as string,
+          chatId: formData.get("chatId") as string,
+        };
+      } else {
+        return json({ success: false, error: "Invalid channel" });
       }
 
       const result = await testNotification(channel, settings);
@@ -881,7 +886,7 @@ export default function SettingsPage() {
                       已配置的警报
                     </Text>
                     {shop?.alertConfigs && shop.alertConfigs.length > 0 ? (
-                      shop.alertConfigs.map((config: AlertConfigDisplay) => (
+                      (shop.alertConfigs as unknown as AlertConfigDisplay[]).map((config) => (
                         <Box
                           key={config.id}
                           background="bg-surface-secondary"

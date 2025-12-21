@@ -29,7 +29,7 @@ interface ShopRedactPayload {
 interface ExportedConversionLog {
   orderId: string;
   orderNumber: string | null;
-  orderValue: number;
+  orderValue: number; // Converted from Decimal
   currency: string;
   platform: string;
   eventType: string;
@@ -52,7 +52,7 @@ interface ExportedSurveyResponse {
 interface ExportedPixelEventReceipt {
   orderId: string;
   eventType: string;
-  eventId: string;
+  eventId: string | null;
   consentState: {
     marketing?: boolean;
     analytics?: boolean;
@@ -220,7 +220,7 @@ async function processDataRequest(
   const exportedConversionLogs: ExportedConversionLog[] = conversionLogs.map(log => ({
     orderId: log.orderId,
     orderNumber: log.orderNumber,
-    orderValue: log.orderValue,
+    orderValue: Number(log.orderValue),
     currency: log.currency,
     platform: log.platform,
     eventType: log.eventType,
@@ -505,7 +505,7 @@ export async function processGDPRJob(jobId: string): Promise<{
 
   if (job.status === "completed") {
     logger.debug(`[GDPR] Job ${jobId} already completed, skipping`);
-    return { success: true, result: job.result as DataRequestResult | CustomerRedactResult | ShopRedactResult };
+    return { success: true, result: job.result as unknown as DataRequestResult | CustomerRedactResult | ShopRedactResult };
   }
 
   await prisma.gDPRJob.update({

@@ -60,22 +60,27 @@ const shopify = shopifyApp({
       try {
         const webhookResult = await shopify.registerWebhooks({ session });
         
-        const registered = Object.entries(webhookResult).filter(
-          ([, results]) => results.some((r: { success: boolean }) => r.success)
-        );
-        const failed = Object.entries(webhookResult).filter(
-          ([, results]) => results.some((r: { success: boolean }) => !r.success)
-        );
-        
-        if (registered.length > 0) {
-          console.log(`[Webhooks] Registered for ${session.shop}:`, registered.map(([topic]) => topic).join(", "));
-        }
-        if (failed.length > 0) {
-          console.error(`[Webhooks] Failed to register for ${session.shop}:`, 
-            failed.map(([topic, results]) => 
-              `${topic}: ${results.map((r: { result: { message?: string } }) => r.result?.message || "unknown error").join(", ")}`
-            ).join("; ")
+        if (webhookResult && typeof webhookResult === 'object') {
+          type WebhookRegisterResult = { success: boolean; result: { message?: string } };
+          const entries = Object.entries(webhookResult as Record<string, WebhookRegisterResult[]>);
+          
+          const registered = entries.filter(
+            ([, results]) => results.some((r) => r.success)
           );
+          const failed = entries.filter(
+            ([, results]) => results.some((r) => !r.success)
+          );
+          
+          if (registered.length > 0) {
+            console.log(`[Webhooks] Registered for ${session.shop}:`, registered.map(([topic]) => topic).join(", "));
+          }
+          if (failed.length > 0) {
+            console.error(`[Webhooks] Failed to register for ${session.shop}:`, 
+              failed.map(([topic, results]) => 
+                `${topic}: ${results.map((r) => r.result?.message || "unknown error").join(", ")}`
+              ).join("; ")
+            );
+          }
         }
       } catch (webhookError) {
         console.error(`[Webhooks] Registration error for ${session.shop}:`, 

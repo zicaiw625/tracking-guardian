@@ -49,6 +49,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       id: true,
       shopDomain: true,
       ingestionSecret: true,
+      webPixelId: true,
     },
   });
 
@@ -74,10 +75,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   });
 
-  const hasCapiConfig = await prisma.platformCredential.count({
+  const hasCapiConfig = await prisma.pixelConfig.count({
     where: { 
       shopId: shop.id,
       isActive: true,
+      serverSideEnabled: true,
+      credentialsEncrypted: { not: null },
     },
   }) > 0;
 
@@ -105,6 +108,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       id: true,
       shopDomain: true,
       ingestionSecret: true,
+      webPixelId: true,
     },
   });
 
@@ -160,7 +164,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           return false;
         }
       });
-      ourPixelId = ourPixel?.id;
+      ourPixelId = ourPixel?.id ?? null;
     }
 
     let result;
