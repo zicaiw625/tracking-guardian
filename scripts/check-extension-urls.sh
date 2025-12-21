@@ -17,7 +17,7 @@ ERRORS=0
 
 echo ""
 echo "======================================"
-echo "P0-01: Checking for backend_url in TOML files (must be 0 matches)"
+echo "Checking for backend_url in TOML files (must be 0 matches)"
 echo "======================================"
 
 TOML_FILES=(
@@ -41,7 +41,7 @@ done
 
 echo ""
 echo "======================================"
-echo "P0-02: Checking BACKEND_URL constant in source files"
+echo "Checking BACKEND_URL constant in source files"
 echo "======================================"
 
 SOURCE_FILES=(
@@ -65,7 +65,7 @@ done
 
 echo ""
 echo "======================================"
-echo "P0-01: Checking that extensions use shared config (not settings.backend_url)"
+echo "Checking that extensions use shared config (not settings.backend_url)"
 echo "======================================"
 
 EXTENSION_FILES=(

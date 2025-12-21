@@ -33,7 +33,6 @@ function toNumber(value: string | number | undefined | null, defaultValue = 0): 
 register(({ analytics, settings, init, customerPrivacy }: any) => {
   const ingestionKey = settings.ingestion_key as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
-  
   const backendUrl = BACKEND_URL;
   
   const isDevMode = (() => {
