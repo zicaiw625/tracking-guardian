@@ -1,10 +1,3 @@
-# Learn more: https://shopify.dev/docs/apps/build/checkout
-# 
-# Note: ShippingTracker and UpsellOffer blocks have been disabled
-# as they currently use simulated data. These will be re-enabled
-# once integrated with real fulfillment APIs.
-
-# P0-1: Updated from 2024-10 to 2025-07 (2024-10 no longer supported as of 2025-10-01)
 api_version = "2025-07"
 type = "ui_extension"
 name = "Tracking Guardian Blocks"
@@ -22,7 +15,6 @@ handle = "post-purchase-survey"
   module = "./src/Survey.tsx"
   target = "purchase.thank-you.block.render"
 
-# Order Status Survey - uses customer-account surface (required for order-status pages)
 [[extensions]]
 type = "customer_account_ui_extension"
 name = "Order Status Survey"
@@ -34,29 +26,6 @@ handle = "order-status-survey"
   [[extensions.targeting]]
   module = "./src/Survey.orderStatus.tsx"
   target = "customer-account.order-status.block.render"
-
-# Disabled: Uses simulated data - coming soon with real fulfillment API
-# [[extensions]]
-# type = "checkout_ui_extension"
-# name = "Shipping Tracker"
-# handle = "shipping-tracker"
-#   [[extensions.targeting]]
-#   module = "./src/ShippingTracker.tsx"
-#   target = "purchase.thank-you.block.render"
-
-# Disabled: Button functionality not implemented - coming soon
-# [[extensions]]
-# type = "checkout_ui_extension"
-# name = "Upsell Offer"
-# handle = "upsell-offer"
-#   [[extensions.targeting]]
-#   module = "./src/UpsellOffer.tsx"
-#   target = "purchase.thank-you.block.render"
-
-# P0-1: Backend URL Security
-# The backend URL is hardcoded in the extension source code (not configurable by merchants).
-# This prevents data exfiltration to arbitrary URLs - a key App Store security requirement.
-# See: extensions/tracking-pixel/src/index.ts → PRODUCTION_BACKEND_URL constant
 
 [settings]
   [[settings.fields]]

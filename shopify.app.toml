@@ -1,59 +1,12 @@
-# Tracking Guardian - Post-purchase Tracking Health Monitor
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration
-#
-# IMPORTANT: Before deploying, update the following:
-# 1. client_id - Get from Shopify Partners Dashboard after creating your app
-# 2. application_url - Your deployed app URL (e.g., https://tracking-guardian.onrender.com)
-# 3. redirect_urls - Update with your app URL
-# 4. dev_store_url - Your development store URL
-
 name = "Tracking Guardian"
-# Replace with your actual client_id from Shopify Partners
 client_id = "${SHOPIFY_API_KEY}"
-# Replace with your deployed app URL
 application_url = "${SHOPIFY_APP_URL}"
 embedded = true
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-# 
-# Scope justification (minimal permissions per PCD requirements):
-#
-# - read_orders: REQUIRED for daily reconciliation reports
-#   Used in: app/services/reconciliation.server.ts → getShopifyOrderStats()
-#   Purpose: Query paid orders to compare Shopify vs platform conversion counts
-#   API endpoint: Admin GraphQL ordersCount + orders queries
-#   Data accessed: Order count and totalPriceSet (no PII accessed)
-#
-# - read_script_tags: Required for migration scanning
-#   Used in: app/services/scanner.server.ts
-#   Purpose: Detect legacy tracking scripts for migration assistance
-#
-# - read_pixels: Required to query existing Web Pixels
-#   Used in: app/services/migration.server.ts → getExistingWebPixels()
-#   Purpose: Check if Web Pixel is already installed before creating
-#   API endpoint: Admin GraphQL webPixels query
-#   See: https://shopify.dev/docs/api/admin-graphql/latest/objects/WebPixel
-#
-# - write_pixels: Required to create/manage the App Pixel extension
-#   Used in: app/services/migration.server.ts → createWebPixel(), updateWebPixel()
-#
-# - read_customer_events: REQUIRED by Shopify for webPixelCreate mutation
-#   Used in: app/services/migration.server.ts:198-221 → webPixelCreate mutation
-#   Purpose: Shopify requires this scope to create/manage App Web Pixels
-#   API endpoint: Admin GraphQL webPixelCreate mutation
-#   See: https://shopify.dev/docs/api/admin-graphql/latest/mutations/webpixelcreate
-#   Note: Without this scope, the app cannot install its Web Pixel extension
-#
-# Note: read_checkouts removed (P3-1) - checkout data comes via Web Pixel events,
-# not via Admin API. No PII is accessed through these scopes.
-#
-# SCOPE MINIMIZATION: All 5 scopes are required for core functionality.
-# No optional scopes are requested.
 scopes = "read_orders,read_script_tags,read_pixels,write_pixels,read_customer_events"
 
 [auth]
-# Update these URLs with your deployed app URL
 redirect_urls = [
   "${SHOPIFY_APP_URL}/auth/callback",
   "${SHOPIFY_APP_URL}/auth/shopify/callback",
@@ -61,13 +14,8 @@ redirect_urls = [
 ]
 
 [webhooks]
-# Updated to 2025-07 (P0-1: was 2024-10, which is no longer supported as of 2025-10-01)
-# 2025-07 support ends 2026-07-01 - plan upgrade to 2026-01 before then
 api_version = "2025-07"
 
-# Mandatory compliance webhooks (app-level subscription)
-# Business webhooks (orders/paid, app/uninstalled) are managed via code in shopify.server.ts
-# to avoid duplicate deliveries
 [[webhooks.subscriptions]]
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
 uri = "/webhooks"
@@ -77,6 +25,4 @@ embedded = false
 
 [build]
 automatically_update_urls_on_dev = true
-# Update with your development store URL
 dev_store_url = "${SHOPIFY_DEV_STORE_URL}"
-

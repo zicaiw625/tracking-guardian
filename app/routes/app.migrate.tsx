@@ -529,7 +529,7 @@ export default function MigratePage() {
                   <List type="bullet">
                     <List.Item>在监控面板查看实时转化数据</List.Item>
                     <List.Item>创建测试订单验证追踪是否正常</List.Item>
-                    <List.Item>如有旧版追踪代码，建议删除以避免重复</List.Item>
+                    <List.Item>如有旧版追踪代码，建议在 Shopify 后台手动删除以避免重复计数</List.Item>
                   </List>
 
                   <InlineStack gap="200">

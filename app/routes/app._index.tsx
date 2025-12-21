@@ -443,7 +443,10 @@ export default function Index() {
                   2. 在「迁移」页面安装 Tracking Guardian Web Pixel
                 </Text>
                 <Text as="p" variant="bodySm">
-                  3. 验证新配置正常工作后，删除旧的 ScriptTag
+                  3. 验证新配置正常工作后，在 Shopify 后台手动删除旧的 ScriptTag
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  （前往「设置 → 应用和销售渠道」找到创建 ScriptTag 的应用并卸载）
                 </Text>
               </BlockStack>
             </BlockStack>

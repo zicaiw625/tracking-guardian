@@ -1,88 +1,17 @@
-# Learn more: https://shopify.dev/docs/apps/build/online-store/web-pixels
-
-# P0-1: Updated from 2024-10 to 2025-07 (2024-10 no longer supported as of 2025-10-01)
 api_version = "2025-07"
 type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
 
-# Privacy & Consent Configuration (P0-03)
-# 
-# DESIGN PRINCIPLE: Declare accurately what the pixel does
-# ============================================================================
-# 
-# This pixel sends checkout_completed events to our backend, which then
-# forwards conversion data to advertising platforms (Meta CAPI, TikTok Events API, etc.)
-# This constitutes both analytics AND marketing use, as well as data sharing.
-#
-# CONSENT REQUIREMENTS:
-# - analytics=true: Required for conversion measurement functionality
-# - marketing=true: Required because we send data to ad platforms for attribution
-# - sale_of_data="enabled": We share conversion data with third parties (ad platforms)
-#
-# HOW SHOPIFY'S CONSENT GATING WORKS:
-# ============================================================================
-# IMPORTANT: Shopify ONLY loads this pixel when ALL declared purposes are satisfied.
-# This is NOT just analytics+marketing, it includes ALL declared requirements:
-#   1. analytics consent granted (if analytics=true)
-#   2. marketing consent granted (if marketing=true)
-#   3. preferences consent granted (if preferences=true) - not used by this pixel
-#   4. sale_of_data NOT opted-out (if sale_of_data="enabled")
-# 
-# If ANY of the above conditions is not met, Shopify will NOT load this pixel at all.
-# This means:
-#   - If customer denies marketing consent → pixel will NOT load
-#   - If customer opts out of sale_of_data (CCPA) → pixel will NOT load
-#   - Our code still checks saleOfDataAllowed as defense-in-depth
-#
-# SALE_OF_DATA OPTIONS:
-# ============================================================================
-# - "enabled": Pixel requires sale_of_data consent. If customer opts out (CCPA),
-#              Shopify will NOT load the pixel at all. (CURRENT CHOICE)
-# - "ldu": Limited Data Use mode. Pixel loads even if customer opts out, but
-#          we must implement LDU logic (send only non-identifying data to ad platforms).
-#          Choose this if you want to send restricted signals even after opt-out.
-# - "disabled": We don't share data with third parties (not applicable for CAPI apps).
-#
-# This is the most compliant configuration for App Store review, ensuring:
-# - Privacy disclosure in Partner Dashboard matches actual behavior
-# - Customers must explicitly consent to marketing before any data is shared
-# - CCPA sale_of_data opt-out is fully respected (pixel doesn't load)
-#
 [customer_privacy]
-  # Analytics: required for conversion tracking measurement
   analytics = true
-  # Marketing: required because we share data with ad platforms (Meta, TikTok, etc.)
-  # This ensures pixel only loads when user explicitly consents to marketing
   marketing = true
-  # Preferences: not used by this pixel
   preferences = false
-  # Sale of data: enabled - we share conversion data with third-party ad platforms
-  # When user opts out (CCPA), our code respects that and doesn't send data
   sale_of_data = "enabled"
 
-# P0-01: Ingestion Key configuration
-# Backend URL is hardcoded in the pixel code for security (no merchant override allowed).
-# This prevents any possibility of data exfiltration to unauthorized endpoints.
-
 [settings]
-  # Ingestion Key - store-scoped key for request correlation and noise filtering
-  # 
-  # SECURITY CLARIFICATION:
-  # - This is a WEAK validation mechanism, NOT a security boundary
-  # - The key is visible in browser network traffic (not truly secret)
-  # - Primary purpose: correlate pixel events with webhooks, filter noise/misconfiguration
-  # - Defense layers are server-side: Origin validation, rate limiting, order ownership
-  #
-  # Server behavior:
-  # - Missing/invalid key: request rejected (204 No Content)
-  # - Valid key: request processed (correlated with shop for diagnostics)
   [[settings.fields]]
     key = "ingestion_key"
     name = "Ingestion Key"
     description = "Store-scoped key for event correlation. Auto-generated during app installation."
     type = "single_line_text_field"
-  
-  # Note: debug field removed - Shopify settings are always strings (single_line_text_field)
-  # and parsing boolean strings correctly across create/update/read cycles is error-prone.
-  # For debugging, developers can use browser DevTools to inspect network requests.

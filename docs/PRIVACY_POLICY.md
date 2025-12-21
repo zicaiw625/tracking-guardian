@@ -28,21 +28,31 @@ This privacy policy describes how Tracking Guardian ("we", "our", "the App") col
 | Consent State | Verify customer consent | Yes | Configurable |
 | Shop Domain | Multi-shop identification | Yes | Configurable |
 
-### 1.3 What We DO NOT Collect
+### 1.3 What We DO NOT Collect for Advertising
 
 **P0-02 Compliance: Our Web Pixel ONLY sends `checkout_completed` events.**
 
-We explicitly DO NOT collect:
+We explicitly DO NOT collect or send to ad platforms:
 - ❌ Page views / browsing history
 - ❌ Product views
 - ❌ Add to cart events
 - ❌ Checkout started events
-- ❌ Customer email addresses
-- ❌ Customer phone numbers
-- ❌ Customer names or addresses
+- ❌ Customer email addresses (not sent to CAPI)
+- ❌ Customer phone numbers (not sent to CAPI)
+- ❌ Customer names or addresses (not sent to CAPI)
 - ❌ Payment information
 - ❌ Device fingerprints
-- ❌ IP addresses (used transiently for rate limiting, not stored)
+
+### 1.4 Operational Data (Security & Diagnostics)
+
+The following data may be processed for security and operational purposes:
+
+| Data | Purpose | Retention | GDPR Deletion |
+|------|---------|-----------|---------------|
+| IP Address | Rate limiting, abuse detection | 365 days in AuditLog | ✅ shop/redact |
+| User Agent | Security diagnostics | 365 days in AuditLog | ✅ shop/redact |
+
+**Important**: This data is NOT used for customer tracking, targeting, or shared with ad platforms. It is used solely for security monitoring and is automatically deleted upon app uninstall (via `shop/redact` webhook).
 
 ---
 
@@ -104,12 +114,14 @@ When merchants configure server-side tracking AND customers consent, we share or
 
 Merchants can configure data retention period (30-365 days). After this period, data is automatically deleted.
 
-| Data Type | Default Retention |
-|-----------|------------------|
-| Conversion Logs | 90 days |
-| Pixel Event Receipts | 90 days |
-| Survey Responses | 90 days |
-| Audit Logs | 365 days |
+| Data Type | Default Retention | Contains Personal Data? |
+|-----------|------------------|------------------------|
+| Conversion Logs | 90 days | No (order data only) |
+| Pixel Event Receipts | 90 days | No (event metadata) |
+| Survey Responses | 90 days | Possibly (free-text) |
+| Audit Logs | 365 days | Yes (IP, User Agent) |
+
+**Note**: All data is subject to GDPR deletion requests and automatically deleted upon app uninstall.
 
 ### 4.2 GDPR Compliance
 

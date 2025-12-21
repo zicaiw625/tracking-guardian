@@ -26,9 +26,6 @@ interface ShopRedactPayload {
   shop_domain?: string;
 }
 
-/**
- * Exported conversion log data structure (GDPR Article 20 compliant)
- */
 interface ExportedConversionLog {
   orderId: string;
   orderNumber: string | null;
@@ -43,9 +40,6 @@ interface ExportedConversionLog {
   sentAt: string | null;
 }
 
-/**
- * Exported survey response data structure (GDPR Article 20 compliant)
- */
 interface ExportedSurveyResponse {
   orderId: string;
   orderNumber: string | null;
@@ -55,9 +49,6 @@ interface ExportedSurveyResponse {
   createdAt: string;
 }
 
-/**
- * Exported pixel event receipt data structure (GDPR Article 20 compliant)
- */
 interface ExportedPixelEventReceipt {
   orderId: string;
   eventType: string;
@@ -75,8 +66,7 @@ interface DataRequestResult {
   dataRequestId?: number;
   customerId?: number;
   ordersIncluded: number[];
-  /** Summary of data located */
-  dataLocated: {
+    dataLocated: {
     conversionLogs: {
       count: number;
       recordIds: string[];
@@ -90,10 +80,6 @@ interface DataRequestResult {
       recordIds: string[];
     };
   };
-  /** 
-   * Full data export in portable JSON format (GDPR Article 20 compliant).
-   * Contains all personal data associated with the requested orders.
-   */
   exportedData: {
     conversionLogs: ExportedConversionLog[];
     surveyResponses: ExportedSurveyResponse[];
@@ -177,7 +163,6 @@ async function processDataRequest(
 
   const orderIdStrings = ordersRequested.map(id => String(id));
 
-  // Fetch full data for GDPR Article 20 compliant export
   const conversionLogs = await prisma.conversionLog.findMany({
     where: {
       shopId: shop.id,
@@ -232,7 +217,6 @@ async function processDataRequest(
     },
   });
 
-  // Transform to portable export format
   const exportedConversionLogs: ExportedConversionLog[] = conversionLogs.map(log => ({
     orderId: log.orderId,
     orderNumber: log.orderNumber,

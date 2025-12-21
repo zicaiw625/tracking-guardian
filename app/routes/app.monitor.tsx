@@ -101,7 +101,6 @@ export default function MonitorPage() {
     useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 
-  // Type assertion for loader data with proper null handling
   const summaryData: Record<string, DeliverySummary> = (summary ?? {}) as Record<string, DeliverySummary>;
   const historyData: Array<DeliveryHealthReport & { reportDate: Date }> = 
     ((history ?? []) as DeliveryHealthReport[]).map((h) => ({

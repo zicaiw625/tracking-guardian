@@ -57,12 +57,28 @@ Tracking Guardian processes order data to:
 
 ### Principle: Collect Only What's Necessary
 
-1. **No PII collection**: Email, phone, name, address are NOT collected, stored, or sent
-2. **Order data only**: We only process order ID, value, currency, and line items
+1. **No customer PII for tracking**: Email, phone, name, address are NOT collected, stored, or sent to ad platforms
+2. **Order data only**: We only process order ID, value, currency, and line items for conversion tracking
 3. **Configurable retention**: Merchants control how long we retain conversion logs
 4. **Automatic cleanup**: Data older than retention period is automatically deleted
 
 **Privacy-First Approach**: We do not use hashed PII for ad platform matching. While this may reduce match rates, it provides stronger privacy guarantees and simpler compliance.
+
+### Clarification on Personal Data (for Compliance Review)
+
+While we do NOT collect customer PII for advertising purposes, we do process some data that may constitute "personal data" under GDPR/CCPA for **operational and security purposes**:
+
+| Data Type | Category | Purpose | GDPR Deletion |
+|-----------|----------|---------|---------------|
+| IP Address | Transient / Audit | Rate limiting, security audit | ✅ Deleted on shop/redact |
+| Survey Feedback | User-provided | Post-purchase surveys | ✅ Deleted on shop/redact |
+| Staff Session | OAuth | Admin authentication | ✅ Deleted on shop/redact |
+
+**Key Points for Review:**
+- IP addresses are used **transiently** for rate limiting and logged to AuditLog for abuse detection only
+- Survey feedback is **optional free-text**; customers may choose to include contact info
+- All above data is subject to GDPR deletion requests via `shop/redact` and `customers/redact` webhooks
+- **We do NOT** use any of this data for ad targeting or cross-site tracking
 
 ### Operational Data (Non-Customer PII)
 
@@ -81,19 +97,22 @@ The following data is stored for operational purposes and is **not customer PII*
 - SurveyResponse feedback is voluntary free-text; customers may choose to include contact info
 - All above data is subject to GDPR deletion requests via `shop/redact` webhook
 
-### What We DON'T Collect
+### What We DON'T Collect for Advertising
 
 **P0-02 Compliance: Our Web Pixel ONLY sends checkout_completed events.**
 
-- ❌ Page views (not collected)
+The following data is **NOT collected or sent to ad platforms**:
+
+- ❌ Page views / browsing history (not collected)
 - ❌ Product views (not collected)
 - ❌ Add to cart events (not collected)
 - ❌ Checkout started events (not collected)
-- ❌ Customer browsing history (not collected)
+- ❌ Customer email / phone / name / address (not sent to CAPI)
 - ❌ Device fingerprints
-- ❌ Customer IP addresses (rate limiting uses transient IP, not stored with customer data)
 - ❌ Payment information
 - ❌ Detailed customer profiles
+
+**IP Address Note**: IP addresses are used transiently for rate limiting and may be logged in AuditLog for security purposes (180-day retention). They are NOT used for customer tracking or sent to ad platforms. All audit data is deleted upon `shop/redact` webhook.
 
 **Verification**: Check `extensions/tracking-pixel/src/index.ts` - only `checkout_completed` has a subscriber.
 

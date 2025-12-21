@@ -7,13 +7,7 @@ import {
 } from "./token-encryption";
 import type { Shop, PixelConfig, AlertConfig } from "@prisma/client";
 
-/**
- * Timing-safe string comparison to prevent timing attacks.
- * Uses constant-time comparison regardless of string length differences.
- */
 export function timingSafeEquals(a: string, b: string): boolean {
-  // Hash both strings to ensure constant-time comparison
-  // even when string lengths differ
   const hashA = createHash("sha256").update(a).digest();
   const hashB = createHash("sha256").update(b).digest();
   return timingSafeEqual(hashA, hashB);

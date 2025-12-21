@@ -604,25 +604,10 @@ export async function processRetries(): Promise<{
   return { processed: logsToRetry.length, succeeded, failed, limitExceeded };
 }
 
-/**
- * Atomically claim jobs for processing using PostgreSQL's FOR UPDATE SKIP LOCKED.
- * This prevents race conditions where multiple workers try to process the same job.
- * 
- * @returns Array of job IDs that were successfully claimed by this worker
- */
 async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
   const now = new Date();
   
-  // Use a transaction with FOR UPDATE SKIP LOCKED to atomically:
-  // 1. Select available jobs (skipping any locked by other workers)
-  // 2. Update their status to 'processing'
-  // 3. Return the claimed job IDs
-  //
-  // This is the proper way to implement distributed job processing
-  // without race conditions.
   const claimedIds = await prisma.$transaction(async (tx) => {
-    // Use raw query to leverage FOR UPDATE SKIP LOCKED
-    // This atomically locks the selected rows, preventing other workers from claiming them
     const availableJobs = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM "ConversionJob"
       WHERE (
@@ -644,7 +629,6 @@ async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
     
     const jobIds = availableJobs.map(j => j.id);
     
-    // Update all claimed jobs to 'processing' status
     await tx.conversionJob.updateMany({
       where: { id: { in: jobIds } },
       data: { status: "processing" },
@@ -652,9 +636,7 @@ async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
     
     return jobIds;
   }, {
-    // Use serializable isolation for maximum safety (optional, READ COMMITTED is usually sufficient)
-    // isolationLevel: 'Serializable',
-    timeout: 10000, // 10 second timeout for the transaction
+    timeout: 10000,
   });
   
   return claimedIds;
@@ -670,7 +652,6 @@ export async function processConversionJobs(): Promise<{
   const now = new Date();
   const batchSize = 50;
 
-  // Step 1: Atomically claim jobs using FOR UPDATE SKIP LOCKED
   const claimedJobIds = await claimJobsForProcessing(batchSize);
   
   if (claimedJobIds.length === 0) {
@@ -680,7 +661,6 @@ export async function processConversionJobs(): Promise<{
   
   logger.info(`processConversionJobs: Claimed ${claimedJobIds.length} jobs for processing`);
 
-  // Step 2: Fetch the full job data for claimed jobs
   const jobsToProcess = await prisma.conversionJob.findMany({
     where: {
       id: { in: claimedJobIds },
@@ -716,9 +696,6 @@ export async function processConversionJobs(): Promise<{
   
   for (const job of jobsToProcess) {
     try {
-      // Job is already locked and marked as 'processing' by claimJobsForProcessing()
-      // No need for additional locking here
-
       const billingCheck = await checkBillingGate(
         job.shopId,
         (job.shop.plan || "free") as PlanId

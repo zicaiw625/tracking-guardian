@@ -30,7 +30,6 @@ const CIRCUIT_BREAKER_CONFIG = {
   windowMs: 60 * 1000,  
 };
 
-/** Custom headers allowed for pixel events */
 const PIXEL_CUSTOM_HEADERS = [
   "X-Tracking-Guardian-Key",
   "X-Tracking-Guardian-Timestamp",

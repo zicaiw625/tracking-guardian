@@ -18,22 +18,10 @@ function generateRequestId(): string {
 
 const REPLAY_PROTECTION_WINDOW_MS = 5 * 60 * 1000;
 
-/**
- * Batch size for deletion operations.
- * Smaller batches prevent database blocking and timeouts.
- */
 const CLEANUP_BATCH_SIZE = 1000;
 
-/**
- * Maximum number of batches to process per cleanup run.
- * This prevents the cleanup from running too long.
- */
 const MAX_BATCHES_PER_RUN = 10;
 
-/**
- * Deletes records in batches to avoid blocking the database.
- * Returns the total number of records deleted.
- */
 async function batchDelete<T extends { id: string }>(
   tableName: string,
   findQuery: () => Promise<T[]>,
@@ -56,7 +44,6 @@ async function batchDelete<T extends { id: string }>(
     
     logger.debug(`[Cleanup] Deleted ${result.count} ${tableName} (batch ${batchCount})`);
     
-    // If we got fewer records than the batch size, we're done
     if (records.length < CLEANUP_BATCH_SIZE) {
       break;
     }
@@ -84,7 +71,6 @@ async function cleanupExpiredData(): Promise<{
   const gdprCutoff = new Date();
   gdprCutoff.setDate(gdprCutoff.getDate() - 30);
   
-  // GDPR jobs are typically small, can use regular deleteMany
   const gdprJobResult = await prisma.gDPRJob.deleteMany({
     where: {
       status: { in: ["completed", "failed"] },
@@ -135,7 +121,6 @@ async function cleanupExpiredData(): Promise<{
     const auditCutoff = new Date();
     auditCutoff.setDate(auditCutoff.getDate() - Math.max(retentionDays, 180));
 
-    // Use batched deletion for large tables to prevent database blocking
     const [
       conversionLogsCount,
       surveyResponsesCount,
@@ -145,7 +130,6 @@ async function cleanupExpiredData(): Promise<{
       webhookLogsCount,
       reconciliationCount,
     ] = await Promise.all([
-      // ConversionLog - potentially large, use batch delete
       batchDelete(
         "ConversionLog",
         () => prisma.conversionLog.findMany({
@@ -160,7 +144,6 @@ async function cleanupExpiredData(): Promise<{
         (ids) => prisma.conversionLog.deleteMany({ where: { id: { in: ids } } })
       ),
       
-      // SurveyResponse - typically smaller, but use batch for safety
       batchDelete(
         "SurveyResponse",
         () => prisma.surveyResponse.findMany({
@@ -174,7 +157,6 @@ async function cleanupExpiredData(): Promise<{
         (ids) => prisma.surveyResponse.deleteMany({ where: { id: { in: ids } } })
       ),
       
-      // AuditLog - can be large, use batch delete
       batchDelete(
         "AuditLog",
         () => prisma.auditLog.findMany({
@@ -188,7 +170,6 @@ async function cleanupExpiredData(): Promise<{
         (ids) => prisma.auditLog.deleteMany({ where: { id: { in: ids } } })
       ),
       
-      // ConversionJob - potentially large, use batch delete
       batchDelete(
         "ConversionJob",
         () => prisma.conversionJob.findMany({
@@ -203,7 +184,6 @@ async function cleanupExpiredData(): Promise<{
         (ids) => prisma.conversionJob.deleteMany({ where: { id: { in: ids } } })
       ),
       
-      // PixelEventReceipt - can be large, use batch delete
       batchDelete(
         "PixelEventReceipt",
         () => prisma.pixelEventReceipt.findMany({
@@ -217,7 +197,6 @@ async function cleanupExpiredData(): Promise<{
         (ids) => prisma.pixelEventReceipt.deleteMany({ where: { id: { in: ids } } })
       ),
       
-      // WebhookLog - can be large, use batch delete
       batchDelete(
         "WebhookLog",
         () => prisma.webhookLog.findMany({
@@ -231,7 +210,6 @@ async function cleanupExpiredData(): Promise<{
         (ids) => prisma.webhookLog.deleteMany({ where: { id: { in: ids } } })
       ),
       
-      // ReconciliationReport - typically smaller
       batchDelete(
         "ReconciliationReport",
         () => prisma.reconciliationReport.findMany({
@@ -254,7 +232,6 @@ async function cleanupExpiredData(): Promise<{
     totalWebhookLogs += webhookLogsCount;
     totalReconciliationReports += reconciliationCount;
 
-    // ScanReports - keep only last N per shop (small numbers, no batching needed)
     for (const shop of shopsInGroup) {
       const scanReportsToKeep = 5;
       const oldScanReports = await prisma.scanReport.findMany({
@@ -569,4 +546,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   return handleCronRequest(request, "GET");
 };
-

@@ -16,7 +16,6 @@ import {
 
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
 
-// Use the shared static CORS headers for survey endpoint
 const CORS_HEADERS = STATIC_CORS_HEADERS;
 
 function jsonWithCors<T>(data: T, init?: ResponseInit): Response {

@@ -4,28 +4,11 @@ declare global {
   var prisma: PrismaClient;
 }
 
-/**
- * Database connection pool configuration.
- * 
- * These can be overridden via environment variables:
- * - DB_CONNECTION_LIMIT: Max connections in pool (default: 10)
- * - DB_POOL_TIMEOUT: Connection acquisition timeout in seconds (default: 10)
- * 
- * For Prisma, these are also configurable via DATABASE_URL query params:
- * - connection_limit
- * - pool_timeout
- * 
- * @see https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections
- */
 const DB_CONFIG = {
   connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || "10", 10),
   poolTimeout: parseInt(process.env.DB_POOL_TIMEOUT || "10", 10),
 };
 
-/**
- * Append connection pool parameters to DATABASE_URL if not already present.
- * This ensures the connection pool is properly configured even if not in the URL.
- */
 function getDatabaseUrl(): string {
   const baseUrl = process.env.DATABASE_URL || "";
   
@@ -35,7 +18,6 @@ function getDatabaseUrl(): string {
 
   const url = new URL(baseUrl);
   
-  // Only set if not already configured in the URL
   if (!url.searchParams.has("connection_limit")) {
     url.searchParams.set("connection_limit", String(DB_CONFIG.connectionLimit));
   }
@@ -60,7 +42,6 @@ function createPrismaClient(): PrismaClient {
       : ["query", "info", "warn", "error"],
   });
 
-  // Log connection pool configuration on startup
   if (!isProduction) {
     console.log("[Prisma] Connection pool configured:", {
       connectionLimit: DB_CONFIG.connectionLimit,

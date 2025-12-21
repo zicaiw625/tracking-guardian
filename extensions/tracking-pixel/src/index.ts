@@ -1,12 +1,5 @@
 import { register } from "@shopify/web-pixels-extension";
 
-/**
- * Backend URL is hardcoded for security - prevents data exfiltration to arbitrary endpoints.
- * Merchants cannot configure or override this value.
- * 
- * P0-01: Removed backend_url setting per App Store review requirements.
- * This ensures data only flows to our verified backend.
- */
 const BACKEND_URL = "https://tracking-guardian.onrender.com";
 
 interface CheckoutData {
@@ -41,12 +34,9 @@ function toNumber(value: string | number | undefined | null, defaultValue = 0): 
 }
 
 register(({ analytics, settings, init, customerPrivacy }: any) => {
-  // P0-01: ingestion_key is the only setting field (backend_url removed for security)
   const ingestionKey = settings.ingestion_key as string | undefined;
   const shopDomain = init.data?.shop?.myshopifyDomain || "";
   
-  // Dev mode detection: based on shop domain patterns only
-  // (backend URL is now hardcoded, so localhost detection removed)
   const isDevMode = (() => {
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
       return true;
