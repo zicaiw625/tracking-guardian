@@ -208,7 +208,6 @@ describe("Crypto Utils", () => {
     });
   });
 
-  // P1-04: Match Key Generation Tests
   describe("normalizeOrderId", () => {
     it("should extract numeric ID from GID format", () => {
       expect(normalizeOrderId("gid://shopify/Order/12345")).toBe("12345");

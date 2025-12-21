@@ -74,7 +74,6 @@ function encryptAlertSettings(channel: string, settings: Record<string, unknown>
     sensitiveSettings.botToken = settings.botToken;
     sensitiveSettings.chatId = settings.chatId;
   } else if (channel === "email") {
-    // Email is not sensitive, but we store it encrypted for consistency
     sensitiveSettings.email = settings.email;
   }
   
@@ -200,15 +199,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const nonSensitiveSettings: Record<string, unknown> = {
         channel,
-        // For email, we can show a masked version
         ...(channel === "email" && rawSettings.email 
           ? { emailMasked: String(rawSettings.email).replace(/(.{2}).*(@.*)/, "$1***$2") }
           : {}),
-        // For slack, just indicate it's configured
         ...(channel === "slack" && rawSettings.webhookUrl 
           ? { configured: true }
           : {}),
-        // For telegram, show masked bot token and chat ID
         ...(channel === "telegram" && rawSettings.botToken
           ? { 
               botTokenMasked: String(rawSettings.botToken).slice(0, 8) + "****",

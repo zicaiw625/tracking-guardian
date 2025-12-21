@@ -1,17 +1,5 @@
-/**
- * P0-02: Web Pixel PII变更回归测试
- * 
- * 测试场景：Shopify 2025-12-10后强制执行的 PII protected scopes
- * 确保当 pixel payload 中的 PII 字段（email/phone/name/address）为 null 时：
- * 1. 系统仍能正常处理 checkout_completed 事件
- * 2. ConversionJob 可以正常创建
- * 3. 去重和对账逻辑不受影响
- * 4. CAPI 发送流程正常工作
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock prisma
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
@@ -47,11 +35,6 @@ describe("P0-02: PII Null Regression Tests", () => {
   });
 
   describe("Pixel Event Payload without PII", () => {
-    /**
-     * Simulates a checkout_completed event where all PII fields are null
-     * This matches what shops will receive after 2025-12-10 if they don't have
-     * protected customer data approval
-     */
     it("should handle checkout_completed with all PII fields null", () => {
       const piiNullPayload = {
         eventName: "checkout_completed",
@@ -62,7 +45,6 @@ describe("P0-02: PII Null Regression Tests", () => {
           analytics: true,
         },
         data: {
-          // Core fields that should always be available
           orderId: "12345",
           checkoutToken: "abc123",
           value: 99.99,
@@ -73,8 +55,6 @@ describe("P0-02: PII Null Regression Tests", () => {
             { id: "product-1", name: "Test Product", price: 84.01, quantity: 1 },
           ],
           
-          // PII fields that will be null after 2025-12-10
-          // Without protected customer data approval
           email: null,
           phone: null,
           firstName: null,
@@ -87,14 +67,11 @@ describe("P0-02: PII Null Regression Tests", () => {
         },
       };
 
-      // Verify orderId can be extracted
       expect(piiNullPayload.data.orderId).toBe("12345");
       
-      // Verify normalizeOrderId works with string orderId
       const normalizedId = normalizeOrderId(piiNullPayload.data.orderId);
       expect(normalizedId).toBe("12345");
       
-      // Verify eventId can be generated without PII
       const eventId = generateEventId(
         normalizedId,
         "purchase",
@@ -108,7 +85,6 @@ describe("P0-02: PII Null Regression Tests", () => {
       const orderId = "12345";
       const shopDomain = "test-shop.myshopify.com";
       
-      // Event ID should be the same whether or not PII was present
       const eventId1 = generateEventId(orderId, "purchase", shopDomain);
       const eventId2 = generateEventId(orderId, "purchase", shopDomain);
       
@@ -121,14 +97,13 @@ describe("P0-02: PII Null Regression Tests", () => {
         timestamp: Date.now(),
         shopDomain: "test-shop.myshopify.com",
         data: {
-          orderId: null, // orderId can be null in some edge cases
+          orderId: null,
           checkoutToken: "checkout_token_abc123",
           value: 50.00,
           currency: "USD",
         },
       };
 
-      // When orderId is null, should use checkoutToken
       const effectiveId = payloadWithNullOrderId.data.orderId || 
                           payloadWithNullOrderId.data.checkoutToken;
       
@@ -138,7 +113,6 @@ describe("P0-02: PII Null Regression Tests", () => {
 
   describe("ConversionJob Creation without PII", () => {
     it("should create ConversionJob with only required fields (no PII)", () => {
-      // This simulates what the webhook handler creates
       const capiInput = {
         orderId: "12345",
         value: 99.99,
@@ -155,15 +129,12 @@ describe("P0-02: PII Null Regression Tests", () => {
         webhookReceivedAt: new Date().toISOString(),
         checkoutToken: "checkout_abc",
         shopifyOrderId: 12345,
-        // Note: No PII fields (email, phone, address, etc.)
       };
 
-      // Verify capiInput has all necessary fields for CAPI
       expect(capiInput.orderId).toBeTruthy();
       expect(capiInput.value).toBeGreaterThan(0);
       expect(capiInput.currency).toBeTruthy();
       
-      // Verify no PII is stored
       expect((capiInput as Record<string, unknown>).email).toBeUndefined();
       expect((capiInput as Record<string, unknown>).phone).toBeUndefined();
       expect((capiInput as Record<string, unknown>).firstName).toBeUndefined();
@@ -204,7 +175,7 @@ describe("P0-02: PII Null Regression Tests", () => {
       const mockReceipt = {
         id: "receipt-2",
         shopId: "shop-1",
-        orderId: "checkout_token_xyz", // Using checkout token as orderId
+        orderId: "checkout_token_xyz",
         eventType: "purchase",
         consentState: { marketing: true, analytics: true },
         isTrusted: true,
@@ -229,16 +200,12 @@ describe("P0-02: PII Null Regression Tests", () => {
 
   describe("CAPI Sending without PII", () => {
     it("should send Meta CAPI without user data when PII unavailable", () => {
-      // Meta CAPI payload structure without PII
       const metaPayload = {
         event_name: "Purchase",
         event_time: Math.floor(Date.now() / 1000),
         event_id: "evt_12345_purchase_test-shop",
         action_source: "website",
-        // user_data is empty or minimal when no PII available
         user_data: {
-          // Only include hashed identifiers if available
-          // Since we don't have PII, this can be empty
         },
         custom_data: {
           currency: "USD",
@@ -250,16 +217,14 @@ describe("P0-02: PII Null Regression Tests", () => {
         },
       };
 
-      // Verify payload can be sent without user_data
       expect(metaPayload.event_name).toBe("Purchase");
       expect(metaPayload.custom_data.value).toBe(99.99);
       expect(metaPayload.custom_data.order_id).toBe("12345");
     });
 
     it("should send GA4 Measurement Protocol without user identifiers", () => {
-      // GA4 payload structure without PII
       const ga4Payload = {
-        client_id: "anonymous", // Could be from cookie or generated
+        client_id: "anonymous",
         events: [
           {
             name: "purchase",
@@ -270,7 +235,6 @@ describe("P0-02: PII Null Regression Tests", () => {
               items: [
                 { item_id: "prod-1", item_name: "Test Product", price: 99.99, quantity: 1 },
               ],
-              // No user identifiers
             },
           },
         ],
@@ -281,12 +245,10 @@ describe("P0-02: PII Null Regression Tests", () => {
     });
 
     it("should send TikTok Events API without user identifiers", () => {
-      // TikTok payload structure without PII
       const tiktokPayload = {
         event: "CompletePayment",
         event_time: Math.floor(Date.now() / 1000),
         event_id: "evt_12345_purchase_test-shop",
-        // user is empty when no PII available
         user: {},
         properties: {
           currency: "USD",
@@ -310,14 +272,11 @@ describe("P0-02: PII Null Regression Tests", () => {
       const orderId = "12345";
       const shopDomain = "test-shop.myshopify.com";
       
-      // Generate eventId for deduplication
       const eventId = generateEventId(orderId, "purchase", shopDomain);
       
-      // Same order should generate same eventId
       const eventId2 = generateEventId(orderId, "purchase", shopDomain);
       expect(eventId).toBe(eventId2);
       
-      // Different order should generate different eventId
       const differentEventId = generateEventId("99999", "purchase", shopDomain);
       expect(eventId).not.toBe(differentEventId);
     });
@@ -351,26 +310,6 @@ describe("P0-02: PII Null Regression Tests", () => {
 
 describe("P0-02: Documentation", () => {
   it("documents that pixel only sends non-PII data", () => {
-    /**
-     * As documented in the tracking pixel (extensions/tracking-pixel/src/index.ts):
-     * 
-     * The pixel ONLY sends:
-     * - orderId (from checkout.order.id)
-     * - checkoutToken (from checkout.token)
-     * - value/tax/shipping (from checkout totals)
-     * - items (product IDs, names, prices, quantities)
-     * - consent state (marketing, analytics)
-     * 
-     * The pixel does NOT read or send:
-     * - email
-     * - phone
-     * - firstName/lastName
-     * - address/city/province/country/zip
-     * 
-     * This ensures compliance with Shopify's PII protected scopes
-     * even if the app doesn't have protected customer data approval.
-     */
     expect(true).toBe(true);
   });
 });
-

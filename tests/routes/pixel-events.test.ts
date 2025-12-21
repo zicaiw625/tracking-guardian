@@ -1,17 +1,5 @@
-/**
- * P3-15: Pixel Events API Tests
- * 
- * Tests for /api/pixel-events endpoint including:
- * - Origin validation
- * - Timestamp validation
- * - Rate limiting
- * - Ingestion key validation
- * - Idempotent writes
- */
-
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Mock prisma
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
@@ -29,7 +17,6 @@ vi.mock("../../app/db.server", () => ({
   },
 }));
 
-// Mock logger
 vi.mock("../../app/utils/logger", () => ({
   logger: {
     info: vi.fn(),
@@ -39,12 +26,10 @@ vi.mock("../../app/utils/logger", () => ({
   },
 }));
 
-// Import after mocks
 import prisma from "../../app/db.server";
 
 describe("Pixel Events API - Origin Validation", () => {
   describe("isValidShopifyOrigin", () => {
-    // We'll import the function from the new origin-validation module
     let isValidShopifyOrigin: (origin: string | null) => boolean;
     let isValidDevOrigin: (origin: string | null) => boolean;
     
@@ -107,7 +92,7 @@ describe("Pixel Events API - Origin Validation", () => {
 });
 
 describe("Pixel Events API - Timestamp Validation", () => {
-  const TIMESTAMP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+  const TIMESTAMP_WINDOW_MS = 10 * 60 * 1000;
 
   function isValidTimestamp(timestamp: number): boolean {
     const now = Date.now();
@@ -145,7 +130,6 @@ describe("Pixel Events API - Rate Limiting", () => {
   let trackAnomaly: (shopDomain: string, type: "invalid_key" | "invalid_origin" | "invalid_timestamp") => { shouldBlock: boolean; reason?: string };
   
   beforeEach(async () => {
-    // Reset the module to clear state
     vi.resetModules();
     const module = await import("../../app/utils/rate-limiter");
     trackAnomaly = module.trackAnomaly;
@@ -157,12 +141,10 @@ describe("Pixel Events API - Rate Limiting", () => {
   });
 
   it("blocks after threshold exceeded", () => {
-    // Simulate many anomalies
     for (let i = 0; i < 49; i++) {
       trackAnomaly("abuse-store.myshopify.com", "invalid_key");
     }
     
-    // 50th should trigger block
     const result = trackAnomaly("abuse-store.myshopify.com", "invalid_key");
     expect(result.shouldBlock).toBe(true);
     expect(result.reason).toContain("invalid key");
@@ -173,7 +155,6 @@ describe("Pixel Events API - Rate Limiting", () => {
       trackAnomaly("mixed-store.myshopify.com", "invalid_key");
     }
     
-    // Different type should start fresh count
     const result = trackAnomaly("mixed-store.myshopify.com", "invalid_origin");
     expect(result.shouldBlock).toBe(false);
   });
@@ -427,4 +408,3 @@ describe("Pixel Events API - Idempotent Writes", () => {
     expect(mockUpsert).toHaveBeenCalledTimes(1);
   });
 });
-

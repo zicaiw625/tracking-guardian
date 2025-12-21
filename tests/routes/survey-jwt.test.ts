@@ -1,22 +1,6 @@
-/**
- * P1-4: Survey API JWT Verification Tests
- * 
- * Tests for /api/survey endpoint authentication:
- * - Missing token → 401 Unauthorized
- * - Invalid/forged token → 401 Unauthorized
- * - Valid token → request processed
- * - Shop domain mismatch → 401 Unauthorized
- * 
- * Security model:
- * - CORS is "*" because Shopify extensions run on various domains
- * - Real security comes from JWT signature verification (cryptographic)
- * - Shop domain matching between header and JWT claim
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHmac } from "crypto";
 
-// Mock all dependencies
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
@@ -50,12 +34,8 @@ vi.mock("../../app/utils/rate-limiter", () => ({
 import prisma from "../../app/db.server";
 import { action } from "../../app/routes/api.survey";
 
-// Test secret for JWT signing
 const TEST_API_SECRET = "test-api-secret-at-least-16-chars-long";
 
-/**
- * Generate a mock Shopify session token (JWT)
- */
 function generateMockJwt(
   payload: {
     iss?: string;
@@ -77,8 +57,8 @@ function generateMockJwt(
     dest: "https://test-shop.myshopify.com",
     aud: "test-client-id",
     sub: "12345",
-    exp: now + 3600, // 1 hour from now
-    nbf: now - 60,   // 1 minute ago
+    exp: now + 3600,
+    nbf: now - 60,
     iat: now,
     jti: "unique-token-id-" + Date.now(),
     ...payload,
@@ -97,7 +77,6 @@ function generateMockJwt(
 describe("P1-4: Survey API JWT Verification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Set the test secret
     process.env.SHOPIFY_API_SECRET = TEST_API_SECRET;
   });
 
@@ -108,7 +87,6 @@ describe("P1-4: Survey API JWT Verification", () => {
         headers: {
           "Content-Type": "application/json",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
-          // No Authorization header
         },
         body: JSON.stringify({
           orderId: "12345",
@@ -129,7 +107,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         headers: {
           "Content-Type": "application/json",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
-          "Authorization": "", // Empty
+          "Authorization": "",
         },
         body: JSON.stringify({
           orderId: "12345",
@@ -166,7 +144,6 @@ describe("P1-4: Survey API JWT Verification", () => {
     });
 
     it("returns 401 for JWT with invalid signature (forged token)", async () => {
-      // Generate a valid-looking JWT but sign with wrong secret
       const forgedToken = generateMockJwt(
         { dest: "https://test-shop.myshopify.com" },
         "wrong-secret-key-not-the-real-one"
@@ -196,8 +173,8 @@ describe("P1-4: Survey API JWT Verification", () => {
       const now = Math.floor(Date.now() / 1000);
       const expiredToken = generateMockJwt({
         dest: "https://test-shop.myshopify.com",
-        exp: now - 3600, // Expired 1 hour ago
-        nbf: now - 7200, // Started 2 hours ago
+        exp: now - 3600,
+        nbf: now - 7200,
         iat: now - 7200,
       });
 
@@ -225,8 +202,8 @@ describe("P1-4: Survey API JWT Verification", () => {
       const now = Math.floor(Date.now() / 1000);
       const futureToken = generateMockJwt({
         dest: "https://test-shop.myshopify.com",
-        exp: now + 7200, // Expires in 2 hours
-        nbf: now + 3600, // Not valid until 1 hour from now
+        exp: now + 7200,
+        nbf: now + 3600,
         iat: now,
       });
 
@@ -252,7 +229,7 @@ describe("P1-4: Survey API JWT Verification", () => {
 
     it("returns 401 for JWT with invalid issuer", async () => {
       const badIssuerToken = generateMockJwt({
-        iss: "https://evil-site.com/admin", // Not a Shopify issuer
+        iss: "https://evil-site.com/admin",
         dest: "https://test-shop.myshopify.com",
       });
 
@@ -279,7 +256,6 @@ describe("P1-4: Survey API JWT Verification", () => {
 
   describe("Shop Domain Mismatch → 401 Unauthorized", () => {
     it("returns 401 when JWT dest doesn't match shop header", async () => {
-      // Token is for shop-a, but request claims to be from shop-b
       const token = generateMockJwt({
         dest: "https://shop-a.myshopify.com",
       });
@@ -288,7 +264,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Shop-Domain": "shop-b.myshopify.com", // Different shop!
+          "X-Shopify-Shop-Domain": "shop-b.myshopify.com",
           "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
@@ -313,7 +289,6 @@ describe("P1-4: Survey API JWT Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // No X-Shopify-Shop-Domain header
           "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
@@ -338,7 +313,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Shop-Domain": "not-a-valid-domain.com", // Not myshopify.com
+          "X-Shopify-Shop-Domain": "not-a-valid-domain.com",
           "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
@@ -424,7 +399,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         headers: {
           "Content-Type": "application/json",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
-          "Authorization": `Bearer ${validToken}`, // With Bearer prefix
+          "Authorization": `Bearer ${validToken}`,
         },
         body: JSON.stringify({
           orderId: "12345",
@@ -451,17 +426,16 @@ describe("P1-4: Survey API JWT Verification", () => {
         id: "log-id",
       } as any);
 
-      // Existing response found
       vi.mocked(prisma.surveyResponse.findFirst).mockResolvedValue({
         id: "existing-survey-id",
         shopId: "shop-id-123",
         orderId: "12345",
-        rating: 3, // Old rating
+        rating: 3,
       } as any);
 
       vi.mocked(prisma.surveyResponse.update).mockResolvedValue({
         id: "existing-survey-id",
-        rating: 5, // Updated rating
+        rating: 5,
       } as any);
 
       const request = new Request("https://example.com/api/survey", {
@@ -473,7 +447,7 @@ describe("P1-4: Survey API JWT Verification", () => {
         },
         body: JSON.stringify({
           orderId: "12345",
-          rating: 5, // New rating
+          rating: 5,
         }),
       });
 
@@ -521,7 +495,7 @@ describe("P1-4: Survey API JWT Verification", () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
         id: "shop-id-123",
         shopDomain: "test-shop.myshopify.com",
-        isActive: false, // Inactive
+        isActive: false,
       } as any);
 
       const request = new Request("https://example.com/api/survey", {
@@ -590,13 +564,6 @@ describe("P1-4: Survey API JWT Verification", () => {
   });
 });
 
-/**
- * Cross-Site Request Forgery Prevention
- * 
- * Even though CORS is "*", the JWT signature verification prevents CSRF:
- * - Attacker cannot forge a valid JWT without knowing the API secret
- * - Shop domain in JWT must match the X-Shopify-Shop-Domain header
- */
 describe("CSRF Prevention via JWT", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -604,15 +571,13 @@ describe("CSRF Prevention via JWT", () => {
   });
 
   it("prevents cross-site writes even with CORS: *", async () => {
-    // Attacker site tries to submit survey for victim shop
-    // They don't have access to the victim's session token
     const request = new Request("https://example.com/api/survey", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Origin": "https://evil-attacker.com", // Attacker's origin
+        "Origin": "https://evil-attacker.com",
         "X-Shopify-Shop-Domain": "victim-shop.myshopify.com",
-        "Authorization": "Bearer fake-token", // Invalid token
+        "Authorization": "Bearer fake-token",
       },
       body: JSON.stringify({
         orderId: "victim-order-123",
@@ -623,12 +588,10 @@ describe("CSRF Prevention via JWT", () => {
 
     const response = await action({ request, params: {}, context: {} });
 
-    // Request is rejected because token is invalid
     expect(response.status).toBe(401);
   });
 
   it("validates JWT independently of Origin header", async () => {
-    // Even if Origin is spoofed, JWT signature must be valid
     const validToken = generateMockJwt({
       dest: "https://test-shop.myshopify.com",
     });
@@ -647,9 +610,9 @@ describe("CSRF Prevention via JWT", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Origin": "https://some-weird-origin.com", // Unusual origin
+        "Origin": "https://some-weird-origin.com",
         "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
-        "Authorization": `Bearer ${validToken}`, // But token is valid
+        "Authorization": `Bearer ${validToken}`,
       },
       body: JSON.stringify({
         orderId: "12345",
@@ -659,8 +622,6 @@ describe("CSRF Prevention via JWT", () => {
 
     const response = await action({ request, params: {}, context: {} });
 
-    // Request succeeds because JWT is valid (Origin doesn't matter for auth)
     expect(response.status).toBe(200);
   });
 });
-

@@ -1,20 +1,6 @@
-/**
- * P0-2: HMAC Signature Verification Tests for Webhooks
- * 
- * Tests that webhooks with invalid HMAC signatures return 401 Unauthorized.
- * This is a critical security requirement for Shopify App Store approval.
- * 
- * Key requirements tested:
- * 1. Invalid HMAC → 401 Unauthorized
- * 2. Valid HMAC → 200 OK (processed)
- * 3. Missing HMAC → 401 Unauthorized
- * 4. Malformed request → appropriate error
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { action } from "../../app/routes/webhooks";
 
-// Mock all dependencies
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
@@ -73,19 +59,16 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
 
   describe("Invalid HMAC Signature → 401 Unauthorized", () => {
     it("returns 401 when HMAC signature is invalid", async () => {
-      // Mock authentication failure - thrown as Response with 401
       vi.mocked(authenticate.webhook).mockRejectedValue(
         new Response("Unauthorized", { status: 401 })
       );
 
-      // Create a mock request with invalid HMAC
       const request = new Request("https://example.com/webhooks", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Shopify-Topic": "orders/paid",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
-          // Note: No valid HMAC header or invalid signature
           "X-Shopify-Hmac-Sha256": "invalid-hmac-signature",
         },
         body: JSON.stringify({
@@ -101,7 +84,6 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
     });
 
     it("returns 401 when HMAC header is missing", async () => {
-      // Mock authentication failure for missing HMAC
       vi.mocked(authenticate.webhook).mockRejectedValue(
         new Response("Unauthorized", { status: 401 })
       );
@@ -112,7 +94,6 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
           "Content-Type": "application/json",
           "X-Shopify-Topic": "orders/paid",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
-          // Missing X-Shopify-Hmac-Sha256
         },
         body: JSON.stringify({
           id: 12345,
@@ -125,7 +106,6 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
     });
 
     it("returns 401 when HMAC is forged (tampering attempt)", async () => {
-      // Simulate a forged HMAC attempt
       vi.mocked(authenticate.webhook).mockRejectedValue(
         new Response("Unauthorized", { status: 401 })
       );
@@ -136,7 +116,6 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
           "Content-Type": "application/json",
           "X-Shopify-Topic": "customers/redact",
           "X-Shopify-Shop-Domain": "attacker-shop.myshopify.com",
-          // Forged HMAC that doesn't match the payload
           "X-Shopify-Hmac-Sha256": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXo=",
         },
         body: JSON.stringify({
@@ -154,7 +133,6 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
 
   describe("Valid HMAC Signature → 200 OK", () => {
     it("returns 200 for CUSTOMERS_DATA_REQUEST with valid HMAC", async () => {
-      // Mock successful authentication
       vi.mocked(authenticate.webhook).mockResolvedValue({
         topic: "CUSTOMERS_DATA_REQUEST",
         shop: "test-shop.myshopify.com",
@@ -186,7 +164,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
           "Content-Type": "application/json",
           "X-Shopify-Topic": "customers/data_request",
           "X-Shopify-Shop-Domain": "test-shop.myshopify.com",
-          "X-Shopify-Hmac-Sha256": "valid-hmac-signature", // Would be validated by authenticate.webhook
+          "X-Shopify-Hmac-Sha256": "valid-hmac-signature",
         },
         body: JSON.stringify({
           shop_domain: "test-shop.myshopify.com",
@@ -428,7 +406,6 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
 
   describe("Idempotency with Webhook-Id", () => {
     it("returns 200 OK for duplicate webhook (idempotent)", async () => {
-      // First call succeeds
       vi.mocked(authenticate.webhook).mockResolvedValue({
         topic: "ORDERS_PAID",
         shop: "test-shop.myshopify.com",
@@ -450,7 +427,6 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         pixelConfigs: [],
       } as any);
 
-      // Simulate duplicate webhook detection (P2002 = unique constraint violation)
       vi.mocked(prisma.webhookLog.create).mockRejectedValue({
         code: "P2002",
         message: "Unique constraint failed",
@@ -472,16 +448,12 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
 
       const response = await action({ request, params: {}, context: {} });
 
-      // Should return 200 for duplicate (not an error)
       expect(response.status).toBe(200);
       expect(await response.text()).toContain("OK");
     });
   });
 });
 
-/**
- * Test utilities for webhook HMAC validation
- */
 describe("HMAC Validation Implementation", () => {
   it("should call authenticate.webhook for all incoming webhooks", async () => {
     vi.mocked(authenticate.webhook).mockResolvedValue({
@@ -510,8 +482,6 @@ describe("HMAC Validation Implementation", () => {
 
     await action({ request, params: {}, context: {} });
 
-    // Verify authenticate.webhook is ALWAYS called first
     expect(authenticate.webhook).toHaveBeenCalledWith(request);
   });
 });
-

@@ -6,7 +6,6 @@ import { logger } from "../utils/logger";
 export type ActorType = "user" | "webhook" | "cron" | "api" | "system";
 
 export type AuditAction =
-  // Configuration changes
   | "token_updated"
   | "token_deleted"
   | "pixel_config_created"
@@ -24,16 +23,10 @@ export type AuditAction =
   | "dead_letter_retry"
   | "ingestion_secret_rotated"
   | "privacy_settings_updated"
-  
-  // Billing
   | "subscription_created"
   | "subscription_cancelled"
   | "subscription_activated"
-  
-  // Data lifecycle
   | "data_cleanup_completed"
-  
-  // P1-3: Security events for monitoring
   | "security_signature_invalid"
   | "security_signature_missing"
   | "security_replay_attack"
@@ -41,8 +34,6 @@ export type AuditAction =
   | "security_invalid_origin"
   | "security_jwt_validation_failed"
   | "security_shop_mismatch"
-  
-  // P1-3: Platform integration events
   | "capi_send_success"
   | "capi_send_failed"
   | "capi_retry_scheduled"
@@ -56,7 +47,6 @@ export type ResourceType =
   | "script_tag"
   | "conversion_log"
   | "billing"
-  // P1-3: Security resources
   | "pixel_event"
   | "survey"
   | "api_request";

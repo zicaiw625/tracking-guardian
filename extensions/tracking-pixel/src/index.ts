@@ -40,7 +40,6 @@ function toNumber(value: string | number | undefined | null, defaultValue = 0): 
   return isNaN(parsed) ? defaultValue : parsed;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 register(({ analytics, settings, init, customerPrivacy }: any) => {
   
   const backendUrl = BACKEND_URL;

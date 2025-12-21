@@ -1,14 +1,6 @@
-/**
- * P0-01: Protected Customer Data Degradation Tests
- * 
- * These tests verify that the system handles missing/null PII gracefully.
- * This is critical for compliance when Protected Customer Data scope is not granted.
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ConversionData } from "../../app/types";
 
-// Mock fetch for API calls
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
@@ -28,7 +20,6 @@ describe("P0-01: PII Degradation Handling", () => {
         orderNumber: "#1001",
         value: 99.99,
         currency: "USD",
-        // All PII fields are null/undefined
         email: null,
         phone: null,
         firstName: null,
@@ -39,7 +30,6 @@ describe("P0-01: PII Degradation Handling", () => {
         zip: null,
       };
 
-      // Type check passes - this is valid ConversionData
       expect(data.orderId).toBe("12345");
       expect(data.email).toBeNull();
       expect(data.phone).toBeNull();
@@ -51,7 +41,6 @@ describe("P0-01: PII Degradation Handling", () => {
         orderNumber: null,
         value: 99.99,
         currency: "USD",
-        // PII fields not provided at all
       };
 
       expect(data.orderId).toBe("12345");
@@ -65,7 +54,6 @@ describe("P0-01: PII Degradation Handling", () => {
         orderNumber: "#1001",
         value: 99.99,
         currency: "USD",
-        // Only email available, rest is null/undefined
         email: "test@example.com",
         phone: null,
       };
@@ -78,7 +66,6 @@ describe("P0-01: PII Degradation Handling", () => {
 
   describe("Meta CAPI with degraded PII", () => {
     it("should build user data with no PII without throwing", async () => {
-      // Import the buildHashedUserData indirectly through the module
       const { sendConversionToMeta } = await import(
         "../../app/services/platforms/meta.server"
       );
@@ -88,10 +75,8 @@ describe("P0-01: PII Degradation Handling", () => {
         orderNumber: "#1001",
         value: 100.0,
         currency: "USD",
-        // No PII
       };
 
-      // Mock successful Meta API response
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ events_received: 1, fbtrace_id: "trace123" }),
@@ -102,7 +87,6 @@ describe("P0-01: PII Degradation Handling", () => {
         accessToken: "test-token",
       };
 
-      // Should not throw even with no PII
       const result = await sendConversionToMeta(credentials, conversionData);
       expect(result.success).toBe(true);
     });
@@ -117,7 +101,6 @@ describe("P0-01: PII Degradation Handling", () => {
         orderNumber: "#1002",
         value: 150.0,
         currency: "USD",
-        // Only email, no phone
         email: "customer@example.com",
       };
 
@@ -134,14 +117,11 @@ describe("P0-01: PII Degradation Handling", () => {
       const result = await sendConversionToMeta(credentials, conversionData);
       expect(result.success).toBe(true);
 
-      // Verify the request was made with hashed email
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const [, requestInit] = mockFetch.mock.calls[0];
       const body = JSON.parse(requestInit.body);
 
-      // Email should be hashed (64 char hex string)
       expect(body.data[0].user_data.em[0]).toMatch(/^[a-f0-9]{64}$/);
-      // Phone should not be present
       expect(body.data[0].user_data.ph).toBeUndefined();
     });
   });
@@ -157,7 +137,6 @@ describe("P0-01: PII Degradation Handling", () => {
         orderNumber: "#2001",
         value: 75.0,
         currency: "USD",
-        // No PII
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -170,7 +149,6 @@ describe("P0-01: PII Degradation Handling", () => {
         accessToken: "test-tiktok-token",
       };
 
-      // Should not throw even with no PII
       const result = await sendConversionToTikTok(credentials, conversionData);
       expect(result.success).toBe(true);
     });
@@ -187,10 +165,8 @@ describe("P0-01: PII Degradation Handling", () => {
         orderNumber: null,
         value: 50.0,
         currency: "USD",
-        // No PII
       };
 
-      // Mock API error
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 400,
@@ -208,7 +184,6 @@ describe("P0-01: PII Degradation Handling", () => {
         accessToken: "test-token",
       };
 
-      // Should throw the API error, not a PII-related error
       await expect(
         sendConversionToMeta(credentials, conversionData)
       ).rejects.toThrow("Meta API error");
@@ -217,7 +192,6 @@ describe("P0-01: PII Degradation Handling", () => {
 
   describe("Required fields validation", () => {
     it("should require orderId even when PII is absent", () => {
-      // TypeScript should enforce orderId is required
       const validData: ConversionData = {
         orderId: "required-order-id",
         orderNumber: null,
@@ -232,8 +206,8 @@ describe("P0-01: PII Degradation Handling", () => {
       const validData: ConversionData = {
         orderId: "order-123",
         orderNumber: null,
-        value: 0, // Can be 0 but must be defined
-        currency: "USD", // Must be defined
+        value: 0,
+        currency: "USD",
       };
 
       expect(validData.value).toBe(0);
@@ -241,4 +215,3 @@ describe("P0-01: PII Degradation Handling", () => {
     });
   });
 });
-

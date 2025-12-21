@@ -1,21 +1,5 @@
-/**
- * P0-03: GDPR Compliance Webhook Tests
- * 
- * Tests the mandatory GDPR webhooks required for Shopify App Store approval:
- * - CUSTOMERS_DATA_REQUEST: Export customer data
- * - CUSTOMERS_REDACT: Delete customer data  
- * - SHOP_REDACT: Delete all shop data (48h after uninstall)
- * 
- * Key requirements tested:
- * 1. Signature verification (webhook authentication)
- * 2. Proper data deletion/export
- * 3. Graceful handling of missing shops
- * 4. No PII logging during GDPR operations
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock all database models used by GDPR
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
@@ -77,7 +61,6 @@ vi.mock("../../app/shopify.server", () => ({
   },
 }));
 
-// Mock audit log creation
 vi.mock("../../app/services/audit.server", () => ({
   createAuditLog: vi.fn(),
 }));
@@ -385,16 +368,12 @@ describe("GDPR Compliance Webhooks", () => {
     });
   });
 
-  // P0-03: Additional comprehensive tests
   describe("P0-03: Signature Verification", () => {
     it("should reject requests with invalid HMAC signature", async () => {
-      // Mock authentication failure (thrown as Response with 401)
       vi.mocked(authenticate.webhook).mockRejectedValue(
         new Response("Unauthorized", { status: 401 })
       );
 
-      // The webhook handler should catch this and return 401
-      // This verifies that signature validation is working
       expect(authenticate.webhook).toBeDefined();
     });
 
@@ -411,7 +390,6 @@ describe("GDPR Compliance Webhooks", () => {
         },
       } as any);
 
-      // Verify authentication passes
       const result = await authenticate.webhook({} as any);
       expect(result.topic).toBe("CUSTOMERS_DATA_REQUEST");
     });
@@ -419,12 +397,11 @@ describe("GDPR Compliance Webhooks", () => {
 
   describe("P0-03: Shop Redact 48h After Uninstall", () => {
     it("should execute shop redact even without active session", async () => {
-      // SHOP_REDACT comes 48h after uninstall, so session/admin should be null
       vi.mocked(authenticate.webhook).mockResolvedValue({
         topic: "SHOP_REDACT",
         shop: "uninstalled-shop.myshopify.com",
-        session: null, // No session after uninstall
-        admin: null,   // No admin access after uninstall
+        session: null,
+        admin: null,
         payload: {
           shop_id: 123456789,
           shop_domain: "uninstalled-shop.myshopify.com",
@@ -434,16 +411,14 @@ describe("GDPR Compliance Webhooks", () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
         id: "shop-id-456",
         shopDomain: "uninstalled-shop.myshopify.com",
-        isActive: false, // Shop marked inactive after uninstall
+        isActive: false,
       } as any);
 
-      // All delete operations should still work
       vi.mocked(prisma.session.deleteMany).mockResolvedValue({ count: 1 });
       vi.mocked(prisma.conversionLog.deleteMany).mockResolvedValue({ count: 50 });
       vi.mocked(prisma.conversionJob.deleteMany).mockResolvedValue({ count: 10 });
       vi.mocked(prisma.shop.delete).mockResolvedValue({ id: "shop-id-456" } as any);
 
-      // Verify all necessary mocks are set up
       expect(prisma.shop.findUnique).toBeDefined();
       expect(prisma.session.deleteMany).toBeDefined();
       expect(prisma.shop.delete).toBeDefined();
@@ -460,69 +435,32 @@ describe("GDPR Compliance Webhooks", () => {
         },
       } as any);
 
-      // Shop doesn't exist
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(null);
       
-      // Should still try to clean up sessions by domain
       vi.mocked(prisma.session.deleteMany).mockResolvedValue({ count: 0 });
       vi.mocked(prisma.webhookLog.deleteMany).mockResolvedValue({ count: 0 });
 
-      // This should not throw
       expect(true).toBe(true);
     });
   });
 
   describe("P0-03: No PII in Logs", () => {
     it("should not log customer email or phone during redact", () => {
-      /**
-       * The GDPR service should NOT log:
-       * - payload.customer.email
-       * - payload.customer.phone
-       * 
-       * It SHOULD only log:
-       * - shop_domain
-       * - customer.id (numeric ID, not PII)
-       * - order IDs (numeric, not PII)
-       * - Count of deleted records
-       * 
-       * This is verified by code review of gdpr.server.ts
-       */
       const customerPayload = {
         customer: {
           id: 987654321,
-          email: "sensitive@example.com", // Should NOT be logged
-          phone: "+1234567890", // Should NOT be logged
+          email: "sensitive@example.com",
+          phone: "+1234567890",
         },
         orders_to_redact: [1001, 1002],
       };
 
-      // The ID is safe to log
       expect(customerPayload.customer.id).toBe(987654321);
-      
-      // But email and phone should be excluded from any logging
-      // This is a documentation test - actual implementation
-      // uses logger with sensitive field filtering
     });
   });
 
   describe("P0-03: Complete Data Deletion", () => {
     it("should delete all related tables for shop redact", async () => {
-      /**
-       * Shop redact must delete data from ALL these tables:
-       * - Session (by shopDomain)
-       * - WebhookLog (by shopDomain)
-       * - ConversionLog (by shopId)
-       * - ConversionJob (by shopId)
-       * - PixelEventReceipt (by shopId)
-       * - SurveyResponse (by shopId)
-       * - AuditLog (by shopId)
-       * - ScanReport (by shopId)
-       * - ReconciliationReport (by shopId)
-       * - AlertConfig (by shopId)
-       * - PixelConfig (by shopId)
-       * - MonthlyUsage (by shopId)
-       * - Shop (the record itself)
-       */
       const tablesToDelete = [
         "session",
         "webhookLog",
@@ -539,7 +477,6 @@ describe("GDPR Compliance Webhooks", () => {
         "shop",
       ];
 
-      // Verify all tables are mocked for deletion
       expect(prisma.session.deleteMany).toBeDefined();
       expect(prisma.webhookLog.deleteMany).toBeDefined();
       expect(prisma.conversionLog.deleteMany).toBeDefined();

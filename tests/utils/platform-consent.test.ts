@@ -1,14 +1,3 @@
-/**
- * P0-07: Consent Strategy Unit Tests
- * 
- * Tests the consent evaluation logic across all combinations:
- * - Platform types: marketing (meta, tiktok) vs analytics (google, clarity)
- * - Strategies: strict, balanced, weak
- * - Receipt status: present, absent
- * - Consent values: true, false, undefined
- * - Dual-use platforms: Google with treatAsMarketing flag
- */
-
 import { describe, it, expect } from "vitest";
 import {
   evaluatePlatformConsentWithStrategy,
@@ -75,7 +64,6 @@ describe("Platform Consent Configuration", () => {
 });
 
 describe("evaluatePlatformConsentWithStrategy", () => {
-  // Test matrix for strict strategy
   describe("Strict Strategy", () => {
     const strategy = "strict";
 
@@ -87,7 +75,7 @@ describe("evaluatePlatformConsentWithStrategy", () => {
           platform,
           strategy,
           { marketing: true, analytics: true },
-          false // no receipt
+          false
         );
         expect(result.allowed).toBe(false);
         expect(result.reason).toContain("No pixel event received");
@@ -138,7 +126,6 @@ describe("evaluatePlatformConsentWithStrategy", () => {
     });
   });
 
-  // Test matrix for balanced strategy
   describe("Balanced Strategy", () => {
     const strategy = "balanced";
 
@@ -184,7 +171,6 @@ describe("evaluatePlatformConsentWithStrategy", () => {
     });
   });
 
-  // Test matrix for weak strategy
   describe("Weak Strategy", () => {
     const strategy = "weak";
 
@@ -212,27 +198,24 @@ describe("evaluatePlatformConsentWithStrategy", () => {
     });
   });
 
-  // P0-07: Dual-use platform tests
   describe("Dual-Use Platforms (Google as Marketing)", () => {
     it("should treat Google as marketing when treatAsMarketing=true in strict mode", () => {
-      // Without the flag, Google uses analytics consent
       const analyticsResult = evaluatePlatformConsentWithStrategy(
         "google",
         "strict",
         { marketing: false, analytics: true },
         true,
-        false // treatAsMarketing = false
+        false
       );
       expect(analyticsResult.allowed).toBe(true);
       expect(analyticsResult.usedConsent).toBe("analytics");
 
-      // With the flag, Google requires marketing consent
       const marketingResult = evaluatePlatformConsentWithStrategy(
         "google",
         "strict",
         { marketing: false, analytics: true },
         true,
-        true // treatAsMarketing = true
+        true
       );
       expect(marketingResult.allowed).toBe(false);
       expect(marketingResult.usedConsent).toBe("marketing");
@@ -243,8 +226,8 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         "google",
         "balanced",
         null,
-        false, // no receipt
-        true // treatAsMarketing = true
+        false,
+        true
       );
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain("balanced mode requires consent for marketing");
@@ -289,4 +272,3 @@ describe("PLATFORM_CONSENT_CONFIG completeness", () => {
     expect(PLATFORM_CONSENT_CONFIG.tiktok.dualUse).toBe(false);
   });
 });
-

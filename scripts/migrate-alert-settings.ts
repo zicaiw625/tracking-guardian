@@ -1,16 +1,3 @@
-/**
- * P0-2: Alert Settings Migration Script
- * 
- * This script migrates existing plaintext AlertConfig.settings to encrypted storage.
- * It should be run after deploying the schema migration that adds settingsEncrypted.
- * 
- * Usage:
- *   npx ts-node scripts/migrate-alert-settings.ts
- * 
- * Or with environment:
- *   DATABASE_URL="..." ENCRYPTION_SECRET="..." npx ts-node scripts/migrate-alert-settings.ts
- */
-
 import { PrismaClient } from "@prisma/client";
 import { encryptJson } from "../app/utils/crypto";
 
@@ -40,7 +27,6 @@ async function migrateAlertSettings(): Promise<MigrationResult> {
   };
 
   try {
-    // Get all AlertConfigs that have settings but no settingsEncrypted
     const alertConfigs = await prisma.alertConfig.findMany({
       where: {
         settingsEncrypted: null,
@@ -70,7 +56,6 @@ async function migrateAlertSettings(): Promise<MigrationResult> {
           continue;
         }
 
-        // Extract sensitive fields based on channel
         const sensitiveSettings: Record<string, unknown> = {};
         const nonSensitiveSettings: Record<string, unknown> = {
           channel: config.channel,
@@ -105,14 +90,13 @@ async function migrateAlertSettings(): Promise<MigrationResult> {
           continue;
         }
 
-        // Encrypt and update
         const encryptedSettings = encryptJson(sensitiveSettings);
 
         await prisma.alertConfig.update({
           where: { id: config.id },
           data: {
             settingsEncrypted: encryptedSettings,
-            settings: nonSensitiveSettings, // Replace with non-sensitive only
+            settings: nonSensitiveSettings,
           },
         });
 
@@ -143,7 +127,6 @@ async function migrateAlertSettings(): Promise<MigrationResult> {
 }
 
 async function main() {
-  // Check environment
   if (!process.env.ENCRYPTION_SECRET && process.env.NODE_ENV === "production") {
     console.error("❌ ENCRYPTION_SECRET must be set for migration");
     process.exit(1);
@@ -174,4 +157,3 @@ async function main() {
 }
 
 main();
-
