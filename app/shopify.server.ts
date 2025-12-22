@@ -4,14 +4,15 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import prisma from "./db.server";
 import { createEncryptedSessionStorage } from "./utils/encrypted-session-storage";
 import { encryptAccessToken, decryptAccessToken, generateEncryptedIngestionSecret, validateTokenEncryptionConfig } from "./utils/token-encryption";
+import { logger } from "./utils/logger";
 try {
     const encryptionValidation = validateTokenEncryptionConfig();
     if (encryptionValidation.warnings.length > 0) {
-        console.warn("[Token Encryption] Configuration warnings:", encryptionValidation.warnings);
+        logger.warn("[Token Encryption] Configuration warnings", { warnings: encryptionValidation.warnings });
     }
 }
 catch (error) {
-    console.error("[Token Encryption] Configuration error:", error);
+    logger.error("[Token Encryption] Configuration error", error);
     if (process.env.NODE_ENV === "production") {
         throw error;
     }
@@ -68,22 +69,22 @@ const shopify = shopifyApp({
                     const registered = entries.filter(([, results]) => results.some((r) => r.success));
                     const failed = entries.filter(([, results]) => results.some((r) => !r.success));
                     if (registered.length > 0) {
-                        console.log(`[Webhooks] Registered for ${session.shop}:`, registered.map(([topic]) => topic).join(", "));
+                        logger.info(`[Webhooks] Registered for ${session.shop}`, { topics: registered.map(([topic]) => topic) });
                     }
                     if (failed.length > 0) {
-                        console.error(`[Webhooks] Failed to register for ${session.shop}:`, failed.map(([topic, results]) => `${topic}: ${results.map((r) => r.result?.message || "unknown error").join(", ")}`).join("; "));
+                        logger.error(`[Webhooks] Failed to register for ${session.shop}`, undefined, { failures: failed.map(([topic, results]) => ({ topic, errors: results.map((r) => r.result?.message || "unknown error") })) });
                     }
                 }
             }
             catch (webhookError) {
-                console.error(`[Webhooks] Registration error for ${session.shop}:`, webhookError instanceof Error ? webhookError.message : webhookError);
+                logger.error(`[Webhooks] Registration error for ${session.shop}`, webhookError);
             }
             if (admin) {
                 try {
                     await cleanupDeprecatedWebhookSubscriptions(admin, session.shop);
                 }
                 catch (cleanupError) {
-                    console.warn(`[Webhooks] Cleanup warning for ${session.shop}:`, cleanupError instanceof Error ? cleanupError.message : cleanupError);
+                    logger.warn(`[Webhooks] Cleanup warning for ${session.shop}`, { error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError) });
                 }
             }
             let primaryDomainHost: string | null = null;
@@ -115,13 +116,13 @@ const shopify = shopifyApp({
                         shopTier = "non_plus";
                     }
                     if (primaryDomainHost) {
-                        console.log(`[Shop] Fetched primary domain for ${session.shop}: ${primaryDomainHost}`);
+                        logger.info(`[Shop] Fetched primary domain for ${session.shop}`, { primaryDomain: primaryDomainHost });
                     }
-                    console.log(`[Shop] Determined shopTier for ${session.shop}: ${shopTier} (Plus: ${plan?.shopifyPlus}, Dev: ${plan?.partnerDevelopment})`);
+                    logger.info(`[Shop] Determined shopTier for ${session.shop}`, { shopTier, isPlus: plan?.shopifyPlus, isDevPartner: plan?.partnerDevelopment });
                 }
             }
             catch (shopQueryError) {
-                console.warn(`[Shop] Failed to fetch shop info for ${session.shop}:`, shopQueryError instanceof Error ? shopQueryError.message : shopQueryError);
+                logger.warn(`[Shop] Failed to fetch shop info for ${session.shop}`, { error: shopQueryError instanceof Error ? shopQueryError.message : String(shopQueryError) });
             }
             const existingShop = await prisma.shop.findUnique({
                 where: { shopDomain: session.shop },
@@ -212,7 +213,7 @@ async function cleanupDeprecatedWebhookSubscriptions(admin: AdminApiContext, sho
         `, { variables: { cursor } });
             const data = await response.json();
             if (data.errors) {
-                console.warn(`[Webhooks] Failed to query subscriptions for ${shopDomain}:`, data.errors);
+                logger.warn(`[Webhooks] Failed to query subscriptions for ${shopDomain}`, { errors: data.errors });
                 return;
             }
             const edges: WebhookEdge[] = data.data?.webhookSubscriptions?.edges || [];
@@ -227,13 +228,12 @@ async function cleanupDeprecatedWebhookSubscriptions(admin: AdminApiContext, sho
             pages++;
         }
         if (pages >= 10 && hasNextPage) {
-            console.warn(`[Webhooks] Pagination limit reached while querying webhook subscriptions for ${shopDomain}. ` +
-                `Some subscriptions may not have been checked.`);
+            logger.warn(`[Webhooks] Pagination limit reached while querying webhook subscriptions for ${shopDomain}`, { pagesProcessed: pages });
         }
         if (deprecatedSubs.length === 0) {
             return;
         }
-        console.log(`[Webhooks] Found ${deprecatedSubs.length} deprecated webhook(s) for ${shopDomain}, cleaning up...`);
+        logger.info(`[Webhooks] Found deprecated webhooks for ${shopDomain}, cleaning up`, { count: deprecatedSubs.length });
         for (const sub of deprecatedSubs) {
             const subId = sub.id;
             const subTopic = sub.topic;
@@ -254,19 +254,19 @@ async function cleanupDeprecatedWebhookSubscriptions(admin: AdminApiContext, sho
                 const deleteData = await deleteResponse.json();
                 const userErrors = deleteData.data?.webhookSubscriptionDelete?.userErrors || [];
                 if (userErrors.length > 0) {
-                    console.warn(`[Webhooks] Error deleting ${subTopic} for ${shopDomain}:`, userErrors);
+                    logger.warn(`[Webhooks] Error deleting ${subTopic} for ${shopDomain}`, { userErrors });
                 }
                 else {
-                    console.log(`[Webhooks] Deleted deprecated ${subTopic} webhook for ${shopDomain}`);
+                    logger.info(`[Webhooks] Deleted deprecated webhook for ${shopDomain}`, { topic: subTopic });
                 }
             }
             catch (deleteError) {
-                console.warn(`[Webhooks] Failed to delete ${subTopic} for ${shopDomain}:`, deleteError instanceof Error ? deleteError.message : deleteError);
+                logger.warn(`[Webhooks] Failed to delete webhook for ${shopDomain}`, { topic: subTopic, error: deleteError instanceof Error ? deleteError.message : String(deleteError) });
             }
         }
     }
     catch (error) {
-        console.warn(`[Webhooks] Cleanup query failed for ${shopDomain}:`, error instanceof Error ? error.message : error);
+        logger.warn(`[Webhooks] Cleanup query failed for ${shopDomain}`, { error: error instanceof Error ? error.message : String(error) });
     }
 }
 export async function createAdminClientForShop(shopDomain: string): Promise<AdminApiContext | null> {
@@ -308,7 +308,7 @@ export async function createAdminClientForShop(shopDomain: string): Promise<Admi
                 }
             }
             catch (error) {
-                console.warn(`[Admin] Failed to decrypt offline session token for ${shopDomain}`, error);
+                logger.warn(`[Admin] Failed to decrypt offline session token for ${shopDomain}`, { error: error instanceof Error ? error.message : String(error) });
             }
         }
         const shopRecord = await prisma.shop.findUnique({
@@ -321,11 +321,11 @@ export async function createAdminClientForShop(shopDomain: string): Promise<Admi
                 accessToken = decryptAccessToken(shopRecord.accessToken);
             }
             catch {
-                console.warn(`[Admin] Failed to decrypt shop-level token for ${shopDomain}`);
+                logger.warn(`[Admin] Failed to decrypt shop-level token for ${shopDomain}`);
             }
         }
         if (!accessToken) {
-            console.log(`[Admin] No usable offline token for ${shopDomain}`);
+            logger.info(`[Admin] No usable offline token for ${shopDomain}`);
             return null;
         }
         const apiUrl = `https:                                                             
@@ -352,7 +352,7 @@ export async function createAdminClientForShop(shopDomain: string): Promise<Admi
         return graphqlClient as unknown as AdminApiContext;
     }
     catch (error) {
-        console.error(`[Admin] Failed to create client for ${shopDomain}:`, error);
+        logger.error(`[Admin] Failed to create client for ${shopDomain}`, error);
         return null;
     }
 }

@@ -658,12 +658,15 @@ export async function processConversionJobs(): Promise<{
                         data: {
                             trustLevel: trustResult.level,
                             untrustedReason: trustResult.reason,
-                        },
-                    });
+                            },
+                        });
+                    }
+                    catch (updateError) {
+                        logger.debug(`Failed to update receipt trust level for job ${job.id}`, { 
+                            error: updateError instanceof Error ? updateError.message : String(updateError) 
+                        });
+                    }
                 }
-                catch {
-                }
-            }
             const rawConsentState = receipt?.consentState as {
                 marketing?: boolean;
                 analytics?: boolean;
@@ -723,7 +726,10 @@ export async function processConversionJobs(): Promise<{
                         try {
                             credentials = decryptJson<PlatformCredentials>(pixelConfig.credentialsEncrypted);
                         }
-                        catch {
+                        catch (decryptError) {
+                            logger.warn(`Failed to decrypt credentials for ${pixelConfig.platform}`, {
+                                error: decryptError instanceof Error ? decryptError.message : String(decryptError)
+                            });
                         }
                     }
                     if (!credentials && (pixelConfig as Record<string, unknown>).credentials) {
@@ -736,7 +742,10 @@ export async function processConversionJobs(): Promise<{
                                 credentials = legacyCreds as PlatformCredentials;
                             }
                         }
-                        catch {
+                        catch (legacyDecryptError) {
+                            logger.warn(`Failed to decrypt legacy credentials for ${pixelConfig.platform}`, {
+                                error: legacyDecryptError instanceof Error ? legacyDecryptError.message : String(legacyDecryptError)
+                            });
                         }
                     }
                     if (!credentials) {
@@ -861,7 +870,8 @@ export async function processConversionJobs(): Promise<{
                     nextRetryAt: calculateNextRetryTime(job.attempts + 1),
                     errorMessage: errorMsg,
                 },
-            }).catch(() => {
+            }).catch((dbError) => {
+                logger.error(`Failed to update job ${job.id} status after error`, dbError);
             });
             failed++;
         }

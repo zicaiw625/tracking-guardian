@@ -1,5 +1,17 @@
 import { logger } from "./logger";
-import { SHOPIFY_ALLOWLIST } from "./origin-validation";
+import { SHOPIFY_ALLOWLIST, extractOriginHost as extractOriginHostFromValidation, buildShopAllowedDomains as buildShopAllowedDomainsFromValidation } from "./origin-validation";
+
+// Re-export from origin-validation for backwards compatibility
+export { extractOriginHostFromValidation as extractOriginHost };
+
+// Wrapper for backwards compatibility with positional parameters
+export function buildShopAllowedDomains(myshopifyDomain: string, primaryDomain?: string | null, customDomains?: string[]): string[] {
+    return buildShopAllowedDomainsFromValidation({
+        shopDomain: myshopifyDomain,
+        primaryDomain,
+        storefrontDomains: customDomains,
+    });
+}
 export type TrustLevel = "trusted" | "partial" | "untrusted";
 export type UntrustedReason = "missing_checkout_token" | "checkout_token_mismatch" | "missing_origin" | "invalid_origin" | "timestamp_mismatch" | "receipt_too_old" | "time_skew_exceeded" | "ingestion_key_missing" | "ingestion_key_invalid" | "order_not_found" | "receipt_not_found";
 export interface ReceiptTrustResult {
@@ -191,29 +203,4 @@ export function buildTrustMetadata(trustResult: ReceiptTrustResult, additionalCo
         verifiedAt: new Date().toISOString(),
     };
 }
-export function extractOriginHost(origin: string | null): string | null {
-    if (!origin || origin === "null") {
-        return null;
-    }
-    try {
-        const url = new URL(origin);
-        return url.hostname;
-    }
-    catch {
-        return null;
-    }
-}
-export function buildShopAllowedDomains(myshopifyDomain: string, primaryDomain?: string | null, customDomains?: string[]): string[] {
-    const domains = new Set<string>();
-    domains.add(myshopifyDomain);
-    if (primaryDomain) {
-        domains.add(primaryDomain);
-    }
-    if (customDomains) {
-        customDomains.forEach(d => domains.add(d));
-    }
-    for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
-        domains.add(shopifyDomain);
-    }
-    return Array.from(domains);
-}
+// extractOriginHost and buildShopAllowedDomains are now re-exported from origin-validation.ts above

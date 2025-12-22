@@ -4,7 +4,7 @@ import prisma from "../db.server";
 import { generateEventId, normalizeOrderId } from "../utils/crypto";
 import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "../services/billing.server";
 import { logger } from "../utils/logger";
-import { parseOrderWebhookPayload } from "../utils/webhook-validation";
+import { parseOrderWebhookPayload, parseGDPRDataRequestPayload, parseGDPRCustomerRedactPayload, parseGDPRShopRedactPayload } from "../utils/webhook-validation";
 import type { OrderWebhookPayload, PixelConfigData, } from "../types";
 import type { Shop, PixelConfig } from "@prisma/client";
 async function tryAcquireWebhookLock(shopDomain: string, webhookId: string | null, topic: string, orderId?: string): Promise<{
@@ -196,38 +196,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 }
                 break;
             case "ORDERS_UPDATED":
-                logger.info(`Order updated for shop ${shop}: order_id=${(payload as {
-                    id?: number;
-                })?.id}`);
+                {
+                    const orderId = payload && typeof payload === "object" && "id" in payload 
+                        ? (payload as { id?: number }).id 
+                        : undefined;
+                    logger.info(`Order updated for shop ${shop}: order_id=${orderId}`);
+                }
                 break;
             case "CUSTOMERS_DATA_REQUEST":
                 logger.info(`GDPR data request received for shop ${shop}`);
                 try {
-                    const dataRequestPayload = payload as {
-                        shop_id?: number;
-                        shop_domain?: string;
-                        orders_requested?: number[];
-                        customer?: {
-                            id?: number;
-                            email?: string;
-                            phone?: string;
-                        };
-                        data_request?: {
-                            id?: number;
-                        };
-                    };
-                    const minimalPayload = {
-                        shop_id: dataRequestPayload.shop_id,
-                        shop_domain: dataRequestPayload.shop_domain,
-                        orders_requested: dataRequestPayload.orders_requested || [],
-                        customer_id: dataRequestPayload.customer?.id,
-                        data_request_id: dataRequestPayload.data_request?.id,
-                    };
+                    const dataRequestPayload = parseGDPRDataRequestPayload(payload, shop);
+                    if (!dataRequestPayload) {
+                        logger.warn(`Invalid CUSTOMERS_DATA_REQUEST payload from ${shop}`);
+                        return new Response("Invalid payload", { status: 400 });
+                    }
                     await prisma.gDPRJob.create({
                         data: {
                             shopDomain: shop,
                             jobType: "data_request",
-                            payload: minimalPayload,
+                            payload: dataRequestPayload,
                             status: "queued",
                         },
                     });
@@ -240,27 +228,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             case "CUSTOMERS_REDACT":
                 logger.info(`GDPR customer redact request for shop ${shop}`);
                 try {
-                    const customerRedactPayload = payload as {
-                        shop_id?: number;
-                        shop_domain?: string;
-                        customer?: {
-                            id?: number;
-                            email?: string;
-                            phone?: string;
-                        };
-                        orders_to_redact?: number[];
-                    };
-                    const minimalPayload = {
-                        shop_id: customerRedactPayload.shop_id,
-                        shop_domain: customerRedactPayload.shop_domain,
-                        customer_id: customerRedactPayload.customer?.id,
-                        orders_to_redact: customerRedactPayload.orders_to_redact || [],
-                    };
+                    const customerRedactPayload = parseGDPRCustomerRedactPayload(payload, shop);
+                    if (!customerRedactPayload) {
+                        logger.warn(`Invalid CUSTOMERS_REDACT payload from ${shop}`);
+                        return new Response("Invalid payload", { status: 400 });
+                    }
                     await prisma.gDPRJob.create({
                         data: {
                             shopDomain: shop,
                             jobType: "customer_redact",
-                            payload: minimalPayload,
+                            payload: customerRedactPayload,
                             status: "queued",
                         },
                     });
@@ -273,19 +250,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             case "SHOP_REDACT":
                 logger.info(`GDPR shop redact request for shop ${shop}`);
                 try {
-                    const shopRedactPayload = payload as {
-                        shop_id?: number;
-                        shop_domain?: string;
-                    };
-                    const minimalPayload = {
-                        shop_id: shopRedactPayload.shop_id,
-                        shop_domain: shopRedactPayload.shop_domain,
-                    };
+                    const shopRedactPayload = parseGDPRShopRedactPayload(payload, shop);
+                    if (!shopRedactPayload) {
+                        logger.warn(`Invalid SHOP_REDACT payload from ${shop}`);
+                        return new Response("Invalid payload", { status: 400 });
+                    }
                     await prisma.gDPRJob.create({
                         data: {
                             shopDomain: shop,
                             jobType: "shop_redact",
-                            payload: minimalPayload,
+                            payload: shopRedactPayload,
                             status: "queued",
                         },
                     });

@@ -48,7 +48,7 @@ function toNumber(value: string | number | undefined | null, defaultValue = 0): 
 register(({ analytics, settings, init, customerPrivacy }: any) => {
     const ingestionKey = settings.ingestion_key as string | undefined;
     const shopDomain = (settings.shop_domain as string | undefined) || init.data?.shop?.myshopifyDomain || "";
-    const backendUrl = (settings.backend_url as string | undefined) || BACKEND_URL;
+    const backendUrl = BACKEND_URL;
     const isDevMode = (() => {
         if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
             return true;

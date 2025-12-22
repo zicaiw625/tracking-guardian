@@ -345,13 +345,14 @@ All sensitive operations are logged:
 
 ## 6. Consent Management
 
-### Three-Tier Consent Strategy
+### Two-Tier Consent Strategy
 
 | Strategy | Behavior | Recommended For |
 |----------|----------|-----------------|
-| **strict** (default) | Requires explicit consent receipt | All production deployments |
-| **balanced** | Analytics allowed, marketing requires receipt | Shops with mixed requirements |
-| **weak** | Implied consent | Regions with implied consent laws |
+| **strict** (default) | Requires trusted pixel receipt + explicit consent | All production deployments, GDPR/CCPA regions |
+| **balanced** | Allows partial-trust receipts, marketing still requires consent | Shops with mixed requirements |
+
+> **Note**: The legacy "weak" mode (implied consent) is deprecated and no longer available in the UI. Existing shops using weak mode should migrate to balanced or strict.
 
 ### Customer Privacy API Integration
 
@@ -719,7 +720,7 @@ are NOT collected, NOT transmitted, and NOT processed.
 4. **策略集成**:
    - `strict` 模式: 必须 `trusted` 才发送 marketing 平台
    - `balanced` 模式: `partial` 可发送 analytics，marketing 需要 `trusted`
-   - `weak` 模式: 始终允许 (适用于隐含同意地区)
+   - ~~`weak` 模式已弃用，不再在 UI 中提供~~
 
 **验收**:
 - 伪造的 pixel 事件无法获得 `trusted` 级别

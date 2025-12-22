@@ -17,12 +17,6 @@ runtime_context = "strict"
     type = "single_line_text_field"
 
   [[settings.fields]]
-    key = "backend_url"
-    name = "Backend URL"
-    description = "HTTPS endpoint for the tracking backend. Auto-configured during installation."
-    type = "single_line_text_field"
-
-  [[settings.fields]]
     key = "shop_domain"
     name = "Shop Domain"
     description = "The myshopify.com domain for this store. Auto-configured during installation."
