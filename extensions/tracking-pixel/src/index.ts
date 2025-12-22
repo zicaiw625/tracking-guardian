@@ -71,7 +71,6 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
       return;
     }
 
-    customerPrivacyStatus = status;
     marketingAllowed = status.marketingAllowed === true;
     analyticsAllowed = status.analyticsProcessingAllowed === true;
     saleOfDataAllowed = status.saleOfDataAllowed !== false;
