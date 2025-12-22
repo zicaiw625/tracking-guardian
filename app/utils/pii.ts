@@ -1,4 +1,5 @@
 import type { OrderWebhookPayload } from "../types";
+import { logger } from "./logger";
 export interface ExtractedPII {
     email?: string;
     phone?: string;
@@ -45,7 +46,7 @@ export function hasPII(pii: ExtractedPII): boolean {
 }
 export function logPIIStatus(orderId: string, pii: ExtractedPII, piiEnabled: boolean): void {
     if (!piiEnabled) {
-        console.log(`[PII] Order ${orderId}: PII disabled`);
+        logger.debug(`[PII] Order ${orderId}: PII disabled`);
         return;
     }
     const available: string[] = [];
@@ -60,10 +61,10 @@ export function logPIIStatus(orderId: string, pii: ExtractedPII, piiEnabled: boo
         }
     }
     if (available.length === 0) {
-        console.log(`[PII] Order ${orderId}: No PII available. ` +
+        logger.debug(`[PII] Order ${orderId}: No PII available. ` +
             `This may indicate Protected Customer Data access is not granted.`);
     }
     else {
-        console.log(`[PII] Order ${orderId}: Available=[${available.join(",")}], Missing=[${missing.join(",")}]`);
+        logger.debug(`[PII] Order ${orderId}: Available=[${available.join(",")}], Missing=[${missing.join(",")}]`);
     }
 }

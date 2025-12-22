@@ -33,7 +33,9 @@ function createPrismaClient(): PrismaClient {
             : ["query", "info", "warn", "error"],
     });
     if (!isProduction) {
-        console.log("[Prisma] Connection pool configured:", {
+        // Startup diagnostics - using console intentionally
+        // eslint-disable-next-line no-console
+        console.log("[STARTUP] Prisma connection pool configured:", {
             connectionLimit: DB_CONFIG.connectionLimit,
             poolTimeout: DB_CONFIG.poolTimeout,
         });

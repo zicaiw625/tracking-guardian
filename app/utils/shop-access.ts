@@ -1,6 +1,7 @@
 import { timingSafeEqual, createHash } from "crypto";
 import prisma from "../db.server";
 import { decryptAccessToken, decryptIngestionSecret, TokenDecryptionError } from "./token-encryption";
+import { logger } from "./logger";
 import type { Shop, PixelConfig, AlertConfig } from "@prisma/client";
 export function timingSafeEquals(a: string, b: string): boolean {
     const hashA = createHash("sha256").update(a).digest();
@@ -41,7 +42,7 @@ function decryptShopFields(shop: Shop): DecryptedShop {
         }
         catch (error) {
             if (error instanceof TokenDecryptionError) {
-                console.warn(`[Shop Access] Failed to decrypt accessToken for shop ${shop.shopDomain}. ` +
+                logger.warn(`[Shop Access] Failed to decrypt accessToken for shop ${shop.shopDomain}. ` +
                     "Re-authentication required.");
                 decryptedAccessToken = null;
             }
@@ -126,7 +127,7 @@ export function verifyWithGraceWindow(shop: ShopVerificationData, verifyFn: (sec
         return { matched: true, usedPreviousSecret: false };
     }
     if (shop.previousIngestionSecret && verifyFn(shop.previousIngestionSecret)) {
-        console.info(`[Grace Window] Request verified using previous secret for ${shop.shopDomain}. ` +
+        logger.info(`[Grace Window] Request verified using previous secret for ${shop.shopDomain}. ` +
             `Expires: ${shop.previousSecretExpiry?.toISOString()}`);
         return { matched: true, usedPreviousSecret: true };
     }
@@ -177,11 +178,11 @@ export async function migrateShopTokensToEncrypted(): Promise<{
             }
         }
         catch (error) {
-            console.error(`[Migration] Failed to migrate shop ${shop.shopDomain}:`, error);
+            logger.error(`[Migration] Failed to migrate shop ${shop.shopDomain}`, error);
             errors++;
         }
     }
-    console.log(`[Shop Token Migration] Completed: ` +
+    logger.info(`[Shop Token Migration] Completed: ` +
         `${accessTokensMigrated} accessTokens migrated, ` +
         `${ingestionSecretsMigrated} ingestionSecrets migrated, ` +
         `${skipped} skipped, ${errors} errors`);

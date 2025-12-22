@@ -10,7 +10,16 @@ const DEV_ENCRYPTION_SALT = "dev-salt-not-for-production";
 let cachedKey: Buffer | null = null;
 let cachedKeySecret: string | null = null;
 let cachedKeySalt: string | null = null;
-const getEncryptionKey = (): Buffer => {
+
+/**
+ * Get the encryption key derived from ENCRYPTION_SECRET.
+ * This is the centralized key derivation function used by all encryption utilities.
+ * Uses scrypt with secure parameters for key derivation.
+ * 
+ * @returns 32-byte encryption key buffer
+ * @throws Error in production if ENCRYPTION_SECRET is not set
+ */
+export function getEncryptionKey(): Buffer {
     const secret = process.env.ENCRYPTION_SECRET;
     const salt = process.env.ENCRYPTION_SALT || DEFAULT_ENCRYPTION_SALT;
     if (!secret) {
@@ -18,21 +27,22 @@ const getEncryptionKey = (): Buffer => {
             throw new Error("ENCRYPTION_SECRET must be set in production. " +
                 "Generate a secure secret using: openssl rand -base64 32");
         }
-        console.warn("⚠️ ENCRYPTION_SECRET not set. Using insecure default for development only. " +
-            "Set ENCRYPTION_SECRET environment variable for production.");
+        // Using console.warn here intentionally - this runs at startup before logger may be initialized
+        // eslint-disable-next-line no-console
+        console.warn("⚠️ [STARTUP] ENCRYPTION_SECRET not set. Using insecure default for development only.");
         const devSecret = "INSECURE_DEV_SECRET_DO_NOT_USE_IN_PRODUCTION";
         return scryptSync(devSecret, DEV_ENCRYPTION_SALT, 32, SCRYPT_PARAMS);
     }
     if (secret.length < 32) {
-        console.warn("⚠️ ENCRYPTION_SECRET is shorter than 32 characters. " +
-            "Consider using a longer secret for better security.");
+        // eslint-disable-next-line no-console
+        console.warn("⚠️ [STARTUP] ENCRYPTION_SECRET is shorter than 32 characters.");
     }
     if (cachedKey && cachedKeySecret === secret && cachedKeySalt === salt) {
         return cachedKey;
     }
     if (!process.env.ENCRYPTION_SALT && process.env.NODE_ENV === "production") {
-        console.warn("⚠️ ENCRYPTION_SALT not set. Using default salt. " +
-            "Set ENCRYPTION_SALT environment variable for consistent encryption across deployments.");
+        // eslint-disable-next-line no-console
+        console.warn("⚠️ [STARTUP] ENCRYPTION_SALT not set. Using default salt.");
     }
     cachedKey = scryptSync(secret, salt, 32, SCRYPT_PARAMS);
     cachedKeySecret = secret;
@@ -126,6 +136,9 @@ export function normalizeOrderId(orderId: string | number): string {
     if (numericMatch) {
         return numericMatch[1];
     }
+    // This is a rare edge case that shouldn't happen in normal operation
+    // Using console.warn to avoid circular dependency with logger
+    // eslint-disable-next-line no-console
     console.warn(`[normalizeOrderId] Unable to extract numeric ID from: ${orderIdStr}`);
     return orderIdStr;
 }

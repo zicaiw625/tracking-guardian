@@ -1,4 +1,5 @@
 import type { ConversionData, GoogleCredentials, ConversionApiResponse } from "../../types";
+import { logger } from "../../utils/logger";
 const API_TIMEOUT_MS = 30000;
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
     const controller = new AbortController();
@@ -22,7 +23,7 @@ export async function sendConversionToGoogle(credentials: GoogleCredentials | nu
         throw new Error(`Invalid GA4 Measurement ID format: ${credentials.measurementId}. ` +
             `Expected format: G-XXXXXXXXXX`);
     }
-    console.log(`Sending GA4 MP conversion for order=${conversionData.orderId}`);
+    logger.info(`Sending GA4 MP conversion for order=${conversionData.orderId}`);
     const dedupeEventId = eventId || `${conversionData.orderId}_purchase_${Date.now()}`;
     const payload: Record<string, unknown> = {
         client_id: `server.${conversionData.orderId}`,
@@ -52,7 +53,7 @@ export async function sendConversionToGoogle(credentials: GoogleCredentials | nu
             body: JSON.stringify(payload),
         }, API_TIMEOUT_MS);
         if (response.status === 204 || response.ok) {
-            console.log(`GA4 MP: conversion sent successfully for order=${conversionData.orderId}, eventId=${dedupeEventId}`);
+            logger.info(`GA4 MP: conversion sent successfully for order=${conversionData.orderId}, eventId=${dedupeEventId}`);
             return {
                 success: true,
                 conversionId: dedupeEventId,

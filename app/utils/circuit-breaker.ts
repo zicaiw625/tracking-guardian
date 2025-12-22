@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 interface CircuitBreakerState {
     count: number;
     resetTime: number;
@@ -115,12 +117,14 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
             const { createClient } = await import("redis");
             const client = createClient({ url: this.redisUrl });
             client.on("error", (err) => {
-                console.error("Redis circuit breaker error:", err);
+                // eslint-disable-next-line no-console
+                console.error("[REDIS] Circuit breaker error:", err);
                 this.redis = null;
                 this.initFailed = true;
             });
             client.on("reconnecting", () => {
-                console.log("Redis circuit breaker reconnecting...");
+                // eslint-disable-next-line no-console
+                console.log("[REDIS] Circuit breaker reconnecting...");
             });
             await client.connect();
             this.redis = {
@@ -133,11 +137,14 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
                 ttl: (key) => client.ttl(key),
             };
             this.initFailed = false;
-            console.log("✅ Redis circuit breaker connected");
+            // eslint-disable-next-line no-console
+            console.log("[STARTUP] ✅ Redis circuit breaker connected");
         }
         catch (error) {
-            console.error("Failed to initialize Redis circuit breaker:", error);
-            console.warn("⚠️ Falling back to in-memory circuit breaker");
+            // eslint-disable-next-line no-console
+            console.error("[STARTUP] Failed to initialize Redis circuit breaker:", error);
+            // eslint-disable-next-line no-console
+            console.warn("[STARTUP] ⚠️ Falling back to in-memory circuit breaker");
             this.initFailed = true;
         }
     }
@@ -166,7 +173,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
             };
         }
         catch (error) {
-            console.error("Redis getState error:", error);
+            logger.error("Redis getState error", error);
             return this.fallbackStore.getState(key);
         }
     }
@@ -185,7 +192,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
             await this.redis.expire(redisKey, ttlSeconds);
         }
         catch (error) {
-            console.error("Redis setState error:", error);
+            logger.error("Redis setState error", error);
             await this.fallbackStore.setState(key, state);
         }
     }
@@ -215,7 +222,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
             };
         }
         catch (error) {
-            console.error("Redis increment error:", error);
+            logger.error("Redis increment error", error);
             return this.fallbackStore.increment(key, config);
         }
     }
@@ -234,7 +241,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
             await this.redis.expire(redisKey, cooldownSeconds);
         }
         catch (error) {
-            console.error("Redis trip error:", error);
+            logger.error("Redis trip error", error);
             await this.fallbackStore.trip(key, config);
         }
     }
@@ -247,7 +254,7 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
             await this.redis.del(this.getRedisKey(key));
         }
         catch (error) {
-            console.error("Redis reset error:", error);
+            logger.error("Redis reset error", error);
             await this.fallbackStore.reset(key);
         }
     }
@@ -257,12 +264,14 @@ class RedisCircuitBreakerStore implements CircuitBreakerStore {
 let circuitBreakerStore: CircuitBreakerStore;
 if (process.env.REDIS_URL) {
     circuitBreakerStore = new RedisCircuitBreakerStore(process.env.REDIS_URL);
-    console.log("🔌 Circuit breaker: Redis mode (multi-instance)");
+    // eslint-disable-next-line no-console
+    console.log("[STARTUP] 🔌 Circuit breaker: Redis mode (multi-instance)");
 }
 else {
     circuitBreakerStore = new InMemoryCircuitBreakerStore(parseInt(process.env.CIRCUIT_BREAKER_MAX_KEYS || "5000", 10));
     if (process.env.NODE_ENV === "production") {
-        console.warn("⚠️ Circuit breaker using in-memory store. " +
+        // eslint-disable-next-line no-console
+        console.warn("[STARTUP] ⚠️ Circuit breaker using in-memory store. " +
             "For multi-instance deployments, set REDIS_URL for shared state.");
     }
 }
@@ -283,7 +292,7 @@ export async function checkCircuitBreaker(identifier: string, config: Partial<Ci
         if (state.tripped) {
             const retryAfter = Math.ceil((state.resetTime - Date.now()) / 1000);
             if (state.count === finalConfig.threshold + 1) {
-                console.error(`🚨 Circuit breaker TRIPPED for ${identifier}: ${state.count} requests in ${finalConfig.windowMs}ms`);
+                logger.error(`🚨 Circuit breaker TRIPPED for ${identifier}: ${state.count} requests in ${finalConfig.windowMs}ms`);
             }
             return {
                 blocked: true,
@@ -298,14 +307,14 @@ export async function checkCircuitBreaker(identifier: string, config: Partial<Ci
         };
     }
     catch (error) {
-        console.error("Circuit breaker check error:", error);
+        logger.error("Circuit breaker check error", error);
         return { blocked: false };
     }
 }
 export async function tripCircuitBreaker(identifier: string, config: Partial<CircuitBreakerConfig> = {}): Promise<void> {
     const finalConfig = { ...DEFAULT_CONFIG, ...config };
     await circuitBreakerStore.trip(identifier, finalConfig);
-    console.warn(`Circuit breaker manually tripped for ${identifier}`);
+    logger.warn(`Circuit breaker manually tripped for ${identifier}`);
 }
 export async function resetCircuitBreaker(identifier: string): Promise<void> {
     await circuitBreakerStore.reset(identifier);

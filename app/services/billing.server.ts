@@ -5,6 +5,8 @@ interface AdminGraphQL {
 }
 import prisma from "../db.server";
 import { createAuditLog } from "./audit.server";
+import { logger } from "../utils/logger";
+import { billingCache } from "../utils/cache";
 export const BILLING_PLANS = {
     free: {
         id: "free",
@@ -179,7 +181,7 @@ export async function createSubscription(admin: AdminGraphQL, shopDomain: string
             const errorMessage = result.userErrors.map((e: {
                 message: string;
             }) => e.message).join(", ");
-            console.error("Billing API error:", errorMessage);
+            logger.error(`Billing API error: ${errorMessage}`);
             return { success: false, error: errorMessage };
         }
         if (result?.confirmationUrl) {
@@ -207,7 +209,7 @@ export async function createSubscription(admin: AdminGraphQL, shopDomain: string
         return { success: false, error: "Failed to create subscription" };
     }
     catch (error) {
-        console.error("Subscription creation error:", error);
+        logger.error("Subscription creation error", error);
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error",
@@ -255,7 +257,7 @@ export async function getSubscriptionStatus(admin: AdminGraphQL, shopDomain: str
         };
     }
     catch (error) {
-        console.error("Get subscription status error:", error);
+        logger.error("Get subscription status error", error);
         return {
             hasActiveSubscription: false,
             plan: "free",
@@ -300,7 +302,7 @@ export async function cancelSubscription(admin: AdminGraphQL, shopDomain: string
         return { success: true };
     }
     catch (error) {
-        console.error("Cancel subscription error:", error);
+        logger.error("Cancel subscription error", error);
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error",
@@ -422,7 +424,9 @@ export async function incrementMonthlyUsage(shopId: string, orderId: string): Pr
         return { incremented: true, count: usage.sentCount };
     });
     if (result.incremented) {
-        console.log(`Usage incremented for shop ${shopId}, order ${orderId}: ${result.count}`);
+        logger.debug(`Usage incremented for shop ${shopId}, order ${orderId}: ${result.count}`);
+        // Invalidate billing cache when usage changes
+        billingCache.delete(`billing:${shopId}`);
     }
     return result.count;
 }
@@ -495,23 +499,37 @@ export async function checkBillingGate(shopId: string, shopPlan: PlanId): Promis
         remaining: number;
     };
 }> {
+    // Check cache first (30 second TTL)
+    const cacheKey = `billing:${shopId}`;
+    const cached = billingCache.get(cacheKey);
+    if (cached) {
+        const remaining = Math.max(0, cached.usage.limit - cached.usage.current);
+        return {
+            allowed: cached.allowed,
+            reason: cached.reason as "limit_exceeded" | "inactive_subscription" | undefined,
+            usage: { ...cached.usage, remaining },
+        };
+    }
+
     const planConfig = BILLING_PLANS[shopPlan] || BILLING_PLANS.free;
     const limit = planConfig.monthlyOrderLimit;
     const usageRecord = await getOrCreateMonthlyUsage(shopId);
     const current = usageRecord.sentCount;
     const remaining = Math.max(0, limit - current);
     const usage = { current, limit, remaining };
-    if (current >= limit) {
-        return {
-            allowed: false,
-            reason: "limit_exceeded",
-            usage,
-        };
-    }
-    return {
-        allowed: true,
-        usage,
-    };
+    
+    const result = current >= limit
+        ? { allowed: false, reason: "limit_exceeded" as const, usage }
+        : { allowed: true, usage };
+
+    // Cache the result
+    billingCache.set(cacheKey, {
+        allowed: result.allowed,
+        reason: result.reason,
+        usage: { current, limit },
+    });
+
+    return result;
 }
 export async function tryReserveUsageSlot(shopId: string, orderId: string, limit: number): Promise<{
     success: boolean;
@@ -596,7 +614,7 @@ export async function handleSubscriptionConfirmation(admin: AdminGraphQL, shopDo
         return { success: false, error: "Subscription not active" };
     }
     catch (error) {
-        console.error("Subscription confirmation error:", error);
+        logger.error("Subscription confirmation error", error);
         return {
             success: false,
             error: error instanceof Error ? error.message : "Unknown error",

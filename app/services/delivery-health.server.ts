@@ -1,5 +1,6 @@
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
+import { logger } from "../utils/logger";
 import type { AlertConfig, AlertSettings, AlertChannel, } from "../types";
 export interface DeliveryHealthResult {
     platform: string;
@@ -40,11 +41,11 @@ function parseAlertConfig(dbConfig: {
 }): AlertConfig | null {
     const validChannels: AlertChannel[] = ["email", "slack", "telegram"];
     if (!validChannels.includes(dbConfig.channel as AlertChannel)) {
-        console.warn(`Invalid alert channel: ${dbConfig.channel}`);
+        logger.warn(`Invalid alert channel: ${dbConfig.channel}`);
         return null;
     }
     if (!dbConfig.settings || typeof dbConfig.settings !== "object") {
-        console.warn(`Invalid alert settings for config ${dbConfig.id}`);
+        logger.warn(`Invalid alert settings for config ${dbConfig.id}`);
         return null;
     }
     return {
@@ -306,12 +307,12 @@ export async function runAllShopsDeliveryHealthCheck(): Promise<DeliveryHealthJo
         where: { isActive: true },
         select: { id: true },
     });
-    console.log(`Starting delivery health check for ${activeShops.length} active shops`);
+    logger.info(`Starting delivery health check for ${activeShops.length} active shops`);
     const BATCH_SIZE = 10;
     const results: DeliveryHealthJobResult[] = [];
     for (let i = 0; i < activeShops.length; i += BATCH_SIZE) {
         const batch = activeShops.slice(i, i + BATCH_SIZE);
-        console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(activeShops.length / BATCH_SIZE)}`);
+        logger.info(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(activeShops.length / BATCH_SIZE)}`);
         const batchPromises = batch.map(async (shop): Promise<DeliveryHealthJobResult> => {
             try {
                 const shopResults = await runDailyDeliveryHealthCheck(shop.id);
@@ -319,7 +320,7 @@ export async function runAllShopsDeliveryHealthCheck(): Promise<DeliveryHealthJo
             }
             catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Unknown error";
-                console.error(`Delivery health check failed for shop ${shop.id}:`, errorMessage);
+                logger.error(`Delivery health check failed for shop ${shop.id}: ${errorMessage}`);
                 return { shopId: shop.id, success: false, error: errorMessage };
             }
         });
@@ -339,7 +340,7 @@ export async function runAllShopsDeliveryHealthCheck(): Promise<DeliveryHealthJo
     }
     const successful = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
-    console.log(`Delivery health check complete: ${successful} successful, ${failed} failed`);
+    logger.info(`Delivery health check complete: ${successful} successful, ${failed} failed`);
     return results;
 }
 export { runDailyDeliveryHealthCheck as runDailyReconciliation, runAllShopsDeliveryHealthCheck as runAllShopsReconciliation, getDeliveryHealthHistory as getReconciliationHistory, getDeliveryHealthSummary as getReconciliationSummary, };

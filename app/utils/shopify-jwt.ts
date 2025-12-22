@@ -1,4 +1,5 @@
 import { createHmac } from "crypto";
+import { logger } from "./logger";
 interface ShopifyJwtPayload {
     iss: string;
     dest: string;
@@ -118,8 +119,7 @@ export function getShopifyApiSecret(): string {
         if (process.env.NODE_ENV === "production") {
             throw new Error("SHOPIFY_API_SECRET must be set in production");
         }
-        console.warn("⚠️ SHOPIFY_API_SECRET not set. JWT verification will fail. " +
-            "Set SHOPIFY_API_SECRET environment variable.");
+        logger.warn("⚠️ SHOPIFY_API_SECRET not set. JWT verification will fail.");
         return "development-secret-not-for-production";
     }
     return secret;

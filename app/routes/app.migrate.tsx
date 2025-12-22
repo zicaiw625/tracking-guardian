@@ -9,6 +9,7 @@ import prisma from "../db.server";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade, } from "../services/migration.server";
 import { decryptIngestionSecret, isTokenEncrypted, encryptIngestionSecret } from "../utils/token-encryption";
 import { randomBytes } from "crypto";
+import { logger } from "../utils/logger";
 function generateIngestionSecret(): string {
     return randomBytes(32).toString("hex");
 }
@@ -106,11 +107,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         where: { id: shop.id },
                         data: { ingestionSecret: encryptedSecret },
                     });
-                    console.log(`[Migration] Migrated unencrypted ingestionSecret for ${shopDomain}`);
+                    logger.info(`[Migration] Migrated unencrypted ingestionSecret for ${shopDomain}`);
                 }
             }
             catch (error) {
-                console.error(`[Migration] Failed to decrypt ingestionSecret for ${shopDomain}:`, error);
+                logger.error(`[Migration] Failed to decrypt ingestionSecret for ${shopDomain}`, error);
             }
         }
         if (!ingestionSecret) {
@@ -120,7 +121,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 where: { id: shop.id },
                 data: { ingestionSecret: encryptedSecret },
             });
-            console.log(`[Migration] Generated new ingestionSecret for ${shopDomain}`);
+            logger.info(`[Migration] Generated new ingestionSecret for ${shopDomain}`);
         }
         let ourPixelId = shop.webPixelId;
         if (!ourPixelId) {
@@ -153,7 +154,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     where: { id: shop.id },
                     data: { webPixelId: newPixelId },
                 });
-                console.log(`[Migration] Stored webPixelId ${newPixelId} for ${shopDomain}`);
+                logger.info(`[Migration] Stored webPixelId ${newPixelId} for ${shopDomain}`);
             }
             return json({
                 _action: "enablePixel",

@@ -101,25 +101,37 @@ export function isProduction(): boolean {
 export function isDevelopment(): boolean {
     return process.env.NODE_ENV !== "production";
 }
+/**
+ * Log configuration status at startup.
+ * Using console intentionally for startup diagnostics.
+ */
 export function logConfigStatus(): void {
     const result = validateConfig();
+    // eslint-disable-next-line no-console
     console.log("\n=== Configuration Status ===");
+    // eslint-disable-next-line no-console
     console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
     if (result.errors.length > 0) {
+        // eslint-disable-next-line no-console
         console.error("\n❌ Configuration Errors:");
         for (const error of result.errors) {
+            // eslint-disable-next-line no-console
             console.error(`   - ${error}`);
         }
     }
     if (result.warnings.length > 0) {
+        // eslint-disable-next-line no-console
         console.warn("\n⚠️ Configuration Warnings:");
         for (const warning of result.warnings) {
+            // eslint-disable-next-line no-console
             console.warn(`   - ${warning}`);
         }
     }
     if (result.valid && result.warnings.length === 0) {
+        // eslint-disable-next-line no-console
         console.log("\n✅ All configuration checks passed");
     }
+    // eslint-disable-next-line no-console
     console.log("============================\n");
     if (!result.valid && isProduction()) {
         throw new Error("Invalid configuration - cannot start in production");

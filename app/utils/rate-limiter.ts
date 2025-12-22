@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 interface RateLimitEntry {
     count: number;
     resetTime: number;
@@ -104,12 +106,15 @@ class RedisRateLimitStore implements RateLimitStore {
             const { createClient } = await import("redis");
             const client = createClient({ url: this.redisUrl });
             client.on("error", (err) => {
-                console.error("Redis rate limiter error:", err);
+                // Using console for Redis client events (runs at startup/reconnect)
+                // eslint-disable-next-line no-console
+                console.error("[REDIS] Rate limiter error:", err);
                 this.redis = null;
                 this.initFailed = true;
             });
             client.on("reconnecting", () => {
-                console.log("Redis rate limiter reconnecting...");
+                // eslint-disable-next-line no-console
+                console.log("[REDIS] Rate limiter reconnecting...");
             });
             await client.connect();
             this.redis = {
@@ -121,11 +126,14 @@ class RedisRateLimitStore implements RateLimitStore {
                 keys: (pattern) => client.keys(pattern),
             };
             this.initFailed = false;
-            console.log("✅ Redis rate limiter connected");
+            // eslint-disable-next-line no-console
+            console.log("[STARTUP] ✅ Redis rate limiter connected");
         }
         catch (error) {
-            console.error("Failed to initialize Redis rate limiter:", error);
-            console.warn("⚠️ Falling back to in-memory rate limiter");
+            // eslint-disable-next-line no-console
+            console.error("[STARTUP] Failed to initialize Redis rate limiter:", error);
+            // eslint-disable-next-line no-console
+            console.warn("[STARTUP] ⚠️ Falling back to in-memory rate limiter");
             this.initFailed = true;
         }
     }
@@ -151,7 +159,7 @@ class RedisRateLimitStore implements RateLimitStore {
             };
         }
         catch (error) {
-            console.error("Redis get error, falling back to in-memory:", error);
+            logger.error("Redis get error, falling back to in-memory", error);
             return this.fallbackStore.get(key);
         }
     }
@@ -180,7 +188,7 @@ class RedisRateLimitStore implements RateLimitStore {
             };
         }
         catch (error) {
-            console.error("Redis increment error, falling back to in-memory:", error);
+            logger.error("Redis increment error, falling back to in-memory", error);
             return this.fallbackStore.increment(key, windowMs);
         }
     }
@@ -193,7 +201,7 @@ class RedisRateLimitStore implements RateLimitStore {
             await this.redis.del(this.getRedisKey(key));
         }
         catch (error) {
-            console.error("Redis delete error:", error);
+            logger.error("Redis delete error", error);
             return this.fallbackStore.delete(key);
         }
     }
@@ -207,7 +215,7 @@ class RedisRateLimitStore implements RateLimitStore {
             return keys.length;
         }
         catch (error) {
-            console.error("Redis size error:", error);
+            logger.error("Redis size error", error);
             return this.fallbackStore.size();
         }
     }
@@ -223,12 +231,14 @@ class RedisRateLimitStore implements RateLimitStore {
 let rateLimitStore: RateLimitStore;
 if (process.env.REDIS_URL) {
     rateLimitStore = new RedisRateLimitStore(process.env.REDIS_URL);
-    console.log("📊 Rate limiter: Redis mode (multi-instance)");
+    // eslint-disable-next-line no-console
+    console.log("[STARTUP] 📊 Rate limiter: Redis mode (multi-instance)");
 }
 else {
     rateLimitStore = new InMemoryRateLimitStore(parseInt(process.env.RATE_LIMIT_MAX_KEYS || "10000", 10));
     if (process.env.NODE_ENV === "production") {
-        console.warn("⚠️ Rate limiter using in-memory store. " +
+        // eslint-disable-next-line no-console
+        console.warn("[STARTUP] ⚠️ Rate limiter using in-memory store. " +
             "For multi-instance deployments, set REDIS_URL for shared rate limiting.");
     }
 }
@@ -443,7 +453,7 @@ function cleanupOldEntries(): void {
         return;
     lastCleanup = now;
     rateLimitStore.cleanup().catch((err) => {
-        console.error("Rate limit cleanup error:", err);
+        logger.error("Rate limit cleanup error", err);
     });
 }
 function sanitizeKeyPart(value: string): string {
@@ -518,7 +528,7 @@ export function checkRateLimit(request: Request, endpoint: string, customConfig?
         }
         entry.count++;
         rateLimitStore.set(key, entry).catch((err) => {
-            console.error("Rate limit set error:", err);
+            logger.error("Rate limit set error", err);
         });
         const isLimited = entry.count > config.maxRequests;
         const remaining = Math.max(0, config.maxRequests - entry.count);
@@ -533,11 +543,11 @@ export function checkRateLimit(request: Request, endpoint: string, customConfig?
     rateLimitStore.increment(key, config.windowMs)
         .then((entry) => {
         if (entry.count > config.maxRequests) {
-            console.warn(`Rate limit exceeded for ${endpoint}: ${key} (${entry.count}/${config.maxRequests})`);
+            logger.warn(`Rate limit exceeded for ${endpoint}: ${key} (${entry.count}/${config.maxRequests})`);
         }
     })
         .catch((err) => {
-        console.error("Rate limit increment error:", err);
+        logger.error("Rate limit increment error", err);
     });
     return {
         isLimited: false,
@@ -571,7 +581,7 @@ export async function checkRateLimitAsync(request: Request, endpoint: string, cu
         };
     }
     catch (error) {
-        console.error("Rate limit check error:", error);
+        logger.error("Rate limit check error", error);
         return {
             isLimited: false,
             remaining: config.maxRequests,
@@ -620,7 +630,7 @@ export function withRateLimit<T>(endpoint: string, handler: (args: {
     return async (args) => {
         const { isLimited, remaining, resetTime, retryAfter } = checkRateLimit(args.request, endpoint, customConfig);
         if (isLimited) {
-            console.warn(`Rate limit exceeded for ${endpoint}: ${getRateLimitKey(args.request, endpoint)}`);
+            logger.warn(`Rate limit exceeded for ${endpoint}: ${getRateLimitKey(args.request, endpoint)}`);
             return createRateLimitResponse(retryAfter);
         }
         const response = await handler(args);
@@ -633,7 +643,7 @@ export function withRateLimit<T>(endpoint: string, handler: (args: {
 export function resetRateLimit(request: Request, endpoint: string): void {
     const key = getRateLimitKey(request, endpoint);
     rateLimitStore.delete(key).catch((err) => {
-        console.error("Rate limit reset error:", err);
+        logger.error("Rate limit reset error", err);
     });
 }
 export function getRateLimitStats(): {

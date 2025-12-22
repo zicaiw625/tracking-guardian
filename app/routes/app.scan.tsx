@@ -10,6 +10,7 @@ import { scanShopTracking, getScanHistory, analyzeScriptContent, type ScriptAnal
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import type { ScriptTag, RiskItem } from "../types";
+import { logger } from "../utils/logger";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
@@ -126,7 +127,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
         }
         catch (error) {
-            console.error("Script analysis error occurred (content not logged for privacy)");
+            logger.error("Script analysis error occurred (content not logged for privacy)");
             return json({ error: error instanceof Error ? error.message : "分析失败" }, { status: 500 });
         }
     }
@@ -135,7 +136,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ success: true, actionType: "scan", result: scanResult });
     }
     catch (error) {
-        console.error("Scan error:", error);
+        logger.error("Scan error", error);
         return json({ error: error instanceof Error ? error.message : "Scan failed" }, { status: 500 });
     }
 };

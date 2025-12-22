@@ -1,6 +1,7 @@
 import type { SessionStorage } from "@shopify/shopify-app-session-storage";
 import type { Session } from "@shopify/shopify-api";
 import { encryptAccessToken, decryptAccessToken, isTokenEncrypted, TokenDecryptionError } from "./token-encryption";
+import { logger } from "./logger";
 export function createEncryptedSessionStorage(baseStorage: SessionStorage): SessionStorage {
     return {
         async storeSession(session: Session): Promise<boolean> {
@@ -26,7 +27,7 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
                 }
                 catch (error) {
                     if (error instanceof TokenDecryptionError) {
-                        console.error(`[EncryptedSessionStorage] Failed to decrypt accessToken for session ${id}. ` +
+                        logger.error(`[EncryptedSessionStorage] Failed to decrypt accessToken for session ${id}. ` +
                             "Clearing session to force re-authentication.");
                         await baseStorage.deleteSession(id);
                         return undefined;
@@ -53,7 +54,7 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
                     }
                     catch (error) {
                         if (error instanceof TokenDecryptionError) {
-                            console.warn(`[EncryptedSessionStorage] Skipping session with undecryptable token for shop ${shop}`);
+                            logger.warn(`[EncryptedSessionStorage] Skipping session with undecryptable token for shop ${shop}`);
                             continue;
                         }
                         throw error;
@@ -101,10 +102,10 @@ export async function migrateSessionTokensToEncrypted(prisma: {
             migrated++;
         }
         catch (error) {
-            console.error(`[Migration] Failed to encrypt session ${session.id}:`, error);
+            logger.error(`[Migration] Failed to encrypt session ${session.id}`, error);
             errors++;
         }
     }
-    console.log(`[Token Migration] Completed: ${migrated} migrated, ${skipped} skipped, ${errors} errors`);
+    logger.info(`[Token Migration] Completed: ${migrated} migrated, ${skipped} skipped, ${errors} errors`);
     return { migrated, skipped, errors };
 }

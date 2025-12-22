@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 export class AppError extends Error {
     public readonly code: string;
     public readonly statusCode: number;
@@ -76,7 +78,7 @@ export function toErrorResponse(error: unknown): ErrorResponse {
         return response;
     }
     if (error instanceof Error) {
-        console.error("Unhandled error:", error.message);
+        logger.error("Unhandled error:", error);
         if (error.message.includes("timeout")) {
             return {
                 error: "Request timed out. Please try again.",
@@ -90,7 +92,7 @@ export function toErrorResponse(error: unknown): ErrorResponse {
             };
         }
     }
-    console.error("Unknown error type:", error);
+    logger.error("Unknown error type", error);
     return {
         error: "An unexpected error occurred. Please try again.",
         code: "UNKNOWN_ERROR",
