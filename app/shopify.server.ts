@@ -328,6 +328,47 @@ export async function createAdminClientForShop(
   shopDomain: string
 ): Promise<AdminApiContext | null> {
   try {
+    const offlineSession = await prisma.session.findFirst({
+      where: {
+        shop: shopDomain,
+        isOnline: false,
+        accessToken: { not: "" },
+      },
+      orderBy: { id: "desc" },
+    });
+
+    if (offlineSession?.accessToken) {
+      try {
+        const accessToken = decryptAccessToken(offlineSession.accessToken);
+        if (accessToken) {
+          const apiUrl = `https://${shopDomain}/admin/api/${ApiVersion.July25}/graphql.json`;
+          const graphqlClient = {
+            async graphql(query: string, options?: { variables?: Record<string, unknown> }) {
+              const response = await fetch(apiUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Shopify-Access-Token": accessToken,
+                },
+                body: JSON.stringify({
+                  query,
+                  variables: options?.variables,
+                }),
+              });
+              
+              return {
+                json: async () => response.json(),
+              };
+            },
+          };
+      
+          return graphqlClient as unknown as AdminApiContext;
+        }
+      } catch (error) {
+        console.warn(`[Admin] Failed to decrypt offline session token for ${shopDomain}`, error);
+      }
+    }
+
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { accessToken: true },
@@ -340,29 +381,6 @@ export async function createAdminClientForShop(
         accessToken = decryptAccessToken(shopRecord.accessToken);
       } catch {
         console.warn(`[Admin] Failed to decrypt shop-level token for ${shopDomain}`);
-      }
-    }
-
-    if (!accessToken) {
-      const session = await prisma.session.findFirst({
-        where: {
-          shop: shopDomain,
-          isOnline: false,
-          accessToken: { not: "" },
-        },
-        orderBy: { id: "desc" },
-      });
-  
-      if (!session?.accessToken) {
-        console.log(`[Admin] No offline session for ${shopDomain}`);
-        return null;
-      }
-  
-      try {
-        accessToken = decryptAccessToken(session.accessToken);
-      } catch {
-        console.warn(`[Admin] Failed to decrypt session token for ${shopDomain}`);
-        return null;
       }
     }
 

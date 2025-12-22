@@ -58,6 +58,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shopTier: true,
       typOspPagesEnabled: true,
       typOspUpdatedAt: true,
+      typOspLastCheckedAt: true,
+      typOspStatusReason: true,
     },
   });
 
@@ -95,14 +97,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Refresh upgrade status opportunistically (admin context available in this route).
   // This keeps UI aligned even if cron hasn't run yet.
   const sixHoursMs = 6 * 60 * 60 * 1000;
+  const lastTypOspCheck = shop.typOspLastCheckedAt || shop.typOspUpdatedAt;
   const isTypOspStale =
-    !shop.typOspUpdatedAt ||
-    (Date.now() - shop.typOspUpdatedAt.getTime()) > sixHoursMs ||
+    !lastTypOspCheck ||
+    (Date.now() - lastTypOspCheck.getTime()) > sixHoursMs ||
     shop.typOspPagesEnabled === null;
 
   let typOspPagesEnabled = shop.typOspPagesEnabled;
-  let typOspUpdatedAt = shop.typOspUpdatedAt;
-  let typOspUnknownReason: string | undefined;
+  let typOspUpdatedAt = lastTypOspCheck;
+  let typOspUnknownReason: string | undefined = shop.typOspStatusReason ?? undefined;
   let typOspUnknownError: string | undefined;
 
   if (admin && isTypOspStale) {

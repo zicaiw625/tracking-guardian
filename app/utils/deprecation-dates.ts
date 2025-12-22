@@ -66,6 +66,7 @@ export interface ShopUpgradeStatus {
   typOspUpdatedAt: Date | null;
   // Optional diagnostics (when typOspPagesEnabled is null/unknown)
   // NOTE: Kept as string to avoid coupling this utility to server-only types.
+  // Source of truth: checkoutProfiles.typOspPagesActive (queried via Admin API, not webhooks).
   typOspUnknownReason?: string;
   typOspUnknownError?: string;
 }
@@ -311,7 +312,7 @@ export function getUpgradeStatusMessage(
   const nonPlusAdditionalScriptsWindowLabel = "2026年8月起";
   const windowLabel =
     tier === "non_plus" ? nonPlusAdditionalScriptsWindowLabel : plusAdditionalScriptsWindowLabel;
-  const windowDisclaimer = "（具体日期以 Shopify 官方公告为准）";
+  const windowDisclaimer = "（月份级窗口，具体日期以 Shopify 官方公告为准）";
   
   if (typOspPagesEnabled === true) {
     return {
