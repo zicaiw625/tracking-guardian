@@ -1,16 +1,16 @@
-/**
- * P1-6: checkoutProfiles + typOspPagesActive 测试夹具
- * 
- * 测试场景：
- * 1) published + typOspPagesActive=true → enabled
- * 2) published + typOspPagesActive=false → disabled
- * 3) no access / permission error → unknown with reason
- * 4) API error → unknown with reason
- */
+   
+                                                  
+   
+        
+                                                  
+                                                    
+                                                        
+                                     
+   
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// 模拟 TypOspStatus 类型
+                     
 type TypOspStatus = "enabled" | "disabled" | "unknown";
 type TypOspUnknownReason = 
   | "NOT_PLUS"
@@ -51,9 +51,9 @@ interface GraphQLResponse {
   errors?: Array<{ message: string }>;
 }
 
-// 模拟 getTypOspActive 的核心逻辑
+                           
 function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult {
-  // 处理错误
+         
   if (response.errors) {
     const errorMessages = response.errors.map(e => e.message || "").join(" ");
     
@@ -90,7 +90,7 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
   const shop = response.data?.shop;
   const isPlus = shop?.plan?.shopifyPlus === true;
   
-  // 无 profiles 返回
+                  
   if (profiles.length === 0) {
     if (!isPlus) {
       return {
@@ -111,7 +111,7 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
     };
   }
 
-  // 检查是否有 typOspPagesActive 字段
+                               
   const hasTypOspField = profiles.some(node => node.typOspPagesActive !== undefined);
   
   if (!hasTypOspField) {
@@ -124,7 +124,7 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
     };
   }
   
-  // 正常逻辑：检查 published 且 typOspPagesActive 的 profile
+                                                    
   const publishedProfiles = profiles.filter(p => p.isPublished === true);
   const hasTypOspActive = publishedProfiles.some(p => p.typOspPagesActive === true);
   
@@ -235,7 +235,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
                 id: "gid://shopify/CheckoutProfile/1",
                 name: "Draft",
                 isPublished: false,
-                typOspPagesActive: true, // 未发布，不算
+                typOspPagesActive: true,          
               },
               {
                 id: "gid://shopify/CheckoutProfile/2",
@@ -336,7 +336,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
                 id: "gid://shopify/CheckoutProfile/1",
                 name: "Default",
                 isPublished: true,
-                // typOspPagesActive 字段缺失
+                                         
               },
             ],
           },

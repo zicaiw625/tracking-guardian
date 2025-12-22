@@ -1,93 +1,71 @@
 import { Resend } from "resend";
-import type {
-  AlertData,
-  AlertConfig,
-  EmailAlertSettings,
-  SlackAlertSettings,
-  TelegramAlertSettings,
-} from "../types";
+import type { AlertData, AlertConfig, EmailAlertSettings, SlackAlertSettings, TelegramAlertSettings, } from "../types";
 import { decryptJson } from "../utils/crypto";
 import { logger } from "../utils/logger";
-
 const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
-
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
 const getAppUrl = (): string => {
-  return process.env.SHOPIFY_APP_URL || "https://your-app-url.com";
+    return process.env.SHOPIFY_APP_URL || "https://your-app-url.com";
 };
-
 const getEmailSender = (): string => {
-  return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";
+    return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";
 };
-
 interface AlertConfigWithEncryption extends AlertConfig {
-  settingsEncrypted?: string | null;
+    settingsEncrypted?: string | null;
 }
-
 function getDecryptedSettings(config: AlertConfigWithEncryption): Record<string, unknown> | null {
-  if (config.settingsEncrypted) {
-    try {
-      return decryptJson<Record<string, unknown>>(config.settingsEncrypted);
-    } catch (error) {
-      logger.error(`Failed to decrypt settings for alert config ${config.id}`, error);
+    if (config.settingsEncrypted) {
+        try {
+            return decryptJson<Record<string, unknown>>(config.settingsEncrypted);
+        }
+        catch (error) {
+            logger.error(`Failed to decrypt settings for alert config ${config.id}`, error);
+        }
     }
-  }
-  
-  if (config.settings && typeof config.settings === "object") {
-    logger.warn(`[P0-2] Using legacy plain settings for alert config - migration needed`);
-    return config.settings as unknown as Record<string, unknown>;
-  }
-  
-  return null;
+    if (config.settings && typeof config.settings === "object") {
+        logger.warn(`[P0-2] Using legacy plain settings for alert config - migration needed`);
+        return config.settings as unknown as Record<string, unknown>;
+    }
+    return null;
 }
-
-export async function sendAlert(
-  config: AlertConfigWithEncryption,
-  data: AlertData
-): Promise<boolean> {
-  try {
-    const settings = getDecryptedSettings(config);
-    if (!settings) {
-      logger.error(`No valid settings found for alert config ${config.id}`);
-      return false;
+export async function sendAlert(config: AlertConfigWithEncryption, data: AlertData): Promise<boolean> {
+    try {
+        const settings = getDecryptedSettings(config);
+        if (!settings) {
+            logger.error(`No valid settings found for alert config ${config.id}`);
+            return false;
+        }
+        switch (config.channel) {
+            case "email":
+                return await sendEmailAlert(settings as unknown as EmailAlertSettings, data);
+            case "slack":
+                return await sendSlackAlert(settings as unknown as SlackAlertSettings, data);
+            case "telegram":
+                return await sendTelegramAlert(settings as unknown as TelegramAlertSettings, data);
+            default:
+                logger.warn(`Unknown alert channel: ${config.channel}`);
+                return false;
+        }
     }
-
-    switch (config.channel) {
-      case "email":
-        return await sendEmailAlert(settings as unknown as EmailAlertSettings, data);
-      case "slack":
-        return await sendSlackAlert(settings as unknown as SlackAlertSettings, data);
-      case "telegram":
-        return await sendTelegramAlert(settings as unknown as TelegramAlertSettings, data);
-      default:
-        logger.warn(`Unknown alert channel: ${config.channel}`);
+    catch (error) {
+        logger.error(`Failed to send ${config.channel} alert`, error);
         return false;
     }
-  } catch (error) {
-    logger.error(`Failed to send ${config.channel} alert`, error);
-    return false;
-  }
 }
-
-async function sendEmailAlert(
-  settings: EmailAlertSettings,
-  data: AlertData
-): Promise<boolean> {
-  if (!resend) {
-    logger.warn("Resend not configured, skipping email alert");
-    return false;
-  }
-
-  const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
-  const dateStr = data.reportDate.toLocaleDateString("zh-CN");
-  const appUrl = getAppUrl();
-
-  const { error } = await resend.emails.send({
-    from: getEmailSender(),
-    to: settings.email,
-    subject: `⚠️ 追踪异常警报 - ${data.platform} 平台 (${data.shopDomain})`,
-    html: `
+async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Promise<boolean> {
+    if (!resend) {
+        logger.warn("Resend not configured, skipping email alert");
+        return false;
+    }
+    const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
+    const dateStr = data.reportDate.toLocaleDateString("zh-CN");
+    const appUrl = getAppUrl();
+    const { error } = await resend.emails.send({
+        from: getEmailSender(),
+        to: settings.email,
+        subject: `⚠️ 追踪异常警报 - ${data.platform} 平台 (${data.shopDomain})`,
+        html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #d72c0d;">⚠️ 追踪异常警报</h2>
         
@@ -128,102 +106,88 @@ async function sendEmailAlert(
         </p>
       </div>
     `,
-  });
-
-  if (error) {
-    logger.error("Email send error", error);
-    return false;
-  }
-
-  return true;
+    });
+    if (error) {
+        logger.error("Email send error", error);
+        return false;
+    }
+    return true;
 }
-
-async function sendSlackAlert(
-  settings: SlackAlertSettings,
-  data: AlertData
-): Promise<boolean> {
-  const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
-  const dateStr = data.reportDate.toLocaleDateString("zh-CN");
-  const appUrl = getAppUrl();
-
-  const payload = {
-    blocks: [
-      {
-        type: "header",
-        text: {
-          type: "plain_text",
-          text: "⚠️ 追踪异常警报",
-          emoji: true,
-        },
-      },
-      {
-        type: "section",
-        fields: [
-          {
-            type: "mrkdwn",
-            text: `*店铺:*\n${data.shopDomain}`,
-          },
-          {
-            type: "mrkdwn",
-            text: `*平台:*\n${data.platform}`,
-          },
-          {
-            type: "mrkdwn",
-            text: `*日期:*\n${dateStr}`,
-          },
-          {
-            type: "mrkdwn",
-            text: `*差异率:*\n${discrepancyPercent}%`,
-          },
-        ],
-      },
-      {
-        type: "section",
-        fields: [
-          {
-            type: "mrkdwn",
-            text: `*Shopify 订单:*\n${data.shopifyOrders}`,
-          },
-          {
-            type: "mrkdwn",
-            text: `*平台转化:*\n${data.platformConversions}`,
-          },
-        ],
-      },
-      {
-        type: "actions",
-        elements: [
-          {
-            type: "button",
-            text: {
-              type: "plain_text",
-              text: "查看详细报告",
+async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Promise<boolean> {
+    const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
+    const dateStr = data.reportDate.toLocaleDateString("zh-CN");
+    const appUrl = getAppUrl();
+    const payload = {
+        blocks: [
+            {
+                type: "header",
+                text: {
+                    type: "plain_text",
+                    text: "⚠️ 追踪异常警报",
+                    emoji: true,
+                },
             },
-            url: `${appUrl}/app/monitor`,
-            style: "primary",
-          },
+            {
+                type: "section",
+                fields: [
+                    {
+                        type: "mrkdwn",
+                        text: `*店铺:*\n${data.shopDomain}`,
+                    },
+                    {
+                        type: "mrkdwn",
+                        text: `*平台:*\n${data.platform}`,
+                    },
+                    {
+                        type: "mrkdwn",
+                        text: `*日期:*\n${dateStr}`,
+                    },
+                    {
+                        type: "mrkdwn",
+                        text: `*差异率:*\n${discrepancyPercent}%`,
+                    },
+                ],
+            },
+            {
+                type: "section",
+                fields: [
+                    {
+                        type: "mrkdwn",
+                        text: `*Shopify 订单:*\n${data.shopifyOrders}`,
+                    },
+                    {
+                        type: "mrkdwn",
+                        text: `*平台转化:*\n${data.platformConversions}`,
+                    },
+                ],
+            },
+            {
+                type: "actions",
+                elements: [
+                    {
+                        type: "button",
+                        text: {
+                            type: "plain_text",
+                            text: "查看详细报告",
+                        },
+                        url: `${appUrl}/app/monitor`,
+                        style: "primary",
+                    },
+                ],
+            },
         ],
-      },
-    ],
-  };
-
-  const response = await fetch(settings.webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  return response.ok;
+    };
+    const response = await fetch(settings.webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    return response.ok;
 }
-
-async function sendTelegramAlert(
-  settings: TelegramAlertSettings,
-  data: AlertData
-): Promise<boolean> {
-  const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
-  const dateStr = data.reportDate.toLocaleDateString("zh-CN");
-
-  const message = `
+async function sendTelegramAlert(settings: TelegramAlertSettings, data: AlertData): Promise<boolean> {
+    const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
+    const dateStr = data.reportDate.toLocaleDateString("zh-CN");
+    const message = `
 ⚠️ *追踪异常警报*
 
 🏪 店铺: \`${data.shopDomain}\`
@@ -236,62 +200,54 @@ async function sendTelegramAlert(
 
 请及时检查追踪配置！
   `.trim();
-
-  const response = await fetch(
-    `https://api.telegram.org/bot${settings.botToken}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: settings.chatId,
-        text: message,
-        parse_mode: "Markdown",
-      }),
-    }
-  );
-
-  return response.ok;
+    const response = await fetch(`https:                                                          
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            chat_id: settings.chatId,
+            text: message,
+            parse_mode: "Markdown",
+        }),
+    });
+    return response.ok;
 }
-
-export async function testNotification(
-  channel: string,
-  settings: EmailAlertSettings | SlackAlertSettings | TelegramAlertSettings
-): Promise<{ success: boolean; message: string }> {
-  const testData: AlertData = {
-    platform: "测试平台",
-    reportDate: new Date(),
-    shopifyOrders: 100,
-    platformConversions: 85,
-    orderDiscrepancy: 0.15,
-    revenueDiscrepancy: 0.12,
-    shopDomain: "test-shop.myshopify.com",
-  };
-
-  try {
-    let success = false;
-
-    switch (channel) {
-      case "email":
-        success = await sendEmailAlert(settings as EmailAlertSettings, testData);
-        break;
-      case "slack":
-        success = await sendSlackAlert(settings as SlackAlertSettings, testData);
-        break;
-      case "telegram":
-        success = await sendTelegramAlert(settings as TelegramAlertSettings, testData);
-        break;
-      default:
-        return { success: false, message: "未知的通知渠道" };
+export async function testNotification(channel: string, settings: EmailAlertSettings | SlackAlertSettings | TelegramAlertSettings): Promise<{
+    success: boolean;
+    message: string;
+}> {
+    const testData: AlertData = {
+        platform: "测试平台",
+        reportDate: new Date(),
+        shopifyOrders: 100,
+        platformConversions: 85,
+        orderDiscrepancy: 0.15,
+        revenueDiscrepancy: 0.12,
+        shopDomain: "test-shop.myshopify.com",
+    };
+    try {
+        let success = false;
+        switch (channel) {
+            case "email":
+                success = await sendEmailAlert(settings as EmailAlertSettings, testData);
+                break;
+            case "slack":
+                success = await sendSlackAlert(settings as SlackAlertSettings, testData);
+                break;
+            case "telegram":
+                success = await sendTelegramAlert(settings as TelegramAlertSettings, testData);
+                break;
+            default:
+                return { success: false, message: "未知的通知渠道" };
+        }
+        return {
+            success,
+            message: success ? "测试通知发送成功！" : "发送失败，请检查配置",
+        };
     }
-
-    return {
-      success,
-      message: success ? "测试通知发送成功！" : "发送失败，请检查配置",
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "发送失败",
-    };
-  }
+    catch (error) {
+        return {
+            success: false,
+            message: error instanceof Error ? error.message : "发送失败",
+        };
+    }
 }

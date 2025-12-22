@@ -1,16 +1,16 @@
-/**
- * P1-6: 官方 payload 结构测试夹具
- * 
- * 测试 web pixel consent 的两段逻辑：
- * 1) init.customerPrivacy 初始值解析
- * 2) visitorConsentCollected event.customerPrivacy 更新解析
- * 
- * 这些测试用于防止未来 payload 结构变更时导致 consent 读取失败
- */
+   
+                          
+   
+                              
+                                
+                                                        
+   
+                                          
+   
 
 import { describe, it, expect } from "vitest";
 
-// 模拟官方 CustomerPrivacyState 结构
+                               
 interface CustomerPrivacyState {
   analyticsProcessingAllowed: boolean;
   marketingAllowed: boolean;
@@ -22,7 +22,7 @@ interface VisitorConsentCollectedEvent {
   customerPrivacy: CustomerPrivacyState;
 }
 
-// 模拟像素端的 consent 解析逻辑
+                      
 function parseInitialConsent(customerPrivacy: CustomerPrivacyState | undefined): {
   marketingAllowed: boolean;
   analyticsAllowed: boolean;
@@ -32,7 +32,7 @@ function parseInitialConsent(customerPrivacy: CustomerPrivacyState | undefined):
     return {
       marketingAllowed: false,
       analyticsAllowed: false,
-      saleOfDataAllowed: true, // 默认允许，除非明确拒绝
+      saleOfDataAllowed: true,               
     };
   }
 
@@ -108,16 +108,16 @@ describe("init.customerPrivacy 初始值解析", () => {
   it("应正确处理 undefined 初始状态（不需要同意的地区）", () => {
     const result = parseInitialConsent(undefined);
 
-    // 当没有 consent 信息时，默认保守处理
+                             
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(false);
-    expect(result.saleOfDataAllowed).toBe(true); // 默认允许
+    expect(result.saleOfDataAllowed).toBe(true);        
   });
 });
 
 describe("visitorConsentCollected 事件解析", () => {
   it("应正确解析嵌套的 event.customerPrivacy 对象", () => {
-    // 这是官方文档推荐的结构
+                  
     const event: VisitorConsentCollectedEvent = {
       customerPrivacy: {
         analyticsProcessingAllowed: true,
@@ -157,7 +157,7 @@ describe("visitorConsentCollected 事件解析", () => {
         analyticsProcessingAllowed: true,
         marketingAllowed: true,
         preferencesProcessingAllowed: false,
-        saleOfDataAllowed: false, // 用户选择不出售数据
+        saleOfDataAllowed: false,             
       },
     };
 
@@ -204,10 +204,10 @@ describe("边缘情况处理", () => {
 
     const result = parseInitialConsent(privacyState);
 
-    // null !== true，所以应该是 false
+                                
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(false);
-    // null !== false，所以 saleOfData 默认允许
+                                        
     expect(result.saleOfDataAllowed).toBe(true);
   });
 

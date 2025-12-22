@@ -1,50 +1,33 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import {
-  AppProvider,
-  Card,
-  Page,
-  Text,
-  Banner,
-  BlockStack,
-} from "@shopify/polaris";
+import { AppProvider, Card, Page, Text, Banner, BlockStack, } from "@shopify/polaris";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
-
 import { login } from "../../shopify.server";
-
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const url = new URL(request.url);
-  const shop = url.searchParams.get("shop");
-
-  if (shop) {
-    const loginResponse = await login(request);
-
-    if (loginResponse instanceof Response) {
-      return loginResponse;
+    const url = new URL(request.url);
+    const shop = url.searchParams.get("shop");
+    if (shop) {
+        const loginResponse = await login(request);
+        if (loginResponse instanceof Response) {
+            return loginResponse;
+        }
+        return json({
+            hasShopParam: true,
+            errors: loginResponse,
+            polarisTranslations: require("@shopify/polaris/locales/en.json"),
+        });
     }
-
     return json({
-      hasShopParam: true,
-      errors: loginResponse,
-      polarisTranslations: require("@shopify/polaris/locales/en.json"),
+        hasShopParam: false,
+        errors: null,
+        polarisTranslations: require("@shopify/polaris/locales/en.json"),
     });
-  }
-  
-  return json({
-    hasShopParam: false,
-    errors: null,
-    polarisTranslations: require("@shopify/polaris/locales/en.json"),
-  });
 };
-
 export default function Auth() {
-  const { polarisTranslations, hasShopParam, errors } = useLoaderData<typeof loader>();
-
-  return (
-    <AppProvider i18n={polarisTranslations}>
+    const { polarisTranslations, hasShopParam, errors } = useLoaderData<typeof loader>();
+    return (<AppProvider i18n={polarisTranslations}>
       <Page>
         <Card>
           <BlockStack gap="400">
@@ -52,12 +35,9 @@ export default function Auth() {
               Tracking Guardian
             </Text>
             
-            {hasShopParam && errors ? (
-              <Banner tone="critical">
+            {hasShopParam && errors ? (<Banner tone="critical">
                 <p>认证过程中发生错误，请重试或联系支持。</p>
-              </Banner>
-            ) : (
-              <>
+              </Banner>) : (<>
                 <Banner tone="info">
                   <p>请通过 Shopify 管理后台访问此应用</p>
                 </Banner>
@@ -82,11 +62,9 @@ export default function Auth() {
                   根据 Shopify 平台要求，应用必须从 Shopify 管理后台或 App Store 启动，
                   不支持直接访问此页面进行登录。
                 </Text>
-              </>
-            )}
+              </>)}
           </BlockStack>
         </Card>
       </Page>
-    </AppProvider>
-  );
+    </AppProvider>);
 }

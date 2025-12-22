@@ -1,80 +1,44 @@
-import {
-  reactExtension,
-  BlockStack,
-  Text,
-  Button,
-  InlineLayout,
-  View,
-  Icon,
-  useSettings,
-  useOrder,
-  Link,
-  Divider,
-} from "@shopify/ui-extensions-react/checkout";
-
-export default reactExtension(
-  "purchase.thank-you.block.render",
-  () => <ShippingTracker />
-);
-
+import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Icon, useSettings, useOrder, Link, Divider, } from "@shopify/ui-extensions-react/checkout";
+export default reactExtension("purchase.thank-you.block.render", () => <ShippingTracker />);
 function ShippingTracker() {
-  const settings = useSettings();
-  const order = useOrder();
-
-  const trackingNumber = order?.confirmationNumber || ""; 
-  const trackingUrl = settings.tracking_provider_url
-    ? (settings.tracking_provider_url as string).replace("{tracking_number}", trackingNumber)
-    : `https://t.17track.net/en#nums=${trackingNumber}`;
-
-  const shippingSteps = [
-    { id: "ordered", label: "订单已确认", completed: true, date: "今天" },
-    { id: "processing", label: "处理中", completed: true, date: "预计 1-2 天" },
-    { id: "shipped", label: "已发货", completed: false, date: "预计 2-3 天" },
-    { id: "delivered", label: "已送达", completed: false, date: "预计 5-7 天" },
-  ];
-
-  return (
-    <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
+    const settings = useSettings();
+    const order = useOrder();
+    const trackingNumber = order?.confirmationNumber || "";
+    const trackingUrl = settings.tracking_provider_url
+        ? (settings.tracking_provider_url as string).replace("{tracking_number}", trackingNumber)
+        : `https://t.17track.net/en#nums=${trackingNumber}`;
+    const shippingSteps = [
+        { id: "ordered", label: "订单已确认", completed: true, date: "今天" },
+        { id: "processing", label: "处理中", completed: true, date: "预计 1-2 天" },
+        { id: "shipped", label: "已发货", completed: false, date: "预计 2-3 天" },
+        { id: "delivered", label: "已送达", completed: false, date: "预计 5-7 天" },
+    ];
+    return (<BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
       <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
         <Text size="medium" emphasis="bold">
           📦 物流追踪
         </Text>
-        <Icon source="delivery" />
+        <Icon source="delivery"/>
       </InlineLayout>
 
       <Divider />
 
       <BlockStack spacing="tight">
-        {shippingSteps.map((step, index) => (
-          <InlineLayout
-            key={step.id}
-            columns={["auto", "fill", "auto"]}
-            spacing="base"
-            blockAlignment="center"
-          >
-            <View
-              padding="extraTight"
-              cornerRadius="fullyRounded"
-              background={step.completed ? "accent" : "subdued"}
-            >
+        {shippingSteps.map((step, index) => (<InlineLayout key={step.id} columns={["auto", "fill", "auto"]} spacing="base" blockAlignment="center">
+            <View padding="extraTight" cornerRadius="fullyRounded" background={step.completed ? "accent" : "subdued"}>
               <Text size="small">
                 {step.completed ? "✓" : (index + 1).toString()}
               </Text>
             </View>
             <BlockStack spacing="none">
-              <Text
-                size="small"
-                emphasis={step.completed ? "bold" : undefined}
-                appearance={step.completed ? undefined : "subdued"}
-              >
+              <Text size="small" emphasis={step.completed ? "bold" : undefined} appearance={step.completed ? undefined : "subdued"}>
                 {step.label}
               </Text>
             </BlockStack>
             <Text size="small" appearance="subdued">
               {step.date}
             </Text>
-          </InlineLayout>
-        ))}
+          </InlineLayout>))}
       </BlockStack>
 
       <Divider />
@@ -90,13 +54,11 @@ function ShippingTracker() {
         </InlineLayout>
       </BlockStack>
 
-      {trackingNumber && (
-        <Link to={trackingUrl} external>
+      {trackingNumber && (<Link to={trackingUrl} external>
           <Button kind="secondary">
             查看详细物流信息 →
           </Button>
-        </Link>
-      )}
+        </Link>)}
 
       <View padding="tight" background="subdued" cornerRadius="base">
         <BlockStack spacing="extraTight">
@@ -109,6 +71,5 @@ function ShippingTracker() {
           </Text>
         </BlockStack>
       </View>
-    </BlockStack>
-  );
+    </BlockStack>);
 }

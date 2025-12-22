@@ -2,358 +2,250 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useActionData } from "@remix-run/react";
 import { useState } from "react";
-import {
-  Page,
-  Layout,
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  Badge,
-  Button,
-  Banner,
-  Box,
-  Divider,
-  ProgressBar,
-  Icon,
-  DataTable,
-  EmptyState,
-  Spinner,
-  Link,
-  Tabs,
-  TextField,
-} from "@shopify/polaris";
-import {
-  AlertCircleIcon,
-  CheckCircleIcon,
-  SearchIcon,
-  ArrowRightIcon,
-  ClipboardIcon,
-} from "@shopify/polaris-icons";
-
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, } from "@shopify/polaris";
+import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, analyzeScriptContent, type ScriptAnalysisResult } from "../services/scanner.server";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
-import { 
-  getScriptTagDeprecationStatus, 
-  getAdditionalScriptsDeprecationStatus,
-  getMigrationUrgencyStatus,
-  getUpgradeStatusMessage,
-  formatDeadlineForUI,
-  type ShopTier,
-  type ShopUpgradeStatus,
-} from "../utils/deprecation-dates";
+import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import type { ScriptTag, RiskItem } from "../types";
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, admin } = await authenticate.admin(request);
-  const shopDomain = session.shop;
-
-  const shop = await prisma.shop.findUnique({
-    where: { shopDomain },
-    select: {
-      id: true,
-      shopDomain: true,
-      shopTier: true,
-      typOspPagesEnabled: true,
-      typOspUpdatedAt: true,
-      typOspLastCheckedAt: true,
-      typOspStatusReason: true,
-    },
-  });
-
-  if (!shop) {
-    return json({ 
-      shop: null, 
-      latestScan: null, 
-      scanHistory: [],
-      deprecationStatus: null,
-      upgradeStatus: null,
+    const { session, admin } = await authenticate.admin(request);
+    const shopDomain = session.shop;
+    const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: {
+            id: true,
+            shopDomain: true,
+            shopTier: true,
+            typOspPagesEnabled: true,
+            typOspUpdatedAt: true,
+            typOspLastCheckedAt: true,
+            typOspStatusReason: true,
+        },
     });
-  }
-
-  const latestScan = await prisma.scanReport.findFirst({
-    where: { shopId: shop.id },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const scanHistory = await getScanHistory(shop.id, 5);
-
-  const shopTier: ShopTier = (shop.shopTier as ShopTier) || "unknown";
-  
-  const scriptTags = (latestScan?.scriptTags as ScriptTag[] | null) || [];
-  const hasScriptTags = scriptTags.length > 0;
-  const hasOrderStatusScriptTags = scriptTags.some(tag => tag.display_scope === "order_status");
-  
-  const scriptTagStatus = getScriptTagDeprecationStatus();
-  const additionalScriptsStatus = getAdditionalScriptsDeprecationStatus(shopTier);
-  const migrationUrgency = getMigrationUrgencyStatus(
-    shopTier, 
-    hasScriptTags, 
-    hasOrderStatusScriptTags
-  );
-
-  // Refresh upgrade status opportunistically (admin context available in this route).
-  // This keeps UI aligned even if cron hasn't run yet.
-  const sixHoursMs = 6 * 60 * 60 * 1000;
-  const lastTypOspCheck = shop.typOspLastCheckedAt || shop.typOspUpdatedAt;
-  const isTypOspStale =
-    !lastTypOspCheck ||
-    (Date.now() - lastTypOspCheck.getTime()) > sixHoursMs ||
-    shop.typOspPagesEnabled === null;
-
-  let typOspPagesEnabled = shop.typOspPagesEnabled;
-  let typOspUpdatedAt = lastTypOspCheck;
-  let typOspUnknownReason: string | undefined = shop.typOspStatusReason ?? undefined;
-  let typOspUnknownError: string | undefined;
-
-  if (admin && isTypOspStale) {
-    try {
-      const typOspResult = await refreshTypOspStatus(admin, shop.id);
-      typOspPagesEnabled = typOspResult.typOspPagesEnabled;
-      typOspUpdatedAt = typOspResult.checkedAt;
-      if (typOspResult.status === "unknown") {
-        typOspUnknownReason = typOspResult.unknownReason;
-        typOspUnknownError = typOspResult.error;
-      }
-    } catch (error) {
-      typOspUnknownReason = "API_ERROR";
-      typOspUnknownError = error instanceof Error ? error.message : "Unknown error";
+    if (!shop) {
+        return json({
+            shop: null,
+            latestScan: null,
+            scanHistory: [],
+            deprecationStatus: null,
+            upgradeStatus: null,
+        });
     }
-  }
-
-  const shopUpgradeStatus: ShopUpgradeStatus = {
-    tier: shopTier,
-    typOspPagesEnabled,
-    typOspUpdatedAt,
-    typOspUnknownReason,
-    typOspUnknownError,
-  };
-  const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
-
-  return json({
-    shop: { id: shop.id, domain: shopDomain },
-    latestScan,
-    scanHistory,
-    deprecationStatus: {
-      shopTier,
-      scriptTag: {
-        ...formatDeadlineForUI(scriptTagStatus),
-        isExpired: scriptTagStatus.isExpired,
-      },
-      additionalScripts: {
-        ...formatDeadlineForUI(additionalScriptsStatus),
-        isExpired: additionalScriptsStatus.isExpired,
-      },
-      migrationUrgency,
-    },
-    upgradeStatus: {
-      ...upgradeStatusMessage,
-      lastUpdated: typOspUpdatedAt?.toISOString() || null,
-      hasOfficialSignal: typOspUpdatedAt !== null,
-    },
-  });
-};
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session, admin } = await authenticate.admin(request);
-  const shopDomain = session.shop;
-
-  const shop = await prisma.shop.findUnique({
-    where: { shopDomain },
-  });
-
-  if (!shop) {
-    return json({ error: "Shop not found" }, { status: 404 });
-  }
-
-  const formData = await request.formData();
-  const actionType = formData.get("_action");
-
-  if (actionType === "analyzeScript") {
-    const scriptContent = formData.get("scriptContent") as string;
-    
-    if (!scriptContent || scriptContent.trim().length === 0) {
-      return json({ error: "请粘贴要分析的脚本内容" }, { status: 400 });
+    const latestScan = await prisma.scanReport.findFirst({
+        where: { shopId: shop.id },
+        orderBy: { createdAt: "desc" },
+    });
+    const scanHistory = await getScanHistory(shop.id, 5);
+    const shopTier: ShopTier = (shop.shopTier as ShopTier) || "unknown";
+    const scriptTags = (latestScan?.scriptTags as ScriptTag[] | null) || [];
+    const hasScriptTags = scriptTags.length > 0;
+    const hasOrderStatusScriptTags = scriptTags.some(tag => tag.display_scope === "order_status");
+    const scriptTagStatus = getScriptTagDeprecationStatus();
+    const additionalScriptsStatus = getAdditionalScriptsDeprecationStatus(shopTier);
+    const migrationUrgency = getMigrationUrgencyStatus(shopTier, hasScriptTags, hasOrderStatusScriptTags);
+    const sixHoursMs = 6 * 60 * 60 * 1000;
+    const lastTypOspCheck = shop.typOspLastCheckedAt || shop.typOspUpdatedAt;
+    const isTypOspStale = !lastTypOspCheck ||
+        (Date.now() - lastTypOspCheck.getTime()) > sixHoursMs ||
+        shop.typOspPagesEnabled === null;
+    let typOspPagesEnabled = shop.typOspPagesEnabled;
+    let typOspUpdatedAt = lastTypOspCheck;
+    let typOspUnknownReason: string | undefined = shop.typOspStatusReason ?? undefined;
+    let typOspUnknownError: string | undefined;
+    if (admin && isTypOspStale) {
+        try {
+            const typOspResult = await refreshTypOspStatus(admin, shop.id);
+            typOspPagesEnabled = typOspResult.typOspPagesEnabled;
+            typOspUpdatedAt = typOspResult.checkedAt;
+            if (typOspResult.status === "unknown") {
+                typOspUnknownReason = typOspResult.unknownReason;
+                typOspUnknownError = typOspResult.error;
+            }
+        }
+        catch (error) {
+            typOspUnknownReason = "API_ERROR";
+            typOspUnknownError = error instanceof Error ? error.message : "Unknown error";
+        }
     }
-
-    try {
-      const analysisResult = analyzeScriptContent(scriptContent);
-      return json({ 
-        success: true, 
-        actionType: "analyzeScript",
-        analysisResult 
-      });
-    } catch (error) {
-      console.error("Script analysis error occurred (content not logged for privacy)");
-      return json(
-        { error: error instanceof Error ? error.message : "分析失败" },
-        { status: 500 }
-      );
-    }
-  }
-
-  try {
-    const scanResult = await scanShopTracking(admin, shop.id);
-    return json({ success: true, actionType: "scan", result: scanResult });
-  } catch (error) {
-    console.error("Scan error:", error);
-    return json(
-      { error: error instanceof Error ? error.message : "Scan failed" },
-      { status: 500 }
-    );
-  }
-};
-
-export default function ScanPage() {
-  const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus } = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
-  const submit = useSubmit();
-  const navigation = useNavigation();
-
-  const [selectedTab, setSelectedTab] = useState(0);
-  const [scriptContent, setScriptContent] = useState("");
-
-  const isScanning = navigation.state === "submitting";
-
-  const handleScan = () => {
-    const formData = new FormData();
-    formData.append("_action", "scan");
-    submit(formData, { method: "post" });
-  };
-
-  const handleAnalyzeScript = () => {
-    const formData = new FormData();
-    formData.append("_action", "analyzeScript");
-    formData.append("scriptContent", scriptContent);
-    submit(formData, { method: "post" });
-  };
-
-  const analysisResult = actionData && "analysisResult" in actionData 
-    ? actionData.analysisResult as ScriptAnalysisResult
-    : null;
-
-  const tabs = [
-    { id: "auto-scan", content: "自动扫描" },
-    { id: "manual-analyze", content: "手动分析" },
-  ];
-
-  const getSeverityBadge = (severity: string) => {
-    switch (severity) {
-      case "high":
-        return <Badge tone="critical">高风险</Badge>;
-      case "medium":
-        return <Badge tone="warning">中风险</Badge>;
-      case "low":
-        return <Badge tone="info">低风险</Badge>;
-      default:
-        return <Badge>未知</Badge>;
-    }
-  };
-
-  const getPlatformName = (platform: string) => {
-    const names: Record<string, string> = {
-      google: "Google Ads / GA4",
-      meta: "Meta (Facebook) Pixel",
-      tiktok: "TikTok Pixel",
-      bing: "Microsoft Ads (Bing)",
-      clarity: "Microsoft Clarity",
-      pinterest: "Pinterest Tag",
-      snapchat: "Snapchat Pixel",
-      twitter: "Twitter/X Pixel",
+    const shopUpgradeStatus: ShopUpgradeStatus = {
+        tier: shopTier,
+        typOspPagesEnabled,
+        typOspUpdatedAt,
+        typOspUnknownReason,
+        typOspUnknownError,
     };
-    return names[platform] || platform;
-  };
-
-  const riskItems = (latestScan?.riskItems as RiskItem[] | null) || [];
-  const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
-
-  const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
-    switch (urgency) {
-      case "critical": return "critical";
-      case "high": return "warning";
-      case "medium": return "warning";
-      case "resolved": return "success";
-      default: return "info";
+    const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
+    return json({
+        shop: { id: shop.id, domain: shopDomain },
+        latestScan,
+        scanHistory,
+        deprecationStatus: {
+            shopTier,
+            scriptTag: {
+                ...formatDeadlineForUI(scriptTagStatus),
+                isExpired: scriptTagStatus.isExpired,
+            },
+            additionalScripts: {
+                ...formatDeadlineForUI(additionalScriptsStatus),
+                isExpired: additionalScriptsStatus.isExpired,
+            },
+            migrationUrgency,
+        },
+        upgradeStatus: {
+            ...upgradeStatusMessage,
+            lastUpdated: typOspUpdatedAt?.toISOString() || null,
+            hasOfficialSignal: typOspUpdatedAt !== null,
+        },
+    });
+};
+export const action = async ({ request }: ActionFunctionArgs) => {
+    const { session, admin } = await authenticate.admin(request);
+    const shopDomain = session.shop;
+    const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+    });
+    if (!shop) {
+        return json({ error: "Shop not found" }, { status: 404 });
     }
-  };
-
-  return (
-    <Page
-      title="追踪脚本扫描"
-      subtitle="扫描店铺中的追踪脚本，识别迁移风险"
-    >
+    const formData = await request.formData();
+    const actionType = formData.get("_action");
+    if (actionType === "analyzeScript") {
+        const scriptContent = formData.get("scriptContent") as string;
+        if (!scriptContent || scriptContent.trim().length === 0) {
+            return json({ error: "请粘贴要分析的脚本内容" }, { status: 400 });
+        }
+        try {
+            const analysisResult = analyzeScriptContent(scriptContent);
+            return json({
+                success: true,
+                actionType: "analyzeScript",
+                analysisResult
+            });
+        }
+        catch (error) {
+            console.error("Script analysis error occurred (content not logged for privacy)");
+            return json({ error: error instanceof Error ? error.message : "分析失败" }, { status: 500 });
+        }
+    }
+    try {
+        const scanResult = await scanShopTracking(admin, shop.id);
+        return json({ success: true, actionType: "scan", result: scanResult });
+    }
+    catch (error) {
+        console.error("Scan error:", error);
+        return json({ error: error instanceof Error ? error.message : "Scan failed" }, { status: 500 });
+    }
+};
+export default function ScanPage() {
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus } = useLoaderData<typeof loader>();
+    const actionData = useActionData<typeof action>();
+    const submit = useSubmit();
+    const navigation = useNavigation();
+    const [selectedTab, setSelectedTab] = useState(0);
+    const [scriptContent, setScriptContent] = useState("");
+    const isScanning = navigation.state === "submitting";
+    const handleScan = () => {
+        const formData = new FormData();
+        formData.append("_action", "scan");
+        submit(formData, { method: "post" });
+    };
+    const handleAnalyzeScript = () => {
+        const formData = new FormData();
+        formData.append("_action", "analyzeScript");
+        formData.append("scriptContent", scriptContent);
+        submit(formData, { method: "post" });
+    };
+    const analysisResult = actionData && "analysisResult" in actionData
+        ? actionData.analysisResult as ScriptAnalysisResult
+        : null;
+    const tabs = [
+        { id: "auto-scan", content: "自动扫描" },
+        { id: "manual-analyze", content: "手动分析" },
+    ];
+    const getSeverityBadge = (severity: string) => {
+        switch (severity) {
+            case "high":
+                return <Badge tone="critical">高风险</Badge>;
+            case "medium":
+                return <Badge tone="warning">中风险</Badge>;
+            case "low":
+                return <Badge tone="info">低风险</Badge>;
+            default:
+                return <Badge>未知</Badge>;
+        }
+    };
+    const getPlatformName = (platform: string) => {
+        const names: Record<string, string> = {
+            google: "Google Ads / GA4",
+            meta: "Meta (Facebook) Pixel",
+            tiktok: "TikTok Pixel",
+            bing: "Microsoft Ads (Bing)",
+            clarity: "Microsoft Clarity",
+            pinterest: "Pinterest Tag",
+            snapchat: "Snapchat Pixel",
+            twitter: "Twitter/X Pixel",
+        };
+        return names[platform] || platform;
+    };
+    const riskItems = (latestScan?.riskItems as RiskItem[] | null) || [];
+    const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
+    const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
+        switch (urgency) {
+            case "critical": return "critical";
+            case "high": return "warning";
+            case "medium": return "warning";
+            case "resolved": return "success";
+            default: return "info";
+        }
+    };
+    return (<Page title="追踪脚本扫描" subtitle="扫描店铺中的追踪脚本，识别迁移风险">
       <BlockStack gap="500">
-        {upgradeStatus && (
-          <Banner
-            title={upgradeStatus.title}
-            tone={getUpgradeBannerTone(upgradeStatus.urgency)}
-          >
+        {upgradeStatus && (<Banner title={upgradeStatus.title} tone={getUpgradeBannerTone(upgradeStatus.urgency)}>
             <BlockStack gap="200">
               <Text as="p">{upgradeStatus.message}</Text>
-              {upgradeStatus.actions.length > 0 && (
-                <BlockStack gap="100">
-                  {upgradeStatus.actions.map((action, idx) => (
-                    <Text key={idx} as="p" variant="bodySm">
+              {upgradeStatus.actions.length > 0 && (<BlockStack gap="100">
+                  {upgradeStatus.actions.map((action, idx) => (<Text key={idx} as="p" variant="bodySm">
                       • {action}
-                    </Text>
-                  ))}
-                </BlockStack>
-              )}
-              {!upgradeStatus.hasOfficialSignal && (
-                <Text as="p" variant="bodySm" tone="subdued">
+                    </Text>))}
+                </BlockStack>)}
+              {!upgradeStatus.hasOfficialSignal && (<Text as="p" variant="bodySm" tone="subdued">
                   提示：我们尚未完成一次有效的升级状态检测。请稍后重试、重新授权应用，或等待后台定时任务自动刷新。
-                </Text>
-              )}
-              {upgradeStatus.lastUpdated && (
-                <Text as="p" variant="bodySm" tone="subdued">
+                </Text>)}
+              {upgradeStatus.lastUpdated && (<Text as="p" variant="bodySm" tone="subdued">
                   状态更新时间: {new Date(upgradeStatus.lastUpdated).toLocaleString("zh-CN")}
-                </Text>
-              )}
+                </Text>)}
             </BlockStack>
-          </Banner>
-        )}
+          </Banner>)}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-          {selectedTab === 0 && (
-            <BlockStack gap="500">
+          {selectedTab === 0 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
                 <InlineStack align="end">
-                  <Button
-                    variant="primary"
-                    onClick={handleScan}
-                    loading={isScanning}
-                    icon={SearchIcon}
-                  >
+                  <Button variant="primary" onClick={handleScan} loading={isScanning} icon={SearchIcon}>
                     {isScanning ? "扫描中..." : "开始扫描"}
                   </Button>
                 </InlineStack>
               </Box>
 
-              {isScanning && (
-                <Card>
+              {isScanning && (<Card>
                   <BlockStack gap="400">
                     <InlineStack gap="200" align="center">
-                      <Spinner size="small" />
+                      <Spinner size="small"/>
                       <Text as="p">正在扫描店铺追踪配置...</Text>
                     </InlineStack>
-                    <ProgressBar progress={75} tone="primary" />
+                    <ProgressBar progress={75} tone="primary"/>
                   </BlockStack>
-                </Card>
-              )}
+                </Card>)}
 
-              {!latestScan && !isScanning && (
-                <Card>
-                  <EmptyState
-                    heading="还没有扫描报告"
-                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                    action={{
-                      content: "开始扫描",
-                      onAction: handleScan,
-                      loading: isScanning,
-                    }}
-                  >
+              {!latestScan && !isScanning && (<Card>
+                  <EmptyState heading="还没有扫描报告" image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png" action={{
+                    content: "开始扫描",
+                    onAction: handleScan,
+                    loading: isScanning,
+                }}>
                     <BlockStack gap="300">
                       <Text as="p">
                         点击开始扫描，我们会自动检测 <strong>ScriptTags</strong> 和已安装的像素配置，并给出风险等级与迁移建议。
@@ -369,42 +261,27 @@ export default function ScanPage() {
                           </Text>
                         </BlockStack>
                       </Banner>
-                      <Link
-                        url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status"
-                        external
-                      >
+                      <Link url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status" external>
                         了解为何需要迁移（Checkout Extensibility）
                       </Link>
                     </BlockStack>
                   </EmptyState>
-                </Card>
-              )}
+                </Card>)}
 
-        {latestScan && !isScanning && (
-          <Layout>
+        {latestScan && !isScanning && (<Layout>
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
                   <Text as="h2" variant="headingMd">
                     风险评分
                   </Text>
-                  <Box
-                    background={
-                      latestScan.riskScore > 60
-                        ? "bg-fill-critical"
-                        : latestScan.riskScore > 30
-                          ? "bg-fill-warning"
-                          : "bg-fill-success"
-                    }
-                    padding="600"
-                    borderRadius="200"
-                  >
+                  <Box background={latestScan.riskScore > 60
+                    ? "bg-fill-critical"
+                    : latestScan.riskScore > 30
+                        ? "bg-fill-warning"
+                        : "bg-fill-success"} padding="600" borderRadius="200">
                     <BlockStack gap="200" align="center">
-                      <Text
-                        as="p"
-                        variant="heading3xl"
-                        fontWeight="bold"
-                      >
+                      <Text as="p" variant="heading3xl" fontWeight="bold">
                         {latestScan.riskScore}
                       </Text>
                       <Text as="p" variant="bodySm">
@@ -426,20 +303,14 @@ export default function ScanPage() {
                   <Text as="h2" variant="headingMd">
                     检测到的平台
                   </Text>
-                  {identifiedPlatforms.length > 0 ? (
-                    <BlockStack gap="200">
-                      {identifiedPlatforms.map((platform) => (
-                        <InlineStack key={platform} gap="200" align="start">
-                          <Icon source={CheckCircleIcon} tone="success" />
+                  {identifiedPlatforms.length > 0 ? (<BlockStack gap="200">
+                      {identifiedPlatforms.map((platform) => (<InlineStack key={platform} gap="200" align="start">
+                          <Icon source={CheckCircleIcon} tone="success"/>
                           <Text as="span">{getPlatformName(platform)}</Text>
-                        </InlineStack>
-                      ))}
-                    </BlockStack>
-                  ) : (
-                    <Text as="p" tone="subdued">
+                        </InlineStack>))}
+                    </BlockStack>) : (<Text as="p" tone="subdued">
                       未检测到追踪平台
-                    </Text>
-                  )}
+                    </Text>)}
                 </BlockStack>
               </Card>
             </Layout.Section>
@@ -451,11 +322,9 @@ export default function ScanPage() {
                     <Text as="h2" variant="headingMd">
                       ScriptTags
                     </Text>
-                    {deprecationStatus?.scriptTag && (
-                      <Badge tone={deprecationStatus.scriptTag.isExpired ? "critical" : "warning"}>
+                    {deprecationStatus?.scriptTag && (<Badge tone={deprecationStatus.scriptTag.isExpired ? "critical" : "warning"}>
                         {deprecationStatus.scriptTag.badge.text}
-                      </Badge>
-                    )}
+                      </Badge>)}
                   </InlineStack>
                   <BlockStack gap="200">
                     <InlineStack align="space-between">
@@ -464,45 +333,30 @@ export default function ScanPage() {
                         {((latestScan.scriptTags as ScriptTag[] | null) || []).length}
                       </Text>
                     </InlineStack>
-                    {((latestScan.scriptTags as ScriptTag[] | null) || []).length > 0 && deprecationStatus?.scriptTag && (
-                      <Banner tone={deprecationStatus.scriptTag.isExpired ? "critical" : "warning"}>
+                    {((latestScan.scriptTags as ScriptTag[] | null) || []).length > 0 && deprecationStatus?.scriptTag && (<Banner tone={deprecationStatus.scriptTag.isExpired ? "critical" : "warning"}>
                         <p>{deprecationStatus.scriptTag.description}</p>
-                      </Banner>
-                    )}
+                      </Banner>)}
                   </BlockStack>
                 </BlockStack>
               </Card>
             </Layout.Section>
-          </Layout>
-        )}
+          </Layout>)}
 
-        {latestScan && riskItems.length > 0 && !isScanning && (
-          <Card>
+        {latestScan && riskItems.length > 0 && !isScanning && (<Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
                 风险详情
               </Text>
               <BlockStack gap="300">
-                {riskItems.map((item, index) => (
-                  <Box
-                    key={index}
-                    background="bg-surface-secondary"
-                    padding="400"
-                    borderRadius="200"
-                  >
+                {riskItems.map((item, index) => (<Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                     <BlockStack gap="300">
                       <InlineStack align="space-between">
                         <InlineStack gap="200">
-                          <Icon
-                            source={AlertCircleIcon}
-                            tone={
-                              item.severity === "high"
-                                ? "critical"
-                                : item.severity === "medium"
-                                  ? "warning"
-                                  : "info"
-                            }
-                          />
+                          <Icon source={AlertCircleIcon} tone={item.severity === "high"
+                        ? "critical"
+                        : item.severity === "medium"
+                            ? "warning"
+                            : "info"}/>
                           <Text as="span" fontWeight="semibold">
                             {item.name}
                           </Text>
@@ -512,75 +366,49 @@ export default function ScanPage() {
                       <Text as="p" tone="subdued">
                         {item.description}
                       </Text>
-                      {item.details && (
-                        <Text as="p" variant="bodySm">
+                      {item.details && (<Text as="p" variant="bodySm">
                           {item.details}
-                        </Text>
-                      )}
+                        </Text>)}
                       <InlineStack align="space-between" blockAlign="center">
                         <InlineStack gap="200">
-                          {item.platform && (
-                            <Badge>{getPlatformName(item.platform)}</Badge>
-                          )}
-                          {item.impact && (
-                            <Text as="span" variant="bodySm" tone="critical">
+                          {item.platform && (<Badge>{getPlatformName(item.platform)}</Badge>)}
+                          {item.impact && (<Text as="span" variant="bodySm" tone="critical">
                               影响: {item.impact}
-                            </Text>
-                          )}
+                            </Text>)}
                         </InlineStack>
-                        <Button
-                          url={`/app/migrate${item.platform ? `?platform=${item.platform}` : ""}`}
-                          size="slim"
-                          icon={ArrowRightIcon}
-                        >
+                        <Button url={`/app/migrate${item.platform ? `?platform=${item.platform}` : ""}`} size="slim" icon={ArrowRightIcon}>
                           一键迁移
                         </Button>
                       </InlineStack>
                     </BlockStack>
-                  </Box>
-                ))}
+                  </Box>))}
               </BlockStack>
             </BlockStack>
-          </Card>
-        )}
+          </Card>)}
 
-        {scanHistory.length > 1 && (
-          <Card>
+        {scanHistory.length > 1 && (<Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
                 扫描历史
               </Text>
-              <DataTable
-                columnContentTypes={["text", "numeric", "text", "text"]}
-                headings={["扫描时间", "风险分", "检测平台", "状态"]}
-                rows={scanHistory.filter((scan): scan is NonNullable<typeof scan> => scan !== null).map((scan) => [
-                  new Date(scan.createdAt).toLocaleString("zh-CN"),
-                  String(scan.riskScore),
-                  ((scan.identifiedPlatforms as string[]) || []).join(", ") || "-",
-                  scan.status === "completed" ? "完成" : scan.status,
-                ])}
-              />
+              <DataTable columnContentTypes={["text", "numeric", "text", "text"]} headings={["扫描时间", "风险分", "检测平台", "状态"]} rows={scanHistory.filter((scan): scan is NonNullable<typeof scan> => scan !== null).map((scan) => [
+                    new Date(scan.createdAt).toLocaleString("zh-CN"),
+                    String(scan.riskScore),
+                    ((scan.identifiedPlatforms as string[]) || []).join(", ") || "-",
+                    scan.status === "completed" ? "完成" : scan.status,
+                ])}/>
             </BlockStack>
-          </Card>
-        )}
+          </Card>)}
 
-              {latestScan && latestScan.riskScore > 0 && (
-                <Banner
-                  title="建议进行迁移"
-                  tone="warning"
-                  action={{ content: "前往迁移工具", url: "/app/migrate" }}
-                >
+              {latestScan && latestScan.riskScore > 0 && (<Banner title="建议进行迁移" tone="warning" action={{ content: "前往迁移工具", url: "/app/migrate" }}>
                   <p>
                     检测到您的店铺存在需要迁移的追踪脚本。
                     建议使用我们的迁移工具将追踪代码更新为 Shopify Web Pixel 格式。
                   </p>
-                </Banner>
-              )}
-            </BlockStack>
-          )}
+                </Banner>)}
+            </BlockStack>)}
 
-          {selectedTab === 1 && (
-            <BlockStack gap="500">
+          {selectedTab === 1 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
                 <Card>
                   <BlockStack gap="400">
@@ -604,28 +432,14 @@ export default function ScanPage() {
                       </BlockStack>
                     </Banner>
 
-                    <TextField
-                      label="粘贴脚本内容"
-                      value={scriptContent}
-                      onChange={setScriptContent}
-                      multiline={8}
-                      autoComplete="off"
-                      placeholder={`<!-- 示例 -->
+                    <TextField label="粘贴脚本内容" value={scriptContent} onChange={setScriptContent} multiline={8} autoComplete="off" placeholder={`<!-- 示例 -->
 <script>
   gtag('event', 'purchase', {...});
   fbq('track', 'Purchase', {...});
-</script>`}
-                      helpText="支持检测 Google、Meta、TikTok、Bing 等平台的追踪代码"
-                    />
+</script>`} helpText="支持检测 Google、Meta、TikTok、Bing 等平台的追踪代码"/>
 
                     <InlineStack align="end">
-                      <Button
-                        variant="primary"
-                        onClick={handleAnalyzeScript}
-                        loading={isScanning}
-                        disabled={!scriptContent.trim()}
-                        icon={ClipboardIcon}
-                      >
+                      <Button variant="primary" onClick={handleAnalyzeScript} loading={isScanning} disabled={!scriptContent.trim()} icon={ClipboardIcon}>
                         分析脚本
                       </Button>
                     </InlineStack>
@@ -633,25 +447,18 @@ export default function ScanPage() {
                 </Card>
               </Box>
 
-              {analysisResult && (
-                <Layout>
+              {analysisResult && (<Layout>
                   <Layout.Section variant="oneThird">
                     <Card>
                       <BlockStack gap="400">
                         <Text as="h2" variant="headingMd">
                           风险评分
                         </Text>
-                        <Box
-                          background={
-                            analysisResult.riskScore > 60
-                              ? "bg-fill-critical"
-                              : analysisResult.riskScore > 30
-                                ? "bg-fill-warning"
-                                : "bg-fill-success"
-                          }
-                          padding="600"
-                          borderRadius="200"
-                        >
+                        <Box background={analysisResult.riskScore > 60
+                    ? "bg-fill-critical"
+                    : analysisResult.riskScore > 30
+                        ? "bg-fill-warning"
+                        : "bg-fill-success"} padding="600" borderRadius="200">
                           <BlockStack gap="200" align="center">
                             <Text as="p" variant="heading3xl" fontWeight="bold">
                               {analysisResult.riskScore}
@@ -671,20 +478,14 @@ export default function ScanPage() {
                         <Text as="h2" variant="headingMd">
                           检测到的平台
                         </Text>
-                        {analysisResult.identifiedPlatforms.length > 0 ? (
-                          <BlockStack gap="200">
-                            {analysisResult.identifiedPlatforms.map((platform) => (
-                              <InlineStack key={platform} gap="200" align="start">
-                                <Icon source={CheckCircleIcon} tone="success" />
+                        {analysisResult.identifiedPlatforms.length > 0 ? (<BlockStack gap="200">
+                            {analysisResult.identifiedPlatforms.map((platform) => (<InlineStack key={platform} gap="200" align="start">
+                                <Icon source={CheckCircleIcon} tone="success"/>
                                 <Text as="span">{getPlatformName(platform)}</Text>
-                              </InlineStack>
-                            ))}
-                          </BlockStack>
-                        ) : (
-                          <Text as="p" tone="subdued">
+                              </InlineStack>))}
+                          </BlockStack>) : (<Text as="p" tone="subdued">
                             未检测到已知追踪平台
-                          </Text>
-                        )}
+                          </Text>)}
                       </BlockStack>
                     </Card>
                   </Layout.Section>
@@ -695,15 +496,8 @@ export default function ScanPage() {
                         <Text as="h2" variant="headingMd">
                           检测详情
                         </Text>
-                        {analysisResult.platformDetails.length > 0 ? (
-                          <BlockStack gap="200">
-                            {analysisResult.platformDetails.slice(0, 5).map((detail, idx) => (
-                              <Box
-                                key={idx}
-                                background="bg-surface-secondary"
-                                padding="200"
-                                borderRadius="100"
-                              >
+                        {analysisResult.platformDetails.length > 0 ? (<BlockStack gap="200">
+                            {analysisResult.platformDetails.slice(0, 5).map((detail, idx) => (<Box key={idx} background="bg-surface-secondary" padding="200" borderRadius="100">
                                 <BlockStack gap="100">
                                   <InlineStack gap="200" align="space-between">
                                     <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -717,47 +511,30 @@ export default function ScanPage() {
                                     {detail.matchedPattern}
                                   </Text>
                                 </BlockStack>
-                              </Box>
-                            ))}
-                          </BlockStack>
-                        ) : (
-                          <Text as="p" tone="subdued">
+                              </Box>))}
+                          </BlockStack>) : (<Text as="p" tone="subdued">
                             无检测详情
-                          </Text>
-                        )}
+                          </Text>)}
                       </BlockStack>
                     </Card>
                   </Layout.Section>
-                </Layout>
-              )}
+                </Layout>)}
 
-              {analysisResult && analysisResult.risks.length > 0 && (
-                <Card>
+              {analysisResult && analysisResult.risks.length > 0 && (<Card>
                   <BlockStack gap="400">
                     <Text as="h2" variant="headingMd">
                       风险详情
                     </Text>
                     <BlockStack gap="300">
-                      {analysisResult.risks.map((risk, index) => (
-                        <Box
-                          key={index}
-                          background="bg-surface-secondary"
-                          padding="400"
-                          borderRadius="200"
-                        >
+                      {analysisResult.risks.map((risk, index) => (<Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                           <BlockStack gap="200">
                             <InlineStack align="space-between">
                               <InlineStack gap="200">
-                                <Icon
-                                  source={AlertCircleIcon}
-                                  tone={
-                                    risk.severity === "high"
-                                      ? "critical"
-                                      : risk.severity === "medium"
-                                        ? "warning"
-                                        : "info"
-                                  }
-                                />
+                                <Icon source={AlertCircleIcon} tone={risk.severity === "high"
+                        ? "critical"
+                        : risk.severity === "medium"
+                            ? "warning"
+                            : "info"}/>
                                 <Text as="span" fontWeight="semibold">
                                   {risk.name}
                                 </Text>
@@ -767,44 +544,34 @@ export default function ScanPage() {
                             <Text as="p" tone="subdued">
                               {risk.description}
                             </Text>
-                            {risk.details && (
-                              <Text as="p" variant="bodySm">
+                            {risk.details && (<Text as="p" variant="bodySm">
                                 {risk.details}
-                              </Text>
-                            )}
+                              </Text>)}
                           </BlockStack>
-                        </Box>
-                      ))}
+                        </Box>))}
                     </BlockStack>
                   </BlockStack>
-                </Card>
-              )}
+                </Card>)}
 
-              {analysisResult && analysisResult.recommendations.length > 0 && (
-                <Card>
+              {analysisResult && analysisResult.recommendations.length > 0 && (<Card>
                   <BlockStack gap="400">
                     <Text as="h2" variant="headingMd">
                       迁移建议
                     </Text>
                     <BlockStack gap="200">
-                      {analysisResult.recommendations.map((rec, index) => (
-                        <InlineStack key={index} gap="200" align="start">
-                          <Icon source={ArrowRightIcon} tone="success" />
+                      {analysisResult.recommendations.map((rec, index) => (<InlineStack key={index} gap="200" align="start">
+                          <Icon source={ArrowRightIcon} tone="success"/>
                           <Text as="p">{rec}</Text>
-                        </InlineStack>
-                      ))}
+                        </InlineStack>))}
                     </BlockStack>
                     <Divider />
                     <Button url="/app/migrate" variant="primary">
                       前往迁移工具
                     </Button>
                   </BlockStack>
-                </Card>
-              )}
-            </BlockStack>
-          )}
+                </Card>)}
+            </BlockStack>)}
         </Tabs>
       </BlockStack>
-    </Page>
-  );
+    </Page>);
 }

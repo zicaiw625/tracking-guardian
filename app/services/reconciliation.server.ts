@@ -1,52 +1,45 @@
-
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger";
 import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
 import type { AlertChannel, AlertSettings } from "../types";
-
 export interface ReconciliationResult {
-  shopId: string;
-  platform: string;
-  reportDate: Date;
-  shopifyOrders: number;
-  shopifyRevenue: number;
-  platformConversions: number;
-  platformRevenue: number;
-  orderDiscrepancy: number;
-  revenueDiscrepancy: number;
-  alertSent: boolean;
+    shopId: string;
+    platform: string;
+    reportDate: Date;
+    shopifyOrders: number;
+    shopifyRevenue: number;
+    platformConversions: number;
+    platformRevenue: number;
+    orderDiscrepancy: number;
+    revenueDiscrepancy: number;
+    alertSent: boolean;
 }
-
 export interface ReconciliationSummary {
-  [platform: string]: {
-    totalShopifyOrders: number;
-    totalPlatformConversions: number;
-    totalShopifyRevenue: number;
-    totalPlatformRevenue: number;
-    avgDiscrepancy: number;
-    reports: Array<{
-      id: string;
-      reportDate: Date;
-      orderDiscrepancy: number;
-      revenueDiscrepancy: number;
-      alertSent: boolean;
-    }>;
-  };
+    [platform: string]: {
+        totalShopifyOrders: number;
+        totalPlatformConversions: number;
+        totalShopifyRevenue: number;
+        totalPlatformRevenue: number;
+        avgDiscrepancy: number;
+        reports: Array<{
+            id: string;
+            reportDate: Date;
+            orderDiscrepancy: number;
+            revenueDiscrepancy: number;
+            alertSent: boolean;
+        }>;
+    };
 }
-
-async function getShopifyOrderStats(
-  shopDomain: string,
-  accessToken: string | null,
-  startDate: Date,
-  endDate: Date
-): Promise<{ count: number; revenue: number } | null> {
-  if (!accessToken) {
-    logger.warn(`No access token for shop ${shopDomain}, skipping Shopify order fetch`);
-    return null;
-  }
-  
-  const query = `
+async function getShopifyOrderStats(shopDomain: string, accessToken: string | null, startDate: Date, endDate: Date): Promise<{
+    count: number;
+    revenue: number;
+} | null> {
+    if (!accessToken) {
+        logger.warn(`No access token for shop ${shopDomain}, skipping Shopify order fetch`);
+        return null;
+    }
+    const query = `
     query OrdersStats($query: String!, $cursor: String) {
       ordersCount(query: $query) {
         count
@@ -68,484 +61,402 @@ async function getShopifyOrderStats(
       }
     }
   `;
-
-  const dateQuery = `financial_status:paid created_at:>=${startDate.toISOString()} created_at:<${endDate.toISOString()}`;
-
-  async function makeRequest(cursor: string | null = null, retryCount = 0): Promise<{
-    data: {
-      ordersCount?: { count: number };
-      orders?: {
-        edges: Array<{ node: { totalPriceSet: { shopMoney: { amount: string } } } }>;
-        pageInfo: { hasNextPage: boolean; endCursor: string | null };
-      };
-    } | null;
-    errors?: unknown[];
-  }> {
-    const response = await fetch(
-      `https://${shopDomain}/admin/api/2025-07/graphql.json`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Access-Token": accessToken!,
-        },
-        body: JSON.stringify({ 
-          query, 
-          variables: { query: dateQuery, cursor } 
-        }),
-      }
-    );
-
-    if (response.status === 429) {
-      const retryAfter = parseInt(response.headers.get("Retry-After") || "2", 10);
-      const maxRetries = 3;
-      
-      if (retryCount < maxRetries) {
-        logger.warn(
-          `[P1-03] Rate limited by Shopify for ${shopDomain}, ` +
-          `retrying in ${retryAfter}s (attempt ${retryCount + 1}/${maxRetries})`
-        );
-        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-        return makeRequest(cursor, retryCount + 1);
-      } else {
-        logger.error(`[P1-03] Rate limit exceeded max retries for ${shopDomain}`);
-        return { data: null, errors: [{ message: "Rate limit exceeded" }] };
-      }
-    }
-    
-    if (!response.ok) {
-      logger.error(`Shopify API error for ${shopDomain}: ${response.status}`);
-      return { data: null, errors: [{ message: `HTTP ${response.status}` }] };
-    }
-    
-    return await response.json();
-  }
-  
-  try {
-    
-    let totalRevenue = 0;
-    let orderCount = 0;
-    let cursor: string | null = null;
-    let hasMorePages = true;
-    let pageCount = 0;
-    const maxPages = 10; 
-    
-    while (hasMorePages && pageCount < maxPages) {
-      const result = await makeRequest(cursor);
-      
-      if (result.errors || !result.data) {
-        logger.error(`Shopify GraphQL errors for ${shopDomain}`, undefined, { errors: result.errors });
-        
-        if (pageCount > 0) {
-          logger.warn(`[P1-03] Returning partial data for ${shopDomain} after ${pageCount} pages`);
-          return { count: orderCount, revenue: totalRevenue };
-        }
-        return null;
-      }
-
-      if (pageCount === 0 && result.data.ordersCount) {
-        orderCount = result.data.ordersCount.count;
-      }
-
-      interface OrderEdge {
-        node: {
-          totalPriceSet: {
-            shopMoney: {
-              amount: string;
+    const dateQuery = `financial_status:paid created_at:>=${startDate.toISOString()} created_at:<${endDate.toISOString()}`;
+    async function makeRequest(cursor: string | null = null, retryCount = 0): Promise<{
+        data: {
+            ordersCount?: {
+                count: number;
             };
-          };
-        };
-      }
-      const pageRevenue = result.data.orders?.edges?.reduce(
-        (sum: number, edge: OrderEdge) => 
-          sum + parseFloat(edge.node.totalPriceSet?.shopMoney?.amount || "0"),
-        0
-      ) || 0;
-      totalRevenue += pageRevenue;
-
-      hasMorePages = result.data.orders?.pageInfo?.hasNextPage || false;
-      cursor = result.data.orders?.pageInfo?.endCursor || null;
-      pageCount++;
-    }
-    
-    if (hasMorePages) {
-      logger.warn(
-        `[P1-03] Shop ${shopDomain} has more than ${maxPages * 250} orders, ` +
-        `revenue calculation truncated at ${pageCount} pages`
-      );
-    }
-    
-    logger.debug(
-      `[P1-03] Fetched Shopify stats for ${shopDomain}: ` +
-      `${orderCount} orders, $${totalRevenue.toFixed(2)} revenue (${pageCount} pages)`
-    );
-    
-    return { count: orderCount, revenue: totalRevenue };
-  } catch (error) {
-    logger.error(`Failed to fetch Shopify orders for ${shopDomain}`, error);
-    return null;
-  }
-}
-
-export async function runDailyReconciliation(shopId: string): Promise<ReconciliationResult[]> {
-  
-  const decryptedShop = await getShopByIdWithDecryptedFields(shopId);
-  
-  if (!decryptedShop || !decryptedShop.isActive) {
-    logger.debug(`Skipping reconciliation for inactive shop: ${shopId}`);
-    return [];
-  }
-
-  if (!decryptedShop.accessToken) {
-    logger.warn(
-      `[P0-02] Cannot run reconciliation for shop ${decryptedShop.shopDomain}: ` +
-      "accessToken decryption failed. Shop may need to re-authenticate."
-    );
-    return [];
-  }
-
-  const shopWithRelations = await prisma.shop.findUnique({
-    where: { id: shopId },
-    include: {
-      pixelConfigs: {
-        where: { isActive: true, serverSideEnabled: true },
-        select: { platform: true },
-      },
-      alertConfigs: {
-        where: { isEnabled: true },
-        select: {
-          id: true,
-          channel: true,
-          settings: true,
-          discrepancyThreshold: true,
-          minOrdersForAlert: true,
-        },
-      },
-    },
-  });
-
-  if (!shopWithRelations) {
-    logger.debug(`Shop not found after decryption: ${shopId}`);
-    return [];
-  }
-
-  const results: ReconciliationResult[] = [];
-
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  
-  const reportDate = new Date(yesterday);
-
-  const platforms = [...new Set(shopWithRelations.pixelConfigs.map(c => c.platform))];
-  
-  if (platforms.length === 0) {
-    logger.debug(`No active platforms for shop ${shopId}`);
-    return [];
-  }
-
-  const shopifyStats = await getShopifyOrderStats(
-    decryptedShop.shopDomain,
-    decryptedShop.accessToken,
-    yesterday,
-    today
-  );
-
-  const shopifyOrderCount = shopifyStats?.count ?? 0;
-  const shopifyRevenue = shopifyStats?.revenue ?? 0;
-  
-  if (!shopifyStats) {
-    logger.warn(`Could not fetch Shopify order data for ${decryptedShop.shopDomain}, using ConversionLog data`);
-  }
-
-  const conversionLogs = await prisma.conversionLog.groupBy({
-    by: ["platform", "status"],
-    where: {
-      shopId,
-      createdAt: {
-        gte: yesterday,
-        lt: today,
-      },
-      eventType: "purchase",
-    },
-    _count: true,
-    _sum: {
-      orderValue: true,
-    },
-  });
-
-  for (const platform of platforms) {
-    
-    const platformLogs = conversionLogs.filter(l => l.platform === platform);
-
-    const sentOrders = platformLogs
-      .filter(l => l.status === "sent")
-      .reduce((sum, l) => sum + l._count, 0);
-    const sentRevenue = platformLogs
-      .filter(l => l.status === "sent")
-      .reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
-
-    const totalOrders = shopifyStats ? shopifyOrderCount : platformLogs.reduce((sum, l) => sum + l._count, 0);
-    const totalRevenue = shopifyStats ? shopifyRevenue : platformLogs.reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
-
-    const orderDiscrepancy = totalOrders > 0 
-      ? (totalOrders - sentOrders) / totalOrders 
-      : 0;
-    const revenueDiscrepancy = totalRevenue > 0 
-      ? (totalRevenue - sentRevenue) / totalRevenue 
-      : 0;
-
-    let alertSent = false;
-    const matchingAlerts = shopWithRelations.alertConfigs.filter(
-      a => totalOrders >= a.minOrdersForAlert && orderDiscrepancy >= a.discrepancyThreshold
-    );
-
-    if (matchingAlerts.length > 0) {
-      for (const alertConfig of matchingAlerts) {
-        try {
-          
-          await sendAlert(
-            {
-              id: alertConfig.id,
-              channel: alertConfig.channel as AlertChannel,
-              settings: alertConfig.settings as unknown as AlertSettings,
-              discrepancyThreshold: alertConfig.discrepancyThreshold,
-              minOrdersForAlert: alertConfig.minOrdersForAlert,
-              isEnabled: true,
+            orders?: {
+                edges: Array<{
+                    node: {
+                        totalPriceSet: {
+                            shopMoney: {
+                                amount: string;
+                            };
+                        };
+                    };
+                }>;
+                pageInfo: {
+                    hasNextPage: boolean;
+                    endCursor: string | null;
+                };
+            };
+        } | null;
+        errors?: unknown[];
+    }> {
+        const response = await fetch(`https:                                                  
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Shopify-Access-Token": accessToken!,
             },
-            {
-              platform,
-              reportDate,
-              shopifyOrders: totalOrders,
-              platformConversions: sentOrders,
-              orderDiscrepancy,
-              revenueDiscrepancy,
-              shopDomain: decryptedShop.shopDomain,
+            body: JSON.stringify({
+                query,
+                variables: { query: dateQuery, cursor }
+            }),
+        });
+        if (response.status === 429) {
+            const retryAfter = parseInt(response.headers.get("Retry-After") || "2", 10);
+            const maxRetries = 3;
+            if (retryCount < maxRetries) {
+                logger.warn(`[P1-03] Rate limited by Shopify for ${shopDomain}, ` +
+                    `retrying in ${retryAfter}s (attempt ${retryCount + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                return makeRequest(cursor, retryCount + 1);
             }
-          );
-          alertSent = true;
-        } catch (error) {
-          logger.error(`Failed to send reconciliation alert`, error, {
+            else {
+                logger.error(`[P1-03] Rate limit exceeded max retries for ${shopDomain}`);
+                return { data: null, errors: [{ message: "Rate limit exceeded" }] };
+            }
+        }
+        if (!response.ok) {
+            logger.error(`Shopify API error for ${shopDomain}: ${response.status}`);
+            return { data: null, errors: [{ message: `HTTP ${response.status}` }] };
+        }
+        return await response.json();
+    }
+    try {
+        let totalRevenue = 0;
+        let orderCount = 0;
+        let cursor: string | null = null;
+        let hasMorePages = true;
+        let pageCount = 0;
+        const maxPages = 10;
+        while (hasMorePages && pageCount < maxPages) {
+            const result = await makeRequest(cursor);
+            if (result.errors || !result.data) {
+                logger.error(`Shopify GraphQL errors for ${shopDomain}`, undefined, { errors: result.errors });
+                if (pageCount > 0) {
+                    logger.warn(`[P1-03] Returning partial data for ${shopDomain} after ${pageCount} pages`);
+                    return { count: orderCount, revenue: totalRevenue };
+                }
+                return null;
+            }
+            if (pageCount === 0 && result.data.ordersCount) {
+                orderCount = result.data.ordersCount.count;
+            }
+            interface OrderEdge {
+                node: {
+                    totalPriceSet: {
+                        shopMoney: {
+                            amount: string;
+                        };
+                    };
+                };
+            }
+            const pageRevenue = result.data.orders?.edges?.reduce((sum: number, edge: OrderEdge) => sum + parseFloat(edge.node.totalPriceSet?.shopMoney?.amount || "0"), 0) || 0;
+            totalRevenue += pageRevenue;
+            hasMorePages = result.data.orders?.pageInfo?.hasNextPage || false;
+            cursor = result.data.orders?.pageInfo?.endCursor || null;
+            pageCount++;
+        }
+        if (hasMorePages) {
+            logger.warn(`[P1-03] Shop ${shopDomain} has more than ${maxPages * 250} orders, ` +
+                `revenue calculation truncated at ${pageCount} pages`);
+        }
+        logger.debug(`[P1-03] Fetched Shopify stats for ${shopDomain}: ` +
+            `${orderCount} orders, $${totalRevenue.toFixed(2)} revenue (${pageCount} pages)`);
+        return { count: orderCount, revenue: totalRevenue };
+    }
+    catch (error) {
+        logger.error(`Failed to fetch Shopify orders for ${shopDomain}`, error);
+        return null;
+    }
+}
+export async function runDailyReconciliation(shopId: string): Promise<ReconciliationResult[]> {
+    const decryptedShop = await getShopByIdWithDecryptedFields(shopId);
+    if (!decryptedShop || !decryptedShop.isActive) {
+        logger.debug(`Skipping reconciliation for inactive shop: ${shopId}`);
+        return [];
+    }
+    if (!decryptedShop.accessToken) {
+        logger.warn(`[P0-02] Cannot run reconciliation for shop ${decryptedShop.shopDomain}: ` +
+            "accessToken decryption failed. Shop may need to re-authenticate.");
+        return [];
+    }
+    const shopWithRelations = await prisma.shop.findUnique({
+        where: { id: shopId },
+        include: {
+            pixelConfigs: {
+                where: { isActive: true, serverSideEnabled: true },
+                select: { platform: true },
+            },
+            alertConfigs: {
+                where: { isEnabled: true },
+                select: {
+                    id: true,
+                    channel: true,
+                    settings: true,
+                    discrepancyThreshold: true,
+                    minOrdersForAlert: true,
+                },
+            },
+        },
+    });
+    if (!shopWithRelations) {
+        logger.debug(`Shop not found after decryption: ${shopId}`);
+        return [];
+    }
+    const results: ReconciliationResult[] = [];
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const reportDate = new Date(yesterday);
+    const platforms = [...new Set(shopWithRelations.pixelConfigs.map(c => c.platform))];
+    if (platforms.length === 0) {
+        logger.debug(`No active platforms for shop ${shopId}`);
+        return [];
+    }
+    const shopifyStats = await getShopifyOrderStats(decryptedShop.shopDomain, decryptedShop.accessToken, yesterday, today);
+    const shopifyOrderCount = shopifyStats?.count ?? 0;
+    const shopifyRevenue = shopifyStats?.revenue ?? 0;
+    if (!shopifyStats) {
+        logger.warn(`Could not fetch Shopify order data for ${decryptedShop.shopDomain}, using ConversionLog data`);
+    }
+    const conversionLogs = await prisma.conversionLog.groupBy({
+        by: ["platform", "status"],
+        where: {
+            shopId,
+            createdAt: {
+                gte: yesterday,
+                lt: today,
+            },
+            eventType: "purchase",
+        },
+        _count: true,
+        _sum: {
+            orderValue: true,
+        },
+    });
+    for (const platform of platforms) {
+        const platformLogs = conversionLogs.filter(l => l.platform === platform);
+        const sentOrders = platformLogs
+            .filter(l => l.status === "sent")
+            .reduce((sum, l) => sum + l._count, 0);
+        const sentRevenue = platformLogs
+            .filter(l => l.status === "sent")
+            .reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
+        const totalOrders = shopifyStats ? shopifyOrderCount : platformLogs.reduce((sum, l) => sum + l._count, 0);
+        const totalRevenue = shopifyStats ? shopifyRevenue : platformLogs.reduce((sum, l) => sum + Number(l._sum.orderValue || 0), 0);
+        const orderDiscrepancy = totalOrders > 0
+            ? (totalOrders - sentOrders) / totalOrders
+            : 0;
+        const revenueDiscrepancy = totalRevenue > 0
+            ? (totalRevenue - sentRevenue) / totalRevenue
+            : 0;
+        let alertSent = false;
+        const matchingAlerts = shopWithRelations.alertConfigs.filter(a => totalOrders >= a.minOrdersForAlert && orderDiscrepancy >= a.discrepancyThreshold);
+        if (matchingAlerts.length > 0) {
+            for (const alertConfig of matchingAlerts) {
+                try {
+                    await sendAlert({
+                        id: alertConfig.id,
+                        channel: alertConfig.channel as AlertChannel,
+                        settings: alertConfig.settings as unknown as AlertSettings,
+                        discrepancyThreshold: alertConfig.discrepancyThreshold,
+                        minOrdersForAlert: alertConfig.minOrdersForAlert,
+                        isEnabled: true,
+                    }, {
+                        platform,
+                        reportDate,
+                        shopifyOrders: totalOrders,
+                        platformConversions: sentOrders,
+                        orderDiscrepancy,
+                        revenueDiscrepancy,
+                        shopDomain: decryptedShop.shopDomain,
+                    });
+                    alertSent = true;
+                }
+                catch (error) {
+                    logger.error(`Failed to send reconciliation alert`, error, {
+                        shopId,
+                        platform,
+                        alertConfigId: alertConfig.id,
+                    });
+                }
+            }
+        }
+        const report = await prisma.reconciliationReport.upsert({
+            where: {
+                shopId_platform_reportDate: {
+                    shopId,
+                    platform,
+                    reportDate,
+                },
+            },
+            update: {
+                shopifyOrders: totalOrders,
+                shopifyRevenue: totalRevenue,
+                platformConversions: sentOrders,
+                platformRevenue: sentRevenue,
+                orderDiscrepancy,
+                revenueDiscrepancy,
+                status: "completed",
+                alertSent,
+            },
+            create: {
+                shopId,
+                platform,
+                reportDate,
+                shopifyOrders: totalOrders,
+                shopifyRevenue: totalRevenue,
+                platformConversions: sentOrders,
+                platformRevenue: sentRevenue,
+                orderDiscrepancy,
+                revenueDiscrepancy,
+                status: "completed",
+                alertSent,
+            },
+        });
+        results.push({
             shopId,
             platform,
-            alertConfigId: alertConfig.id,
-          });
-        }
-      }
+            reportDate,
+            shopifyOrders: totalOrders,
+            shopifyRevenue: totalRevenue,
+            platformConversions: sentOrders,
+            platformRevenue: sentRevenue,
+            orderDiscrepancy,
+            revenueDiscrepancy,
+            alertSent,
+        });
+        logger.info(`Reconciliation completed for ${decryptedShop.shopDomain}/${platform}`, {
+            shopifyOrders: totalOrders,
+            platformConversions: sentOrders,
+            orderDiscrepancy: (orderDiscrepancy * 100).toFixed(1) + "%",
+        });
     }
-
-    const report = await prisma.reconciliationReport.upsert({
-      where: {
-        shopId_platform_reportDate: {
-          shopId,
-          platform,
-          reportDate,
-        },
-      },
-      update: {
-        shopifyOrders: totalOrders,
-        shopifyRevenue: totalRevenue,
-        platformConversions: sentOrders,
-        platformRevenue: sentRevenue,
-        orderDiscrepancy,
-        revenueDiscrepancy,
-        status: "completed",
-        alertSent,
-      },
-      create: {
-        shopId,
-        platform,
-        reportDate,
-        shopifyOrders: totalOrders,
-        shopifyRevenue: totalRevenue,
-        platformConversions: sentOrders,
-        platformRevenue: sentRevenue,
-        orderDiscrepancy,
-        revenueDiscrepancy,
-        status: "completed",
-        alertSent,
-      },
-    });
-
-    results.push({
-      shopId,
-      platform,
-      reportDate,
-      shopifyOrders: totalOrders,
-      shopifyRevenue: totalRevenue,
-      platformConversions: sentOrders,
-      platformRevenue: sentRevenue,
-      orderDiscrepancy,
-      revenueDiscrepancy,
-      alertSent,
-    });
-
-    logger.info(`Reconciliation completed for ${decryptedShop.shopDomain}/${platform}`, {
-      shopifyOrders: totalOrders,
-      platformConversions: sentOrders,
-      orderDiscrepancy: (orderDiscrepancy * 100).toFixed(1) + "%",
-    });
-  }
-
-  return results;
+    return results;
 }
-
 export async function runAllShopsReconciliation(): Promise<{
-  processed: number;
-  succeeded: number;
-  failed: number;
-  results: ReconciliationResult[];
+    processed: number;
+    succeeded: number;
+    failed: number;
+    results: ReconciliationResult[];
 }> {
-  const activeShops = await prisma.shop.findMany({
-    where: { isActive: true },
-    select: { id: true, shopDomain: true },
-  });
-
-  let succeeded = 0;
-  let failed = 0;
-  const allResults: ReconciliationResult[] = [];
-
-  for (const shop of activeShops) {
-    try {
-      const results = await runDailyReconciliation(shop.id);
-      allResults.push(...results);
-      succeeded++;
-    } catch (error) {
-      logger.error(`Reconciliation failed for shop ${shop.shopDomain}`, error);
-      failed++;
+    const activeShops = await prisma.shop.findMany({
+        where: { isActive: true },
+        select: { id: true, shopDomain: true },
+    });
+    let succeeded = 0;
+    let failed = 0;
+    const allResults: ReconciliationResult[] = [];
+    for (const shop of activeShops) {
+        try {
+            const results = await runDailyReconciliation(shop.id);
+            allResults.push(...results);
+            succeeded++;
+        }
+        catch (error) {
+            logger.error(`Reconciliation failed for shop ${shop.shopDomain}`, error);
+            failed++;
+        }
     }
-  }
-
-  logger.info(`Daily reconciliation completed`, {
-    processed: activeShops.length,
-    succeeded,
-    failed,
-    reportsGenerated: allResults.length,
-  });
-
-  return {
-    processed: activeShops.length,
-    succeeded,
-    failed,
-    results: allResults,
-  };
+    logger.info(`Daily reconciliation completed`, {
+        processed: activeShops.length,
+        succeeded,
+        failed,
+        reportsGenerated: allResults.length,
+    });
+    return {
+        processed: activeShops.length,
+        succeeded,
+        failed,
+        results: allResults,
+    };
 }
-
-export async function getReconciliationHistory(
-  shopId: string,
-  days: number = 30
-): Promise<Array<{
-  id: string;
-  platform: string;
-  reportDate: Date;
-  shopifyOrders: number;
-  shopifyRevenue: number;
-  platformConversions: number;
-  platformRevenue: number;
-  orderDiscrepancy: number;
-  revenueDiscrepancy: number;
-  alertSent: boolean;
+export async function getReconciliationHistory(shopId: string, days: number = 30): Promise<Array<{
+    id: string;
+    platform: string;
+    reportDate: Date;
+    shopifyOrders: number;
+    shopifyRevenue: number;
+    platformConversions: number;
+    platformRevenue: number;
+    orderDiscrepancy: number;
+    revenueDiscrepancy: number;
+    alertSent: boolean;
 }>> {
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
-
-  const reports = await prisma.reconciliationReport.findMany({
-    where: {
-      shopId,
-      reportDate: { gte: cutoffDate },
-    },
-    orderBy: { reportDate: "desc" },
-  });
-
-  return reports.map(report => ({
-    id: report.id,
-    platform: report.platform,
-    reportDate: report.reportDate,
-    shopifyOrders: report.shopifyOrders,
-    shopifyRevenue: Number(report.shopifyRevenue),
-    platformConversions: report.platformConversions,
-    platformRevenue: Number(report.platformRevenue),
-    orderDiscrepancy: report.orderDiscrepancy,
-    revenueDiscrepancy: report.revenueDiscrepancy,
-    alertSent: report.alertSent,
-  }));
-}
-
-export async function getReconciliationSummary(
-  shopId: string,
-  days: number = 30
-): Promise<ReconciliationSummary> {
-  const history = await getReconciliationHistory(shopId, days);
-  
-  const summary: ReconciliationSummary = {};
-  
-  for (const report of history) {
-    if (!summary[report.platform]) {
-      summary[report.platform] = {
-        totalShopifyOrders: 0,
-        totalPlatformConversions: 0,
-        totalShopifyRevenue: 0,
-        totalPlatformRevenue: 0,
-        avgDiscrepancy: 0,
-        reports: [],
-      };
-    }
-    
-    const platformSummary = summary[report.platform];
-    platformSummary.totalShopifyOrders += report.shopifyOrders;
-    platformSummary.totalPlatformConversions += report.platformConversions;
-    platformSummary.totalShopifyRevenue += report.shopifyRevenue;
-    platformSummary.totalPlatformRevenue += report.platformRevenue;
-    platformSummary.reports.push({
-      id: report.id,
-      reportDate: report.reportDate,
-      orderDiscrepancy: report.orderDiscrepancy,
-      revenueDiscrepancy: report.revenueDiscrepancy,
-      alertSent: report.alertSent,
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const reports = await prisma.reconciliationReport.findMany({
+        where: {
+            shopId,
+            reportDate: { gte: cutoffDate },
+        },
+        orderBy: { reportDate: "desc" },
     });
-  }
-
-  for (const platform of Object.keys(summary)) {
-    const platformSummary = summary[platform];
-    if (platformSummary.reports.length > 0) {
-      const totalDiscrepancy = platformSummary.reports.reduce(
-        (sum, r) => sum + r.orderDiscrepancy,
-        0
-      );
-      platformSummary.avgDiscrepancy = totalDiscrepancy / platformSummary.reports.length;
-    }
-  }
-  
-  return summary;
+    return reports.map(report => ({
+        id: report.id,
+        platform: report.platform,
+        reportDate: report.reportDate,
+        shopifyOrders: report.shopifyOrders,
+        shopifyRevenue: Number(report.shopifyRevenue),
+        platformConversions: report.platformConversions,
+        platformRevenue: Number(report.platformRevenue),
+        orderDiscrepancy: report.orderDiscrepancy,
+        revenueDiscrepancy: report.revenueDiscrepancy,
+        alertSent: report.alertSent,
+    }));
 }
-
-export async function getLatestReconciliation(
-  shopId: string
-): Promise<Map<string, ReconciliationResult>> {
-  const latestReports = await prisma.reconciliationReport.findMany({
-    where: { shopId },
-    orderBy: { reportDate: "desc" },
-    distinct: ["platform"],
-  });
-
-  const result = new Map<string, ReconciliationResult>();
-  
-  for (const report of latestReports) {
-    result.set(report.platform, {
-      shopId: report.shopId,
-      platform: report.platform,
-      reportDate: report.reportDate,
-      shopifyOrders: report.shopifyOrders,
-      shopifyRevenue: Number(report.shopifyRevenue),
-      platformConversions: report.platformConversions,
-      platformRevenue: Number(report.platformRevenue),
-      orderDiscrepancy: report.orderDiscrepancy,
-      revenueDiscrepancy: report.revenueDiscrepancy,
-      alertSent: report.alertSent,
+export async function getReconciliationSummary(shopId: string, days: number = 30): Promise<ReconciliationSummary> {
+    const history = await getReconciliationHistory(shopId, days);
+    const summary: ReconciliationSummary = {};
+    for (const report of history) {
+        if (!summary[report.platform]) {
+            summary[report.platform] = {
+                totalShopifyOrders: 0,
+                totalPlatformConversions: 0,
+                totalShopifyRevenue: 0,
+                totalPlatformRevenue: 0,
+                avgDiscrepancy: 0,
+                reports: [],
+            };
+        }
+        const platformSummary = summary[report.platform];
+        platformSummary.totalShopifyOrders += report.shopifyOrders;
+        platformSummary.totalPlatformConversions += report.platformConversions;
+        platformSummary.totalShopifyRevenue += report.shopifyRevenue;
+        platformSummary.totalPlatformRevenue += report.platformRevenue;
+        platformSummary.reports.push({
+            id: report.id,
+            reportDate: report.reportDate,
+            orderDiscrepancy: report.orderDiscrepancy,
+            revenueDiscrepancy: report.revenueDiscrepancy,
+            alertSent: report.alertSent,
+        });
+    }
+    for (const platform of Object.keys(summary)) {
+        const platformSummary = summary[platform];
+        if (platformSummary.reports.length > 0) {
+            const totalDiscrepancy = platformSummary.reports.reduce((sum, r) => sum + r.orderDiscrepancy, 0);
+            platformSummary.avgDiscrepancy = totalDiscrepancy / platformSummary.reports.length;
+        }
+    }
+    return summary;
+}
+export async function getLatestReconciliation(shopId: string): Promise<Map<string, ReconciliationResult>> {
+    const latestReports = await prisma.reconciliationReport.findMany({
+        where: { shopId },
+        orderBy: { reportDate: "desc" },
+        distinct: ["platform"],
     });
-  }
-  
-  return result;
+    const result = new Map<string, ReconciliationResult>();
+    for (const report of latestReports) {
+        result.set(report.platform, {
+            shopId: report.shopId,
+            platform: report.platform,
+            reportDate: report.reportDate,
+            shopifyOrders: report.shopifyOrders,
+            shopifyRevenue: Number(report.shopifyRevenue),
+            platformConversions: report.platformConversions,
+            platformRevenue: Number(report.platformRevenue),
+            orderDiscrepancy: report.orderDiscrepancy,
+            revenueDiscrepancy: report.revenueDiscrepancy,
+            alertSent: report.alertSent,
+        });
+    }
+    return result;
 }

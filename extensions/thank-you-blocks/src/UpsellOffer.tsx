@@ -1,47 +1,22 @@
-import {
-  reactExtension,
-  BlockStack,
-  Text,
-  Button,
-  InlineLayout,
-  View,
-  Image,
-  useSettings,
-  useOrder,
-  Link,
-  Divider,
-  Banner,
-} from "@shopify/ui-extensions-react/checkout";
+import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Image, useSettings, useOrder, Link, Divider, Banner, } from "@shopify/ui-extensions-react/checkout";
 import { useState } from "react";
-
-export default reactExtension(
-  "purchase.thank-you.block.render",
-  () => <UpsellOffer />
-);
-
+export default reactExtension("purchase.thank-you.block.render", () => <UpsellOffer />);
 function UpsellOffer() {
-  const settings = useSettings();
-  const order = useOrder();
-  const [dismissed, setDismissed] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const discountCode = (settings.upsell_discount_code as string) || "THANKYOU10";
-  const discountPercent = (settings.upsell_discount_percent as number) || 10;
-
-  const expiryHours = 24;
-
-  const handleCopyCode = () => {
-    
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  if (dismissed) {
-    return null;
-  }
-
-  return (
-    <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
+    const settings = useSettings();
+    const order = useOrder();
+    const [dismissed, setDismissed] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const discountCode = (settings.upsell_discount_code as string) || "THANKYOU10";
+    const discountPercent = (settings.upsell_discount_percent as number) || 10;
+    const expiryHours = 24;
+    const handleCopyCode = () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+    if (dismissed) {
+        return null;
+    }
+    return (<BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
       <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
         <Text size="medium" emphasis="bold">
           🎁 专属感谢优惠
@@ -101,7 +76,7 @@ function UpsellOffer() {
 
       <Divider />
 
-      <Button kind="primary" onPress={() => {}}>
+      <Button kind="primary" onPress={() => { }}>
         继续购物 →
       </Button>
 
@@ -117,6 +92,5 @@ function UpsellOffer() {
           </InlineLayout>
         </BlockStack>
       </View>
-    </BlockStack>
-  );
+    </BlockStack>);
 }
