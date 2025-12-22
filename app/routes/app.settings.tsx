@@ -97,6 +97,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             previousIngestionSecret: true,
             previousSecretExpiry: true,
             piiEnabled: true,
+            pcdAcknowledged: true,
             weakConsentMode: true,
             consentStrategy: true,
             dataRetentionDays: true,
@@ -125,6 +126,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 hasActiveGraceWindow,
                 graceWindowExpiry: hasActiveGraceWindow ? shop.previousSecretExpiry : null,
                 piiEnabled: shop.piiEnabled,
+                pcdAcknowledged: shop.pcdAcknowledged,
                 weakConsentMode: shop.weakConsentMode,
                 consentStrategy: shop.consentStrategy || "strict",
                 dataRetentionDays: shop.dataRetentionDays,
@@ -393,11 +395,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         case "updatePrivacySettings": {
             const piiEnabled = formData.get("piiEnabled") === "true";
+            const pcdAcknowledged = formData.get("pcdAcknowledged") === "true";
             const consentStrategy = (formData.get("consentStrategy") as string) || "strict";
             const dataRetentionDays = parseInt(formData.get("dataRetentionDays") as string) || 90;
+            
+            // If enabling PII, require PCD acknowledgement
+            if (piiEnabled && !pcdAcknowledged) {
+                return json({
+                    success: false,
+                    message: "启用 PII 发送需要先确认 PCD 审核要求",
+                    requirePcdAcknowledgement: true,
+                });
+            }
+            
+            const updateData: {
+                piiEnabled: boolean;
+                weakConsentMode: boolean;
+                consentStrategy: string;
+                dataRetentionDays: number;
+                pcdAcknowledged?: boolean;
+                pcdAcknowledgedAt?: Date | null;
+            } = { 
+                piiEnabled, 
+                weakConsentMode: false, 
+                consentStrategy, 
+                dataRetentionDays 
+            };
+            
+            // Update PCD acknowledgement status
+            if (piiEnabled && pcdAcknowledged) {
+                updateData.pcdAcknowledged = true;
+                updateData.pcdAcknowledgedAt = new Date();
+            } else if (!piiEnabled) {
+                // Keep pcdAcknowledged as is when disabling PII
+            }
+            
             await prisma.shop.update({
                 where: { id: shop.id },
-                data: { piiEnabled, weakConsentMode: false, consentStrategy, dataRetentionDays },
+                data: updateData,
             });
             await createAuditLog({
                 shopId: shop.id,
@@ -406,7 +441,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 action: "privacy_settings_updated",
                 resourceType: "shop",
                 resourceId: shop.id,
-                metadata: { piiEnabled, consentStrategy, dataRetentionDays },
+                metadata: { piiEnabled, pcdAcknowledged, consentStrategy, dataRetentionDays },
             });
             return json({
                 success: true,
@@ -943,10 +978,22 @@ export default function SettingsPage() {
                               </Text>
                             </BlockStack>
                             <Button variant="secondary" size="slim" onClick={() => {
+                // If enabling PII, show confirmation dialog
+                if (!shop?.piiEnabled) {
+                    const confirmed = confirm(
+                        "启用 PII 发送需要确认以下事项：\n\n" +
+                        "1. 您的应用需要通过 Shopify 的 Protected Customer Data (PCD) 审核\n" +
+                        "2. 审核未通过前，Shopify 可能会限制或清空 PII 字段\n" +
+                        "3. 您需要在 Shopify Partner Dashboard 提交审核申请\n\n" +
+                        "点击「确定」表示您已了解上述要求，并将在 Partner Dashboard 完成 PCD 审核。"
+                    );
+                    if (!confirmed) return;
+                }
                 const formData = new FormData();
                 formData.append("_action", "updatePrivacySettings");
                 formData.append("piiEnabled", String(!shop?.piiEnabled));
-                formData.append("consentStrategy", shop?.consentStrategy || "balanced");
+                formData.append("pcdAcknowledged", String(!shop?.piiEnabled)); // Acknowledge when enabling
+                formData.append("consentStrategy", shop?.consentStrategy || "strict");
                 formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
                 submit(formData, { method: "post" });
             }} loading={isSubmitting}>
@@ -956,23 +1003,36 @@ export default function SettingsPage() {
                         </BlockStack>
                       </Box>
 
-                      {shop?.piiEnabled && (<Banner title="需要 Protected Customer Data 权限" tone="critical">
+                      {shop?.piiEnabled && (
+                        <Banner 
+                          title={shop?.pcdAcknowledged ? "PCD 审核已确认" : "需要 Protected Customer Data 权限"} 
+                          tone={shop?.pcdAcknowledged ? "success" : "critical"}
+                        >
                           <BlockStack gap="200">
-                            <Text as="p" variant="bodySm">
-                              您已启用 PII 发送功能。为确保合规，请注意：
-                            </Text>
-                            <Text as="p" variant="bodySm">
-                              1. 您的应用需要通过 Shopify 的 <strong>Protected Customer Data</strong> 审核
-                              <br />
-                              2. 审核未通过前，Shopify 可能会限制或清空 PII 字段
-                              <br />
-                              3. 请在 Shopify Partner Dashboard 提交审核申请
-                            </Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              如果您尚未通过审核，建议暂时禁用此选项以避免数据丢失。
-                            </Text>
+                            {shop?.pcdAcknowledged ? (
+                              <Text as="p" variant="bodySm">
+                                您已确认了解 PCD 审核要求。请确保您的应用已在 Shopify Partner Dashboard 完成 PCD 审核。
+                              </Text>
+                            ) : (
+                              <>
+                                <Text as="p" variant="bodySm">
+                                  您已启用 PII 发送功能。为确保合规，请注意：
+                                </Text>
+                                <Text as="p" variant="bodySm">
+                                  1. 您的应用需要通过 Shopify 的 <strong>Protected Customer Data</strong> 审核
+                                  <br />
+                                  2. 审核未通过前，Shopify 可能会限制或清空 PII 字段
+                                  <br />
+                                  3. 请在 Shopify Partner Dashboard 提交审核申请
+                                </Text>
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  如果您尚未通过审核，建议暂时禁用此选项以避免数据丢失。
+                                </Text>
+                              </>
+                            )}
                           </BlockStack>
-                        </Banner>)}
+                        </Banner>
+                      )}
 
                       <Banner tone="info">
                         <BlockStack gap="200">

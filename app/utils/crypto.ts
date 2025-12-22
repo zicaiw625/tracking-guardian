@@ -22,14 +22,23 @@ let cachedKeySalt: string | null = null;
 export function getEncryptionKey(): Buffer {
     const secret = process.env.ENCRYPTION_SECRET;
     const salt = process.env.ENCRYPTION_SALT || DEFAULT_ENCRYPTION_SALT;
+    const isProduction = process.env.NODE_ENV === "production";
+    const isCI = process.env.CI === "true" || process.env.CI === "1";
+    const isTest = process.env.NODE_ENV === "test";
     if (!secret) {
-        if (process.env.NODE_ENV === "production") {
-            throw new Error("ENCRYPTION_SECRET must be set in production. " +
+        // Production and CI environments must have ENCRYPTION_SECRET configured
+        if (isProduction || isCI) {
+            throw new Error("ENCRYPTION_SECRET must be set in production and CI environments. " +
                 "Generate a secure secret using: openssl rand -base64 32");
+        }
+        // Only allow insecure default in local development (not test/CI)
+        if (isTest && !process.env.ALLOW_INSECURE_TEST_SECRET) {
+            throw new Error("ENCRYPTION_SECRET must be set in test environment. " +
+                "Set ENCRYPTION_SECRET or ALLOW_INSECURE_TEST_SECRET=true for local tests.");
         }
         // Using console.warn here intentionally - this runs at startup before logger may be initialized
         // eslint-disable-next-line no-console
-        console.warn("⚠️ [STARTUP] ENCRYPTION_SECRET not set. Using insecure default for development only.");
+        console.warn("⚠️ [STARTUP] ENCRYPTION_SECRET not set. Using insecure default for local development only.");
         const devSecret = "INSECURE_DEV_SECRET_DO_NOT_USE_IN_PRODUCTION";
         return scryptSync(devSecret, DEV_ENCRYPTION_SALT, 32, SCRYPT_PARAMS);
     }
@@ -55,9 +64,14 @@ export function validateEncryptionConfig(): {
 } {
     const warnings: string[] = [];
     const isProduction = process.env.NODE_ENV === "production";
+    const isCI = process.env.CI === "true" || process.env.CI === "1";
+    const isTest = process.env.NODE_ENV === "test";
     if (!process.env.ENCRYPTION_SECRET) {
-        if (isProduction) {
-            throw new Error("ENCRYPTION_SECRET must be set in production");
+        if (isProduction || isCI) {
+            throw new Error("ENCRYPTION_SECRET must be set in production and CI environments");
+        }
+        if (isTest && !process.env.ALLOW_INSECURE_TEST_SECRET) {
+            throw new Error("ENCRYPTION_SECRET must be set in test environment");
         }
         warnings.push("ENCRYPTION_SECRET not set - using insecure development default");
     }

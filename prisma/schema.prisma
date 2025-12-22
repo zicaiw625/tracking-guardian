@@ -51,6 +51,12 @@ model Shop {
   // Note: Server-side tracking always hashes PII before sending
   piiEnabled Boolean @default(false)
 
+  // P0: PCD (Protected Customer Data) acknowledgement
+  // Tracks whether merchant has acknowledged PCD review requirements
+  // Required when piiEnabled=true to ensure merchant understands compliance requirements
+  pcdAcknowledged   Boolean   @default(false)
+  pcdAcknowledgedAt DateTime?
+
   // P1-3: Weak consent mode (DEPRECATED - use consentStrategy instead)
   // Kept for backwards compatibility
   weakConsentMode Boolean @default(false)

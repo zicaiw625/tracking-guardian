@@ -9,10 +9,21 @@ import { isDevMode, validatePixelOriginPreBody, validatePixelOriginForShop, buil
 import { getPixelEventsCorsHeaders, getPixelEventsCorsHeadersForShop, jsonWithCors as jsonWithCorsBase, } from "../utils/cors";
 import { type TrustLevel } from "../utils/receipt-trust";
 import { logger, metrics } from "../utils/logger";
-const MAX_BODY_SIZE = 32 * 1024;
-const TIMESTAMP_WINDOW_MS = 10 * 60 * 1000;
-const RATE_LIMIT_CONFIG = { maxRequests: 50, windowMs: 60 * 1000 };
-const CIRCUIT_BREAKER_CONFIG = { threshold: 10000, windowMs: 60 * 1000 };
+import { 
+    API_CONFIG, 
+    RATE_LIMIT_CONFIG as RATE_LIMITS, 
+    CIRCUIT_BREAKER_CONFIG as CIRCUIT_CONFIG,
+    RETENTION_CONFIG 
+} from "../utils/config";
+
+// Use centralized configuration
+const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
+const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
+const RATE_LIMIT_CONFIG = RATE_LIMITS.PIXEL_EVENTS;
+const CIRCUIT_BREAKER_CONFIG = { 
+    threshold: CIRCUIT_CONFIG.DEFAULT_THRESHOLD, 
+    windowMs: CIRCUIT_CONFIG.DEFAULT_WINDOW_MS 
+};
 const PIXEL_CUSTOM_HEADERS = [
     "X-Tracking-Guardian-Key",
     "X-Tracking-Guardian-Timestamp",
@@ -239,8 +250,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         const validation = validateRequest(rawBody);
         if (!validation.valid) {
+            // Log detailed error internally but return generic error to client
             logger.debug(`Pixel payload validation failed: code=${validation.code}, error=${validation.error}`);
-            return jsonWithCors({ error: validation.error, code: validation.code }, { status: 400, request });
+            return jsonWithCors({ error: "Invalid request" }, { status: 400, request });
         }
         const { payload } = validation;
         const circuitCheck = await checkCircuitBreaker(payload.shopDomain, CIRCUIT_BREAKER_CONFIG);
@@ -322,7 +334,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!shop.ingestionSecret) {
             if (!isDevMode()) {
                 logger.warn(`Rejected: Shop ${shop.shopDomain} has no ingestion key configured`);
-                return jsonWithCors({ error: "Pixel not configured", code: "INGESTION_KEY_NOT_CONFIGURED" }, { status: 403, request, shopAllowedDomains });
+                // Return generic 403 without revealing internal configuration details
+                return jsonWithCors({ error: "Forbidden" }, { status: 403, request, shopAllowedDomains });
             }
             keyValidation = { matched: false, reason: "shop_no_key_configured_dev" };
             logger.info(`[DEV] Shop ${shop.shopDomain} has no ingestion key configured - allowing request`);
@@ -385,7 +398,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
         }
         catch (error) {
-            return jsonWithCors({ error: "Missing orderId and checkoutToken" }, { status: 400, request, shopAllowedDomains });
+            // Log detailed error internally but return generic error to client
+            logger.debug(`Match key generation failed for shop ${shop.shopDomain}: ${String(error)}`);
+            return jsonWithCors({ error: "Invalid request" }, { status: 400, request, shopAllowedDomains });
         }
         const orderId = matchKeyResult.matchKey;
         const usedCheckoutTokenAsFallback = !matchKeyResult.isOrderId;
@@ -421,7 +436,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }, { request, shopAllowedDomains });
         }
         const nonceValue = `${orderId}:${payload.timestamp}`;
-        const nonceExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+        const nonceExpiresAt = new Date(Date.now() + RETENTION_CONFIG.NONCE_EXPIRY_MS);
         try {
             await prisma.eventNonce.create({
                 data: {
