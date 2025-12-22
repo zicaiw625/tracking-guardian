@@ -261,7 +261,18 @@ export async function refreshTypOspStatus(
     logger.info(`checkoutProfiles query returned unknown (${result.unknownReason}), trying shop features fallback`);
     const fallbackResult = await getTypOspStatusFromShopFeatures(admin);
     
-    if (fallbackResult.status !== "unknown") {
+    // Avoid reporting "disabled" for shops where checkoutProfiles is unavailable or not permitted.
+    // Only adopt the fallback when it yields a definitive enabled signal, or when the original
+    // unknown reason is not about lacking access (NOT_PLUS / NO_EDITOR_ACCESS).
+    const shouldAdoptDisabledFallback =
+      fallbackResult.status === "disabled" &&
+      result.unknownReason !== "NOT_PLUS" &&
+      result.unknownReason !== "NO_EDITOR_ACCESS";
+
+    if (
+      fallbackResult.status === "enabled" ||
+      shouldAdoptDisabledFallback
+    ) {
       result = fallbackResult;
     }
   }
