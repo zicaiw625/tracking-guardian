@@ -115,10 +115,6 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     return marketingAllowed === true && saleOfDataAllowed;
   }
   
-  function hasAnyConsent(): boolean {
-    return analyticsAllowed === true;
-  }
-  
   function hasFullConsent(): boolean {
     return analyticsAllowed === true && marketingAllowed === true && saleOfDataAllowed;
   }
@@ -137,9 +133,9 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     eventName: string,
     data: Record<string, unknown>
   ): Promise<void> {
-    if (!hasAnyConsent()) {
+    if (!hasFullConsent()) {
       log(
-        `Skipping ${eventName} - consent revoked after load. ` +
+        `Skipping ${eventName} - insufficient consent. ` +
         `analytics=${analyticsAllowed}, marketing=${marketingAllowed}, saleOfData=${saleOfDataAllowed}`
       );
       return;
@@ -291,15 +287,8 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   });
 
   analytics.subscribe("page_viewed", (event) => {
-    if (!analyticsAllowed) return;
-    
     const pageUrl = event.context?.document?.location?.href || "";
     const pageTitle = event.context?.document?.title || "";
-    
-    if (!marketingAllowed) {
-      log("page_viewed: Marketing not allowed, only logging locally");
-      return;
-    }
     
     sendToBackend("page_viewed", {
       url: pageUrl,

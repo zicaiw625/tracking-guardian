@@ -338,6 +338,34 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
+    // P0-5 Strict consent strategy alignment:
+    // The pixel extension declares analytics=true + marketing=true + sale_of_data="enabled".
+    // We therefore require FULL consent before accepting and recording any data,
+    // and silently drop events that do not meet the declared purposes.
+    const strictConsent = payload.consent;
+    const strictMarketingAllowed = strictConsent?.marketing === true;
+    const strictAnalyticsAllowed = strictConsent?.analytics === true;
+    const strictSaleOfDataAllowed = strictConsent?.saleOfData !== false;
+
+    if (!strictMarketingAllowed || !strictAnalyticsAllowed || !strictSaleOfDataAllowed) {
+      metrics.silentDrop({
+        shopDomain: payload.shopDomain,
+        reason: "insufficient_consent_strict",
+        category: "validation",
+        sampleRate: 1,
+      });
+      logger.debug(`Dropping pixel event due to insufficient consent (strict)`, {
+        shopDomain: payload.shopDomain,
+        marketing: strictConsent?.marketing,
+        analytics: strictConsent?.analytics,
+        saleOfData: strictConsent?.saleOfData,
+      });
+      return new Response(null, {
+        status: 204,
+        headers: getCorsHeadersPreBody(request),
+      });
+    }
+
     const shop = await getShopForVerification(payload.shopDomain);
 
     if (!shop || !shop.isActive) {

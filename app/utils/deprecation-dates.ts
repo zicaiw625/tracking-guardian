@@ -64,6 +64,10 @@ export interface ShopUpgradeStatus {
   tier: ShopTier;
   typOspPagesEnabled: boolean | null;
   typOspUpdatedAt: Date | null;
+  // Optional diagnostics (when typOspPagesEnabled is null/unknown)
+  // NOTE: Kept as string to avoid coupling this utility to server-only types.
+  typOspUnknownReason?: string;
+  typOspUnknownError?: string;
 }
 
 export interface DeprecationStatus {
@@ -303,6 +307,11 @@ export function getUpgradeStatusMessage(
   actions: string[];
 } {
   const { tier, typOspPagesEnabled } = upgradeStatus;
+  const plusAdditionalScriptsWindowLabel = "2025年8月起";
+  const nonPlusAdditionalScriptsWindowLabel = "2026年8月起";
+  const windowLabel =
+    tier === "non_plus" ? nonPlusAdditionalScriptsWindowLabel : plusAdditionalScriptsWindowLabel;
+  const windowDisclaimer = "（具体日期以 Shopify 官方公告为准）";
   
   if (typOspPagesEnabled === true) {
     return {
@@ -326,12 +335,37 @@ export function getUpgradeStatusMessage(
   const isPlusDeadlinePassed = now >= DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
   
   if (typOspPagesEnabled === null || typOspPagesEnabled === undefined) {
+    const reasonHint = (() => {
+      const reason = upgradeStatus.typOspUnknownReason;
+      if (!reason) return null;
+      switch (reason) {
+        case "NOT_PLUS":
+          return "原因：店铺可能不是 Plus，或没有 checkoutProfiles 权限。";
+        case "NO_EDITOR_ACCESS":
+          return "原因：缺少「checkout and accounts editor」访问权限。";
+        case "RATE_LIMIT":
+          return "原因：Shopify API 限流，请稍后重试。";
+        case "FIELD_NOT_AVAILABLE":
+          return "原因：API 响应中缺少 typOspPagesActive 字段（已降级处理）。";
+        case "NO_PROFILES":
+          return "原因：未返回 checkout profiles。";
+        case "API_ERROR":
+          return "原因：Shopify Admin API 查询失败。";
+        case "NO_ADMIN_CONTEXT":
+          return "原因：缺少 Admin API 上下文（无离线 session 或未授权）。";
+        default:
+          return `原因：${reason}`;
+      }
+    })();
+
     if (tier === "plus" && isPlusDeadlinePassed) {
       return {
         isUpgraded: null,
         urgency: "critical",
         title: "⚠️ Plus 商家：请确认页面升级状态",
-        message: "Plus 商家的 Additional Scripts 截止日期（2025-08-28）已过。如果您尚未升级到新版 Thank you / Order status 页面，旧脚本可能已停止运行。请检查您的追踪是否正常。",
+        message: `Plus 商家的 Additional Scripts 预计自 ${plusAdditionalScriptsWindowLabel} 起进入只读窗口期${windowDisclaimer}。` +
+          "如果您尚未升级到新版 Thank you / Order status 页面，旧脚本可能已停止运行。请检查您的追踪是否正常。" +
+          (reasonHint ? `\n${reasonHint}` : ""),
         actions: [
           "前往 Shopify 后台 → 设置 → 结账 查看当前页面版本",
           "如已升级：确认 Web Pixel 正常运行",
@@ -344,10 +378,13 @@ export function getUpgradeStatusMessage(
       isUpgraded: null,
       urgency: "medium",
       title: "升级状态待确认",
-      message: "我们尚未收到您店铺的页面升级状态。这可能是因为您尚未更改结账设置，或系统尚未同步。",
+      message: "我们暂时无法通过 Shopify Admin API 确认您店铺的 Thank you / Order status 页面是否已启用 extensibility。" +
+        (reasonHint ? `\n${reasonHint}` : ""),
       actions: [
         "前往 Shopify 后台 → 设置 → 结账 查看当前页面版本",
-        `${tier === "plus" ? "Plus 商家截止日期已过（2025-08-28）" : `距离截止日期还有 ${Math.max(0, daysRemaining)} 天`}`,
+        `${tier === "plus"
+          ? `Plus 商家：预计自 ${plusAdditionalScriptsWindowLabel} 起进入只读窗口期${windowDisclaimer}`
+          : `预计距离只读窗口期还有约 ${Math.max(0, daysRemaining)} 天（${nonPlusAdditionalScriptsWindowLabel}）`}`,
       ],
     };
   }
@@ -357,7 +394,8 @@ export function getUpgradeStatusMessage(
       isUpgraded: false,
       urgency: "critical",
       title: "🚨 Plus 商家：Additional Scripts 已进入只读模式",
-      message: "您的店铺尚未升级到新版页面，但 Plus 商家的 Additional Scripts 截止日期（2025-08-28）已过。Shopify 可能随时将您的页面迁移到新版本。",
+      message: `您的店铺尚未升级到新版页面，但 Plus 商家的 Additional Scripts 预计已进入只读窗口期（${plusAdditionalScriptsWindowLabel}）${windowDisclaimer}。` +
+        "Shopify 可能随时将您的页面迁移到新版本。",
       actions: [
         "立即配置 Web Pixel 以确保追踪不中断",
         "检查 Web Pixel 和 CAPI 配置是否正确",
@@ -371,7 +409,7 @@ export function getUpgradeStatusMessage(
       isUpgraded: false,
       urgency: "critical",
       title: "截止日期已过 - 请立即迁移",
-      message: `Additional Scripts 截止日期已过。请尽快完成迁移以避免追踪中断。`,
+      message: `Additional Scripts 预计已进入只读窗口期（${windowLabel}）${windowDisclaimer}。请尽快完成迁移以避免追踪中断。`,
       actions: [
         "立即配置 Web Pixel",
         "验证追踪是否正常工作",
@@ -384,7 +422,7 @@ export function getUpgradeStatusMessage(
       isUpgraded: false,
       urgency: "high",
       title: `紧急：剩余 ${daysRemaining} 天`,
-      message: `您的店铺尚未升级到新版页面。Additional Scripts 将于 ${daysRemaining} 天后变为只读。`,
+      message: `您的店铺尚未升级到新版页面。Additional Scripts 预计约 ${daysRemaining} 天后进入只读窗口期（${windowLabel}）${windowDisclaimer}。`,
       actions: [
         "尽快完成 Web Pixel 配置",
         "测试迁移后的追踪功能",

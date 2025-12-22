@@ -21,7 +21,7 @@ vi.mock("../app/db.server", () => ({
   },
 }));
 
-import prisma from "../app/db.server";
+import prisma from "../../app/db.server";
 
 describe("P0-7: sale_of_data Opt-Out Blocking", () => {
   const mockShop = {

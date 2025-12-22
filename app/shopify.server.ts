@@ -211,45 +211,82 @@ async function cleanupDeprecatedWebhookSubscriptions(
   admin: AdminApiContext,
   shopDomain: string
 ): Promise<void> {
-  const DEPRECATED_TOPICS = [
+  const DEPRECATED_TOPICS = new Set<string>([
     "CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE",
-  ];
+  ]);
 
   try {
-    const response = await admin.graphql(`
-      query GetWebhookSubscriptions {
-        webhookSubscriptions(first: 50) {
-          edges {
-            node {
-              id
-              topic
+    type WebhookEdge = { node: { id: string; topic: string }; cursor: string };
+
+    const deprecatedSubs: Array<{ id: string; topic: string }> = [];
+
+    let cursor: string | null = null;
+    let hasNextPage = true;
+    let pages = 0;
+
+    while (hasNextPage && pages < 10) {
+      const response = await admin.graphql(
+        `
+          query GetWebhookSubscriptions($cursor: String) {
+            webhookSubscriptions(first: 250, after: $cursor) {
+              edges {
+                node {
+                  id
+                  topic
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
             }
           }
+        `,
+        { variables: { cursor } }
+      );
+
+      const data = await response.json();
+
+      if (data.errors) {
+        console.warn(
+          `[Webhooks] Failed to query subscriptions for ${shopDomain}:`,
+          data.errors
+        );
+        return;
+      }
+
+      const edges: WebhookEdge[] = data.data?.webhookSubscriptions?.edges || [];
+      for (const edge of edges) {
+        if (DEPRECATED_TOPICS.has(edge.node.topic)) {
+          deprecatedSubs.push({ id: edge.node.id, topic: edge.node.topic });
         }
       }
-    `);
 
-    const data = await response.json();
-    
-    if (data.errors) {
-      console.warn(`[Webhooks] Failed to query subscriptions for ${shopDomain}:`, data.errors);
-      return;
+      const pageInfo = data.data?.webhookSubscriptions?.pageInfo;
+      hasNextPage = pageInfo?.hasNextPage === true;
+      cursor = pageInfo?.endCursor || null;
+      pages++;
     }
 
-    const subscriptions = data.data?.webhookSubscriptions?.edges || [];
-    const deprecatedSubs = subscriptions.filter((edge: { node: { topic: string } }) => 
-      DEPRECATED_TOPICS.includes(edge.node.topic)
-    );
+    if (pages >= 10 && hasNextPage) {
+      console.warn(
+        `[Webhooks] Pagination limit reached while querying webhook subscriptions for ${shopDomain}. ` +
+          `Some subscriptions may not have been checked.`
+      );
+    }
 
     if (deprecatedSubs.length === 0) {
       return;
     }
 
-    console.log(`[Webhooks] Found ${deprecatedSubs.length} deprecated webhook(s) for ${shopDomain}, cleaning up...`);
+    console.log(
+      `[Webhooks] Found ${deprecatedSubs.length} deprecated webhook(s) for ${shopDomain}, cleaning up...`
+    );
 
     for (const sub of deprecatedSubs) {
-      const subId = sub.node.id;
-      const subTopic = sub.node.topic;
+      const subId = sub.id;
+      const subTopic = sub.topic;
 
       try {
         const deleteResponse = await admin.graphql(`

@@ -34,6 +34,7 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, analyzeScriptContent, type ScriptAnalysisResult } from "../services/scanner.server";
+import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { 
   getScriptTagDeprecationStatus, 
   getAdditionalScriptsDeprecationStatus,
@@ -46,7 +47,7 @@ import {
 import type { ScriptTag, RiskItem } from "../types";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shopDomain = session.shop;
 
   const shop = await prisma.shop.findUnique({
@@ -91,10 +92,40 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     hasOrderStatusScriptTags
   );
 
+  // Refresh upgrade status opportunistically (admin context available in this route).
+  // This keeps UI aligned even if cron hasn't run yet.
+  const sixHoursMs = 6 * 60 * 60 * 1000;
+  const isTypOspStale =
+    !shop.typOspUpdatedAt ||
+    (Date.now() - shop.typOspUpdatedAt.getTime()) > sixHoursMs ||
+    shop.typOspPagesEnabled === null;
+
+  let typOspPagesEnabled = shop.typOspPagesEnabled;
+  let typOspUpdatedAt = shop.typOspUpdatedAt;
+  let typOspUnknownReason: string | undefined;
+  let typOspUnknownError: string | undefined;
+
+  if (admin && isTypOspStale) {
+    try {
+      const typOspResult = await refreshTypOspStatus(admin, shop.id);
+      typOspPagesEnabled = typOspResult.typOspPagesEnabled;
+      typOspUpdatedAt = typOspResult.checkedAt;
+      if (typOspResult.status === "unknown") {
+        typOspUnknownReason = typOspResult.unknownReason;
+        typOspUnknownError = typOspResult.error;
+      }
+    } catch (error) {
+      typOspUnknownReason = "API_ERROR";
+      typOspUnknownError = error instanceof Error ? error.message : "Unknown error";
+    }
+  }
+
   const shopUpgradeStatus: ShopUpgradeStatus = {
     tier: shopTier,
-    typOspPagesEnabled: shop.typOspPagesEnabled,
-    typOspUpdatedAt: shop.typOspUpdatedAt,
+    typOspPagesEnabled,
+    typOspUpdatedAt,
+    typOspUnknownReason,
+    typOspUnknownError,
   };
   const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
 
@@ -116,8 +147,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
     upgradeStatus: {
       ...upgradeStatusMessage,
-      lastUpdated: shop.typOspUpdatedAt?.toISOString() || null,
-      hasOfficialSignal: shop.typOspPagesEnabled !== null,
+      lastUpdated: typOspUpdatedAt?.toISOString() || null,
+      hasOfficialSignal: typOspUpdatedAt !== null,
     },
   });
 };
@@ -269,7 +300,7 @@ export default function ScanPage() {
               )}
               {!upgradeStatus.hasOfficialSignal && (
                 <Text as="p" variant="bodySm" tone="subdued">
-                  提示：此状态基于推测。当 Shopify 发送官方 webhook 后，我们将自动更新此状态。
+                  提示：我们尚未完成一次有效的升级状态检测。请稍后重试、重新授权应用，或等待后台定时任务自动刷新。
                 </Text>
               )}
               {upgradeStatus.lastUpdated && (

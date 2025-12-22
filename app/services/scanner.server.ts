@@ -10,6 +10,7 @@ import {
 } from "../utils/deprecation-dates";
 import { logger } from "../utils/logger";
 import { isOurWebPixel, needsSettingsUpgrade } from "./migration.server";
+import { refreshTypOspStatus } from "./checkout-profile.server";
 
 export interface WebPixelInfo {
   id: string;
@@ -275,6 +276,20 @@ export async function scanShopTracking(
 
   logger.info(`Starting enhanced scan for shop ${shopId}`);
 
+  // Refresh TYP/OSP upgrade status during scan (Admin API context available here).
+  // This avoids relying on deprecated webhooks and keeps UI accurate even before cron runs.
+  try {
+    await refreshTypOspStatus(admin, shopId);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    logger.warn("Failed to refresh TYP/OSP status during scan", { shopId, error: errorMessage });
+    errors.push({
+      stage: "typ_osp_status",
+      message: errorMessage,
+      timestamp: new Date(),
+    });
+  }
+
   try {
     result.scriptTags = await fetchAllScriptTags(admin);
     logger.info(`Found ${result.scriptTags.length} script tags (with pagination)`);
@@ -434,23 +449,25 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     let priority: "high" | "medium" | "low" = "high";
     let adminUrl: string | undefined;
     let deadline: string | undefined;
+    const PLUS_SCRIPT_TAG_OFF_LABEL = "2025年8月起";
+    const NON_PLUS_SCRIPT_TAG_OFF_LABEL = "2026年8月起";
     
       if (plusExecutionStatus.isExpired) {
-      deadlineNote = `⚠️ Plus 商家的 ScriptTag 已于 2025-08-28 停止执行！非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "也已停止执行" : `剩余 ${nonPlusExecutionStatus.daysRemaining} 天`}`;
+      deadlineNote = `⚠️ Plus 商家的 ScriptTag 预计已于 ${PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行！非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "预计也已停止执行" : `约剩余 ${nonPlusExecutionStatus.daysRemaining} 天`}`;
       priority = "high";
-      deadline = "2025-08-28";
+      deadline = "2025年8月";
       } else if (creationStatus.isExpired && isOrderStatusScript) {
-        deadlineNote = `⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 Plus: 2025-08-28 / 非 Plus: 2026-08-26 停止执行。`;
+        deadlineNote = `⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 Plus: ${PLUS_SCRIPT_TAG_OFF_LABEL} / 非 Plus: ${NON_PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行。`;
       priority = "high";
-      deadline = "2025-08-28";
+      deadline = "2025年8月";
     } else if (plusExecutionStatus.isWarning) {
-      deadlineNote = `⏰ Plus 商家: 剩余 ${plusExecutionStatus.daysRemaining} 天后停止执行（2025-08-28）；非 Plus 商家: 剩余 ${nonPlusExecutionStatus.daysRemaining} 天（2026-08-26）`;
+      deadlineNote = `⏰ Plus 商家: 约剩余 ${plusExecutionStatus.daysRemaining} 天后停止执行（${PLUS_SCRIPT_TAG_OFF_LABEL}）；非 Plus 商家: 约剩余 ${nonPlusExecutionStatus.daysRemaining} 天（${NON_PLUS_SCRIPT_TAG_OFF_LABEL}）`;
       priority = "high";
-      deadline = "2025-08-28";
+      deadline = "2025年8月";
     } else {
-      deadlineNote = `📅 执行截止日期 - Plus: 2025-08-28（剩余 ${plusExecutionStatus.daysRemaining} 天）；非 Plus: 2026-08-26（剩余 ${nonPlusExecutionStatus.daysRemaining} 天）`;
+      deadlineNote = `📅 执行窗口期 - Plus: ${PLUS_SCRIPT_TAG_OFF_LABEL}（约剩余 ${plusExecutionStatus.daysRemaining} 天）；非 Plus: ${NON_PLUS_SCRIPT_TAG_OFF_LABEL}（约剩余 ${nonPlusExecutionStatus.daysRemaining} 天）`;
       priority = "medium";
-      deadline = "2026-08-26";
+      deadline = "2026年8月";
     }
     
     actions.push({

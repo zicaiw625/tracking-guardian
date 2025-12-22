@@ -339,47 +339,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       case "CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE":
         logger.warn(
-          `[DEPRECATED WEBHOOK] Received checkout_and_accounts_configurations/update for ${shop}. ` +
-          `This shop may still have a legacy subscription. Will be cleaned up on next auth.`
+          `[LEGACY/DEPRECATED WEBHOOK] Received ${topic} for ${shop}. ` +
+          `Shopify has announced this topic will be removed, and we no longer rely on it to update upgrade status. ` +
+          `If this shop still has a legacy subscription, it will be removed automatically on next auth.`
         );
-        try {
-          const configPayload = payload as {
-            typ_osp_pages_enabled?: boolean;
-            [key: string]: unknown;
-          };
-          
-          const typOspPagesEnabled = configPayload.typ_osp_pages_enabled;
-          
-          if (typOspPagesEnabled !== undefined && shopRecord) {
-            await prisma.shop.update({
-              where: { id: shopRecord.id },
-              data: {
-                typOspPagesEnabled: typOspPagesEnabled,
-                typOspUpdatedAt: new Date(),
-              },
-            });
-            logger.info(
-              `[DEPRECATED WEBHOOK] Updated typ_osp_pages_enabled=${typOspPagesEnabled} for ${shop}`
-            );
-          } else if (!shopRecord) {
-            logger.warn(`Shop record not found for ${shop}, skipping config update`);
-          }
-          
-          if (webhookId) {
-            await updateWebhookStatus(shop, webhookId, topic, "processed");
-          }
-        } catch (configError) {
-          logger.error("Failed to process checkout config update:", configError);
-          if (webhookId) {
-            await updateWebhookStatus(shop, webhookId, topic, "failed");
-          }
+        
+        // IMPORTANT: Do not mutate upgrade status based on this webhook.
+        // Upgrade status is now refreshed via checkoutProfiles + typOspPagesActive (Admin API) and cron.
+        if (webhookId) {
+          await updateWebhookStatus(shop, webhookId, topic, "processed");
         }
         break;
 
       default:
-        logger.warn(`Unexpected webhook topic received: ${topic} from ${shop}. ` +
-          `This may indicate a configuration mismatch between shopify.app.toml and shopify.server.ts`);
-        return new Response(`Unhandled webhook topic: ${topic}`, { status: 404 });
+        logger.warn(
+          `Unexpected webhook topic received: ${topic} from ${shop}. ` +
+          `This may indicate a configuration mismatch or a legacy subscription that was not fully cleaned up. ` +
+          `Responding 200 to prevent Shopify retries.`
+        );
+        if (webhookId) {
+          await updateWebhookStatus(shop, webhookId, topic, "processed");
+        }
+        break;
     }
 
     return new Response("OK", { status: 200 });
