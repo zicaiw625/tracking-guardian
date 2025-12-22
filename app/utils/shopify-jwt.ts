@@ -1,5 +1,5 @@
 import { createHmac } from "crypto";
-import { logger } from "./logger";
+import { logger } from "./logger.server";
 interface ShopifyJwtPayload {
     iss: string;
     dest: string;

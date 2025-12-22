@@ -7,13 +7,13 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { Prisma } from "@prisma/client";
 import { testNotification } from "../services/notification.server";
-import { encryptJson, decryptJson } from "../utils/crypto";
 import { checkTokenExpirationIssues } from "../services/retry.server";
 import { createAuditLog } from "../services/audit.server";
 import { getExistingWebPixels, updateWebPixel } from "../services/migration.server";
 import { generateEncryptedIngestionSecret, isTokenEncrypted } from "../utils/token-encryption";
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
-import { logger } from "../utils/logger";
+import { encryptAlertSettings, decryptAlertSettings, getMaskedAlertSettings, encryptJson } from "../services/alert-settings.server";
+import { logger } from "../utils/logger.server";
 interface AlertSettingsEmail {
     email: string;
 }
@@ -40,50 +40,6 @@ interface PixelConfigDisplay {
     clientSideEnabled: boolean;
     isActive: boolean;
     lastTestedAt?: Date | null;
-}
-function encryptAlertSettings(channel: string, settings: Record<string, unknown>): string | null {
-    const sensitiveSettings: Record<string, unknown> = {};
-    if (channel === "slack" && settings.webhookUrl) {
-        sensitiveSettings.webhookUrl = settings.webhookUrl;
-    }
-    else if (channel === "telegram" && settings.botToken) {
-        sensitiveSettings.botToken = settings.botToken;
-        sensitiveSettings.chatId = settings.chatId;
-    }
-    else if (channel === "email") {
-        sensitiveSettings.email = settings.email;
-    }
-    if (Object.keys(sensitiveSettings).length === 0) {
-        return null;
-    }
-    return encryptJson(sensitiveSettings);
-}
-function decryptAlertSettings(encryptedSettings: string | null): Record<string, unknown> | null {
-    if (!encryptedSettings) {
-        return null;
-    }
-    try {
-        return decryptJson<Record<string, unknown>>(encryptedSettings);
-    }
-    catch (error) {
-        logger.warn("[P0-2] Failed to decrypt alert settings", { error: String(error) });
-        return null;
-    }
-}
-function getMaskedAlertSettings(channel: string, settings: Record<string, unknown> | null): Record<string, unknown> {
-    if (!settings) {
-        return {};
-    }
-    const masked = { ...settings };
-    if (channel === "slack" && masked.webhookUrl) {
-        const url = String(masked.webhookUrl);
-        masked.webhookUrl = url.length > 12 ? `****${url.slice(-8)}` : "****";
-    }
-    if (channel === "telegram" && masked.botToken) {
-        const token = String(masked.botToken);
-        masked.botToken = token.length > 12 ? `${token.slice(0, 8)}****` : "****";
-    }
-    return masked;
 }
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session } = await authenticate.admin(request);

@@ -1,6 +1,6 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 import type { ShopTier } from "../utils/deprecation-dates";
 export interface ShopPlanInfo {
     displayName: string;
@@ -27,9 +27,9 @@ export async function getShopPlan(admin: AdminApiContext): Promise<ShopPlanInfo 
         }
       }
     `);
-        const data = await response.json();
+        const data = await response.json() as { data?: { shop?: { plan?: { shopifyPlus?: boolean; partnerDevelopment?: boolean; displayName?: string } } }; errors?: Array<{ message?: string }> };
         if (data.errors) {
-            logger.warn("GraphQL errors in shop plan query:", data.errors);
+            logger.warn("GraphQL errors in shop plan query:", { errors: data.errors });
             return null;
         }
         const plan = data.data?.shop?.plan;

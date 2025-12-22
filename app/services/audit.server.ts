@@ -1,6 +1,6 @@
 import prisma from "../db.server";
 import { Prisma } from "@prisma/client";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 export type ActorType = "user" | "webhook" | "cron" | "api" | "system";
 export type AuditAction = "token_updated" | "token_deleted" | "pixel_config_created" | "pixel_config_updated" | "pixel_config_deleted" | "alert_config_created" | "alert_config_updated" | "alert_config_deleted" | "threshold_changed" | "shop_settings_updated" | "web_pixel_created" | "web_pixel_updated" | "script_tag_deleted" | "conversion_retry_manual" | "dead_letter_retry" | "ingestion_secret_rotated" | "privacy_settings_updated" | "subscription_created" | "subscription_cancelled" | "subscription_activated" | "data_cleanup_completed" | "security_signature_invalid" | "security_signature_missing" | "security_replay_attack" | "security_rate_limit_exceeded" | "security_invalid_origin" | "security_jwt_validation_failed" | "security_shop_mismatch" | "capi_send_success" | "capi_send_failed" | "capi_retry_scheduled" | "capi_dead_lettered" | "gdpr_customer_redact";
 export type ResourceType = "pixel_config" | "alert_config" | "shop" | "web_pixel" | "script_tag" | "conversion_log" | "billing" | "pixel_event" | "survey" | "api_request" | "customer";

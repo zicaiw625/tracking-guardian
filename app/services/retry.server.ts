@@ -16,8 +16,8 @@ import { getDecryptedCredentials } from "./credentials.server";
 import { sendConversionToGoogle } from "./platforms/google.server";
 import { sendConversionToMeta } from "./platforms/meta.server";
 import { sendConversionToTikTok } from "./platforms/tiktok.server";
-import { generateEventId } from "../utils/crypto";
-import { logger } from "../utils/logger";
+import { generateEventId } from "../utils/crypto.server";
+import { logger } from "../utils/logger.server";
 import type {
   ConversionData,
   GoogleCredentials,

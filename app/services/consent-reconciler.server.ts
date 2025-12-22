@@ -1,5 +1,5 @@
 import prisma from "../db.server";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 import { evaluatePlatformConsentWithStrategy, type ConsentState } from "../utils/platform-consent";
 const CONSENT_TIMEOUT_HOURS = 24;
 const BATCH_SIZE = 100;

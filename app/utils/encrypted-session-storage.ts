@@ -1,7 +1,7 @@
 import type { SessionStorage } from "@shopify/shopify-app-session-storage";
 import type { Session } from "@shopify/shopify-api";
 import { encryptAccessToken, decryptAccessToken, isTokenEncrypted, TokenDecryptionError } from "./token-encryption";
-import { logger } from "./logger";
+import { logger } from "./logger.server";
 export function createEncryptedSessionStorage(baseStorage: SessionStorage): SessionStorage {
     return {
         async storeSession(session: Session): Promise<boolean> {

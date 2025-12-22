@@ -1,5 +1,5 @@
 import prisma from "../db.server";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 import { createAuditLog } from "./audit.server";
 export type GDPRJobType = "data_request" | "customer_redact" | "shop_redact";
 interface DataRequestPayload {

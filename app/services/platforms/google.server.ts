@@ -1,5 +1,5 @@
 import type { ConversionData, GoogleCredentials, ConversionApiResponse } from "../../types";
-import { logger } from "../../utils/logger";
+import { logger } from "../../utils/logger.server";
 const API_TIMEOUT_MS = 30000;
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
     const controller = new AbortController();
@@ -81,16 +81,7 @@ export function generateGooglePixelCode(config: {
         return "";
     }
     const hasGoogleAds = config.conversionId && config.conversionLabel;
-    return `                                                               
-   
-           
-                               
-                     
-              
-                         
-  
-                                                                   
-
+    return `
 const GA4_MEASUREMENT_ID = "${config.measurementId}";
 ${hasGoogleAds ? `const GOOGLE_ADS_ID = "${config.conversionId}";
 const GOOGLE_ADS_LABEL = "${config.conversionLabel}";` : "// Google Ads 转化跟踪未配置"}

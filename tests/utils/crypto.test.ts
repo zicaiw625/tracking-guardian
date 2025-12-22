@@ -13,7 +13,7 @@ import {
   generateMatchKey,
   matchKeysEqual,
   generateDeduplicationFingerprint,
-} from "../../app/utils/crypto";
+} from "../../app/utils/crypto.server";
 
 describe("Crypto Utils", () => {
   describe("encrypt/decrypt", () => {

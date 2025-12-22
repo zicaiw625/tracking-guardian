@@ -1,6 +1,6 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 export interface CheckoutProfileInfo {
     isExtensible: boolean;
     profileId: string | null;
@@ -40,9 +40,20 @@ export async function getTypOspActive(admin: AdminApiContext): Promise<TypOspSta
         }
       }
     `);
-        const data = await response.json();
+        const data = await response.json() as { 
+            data?: { 
+                checkoutProfiles?: { 
+                    nodes?: Array<{ id: string; name?: string; isPublished?: boolean; typOspPagesActive?: boolean | null }> 
+                }; 
+                shop?: { 
+                    checkoutApiSupported?: boolean; 
+                    plan?: { shopifyPlus?: boolean } 
+                } 
+            }; 
+            errors?: Array<{ message?: string }> 
+        };
         if (data.errors) {
-            logger.warn("GraphQL errors in checkoutProfiles query:", data.errors);
+            logger.warn("GraphQL errors in checkoutProfiles query:", { errors: data.errors });
             const errorMessages = data.errors.map((e: {
                 message?: string;
             }) => e.message || "").join(" ");
@@ -109,17 +120,12 @@ export async function getTypOspActive(admin: AdminApiContext): Promise<TypOspSta
                 error: "No checkout profiles returned",
             };
         }
-        const profileInfos: CheckoutProfileInfo[] = profiles.map((node: {
-            id: string;
-            name: string;
-            isPublished: boolean;
-            typOspPagesActive?: boolean;
-        }) => {
+        const profileInfos: CheckoutProfileInfo[] = profiles.map((node) => {
             const isPublished = node.isPublished === true;
             const typOspPagesActive = node.typOspPagesActive ?? null;
             return {
                 profileId: node.id,
-                name: node.name,
+                name: node.name || "",
                 isPublished,
                 typOspPagesActive,
                 isExtensible: isPublished && typOspPagesActive === true,
@@ -127,9 +133,7 @@ export async function getTypOspActive(admin: AdminApiContext): Promise<TypOspSta
         });
         const publishedProfiles = profileInfos.filter((p) => p.isPublished);
         const typOspPagesEnabled = publishedProfiles.some((p) => p.typOspPagesActive === true);
-        const hasTypOspField = profiles.some((node: {
-            typOspPagesActive?: boolean;
-        }) => "typOspPagesActive" in node);
+        const hasTypOspField = profiles.some((node) => "typOspPagesActive" in node);
         if (!hasTypOspField) {
             logger.warn("typOspPagesActive field not in response; reporting unknown with FIELD_NOT_AVAILABLE");
             return {
@@ -182,9 +186,9 @@ export async function getTypOspStatusFromShopFeatures(admin: AdminApiContext): P
         }
       }
     `);
-        const data = await response.json();
+        const data = await response.json() as { data?: { shop?: { checkoutApiSupported?: boolean; plan?: { shopifyPlus?: boolean } } }; errors?: Array<{ message?: string }> };
         if (data.errors) {
-            logger.warn("GraphQL errors in shop features query:", data.errors);
+            logger.warn("GraphQL errors in shop features query:", { errors: data.errors });
             return {
                 status: "unknown",
                 typOspPagesEnabled: null,

@@ -5,7 +5,7 @@ import {
   getValidatedCredentials,
   type PixelConfigForCredentials,
 } from "../../app/services/credentials.server";
-import { encryptJson } from "../../app/utils/crypto";
+import { encryptJson } from "../../app/utils/crypto.server";
 import type { GoogleCredentials, MetaCredentials, TikTokCredentials } from "../../app/types";
 
 describe("Credentials Service", () => {

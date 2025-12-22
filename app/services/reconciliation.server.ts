@@ -1,7 +1,8 @@
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
+import { apiVersion } from "../shopify.server";
 import type { AlertChannel, AlertSettings } from "../types";
 export interface ReconciliationResult {
     shopId: string;
@@ -85,7 +86,7 @@ async function getShopifyOrderStats(shopDomain: string, accessToken: string | nu
         } | null;
         errors?: unknown[];
     }> {
-        const response = await fetch(`https://${shopDomain}/admin/api/2025-07/graphql.json`, {
+        const response = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/graphql.json`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

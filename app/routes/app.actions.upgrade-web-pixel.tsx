@@ -3,23 +3,24 @@
  * 
  * POST /app/actions/upgrade-web-pixel
  * 
- * Upgrades a WebPixel's settings to the latest schema version.
+ * Upgrades WebPixel settings to the latest schema version.
  * Handles migration from ingestion_secret to ingestion_key and adds missing fields.
  * 
- * P1-02: WebPixel settings schema upgrade action
+ * P1-02: WebPixel settings schema version upgrade strategy
  */
 
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 import { 
-    upgradeWebPixelSettings, 
     getExistingWebPixels, 
     isOurWebPixel, 
-    needsSettingsUpgrade 
+    needsSettingsUpgrade, 
+    upgradeWebPixelSettings 
 } from "../services/migration.server";
-import { getShopWithDecryptedFields } from "../utils/shop-access";
-import { logger } from "../utils/logger";
+import { decryptIngestionSecret } from "../utils/token-encryption";
+import { logger } from "../utils/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     const { admin, session } = await authenticate.admin(request);
@@ -29,161 +30,144 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     try {
-        const formData = await request.formData();
-        const webPixelGid = formData.get("webPixelGid") as string;
+        const shopDomain = session.shop;
+        
+        // Get shop record with ingestion secret
+        const shop = await prisma.shop.findUnique({
+            where: { shopDomain },
+            select: {
+                id: true,
+                shopDomain: true,
+                ingestionSecret: true,
+            },
+        });
 
-        // Get shop data with decrypted ingestion key
-        const shop = await getShopWithDecryptedFields(session.shop);
         if (!shop) {
             return json({
                 success: false,
-                error: "店铺信息未找到",
+                error: "店铺未找到",
             }, { status: 404 });
         }
 
-        // Get backend URL
-        const backendUrl = process.env.SHOPIFY_APP_URL || "https://tracking-guardian.onrender.com";
+        // Decrypt ingestion key
+        let ingestionKey = "";
+        if (shop.ingestionSecret) {
+            try {
+                ingestionKey = decryptIngestionSecret(shop.ingestionSecret);
+            } catch (error) {
+                logger.warn(`Failed to decrypt ingestion secret for ${shopDomain}`, {
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
 
-        // ingestionSecret is already decrypted by getShopWithDecryptedFields
-        const ingestionKey = shop.ingestionSecret;
         if (!ingestionKey) {
             return json({
                 success: false,
-                error: "店铺未配置 ingestion key",
+                error: "无法获取 ingestion key，请重新安装应用",
             }, { status: 400 });
         }
 
-        // If specific GID provided, upgrade that pixel
-        if (webPixelGid) {
-            // Fetch current settings
-            const webPixels = await getExistingWebPixels(admin);
-            const targetPixel = webPixels.find(p => p.id === webPixelGid);
+        // Get all existing web pixels
+        const webPixels = await getExistingWebPixels(admin);
 
-            if (!targetPixel) {
-                return json({
-                    success: false,
-                    error: "WebPixel 未找到",
-                }, { status: 404 });
-            }
-
-            let currentSettings: unknown = null;
-            if (targetPixel.settings) {
-                try {
-                    currentSettings = JSON.parse(targetPixel.settings);
-                } catch {
-                    return json({
-                        success: false,
-                        error: "无法解析当前 Pixel 配置",
-                    }, { status: 400 });
-                }
-            }
-
-            if (!isOurWebPixel(currentSettings)) {
-                return json({
-                    success: false,
-                    error: "此 WebPixel 不属于 Tracking Guardian",
-                }, { status: 400 });
-            }
-
-            if (!needsSettingsUpgrade(currentSettings)) {
-                return json({
-                    success: true,
-                    message: "Pixel 配置已是最新版本",
-                    alreadyUpToDate: true,
-                });
-            }
-
-            logger.info(`Upgrading WebPixel settings`, {
-                shop: session.shop,
-                webPixelGid,
-            });
-
-            const result = await upgradeWebPixelSettings(
-                admin,
-                webPixelGid,
-                currentSettings,
-                session.shop,
-                ingestionKey,
-                backendUrl
-            );
-
-            if (result.success) {
-                logger.info(`WebPixel settings upgraded successfully`, {
-                    shop: session.shop,
-                    webPixelId: result.webPixelId,
-                });
-                return json({
-                    success: true,
-                    webPixelId: result.webPixelId,
-                    message: "Pixel 配置升级成功",
-                });
-            }
-
+        if (webPixels.length === 0) {
             return json({
                 success: false,
-                error: result.error || "升级失败",
-                userErrors: result.userErrors,
-            }, { status: 400 });
+                error: "未找到 Web Pixel，请先安装 Pixel",
+            }, { status: 404 });
         }
 
-        // No specific GID - find and upgrade all our pixels that need it
-        const webPixels = await getExistingWebPixels(admin);
-        const pixelsToUpgrade: Array<{ id: string; settings: unknown }> = [];
+        // Find our pixels that need upgrade
+        const pixelsToUpgrade: Array<{
+            id: string;
+            settings: unknown;
+        }> = [];
 
         for (const pixel of webPixels) {
             if (!pixel.settings) continue;
-            
+
             try {
-                const settings = JSON.parse(pixel.settings);
-                if (isOurWebPixel(settings, session.shop) && needsSettingsUpgrade(settings)) {
-                    pixelsToUpgrade.push({ id: pixel.id, settings });
+                const settings = typeof pixel.settings === "string"
+                    ? JSON.parse(pixel.settings)
+                    : pixel.settings;
+
+                if (isOurWebPixel(settings, shopDomain) && needsSettingsUpgrade(settings)) {
+                    pixelsToUpgrade.push({
+                        id: pixel.id,
+                        settings,
+                    });
                 }
             } catch {
-                // Skip pixels with invalid settings
+                // Ignore parse errors
             }
         }
 
         if (pixelsToUpgrade.length === 0) {
             return json({
                 success: true,
-                message: "没有需要升级的 Pixel 配置",
-                upgraded: 0,
+                message: "所有 Pixel 配置已是最新版本，无需升级",
+                upgradedCount: 0,
             });
         }
 
-        logger.info(`Upgrading ${pixelsToUpgrade.length} WebPixel(s)`, {
-            shop: session.shop,
-        });
+        logger.info(`Upgrading ${pixelsToUpgrade.length} WebPixel(s) for ${shopDomain}`);
 
-        const results: Array<{ id: string; success: boolean; error?: string }> = [];
+        // Upgrade each pixel
+        const results: Array<{
+            pixelId: string;
+            success: boolean;
+            error?: string;
+        }> = [];
+
+        const backendUrl = process.env.SHOPIFY_APP_URL || "https://tracking-guardian.onrender.com";
 
         for (const pixel of pixelsToUpgrade) {
             const result = await upgradeWebPixelSettings(
                 admin,
                 pixel.id,
                 pixel.settings,
-                session.shop,
+                shopDomain,
                 ingestionKey,
                 backendUrl
             );
 
             results.push({
-                id: pixel.id,
+                pixelId: pixel.id,
                 success: result.success,
                 error: result.error,
             });
+
+            if (result.success) {
+                logger.info(`Successfully upgraded WebPixel ${pixel.id} for ${shopDomain}`);
+            } else {
+                logger.warn(`Failed to upgrade WebPixel ${pixel.id} for ${shopDomain}`, {
+                    error: result.error,
+                    userErrors: result.userErrors,
+                });
+            }
         }
 
         const successCount = results.filter(r => r.success).length;
         const failures = results.filter(r => !r.success);
 
+        if (failures.length === 0) {
+            return json({
+                success: true,
+                message: `成功升级 ${successCount} 个 Pixel 配置`,
+                upgradedCount: successCount,
+            });
+        }
+
         return json({
-            success: failures.length === 0,
-            message: `升级了 ${successCount}/${pixelsToUpgrade.length} 个 Pixel 配置`,
-            upgraded: successCount,
-            total: pixelsToUpgrade.length,
-            failures: failures.length > 0 ? failures : undefined,
-        });
+            success: false,
+            message: `升级了 ${successCount}/${results.length} 个 Pixel 配置`,
+            upgradedCount: successCount,
+            failures: failures.map(f => ({
+                pixelId: f.pixelId,
+                error: f.error,
+            })),
+        }, { status: 207 }); // 207 Multi-Status
 
     } catch (error) {
         logger.error("Upgrade WebPixel action error", error);
@@ -198,4 +182,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export const loader = async () => {
     return json({ error: "Method not allowed" }, { status: 405 });
 };
-

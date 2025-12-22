@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import type { AlertData, AlertConfig, EmailAlertSettings, SlackAlertSettings, TelegramAlertSettings, } from "../types";
-import { decryptJson } from "../utils/crypto";
-import { logger } from "../utils/logger";
+import { decryptJson } from "../utils/crypto.server";
+import { logger } from "../utils/logger.server";
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;

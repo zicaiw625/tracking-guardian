@@ -1,4 +1,4 @@
-import { logger } from "./logger";
+import { logger } from "./logger.server";
 import { SHOPIFY_ALLOWLIST, extractOriginHost as extractOriginHostFromValidation, buildShopAllowedDomains as buildShopAllowedDomainsFromValidation } from "./origin-validation";
 
 // Re-export from origin-validation for backwards compatibility

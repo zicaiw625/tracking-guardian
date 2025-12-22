@@ -5,7 +5,7 @@ interface AdminGraphQL {
 }
 import prisma from "../db.server";
 import { createAuditLog } from "./audit.server";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 import { billingCache } from "../utils/cache";
 export const BILLING_PLANS = {
     free: {

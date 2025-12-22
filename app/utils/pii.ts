@@ -1,5 +1,5 @@
 import type { OrderWebhookPayload } from "../types";
-import { logger } from "./logger";
+import { logger } from "./logger.server";
 export interface ExtractedPII {
     email?: string;
     phone?: string;

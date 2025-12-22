@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 const TRACKING_API_ENABLED = process.env.ENABLE_TRACKING_API === "true";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (!TRACKING_API_ENABLED) {

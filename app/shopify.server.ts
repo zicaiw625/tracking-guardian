@@ -4,7 +4,7 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import prisma from "./db.server";
 import { createEncryptedSessionStorage } from "./utils/encrypted-session-storage";
 import { encryptAccessToken, decryptAccessToken, generateEncryptedIngestionSecret, validateTokenEncryptionConfig } from "./utils/token-encryption";
-import { logger } from "./utils/logger";
+import { logger } from "./utils/logger.server";
 try {
     const encryptionValidation = validateTokenEncryptionConfig();
     if (encryptionValidation.warnings.length > 0) {
@@ -211,7 +211,15 @@ async function cleanupDeprecatedWebhookSubscriptions(admin: AdminApiContext, sho
             }
           }
         `, { variables: { cursor } });
-            const data = await response.json();
+            const data = await response.json() as {
+                data?: {
+                    webhookSubscriptions?: {
+                        edges?: WebhookEdge[];
+                        pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+                    };
+                };
+                errors?: Array<{ message?: string }>;
+            };
             if (data.errors) {
                 logger.warn(`[Webhooks] Failed to query subscriptions for ${shopDomain}`, { errors: data.errors });
                 return;

@@ -1,5 +1,5 @@
 import prisma from "../db.server";
-import { logger } from "./logger";
+import { logger } from "./logger.server";
 const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
 const STALE_LOCK_THRESHOLD_MS = 15 * 60 * 1000;
 interface CronLockResult {

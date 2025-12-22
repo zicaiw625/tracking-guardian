@@ -1,4 +1,4 @@
-import { logger } from "./logger";
+import { logger } from "./logger.server";
 
 export class AppError extends Error {
     public readonly code: string;

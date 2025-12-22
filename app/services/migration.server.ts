@@ -467,9 +467,9 @@ function generateBingPixelCode(_config: {
 }): string {
     return "";
 }
-import { encryptJson, decryptJson } from "../utils/crypto";
+import { encryptJson, decryptJson } from "../utils/crypto.server";
 import type { PlatformCredentials } from "../types";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 export async function migrateCredentialsToEncrypted(): Promise<{
     migrated: number;
     failed: number;

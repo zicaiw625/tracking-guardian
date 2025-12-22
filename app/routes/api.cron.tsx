@@ -9,7 +9,7 @@ import { reconcilePendingConsent } from "../services/consent-reconciler.server";
 import { processGDPRJobs, checkGDPRCompliance } from "../services/gdpr.server";
 import { createAuditLog } from "../services/audit.server";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
-import { logger, createRequestLogger } from "../utils/logger";
+import { logger, createRequestLogger } from "../utils/logger.server";
 import { withCronLock } from "../utils/cron-lock";
 import { refreshTypOspStatusWithOfflineToken } from "../services/checkout-profile.server";
 import { refreshShopTier } from "../services/shop-tier.server";
@@ -368,7 +368,7 @@ async function executeCronTasks(cronLogger: ReturnType<typeof createRequestLogge
     cronLogger.info("Consent reconciliation completed", { ...consentResults });
     cronLogger.info("Processing conversion jobs...");
     const jobResults = await processConversionJobs();
-    cronLogger.info("Conversion jobs completed", jobResults);
+    cronLogger.info("Conversion jobs completed", { ...jobResults });
     cronLogger.info("Processing pending conversions...");
     const pendingResults = await processPendingConversions();
     cronLogger.info("Pending conversions completed", pendingResults);

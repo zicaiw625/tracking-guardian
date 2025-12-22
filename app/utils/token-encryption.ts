@@ -8,8 +8,8 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
-import { getEncryptionKey, validateEncryptionConfig } from "./crypto";
-import { logger } from "./logger";
+import { getEncryptionKey, validateEncryptionConfig } from "./crypto.server";
+import { logger } from "./logger.server";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;

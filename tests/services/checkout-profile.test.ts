@@ -300,7 +300,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
     it("RATE_LIMIT - API 限流", () => {
       const response: GraphQLResponse = {
         errors: [
-          { message: "Throttled: Too many requests" },
+          { message: "rate limit exceeded, throttle request" },
         ],
       };
 

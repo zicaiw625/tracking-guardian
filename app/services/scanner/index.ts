@@ -16,7 +16,7 @@ import { assessRisks, calculateRiskScore } from "./risk-assessment";
 import { generateMigrationActions } from "./migration-actions";
 import { analyzeScriptContent } from "./content-analysis";
 import { refreshTypOspStatus } from "../checkout-profile.server";
-import { logger } from "../../utils/logger";
+import { logger } from "../../utils/logger.server";
 
 // Re-export types
 export type { 

@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
-import { generateEventId, generateMatchKey } from "../utils/crypto";
+import { generateEventId, generateMatchKey } from "../utils/crypto.server";
 import { checkRateLimitAsync, createRateLimitResponse, trackAnomaly } from "../utils/rate-limiter";
 import { checkCircuitBreaker } from "../utils/circuit-breaker";
 import { getShopForVerification, timingSafeEquals } from "../utils/shop-access";
@@ -8,7 +8,7 @@ import { isMarketingPlatform, isAnalyticsPlatform } from "../utils/platform-cons
 import { isDevMode, validatePixelOriginPreBody, validatePixelOriginForShop, buildShopAllowedDomains, extractOriginHost, } from "../utils/origin-validation";
 import { getPixelEventsCorsHeaders, getPixelEventsCorsHeadersForShop, jsonWithCors as jsonWithCorsBase, } from "../utils/cors";
 import { type TrustLevel } from "../utils/receipt-trust";
-import { logger, metrics } from "../utils/logger";
+import { logger, metrics } from "../utils/logger.server";
 import { 
     API_CONFIG, 
     RATE_LIMIT_CONFIG as RATE_LIMITS, 

@@ -1,4 +1,4 @@
-import { logger } from "./logger";
+import { logger } from "./logger.server";
 export const SHOPIFY_ALLOWLIST = [
     "checkout.shopify.com",
     "shopify.com",

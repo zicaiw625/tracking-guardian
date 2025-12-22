@@ -27,7 +27,7 @@ vi.mock("../../app/db.server", () => ({
 }));
 
 import prisma from "../../app/db.server";
-import { generateEventId, normalizeOrderId } from "../../app/utils/crypto";
+import { generateEventId, normalizeOrderId } from "../../app/utils/crypto.server";
 
 describe("P0-02: PII Null Regression Tests", () => {
   beforeEach(() => {

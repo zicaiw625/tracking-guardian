@@ -11,8 +11,8 @@ import { getDecryptedCredentials } from "./credentials.server";
 import { sendConversionToGoogle } from "./platforms/google.server";
 import { sendConversionToMeta } from "./platforms/meta.server";
 import { sendConversionToTikTok } from "./platforms/tiktok.server";
-import { generateEventId, matchKeysEqual } from "../utils/crypto";
-import { logger } from "../utils/logger";
+import { generateEventId, matchKeysEqual } from "../utils/crypto.server";
+import { logger } from "../utils/logger.server";
 import {
   evaluatePlatformConsentWithStrategy,
   getEffectiveConsentCategory,
@@ -598,14 +598,14 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
             completedAt: now,
             platformResults,
             errorMessage: null,
-            trustMetadata,
-            consentEvidence: {
+            trustMetadata: trustMetadata as object,
+            consentEvidence: JSON.parse(JSON.stringify({
               strategy,
               hasReceipt: !!receipt,
               receiptTrusted: trustResult.trusted,
               trustLevel: trustResult.level,
               consentState: consentState || null,
-            },
+            })),
           },
         });
         await incrementMonthlyUsage(job.shopId, job.orderId);

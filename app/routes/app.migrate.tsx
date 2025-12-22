@@ -9,7 +9,7 @@ import prisma from "../db.server";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade, } from "../services/migration.server";
 import { decryptIngestionSecret, isTokenEncrypted, encryptIngestionSecret } from "../utils/token-encryption";
 import { randomBytes } from "crypto";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 function generateIngestionSecret(): string {
     return randomBytes(32).toString("hex");
 }

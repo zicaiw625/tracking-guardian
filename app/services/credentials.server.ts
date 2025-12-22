@@ -5,8 +5,8 @@
  * Handles both modern encrypted credentials and legacy plaintext credentials.
  */
 
-import { decryptJson } from "../utils/crypto";
-import { logger } from "../utils/logger";
+import { decryptJson } from "../utils/crypto.server";
+import { logger } from "../utils/logger.server";
 import type { PlatformCredentials } from "../types";
 
 /**

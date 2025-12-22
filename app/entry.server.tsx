@@ -6,7 +6,7 @@ import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets";
 import { validateConfig, logConfigStatus } from "./utils/config";
-import { logger } from "./utils/logger";
+import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, validateSecurityHeaders, } from "./utils/security-headers";
 const ABORT_DELAY = 5000;
 let secretsValidated = false;

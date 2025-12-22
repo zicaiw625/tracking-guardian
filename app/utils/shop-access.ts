@@ -1,7 +1,7 @@
 import { timingSafeEqual, createHash } from "crypto";
 import prisma from "../db.server";
 import { decryptAccessToken, decryptIngestionSecret, TokenDecryptionError } from "./token-encryption";
-import { logger } from "./logger";
+import { logger } from "./logger.server";
 import type { Shop, PixelConfig, AlertConfig } from "@prisma/client";
 export function timingSafeEquals(a: string, b: string): boolean {
     const hashA = createHash("sha256").update(a).digest();
@@ -85,6 +85,8 @@ export interface ShopVerificationData {
     ingestionSecret: string | null;
     previousIngestionSecret: string | null;
     previousSecretExpiry: Date | null;
+    primaryDomain: string | null;
+    storefrontDomains: string[];
 }
 export async function getShopForVerification(shopDomain: string): Promise<ShopVerificationData | null> {
     const shop = await prisma.shop.findUnique({
@@ -96,6 +98,8 @@ export async function getShopForVerification(shopDomain: string): Promise<ShopVe
             ingestionSecret: true,
             previousIngestionSecret: true,
             previousSecretExpiry: true,
+            primaryDomain: true,
+            storefrontDomains: true,
         },
     });
     if (!shop) {
@@ -117,6 +121,8 @@ export async function getShopForVerification(shopDomain: string): Promise<ShopVe
         ingestionSecret: currentSecret,
         previousIngestionSecret: previousSecret,
         previousSecretExpiry: shop.previousSecretExpiry,
+        primaryDomain: shop.primaryDomain,
+        storefrontDomains: shop.storefrontDomains,
     };
 }
 export function verifyWithGraceWindow(shop: ShopVerificationData, verifyFn: (secret: string) => boolean): {

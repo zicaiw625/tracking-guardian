@@ -1,6 +1,6 @@
 import type { ConversionData, TikTokCredentials, ConversionApiResponse } from "../../types";
-import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto";
-import { logger } from "../../utils/logger";
+import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto.server";
+import { logger } from "../../utils/logger.server";
 const TIKTOK_API_TIMEOUT_MS = 30000;
 interface TikTokUserData {
     email?: string;

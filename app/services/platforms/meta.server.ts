@@ -1,7 +1,7 @@
 import type { ConversionData, MetaCredentials, ConversionApiResponse } from "../../types";
-import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto";
+import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto.server";
 import { classifyHttpError, classifyJsError, parseMetaError, type PlatformError, } from "./base.server";
-import { logger } from "../../utils/logger";
+import { logger } from "../../utils/logger.server";
 const META_API_VERSION = "v21.0";
 const META_API_TIMEOUT_MS = 30000;
 interface MetaUserData {
@@ -209,19 +209,9 @@ export function generateMetaPixelCode(config: {
     if (!config.pixelId) {
         return "";
     }
-    return `                                                                  
-   
-           
-                               
-                     
-              
-                                      
-  
-                                                                      
-
+    return `
 const META_PIXEL_ID = "${config.pixelId}";
 
-                    
 !function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};

@@ -12,7 +12,7 @@
  * In production, consider using a dedicated APM service.
  */
 
-import { logger } from "./logger";
+import { logger } from "./logger.server";
 
 // Metric types
 type MetricType = "counter" | "gauge" | "histogram";

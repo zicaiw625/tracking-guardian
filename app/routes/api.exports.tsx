@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 type ExportType = "conversions" | "audit" | "receipts" | "jobs";
 type ExportFormat = "csv" | "json";
 const EXPORT_LIMITS = {

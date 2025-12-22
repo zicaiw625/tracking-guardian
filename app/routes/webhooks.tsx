@@ -1,9 +1,9 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { generateEventId, normalizeOrderId } from "../utils/crypto";
+import { generateEventId, normalizeOrderId } from "../utils/crypto.server";
 import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "../services/billing.server";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/logger.server";
 import { parseOrderWebhookPayload, parseGDPRDataRequestPayload, parseGDPRCustomerRedactPayload, parseGDPRShopRedactPayload } from "../utils/webhook-validation";
 import type { OrderWebhookPayload, PixelConfigData, } from "../types";
 import type { Shop, PixelConfig } from "@prisma/client";
@@ -260,7 +260,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         data: {
                             shopDomain: shop,
                             jobType: "data_request",
-                            payload: dataRequestPayload,
+                            payload: JSON.parse(JSON.stringify(dataRequestPayload)),
                             status: "queued",
                         },
                     });
@@ -282,7 +282,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         data: {
                             shopDomain: shop,
                             jobType: "customer_redact",
-                            payload: customerRedactPayload,
+                            payload: JSON.parse(JSON.stringify(customerRedactPayload)),
                             status: "queued",
                         },
                     });
@@ -304,7 +304,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         data: {
                             shopDomain: shop,
                             jobType: "shop_redact",
-                            payload: shopRedactPayload,
+                            payload: JSON.parse(JSON.stringify(shopRedactPayload)),
                             status: "queued",
                         },
                     });
