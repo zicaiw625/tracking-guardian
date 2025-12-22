@@ -2,11 +2,14 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
 import type { ScanResult, RiskItem, ScriptTag, CheckoutConfig, RiskSeverity } from "../types";
 import { 
+  getScriptTagCreationStatus,
+  getScriptTagExecutionStatus,
   getScriptTagDeprecationStatus, 
   getAdditionalScriptsDeprecationStatus,
   type ShopTier 
 } from "../utils/deprecation-dates";
 import { logger } from "../utils/logger";
+import { isOurWebPixel, needsSettingsUpgrade } from "./migration.server";
 
 export interface WebPixelInfo {
   id: string;
@@ -406,9 +409,12 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{ platform: st
 function generateMigrationActions(result: EnhancedScanResult): MigrationAction[] {
   const actions: MigrationAction[] = [];
   
-  const scriptTagStatus = getScriptTagDeprecationStatus();
-  const plusStatus = getAdditionalScriptsDeprecationStatus("plus");
-  const nonPlusStatus = getAdditionalScriptsDeprecationStatus("non_plus");
+  // P0-4: Use separate creation and execution status
+  const creationStatus = getScriptTagCreationStatus();
+  const plusExecutionStatus = getScriptTagExecutionStatus("plus");
+  const nonPlusExecutionStatus = getScriptTagExecutionStatus("non_plus");
+  const plusAdditionalStatus = getAdditionalScriptsDeprecationStatus("plus");
+  const nonPlusAdditionalStatus = getAdditionalScriptsDeprecationStatus("non_plus");
 
   for (const tag of result.scriptTags) {
     let platform = "unknown";
@@ -427,26 +433,38 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     
     let deadlineNote: string;
     let priority: "high" | "medium" | "low" = "high";
+    let adminUrl: string | undefined;
+    let deadline: string | undefined;
     
-    if (scriptTagStatus.isExpired && isOrderStatusScript) {
-      deadlineNote = "⚠️ ScriptTag 在订单状态页的功能已被禁用，请立即迁移！";
+    // P0-4: Clear distinction between creation blocked vs execution off
+    if (plusExecutionStatus.isExpired) {
+      // Plus execution already off
+      deadlineNote = `⚠️ Plus 商家的 ScriptTag 已于 2025-08-28 停止执行！非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "也已停止执行" : `剩余 ${nonPlusExecutionStatus.daysRemaining} 天`}`;
       priority = "high";
-    } else if (plusStatus.isExpired) {
-      deadlineNote = `Plus 商家: 已过期；非 Plus 商家: ${nonPlusStatus.isExpired ? "已过期" : `剩余 ${nonPlusStatus.daysRemaining} 天`}`;
+      deadline = "2025-08-28";
+    } else if (creationStatus.isExpired && isOrderStatusScript) {
+      // Creation blocked but execution still works
+      deadlineNote = `⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 Plus: 2025-08-28 / 非 Plus: 2026-08-26 停止执行。`;
       priority = "high";
+      deadline = "2025-08-28";
+    } else if (plusExecutionStatus.isWarning) {
+      deadlineNote = `⏰ Plus 商家: 剩余 ${plusExecutionStatus.daysRemaining} 天后停止执行（2025-08-28）；非 Plus 商家: 剩余 ${nonPlusExecutionStatus.daysRemaining} 天（2026-08-26）`;
+      priority = "high";
+      deadline = "2025-08-28";
     } else {
-      deadlineNote = `Plus 商家: 剩余 ${plusStatus.daysRemaining} 天（2025-08-28）；非 Plus 商家: 剩余 ${nonPlusStatus.daysRemaining} 天（2026-08-26）`;
-      priority = plusStatus.isWarning ? "high" : "medium";
+      deadlineNote = `📅 执行截止日期 - Plus: 2025-08-28（剩余 ${plusExecutionStatus.daysRemaining} 天）；非 Plus: 2026-08-26（剩余 ${nonPlusExecutionStatus.daysRemaining} 天）`;
+      priority = "medium";
+      deadline = "2026-08-26";
     }
     
     actions.push({
       type: "delete_script_tag",
       priority,
       platform,
-      title: `删除 ScriptTag: ${platform}`,
-      description: `${deadlineNote}。请先配置 Web Pixel，然后删除此 ScriptTag。`,
+      title: `迁移 ScriptTag: ${platform}`,
+      description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 配置 CAPI 凭证  3) 测试追踪  4) 删除此 ScriptTag`,
       scriptTagId: tag.id,
-      deadline: isOrderStatusScript ? "2026-08-26" : undefined,
+      deadline,
     });
   }
 
@@ -497,16 +515,36 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     });
   }
 
+  // P0-1: Use unified pixel identification
   const hasAppPixelConfigured = result.webPixels.some(p => {
     if (!p.settings) return false;
     try {
       const settings = typeof p.settings === "string" ? JSON.parse(p.settings) : p.settings;
-      const s = settings as Record<string, unknown>;
-      return typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string";
+      return isOurWebPixel(settings);
     } catch {
       return false;
     }
   });
+  
+  // P0-1: Check if any pixel needs settings upgrade
+  const pixelNeedsUpgrade = result.webPixels.some(p => {
+    if (!p.settings) return false;
+    try {
+      const settings = typeof p.settings === "string" ? JSON.parse(p.settings) : p.settings;
+      return isOurWebPixel(settings) && needsSettingsUpgrade(settings);
+    } catch {
+      return false;
+    }
+  });
+  
+  if (pixelNeedsUpgrade) {
+    actions.push({
+      type: "configure_pixel",
+      priority: "medium",
+      title: "升级 App Pixel 配置",
+      description: "检测到旧版 Pixel 配置（缺少 backend_url 或 shop_domain）。请重新启用 App Pixel 以升级到新版配置格式。",
+    });
+  }
   
   if (!hasAppPixelConfigured && result.identifiedPlatforms.length > 0) {
     actions.push({

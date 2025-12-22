@@ -21,9 +21,28 @@ runtime_context = "strict"
   sale_of_data = "enabled"
 
 [settings]
+  # P0-1: Complete settings schema for proper pixel operation
   [[settings.fields]]
     key = "ingestion_key"
     name = "Ingestion Key"
     description = "Store-scoped key for event correlation. Auto-generated during app installation."
     type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "backend_url"
+    name = "Backend URL"
+    description = "HTTPS endpoint for the tracking backend. Auto-configured during installation."
+    type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "shop_domain"
+    name = "Shop Domain"
+    description = "The myshopify.com domain for this store. Auto-configured during installation."
+    type = "single_line_text_field"
+
+  [[settings.fields]]
+    key = "schema_version"
+    name = "Schema Version"
+    description = "Configuration schema version for future upgrades."
+    type = "number_integer"
   

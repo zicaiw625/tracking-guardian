@@ -350,9 +350,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         break;
 
-      // P0-1: Handle checkout and accounts configurations update
-      // This webhook provides the official signal for whether a shop has upgraded
-      // to the new Thank you / Order status pages
+      // P0-2: Handle checkout and accounts configurations update
+      // 
+      // ⚠️ IMPORTANT: This webhook will be REMOVED on 2026-01-01
+      // See: https://shopify.dev/changelog/checkout-and-accounts-configurations-update-webhook-deprecation
+      //
+      // This handler is kept for backwards compatibility during the transition period.
+      // The primary source of truth for TYP/OSP status is now:
+      // - app/services/checkout-profile.server.ts (API-based query)
+      // - Refreshed during scanner runs and cron jobs
+      //
+      // If this webhook is received, we use it as a faster update path,
+      // but the system will work correctly without it.
       case "CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE":
         logger.info(`Checkout configuration update for shop ${shop}`);
         try {

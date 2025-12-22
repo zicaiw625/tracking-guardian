@@ -17,7 +17,7 @@ import {
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { getExistingWebPixels } from "../services/migration.server";
+import { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } from "../services/migration.server";
 
 interface DiagnosticCheck {
   name: string;
@@ -107,24 +107,62 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   try {
     const existingPixels = await getExistingWebPixels(admin);
+    // P0-1: Use unified pixel identification
     const ourPixel = existingPixels.find((p) => {
       try {
         const settings = JSON.parse(p.settings || "{}");
-        return typeof settings.ingestion_key === "string" || 
-               typeof settings.ingestion_secret === "string";
+        return isOurWebPixel(settings, shopDomain);
       } catch {
         return false;
       }
     });
 
-    checks.push({
-      name: "Web Pixel",
-      status: ourPixel ? "pass" : "warning",
-      message: ourPixel ? "Web Pixel 已安装" : "Web Pixel 未安装",
-      details: ourPixel
-        ? `Pixel ID: ${ourPixel.id}`
-        : "请在迁移页面安装 Web Pixel",
-    });
+    // P0-1: Check if settings need upgrade
+    let settingsNeedUpgrade = false;
+    let pixelSettings: Record<string, unknown> = {};
+    if (ourPixel?.settings) {
+      try {
+        pixelSettings = JSON.parse(ourPixel.settings);
+        settingsNeedUpgrade = needsSettingsUpgrade(pixelSettings);
+      } catch {
+        settingsNeedUpgrade = false;
+      }
+    }
+
+    const hasBackendUrl = typeof pixelSettings.backend_url === "string" && pixelSettings.backend_url.length > 0;
+    const hasShopDomain = typeof pixelSettings.shop_domain === "string" && pixelSettings.shop_domain.length > 0;
+    const hasIngestionKey = typeof pixelSettings.ingestion_key === "string" && pixelSettings.ingestion_key.length > 0;
+
+    if (ourPixel) {
+      if (settingsNeedUpgrade) {
+        checks.push({
+          name: "Web Pixel",
+          status: "warning",
+          message: "Web Pixel 已安装（需要升级配置）",
+          details: `Pixel ID: ${ourPixel.id}。检测到旧版配置，请重新启用 Pixel 以升级。` +
+            (!hasBackendUrl ? " 缺少 backend_url。" : "") +
+            (!hasShopDomain ? " 缺少 shop_domain。" : "") +
+            (!hasIngestionKey ? " 使用旧键名 ingestion_secret。" : ""),
+        });
+      } else {
+        checks.push({
+          name: "Web Pixel",
+          status: "pass",
+          message: "Web Pixel 已安装",
+          details: `Pixel ID: ${ourPixel.id}` +
+            (hasBackendUrl ? ` | backend_url: ✓` : "") +
+            (hasShopDomain ? ` | shop_domain: ✓` : "") +
+            (hasIngestionKey ? ` | ingestion_key: ✓` : ""),
+        });
+      }
+    } else {
+      checks.push({
+        name: "Web Pixel",
+        status: "warning",
+        message: "Web Pixel 未安装",
+        details: "请在迁移页面安装 Web Pixel",
+      });
+    }
   } catch (error) {
     checks.push({
       name: "Web Pixel",

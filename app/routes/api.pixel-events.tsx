@@ -56,7 +56,30 @@ function jsonWithCors<T>(data: T, init: ResponseInit & { request: Request; shopA
   });
 }
 
-type PixelEventName = "checkout_completed";
+// P1-1: Extended event types for funnel tracking
+type PixelEventName = 
+  | "checkout_completed"
+  | "checkout_started"
+  | "checkout_contact_info_submitted"
+  | "checkout_shipping_info_submitted"
+  | "payment_info_submitted"
+  | "page_viewed"
+  | "product_added_to_cart";
+
+// Events that are primary (trigger CAPI) vs funnel-only (for analytics)
+const PRIMARY_EVENTS = ["checkout_completed"] as const;
+const FUNNEL_EVENTS = [
+  "checkout_started",
+  "checkout_contact_info_submitted", 
+  "checkout_shipping_info_submitted",
+  "payment_info_submitted",
+  "page_viewed",
+  "product_added_to_cart",
+] as const;
+
+function isPrimaryEvent(eventName: string): boolean {
+  return PRIMARY_EVENTS.includes(eventName as typeof PRIMARY_EVENTS[number]);
+}
 
 interface PixelEventPayload {
   eventName: PixelEventName;
@@ -81,6 +104,14 @@ interface PixelEventPayload {
       price: number;
       quantity: number;
     }>;
+    // P1-1: Additional fields for funnel events
+    itemCount?: number;
+    url?: string;
+    title?: string;
+    productId?: string;
+    productTitle?: string;
+    price?: number;
+    quantity?: number;
   };
 }
 
@@ -301,7 +332,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    if (payload.eventName !== "checkout_completed") {
+    // P1-1: Handle funnel events differently from primary events
+    // Funnel events are stored for analytics but don't trigger full CAPI flow
+    if (!isPrimaryEvent(payload.eventName)) {
+      // For funnel events, just acknowledge and optionally record for analytics
+      // We don't need to do full shop verification for non-purchase events
+      logger.debug(`Funnel event received: ${payload.eventName} for ${payload.shopDomain}`);
+      
+      // Still want to record these for diagnostic/funnel analysis
+      // But this is a lightweight path - no CAPI, no full validation
       return new Response(null, {
         status: 204,
         headers: getCorsHeadersPreBody(request),

@@ -98,14 +98,23 @@ const shopify = shopifyApp({
       }
 
       let primaryDomainHost: string | null = null;
+      let shopTier: "plus" | "non_plus" | "unknown" = "unknown";
+      
       try {
         if (admin) {
+          // P0-3: Query shop info including plan for tier determination
           const shopQuery = await admin.graphql(`
             query {
               shop {
                 primaryDomain {
                   host
                 }
+                plan {
+                  displayName
+                  partnerDevelopment
+                  shopifyPlus
+                }
+                checkoutApiSupported
               }
             }
           `);
@@ -113,12 +122,21 @@ const shopify = shopifyApp({
           const shopData = await shopQuery.json();
           primaryDomainHost = shopData?.data?.shop?.primaryDomain?.host || null;
           
+          // P0-3: Determine shop tier from plan info
+          const plan = shopData?.data?.shop?.plan;
+          if (plan?.shopifyPlus === true) {
+            shopTier = "plus";
+          } else if (plan) {
+            shopTier = "non_plus";
+          }
+          
           if (primaryDomainHost) {
             console.log(`[Shop] Fetched primary domain for ${session.shop}: ${primaryDomainHost}`);
           }
+          console.log(`[Shop] Determined shopTier for ${session.shop}: ${shopTier} (Plus: ${plan?.shopifyPlus}, Dev: ${plan?.partnerDevelopment})`);
         }
       } catch (shopQueryError) {
-        console.warn(`[Shop] Failed to fetch primary domain for ${session.shop}:`, 
+        console.warn(`[Shop] Failed to fetch shop info for ${session.shop}:`, 
           shopQueryError instanceof Error ? shopQueryError.message : shopQueryError
         );
       }
@@ -141,6 +159,8 @@ const shopify = shopifyApp({
           isActive: true,
           uninstalledAt: null,
           ...(primaryDomainHost && { primaryDomain: primaryDomainHost }),
+          // P0-3: Always update shopTier if known
+          ...(shopTier !== "unknown" && { shopTier }),
         },
         create: {
           shopDomain: session.shop,
@@ -148,6 +168,8 @@ const shopify = shopifyApp({
           ingestionSecret: newIngestionSecret.encrypted,
           primaryDomain: primaryDomainHost,
           storefrontDomains: [],
+          // P0-3: Set initial shopTier
+          shopTier,
         },
       });
 

@@ -31,6 +31,8 @@ import prisma from "../db.server";
 import {
   createWebPixel,
   getExistingWebPixels,
+  isOurWebPixel,
+  needsSettingsUpgrade,
 } from "../services/migration.server";
 import { decryptIngestionSecret, isTokenEncrypted, encryptIngestionSecret } from "../utils/token-encryption";
 import { randomBytes } from "crypto";
@@ -64,16 +66,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const existingPixels = await getExistingWebPixels(admin);
 
+  // P0-1: Use unified pixel identification logic
   const ourPixel = existingPixels.find((p) => {
     if (!p.settings) return false;
     try {
       const settings = JSON.parse(p.settings);
-      return typeof settings.ingestion_key === "string" ||
-             typeof settings.ingestion_secret === "string";
+      return isOurWebPixel(settings, shopDomain);
     } catch {
       return false;
     }
   });
+  
+  // P0-1: Check if pixel needs settings upgrade
+  let needsUpgrade = false;
+  if (ourPixel?.settings) {
+    try {
+      const settings = JSON.parse(ourPixel.settings);
+      needsUpgrade = needsSettingsUpgrade(settings);
+    } catch {
+      needsUpgrade = false;
+    }
+  }
 
   const hasCapiConfig = await prisma.pixelConfig.count({
     where: { 
@@ -95,6 +108,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     pixelId: ourPixel?.id,
     hasCapiConfig,
     latestScan,
+    // P0-1: Flag for legacy settings that need upgrade
+    needsSettingsUpgrade: needsUpgrade,
   });
 };
 
@@ -154,12 +169,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     if (!ourPixelId) {
       const existingPixels = await getExistingWebPixels(admin);
+      // P0-1: Use unified pixel identification
       const ourPixel = existingPixels.find((p) => {
         if (!p.settings) return false;
         try {
           const settings = JSON.parse(p.settings);
-          return typeof settings.ingestion_key === "string" ||
-                 typeof settings.ingestion_secret === "string";
+          return isOurWebPixel(settings, shopDomain);
         } catch {
           return false;
         }
@@ -167,12 +182,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ourPixelId = ourPixel?.id ?? null;
     }
 
+    // P0-1: Pass shopDomain to create/update for complete settings
     let result;
     if (ourPixelId) {
       const { updateWebPixel } = await import("../services/migration.server");
-      result = await updateWebPixel(admin, ourPixelId, ingestionSecret);
+      result = await updateWebPixel(admin, ourPixelId, ingestionSecret, shopDomain);
     } else {
-      result = await createWebPixel(admin, ingestionSecret);
+      result = await createWebPixel(admin, ingestionSecret, shopDomain);
     }
 
     if (result.success) {

@@ -174,6 +174,44 @@ export function validatePixelOriginForShop(
   }
 }
 
+/**
+ * P1-3: Expand domain to include www variant
+ * 
+ * For a domain like "example.com", also allow "www.example.com"
+ * For a domain like "www.example.com", also allow "example.com"
+ */
+function expandDomainVariants(domain: string): string[] {
+  const normalized = domain.toLowerCase();
+  const variants: string[] = [normalized];
+  
+  // Don't expand .myshopify.com domains (they don't have www)
+  if (normalized.endsWith(".myshopify.com")) {
+    return variants;
+  }
+  
+  // Don't expand Shopify platform domains
+  for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
+    if (normalized === shopifyDomain || normalized.endsWith(`.${shopifyDomain}`)) {
+      return variants;
+    }
+  }
+  
+  // Add www variant
+  if (normalized.startsWith("www.")) {
+    // www.example.com -> also allow example.com
+    variants.push(normalized.substring(4));
+  } else if (!normalized.includes(".") || normalized.split(".").length === 2) {
+    // example.com -> also allow www.example.com
+    // But don't add www to subdomains like shop.example.com
+    const parts = normalized.split(".");
+    if (parts.length === 2) {
+      variants.push(`www.${normalized}`);
+    }
+  }
+  
+  return variants;
+}
+
 export function buildShopAllowedDomains(options: {
   shopDomain: string;
   primaryDomain?: string | null;
@@ -182,21 +220,31 @@ export function buildShopAllowedDomains(options: {
   const domains = new Set<string>();
   
   if (options.shopDomain) {
-    domains.add(options.shopDomain.toLowerCase());
+    // P1-3: Expand variants for shop domain
+    for (const variant of expandDomainVariants(options.shopDomain)) {
+      domains.add(variant);
+    }
   }
   
   if (options.primaryDomain) {
-    domains.add(options.primaryDomain.toLowerCase());
+    // P1-3: Expand variants for primary domain (the custom domain)
+    for (const variant of expandDomainVariants(options.primaryDomain)) {
+      domains.add(variant);
+    }
   }
   
   if (options.storefrontDomains) {
     for (const domain of options.storefrontDomains) {
       if (domain) {
-        domains.add(domain.toLowerCase());
+        // P1-3: Expand variants for each storefront domain
+        for (const variant of expandDomainVariants(domain)) {
+          domains.add(variant);
+        }
       }
     }
   }
   
+  // Add Shopify platform domains
   for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
     domains.add(shopifyDomain);
   }

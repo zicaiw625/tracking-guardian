@@ -31,9 +31,12 @@ function toNumber(value: string | number | undefined | null, defaultValue = 0): 
 }
 
 register(({ analytics, settings, init, customerPrivacy }: any) => {
+  // P0-1: Read from unified settings schema
   const ingestionKey = settings.ingestion_key as string | undefined;
-  const shopDomain = init.data?.shop?.myshopifyDomain || "";
-  const backendUrl = BACKEND_URL;
+  // Prefer shop_domain from settings (set by app), fallback to init data
+  const shopDomain = (settings.shop_domain as string | undefined) || init.data?.shop?.myshopifyDomain || "";
+  // Prefer backend_url from settings (set by app), fallback to build-time config
+  const backendUrl = (settings.backend_url as string | undefined) || BACKEND_URL;
   
   const isDevMode = (() => {
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
@@ -89,10 +92,26 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     log("Customer privacy object not available, defaulting to no tracking");
   }
 
+  // P1-2: Consent requirements by destination type
+  // - Analytics destinations (GA4 for analytics-only): analyticsProcessingAllowed
+  // - Marketing destinations (Meta, TikTok, Google Ads): marketingAllowed + saleOfDataAllowed
+  //
+  // Our App Pixel sends to a backend that forwards to multiple platforms.
+  // The backend will filter per-platform based on consent state sent with the event.
+  // Here we only send if at least analytics is allowed.
+  
+  function hasAnalyticsConsent(): boolean {
+    return analyticsAllowed === true;
+  }
+  
+  function hasMarketingConsent(): boolean {
+    return marketingAllowed === true && saleOfDataAllowed;
+  }
+  
   function hasAnyConsent(): boolean {
-    const hasMarketing = marketingAllowed === true;
-    const hasAnalytics = analyticsAllowed === true;
-    return hasMarketing && hasAnalytics && saleOfDataAllowed;
+    // For App Pixel: we send if analytics is allowed
+    // Marketing platforms will be filtered server-side based on consent.marketing flag
+    return analyticsAllowed === true;
   }
 
   function createTimeoutSignal(timeoutMs: number): { signal: AbortSignal; cleanup: () => void } {
@@ -109,14 +128,24 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     eventName: string,
     data: Record<string, unknown>
   ): Promise<void> {
-
+    // P1-2: Refined consent check
+    // We send if analytics is allowed (for GA4/analytics purposes)
+    // The backend will filter marketing platforms based on the consent flags we send
     if (!hasAnyConsent()) {
       log(
-        `Skipping ${eventName} - insufficient consent. ` +
-        `marketing=${marketingAllowed}, analytics=${analyticsAllowed}, saleOfData=${saleOfDataAllowed}. ` +
-        `Need (marketing AND analytics) AND saleOfData.`
+        `Skipping ${eventName} - no consent. ` +
+        `analytics=${analyticsAllowed}. Need at least analytics consent.`
       );
       return;
+    }
+    
+    // Log marketing status for debugging
+    if (!hasMarketingConsent()) {
+      log(
+        `${eventName}: Analytics consent only. ` +
+        `Marketing platforms will be filtered server-side. ` +
+        `(marketing=${marketingAllowed}, saleOfData=${saleOfDataAllowed})`
+      );
     }
 
     try {
@@ -172,6 +201,67 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     }
   }
 
+  // P1-1: Subscribe to checkout funnel events for better tracking
+  // These events form a funnel that helps identify where conversions are lost
+  
+  // 1. Checkout Started - user begins checkout
+  analytics.subscribe("checkout_started", (event) => {
+    const checkout = event.data?.checkout as CheckoutData | undefined;
+    if (!checkout) return;
+
+    const checkoutToken = checkout.token;
+    if (!checkoutToken) {
+      log("checkout_started: No checkoutToken, skipping");
+      return;
+    }
+
+    sendToBackend("checkout_started", {
+      checkoutToken,
+      value: toNumber(checkout.totalPrice?.amount),
+      currency: checkout.currencyCode || "USD",
+      itemCount: (checkout.lineItems || []).reduce((sum, item) => sum + (item.quantity || 1), 0),
+    });
+  });
+
+  // 2. Contact Info Submitted - user provided email/phone
+  analytics.subscribe("checkout_contact_info_submitted", (event) => {
+    const checkout = event.data?.checkout as CheckoutData | undefined;
+    if (!checkout) return;
+
+    sendToBackend("checkout_contact_info_submitted", {
+      checkoutToken: checkout.token || null,
+      value: toNumber(checkout.totalPrice?.amount),
+      currency: checkout.currencyCode || "USD",
+    });
+  });
+
+  // 3. Shipping Info Submitted - user provided address
+  analytics.subscribe("checkout_shipping_info_submitted", (event) => {
+    const checkout = event.data?.checkout as CheckoutData | undefined;
+    if (!checkout) return;
+
+    sendToBackend("checkout_shipping_info_submitted", {
+      checkoutToken: checkout.token || null,
+      value: toNumber(checkout.totalPrice?.amount),
+      currency: checkout.currencyCode || "USD",
+    });
+  });
+
+  // 4. Payment Info Submitted - user provided payment
+  analytics.subscribe("payment_info_submitted", (event) => {
+    const checkout = event.data?.checkout as CheckoutData | undefined;
+    if (!checkout) return;
+
+    sendToBackend("payment_info_submitted", {
+      checkoutToken: checkout.token || null,
+      value: toNumber(checkout.totalPrice?.amount),
+      currency: checkout.currencyCode || "USD",
+    });
+  });
+
+  // 5. Checkout Completed - the main conversion event
+  // This is the PRIMARY event for purchase tracking
+  // Even if this fails, orders/paid webhook provides a fallback
   analytics.subscribe("checkout_completed", (event) => {
     const checkout = event.data?.checkout as CheckoutData | undefined;
     if (!checkout) return;
@@ -207,4 +297,48 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
       })),
     });
   });
+
+  // Optional: Page viewed - for broader analytics (analytics-only consent)
+  analytics.subscribe("page_viewed", (event) => {
+    // Only send if analytics is allowed (less restrictive than marketing)
+    if (!analyticsAllowed) return;
+    
+    const pageUrl = event.context?.document?.location?.href || "";
+    const pageTitle = event.context?.document?.title || "";
+    
+    // Skip if marketing not allowed - we only track page views for analytics purposes
+    // and don't need to send to backend for CAPI (which requires marketing consent)
+    if (!marketingAllowed) {
+      log("page_viewed: Marketing not allowed, only logging locally");
+      return;
+    }
+    
+    sendToBackend("page_viewed", {
+      url: pageUrl,
+      title: pageTitle,
+      timestamp: Date.now(),
+    });
+  });
+
+  // Optional: Product added to cart - for funnel tracking
+  analytics.subscribe("product_added_to_cart", (event) => {
+    const cartLine = event.data?.cartLine as {
+      merchandise?: {
+        product?: { id?: string; title?: string };
+        price?: { amount?: string | number };
+      };
+      quantity?: number;
+    } | undefined;
+    
+    if (!cartLine?.merchandise?.product) return;
+
+    sendToBackend("product_added_to_cart", {
+      productId: cartLine.merchandise.product.id || "",
+      productTitle: cartLine.merchandise.product.title || "",
+      price: toNumber(cartLine.merchandise.price?.amount),
+      quantity: cartLine.quantity || 1,
+    });
+  });
+
+  log("Tracking Guardian pixel initialized with extended event subscriptions");
 });

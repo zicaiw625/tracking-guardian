@@ -239,6 +239,112 @@ export function extractMetaError(error: unknown): PlatformError | null {
   return null;
 }
 
-export function generateMetaPixelCode(_config: { pixelId: string }): string {
-  return "";
+/**
+ * P0-6: Generate Custom Pixel (Web Pixel) code template for Meta (Facebook) Pixel
+ * 
+ * This generates code suitable for Shopify's Custom Pixel (manual) configuration.
+ * The code runs in the Web Pixels sandbox and uses the Customer Privacy API.
+ * 
+ * Note: We recommend using our App Pixel (automatic) with server-side CAPI instead.
+ * This template is provided for merchants who prefer manual configuration.
+ */
+export function generateMetaPixelCode(config: { pixelId: string }): string {
+  if (!config.pixelId) {
+    return "";
+  }
+
+  return `// Tracking Guardian - Meta (Facebook) Pixel Custom Pixel Template
+// 
+// 📋 使用说明：
+// 1. 前往 Shopify 后台 → 设置 → 客户事件
+// 2. 点击"添加自定义 Pixel"
+// 3. 粘贴此代码并保存
+// 4. 在 Meta Events Manager 验证事件是否正确接收
+//
+// ⚠️ 推荐：使用 Tracking Guardian App Pixel + 服务端 CAPI 可获得更高的匹配率（15-30%提升）
+
+const META_PIXEL_ID = "${config.pixelId}";
+
+// 加载 Meta Pixel SDK
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+
+// 初始化 Pixel
+fbq('init', META_PIXEL_ID);
+
+// 监听 checkout_completed 事件
+analytics.subscribe('checkout_completed', (event) => {
+  // Customer Privacy API 检查
+  // Meta Pixel 需要 marketing + analytics + saleOfData 同意
+  const analyticsAllowed = customerPrivacy.analyticsProcessingAllowed();
+  const marketingAllowed = customerPrivacy.marketingAllowed();
+  const saleOfDataAllowed = customerPrivacy.saleOfDataAllowed();
+  
+  if (!marketingAllowed || !analyticsAllowed) {
+    console.log('[Tracking Guardian] Meta Pixel: 用户未授权营销/分析追踪，跳过');
+    return;
+  }
+  
+  if (!saleOfDataAllowed) {
+    console.log('[Tracking Guardian] Meta Pixel: 用户不允许数据销售，跳过');
+    return;
+  }
+  
+  const checkout = event.data?.checkout;
+  if (!checkout) return;
+  
+  const orderId = checkout.order?.id || checkout.token;
+  const value = parseFloat(checkout.totalPrice?.amount || 0);
+  const currency = checkout.currencyCode || 'USD';
+  
+  const contents = (checkout.lineItems || []).map(item => ({
+    id: item.variant?.product?.id || item.id,
+    quantity: item.quantity || 1,
+    item_price: parseFloat(item.variant?.price?.amount || 0),
+  }));
+  
+  const numItems = contents.reduce((sum, item) => sum + item.quantity, 0);
+  
+  // Meta Purchase 事件
+  // 使用 eventID 进行去重（与服务端 CAPI 配合使用时很重要）
+  const eventID = orderId + '_purchase_' + Date.now();
+  
+  fbq('track', 'Purchase', {
+    value: value,
+    currency: currency,
+    content_ids: contents.map(c => c.id),
+    contents: contents,
+    content_type: 'product',
+    num_items: numItems,
+    order_id: orderId,
+  }, { eventID: eventID });
+  
+  console.log('[Tracking Guardian] Meta Purchase event sent:', orderId, 'eventID:', eventID);
+});
+
+// 可选：监听其他漏斗事件
+analytics.subscribe('checkout_started', (event) => {
+  const marketingAllowed = customerPrivacy.marketingAllowed();
+  const saleOfDataAllowed = customerPrivacy.saleOfDataAllowed();
+  
+  if (!marketingAllowed || !saleOfDataAllowed) return;
+  
+  const checkout = event.data?.checkout;
+  if (!checkout) return;
+  
+  fbq('track', 'InitiateCheckout', {
+    value: parseFloat(checkout.totalPrice?.amount || 0),
+    currency: checkout.currencyCode || 'USD',
+    num_items: (checkout.lineItems || []).reduce((sum, item) => sum + (item.quantity || 1), 0),
+  });
+});
+
+console.log('[Tracking Guardian] Meta Pixel Custom Pixel initialized');
+`;
 }

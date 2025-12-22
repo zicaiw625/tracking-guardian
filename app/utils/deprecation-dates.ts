@@ -1,7 +1,25 @@
+/**
+ * P0-4: Deprecation Dates Clarification
+ * 
+ * ScriptTag has TWO separate deprecation milestones:
+ * 1. 2025-02-01: CREATION BLOCKED - Cannot create new ScriptTags on TYP/OSP pages
+ * 2. 2025-08-28 (Plus) / 2026-08-26 (Non-Plus): EXECUTION OFF - Existing ScriptTags stop running
+ * 
+ * Additional Scripts also has a deadline:
+ * - 2025-08-28 (Plus) / 2026-08-26 (Non-Plus): Read-only mode (no new scripts)
+ */
 export const DEPRECATION_DATES = {
-  scriptTagBlocked: new Date("2025-02-01"),
+  // ScriptTag creation blocked on TYP/OSP pages
+  scriptTagCreationBlocked: new Date("2025-02-01"),
+  // ScriptTag execution turned off (use tier-specific dates below)
+  // These are the same as Additional Scripts deadlines
+  plusScriptTagExecutionOff: new Date("2025-08-28"),
+  nonPlusScriptTagExecutionOff: new Date("2026-08-26"),
+  // Additional Scripts read-only deadlines
   plusAdditionalScriptsReadOnly: new Date("2025-08-28"),
   nonPlusAdditionalScriptsReadOnly: new Date("2026-08-26"),
+  // Legacy alias for backwards compatibility
+  scriptTagBlocked: new Date("2025-02-01"),
 } as const;
 
 export type ShopTier = "plus" | "non_plus" | "unknown";
@@ -28,8 +46,14 @@ function getDaysRemaining(deadline: Date, now: Date = new Date()): number {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-export function getScriptTagDeprecationStatus(now: Date = new Date()): DeprecationStatus {
-  const deadline = DEPRECATION_DATES.scriptTagBlocked;
+/**
+ * P0-4: ScriptTag Creation Status
+ * 
+ * After 2025-02-01, you CANNOT CREATE new ScriptTags on TYP/OSP pages.
+ * Existing ScriptTags will continue to work until the execution deadline.
+ */
+export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationStatus {
+  const deadline = DEPRECATION_DATES.scriptTagCreationBlocked;
   const daysRemaining = getDaysRemaining(deadline, now);
   
   if (daysRemaining <= 0) {
@@ -38,8 +62,62 @@ export function getScriptTagDeprecationStatus(now: Date = new Date()): Deprecati
       isWarning: false,
       daysRemaining: 0,
       deadline,
-      message: "ScriptTag 在 Thank you / Order status 页面的功能已于 2025 年 2 月 1 日被禁用。请立即迁移到 Web Pixel。",
-      messageBrief: "已禁用（2025-02-01）",
+      message: "自 2025 年 2 月 1 日起，无法在 Thank you / Order status 页面创建新的 ScriptTag。现有的 ScriptTag 仍在运行，但将于稍后的截止日期停止。",
+      messageBrief: "禁止创建（2025-02-01）",
+      tone: "warning", // warning not critical because existing scripts still work
+    };
+  }
+  
+  if (daysRemaining <= 90) {
+    return {
+      isExpired: false,
+      isWarning: true,
+      daysRemaining,
+      deadline,
+      message: `${daysRemaining} 天后（2025-02-01）将无法在 TYP/OSP 页面创建新的 ScriptTag。建议提前规划迁移。`,
+      messageBrief: `${daysRemaining} 天后禁止创建`,
+      tone: "warning",
+    };
+  }
+  
+  return {
+    isExpired: false,
+    isWarning: false,
+    daysRemaining,
+    deadline,
+    message: `2025-02-01 起将无法创建新的 ScriptTag。建议提前迁移到 Web Pixel。`,
+    messageBrief: `2025-02-01 禁止创建`,
+    tone: "info",
+  };
+}
+
+/**
+ * P0-4: ScriptTag Execution Status
+ * 
+ * After the tier-specific deadline, existing ScriptTags will STOP EXECUTING.
+ * - Plus: 2025-08-28
+ * - Non-Plus: 2026-08-26
+ */
+export function getScriptTagExecutionStatus(
+  tier: ShopTier,
+  now: Date = new Date()
+): DeprecationStatus {
+  const deadline = tier === "plus" 
+    ? DEPRECATION_DATES.plusScriptTagExecutionOff
+    : DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
+  
+  const daysRemaining = getDaysRemaining(deadline, now);
+  const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
+  const dateLabel = tier === "plus" ? "2025-08-28" : "2026-08-26";
+  
+  if (daysRemaining <= 0) {
+    return {
+      isExpired: true,
+      isWarning: false,
+      daysRemaining: 0,
+      deadline,
+      message: `${tierLabel}的 ScriptTag 已于 ${dateLabel} 停止执行。请立即迁移到 Web Pixel 以恢复追踪功能。`,
+      messageBrief: `已停止执行（${dateLabel}）`,
       tone: "critical",
     };
   }
@@ -50,8 +128,8 @@ export function getScriptTagDeprecationStatus(now: Date = new Date()): Deprecati
       isWarning: true,
       daysRemaining,
       deadline,
-      message: `ScriptTag 功能将于 ${daysRemaining} 天后（2025-02-01）被禁用。请尽快迁移到 Web Pixel。`,
-      messageBrief: `${daysRemaining} 天后禁用`,
+      message: `${tierLabel}的 ScriptTag 将于 ${daysRemaining} 天后（${dateLabel}）停止执行。请尽快完成迁移！`,
+      messageBrief: `${daysRemaining} 天后停止执行`,
       tone: "warning",
     };
   }
@@ -61,10 +139,21 @@ export function getScriptTagDeprecationStatus(now: Date = new Date()): Deprecati
     isWarning: false,
     daysRemaining,
     deadline,
-    message: `ScriptTag 功能计划于 2025-02-01 被禁用。建议提前迁移到 Web Pixel。`,
-    messageBrief: `2025-02-01 禁用`,
+    message: `${tierLabel}的 ScriptTag 将于 ${dateLabel} 停止执行。建议提前迁移到 Web Pixel。`,
+    messageBrief: `${dateLabel} 停止执行`,
     tone: "info",
   };
+}
+
+/**
+ * P0-4: Combined ScriptTag Deprecation Status (backwards compatible)
+ * 
+ * Returns the MORE URGENT of creation vs execution status.
+ */
+export function getScriptTagDeprecationStatus(now: Date = new Date()): DeprecationStatus {
+  // For backwards compatibility, return creation status
+  // Callers needing execution status should use getScriptTagExecutionStatus directly
+  return getScriptTagCreationStatus(now);
 }
 
 export function getAdditionalScriptsDeprecationStatus(
