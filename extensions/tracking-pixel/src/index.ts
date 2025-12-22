@@ -60,6 +60,7 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     });
   }
 
+  let customerPrivacyStatus: CustomerPrivacyState | null = null;
   let marketingAllowed = false;
   let analyticsAllowed = false;
   let saleOfDataAllowed = true;
