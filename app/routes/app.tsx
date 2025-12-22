@@ -44,4 +44,3 @@ export const headers: HeadersFunction = (headersArgs) => {
 export function ErrorBoundary() {
   return boundary.error(useRouteError());
 }
-

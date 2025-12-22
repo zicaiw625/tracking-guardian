@@ -4,26 +4,6 @@ application_url = "${SHOPIFY_APP_URL}"
 embedded = true
 
 [access_scopes]
-# P1-1: Minimal OAuth scopes with justification
-# Each scope is required for core functionality:
-#
-# - read_orders: Required to reconcile pixel events with actual orders via webhooks
-#   Used in: webhooks.tsx (ORDERS_PAID, ORDERS_UPDATED handlers)
-#
-# - read_script_tags: Required for migration scanner to detect legacy ScriptTag pixels
-#   Used in: services/scanner.server.ts (fetchAllScriptTags function)
-#   Note: Read-only, used for scan reports to help merchants migrate.
-#         We do NOT request write_script_tags - deletion guidance is provided instead.
-#
-# - read_pixels: Required to check existing Web Pixel installations
-#   Used in: services/migration.server.ts (getExistingWebPixels function)
-#
-# - write_pixels: Required to create/update Web Pixel configuration
-#   Used in: services/migration.server.ts (webPixelCreate, webPixelUpdate mutations)
-#
-# - read_customer_events: Required for Web Pixel extension to access checkout events
-#   Used by: extensions/tracking-pixel (checkout_completed event tracking)
-#
 scopes = "read_orders,read_script_tags,read_pixels,write_pixels,read_customer_events"
 
 [auth]
@@ -38,12 +18,6 @@ api_version = "2025-07"
 
 [[webhooks.subscriptions]]
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
-uri = "/webhooks"
-
-# P0-1: Checkout upgrade status webhook
-# Provides typ_osp_pages_enabled field to detect if shop has upgraded to new pages
-[[webhooks.subscriptions]]
-topics = ["checkout_and_accounts_configurations/update"]
 uri = "/webhooks"
 
 [pos]

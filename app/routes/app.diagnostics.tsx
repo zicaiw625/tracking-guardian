@@ -107,7 +107,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   try {
     const existingPixels = await getExistingWebPixels(admin);
-    // P0-1: Use unified pixel identification
     const ourPixel = existingPixels.find((p) => {
       try {
         const settings = JSON.parse(p.settings || "{}");
@@ -117,7 +116,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     });
 
-    // P0-1: Check if settings need upgrade
     let settingsNeedUpgrade = false;
     let pixelSettings: Record<string, unknown> = {};
     if (ourPixel?.settings) {
@@ -572,4 +570,3 @@ export default function DiagnosticsPage() {
     </Page>
   );
 }
-

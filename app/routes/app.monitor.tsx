@@ -502,4 +502,3 @@ export default function MonitorPage() {
     </Page>
   );
 }
-

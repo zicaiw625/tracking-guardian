@@ -500,4 +500,3 @@ export default function Index() {
     </Page>
   );
 }
-

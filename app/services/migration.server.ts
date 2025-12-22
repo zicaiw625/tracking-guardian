@@ -158,15 +158,6 @@ export interface CreateWebPixelResult {
   userErrors?: Array<{ field: string; message: string }>;
 }
 
-/**
- * P0-1: Web Pixel Settings Schema (v1)
- * 
- * Unified settings structure for App Pixel:
- * - ingestion_key: string (required) - for authentication
- * - backend_url: string (required) - https endpoint for /api/pixel-events
- * - shop_domain: string (required) - the myshopify.com domain
- * - schema_version: number (optional) - for future upgrades
- */
 export interface WebPixelSettings {
   ingestion_key: string;
   backend_url: string;
@@ -176,15 +167,11 @@ export interface WebPixelSettings {
 
 export const WEB_PIXEL_SCHEMA_VERSION = 1;
 
-/**
- * Build the standardized Web Pixel settings object
- */
 export function buildWebPixelSettings(
   ingestionKey: string,
   shopDomain: string,
   backendUrl?: string
 ): WebPixelSettings {
-  // Use environment variable or default production URL
   const resolvedBackendUrl = backendUrl || 
     process.env.SHOPIFY_APP_URL || 
     "https://tracking-guardian.onrender.com";
@@ -197,19 +184,14 @@ export function buildWebPixelSettings(
   };
 }
 
-/**
- * P0-1: Check if a Web Pixel belongs to our app
- */
 export function isOurWebPixel(settings: unknown, shopDomain?: string): boolean {
   if (!settings || typeof settings !== "object") return false;
   
   const s = settings as Record<string, unknown>;
   
-  // Must have ingestion_key (or legacy ingestion_secret)
   const hasKey = typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string";
   if (!hasKey) return false;
   
-  // If shopDomain provided, verify it matches
   if (shopDomain && typeof s.shop_domain === "string") {
     return s.shop_domain === shopDomain;
   }
@@ -217,20 +199,15 @@ export function isOurWebPixel(settings: unknown, shopDomain?: string): boolean {
   return true;
 }
 
-/**
- * P0-1: Check if settings need upgrade (legacy format)
- */
 export function needsSettingsUpgrade(settings: unknown): boolean {
   if (!settings || typeof settings !== "object") return false;
   
   const s = settings as Record<string, unknown>;
   
-  // Legacy: has ingestion_secret but no ingestion_key
   if (typeof s.ingestion_secret === "string" && typeof s.ingestion_key !== "string") {
     return true;
   }
   
-  // Legacy: missing backend_url or shop_domain
   if (typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string") {
     if (typeof s.backend_url !== "string" || typeof s.shop_domain !== "string") {
       return true;
@@ -246,7 +223,6 @@ export async function createWebPixel(
   shopDomain?: string,
   backendUrl?: string
 ): Promise<CreateWebPixelResult> {
-  // P0-1: Build complete settings with all required fields
   const pixelSettings = buildWebPixelSettings(
     ingestionSecret || "",
     shopDomain || "",
@@ -256,7 +232,7 @@ export async function createWebPixel(
 
   try {
     const response = await admin.graphql(
-      `#graphql
+      `
       mutation WebPixelCreate($webPixel: WebPixelInput!) {
         webPixelCreate(webPixel: $webPixel) {
           userErrors {
@@ -322,7 +298,6 @@ export async function updateWebPixel(
   shopDomain?: string,
   backendUrl?: string
 ): Promise<CreateWebPixelResult> {
-  // P0-1: Build complete settings with all required fields
   const pixelSettings = buildWebPixelSettings(
     ingestionSecret || "",
     shopDomain || "",
@@ -332,7 +307,7 @@ export async function updateWebPixel(
 
   try {
     const response = await admin.graphql(
-      `#graphql
+      `
       mutation WebPixelUpdate($id: ID!, $webPixel: WebPixelInput!) {
         webPixelUpdate(id: $id, webPixel: $webPixel) {
           userErrors {
@@ -397,7 +372,7 @@ export async function getExistingWebPixels(
 ): Promise<Array<{ id: string; settings: string | null }>> {
   try {
     const response = await admin.graphql(
-      `#graphql
+      `
       query GetWebPixels {
         webPixels(first: 50) {
           edges {

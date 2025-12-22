@@ -1,5 +1,4 @@
 
-
 interface CircuitBreakerState {
   count: number;
   resetTime: number;

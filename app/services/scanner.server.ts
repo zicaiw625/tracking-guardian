@@ -145,7 +145,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
 
   while (hasNextPage) {
     const response = await admin.graphql(
-      `#graphql
+      `
       query GetScriptTags($cursor: String) {
         scriptTags(first: 100, after: $cursor) {
           edges {
@@ -214,7 +214,7 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
 
   while (hasNextPage) {
     const response = await admin.graphql(
-      `#graphql
+      `
       query GetWebPixels($cursor: String) {
         webPixels(first: 50, after: $cursor) {
           edges {
@@ -290,7 +290,7 @@ export async function scanShopTracking(
 
   try {
     const checkoutResponse = await admin.graphql(
-      `#graphql
+      `
       query GetCheckoutConfig {
         shop {
           checkoutApiSupported
@@ -409,8 +409,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{ platform: st
 function generateMigrationActions(result: EnhancedScanResult): MigrationAction[] {
   const actions: MigrationAction[] = [];
   
-  // P0-4: Use separate creation and execution status
-  const creationStatus = getScriptTagCreationStatus();
+    const creationStatus = getScriptTagCreationStatus();
   const plusExecutionStatus = getScriptTagExecutionStatus("plus");
   const nonPlusExecutionStatus = getScriptTagExecutionStatus("non_plus");
   const plusAdditionalStatus = getAdditionalScriptsDeprecationStatus("plus");
@@ -436,15 +435,12 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     let adminUrl: string | undefined;
     let deadline: string | undefined;
     
-    // P0-4: Clear distinction between creation blocked vs execution off
-    if (plusExecutionStatus.isExpired) {
-      // Plus execution already off
+      if (plusExecutionStatus.isExpired) {
       deadlineNote = `⚠️ Plus 商家的 ScriptTag 已于 2025-08-28 停止执行！非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "也已停止执行" : `剩余 ${nonPlusExecutionStatus.daysRemaining} 天`}`;
       priority = "high";
       deadline = "2025-08-28";
-    } else if (creationStatus.isExpired && isOrderStatusScript) {
-      // Creation blocked but execution still works
-      deadlineNote = `⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 Plus: 2025-08-28 / 非 Plus: 2026-08-26 停止执行。`;
+      } else if (creationStatus.isExpired && isOrderStatusScript) {
+        deadlineNote = `⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 Plus: 2025-08-28 / 非 Plus: 2026-08-26 停止执行。`;
       priority = "high";
       deadline = "2025-08-28";
     } else if (plusExecutionStatus.isWarning) {
@@ -515,7 +511,6 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     });
   }
 
-  // P0-1: Use unified pixel identification
   const hasAppPixelConfigured = result.webPixels.some(p => {
     if (!p.settings) return false;
     try {
@@ -526,7 +521,6 @@ function generateMigrationActions(result: EnhancedScanResult): MigrationAction[]
     }
   });
   
-  // P0-1: Check if any pixel needs settings upgrade
   const pixelNeedsUpgrade = result.webPixels.some(p => {
     if (!p.settings) return false;
     try {
@@ -919,4 +913,3 @@ function getPatternType(platform: string, pattern: RegExp): string {
       return "追踪代码";
   }
 }
-

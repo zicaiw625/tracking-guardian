@@ -97,15 +97,6 @@ export async function sendConversionToGoogle(
   }
 }
 
-/**
- * P0-6: Generate Custom Pixel (Web Pixel) code template for Google Analytics 4
- * 
- * This generates code suitable for Shopify's Custom Pixel (manual) configuration.
- * The code runs in the Web Pixels sandbox and uses the Customer Privacy API.
- * 
- * Note: We recommend using our App Pixel (automatic) instead. This template
- * is provided for merchants who prefer manual configuration or need customization.
- */
 export function generateGooglePixelCode(config: {
   measurementId: string;
   conversionId?: string;

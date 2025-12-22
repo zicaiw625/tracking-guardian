@@ -66,7 +66,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const existingPixels = await getExistingWebPixels(admin);
 
-  // P0-1: Use unified pixel identification logic
   const ourPixel = existingPixels.find((p) => {
     if (!p.settings) return false;
     try {
@@ -77,7 +76,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   });
   
-  // P0-1: Check if pixel needs settings upgrade
   let needsUpgrade = false;
   if (ourPixel?.settings) {
     try {
@@ -108,7 +106,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     pixelId: ourPixel?.id,
     hasCapiConfig,
     latestScan,
-    // P0-1: Flag for legacy settings that need upgrade
     needsSettingsUpgrade: needsUpgrade,
   });
 };
@@ -169,7 +166,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     if (!ourPixelId) {
       const existingPixels = await getExistingWebPixels(admin);
-      // P0-1: Use unified pixel identification
       const ourPixel = existingPixels.find((p) => {
         if (!p.settings) return false;
         try {
@@ -182,7 +178,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       ourPixelId = ourPixel?.id ?? null;
     }
 
-    // P0-1: Pass shopDomain to create/update for complete settings
     let result;
     if (ourPixelId) {
       const { updateWebPixel } = await import("../services/migration.server");

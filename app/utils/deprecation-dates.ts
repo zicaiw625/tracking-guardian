@@ -1,33 +1,68 @@
-/**
- * P0-4: Deprecation Dates Clarification
- * 
- * ScriptTag has TWO separate deprecation milestones:
- * 1. 2025-02-01: CREATION BLOCKED - Cannot create new ScriptTags on TYP/OSP pages
- * 2. 2025-08-28 (Plus) / 2026-08-26 (Non-Plus): EXECUTION OFF - Existing ScriptTags stop running
- * 
- * Additional Scripts also has a deadline:
- * - 2025-08-28 (Plus) / 2026-08-26 (Non-Plus): Read-only mode (no new scripts)
- */
 export const DEPRECATION_DATES = {
-  // ScriptTag creation blocked on TYP/OSP pages
   scriptTagCreationBlocked: new Date("2025-02-01"),
-  // ScriptTag execution turned off (use tier-specific dates below)
-  // These are the same as Additional Scripts deadlines
   plusScriptTagExecutionOff: new Date("2025-08-28"),
   nonPlusScriptTagExecutionOff: new Date("2026-08-26"),
-  // Additional Scripts read-only deadlines
   plusAdditionalScriptsReadOnly: new Date("2025-08-28"),
   nonPlusAdditionalScriptsReadOnly: new Date("2026-08-26"),
-  // Legacy alias for backwards compatibility
   scriptTagBlocked: new Date("2025-02-01"),
 } as const;
 
+export type DatePrecision = "exact" | "month" | "quarter";
+
+export interface DateDisplayInfo {
+  date: Date;
+  precision: DatePrecision;
+  displayLabel: string;
+  isEstimate: boolean;
+}
+
+export function getDateDisplayLabel(
+  date: Date,
+  precision: DatePrecision = "month"
+): string {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  
+  switch (precision) {
+    case "exact":
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    case "month":
+      return `${year}年${month}月`;
+    case "quarter":
+      const quarter = Math.ceil(month / 3);
+      return `${year}年第${quarter}季度`;
+    default:
+      return `${year}年${month}月`;
+  }
+}
+
+export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
+  scriptTagCreationBlocked: {
+    date: DEPRECATION_DATES.scriptTagCreationBlocked,
+    precision: "exact",
+    displayLabel: "2025-02-01",
+    isEstimate: false,
+  },
+  plusAdditionalScriptsReadOnly: {
+    date: DEPRECATION_DATES.plusAdditionalScriptsReadOnly,
+    precision: "month",
+    displayLabel: "2025年8月",
+    isEstimate: true,
+  },
+  nonPlusAdditionalScriptsReadOnly: {
+    date: DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly,
+    precision: "month", 
+    displayLabel: "2026年8月",
+    isEstimate: true,
+  },
+};
+
 export type ShopTier = "plus" | "non_plus" | "unknown";
 
-// P0-1: TYP/OSP upgrade status from official webhook
 export interface ShopUpgradeStatus {
   tier: ShopTier;
-  typOspPagesEnabled: boolean | null; // null = unknown (webhook not received yet)
+  typOspPagesEnabled: boolean | null;
   typOspUpdatedAt: Date | null;
 }
 
@@ -46,12 +81,6 @@ function getDaysRemaining(deadline: Date, now: Date = new Date()): number {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-/**
- * P0-4: ScriptTag Creation Status
- * 
- * After 2025-02-01, you CANNOT CREATE new ScriptTags on TYP/OSP pages.
- * Existing ScriptTags will continue to work until the execution deadline.
- */
 export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationStatus {
   const deadline = DEPRECATION_DATES.scriptTagCreationBlocked;
   const daysRemaining = getDaysRemaining(deadline, now);
@@ -64,7 +93,7 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
       deadline,
       message: "自 2025 年 2 月 1 日起，无法在 Thank you / Order status 页面创建新的 ScriptTag。现有的 ScriptTag 仍在运行，但将于稍后的截止日期停止。",
       messageBrief: "禁止创建（2025-02-01）",
-      tone: "warning", // warning not critical because existing scripts still work
+      tone: "warning",
     };
   }
   
@@ -91,13 +120,6 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
   };
 }
 
-/**
- * P0-4: ScriptTag Execution Status
- * 
- * After the tier-specific deadline, existing ScriptTags will STOP EXECUTING.
- * - Plus: 2025-08-28
- * - Non-Plus: 2026-08-26
- */
 export function getScriptTagExecutionStatus(
   tier: ShopTier,
   now: Date = new Date()
@@ -108,7 +130,7 @@ export function getScriptTagExecutionStatus(
   
   const daysRemaining = getDaysRemaining(deadline, now);
   const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
-  const dateLabel = tier === "plus" ? "2025-08-28" : "2026-08-26";
+  const dateLabel = tier === "plus" ? "2025年8月起" : "2026年8月起";
   
   if (daysRemaining <= 0) {
     return {
@@ -116,7 +138,7 @@ export function getScriptTagExecutionStatus(
       isWarning: false,
       daysRemaining: 0,
       deadline,
-      message: `${tierLabel}的 ScriptTag 已于 ${dateLabel} 停止执行。请立即迁移到 Web Pixel 以恢复追踪功能。`,
+      message: `${tierLabel}的 ScriptTag 已于 ${dateLabel}停止执行。请立即迁移到 Web Pixel 以恢复追踪功能。`,
       messageBrief: `已停止执行（${dateLabel}）`,
       tone: "critical",
     };
@@ -128,8 +150,8 @@ export function getScriptTagExecutionStatus(
       isWarning: true,
       daysRemaining,
       deadline,
-      message: `${tierLabel}的 ScriptTag 将于 ${daysRemaining} 天后（${dateLabel}）停止执行。请尽快完成迁移！`,
-      messageBrief: `${daysRemaining} 天后停止执行`,
+      message: `${tierLabel}的 ScriptTag 将于 ${dateLabel}停止执行（约 ${daysRemaining} 天后）。请尽快完成迁移！`,
+      messageBrief: `约 ${daysRemaining} 天后停止执行`,
       tone: "warning",
     };
   }
@@ -139,20 +161,13 @@ export function getScriptTagExecutionStatus(
     isWarning: false,
     daysRemaining,
     deadline,
-    message: `${tierLabel}的 ScriptTag 将于 ${dateLabel} 停止执行。建议提前迁移到 Web Pixel。`,
-    messageBrief: `${dateLabel} 停止执行`,
+    message: `${tierLabel}的 ScriptTag 将于 ${dateLabel}停止执行。建议提前迁移到 Web Pixel。`,
+    messageBrief: `${dateLabel}停止执行`,
     tone: "info",
   };
 }
 
-/**
- * P0-4: Combined ScriptTag Deprecation Status (backwards compatible)
- * 
- * Returns the MORE URGENT of creation vs execution status.
- */
 export function getScriptTagDeprecationStatus(now: Date = new Date()): DeprecationStatus {
-  // For backwards compatibility, return creation status
-  // Callers needing execution status should use getScriptTagExecutionStatus directly
   return getScriptTagCreationStatus(now);
 }
 
@@ -166,7 +181,7 @@ export function getAdditionalScriptsDeprecationStatus(
   
   const daysRemaining = getDaysRemaining(deadline, now);
   const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
-  const dateLabel = tier === "non_plus" ? "2026-08-26" : "2025-08-28";
+  const dateLabel = tier === "non_plus" ? "2026年8月起" : "2025年8月起";
   
   if (daysRemaining <= 0) {
     return {
@@ -174,7 +189,7 @@ export function getAdditionalScriptsDeprecationStatus(
       isWarning: false,
       daysRemaining: 0,
       deadline,
-      message: `${tierLabel}的 Additional Scripts 已于 ${dateLabel} 变为只读。请使用 Web Pixel 或 Checkout UI Extension 进行追踪。`,
+      message: `${tierLabel}的 Additional Scripts 已于 ${dateLabel}变为只读。请使用 Web Pixel 或 Checkout UI Extension 进行追踪。`,
       messageBrief: `已只读（${dateLabel}）`,
       tone: "critical",
     };
@@ -186,8 +201,8 @@ export function getAdditionalScriptsDeprecationStatus(
       isWarning: true,
       daysRemaining,
       deadline,
-      message: `${tierLabel}的 Additional Scripts 将于 ${daysRemaining} 天后（${dateLabel}）变为只读。请尽快迁移。`,
-      messageBrief: `${daysRemaining} 天后只读`,
+      message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel}变为只读（约 ${daysRemaining} 天后）。请尽快迁移。`,
+      messageBrief: `约 ${daysRemaining} 天后只读`,
       tone: "warning",
     };
   }
@@ -197,8 +212,8 @@ export function getAdditionalScriptsDeprecationStatus(
     isWarning: false,
     daysRemaining,
     deadline,
-    message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel} 变为只读。建议提前迁移到 Web Pixel。`,
-    messageBrief: `${dateLabel} 只读`,
+    message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel}变为只读。建议提前迁移到 Web Pixel。`,
+    messageBrief: `${dateLabel}只读`,
     tone: "info",
   };
 }
@@ -276,12 +291,6 @@ export function formatDeadlineForUI(status: DeprecationStatus): {
   };
 }
 
-/**
- * P0-1: Get upgrade status message based on official webhook signal
- * 
- * This uses the typ_osp_pages_enabled field from checkout_and_accounts_configurations/update
- * webhook to provide accurate guidance to merchants.
- */
 export function getUpgradeStatusMessage(
   upgradeStatus: ShopUpgradeStatus,
   hasScriptTags: boolean,
@@ -295,7 +304,6 @@ export function getUpgradeStatusMessage(
 } {
   const { tier, typOspPagesEnabled } = upgradeStatus;
   
-  // If shop has already upgraded to new pages
   if (typOspPagesEnabled === true) {
     return {
       isUpgraded: true,
@@ -308,19 +316,16 @@ export function getUpgradeStatusMessage(
     };
   }
   
-  // Calculate deadline based on tier
   const deadline = tier === "plus" 
     ? DEPRECATION_DATES.plusAdditionalScriptsReadOnly 
     : tier === "non_plus"
     ? DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly
-    : DEPRECATION_DATES.plusAdditionalScriptsReadOnly; // Default to plus deadline for unknown
+    : DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
   
   const daysRemaining = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   const isPlusDeadlinePassed = now >= DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
   
-  // If upgrade status unknown (webhook not received)
   if (typOspPagesEnabled === null || typOspPagesEnabled === undefined) {
-    // For Plus shops after 2025-08-28, this is critical
     if (tier === "plus" && isPlusDeadlinePassed) {
       return {
         isUpgraded: null,
@@ -347,7 +352,6 @@ export function getUpgradeStatusMessage(
     };
   }
   
-  // typOspPagesEnabled === false - shop has NOT upgraded yet
   if (tier === "plus" && isPlusDeadlinePassed) {
     return {
       isUpgraded: false,

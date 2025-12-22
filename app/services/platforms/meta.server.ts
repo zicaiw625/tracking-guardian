@@ -239,15 +239,6 @@ export function extractMetaError(error: unknown): PlatformError | null {
   return null;
 }
 
-/**
- * P0-6: Generate Custom Pixel (Web Pixel) code template for Meta (Facebook) Pixel
- * 
- * This generates code suitable for Shopify's Custom Pixel (manual) configuration.
- * The code runs in the Web Pixels sandbox and uses the Customer Privacy API.
- * 
- * Note: We recommend using our App Pixel (automatic) with server-side CAPI instead.
- * This template is provided for merchants who prefer manual configuration.
- */
 export function generateMetaPixelCode(config: { pixelId: string }): string {
   if (!config.pixelId) {
     return "";

@@ -56,7 +56,6 @@ function jsonWithCors<T>(data: T, init: ResponseInit & { request: Request; shopA
   });
 }
 
-// P1-1: Extended event types for funnel tracking
 type PixelEventName = 
   | "checkout_completed"
   | "checkout_started"
@@ -66,7 +65,6 @@ type PixelEventName =
   | "page_viewed"
   | "product_added_to_cart";
 
-// Events that are primary (trigger CAPI) vs funnel-only (for analytics)
 const PRIMARY_EVENTS = ["checkout_completed"] as const;
 const FUNNEL_EVENTS = [
   "checkout_started",
@@ -104,7 +102,6 @@ interface PixelEventPayload {
       price: number;
       quantity: number;
     }>;
-    // P1-1: Additional fields for funnel events
     itemCount?: number;
     url?: string;
     title?: string;
@@ -332,15 +329,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // P1-1: Handle funnel events differently from primary events
-    // Funnel events are stored for analytics but don't trigger full CAPI flow
     if (!isPrimaryEvent(payload.eventName)) {
-      // For funnel events, just acknowledge and optionally record for analytics
-      // We don't need to do full shop verification for non-purchase events
       logger.debug(`Funnel event received: ${payload.eventName} for ${payload.shopDomain}`);
       
-      // Still want to record these for diagnostic/funnel analysis
-      // But this is a lightweight path - no CAPI, no full validation
       return new Response(null, {
         status: 204,
         headers: getCorsHeadersPreBody(request),
@@ -573,13 +564,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const recordedPlatforms: string[] = [];
     const skippedPlatforms: string[] = [];
     
-    // P0-3: Consent handling aligned with extension declaration
-    // Extension declares: analytics=true, marketing=true (both required to load)
-    // So when pixel fires, we can assume user has consented to both.
-    // We still check individually per platform for defense-in-depth.
-    // 
-    // sale_of_data="enabled" in extension means this involves data sharing,
-    // user can opt out via cookie banner. saleOfData=false means opted out.
     const consent = payload.consent;
     const hasMarketingConsent = consent?.marketing === true;
     const hasAnalyticsConsent = consent?.analytics === true;

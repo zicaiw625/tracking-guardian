@@ -90,4 +90,3 @@ describe("Backend platform filtering with consent", () => {
     expect(shouldRecordForPlatform("google", true, false)).toBe(true);
   });
 });
-

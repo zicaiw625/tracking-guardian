@@ -5,6 +5,7 @@ export interface PlatformConsentConfig {
   name: string;
   dualUse: boolean;
   consentReason: string;
+  requiresSaleOfData: boolean;
 }
 
 export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
@@ -13,48 +14,63 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
     name: "Meta (Facebook/Instagram)",
     dualUse: false,
     consentReason: "用于转化追踪和广告优化",
+    requiresSaleOfData: true,
   },
   tiktok: {
     category: "marketing",
     name: "TikTok",
     dualUse: false,
     consentReason: "用于转化追踪和广告优化",
+    requiresSaleOfData: true,
   },
   bing: {
     category: "marketing",
     name: "Microsoft Ads (Bing)",
     dualUse: false,
     consentReason: "用于转化追踪和广告优化",
+    requiresSaleOfData: true,
   },
   pinterest: {
     category: "marketing",
     name: "Pinterest",
     dualUse: false,
     consentReason: "用于转化追踪和广告优化",
+    requiresSaleOfData: true,
   },
   snapchat: {
     category: "marketing",
     name: "Snapchat",
     dualUse: false,
     consentReason: "用于转化追踪和广告优化",
+    requiresSaleOfData: true,
   },
   twitter: {
     category: "marketing",
     name: "Twitter/X",
     dualUse: false,
     consentReason: "用于转化追踪和广告优化",
+    requiresSaleOfData: true,
+  },
+  google_ads: {
+    category: "marketing",
+    name: "Google Ads",
+    dualUse: false,
+    consentReason: "用于转化追踪和广告优化",
+    requiresSaleOfData: true,
   },
   google: {
     category: "analytics",
     name: "Google Analytics 4 (GA4)",
     dualUse: true,
     consentReason: "用于网站分析和用户行为理解",
+    requiresSaleOfData: false,
   },
   clarity: {
     category: "analytics",
     name: "Microsoft Clarity",
     dualUse: false,
     consentReason: "用于热力图和用户行为分析",
+    requiresSaleOfData: false,
   },
 };
 
@@ -105,11 +121,21 @@ export function evaluatePlatformConsent(
   treatAsMarketing = false
 ): ConsentDecision {
   const config = PLATFORM_CONSENT_CONFIG[platform];
+  const platformName = config?.name || platform;
 
   if (!consentState) {
     return {
       allowed: false,
-      reason: "No consent state available",
+      reason: `No consent state available for ${platformName}`,
+      usedConsent: "none",
+    };
+  }
+
+  const requiresSaleOfData = config?.requiresSaleOfData ?? true;
+  if (requiresSaleOfData && consentState.saleOfDataAllowed === false) {
+    return {
+      allowed: false,
+      reason: `Sale of data opted out for ${platformName}`,
       usedConsent: "none",
     };
   }
@@ -127,14 +153,14 @@ export function evaluatePlatformConsent(
     } else if (consentState.marketing === false) {
       return {
         allowed: false,
-        reason: `Marketing consent denied for ${config?.name || platform}`,
+        reason: `Marketing consent denied for ${platformName}`,
         usedConsent: "marketing",
       };
     }
     
     return {
       allowed: false,
-      reason: `Marketing consent not granted for ${config?.name || platform}`,
+      reason: `Marketing consent not granted for ${platformName}`,
       usedConsent: "marketing",
     };
   } else {
@@ -143,14 +169,14 @@ export function evaluatePlatformConsent(
     } else if (consentState.analytics === false) {
       return {
         allowed: false,
-        reason: `Analytics consent denied for ${config?.name || platform}`,
+        reason: `Analytics consent denied for ${platformName}`,
         usedConsent: "analytics",
       };
     }
     
     return {
       allowed: false,
-      reason: `Analytics consent not granted for ${config?.name || platform}`,
+      reason: `Analytics consent not granted for ${platformName}`,
       usedConsent: "analytics",
     };
   }
@@ -228,4 +254,55 @@ export function getAllowedPlatforms(
   }
   
   return { allowed, blocked, reasons };
+}
+
+export function getPlatformConsentRequirements(platform: string): {
+  category: ConsentCategory;
+  requiresMarketing: boolean;
+  requiresAnalytics: boolean;
+  requiresSaleOfData: boolean;
+  explanation: string;
+} {
+  const config = PLATFORM_CONSENT_CONFIG[platform];
+  
+  if (!config) {
+    return {
+      category: "marketing",
+      requiresMarketing: true,
+      requiresAnalytics: false,
+      requiresSaleOfData: true,
+      explanation: `Unknown platform "${platform}" - defaulting to marketing consent requirements`,
+    };
+  }
+  
+  const requiresMarketing = config.category === "marketing";
+  const requiresAnalytics = config.category === "analytics";
+  
+  let explanation: string;
+  if (requiresMarketing) {
+    explanation = `${config.name}: 需要营销同意（marketingAllowed=true）`;
+    if (config.requiresSaleOfData) {
+      explanation += ` + 数据共享同意（saleOfDataAllowed≠false）`;
+    }
+  } else {
+    explanation = `${config.name}: 需要分析同意（analyticsProcessingAllowed=true）`;
+  }
+  
+  return {
+    category: config.category,
+    requiresMarketing,
+    requiresAnalytics,
+    requiresSaleOfData: config.requiresSaleOfData,
+    explanation,
+  };
+}
+
+export function getAllPlatformConsentRequirements(): Record<string, ReturnType<typeof getPlatformConsentRequirements>> {
+  const result: Record<string, ReturnType<typeof getPlatformConsentRequirements>> = {};
+  
+  for (const platform of Object.keys(PLATFORM_CONSENT_CONFIG)) {
+    result[platform] = getPlatformConsentRequirements(platform);
+  }
+  
+  return result;
 }

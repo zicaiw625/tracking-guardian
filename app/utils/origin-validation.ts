@@ -174,35 +174,23 @@ export function validatePixelOriginForShop(
   }
 }
 
-/**
- * P1-3: Expand domain to include www variant
- * 
- * For a domain like "example.com", also allow "www.example.com"
- * For a domain like "www.example.com", also allow "example.com"
- */
 function expandDomainVariants(domain: string): string[] {
   const normalized = domain.toLowerCase();
   const variants: string[] = [normalized];
   
-  // Don't expand .myshopify.com domains (they don't have www)
   if (normalized.endsWith(".myshopify.com")) {
     return variants;
   }
   
-  // Don't expand Shopify platform domains
   for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
     if (normalized === shopifyDomain || normalized.endsWith(`.${shopifyDomain}`)) {
       return variants;
     }
   }
   
-  // Add www variant
   if (normalized.startsWith("www.")) {
-    // www.example.com -> also allow example.com
     variants.push(normalized.substring(4));
   } else if (!normalized.includes(".") || normalized.split(".").length === 2) {
-    // example.com -> also allow www.example.com
-    // But don't add www to subdomains like shop.example.com
     const parts = normalized.split(".");
     if (parts.length === 2) {
       variants.push(`www.${normalized}`);
@@ -220,14 +208,12 @@ export function buildShopAllowedDomains(options: {
   const domains = new Set<string>();
   
   if (options.shopDomain) {
-    // P1-3: Expand variants for shop domain
     for (const variant of expandDomainVariants(options.shopDomain)) {
       domains.add(variant);
     }
   }
   
   if (options.primaryDomain) {
-    // P1-3: Expand variants for primary domain (the custom domain)
     for (const variant of expandDomainVariants(options.primaryDomain)) {
       domains.add(variant);
     }
@@ -236,7 +222,6 @@ export function buildShopAllowedDomains(options: {
   if (options.storefrontDomains) {
     for (const domain of options.storefrontDomains) {
       if (domain) {
-        // P1-3: Expand variants for each storefront domain
         for (const variant of expandDomainVariants(domain)) {
           domains.add(variant);
         }
@@ -244,7 +229,6 @@ export function buildShopAllowedDomains(options: {
     }
   }
   
-  // Add Shopify platform domains
   for (const shopifyDomain of SHOPIFY_ALLOWLIST) {
     domains.add(shopifyDomain);
   }
@@ -343,7 +327,7 @@ function trackRejectedOrigin(origin: string): void {
     existing.lastSeen = now;
     
     if (existing.count === ALERT_THRESHOLD) {
-      logger.warn(`[P1-06 SECURITY] Repeated requests from non-Shopify origin`, {
+      logger.warn(`[SECURITY] Repeated requests from non-Shopify origin`, {
         origin: sanitizedOrigin,
         count: existing.count,
         windowMinutes: Math.round((now - existing.firstSeen) / 60000),

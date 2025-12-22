@@ -1,16 +1,3 @@
-/**
- * P0-3: Shop Tier Service
- * 
- * Determines and maintains the shop tier (Plus/Non-Plus) which is critical for:
- * - Accurate deprecation deadline calculations
- * - Correct migration urgency messaging
- * - Proper risk assessment
- * 
- * Shop tiers have different deadlines:
- * - Plus: 2025-08-28 (Additional Scripts read-only)
- * - Non-Plus: 2026-08-26 (Additional Scripts read-only)
- */
-
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger";
@@ -20,7 +7,6 @@ export interface ShopPlanInfo {
   displayName: string;
   shopifyPlus: boolean;
   partnerDevelopment: boolean;
-  /** Derived tier based on plan info */
   tier: ShopTier;
 }
 
@@ -31,13 +17,9 @@ export interface RefreshTierResult {
   error?: string;
 }
 
-/**
- * Query the shop's plan information to determine tier.
- */
 export async function getShopPlan(admin: AdminApiContext): Promise<ShopPlanInfo | null> {
   try {
     const response = await admin.graphql(`
-      #graphql
       query GetShopPlan {
         shop {
           plan {
@@ -52,24 +34,21 @@ export async function getShopPlan(admin: AdminApiContext): Promise<ShopPlanInfo 
     const data = await response.json();
     
     if (data.errors) {
-      logger.warn("P0-3: GraphQL errors in shop plan query:", data.errors);
+      logger.warn("GraphQL errors in shop plan query:", data.errors);
       return null;
     }
 
     const plan = data.data?.shop?.plan;
     if (!plan) {
-      logger.warn("P0-3: No plan data in response");
+      logger.warn("No plan data in response");
       return null;
     }
 
-    // Determine tier based on plan info
     let tier: ShopTier = "non_plus";
     
     if (plan.shopifyPlus === true) {
       tier = "plus";
     } else if (plan.partnerDevelopment === true) {
-      // Development stores are treated as non_plus for deadline purposes
-      // but we could track them separately if needed
       tier = "non_plus";
     }
 
@@ -80,15 +59,11 @@ export async function getShopPlan(admin: AdminApiContext): Promise<ShopPlanInfo 
       tier,
     };
   } catch (error) {
-    logger.error("P0-3: Failed to query shop plan:", error);
+    logger.error("Failed to query shop plan:", error);
     return null;
   }
 }
 
-/**
- * Query and update the shop tier for a given shop.
- * Used in afterAuth and cron jobs.
- */
 export async function refreshShopTierWithAdmin(
   admin: AdminApiContext,
   shopId: string
@@ -118,7 +93,7 @@ export async function refreshShopTierWithAdmin(
         data: { shopTier: newTier },
       });
       
-      logger.info(`P0-3: Updated shopTier from ${oldTier} to ${newTier} for shop ${shopId}`);
+      logger.info(`Updated shopTier from ${oldTier} to ${newTier} for shop ${shopId}`);
       
       return {
         tier: newTier,
@@ -133,7 +108,7 @@ export async function refreshShopTierWithAdmin(
       planInfo,
     };
   } catch (error) {
-    logger.error("P0-3: Failed to update shop tier:", error);
+    logger.error("Failed to update shop tier:", error);
     return {
       tier: planInfo.tier,
       updated: false,
@@ -143,12 +118,6 @@ export async function refreshShopTierWithAdmin(
   }
 }
 
-/**
- * Simplified tier refresh for cron jobs (without admin context).
- * This uses stored access token to make the API call.
- * 
- * Note: This is a fallback - prefer refreshShopTierWithAdmin when admin context is available.
- */
 export async function refreshShopTier(shopId: string): Promise<RefreshTierResult> {
   try {
     const shop = await prisma.shop.findUnique({
@@ -168,20 +137,12 @@ export async function refreshShopTier(shopId: string): Promise<RefreshTierResult
       };
     }
 
-    // Note: In a full implementation, we would:
-    // 1. Decrypt the access token
-    // 2. Create an admin client
-    // 3. Call the GraphQL API
-    // 
-    // For now, we return the current tier and mark as not updated
-    // The actual refresh happens during user sessions when admin context is available
-    
     return {
       tier: shop.shopTier as ShopTier || "unknown",
       updated: false,
     };
   } catch (error) {
-    logger.error("P0-3: Error in refreshShopTier:", error);
+    logger.error("Error in refreshShopTier:", error);
     return {
       tier: "unknown",
       updated: false,
@@ -190,9 +151,6 @@ export async function refreshShopTier(shopId: string): Promise<RefreshTierResult
   }
 }
 
-/**
- * Get display-friendly tier information for UI.
- */
 export function getTierDisplayInfo(tier: ShopTier): {
   label: string;
   description: string;
@@ -224,4 +182,3 @@ export function getTierDisplayInfo(tier: ShopTier): {
       };
   }
 }
-

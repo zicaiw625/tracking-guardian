@@ -60,4 +60,3 @@ export default defineConfig({
     assetsInlineLimit: 0,
   },
 }) satisfies UserConfig;
-

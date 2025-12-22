@@ -295,4 +295,3 @@ export async function testNotification(
     };
   }
 }
-

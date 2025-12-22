@@ -1381,7 +1381,7 @@ export default function SettingsPage() {
                         value={shop?.consentStrategy || "strict"}
                         onChange={(value) => {
                           if (value !== "strict") {
-                            const warning = "平衡模式仍要求像素回执与明确同意，但允许"部分可信"的回执（trust=partial）。\n\n在 GDPR 等严格隐私法规地区，推荐使用严格模式。\n\n确定要切换吗？";
+                            const warning = `平衡模式仍要求像素回执与明确同意，但允许"部分可信"的回执（trust=partial）。\n\n在 GDPR 等严格隐私法规地区，推荐使用严格模式。\n\n确定要切换吗？`;
                             if (!confirm(warning)) {
                               return;
                             }
@@ -1521,4 +1521,3 @@ export default function SettingsPage() {
     </Page>
   );
 }
-

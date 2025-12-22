@@ -31,4 +31,3 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     throw error;
   }
 };
-

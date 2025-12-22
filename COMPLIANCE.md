@@ -844,4 +844,214 @@ GET /api/exports?type=audit&format=json&include_meta=true
 
 ---
 
+## P0 优化实施记录 - 第三阶段 (2025-12-22)
+
+本节记录第三阶段的 P0 级别合规和功能优化。
+
+### P0-1: 移除 checkout_and_accounts_configurations/update Webhook
+
+**问题**: Shopify 已宣布该 webhook 将于 2026-01-01 移除，继续依赖会导致升级状态不再更新。
+
+**解决方案**:
+1. **停止订阅** (`shopify.app.toml`):
+   - 删除 `checkout_and_accounts_configurations/update` topic 声明
+   - 添加注释说明废弃原因
+
+2. **主动清理存量订阅** (`shopify.server.ts`):
+   - 新增 `cleanupDeprecatedWebhookSubscriptions()` 函数
+   - 在 `afterAuth` hook 中自动执行
+   - 查询并删除老店铺的旧 webhook 订阅
+
+3. **保留 Legacy Handler** (`webhooks.tsx`):
+   - Handler 标记为 `[DEPRECATED WEBHOOK]`
+   - 如果收到事件仍处理，但记录警告
+
+**验收**:
+- 新安装店铺不再有该 webhook 订阅
+- 老店铺访问应用后自动清理
+- 系统不再依赖该 webhook 判断升级状态
+
+### P0-2: 使用 checkoutProfiles + typOspPagesActive 判断升级状态
+
+**问题**: 旧实现使用 webhook 或 `checkoutApiSupported` 推断状态，不够准确。
+
+**解决方案**:
+1. **更新 GraphQL 查询** (`checkout-profile.server.ts`):
+   ```graphql
+   checkoutProfiles(first: 10) {
+     nodes { id name isPublished typOspPagesActive }
+   }
+   ```
+
+2. **计算逻辑**:
+   - `typOspPagesEnabled = nodes.some(n => n.isPublished && n.typOspPagesActive)`
+   - 这是 Shopify 官方推荐的判断方式
+
+3. **降级处理**:
+   - 如果 `typOspPagesActive` 字段不存在，fallback 到 `checkoutApiSupported`
+   - 记录 `unknownReason: "FIELD_NOT_AVAILABLE"`
+
+**验收**:
+- Plus 且已升级店铺: `typOspPagesEnabled=true`
+- Plus 未升级店铺: `typOspPagesEnabled=false`
+- 无权限店铺: 返回 `status: "unknown"`, UI 不误报
+
+### P0-3: Cron 刷新升级状态 (使用离线 Token)
+
+**问题**: 原 cron 代码注释说"没有 admin context → 不刷新 typOsp"，导致状态长期停留旧值。
+
+**解决方案**:
+1. **新增 `createAdminClientForShop()`** (`shopify.server.ts`):
+   - 从 Session 表读取离线 session
+   - 解密 accessToken
+   - 构造 GraphQL 客户端
+
+2. **新增 `refreshTypOspStatusWithOfflineToken()`** (`checkout-profile.server.ts`):
+   - 使用离线 token 调用 checkoutProfiles API
+   - 更新数据库中的 `typOspPagesEnabled`
+
+3. **更新 cron 任务** (`api.cron.tsx`):
+   - 遍历需要刷新的活跃店铺
+   - 调用 `refreshTypOspStatusWithOfflineToken()`
+   - 记录 unknown 原因分布 (用于运营监控)
+
+**验收**:
+- Cron 跑完后 `typOspUpdates > 0` (对部分店铺)
+- 无离线 session 的店铺记录并跳过，不影响整体任务
+- 日志输出 unknown reasons 分布
+
+### P0-4: 修复 Pixel Consent 结构性 Bug
+
+**问题**: 
+- 初始值读取 `customerPrivacy.marketingAllowed` 而非 `init.customerPrivacy.marketingAllowed`
+- 事件更新读取 `event.marketingAllowed` 而非 `event.customerPrivacy.marketingAllowed`
+
+**解决方案** (`extensions/tracking-pixel/src/index.ts`):
+1. **初始化**:
+   ```typescript
+   const initialPrivacyState = init.customerPrivacy;
+   marketingAllowed = initialPrivacyState.marketingAllowed === true;
+   analyticsAllowed = initialPrivacyState.analyticsProcessingAllowed === true;
+   saleOfDataAllowed = initialPrivacyState.saleOfDataAllowed !== false;
+   ```
+
+2. **订阅事件**:
+   ```typescript
+   customerPrivacy.subscribe("visitorConsentCollected", (event) => {
+     const updatedPrivacy = event.customerPrivacy;
+     marketingAllowed = updatedPrivacy.marketingAllowed === true;
+     // ...
+   });
+   ```
+
+**验收**:
+- 允许追踪地区: 初始值正确、点击 cookie banner 后状态更新
+- 需要同意但未同意: 不发送到后端
+- 测试夹具: `tests/pixel/consent-payload-structure.test.ts`
+
+### P0-5: 统一像素声明与发送策略
+
+**问题**: `shopify.extension.toml` 声明 `marketing=true, analytics=true, sale_of_data="enabled"`，
+但代码注释说"只要 analyticsAllowed 就发送"——两者自相矛盾。
+
+**解决方案**:
+- **采用严格方案**: 保持 toml 声明不变
+- **像素端**: 只有当 pixel 被加载时（即所有同意都已授予），才可能发送事件
+- **后端**: 按平台分流过滤（marketing 平台需要 marketingAllowed）
+- **文档对齐**: 在 toml 和代码中添加详细注释说明策略
+
+**验收**:
+- 实际行为与 toml 声明一致
+- COMPLIANCE.md 中策略说明可供审核/商家引用
+
+### P0-6: 升级截止日期呈现改进
+
+**问题**: 将 Shopify 的"月份级"公告写成"精确到某日"的承诺（如 2026-01-01）。
+
+**解决方案** (`deprecation-dates.ts`):
+1. **区分日期精度**:
+   - `DatePrecision`: "exact" | "month" | "quarter"
+   - 对于 Shopify 说"August 2025"的，UI 显示"2025年8月起"而非"2025-08-28"
+
+2. **新增显示函数**:
+   - `getDateDisplayLabel(date, precision)`: 根据精度返回适当的标签
+   - `DEADLINE_METADATA`: 每个截止日期的精度元数据
+
+**验收**:
+- UI 文案与帮助中心/官方公告一致
+- 不出现"过度精确"的时间承诺
+
+### P0-7: checkoutProfiles 可观测性与降级
+
+**问题**: `checkoutProfiles` 可能报错/无权限，但 UI/扫描输出未解释原因。
+
+**解决方案**:
+1. **三态状态**:
+   - `TypOspStatus`: "enabled" | "disabled" | "unknown"
+
+2. **Unknown 原因**:
+   - `NOT_PLUS`: 非 Plus 店铺
+   - `NO_EDITOR_ACCESS`: 无 checkout editor 权限
+   - `API_ERROR`: GraphQL 查询失败
+   - `RATE_LIMIT`: 限流
+   - `NO_PROFILES`: 无 checkout profiles
+   - `FIELD_NOT_AVAILABLE`: typOspPagesActive 字段不可用
+
+3. **Cron 统计**: 记录 unknown 原因分布，便于运营定位
+
+**验收**:
+- 扫描报告能解释"为什么无法判断"
+- Cron 日志输出 `typOspUnknownReasons` 统计
+
+### P0-8: Webhook 处理分支最小化
+
+**问题**: `webhooks.tsx` 存在未注册 topic 的 handler，可能造成混乱。
+
+**解决方案**:
+- 在 `default` case 添加明确的警告日志
+- 列出当前实际注册的 topics 供参考
+- Legacy handler (如 `CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE`) 标记清晰
+
+**验收**:
+- 所有 handler 都有对应的注册配置
+- 意外 topic 有清晰的日志警告
+
+---
+
+## P1 优化实施记录 - 第三阶段 (2025-12-22)
+
+### P1-3: Consent 平台级规则显式化
+
+**改进** (`platform-consent.ts`):
+1. **中心化策略配置**:
+   - `PLATFORM_CONSENT_CONFIG` 是唯一配置源
+   - 每个平台定义 `requiresSaleOfData` 字段
+
+2. **新增辅助函数**:
+   - `getPlatformConsentRequirements()`: 返回平台的同意要求说明
+   - `getAllPlatformConsentRequirements()`: 用于文档/调试
+
+**验收**:
+- 新增平台只需修改一处配置
+- 无需在多处复制 if-else 判断
+
+### P1-6: 官方 Payload 结构测试夹具
+
+**新增测试**:
+1. `tests/pixel/consent-payload-structure.test.ts`:
+   - 验证 `init.customerPrivacy` 结构解析
+   - 验证 `event.customerPrivacy` 结构解析
+   - 边界情况和类型强制
+
+2. `tests/services/checkout-profile.test.ts`:
+   - 验证 checkoutProfiles API 响应解析
+   - 验证 typOspPagesActive 字段处理
+   - 错误处理和降级逻辑
+
+**验收**:
+- Payload 结构变动时测试先红
+- 防止"默默不追踪"的回归
+
+---
+
 *This document is provided for Shopify App Review and merchant transparency.*

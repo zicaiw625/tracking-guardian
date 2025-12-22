@@ -1,5 +1,4 @@
 
-
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger";

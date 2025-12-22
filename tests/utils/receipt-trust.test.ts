@@ -286,4 +286,3 @@ describe("buildShopAllowedDomains", () => {
     expect(count).toBe(1);
   });
 });
-

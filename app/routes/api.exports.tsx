@@ -325,4 +325,3 @@ export function getFieldDefinitions(): Record<string, unknown> {
     },
   };
 }
-

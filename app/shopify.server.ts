@@ -4,12 +4,14 @@ import {
   AppDistribution,
   DeliveryMethod,
   shopifyApp,
+  type AdminApiContext,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 import { createEncryptedSessionStorage } from "./utils/encrypted-session-storage";
 import { 
   encryptAccessToken, 
+  decryptAccessToken,
   generateEncryptedIngestionSecret,
   validateTokenEncryptionConfig 
 } from "./utils/token-encryption";
@@ -97,12 +99,21 @@ const shopify = shopifyApp({
         );
       }
 
+      if (admin) {
+        try {
+          await cleanupDeprecatedWebhookSubscriptions(admin, session.shop);
+        } catch (cleanupError) {
+          console.warn(`[Webhooks] Cleanup warning for ${session.shop}:`,
+            cleanupError instanceof Error ? cleanupError.message : cleanupError
+          );
+        }
+      }
+
       let primaryDomainHost: string | null = null;
       let shopTier: "plus" | "non_plus" | "unknown" = "unknown";
       
       try {
         if (admin) {
-          // P0-3: Query shop info including plan for tier determination
           const shopQuery = await admin.graphql(`
             query {
               shop {
@@ -122,7 +133,6 @@ const shopify = shopifyApp({
           const shopData = await shopQuery.json();
           primaryDomainHost = shopData?.data?.shop?.primaryDomain?.host || null;
           
-          // P0-3: Determine shop tier from plan info
           const plan = shopData?.data?.shop?.plan;
           if (plan?.shopifyPlus === true) {
             shopTier = "plus";
@@ -159,7 +169,6 @@ const shopify = shopifyApp({
           isActive: true,
           uninstalledAt: null,
           ...(primaryDomainHost && { primaryDomain: primaryDomainHost }),
-          // P0-3: Always update shopTier if known
           ...(shopTier !== "unknown" && { shopTier }),
         },
         create: {
@@ -168,7 +177,6 @@ const shopify = shopifyApp({
           ingestionSecret: newIngestionSecret.encrypted,
           primaryDomain: primaryDomainHost,
           storefrontDomains: [],
-          // P0-3: Set initial shopTier
           shopTier,
         },
       });
@@ -198,3 +206,138 @@ export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
 export const registerWebhooks = shopify.registerWebhooks;
 export const sessionStorage = shopify.sessionStorage;
+
+async function cleanupDeprecatedWebhookSubscriptions(
+  admin: AdminApiContext,
+  shopDomain: string
+): Promise<void> {
+  const DEPRECATED_TOPICS = [
+    "CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE",
+  ];
+
+  try {
+    const response = await admin.graphql(`
+      query GetWebhookSubscriptions {
+        webhookSubscriptions(first: 50) {
+          edges {
+            node {
+              id
+              topic
+            }
+          }
+        }
+      }
+    `);
+
+    const data = await response.json();
+    
+    if (data.errors) {
+      console.warn(`[Webhooks] Failed to query subscriptions for ${shopDomain}:`, data.errors);
+      return;
+    }
+
+    const subscriptions = data.data?.webhookSubscriptions?.edges || [];
+    const deprecatedSubs = subscriptions.filter((edge: { node: { topic: string } }) => 
+      DEPRECATED_TOPICS.includes(edge.node.topic)
+    );
+
+    if (deprecatedSubs.length === 0) {
+      return;
+    }
+
+    console.log(`[Webhooks] Found ${deprecatedSubs.length} deprecated webhook(s) for ${shopDomain}, cleaning up...`);
+
+    for (const sub of deprecatedSubs) {
+      const subId = sub.node.id;
+      const subTopic = sub.node.topic;
+
+      try {
+        const deleteResponse = await admin.graphql(`
+          mutation DeleteWebhookSubscription($id: ID!) {
+            webhookSubscriptionDelete(id: $id) {
+              deletedWebhookSubscriptionId
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `, {
+          variables: { id: subId },
+        });
+
+        const deleteData = await deleteResponse.json();
+        const userErrors = deleteData.data?.webhookSubscriptionDelete?.userErrors || [];
+
+        if (userErrors.length > 0) {
+          console.warn(`[Webhooks] Error deleting ${subTopic} for ${shopDomain}:`, userErrors);
+        } else {
+          console.log(`[Webhooks] Deleted deprecated ${subTopic} webhook for ${shopDomain}`);
+        }
+      } catch (deleteError) {
+        console.warn(`[Webhooks] Failed to delete ${subTopic} for ${shopDomain}:`,
+          deleteError instanceof Error ? deleteError.message : deleteError
+        );
+      }
+    }
+  } catch (error) {
+    console.warn(`[Webhooks] Cleanup query failed for ${shopDomain}:`,
+      error instanceof Error ? error.message : error
+    );
+  }
+}
+
+export async function createAdminClientForShop(
+  shopDomain: string
+): Promise<AdminApiContext | null> {
+  try {
+    const session = await prisma.session.findFirst({
+      where: {
+        shop: shopDomain,
+        isOnline: false,
+        accessToken: { not: "" },
+      },
+      orderBy: { id: "desc" },
+    });
+
+    if (!session?.accessToken) {
+      console.log(`[Admin] No offline session for ${shopDomain}`);
+      return null;
+    }
+
+    let accessToken: string;
+    try {
+      accessToken = decryptAccessToken(session.accessToken);
+    } catch {
+      console.warn(`[Admin] Failed to decrypt token for ${shopDomain}`);
+      return null;
+    }
+
+    const apiUrl = `https://${shopDomain}/admin/api/${ApiVersion.July25}/graphql.json`;
+    
+    const graphqlClient = {
+      async graphql(query: string, options?: { variables?: Record<string, unknown> }) {
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": accessToken,
+          },
+          body: JSON.stringify({
+            query,
+            variables: options?.variables,
+          }),
+        });
+        
+        return {
+          json: async () => response.json(),
+        };
+      },
+    };
+
+    return graphqlClient as unknown as AdminApiContext;
+  } catch (error) {
+    console.error(`[Admin] Failed to create client for ${shopDomain}:`, error);
+    return null;
+  }
+}

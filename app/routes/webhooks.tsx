@@ -1,5 +1,3 @@
-
-
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -25,13 +23,11 @@ async function tryAcquireWebhookLock(
   orderId?: string
 ): Promise<{ acquired: boolean; existing?: boolean }> {
   if (!webhookId) {
-
     logger.warn(`[Webhook] Missing X-Shopify-Webhook-Id for topic ${topic} from ${shopDomain}`);
     return { acquired: true };
   }
   
   try {
-    
     await prisma.webhookLog.create({
       data: {
         shopDomain,
@@ -44,7 +40,6 @@ async function tryAcquireWebhookLock(
     });
     return { acquired: true };
   } catch (error) {
-    
     if ((error as { code?: string })?.code === "P2002") {
       logger.info(
         `[Webhook Idempotency] Duplicate webhook detected: ${topic} for ${shopDomain}, ` +
@@ -81,7 +76,6 @@ async function updateWebhookStatus(
       },
     });
   } catch (error) {
-    
     logger.error(`[Webhook] Failed to update status: ${error}`);
   }
 }
@@ -91,7 +85,6 @@ interface ShopWithPixelConfigs extends Shop {
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  
   let topic: string;
   let shop: string;
   let session: unknown;
@@ -121,20 +114,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    
     const webhookId = request.headers.get("X-Shopify-Webhook-Id");
 
     if (webhookId) {
       const lock = await tryAcquireWebhookLock(shop, webhookId, topic);
       if (!lock.acquired) {
-        
         logger.info(`[Webhook Idempotency] Skipping duplicate: ${topic} for ${shop}`);
         return new Response("OK (duplicate)", { status: 200 });
       }
     }
 
     if (!admin && topic !== "SHOP_REDACT" && topic !== "CUSTOMERS_DATA_REQUEST" && topic !== "CUSTOMERS_REDACT") {
-      
       logger.info(`Webhook ${topic} received for uninstalled shop ${shop}`);
       return new Response("OK", { status: 200 });
     }
@@ -172,7 +162,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
 
       case "ORDERS_PAID":
-
         if (shopRecord && payload) {
           const orderPayload = parseOrderWebhookPayload(payload, shop);
           if (!orderPayload) {
@@ -221,7 +210,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
                 },
                 update: {
-                  
                   orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
                   orderValue: parseFloat(orderPayload.total_price || "0"),
                   currency: orderPayload.currency || "USD",
@@ -255,7 +243,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
       
       case "ORDERS_UPDATED":
-        
         logger.info(`Order updated for shop ${shop}: order_id=${(payload as { id?: number })?.id}`);
         break;
 
@@ -350,20 +337,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         break;
 
-      // P0-2: Handle checkout and accounts configurations update
-      // 
-      // ⚠️ IMPORTANT: This webhook will be REMOVED on 2026-01-01
-      // See: https://shopify.dev/changelog/checkout-and-accounts-configurations-update-webhook-deprecation
-      //
-      // This handler is kept for backwards compatibility during the transition period.
-      // The primary source of truth for TYP/OSP status is now:
-      // - app/services/checkout-profile.server.ts (API-based query)
-      // - Refreshed during scanner runs and cron jobs
-      //
-      // If this webhook is received, we use it as a faster update path,
-      // but the system will work correctly without it.
       case "CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE":
-        logger.info(`Checkout configuration update for shop ${shop}`);
+        logger.warn(
+          `[DEPRECATED WEBHOOK] Received checkout_and_accounts_configurations/update for ${shop}. ` +
+          `This shop may still have a legacy subscription. Will be cleaned up on next auth.`
+        );
         try {
           const configPayload = payload as {
             typ_osp_pages_enabled?: boolean;
@@ -381,7 +359,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               },
             });
             logger.info(
-              `Updated typ_osp_pages_enabled=${typOspPagesEnabled} for ${shop}`
+              `[DEPRECATED WEBHOOK] Updated typ_osp_pages_enabled=${typOspPagesEnabled} for ${shop}`
             );
           } else if (!shopRecord) {
             logger.warn(`Shop record not found for ${shop}, skipping config update`);
@@ -399,7 +377,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
 
       default:
-        logger.warn(`Unhandled webhook topic: ${topic}`);
+        logger.warn(`Unexpected webhook topic received: ${topic} from ${shop}. ` +
+          `This may indicate a configuration mismatch between shopify.app.toml and shopify.server.ts`);
         return new Response(`Unhandled webhook topic: ${topic}`, { status: 404 });
     }
 
@@ -417,7 +396,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 function buildCapiInput(orderPayload: OrderWebhookPayload, orderId: string): object {
-
   const items = orderPayload.line_items?.map((item) => ({
     productId: item.product_id ? String(item.product_id) : undefined,
     variantId: item.variant_id ? String(item.variant_id) : undefined,
@@ -432,27 +410,19 @@ function buildCapiInput(orderPayload: OrderWebhookPayload, orderId: string): obj
     .filter((id): id is string => !!id);
 
   return {
-    
     orderId,
     value: parseFloat(orderPayload.total_price || "0"),
     currency: orderPayload.currency || "USD",
     orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
-
     items,
-    
     contentIds,
     numItems: items.reduce((sum, item) => sum + item.quantity, 0),
-
     tax: parseFloat(orderPayload.total_tax || "0"),
     shipping: parseFloat(orderPayload.total_shipping_price_set?.shop_money?.amount || "0"),
-
     processedAt: orderPayload.processed_at || new Date().toISOString(),
     webhookReceivedAt: new Date().toISOString(),
-
     checkoutToken: orderPayload.checkout_token || null,
-
     shopifyOrderId: orderPayload.id,
-
   };
 }
 
@@ -465,7 +435,6 @@ async function queueOrderForProcessing(
   const capiInput = buildCapiInput(orderPayload, orderId);
 
   try {
-
     const createData = {
       shopId: shopRecord.id,
       orderId,
@@ -480,7 +449,6 @@ async function queueOrderForProcessing(
       orderNumber: orderPayload.order_number ? String(orderPayload.order_number) : null,
       orderValue: parseFloat(orderPayload.total_price || "0"),
       currency: orderPayload.currency || "USD",
-      
       capiInput: capiInput as object,
     };
     
@@ -491,7 +459,6 @@ async function queueOrderForProcessing(
           orderId,
         },
       },
-      
       create: createData as Parameters<typeof prisma.conversionJob.upsert>[0]["create"],
       update: updateData as Parameters<typeof prisma.conversionJob.upsert>[0]["update"],
     });
@@ -501,4 +468,3 @@ async function queueOrderForProcessing(
     logger.error(`Failed to queue order ${orderId}:`, error);
   }
 }
-

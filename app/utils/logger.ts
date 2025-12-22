@@ -107,9 +107,6 @@ const SENSITIVE_FIELD_PATTERNS = [
   "x-forwarded-for",
 ];
 
-// P0-6: Extended exclusion list for payload and script analysis fields
-// These fields are excluded entirely from logs (marked as [EXCLUDED])
-// because they may contain PII or sensitive business data
 const EXCLUDED_FIELDS = [
   "orderpayload",
   "order_payload",
@@ -125,9 +122,6 @@ const EXCLUDED_FIELDS = [
   "response_body",
   "lineitems",
   "line_items",
-  // P0-6: Additional Scripts analysis exclusions
-  // When merchants paste their checkout scripts for analysis,
-  // the content may contain PII (hardcoded emails, tokens, etc.)
   "scriptcontent",
   "script_content",
   "additionalscripts",

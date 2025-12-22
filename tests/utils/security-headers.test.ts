@@ -44,4 +44,3 @@ describe("API_SECURITY_HEADERS", () => {
     expect(API_SECURITY_HEADERS["X-Content-Type-Options"]).toBe("nosniff");
   });
 });
-

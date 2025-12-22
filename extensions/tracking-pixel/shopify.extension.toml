@@ -3,17 +3,6 @@ type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
 
-# P0-2: Customer Privacy Configuration (Strict-only for App Store compliance)
-# 
-# We require both marketing AND analytics consent for the pixel to load.
-# This ensures declaration-behavior consistency with runtime logic.
-# 
-# - analytics = true (required): Needed for checkout tracking
-# - marketing = true (required): Needed for conversion tracking to ad platforms  
-# - sale_of_data = "enabled": Treated as data sharing, opt-out stops pixel firing
-#
-# Shopify loads pixel only when ALL required permissions are granted.
-# This is the strictest, most compliant configuration.
 [customer_privacy]
   analytics = true
   marketing = true
@@ -21,7 +10,6 @@ runtime_context = "strict"
   sale_of_data = "enabled"
 
 [settings]
-  # P0-1: Complete settings schema for proper pixel operation
   [[settings.fields]]
     key = "ingestion_key"
     name = "Ingestion Key"
@@ -45,4 +33,3 @@ runtime_context = "strict"
     name = "Schema Version"
     description = "Configuration schema version for future upgrades."
     type = "number_integer"
-  

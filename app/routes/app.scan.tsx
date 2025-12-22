@@ -77,7 +77,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const scanHistory = await getScanHistory(shop.id, 5);
 
-  // P0-1: Use official shop tier if available, fallback to "unknown"
   const shopTier: ShopTier = (shop.shopTier as ShopTier) || "unknown";
   
   const scriptTags = (latestScan?.scriptTags as ScriptTag[] | null) || [];
@@ -92,7 +91,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     hasOrderStatusScriptTags
   );
 
-  // P0-1: Get upgrade status based on official webhook signal
   const shopUpgradeStatus: ShopUpgradeStatus = {
     tier: shopTier,
     typOspPagesEnabled: shop.typOspPagesEnabled,
@@ -116,7 +114,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       },
       migrationUrgency,
     },
-    // P0-1: Official upgrade status from webhook
     upgradeStatus: {
       ...upgradeStatusMessage,
       lastUpdated: shop.typOspUpdatedAt?.toISOString() || null,
@@ -155,8 +152,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         analysisResult 
       });
     } catch (error) {
-      // P0-6: Never log script content - it may contain PII
-      // Only log a generic error message without the potentially sensitive details
       console.error("Script analysis error occurred (content not logged for privacy)");
       return json(
         { error: error instanceof Error ? error.message : "分析失败" },
@@ -240,7 +235,6 @@ export default function ScanPage() {
   const riskItems = (latestScan?.riskItems as RiskItem[] | null) || [];
   const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
 
-  // P0-1: Get upgrade status banner tone
   const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
     switch (urgency) {
       case "critical": return "critical";
@@ -257,7 +251,6 @@ export default function ScanPage() {
       subtitle="扫描店铺中的追踪脚本，识别迁移风险"
     >
       <BlockStack gap="500">
-        {/* P0-1: Official upgrade status banner */}
         {upgradeStatus && (
           <Banner
             title={upgradeStatus.title}
@@ -289,7 +282,6 @@ export default function ScanPage() {
         )}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-          {}
           {selectedTab === 0 && (
             <BlockStack gap="500">
               <Box paddingBlockStart="400">
@@ -305,7 +297,6 @@ export default function ScanPage() {
                 </InlineStack>
               </Box>
 
-              {}
               {isScanning && (
                 <Card>
                   <BlockStack gap="400">
@@ -318,7 +309,6 @@ export default function ScanPage() {
                 </Card>
               )}
 
-              {}
               {!latestScan && !isScanning && (
                 <Card>
                   <EmptyState
@@ -356,10 +346,8 @@ export default function ScanPage() {
                 </Card>
               )}
 
-        {}
         {latestScan && !isScanning && (
           <Layout>
-            {}
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
@@ -398,7 +386,6 @@ export default function ScanPage() {
               </Card>
             </Layout.Section>
 
-            {}
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
@@ -423,7 +410,6 @@ export default function ScanPage() {
               </Card>
             </Layout.Section>
 
-            {}
             <Layout.Section variant="oneThird">
               <Card>
                 <BlockStack gap="400">
@@ -456,7 +442,6 @@ export default function ScanPage() {
           </Layout>
         )}
 
-        {}
         {latestScan && riskItems.length > 0 && !isScanning && (
           <Card>
             <BlockStack gap="400">
@@ -498,7 +483,6 @@ export default function ScanPage() {
                           {item.details}
                         </Text>
                       )}
-                      {}
                       <InlineStack align="space-between" blockAlign="center">
                         <InlineStack gap="200">
                           {item.platform && (
@@ -526,7 +510,6 @@ export default function ScanPage() {
           </Card>
         )}
 
-        {}
         {scanHistory.length > 1 && (
           <Card>
             <BlockStack gap="400">
@@ -547,7 +530,6 @@ export default function ScanPage() {
           </Card>
         )}
 
-              {}
               {latestScan && latestScan.riskScore > 0 && (
                 <Banner
                   title="建议进行迁移"
@@ -563,7 +545,6 @@ export default function ScanPage() {
             </BlockStack>
           )}
 
-          {}
           {selectedTab === 1 && (
             <BlockStack gap="500">
               <Box paddingBlockStart="400">
@@ -618,10 +599,8 @@ export default function ScanPage() {
                 </Card>
               </Box>
 
-              {}
               {analysisResult && (
                 <Layout>
-                  {}
                   <Layout.Section variant="oneThird">
                     <Card>
                       <BlockStack gap="400">
@@ -652,7 +631,6 @@ export default function ScanPage() {
                     </Card>
                   </Layout.Section>
 
-                  {}
                   <Layout.Section variant="oneThird">
                     <Card>
                       <BlockStack gap="400">
@@ -677,7 +655,6 @@ export default function ScanPage() {
                     </Card>
                   </Layout.Section>
 
-                  {}
                   <Layout.Section variant="oneThird">
                     <Card>
                       <BlockStack gap="400">
@@ -720,7 +697,6 @@ export default function ScanPage() {
                 </Layout>
               )}
 
-              {}
               {analysisResult && analysisResult.risks.length > 0 && (
                 <Card>
                   <BlockStack gap="400">
@@ -770,7 +746,6 @@ export default function ScanPage() {
                 </Card>
               )}
 
-              {}
               {analysisResult && analysisResult.recommendations.length > 0 && (
                 <Card>
                   <BlockStack gap="400">
@@ -799,4 +774,3 @@ export default function ScanPage() {
     </Page>
   );
 }
-

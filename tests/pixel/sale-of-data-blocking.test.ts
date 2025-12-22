@@ -202,4 +202,3 @@ describe("P0-7: Audit Trail for Consent Decisions", () => {
     expect(consentEvidence.usedConsent.saleOfData).toBe(false);
   });
 });
-

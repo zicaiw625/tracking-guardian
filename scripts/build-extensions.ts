@@ -1,21 +1,5 @@
 #!/usr/bin/env npx ts-node
 
-/**
- * P0-5: Build-time environment variable injection for extensions
- * 
- * This script replaces __BACKEND_URL_PLACEHOLDER__ with the actual backend URL
- * before building extensions. This is necessary because Web Pixel extensions
- * run in a sandboxed environment without access to runtime environment variables.
- * 
- * Usage:
- *   SHOPIFY_APP_URL=https://your-app.com npx ts-node scripts/build-extensions.ts
- * 
- * The script:
- * 1. Reads SHOPIFY_APP_URL from environment
- * 2. Replaces placeholder in extensions/shared/config.ts
- * 3. After Shopify CLI builds, restores the placeholder
- */
-
 import * as fs from "fs";
 import * as path from "path";
 
@@ -38,7 +22,6 @@ function injectBackendUrl(): void {
     return;
   }
   
-  // Validate URL
   try {
     new URL(backendUrl);
   } catch {
@@ -65,7 +48,6 @@ function injectBackendUrl(): void {
 function restorePlaceholder(): void {
   const config = readConfig();
   
-  // Find and restore the BUILD_TIME_URL assignment
   const urlPattern = /const BUILD_TIME_URL = "([^"]+)";/;
   const match = config.match(urlPattern);
   
@@ -109,4 +91,3 @@ Example:
   npx ts-node scripts/build-extensions.ts restore
 `);
 }
-

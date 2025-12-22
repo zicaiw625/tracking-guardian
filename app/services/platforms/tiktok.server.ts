@@ -133,15 +133,6 @@ export async function sendConversionToTikTok(
   }
 }
 
-/**
- * P0-6: Generate Custom Pixel (Web Pixel) code template for TikTok Pixel
- * 
- * This generates code suitable for Shopify's Custom Pixel (manual) configuration.
- * The code runs in the Web Pixels sandbox and uses the Customer Privacy API.
- * 
- * Note: We recommend using our App Pixel (automatic) with server-side Events API instead.
- * This template is provided for merchants who prefer manual configuration.
- */
 export function generateTikTokPixelCode(config: { pixelId: string }): string {
   if (!config.pixelId) {
     return "";

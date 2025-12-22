@@ -1,5 +1,4 @@
 
-
 interface EnvConfig {
   
   DATABASE_URL: string;
@@ -150,4 +149,3 @@ export function logConfigStatus(): void {
     throw new Error("Invalid configuration - cannot start in production");
   }
 }
-
