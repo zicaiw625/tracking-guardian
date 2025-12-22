@@ -13,14 +13,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (url.searchParams.get("shop")) {
         throw redirect(`/app?${url.searchParams.toString()}`);
     }
-    try {
-        const loginResponse = await login(request);
-        if (loginResponse instanceof Response) {
-            return loginResponse;
-        }
-        return json(loginResponse);
+    const loginResponse = await login(request);
+    if (loginResponse instanceof Response) {
+        return loginResponse;
     }
-    catch (error) {
-        throw error;
-    }
+    return json(loginResponse);
 };

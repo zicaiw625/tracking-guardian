@@ -485,6 +485,8 @@ export default function SettingsPage() {
             checkServerFormDirty();
         }
     }, [selectedTab, checkAlertFormDirty, checkServerFormDirty]);
+    // Reset form dirty state after successful save
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
         if (actionData && "success" in actionData && actionData.success) {
             if (selectedTab === 0) {

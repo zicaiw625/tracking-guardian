@@ -114,7 +114,7 @@ function validateSurveyInput(body: unknown): SurveyResponseData {
     };
 }
 function isValidShopDomain(domain: string): boolean {
-    return /^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/.test(domain);
+    return /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/.test(domain);
 }
 export const action = async ({ request }: ActionFunctionArgs) => {
     if (request.method === "OPTIONS") {

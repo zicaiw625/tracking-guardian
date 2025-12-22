@@ -1,5 +1,8 @@
 import { PrismaClient } from "@prisma/client";
+
+// Use globalThis for Node.js global augmentation
 declare global {
+    // eslint-disable-next-line no-var
     var prisma: PrismaClient;
 }
 const DB_CONFIG = {

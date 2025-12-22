@@ -127,7 +127,7 @@ function validateRequest(body: unknown): {
     if (!data.shopDomain || typeof data.shopDomain !== "string") {
         return { valid: false, error: "Missing shopDomain", code: "missing_shop_domain" };
     }
-    if (!/^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/.test(data.shopDomain as string)) {
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/.test(data.shopDomain as string)) {
         return { valid: false, error: "Invalid shop domain format", code: "invalid_shop_domain_format" };
     }
     if (data.timestamp === undefined || data.timestamp === null) {

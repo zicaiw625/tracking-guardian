@@ -227,6 +227,8 @@ export default function MigratePage() {
         formData.append("_action", "upgradePixelSettings");
         submit(formData, { method: "post" });
     };
+    // Update step based on action result
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
         const data = actionData as {
             _action?: string;
@@ -236,6 +238,9 @@ export default function MigratePage() {
             setCurrentStep("capi");
         }
     }, [actionData]);
+
+    // Update step based on pixel status changes
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
         if (pixelStatus === "installed" && hasCapiConfig) {
             setCurrentStep("complete");
