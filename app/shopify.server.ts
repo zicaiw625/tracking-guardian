@@ -328,25 +328,46 @@ export async function createAdminClientForShop(
   shopDomain: string
 ): Promise<AdminApiContext | null> {
   try {
-    const session = await prisma.session.findFirst({
-      where: {
-        shop: shopDomain,
-        isOnline: false,
-        accessToken: { not: "" },
-      },
-      orderBy: { id: "desc" },
+    const shopRecord = await prisma.shop.findUnique({
+      where: { shopDomain },
+      select: { accessToken: true },
     });
 
-    if (!session?.accessToken) {
-      console.log(`[Admin] No offline session for ${shopDomain}`);
-      return null;
+    let accessToken: string | null = null;
+
+    if (shopRecord?.accessToken) {
+      try {
+        accessToken = decryptAccessToken(shopRecord.accessToken);
+      } catch {
+        console.warn(`[Admin] Failed to decrypt shop-level token for ${shopDomain}`);
+      }
     }
 
-    let accessToken: string;
-    try {
-      accessToken = decryptAccessToken(session.accessToken);
-    } catch {
-      console.warn(`[Admin] Failed to decrypt token for ${shopDomain}`);
+    if (!accessToken) {
+      const session = await prisma.session.findFirst({
+        where: {
+          shop: shopDomain,
+          isOnline: false,
+          accessToken: { not: "" },
+        },
+        orderBy: { id: "desc" },
+      });
+  
+      if (!session?.accessToken) {
+        console.log(`[Admin] No offline session for ${shopDomain}`);
+        return null;
+      }
+  
+      try {
+        accessToken = decryptAccessToken(session.accessToken);
+      } catch {
+        console.warn(`[Admin] Failed to decrypt session token for ${shopDomain}`);
+        return null;
+      }
+    }
+
+    if (!accessToken) {
+      console.log(`[Admin] No usable offline token for ${shopDomain}`);
       return null;
     }
 
