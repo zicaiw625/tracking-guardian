@@ -557,6 +557,8 @@ async function refreshAllShopsStatus(
     where: {
       isActive: true,
       OR: [
+        { typOspLastCheckedAt: null },
+        { typOspLastCheckedAt: { lt: staleThreshold } },
         { typOspUpdatedAt: null },
         { typOspUpdatedAt: { lt: staleThreshold } },
         { shopTier: "unknown" },
@@ -566,9 +568,10 @@ async function refreshAllShopsStatus(
     select: {
       id: true,
       shopDomain: true,
-      accessToken: true,
       shopTier: true,
       typOspPagesEnabled: true,
+      typOspLastCheckedAt: true,
+      typOspUpdatedAt: true,
     },
     take: 50,
   });

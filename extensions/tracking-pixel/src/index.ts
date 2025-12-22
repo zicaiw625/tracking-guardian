@@ -60,20 +60,24 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     });
   }
 
-  let customerPrivacyStatus: CustomerPrivacyState | null = null;
+  let customerPrivacyStatus: CustomerPrivacyState | null = init.customerPrivacy ?? null;
   let marketingAllowed = false;
   let analyticsAllowed = false;
   let saleOfDataAllowed = true;
 
-  function updateConsentFromStatus(status: CustomerPrivacyState | null | undefined, source: "init" | "event"): void {
-    if (!status) {
+  function updateConsentFromStatus(
+    status: CustomerPrivacyState | null | undefined,
+    source: "init" | "event"
+  ): void {
+    if (!status || typeof status !== "object") {
       log(`${source} customerPrivacy not available, consent state unknown`);
       return;
     }
 
-    marketingAllowed = status.marketingAllowed === true;
-    analyticsAllowed = status.analyticsProcessingAllowed === true;
-    saleOfDataAllowed = status.saleOfDataAllowed !== false;
+    customerPrivacyStatus = status;
+    marketingAllowed = customerPrivacyStatus.marketingAllowed === true;
+    analyticsAllowed = customerPrivacyStatus.analyticsProcessingAllowed === true;
+    saleOfDataAllowed = customerPrivacyStatus.saleOfDataAllowed !== false;
 
     log(`Consent state updated from ${source}.customerPrivacy:`, {
       marketingAllowed,
@@ -82,13 +86,19 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
     });
   }
 
-  updateConsentFromStatus(init.customerPrivacy as CustomerPrivacyState | undefined, "init");
+  updateConsentFromStatus(
+    init.customerPrivacy as CustomerPrivacyState | undefined,
+    "init"
+  );
 
   if (customerPrivacy && typeof customerPrivacy.subscribe === "function") {
     try {
-      customerPrivacy.subscribe("visitorConsentCollected", (event: VisitorConsentCollectedEvent) => {
-        updateConsentFromStatus(event.customerPrivacy, "event");
-      });
+      customerPrivacy.subscribe(
+        "visitorConsentCollected",
+        (event: VisitorConsentCollectedEvent) => {
+          updateConsentFromStatus(event.customerPrivacy, "event");
+        }
+      );
       log("Subscribed to visitorConsentCollected");
     } catch (err) {
       log("Could not subscribe to consent changes:", err);

@@ -130,21 +130,26 @@ export async function getTypOspActive(admin: AdminApiContext): Promise<TypOspSta
       };
     }
     
-    const profileInfos: CheckoutProfileInfo[] = profiles.map((node: { 
-      id: string; 
-      name: string; 
+    const profileInfos: CheckoutProfileInfo[] = profiles.map((node: {
+      id: string;
+      name: string;
       isPublished: boolean;
       typOspPagesActive?: boolean;
-    }) => ({
-      profileId: node.id,
-      name: node.name,
-      isPublished: node.isPublished === true,
-      typOspPagesActive: node.typOspPagesActive ?? null,
-      isExtensible: node.typOspPagesActive === true,
-    }));
+    }) => {
+      const isPublished = node.isPublished === true;
+      const typOspPagesActive = node.typOspPagesActive ?? null;
 
-    const publishedProfiles = profileInfos.filter(p => p.isPublished);
-    const hasTypOspActive = publishedProfiles.some(p => p.typOspPagesActive === true);
+      return {
+        profileId: node.id,
+        name: node.name,
+        isPublished,
+        typOspPagesActive,
+        isExtensible: isPublished && typOspPagesActive === true,
+      };
+    });
+
+    const publishedProfiles = profileInfos.filter((p) => p.isPublished);
+    const typOspPagesEnabled = publishedProfiles.some((p) => p.typOspPagesActive === true);
     const hasTypOspField = profiles.some((node: { typOspPagesActive?: boolean }) => "typOspPagesActive" in node);
 
     if (!hasTypOspField) {
@@ -162,11 +167,11 @@ export async function getTypOspActive(admin: AdminApiContext): Promise<TypOspSta
       };
     }
 
-    const status: TypOspStatus = hasTypOspActive ? "enabled" : "disabled";
+    const status: TypOspStatus = typOspPagesEnabled ? "enabled" : "disabled";
 
     return {
       status,
-      typOspPagesEnabled: hasTypOspActive,
+      typOspPagesEnabled,
       confidence: status === "enabled" ? "high" : "medium",
       checkedAt: new Date(),
       profiles: profileInfos,
@@ -245,13 +250,29 @@ export async function refreshTypOspStatus(
   admin: AdminApiContext,
   shopId: string
 ): Promise<TypOspStatusResult> {
+  const existingShop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { typOspPagesEnabled: true, typOspDetectedAt: true },
+  });
+
   let result = await getTypOspActive(admin);
   
   if (result.status === "unknown" && result.unknownReason !== "NO_ADMIN_CONTEXT") {
     logger.info(`checkoutProfiles query returned unknown (${result.unknownReason}), trying shop features fallback`);
     const fallbackResult = await getTypOspStatusFromShopFeatures(admin);
     
-    if (fallbackResult.status !== "unknown") {
+    // Avoid reporting "disabled" for shops where checkoutProfiles is unavailable or not permitted.
+    // Only adopt the fallback when it yields a definitive enabled signal, or when the original
+    // unknown reason is not about lacking access (NOT_PLUS / NO_EDITOR_ACCESS).
+    const shouldAdoptDisabledFallback =
+      fallbackResult.status === "disabled" &&
+      result.unknownReason !== "NOT_PLUS" &&
+      result.unknownReason !== "NO_EDITOR_ACCESS";
+
+    if (
+      fallbackResult.status === "enabled" ||
+      shouldAdoptDisabledFallback
+    ) {
       result = fallbackResult;
     }
   }
@@ -260,11 +281,19 @@ export async function refreshTypOspStatus(
     const updateData: {
       typOspPagesEnabled: boolean | null;
       typOspUpdatedAt: Date;
-      typOspStatusReason?: string;
+      typOspLastCheckedAt: Date;
+      typOspStatusReason?: string | null;
+      typOspDetectedAt?: Date | null;
     } = {
       typOspPagesEnabled: result.typOspPagesEnabled,
       typOspUpdatedAt: result.checkedAt,
+      typOspLastCheckedAt: result.checkedAt,
+      typOspStatusReason: result.status === "unknown" ? result.unknownReason || null : null,
     };
+
+    if (result.typOspPagesEnabled === true) {
+      updateData.typOspDetectedAt = existingShop?.typOspDetectedAt || result.checkedAt;
+    }
     
     if (result.status === "unknown" && result.unknownReason) {
       logger.info(`TYP/OSP status unknown for shop ${shopId}`, {
@@ -301,6 +330,7 @@ export async function getCachedTypOspStatus(shopId: string): Promise<{
     select: {
       typOspPagesEnabled: true,
       typOspUpdatedAt: true,
+      typOspLastCheckedAt: true,
     },
   });
   
@@ -314,8 +344,9 @@ export async function getCachedTypOspStatus(shopId: string): Promise<{
   }
   
   const staleThreshold = 24 * 60 * 60 * 1000;
-  const isStale = !shop.typOspUpdatedAt || 
-    (Date.now() - shop.typOspUpdatedAt.getTime()) > staleThreshold;
+  const lastChecked = shop.typOspLastCheckedAt || shop.typOspUpdatedAt;
+  const isStale = !lastChecked ||
+    (Date.now() - lastChecked.getTime()) > staleThreshold;
   
   let status: TypOspStatus;
   if (shop.typOspPagesEnabled === true) {
@@ -330,7 +361,7 @@ export async function getCachedTypOspStatus(shopId: string): Promise<{
     status,
     typOspPagesEnabled: shop.typOspPagesEnabled,
     isStale,
-    lastUpdated: shop.typOspUpdatedAt,
+    lastUpdated: lastChecked,
   };
 }
 

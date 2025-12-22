@@ -96,7 +96,10 @@ model Shop {
   //   Populated via checkoutProfiles + typOspPagesActive (Shopify Admin API), refreshed by cron/scan
   shopTier             String?   // "plus" or "non_plus"
   typOspPagesEnabled   Boolean?  // true = upgraded to new TYP/OSP pages
-  typOspUpdatedAt      DateTime? // Last time the status was updated
+  typOspUpdatedAt      DateTime? // Last time the status was updated (legacy naming, keep for compatibility)
+  typOspLastCheckedAt  DateTime? // Last time checkoutProfiles/typOspPagesActive was queried
+  typOspDetectedAt     DateTime? // First time we saw typOspPagesEnabled === true
+  typOspStatusReason   String?   // Unknown/disabled reasons (NOT_PLUS/NO_EDITOR_ACCESS/API_ERROR/etc.)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
