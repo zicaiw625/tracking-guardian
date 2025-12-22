@@ -38,8 +38,10 @@ import {
   getScriptTagDeprecationStatus, 
   getAdditionalScriptsDeprecationStatus,
   getMigrationUrgencyStatus,
+  getUpgradeStatusMessage,
   formatDeadlineForUI,
-  type ShopTier 
+  type ShopTier,
+  type ShopUpgradeStatus,
 } from "../utils/deprecation-dates";
 import type { ScriptTag, RiskItem } from "../types";
 
@@ -49,6 +51,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
+    select: {
+      id: true,
+      shopDomain: true,
+      shopTier: true,
+      typOspPagesEnabled: true,
+      typOspUpdatedAt: true,
+    },
   });
 
   if (!shop) {
@@ -57,6 +66,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       latestScan: null, 
       scanHistory: [],
       deprecationStatus: null,
+      upgradeStatus: null,
     });
   }
 
@@ -67,7 +77,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const scanHistory = await getScanHistory(shop.id, 5);
 
-  const shopTier: ShopTier = "unknown";
+  // P0-1: Use official shop tier if available, fallback to "unknown"
+  const shopTier: ShopTier = (shop.shopTier as ShopTier) || "unknown";
   
   const scriptTags = (latestScan?.scriptTags as ScriptTag[] | null) || [];
   const hasScriptTags = scriptTags.length > 0;
@@ -80,6 +91,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     hasScriptTags, 
     hasOrderStatusScriptTags
   );
+
+  // P0-1: Get upgrade status based on official webhook signal
+  const shopUpgradeStatus: ShopUpgradeStatus = {
+    tier: shopTier,
+    typOspPagesEnabled: shop.typOspPagesEnabled,
+    typOspUpdatedAt: shop.typOspUpdatedAt,
+  };
+  const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
 
   return json({
     shop: { id: shop.id, domain: shopDomain },
@@ -96,6 +115,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         isExpired: additionalScriptsStatus.isExpired,
       },
       migrationUrgency,
+    },
+    // P0-1: Official upgrade status from webhook
+    upgradeStatus: {
+      ...upgradeStatusMessage,
+      lastUpdated: shop.typOspUpdatedAt?.toISOString() || null,
+      hasOfficialSignal: shop.typOspPagesEnabled !== null,
     },
   });
 };
@@ -130,7 +155,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         analysisResult 
       });
     } catch (error) {
-      console.error("Script analysis error:", error);
+      // P0-6: Never log script content - it may contain PII
+      // Only log a generic error message without the potentially sensitive details
+      console.error("Script analysis error occurred (content not logged for privacy)");
       return json(
         { error: error instanceof Error ? error.message : "分析失败" },
         { status: 500 }
@@ -151,7 +178,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function ScanPage() {
-  const { shop, latestScan, scanHistory, deprecationStatus } = useLoaderData<typeof loader>();
+  const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -213,12 +240,54 @@ export default function ScanPage() {
   const riskItems = (latestScan?.riskItems as RiskItem[] | null) || [];
   const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
 
+  // P0-1: Get upgrade status banner tone
+  const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
+    switch (urgency) {
+      case "critical": return "critical";
+      case "high": return "warning";
+      case "medium": return "warning";
+      case "resolved": return "success";
+      default: return "info";
+    }
+  };
+
   return (
     <Page
       title="追踪脚本扫描"
       subtitle="扫描店铺中的追踪脚本，识别迁移风险"
     >
       <BlockStack gap="500">
+        {/* P0-1: Official upgrade status banner */}
+        {upgradeStatus && (
+          <Banner
+            title={upgradeStatus.title}
+            tone={getUpgradeBannerTone(upgradeStatus.urgency)}
+          >
+            <BlockStack gap="200">
+              <Text as="p">{upgradeStatus.message}</Text>
+              {upgradeStatus.actions.length > 0 && (
+                <BlockStack gap="100">
+                  {upgradeStatus.actions.map((action, idx) => (
+                    <Text key={idx} as="p" variant="bodySm">
+                      • {action}
+                    </Text>
+                  ))}
+                </BlockStack>
+              )}
+              {!upgradeStatus.hasOfficialSignal && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  提示：此状态基于推测。当 Shopify 发送官方 webhook 后，我们将自动更新此状态。
+                </Text>
+              )}
+              {upgradeStatus.lastUpdated && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  状态更新时间: {new Date(upgradeStatus.lastUpdated).toLocaleString("zh-CN")}
+                </Text>
+              )}
+            </BlockStack>
+          </Banner>
+        )}
+
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {}
           {selectedTab === 0 && (

@@ -534,6 +534,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const recordedPlatforms: string[] = [];
     const skippedPlatforms: string[] = [];
     
+    // P0-3: Consent handling aligned with extension declaration
+    // Extension declares: analytics=true, marketing=true (both required to load)
+    // So when pixel fires, we can assume user has consented to both.
+    // We still check individually per platform for defense-in-depth.
+    // 
+    // sale_of_data="enabled" in extension means this involves data sharing,
+    // user can opt out via cookie banner. saleOfData=false means opted out.
     const consent = payload.consent;
     const hasMarketingConsent = consent?.marketing === true;
     const hasAnalyticsConsent = consent?.analytics === true;

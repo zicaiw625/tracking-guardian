@@ -6,6 +6,13 @@ export const DEPRECATION_DATES = {
 
 export type ShopTier = "plus" | "non_plus" | "unknown";
 
+// P0-1: TYP/OSP upgrade status from official webhook
+export interface ShopUpgradeStatus {
+  tier: ShopTier;
+  typOspPagesEnabled: boolean | null; // null = unknown (webhook not received yet)
+  typOspUpdatedAt: Date | null;
+}
+
 export interface DeprecationStatus {
   isExpired: boolean;
   isWarning: boolean;
@@ -177,5 +184,142 @@ export function formatDeadlineForUI(status: DeprecationStatus): {
   return {
     badge: { tone: "attention", text: status.messageBrief },
     description: status.message,
+  };
+}
+
+/**
+ * P0-1: Get upgrade status message based on official webhook signal
+ * 
+ * This uses the typ_osp_pages_enabled field from checkout_and_accounts_configurations/update
+ * webhook to provide accurate guidance to merchants.
+ */
+export function getUpgradeStatusMessage(
+  upgradeStatus: ShopUpgradeStatus,
+  hasScriptTags: boolean,
+  now: Date = new Date()
+): {
+  isUpgraded: boolean | null;
+  urgency: "critical" | "high" | "medium" | "low" | "resolved";
+  title: string;
+  message: string;
+  actions: string[];
+} {
+  const { tier, typOspPagesEnabled } = upgradeStatus;
+  
+  // If shop has already upgraded to new pages
+  if (typOspPagesEnabled === true) {
+    return {
+      isUpgraded: true,
+      urgency: "resolved",
+      title: "已升级到新版 Thank you / Order status 页面",
+      message: "您的店铺已使用新版 Checkout Extensibility 页面。旧版 ScriptTags 和 Additional Scripts 已不再执行。",
+      actions: hasScriptTags 
+        ? ["建议删除不再生效的旧版 ScriptTags 以保持配置整洁"]
+        : [],
+    };
+  }
+  
+  // Calculate deadline based on tier
+  const deadline = tier === "plus" 
+    ? DEPRECATION_DATES.plusAdditionalScriptsReadOnly 
+    : tier === "non_plus"
+    ? DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly
+    : DEPRECATION_DATES.plusAdditionalScriptsReadOnly; // Default to plus deadline for unknown
+  
+  const daysRemaining = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const isPlusDeadlinePassed = now >= DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
+  
+  // If upgrade status unknown (webhook not received)
+  if (typOspPagesEnabled === null || typOspPagesEnabled === undefined) {
+    // For Plus shops after 2025-08-28, this is critical
+    if (tier === "plus" && isPlusDeadlinePassed) {
+      return {
+        isUpgraded: null,
+        urgency: "critical",
+        title: "⚠️ Plus 商家：请确认页面升级状态",
+        message: "Plus 商家的 Additional Scripts 截止日期（2025-08-28）已过。如果您尚未升级到新版 Thank you / Order status 页面，旧脚本可能已停止运行。请检查您的追踪是否正常。",
+        actions: [
+          "前往 Shopify 后台 → 设置 → 结账 查看当前页面版本",
+          "如已升级：确认 Web Pixel 正常运行",
+          "如未升级：旧脚本可能仍在运行，但建议尽快迁移",
+        ],
+      };
+    }
+    
+    return {
+      isUpgraded: null,
+      urgency: "medium",
+      title: "升级状态待确认",
+      message: "我们尚未收到您店铺的页面升级状态。这可能是因为您尚未更改结账设置，或系统尚未同步。",
+      actions: [
+        "前往 Shopify 后台 → 设置 → 结账 查看当前页面版本",
+        `${tier === "plus" ? "Plus 商家截止日期已过（2025-08-28）" : `距离截止日期还有 ${Math.max(0, daysRemaining)} 天`}`,
+      ],
+    };
+  }
+  
+  // typOspPagesEnabled === false - shop has NOT upgraded yet
+  if (tier === "plus" && isPlusDeadlinePassed) {
+    return {
+      isUpgraded: false,
+      urgency: "critical",
+      title: "🚨 Plus 商家：Additional Scripts 已进入只读模式",
+      message: "您的店铺尚未升级到新版页面，但 Plus 商家的 Additional Scripts 截止日期（2025-08-28）已过。Shopify 可能随时将您的页面迁移到新版本。",
+      actions: [
+        "立即配置 Web Pixel 以确保追踪不中断",
+        "检查 Web Pixel 和 CAPI 配置是否正确",
+        "考虑主动升级到新版页面以获得更好的控制",
+      ],
+    };
+  }
+  
+  if (daysRemaining <= 0) {
+    return {
+      isUpgraded: false,
+      urgency: "critical",
+      title: "截止日期已过 - 请立即迁移",
+      message: `Additional Scripts 截止日期已过。请尽快完成迁移以避免追踪中断。`,
+      actions: [
+        "立即配置 Web Pixel",
+        "验证追踪是否正常工作",
+      ],
+    };
+  }
+  
+  if (daysRemaining <= 30) {
+    return {
+      isUpgraded: false,
+      urgency: "high",
+      title: `紧急：剩余 ${daysRemaining} 天`,
+      message: `您的店铺尚未升级到新版页面。Additional Scripts 将于 ${daysRemaining} 天后变为只读。`,
+      actions: [
+        "尽快完成 Web Pixel 配置",
+        "测试迁移后的追踪功能",
+      ],
+    };
+  }
+  
+  if (daysRemaining <= 90) {
+    return {
+      isUpgraded: false,
+      urgency: "medium",
+      title: `请规划迁移：剩余 ${daysRemaining} 天`,
+      message: `您的店铺尚未升级到新版页面。建议在截止日期前完成迁移。`,
+      actions: [
+        "规划迁移时间表",
+        "在设置页面配置 Web Pixel",
+      ],
+    };
+  }
+  
+  return {
+    isUpgraded: false,
+    urgency: "low",
+    title: "建议迁移",
+    message: "您的店铺尚未升级到新版页面。虽然时间充裕，但建议提前规划迁移。",
+    actions: [
+      "了解 Web Pixel 和 Checkout Extensibility",
+      "在测试店铺中预演迁移流程",
+    ],
   };
 }

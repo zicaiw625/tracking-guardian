@@ -40,6 +40,12 @@ api_version = "2025-07"
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
 uri = "/webhooks"
 
+# P0-1: Checkout upgrade status webhook
+# Provides typ_osp_pages_enabled field to detect if shop has upgraded to new pages
+[[webhooks.subscriptions]]
+topics = ["checkout_and_accounts_configurations/update"]
+uri = "/webhooks"
+
 [pos]
 embedded = false
 

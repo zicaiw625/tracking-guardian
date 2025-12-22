@@ -67,7 +67,20 @@ async function cleanupExpiredData(): Promise<{
   scanReportsDeleted: number;
   reconciliationReportsDeleted: number;
   gdprJobsDeleted: number;
+  eventNoncesDeleted: number;
 }> {
+  // P0-2: Clean up expired EventNonce records (idempotency nonces)
+  // These expire after 1 hour, clean up anything older
+  const eventNonceResult = await prisma.eventNonce.deleteMany({
+    where: {
+      expiresAt: { lt: new Date() },
+    },
+  });
+  
+  if (eventNonceResult.count > 0) {
+    logger.info(`Cleaned up ${eventNonceResult.count} expired event nonces`);
+  }
+
   const gdprCutoff = new Date();
   gdprCutoff.setDate(gdprCutoff.getDate() - 30);
   
@@ -282,6 +295,7 @@ async function cleanupExpiredData(): Promise<{
     scanReportsDeleted: totalScanReports,
     reconciliationReportsDeleted: totalReconciliationReports,
     gdprJobsDeleted: gdprJobResult.count,
+    eventNoncesDeleted: eventNonceResult.count,
   };
 }
 
@@ -479,7 +493,8 @@ async function executeCronTasks(
     cleanupResults.webhookLogsDeleted +
     cleanupResults.scanReportsDeleted +
     cleanupResults.reconciliationReportsDeleted +
-    cleanupResults.gdprJobsDeleted;
+    cleanupResults.gdprJobsDeleted +
+    cleanupResults.eventNoncesDeleted;
 
   if (totalDeleted > 0) {
     cronLogger.info("[METRIC] retention_cleanup", {

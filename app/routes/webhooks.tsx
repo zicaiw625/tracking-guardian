@@ -350,6 +350,45 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         break;
 
+      // P0-1: Handle checkout and accounts configurations update
+      // This webhook provides the official signal for whether a shop has upgraded
+      // to the new Thank you / Order status pages
+      case "CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE":
+        logger.info(`Checkout configuration update for shop ${shop}`);
+        try {
+          const configPayload = payload as {
+            typ_osp_pages_enabled?: boolean;
+            [key: string]: unknown;
+          };
+          
+          const typOspPagesEnabled = configPayload.typ_osp_pages_enabled;
+          
+          if (typOspPagesEnabled !== undefined && shopRecord) {
+            await prisma.shop.update({
+              where: { id: shopRecord.id },
+              data: {
+                typOspPagesEnabled: typOspPagesEnabled,
+                typOspUpdatedAt: new Date(),
+              },
+            });
+            logger.info(
+              `Updated typ_osp_pages_enabled=${typOspPagesEnabled} for ${shop}`
+            );
+          } else if (!shopRecord) {
+            logger.warn(`Shop record not found for ${shop}, skipping config update`);
+          }
+          
+          if (webhookId) {
+            await updateWebhookStatus(shop, webhookId, topic, "processed");
+          }
+        } catch (configError) {
+          logger.error("Failed to process checkout config update:", configError);
+          if (webhookId) {
+            await updateWebhookStatus(shop, webhookId, topic, "failed");
+          }
+        }
+        break;
+
       default:
         logger.warn(`Unhandled webhook topic: ${topic}`);
         return new Response(`Unhandled webhook topic: ${topic}`, { status: 404 });

@@ -89,6 +89,15 @@ model Shop {
   // Avoids relying on settings key guessing to identify "our" pixel
   webPixelId String?
 
+  // P0-1: Shop tier and checkout upgrade status
+  // Used to determine accurate deprecation messaging
+  // - shopTier: "plus" | "non_plus" | null (detected from Shopify plan)
+  // - typOspPagesEnabled: Whether shop has upgraded to new Thank you / Order status pages
+  //   Populated via checkout_and_accounts_configurations/update webhook
+  shopTier             String?   // "plus" or "non_plus"
+  typOspPagesEnabled   Boolean?  // true = upgraded to new TYP/OSP pages
+  typOspUpdatedAt      DateTime? // Last time the status was updated
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
