@@ -21,7 +21,8 @@
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
     "check:api-version": "npx ts-node scripts/check-api-version.ts",
-    "lint:all": "npm run lint && npm run typecheck && npm run check:api-version",
+    "lint:graphql-only": "node --experimental-strip-types scripts/check-graphql-only.ts",
+    "lint:all": "npm run lint && npm run typecheck && npm run check:api-version && npm run lint:graphql-only",
     "ext:inject": "npx ts-node scripts/build-extensions.ts inject",
     "ext:restore": "npx ts-node scripts/build-extensions.ts restore",
     "deploy:ext": "npm run ext:inject && shopify app deploy && npm run ext:restore"

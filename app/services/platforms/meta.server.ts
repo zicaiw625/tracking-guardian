@@ -140,7 +140,7 @@ export async function sendConversionToMeta(credentials: MetaCredentials | null, 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), META_API_TIMEOUT_MS);
     try {
-        const response = await fetch(`https:                                                                          
+        const response = await fetch(`https://graph.facebook.com/${META_API_VERSION}/${credentials.pixelId}/events`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

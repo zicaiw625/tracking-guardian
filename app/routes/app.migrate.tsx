@@ -31,6 +31,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             pixelStatus: "not_installed" as const,
             hasCapiConfig: false,
             latestScan: null,
+            needsSettingsUpgrade: false,
+            currentPixelSettings: null,
         });
     }
     const existingPixels = await getExistingWebPixels(admin);
@@ -74,6 +76,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         hasCapiConfig,
         latestScan,
         needsSettingsUpgrade: needsUpgrade,
+        currentPixelSettings: ourPixel?.settings ? JSON.parse(ourPixel.settings) : null,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -93,7 +96,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     const formData = await request.formData();
     const actionType = formData.get("_action");
-    if (actionType === "enablePixel") {
+    if (actionType === "enablePixel" || actionType === "upgradePixelSettings") {
         let ingestionSecret: string | undefined = undefined;
         if (shop.ingestionSecret) {
             try {
@@ -139,6 +142,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
             ourPixelId = ourPixel?.id ?? null;
         }
+        
+        // For upgrade action, use the upgradeWebPixelSettings function
+        if (actionType === "upgradePixelSettings" && ourPixelId) {
+            const { upgradeWebPixelSettings } = await import("../services/migration.server");
+            const existingPixels = await getExistingWebPixels(admin);
+            const ourPixel = existingPixels.find((p) => p.id === ourPixelId);
+            const currentSettings = ourPixel?.settings ? JSON.parse(ourPixel.settings) : {};
+            
+            const result = await upgradeWebPixelSettings(
+                admin,
+                ourPixelId,
+                currentSettings,
+                shopDomain,
+                ingestionSecret
+            );
+            
+            if (result.success) {
+                logger.info(`[Migration] Upgraded WebPixel settings for ${shopDomain}`);
+                return json({
+                    _action: "upgradePixelSettings",
+                    success: true,
+                    message: "Pixel 设置已升级到最新版本",
+                    webPixelId: ourPixelId,
+                });
+            } else {
+                return json({
+                    _action: "upgradePixelSettings",
+                    success: false,
+                    error: result.error,
+                    userErrors: result.userErrors,
+                });
+            }
+        }
+        
         let result;
         if (ourPixelId) {
             const { updateWebPixel } = await import("../services/migration.server");
@@ -176,7 +213,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 type SetupStep = "pixel" | "capi" | "complete";
 export default function MigratePage() {
-    const { shop, pixelStatus, hasCapiConfig, latestScan } = useLoaderData<typeof loader>();
+    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -184,6 +221,12 @@ export default function MigratePage() {
         ? (hasCapiConfig ? "complete" : "capi")
         : "pixel");
     const isSubmitting = navigation.state === "submitting";
+
+    const handleUpgradeSettings = () => {
+        const formData = new FormData();
+        formData.append("_action", "upgradePixelSettings");
+        submit(formData, { method: "post" });
+    };
     useEffect(() => {
         const data = actionData as {
             _action?: string;
@@ -226,12 +269,56 @@ export default function MigratePage() {
               这种方式比客户端像素更准确、更隐私友好，并且不受广告拦截器影响。
             </Text>
             <List type="bullet">
-              <List.Item>准确率提高 15-30%</List.Item>
+              <List.Item>降低广告拦截器影响，提高追踪一致性</List.Item>
               <List.Item>不受 iOS 14+ 隐私限制影响</List.Item>
               <List.Item>符合 GDPR/CCPA 要求</List.Item>
             </List>
           </BlockStack>
         </Banner>
+
+        {/* Pixel Settings Upgrade Banner */}
+        {needsSettingsUpgrade && pixelStatus === "installed" && (
+          <Banner 
+            title="Pixel 设置需要升级" 
+            tone="warning"
+            action={{
+              content: "一键升级设置",
+              onAction: handleUpgradeSettings,
+              loading: isSubmitting,
+            }}
+          >
+            <BlockStack gap="200">
+              <Text as="p">
+                检测到您的 App Pixel 使用旧版配置格式（缺少 backend_url 或 shop_domain）。
+                请点击「一键升级设置」来更新到最新版本，以确保追踪功能正常工作。
+              </Text>
+              {(() => {
+                const data = actionData as {
+                  _action?: string;
+                  success?: boolean;
+                  error?: string;
+                  message?: string;
+                } | undefined;
+                if (data?._action === "upgradePixelSettings") {
+                  if (data.success) {
+                    return (
+                      <Banner tone="success">
+                        <Text as="p">{data.message}</Text>
+                      </Banner>
+                    );
+                  } else {
+                    return (
+                      <Banner tone="critical">
+                        <Text as="p">升级失败: {data.error}</Text>
+                      </Banner>
+                    );
+                  }
+                }
+                return null;
+              })()}
+            </BlockStack>
+          </Banner>
+        )}
 
         <Card>
           <BlockStack gap="400">

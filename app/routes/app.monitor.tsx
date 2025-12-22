@@ -331,7 +331,7 @@ export default function MonitorPage() {
                       </Text>
                     </InlineStack>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      配置 Conversions API（CAPI）可将追踪准确率提高 15-30%，不受广告拦截器影响
+                      配置 Conversions API（CAPI）可降低广告拦截器影响，提高追踪数据的一致性
                     </Text>
                   </BlockStack>
                   <Button url="/app/settings" size="slim" icon={ArrowRightIcon}>

@@ -49,17 +49,23 @@ export function createEventSender(config: EventSenderConfig) {
   const log = logger || (() => {});
 
   return async function sendToBackend(eventName: string, data: Record<string, unknown>): Promise<void> {
-    if (!consentManager.hasFullConsent()) {
+    // P1-01: Changed from hasFullConsent() to allow partial consent scenarios.
+    // Events are sent with consent state; server-side will filter by platform.
+    // - Analytics platforms (GA4): only need analytics consent
+    // - Marketing platforms (Meta, TikTok): need marketing consent + saleOfData
+    const hasAnyConsent = consentManager.hasAnalyticsConsent() || consentManager.hasMarketingConsent();
+    
+    if (!hasAnyConsent) {
       log(
-        `Skipping ${eventName} - insufficient consent. ` +
-        `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}`
+        `Skipping ${eventName} - no consent at all. ` +
+        `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}`
       );
       return;
     }
 
     log(
-      `${eventName}: Sending to backend. ` +
-      `Consent state: analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}`
+      `${eventName}: Sending to backend with consent state. ` +
+      `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}`
     );
 
     try {

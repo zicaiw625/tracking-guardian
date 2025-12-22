@@ -11,7 +11,12 @@ export interface MigrationAction {
     platform?: string;
     title: string;
     description: string;
+    /** Numeric ScriptTag ID for display */
     scriptTagId?: number;
+    /** Original GraphQL GID for scriptTagDelete mutation */
+    scriptTagGid?: string;
+    /** WebPixel GID for webPixelDelete mutation */
+    webPixelGid?: string;
     deadline?: string;
 }
 
@@ -47,7 +52,9 @@ export interface ScriptAnalysisResult {
 // Re-export types from main types module
 export type { ScanResult, RiskItem, RiskSeverity, ScriptTag, CheckoutConfig } from "../../types";
 
-export interface EnhancedScanResult extends import("../../types").ScanResult {
+import type { ScanResult } from "../../types";
+
+export interface EnhancedScanResult extends ScanResult {
     webPixels: WebPixelInfo[];
     duplicatePixels: Array<{
         platform: string;

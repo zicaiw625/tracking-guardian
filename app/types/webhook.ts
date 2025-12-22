@@ -167,12 +167,16 @@ export interface ScanResult {
 }
 
 export interface ScriptTag {
+  /** Numeric ID for display purposes */
   id: number;
+  /** Original GraphQL global ID (gid://shopify/ScriptTag/123) for mutations */
+  gid?: string;
   src: string;
   event?: string;
   created_at?: string;
   updated_at?: string;
   display_scope?: string;
+  cache?: boolean;
 }
 
 export interface CheckoutConfig {

@@ -56,6 +56,7 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
             title: `迁移 ScriptTag: ${platform}`,
             description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 配置 CAPI 凭证  3) 测试追踪  4) 删除此 ScriptTag`,
             scriptTagId: tag.id,
+            scriptTagGid: tag.gid, // Include GID for deletion mutation
             deadline,
         });
     }
@@ -77,12 +78,30 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
 
     // Check for duplicate pixels
     for (const dup of result.duplicatePixels) {
+        // Extract WebPixel GIDs for deletion (keep first, delete rest)
+        const webPixelGids = dup.ids
+            .filter(id => id.startsWith("webpixel_"))
+            .map(id => {
+                // Format: webpixel_{gid}_{key}
+                const parts = id.split("_");
+                if (parts.length >= 2) {
+                    return parts[1]; // Return the GID part
+                }
+                return null;
+            })
+            .filter((gid): gid is string => gid !== null);
+        
+        // If we have multiple WebPixel GIDs, we can offer to delete duplicates
+        const gidsToDelete = webPixelGids.slice(1); // Keep first, delete rest
+        
         actions.push({
             type: "remove_duplicate",
             priority: "medium",
             platform: dup.platform,
             title: `清理重复的 ${dup.platform} 像素`,
-            description: `检测到 ${dup.count} 个 ${dup.platform} 像素配置，可能导致重复追踪。建议只保留一个。`,
+            description: `检测到 ${dup.count} 个 ${dup.platform} 像素配置，可能导致重复追踪。建议只保留一个。` +
+                (gidsToDelete.length > 0 ? ` (可删除 ${gidsToDelete.length} 个)` : ""),
+            webPixelGid: gidsToDelete[0], // First duplicate to delete
         });
     }
 
@@ -122,7 +141,7 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
             type: "enable_capi",
             priority: "low",
             title: "启用服务端转化追踪 (CAPI)",
-            description: "启用 Conversions API 可将追踪准确率提高 15-30%，不受广告拦截器影响。",
+            description: "启用 Conversions API 可降低广告拦截器影响，提高追踪数据的一致性和完整性。",
         });
     }
 
@@ -134,7 +153,12 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
 }
 
 /**
- * Get set of platforms that have been configured via web pixels
+ * P1-05: Get set of platforms that have been configured via web pixels
+ * 
+ * Improved detection that:
+ * 1. Checks for explicit platform identifiers in settings
+ * 2. Uses our own WebPixel's platforms_enabled field if available
+ * 3. More precise pattern matching to avoid false positives
  */
 function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
     const configuredPlatforms = new Set<string>();
@@ -146,15 +170,46 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
                     ? JSON.parse(pixel.settings)
                     : pixel.settings;
 
-                for (const [, value] of Object.entries(settings as Record<string, unknown>)) {
-                    if (typeof value === "string") {
-                        if (/^G-[A-Z0-9]+$/.test(value) || /^AW-\d+$/.test(value)) {
-                            configuredPlatforms.add("google");
-                        } else if (/^\d{15,16}$/.test(value)) {
-                            configuredPlatforms.add("meta");
-                        } else if (/^[A-Z0-9]{20,}$/i.test(value)) {
-                            configuredPlatforms.add("tiktok");
-                        }
+                // Check if this is our pixel with explicit platforms_enabled
+                if (Array.isArray(settings.platforms_enabled)) {
+                    for (const platform of settings.platforms_enabled) {
+                        configuredPlatforms.add(platform);
+                    }
+                    continue; // Skip pattern matching for our own pixel
+                }
+
+                // Check for our pixel's ingestion_key (Tracking Guardian)
+                if (settings.ingestion_key || settings.ingestion_secret) {
+                    // This is our pixel, check if it has platform config
+                    if (settings.backend_url && settings.shop_domain) {
+                        // Properly configured Tracking Guardian pixel
+                        // The platforms are configured server-side, not in pixel settings
+                        continue;
+                    }
+                }
+
+                // Pattern matching for third-party pixels
+                for (const [key, value] of Object.entries(settings as Record<string, unknown>)) {
+                    if (typeof value !== "string") continue;
+                    
+                    // Skip URLs and tokens
+                    if (value.includes("://") || value.length > 100) continue;
+                    
+                    // GA4 Measurement ID (exact format: G-XXXXXXXXXX)
+                    if (/^G-[A-Z0-9]{7,12}$/.test(value)) {
+                        configuredPlatforms.add("google");
+                    }
+                    // Google Ads Conversion ID (exact format: AW-XXXXXXXXXX)
+                    else if (/^AW-\d{9,12}$/.test(value)) {
+                        configuredPlatforms.add("google");
+                    }
+                    // Meta Pixel ID (exactly 15-16 digits)
+                    else if (/^\d{15,16}$/.test(value) && key.toLowerCase().includes("pixel")) {
+                        configuredPlatforms.add("meta");
+                    }
+                    // TikTok Pixel ID (20+ alphanumeric, typically uppercase)
+                    else if (/^[A-Z0-9]{20,30}$/.test(value) && key.toLowerCase().includes("pixel")) {
+                        configuredPlatforms.add("tiktok");
                     }
                 }
             } catch {

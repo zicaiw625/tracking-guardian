@@ -200,7 +200,7 @@ async function sendTelegramAlert(settings: TelegramAlertSettings, data: AlertDat
 
 请及时检查追踪配置！
   `.trim();
-    const response = await fetch(`https:                                                          
+    const response = await fetch(`https://api.telegram.org/bot${settings.botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

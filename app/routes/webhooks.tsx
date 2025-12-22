@@ -114,6 +114,51 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         switch (topic) {
             case "APP_UNINSTALLED":
                 logger.info(`Processing APP_UNINSTALLED for shop ${shop}`);
+                
+                // P1-03: Attempt to cleanup WebPixel before losing access
+                // Note: This may fail if the shop has already revoked access
+                if (admin && typeof admin === "object" && "graphql" in admin) {
+                    try {
+                        const { getExistingWebPixels, isOurWebPixel } = await import("../services/migration.server");
+                        const { deleteWebPixel } = await import("../services/admin-mutations.server");
+                        
+                        // Cast admin to the expected type
+                        const typedAdmin = admin as { graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<{ json: () => Promise<unknown> }> };
+                        
+                        const webPixels = await getExistingWebPixels(typedAdmin as Parameters<typeof getExistingWebPixels>[0]);
+                        
+                        for (const pixel of webPixels) {
+                            if (pixel.settings) {
+                                try {
+                                    const settings = JSON.parse(pixel.settings);
+                                    if (isOurWebPixel(settings, shop)) {
+                                        const deleteResult = await deleteWebPixel(typedAdmin as Parameters<typeof deleteWebPixel>[0], pixel.id);
+                                        if (deleteResult.success) {
+                                            logger.info(`Cleaned up WebPixel on uninstall`, {
+                                                shop,
+                                                webPixelId: pixel.id,
+                                            });
+                                        } else {
+                                            logger.warn(`Failed to cleanup WebPixel on uninstall`, {
+                                                shop,
+                                                webPixelId: pixel.id,
+                                                error: deleteResult.error,
+                                            });
+                                        }
+                                    }
+                                } catch {
+                                    // Ignore parse errors
+                                }
+                            }
+                        }
+                    } catch (cleanupError) {
+                        // Log but don't fail - shop may have already revoked access
+                        logger.warn(`WebPixel cleanup attempt failed for ${shop}`, {
+                            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+                        });
+                    }
+                }
+                
                 if (session) {
                     await prisma.session.deleteMany({ where: { shop } });
                 }

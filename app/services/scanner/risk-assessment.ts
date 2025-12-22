@@ -30,7 +30,7 @@ export const RISK_RULES: RiskRule[] = [
     {
         id: "no_server_side",
         name: "建议启用服务端追踪",
-        description: "仅依赖客户端追踪可能导致 15-30% 的转化丢失",
+        description: "仅依赖客户端追踪可能受广告拦截器和浏览器隐私设置影响",
         severity: "low",
         points: 10,
     },
@@ -133,10 +133,10 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
         addRisk({
             id: "no_server_side",
             name: "建议启用服务端追踪",
-            description: "仅依赖客户端追踪可能导致 15-30% 的转化丢失",
+            description: "仅依赖客户端追踪可能受广告拦截器和浏览器隐私设置影响",
             severity: "low",
             points: 10,
-            details: "建议配置 Conversion API 以提高追踪准确性",
+            details: "建议配置 Conversion API 以提高追踪数据的一致性和完整性",
         }, "no_server_side");
     }
 

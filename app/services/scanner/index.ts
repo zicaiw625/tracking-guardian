@@ -77,6 +77,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
             const numericId = gidMatch ? parseInt(gidMatch[1], 10) : 0;
             allTags.push({
                 id: numericId,
+                gid: edge.node.id, // Preserve original GID for mutations
                 src: edge.node.src,
                 event: "onload",
                 display_scope: edge.node.displayScope?.toLowerCase() || "all",
@@ -160,7 +161,11 @@ function collectScriptContent(result: EnhancedScanResult): string {
 }
 
 /**
- * Detect duplicate pixels across script tags and web pixels
+ * P1-05: Improved duplicate pixel detection
+ * 
+ * Detects duplicates based on:
+ * 1. Same platform AND same identifier (e.g., same GA4 Measurement ID)
+ * 2. Ignores cross-application pixels (only flags duplicates within same platform type)
  */
 function detectDuplicatePixels(result: EnhancedScanResult): Array<{
     platform: string;
@@ -172,25 +177,56 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
         count: number;
         ids: string[];
     }> = [];
-    const platformCounts: Record<string, string[]> = {};
+    
+    // Track by platform AND identifier for more precise duplicate detection
+    // Key format: "{platform}:{identifier}" -> list of sources
+    const platformIdentifiers: Record<string, { sources: string[]; platform: string }> = {};
 
-    // Check script tags
+    // Check script tags - extract actual identifiers
     for (const tag of result.scriptTags) {
         const src = tag.src || "";
-        for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
-            for (const pattern of patterns) {
-                if (pattern.test(src)) {
-                    if (!platformCounts[platform]) {
-                        platformCounts[platform] = [];
-                    }
-                    platformCounts[platform].push(`scripttag_${tag.id}`);
-                    break;
-                }
+        
+        // Google (GA4 or Google Ads)
+        const ga4Match = src.match(/G-[A-Z0-9]+/);
+        if (ga4Match) {
+            const key = `google:${ga4Match[0]}`;
+            if (!platformIdentifiers[key]) {
+                platformIdentifiers[key] = { sources: [], platform: "google" };
             }
+            platformIdentifiers[key].sources.push(`scripttag_${tag.id}_${tag.gid || ""}`);
+        }
+        
+        const adsMatch = src.match(/AW-\d+/);
+        if (adsMatch) {
+            const key = `google_ads:${adsMatch[0]}`;
+            if (!platformIdentifiers[key]) {
+                platformIdentifiers[key] = { sources: [], platform: "google" };
+            }
+            platformIdentifiers[key].sources.push(`scripttag_${tag.id}_${tag.gid || ""}`);
+        }
+        
+        // Meta Pixel ID
+        const metaMatch = src.match(/\b(\d{15,16})\b/);
+        if (metaMatch && (src.includes("facebook") || src.includes("fbq") || src.includes("connect.facebook"))) {
+            const key = `meta:${metaMatch[1]}`;
+            if (!platformIdentifiers[key]) {
+                platformIdentifiers[key] = { sources: [], platform: "meta" };
+            }
+            platformIdentifiers[key].sources.push(`scripttag_${tag.id}_${tag.gid || ""}`);
+        }
+        
+        // TikTok Pixel ID
+        const tiktokMatch = src.match(/[A-Z0-9]{20,}/i);
+        if (tiktokMatch && (src.includes("tiktok") || src.includes("ttq"))) {
+            const key = `tiktok:${tiktokMatch[0]}`;
+            if (!platformIdentifiers[key]) {
+                platformIdentifiers[key] = { sources: [], platform: "tiktok" };
+            }
+            platformIdentifiers[key].sources.push(`scripttag_${tag.id}_${tag.gid || ""}`);
         }
     }
 
-    // Check web pixels
+    // Check web pixels - extract identifiers from settings
     for (const pixel of result.webPixels) {
         if (pixel.settings) {
             try {
@@ -198,15 +234,41 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                     ? JSON.parse(pixel.settings)
                     : pixel.settings;
 
-                for (const [key, value] of Object.entries(settings as Record<string, unknown>)) {
-                    if (typeof value === "string") {
-                        if (/^G-[A-Z0-9]+$/.test(value) || /^AW-\d+$/.test(value)) {
-                            if (!platformCounts["google"]) platformCounts["google"] = [];
-                            platformCounts["google"].push(`webpixel_${pixel.id}_${key}`);
-                        } else if (/^\d{15,16}$/.test(value)) {
-                            if (!platformCounts["meta"]) platformCounts["meta"] = [];
-                            platformCounts["meta"].push(`webpixel_${pixel.id}_${key}`);
+                // Check for explicit platform identifiers in settings
+                for (const [settingKey, value] of Object.entries(settings as Record<string, unknown>)) {
+                    if (typeof value !== "string") continue;
+                    
+                    // GA4 Measurement ID
+                    if (/^G-[A-Z0-9]+$/.test(value)) {
+                        const key = `google:${value}`;
+                        if (!platformIdentifiers[key]) {
+                            platformIdentifiers[key] = { sources: [], platform: "google" };
                         }
+                        platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
+                    }
+                    // Google Ads
+                    else if (/^AW-\d+$/.test(value)) {
+                        const key = `google_ads:${value}`;
+                        if (!platformIdentifiers[key]) {
+                            platformIdentifiers[key] = { sources: [], platform: "google" };
+                        }
+                        platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
+                    }
+                    // Meta Pixel ID (15-16 digits)
+                    else if (/^\d{15,16}$/.test(value)) {
+                        const key = `meta:${value}`;
+                        if (!platformIdentifiers[key]) {
+                            platformIdentifiers[key] = { sources: [], platform: "meta" };
+                        }
+                        platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
+                    }
+                    // TikTok Pixel ID
+                    else if (/^[A-Z0-9]{20,}$/i.test(value) && !value.includes("://")) {
+                        const key = `tiktok:${value}`;
+                        if (!platformIdentifiers[key]) {
+                            platformIdentifiers[key] = { sources: [], platform: "tiktok" };
+                        }
+                        platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
                     }
                 }
             } catch {
@@ -215,10 +277,16 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
         }
     }
 
-    // Find duplicates
-    for (const [platform, ids] of Object.entries(platformCounts)) {
-        if (ids.length > 1) {
-            duplicates.push({ platform, count: ids.length, ids });
+    // Find duplicates - only flag if same identifier appears multiple times
+    for (const [key, data] of Object.entries(platformIdentifiers)) {
+        if (data.sources.length > 1) {
+            const [platform, identifier] = key.split(":");
+            duplicates.push({
+                platform: data.platform,
+                count: data.sources.length,
+                ids: data.sources,
+            });
+            logger.info(`Duplicate detected: ${platform} identifier ${identifier?.substring(0, 8)}... appears ${data.sources.length} times`);
         }
     }
 

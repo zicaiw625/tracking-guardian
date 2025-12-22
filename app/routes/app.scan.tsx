@@ -1,15 +1,16 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useActionData } from "@remix-run/react";
-import { useState } from "react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, } from "@shopify/polaris-icons";
+import { useLoaderData, useSubmit, useNavigation, useActionData, useFetcher } from "@remix-run/react";
+import { useState, useCallback } from "react";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, Modal, } from "@shopify/polaris";
+import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, DeleteIcon, RefreshIcon, } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, analyzeScriptContent, type ScriptAnalysisResult } from "../services/scanner.server";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import type { ScriptTag, RiskItem } from "../types";
+import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
 import { logger } from "../utils/logger";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
@@ -31,14 +32,51 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shop: null,
             latestScan: null,
             scanHistory: [],
+            migrationActions: [] as MigrationAction[],
             deprecationStatus: null,
             upgradeStatus: null,
         });
     }
-    const latestScan = await prisma.scanReport.findFirst({
+    const latestScanRaw = await prisma.scanReport.findFirst({
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
     });
+    
+    // Parse migrationActions from the scan report if available
+    let migrationActions: MigrationAction[] = [];
+    if (latestScanRaw) {
+        try {
+            // migrationActions might be stored in the scan result
+            const scanData = latestScanRaw as unknown as { 
+                scriptTags?: ScriptTag[];
+                identifiedPlatforms?: string[];
+                riskItems?: RiskItem[];
+                riskScore?: number;
+            };
+            // Re-generate migration actions from current scan data
+            const { generateMigrationActions } = await import("../services/scanner/migration-actions");
+            const { getExistingWebPixels } = await import("../services/migration.server");
+            
+            // Fetch current web pixels for accurate migration actions
+            const webPixels = await getExistingWebPixels(admin);
+            const enhancedResult: EnhancedScanResult = {
+                scriptTags: (scanData.scriptTags as ScriptTag[]) || [],
+                checkoutConfig: null,
+                identifiedPlatforms: (scanData.identifiedPlatforms as string[]) || [],
+                riskItems: (scanData.riskItems as RiskItem[]) || [],
+                riskScore: scanData.riskScore || 0,
+                webPixels: webPixels.map(p => ({ id: p.id, settings: p.settings })),
+                duplicatePixels: [],
+                migrationActions: [],
+            };
+            migrationActions = generateMigrationActions(enhancedResult);
+        } catch (e) {
+            // Fallback if generation fails
+            migrationActions = [];
+        }
+    }
+    
+    const latestScan = latestScanRaw;
     const scanHistory = await getScanHistory(shop.id, 5);
     const shopTier: ShopTier = (shop.shopTier as ShopTier) || "unknown";
     const scriptTags = (latestScan?.scriptTags as ScriptTag[] | null) || [];
@@ -83,6 +121,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         shop: { id: shop.id, domain: shopDomain },
         latestScan,
         scanHistory,
+        migrationActions,
         deprecationStatus: {
             shopTier,
             scriptTag: {
@@ -141,13 +180,67 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 };
 export default function ScanPage() {
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus } = useLoaderData<typeof loader>();
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
+    const deleteFetcher = useFetcher();
     const [selectedTab, setSelectedTab] = useState(0);
     const [scriptContent, setScriptContent] = useState("");
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<{ type: "scriptTag" | "webPixel"; id: string; gid: string; title: string } | null>(null);
     const isScanning = navigation.state === "submitting";
+    const isDeleting = deleteFetcher.state === "submitting";
+
+    // Handle ScriptTag deletion
+    const handleDeleteScriptTag = useCallback((scriptTagId: number, scriptTagGid: string, platform?: string) => {
+        setPendingDelete({
+            type: "scriptTag",
+            id: String(scriptTagId),
+            gid: scriptTagGid,
+            title: `ScriptTag #${scriptTagId}${platform ? ` (${platform})` : ""}`,
+        });
+        setDeleteModalOpen(true);
+    }, []);
+
+    // Handle WebPixel deletion
+    const handleDeleteWebPixel = useCallback((webPixelGid: string, platform?: string) => {
+        setPendingDelete({
+            type: "webPixel",
+            id: webPixelGid,
+            gid: webPixelGid,
+            title: `WebPixel${platform ? ` (${platform})` : ""}`,
+        });
+        setDeleteModalOpen(true);
+    }, []);
+
+    // Confirm deletion
+    const confirmDelete = useCallback(() => {
+        if (!pendingDelete) return;
+
+        const formData = new FormData();
+        if (pendingDelete.type === "scriptTag") {
+            formData.append("scriptTagGid", pendingDelete.gid);
+            deleteFetcher.submit(formData, {
+                method: "post",
+                action: "/app/actions/delete-script-tag",
+            });
+        } else {
+            formData.append("webPixelGid", pendingDelete.gid);
+            deleteFetcher.submit(formData, {
+                method: "post",
+                action: "/app/actions/delete-web-pixel",
+            });
+        }
+        setDeleteModalOpen(false);
+        setPendingDelete(null);
+    }, [pendingDelete, deleteFetcher]);
+
+    // Close modal
+    const closeDeleteModal = useCallback(() => {
+        setDeleteModalOpen(false);
+        setPendingDelete(null);
+    }, []);
     const handleScan = () => {
         const formData = new FormData();
         formData.append("_action", "scan");
@@ -387,6 +480,112 @@ export default function ScanPage() {
             </BlockStack>
           </Card>)}
 
+        {/* Migration Actions with Delete Buttons */}
+        {latestScan && migrationActions && migrationActions.length > 0 && !isScanning && (<Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  迁移操作
+                </Text>
+                <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
+              </InlineStack>
+              
+              {deleteFetcher.data ? (
+                <Banner 
+                  tone={(deleteFetcher.data as { success?: boolean }).success ? "success" : "critical"}
+                  onDismiss={() => {}}
+                >
+                  <Text as="p">
+                    {String((deleteFetcher.data as { message?: string }).message || 
+                     (deleteFetcher.data as { error?: string }).error || "操作完成")}
+                  </Text>
+                </Banner>
+              ) : null}
+
+              <BlockStack gap="300">
+                {migrationActions.map((action, index) => (
+                  <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="start">
+                        <BlockStack gap="100">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Text as="span" fontWeight="semibold">
+                              {action.title}
+                            </Text>
+                            <Badge tone={
+                              action.priority === "high" ? "critical" : 
+                              action.priority === "medium" ? "warning" : "info"
+                            }>
+                              {action.priority === "high" ? "高优先级" : 
+                               action.priority === "medium" ? "中优先级" : "低优先级"}
+                            </Badge>
+                          </InlineStack>
+                          {action.platform && (
+                            <Badge>{getPlatformName(action.platform)}</Badge>
+                          )}
+                        </BlockStack>
+                        {action.deadline && (
+                          <Badge tone="warning">{`截止: ${action.deadline}`}</Badge>
+                        )}
+                      </InlineStack>
+                      
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {action.description}
+                      </Text>
+                      
+                      <InlineStack gap="200" align="end">
+                        {action.type === "delete_script_tag" && action.scriptTagId && action.scriptTagGid && (
+                          <Button 
+                            tone="critical" 
+                            size="slim" 
+                            icon={DeleteIcon}
+                            loading={isDeleting && pendingDelete?.gid === action.scriptTagGid}
+                            onClick={() => handleDeleteScriptTag(
+                              action.scriptTagId!,
+                              action.scriptTagGid!,
+                              action.platform
+                            )}
+                          >
+                            删除 ScriptTag
+                          </Button>
+                        )}
+                        {action.type === "remove_duplicate" && action.webPixelGid && (
+                          <Button 
+                            tone="critical" 
+                            size="slim" 
+                            icon={DeleteIcon}
+                            loading={isDeleting && pendingDelete?.gid === action.webPixelGid}
+                            onClick={() => handleDeleteWebPixel(action.webPixelGid!, action.platform)}
+                          >
+                            删除重复像素
+                          </Button>
+                        )}
+                        {action.type === "configure_pixel" && (
+                          <Button 
+                            size="slim" 
+                            url="/app/migrate"
+                            icon={ArrowRightIcon}
+                          >
+                            配置 Pixel
+                          </Button>
+                        )}
+                        {action.type === "enable_capi" && (
+                          <Button 
+                            size="slim" 
+                            url="/app/settings"
+                            icon={ArrowRightIcon}
+                          >
+                            配置 CAPI
+                          </Button>
+                        )}
+                      </InlineStack>
+                    </BlockStack>
+                  </Box>
+                ))}
+              </BlockStack>
+            </BlockStack>
+          </Card>)}
+
         {scanHistory.length > 1 && (<Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
@@ -573,6 +772,39 @@ export default function ScanPage() {
                 </Card>)}
             </BlockStack>)}
         </Tabs>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          open={deleteModalOpen}
+          onClose={closeDeleteModal}
+          title="确认删除"
+          primaryAction={{
+            content: "确认删除",
+            destructive: true,
+            onAction: confirmDelete,
+            loading: isDeleting,
+          }}
+          secondaryActions={[
+            {
+              content: "取消",
+              onAction: closeDeleteModal,
+            },
+          ]}
+        >
+          <Modal.Section>
+            <BlockStack gap="300">
+              <Text as="p">
+                您确定要删除 <strong>{pendingDelete?.title}</strong> 吗？
+              </Text>
+              <Banner tone="warning">
+                <Text as="p" variant="bodySm">
+                  此操作不可撤销。删除后，相关追踪功能将立即停止。
+                  请确保您已通过 Web Pixel 或其他方式配置了替代追踪方案。
+                </Text>
+              </Banner>
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
       </BlockStack>
     </Page>);
 }

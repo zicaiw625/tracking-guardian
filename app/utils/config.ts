@@ -160,12 +160,47 @@ export const ENCRYPTION_CONFIG = {
 } as const;
 
 /**
+ * Shopify API configuration
+ */
+export const SHOPIFY_API_CONFIG = {
+    /** API version - should match shopify.app.toml webhooks.api_version */
+    VERSION: "2025-07",
+    
+    /** Get GraphQL endpoint for a shop */
+    getGraphQLEndpoint: (shopDomain: string): string =>
+        `https://${shopDomain}/admin/api/2025-07/graphql.json`,
+    
+    /** Get Shopify Admin URL for a shop */
+    getAdminUrl: (shopDomain: string, path: string = ""): string => {
+        const storeHandle = shopDomain.replace(".myshopify.com", "");
+        return `https://admin.shopify.com/store/${storeHandle}${path}`;
+    },
+} as const;
+
+/**
+ * Platform API endpoints
+ */
+export const PLATFORM_ENDPOINTS = {
+    /** GA4 Measurement Protocol */
+    GA4_MEASUREMENT_PROTOCOL: (measurementId: string, apiSecret: string): string =>
+        `https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`,
+    
+    /** Meta Graph API events endpoint */
+    META_GRAPH_API: (pixelId: string, version: string = "v21.0"): string =>
+        `https://graph.facebook.com/${version}/${pixelId}/events`,
+    
+    /** Telegram Bot API */
+    TELEGRAM_BOT: (botToken: string): string =>
+        `https://api.telegram.org/bot${botToken}/sendMessage`,
+} as const;
+
+/**
  * CAPI platform-specific configuration
  */
 export const CAPI_CONFIG = {
     /** Meta CAPI */
     META: {
-        apiVersion: "v20.0",
+        apiVersion: "v21.0",
         baseUrl: "https://graph.facebook.com",
         timeout: 30000,
     },

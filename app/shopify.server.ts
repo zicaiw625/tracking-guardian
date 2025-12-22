@@ -283,7 +283,7 @@ export async function createAdminClientForShop(shopDomain: string): Promise<Admi
             try {
                 const accessToken = decryptAccessToken(offlineSession.accessToken);
                 if (accessToken) {
-                    const apiUrl = `https:                                                             
+                    const apiUrl = `https://${shopDomain}/admin/api/${ApiVersion.July25}/graphql.json`;
                     const graphqlClient = {
                         async graphql(query: string, options?: {
                             variables?: Record<string, unknown>;
@@ -328,7 +328,7 @@ export async function createAdminClientForShop(shopDomain: string): Promise<Admi
             logger.info(`[Admin] No usable offline token for ${shopDomain}`);
             return null;
         }
-        const apiUrl = `https:                                                             
+        const apiUrl = `https://${shopDomain}/admin/api/${ApiVersion.July25}/graphql.json`;
         const graphqlClient = {
             async graphql(query: string, options?: {
                 variables?: Record<string, unknown>;

@@ -276,22 +276,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 headers: getCorsHeadersPreBody(request),
             });
         }
-        const strictConsent = payload.consent;
-        const strictMarketingAllowed = strictConsent?.marketing === true;
-        const strictAnalyticsAllowed = strictConsent?.analytics === true;
-        const strictSaleOfDataAllowed = strictConsent?.saleOfData !== false;
-        if (!strictMarketingAllowed || !strictAnalyticsAllowed || !strictSaleOfDataAllowed) {
+        // P1-01: Relaxed consent check - allow if ANY consent is present
+        // Per-platform filtering happens later based on platform type (marketing vs analytics)
+        const initialConsent = payload.consent;
+        const initialMarketingConsent = initialConsent?.marketing === true;
+        const initialAnalyticsConsent = initialConsent?.analytics === true;
+        const hasAnyConsent = initialMarketingConsent || initialAnalyticsConsent;
+        
+        if (!hasAnyConsent) {
             metrics.silentDrop({
                 shopDomain: payload.shopDomain,
-                reason: "insufficient_consent_strict",
+                reason: "no_consent_at_all",
                 category: "validation",
                 sampleRate: 1,
             });
-            logger.debug(`Dropping pixel event due to insufficient consent (strict)`, {
+            logger.debug(`Dropping pixel event - no consent at all`, {
                 shopDomain: payload.shopDomain,
-                marketing: strictConsent?.marketing,
-                analytics: strictConsent?.analytics,
-                saleOfData: strictConsent?.saleOfData,
+                marketing: initialConsent?.marketing,
+                analytics: initialConsent?.analytics,
             });
             return new Response(null, {
                 status: 204,

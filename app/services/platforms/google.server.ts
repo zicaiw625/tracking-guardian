@@ -46,7 +46,7 @@ export async function sendConversionToGoogle(credentials: GoogleCredentials | nu
         ],
     };
     try {
-        const url = `https:                                                                                                                                                               
+        const url = `https://www.google-analytics.com/mp/collect?measurement_id=${credentials.measurementId}&api_secret=${credentials.apiSecret}`;
         const response = await fetchWithTimeout(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

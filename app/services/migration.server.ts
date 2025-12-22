@@ -301,6 +301,44 @@ export async function updateWebPixel(admin: AdminApiContext, webPixelId: string,
         };
     }
 }
+/**
+ * P1-02: Upgrade WebPixel settings to latest schema version.
+ * Handles migration from ingestion_secret to ingestion_key and adds missing fields.
+ */
+export async function upgradeWebPixelSettings(
+    admin: AdminApiContext,
+    webPixelId: string,
+    currentSettings: unknown,
+    shopDomain: string,
+    ingestionKey: string,
+    backendUrl?: string
+): Promise<CreateWebPixelResult> {
+    if (!currentSettings || typeof currentSettings !== "object") {
+        return {
+            success: false,
+            error: "Invalid current settings",
+        };
+    }
+
+    const s = currentSettings as Record<string, unknown>;
+    
+    // Determine the key to use (prefer existing ingestion_key, fallback to ingestion_secret)
+    const existingKey = (s.ingestion_key as string) || (s.ingestion_secret as string) || ingestionKey;
+    
+    // Build upgraded settings
+    const upgradedSettings = buildWebPixelSettings(existingKey, shopDomain, backendUrl);
+    
+    logger.info(`Upgrading WebPixel settings for ${shopDomain}`, {
+        webPixelId,
+        hadIngestionSecret: typeof s.ingestion_secret === "string",
+        hadBackendUrl: typeof s.backend_url === "string",
+        hadShopDomain: typeof s.shop_domain === "string",
+        newSchemaVersion: upgradedSettings.schema_version,
+    });
+
+    return updateWebPixel(admin, webPixelId, existingKey, shopDomain, backendUrl);
+}
+
 export async function getExistingWebPixels(admin: AdminApiContext): Promise<Array<{
     id: string;
     settings: string | null;
@@ -343,8 +381,9 @@ export interface ScriptTagDeletionGuidance {
     deadline?: string;
 }
 export function getScriptTagDeletionGuidance(scriptTagId: number, shopDomain?: string, platform?: string): ScriptTagDeletionGuidance {
-    const adminUrl = shopDomain
-        ? `https:                                    
+    const storeHandle = shopDomain?.replace(".myshopify.com", "");
+    const adminUrl = storeHandle
+        ? `https://admin.shopify.com/store/${storeHandle}/settings/customer_events`
         : undefined;
     return {
         title: `删除 ScriptTag #${scriptTagId}`,
