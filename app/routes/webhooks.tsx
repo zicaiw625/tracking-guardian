@@ -337,20 +337,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         break;
 
-      case "CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE":
-        logger.warn(
-          `[LEGACY/DEPRECATED WEBHOOK] Received ${topic} for ${shop}. ` +
-          `Shopify has announced this topic will be removed, and we no longer rely on it to update upgrade status. ` +
-          `If this shop still has a legacy subscription, it will be removed automatically on next auth.`
-        );
-        
-        // IMPORTANT: Do not mutate upgrade status based on this webhook.
-        // Upgrade status is now refreshed via checkoutProfiles + typOspPagesActive (Admin API) and cron.
-        if (webhookId) {
-          await updateWebhookStatus(shop, webhookId, topic, "processed");
-        }
-        break;
-
       default:
         logger.warn(
           `Unexpected webhook topic received: ${topic} from ${shop}. ` +

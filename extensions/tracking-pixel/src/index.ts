@@ -64,40 +64,29 @@ register(({ analytics, settings, init, customerPrivacy }: any) => {
   let analyticsAllowed = false;
   let saleOfDataAllowed = true;
 
-  const initialPrivacyState = init.customerPrivacy as CustomerPrivacyState | undefined;
-  
-  if (initialPrivacyState) {
-    marketingAllowed = initialPrivacyState.marketingAllowed === true;
-    analyticsAllowed = initialPrivacyState.analyticsProcessingAllowed === true;
-    saleOfDataAllowed = initialPrivacyState.saleOfDataAllowed !== false;
-    
-    log("Initial consent state (from init.customerPrivacy):", { 
-      marketingAllowed, 
-      analyticsAllowed, 
-      saleOfDataAllowed 
+  function updateConsentFromStatus(status: CustomerPrivacyState | null | undefined, source: "init" | "event"): void {
+    if (!status) {
+      log(`${source} customerPrivacy not available, consent state unknown`);
+      return;
+    }
+
+    marketingAllowed = status.marketingAllowed === true;
+    analyticsAllowed = status.analyticsProcessingAllowed === true;
+    saleOfDataAllowed = status.saleOfDataAllowed !== false;
+
+    log(`Consent state updated from ${source}.customerPrivacy:`, {
+      marketingAllowed,
+      analyticsAllowed,
+      saleOfDataAllowed,
     });
-  } else {
-    log("init.customerPrivacy not available, consent state unknown");
   }
+
+  updateConsentFromStatus(init.customerPrivacy as CustomerPrivacyState | undefined, "init");
 
   if (customerPrivacy && typeof customerPrivacy.subscribe === "function") {
     try {
       customerPrivacy.subscribe("visitorConsentCollected", (event: VisitorConsentCollectedEvent) => {
-        const updatedPrivacy = event.customerPrivacy;
-        
-        if (updatedPrivacy) {
-          marketingAllowed = updatedPrivacy.marketingAllowed === true;
-          analyticsAllowed = updatedPrivacy.analyticsProcessingAllowed === true;
-          saleOfDataAllowed = updatedPrivacy.saleOfDataAllowed !== false;
-          
-          log("Consent updated (via event.customerPrivacy):", { 
-            marketingAllowed, 
-            analyticsAllowed, 
-            saleOfDataAllowed 
-          });
-        } else {
-          log("visitorConsentCollected event missing customerPrivacy object");
-        }
+        updateConsentFromStatus(event.customerPrivacy, "event");
       });
       log("Subscribed to visitorConsentCollected");
     } catch (err) {

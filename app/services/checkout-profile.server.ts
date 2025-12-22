@@ -60,6 +60,17 @@ export async function getTypOspActive(admin: AdminApiContext): Promise<TypOspSta
       
       const errorMessages = data.errors.map((e: { message?: string }) => e.message || "").join(" ");
       
+      if (errorMessages.toLowerCase().includes("plus")) {
+        return {
+          status: "unknown",
+          typOspPagesEnabled: null,
+          unknownReason: "NOT_PLUS",
+          confidence: "low",
+          checkedAt: new Date(),
+          error: errorMessages.substring(0, 200),
+        };
+      }
+
       if (errorMessages.includes("access") || errorMessages.includes("permission")) {
         return {
           status: "unknown",
@@ -95,6 +106,7 @@ export async function getTypOspActive(admin: AdminApiContext): Promise<TypOspSta
     const profiles = data.data?.checkoutProfiles?.nodes || [];
     const shop = data.data?.shop;
     const isPlus = shop?.plan?.shopifyPlus === true;
+    const checkoutApiSupported = shop?.checkoutApiSupported === true;
     
     if (profiles.length === 0) {
       if (!isPlus) {
@@ -133,29 +145,29 @@ export async function getTypOspActive(admin: AdminApiContext): Promise<TypOspSta
 
     const publishedProfiles = profileInfos.filter(p => p.isPublished);
     const hasTypOspActive = publishedProfiles.some(p => p.typOspPagesActive === true);
-    
-    const hasTypOspField = profiles.some((node: { typOspPagesActive?: boolean }) => 
-      node.typOspPagesActive !== undefined
-    );
-    
+    const hasTypOspField = profiles.some((node: { typOspPagesActive?: boolean }) => "typOspPagesActive" in node);
+
     if (!hasTypOspField) {
-      logger.warn("typOspPagesActive field not in response, falling back to checkoutApiSupported");
-      
-      const checkoutApiSupported = shop?.checkoutApiSupported === true;
+      logger.warn("typOspPagesActive field not in response; reporting unknown with FIELD_NOT_AVAILABLE");
       return {
-        status: checkoutApiSupported ? "enabled" : "disabled",
-        typOspPagesEnabled: checkoutApiSupported,
-        unknownReason: hasTypOspField ? undefined : "FIELD_NOT_AVAILABLE",
-        confidence: "medium",
+        status: "unknown",
+        typOspPagesEnabled: null,
+        unknownReason: "FIELD_NOT_AVAILABLE",
+        confidence: "low",
         checkedAt: new Date(),
         profiles: profileInfos,
+        error: checkoutApiSupported
+          ? "typOspPagesActive missing; shop reports checkoutApiSupported=true"
+          : "typOspPagesActive missing",
       };
     }
-    
+
+    const status: TypOspStatus = hasTypOspActive ? "enabled" : "disabled";
+
     return {
-      status: hasTypOspActive ? "enabled" : "disabled",
+      status,
       typOspPagesEnabled: hasTypOspActive,
-      confidence: "high",
+      confidence: status === "enabled" ? "high" : "medium",
       checkedAt: new Date(),
       profiles: profileInfos,
     };
