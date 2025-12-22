@@ -185,12 +185,14 @@ export default function ScanPage() {
     const submit = useSubmit();
     const navigation = useNavigation();
     const deleteFetcher = useFetcher();
+    const upgradeFetcher = useFetcher();
     const [selectedTab, setSelectedTab] = useState(0);
     const [scriptContent, setScriptContent] = useState("");
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<{ type: "scriptTag" | "webPixel"; id: string; gid: string; title: string } | null>(null);
     const isScanning = navigation.state === "submitting";
     const isDeleting = deleteFetcher.state === "submitting";
+    const isUpgrading = upgradeFetcher.state === "submitting";
 
     // Handle ScriptTag deletion
     const handleDeleteScriptTag = useCallback((scriptTagId: number, scriptTagGid: string, platform?: string) => {
@@ -241,6 +243,17 @@ export default function ScanPage() {
         setDeleteModalOpen(false);
         setPendingDelete(null);
     }, []);
+
+    // Handle WebPixel settings upgrade (P1-02)
+    const handleUpgradePixelSettings = useCallback(() => {
+        const formData = new FormData();
+        // Upgrade all pixels that need it (no specific GID)
+        upgradeFetcher.submit(formData, {
+            method: "post",
+            action: "/app/actions/upgrade-web-pixel",
+        });
+    }, [upgradeFetcher]);
+
     const handleScan = () => {
         const formData = new FormData();
         formData.append("_action", "scan");
@@ -502,6 +515,18 @@ export default function ScanPage() {
                 </Banner>
               ) : null}
 
+              {upgradeFetcher.data ? (
+                <Banner 
+                  tone={(upgradeFetcher.data as { success?: boolean }).success ? "success" : "critical"}
+                  onDismiss={() => {}}
+                >
+                  <Text as="p">
+                    {String((upgradeFetcher.data as { message?: string }).message || 
+                     (upgradeFetcher.data as { error?: string }).error || "升级完成")}
+                  </Text>
+                </Banner>
+              ) : null}
+
               <BlockStack gap="300">
                 {migrationActions.map((action, index) => (
                   <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -560,7 +585,17 @@ export default function ScanPage() {
                             删除重复像素
                           </Button>
                         )}
-                        {action.type === "configure_pixel" && (
+                        {action.type === "configure_pixel" && action.description?.includes("升级") && (
+                          <Button 
+                            size="slim" 
+                            icon={RefreshIcon}
+                            loading={isUpgrading}
+                            onClick={handleUpgradePixelSettings}
+                          >
+                            升级配置
+                          </Button>
+                        )}
+                        {action.type === "configure_pixel" && !action.description?.includes("升级") && (
                           <Button 
                             size="slim" 
                             url="/app/migrate"
