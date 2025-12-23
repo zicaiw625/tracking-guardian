@@ -164,9 +164,11 @@ client_id = "YOUR_CLIENT_ID"
 application_url = "https://your-production-url.com"
 ```
 
-### 8. 安装 Extensions
+### 8. 部署 Extensions（重要！）
 
-Extensions 需要单独安装:
+Extensions 需要通过 Shopify CLI 部署。**首次部署会自动生成必需的 `uid` 字段**。
+
+#### 8.1 安装 Extension 依赖
 
 ```bash
 cd extensions/tracking-pixel
@@ -176,11 +178,57 @@ cd ../thank-you-blocks
 npm install
 ```
 
-使用 Shopify CLI 部署 extensions:
+#### 8.2 部署 Extensions（首次部署会生成 uid）
 
 ```bash
+# 回到项目根目录
+cd ../..
+
+# 部署所有 extensions
 shopify app deploy
 ```
+
+**⚠️ 重要：Web Pixel uid 说明**
+
+- `extensions/tracking-pixel/shopify.extension.toml` 需要一个 `uid` 字段
+- 这个 `uid` 是 Shopify 的 **必填项**，不能手动编造
+- **首次运行 `shopify app deploy` 时，CLI 会自动生成并写入 uid**
+- 部署后，检查 toml 文件是否已添加类似 `uid = "gid://shopify/WebPixel/xxx"` 的行
+
+#### 8.3 验证部署成功
+
+```bash
+# 查看已部署的 extensions
+shopify app info --extensions
+
+# 检查 uid 是否已生成
+cat extensions/tracking-pixel/shopify.extension.toml | grep uid
+```
+
+如果 uid 未自动生成，可以手动触发：
+
+```bash
+# 重新生成 extension 配置
+shopify app generate extension --type web_pixel --name "tracking-guardian-pixel"
+# 然后将生成的 uid 复制到现有的 toml 文件
+```
+
+#### 8.4 在开发店铺测试
+
+```bash
+# 启动开发模式
+shopify app dev
+
+# 这会：
+# 1. 启动本地开发服务器
+# 2. 创建隧道暴露本地服务
+# 3. 在开发店铺安装 app 和 extensions
+```
+
+安装后，在开发店铺进行一次完整的 checkout 流程，验证：
+1. Web Pixel 是否正确加载（查看浏览器 Network 面板）
+2. `checkout_completed` 事件是否发送到后端
+3. `PixelEventReceipt` 是否正确写入数据库
 
 ## 定时任务配置
 
