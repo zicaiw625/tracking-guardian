@@ -1,9 +1,8 @@
 /**
- * ShippingTracker for Thank You Page
+ * ShippingTracker for Order Status Page (Customer Account)
  * 
  * P0-3: 订单状态入口 + 预计流程提示
  * 不冒充真实物流追踪号，只显示订单处理进度
- * 真实物流信息将通过邮件发送给客户
  */
 import {
     reactExtension,
@@ -15,26 +14,64 @@ import {
     useSettings,
     useOrder,
     Divider,
-} from "@shopify/ui-extensions-react/checkout";
+} from "@shopify/ui-extensions-react/customer-account";
 
-export default reactExtension("purchase.thank-you.block.render", () => <ShippingTracker />);
+export default reactExtension(
+    "customer-account.order-status.block.render",
+    () => <ShippingTrackerOrderStatus />
+);
 
-function ShippingTracker() {
+function ShippingTrackerOrderStatus() {
     const settings = useSettings();
     const order = useOrder();
 
-    // P0-3: 使用可配置的标题和提示文案
     const title = (settings.shipping_title as string) || "订单状态";
     const tipText = (settings.shipping_tip_text as string) || 
         "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。";
 
-    // P0-3: 只显示订单处理进度，不使用 confirmationNumber 冒充物流号
-    // confirmationNumber 是订单确认号，不是物流追踪号
+    // P0-3: 只显示订单处理进度，不使用真实物流号
+    // 从订单状态推断当前进度
+    const orderStatus = order?.status || "UNFULFILLED";
+    
+    const getProgressFromStatus = (status: string) => {
+        switch (status) {
+            case "FULFILLED":
+                return { ordered: true, processing: true, shipped: true, delivered: false };
+            case "PARTIALLY_FULFILLED":
+                return { ordered: true, processing: true, shipped: false, delivered: false };
+            case "UNFULFILLED":
+            default:
+                return { ordered: true, processing: true, shipped: false, delivered: false };
+        }
+    };
+
+    const progress = getProgressFromStatus(orderStatus);
+
     const shippingSteps = [
-        { id: "ordered", label: "订单已确认", completed: true, date: "已完成" },
-        { id: "processing", label: "处理中", completed: true, date: "进行中" },
-        { id: "shipped", label: "已发货", completed: false, date: "待发货" },
-        { id: "delivered", label: "已送达", completed: false, date: "待送达" },
+        { 
+            id: "ordered", 
+            label: "订单已确认", 
+            completed: progress.ordered, 
+            date: "已完成" 
+        },
+        { 
+            id: "processing", 
+            label: "处理中", 
+            completed: progress.processing, 
+            date: progress.processing ? "进行中" : "待处理" 
+        },
+        { 
+            id: "shipped", 
+            label: "已发货", 
+            completed: progress.shipped, 
+            date: progress.shipped ? "已发货" : "待发货" 
+        },
+        { 
+            id: "delivered", 
+            label: "已送达", 
+            completed: progress.delivered, 
+            date: progress.delivered ? "已送达" : "待送达" 
+        },
     ];
 
     return (
@@ -89,12 +126,10 @@ function ShippingTracker() {
                         订单编号
                     </Text>
                     <Text size="small" emphasis="bold">
-                        {order?.confirmationNumber || "处理中..."}
+                        {order?.name || "加载中..."}
                     </Text>
                 </InlineLayout>
             </BlockStack>
-
-            {/* P0-3: 移除了错误使用 confirmationNumber 作为物流追踪号的链接 */}
 
             <View padding="tight" background="subdued" cornerRadius="base">
                 <BlockStack spacing="extraTight">
@@ -109,3 +144,4 @@ function ShippingTracker() {
         </BlockStack>
     );
 }
+

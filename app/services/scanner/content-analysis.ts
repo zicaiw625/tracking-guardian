@@ -134,10 +134,12 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push("将 TikTok Pixel 迁移到我们的 Web Pixel 扩展，并启用 Events API 进行服务端追踪");
                 break;
             case "bing":
-                result.recommendations.push("将 Microsoft UET 标签迁移到我们的 Web Pixel 扩展");
+                // P0-4: Bing not supported for CAPI, recommend Microsoft's official app
+                result.recommendations.push("⚠️ Tracking Guardian 不支持 Bing/Microsoft Ads 的服务端追踪。建议使用 Microsoft 官方 Shopify 应用，或在主题中保留 UET 标签。");
                 break;
             case "clarity":
-                result.recommendations.push("将 Microsoft Clarity 迁移到我们的 Web Pixel 扩展");
+                // P0-4: Clarity is client-side only, not suitable for CAPI
+                result.recommendations.push("⚠️ Microsoft Clarity 是客户端会话回放工具，不适合服务端追踪。请在 Shopify 主题中直接添加 Clarity 代码。");
                 break;
             default:
                 result.recommendations.push(`将 ${platform} 追踪代码迁移到 Web Pixel 以确保 Checkout Extensibility 兼容性`);

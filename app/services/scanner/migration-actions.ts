@@ -49,14 +49,15 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
             deadline = "2026年8月";
         }
 
+        // P0-1: Changed from "delete_script_tag" to "migrate_script_tag"
+        // 应用没有 write_script_tags 权限，改为提供迁移指南
         actions.push({
-            type: "delete_script_tag",
+            type: "migrate_script_tag",
             priority,
             platform,
             title: `迁移 ScriptTag: ${platform}`,
-            description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 配置 CAPI 凭证  3) 测试追踪  4) 删除此 ScriptTag`,
+            description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 配置 CAPI 凭证  3) 测试追踪  4) 手动清理此 ScriptTag（查看指南）`,
             scriptTagId: tag.id,
-            scriptTagGid: tag.gid, // Include GID for deletion mutation
             deadline,
         });
     }

@@ -16,8 +16,10 @@
 - Google Analytics 4 / Google Ads
 - Meta (Facebook) Pixel
 - TikTok Pixel
-- Microsoft Ads (Bing UET)
-- Microsoft Clarity
+
+> **注意**：Microsoft Ads (Bing) 和 Microsoft Clarity 暂不支持服务端追踪。
+> - Bing: 建议使用 Microsoft 官方 Shopify 应用
+> - Clarity: 客户端会话回放工具，请在主题中直接添加
 
 ### 3. 追踪健康监控
 - 每日自动对账：Shopify 订单 vs 广告平台转化
@@ -146,30 +148,29 @@ railway up
 |------|------|-----------|--------------|
 | `read_orders` | 接收 `orders/paid` webhook 发送转化事件 | `webhooks.tsx` | ✅ 是 |
 | `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
-| `write_script_tags` | 删除旧版 ScriptTag（仅清理用途） | `delete-script-tag.tsx` | ⚠️ 可延迟 |
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/管理 App Pixel Extension | `migration.server.ts` | ✅ 是 |
 | `read_customer_events` | Shopify `webPixelCreate` API 必需 | `migration.server.ts` | ✅ 是 |
 
-### P1-05: ScriptTag 权限说明
+### P0-1: ScriptTag 权限说明
 
-**重要提示**：`read_script_tags` 和 `write_script_tags` 权限**仅用于迁移清理**：
+**重要提示**：应用**不请求 `write_script_tags` 权限**。
 
+ScriptTag 清理需要商家手动操作：
 1. **扫描检测**：识别店铺中已存在的旧版追踪脚本
 2. **迁移建议**：生成从 ScriptTag 迁移到 Web Pixel 的建议
-3. **清理删除**：帮助商家删除不再需要的旧 ScriptTag
+3. **手动清理指南**：提供清理 ScriptTag 的详细步骤
 
 **我们不会**：
 - ❌ 创建新的 ScriptTag
+- ❌ 直接删除 ScriptTag（需商家手动操作）
 - ❌ 在 TYP/OSP 页面注入任何客户端脚本
-- ❌ 使用 ScriptTag 进行追踪
 
 所有追踪功能通过 **Web Pixel Extension**（服务端）和 **Webhooks**（CAPI）实现。
 
 ### P2-04: 最小权限说明
 
-- 所有 6 个 scopes 都有明确的代码调用点和业务理由
-- `write_script_tags` 仅用于**删除**旧 ScriptTag，可考虑改为按需授权
+- 所有 5 个 scopes 都有明确的代码调用点和业务理由
 - 详细权限说明请参阅 [COMPLIANCE.md](COMPLIANCE.md) 中的 "Scopes Justification" 部分
 
 ## Webhook 订阅
@@ -182,6 +183,57 @@ railway up
 - `customers/data_request` - 客户数据导出请求
 - `customers/redact` - 客户数据删除请求
 - `shop/redact` - 店铺数据完全删除
+
+## Built for Shopify (BFS) 特性
+
+### 性能优化
+
+- **最小化 API 调用**：批量处理订单数据，避免不必要的轮询
+- **智能缓存**：使用内存缓存减少重复数据库查询
+- **懒加载**：按需加载扫描历史和监控数据
+
+### 稳定性保障
+
+- **断路器模式**：防止级联故障，自动熔断和恢复
+- **智能重试**：带指数退避的重试机制，处理临时错误
+- **Dead Letter Queue**：失败任务自动进入死信队列，支持手动恢复
+- **优雅降级**：平台 API 不可用时保留事件数据等待重试
+
+### 安全与合规
+
+- **最小权限原则**：仅请求必需的 API 权限
+- **数据加密**：所有敏感凭证使用 AES-256-GCM 加密存储
+- **隐私策略**：可配置的 consent 策略（严格/平衡模式）
+- **数据保留**：可配置的数据保留期限（30-365天）
+- **审计日志**：所有敏感操作均记录审计日志
+
+### 商家体验
+
+- **清晰的 Onboarding**：3 步引导快速开始使用
+- **诊断工具**：自助排障，快速定位问题
+- **FAQ 支持**：常见问题内置解答
+- **一键修复**：常见问题一键修复/引导
+- **低打扰提示**：仅在关键时刻显示警告
+
+### 监控与告警
+
+- **健康度评分**：基于追踪成功率的综合评分
+- **多渠道告警**：支持邮件、Slack、Telegram
+- **事件漏斗**：可视化事件处理全流程
+- **自动对账**：每日自动检查数据一致性
+
+## 测试
+
+```bash
+# 运行所有测试
+npm run test
+
+# 运行特定测试
+npm run test -- tests/services/scanner.test.ts
+
+# 运行测试并生成覆盖率报告
+npm run test:coverage
+```
 
 ## 贡献指南
 

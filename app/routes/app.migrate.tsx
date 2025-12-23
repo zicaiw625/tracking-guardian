@@ -294,7 +294,7 @@ export default function MigratePage() {
           >
             <BlockStack gap="200">
               <Text as="p">
-                检测到您的 App Pixel 使用旧版配置格式（缺少 backend_url 或 shop_domain）。
+                检测到您的 App Pixel 使用旧版配置格式（缺少 shop_domain 或使用旧键名 ingestion_secret）。
                 请点击「一键升级设置」来更新到最新版本，以确保追踪功能正常工作。
               </Text>
               {(() => {

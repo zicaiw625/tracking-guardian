@@ -8,14 +8,19 @@
 // Platform Types
 // =============================================================================
 
-export type Platform = "google" | "meta" | "tiktok" | "bing" | "clarity";
+/**
+ * Supported platforms for server-side conversion tracking (CAPI).
+ * 
+ * P0-4: bing and clarity removed - no server-side API implementation.
+ * - Bing: Use Microsoft's official Shopify app instead
+ * - Clarity: Client-side only tool, not suitable for CAPI
+ */
+export type Platform = "google" | "meta" | "tiktok";
 
 export const PLATFORM_NAMES: Record<Platform | string, string> = {
   google: "Google Ads / GA4",
   meta: "Meta (Facebook)",
   tiktok: "TikTok",
-  bing: "Microsoft Ads",
-  clarity: "Microsoft Clarity",
 };
 
 // =============================================================================
@@ -39,21 +44,15 @@ export interface TikTokCredentials {
   testEventCode?: string;
 }
 
-export interface BingCredentials {
-  tagId: string;
-  customerId?: string;
-}
-
-export interface ClarityCredentials {
-  projectId: string;
-}
+/**
+ * P0-4: BingCredentials and ClarityCredentials removed.
+ * These platforms don't have server-side CAPI implementations.
+ */
 
 export type PlatformCredentials =
   | GoogleCredentials
   | MetaCredentials
-  | TikTokCredentials
-  | BingCredentials
-  | ClarityCredentials;
+  | TikTokCredentials;
 
 // =============================================================================
 // Conversion Data

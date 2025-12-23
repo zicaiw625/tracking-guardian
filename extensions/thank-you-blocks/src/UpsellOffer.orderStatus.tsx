@@ -1,8 +1,7 @@
 /**
- * UpsellOffer for Thank You Page
+ * UpsellOffer for Order Status Page (Customer Account)
  * 
  * Displays a discount offer to encourage repeat purchases.
- * Uses settings from shopify.extension.toml for configuration.
  */
 import {
     reactExtension,
@@ -12,20 +11,24 @@ import {
     InlineLayout,
     View,
     useSettings,
-    Link,
+    useOrder,
     Divider,
     Banner,
-} from "@shopify/ui-extensions-react/checkout";
+    Link,
+} from "@shopify/ui-extensions-react/customer-account";
 import { useState } from "react";
 
-export default reactExtension("purchase.thank-you.block.render", () => <UpsellOffer />);
+export default reactExtension(
+    "customer-account.order-status.block.render",
+    () => <UpsellOfferOrderStatus />
+);
 
-function UpsellOffer() {
+function UpsellOfferOrderStatus() {
     const settings = useSettings();
+    const order = useOrder();
     const [dismissed, setDismissed] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    // 从 settings 读取配置，支持商家在后台自定义
     const discountCode = (settings.upsell_discount_code as string) || "THANKYOU10";
     const discountPercentStr = settings.upsell_discount_percent as string;
     const discountPercent = discountPercentStr ? parseInt(discountPercentStr, 10) : 10;
@@ -34,6 +37,8 @@ function UpsellOffer() {
     const continueShoppingUrl = (settings.continue_shopping_url as string) || "/";
 
     const handleCopyCode = () => {
+        // In customer account context, we can't use clipboard API
+        // Just show visual feedback
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -111,3 +116,4 @@ function UpsellOffer() {
         </BlockStack>
     );
 }
+

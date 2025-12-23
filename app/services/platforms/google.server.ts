@@ -72,86 +72,20 @@ export async function sendConversionToGoogle(credentials: GoogleCredentials | nu
         throw error;
     }
 }
-export function generateGooglePixelCode(config: {
+/**
+ * P0-5: Client-side pixel code generation removed.
+ * 
+ * Tracking Guardian uses server-side CAPI exclusively.
+ * This function is kept for backwards compatibility but returns empty string.
+ * 
+ * @deprecated Use server-side sendConversionToGoogle instead
+ */
+export function generateGooglePixelCode(_config: {
     measurementId: string;
     conversionId?: string;
     conversionLabel?: string;
 }): string {
-    if (!config.measurementId) {
-        return "";
-    }
-    const hasGoogleAds = config.conversionId && config.conversionLabel;
-    return `
-const GA4_MEASUREMENT_ID = "${config.measurementId}";
-${hasGoogleAds ? `const GOOGLE_ADS_ID = "${config.conversionId}";
-const GOOGLE_ADS_LABEL = "${config.conversionLabel}";` : "// Google Ads 转化跟踪未配置"}
-
-// 加载 gtag.js
-(function() {
-  const script = document.createElement('script');
-  script.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA4_MEASUREMENT_ID;
-  script.async = true;
-  document.head.appendChild(script);
-})();
-
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', GA4_MEASUREMENT_ID, { send_page_view: false });
-${hasGoogleAds ? `gtag('config', GOOGLE_ADS_ID);` : ""}
-
-                           
-analytics.subscribe('checkout_completed', (event) => {
-                            
-                                                   
-                                    
-  const analyticsAllowed = customerPrivacy.analyticsProcessingAllowed();
-  const marketingAllowed = customerPrivacy.marketingAllowed();
-  
-  if (!analyticsAllowed) {
-    console.log('[Tracking Guardian] GA4: 用户未授权分析追踪，跳过');
-    return;
-  }
-  
-  const checkout = event.data?.checkout;
-  if (!checkout) return;
-  
-  const orderId = checkout.order?.id || checkout.token;
-  const value = parseFloat(checkout.totalPrice?.amount || 0);
-  const currency = checkout.currencyCode || 'USD';
-  
-  const items = (checkout.lineItems || []).map((item, index) => ({
-    item_id: item.variant?.product?.id || item.id,
-    item_name: item.title || '',
-    price: parseFloat(item.variant?.price?.amount || 0),
-    quantity: item.quantity || 1,
-    index: index,
-  }));
-  
-                    
-  gtag('event', 'purchase', {
-    transaction_id: orderId,
-    value: value,
-    currency: currency,
-    tax: parseFloat(checkout.totalTax?.amount || 0),
-    shipping: parseFloat(checkout.shippingLine?.price?.amount || 0),
-    items: items,
-  });
-  
-  console.log('[Tracking Guardian] GA4 purchase event sent:', orderId);
-  
-  ${hasGoogleAds ? `// Google Ads 转化（需要 marketing 同意）
-  if (marketingAllowed) {
-    gtag('event', 'conversion', {
-      send_to: GOOGLE_ADS_ID + '/' + GOOGLE_ADS_LABEL,
-      value: value,
-      currency: currency,
-      transaction_id: orderId,
-    });
-    console.log('[Tracking Guardian] Google Ads conversion sent:', orderId);
-  }` : "// 如需 Google Ads 转化追踪，请配置 conversionId 和 conversionLabel"}
-});
-
-console.log('[Tracking Guardian] GA4 Custom Pixel initialized');
-`;
+    // P0-5: No longer generating client-side code
+    // All tracking is done server-side via Measurement Protocol
+    return "";
 }

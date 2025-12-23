@@ -3,6 +3,9 @@ type = "ui_extension"
 name = "Tracking Guardian Blocks"
 handle = "tracking-guardian-blocks"
 
+# =============================================================================
+# Survey Block - Thank You Page
+# =============================================================================
 [[extensions]]
 type = "checkout_ui_extension"
 name = "Post-purchase Survey"
@@ -15,6 +18,9 @@ handle = "post-purchase-survey"
   module = "./src/Survey.tsx"
   target = "purchase.thank-you.block.render"
 
+# =============================================================================
+# Survey Block - Order Status Page (Customer Account)
+# =============================================================================
 [[extensions]]
 type = "customer_account_ui_extension"
 name = "Order Status Survey"
@@ -27,7 +33,71 @@ handle = "order-status-survey"
   module = "./src/Survey.orderStatus.tsx"
   target = "customer-account.order-status.block.render"
 
+# =============================================================================
+# Shipping Tracker Block - Thank You Page
+# =============================================================================
+[[extensions]]
+type = "checkout_ui_extension"
+name = "Shipping Progress Tracker"
+handle = "shipping-tracker"
+
+  [extensions.capabilities]
+  network_access = false
+
+  [[extensions.targeting]]
+  module = "./src/ShippingTracker.tsx"
+  target = "purchase.thank-you.block.render"
+
+# =============================================================================
+# Shipping Tracker Block - Order Status Page (Customer Account)
+# =============================================================================
+[[extensions]]
+type = "customer_account_ui_extension"
+name = "Order Status Shipping Tracker"
+handle = "order-status-shipping-tracker"
+
+  [extensions.capabilities]
+  network_access = false
+
+  [[extensions.targeting]]
+  module = "./src/ShippingTracker.orderStatus.tsx"
+  target = "customer-account.order-status.block.render"
+
+# =============================================================================
+# Upsell Offer Block - Thank You Page
+# =============================================================================
+[[extensions]]
+type = "checkout_ui_extension"
+name = "Thank You Upsell Offer"
+handle = "upsell-offer"
+
+  [extensions.capabilities]
+  network_access = false
+
+  [[extensions.targeting]]
+  module = "./src/UpsellOffer.tsx"
+  target = "purchase.thank-you.block.render"
+
+# =============================================================================
+# Upsell Offer Block - Order Status Page (Customer Account)
+# =============================================================================
+[[extensions]]
+type = "customer_account_ui_extension"
+name = "Order Status Upsell Offer"
+handle = "order-status-upsell-offer"
+
+  [extensions.capabilities]
+  network_access = false
+
+  [[extensions.targeting]]
+  module = "./src/UpsellOffer.orderStatus.tsx"
+  target = "customer-account.order-status.block.render"
+
+# =============================================================================
+# Settings Schema
+# =============================================================================
 [settings]
+  # Survey Settings
   [[settings.fields]]
   key = "survey_title"
   name = "Survey Title"
@@ -38,5 +108,43 @@ handle = "order-status-survey"
   key = "survey_question"
   name = "Survey Question"
   description = "The question to ask customers"
+  type = "single_line_text_field"
+
+  # Shipping Tracker Settings (P0-3: 改为订单状态入口，不冒充真实物流号)
+  [[settings.fields]]
+  key = "shipping_title"
+  name = "Shipping Tracker Title"
+  description = "Title for the shipping progress section (e.g., '订单状态')"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "shipping_tip_text"
+  name = "Shipping Tip Text"
+  description = "Helpful tip shown below the progress tracker"
+  type = "single_line_text_field"
+
+  # Upsell Offer Settings
+  [[settings.fields]]
+  key = "upsell_discount_code"
+  name = "Discount Code"
+  description = "The discount code to offer (e.g., THANKYOU10)"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "upsell_discount_percent"
+  name = "Discount Percentage"
+  description = "Discount percentage (e.g., 10 for 10%)"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "upsell_expiry_hours"
+  name = "Offer Expiry Hours"
+  description = "How many hours the offer is valid (e.g., 24)"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "continue_shopping_url"
+  name = "Continue Shopping URL"
+  description = "URL to redirect when clicking 'Continue Shopping' (optional, defaults to store home)"
   type = "single_line_text_field"
   

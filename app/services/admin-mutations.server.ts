@@ -1,7 +1,11 @@
 /**
  * Admin Mutations Service
  * 
- * GraphQL mutations for managing ScriptTags and WebPixels.
+ * GraphQL mutations for managing WebPixels.
+ * 
+ * P0-1: ScriptTag 删除功能已移除
+ * - 应用没有 write_script_tags 权限
+ * - 改为提供手动清理指南
  */
 
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
@@ -19,93 +23,6 @@ export interface MutationResult {
         field: string[];
         message: string;
     }>;
-}
-
-// =============================================================================
-// ScriptTag Mutations
-// =============================================================================
-
-/**
- * Delete a ScriptTag by its GraphQL global ID.
- * 
- * Requires `write_script_tags` scope.
- * 
- * @param admin - Admin API context
- * @param scriptTagGid - GraphQL global ID (e.g., "gid://shopify/ScriptTag/123")
- * @returns MutationResult with success status and any errors
- */
-export async function deleteScriptTag(
-    admin: AdminApiContext,
-    scriptTagGid: string
-): Promise<MutationResult> {
-    // Validate GID format
-    if (!scriptTagGid.startsWith("gid://shopify/ScriptTag/")) {
-        return {
-            success: false,
-            error: `Invalid ScriptTag GID format: ${scriptTagGid}`,
-        };
-    }
-
-    try {
-        const response = await admin.graphql(`
-            mutation ScriptTagDelete($id: ID!) {
-                scriptTagDelete(id: $id) {
-                    deletedScriptTagId
-                    userErrors {
-                        field
-                        message
-                    }
-                }
-            }
-        `, {
-            variables: { id: scriptTagGid },
-        });
-
-        const result = await response.json();
-        const data = result.data?.scriptTagDelete;
-
-        if (data?.userErrors && data.userErrors.length > 0) {
-            const errorMessages = data.userErrors.map((e: { message: string }) => e.message).join(", ");
-            logger.warn(`ScriptTag deletion failed for ${scriptTagGid}`, {
-                userErrors: data.userErrors,
-            });
-            return {
-                success: false,
-                userErrors: data.userErrors,
-                error: errorMessages,
-            };
-        }
-
-        if (data?.deletedScriptTagId) {
-            logger.info(`ScriptTag deleted successfully: ${data.deletedScriptTagId}`);
-            return {
-                success: true,
-                deletedId: data.deletedScriptTagId,
-            };
-        }
-
-        // Handle GraphQL-level errors
-        const graphqlResult = result as { errors?: Array<{ message: string }> };
-        if (graphqlResult.errors && graphqlResult.errors.length > 0) {
-            const errorMessages = graphqlResult.errors.map((e) => e.message).join(", ");
-            logger.error(`GraphQL errors during ScriptTag deletion`, { errors: graphqlResult.errors });
-            return {
-                success: false,
-                error: errorMessages,
-            };
-        }
-
-        return {
-            success: false,
-            error: "Unexpected response from Shopify API",
-        };
-    } catch (error) {
-        logger.error(`Failed to delete ScriptTag ${scriptTagGid}`, error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-        };
-    }
 }
 
 // =============================================================================

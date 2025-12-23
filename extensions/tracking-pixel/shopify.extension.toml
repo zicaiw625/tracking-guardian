@@ -41,6 +41,10 @@ sale_of_data = "enabled"
 # Settings schema - MUST use type = "object" per Shopify Web Pixel requirements.
 # All field types MUST be "single_line_text_field" (only type supported).
 # Reference: https://shopify.dev/docs/apps/build/marketing-analytics/build-web-pixels
+#
+# P0-6: Settings schema 与 buildWebPixelSettings() 严格对齐
+# 只包含两个字段: ingestion_key 和 shop_domain
+# backend_url 是构建时常量，不作为运行时配置
 [settings]
 type = "object"
 
@@ -52,14 +56,4 @@ type = "single_line_text_field"
 [settings.fields.shop_domain]
 name = "Shop Domain"
 description = "The myshopify.com domain for this store. Auto-configured during installation."
-type = "single_line_text_field"
-
-[settings.fields.backend_url]
-name = "Backend URL"
-description = "The Tracking Guardian backend URL for event ingestion. Auto-configured during installation."
-type = "single_line_text_field"
-
-[settings.fields.schema_version]
-name = "Schema Version"
-description = "Settings schema version for forward compatibility. Auto-managed by the app."
 type = "single_line_text_field"

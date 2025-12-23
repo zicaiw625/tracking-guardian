@@ -2,13 +2,14 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-type ExportType = "conversions" | "audit" | "receipts" | "jobs";
+type ExportType = "conversions" | "audit" | "receipts" | "jobs" | "scan";
 type ExportFormat = "csv" | "json";
 const EXPORT_LIMITS = {
     conversions: 10000,
     audit: 5000,
     receipts: 10000,
     jobs: 5000,
+    scan: 50,
 };
 const FIELD_DEFINITIONS = {
     conversions: {
@@ -61,6 +62,15 @@ const FIELD_DEFINITIONS = {
         trustMetadata: { description: "Trust verification data", pii: false },
         createdAt: { description: "Job creation timestamp", pii: false },
         completedAt: { description: "Job completion timestamp", pii: false },
+    },
+    scan: {
+        id: { description: "Unique scan report ID", pii: false },
+        riskScore: { description: "Risk score 0-100", pii: false },
+        scriptTags: { description: "Detected ScriptTags", pii: false },
+        identifiedPlatforms: { description: "Detected tracking platforms", pii: false },
+        riskItems: { description: "Risk details and recommendations", pii: false },
+        status: { description: "Scan status", pii: false },
+        createdAt: { description: "Scan timestamp", pii: false },
     },
 };
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -230,6 +240,71 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 fieldDefs = FIELD_DEFINITIONS.jobs;
                 break;
             }
+            case "scan": {
+                // P1-8: 扫描报告导出（利于 Agency 推广）
+                const scans = await prisma.scanReport.findMany({
+                    where: {
+                        shopId: shop.id,
+                        ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {}),
+                    },
+                    select: {
+                        id: true,
+                        riskScore: true,
+                        scriptTags: true,
+                        identifiedPlatforms: true,
+                        riskItems: true,
+                        status: true,
+                        createdAt: true,
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: EXPORT_LIMITS.scan,
+                });
+                
+                // Generate migration recommendations based on scan data
+                const latestScan = scans[0];
+                const migrationSummary = latestScan ? {
+                    shopDomain: shop.shopDomain,
+                    scanDate: latestScan.createdAt.toISOString(),
+                    riskScore: latestScan.riskScore,
+                    riskLevel: latestScan.riskScore > 60 ? "高风险" : latestScan.riskScore > 30 ? "中风险" : "低风险",
+                    identifiedPlatforms: latestScan.identifiedPlatforms || [],
+                    scriptTagCount: Array.isArray(latestScan.scriptTags) ? latestScan.scriptTags.length : 0,
+                    recommendations: generateMigrationRecommendations(latestScan),
+                    migrationDeadlines: {
+                        scriptTagPlus: "2025-08-28",
+                        scriptTagNonPlus: "2026-08-26",
+                        additionalScriptsPlus: "2025-08-28",
+                    },
+                } : null;
+
+                data = scans.map(scan => ({
+                    ...scan,
+                    createdAt: scan.createdAt.toISOString(),
+                }));
+                
+                // For scan reports, include migration summary in JSON output
+                if (format === "json" && migrationSummary) {
+                    const output = {
+                        exportedAt: new Date().toISOString(),
+                        shop: shop.shopDomain,
+                        type: "scan",
+                        migrationSummary,
+                        scanHistory: data,
+                        fieldDefinitions: FIELD_DEFINITIONS.scan,
+                    };
+                    return new Response(JSON.stringify(output, null, 2), {
+                        status: 200,
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Content-Disposition": `attachment; filename="scan_report_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}.json"`,
+                        },
+                    });
+                }
+                
+                filename = `scan_report_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
+                fieldDefs = FIELD_DEFINITIONS.scan;
+                break;
+            }
             default:
                 return new Response(`Invalid export type: ${exportType}`, { status: 400 });
         }
@@ -301,4 +376,51 @@ export function getFieldDefinitions(): Record<string, unknown> {
             deletion: "All data is subject to GDPR deletion requests via shop/redact webhook",
         },
     };
+}
+
+// P1-8: Generate migration recommendations for scan report export
+interface ScanData {
+    riskScore: number;
+    scriptTags: unknown;
+    identifiedPlatforms: unknown;
+    riskItems: unknown;
+}
+
+function generateMigrationRecommendations(scan: ScanData): string[] {
+    const recommendations: string[] = [];
+    const platforms = Array.isArray(scan.identifiedPlatforms) ? scan.identifiedPlatforms : [];
+    const scriptTags = Array.isArray(scan.scriptTags) ? scan.scriptTags : [];
+    
+    if (scriptTags.length > 0) {
+        recommendations.push(`检测到 ${scriptTags.length} 个 ScriptTag，建议迁移到 Web Pixel`);
+        recommendations.push("ScriptTag API 将于 2025-08-28（Plus）/ 2026-08-26（非 Plus）停止工作");
+    }
+    
+    if (platforms.includes("google")) {
+        recommendations.push("Google: 配置 GA4 Measurement Protocol API 实现服务端追踪");
+    }
+    if (platforms.includes("meta")) {
+        recommendations.push("Meta: 配置 Conversions API 实现服务端追踪");
+    }
+    if (platforms.includes("tiktok")) {
+        recommendations.push("TikTok: 配置 Events API 实现服务端追踪");
+    }
+    if (platforms.includes("bing")) {
+        recommendations.push("Bing: 建议使用 Microsoft 官方 Shopify 应用");
+    }
+    if (platforms.includes("clarity")) {
+        recommendations.push("Clarity: 建议在主题中直接添加 Clarity 代码");
+    }
+    
+    if (scan.riskScore > 60) {
+        recommendations.push("⚠️ 高风险：强烈建议立即开始迁移");
+    } else if (scan.riskScore > 30) {
+        recommendations.push("⚡ 中风险：建议尽快规划迁移");
+    } else {
+        recommendations.push("✅ 低风险：追踪配置状态良好");
+    }
+    
+    recommendations.push("使用 Tracking Guardian 一键安装 Web Pixel 并配置服务端追踪");
+    
+    return recommendations;
 }

@@ -15,8 +15,7 @@ export type {
   GoogleCredentials,
   MetaCredentials,
   TikTokCredentials,
-  BingCredentials,
-  ClarityCredentials,
+  // P0-4: BingCredentials and ClarityCredentials removed (no CAPI support)
   PlatformCredentials,
   LineItem,
   ConversionData,

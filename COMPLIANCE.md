@@ -581,17 +581,15 @@ All ⚠️ marked fields are deleted upon:
 |-------|-----------|-----------|---------|--------------|
 | `read_orders` | 接收 orders/paid webhook 以发送转化事件 | `app/routes/webhooks.tsx:175-248` | CAPI 发送 | ✅ 是 |
 | `read_script_tags` | 扫描旧版 ScriptTag 用于迁移建议 | `app/services/scanner.server.ts:132-199` | 扫描报告 | ✅ 是 |
-| `write_script_tags` | 删除旧版 ScriptTag（P1-05: 仅用于清理） | `app/routes/app.actions.delete-script-tag.tsx` | ScriptTag 删除 | ⚠️ 可延迟 |
 | `read_pixels` | 查询已安装的 Web Pixel | `app/services/migration.server.ts:322-352` | 像素状态检测 | ✅ 是 |
 | `write_pixels` | 创建/管理 App Pixel extension | `app/services/migration.server.ts:184-250` | 像素安装 | ✅ 是 |
 | `read_customer_events` | Shopify webPixelCreate API 必需 | `app/services/migration.server.ts:196-248` | 像素创建 | ✅ 是 |
 
-**P2-04 最小权限说明**:
-- `write_script_tags` 仅用于**删除**旧 ScriptTag，不用于创建
-- 可考虑改为：首次安装仅请求 `read_script_tags`，用户点击"删除"时触发 reauth 请求 `write_script_tags`
-- 当前实现保留该权限是为了简化用户体验（一次授权完成所有功能）
+**P0-1 权限调整说明**:
+- ~~`write_script_tags`~~：已移除。应用不直接删除 ScriptTag，改为提供手动清理指南。
+- 商家需通过 Shopify 后台手动清理旧版 ScriptTag（卸载创建它的应用或联系 Shopify 支持）
 
-**P0-04 验证**: 所有 6 个 scopes 都有明确的代码调用点和业务理由。
+**P0-04 验证**: 所有 5 个 scopes 都有明确的代码调用点和业务理由。
 
 > **Note**: 
 > - `read_pixels` 是读取 [WebPixel 对象](https://shopify.dev/docs/api/admin-graphql/latest/objects/WebPixel) 的必需权限

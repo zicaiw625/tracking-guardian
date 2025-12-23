@@ -105,7 +105,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 settingsNeedUpgrade = false;
             }
         }
-        const hasBackendUrl = typeof pixelSettings.backend_url === "string" && pixelSettings.backend_url.length > 0;
+        // P0-6: 只检查 ingestion_key 和 shop_domain，不检查 backend_url（构建时常量）
         const hasShopDomain = typeof pixelSettings.shop_domain === "string" && pixelSettings.shop_domain.length > 0;
         const hasIngestionKey = typeof pixelSettings.ingestion_key === "string" && pixelSettings.ingestion_key.length > 0;
         if (ourPixel) {
@@ -115,7 +115,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     status: "warning",
                     message: "Web Pixel 已安装（需要升级配置）",
                     details: `Pixel ID: ${ourPixel.id}。检测到旧版配置，请重新启用 Pixel 以升级。` +
-                        (!hasBackendUrl ? " 缺少 backend_url。" : "") +
                         (!hasShopDomain ? " 缺少 shop_domain。" : "") +
                         (!hasIngestionKey ? " 使用旧键名 ingestion_secret。" : ""),
                 });
@@ -126,7 +125,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     status: "pass",
                     message: "Web Pixel 已安装",
                     details: `Pixel ID: ${ourPixel.id}` +
-                        (hasBackendUrl ? ` | backend_url: ✓` : "") +
                         (hasShopDomain ? ` | shop_domain: ✓` : "") +
                         (hasIngestionKey ? ` | ingestion_key: ✓` : ""),
                 });
@@ -442,6 +440,144 @@ export default function DiagnosticsPage() {
                     <br />• Webhook 尚未到达
                   </Text>
                 </Banner>)}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* P1-11: FAQ 常见问题 */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                常见问题 (FAQ)
+              </Text>
+              <Divider />
+              
+              <BlockStack gap="300">
+                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">
+                      Q: 为什么没有收到像素事件？
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      A: 可能原因：(1) Web Pixel 未安装或配置错误 - 前往「迁移」页面重新安装；
+                      (2) 用户未授予 marketing 同意 - 需要顾客在结账时同意；
+                      (3) 浏览器广告拦截器阻止了像素加载。
+                    </Text>
+                  </BlockStack>
+                </Box>
+
+                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">
+                      Q: 为什么事件未发送到广告平台？
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      A: 请检查：(1) 是否已在「设置」页面配置平台凭证（API Token 等）；
+                      (2) 凭证是否有效/过期；(3) 顾客是否授予了 marketing 同意。
+                      前往「监控」页面查看具体失败原因。
+                    </Text>
+                  </BlockStack>
+                </Box>
+
+                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">
+                      Q: ScriptTag 迁移截止日期是什么？
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      A: Shopify Plus 商家：2025-08-28 停止执行；非 Plus 商家：2026-08-26 停止执行。
+                      建议尽早迁移到 Web Pixel + 服务端 CAPI 方案。
+                    </Text>
+                  </BlockStack>
+                </Box>
+
+                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">
+                      Q: Checkout UI Blocks 如何添加到页面？
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      A: 前往 Shopify 后台 → 设置 → 结账 → 自定义 → 在 Thank You 或 Order Status 区域点击「添加区块」，
+                      选择 Tracking Guardian 的 Survey/Shipping Tracker/Upsell Offer 等区块。
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </BlockStack>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* P1-11: 一键修复/指引 */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                快速修复
+              </Text>
+              <Divider />
+              
+              <BlockStack gap="300">
+                {data.checks.some(c => c.name === "Web Pixel" && c.status !== "pass") && (
+                  <Box background="bg-surface-warning" padding="400" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <Text as="p" fontWeight="semibold">
+                          Web Pixel 未安装或需要升级
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          安装 Web Pixel 是追踪功能正常工作的前提
+                        </Text>
+                      </BlockStack>
+                      <Button url="/app/migrate" variant="primary">
+                        前往安装
+                      </Button>
+                    </InlineStack>
+                  </Box>
+                )}
+
+                {data.checks.some(c => c.name === "服务端追踪 (CAPI)" && c.status !== "pass") && (
+                  <Box background="bg-surface-warning" padding="400" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <Text as="p" fontWeight="semibold">
+                          未配置服务端追踪
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          配置 CAPI 可大幅提高追踪准确性
+                        </Text>
+                      </BlockStack>
+                      <Button url="/app/settings">
+                        配置凭证
+                      </Button>
+                    </InlineStack>
+                  </Box>
+                )}
+
+                {data.checks.some(c => c.name === "最近事件" && c.status === "pending") && (
+                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <Text as="p" fontWeight="semibold">
+                          尚未收到任何事件
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          完成一个测试订单以验证追踪功能
+                        </Text>
+                      </BlockStack>
+                      <Badge tone="info">需要测试订单</Badge>
+                    </InlineStack>
+                  </Box>
+                )}
+
+                {data.summary.failed === 0 && data.summary.warnings === 0 && (
+                  <Banner tone="success">
+                    <Text as="p">
+                      🎉 所有检查项均已通过！追踪功能配置正常。
+                    </Text>
+                  </Banner>
+                )}
+              </BlockStack>
             </BlockStack>
           </Card>
         </Layout.Section>

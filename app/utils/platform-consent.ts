@@ -6,7 +6,15 @@ export interface PlatformConsentConfig {
     consentReason: string;
     requiresSaleOfData: boolean;
 }
+/**
+ * Platform consent configuration.
+ * 
+ * P0-4: Tracking Guardian only supports Google, Meta, and TikTok for server-side CAPI.
+ * Other platforms (bing, clarity, pinterest, snapchat, twitter) are kept in detection
+ * but not supported for CAPI migration.
+ */
 export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
+    // Supported platforms (have CAPI implementation)
     meta: {
         category: "marketing",
         name: "Meta (Facebook/Instagram)",
@@ -21,9 +29,25 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
         consentReason: "用于转化追踪和广告优化",
         requiresSaleOfData: true,
     },
+    google_ads: {
+        category: "marketing",
+        name: "Google Ads",
+        dualUse: false,
+        consentReason: "用于转化追踪和广告优化",
+        requiresSaleOfData: true,
+    },
+    google: {
+        category: "analytics",
+        name: "Google Analytics 4 (GA4)",
+        dualUse: true,
+        consentReason: "用于网站分析和用户行为理解",
+        requiresSaleOfData: false,
+    },
+    // Detection-only platforms (no CAPI support in Tracking Guardian)
+    // Kept for scanning and recommendations
     bing: {
         category: "marketing",
-        name: "Microsoft Ads (Bing)",
+        name: "Microsoft Ads (Bing) - 不支持 CAPI",
         dualUse: false,
         consentReason: "用于转化追踪和广告优化",
         requiresSaleOfData: true,
@@ -49,23 +73,9 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
         consentReason: "用于转化追踪和广告优化",
         requiresSaleOfData: true,
     },
-    google_ads: {
-        category: "marketing",
-        name: "Google Ads",
-        dualUse: false,
-        consentReason: "用于转化追踪和广告优化",
-        requiresSaleOfData: true,
-    },
-    google: {
-        category: "analytics",
-        name: "Google Analytics 4 (GA4)",
-        dualUse: true,
-        consentReason: "用于网站分析和用户行为理解",
-        requiresSaleOfData: false,
-    },
     clarity: {
         category: "analytics",
-        name: "Microsoft Clarity",
+        name: "Microsoft Clarity - 客户端工具",
         dualUse: false,
         consentReason: "用于热力图和用户行为分析",
         requiresSaleOfData: false,

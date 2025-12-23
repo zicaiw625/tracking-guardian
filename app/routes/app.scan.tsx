@@ -2,8 +2,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useActionData, useFetcher } from "@remix-run/react";
 import { useState, useCallback } from "react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, Modal, } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, DeleteIcon, RefreshIcon, } from "@shopify/polaris-icons";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, Modal, List, } from "@shopify/polaris";
+import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, analyzeScriptContent, type ScriptAnalysisResult } from "../services/scanner.server";
@@ -188,24 +188,32 @@ export default function ScanPage() {
     const upgradeFetcher = useFetcher();
     const [selectedTab, setSelectedTab] = useState(0);
     const [scriptContent, setScriptContent] = useState("");
+    const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
+    const [guidanceContent, setGuidanceContent] = useState<{ title: string; platform?: string; scriptTagId?: number } | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-    const [pendingDelete, setPendingDelete] = useState<{ type: "scriptTag" | "webPixel"; id: string; gid: string; title: string } | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{ type: "webPixel"; id: string; gid: string; title: string } | null>(null);
     const isScanning = navigation.state === "submitting";
     const isDeleting = deleteFetcher.state === "submitting";
     const isUpgrading = upgradeFetcher.state === "submitting";
 
-    // Handle ScriptTag deletion
-    const handleDeleteScriptTag = useCallback((scriptTagId: number, scriptTagGid: string, platform?: string) => {
-        setPendingDelete({
-            type: "scriptTag",
-            id: String(scriptTagId),
-            gid: scriptTagGid,
-            title: `ScriptTag #${scriptTagId}${platform ? ` (${platform})` : ""}`,
+    // P0-1: Show ScriptTag cleanup guidance instead of direct deletion
+    // (应用没有 write_script_tags 权限，无法直接删除 ScriptTag)
+    const handleShowScriptTagGuidance = useCallback((scriptTagId: number, platform?: string) => {
+        setGuidanceContent({
+            title: `清理 ScriptTag #${scriptTagId}`,
+            platform,
+            scriptTagId,
         });
-        setDeleteModalOpen(true);
+        setGuidanceModalOpen(true);
     }, []);
 
-    // Handle WebPixel deletion
+    // Close guidance modal
+    const closeGuidanceModal = useCallback(() => {
+        setGuidanceModalOpen(false);
+        setGuidanceContent(null);
+    }, []);
+
+    // Handle WebPixel deletion (保留，因为有 write_pixels 权限)
     const handleDeleteWebPixel = useCallback((webPixelGid: string, platform?: string) => {
         setPendingDelete({
             type: "webPixel",
@@ -216,29 +224,21 @@ export default function ScanPage() {
         setDeleteModalOpen(true);
     }, []);
 
-    // Confirm deletion
+    // Confirm WebPixel deletion
     const confirmDelete = useCallback(() => {
         if (!pendingDelete) return;
 
         const formData = new FormData();
-        if (pendingDelete.type === "scriptTag") {
-            formData.append("scriptTagGid", pendingDelete.gid);
-            deleteFetcher.submit(formData, {
-                method: "post",
-                action: "/app/actions/delete-script-tag",
-            });
-        } else {
-            formData.append("webPixelGid", pendingDelete.gid);
-            deleteFetcher.submit(formData, {
-                method: "post",
-                action: "/app/actions/delete-web-pixel",
-            });
-        }
+        formData.append("webPixelGid", pendingDelete.gid);
+        deleteFetcher.submit(formData, {
+            method: "post",
+            action: "/app/actions/delete-web-pixel",
+        });
         setDeleteModalOpen(false);
         setPendingDelete(null);
     }, [pendingDelete, deleteFetcher]);
 
-    // Close modal
+    // Close delete modal
     const closeDeleteModal = useCallback(() => {
         setDeleteModalOpen(false);
         setPendingDelete(null);
@@ -285,12 +285,13 @@ export default function ScanPage() {
         }
     };
     const getPlatformName = (platform: string) => {
+        // P0-4: bing/clarity removed from CAPI support, but keep display names for detection
         const names: Record<string, string> = {
             google: "Google Ads / GA4",
             meta: "Meta (Facebook) Pixel",
             tiktok: "TikTok Pixel",
-            bing: "Microsoft Ads (Bing)",
-            clarity: "Microsoft Clarity",
+            bing: "Microsoft Ads (Bing) ⚠️",  // Warning: not supported
+            clarity: "Microsoft Clarity ⚠️",   // Warning: not supported
             pinterest: "Pinterest Tag",
             snapchat: "Snapchat Pixel",
             twitter: "Twitter/X Pixel",
@@ -330,10 +331,40 @@ export default function ScanPage() {
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
-                <InlineStack align="end">
-                  <Button variant="primary" onClick={handleScan} loading={isScanning} icon={SearchIcon}>
-                    {isScanning ? "扫描中..." : "开始扫描"}
-                  </Button>
+                <InlineStack align="space-between">
+                  {/* P1-8: 导出和分享按钮 */}
+                  {latestScan && (
+                    <InlineStack gap="200">
+                      <Button 
+                        icon={ExportIcon} 
+                        onClick={() => window.open("/api/exports?type=scan&format=json&include_meta=true", "_blank")}
+                      >
+                        导出报告
+                      </Button>
+                      <Button 
+                        icon={ShareIcon}
+                        onClick={() => {
+                          const shareData = {
+                            title: "追踪脚本扫描报告",
+                            text: `店铺追踪扫描报告\n风险评分: ${latestScan.riskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${new Date(latestScan.createdAt).toLocaleString("zh-CN")}`,
+                          };
+                          if (navigator.share) {
+                            navigator.share(shareData);
+                          } else {
+                            navigator.clipboard.writeText(shareData.text);
+                            alert("报告摘要已复制到剪贴板");
+                          }
+                        }}
+                      >
+                        分享摘要
+                      </Button>
+                    </InlineStack>
+                  )}
+                  <InlineStack gap="200">
+                    <Button variant="primary" onClick={handleScan} loading={isScanning} icon={SearchIcon}>
+                      {isScanning ? "扫描中..." : "开始扫描"}
+                    </Button>
+                  </InlineStack>
                 </InlineStack>
               </Box>
 
@@ -559,26 +590,23 @@ export default function ScanPage() {
                       </Text>
                       
                       <InlineStack gap="200" align="end">
-                        {action.type === "delete_script_tag" && action.scriptTagId && action.scriptTagGid && (
+                        {/* P0-1: ScriptTag 清理改为显示手动指南（应用无 write_script_tags 权限） */}
+                        {action.type === "migrate_script_tag" && action.scriptTagId && (
                           <Button 
-                            tone="critical" 
                             size="slim" 
-                            icon={DeleteIcon}
-                            loading={isDeleting && pendingDelete?.gid === action.scriptTagGid}
-                            onClick={() => handleDeleteScriptTag(
+                            icon={InfoIcon}
+                            onClick={() => handleShowScriptTagGuidance(
                               action.scriptTagId!,
-                              action.scriptTagGid!,
                               action.platform
                             )}
                           >
-                            删除 ScriptTag
+                            查看清理指南
                           </Button>
                         )}
                         {action.type === "remove_duplicate" && action.webPixelGid && (
                           <Button 
                             tone="critical" 
                             size="slim" 
-                            icon={DeleteIcon}
                             loading={isDeleting && pendingDelete?.gid === action.webPixelGid}
                             onClick={() => handleDeleteWebPixel(action.webPixelGid!, action.platform)}
                           >
@@ -808,7 +836,87 @@ export default function ScanPage() {
             </BlockStack>)}
         </Tabs>
 
-        {/* Delete Confirmation Modal */}
+        {/* P0-1: ScriptTag Cleanup Guidance Modal */}
+        <Modal
+          open={guidanceModalOpen}
+          onClose={closeGuidanceModal}
+          title={guidanceContent?.title || "ScriptTag 清理指南"}
+          primaryAction={{
+            content: "我知道了",
+            onAction: closeGuidanceModal,
+          }}
+          secondaryActions={[
+            {
+              content: "前往迁移工具",
+              url: `/app/migrate${guidanceContent?.platform ? `?platform=${guidanceContent.platform}` : ""}`,
+            },
+          ]}
+        >
+          <Modal.Section>
+            <BlockStack gap="400">
+              <Banner tone="info">
+                <Text as="p" variant="bodySm">
+                  由于 Shopify 权限限制，应用无法直接删除 ScriptTag。
+                  请按照以下步骤手动清理，或等待原创建应用自动处理。
+                </Text>
+              </Banner>
+              
+              <BlockStack gap="200">
+                <Text as="p" fontWeight="semibold">推荐清理步骤：</Text>
+                <List type="number">
+                  <List.Item>
+                    <Text as="span">
+                      <strong>确认 Web Pixel 已启用</strong>：在「迁移」页面确认 Tracking Guardian Pixel 已安装并正常运行
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span">
+                      <strong>配置 CAPI 凭证</strong>：在「设置」页面配置相应平台的服务端追踪凭证
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span">
+                      <strong>验证追踪正常</strong>：完成一次测试订单，在「监控」页面确认事件已收到
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span">
+                      <strong>手动删除 ScriptTag</strong>：前往 Shopify 后台 → 设置 → 应用和销售渠道，找到创建该 ScriptTag 的应用并卸载
+                    </Text>
+                  </List.Item>
+                </List>
+              </BlockStack>
+
+              <Divider />
+
+              <BlockStack gap="200">
+                <Text as="p" fontWeight="semibold">找不到创建应用？</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  如果 ScriptTag 是由已卸载的应用创建的残留数据，您可以：
+                </Text>
+                <List type="bullet">
+                  <List.Item>联系 Shopify 支持，提供 ScriptTag ID: {guidanceContent?.scriptTagId}</List.Item>
+                  <List.Item>使用 Shopify GraphQL API 手动删除（需开发者权限）</List.Item>
+                  <List.Item>等待 ScriptTag 自动过期（2025年8月起 Plus 商家将停止执行）</List.Item>
+                </List>
+              </BlockStack>
+
+              {guidanceContent?.platform && (
+                <>
+                  <Divider />
+                  <Banner tone="success">
+                    <Text as="p" variant="bodySm">
+                      💡 安装 Tracking Guardian 的 Web Pixel 后，旧的 {guidanceContent.platform} ScriptTag 可以安全删除，
+                      因为服务端 CAPI 将接管所有转化追踪功能。
+                    </Text>
+                  </Banner>
+                </>
+              )}
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+
+        {/* WebPixel Delete Confirmation Modal */}
         <Modal
           open={deleteModalOpen}
           onClose={closeDeleteModal}
@@ -834,7 +942,7 @@ export default function ScanPage() {
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
                   此操作不可撤销。删除后，相关追踪功能将立即停止。
-                  请确保您已通过 Web Pixel 或其他方式配置了替代追踪方案。
+                  请确保您已通过其他方式配置了替代追踪方案。
                 </Text>
               </Banner>
             </BlockStack>

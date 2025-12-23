@@ -158,7 +158,7 @@ model PixelConfig {
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  platform   String // google, meta, tiktok, bing, clarity
+  platform   String // google, meta, tiktok (P0-4: bing/clarity removed - no CAPI support)
   platformId String? // e.g., GA4 Measurement ID, Meta Pixel ID
 
   // Platform-specific credentials (separated for security)

@@ -203,94 +203,18 @@ export function extractMetaError(error: unknown): PlatformError | null {
     }
     return null;
 }
-export function generateMetaPixelCode(config: {
+/**
+ * P0-5: Client-side pixel code generation removed.
+ * 
+ * Tracking Guardian uses server-side CAPI exclusively.
+ * This function is kept for backwards compatibility but returns empty string.
+ * 
+ * @deprecated Use server-side sendConversionToMeta instead
+ */
+export function generateMetaPixelCode(_config: {
     pixelId: string;
 }): string {
-    if (!config.pixelId) {
-        return "";
-    }
-    return `
-const META_PIXEL_ID = "${config.pixelId}";
-
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-
-            
-fbq('init', META_PIXEL_ID);
-
-                           
-analytics.subscribe('checkout_completed', (event) => {
-                            
-                                                        
-  const analyticsAllowed = customerPrivacy.analyticsProcessingAllowed();
-  const marketingAllowed = customerPrivacy.marketingAllowed();
-  const saleOfDataAllowed = customerPrivacy.saleOfDataAllowed();
-  
-  if (!marketingAllowed || !analyticsAllowed) {
-    console.log('[Tracking Guardian] Meta Pixel: 用户未授权营销/分析追踪，跳过');
-    return;
-  }
-  
-  if (!saleOfDataAllowed) {
-    console.log('[Tracking Guardian] Meta Pixel: 用户不允许数据销售，跳过');
-    return;
-  }
-  
-  const checkout = event.data?.checkout;
-  if (!checkout) return;
-  
-  const orderId = checkout.order?.id || checkout.token;
-  const value = parseFloat(checkout.totalPrice?.amount || 0);
-  const currency = checkout.currencyCode || 'USD';
-  
-  const contents = (checkout.lineItems || []).map(item => ({
-    id: item.variant?.product?.id || item.id,
-    quantity: item.quantity || 1,
-    item_price: parseFloat(item.variant?.price?.amount || 0),
-  }));
-  
-  const numItems = contents.reduce((sum, item) => sum + item.quantity, 0);
-  
-                     
-                                        
-  const eventID = orderId + '_purchase_' + Date.now();
-  
-  fbq('track', 'Purchase', {
-    value: value,
-    currency: currency,
-    content_ids: contents.map(c => c.id),
-    contents: contents,
-    content_type: 'product',
-    num_items: numItems,
-    order_id: orderId,
-  }, { eventID: eventID });
-  
-  console.log('[Tracking Guardian] Meta Purchase event sent:', orderId, 'eventID:', eventID);
-});
-
-              
-analytics.subscribe('checkout_started', (event) => {
-  const marketingAllowed = customerPrivacy.marketingAllowed();
-  const saleOfDataAllowed = customerPrivacy.saleOfDataAllowed();
-  
-  if (!marketingAllowed || !saleOfDataAllowed) return;
-  
-  const checkout = event.data?.checkout;
-  if (!checkout) return;
-  
-  fbq('track', 'InitiateCheckout', {
-    value: parseFloat(checkout.totalPrice?.amount || 0),
-    currency: checkout.currencyCode || 'USD',
-    num_items: (checkout.lineItems || []).reduce((sum, item) => sum + (item.quantity || 1), 0),
-  });
-});
-
-console.log('[Tracking Guardian] Meta Pixel Custom Pixel initialized');
-`;
+    // P0-5: No longer generating client-side code
+    // All tracking is done server-side via Conversions API
+    return "";
 }

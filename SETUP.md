@@ -230,6 +230,43 @@ shopify app dev
 2. `checkout_completed` 事件是否发送到后端
 3. `PixelEventReceipt` 是否正确写入数据库
 
+#### 8.5 常见 Extension 部署问题排查
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| `No extension found` | uid 未生成 | 运行 `shopify app deploy` 首次部署 |
+| `webPixelCreate failed: schema validation error` | settings schema 不匹配 | 检查 toml 中的 settings.fields 是否与 buildWebPixelSettings() 一致 |
+| `Extension not showing in checkout editor` | 未正确部署 | 运行 `shopify app deploy --force` 强制重新部署 |
+| `checkout_completed event not firing` | Pixel 未加载 | 检查 Customer Privacy 设置，确认用户已同意 |
+| `Extension blocks not appearing` | 未添加到页面 | 在 Shopify 后台 → 设置 → 结账 → 自定义 → 添加区块 |
+
+#### 8.6 Checkout UI Extensions（Thank You Blocks）
+
+Tracking Guardian 包含以下 Checkout UI Extensions：
+
+| Block | Target | 用途 |
+|-------|--------|------|
+| Post-purchase Survey | purchase.thank-you.block.render | 购后问卷调查 |
+| Order Status Survey | customer-account.order-status.block.render | 订单状态页问卷 |
+| Shipping Progress Tracker | purchase.thank-you.block.render | 订单状态进度提示 |
+| Order Status Shipping Tracker | customer-account.order-status.block.render | 订单状态页进度 |
+| Thank You Upsell Offer | purchase.thank-you.block.render | 复购优惠券 |
+| Order Status Upsell Offer | customer-account.order-status.block.render | 订单状态页优惠 |
+
+**添加 Block 到页面：**
+
+1. 前往 Shopify 后台 → 设置 → 结账
+2. 点击「自定义」打开 Checkout Editor
+3. 在 Thank You Page 或 Order Status Page 区域点击「添加区块」
+4. 选择 Tracking Guardian 的 Block
+5. 配置 Block 设置（如 Survey 标题、优惠码等）
+6. 保存并发布
+
+**配置 Block 设置：**
+
+所有 Block 设置在 `extensions/thank-you-blocks/shopify.extension.toml` 的 `[settings]` 中定义。
+商家可以在 Checkout Editor 中自定义这些设置。
+
 ## 定时任务配置
 
 ### Vercel Cron
