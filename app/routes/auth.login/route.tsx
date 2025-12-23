@@ -3,6 +3,7 @@ import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { AppProvider, Card, Page, Text, Banner, BlockStack, } from "@shopify/polaris";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
+import polarisTranslationsEn from "@shopify/polaris/locales/en.json";
 import { login } from "../../shopify.server";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -16,13 +17,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         return json({
             hasShopParam: true,
             errors: loginResponse,
-            polarisTranslations: require("@shopify/polaris/locales/en.json"),
+            polarisTranslations: polarisTranslationsEn,
         });
     }
     return json({
         hasShopParam: false,
         errors: null,
-        polarisTranslations: require("@shopify/polaris/locales/en.json"),
+        polarisTranslations: polarisTranslationsEn,
     });
 };
 export default function Auth() {
@@ -54,7 +55,7 @@ export default function Auth() {
                     <strong>如果您尚未安装：</strong>
                   </Text>
                   <Text as="p" tone="subdued">
-                    请从 Shopify App Store 搜索并安装 "Tracking Guardian"
+                    请从 Shopify App Store 搜索并安装「Tracking Guardian」
                   </Text>
                 </BlockStack>
                 

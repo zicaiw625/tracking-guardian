@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { encryptJson } from "../app/utils/crypto";
+import { encryptJson } from "../app/utils/crypto.server";
 const prisma = new PrismaClient();
 interface MigrationResult {
     total: number;

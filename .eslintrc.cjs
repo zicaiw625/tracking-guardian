@@ -20,6 +20,8 @@ module.exports = {
     "node_modules/",
     "dist/",
     ".cache/",
+    "extensions/*/src/**/*.tsx", // Extensions have their own build system
+    "extensions/*/src/**/*.ts",
   ],
 
                 

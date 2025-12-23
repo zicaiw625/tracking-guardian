@@ -100,9 +100,9 @@ describe("verifyReceiptTrust", () => {
         webhookCheckoutToken: "abc123",
         ingestionKeyMatched: true,
         receiptExists: true,
-        originHost: "example.com",
+        receiptOriginHost: "example.com",
         allowedDomains: ["example.com"],
-        strictOriginValidation: true,
+        options: { strictOriginValidation: true },
       });
 
       expect(result.trusted).toBe(true);
@@ -115,9 +115,9 @@ describe("verifyReceiptTrust", () => {
         webhookCheckoutToken: "abc123",
         ingestionKeyMatched: true,
         receiptExists: true,
-        originHost: "malicious.com",
+        receiptOriginHost: "malicious.com",
         allowedDomains: ["example.com"],
-        strictOriginValidation: true,
+        options: { strictOriginValidation: true },
       });
 
       expect(result.trusted).toBe(false);
@@ -131,9 +131,9 @@ describe("verifyReceiptTrust", () => {
         webhookCheckoutToken: "abc123",
         ingestionKeyMatched: true,
         receiptExists: true,
-        originHost: "www.example.com",
+        receiptOriginHost: "www.example.com",
         allowedDomains: ["example.com"],
-        strictOriginValidation: true,
+        options: { strictOriginValidation: true },
       });
 
       expect(result.trusted).toBe(true);

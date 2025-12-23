@@ -180,7 +180,7 @@ describe("Credentials Service", () => {
     describe("TikTok credentials", () => {
       it("should validate complete TikTok credentials", () => {
         const credentials: TikTokCredentials = {
-          pixelId: "pixel123",
+          pixelCode: "pixel123",
           accessToken: "tiktok_token",
         };
 

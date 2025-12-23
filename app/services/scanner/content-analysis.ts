@@ -70,7 +70,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         }
     }
 
-    const metaPixelMatch = content.match(/(?:pixel[_\-]?id|fbq\('init',)\s*['":]?\s*(\d{15,16})/gi);
+    const metaPixelMatch = content.match(/(?:pixel[_-]?id|fbq\('init',)\s*['":]?\s*(\d{15,16})/gi);
     if (metaPixelMatch) {
         for (const match of metaPixelMatch) {
             const pixelId = match.match(/\d{15,16}/)?.[0];

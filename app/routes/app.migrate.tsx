@@ -228,7 +228,7 @@ export default function MigratePage() {
         submit(formData, { method: "post" });
     };
     // Update step based on action result
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         const data = actionData as {
             _action?: string;
@@ -240,7 +240,6 @@ export default function MigratePage() {
     }, [actionData]);
 
     // Update step based on pixel status changes
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
         if (pixelStatus === "installed" && hasCapiConfig) {
             setCurrentStep("complete");
@@ -249,6 +248,7 @@ export default function MigratePage() {
             setCurrentStep("capi");
         }
     }, [pixelStatus, hasCapiConfig]);
+    /* eslint-enable react-hooks/set-state-in-effect */
     const handleEnablePixel = () => {
         const formData = new FormData();
         formData.append("_action", "enablePixel");

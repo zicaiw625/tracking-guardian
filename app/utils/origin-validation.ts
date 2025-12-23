@@ -11,7 +11,7 @@ const ALLOWED_ORIGIN_PATTERNS: Array<{
     example: string;
 }> = [
     {
-        pattern: /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/,
+        pattern: /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/,
         description: "Shopify store domains",
         example: "https://my-store.myshopify.com",
     },
@@ -21,7 +21,7 @@ const ALLOWED_ORIGIN_PATTERNS: Array<{
         example: "https://checkout.shopify.com",
     },
     {
-        pattern: /^https:\/\/[a-zA-Z0-9\-]+\.shopify\.com$/,
+        pattern: /^https:\/\/[a-zA-Z0-9-]+\.shopify\.com$/,
         description: "Shopify internal domains",
         example: "https://apps.shopify.com",
     },

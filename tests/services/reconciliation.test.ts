@@ -21,6 +21,13 @@ vi.mock("../../app/db.server", () => ({
   },
 }));
 
+vi.mock("../../app/shopify.server", () => ({
+  authenticate: {
+    admin: vi.fn(),
+  },
+  apiVersion: "2025-07",
+}));
+
 vi.mock("../../app/services/notification.server", () => ({
   sendAlert: vi.fn().mockResolvedValue(true),
 }));

@@ -32,13 +32,13 @@ describe("isValidPixelOrigin", () => {
     it("accepts string 'null' origin", () => {
       const result = isValidPixelOrigin("null");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("sandbox_or_null_origin");
+      expect(result.reason).toBe("sandbox_origin");
     });
 
     it("accepts null value", () => {
       const result = isValidPixelOrigin(null);
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("sandbox_or_null_origin");
+      expect(result.reason).toBe("sandbox_origin");
     });
 
     it("accepts empty string (no origin header)", () => {
@@ -72,13 +72,13 @@ describe("isValidPixelOrigin", () => {
     it("rejects javascript: protocol", () => {
       const result = isValidPixelOrigin("javascript:alert(1)");
       expect(result.valid).toBe(false);
-      expect(result.reason).toBe("malformed_origin");
+      expect(result.reason).toBe("invalid_protocol");
     });
 
     it("rejects data: protocol", () => {
       const result = isValidPixelOrigin("data:text/html,test");
       expect(result.valid).toBe(false);
-      expect(result.reason).toBe("malformed_origin");
+      expect(result.reason).toBe("data_protocol_blocked");
     });
   });
 });

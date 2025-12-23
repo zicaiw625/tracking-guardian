@@ -57,7 +57,7 @@ export function getEncryptionKey(): Buffer {
     cachedKeySecret = secret;
     cachedKeySalt = salt;
     return cachedKey;
-};
+}
 export function validateEncryptionConfig(): {
     valid: boolean;
     warnings: string[];

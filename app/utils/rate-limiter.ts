@@ -376,6 +376,10 @@ export function unblockShop(shopDomain: string): boolean {
     anomalyTrackers.delete(shopDomain);
     return wasBlocked;
 }
+export function clearAllTracking(): void {
+    blockedShops.clear();
+    anomalyTrackers.clear();
+}
 export function getBlockedShops(): Array<{
     shopDomain: string;
     blockedAt: Date;

@@ -22,9 +22,10 @@ export function getDateDisplayLabel(date: Date, precision: DatePrecision = "mont
             return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         case "month":
             return `${year}年${month}月`;
-        case "quarter":
+        case "quarter": {
             const quarter = Math.ceil(month / 3);
             return `${year}年第${quarter}季度`;
+        }
         default:
             return `${year}年${month}月`;
     }

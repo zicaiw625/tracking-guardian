@@ -70,8 +70,8 @@ export function createEncryptedSessionStorage(baseStorage: SessionStorage): Sess
 }
 export async function migrateSessionTokensToEncrypted(prisma: {
     session: {
-        findMany: Function;
-        update: Function;
+        findMany: (args?: { select?: { id?: boolean; accessToken?: boolean } }) => Promise<Array<{ id: string; accessToken: string | null }>>;
+        update: (args: { where: { id: string }; data: { accessToken: string } }) => Promise<unknown>;
     };
 }): Promise<{
     migrated: number;

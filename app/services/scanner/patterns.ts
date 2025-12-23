@@ -16,10 +16,10 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
         /facebook\.net\/.*fbevents/i,
         /connect\.facebook\.net/i,
         /fb-pixel/i,
-        /pixel[_\-]?id['":\s]+\d{15,16}/i,
+        /pixel[_-]?id['":\s]+\d{15,16}/i,
     ],
     tiktok: [
-        /ttq\s*\(/i,
+        /ttq\s*[.(]/i,
         /tiktok.*pixel/i,
         /analytics\.tiktok\.com/i,
     ],

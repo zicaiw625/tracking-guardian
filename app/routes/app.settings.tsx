@@ -477,6 +477,8 @@ export default function SettingsPage() {
             tiktokAccessToken !== initial.tiktokAccessToken;
         setServerFormDirty(isDirty);
     }, [serverPlatform, serverEnabled, metaPixelId, metaAccessToken, metaTestCode, googleMeasurementId, googleApiSecret, tiktokPixelId, tiktokAccessToken]);
+    
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         if (selectedTab === 0) {
             checkAlertFormDirty();
@@ -485,8 +487,8 @@ export default function SettingsPage() {
             checkServerFormDirty();
         }
     }, [selectedTab, checkAlertFormDirty, checkServerFormDirty]);
+    
     // Reset form dirty state after successful save
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
         if (actionData && "success" in actionData && actionData.success) {
             if (selectedTab === 0) {
@@ -517,6 +519,7 @@ export default function SettingsPage() {
             }
         }
     }, [actionData, selectedTab, serverPlatform, serverEnabled, metaPixelId, metaAccessToken, metaTestCode, googleMeasurementId, googleApiSecret, tiktokPixelId, tiktokAccessToken]);
+    /* eslint-enable react-hooks/set-state-in-effect */
     const handleDiscardChanges = useCallback(() => {
         if (selectedTab === 0) {
             const initial = initialAlertValues.current;
@@ -616,7 +619,7 @@ export default function SettingsPage() {
         else if (selectedTab === 1) {
             handleSaveServerSide();
         }
-    }, [selectedTab]);
+    }, [selectedTab, handleSaveAlert, handleSaveServerSide]);
     const tabs = [
         { id: "alerts", content: "警报通知" },
         { id: "server-side", content: "服务端追踪" },
@@ -1109,7 +1112,7 @@ export default function SettingsPage() {
                         {shop?.consentStrategy === "balanced" && (<BlockStack gap="100">
                             <Text as="span" fontWeight="semibold">⚖️ 平衡模式</Text>
                             <Text as="p" variant="bodySm">
-                              仍要求像素回执与明确用户同意，但允许信任等级为"部分可信"的回执。
+                              仍要求像素回执与明确用户同意，但允许信任等级为「部分可信」的回执。
                               这比严格模式略宽松，但仍然确保有用户同意证据才发送数据。
                             </Text>
                             <Text as="p" variant="bodySm" tone="subdued">
