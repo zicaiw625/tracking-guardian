@@ -289,22 +289,27 @@ describe("Web Pixel Settings Schema Validation", () => {
    * P0-1: Validates the web pixel TOML schema structure.
    * The settings should use [settings.fields.<fieldName>] format,
    * not [[settings.fields]] with key= syntax.
+   * 
+   * Note: Schema has been simplified to only ingestion_key and shop_domain.
+   * backend_url and schema_version were removed as they are no longer needed.
    */
   
   const EXPECTED_FIELDS = [
     "ingestion_key",
-    "shop_domain", 
-    "backend_url",
-    "schema_version",
+    "shop_domain",
   ];
 
   it("should have all required settings fields defined", () => {
-    // This test documents the expected fields
-    expect(EXPECTED_FIELDS).toHaveLength(4);
+    // This test documents the expected fields (simplified schema)
+    expect(EXPECTED_FIELDS).toHaveLength(2);
     expect(EXPECTED_FIELDS).toContain("ingestion_key");
     expect(EXPECTED_FIELDS).toContain("shop_domain");
-    expect(EXPECTED_FIELDS).toContain("backend_url");
-    expect(EXPECTED_FIELDS).toContain("schema_version");
+  });
+
+  it("should NOT include deprecated fields", () => {
+    // backend_url and schema_version were removed from the schema
+    expect(EXPECTED_FIELDS).not.toContain("backend_url");
+    expect(EXPECTED_FIELDS).not.toContain("schema_version");
   });
 
   it("should use single_line_text_field type (web pixel requirement)", () => {

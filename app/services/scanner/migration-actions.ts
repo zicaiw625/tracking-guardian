@@ -132,7 +132,7 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
             type: "configure_pixel",
             priority: "medium",
             title: "升级 App Pixel 配置",
-            description: "检测到旧版 Pixel 配置（缺少 backend_url 或 shop_domain）。请重新启用 App Pixel 以升级到新版配置格式。",
+            description: "检测到旧版 Pixel 配置（缺少 shop_domain 或仍使用 ingestion_secret 旧字段）。请重新启用 App Pixel 以升级到新版配置格式。",
         });
     }
 
@@ -181,10 +181,9 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
 
                 // Check for our pixel's ingestion_key (Tracking Guardian)
                 if (settings.ingestion_key || settings.ingestion_secret) {
-                    // This is our pixel, check if it has platform config
-                    if (settings.backend_url && settings.shop_domain) {
-                        // Properly configured Tracking Guardian pixel
-                        // The platforms are configured server-side, not in pixel settings
+                    // This is our pixel - platforms are configured server-side
+                    // Only need shop_domain for proper configuration (backend_url no longer used)
+                    if (settings.shop_domain) {
                         continue;
                     }
                 }
