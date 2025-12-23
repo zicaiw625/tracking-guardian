@@ -120,16 +120,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             error?: string;
         }> = [];
 
-        const backendUrl = process.env.SHOPIFY_APP_URL || "https://tracking-guardian.onrender.com";
-
         for (const pixel of pixelsToUpgrade) {
             const result = await upgradeWebPixelSettings(
                 admin,
                 pixel.id,
                 pixel.settings,
                 shopDomain,
-                ingestionKey,
-                backendUrl
+                ingestionKey
             );
 
             results.push({

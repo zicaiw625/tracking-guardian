@@ -57,13 +57,15 @@ export interface CartLine {
 
 /**
  * Settings passed from Shopify pixel configuration.
- * P0-01/P0-03: All fields align with shopify.extension.toml settings schema.
+ * 
+ * P0-01/P0-02: These fields MUST exactly match shopify.extension.toml [settings.fields.*] keys.
+ * Only include fields declared in the toml schema.
+ * 
+ * Note: backend_url is NOT in settings - it's a build-time constant (BACKEND_URL).
  */
 export interface PixelSettings {
   ingestion_key?: string;
   shop_domain?: string;
-  backend_url?: string;
-  schema_version?: string;
 }
 
 /**

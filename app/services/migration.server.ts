@@ -139,28 +139,33 @@ export interface CreateWebPixelResult {
     }>;
 }
 /**
- * P0-01: WebPixelSettings must align with shopify.extension.toml settings schema.
- * All fields are strings per Shopify Web Pixel requirements.
+ * P0-01/P0-02: WebPixelSettings must EXACTLY match shopify.extension.toml settings schema.
+ * 
+ * CRITICAL: Only include fields that are declared in the toml schema.
+ * Adding extra fields will cause webPixelCreate mutation to fail with schema validation error.
+ * 
+ * All fields are strings per Shopify Web Pixel requirements (only single_line_text_field supported).
+ * Reference: https://shopify.dev/docs/apps/build/marketing-analytics/build-web-pixels
  */
 export interface WebPixelSettings {
     ingestion_key: string;
-    backend_url: string;
     shop_domain: string;
-    schema_version: string; // P0-01: Changed from number to string per Web Pixel requirements
 }
 
-// P0-01: Schema version as string for Web Pixel compatibility
-export const WEB_PIXEL_SCHEMA_VERSION = "1";
-
-export function buildWebPixelSettings(ingestionKey: string, shopDomain: string, backendUrl?: string): WebPixelSettings {
-    const resolvedBackendUrl = backendUrl ||
-        process.env.SHOPIFY_APP_URL ||
-        "https://tracking-guardian.onrender.com";
+/**
+ * Build settings object for webPixelCreate/webPixelUpdate mutations.
+ * 
+ * P0-02: Settings keys MUST exactly match shopify.extension.toml [settings.fields.*] keys.
+ * - ingestion_key: matches [settings.fields.ingestion_key]
+ * - shop_domain: matches [settings.fields.shop_domain]
+ * 
+ * Note: backend_url is NOT included because it's a build-time constant in the pixel code,
+ * not a runtime setting. This avoids schema validation failures.
+ */
+export function buildWebPixelSettings(ingestionKey: string, shopDomain: string): WebPixelSettings {
     return {
         ingestion_key: ingestionKey,
-        backend_url: resolvedBackendUrl,
         shop_domain: shopDomain,
-        schema_version: WEB_PIXEL_SCHEMA_VERSION,
     };
 }
 export function isOurWebPixel(settings: unknown, shopDomain?: string): boolean {
@@ -179,18 +184,19 @@ export function needsSettingsUpgrade(settings: unknown): boolean {
     if (!settings || typeof settings !== "object")
         return false;
     const s = settings as Record<string, unknown>;
+    // Upgrade needed if using legacy ingestion_secret instead of ingestion_key
     if (typeof s.ingestion_secret === "string" && typeof s.ingestion_key !== "string") {
         return true;
     }
-    if (typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string") {
-        if (typeof s.backend_url !== "string" || typeof s.shop_domain !== "string") {
-            return true;
-        }
+    // Upgrade needed if missing required shop_domain field
+    if ((typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string") 
+        && typeof s.shop_domain !== "string") {
+        return true;
     }
     return false;
 }
-export async function createWebPixel(admin: AdminApiContext, ingestionSecret?: string, shopDomain?: string, backendUrl?: string): Promise<CreateWebPixelResult> {
-    const pixelSettings = buildWebPixelSettings(ingestionSecret || "", shopDomain || "", backendUrl);
+export async function createWebPixel(admin: AdminApiContext, ingestionSecret?: string, shopDomain?: string): Promise<CreateWebPixelResult> {
+    const pixelSettings = buildWebPixelSettings(ingestionSecret || "", shopDomain || "");
     const settings = JSON.stringify(pixelSettings);
     try {
         const response = await admin.graphql(`
@@ -227,8 +233,6 @@ export async function createWebPixel(admin: AdminApiContext, ingestionSecret?: s
         if (data?.webPixel?.id) {
             logger.info(`Web Pixel created successfully: ${data.webPixel.id}`, {
                 shopDomain,
-                hasBackendUrl: !!pixelSettings.backend_url,
-                schemaVersion: pixelSettings.schema_version,
             });
             return {
                 success: true,
@@ -248,8 +252,8 @@ export async function createWebPixel(admin: AdminApiContext, ingestionSecret?: s
         };
     }
 }
-export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionSecret?: string, shopDomain?: string, backendUrl?: string): Promise<CreateWebPixelResult> {
-    const pixelSettings = buildWebPixelSettings(ingestionSecret || "", shopDomain || "", backendUrl);
+export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionSecret?: string, shopDomain?: string): Promise<CreateWebPixelResult> {
+    const pixelSettings = buildWebPixelSettings(ingestionSecret || "", shopDomain || "");
     const settings = JSON.stringify(pixelSettings);
     try {
         const response = await admin.graphql(`
@@ -287,8 +291,6 @@ export async function updateWebPixel(admin: AdminApiContext, webPixelId: string,
         if (data?.webPixel?.id) {
             logger.info(`Web Pixel updated successfully: ${data.webPixel.id}`, {
                 shopDomain,
-                hasBackendUrl: !!pixelSettings.backend_url,
-                schemaVersion: pixelSettings.schema_version,
             });
             return {
                 success: true,
@@ -309,16 +311,15 @@ export async function updateWebPixel(admin: AdminApiContext, webPixelId: string,
     }
 }
 /**
- * P1-02: Upgrade WebPixel settings to latest schema version.
- * Handles migration from ingestion_secret to ingestion_key and adds missing fields.
+ * Upgrade WebPixel settings to latest schema.
+ * Handles migration from ingestion_secret to ingestion_key.
  */
 export async function upgradeWebPixelSettings(
     admin: AdminApiContext,
     webPixelId: string,
     currentSettings: unknown,
     shopDomain: string,
-    ingestionKey: string,
-    backendUrl?: string
+    ingestionKey: string
 ): Promise<CreateWebPixelResult> {
     if (!currentSettings || typeof currentSettings !== "object") {
         return {
@@ -332,18 +333,13 @@ export async function upgradeWebPixelSettings(
     // Determine the key to use (prefer existing ingestion_key, fallback to ingestion_secret)
     const existingKey = (s.ingestion_key as string) || (s.ingestion_secret as string) || ingestionKey;
     
-    // Build upgraded settings
-    const upgradedSettings = buildWebPixelSettings(existingKey, shopDomain, backendUrl);
-    
     logger.info(`Upgrading WebPixel settings for ${shopDomain}`, {
         webPixelId,
         hadIngestionSecret: typeof s.ingestion_secret === "string",
-        hadBackendUrl: typeof s.backend_url === "string",
         hadShopDomain: typeof s.shop_domain === "string",
-        newSchemaVersion: upgradedSettings.schema_version,
     });
 
-    return updateWebPixel(admin, webPixelId, existingKey, shopDomain, backendUrl);
+    return updateWebPixel(admin, webPixelId, existingKey, shopDomain);
 }
 
 export async function getExistingWebPixels(admin: AdminApiContext): Promise<Array<{
