@@ -69,7 +69,7 @@ npm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SCOPES=read_orders,read_script_tags,read_pixels,write_pixels,read_customer_events
+SCOPES=read_orders,read_script_tags,read_pixels,write_pixels
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 ```
@@ -149,8 +149,7 @@ railway up
 | `read_orders` | 接收 `orders/paid` webhook 发送转化事件 | `webhooks.tsx` | ✅ 是 |
 | `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
-| `write_pixels` | 创建/管理 App Pixel Extension | `migration.server.ts` | ✅ 是 |
-| `read_customer_events` | Shopify `webPixelCreate` API 必需 | `migration.server.ts` | ✅ 是 |
+| `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
 
 ### P0-1: ScriptTag 权限说明
 
@@ -170,7 +169,7 @@ ScriptTag 清理需要商家手动操作：
 
 ### P2-04: 最小权限说明
 
-- 所有 5 个 scopes 都有明确的代码调用点和业务理由
+- 所有 4 个 scopes 都有明确的代码调用点和业务理由
 - 详细权限说明请参阅 [COMPLIANCE.md](COMPLIANCE.md) 中的 "Scopes Justification" 部分
 
 ## Webhook 订阅

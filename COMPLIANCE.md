@@ -582,18 +582,17 @@ All ⚠️ marked fields are deleted upon:
 | `read_orders` | 接收 orders/paid webhook 以发送转化事件 | `app/routes/webhooks.tsx:175-248` | CAPI 发送 | ✅ 是 |
 | `read_script_tags` | 扫描旧版 ScriptTag 用于迁移建议 | `app/services/scanner.server.ts:132-199` | 扫描报告 | ✅ 是 |
 | `read_pixels` | 查询已安装的 Web Pixel | `app/services/migration.server.ts:322-352` | 像素状态检测 | ✅ 是 |
-| `write_pixels` | 创建/管理 App Pixel extension | `app/services/migration.server.ts:184-250` | 像素安装 | ✅ 是 |
-| `read_customer_events` | Shopify webPixelCreate API 必需 | `app/services/migration.server.ts:196-248` | 像素创建 | ✅ 是 |
+| `write_pixels` | 创建/更新 App Pixel extension | `app/services/migration.server.ts:184-250` | 像素安装 | ✅ 是 |
 
 **P0-1 权限调整说明**:
 - ~~`write_script_tags`~~：已移除。应用不直接删除 ScriptTag，改为提供手动清理指南。
 - 商家需通过 Shopify 后台手动清理旧版 ScriptTag（卸载创建它的应用或联系 Shopify 支持）
 
-**P0-04 验证**: 所有 5 个 scopes 都有明确的代码调用点和业务理由。
+**P0-04 验证**: 所有 4 个 scopes 都有明确的代码调用点和业务理由，遵循最小权限原则。
 
 > **Note**: 
 > - `read_pixels` 是读取 [WebPixel 对象](https://shopify.dev/docs/api/admin-graphql/latest/objects/WebPixel) 的必需权限
-> - `read_customer_events` 是 Shopify `webPixelCreate` mutation 的必需权限，见 [官方文档](https://shopify.dev/docs/api/admin-graphql/latest/mutations/webpixelcreate)
+> - `write_pixels` 是 `webPixelCreate` / `webPixelUpdate` mutation 的必需权限
 
 ### Test Steps for Reviewers
 

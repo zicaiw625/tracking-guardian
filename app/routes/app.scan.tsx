@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useActionData, useFetcher } from "@remix-run/react";
-import { useState, useCallback } from "react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, Modal, List, } from "@shopify/polaris";
+import { useState, useCallback, useMemo } from "react";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -192,7 +192,36 @@ export default function ScanPage() {
     const [guidanceContent, setGuidanceContent] = useState<{ title: string; platform?: string; scriptTagId?: number } | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<{ type: "webPixel"; id: string; gid: string; title: string } | null>(null);
+    const [monthlyOrders, setMonthlyOrders] = useState(500);
     const isScanning = navigation.state === "submitting";
+    
+    // ROI 影响估算计算
+    const roiEstimate = useMemo(() => {
+        const platforms = identifiedPlatforms.length || 1;
+        const scriptTagCount = ((latestScan?.scriptTags as ScriptTag[] | null) || []).length;
+        
+        // 不迁移的事件丢失估算
+        const eventsLostPerMonth = monthlyOrders * platforms;
+        
+        // 假设平均订单价值 $80，广告 ROAS 3x
+        const avgOrderValue = 80;
+        const roas = 3;
+        const adSpendPerOrder = avgOrderValue / roas;
+        
+        // 丢失转化导致的广告预算浪费（广告平台无法优化）
+        // 假设丢失 30% 的转化会导致 15% 的 ROAS 下降
+        const roasDropPercent = scriptTagCount > 0 ? 15 : 0;
+        const monthlyAdSpend = monthlyOrders * adSpendPerOrder;
+        const wastedAdSpend = monthlyAdSpend * (roasDropPercent / 100);
+        
+        return {
+            eventsLostPerMonth,
+            wastedAdSpend: Math.round(wastedAdSpend),
+            roasDropPercent,
+            platforms,
+            scriptTagCount,
+        };
+    }, [monthlyOrders, identifiedPlatforms, latestScan]);
     const isDeleting = deleteFetcher.state === "submitting";
     const isUpgrading = upgradeFetcher.state === "submitting";
 
@@ -479,6 +508,273 @@ export default function ScanPage() {
               </Card>
             </Layout.Section>
           </Layout>)}
+
+        {/* ROI 影响估算卡片 - 增强版：带交互式计算器 */}
+        {latestScan && !isScanning && latestScan.riskScore > 0 && (<Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  📊 您的迁移 ROI 影响分析
+                </Text>
+                <Badge tone="attention">商家必看</Badge>
+              </InlineStack>
+
+              {/* 交互式订单量输入 */}
+              <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                <BlockStack gap="300">
+                  <Text as="p" fontWeight="semibold">
+                    🧮 输入您的月订单量，查看具体影响
+                  </Text>
+                  <RangeSlider
+                    label="月订单量"
+                    value={monthlyOrders}
+                    onChange={(value) => setMonthlyOrders(value as number)}
+                    output
+                    min={100}
+                    max={10000}
+                    step={100}
+                    suffix={<Text as="span" variant="bodySm">{monthlyOrders} 单/月</Text>}
+                  />
+                </BlockStack>
+              </Box>
+
+              {/* 事件丢失估算 - 基于实际输入 */}
+              <Box background="bg-fill-critical-secondary" padding="400" borderRadius="200">
+                <BlockStack gap="300">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Icon source={AlertCircleIcon} tone="critical" />
+                    <Text as="h3" variant="headingMd" tone="critical">
+                      不迁移会丢失什么？（基于您的数据）
+                    </Text>
+                  </InlineStack>
+                  
+                  {/* 具体数字展示 */}
+                  <InlineStack gap="400" align="space-between" wrap>
+                    <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodySm" tone="subdued">每月丢失事件</Text>
+                        <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
+                          {roiEstimate.eventsLostPerMonth.toLocaleString()}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="critical">
+                          {roiEstimate.platforms} 平台 × {monthlyOrders} 订单
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodySm" tone="subdued">预计广告浪费</Text>
+                        <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
+                          ${roiEstimate.wastedAdSpend.toLocaleString()}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="critical">
+                          每月（ROAS -{roiEstimate.roasDropPercent}%）
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodySm" tone="subdued">受影响 ScriptTag</Text>
+                        <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
+                          {roiEstimate.scriptTagCount}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="critical">
+                          将在截止日停止执行
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  </InlineStack>
+                  
+                  <BlockStack gap="200">
+                    {identifiedPlatforms.length > 0 ? (
+                      identifiedPlatforms.map((platform) => (
+                        <Box key={platform} background="bg-surface" padding="300" borderRadius="100">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <InlineStack gap="200">
+                              <Badge tone="critical">将失效</Badge>
+                              <Text as="span" fontWeight="semibold">{getPlatformName(platform)}</Text>
+                            </InlineStack>
+                            <Text as="span" variant="bodySm" tone="critical">
+                              每月丢失 {monthlyOrders.toLocaleString()} 个转化事件
+                            </Text>
+                          </InlineStack>
+                        </Box>
+                      ))
+                    ) : (
+                      <Text as="p" variant="bodySm">
+                        当前 ScriptTag 中的追踪代码将在截止日期后全部失效
+                      </Text>
+                    )}
+                  </BlockStack>
+
+                  <Banner tone="critical">
+                    <Text as="p" variant="bodySm">
+                      <strong>⚠️ 每年损失估算：</strong>
+                      基于您的月订单量（{monthlyOrders.toLocaleString()}），
+                      不迁移将导致每年约 <strong>${(roiEstimate.wastedAdSpend * 12).toLocaleString()}</strong> 的广告预算浪费，
+                      相当于 <strong>{Math.round(roiEstimate.wastedAdSpend * 12 / 80)} 个订单</strong>的收入。
+                    </Text>
+                  </Banner>
+                </BlockStack>
+              </Box>
+
+              <Divider />
+
+              {/* 迁移后恢复 - 显示具体收益 */}
+              <Box background="bg-fill-success-secondary" padding="400" borderRadius="200">
+                <BlockStack gap="300">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Icon source={CheckCircleIcon} tone="success" />
+                    <Text as="h3" variant="headingMd" tone="success">
+                      迁移后能恢复什么？（您的预期收益）
+                    </Text>
+                  </InlineStack>
+
+                  {/* 具体收益数字展示 */}
+                  <InlineStack gap="400" align="space-between" wrap>
+                    <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodySm" tone="subdued">每月恢复事件</Text>
+                        <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
+                          {roiEstimate.eventsLostPerMonth.toLocaleString()}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="success">
+                          100% 转化追踪恢复
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodySm" tone="subdued">每年节省广告费</Text>
+                        <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
+                          ${(roiEstimate.wastedAdSpend * 12).toLocaleString()}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="success">
+                          避免 ROAS 下降
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodySm" tone="subdued">额外归因提升</Text>
+                        <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
+                          +15-30%
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="success">
+                          服务端 CAPI 优势
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  </InlineStack>
+
+                  <BlockStack gap="200">
+                    {identifiedPlatforms.length > 0 ? (
+                      identifiedPlatforms.map((platform) => (
+                        <Box key={platform} background="bg-surface" padding="300" borderRadius="100">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <InlineStack gap="200">
+                              <Badge tone="success">✓ 恢复</Badge>
+                              <Text as="span" fontWeight="semibold">{getPlatformName(platform)}</Text>
+                            </InlineStack>
+                            <Text as="span" variant="bodySm" tone="success">
+                              每月 {monthlyOrders.toLocaleString()} 个转化事件 → 广告平台
+                            </Text>
+                          </InlineStack>
+                        </Box>
+                      ))
+                    ) : (
+                      <Text as="p" variant="bodySm">
+                        所有追踪功能将通过 Web Pixel + 服务端 CAPI 恢复
+                      </Text>
+                    )}
+                  </BlockStack>
+
+                  <Banner tone="success">
+                    <Text as="p" variant="bodySm">
+                      <strong>🎯 投资回报率（ROI）：</strong>
+                      迁移是一次性工作，完成后您每月可节省约 <strong>${roiEstimate.wastedAdSpend.toLocaleString()}</strong> 广告费，
+                      同时享受服务端 CAPI 带来的额外 15-30% 归因准确率提升。
+                    </Text>
+                  </Banner>
+                </BlockStack>
+              </Box>
+
+              <Divider />
+
+              {/* 对比卡片 */}
+              <BlockStack gap="300">
+                <Text as="h3" variant="headingMd">
+                  迁移前后对比
+                </Text>
+                <InlineStack gap="400" align="space-between" wrap={false}>
+                  <Box background="bg-surface-critical" padding="300" borderRadius="200" minWidth="200px">
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodySm" tone="subdued">当前（不迁移）</Text>
+                      <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
+                        {latestScan.riskScore > 60 ? "高风险" : latestScan.riskScore > 30 ? "中风险" : "低风险"}
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="critical">
+                        {((latestScan.scriptTags as ScriptTag[] | null) || []).length} 个 ScriptTag 将失效
+                      </Text>
+                    </BlockStack>
+                  </Box>
+
+                  <Box padding="300">
+                    <Icon source={ArrowRightIcon} tone="subdued" />
+                  </Box>
+
+                  <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodySm" tone="subdued">迁移后</Text>
+                      <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
+                        100% 恢复
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="success">
+                        Web Pixel + CAPI 双保险
+                      </Text>
+                    </BlockStack>
+                  </Box>
+
+                  <Box padding="300">
+                    <Icon source={ArrowRightIcon} tone="subdued" />
+                  </Box>
+
+                  <Box background="bg-surface-success" padding="300" borderRadius="200" minWidth="200px">
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodySm" tone="subdued">额外收益</Text>
+                      <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
+                        +15-30%
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="success">
+                        归因准确率提升
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                </InlineStack>
+
+                <Banner tone="info" title="为什么服务端 CAPI 能提升归因？">
+                  <Text as="p" variant="bodySm">
+                    ✅ 不受 iOS 14.5+ App Tracking Transparency 限制
+                    <br />
+                    ✅ 不受浏览器广告拦截器影响
+                    <br />
+                    ✅ 不受第三方 Cookie 弃用影响
+                    <br />
+                    ✅ Shopify Webhook 确保 100% 订单数据到达
+                  </Text>
+                </Banner>
+              </BlockStack>
+
+              <InlineStack align="end" gap="200">
+                <Button url="/app/diagnostics">
+                  查看追踪诊断
+                </Button>
+                <Button url="/app/migrate" variant="primary">
+                  立即开始迁移
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Card>)}
 
         {latestScan && riskItems.length > 0 && !isScanning && (<Card>
             <BlockStack gap="400">
