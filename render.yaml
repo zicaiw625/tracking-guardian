@@ -32,6 +32,14 @@ services:
         generateValue: true  # 自动生成随机密钥
       - key: ENCRYPTION_SECRET
         generateValue: true  # 自动生成加密密钥
+      # PCD (Protected Customer Data) 配置
+      # 重要：仅在获得 Shopify PCD 批准后设为 true
+      # 默认 false 表示 PII 增强匹配功能禁用
+      - key: PCD_APPROVED
+        value: "false"  # 获得批准后改为 "true"
+      # 可选：自定义 PCD 状态消息
+      # - key: PCD_STATUS_MESSAGE
+      #   value: "PCD 审核中"
       # 可选：通知服务
       - key: RESEND_API_KEY
         sync: false

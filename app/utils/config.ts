@@ -439,6 +439,57 @@ export function isDevelopment(): boolean {
 // P2-05: Feature Flags / Product Switches
 // ============================================================================
 
+// ============================================================================
+// PCD (Protected Customer Data) Status Configuration
+// ============================================================================
+
+/**
+ * PCD (Protected Customer Data) approval status.
+ * 
+ * This controls whether the app can claim to have PCD access and allow
+ * merchants to enable PII Enhanced Matching features.
+ * 
+ * Environment variables:
+ * - PCD_APPROVED: Set to "true" only after Shopify approves the app's PCD access
+ * - PCD_STATUS_MESSAGE: Optional custom message to show in UI
+ * 
+ * IMPORTANT: Only set PCD_APPROVED=true after you have received confirmation
+ * from Shopify that your app's PCD access request has been approved.
+ * 
+ * Usage:
+ *   import { PCD_CONFIG } from "~/utils/config";
+ *   if (PCD_CONFIG.APPROVED) { ... }
+ */
+export const PCD_CONFIG = {
+    /**
+     * Whether the app has been approved for PCD access by Shopify.
+     * Default: false (not approved)
+     * Set PCD_APPROVED=true in environment after approval.
+     */
+    APPROVED: getBoolEnv("PCD_APPROVED", false),
+    
+    /**
+     * Custom status message to show in UI.
+     * Default: empty (use standard messages based on APPROVED status)
+     */
+    STATUS_MESSAGE: getEnv("PCD_STATUS_MESSAGE", ""),
+} as const;
+
+/**
+ * Get PCD config summary for auditing/documentation.
+ */
+export function getPcdConfigSummary(): {
+    approved: boolean;
+    hasCustomMessage: boolean;
+    source: "default" | "env";
+} {
+    return {
+        approved: PCD_CONFIG.APPROVED,
+        hasCustomMessage: PCD_CONFIG.STATUS_MESSAGE.length > 0,
+        source: process.env.PCD_APPROVED ? "env" : "default",
+    };
+}
+
 /**
  * P2-05: Feature flags for product capabilities.
  * 

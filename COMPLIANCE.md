@@ -34,10 +34,13 @@ This document outlines how Tracking Guardian handles customer data in compliance
 3. Data is immediately hashed and transmitted, never stored in plaintext
 
 **Shopify PCD Access Control:**
-- The app developer has completed Shopify's Protected Customer Data (PCD) review process
+- The app's PCD approval status is configured via `PCD_APPROVED` environment variable
+- When `PCD_APPROVED=true`: The app has received Shopify PCD approval and can access protected fields
+- When `PCD_APPROVED=false` (default): Enhanced Matching is disabled, app operates in privacy-first mode
 - PCD fields (email, phone, name, address) are only accessible when the app has been granted PCD access
 - Without PCD approval, these fields may be unavailable or return null from Shopify APIs
 - Merchants do NOT need to complete PCD review themselves - this is the developer's responsibility
+- **Important**: Only set `PCD_APPROVED=true` after receiving confirmation from Shopify
 
 ---
 

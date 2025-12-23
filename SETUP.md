@@ -315,6 +315,35 @@ postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 | `ENCRYPTION_SECRET` | 敏感数据加密 | `openssl rand -base64 32` | 建议每年 |
 | `CRON_SECRET` | Cron 端点认证 | `openssl rand -hex 32` | 建议每季度 |
 
+### 可选环境变量
+
+| 变量名 | 用途 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `PCD_APPROVED` | PCD 审核状态 | `false` | **重要**：仅在获得 Shopify PCD 批准后设为 `true` |
+| `PCD_STATUS_MESSAGE` | 自定义 PCD 状态消息 | 空 | 可选：在 UI 中显示的自定义状态消息 |
+| `RESEND_API_KEY` | 邮件通知 | 空 | Resend.com API 密钥 |
+| `EMAIL_SENDER` | 发件人地址 | 空 | 邮件通知发送地址 |
+| `REDIS_URL` | 共享限流 | 空 | Redis 连接 URL（多实例部署） |
+
+#### PCD（Protected Customer Data）配置
+
+**⚠️ 重要**：`PCD_APPROVED` 环境变量控制应用是否声明已通过 Shopify PCD 审核。
+
+- **默认值 `false`**：应用会显示"PCD 审核中"状态，禁用 PII 增强匹配功能
+- **设为 `true`**：仅当您从 Shopify 收到 PCD 批准确认后才设置
+- **错误设置的风险**：如果在未获批时声称已通过，可能导致：
+  - Shopify App Store 审核失败
+  - 商户投诉/差评
+  - 功能实际不可用但 UI 显示可用
+
+```bash
+# 仅在获得 Shopify PCD 批准后设置
+PCD_APPROVED=true
+
+# 可选：自定义状态消息
+PCD_STATUS_MESSAGE="PCD 审核已通过，2024-01-15 获批"
+```
+
 ### 敏感数据加密
 
 应用使用 AES-256-GCM 加密以下敏感数据：

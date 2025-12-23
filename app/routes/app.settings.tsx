@@ -14,6 +14,7 @@ import { generateEncryptedIngestionSecret, isTokenEncrypted } from "../utils/tok
 import type { MetaCredentials, GoogleCredentials, TikTokCredentials } from "../types";
 import { encryptAlertSettings, decryptAlertSettings, getMaskedAlertSettings, encryptJson } from "../services/alert-settings.server";
 import { logger } from "../utils/logger.server";
+import { PCD_CONFIG } from "../utils/config";
 interface AlertSettingsEmail {
     email: string;
 }
@@ -89,6 +90,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
             : null,
         tokenIssues,
+        // PCD (Protected Customer Data) approval status from app config
+        pcdApproved: PCD_CONFIG.APPROVED,
+        pcdStatusMessage: PCD_CONFIG.STATUS_MESSAGE,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -409,7 +413,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 };
 export default function SettingsPage() {
-    const { shop, tokenIssues } = useLoaderData<typeof loader>();
+    const { shop, tokenIssues, pcdApproved, pcdStatusMessage } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -966,8 +970,29 @@ export default function SettingsPage() {
                               </Text>
                             </BlockStack>
                             <Button variant="secondary" size="slim" onClick={() => {
-                // If enabling PII, show strong confirmation dialog
+                // If enabling PII, check PCD approval status first
                 if (!shop?.piiEnabled) {
+                    // If PCD not approved, block enabling
+                    if (!pcdApproved) {
+                        alert(
+                            "⚠️ 暂时无法启用 PII 增强匹配\n\n" +
+                            "【原因】\n" +
+                            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                            "本应用尚未通过 Shopify Protected Customer Data (PCD) 审核。\n" +
+                            "在获得批准之前，无法访问或使用受保护的客户数据字段。\n\n" +
+                            "【当前状态】\n" +
+                            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                            (pcdStatusMessage || "PCD 审核申请中，请等待 Shopify 审批。") + "\n\n" +
+                            "【您可以做什么】\n" +
+                            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                            "✅ 使用默认的「隐私优先模式」，转化追踪功能完全正常\n" +
+                            "✅ 等待我们获得 PCD 批准后再启用增强匹配\n" +
+                            "✅ 如有疑问请联系我们的支持团队"
+                        );
+                        return;
+                    }
+                    
+                    // PCD approved, show standard confirmation
                     const confirmed = confirm(
                         "⚠️ 启用 PII 增强匹配前，请仔细阅读以下内容：\n\n" +
                         "【重要提醒】您确定需要启用吗？\n" +
@@ -975,9 +1000,9 @@ export default function SettingsPage() {
                         "✅ 不启用 PII 也能正常追踪全部转化事件\n" +
                         "✅ 默认模式可满足基本归因需求，实际效果因店铺而异\n" +
                         "✅ 仅当广告平台明确提示「匹配率不足」时，再考虑启用\n\n" +
-                        "【关于 PCD 授权】\n" +
+                        "【PCD 状态】\n" +
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                        "✅ 本应用（Tracking Guardian）已通过 Shopify PCD 审核\n" +
+                        "✅ 本应用已获得 Shopify PCD 批准，可访问受保护字段\n" +
                         "✅ 您无需进行任何额外的审核或申请\n" +
                         "✅ 启用后即可正常使用增强匹配功能\n\n" +
                         "【您的合规责任】\n" +
@@ -1004,8 +1029,8 @@ export default function SettingsPage() {
                 formData.append("consentStrategy", shop?.consentStrategy || "strict");
                 formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
                 submit(formData, { method: "post" });
-            }} loading={isSubmitting}>
-                              {shop?.piiEnabled ? "禁用" : "启用"}
+            }} loading={isSubmitting} disabled={!shop?.piiEnabled && !pcdApproved}>
+                              {shop?.piiEnabled ? "禁用" : (pcdApproved ? "启用" : "暂不可用")}
                             </Button>
                           </InlineStack>
                         </BlockStack>
@@ -1018,7 +1043,9 @@ export default function SettingsPage() {
                         >
                           <BlockStack gap="200">
                             <Text as="p" variant="bodySm" fontWeight="semibold">
-                              ✅ 本应用已通过 Shopify Protected Customer Data (PCD) 审核，您可正常使用此功能。
+                              {pcdApproved 
+                                ? "✅ 本应用已获得 Shopify PCD 批准，可正常使用增强匹配功能。"
+                                : "⚠️ 注意：本应用的 PCD 审核状态可能发生变化，若功能不可用将自动降级为隐私优先模式。"}
                             </Text>
                             <Text as="p" variant="bodySm">
                               作为商户，启用 PII 增强匹配后，您需要确认以下事项：
@@ -1094,6 +1121,15 @@ export default function SettingsPage() {
                                 实际效果因店铺流量来源、客户群体等因素而异。
                               </Text>
                             </Box>
+                            
+                            {/* PCD 状态提示 */}
+                            <Box background={pcdApproved ? "bg-surface-success" : "bg-surface-caution"} padding="200" borderRadius="100">
+                              <Text as="p" variant="bodySm" tone={pcdApproved ? "success" : "caution"}>
+                                {pcdApproved 
+                                  ? "🔓 PII 增强匹配功能已就绪：本应用已获得 Shopify PCD 批准，如需启用可点击上方「启用」按钮。"
+                                  : "🔒 PII 增强匹配暂不可用：本应用正在等待 Shopify PCD 审核批准，获批后将自动开放此功能。"}
+                              </Text>
+                            </Box>
                           </BlockStack>
                         </Box>
                       )}
@@ -1154,7 +1190,9 @@ export default function SettingsPage() {
                           <Text as="p" variant="bodySm">
                             <strong>关于 PII（邮箱/电话等）：</strong>
                             <br />• 默认模式下：本应用不会主动采集或发送 PII 数据
-                            <br />• 启用增强匹配后：本应用已通过 Shopify PCD 审核，可在用户明确同意时访问受保护字段，哈希后发送到广告平台
+                            <br />• 启用增强匹配后：{pcdApproved 
+                              ? "本应用已获得 Shopify PCD 批准，可在用户明确同意时访问受保护字段，哈希后发送到广告平台"
+                              : "需要通过 Shopify PCD 审核后才能访问受保护字段；未获批时将自动降级为隐私优先模式"}
                           </Text>
                         </BlockStack>
                       </Banner>
