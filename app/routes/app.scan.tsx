@@ -196,28 +196,21 @@ export default function ScanPage() {
     const isScanning = navigation.state === "submitting";
     
     // ROI 影响估算计算
+    // 注意：此处仅为帮助商户理解潜在风险的示意，不构成任何效果预测或保证
     const roiEstimate = useMemo(() => {
         const platforms = identifiedPlatforms.length || 1;
         const scriptTagCount = ((latestScan?.scriptTags as ScriptTag[] | null) || []).length;
         
-        // 不迁移的事件丢失估算
+        // 不迁移的事件丢失估算（仅供参考）
+        // 实际影响取决于客户群体、流量来源、广告策略等多种因素
         const eventsLostPerMonth = monthlyOrders * platforms;
         
-        // 假设平均订单价值 $80，广告 ROAS 3x
-        const avgOrderValue = 80;
-        const roas = 3;
-        const adSpendPerOrder = avgOrderValue / roas;
-        
-        // 丢失转化导致的广告预算浪费（广告平台无法优化）
-        // 假设丢失 30% 的转化会导致 15% 的 ROAS 下降
-        const roasDropPercent = scriptTagCount > 0 ? 15 : 0;
-        const monthlyAdSpend = monthlyOrders * adSpendPerOrder;
-        const wastedAdSpend = monthlyAdSpend * (roasDropPercent / 100);
+        // 我们不提供具体金额估算，因为实际影响因店铺而异
+        const hasRisk = scriptTagCount > 0;
         
         return {
             eventsLostPerMonth,
-            wastedAdSpend: Math.round(wastedAdSpend),
-            roasDropPercent,
+            hasRisk,
             platforms,
             scriptTagCount,
         };
@@ -514,10 +507,18 @@ export default function ScanPage() {
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h2" variant="headingMd">
-                  📊 您的迁移 ROI 影响分析
+                  📊 迁移影响分析（仅供参考）
                 </Text>
-                <Badge tone="attention">商家必看</Badge>
+                <Badge tone="info">示例估算</Badge>
               </InlineStack>
+              
+              <Banner tone="warning">
+                <Text as="p" variant="bodySm">
+                  <strong>⚠️ 免责声明：</strong>以下为简化示意，仅帮助理解迁移的必要性。
+                  实际业务影响因店铺业务模式、流量来源、客户群体、广告账户设置等多种因素而异，
+                  本工具无法预测具体数值影响，不构成任何效果保证或承诺。
+                </Text>
+              </Banner>
 
               {/* 交互式订单量输入 */}
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -544,7 +545,7 @@ export default function ScanPage() {
                   <InlineStack gap="200" blockAlign="center">
                     <Icon source={AlertCircleIcon} tone="critical" />
                     <Text as="h3" variant="headingMd" tone="critical">
-                      不迁移会丢失什么？（基于您的数据）
+                      不迁移会丢失什么？（示意说明）
                     </Text>
                   </InlineStack>
                   
@@ -552,23 +553,12 @@ export default function ScanPage() {
                   <InlineStack gap="400" align="space-between" wrap>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
-                        <Text as="p" variant="bodySm" tone="subdued">每月丢失事件</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">可能受影响的事件</Text>
                         <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
                           {roiEstimate.eventsLostPerMonth.toLocaleString()}
                         </Text>
                         <Text as="p" variant="bodySm" tone="critical">
                           {roiEstimate.platforms} 平台 × {monthlyOrders} 订单
-                        </Text>
-                      </BlockStack>
-                    </Box>
-                    <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
-                      <BlockStack gap="100">
-                        <Text as="p" variant="bodySm" tone="subdued">预计广告浪费</Text>
-                        <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
-                          ${roiEstimate.wastedAdSpend.toLocaleString()}
-                        </Text>
-                        <Text as="p" variant="bodySm" tone="critical">
-                          每月（ROAS -{roiEstimate.roasDropPercent}%）
                         </Text>
                       </BlockStack>
                     </Box>
@@ -580,6 +570,17 @@ export default function ScanPage() {
                         </Text>
                         <Text as="p" variant="bodySm" tone="critical">
                           将在截止日停止执行
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodySm" tone="subdued">实际影响</Text>
+                        <Text as="p" variant="headingLg" fontWeight="bold" tone="caution">
+                          因店铺而异
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          取决于流量来源和客户群体
                         </Text>
                       </BlockStack>
                     </Box>
@@ -595,7 +596,7 @@ export default function ScanPage() {
                               <Text as="span" fontWeight="semibold">{getPlatformName(platform)}</Text>
                             </InlineStack>
                             <Text as="span" variant="bodySm" tone="critical">
-                              每月丢失 {monthlyOrders.toLocaleString()} 个转化事件
+                              参考值（仅供估算）
                             </Text>
                           </InlineStack>
                         </Box>
@@ -607,12 +608,12 @@ export default function ScanPage() {
                     )}
                   </BlockStack>
 
-                  <Banner tone="critical">
+                  <Banner tone="warning">
                     <Text as="p" variant="bodySm">
-                      <strong>⚠️ 每年损失估算：</strong>
-                      基于您的月订单量（{monthlyOrders.toLocaleString()}），
-                      不迁移将导致每年约 <strong>${(roiEstimate.wastedAdSpend * 12).toLocaleString()}</strong> 的广告预算浪费，
-                      相当于 <strong>{Math.round(roiEstimate.wastedAdSpend * 12 / 80)} 个订单</strong>的收入。
+                      <strong>⚠️ 重要提醒：</strong>
+                      ScriptTag 在截止日期后将停止执行，导致其中的追踪代码失效。
+                      实际对您业务的影响取决于流量来源、客户群体、广告策略等多种因素，
+                      本工具无法预测具体金额影响。建议您结合自身业务情况评估迁移优先级。
                     </Text>
                   </Banner>
                 </BlockStack>
@@ -639,29 +640,29 @@ export default function ScanPage() {
                           {roiEstimate.eventsLostPerMonth.toLocaleString()}
                         </Text>
                         <Text as="p" variant="bodySm" tone="success">
-                          100% 转化追踪恢复
+                          转化追踪功能恢复
                         </Text>
                       </BlockStack>
                     </Box>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
-                        <Text as="p" variant="bodySm" tone="subdued">每年节省广告费</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">潜在收益（示例）</Text>
                         <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                          ${(roiEstimate.wastedAdSpend * 12).toLocaleString()}
+                          确保追踪
                         </Text>
                         <Text as="p" variant="bodySm" tone="success">
-                          避免 ROAS 下降
+                          避免数据中断
                         </Text>
                       </BlockStack>
                     </Box>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
-                        <Text as="p" variant="bodySm" tone="subdued">额外归因提升</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">服务端追踪</Text>
                         <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                          +15-30%
+                          更可靠
                         </Text>
                         <Text as="p" variant="bodySm" tone="success">
-                          服务端 CAPI 优势
+                          CAPI 双重保障
                         </Text>
                       </BlockStack>
                     </Box>
@@ -691,9 +692,10 @@ export default function ScanPage() {
 
                   <Banner tone="success">
                     <Text as="p" variant="bodySm">
-                      <strong>🎯 投资回报率（ROI）：</strong>
-                      迁移是一次性工作，完成后您每月可节省约 <strong>${roiEstimate.wastedAdSpend.toLocaleString()}</strong> 广告费，
-                      同时享受服务端 CAPI 带来的额外 15-30% 归因准确率提升。
+                      <strong>✅ 迁移的核心价值：</strong>
+                      迁移是一次性工作，完成后可确保转化追踪在 ScriptTag 废弃后继续正常工作。
+                      服务端 CAPI 不受浏览器隐私设置和广告拦截器影响，是 Shopify 和各广告平台推荐的追踪方式。
+                      实际追踪效果因店铺情况而异。
                     </Text>
                   </Banner>
                 </BlockStack>
@@ -727,7 +729,7 @@ export default function ScanPage() {
                     <BlockStack gap="100">
                       <Text as="p" variant="bodySm" tone="subdued">迁移后</Text>
                       <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                        100% 恢复
+                        功能恢复
                       </Text>
                       <Text as="p" variant="bodySm" tone="success">
                         Web Pixel + CAPI 双保险
@@ -743,16 +745,16 @@ export default function ScanPage() {
                     <BlockStack gap="100">
                       <Text as="p" variant="bodySm" tone="subdued">额外收益</Text>
                       <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                        +15-30%
+                        更稳定
                       </Text>
                       <Text as="p" variant="bodySm" tone="success">
-                        归因准确率提升
+                        不受隐私限制影响
                       </Text>
                     </BlockStack>
                   </Box>
                 </InlineStack>
 
-                <Banner tone="info" title="为什么服务端 CAPI 能提升归因？">
+                <Banner tone="info" title="服务端 CAPI 的技术优势">
                   <Text as="p" variant="bodySm">
                     ✅ 不受 iOS 14.5+ App Tracking Transparency 限制
                     <br />
@@ -760,7 +762,11 @@ export default function ScanPage() {
                     <br />
                     ✅ 不受第三方 Cookie 弃用影响
                     <br />
-                    ✅ Shopify Webhook 确保 100% 订单数据到达
+                    ✅ Shopify Webhook 直接传递订单数据
+                    <br />
+                    <Text as="span" tone="subdued">
+                      注：实际归因效果因广告账户设置、流量来源等因素而异
+                    </Text>
                   </Text>
                 </Banner>
               </BlockStack>

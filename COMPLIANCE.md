@@ -33,6 +33,12 @@ This document outlines how Tracking Guardian handles customer data in compliance
 2. Customer has provided consent (verified via PixelEventReceipt)
 3. Data is immediately hashed and transmitted, never stored in plaintext
 
+**Shopify PCD Access Control:**
+- The app developer has completed Shopify's Protected Customer Data (PCD) review process
+- PCD fields (email, phone, name, address) are only accessible when the app has been granted PCD access
+- Without PCD approval, these fields may be unavailable or return null from Shopify APIs
+- Merchants do NOT need to complete PCD review themselves - this is the developer's responsibility
+
 ---
 
 ## 2. Data Processing Purposes

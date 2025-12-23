@@ -355,11 +355,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             const consentStrategy = (formData.get("consentStrategy") as string) || "strict";
             const dataRetentionDays = parseInt(formData.get("dataRetentionDays") as string) || 90;
             
-            // If enabling PII, require PCD acknowledgement
+            // If enabling PII, require acknowledgement of compliance obligations
             if (piiEnabled && !pcdAcknowledged) {
                 return json({
                     success: false,
-                    message: "启用 PII 发送需要先确认 PCD 审核要求",
+                    message: "启用 PII 发送需要先确认您的合规义务",
                     requirePcdAcknowledgement: true,
                 });
             }
@@ -927,15 +927,15 @@ export default function SettingsPage() {
                         <Badge tone="info">可选功能</Badge>
                       </InlineStack>
                       
-                      {/* P0: 重要提示 - 强调大多数商家不需要此功能 */}
-                      <Banner tone="success" title="💡 重要：绝大多数商家不需要启用此功能">
+                      {/* P0: 重要提示 - 强调这是可选功能 */}
+                      <Banner tone="success" title="💡 提示：不启用 PII 也能正常追踪">
                         <BlockStack gap="200">
                           <Text as="p" variant="bodySm" fontWeight="semibold">
-                            不启用 PII 增强匹配，您的转化追踪依然 100% 正常工作！
+                            不启用 PII 增强匹配，您的转化追踪功能完全正常！
                           </Text>
                           <Text as="p" variant="bodySm">
                             我们发送的订单数据（金额、商品、订单号）已经足够广告平台进行归因优化。
-                            PII 增强匹配只是锦上添花，仅在广告平台明确建议时才需要考虑。
+                            PII 增强匹配是可选的高级功能，仅当广告平台明确建议时才需要考虑。
                           </Text>
                         </BlockStack>
                       </Banner>
@@ -955,7 +955,7 @@ export default function SettingsPage() {
                                 </Text>
                                 <Badge tone={shop?.piiEnabled ? "warning" : "success"}>
                                   {shop?.piiEnabled 
-                                    ? (shop?.pcdAcknowledged ? "已启用 - 需确保通过 PCD 审核" : "已启用 - 待审核") 
+                                    ? "已启用 - 请确认合规义务" 
                                     : "已禁用（推荐）"}
                                 </Badge>
                               </InlineStack>
@@ -972,15 +972,18 @@ export default function SettingsPage() {
                         "⚠️ 启用 PII 增强匹配前，请仔细阅读以下内容：\n\n" +
                         "【重要提醒】您确定需要启用吗？\n" +
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                        "✅ 不启用 PII 也能正常追踪 100% 的转化事件\n" +
-                        "✅ 大多数商家使用默认模式即可获得良好的归因效果\n" +
-                        "✅ 只有当您的广告平台明确要求增强匹配时，才需要启用\n\n" +
-                        "【启用 PII 的责任】\n" +
+                        "✅ 不启用 PII 也能正常追踪全部转化事件\n" +
+                        "✅ 默认模式可满足基本归因需求，实际效果因店铺而异\n" +
+                        "✅ 仅当广告平台明确提示「匹配率不足」时，再考虑启用\n\n" +
+                        "【关于 PCD 授权】\n" +
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                        "1. 您必须在 Shopify Partner Dashboard 完成 Protected Customer Data (PCD) 审核\n" +
-                        "2. 审核未通过前，Shopify 会自动清空 PII 字段，导致功能无效\n" +
-                        "3. 您需自行确保符合 GDPR/CCPA/PIPL 等隐私法规\n" +
-                        "4. 需要更新您的隐私政策，告知客户数据的使用方式\n\n" +
+                        "✅ 本应用（Tracking Guardian）已通过 Shopify PCD 审核\n" +
+                        "✅ 您无需进行任何额外的审核或申请\n" +
+                        "✅ 启用后即可正常使用增强匹配功能\n\n" +
+                        "【您的合规责任】\n" +
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                        "• 确保符合 GDPR/CCPA/PIPL 等隐私法规\n" +
+                        "• 更新您的隐私政策，告知客户数据的使用方式\n\n" +
                         "【我们如何处理 PII】\n" +
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
                         "• 邮箱/电话在发送前会进行 SHA256 哈希处理\n" +
@@ -988,9 +991,9 @@ export default function SettingsPage() {
                         "• 哈希后的数据用于广告平台的用户匹配\n\n" +
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
                         "点击「确定」表示：\n" +
-                        "• 您理解上述责任，并将完成 PCD 审核\n" +
                         "• 您已确认确实需要增强匹配功能\n" +
-                        "• 您将更新隐私政策以符合合规要求"
+                        "• 您将更新隐私政策以符合合规要求\n" +
+                        "• 您理解并承担作为数据控制者的合规责任"
                     );
                     if (!confirmed) return;
                 }
@@ -1010,57 +1013,31 @@ export default function SettingsPage() {
 
                       {shop?.piiEnabled && (
                         <Banner 
-                          title={shop?.pcdAcknowledged ? "⚠️ PII 已启用 - 请确保 PCD 审核已完成" : "🚨 紧急：需要完成 PCD 审核"} 
-                          tone={shop?.pcdAcknowledged ? "warning" : "critical"}
-                          action={{
-                            content: "前往 Partner Dashboard 完成审核",
-                            url: "https://partners.shopify.com/current/apps",
-                            external: true,
-                          }}
+                          title="⚠️ PII 增强匹配已启用 - 请确认您的合规义务" 
+                          tone="warning"
                         >
                           <BlockStack gap="200">
-                            {shop?.pcdAcknowledged ? (
-                              <>
-                                <Text as="p" variant="bodySm" fontWeight="semibold">
-                                  您已启用 PII 增强匹配。请确保以下事项全部完成：
-                                </Text>
-                                <Text as="p" variant="bodySm">
-                                  ☐ 已在 Partner Dashboard → 应用 → API 访问 → Protected customer data 提交并通过审核
-                                  <br />
-                                  ☐ 您的店铺隐私政策已更新，明确说明邮箱/电话用于广告归因
-                                  <br />
-                                  ☐ 已确认您的目标市场允许此类数据处理（GDPR/CCPA/PIPL）
-                                </Text>
-                                <Divider />
-                                <Text as="p" variant="bodySm" tone="caution">
-                                  💡 提醒：如果您不确定是否需要此功能，建议禁用 PII 并使用默认的隐私优先模式。
-                                  不启用 PII 也能 100% 追踪转化事件，只是归因匹配率可能略低。
-                                </Text>
-                              </>
-                            ) : (
-                              <>
-                                <Text as="p" variant="bodySm" fontWeight="semibold" tone="critical">
-                                  ⚠️ 紧急提醒：PCD 审核未完成，PII 数据可能被 Shopify 自动清空！
-                                </Text>
-                                <Text as="p" variant="bodySm">
-                                  您已启用 PII 发送，但 PCD 审核尚未确认。为避免功能无效：
-                                </Text>
-                                <Text as="p" variant="bodySm">
-                                  1. 立即前往 Shopify Partner Dashboard → 选择此应用 → API 访问
-                                  <br />
-                                  2. 在「Protected customer data」部分点击「请求访问」
-                                  <br />
-                                  3. 填写数据用途：「转化追踪和广告归因」
-                                  <br />
-                                  4. 等待 Shopify 审核（通常 1-3 个工作日）
-                                </Text>
-                                <Divider />
-                                <Text as="p" variant="bodySm" tone="critical">
-                                  ⛔ 如果您不打算完成 PCD 审核，请立即禁用 PII 功能。
-                                  在审核完成前，增强匹配功能无法正常工作。
-                                </Text>
-                              </>
-                            )}
+                            <Text as="p" variant="bodySm" fontWeight="semibold">
+                              ✅ 本应用已通过 Shopify Protected Customer Data (PCD) 审核，您可正常使用此功能。
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              作为商户，启用 PII 增强匹配后，您需要确认以下事项：
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              ☑️ 您的店铺隐私政策已更新，明确说明邮箱/电话用于广告归因
+                              <br />
+                              ☑️ 您已确认目标市场允许此类数据处理（GDPR/CCPA/PIPL 等）
+                              <br />
+                              ☑️ 您理解哈希后的 PII 将发送到您配置的广告平台
+                            </Text>
+                            <Divider />
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              💡 提醒：如果您不确定是否需要此功能，建议禁用 PII 并使用默认的隐私优先模式。
+                              不启用 PII 也能完整追踪转化事件，只是归因匹配率可能略低。
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              如有疑问，请联系我们的支持团队获取帮助。
+                            </Text>
                           </BlockStack>
                         </Banner>
                       )}
@@ -1078,7 +1055,7 @@ export default function SettingsPage() {
                             <Box background="bg-surface" padding="300" borderRadius="100">
                               <BlockStack gap="200">
                                 <Text as="p" variant="bodyMd" fontWeight="bold" tone="success">
-                                  🎉 恭喜！转化追踪 100% 正常工作，无需任何额外配置！
+                                  🎉 恭喜！转化追踪已正常运行，无需任何额外配置！
                                 </Text>
                                 <Divider />
                                 <InlineStack gap="400" align="space-between" wrap>
@@ -1092,7 +1069,7 @@ export default function SettingsPage() {
                                   </BlockStack>
                                   <BlockStack gap="100">
                                     <Text as="p" variant="bodySm" fontWeight="semibold">✅ 追踪效果：</Text>
-                                    <Text as="p" variant="bodySm">100% 转化事件被准确追踪</Text>
+                                    <Text as="p" variant="bodySm">全部转化事件被准确追踪</Text>
                                   </BlockStack>
                                 </InlineStack>
                               </BlockStack>
@@ -1103,10 +1080,10 @@ export default function SettingsPage() {
                                 为什么推荐此模式？
                               </Text>
                               <Text as="p" variant="bodySm">
-                                ✅ 无需 PCD 审核，省去合规流程和等待时间
-                                <br />✅ 完全符合 GDPR（欧盟）、CCPA（美国）、PIPL（中国）等隐私法规
-                                <br />✅ 隐私政策无需特别声明 PII 用途
-                                <br />✅ 广告平台主要依靠订单数据进行归因（PII 只是锦上添花，效果提升通常 &lt;5%）
+                                ✅ 合规更简单，无需特别声明 PII 用途
+                                <br />✅ 符合 GDPR（欧盟）、CCPA（美国）、PIPL（中国）等隐私法规的数据最小化原则
+                                <br />✅ 广告平台可以基于订单数据（金额、商品）进行归因优化
+                                <br />✅ 实际追踪效果因店铺情况而异，建议根据您的广告平台反馈决定
                               </Text>
                             </BlockStack>
                             
@@ -1114,7 +1091,7 @@ export default function SettingsPage() {
                               <Text as="p" variant="bodySm" tone="subdued">
                                 💡 <strong>什么情况下才考虑启用 PII？</strong>
                                 仅当广告平台明确告知您「匹配率过低，建议使用增强匹配」时，再考虑启用。
-                                根据我们的数据，超过 95% 的商家永远不需要启用此功能。
+                                实际效果因店铺流量来源、客户群体等因素而异。
                               </Text>
                             </Box>
                           </BlockStack>
@@ -1173,7 +1150,11 @@ export default function SettingsPage() {
                             我们仅存储转化追踪必需的数据：
                             <br />• 订单 ID、金额、货币、商品信息（来自 Webhook）
                             <br />• 同意状态、事件时间戳（来自 Pixel）
-                            <br />• <strong>不存储/发送 PII</strong>：邮箱、电话等个人信息不会被收集或发送
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            <strong>关于 PII（邮箱/电话等）：</strong>
+                            <br />• 默认模式下：本应用不会主动采集或发送 PII 数据
+                            <br />• 启用增强匹配后：本应用已通过 Shopify PCD 审核，可在用户明确同意时访问受保护字段，哈希后发送到广告平台
                           </Text>
                         </BlockStack>
                       </Banner>

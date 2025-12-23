@@ -490,13 +490,13 @@ export default function DiagnosticsPage() {
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h2" variant="headingMd">
-                  📈 追踪效果与 ROI 分析
+                  📈 追踪配置状态概览
                 </Text>
-                <Badge tone="attention">商家必看</Badge>
+                <Badge tone="info">参考信息</Badge>
               </InlineStack>
 
               <Text as="p" variant="bodySm" tone="subdued">
-                直观展示您的追踪配置对广告投放效果的影响
+                展示当前追踪配置状态，实际效果因店铺情况而异
               </Text>
 
               <Divider />
@@ -531,47 +531,50 @@ export default function DiagnosticsPage() {
 
               <Divider />
 
-              {/* 直观对比：没有追踪 vs 有追踪 */}
+              {/* 直观对比：仅客户端 vs 客户端+服务端 */}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
-                  💰 不追踪 vs 追踪的影响（假设月均 1000 订单）
+                  💡 仅客户端追踪 vs 客户端+服务端追踪
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  以下为示意说明，实际效果因店铺流量来源、客户群体、地区分布等因素而异，不构成效果保证
                 </Text>
                 
                 <InlineStack gap="400" wrap={false} align="space-between">
-                  {/* 不追踪的情况 */}
-                  <Box background="bg-fill-critical-secondary" padding="400" borderRadius="200" minWidth="45%">
+                  {/* 仅客户端追踪 */}
+                  <Box background="bg-fill-warning-secondary" padding="400" borderRadius="200" minWidth="45%">
                     <BlockStack gap="200">
-                      <Text as="p" fontWeight="semibold" tone="critical">❌ 没有服务端追踪</Text>
+                      <Text as="p" fontWeight="semibold" tone="caution">⚠️ 仅依赖客户端追踪</Text>
                       <Text as="p" variant="bodySm">
-                        • 浏览器隐私设置阻挡：~30% 事件丢失
-                        <br />• 广告拦截器：~15% 事件丢失
-                        <br />• iOS 14.5+ ATT：~40% 事件丢失
+                        • 浏览器隐私设置可能阻挡部分事件
+                        <br />• 广告拦截器可能影响像素加载
+                        <br />• iOS ATT 可能限制部分用户追踪
                       </Text>
                       <Divider />
-                      <Text as="p" variant="bodySm" fontWeight="semibold" tone="critical">
-                        预计每月丢失：300-600 个转化事件
+                      <Text as="p" variant="bodySm" fontWeight="semibold" tone="caution">
+                        部分转化事件可能无法捕获
                       </Text>
-                      <Text as="p" variant="bodySm" tone="critical">
-                        广告 ROAS 可能下降 20-40%
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        具体影响因店铺情况而异
                       </Text>
                     </BlockStack>
                   </Box>
 
-                  {/* 有追踪的情况 */}
+                  {/* 客户端+服务端追踪 */}
                   <Box background="bg-fill-success-secondary" padding="400" borderRadius="200" minWidth="45%">
                     <BlockStack gap="200">
-                      <Text as="p" fontWeight="semibold" tone="success">✅ 使用服务端 CAPI</Text>
+                      <Text as="p" fontWeight="semibold" tone="success">✅ 客户端 + 服务端 CAPI</Text>
                       <Text as="p" variant="bodySm">
-                        • Shopify Webhook 直接传递：100% 到达
+                        • Shopify Webhook 直接传递订单数据
                         <br />• 不受浏览器/拦截器影响
-                        <br />• 不受 iOS ATT 限制
+                        <br />• 双重机制提高数据完整性
                       </Text>
                       <Divider />
                       <Text as="p" variant="bodySm" fontWeight="semibold" tone="success">
-                        预计每月捕获：1000/1000 个转化事件
+                        数据传输更可靠
                       </Text>
                       <Text as="p" variant="bodySm" tone="success">
-                        广告优化数据完整，ROAS 最大化
+                        Shopify 和各广告平台推荐的追踪方式
                       </Text>
                     </BlockStack>
                   </Box>
@@ -617,7 +620,7 @@ export default function DiagnosticsPage() {
                     <Text as="p" variant="bodySm" tone="subdued">
                       {data.eventFunnel.sentToPlatforms > 0 
                         ? `过去 24h 成功发送 ${data.eventFunnel.sentToPlatforms} 个转化到广告平台`
-                        : "服务端追踪是核心功能，确保 100% 转化被捕获"}
+                        : "服务端追踪是核心功能，通过 Webhook 直接获取订单数据"}
                     </Text>
                   </BlockStack>
                 </Box>

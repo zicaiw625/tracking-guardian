@@ -37,7 +37,8 @@ The app includes **Checkout UI Extension blocks** (Survey, Shipping Tracker, Ups
 ### Privacy-First Design
 
 - **Default**: PII is NOT sent to ad platforms (privacy-first mode)
-- **Optional**: Enhanced matching (PII) requires explicit merchant acknowledgment and PCD review
+- **Optional**: Enhanced matching (PII) requires explicit merchant acknowledgment of their own compliance obligations
+- **Note**: The app developer has already completed Shopify PCD review - merchants do NOT need to do PCD review themselves
 - **Consent**: Strict consent strategy by default - events only sent with explicit user consent
 
 ---
@@ -61,16 +62,20 @@ The app includes **Checkout UI Extension blocks** (Survey, Shipping Tracker, Ups
 
 Enhanced matching (PII) is an **opt-in feature** for merchants who:
 1. Have been explicitly advised by their ad platform to enable enhanced matching
-2. Are willing to complete Shopify's Protected Customer Data (PCD) review process
-3. Have updated their privacy policy to reflect PII usage
+2. Have updated their privacy policy to reflect PII usage
+3. Understand their own compliance obligations under GDPR/CCPA/PIPL
+
+**Important**: The app developer has already completed Shopify's Protected Customer Data (PCD) review. Merchants do NOT need to go through PCD review themselves - they only need to ensure their own store policies are compliant.
 
 ### PII Enabling Flow (Strong Guardrails)
 
 When a merchant tries to enable PII, they see:
 1. **Detailed confirmation dialog** explaining all responsibilities
-2. **Explicit acknowledgment** that they will complete PCD review
-3. **Warning banner** that remains visible until PCD review is confirmed
+2. **Explicit acknowledgment** of their compliance obligations (privacy policy, regional laws)
+3. **Information banner** reminding them of data handling practices
 4. **Recommendation to disable** if they're not sure they need it
+
+**Note**: The app developer has completed PCD review. Merchants confirm their OWN compliance (privacy policy, GDPR/CCPA), not Shopify's PCD process.
 
 ### For Reviewers: How to Test Both Modes
 
@@ -333,10 +338,10 @@ Default State: DISABLED ✅
 ```
 
 When merchant ENABLES PII:
-1. Confirmation dialog explains PCD requirements
+1. Confirmation dialog explains compliance obligations
 2. `pcdAcknowledged` field set to true with timestamp
-3. Banner prompts merchant to complete Partner Dashboard PCD review
-4. If PCD review not completed, Shopify may redact PII fields
+3. Banner reminds merchant of their own compliance responsibilities (privacy policy, GDPR/CCPA/PIPL)
+4. Note: The app (developer) has already completed PCD review - merchant does NOT need to do PCD review themselves
 
 ### 9.3 PCD Review Checklist
 
@@ -352,8 +357,8 @@ For App Store submission, include in listing:
 
 ### With Enhanced Matching (Optional)
 - Sends hashed (SHA256) email/phone to ad platforms
-- Requires merchant to complete PCD review in Partner Dashboard
-- Merchant acknowledges compliance responsibility
+- App developer has completed Shopify PCD review (merchant does NOT need to do this)
+- Merchant acknowledges their own compliance responsibilities (privacy policy update, regional laws)
 - Data used solely for attribution improvement
 ```
 
@@ -373,7 +378,7 @@ Code path for enabling PII:
 if (piiEnabled && !pcdAcknowledged) {
   return json({
     success: false,
-    message: "启用 PII 发送需要先确认 PCD 审核要求",
+    message: "启用 PII 发送需要先确认您的合规义务",
     requirePcdAcknowledgement: true,
   });
 }
@@ -413,7 +418,7 @@ if (piiEnabled && !pcdAcknowledged) {
 - [ ] PII disabled by default
 - [ ] Enabling PII requires confirmation dialog
 - [ ] pcdAcknowledged timestamp recorded
-- [ ] Banner prompts Partner Dashboard PCD review
+- [ ] Banner reminds merchant of their compliance obligations (NOT Partner Dashboard - that's developer's job)
 
 ---
 
@@ -463,7 +468,7 @@ Works without PII - conversion tracking only requires order data.
 ✅ GraphQL-Only: Future-proof API compliance
 ✅ Checkout Extensibility: Ready for Shopify's new checkout
 ✅ GDPR Compliant: Full data request/deletion support
-✅ Optional Enhanced Matching: For merchants needing higher attribution (requires PCD review)
+✅ Optional Enhanced Matching: For merchants needing higher attribution (app developer has completed PCD review)
 ```
 
 ### FAQ Suggestion
@@ -564,7 +569,7 @@ and migrates them to Shopify's new Web Pixel + Server-side CAPI system.
 • Works WITHOUT customer emails or phone numbers
 • Sends only: order value, currency, product info
 • GDPR/CCPA compliant out of the box
-• Optional enhanced matching (requires PCD review)
+• Optional enhanced matching (app developer has completed PCD review)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -601,7 +606,8 @@ Don't wait until the last minute. Migrate today!
 Q: Does this app collect customer personal data?
 A: By default, NO. The app tracks conversions using order data only 
    (value, currency, items). Enhanced matching with hashed emails is 
-   optional and requires explicit merchant consent + Shopify PCD review.
+   optional and requires explicit merchant consent. The app developer 
+   has already completed Shopify PCD review.
 
 Q: What happens to my current tracking scripts?
 A: The app scans your existing scripts, shows what needs migration, 
