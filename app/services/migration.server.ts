@@ -138,13 +138,20 @@ export interface CreateWebPixelResult {
         message: string;
     }>;
 }
+/**
+ * P0-01: WebPixelSettings must align with shopify.extension.toml settings schema.
+ * All fields are strings per Shopify Web Pixel requirements.
+ */
 export interface WebPixelSettings {
     ingestion_key: string;
     backend_url: string;
     shop_domain: string;
-    schema_version?: number;
+    schema_version: string; // P0-01: Changed from number to string per Web Pixel requirements
 }
-export const WEB_PIXEL_SCHEMA_VERSION = 1;
+
+// P0-01: Schema version as string for Web Pixel compatibility
+export const WEB_PIXEL_SCHEMA_VERSION = "1";
+
 export function buildWebPixelSettings(ingestionKey: string, shopDomain: string, backendUrl?: string): WebPixelSettings {
     const resolvedBackendUrl = backendUrl ||
         process.env.SHOPIFY_APP_URL ||

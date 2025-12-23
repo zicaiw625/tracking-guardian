@@ -73,7 +73,8 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
       expect(prisma.conversionLog.upsert).not.toHaveBeenCalled();
     });
 
-    it("should create ConversionLog when sale_of_data is undefined (allowed)", async () => {
+    // P0-04: undefined saleOfData is now treated as NOT allowed (strict)
+    it("should NOT create ConversionLog when sale_of_data is undefined (P0-04 strict)", async () => {
       const payload = {
         eventName: "checkout_completed",
         timestamp: Date.now(),
@@ -81,6 +82,7 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
         consent: {
           marketing: true,
           analytics: true,
+          // saleOfData is undefined - P0-04 says this should be treated as NOT allowed
         },
         data: {
           orderId: "12345",
@@ -88,6 +90,9 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
           currency: "USD",
         },
       };
+      
+      // P0-04: With saleOfData undefined, ConversionLog should NOT be created
+      expect(prisma.conversionLog.upsert).not.toHaveBeenCalled();
     });
 
     it("should create ConversionLog when sale_of_data is true (explicit allow)", async () => {
@@ -109,11 +114,12 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
     });
   });
 
-  describe("Consent Logic Matrix", () => {
+  // P0-04: Updated test matrix - undefined saleOfData is now treated as NOT allowed
+  describe("Consent Logic Matrix (P0-04 strict)", () => {
     const testCases = [
       { marketing: true, analytics: true, saleOfData: true, shouldRecord: true, desc: "all granted" },
       { marketing: true, analytics: true, saleOfData: false, shouldRecord: false, desc: "sale_of_data opted out" },
-      { marketing: true, analytics: true, saleOfData: undefined, shouldRecord: true, desc: "sale_of_data undefined" },
+      { marketing: true, analytics: true, saleOfData: undefined, shouldRecord: false, desc: "sale_of_data undefined (P0-04: blocked)" },
       { marketing: false, analytics: true, saleOfData: true, shouldRecord: false, desc: "marketing denied" },
       { marketing: true, analytics: false, saleOfData: true, shouldRecord: false, desc: "analytics denied" },
       { marketing: false, analytics: false, saleOfData: true, shouldRecord: false, desc: "both denied" },
@@ -122,7 +128,8 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
 
     testCases.forEach(({ marketing, analytics, saleOfData, shouldRecord, desc }) => {
       it(`should ${shouldRecord ? "record" : "NOT record"} when ${desc}`, () => {
-        const saleOfDataAllowed = saleOfData !== false;
+        // P0-04: saleOfData must be EXPLICITLY true
+        const saleOfDataAllowed = saleOfData === true;
         const hasMarketingConsent = marketing === true;
         const hasAnalyticsConsent = analytics === true;
 

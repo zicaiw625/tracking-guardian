@@ -16,6 +16,12 @@ redirect_urls = [
 [webhooks]
 api_version = "2025-07"
 
+# P0: Business webhooks for conversion tracking
+[[webhooks.subscriptions]]
+topics = ["orders/paid"]
+uri = "/webhooks"
+
+# GDPR compliance webhooks (mandatory)
 [[webhooks.subscriptions]]
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
 uri = "/webhooks"

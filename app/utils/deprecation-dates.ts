@@ -1,10 +1,61 @@
+/**
+ * P2-02: Deprecation dates with environment variable override support.
+ * 
+ * These dates can be overridden via environment variables for quick hotfixes
+ * when Shopify adjusts their timeline without requiring a code deployment.
+ * 
+ * Environment variables:
+ * - DEPRECATION_SCRIPT_TAG_BLOCKED: Override scriptTagCreationBlocked
+ * - DEPRECATION_PLUS_EXECUTION_OFF: Override plusScriptTagExecutionOff
+ * - DEPRECATION_NON_PLUS_EXECUTION_OFF: Override nonPlusScriptTagExecutionOff
+ * 
+ * Format: ISO date string (e.g., "2025-08-28")
+ */
+function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
+    if (envVar && /^\d{4}-\d{2}-\d{2}$/.test(envVar)) {
+        const parsed = new Date(envVar);
+        if (!isNaN(parsed.getTime())) {
+            return parsed;
+        }
+    }
+    return new Date(defaultDate);
+}
+
+// Default dates (based on Shopify announcements as of 2024-12)
+const DEFAULT_DATES = {
+    scriptTagCreationBlocked: "2025-02-01",
+    plusScriptTagExecutionOff: "2025-08-28", // P2-02: Month-level precision, exact date TBD
+    nonPlusScriptTagExecutionOff: "2026-08-26", // P2-02: Month-level precision, exact date TBD
+    plusAdditionalScriptsReadOnly: "2025-08-28",
+    nonPlusAdditionalScriptsReadOnly: "2026-08-26",
+    scriptTagBlocked: "2025-02-01",
+} as const;
+
 export const DEPRECATION_DATES = {
-    scriptTagCreationBlocked: new Date("2025-02-01"),
-    plusScriptTagExecutionOff: new Date("2025-08-28"),
-    nonPlusScriptTagExecutionOff: new Date("2026-08-26"),
-    plusAdditionalScriptsReadOnly: new Date("2025-08-28"),
-    nonPlusAdditionalScriptsReadOnly: new Date("2026-08-26"),
-    scriptTagBlocked: new Date("2025-02-01"),
+    scriptTagCreationBlocked: parseEnvDate(
+        process.env.DEPRECATION_SCRIPT_TAG_BLOCKED, 
+        DEFAULT_DATES.scriptTagCreationBlocked
+    ),
+    plusScriptTagExecutionOff: parseEnvDate(
+        process.env.DEPRECATION_PLUS_EXECUTION_OFF, 
+        DEFAULT_DATES.plusScriptTagExecutionOff
+    ),
+    nonPlusScriptTagExecutionOff: parseEnvDate(
+        process.env.DEPRECATION_NON_PLUS_EXECUTION_OFF, 
+        DEFAULT_DATES.nonPlusScriptTagExecutionOff
+    ),
+    plusAdditionalScriptsReadOnly: parseEnvDate(
+        process.env.DEPRECATION_PLUS_SCRIPTS_READONLY, 
+        DEFAULT_DATES.plusAdditionalScriptsReadOnly
+    ),
+    nonPlusAdditionalScriptsReadOnly: parseEnvDate(
+        process.env.DEPRECATION_NON_PLUS_SCRIPTS_READONLY, 
+        DEFAULT_DATES.nonPlusAdditionalScriptsReadOnly
+    ),
+    scriptTagBlocked: parseEnvDate(
+        process.env.DEPRECATION_SCRIPT_TAG_BLOCKED, 
+        DEFAULT_DATES.scriptTagBlocked
+    ),
 } as const;
 export type DatePrecision = "exact" | "month" | "quarter";
 export interface DateDisplayInfo {

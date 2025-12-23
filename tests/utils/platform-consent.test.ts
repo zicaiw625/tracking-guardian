@@ -9,7 +9,8 @@ import {
 } from "../../app/utils/platform-consent";
 
 describe("evaluatePlatformConsentWithStrategy", () => {
-  describe("sale_of_data opt-out", () => {
+  // P0-04: All saleOfData tests updated to reflect strict interpretation
+  describe("sale_of_data opt-out (P0-04)", () => {
     it("blocks when saleOfDataAllowed is false (strict mode)", () => {
       const consent: ConsentState = { 
         marketing: true, 
@@ -24,27 +25,47 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         false
       );
       expect(result.allowed).toBe(false);
-      expect(result.reason).toBe("sale_of_data_opted_out");
+      expect(result.reason).toContain("sale_of_data_not_allowed");
     });
 
-    it("blocks when saleOfDataAllowed is false (balanced mode)", () => {
+    it("blocks marketing platforms when saleOfDataAllowed is false (balanced mode)", () => {
       const consent: ConsentState = { 
         marketing: true, 
         analytics: true, 
         saleOfDataAllowed: false 
       };
       const result = evaluatePlatformConsentWithStrategy(
-        "google", 
+        "meta",  // Marketing platform requires saleOfData
         "balanced", 
         consent, 
         true, 
         false
       );
       expect(result.allowed).toBe(false);
-      expect(result.reason).toBe("sale_of_data_opted_out");
+      expect(result.reason).toContain("sale_of_data_not_allowed");
     });
 
-    it("allows when saleOfDataAllowed is undefined (default allow)", () => {
+    // P0-04: Google (analytics) does NOT require saleOfData by default
+    it("allows analytics platforms when saleOfDataAllowed is false (P0-04)", () => {
+      const consent: ConsentState = { 
+        marketing: true, 
+        analytics: true, 
+        saleOfDataAllowed: false 
+      };
+      const result = evaluatePlatformConsentWithStrategy(
+        "google",  // Analytics platform does NOT require saleOfData
+        "balanced", 
+        consent, 
+        true, 
+        false
+      );
+      // Google (analytics) should be allowed even if saleOfData=false
+      // because requiresSaleOfData=false for analytics platforms
+      expect(result.allowed).toBe(true);
+    });
+
+    // P0-04: undefined saleOfData is now treated as NOT allowed for marketing platforms
+    it("blocks marketing platforms when saleOfDataAllowed is undefined (P0-04 strict)", () => {
       const consent: ConsentState = { 
         marketing: true, 
         analytics: true,
@@ -56,7 +77,8 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         true, 
         false
       );
-      expect(result.allowed).toBe(true);
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain("sale_of_data_not_allowed");
     });
 
     it("allows when saleOfDataAllowed is true", () => {
@@ -209,7 +231,8 @@ describe("evaluatePlatformConsentWithStrategy", () => {
   });
 
   describe("weak mode (deprecated - falls through to default/strict)", () => {
-    it("weak mode now requires receipt (no longer always allows)", () => {
+    // P0-04: null consent triggers saleOfData check first (for marketing platforms)
+    it("weak mode blocks when consent is null for marketing platforms", () => {
       const result = evaluatePlatformConsentWithStrategy(
         "meta", 
         "weak", 
@@ -218,7 +241,8 @@ describe("evaluatePlatformConsentWithStrategy", () => {
         false
       );
       expect(result.allowed).toBe(false);
-      expect(result.reason).toBe("no_receipt_default_mode");
+      // P0-04: saleOfData check happens first for marketing platforms
+      expect(result.reason).toContain("sale_of_data_not_allowed");
     });
 
     it("weak mode with receipt and consent works like strict", () => {
@@ -246,25 +270,45 @@ describe("evaluatePlatformConsent", () => {
     expect(result.usedConsent).toBe("none");
   });
 
-  it("meta requires marketing consent", () => {
-    const consent: ConsentState = { marketing: true, analytics: false };
+  // P0-04: Marketing platforms now require saleOfData === true
+  it("meta requires marketing consent AND saleOfData", () => {
+    const consent: ConsentState = { marketing: true, analytics: false, saleOfDataAllowed: true };
     const result = evaluatePlatformConsent("meta", consent);
     expect(result.allowed).toBe(true);
     expect(result.usedConsent).toBe("marketing");
   });
 
-  it("google requires analytics consent by default", () => {
+  // P0-04: Meta blocked without saleOfData
+  it("meta blocked when saleOfData not explicitly true", () => {
+    const consent: ConsentState = { marketing: true, analytics: false };
+    const result = evaluatePlatformConsent("meta", consent);
+    expect(result.allowed).toBe(false);
+    // P0-04: evaluatePlatformConsent uses "Sale of data not explicitly allowed" message
+    expect(result.reason).toContain("Sale of data not explicitly allowed");
+  });
+
+  // Google (analytics) does NOT require saleOfData
+  it("google requires analytics consent (no saleOfData needed)", () => {
     const consent: ConsentState = { marketing: false, analytics: true };
     const result = evaluatePlatformConsent("google", consent);
     expect(result.allowed).toBe(true);
     expect(result.usedConsent).toBe("analytics");
   });
 
-  it("unknown platform defaults to marketing", () => {
-    const consent: ConsentState = { marketing: true, analytics: false };
+  // P0-04: Unknown platforms require saleOfData (defaults to marketing)
+  it("unknown platform defaults to marketing and requires saleOfData", () => {
+    const consent: ConsentState = { marketing: true, analytics: false, saleOfDataAllowed: true };
     const result = evaluatePlatformConsent("unknown_platform", consent);
     expect(result.allowed).toBe(true);
     expect(result.usedConsent).toBe("marketing");
+  });
+
+  it("unknown platform blocked without saleOfData", () => {
+    const consent: ConsentState = { marketing: true, analytics: false };
+    const result = evaluatePlatformConsent("unknown_platform", consent);
+    expect(result.allowed).toBe(false);
+    // P0-04: evaluatePlatformConsent uses "Sale of data not explicitly allowed" message
+    expect(result.reason).toContain("Sale of data not explicitly allowed");
   });
 });
 

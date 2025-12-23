@@ -108,7 +108,43 @@ async function isClientEventRecorded(shopId: string, orderId: string, eventType:
     });
     return !!existing;
 }
-type ValidationError = "invalid_body" | "missing_event_name" | "missing_shop_domain" | "invalid_shop_domain_format" | "missing_timestamp" | "invalid_timestamp_type" | "missing_order_identifiers";
+type ValidationError = 
+    | "invalid_body" 
+    | "missing_event_name" 
+    | "missing_shop_domain" 
+    | "invalid_shop_domain_format" 
+    | "missing_timestamp" 
+    | "invalid_timestamp_type"
+    | "invalid_timestamp_value"
+    | "missing_order_identifiers"
+    | "invalid_checkout_token_format"
+    | "invalid_order_id_format"
+    | "invalid_consent_format";
+
+/**
+ * P1-01: Validation constants for abuse prevention
+ * 
+ * Since the ingestion key (X-Tracking-Guardian-Key) is visible in browser DevTools,
+ * we cannot rely on it as strong authentication. Instead, we use these validation
+ * rules to filter out obviously malformed or abusive requests:
+ * 
+ * 1. checkoutToken: Must match Shopify's token format
+ * 2. orderId: Must be numeric or GID format  
+ * 3. timestamp: Must be reasonable (not 1970, not far future)
+ * 4. consent fields: Must be boolean if present
+ * 
+ * Actual trust comes from:
+ * - Matching checkoutToken with webhook's checkout_token (see receipt-trust.ts)
+ * - Origin validation against shop's allowed domains
+ * - Nonce/replay protection
+ */
+const CHECKOUT_TOKEN_MIN_LENGTH = 8;
+const CHECKOUT_TOKEN_MAX_LENGTH = 128;
+const CHECKOUT_TOKEN_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const ORDER_ID_PATTERN = /^(gid:\/\/shopify\/Order\/)?(\d+)$/;
+const MIN_REASONABLE_TIMESTAMP = 1577836800000; // 2020-01-01
+const MAX_FUTURE_TIMESTAMP_MS = 86400000; // 24 hours in future
+
 function validateRequest(body: unknown): {
     valid: true;
     payload: PixelEventPayload;
@@ -136,10 +172,54 @@ function validateRequest(body: unknown): {
     if (typeof data.timestamp !== "number") {
         return { valid: false, error: "Invalid timestamp type", code: "invalid_timestamp_type" };
     }
+    
+    // P1-01: Validate timestamp is reasonable (not 1970, not far future)
+    const now = Date.now();
+    if (data.timestamp < MIN_REASONABLE_TIMESTAMP || data.timestamp > now + MAX_FUTURE_TIMESTAMP_MS) {
+        return { valid: false, error: "Timestamp outside reasonable range", code: "invalid_timestamp_value" };
+    }
+    
+    // P1-01: Validate consent format if present
+    if (data.consent !== undefined) {
+        if (typeof data.consent !== "object" || data.consent === null) {
+            return { valid: false, error: "Invalid consent format", code: "invalid_consent_format" };
+        }
+        const consent = data.consent as Record<string, unknown>;
+        // P1-01: Consent fields must be booleans if present
+        if (consent.marketing !== undefined && typeof consent.marketing !== "boolean") {
+            return { valid: false, error: "consent.marketing must be boolean", code: "invalid_consent_format" };
+        }
+        if (consent.analytics !== undefined && typeof consent.analytics !== "boolean") {
+            return { valid: false, error: "consent.analytics must be boolean", code: "invalid_consent_format" };
+        }
+        if (consent.saleOfData !== undefined && typeof consent.saleOfData !== "boolean") {
+            return { valid: false, error: "consent.saleOfData must be boolean", code: "invalid_consent_format" };
+        }
+    }
+    
     if (data.eventName === "checkout_completed") {
         const eventData = data.data as Record<string, unknown> | undefined;
         if (!eventData?.orderId && !eventData?.checkoutToken) {
             return { valid: false, error: "Missing orderId and checkoutToken for checkout_completed event", code: "missing_order_identifiers" };
+        }
+        
+        // P1-01: Validate checkoutToken format if present
+        if (eventData?.checkoutToken) {
+            const token = String(eventData.checkoutToken);
+            if (token.length < CHECKOUT_TOKEN_MIN_LENGTH || token.length > CHECKOUT_TOKEN_MAX_LENGTH) {
+                return { valid: false, error: "Invalid checkoutToken length", code: "invalid_checkout_token_format" };
+            }
+            if (!CHECKOUT_TOKEN_PATTERN.test(token)) {
+                return { valid: false, error: "Invalid checkoutToken format", code: "invalid_checkout_token_format" };
+            }
+        }
+        
+        // P1-01: Validate orderId format if present (must be numeric or GID)
+        if (eventData?.orderId) {
+            const orderIdStr = String(eventData.orderId);
+            if (!ORDER_ID_PATTERN.test(orderIdStr)) {
+                return { valid: false, error: "Invalid orderId format", code: "invalid_order_id_format" };
+            }
         }
     }
     return {
@@ -512,10 +592,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const consent = payload.consent;
         const hasMarketingConsent = consent?.marketing === true;
         const hasAnalyticsConsent = consent?.analytics === true;
-        const saleOfDataAllowed = consent?.saleOfData !== false;
+        
+        // P0-04: saleOfData must be EXPLICITLY true, not just "not false"
+        // undefined/null/missing = NOT allowed (strict interpretation)
+        const saleOfDataAllowed = consent?.saleOfData === true;
+        
         if (!saleOfDataAllowed) {
-            logger.debug(`Skipping ConversionLog recording: sale_of_data opt-out (saleOfData=${String(consent?.saleOfData)})`);
-            return jsonWithCors({ success: true, eventId, message: "Sale of data opted out - event acknowledged" }, { request, shopAllowedDomains });
+            logger.debug(`Skipping ConversionLog recording: sale_of_data not explicitly allowed (saleOfData=${String(consent?.saleOfData)}) [P0-04]`);
+            return jsonWithCors({ success: true, eventId, message: "Sale of data not explicitly allowed - event acknowledged" }, { request, shopAllowedDomains });
         }
         const platformsToRecord: string[] = [];
         for (const config of pixelConfigs) {

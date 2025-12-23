@@ -98,27 +98,101 @@ export const RETRY_CONFIG = {
 } as const;
 
 /**
- * Data retention configuration
+ * P2-03: Data retention configuration with environment variable overrides.
+ * 
+ * All retention periods are auditable and can be configured via environment variables.
+ * Changes to retention settings should be logged in audit trail.
+ * 
+ * Environment variables:
+ * - RETENTION_MIN_DAYS: Minimum retention (default: 30)
+ * - RETENTION_MAX_DAYS: Maximum retention (default: 365)
+ * - RETENTION_DEFAULT_DAYS: Default for new shops (default: 90)
+ * - RETENTION_AUDIT_LOG_DAYS: Audit log retention (default: 365, minimum: 180)
+ * - RETENTION_WEBHOOK_LOG_DAYS: Webhook log retention (default: 7)
+ * - RETENTION_NONCE_EXPIRY_HOURS: Nonce expiry (default: 1 hour)
+ * - RETENTION_RECEIPT_DAYS: PixelEventReceipt retention (default: 90)
+ * 
+ * GDPR Note: These settings affect data subject access and deletion requests.
+ * Shorter retention = less data to process/export, but may impact debugging.
  */
+function getRetentionDays(envKey: string, defaultValue: number, minValue?: number): number {
+    const envValue = process.env[envKey];
+    if (!envValue) return defaultValue;
+    const parsed = parseInt(envValue, 10);
+    if (isNaN(parsed)) return defaultValue;
+    if (minValue !== undefined && parsed < minValue) {
+        // eslint-disable-next-line no-console
+        console.warn(`[P2-03] ${envKey}=${parsed} is below minimum ${minValue}, using minimum`);
+        return minValue;
+    }
+    return parsed;
+}
+
 export const RETENTION_CONFIG = {
-    /** Minimum retention period (30 days) */
-    MIN_DAYS: 30,
+    /** Minimum retention period (30 days) - cannot be set lower */
+    MIN_DAYS: getRetentionDays("RETENTION_MIN_DAYS", 30, 1),
     
     /** Maximum retention period (365 days) */
-    MAX_DAYS: 365,
+    MAX_DAYS: getRetentionDays("RETENTION_MAX_DAYS", 365),
     
-    /** Default retention period (90 days) */
-    DEFAULT_DAYS: 90,
+    /** Default retention period (90 days) for new shops */
+    DEFAULT_DAYS: getRetentionDays("RETENTION_DEFAULT_DAYS", 90),
     
-    /** Audit log retention (always 365 days, non-configurable) */
-    AUDIT_LOG_DAYS: 365,
+    /** Audit log retention (min 180 days for compliance) */
+    AUDIT_LOG_DAYS: getRetentionDays("RETENTION_AUDIT_LOG_DAYS", 365, 180),
     
-    /** Nonce expiration (1 hour) */
-    NONCE_EXPIRY_MS: 60 * 60 * 1000,
+    /** Nonce expiration (1 hour by default) */
+    NONCE_EXPIRY_MS: getRetentionDays("RETENTION_NONCE_EXPIRY_HOURS", 1) * 60 * 60 * 1000,
     
     /** Webhook log retention (7 days) */
-    WEBHOOK_LOG_DAYS: 7,
+    WEBHOOK_LOG_DAYS: getRetentionDays("RETENTION_WEBHOOK_LOG_DAYS", 7),
+    
+    /** PixelEventReceipt retention (same as default by default) */
+    RECEIPT_DAYS: getRetentionDays("RETENTION_RECEIPT_DAYS", 90),
 } as const;
+
+/**
+ * P2-03: Get retention config summary for auditing/documentation.
+ */
+export function getRetentionConfigSummary(): Record<string, { value: number | string; unit: string; source: "default" | "env" }> {
+    return {
+        minDays: { 
+            value: RETENTION_CONFIG.MIN_DAYS, 
+            unit: "days",
+            source: process.env.RETENTION_MIN_DAYS ? "env" : "default"
+        },
+        maxDays: { 
+            value: RETENTION_CONFIG.MAX_DAYS, 
+            unit: "days",
+            source: process.env.RETENTION_MAX_DAYS ? "env" : "default"
+        },
+        defaultDays: { 
+            value: RETENTION_CONFIG.DEFAULT_DAYS, 
+            unit: "days",
+            source: process.env.RETENTION_DEFAULT_DAYS ? "env" : "default"
+        },
+        auditLogDays: { 
+            value: RETENTION_CONFIG.AUDIT_LOG_DAYS, 
+            unit: "days",
+            source: process.env.RETENTION_AUDIT_LOG_DAYS ? "env" : "default"
+        },
+        nonceExpiry: { 
+            value: RETENTION_CONFIG.NONCE_EXPIRY_MS / (60 * 60 * 1000), 
+            unit: "hours",
+            source: process.env.RETENTION_NONCE_EXPIRY_HOURS ? "env" : "default"
+        },
+        webhookLogDays: { 
+            value: RETENTION_CONFIG.WEBHOOK_LOG_DAYS, 
+            unit: "days",
+            source: process.env.RETENTION_WEBHOOK_LOG_DAYS ? "env" : "default"
+        },
+        receiptDays: { 
+            value: RETENTION_CONFIG.RECEIPT_DAYS, 
+            unit: "days",
+            source: process.env.RETENTION_RECEIPT_DAYS ? "env" : "default"
+        },
+    };
+}
 
 /**
  * Ingestion key configuration
@@ -359,6 +433,97 @@ export function isProduction(): boolean {
 }
 export function isDevelopment(): boolean {
     return process.env.NODE_ENV !== "production";
+}
+
+// ============================================================================
+// P2-05: Feature Flags / Product Switches
+// ============================================================================
+
+/**
+ * P2-05: Feature flags for product capabilities.
+ * 
+ * All flags default to OFF (disabled) for safety.
+ * Enable via environment variables as needed.
+ * Changes should be logged to audit trail when applicable.
+ * 
+ * Environment variables:
+ * - FEATURE_FUNNEL_EVENTS: Enable funnel event collection (default: false)
+ * - FEATURE_DEBUG_LOGGING: Enable verbose debug logging (default: false in prod)
+ * - FEATURE_EXTENDED_PAYLOAD: Enable extended payload fields (default: false)
+ * - FEATURE_TRACKING_API: Enable /api/tracking endpoint (default: false)
+ * - FEATURE_PII_HASHING: Enable PII hashing for enhanced matching (default: false)
+ * 
+ * Usage:
+ *   import { FEATURE_FLAGS } from "~/utils/config";
+ *   if (FEATURE_FLAGS.FUNNEL_EVENTS) { ... }
+ */
+export const FEATURE_FLAGS = {
+    /** 
+     * Enable funnel events (checkout_started, page_viewed, etc.)
+     * P0-02: Currently disabled - we only send checkout_completed
+     */
+    FUNNEL_EVENTS: getBoolEnv("FEATURE_FUNNEL_EVENTS", false),
+    
+    /**
+     * Enable verbose debug logging
+     * WARNING: May expose sensitive data in logs
+     */
+    DEBUG_LOGGING: getBoolEnv("FEATURE_DEBUG_LOGGING", false),
+    
+    /**
+     * Enable extended payload fields in pixel events
+     * E.g., line items, customer info, etc.
+     */
+    EXTENDED_PAYLOAD: getBoolEnv("FEATURE_EXTENDED_PAYLOAD", false),
+    
+    /**
+     * Enable /api/tracking public endpoint
+     * P0-06: Disabled by default for security
+     */
+    TRACKING_API: getBoolEnv("FEATURE_TRACKING_API", false),
+    
+    /**
+     * Enable PII hashing for enhanced ad matching
+     * Requires explicit merchant opt-in
+     */
+    PII_HASHING: getBoolEnv("FEATURE_PII_HASHING", false),
+    
+    /**
+     * Enable experimental checkout blocks
+     */
+    CHECKOUT_BLOCKS: getBoolEnv("FEATURE_CHECKOUT_BLOCKS", false),
+} as const;
+
+/**
+ * P2-05: Get feature flags summary for auditing/documentation.
+ */
+export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; source: "default" | "env" }> {
+    return {
+        funnelEvents: {
+            enabled: FEATURE_FLAGS.FUNNEL_EVENTS,
+            source: process.env.FEATURE_FUNNEL_EVENTS ? "env" : "default",
+        },
+        debugLogging: {
+            enabled: FEATURE_FLAGS.DEBUG_LOGGING,
+            source: process.env.FEATURE_DEBUG_LOGGING ? "env" : "default",
+        },
+        extendedPayload: {
+            enabled: FEATURE_FLAGS.EXTENDED_PAYLOAD,
+            source: process.env.FEATURE_EXTENDED_PAYLOAD ? "env" : "default",
+        },
+        trackingApi: {
+            enabled: FEATURE_FLAGS.TRACKING_API,
+            source: process.env.FEATURE_TRACKING_API ? "env" : "default",
+        },
+        piiHashing: {
+            enabled: FEATURE_FLAGS.PII_HASHING,
+            source: process.env.FEATURE_PII_HASHING ? "env" : "default",
+        },
+        checkoutBlocks: {
+            enabled: FEATURE_FLAGS.CHECKOUT_BLOCKS,
+            source: process.env.FEATURE_CHECKOUT_BLOCKS ? "env" : "default",
+        },
+    };
 }
 /**
  * Log configuration status at startup.

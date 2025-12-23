@@ -3,12 +3,19 @@ type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 runtime_context = "strict"
 
+# P0-05: Customer Privacy settings determine when this pixel loads.
+# - analytics = true: Pixel requires analytics consent to load
+# - marketing = true: Pixel requires marketing consent to load
+# - sale_of_data = "enabled": Pixel respects CCPA sale of data preferences
+# The pixel will ONLY load when ALL required consents are granted.
 [customer_privacy]
   analytics = true
   marketing = true
   preferences = false
   sale_of_data = "enabled"
 
+# P0-01: Settings schema - all fields MUST be single_line_text_field per Shopify Web Pixel requirements.
+# These settings are passed to the pixel at runtime via the settings object.
 [settings]
   [[settings.fields]]
     key = "ingestion_key"
@@ -22,8 +29,18 @@ runtime_context = "strict"
     description = "The myshopify.com domain for this store. Auto-configured during installation."
     type = "single_line_text_field"
 
+  # P0-01/P0-05: backend_url - Added to align with migration.server.ts buildWebPixelSettings()
+  # This allows environment-specific backend URLs (production, staging, etc.)
+  [[settings.fields]]
+    key = "backend_url"
+    name = "Backend URL"
+    description = "Server endpoint for event processing. Auto-configured during installation."
+    type = "single_line_text_field"
+
+  # P0-01: schema_version changed from number_integer to single_line_text_field
+  # Web Pixel settings only support single_line_text_field type.
   [[settings.fields]]
     key = "schema_version"
     name = "Schema Version"
     description = "Configuration schema version for future upgrades."
-    type = "number_integer"
+    type = "single_line_text_field"

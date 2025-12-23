@@ -140,14 +140,37 @@ railway up
 └── package.json
 ```
 
-## API 权限说明
+## API 权限说明（P2-04: 最小权限）
 
-| 权限 | 用途 |
-|------|------|
-| read_orders | 读取订单用于转化对账和 CAPI 发送 |
-| read_script_tags | 扫描已安装的 ScriptTags（迁移检测） |
-| write_pixels | 创建和管理 Web Pixels |
-| read_customer_events | 接收 Web Pixel 客户事件数据 |
+| 权限 | 用途 | 代码调用点 | 首次安装必需? |
+|------|------|-----------|--------------|
+| `read_orders` | 接收 `orders/paid` webhook 发送转化事件 | `webhooks.tsx` | ✅ 是 |
+| `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
+| `write_script_tags` | 删除旧版 ScriptTag（仅清理用途） | `delete-script-tag.tsx` | ⚠️ 可延迟 |
+| `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
+| `write_pixels` | 创建/管理 App Pixel Extension | `migration.server.ts` | ✅ 是 |
+| `read_customer_events` | Shopify `webPixelCreate` API 必需 | `migration.server.ts` | ✅ 是 |
+
+### P1-05: ScriptTag 权限说明
+
+**重要提示**：`read_script_tags` 和 `write_script_tags` 权限**仅用于迁移清理**：
+
+1. **扫描检测**：识别店铺中已存在的旧版追踪脚本
+2. **迁移建议**：生成从 ScriptTag 迁移到 Web Pixel 的建议
+3. **清理删除**：帮助商家删除不再需要的旧 ScriptTag
+
+**我们不会**：
+- ❌ 创建新的 ScriptTag
+- ❌ 在 TYP/OSP 页面注入任何客户端脚本
+- ❌ 使用 ScriptTag 进行追踪
+
+所有追踪功能通过 **Web Pixel Extension**（服务端）和 **Webhooks**（CAPI）实现。
+
+### P2-04: 最小权限说明
+
+- 所有 6 个 scopes 都有明确的代码调用点和业务理由
+- `write_script_tags` 仅用于**删除**旧 ScriptTag，可考虑改为按需授权
+- 详细权限说明请参阅 [COMPLIANCE.md](COMPLIANCE.md) 中的 "Scopes Justification" 部分
 
 ## Webhook 订阅
 

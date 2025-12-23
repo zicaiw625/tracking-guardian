@@ -114,7 +114,21 @@ The following data is **NOT collected or sent to ad platforms**:
 
 **IP Address Note**: IP addresses are used transiently for rate limiting and may be logged in AuditLog for security purposes (180-day retention). They are NOT used for customer tracking or sent to ad platforms. All audit data is deleted upon `shop/redact` webhook.
 
-**Verification**: Check `extensions/tracking-pixel/src/index.ts` - only `checkout_completed` has a subscriber.
+**Verification**: Check `extensions/tracking-pixel/src/index.ts` - uses `subscribeToCheckoutCompleted()` which ONLY subscribes to `checkout_completed`.
+
+### P0-04: Consent Default Values (Strict Mode)
+
+As of this version, consent handling follows **strict deny-by-default**:
+
+| Field | Default | Interpretation |
+|-------|---------|----------------|
+| `marketingAllowed` | `false` | Must be explicitly `=== true` to allow |
+| `analyticsProcessingAllowed` | `false` | Must be explicitly `=== true` to allow |
+| `saleOfDataAllowed` | `false` | Must be explicitly `=== true` to allow |
+
+**Key Change**: Previously, `undefined` or missing `saleOfData` was treated as "allowed". Now it is treated as "NOT allowed". This is the most privacy-protective default.
+
+**Verification**: Check `extensions/tracking-pixel/src/consent.ts` and `app/utils/platform-consent.ts` for P0-04 comments.
 
 ---
 
@@ -327,8 +341,25 @@ Confirm mandatory webhooks are registered:
 - **API Authentication**: All API endpoints require valid session
 - **Webhook Verification**: HMAC signature validation for all webhooks (Shopify-signed)
 - **Pixel Event Security**:
-  - **Ingestion Key Validation**: Store-scoped key is validated server-side; requests with missing/invalid keys are rejected (204 No Content)
-  - **Origin Validation**: Only accept requests from Shopify domains or sandbox "null" origin
+  - **P1-01: Ingestion Key (Token) - NOT a Secret**: 
+    - **IMPORTANT**: The "ingestion key" (database field: `ingestionSecret`) is **NOT a cryptographic secret**
+    - It is a **store-scoped identifier/token** visible in browser Network requests
+    - The HTTP header is named `X-Tracking-Guardian-Key` (not "secret") to reflect this
+    - Purpose: Correlate pixel events to the correct store, NOT strong authentication
+    - Why "ingestionSecret" name in DB? Historical naming + field IS encrypted at rest
+    - Missing/invalid keys result in 204 No Content (silent drop)
+  - **P1-01: Actual Security Measures (Multi-Layer)**:
+    - **Checkout Token Binding**: Pixel's `checkoutToken` verified against webhook's `checkout_token`
+    - **Origin Validation**: Only accept requests from shop's allowed domains (per-shop allowlist)
+    - **Timestamp Window**: Reject requests outside 10-minute window
+    - **Nonce/Replay Protection**: Same event cannot be submitted twice within 1 hour
+    - **Trust Levels**: `trusted` (token binding verified) vs `partial` vs `untrusted`
+  - **P1-01: Abuse Prevention Validation**:
+    - `checkoutToken`: Must be 8-128 characters, alphanumeric with `-_`
+    - `orderId`: Must be numeric or Shopify GID format
+    - `timestamp`: Must be between 2020 and 24h in the future
+    - `consent`: All fields must be boolean if present
+    - Invalid format results in 400 Bad Request or 204 silent drop
   - **Rate Limiting**: Per-shop and global limits prevent abuse
   - **Order Verification**: orderId validated against shop's orders via webhook
 - **Rate Limiting**: Protection against abuse and brute force
@@ -353,6 +384,34 @@ All sensitive operations are logged:
 | **balanced** | Allows partial-trust receipts, marketing still requires consent | Shops with mixed requirements |
 
 > **Note**: The legacy "weak" mode (implied consent) is deprecated and no longer available in the UI. Existing shops using weak mode should migrate to balanced or strict.
+
+### P1-04: Customer Privacy Configuration Strategy
+
+The `shopify.extension.toml` declares our pixel's consent requirements:
+
+```toml
+[customer_privacy]
+  analytics = true      # Pixel requires analytics consent
+  marketing = true      # Pixel requires marketing consent  
+  preferences = false   # Preferences not required
+  sale_of_data = "enabled"  # Respects CCPA opt-out
+```
+
+**What This Means:**
+- The pixel will **ONLY load** when the visitor has granted BOTH analytics AND marketing consent
+- This is the most privacy-protective configuration (P0-04 strict defaults)
+- Trade-off: Lower coverage (pixel doesn't fire for visitors who haven't consented)
+
+**Alternative Strategies (Not Currently Implemented):**
+
+| Strategy | Configuration | Coverage | Compliance Risk |
+|----------|---------------|----------|-----------------|
+| **Strict (Current)** | analytics=true, marketing=true | Lower | Lowest |
+| **Analytics-Only** | analytics=true, marketing=false | Higher | Must not send to marketing platforms |
+| **Minimal** | analytics=false, marketing=false | Highest | May load before consent, must handle in-pixel |
+
+**Important**: If you modify these settings, ensure your server-side code (`platform-consent.ts`) 
+correctly gates which platforms receive data based on actual consent state.
 
 ### Customer Privacy API Integration
 
@@ -517,16 +576,22 @@ All ⚠️ marked fields are deleted upon:
 - [ ] Support 联系方式有效
 - [ ] 确认 scopes 最小化 (见下方)
 
-#### Scopes Justification (P0-04)
-| Scope | 必要性解释 | 代码调用点 | 对应功能 |
-|-------|-----------|-----------|---------|
-| `read_orders` | 接收 orders/paid webhook 以发送转化事件 | `app/routes/webhooks.tsx:175-248` | CAPI 发送 |
-| `read_script_tags` | 扫描旧版 ScriptTag 用于迁移建议 | `app/services/scanner.server.ts:132-199` | 扫描报告 |
-| `read_pixels` | 查询已安装的 Web Pixel | `app/services/migration.server.ts:322-352` | 像素状态检测 |
-| `write_pixels` | 创建/管理 App Pixel extension | `app/services/migration.server.ts:184-250` | 像素安装 |
-| `read_customer_events` | Shopify webPixelCreate API 必需 | `app/services/migration.server.ts:196-248` | 像素创建 |
+#### Scopes Justification (P0-04 + P2-04)
+| Scope | 必要性解释 | 代码调用点 | 对应功能 | 首次安装必需? |
+|-------|-----------|-----------|---------|--------------|
+| `read_orders` | 接收 orders/paid webhook 以发送转化事件 | `app/routes/webhooks.tsx:175-248` | CAPI 发送 | ✅ 是 |
+| `read_script_tags` | 扫描旧版 ScriptTag 用于迁移建议 | `app/services/scanner.server.ts:132-199` | 扫描报告 | ✅ 是 |
+| `write_script_tags` | 删除旧版 ScriptTag（P1-05: 仅用于清理） | `app/routes/app.actions.delete-script-tag.tsx` | ScriptTag 删除 | ⚠️ 可延迟 |
+| `read_pixels` | 查询已安装的 Web Pixel | `app/services/migration.server.ts:322-352` | 像素状态检测 | ✅ 是 |
+| `write_pixels` | 创建/管理 App Pixel extension | `app/services/migration.server.ts:184-250` | 像素安装 | ✅ 是 |
+| `read_customer_events` | Shopify webPixelCreate API 必需 | `app/services/migration.server.ts:196-248` | 像素创建 | ✅ 是 |
 
-**P0-04 验证**: 所有 5 个 scopes 都有明确的代码调用点和业务理由。
+**P2-04 最小权限说明**:
+- `write_script_tags` 仅用于**删除**旧 ScriptTag，不用于创建
+- 可考虑改为：首次安装仅请求 `read_script_tags`，用户点击"删除"时触发 reauth 请求 `write_script_tags`
+- 当前实现保留该权限是为了简化用户体验（一次授权完成所有功能）
+
+**P0-04 验证**: 所有 6 个 scopes 都有明确的代码调用点和业务理由。
 
 > **Note**: 
 > - `read_pixels` 是读取 [WebPixel 对象](https://shopify.dev/docs/api/admin-graphql/latest/objects/WebPixel) 的必需权限

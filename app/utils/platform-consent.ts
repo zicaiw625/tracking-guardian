@@ -111,10 +111,13 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
         };
     }
     const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-    if (requiresSaleOfData && consentState.saleOfDataAllowed === false) {
+    
+    // P0-04: For platforms requiring sale of data consent, saleOfDataAllowed must be EXPLICITLY true
+    // undefined/null/missing = NOT allowed (strict interpretation)
+    if (requiresSaleOfData && consentState.saleOfDataAllowed !== true) {
         return {
             allowed: false,
-            reason: `Sale of data opted out for ${platformName}`,
+            reason: `Sale of data not explicitly allowed for ${platformName} (P0-04: saleOfData=${String(consentState.saleOfDataAllowed)})`,
             usedConsent: "none",
         };
     }
@@ -161,10 +164,14 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
     }
 }
 export function evaluatePlatformConsentWithStrategy(platform: string, consentStrategy: string, consentState: ConsentState | null, hasPixelReceipt: boolean, treatAsMarketing = false): ConsentDecision {
-    if (consentState?.saleOfDataAllowed === false) {
+    const config = PLATFORM_CONSENT_CONFIG[platform];
+    const requiresSaleOfData = config?.requiresSaleOfData ?? true;
+    
+    // P0-04: For platforms requiring sale of data consent, must be EXPLICITLY true
+    if (requiresSaleOfData && consentState?.saleOfDataAllowed !== true) {
         return {
             allowed: false,
-            reason: "sale_of_data_opted_out",
+            reason: `sale_of_data_not_allowed (P0-04: ${String(consentState?.saleOfDataAllowed)})`,
             usedConsent: "none",
         };
     }

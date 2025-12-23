@@ -1,10 +1,17 @@
 /**
  * Event Handling Module
  * 
- * Handles sending events to the backend and subscribing to Shopify analytics events.
+ * P0-02: Handles sending ONLY checkout_completed events to the backend.
+ * 
+ * COMPLIANCE: This module ONLY subscribes to checkout_completed.
+ * - NO page_viewed events are collected or sent
+ * - NO product_added_to_cart events are collected or sent
+ * - NO checkout_started/funnel events are collected or sent
+ * 
+ * See COMPLIANCE.md for details.
  */
 
-import type { CheckoutData, CartLine } from "./types";
+import type { CheckoutData } from "./types";
 import type { ConsentManager } from "./consent";
 
 /**
@@ -17,21 +24,6 @@ export function toNumber(value: string | number | undefined | null, defaultValue
   return isNaN(parsed) ? defaultValue : parsed;
 }
 
-/**
- * Create an abort signal with timeout.
- */
-function createTimeoutSignal(timeoutMs: number): {
-  signal: AbortSignal;
-  cleanup: () => void;
-} {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  return {
-    signal: controller.signal,
-    cleanup: () => clearTimeout(timeoutId),
-  };
-}
-
 export interface EventSenderConfig {
   backendUrl: string;
   shopDomain: string;
@@ -42,6 +34,59 @@ export interface EventSenderConfig {
 }
 
 /**
+ * P1-02: Send event using sendBeacon (preferred) with fetch keepalive fallback.
+ * This ensures checkout_completed events are reliably sent even when page unloads.
+ */
+function sendWithBeaconFallback(
+  url: string,
+  body: string,
+  headers: Record<string, string>,
+  isDevMode: boolean,
+  log: (...args: unknown[]) => void
+): void {
+  // P1-02: Try sendBeacon first for checkout_completed (most reliable during page unload)
+  if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+    try {
+      // sendBeacon with Blob allows setting Content-Type
+      const blob = new Blob([body], { type: "application/json" });
+      const sent = navigator.sendBeacon(url, blob);
+      if (sent) {
+        if (isDevMode) {
+          log("checkout_completed sent via sendBeacon");
+        }
+        return;
+      }
+      // sendBeacon returned false (queue full), fall through to fetch
+      if (isDevMode) {
+        log("sendBeacon returned false, falling back to fetch");
+      }
+    } catch (e) {
+      if (isDevMode) {
+        log("sendBeacon failed, falling back to fetch:", e);
+      }
+    }
+  }
+
+  // P1-02: Fallback to fetch with keepalive
+  fetch(url, {
+    method: "POST",
+    headers,
+    keepalive: true,
+    body,
+  })
+    .then((response) => {
+      if (isDevMode) {
+        log(`checkout_completed sent via fetch, status: ${response.status}`);
+      }
+    })
+    .catch((error) => {
+      if (isDevMode) {
+        log("checkout_completed fetch failed:", error);
+      }
+    });
+}
+
+/**
  * Create an event sender function.
  */
 export function createEventSender(config: EventSenderConfig) {
@@ -49,10 +94,7 @@ export function createEventSender(config: EventSenderConfig) {
   const log = logger || (() => {});
 
   return async function sendToBackend(eventName: string, data: Record<string, unknown>): Promise<void> {
-    // P1-01: Changed from hasFullConsent() to allow partial consent scenarios.
-    // Events are sent with consent state; server-side will filter by platform.
-    // - Analytics platforms (GA4): only need analytics consent
-    // - Marketing platforms (Meta, TikTok): need marketing consent + saleOfData
+    // P0-02: Only checkout_completed is sent, but we still check consent
     const hasAnyConsent = consentManager.hasAnalyticsConsent() || consentManager.hasMarketingConsent();
     
     if (!hasAnyConsent) {
@@ -70,6 +112,8 @@ export function createEventSender(config: EventSenderConfig) {
 
     try {
       const timestamp = Date.now();
+      
+      // P1-03: Minimal payload - only essential fields for matching and consent
       const payload = {
         eventName,
         timestamp,
@@ -92,27 +136,24 @@ export function createEventSender(config: EventSenderConfig) {
       }
       headers["X-Tracking-Guardian-Timestamp"] = timestamp.toString();
 
-      const { signal, cleanup } = createTimeoutSignal(5000);
+      const url = `${backendUrl}/api/pixel-events`;
 
-      fetch(`${backendUrl}/api/pixel-events`, {
-        method: "POST",
-        headers,
-        keepalive: true,
-        body,
-        signal,
-      })
-        .then((response) => {
-          cleanup();
-          if (isDevMode) {
-            log(`${eventName} sent, status: ${response.status}`);
-          }
-        })
-        .catch((error) => {
-          cleanup();
+      // P1-02: Use sendBeacon + fetch keepalive for checkout_completed
+      if (eventName === "checkout_completed") {
+        sendWithBeaconFallback(url, body, headers, isDevMode, log);
+      } else {
+        // For any other events (should not happen after P0-02), use regular fetch
+        fetch(url, {
+          method: "POST",
+          headers,
+          keepalive: true,
+          body,
+        }).catch((error) => {
           if (isDevMode) {
             log(`${eventName} failed:`, error);
           }
         });
+      }
     } catch (error) {
       if (isDevMode) {
         log("Unexpected error:", error);
@@ -122,75 +163,28 @@ export function createEventSender(config: EventSenderConfig) {
 }
 
 /**
- * Subscribe to all analytics events.
+ * P0-02: Subscribe ONLY to checkout_completed event.
+ * 
+ * COMPLIANCE: This is the ONLY event we subscribe to.
+ * All other events (page_viewed, product_added_to_cart, checkout_started, etc.)
+ * are NOT subscribed to, NOT collected, and NOT sent to the backend.
+ * 
+ * The backend (api.pixel-events.tsx) also enforces this by only accepting
+ * checkout_completed in PRIMARY_EVENTS, returning 204 for anything else.
  */
-export function subscribeToAnalyticsEvents(
+export function subscribeToCheckoutCompleted(
   analytics: {
-    subscribe: (event: string, handler: (event: any) => void) => void;
+    subscribe: (event: string, handler: (event: unknown) => void) => void;
   },
   sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
   logger?: (...args: unknown[]) => void
 ): void {
   const log = logger || (() => {});
 
-  // Checkout started
-  analytics.subscribe("checkout_started", (event) => {
-    const checkout = event.data?.checkout as CheckoutData | undefined;
-    if (!checkout) return;
-
-    const checkoutToken = checkout.token;
-    if (!checkoutToken) {
-      log("checkout_started: No checkoutToken, skipping");
-      return;
-    }
-
-    sendToBackend("checkout_started", {
-      checkoutToken,
-      value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
-      itemCount: (checkout.lineItems || []).reduce((sum, item) => sum + (item.quantity || 1), 0),
-    });
-  });
-
-  // Contact info submitted
-  analytics.subscribe("checkout_contact_info_submitted", (event) => {
-    const checkout = event.data?.checkout as CheckoutData | undefined;
-    if (!checkout) return;
-
-    sendToBackend("checkout_contact_info_submitted", {
-      checkoutToken: checkout.token || null,
-      value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
-    });
-  });
-
-  // Shipping info submitted
-  analytics.subscribe("checkout_shipping_info_submitted", (event) => {
-    const checkout = event.data?.checkout as CheckoutData | undefined;
-    if (!checkout) return;
-
-    sendToBackend("checkout_shipping_info_submitted", {
-      checkoutToken: checkout.token || null,
-      value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
-    });
-  });
-
-  // Payment info submitted
-  analytics.subscribe("payment_info_submitted", (event) => {
-    const checkout = event.data?.checkout as CheckoutData | undefined;
-    if (!checkout) return;
-
-    sendToBackend("payment_info_submitted", {
-      checkoutToken: checkout.token || null,
-      value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
-    });
-  });
-
-  // Checkout completed (purchase)
-  analytics.subscribe("checkout_completed", (event) => {
-    const checkout = event.data?.checkout as CheckoutData | undefined;
+  // P0-02: ONLY subscribe to checkout_completed
+  analytics.subscribe("checkout_completed", (event: unknown) => {
+    const typedEvent = event as { data?: { checkout?: CheckoutData } };
+    const checkout = typedEvent.data?.checkout;
     if (!checkout) return;
 
     const orderId = checkout.order?.id;
@@ -205,51 +199,32 @@ export function subscribeToAnalyticsEvents(
       return;
     }
 
-    const value = toNumber(checkout.totalPrice?.amount);
-    const tax = toNumber(checkout.totalTax?.amount);
-    const shipping = toNumber(checkout.shippingLine?.price?.amount);
-
+    // P1-03: Minimal payload - only fields needed for matching and basic attribution
+    // Order value/items details come from webhook (ORDERS_PAID), not pixel
     sendToBackend("checkout_completed", {
       orderId: orderId || null,
       checkoutToken: checkoutToken || null,
-      value,
-      tax,
-      shipping,
+      // P1-03: Basic value for receipt, detailed data from webhook
+      value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || "USD",
-      items: (checkout.lineItems || []).map((item) => ({
-        id: item.id || "",
-        name: item.title || "",
-        price: toNumber(item.variant?.price?.amount),
-        quantity: item.quantity || 1,
-      })),
     });
   });
 
-  // Page viewed
-  analytics.subscribe("page_viewed", (event) => {
-    const pageUrl = event.context?.document?.location?.href || "";
-    const pageTitle = event.context?.document?.title || "";
+  log("Tracking Guardian pixel initialized - checkout_completed only (P0-02 compliant)");
+}
 
-    sendToBackend("page_viewed", {
-      url: pageUrl,
-      title: pageTitle,
-      timestamp: Date.now(),
-    });
-  });
-
-  // Product added to cart
-  analytics.subscribe("product_added_to_cart", (event) => {
-    const cartLine = event.data?.cartLine as CartLine | undefined;
-    if (!cartLine?.merchandise?.product) return;
-
-    sendToBackend("product_added_to_cart", {
-      productId: cartLine.merchandise.product.id || "",
-      productTitle: cartLine.merchandise.product.title || "",
-      price: toNumber(cartLine.merchandise.price?.amount),
-      quantity: cartLine.quantity || 1,
-    });
-  });
-
-  log("Tracking Guardian pixel initialized with extended event subscriptions");
+/**
+ * @deprecated P0-02: Use subscribeToCheckoutCompleted instead.
+ * This function is kept for backward compatibility but should not be used.
+ */
+export function subscribeToAnalyticsEvents(
+  analytics: {
+    subscribe: (event: string, handler: (event: unknown) => void) => void;
+  },
+  sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
+  logger?: (...args: unknown[]) => void
+): void {
+  // P0-02: Redirect to minimal subscription
+  subscribeToCheckoutCompleted(analytics, sendToBackend, logger);
 }
 

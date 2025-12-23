@@ -1,8 +1,48 @@
+/**
+ * Shop Access Utilities
+ * 
+ * P1-01: IMPORTANT NOTE ON "ingestionSecret" NAMING
+ * ================================================
+ * 
+ * Despite its name, the `ingestionSecret` field is NOT a cryptographic secret.
+ * It is a **store-scoped identifier/token** used to correlate pixel events to shops.
+ * 
+ * SECURITY CHARACTERISTICS:
+ * - ❌ NOT a secret: Visible in browser network requests (X-Tracking-Guardian-Key header)
+ * - ❌ NOT for authentication: Anyone can see it by inspecting browser DevTools
+ * - ✅ Store correlation: Used to match pixel events to the correct shop
+ * - ✅ Rate limiting: Helps with per-shop rate limiting
+ * - ✅ Encrypted at rest: Stored encrypted in database for operational security
+ * 
+ * ACTUAL SECURITY MEASURES (P1-01):
+ * - Origin validation: Only accept requests from shop's allowed domains
+ * - Checkout token binding: Verified against webhook's checkout_token
+ * - Timestamp window: Reject stale/future timestamps
+ * - Nonce/replay protection: Prevent duplicate event submission
+ * - Order ID validation: Must be numeric or GID format
+ * - Checkout token validation: Must be 8-128 chars, alphanumeric
+ * 
+ * WHY NOT RENAME TO "ingestionKey/Token"?
+ * - Database field name (`Shop.ingestionSecret`) would require migration
+ * - Existing shops have encrypted values under this field name
+ * - Backward compatibility concerns
+ * - The field IS encrypted at rest, so "secret" is accurate for storage
+ * 
+ * RECOMMENDATION FOR REVIEWERS:
+ * - The HTTP header is already named `X-Tracking-Guardian-Key` (not secret)
+ * - Trust comes from checkout token binding + origin validation, not this key
+ * - See COMPLIANCE.md Section 5 "Pixel Event Security" for full details
+ */
+
 import { timingSafeEqual, createHash } from "crypto";
 import prisma from "../db.server";
 import { decryptAccessToken, decryptIngestionSecret, TokenDecryptionError } from "./token-encryption";
 import { logger } from "./logger.server";
 import type { Shop, PixelConfig, AlertConfig } from "@prisma/client";
+
+/**
+ * Timing-safe string comparison to prevent timing attacks.
+ */
 export function timingSafeEquals(a: string, b: string): boolean {
     const hashA = createHash("sha256").update(a).digest();
     const hashB = createHash("sha256").update(b).digest();
