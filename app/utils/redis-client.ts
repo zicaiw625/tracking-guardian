@@ -1,0 +1,593 @@
+/**
+ * Redis Client Factory
+ *
+ * Unified Redis client management for rate limiting, circuit breaker, and caching.
+ * Provides a singleton pattern with automatic fallback to in-memory stores.
+ *
+ * Features:
+ * - Single connection shared across all services
+ * - Automatic reconnection handling
+ * - Graceful fallback to in-memory when Redis is unavailable
+ * - Connection status monitoring
+ */
+
+import type { RedisClientType } from "redis";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export interface RedisClientWrapper {
+  // String operations
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, options?: { EX?: number }): Promise<void>;
+  del(key: string): Promise<number>;
+  incr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<boolean>;
+  ttl(key: string): Promise<number>;
+
+  // Hash operations
+  hGetAll(key: string): Promise<Record<string, string>>;
+  hSet(key: string, field: string, value: string): Promise<number>;
+  hMSet(key: string, fields: Record<string, string>): Promise<void>;
+  hIncrBy(key: string, field: string, increment: number): Promise<number>;
+
+  // Key operations
+  keys(pattern: string): Promise<string[]>;
+
+  // Connection status
+  isConnected(): boolean;
+  getConnectionInfo(): ConnectionInfo;
+}
+
+export interface ConnectionInfo {
+  connected: boolean;
+  mode: "redis" | "memory";
+  url?: string;
+  lastError?: string;
+  reconnectAttempts: number;
+}
+
+// =============================================================================
+// In-Memory Fallback Implementation
+// =============================================================================
+
+interface MemoryEntry {
+  value: string;
+  expiresAt?: number;
+}
+
+interface MemoryHashEntry {
+  fields: Record<string, string>;
+  expiresAt?: number;
+}
+
+class InMemoryFallback implements RedisClientWrapper {
+  private stringStore = new Map<string, MemoryEntry>();
+  private hashStore = new Map<string, MemoryHashEntry>();
+  private maxSize: number;
+
+  constructor(maxSize = 10000) {
+    this.maxSize = maxSize;
+  }
+
+  private isExpired(expiresAt?: number): boolean {
+    return expiresAt !== undefined && expiresAt < Date.now();
+  }
+
+  private cleanup(): void {
+    const now = Date.now();
+
+    // Cleanup strings
+    for (const [key, entry] of this.stringStore.entries()) {
+      if (this.isExpired(entry.expiresAt)) {
+        this.stringStore.delete(key);
+      }
+    }
+
+    // Cleanup hashes
+    for (const [key, entry] of this.hashStore.entries()) {
+      if (this.isExpired(entry.expiresAt)) {
+        this.hashStore.delete(key);
+      }
+    }
+
+    // If still too large, remove oldest entries
+    const totalSize = this.stringStore.size + this.hashStore.size;
+    if (totalSize >= this.maxSize * 0.9) {
+      const targetSize = Math.floor(this.maxSize * 0.7);
+      const toRemove = totalSize - targetSize;
+
+      let removed = 0;
+      for (const key of this.stringStore.keys()) {
+        if (removed >= toRemove) break;
+        this.stringStore.delete(key);
+        removed++;
+      }
+    }
+  }
+
+  async get(key: string): Promise<string | null> {
+    const entry = this.stringStore.get(key);
+    if (!entry) return null;
+    if (this.isExpired(entry.expiresAt)) {
+      this.stringStore.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
+
+  async set(
+    key: string,
+    value: string,
+    options?: { EX?: number }
+  ): Promise<void> {
+    if (this.stringStore.size >= this.maxSize) {
+      this.cleanup();
+    }
+
+    const entry: MemoryEntry = { value };
+    if (options?.EX) {
+      entry.expiresAt = Date.now() + options.EX * 1000;
+    }
+    this.stringStore.set(key, entry);
+  }
+
+  async del(key: string): Promise<number> {
+    const hadString = this.stringStore.delete(key);
+    const hadHash = this.hashStore.delete(key);
+    return hadString || hadHash ? 1 : 0;
+  }
+
+  async incr(key: string): Promise<number> {
+    const entry = this.stringStore.get(key);
+    let value = 0;
+
+    if (entry && !this.isExpired(entry.expiresAt)) {
+      value = parseInt(entry.value, 10) || 0;
+    }
+
+    value++;
+    this.stringStore.set(key, {
+      value: String(value),
+      expiresAt: entry?.expiresAt,
+    });
+
+    return value;
+  }
+
+  async expire(key: string, seconds: number): Promise<boolean> {
+    const stringEntry = this.stringStore.get(key);
+    if (stringEntry) {
+      stringEntry.expiresAt = Date.now() + seconds * 1000;
+      return true;
+    }
+
+    const hashEntry = this.hashStore.get(key);
+    if (hashEntry) {
+      hashEntry.expiresAt = Date.now() + seconds * 1000;
+      return true;
+    }
+
+    return false;
+  }
+
+  async ttl(key: string): Promise<number> {
+    const stringEntry = this.stringStore.get(key);
+    if (stringEntry?.expiresAt) {
+      const remaining = Math.ceil((stringEntry.expiresAt - Date.now()) / 1000);
+      return remaining > 0 ? remaining : -2;
+    }
+
+    const hashEntry = this.hashStore.get(key);
+    if (hashEntry?.expiresAt) {
+      const remaining = Math.ceil((hashEntry.expiresAt - Date.now()) / 1000);
+      return remaining > 0 ? remaining : -2;
+    }
+
+    if (stringEntry || hashEntry) {
+      return -1; // Key exists but no TTL
+    }
+
+    return -2; // Key doesn't exist
+  }
+
+  async hGetAll(key: string): Promise<Record<string, string>> {
+    const entry = this.hashStore.get(key);
+    if (!entry) return {};
+    if (this.isExpired(entry.expiresAt)) {
+      this.hashStore.delete(key);
+      return {};
+    }
+    return { ...entry.fields };
+  }
+
+  async hSet(key: string, field: string, value: string): Promise<number> {
+    let entry = this.hashStore.get(key);
+    const isNew = !entry || !entry.fields[field];
+
+    if (!entry) {
+      entry = { fields: {} };
+      this.hashStore.set(key, entry);
+    }
+
+    entry.fields[field] = value;
+    return isNew ? 1 : 0;
+  }
+
+  async hMSet(key: string, fields: Record<string, string>): Promise<void> {
+    let entry = this.hashStore.get(key);
+    if (!entry) {
+      entry = { fields: {} };
+      this.hashStore.set(key, entry);
+    }
+
+    Object.assign(entry.fields, fields);
+  }
+
+  async hIncrBy(key: string, field: string, increment: number): Promise<number> {
+    let entry = this.hashStore.get(key);
+    if (!entry) {
+      entry = { fields: {} };
+      this.hashStore.set(key, entry);
+    }
+
+    const current = parseInt(entry.fields[field] || "0", 10);
+    const newValue = current + increment;
+    entry.fields[field] = String(newValue);
+
+    return newValue;
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    // Simple pattern matching (only supports * at end)
+    const prefix = pattern.replace(/\*$/, "");
+    const results: string[] = [];
+
+    for (const key of this.stringStore.keys()) {
+      if (key.startsWith(prefix)) {
+        results.push(key);
+      }
+    }
+
+    for (const key of this.hashStore.keys()) {
+      if (key.startsWith(prefix)) {
+        results.push(key);
+      }
+    }
+
+    return results;
+  }
+
+  isConnected(): boolean {
+    return true; // In-memory is always "connected"
+  }
+
+  getConnectionInfo(): ConnectionInfo {
+    return {
+      connected: true,
+      mode: "memory",
+      reconnectAttempts: 0,
+    };
+  }
+}
+
+// =============================================================================
+// Redis Client Factory
+// =============================================================================
+
+class RedisClientFactory {
+  private static instance: RedisClientFactory | null = null;
+  private client: RedisClientWrapper | null = null;
+  private rawClient: RedisClientType | null = null;
+  private initPromise: Promise<RedisClientWrapper> | null = null;
+  private connectionInfo: ConnectionInfo = {
+    connected: false,
+    mode: "memory",
+    reconnectAttempts: 0,
+  };
+  private fallback: InMemoryFallback;
+
+  private constructor() {
+    const maxKeys = parseInt(process.env.RATE_LIMIT_MAX_KEYS || "10000", 10);
+    this.fallback = new InMemoryFallback(maxKeys);
+  }
+
+  static getInstance(): RedisClientFactory {
+    if (!RedisClientFactory.instance) {
+      RedisClientFactory.instance = new RedisClientFactory();
+    }
+    return RedisClientFactory.instance;
+  }
+
+  /**
+   * Get the Redis client, initializing if necessary.
+   * Returns in-memory fallback if Redis is unavailable.
+   */
+  async getClient(): Promise<RedisClientWrapper> {
+    if (this.client) {
+      return this.client;
+    }
+
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
+    this.initPromise = this.initialize();
+    return this.initPromise;
+  }
+
+  /**
+   * Get client synchronously. Returns fallback if not initialized.
+   */
+  getClientSync(): RedisClientWrapper {
+    return this.client || this.fallback;
+  }
+
+  private async initialize(): Promise<RedisClientWrapper> {
+    const redisUrl = process.env.REDIS_URL;
+
+    if (!redisUrl) {
+      // eslint-disable-next-line no-console
+      console.log("[REDIS] No REDIS_URL configured, using in-memory store");
+      if (process.env.NODE_ENV === "production") {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[REDIS] ⚠️ In-memory store in production - rate limiting will not be shared across instances"
+        );
+      }
+      this.client = this.fallback;
+      this.connectionInfo = {
+        connected: true,
+        mode: "memory",
+        reconnectAttempts: 0,
+      };
+      return this.client;
+    }
+
+    try {
+      const { createClient } = await import("redis");
+      const client = createClient({ url: redisUrl });
+
+      client.on("error", (err) => {
+        // eslint-disable-next-line no-console
+        console.error("[REDIS] Client error:", err.message);
+        this.connectionInfo.lastError = err.message;
+        this.connectionInfo.connected = false;
+      });
+
+      client.on("reconnecting", () => {
+        this.connectionInfo.reconnectAttempts++;
+        // eslint-disable-next-line no-console
+        console.log(
+          `[REDIS] Reconnecting (attempt ${this.connectionInfo.reconnectAttempts})...`
+        );
+      });
+
+      client.on("connect", () => {
+        this.connectionInfo.connected = true;
+        this.connectionInfo.lastError = undefined;
+        // eslint-disable-next-line no-console
+        console.log("[REDIS] Connected");
+      });
+
+      await client.connect();
+
+      this.rawClient = client as RedisClientType;
+      this.client = this.createWrapper(client as RedisClientType);
+      this.connectionInfo = {
+        connected: true,
+        mode: "redis",
+        url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "//***:***@"), // Hide credentials
+        reconnectAttempts: 0,
+      };
+
+      // eslint-disable-next-line no-console
+      console.log("[REDIS] ✅ Redis client connected and ready");
+
+      return this.client;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      // eslint-disable-next-line no-console
+      console.error("[REDIS] Failed to connect:", errorMsg);
+      // eslint-disable-next-line no-console
+      console.warn("[REDIS] ⚠️ Falling back to in-memory store");
+
+      this.connectionInfo = {
+        connected: true,
+        mode: "memory",
+        lastError: errorMsg,
+        reconnectAttempts: 0,
+      };
+
+      this.client = this.fallback;
+      return this.client;
+    }
+  }
+
+  private createWrapper(client: RedisClientType): RedisClientWrapper {
+    const factory = this;
+
+    return {
+      async get(key: string): Promise<string | null> {
+        try {
+          return await client.get(key);
+        } catch {
+          return factory.fallback.get(key);
+        }
+      },
+
+      async set(
+        key: string,
+        value: string,
+        options?: { EX?: number }
+      ): Promise<void> {
+        try {
+          if (options?.EX) {
+            await client.set(key, value, { EX: options.EX });
+          } else {
+            await client.set(key, value);
+          }
+        } catch {
+          await factory.fallback.set(key, value, options);
+        }
+      },
+
+      async del(key: string): Promise<number> {
+        try {
+          return await client.del(key);
+        } catch {
+          return factory.fallback.del(key);
+        }
+      },
+
+      async incr(key: string): Promise<number> {
+        try {
+          return await client.incr(key);
+        } catch {
+          return factory.fallback.incr(key);
+        }
+      },
+
+      async expire(key: string, seconds: number): Promise<boolean> {
+        try {
+          return await client.expire(key, seconds);
+        } catch {
+          return factory.fallback.expire(key, seconds);
+        }
+      },
+
+      async ttl(key: string): Promise<number> {
+        try {
+          return await client.ttl(key);
+        } catch {
+          return factory.fallback.ttl(key);
+        }
+      },
+
+      async hGetAll(key: string): Promise<Record<string, string>> {
+        try {
+          return await client.hGetAll(key);
+        } catch {
+          return factory.fallback.hGetAll(key);
+        }
+      },
+
+      async hSet(key: string, field: string, value: string): Promise<number> {
+        try {
+          return await client.hSet(key, field, value);
+        } catch {
+          return factory.fallback.hSet(key, field, value);
+        }
+      },
+
+      async hMSet(key: string, fields: Record<string, string>): Promise<void> {
+        try {
+          await client.hSet(key, fields);
+        } catch {
+          await factory.fallback.hMSet(key, fields);
+        }
+      },
+
+      async hIncrBy(
+        key: string,
+        field: string,
+        increment: number
+      ): Promise<number> {
+        try {
+          return await client.hIncrBy(key, field, increment);
+        } catch {
+          return factory.fallback.hIncrBy(key, field, increment);
+        }
+      },
+
+      async keys(pattern: string): Promise<string[]> {
+        try {
+          return await client.keys(pattern);
+        } catch {
+          return factory.fallback.keys(pattern);
+        }
+      },
+
+      isConnected(): boolean {
+        return factory.connectionInfo.connected;
+      },
+
+      getConnectionInfo(): ConnectionInfo {
+        return { ...factory.connectionInfo };
+      },
+    };
+  }
+
+  /**
+   * Get connection information
+   */
+  getConnectionInfo(): ConnectionInfo {
+    return { ...this.connectionInfo };
+  }
+
+  /**
+   * Gracefully close the Redis connection
+   */
+  async close(): Promise<void> {
+    if (this.rawClient) {
+      try {
+        await this.rawClient.quit();
+        // eslint-disable-next-line no-console
+        console.log("[REDIS] Connection closed");
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("[REDIS] Error closing connection:", error);
+      }
+      this.rawClient = null;
+      this.client = null;
+    }
+    this.initPromise = null;
+  }
+
+  /**
+   * Reset the factory (mainly for testing)
+   */
+  static reset(): void {
+    if (RedisClientFactory.instance) {
+      RedisClientFactory.instance.close().catch(() => {});
+      RedisClientFactory.instance = null;
+    }
+  }
+}
+
+// =============================================================================
+// Exports
+// =============================================================================
+
+/**
+ * Get the shared Redis client instance
+ */
+export async function getRedisClient(): Promise<RedisClientWrapper> {
+  return RedisClientFactory.getInstance().getClient();
+}
+
+/**
+ * Get the Redis client synchronously (returns fallback if not ready)
+ */
+export function getRedisClientSync(): RedisClientWrapper {
+  return RedisClientFactory.getInstance().getClientSync();
+}
+
+/**
+ * Get Redis connection information
+ */
+export function getRedisConnectionInfo(): ConnectionInfo {
+  return RedisClientFactory.getInstance().getConnectionInfo();
+}
+
+/**
+ * Close the Redis connection gracefully
+ */
+export async function closeRedisConnection(): Promise<void> {
+  await RedisClientFactory.getInstance().close();
+}
+
+// Export the factory for advanced use cases
+export { RedisClientFactory };
+

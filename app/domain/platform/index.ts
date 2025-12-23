@@ -1,0 +1,50 @@
+/**
+ * Platform Domain Module
+ *
+ * Exports all platform-related domain types and interfaces.
+ */
+
+// Types
+export {
+  type Platform,
+  type GoogleCredentials,
+  type MetaCredentials,
+  type TikTokCredentials,
+  type PlatformCredentials,
+  type TypedGoogleCredentials,
+  type TypedMetaCredentials,
+  type TypedTikTokCredentials,
+  type TypedPlatformCredentials,
+  type ConversionLineItem,
+  type ConversionData,
+  type PlatformErrorType,
+  type PlatformError,
+  type ConversionApiResponse,
+  type PlatformSendResult,
+  type PixelConfig,
+  type PixelClientConfig,
+  type PixelConfigWithCredentials,
+  PLATFORM_DISPLAY_NAMES,
+  PLATFORMS,
+  isValidPlatform,
+  isGoogleCredentials,
+  isMetaCredentials,
+  isTikTokCredentials,
+  isRetryableError,
+  isRetryableErrorType,
+} from "./platform.types";
+
+// Service interfaces
+export {
+  type CredentialsValidationResult,
+  type IPlatformService,
+  type IPlatformRegistry,
+  type IPlatformOrchestrator,
+  type MultiPlatformSendResult,
+  type PlatformEvent,
+  type ConversionSentEvent,
+  type ConversionFailedEvent,
+  type RateLimitEvent,
+  type PlatformDomainEvent,
+} from "./platform.service";
+

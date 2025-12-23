@@ -1,0 +1,43 @@
+/**
+ * Shop Domain Module
+ *
+ * Exports all shop-related domain types and interfaces.
+ */
+
+// Entity and types
+export {
+  type Shop,
+  type ShopBasic,
+  type ShopWithBilling,
+  type ShopWithConsent,
+  type ShopWithSecurity,
+  type ShopTier,
+  type ConsentStrategy,
+  type ShopStatus,
+  createShop,
+  getShopStatus,
+  isPiiFullyEnabled,
+  isWithinUsageLimits,
+  getAllowedDomains,
+  isDomainAllowed,
+  isInSecretGracePeriod,
+  getEffectiveConsentStrategy,
+  isValidConsentStrategy,
+  isValidShopTier,
+} from "./shop.entity";
+
+// Repository interface
+export {
+  type IShopRepository,
+  type FindShopOptions,
+  type UpdateShopOptions,
+  type ShopUpdateData,
+  type CreateShopData,
+  type ShopEvent,
+  type ShopCreatedEvent,
+  type ShopPlanChangedEvent,
+  type ShopUninstalledEvent,
+  type ShopReinstalledEvent,
+  type ShopDomainEvent,
+} from "./shop.repository";
+

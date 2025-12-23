@@ -2,7 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { logger } from "../utils/logger.server";
 const TRACKING_API_ENABLED = process.env.ENABLE_TRACKING_API === "true";
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request: _request }: LoaderFunctionArgs) => {
     if (!TRACKING_API_ENABLED) {
         logger.info("[P0-06] Tracking API request rejected - endpoint disabled for security review");
         return json({

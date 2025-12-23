@@ -1,9 +1,7 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
 import { Prisma } from "@prisma/client";
-import { generateGooglePixelCode } from "./platforms/google.server";
-import { generateMetaPixelCode } from "./platforms/meta.server";
-import { generateTikTokPixelCode } from "./platforms/tiktok.server";
+// P0-5: Deprecated pixel code generators removed - using server-side CAPI only
 // P0-4: bing and clarity removed - no server-side CAPI implementation
 export type Platform = "google" | "meta" | "tiktok";
 export interface MigrationConfig {

@@ -56,6 +56,12 @@ export const RATE_LIMIT_CONFIG = {
         windowMs: 60 * 1000,
     },
     
+    /** Webhook endpoint: 100 requests per minute */
+    WEBHOOKS: {
+        maxRequests: 100,
+        windowMs: 60 * 1000,
+    },
+    
     /** Maximum keys to track for rate limiting */
     MAX_KEYS: 10000,
     
@@ -611,4 +617,201 @@ export function logConfigStatus(): void {
     if (!result.valid && isProduction()) {
         throw new Error("Invalid configuration - cannot start in production");
     }
+}
+
+// ============================================================================
+// Centralized Configuration Registry
+// ============================================================================
+
+/**
+ * All application configuration in one place.
+ * Use this object to access configuration values throughout the app.
+ */
+export const CONFIG = {
+    // Environment
+    env: {
+        nodeEnv: process.env.NODE_ENV || "development",
+        isProduction: isProduction(),
+        isDevelopment: isDevelopment(),
+    },
+    
+    // API Settings
+    api: API_CONFIG,
+    
+    // Rate Limiting
+    rateLimit: RATE_LIMIT_CONFIG,
+    
+    // Circuit Breaker
+    circuitBreaker: CIRCUIT_BREAKER_CONFIG,
+    
+    // Retry Settings
+    retry: RETRY_CONFIG,
+    
+    // Data Retention
+    retention: RETENTION_CONFIG,
+    
+    // Encryption
+    encryption: ENCRYPTION_CONFIG,
+    
+    // Ingestion Key
+    ingestionKey: INGESTION_KEY_CONFIG,
+    
+    // Shopify API
+    shopify: SHOPIFY_API_CONFIG,
+    
+    // Platform Endpoints
+    platforms: PLATFORM_ENDPOINTS,
+    
+    // CAPI Settings
+    capi: CAPI_CONFIG,
+    
+    // Webhook Processing
+    webhook: WEBHOOK_CONFIG,
+    
+    // Scanner
+    scanner: SCANNER_CONFIG,
+    
+    // Monitoring
+    monitoring: MONITORING_CONFIG,
+    
+    // Feature Flags
+    features: FEATURE_FLAGS,
+    
+    // PCD Status
+    pcd: PCD_CONFIG,
+    
+    // Helper functions
+    getEnv,
+    getRequiredEnv,
+    getBoolEnv,
+    getNumEnv,
+} as const;
+
+// ============================================================================
+// Type-Safe Configuration Access
+// ============================================================================
+
+/**
+ * Get API timeout for a specific service
+ */
+export function getApiTimeout(service: "google" | "meta" | "tiktok" | "default"): number {
+    switch (service) {
+        case "google":
+            return CAPI_CONFIG.GOOGLE.timeout;
+        case "meta":
+            return CAPI_CONFIG.META.timeout;
+        case "tiktok":
+            return CAPI_CONFIG.TIKTOK.timeout;
+        default:
+            return API_CONFIG.DEFAULT_TIMEOUT_MS;
+    }
+}
+
+/**
+ * Get rate limit config for an endpoint
+ */
+export function getRateLimitForEndpoint(endpoint: string): { maxRequests: number; windowMs: number } {
+    switch (endpoint) {
+        case "pixel-events":
+            return RATE_LIMIT_CONFIG.PIXEL_EVENTS;
+        case "survey":
+            return RATE_LIMIT_CONFIG.SURVEY;
+        case "tracking":
+            return RATE_LIMIT_CONFIG.TRACKING;
+        default:
+            return { maxRequests: 100, windowMs: 60 * 1000 };
+    }
+}
+
+/**
+ * Check if a feature is enabled
+ */
+export function isFeatureEnabled(feature: keyof typeof FEATURE_FLAGS): boolean {
+    return FEATURE_FLAGS[feature];
+}
+
+/**
+ * Get all enabled features
+ */
+export function getEnabledFeatures(): string[] {
+    return Object.entries(FEATURE_FLAGS)
+        .filter(([, enabled]) => enabled)
+        .map(([name]) => name);
+}
+
+// ============================================================================
+// Configuration Summary
+// ============================================================================
+
+/**
+ * Get a complete configuration summary for debugging/auditing.
+ */
+export function getConfigSummary(): Record<string, unknown> {
+    return {
+        environment: CONFIG.env,
+        api: {
+            maxBodySize: CONFIG.api.MAX_BODY_SIZE,
+            timestampWindow: CONFIG.api.TIMESTAMP_WINDOW_MS,
+            defaultTimeout: CONFIG.api.DEFAULT_TIMEOUT_MS,
+        },
+        rateLimit: {
+            pixelEvents: CONFIG.rateLimit.PIXEL_EVENTS,
+            survey: CONFIG.rateLimit.SURVEY,
+            maxKeys: CONFIG.rateLimit.MAX_KEYS,
+        },
+        circuitBreaker: {
+            threshold: CONFIG.circuitBreaker.DEFAULT_THRESHOLD,
+            window: CONFIG.circuitBreaker.DEFAULT_WINDOW_MS,
+            recovery: CONFIG.circuitBreaker.RECOVERY_TIME_MS,
+        },
+        retry: {
+            maxAttempts: CONFIG.retry.MAX_ATTEMPTS,
+            initialBackoff: CONFIG.retry.INITIAL_BACKOFF_MS,
+            maxBackoff: CONFIG.retry.MAX_BACKOFF_MS,
+        },
+        retention: getRetentionConfigSummary(),
+        features: getFeatureFlagsSummary(),
+        pcd: getPcdConfigSummary(),
+        shopifyApiVersion: CONFIG.shopify.VERSION,
+    };
+}
+
+/**
+ * Validate all configuration at startup.
+ * Returns errors that should prevent app startup.
+ */
+export function validateAllConfig(): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    // Check API timeouts are reasonable
+    if (API_CONFIG.DEFAULT_TIMEOUT_MS < 1000) {
+        errors.push("API timeout too short (< 1s)");
+    }
+    if (API_CONFIG.DEFAULT_TIMEOUT_MS > 120000) {
+        errors.push("API timeout too long (> 2min)");
+    }
+    
+    // Check rate limits are positive
+    if (RATE_LIMIT_CONFIG.PIXEL_EVENTS.maxRequests <= 0) {
+        errors.push("Pixel events rate limit must be positive");
+    }
+    
+    // Check retention is within bounds
+    if (RETENTION_CONFIG.MIN_DAYS > RETENTION_CONFIG.MAX_DAYS) {
+        errors.push("Retention MIN_DAYS cannot exceed MAX_DAYS");
+    }
+    
+    // Check encryption config
+    if (ENCRYPTION_CONFIG.IV_LENGTH !== 16) {
+        errors.push("IV length must be 16 for AES-256-GCM");
+    }
+    
+    // Validate environment config
+    const envResult = validateConfig();
+    errors.push(...envResult.errors);
+    
+    return {
+        valid: errors.length === 0,
+        errors,
+    };
 }

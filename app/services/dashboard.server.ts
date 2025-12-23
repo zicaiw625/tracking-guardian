@@ -1,0 +1,176 @@
+/**
+ * Dashboard Service
+ *
+ * Provides data aggregation for the main dashboard page.
+ * Encapsulates all business logic for health scoring, setup progress,
+ * and summary statistics.
+ */
+
+import prisma from "../db.server";
+
+// Re-export types from shared module (safe for client import)
+export type {
+  DashboardData,
+  SetupStep,
+  HealthStatus,
+} from "../types/dashboard";
+
+// Re-export helper functions from shared module (safe for client import)
+export {
+  getSetupSteps,
+  getNextSetupStep,
+  getSetupProgress,
+} from "../types/dashboard";
+
+// Import types for internal use
+import type { DashboardData, HealthStatus } from "../types/dashboard";
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+// =============================================================================
+// Health Score Calculation
+// =============================================================================
+
+/**
+ * Calculate health score based on reconciliation report discrepancies.
+ */
+function calculateHealthScore(
+  recentReports: Array<{ orderDiscrepancy: number }>,
+  configuredPlatforms: number
+): { score: number | null; status: HealthStatus } {
+  if (recentReports.length === 0 || configuredPlatforms === 0) {
+    return { score: null, status: "uninitialized" };
+  }
+
+  const avgDiscrepancy =
+    recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length;
+
+  if (avgDiscrepancy > 0.2) {
+    return { score: 40, status: "critical" };
+  }
+  if (avgDiscrepancy > 0.1) {
+    return { score: 70, status: "warning" };
+  }
+  if (avgDiscrepancy > 0.05) {
+    return { score: 85, status: "success" };
+  }
+  return { score: 95, status: "success" };
+}
+
+/**
+ * Analyze script tags from scan report.
+ */
+function analyzeScriptTags(
+  scriptTags: unknown
+): { count: number; hasOrderStatusScripts: boolean } {
+  if (!scriptTags || !Array.isArray(scriptTags)) {
+    return { count: 0, hasOrderStatusScripts: false };
+  }
+
+  const tags = scriptTags as Array<{ display_scope?: string }>;
+  return {
+    count: tags.length,
+    hasOrderStatusScripts: tags.some((tag) => tag.display_scope === "order_status"),
+  };
+}
+
+// =============================================================================
+// Main Dashboard Service
+// =============================================================================
+
+/**
+ * Load dashboard data for a shop.
+ */
+export async function getDashboardData(shopDomain: string): Promise<DashboardData> {
+  const shop = await prisma.shop.findUnique({
+    where: { shopDomain },
+    include: {
+      scanReports: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          status: true,
+          riskScore: true,
+          createdAt: true,
+          identifiedPlatforms: true,
+          scriptTags: true,
+        },
+      },
+      pixelConfigs: {
+        where: { isActive: true },
+        select: { id: true },
+      },
+      reconciliationReports: {
+        orderBy: { reportDate: "desc" },
+        take: 7,
+        select: { orderDiscrepancy: true },
+      },
+      alertConfigs: {
+        where: { isEnabled: true },
+        select: { id: true },
+      },
+      _count: {
+        select: {
+          conversionLogs: {
+            where: {
+              createdAt: {
+                gte: new Date(Date.now() - SEVEN_DAYS_MS),
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!shop) {
+    return {
+      shopDomain,
+      healthScore: null,
+      healthStatus: "uninitialized",
+      latestScan: null,
+      configuredPlatforms: 0,
+      weeklyConversions: 0,
+      hasAlertConfig: false,
+      plan: "free",
+      scriptTagsCount: 0,
+      hasOrderStatusScripts: false,
+    };
+  }
+
+  const configuredPlatforms = shop.pixelConfigs?.length || 0;
+  const { score, status } = calculateHealthScore(
+    shop.reconciliationReports || [],
+    configuredPlatforms
+  );
+
+  const latestScan = shop.scanReports[0];
+  const scriptTagAnalysis = latestScan ? analyzeScriptTags(latestScan.scriptTags) : { count: 0, hasOrderStatusScripts: false };
+
+  return {
+    shopDomain,
+    healthScore: score,
+    healthStatus: status,
+    latestScan: latestScan
+      ? {
+          status: latestScan.status,
+          riskScore: latestScan.riskScore,
+          createdAt: latestScan.createdAt,
+          identifiedPlatforms: (latestScan.identifiedPlatforms as string[]) || [],
+        }
+      : null,
+    configuredPlatforms,
+    weeklyConversions: shop._count?.conversionLogs || 0,
+    hasAlertConfig: (shop.alertConfigs?.length || 0) > 0,
+    plan: shop.plan || "free",
+    scriptTagsCount: scriptTagAnalysis.count,
+    hasOrderStatusScripts: scriptTagAnalysis.hasOrderStatusScripts,
+  };
+}
+
+// Note: getSetupSteps, getNextSetupStep, and getSetupProgress are now 
+// re-exported from ../types/dashboard for client-server code sharing

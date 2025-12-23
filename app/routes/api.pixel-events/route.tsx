@@ -1,0 +1,417 @@
+/**
+ * Pixel Events API - Main Route Handler
+ *
+ * Entry point for pixel event processing.
+ * All logic is delegated to modular handlers.
+ */
+
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { checkRateLimitAsync, createRateLimitResponse, trackAnomaly } from "../../utils/rate-limiter";
+import { checkCircuitBreaker } from "../../utils/circuit-breaker";
+import {
+  validatePixelOriginPreBody,
+  validatePixelOriginForShop,
+  buildShopAllowedDomains,
+} from "../../utils/origin-validation";
+import { logger, metrics } from "../../utils/logger.server";
+import {
+  API_CONFIG,
+  RATE_LIMIT_CONFIG as RATE_LIMITS,
+  CIRCUIT_BREAKER_CONFIG as CIRCUIT_CONFIG,
+} from "../../utils/config";
+
+// Import from modular structure
+import {
+  jsonWithCors,
+  emptyResponseWithCors,
+  optionsResponse,
+  getCorsHeadersPreBody,
+} from "./cors";
+import { validateRequest, isPrimaryEvent } from "./validation";
+import {
+  checkInitialConsent,
+  filterPlatformsByConsent,
+  logNoConsentDrop,
+  logConsentFilterMetrics,
+} from "./consent-filter";
+import {
+  getShopForPixelVerification,
+  validateIngestionKey,
+} from "./key-validation";
+import {
+  isClientEventRecorded,
+  generateOrderMatchKey,
+  evaluateTrustLevel,
+  createEventNonce,
+  upsertPixelEventReceipt,
+  recordConversionLogs,
+  getActivePixelConfigs,
+  generatePurchaseEventId,
+} from "./receipt-handler";
+
+// =============================================================================
+// Configuration
+// =============================================================================
+
+const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
+const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
+const RATE_LIMIT_CONFIG = RATE_LIMITS.PIXEL_EVENTS;
+const CIRCUIT_BREAKER_CONFIG = {
+  threshold: CIRCUIT_CONFIG.DEFAULT_THRESHOLD,
+  windowMs: CIRCUIT_CONFIG.DEFAULT_WINDOW_MS,
+};
+
+// =============================================================================
+// Action Handler
+// =============================================================================
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const origin = request.headers.get("Origin");
+
+  // Handle preflight
+  if (request.method === "OPTIONS") {
+    return optionsResponse(request);
+  }
+
+  // Method check
+  if (request.method !== "POST") {
+    return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
+  }
+
+  // Content-Type check
+  const contentType = request.headers.get("Content-Type");
+  if (!contentType || !contentType.includes("application/json")) {
+    return jsonWithCors(
+      { error: "Content-Type must be application/json" },
+      { status: 415, request }
+    );
+  }
+
+  // Stage 1: Pre-body origin validation
+  const preBodyValidation = validatePixelOriginPreBody(origin);
+  if (!preBodyValidation.valid) {
+    const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+    const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_origin");
+    if (anomalyCheck.shouldBlock) {
+      logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+    }
+    metrics.pixelRejection({
+      shopDomain: shopDomainHeader,
+      reason: "invalid_origin_protocol",
+      originType: preBodyValidation.reason,
+    });
+    if (preBodyValidation.shouldLog) {
+      logger.warn(
+        `Rejected pixel origin at Stage 1: ${origin?.substring(0, 100) || "null"}, ` +
+          `reason: ${preBodyValidation.reason}`
+      );
+    }
+    return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
+  }
+
+  // Timestamp header validation
+  const timestampHeader = request.headers.get("X-Tracking-Guardian-Timestamp");
+  const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
+
+  if (timestampHeader) {
+    const timestamp = parseInt(timestampHeader, 10);
+    if (isNaN(timestamp)) {
+      const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_timestamp");
+      if (anomalyCheck.shouldBlock) {
+        logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+      }
+      logger.debug("Invalid timestamp format, dropping request");
+      return emptyResponseWithCors(request);
+    }
+
+    const now = Date.now();
+    const timeDiff = Math.abs(now - timestamp);
+    if (timeDiff > TIMESTAMP_WINDOW_MS) {
+      const anomalyCheck = trackAnomaly(shopDomainHeader, "invalid_timestamp");
+      if (anomalyCheck.shouldBlock) {
+        logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
+      }
+      logger.debug(`Timestamp outside window: diff=${timeDiff}ms, dropping request`);
+      return emptyResponseWithCors(request);
+    }
+  } else {
+    logger.debug(`Request from ${shopDomainHeader} missing timestamp header`);
+  }
+
+  // Rate limiting
+  const rateLimit = await checkRateLimitAsync(request, "pixel-events", RATE_LIMIT_CONFIG);
+  if (rateLimit.isLimited) {
+    logger.warn(`Rate limit exceeded for pixel-events`, {
+      retryAfter: rateLimit.retryAfter,
+      remaining: rateLimit.remaining,
+    });
+    const rateLimitResponse = createRateLimitResponse(rateLimit.retryAfter);
+    const corsHeaders = getCorsHeadersPreBody(request);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      rateLimitResponse.headers.set(key, value);
+    });
+    return rateLimitResponse;
+  }
+
+  try {
+    // Body size validation
+    const contentLength = parseInt(request.headers.get("Content-Length") || "0", 10);
+    if (contentLength > MAX_BODY_SIZE) {
+      logger.warn(`Payload too large: ${contentLength} bytes (max ${MAX_BODY_SIZE})`);
+      return jsonWithCors(
+        { error: "Payload too large", maxSize: MAX_BODY_SIZE },
+        { status: 413, request }
+      );
+    }
+
+    const bodyText = await request.text();
+    if (bodyText.length > MAX_BODY_SIZE) {
+      logger.warn(`Actual payload too large: ${bodyText.length} bytes (max ${MAX_BODY_SIZE})`);
+      return jsonWithCors(
+        { error: "Payload too large", maxSize: MAX_BODY_SIZE },
+        { status: 413, request }
+      );
+    }
+
+    // Parse JSON
+    let rawBody: unknown;
+    try {
+      rawBody = JSON.parse(bodyText);
+    } catch {
+      return jsonWithCors({ error: "Invalid JSON body" }, { status: 400, request });
+    }
+
+    // Validate request
+    const validation = validateRequest(rawBody);
+    if (!validation.valid) {
+      logger.debug(
+        `Pixel payload validation failed: code=${validation.code}, error=${validation.error}`
+      );
+      return jsonWithCors({ error: "Invalid request" }, { status: 400, request });
+    }
+
+    const { payload } = validation;
+
+    // Circuit breaker check
+    const circuitCheck = await checkCircuitBreaker(payload.shopDomain, CIRCUIT_BREAKER_CONFIG);
+    if (circuitCheck.blocked) {
+      logger.warn(`Circuit breaker blocked request for ${payload.shopDomain}`);
+      return jsonWithCors(
+        {
+          error: circuitCheck.reason,
+          retryAfter: circuitCheck.retryAfter,
+        },
+        {
+          status: 429,
+          request,
+          headers: circuitCheck.retryAfter
+            ? { "Retry-After": String(circuitCheck.retryAfter) }
+            : undefined,
+        }
+      );
+    }
+
+    // Skip non-primary events
+    if (!isPrimaryEvent(payload.eventName)) {
+      logger.debug(`Funnel event received: ${payload.eventName} for ${payload.shopDomain}`);
+      return emptyResponseWithCors(request);
+    }
+
+    // Initial consent check
+    const consentResult = checkInitialConsent(payload.consent);
+    if (!consentResult.hasAnyConsent) {
+      logNoConsentDrop(payload.shopDomain, payload.consent);
+      return emptyResponseWithCors(request);
+    }
+
+    // Get shop data
+    const shop = await getShopForPixelVerification(payload.shopDomain);
+    if (!shop || !shop.isActive) {
+      return jsonWithCors(
+        { error: "Shop not found or inactive" },
+        { status: 404, request }
+      );
+    }
+
+    // Build allowed domains
+    const shopAllowedDomains = buildShopAllowedDomains({
+      shopDomain: shop.shopDomain,
+      primaryDomain: shop.primaryDomain,
+      storefrontDomains: shop.storefrontDomains,
+    });
+
+    // Stage 2: Shop-specific origin validation
+    const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains);
+    if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
+      const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
+      if (anomalyCheck.shouldBlock) {
+        logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+      }
+      metrics.pixelRejection({
+        shopDomain: shop.shopDomain,
+        reason: "origin_not_allowlisted",
+        originType: shopOriginValidation.reason,
+      });
+      logger.warn(
+        `Rejected pixel origin at Stage 2 for ${shop.shopDomain}: ` +
+          `origin=${origin?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
+      );
+      return emptyResponseWithCors(request, shopAllowedDomains);
+    }
+
+    // Key validation
+    const ingestionKey = request.headers.get("X-Tracking-Guardian-Key");
+    const keyValidationOutcome = validateIngestionKey({
+      shop,
+      ingestionKey,
+      shopAllowedDomains,
+    });
+
+    if (keyValidationOutcome.type === "missing_key_prod") {
+      return jsonWithCors({ error: "Forbidden" }, { status: 403, request, shopAllowedDomains });
+    }
+    if (
+      keyValidationOutcome.type === "missing_key_request" ||
+      keyValidationOutcome.type === "key_mismatch"
+    ) {
+      return emptyResponseWithCors(request, shopAllowedDomains);
+    }
+
+    const keyValidation = keyValidationOutcome.result;
+
+    // Evaluate trust
+    const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
+
+    // Generate order match key
+    let matchKeyResult;
+    try {
+      matchKeyResult = generateOrderMatchKey(
+        payload.data.orderId,
+        payload.data.checkoutToken,
+        shop.shopDomain
+      );
+    } catch (error) {
+      logger.debug(`Match key generation failed for shop ${shop.shopDomain}: ${String(error)}`);
+      return jsonWithCors({ error: "Invalid request" }, { status: 400, request, shopAllowedDomains });
+    }
+
+    const { orderId, usedCheckoutTokenAsFallback } = matchKeyResult;
+    const eventId = generatePurchaseEventId(orderId, shop.shopDomain);
+
+    // Check for duplicate
+    const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, "purchase");
+    if (alreadyRecorded) {
+      return jsonWithCors(
+        {
+          success: true,
+          eventId,
+          message: "Client event already recorded",
+          clientSideSent: true,
+        },
+        { request, shopAllowedDomains }
+      );
+    }
+
+    // Get pixel configs
+    const pixelConfigs = await getActivePixelConfigs(shop.id);
+    if (pixelConfigs.length === 0) {
+      return jsonWithCors(
+        {
+          success: true,
+          eventId,
+          message: "No server-side tracking configured - client event acknowledged",
+        },
+        { request, shopAllowedDomains }
+      );
+    }
+
+    // Nonce/replay protection
+    const nonceResult = await createEventNonce(shop.id, orderId, payload.timestamp);
+    if (nonceResult.isReplay) {
+      metrics.pixelRejection({
+        shopDomain: shop.shopDomain,
+        reason: "replay_detected",
+        originType: "nonce_collision",
+      });
+      return emptyResponseWithCors(request, shopAllowedDomains);
+    }
+
+    // Create receipt
+    await upsertPixelEventReceipt(
+      shop.id,
+      orderId,
+      eventId,
+      payload,
+      keyValidation,
+      trustResult,
+      usedCheckoutTokenAsFallback,
+      origin
+    );
+
+    // Check sale of data consent
+    if (!consentResult.saleOfDataAllowed) {
+      logger.debug(
+        `Skipping ConversionLog recording: sale_of_data not explicitly allowed ` +
+          `(saleOfData=${String(payload.consent?.saleOfData)}) [P0-04]`
+      );
+      return jsonWithCors(
+        {
+          success: true,
+          eventId,
+          message: "Sale of data not explicitly allowed - event acknowledged",
+        },
+        { request, shopAllowedDomains }
+      );
+    }
+
+    // Filter platforms by consent
+    const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
+      pixelConfigs,
+      consentResult
+    );
+
+    // Record conversion logs
+    const { recordedPlatforms } = await recordConversionLogs(
+      shop.id,
+      orderId,
+      eventId,
+      payload,
+      platformsToRecord
+    );
+
+    // Log metrics
+    logConsentFilterMetrics(
+      shop.shopDomain,
+      orderId,
+      recordedPlatforms,
+      skippedPlatforms,
+      consentResult
+    );
+
+    return jsonWithCors(
+      {
+        success: true,
+        eventId,
+        message: "Pixel event recorded, CAPI will be sent via webhook",
+        clientSideSent: true,
+        platforms: recordedPlatforms,
+        skippedPlatforms: skippedPlatforms.length > 0 ? skippedPlatforms : undefined,
+        trusted: trustResult.isTrusted,
+        consent: payload.consent || null,
+      },
+      { request, shopAllowedDomains }
+    );
+  } catch (error) {
+    logger.error("Pixel events API error:", error);
+    return jsonWithCors({ error: "Internal server error" }, { status: 500, request });
+  }
+};
+
+// =============================================================================
+// Loader Handler
+// =============================================================================
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  return jsonWithCors({ status: "ok", endpoint: "pixel-events" }, { request });
+};
+

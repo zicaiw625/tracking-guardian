@@ -8,9 +8,9 @@
 import prisma from "../db.server";
 import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "./billing.server";
 import { getDecryptedCredentials } from "./credentials.server";
-import { sendConversionToGoogle } from "./platforms/google.server";
-import { sendConversionToMeta } from "./platforms/meta.server";
-import { sendConversionToTikTok } from "./platforms/tiktok.server";
+import { sendConversionToGoogle } from "./platforms/google.service";
+import { sendConversionToMeta } from "./platforms/meta.service";
+import { sendConversionToTikTok } from "./platforms/tiktok.service";
 import { generateEventId, matchKeysEqual } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
 import {
@@ -31,6 +31,15 @@ import type {
   MetaCredentials,
   TikTokCredentials,
   PlatformCredentials,
+  ConversionApiResponse,
+} from "../types";
+import type { PlatformSendResult } from "./platforms/interface";
+import {
+  JobStatus,
+  SignatureStatus,
+  parseCapiInput,
+  parseConsentState,
+  parsePixelClientConfig,
 } from "../types";
 
 // Constants for retry timing
@@ -77,7 +86,7 @@ async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
       const jobIds = availableJobs.map((j) => j.id);
       await tx.conversionJob.updateMany({
         where: { id: { in: jobIds } },
-        data: { status: "processing" },
+        data: { status: JobStatus.PROCESSING },
       });
 
       return jobIds;
@@ -134,7 +143,10 @@ async function batchFetchReceipts(
   const shopIds = [...new Set(jobs.map(j => j.shopId))];
   const orderIds = jobs.map(j => j.orderId);
   const checkoutTokens = jobs
-    .map(j => (j.capiInput as { checkoutToken?: string } | null)?.checkoutToken)
+    .map(j => {
+      const parsed = parseCapiInput(j.capiInput);
+      return parsed?.checkoutToken;
+    })
     .filter((t): t is string => !!t);
 
   // Single batch query for all potential receipts
@@ -240,35 +252,47 @@ async function findReceiptForJob(
 
 /**
  * Send conversion to a specific platform.
+ * Returns typed result for type-safe error handling.
  */
 async function sendToPlatform(
   platform: string,
   credentials: PlatformCredentials,
   conversionData: ConversionData,
   eventId: string
-): Promise<unknown> {
+): Promise<PlatformSendResult> {
+  let result: PlatformSendResult;
+  
   switch (platform) {
     case "google":
-      return sendConversionToGoogle(
+      result = await sendConversionToGoogle(
         credentials as GoogleCredentials,
         conversionData,
         eventId
       );
+      break;
     case "meta":
-      return sendConversionToMeta(
+      result = await sendConversionToMeta(
         credentials as MetaCredentials,
         conversionData,
         eventId
       );
+      break;
     case "tiktok":
-      return sendConversionToTikTok(
+      result = await sendConversionToTikTok(
         credentials as TikTokCredentials,
         conversionData,
         eventId
       );
+      break;
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }
+  
+  if (!result.success) {
+    throw new Error(result.error?.message || "Platform send failed");
+  }
+  
+  return result;
 }
 
 /**
@@ -364,7 +388,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         await prisma.conversionJob.update({
           where: { id: job.id },
           data: {
-            status: "limit_exceeded",
+            status: JobStatus.LIMIT_EXCEEDED,
             errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
             lastAttemptAt: now,
           },
@@ -379,7 +403,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         await prisma.conversionJob.update({
           where: { id: job.id },
           data: {
-            status: "completed",
+            status: JobStatus.COMPLETED,
             processedAt: now,
             completedAt: now,
             platformResults: { message: "No platforms configured" },
@@ -390,15 +414,15 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
       }
 
       const eventId = generateEventId(job.orderId, "purchase", job.shop.shopDomain);
-      const capiInputRaw = job.capiInput as { checkoutToken?: string } | null;
-      const webhookCheckoutToken = capiInputRaw?.checkoutToken;
+      const capiInputParsed = parseCapiInput(job.capiInput);
+      const webhookCheckoutToken = capiInputParsed?.checkoutToken;
 
       // Find matching receipt from pre-fetched map (falls back to DB for fuzzy matching)
       const receipt = await findReceiptForJob(
         receiptMap,
         job.shopId,
         job.orderId,
-        webhookCheckoutToken,
+        webhookCheckoutToken ?? undefined,
         job.createdAt
       );
 
@@ -412,7 +436,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
       const trustResult: ReceiptTrustResult = verifyReceiptTrust({
         receiptCheckoutToken: receipt?.checkoutToken,
         webhookCheckoutToken,
-        ingestionKeyMatched: receipt?.signatureStatus === "key_matched",
+        ingestionKeyMatched: receipt?.signatureStatus === SignatureStatus.KEY_MATCHED,
         receiptExists: !!receipt,
         receiptOriginHost: receipt?.originHost,
         allowedDomains: shopAllowedDomains,
@@ -449,14 +473,10 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         }
       }
 
-      // Parse consent state
+      // Parse consent state using type-safe parser
       // P0-04: saleOfData must be EXPLICITLY true, not just "not false"
       // undefined/null/missing = NOT allowed (strict deny-by-default interpretation)
-      const rawConsentState = receipt?.consentState as {
-        marketing?: boolean;
-        analytics?: boolean;
-        saleOfData?: boolean;
-      } | null;
+      const rawConsentState = parseConsentState(receipt?.consentState);
 
       const consentState: ConsentState | null = rawConsentState
         ? {
@@ -479,7 +499,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
       const strategy = job.shop.consentStrategy || "strict";
 
       for (const pixelConfig of job.shop.pixelConfigs) {
-        const clientConfig = pixelConfig.clientConfig as { treatAsMarketing?: boolean } | null;
+        const clientConfig = parsePixelClientConfig(pixelConfig.clientConfig);
         const treatAsMarketing = clientConfig?.treatAsMarketing === true;
         const platformCategory = getEffectiveConsentCategory(pixelConfig.platform, treatAsMarketing);
 
@@ -546,20 +566,8 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
             continue;
           }
 
-          // Build conversion data
-          const capiInput = job.capiInput as {
-            items?: Array<{
-              productId?: string;
-              variantId?: string;
-              name?: string;
-              quantity?: number;
-              price?: number;
-            }>;
-            tax?: number;
-            shipping?: number;
-          } | null;
-
-          const lineItems = capiInput?.items?.map((item) => ({
+          // Build conversion data using type-safe parsed input
+          const lineItems = capiInputParsed?.items?.map((item) => ({
             productId: item.productId || "",
             variantId: item.variantId || "",
             name: item.name || "",
@@ -593,7 +601,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         await prisma.conversionJob.update({
           where: { id: job.id },
           data: {
-            status: "completed",
+            status: JobStatus.COMPLETED,
             attempts: newAttempts,
             lastAttemptAt: now,
             processedAt: now,
@@ -617,7 +625,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
           await prisma.conversionJob.update({
             where: { id: job.id },
             data: {
-              status: "dead_letter",
+              status: JobStatus.DEAD_LETTER,
               attempts: newAttempts,
               lastAttemptAt: now,
               platformResults,
@@ -629,7 +637,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
           await prisma.conversionJob.update({
             where: { id: job.id },
             data: {
-              status: "failed",
+              status: JobStatus.FAILED,
               attempts: newAttempts,
               lastAttemptAt: now,
               nextRetryAt,
@@ -648,7 +656,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         .update({
           where: { id: job.id },
           data: {
-            status: "failed",
+            status: JobStatus.FAILED,
             attempts: job.attempts + 1,
             lastAttemptAt: now,
             nextRetryAt: calculateNextRetryTime(job.attempts + 1),
@@ -678,3 +686,37 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
   };
 }
 
+// =============================================================================
+// Re-exports from Split Modules (for new consumers)
+// =============================================================================
+
+/**
+ * The conversion job processing logic has been modularized into:
+ * - receipt-matcher.server.ts: Receipt lookup and matching
+ * - trust-evaluator.server.ts: Trust and consent evaluation
+ * - job-processor.server.ts: Main processing orchestration
+ * 
+ * This file is kept for backwards compatibility.
+ * New code should import from job-processor.server.ts.
+ */
+export { 
+  batchFetchReceipts,
+  findReceiptForJob,
+  updateReceiptTrustLevel,
+  type ReceiptFields as ReceiptFieldsNew,
+  type JobForReceiptMatch,
+} from './receipt-matcher.server';
+
+export {
+  evaluateTrust,
+  checkPlatformEligibility,
+  buildConsentEvidence,
+  DEFAULT_TRUST_OPTIONS,
+  type ShopTrustContext,
+  type TrustEvaluationResult,
+  type PlatformEligibilityResult,
+} from './trust-evaluator.server';
+
+export {
+  processConversionJobs as processConversionJobsNew,
+} from './job-processor.server';

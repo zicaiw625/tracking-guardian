@@ -1,325 +1,301 @@
+/**
+ * Circuit Breaker
+ *
+ * Protects services from cascading failures by tracking error rates
+ * and temporarily blocking requests when thresholds are exceeded.
+ * Uses the unified Redis client factory for connection management.
+ *
+ * Features:
+ * - Configurable thresholds and cooldown periods
+ * - Redis support for multi-instance deployments
+ * - Automatic fallback to in-memory when Redis is unavailable
+ * - Connection status monitoring
+ */
+
+import { getRedisClient, type RedisClientWrapper } from "./redis-client";
 import { logger } from "./logger.server";
 
-interface CircuitBreakerState {
-    count: number;
-    resetTime: number;
-    tripped: boolean;
+// =============================================================================
+// Types
+// =============================================================================
+
+export interface CircuitBreakerState {
+  count: number;
+  resetTime: number;
+  tripped: boolean;
 }
-interface CircuitBreakerConfig {
-    threshold: number;
-    windowMs: number;
-    cooldownMs?: number;
+
+export interface CircuitBreakerConfig {
+  threshold: number;
+  windowMs: number;
+  cooldownMs?: number;
 }
-interface CircuitBreakerStore {
-    getState(key: string): Promise<CircuitBreakerState | null>;
-    setState(key: string, state: CircuitBreakerState): Promise<void>;
-    increment(key: string, config: CircuitBreakerConfig): Promise<CircuitBreakerState>;
-    trip(key: string, config: CircuitBreakerConfig): Promise<void>;
-    reset(key: string): Promise<void>;
-    cleanup(): Promise<void>;
+
+export interface CircuitBreakerResult {
+  blocked: boolean;
+  reason?: string;
+  count?: number;
+  retryAfter?: number;
 }
-class InMemoryCircuitBreakerStore implements CircuitBreakerStore {
-    private store = new Map<string, CircuitBreakerState>();
-    private maxSize: number;
-    constructor(maxSize = 5000) {
-        this.maxSize = maxSize;
-    }
-    async getState(key: string): Promise<CircuitBreakerState | null> {
-        const state = this.store.get(key);
-        if (!state)
-            return null;
-        if (state.resetTime < Date.now()) {
-            this.store.delete(key);
-            return null;
-        }
-        return state;
-    }
-    async setState(key: string, state: CircuitBreakerState): Promise<void> {
-        if (this.store.size >= this.maxSize && !this.store.has(key)) {
-            this.cleanup();
-        }
-        this.store.set(key, state);
-    }
-    async increment(key: string, config: CircuitBreakerConfig): Promise<CircuitBreakerState> {
-        const now = Date.now();
-        let state = await this.getState(key);
-        if (!state) {
-            state = {
-                count: 1,
-                resetTime: now + config.windowMs,
-                tripped: false,
-            };
-        }
-        else if (state.tripped) {
-            return state;
-        }
-        else {
-            state.count++;
-            if (state.count > config.threshold) {
-                state.tripped = true;
-                state.resetTime = now + (config.cooldownMs || config.windowMs);
-            }
-        }
-        await this.setState(key, state);
-        return state;
-    }
-    async trip(key: string, config: CircuitBreakerConfig): Promise<void> {
-        const now = Date.now();
-        const state: CircuitBreakerState = {
-            count: config.threshold + 1,
-            resetTime: now + (config.cooldownMs || config.windowMs),
-            tripped: true,
-        };
-        await this.setState(key, state);
-    }
-    async reset(key: string): Promise<void> {
-        this.store.delete(key);
-    }
-    async cleanup(): Promise<void> {
-        const now = Date.now();
-        for (const [key, state] of this.store.entries()) {
-            if (state.resetTime < now) {
-                this.store.delete(key);
-            }
-        }
-        if (this.store.size >= this.maxSize * 0.8) {
-            const entries = Array.from(this.store.entries())
-                .sort((a, b) => a[1].resetTime - b[1].resetTime);
-            const targetSize = Math.floor(this.maxSize * 0.7);
-            const toRemove = Math.max(0, entries.length - targetSize);
-            for (let i = 0; i < toRemove; i++) {
-                this.store.delete(entries[i][0]);
-            }
-        }
-    }
-}
-class RedisCircuitBreakerStore implements CircuitBreakerStore {
-    private redisUrl: string;
-    private redis: {
-        hGetAll: (key: string) => Promise<Record<string, string>>;
-        hSet: (key: string, field: string, value: string) => Promise<number>;
-        hMSet: (key: string, fields: Record<string, string>) => Promise<"OK">;
-        hIncrBy: (key: string, field: string, increment: number) => Promise<number>;
-        expire: (key: string, seconds: number) => Promise<boolean>;
-        del: (key: string) => Promise<number>;
-        ttl: (key: string) => Promise<number>;
-    } | null = null;
-    private prefix = "tg:cb:";
-    private initPromise: Promise<void>;
-    private fallbackStore = new InMemoryCircuitBreakerStore();
-    private initFailed = false;
-    constructor(redisUrl: string) {
-        this.redisUrl = redisUrl;
-        this.initPromise = this.initRedis();
-    }
-    private async initRedis(): Promise<void> {
-        try {
-            const { createClient } = await import("redis");
-            const client = createClient({ url: this.redisUrl });
-            client.on("error", (err) => {
-                // eslint-disable-next-line no-console
-                console.error("[REDIS] Circuit breaker error:", err);
-                this.redis = null;
-                this.initFailed = true;
-            });
-            client.on("reconnecting", () => {
-                // eslint-disable-next-line no-console
-                console.log("[REDIS] Circuit breaker reconnecting...");
-            });
-            await client.connect();
-            this.redis = {
-                hGetAll: (key) => client.hGetAll(key),
-                hSet: (key, field, value) => client.hSet(key, field, value),
-                hMSet: (key, fields) => client.hSet(key, fields).then(() => "OK" as const),
-                hIncrBy: (key, field, increment) => client.hIncrBy(key, field, increment),
-                expire: (key, seconds) => client.expire(key, seconds),
-                del: (key) => client.del(key),
-                ttl: (key) => client.ttl(key),
-            };
-            this.initFailed = false;
-            // eslint-disable-next-line no-console
-            console.log("[STARTUP] ✅ Redis circuit breaker connected");
-        }
-        catch (error) {
-            // eslint-disable-next-line no-console
-            console.error("[STARTUP] Failed to initialize Redis circuit breaker:", error);
-            // eslint-disable-next-line no-console
-            console.warn("[STARTUP] ⚠️ Falling back to in-memory circuit breaker");
-            this.initFailed = true;
-        }
-    }
-    private getRedisKey(key: string): string {
-        return `${this.prefix}${key}`;
-    }
-    async getState(key: string): Promise<CircuitBreakerState | null> {
-        await this.initPromise;
-        if (!this.redis || this.initFailed) {
-            return this.fallbackStore.getState(key);
-        }
-        try {
-            const redisKey = this.getRedisKey(key);
-            const data = await this.redis.hGetAll(redisKey);
-            if (!data || Object.keys(data).length === 0) {
-                return null;
-            }
-            const ttl = await this.redis.ttl(redisKey);
-            if (ttl <= 0) {
-                return null;
-            }
-            return {
-                count: parseInt(data.count || "0", 10),
-                resetTime: Date.now() + ttl * 1000,
-                tripped: data.tripped === "1",
-            };
-        }
-        catch (error) {
-            logger.error("Redis getState error", error);
-            return this.fallbackStore.getState(key);
-        }
-    }
-    async setState(key: string, state: CircuitBreakerState): Promise<void> {
-        await this.initPromise;
-        if (!this.redis || this.initFailed) {
-            return this.fallbackStore.setState(key, state);
-        }
-        try {
-            const redisKey = this.getRedisKey(key);
-            const ttlSeconds = Math.max(1, Math.ceil((state.resetTime - Date.now()) / 1000));
-            await this.redis.hMSet(redisKey, {
-                count: String(state.count),
-                tripped: state.tripped ? "1" : "0",
-            });
-            await this.redis.expire(redisKey, ttlSeconds);
-        }
-        catch (error) {
-            logger.error("Redis setState error", error);
-            await this.fallbackStore.setState(key, state);
-        }
-    }
-    async increment(key: string, config: CircuitBreakerConfig): Promise<CircuitBreakerState> {
-        await this.initPromise;
-        if (!this.redis || this.initFailed) {
-            return this.fallbackStore.increment(key, config);
-        }
-        try {
-            const redisKey = this.getRedisKey(key);
-            const windowSeconds = Math.ceil(config.windowMs / 1000);
-            const count = await this.redis.hIncrBy(redisKey, "count", 1);
-            if (count === 1) {
-                await this.redis.expire(redisKey, windowSeconds);
-            }
-            const tripped = count > config.threshold;
-            if (tripped) {
-                const cooldownSeconds = Math.ceil((config.cooldownMs || config.windowMs) / 1000);
-                await this.redis.hSet(redisKey, "tripped", "1");
-                await this.redis.expire(redisKey, cooldownSeconds);
-            }
-            const ttl = await this.redis.ttl(redisKey);
-            return {
-                count,
-                resetTime: Date.now() + (ttl > 0 ? ttl * 1000 : config.windowMs),
-                tripped,
-            };
-        }
-        catch (error) {
-            logger.error("Redis increment error", error);
-            return this.fallbackStore.increment(key, config);
-        }
-    }
-    async trip(key: string, config: CircuitBreakerConfig): Promise<void> {
-        await this.initPromise;
-        if (!this.redis || this.initFailed) {
-            return this.fallbackStore.trip(key, config);
-        }
-        try {
-            const redisKey = this.getRedisKey(key);
-            const cooldownSeconds = Math.ceil((config.cooldownMs || config.windowMs) / 1000);
-            await this.redis.hMSet(redisKey, {
-                count: String(config.threshold + 1),
-                tripped: "1",
-            });
-            await this.redis.expire(redisKey, cooldownSeconds);
-        }
-        catch (error) {
-            logger.error("Redis trip error", error);
-            await this.fallbackStore.trip(key, config);
-        }
-    }
-    async reset(key: string): Promise<void> {
-        await this.initPromise;
-        if (!this.redis || this.initFailed) {
-            return this.fallbackStore.reset(key);
-        }
-        try {
-            await this.redis.del(this.getRedisKey(key));
-        }
-        catch (error) {
-            logger.error("Redis reset error", error);
-            await this.fallbackStore.reset(key);
-        }
-    }
-    async cleanup(): Promise<void> {
-    }
-}
-let circuitBreakerStore: CircuitBreakerStore;
-if (process.env.REDIS_URL) {
-    circuitBreakerStore = new RedisCircuitBreakerStore(process.env.REDIS_URL);
-    // eslint-disable-next-line no-console
-    console.log("[STARTUP] 🔌 Circuit breaker: Redis mode (multi-instance)");
-}
-else {
-    circuitBreakerStore = new InMemoryCircuitBreakerStore(parseInt(process.env.CIRCUIT_BREAKER_MAX_KEYS || "5000", 10));
-    if (process.env.NODE_ENV === "production") {
-        // eslint-disable-next-line no-console
-        console.warn("[STARTUP] ⚠️ Circuit breaker using in-memory store. " +
-            "For multi-instance deployments, set REDIS_URL for shared state.");
-    }
-}
+
+// =============================================================================
+// Configuration
+// =============================================================================
+
+const CIRCUIT_BREAKER_PREFIX = "tg:cb:";
+
 const DEFAULT_CONFIG: CircuitBreakerConfig = {
-    threshold: 10000,
-    windowMs: 60 * 1000,
-    cooldownMs: 60 * 1000,
+  threshold: 10000,
+  windowMs: 60 * 1000,
+  cooldownMs: 60 * 1000,
 };
-export async function checkCircuitBreaker(identifier: string, config: Partial<CircuitBreakerConfig> = {}): Promise<{
-    blocked: boolean;
-    reason?: string;
-    count?: number;
-    retryAfter?: number;
-}> {
-    const finalConfig = { ...DEFAULT_CONFIG, ...config };
-    try {
-        const state = await circuitBreakerStore.increment(identifier, finalConfig);
-        if (state.tripped) {
-            const retryAfter = Math.ceil((state.resetTime - Date.now()) / 1000);
-            if (state.count === finalConfig.threshold + 1) {
-                logger.error(`🚨 Circuit breaker TRIPPED for ${identifier}: ${state.count} requests in ${finalConfig.windowMs}ms`);
-            }
-            return {
-                blocked: true,
-                reason: `Circuit breaker tripped. Retry after ${retryAfter}s`,
-                count: state.count,
-                retryAfter,
-            };
-        }
-        return {
-            blocked: false,
-            count: state.count,
-        };
-    }
-    catch (error) {
-        logger.error("Circuit breaker check error", error);
-        return { blocked: false };
-    }
+
+// =============================================================================
+// Core Functions
+// =============================================================================
+
+function getKey(identifier: string): string {
+  return `${CIRCUIT_BREAKER_PREFIX}${identifier}`;
 }
-export async function tripCircuitBreaker(identifier: string, config: Partial<CircuitBreakerConfig> = {}): Promise<void> {
-    const finalConfig = { ...DEFAULT_CONFIG, ...config };
-    await circuitBreakerStore.trip(identifier, finalConfig);
+
+async function getState(
+  client: RedisClientWrapper,
+  key: string
+): Promise<CircuitBreakerState | null> {
+  try {
+    const data = await client.hGetAll(key);
+
+    if (!data || Object.keys(data).length === 0) {
+      return null;
+    }
+
+    const ttl = await client.ttl(key);
+    if (ttl <= 0) {
+      return null;
+    }
+
+    return {
+      count: parseInt(data.count || "0", 10),
+      resetTime: Date.now() + ttl * 1000,
+      tripped: data.tripped === "1",
+    };
+  } catch (error) {
+    logger.error("Circuit breaker getState error", error);
+    return null;
+  }
+}
+
+async function incrementCounter(
+  client: RedisClientWrapper,
+  key: string,
+  config: CircuitBreakerConfig
+): Promise<CircuitBreakerState> {
+  const now = Date.now();
+  const windowSeconds = Math.ceil(config.windowMs / 1000);
+  const cooldownSeconds = Math.ceil((config.cooldownMs || config.windowMs) / 1000);
+
+  try {
+    // Increment counter
+    const count = await client.hIncrBy(key, "count", 1);
+
+    // Set expiry on first increment
+    if (count === 1) {
+      await client.expire(key, windowSeconds);
+    }
+
+    // Check if tripped
+    const tripped = count > config.threshold;
+
+    if (tripped) {
+      await client.hSet(key, "tripped", "1");
+      await client.expire(key, cooldownSeconds);
+    }
+
+    const ttl = await client.ttl(key);
+
+    return {
+      count,
+      resetTime: now + (ttl > 0 ? ttl * 1000 : config.windowMs),
+      tripped,
+    };
+  } catch (error) {
+    logger.error("Circuit breaker increment error", error);
+    // Return safe default
+    return {
+      count: 1,
+      resetTime: now + config.windowMs,
+      tripped: false,
+    };
+  }
+}
+
+async function tripBreaker(
+  client: RedisClientWrapper,
+  key: string,
+  config: CircuitBreakerConfig
+): Promise<void> {
+  const cooldownSeconds = Math.ceil((config.cooldownMs || config.windowMs) / 1000);
+
+  try {
+    await client.hMSet(key, {
+      count: String(config.threshold + 1),
+      tripped: "1",
+    });
+    await client.expire(key, cooldownSeconds);
+  } catch (error) {
+    logger.error("Circuit breaker trip error", error);
+  }
+}
+
+async function resetBreaker(
+  client: RedisClientWrapper,
+  key: string
+): Promise<void> {
+  try {
+    await client.del(key);
+  } catch (error) {
+    logger.error("Circuit breaker reset error", error);
+  }
+}
+
+// =============================================================================
+// Public API
+// =============================================================================
+
+/**
+ * Check circuit breaker status and increment counter.
+ * Returns whether the request should be blocked.
+ */
+export async function checkCircuitBreaker(
+  identifier: string,
+  config: Partial<CircuitBreakerConfig> = {}
+): Promise<CircuitBreakerResult> {
+  const finalConfig = { ...DEFAULT_CONFIG, ...config };
+  const key = getKey(identifier);
+
+  try {
+    const client = await getRedisClient();
+    const state = await incrementCounter(client, key, finalConfig);
+
+    if (state.tripped) {
+      const retryAfter = Math.ceil((state.resetTime - Date.now()) / 1000);
+
+      // Log only when first tripped
+      if (state.count === finalConfig.threshold + 1) {
+        logger.error(
+          `🚨 Circuit breaker TRIPPED for ${identifier}: ` +
+            `${state.count} requests in ${finalConfig.windowMs}ms`
+        );
+      }
+
+      return {
+        blocked: true,
+        reason: `Circuit breaker tripped. Retry after ${retryAfter}s`,
+        count: state.count,
+        retryAfter,
+      };
+    }
+
+    return {
+      blocked: false,
+      count: state.count,
+    };
+  } catch (error) {
+    logger.error("Circuit breaker check error", error);
+    // Fail open - don't block on errors
+    return { blocked: false };
+  }
+}
+
+/**
+ * Manually trip the circuit breaker for an identifier.
+ */
+export async function tripCircuitBreaker(
+  identifier: string,
+  config: Partial<CircuitBreakerConfig> = {}
+): Promise<void> {
+  const finalConfig = { ...DEFAULT_CONFIG, ...config };
+  const key = getKey(identifier);
+
+  try {
+    const client = await getRedisClient();
+    await tripBreaker(client, key, finalConfig);
     logger.warn(`Circuit breaker manually tripped for ${identifier}`);
+  } catch (error) {
+    logger.error("Failed to trip circuit breaker", error);
+  }
 }
+
+/**
+ * Reset the circuit breaker for an identifier.
+ */
 export async function resetCircuitBreaker(identifier: string): Promise<void> {
-    await circuitBreakerStore.reset(identifier);
+  const key = getKey(identifier);
+
+  try {
+    const client = await getRedisClient();
+    await resetBreaker(client, key);
+    logger.info(`Circuit breaker reset for ${identifier}`);
+  } catch (error) {
+    logger.error("Failed to reset circuit breaker", error);
+  }
 }
-export async function getCircuitBreakerState(identifier: string): Promise<CircuitBreakerState | null> {
-    return circuitBreakerStore.getState(identifier);
+
+/**
+ * Get the current state of the circuit breaker.
+ */
+export async function getCircuitBreakerState(
+  identifier: string
+): Promise<CircuitBreakerState | null> {
+  const key = getKey(identifier);
+
+  try {
+    const client = await getRedisClient();
+    return await getState(client, key);
+  } catch (error) {
+    logger.error("Failed to get circuit breaker state", error);
+    return null;
+  }
 }
-export type { CircuitBreakerConfig, CircuitBreakerState };
+
+/**
+ * Check if an identifier is currently blocked.
+ */
+export async function isCircuitBreakerTripped(
+  identifier: string
+): Promise<boolean> {
+  const state = await getCircuitBreakerState(identifier);
+  return state?.tripped ?? false;
+}
+
+/**
+ * Get circuit breaker statistics.
+ */
+export async function getCircuitBreakerStats(): Promise<{
+  activeBreakers: number;
+  trippedBreakers: number;
+}> {
+  try {
+    const client = await getRedisClient();
+    const keys = await client.keys(`${CIRCUIT_BREAKER_PREFIX}*`);
+
+    let trippedCount = 0;
+
+    for (const key of keys) {
+      const data = await client.hGetAll(key);
+      if (data.tripped === "1") {
+        trippedCount++;
+      }
+    }
+
+    return {
+      activeBreakers: keys.length,
+      trippedBreakers: trippedCount,
+    };
+  } catch {
+    return {
+      activeBreakers: 0,
+      trippedBreakers: 0,
+    };
+  }
+}

@@ -11,7 +11,8 @@ interface DiagnosticCheck {
     message: string;
     details?: string;
 }
-interface DiagnosticsData {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface _DiagnosticsData {
     checks: DiagnosticCheck[];
     summary: {
         total: number;
@@ -139,7 +140,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             });
         }
     }
-    catch (error) {
+    catch {
         checks.push({
             name: "Web Pixel",
             status: "warning",
@@ -865,7 +866,7 @@ export default function DiagnosticsPage() {
                     <Text as="p" variant="bodySm">
                       ✅ 应该看到：<code>POST /api/pixel-events</code> 请求
                       <br />
-                      ✅ 请求体包含：<code>eventName: "checkout_completed"</code>
+                      ✅ 请求体包含：<code>eventName: &quot;checkout_completed&quot;</code>
                       <br />
                       ✅ 响应状态：<code>200 OK</code> 或 <code>204 No Content</code>
                     </Text>

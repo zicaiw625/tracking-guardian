@@ -1,373 +1,951 @@
+/**
+ * Structured Logger with Correlation ID Support
+ *
+ * Provides structured logging with:
+ * - Correlation ID propagation across requests
+ * - Automatic PII redaction
+ * - Structured JSON output in production
+ * - Pretty output in development
+ */
+
 import { randomBytes } from "crypto";
+import { AsyncLocalStorage } from "async_hooks";
+
+// =============================================================================
+// Types
+// =============================================================================
+
 type LogLevel = "debug" | "info" | "warn" | "error";
+
 interface LogContext {
-    [key: string]: unknown;
+  [key: string]: unknown;
 }
+
+/**
+ * Correlation context stored in AsyncLocalStorage
+ */
+interface CorrelationContext {
+  correlationId: string;
+  shopDomain?: string;
+  orderId?: string;
+  jobId?: string;
+  platform?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Structured log entry
+ */
+interface LogEntry {
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  correlationId?: string;
+  shopDomain?: string;
+  orderId?: string;
+  jobId?: string;
+  platform?: string;
+  duration?: number;
+  error?: {
+    name?: string;
+    message?: string;
+    stack?: string;
+  };
+  [key: string]: unknown;
+}
+
+// =============================================================================
+// Constants
+// =============================================================================
+
 const REQUEST_ID_HEADER = "X-Request-Id";
-export function generateRequestId(): string {
-    return randomBytes(8).toString("hex");
-}
-export function getRequestId(request: Request): string {
-    return request.headers.get(REQUEST_ID_HEADER) || generateRequestId();
-}
+const CORRELATION_ID_HEADER = "X-Correlation-Id";
+
 const LOG_LEVELS: Record<LogLevel, number> = {
-    debug: 0,
-    info: 1,
-    warn: 2,
-    error: 3,
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
 };
-const MIN_LOG_LEVEL: LogLevel = process.env.NODE_ENV === "production" ? "warn" : "debug";
-function formatMessage(level: LogLevel, message: string, context?: LogContext): string {
-    const timestamp = new Date().toISOString();
-    const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
-    if (context && Object.keys(context).length > 0) {
-        const sanitizedContext = sanitizeContext(context);
-        return `${prefix} ${message} ${JSON.stringify(sanitizedContext)}`;
-    }
-    return `${prefix} ${message}`;
+
+const MIN_LOG_LEVEL: LogLevel =
+  process.env.NODE_ENV === "production" ? "info" : "debug";
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+// =============================================================================
+// AsyncLocalStorage for Correlation Context
+// =============================================================================
+
+const correlationStorage = new AsyncLocalStorage<CorrelationContext>();
+
+/**
+ * Generate a unique correlation ID
+ */
+export function generateCorrelationId(): string {
+  return randomBytes(12).toString("hex");
 }
+
+/**
+ * Generate a request ID (shorter, for logging)
+ */
+export function generateRequestId(): string {
+  return randomBytes(8).toString("hex");
+}
+
+/**
+ * Get request ID from request headers or generate new one
+ */
+export function getRequestId(request: Request): string {
+  return request.headers.get(REQUEST_ID_HEADER) || generateRequestId();
+}
+
+/**
+ * Get correlation ID from request headers or generate new one
+ */
+export function getCorrelationId(request: Request): string {
+  return (
+    request.headers.get(CORRELATION_ID_HEADER) ||
+    request.headers.get(REQUEST_ID_HEADER) ||
+    generateCorrelationId()
+  );
+}
+
+/**
+ * Run a function with correlation context
+ */
+export function withCorrelation<T>(
+  context: Partial<CorrelationContext>,
+  fn: () => T
+): T {
+  const existingContext = correlationStorage.getStore();
+  const newContext: CorrelationContext = {
+    correlationId: context.correlationId || existingContext?.correlationId || generateCorrelationId(),
+    ...existingContext,
+    ...context,
+  };
+  return correlationStorage.run(newContext, fn);
+}
+
+/**
+ * Get current correlation context
+ */
+export function getCorrelationContext(): CorrelationContext | undefined {
+  return correlationStorage.getStore();
+}
+
+/**
+ * Set additional context in current correlation
+ */
+export function setCorrelationField(key: string, value: unknown): void {
+  const context = correlationStorage.getStore();
+  if (context) {
+    context[key] = value;
+  }
+}
+
+// =============================================================================
+// Sensitive Data Redaction
+// =============================================================================
+
 const SENSITIVE_FIELD_PATTERNS = [
-    "accesstoken",
-    "access_token",
-    "apisecret",
-    "api_secret",
-    "password",
-    "token",
-    "secret",
-    "credentials",
-    "authorization",
-    "bearer",
-    "apikey",
-    "api_key",
-    "email",
-    "phone",
-    "firstname",
-    "first_name",
-    "lastname",
-    "last_name",
-    "fullname",
-    "full_name",
-    "name",
-    "address",
-    "street",
-    "city",
-    "province",
-    "state",
-    "country",
-    "zip",
-    "postal",
-    "postcode",
-    "creditcard",
-    "credit_card",
-    "cardnumber",
-    "card_number",
-    "cvv",
-    "expiry",
-    "pan",
-    "iban",
-    "accountnumber",
-    "account_number",
-    "ingestionsecret",
-    "ingestion_secret",
-    "ingestion_key",
-    "ingestionkey",
-    "pixelid",
-    "pixel_id",
-    "measurementid",
-    "measurement_id",
-    "webhookurl",
-    "webhook_url",
-    "bottoken",
-    "bot_token",
-    "chatid",
-    "chat_id",
-    "customer",
-    "billing",
-    "shipping",
-    "billing_address",
-    "shipping_address",
-    "ip_address",
-    "ipaddress",
-    "client_ip",
-    "clientip",
-    "remote_addr",
-    "remoteaddr",
-    "x_forwarded_for",
-    "x-forwarded-for",
+  "accesstoken",
+  "access_token",
+  "apisecret",
+  "api_secret",
+  "password",
+  "token",
+  "secret",
+  "credentials",
+  "authorization",
+  "bearer",
+  "apikey",
+  "api_key",
+  "email",
+  "phone",
+  "firstname",
+  "first_name",
+  "lastname",
+  "last_name",
+  "fullname",
+  "full_name",
+  "name",
+  "address",
+  "street",
+  "city",
+  "province",
+  "state",
+  "country",
+  "zip",
+  "postal",
+  "postcode",
+  "creditcard",
+  "credit_card",
+  "cardnumber",
+  "card_number",
+  "cvv",
+  "expiry",
+  "pan",
+  "iban",
+  "accountnumber",
+  "account_number",
+  "ingestionsecret",
+  "ingestion_secret",
+  "ingestion_key",
+  "ingestionkey",
+  "pixelid",
+  "pixel_id",
+  "measurementid",
+  "measurement_id",
+  "webhookurl",
+  "webhook_url",
+  "bottoken",
+  "bot_token",
+  "chatid",
+  "chat_id",
+  "customer",
+  "billing",
+  "shipping",
+  "billing_address",
+  "shipping_address",
+  "ip_address",
+  "ipaddress",
+  "client_ip",
+  "clientip",
+  "remote_addr",
+  "remoteaddr",
+  "x_forwarded_for",
+  "x-forwarded-for",
 ];
+
 const EXCLUDED_FIELDS = [
-    "orderpayload",
-    "order_payload",
-    "webhookpayload",
-    "webhook_payload",
-    "rawpayload",
-    "raw_payload",
-    "capiinput",
-    "capi_input",
-    "requestbody",
-    "request_body",
-    "responsebody",
-    "response_body",
-    "lineitems",
-    "line_items",
-    "scriptcontent",
-    "script_content",
-    "additionalscripts",
-    "additional_scripts",
-    "analysisresult",
-    "analysis_result",
-    "scriptsource",
-    "script_source",
-    "inlinescript",
-    "inline_script",
-    "rawscript",
-    "raw_script",
-    "scriptbody",
-    "script_body",
+  "orderpayload",
+  "order_payload",
+  "webhookpayload",
+  "webhook_payload",
+  "rawpayload",
+  "raw_payload",
+  "capiinput",
+  "capi_input",
+  "requestbody",
+  "request_body",
+  "responsebody",
+  "response_body",
+  "lineitems",
+  "line_items",
+  "scriptcontent",
+  "script_content",
+  "additionalscripts",
+  "additional_scripts",
+  "analysisresult",
+  "analysis_result",
+  "scriptsource",
+  "script_source",
+  "inlinescript",
+  "inline_script",
+  "rawscript",
+  "raw_script",
+  "scriptbody",
+  "script_body",
 ];
-function sanitizeContext(context: LogContext): LogContext {
-    const sanitized: LogContext = {};
-    for (const [key, value] of Object.entries(context)) {
-        const lowerKey = key.toLowerCase();
-        if (EXCLUDED_FIELDS.some((f) => lowerKey.includes(f))) {
-            sanitized[key] = "[EXCLUDED]";
-            continue;
-        }
-        if (SENSITIVE_FIELD_PATTERNS.some((f) => lowerKey.includes(f))) {
-            sanitized[key] = "[REDACTED]";
-        }
-        else if (typeof value === "object" && value !== null) {
-            if (Array.isArray(value)) {
-                sanitized[key] = value.map(item => typeof item === "object" && item !== null
-                    ? sanitizeContext(item as LogContext)
-                    : item);
-            }
-            else {
-                sanitized[key] = sanitizeContext(value as LogContext);
-            }
-        }
-        else if (typeof value === "string" && value.length > 500) {
-            sanitized[key] = value.substring(0, 200) + "...[TRUNCATED]";
-        }
-        else {
-            sanitized[key] = value;
-        }
+
+function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
+  if (depth > 5) return { _truncated: true };
+
+  const sanitized: LogContext = {};
+
+  for (const [key, value] of Object.entries(context)) {
+    const lowerKey = key.toLowerCase();
+
+    if (EXCLUDED_FIELDS.some((f) => lowerKey.includes(f))) {
+      sanitized[key] = "[EXCLUDED]";
+      continue;
     }
-    return sanitized;
+
+    if (SENSITIVE_FIELD_PATTERNS.some((f) => lowerKey.includes(f))) {
+      sanitized[key] = "[REDACTED]";
+    } else if (typeof value === "object" && value !== null) {
+      if (Array.isArray(value)) {
+        sanitized[key] = value.slice(0, 10).map((item) =>
+          typeof item === "object" && item !== null
+            ? sanitizeContext(item as LogContext, depth + 1)
+            : item
+        );
+        if (value.length > 10) {
+          (sanitized[key] as unknown[]).push(`...(${value.length - 10} more)`);
+        }
+      } else {
+        sanitized[key] = sanitizeContext(value as LogContext, depth + 1);
+      }
+    } else if (typeof value === "string" && value.length > 500) {
+      sanitized[key] = value.substring(0, 200) + "...[TRUNCATED]";
+    } else {
+      sanitized[key] = value;
+    }
+  }
+
+  return sanitized;
 }
+
+// =============================================================================
+// Log Formatting
+// =============================================================================
+
+function buildLogEntry(
+  level: LogLevel,
+  message: string,
+  context?: LogContext,
+  error?: Error | unknown
+): LogEntry {
+  const correlationContext = correlationStorage.getStore();
+
+  const entry: LogEntry = {
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+  };
+
+  // Add correlation context
+  if (correlationContext) {
+    entry.correlationId = correlationContext.correlationId;
+    if (correlationContext.shopDomain) entry.shopDomain = correlationContext.shopDomain;
+    if (correlationContext.orderId) entry.orderId = correlationContext.orderId;
+    if (correlationContext.jobId) entry.jobId = correlationContext.jobId;
+    if (correlationContext.platform) entry.platform = correlationContext.platform;
+  }
+
+  // Add error info
+  if (error) {
+    if (error instanceof Error) {
+      entry.error = {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      };
+    } else {
+      entry.error = { message: String(error) };
+    }
+  }
+
+  // Add sanitized context
+  if (context && Object.keys(context).length > 0) {
+    const sanitized = sanitizeContext(context);
+    Object.assign(entry, sanitized);
+  }
+
+  return entry;
+}
+
+function formatForConsole(entry: LogEntry): string {
+  if (IS_PRODUCTION) {
+    // Structured JSON output for production (for log aggregation)
+    return JSON.stringify(entry);
+  }
+
+  // Pretty output for development
+  const { timestamp, level, message, correlationId, ...rest } = entry;
+  const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
+  const corrId = correlationId ? ` [${correlationId.substring(0, 8)}]` : "";
+
+  if (Object.keys(rest).length > 0) {
+    return `${prefix}${corrId} ${message} ${JSON.stringify(rest, null, 2)}`;
+  }
+  return `${prefix}${corrId} ${message}`;
+}
+
 function shouldLog(level: LogLevel): boolean {
-    return LOG_LEVELS[level] >= LOG_LEVELS[MIN_LOG_LEVEL];
+  return LOG_LEVELS[level] >= LOG_LEVELS[MIN_LOG_LEVEL];
 }
-export const logger = {
-    debug(message: string, context?: LogContext): void {
-        if (shouldLog("debug")) {
-            console.debug(formatMessage("debug", message, context));
-        }
-    },
-    info(message: string, context?: LogContext): void {
-        if (shouldLog("info")) {
-            console.info(formatMessage("info", message, context));
-        }
-    },
-    warn(message: string, context?: LogContext): void {
-        if (shouldLog("warn")) {
-            console.warn(formatMessage("warn", message, context));
-        }
-    },
-    error(message: string, error?: Error | unknown, context?: LogContext): void {
-        if (shouldLog("error")) {
-            const errorContext: LogContext = { ...context };
-            if (error instanceof Error) {
-                errorContext.errorMessage = error.message;
-                errorContext.errorStack = error.stack;
-            }
-            else if (error) {
-                errorContext.error = String(error);
-            }
-            console.error(formatMessage("error", message, errorContext));
-        }
-    },
-    log(level: LogLevel, message: string, context?: LogContext): void {
-        if (shouldLog(level)) {
-            const formatted = formatMessage(level, message, context);
-            switch (level) {
-                case "debug":
-                    console.debug(formatted);
-                    break;
-                case "info":
-                    console.info(formatted);
-                    break;
-                case "warn":
-                    console.warn(formatted);
-                    break;
-                case "error":
-                    console.error(formatted);
-                    break;
-            }
-        }
-    },
+
+// =============================================================================
+// Main Logger
+// =============================================================================
+
+interface Logger {
+  debug(message: string, context?: LogContext): void;
+  info(message: string, context?: LogContext): void;
+  warn(message: string, context?: LogContext): void;
+  error(message: string, error?: Error | unknown, context?: LogContext): void;
+  log(level: LogLevel, message: string, context?: LogContext): void;
+  child(additionalContext: LogContext): Logger;
+}
+
+function createChildLogger(additionalContext: LogContext): Logger {
+  return {
+    debug: (msg: string, ctx?: LogContext) =>
+      loggerImpl.debug(msg, { ...additionalContext, ...ctx }),
+    info: (msg: string, ctx?: LogContext) =>
+      loggerImpl.info(msg, { ...additionalContext, ...ctx }),
+    warn: (msg: string, ctx?: LogContext) =>
+      loggerImpl.warn(msg, { ...additionalContext, ...ctx }),
+    error: (msg: string, err?: Error | unknown, ctx?: LogContext) =>
+      loggerImpl.error(msg, err, { ...additionalContext, ...ctx }),
+    log: (level: LogLevel, msg: string, ctx?: LogContext) =>
+      loggerImpl.log(level, msg, { ...additionalContext, ...ctx }),
+    child: (moreContext: LogContext) =>
+      createChildLogger({ ...additionalContext, ...moreContext }),
+  };
+}
+
+const loggerImpl: Logger = {
+  debug(message: string, context?: LogContext): void {
+    if (shouldLog("debug")) {
+      const entry = buildLogEntry("debug", message, context);
+      console.debug(formatForConsole(entry));
+    }
+  },
+
+  info(message: string, context?: LogContext): void {
+    if (shouldLog("info")) {
+      const entry = buildLogEntry("info", message, context);
+      console.info(formatForConsole(entry));
+    }
+  },
+
+  warn(message: string, context?: LogContext): void {
+    if (shouldLog("warn")) {
+      const entry = buildLogEntry("warn", message, context);
+      console.warn(formatForConsole(entry));
+    }
+  },
+
+  error(message: string, error?: Error | unknown, context?: LogContext): void {
+    if (shouldLog("error")) {
+      const entry = buildLogEntry("error", message, context, error);
+      console.error(formatForConsole(entry));
+    }
+  },
+
+  log(level: LogLevel, message: string, context?: LogContext): void {
+    if (shouldLog(level)) {
+      const entry = buildLogEntry(level, message, context);
+      const formatted = formatForConsole(entry);
+
+      switch (level) {
+        case "debug":
+          console.debug(formatted);
+          break;
+        case "info":
+          console.info(formatted);
+          break;
+        case "warn":
+          console.warn(formatted);
+          break;
+        case "error":
+          console.error(formatted);
+          break;
+      }
+    }
+  },
+
+  child(additionalContext: LogContext): Logger {
+    return createChildLogger(additionalContext);
+  },
 };
-export function getLogLevel(): LogLevel {
-    return MIN_LOG_LEVEL;
-}
-export function isDebugEnabled(): boolean {
-    return shouldLog("debug");
-}
+
+export const logger: Logger = loggerImpl;
+
+// =============================================================================
+// Request Logger
+// =============================================================================
+
 export interface RequestLogger {
-    debug(message: string, context?: LogContext): void;
-    info(message: string, context?: LogContext): void;
-    warn(message: string, context?: LogContext): void;
-    error(message: string, error?: Error | unknown, context?: LogContext): void;
-    child(additionalContext: LogContext): RequestLogger;
-    readonly requestId: string;
+  debug(message: string, context?: LogContext): void;
+  info(message: string, context?: LogContext): void;
+  warn(message: string, context?: LogContext): void;
+  error(message: string, error?: Error | unknown, context?: LogContext): void;
+  child(additionalContext: LogContext): RequestLogger;
+  readonly requestId: string;
+  readonly correlationId: string;
 }
-export function createRequestLogger(requestOrId: Request | string, baseContext?: LogContext): RequestLogger {
-    const requestId = typeof requestOrId === "string"
-        ? requestOrId
-        : getRequestId(requestOrId);
-    const contextWithRequestId: LogContext = {
-        ...baseContext,
-        requestId,
-    };
-    return {
-        requestId,
-        debug(message: string, context?: LogContext): void {
-            logger.debug(message, { ...contextWithRequestId, ...context });
-        },
-        info(message: string, context?: LogContext): void {
-            logger.info(message, { ...contextWithRequestId, ...context });
-        },
-        warn(message: string, context?: LogContext): void {
-            logger.warn(message, { ...contextWithRequestId, ...context });
-        },
-        error(message: string, error?: Error | unknown, context?: LogContext): void {
-            logger.error(message, error, { ...contextWithRequestId, ...context });
-        },
-        child(additionalContext: LogContext): RequestLogger {
-            return createRequestLogger(requestId, {
-                ...contextWithRequestId,
-                ...additionalContext,
-            });
-        },
-    };
+
+export function createRequestLogger(
+  requestOrId: Request | string,
+  baseContext?: LogContext
+): RequestLogger {
+  const requestId =
+    typeof requestOrId === "string"
+      ? requestOrId
+      : getRequestId(requestOrId);
+
+  const correlationId =
+    typeof requestOrId === "string"
+      ? requestOrId
+      : getCorrelationId(requestOrId);
+
+  const contextWithIds: LogContext = {
+    ...baseContext,
+    requestId,
+    correlationId,
+  };
+
+  return {
+    requestId,
+    correlationId,
+
+    debug(message: string, context?: LogContext): void {
+      logger.debug(message, { ...contextWithIds, ...context });
+    },
+
+    info(message: string, context?: LogContext): void {
+      logger.info(message, { ...contextWithIds, ...context });
+    },
+
+    warn(message: string, context?: LogContext): void {
+      logger.warn(message, { ...contextWithIds, ...context });
+    },
+
+    error(message: string, error?: Error | unknown, context?: LogContext): void {
+      logger.error(message, error, { ...contextWithIds, ...context });
+    },
+
+    child(additionalContext: LogContext): RequestLogger {
+      return createRequestLogger(requestId, {
+        ...contextWithIds,
+        ...additionalContext,
+      });
+    },
+  };
 }
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
+
+export function getLogLevel(): LogLevel {
+  return MIN_LOG_LEVEL;
+}
+
+export function isDebugEnabled(): boolean {
+  return shouldLog("debug");
+}
+
+// =============================================================================
+// Metrics Logger
+// =============================================================================
+
 export const metrics = {
-    pixelEvent(context: {
-        requestId: string;
-        shopDomain: string;
-        eventName: string;
-        status: "received" | "verified" | "recorded" | "failed";
-        duration?: number;
-        error?: string;
-    }): void {
-        logger.info(`[METRIC] pixel_event`, {
-            ...context,
-            _metric: "pixel_event",
-        });
-    },
-    pixelRejection(context: {
-        requestId?: string;
-        shopDomain: string;
-        reason: "invalid_origin" | "invalid_origin_protocol" | "origin_not_allowlisted" | "invalid_key" | "invalid_timestamp" | "body_too_large" | "invalid_payload" | "rate_limited" | "replay_detected" | "shop_not_found" | "shop_inactive" | "no_ingestion_key";
-        originType?: string;
-        fingerprint?: string;
-    }): void {
-        logger.info(`[METRIC] pixel_rejection`, {
-            ...context,
-            _metric: "pixel_rejection",
-            _severity: context.reason === "rate_limited" || context.reason === "replay_detected" ? "warning" : "info",
-        });
-    },
-    silentDrop(context: {
-        requestId?: string;
-        shopDomain?: string;
-        reason: string;
-        category: "security" | "validation" | "duplicate" | "rate_limit";
-        sampleRate?: number;
-    }): void {
-        const rate = context.sampleRate ?? 1;
-        if (Math.random() > rate)
-            return;
-        logger.info(`[METRIC] silent_drop`, {
-            ...context,
-            _metric: "silent_drop",
-            sampled: rate < 1,
-        });
-    },
-    trustVerification(context: {
-        shopDomain: string;
-        orderId: string;
-        trustLevel: "trusted" | "partial" | "untrusted";
-        reason?: string;
-        checkoutTokenMatch: boolean;
-        hasReceipt: boolean;
-    }): void {
-        logger.info(`[METRIC] trust_verification`, {
-            ...context,
-            _metric: "trust_verification",
-        });
-    },
-    consentFilter(context: {
-        shopDomain: string;
-        orderId: string;
-        recordedPlatforms: string[];
-        skippedPlatforms: string[];
-        marketingConsent: boolean;
-        analyticsConsent: boolean;
-    }): void {
-        if (context.skippedPlatforms.length > 0) {
-            logger.info(`[METRIC] consent_filter`, {
-                ...context,
-                _metric: "consent_filter",
-            });
-        }
-    },
-    webhookProcessing(context: {
-        requestId?: string;
-        shopDomain: string;
-        orderId: string;
-        platform: string;
-        status: "started" | "consent_pending" | "sent" | "failed" | "retrying";
-        duration?: number;
-        error?: string;
-    }): void {
-        logger.info(`[METRIC] webhook_processing`, {
-            ...context,
-            _metric: "webhook_processing",
-        });
-    },
-    retryQueue(context: {
-        action: "scheduled" | "processed" | "dead_letter";
-        platform: string;
-        attempt: number;
-        reason?: string;
-    }): void {
-        logger.info(`[METRIC] retry_queue`, {
-            ...context,
-            _metric: "retry_queue",
-        });
-    },
-    rateLimit(context: {
-        endpoint: string;
-        key: string;
-        blocked: boolean;
-        remaining?: number;
-    }): void {
-        if (context.blocked) {
-            logger.warn(`[METRIC] rate_limited`, {
-                ...context,
-                _metric: "rate_limit",
-            });
-        }
-    },
-    circuitBreaker(context: {
-        shopDomain: string;
-        action: "tripped" | "reset";
-        count?: number;
-    }): void {
-        logger.warn(`[METRIC] circuit_breaker`, {
-            ...context,
-            _metric: "circuit_breaker",
-        });
-    },
+  pixelEvent(context: {
+    requestId: string;
+    shopDomain: string;
+    eventName: string;
+    status: "received" | "verified" | "recorded" | "failed";
+    duration?: number;
+    error?: string;
+  }): void {
+    logger.info(`[METRIC] pixel_event`, {
+      ...context,
+      _metric: "pixel_event",
+    });
+  },
+
+  pixelRejection(context: {
+    requestId?: string;
+    shopDomain: string;
+    reason:
+      | "invalid_origin"
+      | "invalid_origin_protocol"
+      | "origin_not_allowlisted"
+      | "invalid_key"
+      | "invalid_timestamp"
+      | "body_too_large"
+      | "invalid_payload"
+      | "rate_limited"
+      | "replay_detected"
+      | "shop_not_found"
+      | "shop_inactive"
+      | "no_ingestion_key";
+    originType?: string;
+    fingerprint?: string;
+  }): void {
+    logger.info(`[METRIC] pixel_rejection`, {
+      ...context,
+      _metric: "pixel_rejection",
+      _severity:
+        context.reason === "rate_limited" || context.reason === "replay_detected"
+          ? "warning"
+          : "info",
+    });
+  },
+
+  silentDrop(context: {
+    requestId?: string;
+    shopDomain?: string;
+    reason: string;
+    category: "security" | "validation" | "duplicate" | "rate_limit";
+    sampleRate?: number;
+  }): void {
+    const rate = context.sampleRate ?? 1;
+    if (Math.random() > rate) return;
+    logger.info(`[METRIC] silent_drop`, {
+      ...context,
+      _metric: "silent_drop",
+      sampled: rate < 1,
+    });
+  },
+
+  trustVerification(context: {
+    shopDomain: string;
+    orderId: string;
+    trustLevel: "trusted" | "partial" | "untrusted";
+    reason?: string;
+    checkoutTokenMatch: boolean;
+    hasReceipt: boolean;
+  }): void {
+    logger.info(`[METRIC] trust_verification`, {
+      ...context,
+      _metric: "trust_verification",
+    });
+  },
+
+  consentFilter(context: {
+    shopDomain: string;
+    orderId: string;
+    recordedPlatforms: string[];
+    skippedPlatforms: string[];
+    marketingConsent: boolean;
+    analyticsConsent: boolean;
+  }): void {
+    if (context.skippedPlatforms.length > 0) {
+      logger.info(`[METRIC] consent_filter`, {
+        ...context,
+        _metric: "consent_filter",
+      });
+    }
+  },
+
+  webhookProcessing(context: {
+    requestId?: string;
+    shopDomain: string;
+    orderId: string;
+    platform: string;
+    status: "started" | "consent_pending" | "sent" | "failed" | "retrying";
+    duration?: number;
+    error?: string;
+  }): void {
+    logger.info(`[METRIC] webhook_processing`, {
+      ...context,
+      _metric: "webhook_processing",
+    });
+  },
+
+  jobProcessing(context: {
+    jobId: string;
+    shopDomain: string;
+    orderId: string;
+    status: "started" | "completed" | "failed" | "limit_exceeded" | "skipped";
+    platforms?: string[];
+    duration?: number;
+    error?: string;
+  }): void {
+    logger.info(`[METRIC] job_processing`, {
+      ...context,
+      _metric: "job_processing",
+    });
+  },
+
+  platformSend(context: {
+    platform: string;
+    shopDomain: string;
+    orderId: string;
+    status: "sent" | "failed" | "skipped";
+    duration?: number;
+    error?: string;
+    errorCode?: string;
+  }): void {
+    const level = context.status === "failed" ? "warn" : "info";
+    logger.log(level, `[METRIC] platform_send`, {
+      ...context,
+      _metric: "platform_send",
+    });
+  },
+
+  retryQueue(context: {
+    action: "scheduled" | "processed" | "dead_letter";
+    platform: string;
+    attempt: number;
+    reason?: string;
+  }): void {
+    logger.info(`[METRIC] retry_queue`, {
+      ...context,
+      _metric: "retry_queue",
+    });
+  },
+
+  rateLimit(context: {
+    endpoint: string;
+    key: string;
+    blocked: boolean;
+    remaining?: number;
+  }): void {
+    if (context.blocked) {
+      logger.warn(`[METRIC] rate_limited`, {
+        ...context,
+        _metric: "rate_limit",
+      });
+    }
+  },
+
+  circuitBreaker(context: {
+    shopDomain: string;
+    action: "tripped" | "reset";
+    count?: number;
+  }): void {
+    logger.warn(`[METRIC] circuit_breaker`, {
+      ...context,
+      _metric: "circuit_breaker",
+    });
+  },
+
+  batchProcessing(context: {
+    batchId?: string;
+    operation: string;
+    totalItems: number;
+    succeeded: number;
+    failed: number;
+    duration: number;
+  }): void {
+    logger.info(`[METRIC] batch_processing`, {
+      ...context,
+      _metric: "batch_processing",
+      successRate: context.totalItems > 0
+        ? Math.round((context.succeeded / context.totalItems) * 100)
+        : 0,
+    });
+  },
 };
+
+// =============================================================================
+// Timer Utility
+// =============================================================================
+
+/**
+ * Create a timer for measuring operation duration
+ */
+export function createTimer(): { elapsed: () => number } {
+  const start = performance.now();
+  return {
+    elapsed: () => Math.round(performance.now() - start),
+  };
+}
+
+/**
+ * Wrap an async function with timing and logging
+ */
+export async function withTiming<T>(
+  name: string,
+  fn: () => Promise<T>,
+  context?: LogContext
+): Promise<T> {
+  const timer = createTimer();
+  try {
+    const result = await fn();
+    logger.debug(`${name} completed`, { ...context, duration: timer.elapsed() });
+    return result;
+  } catch (error) {
+    logger.error(`${name} failed`, error, { ...context, duration: timer.elapsed() });
+    throw error;
+  }
+}
+
+// =============================================================================
+// Structured Error Logging
+// =============================================================================
+
+/**
+ * Error categories for structured logging
+ */
+export type ErrorCategory =
+  | "validation"
+  | "authentication"
+  | "authorization"
+  | "not_found"
+  | "rate_limit"
+  | "external_service"
+  | "database"
+  | "configuration"
+  | "unknown";
+
+/**
+ * Structured error context for consistent error logging
+ */
+export interface ErrorContext {
+  category: ErrorCategory;
+  code?: string;
+  isRetryable?: boolean;
+  service?: string;
+  operation?: string;
+  input?: LogContext;
+}
+
+/**
+ * Log a structured error
+ */
+export function logError(
+  message: string,
+  error: Error | unknown,
+  errorContext: ErrorContext,
+  additionalContext?: LogContext
+): void {
+  logger.error(message, error, {
+    _errorCategory: errorContext.category,
+    _errorCode: errorContext.code,
+    _isRetryable: errorContext.isRetryable,
+    _service: errorContext.service,
+    _operation: errorContext.operation,
+    ...errorContext.input,
+    ...additionalContext,
+  });
+}
+
+// =============================================================================
+// Request Lifecycle Logging
+// =============================================================================
+
+/**
+ * Log request start
+ */
+export function logRequestStart(
+  request: Request,
+  context?: LogContext
+): { requestId: string; startTime: number } {
+  const requestId = getRequestId(request);
+  const url = new URL(request.url);
+
+  logger.info("Request started", {
+    requestId,
+    method: request.method,
+    path: url.pathname,
+    ...context,
+  });
+
+  return { requestId, startTime: Date.now() };
+}
+
+/**
+ * Log request completion
+ */
+export function logRequestEnd(
+  requestId: string,
+  startTime: number,
+  status: number,
+  context?: LogContext
+): void {
+  const duration = Date.now() - startTime;
+  const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
+
+  logger.log(level, "Request completed", {
+    requestId,
+    status,
+    duration,
+    ...context,
+  });
+}
+
+// =============================================================================
+// Audit Logging
+// =============================================================================
+
+/**
+ * Actions that should be audit logged
+ */
+export type AuditAction =
+  | "shop_installed"
+  | "shop_uninstalled"
+  | "config_changed"
+  | "credentials_updated"
+  | "data_exported"
+  | "data_deleted"
+  | "consent_updated"
+  | "billing_changed"
+  | "alert_settings_changed"
+  | "scan_requested"
+  | "migration_started";
+
+/**
+ * Log an audit event
+ */
+export function logAudit(
+  action: AuditAction,
+  context: {
+    shopDomain: string;
+    actor?: string;
+    resourceType?: string;
+    resourceId?: string;
+    details?: LogContext;
+  }
+): void {
+  logger.info(`[AUDIT] ${action}`, {
+    _audit: true,
+    _action: action,
+    shopDomain: context.shopDomain,
+    actor: context.actor ?? "system",
+    resourceType: context.resourceType,
+    resourceId: context.resourceId,
+    ...context.details,
+  });
+}
+
+// =============================================================================
+// Performance Logging
+// =============================================================================
+
+/**
+ * Log slow operation warning
+ */
+export function logSlowOperation(
+  operation: string,
+  duration: number,
+  thresholdMs: number,
+  context?: LogContext
+): void {
+  if (duration > thresholdMs) {
+    logger.warn(`Slow operation: ${operation}`, {
+      duration,
+      threshold: thresholdMs,
+      slowBy: duration - thresholdMs,
+      ...context,
+    });
+  }
+}
+
+/**
+ * Log database query performance
+ */
+export function logQueryPerformance(
+  query: string,
+  duration: number,
+  rowCount?: number,
+  context?: LogContext
+): void {
+  const level = duration > 1000 ? "warn" : duration > 100 ? "info" : "debug";
+
+  logger.log(level, "Database query", {
+    query: query.substring(0, 100), // Truncate long queries
+    duration,
+    rowCount,
+    _metric: "db_query",
+    ...context,
+  });
+}
+
+// =============================================================================
+// Health Check Logging
+// =============================================================================
+
+/**
+ * Log health check result
+ */
+export function logHealthCheck(
+  service: string,
+  healthy: boolean,
+  details?: LogContext
+): void {
+  const level = healthy ? "debug" : "error";
+  logger.log(level, `Health check: ${service}`, {
+    service,
+    healthy,
+    _metric: "health_check",
+    ...details,
+  });
+}

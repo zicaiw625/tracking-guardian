@@ -3,7 +3,7 @@ import prisma from "../db.server";
 import type { SurveyResponseData } from "../types";
 import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limiter";
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret, } from "../utils/shopify-jwt";
-import { STATIC_CORS_HEADERS, jsonWithCors as jsonWithCorsBase, handleCorsPreFlight, addCorsHeaders, } from "../utils/cors";
+import { STATIC_CORS_HEADERS, jsonWithCors as jsonWithCorsBase } from "../utils/cors";
 import { logger } from "../utils/logger.server";
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
 const CORS_HEADERS = STATIC_CORS_HEADERS;

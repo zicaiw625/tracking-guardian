@@ -1,12 +1,9 @@
-// Settings components index
-export { AlertsTab } from "./AlertsTab";
-export { ServerSideTab } from "./ServerSideTab";
-export { SubscriptionTab } from "./SubscriptionTab";
-export type { 
-    AlertSettings, 
-    AlertConfigDisplay, 
-    PixelConfigDisplay, 
-    ShopSettings, 
-    TokenIssues 
-} from "./types";
+/**
+ * Settings Routes Index
+ *
+ * Re-exports for settings route module.
+ */
 
+export { settingsLoader } from "./loader.server";
+export { settingsAction } from "./actions.server";
+export type * from "./types";

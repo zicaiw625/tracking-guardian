@@ -6,16 +6,17 @@
  */
 
 import prisma from "../db.server";
+import { Prisma } from "@prisma/client";
+import type { PlatformError } from "../types";
 import {
-  type PlatformError,
   calculateBackoff,
   shouldRetry as shouldRetryPlatform,
-} from "./platforms/base.server";
+} from "./platforms/base-platform.service";
 import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "./billing.server";
 import { getDecryptedCredentials } from "./credentials.server";
-import { sendConversionToGoogle } from "./platforms/google.server";
-import { sendConversionToMeta } from "./platforms/meta.server";
-import { sendConversionToTikTok } from "./platforms/tiktok.server";
+import { sendConversionToGoogle } from "./platforms/google.service";
+import { sendConversionToMeta } from "./platforms/meta.service";
+import { sendConversionToTikTok } from "./platforms/tiktok.service";
 import { generateEventId } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
 import type {
@@ -23,7 +24,10 @@ import type {
   GoogleCredentials,
   MetaCredentials,
   TikTokCredentials,
+  PlatformCredentials,
+  ConversionApiResponse,
 } from "../types";
+import type { PlatformSendResult } from "./platforms/interface";
 
 // Re-export from conversion-job for backwards compatibility
 export { processConversionJobs, calculateNextRetryTime } from "./conversion-job.server";
@@ -256,36 +260,60 @@ export async function scheduleRetry(
 // =============================================================================
 
 /**
+ * Platform send result for internal use
+ */
+interface PlatformSendResultInternal {
+  success: boolean;
+  response?: ConversionApiResponse;
+  error?: string;
+}
+
+/**
  * Send conversion to platform based on platform type.
+ * Returns typed result instead of unknown.
  */
 async function sendToPlatformFromLog(
   platform: string,
-  credentials: unknown,
+  credentials: PlatformCredentials,
   conversionData: ConversionData,
   eventId: string
-): Promise<unknown> {
+): Promise<PlatformSendResultInternal> {
+  let result: PlatformSendResult;
+  
   switch (platform) {
     case "google":
-      return sendConversionToGoogle(
+      result = await sendConversionToGoogle(
         credentials as GoogleCredentials,
         conversionData,
         eventId
       );
+      break;
     case "meta":
-      return sendConversionToMeta(
+      result = await sendConversionToMeta(
         credentials as MetaCredentials,
         conversionData,
         eventId
       );
+      break;
     case "tiktok":
-      return sendConversionToTikTok(
+      result = await sendConversionToTikTok(
         credentials as TikTokCredentials,
         conversionData,
         eventId
       );
+      break;
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }
+  
+  if (!result.success) {
+    throw new Error(result.error?.message || "Platform send failed");
+  }
+  
+  return {
+    success: true,
+    response: result.response,
+  };
 }
 
 /**
@@ -406,7 +434,7 @@ export async function processPendingConversions(): Promise<{
           status: "sent",
           serverSideSent: true,
           sentAt: new Date(),
-          platformResponse: result as object,
+          platformResponse: result.response ? (result.response as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
           errorMessage: null,
           attempts: 1,
           lastAttemptAt: new Date(),
@@ -528,7 +556,7 @@ export async function processRetries(): Promise<{
           status: "sent",
           serverSideSent: true,
           sentAt: new Date(),
-          platformResponse: result as object,
+          platformResponse: result.response ? (result.response as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
           errorMessage: null,
           nextRetryAt: null,
           attempts: { increment: 1 },

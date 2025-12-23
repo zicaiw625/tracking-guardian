@@ -24,7 +24,7 @@ interface ReadinessStatus {
 /**
  * Readiness check loader
  */
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request: _request }: LoaderFunctionArgs) => {
     const checks = {
         database: false,
     };

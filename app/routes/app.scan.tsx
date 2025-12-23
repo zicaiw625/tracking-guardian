@@ -195,6 +195,9 @@ export default function ScanPage() {
     const [monthlyOrders, setMonthlyOrders] = useState(500);
     const isScanning = navigation.state === "submitting";
     
+    // Declare identifiedPlatforms before useMemo uses it
+    const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
+    
     // ROI 影响估算计算
     // 注意：此处仅为帮助商户理解潜在风险的示意，不构成任何效果预测或保证
     const roiEstimate = useMemo(() => {
@@ -321,7 +324,7 @@ export default function ScanPage() {
         return names[platform] || platform;
     };
     const riskItems = (latestScan?.riskItems as RiskItem[] | null) || [];
-    const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
+    // identifiedPlatforms is now declared earlier, before useMemo
     const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
         switch (urgency) {
             case "critical": return "critical";

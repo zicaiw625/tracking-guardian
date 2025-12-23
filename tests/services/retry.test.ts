@@ -203,7 +203,7 @@ describe("Retry Service", () => {
       const error: PlatformError = {
         type: "auth_error",
         message: "Invalid token",
-        retryable: false,
+        isRetryable: false,
       };
 
       expect(shouldRetryFromPlatformError(error, 1, 5)).toBe(false);
@@ -213,7 +213,7 @@ describe("Retry Service", () => {
       const error: PlatformError = {
         type: "server_error",
         message: "Server error",
-        retryable: true,
+        isRetryable: true,
       };
 
       expect(shouldRetryFromPlatformError(error, 5, 5)).toBe(false);
@@ -224,7 +224,7 @@ describe("Retry Service", () => {
       const error: PlatformError = {
         type: "server_error",
         message: "Server error",
-        retryable: true,
+        isRetryable: true,
       };
 
       expect(shouldRetryFromPlatformError(error, 1, 5)).toBe(true);
