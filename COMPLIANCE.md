@@ -34,13 +34,14 @@ This document outlines how Tracking Guardian handles customer data in compliance
 3. Data is immediately hashed and transmitted, never stored in plaintext
 
 **Shopify PCD Access Control:**
-- The app's PCD approval status is configured via `PCD_APPROVED` environment variable
-- When `PCD_APPROVED=true`: The app has received Shopify PCD approval and can access protected fields
-- When `PCD_APPROVED=false` (default): Enhanced Matching is disabled, app operates in privacy-first mode
-- PCD fields (email, phone, name, address) are only accessible when the app has been granted PCD access
-- Without PCD approval, these fields may be unavailable or return null from Shopify APIs
+- The `PCD_APPROVED` environment variable controls whether merchants can enable Enhanced Matching
+- When `PCD_APPROVED=true`: Merchants can enable Enhanced Matching in settings
+- When `PCD_APPROVED=false` (default): Enhanced Matching toggle is disabled
+- **Automatic Degradation**: Even when enabled, if Shopify returns null for PII fields, the app automatically falls back to privacy-first mode
+- PCD fields (email, phone, name, address) may be unavailable or return null without proper PCD access
 - Merchants do NOT need to complete PCD review themselves - this is the developer's responsibility
-- **Important**: Only set `PCD_APPROVED=true` after receiving confirmation from Shopify
+- **Note (2025-12-10)**: Starting December 10, 2025, Web Pixel PII fields require PCD approval to be populated
+- **UI Policy**: The app UI uses neutral language (e.g., "may require PCD review") rather than claiming "PCD approved"
 
 ---
 

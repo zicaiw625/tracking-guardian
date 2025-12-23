@@ -992,7 +992,7 @@ export default function SettingsPage() {
                         return;
                     }
                     
-                    // PCD approved, show standard confirmation
+                    // PCD config allows enabling, show standard confirmation
                     const confirmed = confirm(
                         "⚠️ 启用 PII 增强匹配前，请仔细阅读以下内容：\n\n" +
                         "【重要提醒】您确定需要启用吗？\n" +
@@ -1000,11 +1000,11 @@ export default function SettingsPage() {
                         "✅ 不启用 PII 也能正常追踪全部转化事件\n" +
                         "✅ 默认模式可满足基本归因需求，实际效果因店铺而异\n" +
                         "✅ 仅当广告平台明确提示「匹配率不足」时，再考虑启用\n\n" +
-                        "【PCD 状态】\n" +
+                        "【功能可用性说明】\n" +
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                        "✅ 本应用已获得 Shopify PCD 批准，可访问受保护字段\n" +
-                        "✅ 您无需进行任何额外的审核或申请\n" +
-                        "✅ 启用后即可正常使用增强匹配功能\n\n" +
+                        "• 此功能需要通过 Shopify PCD (Protected Customer Data) 审核\n" +
+                        "• 若 PII 字段不可用（返回 null），将自动降级为隐私优先模式\n" +
+                        "• 2025-12-10 起，Web Pixel 中的 PII 需要 PCD 批准才能获取\n\n" +
                         "【您的合规责任】\n" +
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
                         "• 确保符合 GDPR/CCPA/PIPL 等隐私法规\n" +
@@ -1013,12 +1013,12 @@ export default function SettingsPage() {
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
                         "• 邮箱/电话在发送前会进行 SHA256 哈希处理\n" +
                         "• 原始 PII 不会被存储，仅在内存中处理后立即丢弃\n" +
-                        "• 哈希后的数据用于广告平台的用户匹配\n\n" +
+                        "• 若 PII 字段为空，转化事件仍会发送（仅缺少增强匹配）\n\n" +
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
                         "点击「确定」表示：\n" +
                         "• 您已确认确实需要增强匹配功能\n" +
-                        "• 您将更新隐私政策以符合合规要求\n" +
-                        "• 您理解并承担作为数据控制者的合规责任"
+                        "• 您理解若 PII 不可用将自动降级\n" +
+                        "• 您将更新隐私政策以符合合规要求"
                     );
                     if (!confirmed) return;
                 }
@@ -1044,8 +1044,8 @@ export default function SettingsPage() {
                           <BlockStack gap="200">
                             <Text as="p" variant="bodySm" fontWeight="semibold">
                               {pcdApproved 
-                                ? "✅ 本应用已获得 Shopify PCD 批准，可正常使用增强匹配功能。"
-                                : "⚠️ 注意：本应用的 PCD 审核状态可能发生变化，若功能不可用将自动降级为隐私优先模式。"}
+                                ? "ℹ️ 增强匹配功能已启用。若 PII 字段不可用（返回 null），将自动降级为隐私优先模式。"
+                                : "⚠️ 注意：此功能需要 Shopify PCD 审核，若 PII 字段不可用将自动降级为隐私优先模式。"}
                             </Text>
                             <Text as="p" variant="bodySm">
                               作为商户，启用 PII 增强匹配后，您需要确认以下事项：
@@ -1123,11 +1123,11 @@ export default function SettingsPage() {
                             </Box>
                             
                             {/* PCD 状态提示 */}
-                            <Box background={pcdApproved ? "bg-surface-success" : "bg-surface-caution"} padding="200" borderRadius="100">
-                              <Text as="p" variant="bodySm" tone={pcdApproved ? "success" : "caution"}>
+                            <Box background={pcdApproved ? "bg-surface-secondary" : "bg-surface-caution"} padding="200" borderRadius="100">
+                              <Text as="p" variant="bodySm" tone={pcdApproved ? "subdued" : "caution"}>
                                 {pcdApproved 
-                                  ? "🔓 PII 增强匹配功能已就绪：本应用已获得 Shopify PCD 批准，如需启用可点击上方「启用」按钮。"
-                                  : "🔒 PII 增强匹配暂不可用：本应用正在等待 Shopify PCD 审核批准，获批后将自动开放此功能。"}
+                                  ? "ℹ️ 增强匹配功能可尝试启用。注：若 Shopify 未返回 PII 字段，将自动以隐私优先模式运行。"
+                                  : "🔒 增强匹配暂不可用：需要完成 Shopify PCD 审核流程，完成后将开放此功能。"}
                               </Text>
                             </Box>
                           </BlockStack>
@@ -1190,9 +1190,7 @@ export default function SettingsPage() {
                           <Text as="p" variant="bodySm">
                             <strong>关于 PII（邮箱/电话等）：</strong>
                             <br />• 默认模式下：本应用不会主动采集或发送 PII 数据
-                            <br />• 启用增强匹配后：{pcdApproved 
-                              ? "本应用已获得 Shopify PCD 批准，可在用户明确同意时访问受保护字段，哈希后发送到广告平台"
-                              : "需要通过 Shopify PCD 审核后才能访问受保护字段；未获批时将自动降级为隐私优先模式"}
+                            <br />• 启用增强匹配后：需要 Shopify PCD 审核才能访问受保护字段；若 PII 字段为空（null），将自动降级为隐私优先模式
                           </Text>
                         </BlockStack>
                       </Banner>

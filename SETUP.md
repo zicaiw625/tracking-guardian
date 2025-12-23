@@ -327,21 +327,23 @@ postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 
 #### PCD（Protected Customer Data）配置
 
-**⚠️ 重要**：`PCD_APPROVED` 环境变量控制应用是否声明已通过 Shopify PCD 审核。
+**⚠️ 重要**：`PCD_APPROVED` 环境变量控制是否允许商户启用 PII 增强匹配功能。
 
-- **默认值 `false`**：应用会显示"PCD 审核中"状态，禁用 PII 增强匹配功能
-- **设为 `true`**：仅当您从 Shopify 收到 PCD 批准确认后才设置
-- **错误设置的风险**：如果在未获批时声称已通过，可能导致：
-  - Shopify App Store 审核失败
-  - 商户投诉/差评
-  - 功能实际不可用但 UI 显示可用
+- **默认值 `false`**：禁用 PII 增强匹配开关，商户无法启用此功能
+- **设为 `true`**：允许商户启用增强匹配，但 UI 不会声称"已通过审核"
+- **自动降级**：即使 `PCD_APPROVED=true`，若 Shopify 实际未返回 PII 字段（返回 null），应用会自动降级为隐私优先模式
+
+**注意**：
+- 2025-12-10 起，Web Pixel 中的 PII 字段需要 PCD 审核才能获取
+- UI 中使用中性表述，不直接声称"已获得批准"，而是说明功能可用性和降级机制
+- 这样即使 PCD 状态发生变化，也不会产生误导
 
 ```bash
-# 仅在获得 Shopify PCD 批准后设置
+# 允许商户启用增强匹配功能
 PCD_APPROVED=true
 
-# 可选：自定义状态消息
-PCD_STATUS_MESSAGE="PCD 审核已通过，2024-01-15 获批"
+# 可选：自定义状态消息（显示在 UI 中）
+PCD_STATUS_MESSAGE="增强匹配功能已开放，若 PII 不可用将自动降级"
 ```
 
 ### 敏感数据加密
