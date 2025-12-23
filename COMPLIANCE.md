@@ -998,7 +998,8 @@ GET /api/exports?type=audit&format=json&include_meta=true
    const initialPrivacyState = init.customerPrivacy;
    marketingAllowed = initialPrivacyState.marketingAllowed === true;
    analyticsAllowed = initialPrivacyState.analyticsProcessingAllowed === true;
-   saleOfDataAllowed = initialPrivacyState.saleOfDataAllowed !== false;
+   // P0-04: saleOfData 必须显式为 true，undefined/null 视为未授权
+   saleOfDataAllowed = initialPrivacyState.saleOfDataAllowed === true;
    ```
 
 2. **订阅事件**:

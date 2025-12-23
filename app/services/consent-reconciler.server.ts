@@ -92,6 +92,8 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
             }
             if (receipt) {
                 const strategy = log.shop.consentStrategy || "strict";
+                // P0-04: saleOfData must be EXPLICITLY true, not just "not false"
+                // undefined/null/missing = NOT allowed (strict deny-by-default interpretation)
                 const rawConsentState = receipt.consentState as {
                     marketing?: boolean;
                     analytics?: boolean;
@@ -101,7 +103,7 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
                     ? {
                         marketing: rawConsentState.marketing,
                         analytics: rawConsentState.analytics,
-                        saleOfDataAllowed: rawConsentState.saleOfData !== false,
+                        saleOfDataAllowed: rawConsentState.saleOfData === true,
                     }
                     : null;
                 const hasVerifiedReceipt = receipt.isTrusted === true;

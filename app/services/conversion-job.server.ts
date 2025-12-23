@@ -450,6 +450,8 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
       }
 
       // Parse consent state
+      // P0-04: saleOfData must be EXPLICITLY true, not just "not false"
+      // undefined/null/missing = NOT allowed (strict deny-by-default interpretation)
       const rawConsentState = receipt?.consentState as {
         marketing?: boolean;
         analytics?: boolean;
@@ -460,7 +462,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         ? {
             marketing: rawConsentState.marketing,
             analytics: rawConsentState.analytics,
-            saleOfDataAllowed: rawConsentState.saleOfData !== false,
+            saleOfDataAllowed: rawConsentState.saleOfData === true,
           }
         : null;
 

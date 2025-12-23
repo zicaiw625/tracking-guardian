@@ -29,3 +29,13 @@ type = "single_line_text_field"
 name = "Shop Domain"
 description = "The myshopify.com domain for this store. Auto-configured during installation."
 type = "single_line_text_field"
+
+[settings.fields.backend_url]
+name = "Backend URL"
+description = "The Tracking Guardian backend URL for event ingestion. Auto-configured during installation."
+type = "single_line_text_field"
+
+[settings.fields.schema_version]
+name = "Schema Version"
+description = "Settings schema version for forward compatibility. Auto-managed by the app."
+type = "single_line_text_field"

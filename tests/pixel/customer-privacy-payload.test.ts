@@ -22,24 +22,26 @@ interface VisitorConsentCollectedEvent {
   customerPrivacy: CustomerPrivacyState;
 }
 
-                      
+// P0-04: Consent parsing with strict deny-by-default
 function parseInitialConsent(customerPrivacy: CustomerPrivacyState | undefined): {
   marketingAllowed: boolean;
   analyticsAllowed: boolean;
   saleOfDataAllowed: boolean;
 } {
+  // P0-04: All defaults are FALSE (deny by default)
   if (!customerPrivacy) {
     return {
       marketingAllowed: false,
       analyticsAllowed: false,
-      saleOfDataAllowed: true,               
+      saleOfDataAllowed: false, // P0-04: Changed from true to false
     };
   }
 
   return {
     marketingAllowed: customerPrivacy.marketingAllowed === true,
     analyticsAllowed: customerPrivacy.analyticsProcessingAllowed === true,
-    saleOfDataAllowed: customerPrivacy.saleOfDataAllowed !== false,
+    // P0-04: saleOfData must be EXPLICITLY true, not just "not false"
+    saleOfDataAllowed: customerPrivacy.saleOfDataAllowed === true,
   };
 }
 
@@ -57,7 +59,8 @@ function parseConsentUpdate(event: VisitorConsentCollectedEvent): {
   return {
     marketingAllowed: updatedPrivacy.marketingAllowed === true,
     analyticsAllowed: updatedPrivacy.analyticsProcessingAllowed === true,
-    saleOfDataAllowed: updatedPrivacy.saleOfDataAllowed !== false,
+    // P0-04: saleOfData must be EXPLICITLY true, not just "not false"
+    saleOfDataAllowed: updatedPrivacy.saleOfDataAllowed === true,
   };
 }
 
@@ -105,13 +108,13 @@ describe("init.customerPrivacy 初始值解析", () => {
     expect(result.saleOfDataAllowed).toBe(false);
   });
 
-  it("应正确处理 undefined 初始状态（不需要同意的地区）", () => {
+  it("应正确处理 undefined 初始状态（P0-04: deny by default）", () => {
     const result = parseInitialConsent(undefined);
 
-                             
+    // P0-04: All consents default to FALSE when privacy state is unavailable
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(false);
-    expect(result.saleOfDataAllowed).toBe(true);        
+    expect(result.saleOfDataAllowed).toBe(false); // P0-04: Changed from true to false
   });
 });
 
@@ -194,7 +197,7 @@ describe("hasFullConsent 严格模式验证（对应 P0-5）", () => {
 });
 
 describe("边缘情况处理", () => {
-  it("应安全处理 null 值（作为 false 处理）", () => {
+  it("应安全处理 null 值（P0-04: 作为 false 处理）", () => {
     const privacyState = {
       analyticsProcessingAllowed: null as unknown as boolean,
       marketingAllowed: null as unknown as boolean,
@@ -204,14 +207,14 @@ describe("边缘情况处理", () => {
 
     const result = parseInitialConsent(privacyState);
 
-                                
+    // P0-04: All non-true values are treated as false
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(false);
-                                        
-    expect(result.saleOfDataAllowed).toBe(true);
+    // P0-04: null saleOfDataAllowed is treated as NOT allowed (strict mode)
+    expect(result.saleOfDataAllowed).toBe(false);
   });
 
-  it("应安全处理 undefined 值（作为 false 处理）", () => {
+  it("应安全处理 undefined 值（P0-04: 作为 false 处理）", () => {
     const privacyState = {
       analyticsProcessingAllowed: undefined as unknown as boolean,
       marketingAllowed: undefined as unknown as boolean,
@@ -221,9 +224,11 @@ describe("边缘情况处理", () => {
 
     const result = parseInitialConsent(privacyState);
 
+    // P0-04: All non-true values are treated as false
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(false);
-    expect(result.saleOfDataAllowed).toBe(true);
+    // P0-04: undefined saleOfDataAllowed is treated as NOT allowed (strict mode)
+    expect(result.saleOfDataAllowed).toBe(false);
   });
 });
 
