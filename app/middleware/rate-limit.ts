@@ -57,16 +57,174 @@ export type RateLimitedHandler<T> = (
 ) => Promise<T>;
 
 // =============================================================================
-// Redis-backed Rate Limit Store
+// In-Memory Fallback Rate Limit Store
+// =============================================================================
+
+/**
+ * Entry in the in-memory rate limit store
+ */
+interface MemoryRateLimitEntry {
+  count: number;
+  windowStart: number;
+}
+
+/**
+ * In-memory rate limit store for fallback when Redis is unavailable.
+ * Uses a Map with automatic cleanup to prevent memory exhaustion.
+ */
+class InMemoryRateLimitStore {
+  private store = new Map<string, MemoryRateLimitEntry>();
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly maxKeys: number;
+  private readonly cleanupIntervalMs: number;
+
+  constructor(maxKeys = 10000, cleanupIntervalMs = 60000) {
+    this.maxKeys = maxKeys;
+    this.cleanupIntervalMs = cleanupIntervalMs;
+    this.startCleanup();
+  }
+
+  /**
+   * Start periodic cleanup of expired entries
+   */
+  private startCleanup(): void {
+    if (this.cleanupInterval) return;
+    
+    this.cleanupInterval = setInterval(() => {
+      this.cleanup();
+    }, this.cleanupIntervalMs);
+    
+    // Don't prevent process exit
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
+  }
+
+  /**
+   * Clean up expired entries and enforce max keys limit
+   */
+  private cleanup(): void {
+    const now = Date.now();
+    let cleaned = 0;
+    
+    // Remove expired entries
+    for (const [key, entry] of this.store.entries()) {
+      // Assume max window of 5 minutes for cleanup
+      if (now - entry.windowStart > 5 * 60 * 1000) {
+        this.store.delete(key);
+        cleaned++;
+      }
+    }
+    
+    // If still over limit, remove oldest entries
+    if (this.store.size > this.maxKeys) {
+      const entries = Array.from(this.store.entries())
+        .sort((a, b) => a[1].windowStart - b[1].windowStart);
+      
+      const toRemove = entries.slice(0, this.store.size - this.maxKeys);
+      for (const [key] of toRemove) {
+        this.store.delete(key);
+        cleaned++;
+      }
+    }
+    
+    if (cleaned > 0) {
+      logger.debug(`[Rate Limit] Memory store cleanup: removed ${cleaned} entries, size: ${this.store.size}`);
+    }
+  }
+
+  /**
+   * Check and update rate limit for a key
+   */
+  check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
+    const now = Date.now();
+    const entry = this.store.get(key);
+    
+    // Check if we need a new window
+    if (!entry || now - entry.windowStart >= windowMs) {
+      // Enforce max keys before adding
+      if (this.store.size >= this.maxKeys && !entry) {
+        this.cleanup();
+      }
+      
+      this.store.set(key, { count: 1, windowStart: now });
+      return {
+        allowed: true,
+        remaining: maxRequests - 1,
+        resetAt: now + windowMs,
+      };
+    }
+    
+    // Increment count
+    entry.count++;
+    const resetAt = entry.windowStart + windowMs;
+    
+    if (entry.count > maxRequests) {
+      const retryAfter = Math.ceil((resetAt - now) / 1000);
+      return {
+        allowed: false,
+        remaining: 0,
+        resetAt,
+        retryAfter,
+      };
+    }
+    
+    return {
+      allowed: true,
+      remaining: maxRequests - entry.count,
+      resetAt,
+    };
+  }
+
+  /**
+   * Get current store size
+   */
+  getSize(): number {
+    return this.store.size;
+  }
+
+  /**
+   * Clear all entries
+   */
+  clear(): void {
+    this.store.clear();
+  }
+
+  /**
+   * Stop cleanup interval (for testing)
+   */
+  stopCleanup(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+  }
+}
+
+// Global in-memory fallback store
+const memoryRateLimitStore = new InMemoryRateLimitStore(
+  RATE_LIMIT_CONFIG.MAX_KEYS,
+  RATE_LIMIT_CONFIG.CLEANUP_INTERVAL_MS
+);
+
+// =============================================================================
+// Redis-backed Rate Limit Store with Memory Fallback
 // =============================================================================
 
 const RATE_LIMIT_PREFIX = "tg:mw:rl:";
 
 /**
- * Distributed rate limit store using Redis with in-memory fallback
+ * Distributed rate limit store using Redis with in-memory fallback.
+ * 
+ * IMPORTANT: When Redis is unavailable, falls back to in-memory store
+ * rather than allowing requests through. This ensures rate limiting
+ * continues to work even during Redis outages.
  */
 class DistributedRateLimitStore {
   private pendingInit: Promise<RedisClientWrapper> | null = null;
+  private redisHealthy = true;
+  private lastRedisError: number = 0;
+  private readonly redisRetryIntervalMs = 30000; // Retry Redis every 30s
 
   /**
    * Get the Redis client (async initialization)
@@ -79,7 +237,39 @@ class DistributedRateLimitStore {
   }
 
   /**
+   * Check if we should try Redis again after a failure
+   */
+  private shouldRetryRedis(): boolean {
+    if (this.redisHealthy) return true;
+    return Date.now() - this.lastRedisError > this.redisRetryIntervalMs;
+  }
+
+  /**
+   * Mark Redis as unhealthy
+   */
+  private markRedisUnhealthy(): void {
+    if (this.redisHealthy) {
+      logger.warn("[Rate Limit] Redis unavailable, falling back to in-memory store");
+    }
+    this.redisHealthy = false;
+    this.lastRedisError = Date.now();
+  }
+
+  /**
+   * Mark Redis as healthy
+   */
+  private markRedisHealthy(): void {
+    if (!this.redisHealthy) {
+      logger.info("[Rate Limit] Redis connection restored");
+    }
+    this.redisHealthy = true;
+  }
+
+  /**
    * Check and update rate limit for a key (async)
+   * 
+   * Falls back to in-memory store when Redis is unavailable,
+   * ensuring rate limiting continues to work.
    */
   async checkAsync(
     key: string,
@@ -89,6 +279,11 @@ class DistributedRateLimitStore {
     const now = Date.now();
     const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
     const windowSeconds = Math.ceil(windowMs / 1000);
+
+    // If Redis is known to be unhealthy and not time to retry, use memory
+    if (!this.shouldRetryRedis()) {
+      return memoryRateLimitStore.check(key, maxRequests, windowMs);
+    }
 
     try {
       const client = await this.getClient();
@@ -102,6 +297,9 @@ class DistributedRateLimitStore {
       // Get TTL for reset time
       const ttl = await client.ttl(fullKey);
       const resetAt = now + (ttl > 0 ? ttl * 1000 : windowMs);
+
+      // Mark Redis as healthy on success
+      this.markRedisHealthy();
 
       if (count > maxRequests) {
         const retryAfter = Math.ceil((resetAt - now) / 1000);
@@ -119,46 +317,54 @@ class DistributedRateLimitStore {
         resetAt,
       };
     } catch (error) {
-      // Log error but don't block requests
-      logger.error("Rate limit check error (allowing request)", error);
-      return {
-        allowed: true,
-        remaining: maxRequests,
-        resetAt: now + windowMs,
-      };
+      // Mark Redis as unhealthy and fall back to memory store
+      this.markRedisUnhealthy();
+      logger.error("[Rate Limit] Redis error, using memory fallback", error);
+      
+      // Use in-memory store instead of allowing request through
+      return memoryRateLimitStore.check(key, maxRequests, windowMs);
     }
   }
 
   /**
-   * Check rate limit synchronously (uses sync client, may be optimistic)
+   * Check rate limit synchronously with memory fallback
+   * 
+   * Note: This is a best-effort check. For accurate rate limiting,
+   * use checkAsync instead.
    */
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
     const now = Date.now();
     const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
     const windowSeconds = Math.ceil(windowMs / 1000);
 
+    // If Redis is known to be unhealthy, use memory immediately
+    if (!this.shouldRetryRedis()) {
+      return memoryRateLimitStore.check(key, maxRequests, windowMs);
+    }
+
     try {
       const client = getRedisClientSync();
 
-      // Fire and forget increment
+      // Fire and forget increment with error handling
       client.incr(fullKey).then((count) => {
         if (count === 1) {
           client.expire(fullKey, windowSeconds).catch(() => {});
         }
-      }).catch(() => {});
+        this.markRedisHealthy();
+      }).catch((error) => {
+        this.markRedisUnhealthy();
+        logger.debug("[Rate Limit] Sync Redis incr failed", { error: String(error) });
+      });
 
-      // Return optimistic result (async check may catch abuse later)
-      return {
-        allowed: true,
-        remaining: maxRequests,
-        resetAt: now + windowMs,
-      };
+      // For sync check, also check memory store to ensure enforcement
+      // This provides a safety net in case Redis is slow or failing
+      const memoryResult = memoryRateLimitStore.check(key, maxRequests, windowMs);
+      
+      return memoryResult;
     } catch {
-      return {
-        allowed: true,
-        remaining: maxRequests,
-        resetAt: now + windowMs,
-      };
+      // Fall back to memory store
+      this.markRedisUnhealthy();
+      return memoryRateLimitStore.check(key, maxRequests, windowMs);
     }
   }
 
@@ -171,7 +377,8 @@ class DistributedRateLimitStore {
       const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
       return keys.length;
     } catch {
-      return 0;
+      // Return memory store size as fallback
+      return memoryRateLimitStore.getSize();
     }
   }
 
@@ -179,6 +386,9 @@ class DistributedRateLimitStore {
    * Clear all entries (for testing)
    */
   async clear(): Promise<void> {
+    // Clear memory store
+    memoryRateLimitStore.clear();
+    
     try {
       const client = await this.getClient();
       const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
@@ -186,19 +396,31 @@ class DistributedRateLimitStore {
         await client.del(key);
       }
     } catch (error) {
-      logger.error("Failed to clear rate limit entries", error);
+      logger.error("Failed to clear Redis rate limit entries", error);
     }
   }
 
   /**
-   * Get connection info
+   * Get connection info including fallback status
    */
-  getConnectionInfo(): { mode: "redis" | "memory"; connected: boolean } {
+  getConnectionInfo(): { 
+    mode: "redis" | "memory"; 
+    connected: boolean;
+    usingFallback: boolean;
+  } {
     const info = getRedisConnectionInfo();
     return {
       mode: info.mode,
       connected: info.connected,
+      usingFallback: !this.redisHealthy,
     };
+  }
+
+  /**
+   * Get memory store size (for monitoring)
+   */
+  getMemoryStoreSize(): number {
+    return memoryRateLimitStore.getSize();
   }
 }
 
@@ -426,6 +648,14 @@ export async function clearRateLimitStore(): Promise<void> {
 export function getRateLimitBackendInfo(): {
   mode: "redis" | "memory";
   connected: boolean;
+  usingFallback: boolean;
 } {
   return rateLimitStore.getConnectionInfo();
+}
+
+/**
+ * Get memory fallback store size (for monitoring)
+ */
+export function getMemoryRateLimitStoreSize(): number {
+  return rateLimitStore.getMemoryStoreSize();
 }

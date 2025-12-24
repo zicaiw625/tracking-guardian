@@ -1,15 +1,22 @@
 /**
  * Billing Service
  *
- * Re-exports all billing functionality from the billing module.
- * This file is kept for backwards compatibility with existing imports.
- *
- * New code should import directly from:
- * - ~/services/billing/plans for plan definitions
- * - ~/services/billing/subscription.server for subscription management
- * - ~/services/billing/usage.server for usage tracking
- * - ~/services/billing/gate.server for billing gate checks
- * - ~/services/billing for all billing functionality
+ * BACKWARDS COMPATIBILITY LAYER
+ * =============================
+ * 
+ * This file provides backwards compatibility for existing imports.
+ * 
+ * RECOMMENDED imports by use case:
+ *   - Plan definitions: import { BILLING_PLANS } from "~/services/billing/plans"
+ *   - Subscriptions: import { createSubscription } from "~/services/billing/subscription.server"
+ *   - Usage tracking: import { incrementMonthlyUsage } from "~/services/billing/usage.server"
+ *   - Billing gates: import { checkBillingGate } from "~/services/billing/gate.server"
+ *   - All billing: import { ... } from "~/services/billing"
+ * 
+ * LEGACY (still works):
+ *   import { checkBillingGate } from "~/services/billing.server"
+ * 
+ * @deprecated Prefer importing from "~/services/billing" or specific submodules
  */
 
 // Re-export everything from the billing module

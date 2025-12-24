@@ -8,6 +8,7 @@ import {
   normalizePhone,
   normalizeEmail,
   validateEncryptionConfig,
+  resetEncryptionKeyCache,
   normalizeOrderId,
   generateEventId,
   generateMatchKey,
@@ -145,14 +146,16 @@ describe("Crypto Utils", () => {
       process.env = originalEnv;
     });
 
-    it("should return warnings when ENCRYPTION_SECRET is not set in development", () => {
+    it("should return warnings when no encryption secret is set in development", () => {
       process.env.NODE_ENV = "development";
       delete process.env.ENCRYPTION_SECRET;
+      delete process.env.DEV_ENCRYPTION_SECRET;
       
       const result = validateEncryptionConfig();
       
       expect(result.valid).toBe(true);
-      expect(result.warnings).toContain("ENCRYPTION_SECRET not set - using insecure development default");
+      expect(result.secretSource).toBe("fallback");
+      expect(result.warnings.some(w => w.includes("No encryption secret configured"))).toBe(true);
     });
 
     it("should return warning for short ENCRYPTION_SECRET", () => {
@@ -162,7 +165,30 @@ describe("Crypto Utils", () => {
       const result = validateEncryptionConfig();
       
       expect(result.valid).toBe(true);
+      expect(result.secretSource).toBe("ENCRYPTION_SECRET");
       expect(result.warnings.some(w => w.includes("shorter than recommended"))).toBe(true);
+    });
+
+    it("should use DEV_ENCRYPTION_SECRET in development when ENCRYPTION_SECRET not set", () => {
+      process.env.NODE_ENV = "development";
+      delete process.env.ENCRYPTION_SECRET;
+      process.env.DEV_ENCRYPTION_SECRET = "a-dev-specific-secret-key-here-32";
+      
+      const result = validateEncryptionConfig();
+      
+      expect(result.valid).toBe(true);
+      expect(result.secretSource).toBe("DEV_ENCRYPTION_SECRET");
+    });
+
+    it("should prefer ENCRYPTION_SECRET over DEV_ENCRYPTION_SECRET", () => {
+      process.env.NODE_ENV = "development";
+      process.env.ENCRYPTION_SECRET = "primary-secret-key-here-32-chars";
+      process.env.DEV_ENCRYPTION_SECRET = "dev-secret-should-not-be-used";
+      
+      const result = validateEncryptionConfig();
+      
+      expect(result.valid).toBe(true);
+      expect(result.secretSource).toBe("ENCRYPTION_SECRET");
     });
 
     it("should return no warnings when properly configured", () => {
@@ -174,6 +200,26 @@ describe("Crypto Utils", () => {
       
       expect(result.valid).toBe(true);
       expect(result.warnings).toHaveLength(0);
+    });
+
+    it("should warn for short DEV_ENCRYPTION_SECRET", () => {
+      process.env.NODE_ENV = "development";
+      delete process.env.ENCRYPTION_SECRET;
+      process.env.DEV_ENCRYPTION_SECRET = "short";
+      
+      const result = validateEncryptionConfig();
+      
+      expect(result.valid).toBe(true);
+      expect(result.secretSource).toBe("DEV_ENCRYPTION_SECRET");
+      expect(result.warnings.some(w => w.includes("DEV_ENCRYPTION_SECRET") && w.includes("shorter"))).toBe(true);
+    });
+
+    it("should not use DEV_ENCRYPTION_SECRET in production", () => {
+      process.env.NODE_ENV = "production";
+      delete process.env.ENCRYPTION_SECRET;
+      process.env.DEV_ENCRYPTION_SECRET = "dev-secret";
+      
+      expect(() => validateEncryptionConfig()).toThrow("ENCRYPTION_SECRET must be set in production");
     });
   });
 
@@ -352,6 +398,108 @@ describe("Crypto Utils", () => {
     it("should generate 64-char hex string", () => {
       const fp = generateDeduplicationFingerprint("shop1", "12345", "purchase");
       expect(fp).toMatch(/^[0-9a-f]{64}$/);
+    });
+  });
+
+  describe("resetEncryptionKeyCache", () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+      resetEncryptionKeyCache();
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+      resetEncryptionKeyCache();
+    });
+
+    it("should allow re-initialization with different secret", () => {
+      process.env.NODE_ENV = "development";
+      process.env.ENCRYPTION_SECRET = "first-secret-key-32-characters-!";
+      
+      const encrypted1 = encrypt("test");
+      
+      // Reset and change secret
+      resetEncryptionKeyCache();
+      process.env.ENCRYPTION_SECRET = "second-secret-key-32-characters!";
+      
+      // Should now fail to decrypt with new key
+      expect(() => decrypt(encrypted1)).toThrow();
+    });
+
+    it("should work after switching between ENCRYPTION_SECRET and DEV_ENCRYPTION_SECRET", () => {
+      process.env.NODE_ENV = "development";
+      process.env.ENCRYPTION_SECRET = "primary-secret-32-characters-!!";
+      delete process.env.DEV_ENCRYPTION_SECRET;
+      
+      const encrypted1 = encrypt("test-primary");
+      const decrypted1 = decrypt(encrypted1);
+      expect(decrypted1).toBe("test-primary");
+      
+      // Reset and switch to dev secret
+      resetEncryptionKeyCache();
+      delete process.env.ENCRYPTION_SECRET;
+      process.env.DEV_ENCRYPTION_SECRET = "dev-only-secret-32-characters-!";
+      
+      // New encryption should work with dev secret
+      const encrypted2 = encrypt("test-dev");
+      const decrypted2 = decrypt(encrypted2);
+      expect(decrypted2).toBe("test-dev");
+      
+      // Old encrypted data should fail
+      expect(() => decrypt(encrypted1)).toThrow();
+    });
+  });
+
+  describe("Edge cases", () => {
+    it("should handle very long strings", () => {
+      const longString = "x".repeat(10000);
+      const encrypted = encrypt(longString);
+      const decrypted = decrypt(encrypted);
+      expect(decrypted).toBe(longString);
+    });
+
+    it("should handle unicode characters", () => {
+      const unicode = "Hello 你好 مرحبا 🎉🚀";
+      const encrypted = encrypt(unicode);
+      const decrypted = decrypt(encrypted);
+      expect(decrypted).toBe(unicode);
+    });
+
+    it("should handle JSON with nested arrays and objects", () => {
+      const complex = {
+        level1: {
+          level2: {
+            array: [1, 2, { nested: true }],
+            nullValue: null,
+            boolTrue: true,
+            boolFalse: false,
+          },
+        },
+        emptyArray: [],
+        emptyObject: {},
+      };
+      
+      const encrypted = encryptJson(complex);
+      const decrypted = decryptJson<typeof complex>(encrypted);
+      expect(decrypted).toEqual(complex);
+    });
+
+    it("should handle order IDs with leading zeros", () => {
+      expect(normalizeOrderId("00012345")).toBe("00012345");
+      expect(normalizeOrderId("gid://shopify/Order/00012345")).toBe("00012345");
+    });
+
+    it("should handle whitespace in emails", () => {
+      expect(normalizeEmail("  user@example.com  ")).toBe("user@example.com");
+      expect(normalizeEmail("\tuser@example.com\n")).toBe("user@example.com");
+    });
+
+    it("should handle international phone formats", () => {
+      expect(normalizePhone("+86 138-0000-0000")).toBe("+8613800000000");
+      expect(normalizePhone("+1 (555) 123-4567")).toBe("+15551234567");
+      expect(normalizePhone("+44 20 7946 0958")).toBe("+442079460958");
     });
   });
 });

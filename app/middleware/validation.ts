@@ -1,13 +1,28 @@
 /**
  * Validation Middleware
  *
- * Re-exports from the unified validation module.
- * This file is kept for backward compatibility.
- *
+ * BACKWARDS COMPATIBILITY LAYER
+ * =============================
+ * 
+ * This file provides backwards compatibility for existing imports.
+ * New code should import directly from the unified validation module:
+ * 
+ * RECOMMENDED:
+ *   import { validateJsonBody, withValidation } from "~/utils/validation";
+ * 
+ * LEGACY (still works but not recommended):
+ *   import { validateJsonBody, withValidation } from "~/middleware/validation";
+ * 
+ * Benefits of importing from ~/utils/validation:
+ * - Single source of truth for all validation utilities
+ * - Access to Result-based functions and traditional functions
+ * - Better discoverability of all validation helpers
+ * 
  * @see app/utils/validation/index.ts for the canonical implementation
+ * @deprecated Prefer importing from "~/utils/validation" directly
  */
 
-// Re-export everything from the unified validation module
+// Re-export from the unified validation module for backwards compatibility
 export {
   // Types
   type ValidationErrorDetail,

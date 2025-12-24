@@ -1,10 +1,19 @@
 /**
  * GDPR Service
  *
- * This file is maintained for backward compatibility.
+ * BACKWARDS COMPATIBILITY LAYER
+ * =============================
+ * 
+ * This file provides backwards compatibility for existing imports.
  * All implementations have been moved to app/services/gdpr/.
- *
- * New code should import from './gdpr' or './gdpr/index'.
+ * 
+ * RECOMMENDED:
+ *   import { processGDPRJob, checkGDPRCompliance } from "~/services/gdpr"
+ * 
+ * LEGACY (still works):
+ *   import { processGDPRJob } from "~/services/gdpr.server"
+ * 
+ * @deprecated Prefer importing from "~/services/gdpr" directly
  */
 
 // =============================================================================

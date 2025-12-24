@@ -467,47 +467,62 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         webhookHasCheckoutToken: !!webhookCheckoutToken,
       });
 
-      // Process each platform
+      // Process each platform in parallel for improved performance
       const platformResults: Record<string, string> = {};
-      let allSucceeded = true;
-      let anySucceeded = false;
       const strategy = job.shop.consentStrategy || "strict";
 
-      for (const pixelConfig of job.shop.pixelConfigs) {
+      // Build conversion data once (shared across all platforms)
+      const lineItems = capiInputParsed?.items?.map((item) => ({
+        productId: item.productId || "",
+        variantId: item.variantId || "",
+        name: item.name || "",
+        quantity: item.quantity || 1,
+        price: item.price || 0,
+      }));
+
+      const conversionData: ConversionData = {
+        orderId: job.orderId,
+        orderNumber: job.orderNumber,
+        value: Number(job.orderValue),
+        currency: job.currency,
+        lineItems,
+      };
+
+      // Process all platforms in parallel
+      const platformPromises = job.shop.pixelConfigs.map(async (pixelConfig) => {
+        const platform = pixelConfig.platform;
         const clientConfig = parsePixelClientConfig(pixelConfig.clientConfig);
         const treatAsMarketing = clientConfig?.treatAsMarketing === true;
-        const platformCategory = getEffectiveConsentCategory(pixelConfig.platform, treatAsMarketing);
+        const platformCategory = getEffectiveConsentCategory(platform, treatAsMarketing);
 
         // Check sale of data opt-out
         if (consentState?.saleOfDataAllowed === false) {
           logger.debug(
-            `[P0-04] Skipping ${pixelConfig.platform} for job ${job.id}: sale_of_data opt-out`
+            `[P0-04] Skipping ${platform} for job ${job.id}: sale_of_data opt-out`
           );
-          platformResults[pixelConfig.platform] = "skipped:sale_of_data_opted_out";
-          continue;
+          return { platform, result: "skipped:sale_of_data_opted_out", success: false, skipped: true };
         }
 
         // Check trust level
         const trustAllowed = isSendAllowedByTrust(
           trustResult,
-          pixelConfig.platform,
+          platform,
           platformCategory,
           strategy
         );
 
         if (!trustAllowed.allowed) {
           logger.debug(
-            `[P0-01] Skipping ${pixelConfig.platform} for job ${job.id}: ` +
+            `[P0-01] Skipping ${platform} for job ${job.id}: ` +
               `trust check failed - ${trustAllowed.reason}`
           );
-          platformResults[pixelConfig.platform] = `skipped:trust_${trustAllowed.reason}`;
-          continue;
+          return { platform, result: `skipped:trust_${trustAllowed.reason}`, success: false, skipped: true };
         }
 
         // Check consent
         const hasVerifiedReceipt = trustResult.trusted || trustResult.level === "partial";
         const consentDecision = evaluatePlatformConsentWithStrategy(
-          pixelConfig.platform,
+          platform,
           strategy,
           consentState,
           hasVerifiedReceipt,
@@ -518,58 +533,64 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
           const skipReason = consentDecision.reason || "consent_denied";
           const usedConsent = consentDecision.usedConsent || "unknown";
           logger.debug(
-            `[P0-07] Skipping ${pixelConfig.platform} for job ${job.id}: ` +
+            `[P0-07] Skipping ${platform} for job ${job.id}: ` +
               `${skipReason} (consent type: ${usedConsent}, strategy: ${strategy})`
           );
-          platformResults[pixelConfig.platform] = `skipped:${skipReason.replace(/\s+/g, "_").toLowerCase()}`;
-          continue;
+          return { 
+            platform, 
+            result: `skipped:${skipReason.replace(/\s+/g, "_").toLowerCase()}`, 
+            success: false, 
+            skipped: true 
+          };
         }
 
         logger.debug(
-          `[P0-07] Consent check passed for ${pixelConfig.platform} (job ${job.id}): ` +
+          `[P0-07] Consent check passed for ${platform} (job ${job.id}): ` +
             `strategy=${strategy}, usedConsent=${consentDecision.usedConsent}, ` +
             `trustLevel=${trustResult.level}`
         );
 
         try {
           // Decrypt credentials
-          const credResult = decryptCredentials(pixelConfig, pixelConfig.platform);
+          const credResult = decryptCredentials(pixelConfig, platform);
 
           if (!credResult.ok) {
-            logger.warn(`Failed to decrypt credentials for ${pixelConfig.platform}: ${credResult.error.message}`);
-            platformResults[pixelConfig.platform] = "failed:no_credentials";
-            allSucceeded = false;
-            continue;
+            logger.warn(`Failed to decrypt credentials for ${platform}: ${credResult.error.message}`);
+            return { platform, result: "failed:no_credentials", success: false, skipped: false };
           }
           
           const credentials = credResult.value.credentials;
 
-          // Build conversion data using type-safe parsed input
-          const lineItems = capiInputParsed?.items?.map((item) => ({
-            productId: item.productId || "",
-            variantId: item.variantId || "",
-            name: item.name || "",
-            quantity: item.quantity || 1,
-            price: item.price || 0,
-          }));
-
-          const conversionData: ConversionData = {
-            orderId: job.orderId,
-            orderNumber: job.orderNumber,
-            value: Number(job.orderValue),
-            currency: job.currency,
-            lineItems,
-          };
-
           // Send to platform
-          await sendToPlatform(pixelConfig.platform, credentials, conversionData, eventId);
-          platformResults[pixelConfig.platform] = "sent";
-          anySucceeded = true;
+          await sendToPlatform(platform, credentials, conversionData, eventId);
+          return { platform, result: "sent", success: true, skipped: false };
         } catch (platformError) {
           const errorMsg = platformError instanceof Error ? platformError.message : "Unknown error";
-          platformResults[pixelConfig.platform] = `failed:${errorMsg.substring(0, 50)}`;
+          return { platform, result: `failed:${errorMsg.substring(0, 50)}`, success: false, skipped: false };
+        }
+      });
+
+      // Wait for all platform sends to complete in parallel
+      const results = await Promise.all(platformPromises);
+      
+      // Aggregate results
+      let allSucceeded = true;
+      let anySucceeded = false;
+      
+      for (const { platform, result, success, skipped } of results) {
+        platformResults[platform] = result;
+        if (success) {
+          anySucceeded = true;
+        } else if (!skipped) {
+          // Only mark as failed if not skipped (skipped doesn't count as failure)
           allSucceeded = false;
         }
+      }
+      
+      // If all were skipped, consider it a success (no actual failures)
+      const allSkipped = results.every(r => r.skipped);
+      if (allSkipped && results.length > 0) {
+        allSucceeded = true;
       }
 
       // Update job status
