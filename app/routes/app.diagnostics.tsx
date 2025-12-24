@@ -294,6 +294,46 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
 
+    // P2-10: Recent Pixel Events for Self-Diagnosis
+    const recentEventsRaw = await prisma.pixelEventReceipt.findMany({
+        where: { shopId: shop.id },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+            id: true,
+            orderId: true,
+            eventType: true,
+            createdAt: true,
+            isTrusted: true,
+            signatureStatus: true,
+        },
+    });
+
+    const orderIds = recentEventsRaw.map(e => e.orderId).filter(Boolean);
+    
+    const relatedJobs = orderIds.length > 0 ? await prisma.conversionJob.findMany({
+        where: { 
+            shopId: shop.id,
+            orderId: { in: orderIds }
+        },
+        select: {
+            orderId: true,
+            status: true,
+            platformResults: true,
+            errorMessage: true,
+        }
+    }) : [];
+
+    const recentEvents = recentEventsRaw.map(event => {
+        const job = relatedJobs.find(j => j.orderId === event.orderId);
+        return {
+            ...event,
+            jobStatus: job?.status || "pending_webhook", // If no job, it means webhook hasn't arrived or matched yet
+            platformResults: job?.platformResults,
+            jobError: job?.errorMessage,
+        };
+    });
+
     return json({
         checks,
         summary,
@@ -304,9 +344,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             queuedJobs,
             deadLetterJobs,
         },
+        recentEvents,
         lastUpdated: new Date().toISOString(),
     });
 };
+
 function FunnelStage({ label, count, total, description, }: {
     label: string;
     count: number;
@@ -341,6 +383,25 @@ function FunnelStage({ label, count, total, description, }: {
       </Box>
     </Box>);
 }
+
+function StatusBadge({ status }: { status: string }) {
+    switch (status) {
+        case "completed":
+        case "sent":
+            return <Badge tone="success">成功</Badge>;
+        case "processing":
+        case "queued":
+            return <Badge tone="info">处理中</Badge>;
+        case "failed":
+        case "dead_letter":
+            return <Badge tone="critical">失败</Badge>;
+        case "pending_webhook":
+            return <Badge tone="warning">等待 Webhook</Badge>;
+        default:
+            return <Badge>{status}</Badge>;
+    }
+}
+
 export default function DiagnosticsPage() {
     const data = useLoaderData<typeof loader>();
     const revalidator = useRevalidator();
@@ -711,6 +772,59 @@ export default function DiagnosticsPage() {
                 <Button url="/app/settings">配置 CAPI 凭证</Button>
                 <Button url="/app/migrate" variant="primary">安装/更新 Pixel</Button>
               </InlineStack>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  最近像素事件日志 (Top 10)
+                </Text>
+                <Badge tone="info">Self-Check</Badge>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                实时显示最近接收到的 Pixel 事件及其后端处理状态
+              </Text>
+              
+              {data.recentEvents && data.recentEvents.length > 0 ? (
+                <DataTable
+                  columnContentTypes={[
+                    "text",
+                    "text",
+                    "text",
+                    "text",
+                    "text",
+                    "text",
+                  ]}
+                  headings={[
+                    "时间",
+                    "事件类型",
+                    "Order ID",
+                    "Pixel 签名",
+                    "后端处理",
+                    "CAPI 结果",
+                  ]}
+                  rows={data.recentEvents.map((event) => {
+                    const platforms = event.platformResults 
+                        ? Object.keys(event.platformResults as Record<string, string>).join(", ") 
+                        : "-";
+                    
+                    return [
+                        new Date(event.createdAt).toLocaleTimeString("zh-CN"),
+                        event.eventType,
+                        event.orderId,
+                        event.isTrusted ? "✅ 验证通过" : `⚠️ ${event.signatureStatus}`,
+                        <StatusBadge key={event.id} status={event.jobStatus} />,
+                        event.jobError ? `❌ ${event.jobError}` : platforms || "-"
+                    ];
+                  })}
+                />
+              ) : (
+                <Banner tone="info">暂无最近事件数据</Banner>
+              )}
             </BlockStack>
           </Card>
         </Layout.Section>

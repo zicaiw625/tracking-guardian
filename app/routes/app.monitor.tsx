@@ -148,7 +148,12 @@ export default function MonitorPage() {
     return (<Page title="监控面板" subtitle="追踪健康状况和转化发送成功率报告" primaryAction={{
             content: "配置追踪平台",
             url: "/app/migrate",
-        }}>
+        }} secondaryActions={[
+            {
+                content: "运行诊断",
+                url: "/app/diagnostics",
+            }
+        ]}>
       <BlockStack gap="500">
         
         {!hasData && (<Card>
