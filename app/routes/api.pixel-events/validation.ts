@@ -249,3 +249,79 @@ export function isPrimaryEvent(eventName: string): boolean {
   return eventName === "checkout_completed";
 }
 
+// =============================================================================
+// P1-5: Pixel Config Validation
+// =============================================================================
+
+/**
+ * P1-5: Pixel configuration structure
+ */
+export interface PixelConfig {
+  schema_version: "1";
+  mode: "purchase_only" | "full_funnel";
+  enabled_platforms: string;
+  strictness: "strict" | "balanced";
+}
+
+/**
+ * P1-5: Default pixel configuration
+ */
+export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
+  schema_version: "1",
+  mode: "purchase_only",
+  enabled_platforms: "meta,tiktok,google",
+  strictness: "strict",
+};
+
+/**
+ * P1-5: Parse and validate pixel_config from payload
+ */
+export function parsePixelConfig(configStr?: string): PixelConfig {
+  if (!configStr) {
+    return DEFAULT_PIXEL_CONFIG;
+  }
+  
+  try {
+    const parsed = JSON.parse(configStr);
+    
+    // Validate schema version
+    if (parsed.schema_version !== "1") {
+      return DEFAULT_PIXEL_CONFIG;
+    }
+    
+    return {
+      schema_version: "1",
+      mode: parsed.mode === "full_funnel" ? "full_funnel" : "purchase_only",
+      enabled_platforms: typeof parsed.enabled_platforms === "string" 
+        ? parsed.enabled_platforms 
+        : DEFAULT_PIXEL_CONFIG.enabled_platforms,
+      strictness: parsed.strictness === "balanced" ? "balanced" : "strict",
+    };
+  } catch {
+    return DEFAULT_PIXEL_CONFIG;
+  }
+}
+
+/**
+ * P1-5: Check if a platform is enabled in the pixel config
+ */
+export function isPlatformEnabled(config: PixelConfig, platform: string): boolean {
+  const normalizedPlatform = platform.toLowerCase();
+  const enabledPlatforms = config.enabled_platforms.toLowerCase().split(",").map(p => p.trim());
+  
+  // Handle aliases
+  const platformAliases: Record<string, string[]> = {
+    google: ["google", "ga4", "analytics"],
+    meta: ["meta", "facebook", "fb"],
+    tiktok: ["tiktok", "tt"],
+  };
+  
+  for (const [canonical, aliases] of Object.entries(platformAliases)) {
+    if (aliases.includes(normalizedPlatform)) {
+      return enabledPlatforms.some(p => aliases.includes(p) || p === canonical);
+    }
+  }
+  
+  return enabledPlatforms.includes(normalizedPlatform);
+}
+

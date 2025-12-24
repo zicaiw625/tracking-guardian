@@ -43,7 +43,7 @@ sale_of_data = "enabled"
 # Reference: https://shopify.dev/docs/apps/build/marketing-analytics/build-web-pixels
 #
 # P0-6: Settings schema 与 buildWebPixelSettings() 严格对齐
-# 只包含两个字段: ingestion_key 和 shop_domain
+# P1-5: 扩展配置支持 JSON 格式的 pixel_config
 # backend_url 是构建时常量，不作为运行时配置
 [settings]
 type = "object"
@@ -56,4 +56,9 @@ type = "single_line_text_field"
 [settings.fields.shop_domain]
 name = "Shop Domain"
 description = "The myshopify.com domain for this store. Auto-configured during installation."
+type = "single_line_text_field"
+
+[settings.fields.pixel_config]
+name = "Pixel Configuration"
+description = "JSON configuration for pixel behavior (mode, strictness, enabled platforms). Schema versioned for compatibility."
 type = "single_line_text_field"

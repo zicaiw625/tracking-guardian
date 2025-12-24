@@ -461,3 +461,304 @@ export async function getLatestReconciliation(shopId: string): Promise<Map<strin
     }
     return result;
 }
+
+// =============================================================================
+// P1-4: 对账可视化数据接口
+// =============================================================================
+
+/**
+ * 缺口原因类型
+ */
+export type GapReason = 
+    | "no_pixel_receipt"      // 用户未到达感谢页（upsell/提前关闭）
+    | "consent_denied"        // consent 未授权
+    | "network_timeout"       // 网络中断/超时
+    | "trust_check_failed"    // 信任检查失败
+    | "billing_limit"         // 计费限制
+    | "platform_error"        // 平台发送失败
+    | "unknown";              // 未知原因
+
+export interface GapAnalysis {
+    reason: GapReason;
+    count: number;
+    percentage: number;
+    description: string;
+}
+
+export interface ReconciliationDashboardData {
+    // 总览
+    period: {
+        startDate: Date;
+        endDate: Date;
+        days: number;
+    };
+    overview: {
+        totalWebhookOrders: number;
+        totalPixelReceipts: number;
+        totalGap: number;
+        gapPercentage: number;
+        totalSentToPlatforms: number;
+        matchRate: number;
+    };
+    // 缺口分析
+    gapAnalysis: GapAnalysis[];
+    // 按平台分解
+    platformBreakdown: Array<{
+        platform: string;
+        webhookOrders: number;
+        pixelReceipts: number;
+        sentToPlatform: number;
+        gap: number;
+        gapPercentage: number;
+    }>;
+    // 趋势数据（按天）
+    dailyTrend: Array<{
+        date: string;
+        webhookOrders: number;
+        pixelReceipts: number;
+        gap: number;
+    }>;
+    // 策略建议
+    recommendation: {
+        currentStrategy: string;
+        suggestedStrategy: string | null;
+        reason: string | null;
+    };
+}
+
+/**
+ * P1-4: 获取对账仪表板数据
+ */
+export async function getReconciliationDashboardData(
+    shopId: string,
+    days: number = 7
+): Promise<ReconciliationDashboardData> {
+    const endDate = new Date();
+    endDate.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - days);
+
+    // 获取店铺当前策略
+    const shop = await prisma.shop.findUnique({
+        where: { id: shopId },
+        select: { consentStrategy: true },
+    });
+    const currentStrategy = shop?.consentStrategy || "strict";
+
+    // 查询时间范围内的 ConversionJob（代表 webhook 订单）
+    const conversionJobs = await prisma.conversionJob.findMany({
+        where: {
+            shopId,
+            createdAt: {
+                gte: startDate,
+                lt: endDate,
+            },
+        },
+        select: {
+            id: true,
+            orderId: true,
+            status: true,
+            errorMessage: true,
+            createdAt: true,
+            trustMetadata: true,
+            consentEvidence: true,
+        },
+    });
+
+    // 查询时间范围内的 PixelEventReceipt
+    const pixelReceipts = await prisma.pixelEventReceipt.findMany({
+        where: {
+            shopId,
+            eventType: "purchase",
+            createdAt: {
+                gte: startDate,
+                lt: endDate,
+            },
+        },
+        select: {
+            orderId: true,
+            isTrusted: true,
+            consentState: true,
+            createdAt: true,
+        },
+    });
+
+    // 查询 ConversionLog 获取平台发送情况
+    const conversionLogs = await prisma.conversionLog.findMany({
+        where: {
+            shopId,
+            eventType: "purchase",
+            createdAt: {
+                gte: startDate,
+                lt: endDate,
+            },
+        },
+        select: {
+            orderId: true,
+            platform: true,
+            status: true,
+            errorMessage: true,
+            createdAt: true,
+        },
+    });
+
+    // 创建 orderId 到 receipt 的映射
+    const receiptByOrderId = new Map(
+        pixelReceipts.map(r => [r.orderId, r])
+    );
+
+    // 分析缺口原因
+    const gapReasonCounts: Record<GapReason, number> = {
+        no_pixel_receipt: 0,
+        consent_denied: 0,
+        network_timeout: 0,
+        trust_check_failed: 0,
+        billing_limit: 0,
+        platform_error: 0,
+        unknown: 0,
+    };
+
+    for (const job of conversionJobs) {
+        const receipt = receiptByOrderId.get(job.orderId);
+        
+        if (!receipt) {
+            // 没有收到像素事件
+            gapReasonCounts.no_pixel_receipt++;
+        } else if (job.status === "limit_exceeded") {
+            gapReasonCounts.billing_limit++;
+        } else if (job.status === "failed" || job.status === "dead_letter") {
+            const errorMsg = (job.errorMessage || "").toLowerCase();
+            if (errorMsg.includes("consent") || errorMsg.includes("sale_of_data")) {
+                gapReasonCounts.consent_denied++;
+            } else if (errorMsg.includes("trust") || errorMsg.includes("untrusted")) {
+                gapReasonCounts.trust_check_failed++;
+            } else if (errorMsg.includes("timeout") || errorMsg.includes("network")) {
+                gapReasonCounts.network_timeout++;
+            } else if (errorMsg.includes("platform") || errorMsg.includes("api")) {
+                gapReasonCounts.platform_error++;
+            } else {
+                gapReasonCounts.unknown++;
+            }
+        }
+    }
+
+    // 计算总览
+    const totalWebhookOrders = conversionJobs.length;
+    const totalPixelReceipts = pixelReceipts.length;
+    const totalGap = Math.max(0, totalWebhookOrders - totalPixelReceipts);
+    const gapPercentage = totalWebhookOrders > 0 
+        ? (totalGap / totalWebhookOrders) * 100 
+        : 0;
+    
+    const sentLogs = conversionLogs.filter(l => l.status === "sent");
+    const totalSentToPlatforms = new Set(sentLogs.map(l => l.orderId)).size;
+    const matchRate = totalWebhookOrders > 0 
+        ? (totalSentToPlatforms / totalWebhookOrders) * 100 
+        : 0;
+
+    // 构建缺口分析
+    const totalGapCount = Object.values(gapReasonCounts).reduce((a, b) => a + b, 0);
+    const gapAnalysis: GapAnalysis[] = [];
+    
+    const reasonDescriptions: Record<GapReason, string> = {
+        no_pixel_receipt: "用户未到达感谢页（提前关闭、upsell 中断等）",
+        consent_denied: "用户未授权追踪同意（GDPR/CCPA）",
+        network_timeout: "网络中断或请求超时",
+        trust_check_failed: "像素事件信任检查未通过",
+        billing_limit: "月度用量已达计费上限",
+        platform_error: "平台 API 发送失败",
+        unknown: "未知原因",
+    };
+
+    for (const [reason, count] of Object.entries(gapReasonCounts)) {
+        if (count > 0) {
+            gapAnalysis.push({
+                reason: reason as GapReason,
+                count,
+                percentage: totalGapCount > 0 ? (count / totalGapCount) * 100 : 0,
+                description: reasonDescriptions[reason as GapReason],
+            });
+        }
+    }
+    gapAnalysis.sort((a, b) => b.count - a.count);
+
+    // 按平台分解
+    const platforms = [...new Set(conversionLogs.map(l => l.platform))];
+    const platformBreakdown = platforms.map(platform => {
+        const platformLogs = conversionLogs.filter(l => l.platform === platform);
+        const sentCount = platformLogs.filter(l => l.status === "sent").length;
+        const uniqueOrders = new Set(platformLogs.map(l => l.orderId)).size;
+        const gap = uniqueOrders - sentCount;
+        
+        return {
+            platform,
+            webhookOrders: uniqueOrders,
+            pixelReceipts: receiptByOrderId.size,
+            sentToPlatform: sentCount,
+            gap: Math.max(0, gap),
+            gapPercentage: uniqueOrders > 0 ? (gap / uniqueOrders) * 100 : 0,
+        };
+    });
+
+    // 按天统计趋势
+    const dailyStats = new Map<string, { webhook: number; pixel: number }>();
+    for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split("T")[0];
+        dailyStats.set(dateStr, { webhook: 0, pixel: 0 });
+    }
+
+    for (const job of conversionJobs) {
+        const dateStr = new Date(job.createdAt).toISOString().split("T")[0];
+        const stat = dailyStats.get(dateStr);
+        if (stat) stat.webhook++;
+    }
+
+    for (const receipt of pixelReceipts) {
+        const dateStr = new Date(receipt.createdAt).toISOString().split("T")[0];
+        const stat = dailyStats.get(dateStr);
+        if (stat) stat.pixel++;
+    }
+
+    const dailyTrend = Array.from(dailyStats.entries()).map(([date, stat]) => ({
+        date,
+        webhookOrders: stat.webhook,
+        pixelReceipts: stat.pixel,
+        gap: Math.max(0, stat.webhook - stat.pixel),
+    }));
+
+    // 策略建议
+    let suggestedStrategy: string | null = null;
+    let suggestionReason: string | null = null;
+
+    if (currentStrategy === "strict" && gapPercentage > 15) {
+        suggestedStrategy = "balanced";
+        suggestionReason = `当前缺口率 ${gapPercentage.toFixed(1)}% 较高，切换到 balanced 策略可提高覆盖率`;
+    } else if (currentStrategy === "balanced" && gapPercentage < 5) {
+        suggestedStrategy = "strict";
+        suggestionReason = `当前匹配率良好（缺口 ${gapPercentage.toFixed(1)}%），可考虑切换到 strict 策略增强数据质量`;
+    }
+
+    return {
+        period: {
+            startDate,
+            endDate,
+            days,
+        },
+        overview: {
+            totalWebhookOrders,
+            totalPixelReceipts,
+            totalGap,
+            gapPercentage,
+            totalSentToPlatforms,
+            matchRate,
+        },
+        gapAnalysis,
+        platformBreakdown,
+        dailyTrend,
+        recommendation: {
+            currentStrategy,
+            suggestedStrategy,
+            reason: suggestionReason,
+        },
+    };
+}

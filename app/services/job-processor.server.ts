@@ -109,6 +109,109 @@ const {
 } = JOB_PROCESSING_CONFIG;
 
 // =============================================================================
+// P2-2: Batch-Level Backoff Configuration
+// =============================================================================
+
+/**
+ * P2-2: Batch backoff state for adaptive processing rate
+ * 
+ * When too many failures occur in a batch, we reduce processing speed
+ * to allow external systems (platforms, DB) to recover.
+ */
+interface BatchBackoffState {
+  consecutiveHighFailureBatches: number;
+  lastBatchFailureRate: number;
+  currentDelayMs: number;
+}
+
+const BATCH_BACKOFF_CONFIG = {
+  /** Failure rate threshold to trigger backoff (e.g., 0.5 = 50%) */
+  FAILURE_RATE_THRESHOLD: 0.5,
+  /** Initial delay between batches when backoff is triggered */
+  INITIAL_BATCH_DELAY_MS: 1000,
+  /** Maximum delay between batches */
+  MAX_BATCH_DELAY_MS: 30000,
+  /** Multiplier for exponential backoff */
+  BACKOFF_MULTIPLIER: 2,
+  /** Number of consecutive good batches to reset backoff */
+  RESET_THRESHOLD: 3,
+} as const;
+
+// Global backoff state (per process)
+let batchBackoffState: BatchBackoffState = {
+  consecutiveHighFailureBatches: 0,
+  lastBatchFailureRate: 0,
+  currentDelayMs: 0,
+};
+
+/**
+ * P2-2: Update batch backoff state based on batch results
+ */
+function updateBatchBackoff(
+  succeeded: number,
+  failed: number,
+  limitExceeded: number
+): void {
+  const total = succeeded + failed + limitExceeded;
+  if (total === 0) return;
+
+  const failureRate = (failed + limitExceeded) / total;
+  batchBackoffState.lastBatchFailureRate = failureRate;
+
+  if (failureRate >= BATCH_BACKOFF_CONFIG.FAILURE_RATE_THRESHOLD) {
+    // High failure rate - increase backoff
+    batchBackoffState.consecutiveHighFailureBatches++;
+    
+    if (batchBackoffState.currentDelayMs === 0) {
+      batchBackoffState.currentDelayMs = BATCH_BACKOFF_CONFIG.INITIAL_BATCH_DELAY_MS;
+    } else {
+      batchBackoffState.currentDelayMs = Math.min(
+        batchBackoffState.currentDelayMs * BATCH_BACKOFF_CONFIG.BACKOFF_MULTIPLIER,
+        BATCH_BACKOFF_CONFIG.MAX_BATCH_DELAY_MS
+      );
+    }
+
+    logger.warn(
+      `[P2-2] High batch failure rate: ${(failureRate * 100).toFixed(1)}%. ` +
+      `Consecutive: ${batchBackoffState.consecutiveHighFailureBatches}. ` +
+      `Next batch delay: ${batchBackoffState.currentDelayMs}ms`
+    );
+  } else {
+    // Good batch - reduce backoff
+    if (batchBackoffState.consecutiveHighFailureBatches > 0) {
+      batchBackoffState.consecutiveHighFailureBatches--;
+    }
+    
+    if (batchBackoffState.consecutiveHighFailureBatches === 0) {
+      // Reset if we've had enough good batches
+      batchBackoffState.currentDelayMs = 0;
+    } else {
+      // Gradually reduce delay
+      batchBackoffState.currentDelayMs = Math.floor(
+        batchBackoffState.currentDelayMs / BATCH_BACKOFF_CONFIG.BACKOFF_MULTIPLIER
+      );
+    }
+  }
+}
+
+/**
+ * P2-2: Get current batch delay (for external callers)
+ */
+export function getBatchBackoffDelay(): number {
+  return batchBackoffState.currentDelayMs;
+}
+
+/**
+ * P2-2: Apply batch backoff delay if needed
+ */
+async function applyBatchBackoff(): Promise<void> {
+  if (batchBackoffState.currentDelayMs > 0) {
+    logger.info(`[P2-2] Applying batch backoff delay: ${batchBackoffState.currentDelayMs}ms`);
+    await new Promise(resolve => setTimeout(resolve, batchBackoffState.currentDelayMs));
+  }
+}
+
+// =============================================================================
 // Retry Logic
 // =============================================================================
 
@@ -561,16 +664,21 @@ async function processSingleJob(
  * Process a batch of conversion jobs.
  *
  * This function:
- * 1. Claims jobs atomically using FOR UPDATE SKIP LOCKED
- * 2. Verifies billing limits
- * 3. Finds and verifies pixel receipts for consent
- * 4. Sends conversions to enabled platforms (in parallel)
- * 5. Batch updates job statuses
+ * 1. Applies batch-level backoff if previous batches had high failure rates (P2-2)
+ * 2. Claims jobs atomically using FOR UPDATE SKIP LOCKED
+ * 3. Verifies billing limits
+ * 4. Finds and verifies pixel receipts for consent
+ * 5. Sends conversions to enabled platforms (in parallel)
+ * 6. Batch updates job statuses
+ * 7. Updates backoff state based on results (P2-2)
  */
 export async function processConversionJobs(
   batchSize: number = DEFAULT_BATCH_SIZE
 ): Promise<ProcessConversionJobsResult> {
   const now = new Date();
+
+  // P2-2: Apply batch-level backoff if needed
+  await applyBatchBackoff();
 
   // Claim jobs
   const claimedJobIds = await claimJobsForProcessing(batchSize);
@@ -682,10 +790,16 @@ export async function processConversionJobs(
     }
   }
 
+  // P2-2: Update batch backoff state
+  updateBatchBackoff(succeeded, failed, limitExceeded);
+
   logger.info(
     `processConversionJobs: Completed - ` +
       `${succeeded} succeeded, ${failed} failed, ` +
-      `${limitExceeded} limit exceeded, ${skipped} skipped`
+      `${limitExceeded} limit exceeded, ${skipped} skipped` +
+      (batchBackoffState.currentDelayMs > 0 
+        ? ` (backoff: ${batchBackoffState.currentDelayMs}ms)` 
+        : "")
   );
 
   return {

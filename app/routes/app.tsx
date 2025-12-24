@@ -23,6 +23,8 @@ export default function App() {
         <Link to="/app/scan">扫描报告</Link>
         <Link to="/app/migrate">迁移工具</Link>
         <Link to="/app/monitor">监控面板</Link>
+        <Link to="/app/reconciliation">对账分析</Link>
+        <Link to="/app/privacy">隐私与数据</Link>
         <Link to="/app/settings">设置</Link>
       </NavMenu>
       <Outlet />

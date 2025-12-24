@@ -1,7 +1,12 @@
 // Migration action generation for scanner
 
 import type { MigrationAction, EnhancedScanResult } from "./types";
-import { PLATFORM_PATTERNS, identifyPlatformFromSrc } from "./patterns";
+import { 
+    PLATFORM_PATTERNS, 
+    identifyPlatformFromSrc, 
+    getPlatformInfo,
+    type PlatformSupportLevel,
+} from "./patterns";
 import { 
     getScriptTagCreationStatus, 
     getScriptTagExecutionStatus, 
@@ -66,13 +71,36 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
     const configuredPlatforms = getConfiguredPlatforms(result);
 
     for (const platform of result.identifiedPlatforms) {
-        if (!configuredPlatforms.has(platform)) {
+        const platformInfo = getPlatformInfo(platform);
+        
+        // P1-1: 根据平台支持级别生成不同的建议
+        if (platformInfo.supportLevel === "unsupported") {
+            // 不支持的平台，建议使用官方应用
+            actions.push({
+                type: "configure_pixel",
+                priority: "low",
+                platform,
+                title: `${platformInfo.name}: 建议使用官方方案`,
+                description: platformInfo.recommendation + 
+                    (platformInfo.officialApp ? `\n\n👉 官方应用: ${platformInfo.officialApp}` : ""),
+            });
+        } else if (platformInfo.supportLevel === "partial") {
+            // 部分支持的平台
             actions.push({
                 type: "configure_pixel",
                 priority: "medium",
                 platform,
-                title: `配置 ${platform.charAt(0).toUpperCase() + platform.slice(1)} Web Pixel`,
-                description: `检测到 ${platform} 追踪代码，但尚未配置 Web Pixel。建议使用我们的迁移工具进行配置。`,
+                title: `${platformInfo.name}: 需要评估迁移方案`,
+                description: platformInfo.recommendation,
+            });
+        } else if (!configuredPlatforms.has(platform)) {
+            // 完全支持但未配置的平台
+            actions.push({
+                type: "configure_pixel",
+                priority: "medium",
+                platform,
+                title: `配置 ${platformInfo.name}`,
+                description: `检测到 ${platformInfo.name} 追踪代码，但尚未配置。${platformInfo.recommendation}`,
             });
         }
     }

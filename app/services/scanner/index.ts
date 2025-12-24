@@ -312,10 +312,89 @@ async function saveScanReport(shopId: string, result: ScanResult, errorMessage: 
     });
 }
 
+// =============================================================================
+// P2-2: Scan Caching Configuration
+// =============================================================================
+
+/**
+ * Default cache TTL in milliseconds (10 minutes)
+ */
+const SCAN_CACHE_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * Check if a cached scan result is still valid
+ */
+function isScanCacheValid(cachedAt: Date, ttlMs: number = SCAN_CACHE_TTL_MS): boolean {
+    const now = Date.now();
+    const cacheAge = now - cachedAt.getTime();
+    return cacheAge < ttlMs;
+}
+
+/**
+ * P2-2: Get cached scan result if available and valid
+ * @returns The cached result or null if cache is expired/missing
+ */
+export async function getCachedScanResult(
+    shopId: string,
+    ttlMs: number = SCAN_CACHE_TTL_MS
+): Promise<EnhancedScanResult | null> {
+    const cached = await prisma.scanReport.findFirst({
+        where: { shopId },
+        orderBy: { createdAt: "desc" },
+    });
+
+    if (!cached || !cached.completedAt) {
+        return null;
+    }
+
+    if (!isScanCacheValid(cached.completedAt, ttlMs)) {
+        logger.debug(`Scan cache expired for shop ${shopId}, age: ${Date.now() - cached.completedAt.getTime()}ms`);
+        return null;
+    }
+
+    logger.debug(`Using cached scan result for shop ${shopId}, age: ${Date.now() - cached.completedAt.getTime()}ms`);
+
+    // Reconstruct EnhancedScanResult from cached data
+    return {
+        scriptTags: (cached.scriptTags as ScriptTag[] | null) || [],
+        checkoutConfig: (cached.checkoutConfig as CheckoutConfig | null) || null,
+        identifiedPlatforms: cached.identifiedPlatforms || [],
+        riskItems: (cached.riskItems as ScanResult["riskItems"] | null) || [],
+        riskScore: cached.riskScore || 0,
+        webPixels: [], // Web pixels need to be re-fetched for freshness
+        duplicatePixels: [],
+        migrationActions: [], // Will be regenerated
+    };
+}
+
 /**
  * Main scan function - scans shop for tracking scripts and generates report
+ * 
+ * P2-2: Supports caching - use `force: true` to bypass cache
  */
-export async function scanShopTracking(admin: AdminApiContext, shopId: string): Promise<EnhancedScanResult> {
+export async function scanShopTracking(
+    admin: AdminApiContext, 
+    shopId: string,
+    options: { force?: boolean; cacheTtlMs?: number } = {}
+): Promise<EnhancedScanResult> {
+    const { force = false, cacheTtlMs = SCAN_CACHE_TTL_MS } = options;
+
+    // P2-2: Check cache unless force refresh is requested
+    if (!force) {
+        const cached = await getCachedScanResult(shopId, cacheTtlMs);
+        if (cached) {
+            // Re-fetch web pixels for freshness (they change more frequently)
+            try {
+                cached.webPixels = await fetchAllWebPixels(admin);
+                cached.duplicatePixels = detectDuplicatePixels(cached);
+                cached.migrationActions = generateMigrationActions(cached);
+                logger.info(`Returning cached scan with fresh web pixels for shop ${shopId}`);
+            } catch (error) {
+                logger.warn(`Failed to refresh web pixels for cached scan: ${error}`);
+            }
+            return cached;
+        }
+    }
     const errors: ScanError[] = [];
     const result: EnhancedScanResult = {
         scriptTags: [],

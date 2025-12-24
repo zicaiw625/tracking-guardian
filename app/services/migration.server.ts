@@ -133,10 +133,32 @@ export interface CreateWebPixelResult {
 }
 
 /**
+ * P1-5: Pixel configuration structure for runtime behavior control
+ */
+export interface PixelConfig {
+    schema_version: "1";
+    mode: "purchase_only" | "full_funnel";
+    enabled_platforms: string;
+    strictness: "strict" | "balanced";
+}
+
+/**
+ * P1-5: Default pixel configuration
+ */
+export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
+    schema_version: "1",
+    mode: "purchase_only",
+    enabled_platforms: "meta,tiktok,google",
+    strictness: "strict",
+};
+
+/**
  * P0-01/P0-02: WebPixelSettings must EXACTLY match shopify.extension.toml settings schema.
  * 
  * CRITICAL: Only include fields that are declared in the toml schema.
  * Adding extra fields will cause webPixelCreate mutation to fail with schema validation error.
+ * 
+ * P1-5: Added pixel_config for runtime behavior configuration.
  * 
  * All fields are strings per Shopify Web Pixel requirements (only single_line_text_field supported).
  * Reference: https://shopify.dev/docs/apps/build/marketing-analytics/build-web-pixels
@@ -144,6 +166,7 @@ export interface CreateWebPixelResult {
 export interface WebPixelSettings {
     ingestion_key: string;
     shop_domain: string;
+    pixel_config: string;
 }
 
 /**
@@ -152,15 +175,59 @@ export interface WebPixelSettings {
  * P0-02: Settings keys MUST exactly match shopify.extension.toml [settings.fields.*] keys.
  * - ingestion_key: matches [settings.fields.ingestion_key]
  * - shop_domain: matches [settings.fields.shop_domain]
+ * - pixel_config: matches [settings.fields.pixel_config] (P1-5)
  * 
  * Note: backend_url is NOT included because it's a build-time constant in the pixel code,
  * not a runtime setting. This avoids schema validation failures.
  */
-export function buildWebPixelSettings(ingestionKey: string, shopDomain: string): WebPixelSettings {
+export function buildWebPixelSettings(
+    ingestionKey: string, 
+    shopDomain: string,
+    pixelConfig?: Partial<PixelConfig>
+): WebPixelSettings {
+    const config: PixelConfig = {
+        ...DEFAULT_PIXEL_CONFIG,
+        ...pixelConfig,
+    };
+    
     return {
         ingestion_key: ingestionKey,
         shop_domain: shopDomain,
+        pixel_config: JSON.stringify(config),
     };
+}
+
+/**
+ * P1-5: Parse pixel_config from settings with fallback to defaults
+ */
+export function parsePixelConfigFromSettings(configStr?: string): PixelConfig {
+    if (!configStr) {
+        return DEFAULT_PIXEL_CONFIG;
+    }
+    
+    try {
+        const parsed = JSON.parse(configStr);
+        
+        // Validate schema version for forward compatibility
+        if (parsed.schema_version !== "1") {
+            logger.warn("Unknown pixel_config schema version, using defaults", {
+                schemaVersion: parsed.schema_version,
+            });
+            return DEFAULT_PIXEL_CONFIG;
+        }
+        
+        return {
+            schema_version: "1",
+            mode: parsed.mode === "full_funnel" ? "full_funnel" : "purchase_only",
+            enabled_platforms: typeof parsed.enabled_platforms === "string" 
+                ? parsed.enabled_platforms 
+                : DEFAULT_PIXEL_CONFIG.enabled_platforms,
+            strictness: parsed.strictness === "balanced" ? "balanced" : "strict",
+        };
+    } catch (e) {
+        logger.warn("Failed to parse pixel_config, using defaults", { error: String(e) });
+        return DEFAULT_PIXEL_CONFIG;
+    }
 }
 
 export function isOurWebPixel(settings: unknown, shopDomain?: string): boolean {
