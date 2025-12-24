@@ -88,13 +88,13 @@ export function getDateDisplayLabel(date: Date, precision: DatePrecision = "mont
         case "exact":
             return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         case "month":
-            return `${year}年${month}月`;
+            return `${year}-${String(month).padStart(2, "0")}`;
         case "quarter": {
             const quarter = Math.ceil(month / 3);
-            return `${year}年第${quarter}季度`;
+            return `${year}-Q${quarter}`;
         }
         default:
-            return `${year}年${month}月`;
+            return `${year}-${String(month).padStart(2, "0")}`;
     }
 }
 export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {

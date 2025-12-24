@@ -376,7 +376,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
         <BlockStack gap="100">
           <Text as="p">
             <strong>Shopify Plus 商家:</strong> 附加脚本（Additional Scripts）自{" "}
-            <strong>2025年8月28日</strong> 起在 Checkout 设置中只读（不可再编辑）
+            <strong>2025-08-28</strong> 起在 Checkout 设置中只读（不可再编辑）
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
@@ -390,7 +390,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
         <BlockStack gap="100">
           <Text as="p">
             <strong>非 Plus 商家:</strong> Order status 页 ScriptTags 将于{" "}
-            <strong>2026年8月26日</strong> 关闭
+            <strong>2026-08-26</strong> 关闭
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
