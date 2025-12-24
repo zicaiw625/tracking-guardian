@@ -211,8 +211,10 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     return results;
 }
 export async function getDeliveryHealthHistory(shopId: string, days = 30): Promise<DeliveryHealthReport[]> {
+    // P0-3: 使用 UTC 边界确保跨时区一致性
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    startDate.setUTCDate(startDate.getUTCDate() - days);
+    startDate.setUTCHours(0, 0, 0, 0);
     const reports = await prisma.reconciliationReport.findMany({
         where: {
             shopId,
@@ -240,8 +242,10 @@ export async function getDeliveryHealthHistory(shopId: string, days = 30): Promi
     }));
 }
 export async function getDeliveryHealthSummary(shopId: string): Promise<Record<string, DeliveryHealthSummary>> {
+    // P0-3: 使用 UTC 边界确保跨时区一致性
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+    sevenDaysAgo.setUTCHours(0, 0, 0, 0);
     const logs = await prisma.conversionLog.findMany({
         where: {
             shopId,

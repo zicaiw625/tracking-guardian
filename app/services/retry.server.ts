@@ -661,8 +661,9 @@ export async function checkTokenExpirationIssues(shopId: string): Promise<{
   hasIssues: boolean;
   affectedPlatforms: string[];
 }> {
+  // P0-3: 使用 UTC 确保跨时区一致性
   const oneDayAgo = new Date();
-  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+  oneDayAgo.setUTCDate(oneDayAgo.getUTCDate() - 1);
 
   const tokenExpiredLogs = await prisma.conversionLog.findMany({
     where: {

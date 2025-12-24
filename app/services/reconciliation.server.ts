@@ -381,8 +381,10 @@ export async function getReconciliationHistory(shopId: string, days: number = 30
     revenueDiscrepancy: number;
     alertSent: boolean;
 }>> {
+    // P0-3: 使用 UTC 边界确保跨时区一致性
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
+    cutoffDate.setUTCDate(cutoffDate.getUTCDate() - days);
+    cutoffDate.setUTCHours(0, 0, 0, 0);
     const reports = await prisma.reconciliationReport.findMany({
         where: {
             shopId,

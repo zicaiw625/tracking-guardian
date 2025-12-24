@@ -245,11 +245,24 @@ export function getCurrentYearMonth(): string {
 }
 
 /**
- * Calculate days ago from now.
+ * Calculate days ago from now (local timezone).
+ * 
+ * @deprecated Use daysAgoUTC for server-side statistics to ensure timezone consistency.
  */
 export function daysAgo(days: number): Date {
   const date = new Date();
   date.setDate(date.getDate() - days);
+  return date;
+}
+
+/**
+ * P0-3: Calculate days ago from now using UTC.
+ * Use this for server-side statistics to ensure consistent results across timezones.
+ */
+export function daysAgoUTC(days: number): Date {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - days);
+  date.setUTCHours(0, 0, 0, 0);
   return date;
 }
 

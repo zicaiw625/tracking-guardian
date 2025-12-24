@@ -44,8 +44,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     const summary = await getDeliveryHealthSummary(shop.id);
     const history = await getDeliveryHealthHistory(shop.id, 30);
+    // P0-3: 使用 UTC 确保跨时区一致性
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+    sevenDaysAgo.setUTCHours(0, 0, 0, 0);
     const conversionStats = await prisma.conversionLog.groupBy({
         by: ["platform", "status"],
         where: {

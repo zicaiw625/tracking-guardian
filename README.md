@@ -21,23 +21,27 @@
 > - Bing: 建议使用 Microsoft 官方 Shopify 应用
 > - Clarity: 客户端会话回放工具，请在主题中直接添加
 
-### 3. 追踪健康监控
-- 每日自动对账：Shopify 订单/Webhook 回执 vs 平台投递日志
+### 3. 追踪健康监控与送达对账
+- 每日自动对账：Shopify Webhook 订单 vs 像素回执 vs 平台送达日志
 - 投递成功率监控：检测发送失败、超时、凭证过期等问题
+- 送达缺口分析：识别丢失发生在像素端、服务端还是平台端
 - 偏差率报警（邮件/Slack/Telegram）
 - 可视化监控面板
 
-> **说明**：当前对账功能验证的是「事件是否成功发送到广告平台」，而非「平台侧报表中的转化数」。
-> 这能帮助您定位丢失发生在像素端、服务器端还是网络层，但不包含平台侧转化报表回读。
+> **重要说明**：当前对账功能验证的是「事件是否成功发送到广告平台」，而非「平台侧报表中的转化数」。
+> 我们保证您能证明事件已发出、能定位丢失发生在哪一环节（像素未触发 / 服务端发送失败 / 平台 API 错误），
+> 但**不包含**平台侧转化报表的回读对比（如 Meta Ads Manager 的转化数、Google Ads 的归因报表等）。
 
 ### 4. 服务器端转化补齐
 - Shopify Webhooks 自动触发
 - Meta Conversions API (CAPI)
-- GA4 Measurement Protocol
+- GA4 Measurement Protocol（⚠️ 仅支持 GA4，非 Google Ads）
 - TikTok Events API
 
-> **注意**：当前 Google 集成使用的是 GA4 Measurement Protocol，暂不支持 Google Ads 离线转化导入。
-> 如需 Google Ads Enhanced Conversions，建议配合使用 Google 官方 Shopify 应用。
+> **重要说明**：
+> - **GA4**：使用 GA4 Measurement Protocol 发送服务端事件，适用于 Google Analytics 4 属性
+> - **Google Ads**：当前**不支持** Google Ads 离线转化导入（Enhanced Conversions for Leads / Offline Conversions）。如需 Google Ads 归因，建议配合使用 Google 官方 Shopify 应用或 Google Ads 离线转化导入工具
+> - 本应用专注于 GA4 + Meta CAPI + TikTok Events API 的统一管理
 
 ### 5. TY/OS 页面小组件 (Beta)
 - Post-purchase Survey（购后问卷）

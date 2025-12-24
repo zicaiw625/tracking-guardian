@@ -376,8 +376,9 @@ export async function requeueDeadLetterJobs(
 export async function cleanupOldJobs(
   retentionDays: number = 90
 ): Promise<number> {
+  // P0-3: 使用 UTC 确保跨时区一致性
   const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+  cutoffDate.setUTCDate(cutoffDate.getUTCDate() - retentionDays);
 
   const result = await prisma.conversionJob.deleteMany({
     where: {

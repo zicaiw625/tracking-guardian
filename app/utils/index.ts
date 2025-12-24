@@ -340,6 +340,7 @@ export {
   isWithinTimeWindow,
   getCurrentYearMonth,
   daysAgo,
+  daysAgoUTC,
   // Async utilities
   delay,
   retry,

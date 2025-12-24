@@ -118,8 +118,9 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
   }
 
   // Clean up old GDPR jobs (completed/failed > 30 days)
+  // P0-3: 使用 UTC 确保跨时区一致性
   const gdprCutoff = new Date();
-  gdprCutoff.setDate(gdprCutoff.getDate() - 30);
+  gdprCutoff.setUTCDate(gdprCutoff.getUTCDate() - 30);
 
   const gdprJobResult = await prisma.gDPRJob.deleteMany({
     where: {
@@ -169,11 +170,12 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     const shopDomains = shopsInGroup.map((s) => s.shopDomain);
 
     // Calculate cutoff dates
+    // P0-3: 使用 UTC 确保跨时区一致性
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+    cutoffDate.setUTCDate(cutoffDate.getUTCDate() - retentionDays);
 
     const auditCutoff = new Date();
-    auditCutoff.setDate(auditCutoff.getDate() - Math.max(retentionDays, 180));
+    auditCutoff.setUTCDate(auditCutoff.getUTCDate() - Math.max(retentionDays, 180));
 
     // Batch delete all tables in parallel
     const [
