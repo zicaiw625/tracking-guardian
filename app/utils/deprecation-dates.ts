@@ -114,7 +114,7 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     nonPlusAdditionalScriptsReadOnly: {
         date: DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly,
         precision: "exact",
-        displayLabel: "2026-08-26",
+        displayLabel: "2025-08-28",
         isEstimate: false, // Confirmed by Shopify official docs
     },
     plusScriptTagExecutionOff: {

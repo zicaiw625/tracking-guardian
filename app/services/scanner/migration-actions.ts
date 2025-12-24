@@ -39,7 +39,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         const PLUS_SCRIPT_TAG_OFF_LABEL = "2025-08-28";
         const NON_PLUS_SCRIPT_TAG_OFF_LABEL = "2026-08-26";
 
-        // P0-2: 根据 shopTier 决定主状态和截止日期
+        // P0-2: 根据 shopTier 决定主状态和截止日期 (Plus=2025-08-28, Non-Plus=2026-08-26)
         const isPlus = shopTier === "plus";
         const primaryStatus = isPlus ? plusExecutionStatus : nonPlusExecutionStatus;
         const primaryDeadlineLabel = isPlus ? PLUS_SCRIPT_TAG_OFF_LABEL : NON_PLUS_SCRIPT_TAG_OFF_LABEL;

@@ -305,7 +305,7 @@ export function ServerTrackingTab({
                           {config.platform === "meta"
                             ? "Meta CAPI"
                             : config.platform === "google"
-                              ? "Google Ads"
+                              ? "Google Analytics 4 (GA4)"
                               : "TikTok"}
                         </Text>
                         <Badge tone="success">已启用</Badge>
