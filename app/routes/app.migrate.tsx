@@ -9,10 +9,13 @@ import prisma from "../db.server";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade, } from "../services/migration.server";
 import { decryptIngestionSecret, isTokenEncrypted, encryptIngestionSecret } from "../utils/token-encryption";
 import { randomBytes } from "crypto";
+import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { logger } from "../utils/logger.server";
+
 function generateIngestionSecret(): string {
     return randomBytes(32).toString("hex");
 }
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
@@ -23,8 +26,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shopDomain: true,
             ingestionSecret: true,
             webPixelId: true,
+            typOspPagesEnabled: true,
+            typOspUpdatedAt: true,
+            typOspLastCheckedAt: true,
         },
     });
+
     if (!shop) {
         return json({
             shop: null,
@@ -33,8 +40,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             latestScan: null,
             needsSettingsUpgrade: false,
             currentPixelSettings: null,
+            typOspStatus: {
+                enabled: false,
+                lastChecked: null,
+            },
         });
     }
+
+    // P2-9: Refresh Checkout Extensibility Status
+    let typOspPagesEnabled = shop.typOspPagesEnabled;
+    let typOspLastChecked = shop.typOspLastCheckedAt || shop.typOspUpdatedAt;
+    const isStale = !typOspLastChecked || (Date.now() - typOspLastChecked.getTime()) > 6 * 60 * 60 * 1000; // 6 hours
+
+    if (isStale) {
+        try {
+            const result = await refreshTypOspStatus(admin, shop.id);
+            typOspPagesEnabled = result.typOspPagesEnabled;
+            typOspLastChecked = result.checkedAt;
+        } catch (error) {
+            logger.error("Failed to refresh TYP/OSP status in migrate loader", error);
+        }
+    }
+
     const existingPixels = await getExistingWebPixels(admin);
     const ourPixel = existingPixels.find((p) => {
         if (!p.settings)
@@ -69,6 +96,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
     });
+
     return json({
         shop: { id: shop.id, domain: shopDomain },
         pixelStatus: ourPixel ? "installed" as const : "not_installed" as const,
@@ -77,6 +105,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         latestScan,
         needsSettingsUpgrade: needsUpgrade,
         currentPixelSettings: ourPixel?.settings ? JSON.parse(ourPixel.settings) : null,
+        typOspStatus: {
+            enabled: typOspPagesEnabled ?? false,
+            lastChecked: typOspLastChecked ? typOspLastChecked.toISOString() : null,
+        }
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -211,15 +243,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     return json({ error: "Unknown action" }, { status: 400 });
 };
-type SetupStep = "pixel" | "capi" | "complete";
+type SetupStep = "typOsp" | "pixel" | "capi" | "complete";
 export default function MigratePage() {
-    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade } = useLoaderData<typeof loader>();
+    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
-    const [currentStep, setCurrentStep] = useState<SetupStep>(pixelStatus === "installed"
-        ? (hasCapiConfig ? "complete" : "capi")
-        : "pixel");
+    const [currentStep, setCurrentStep] = useState<SetupStep>(() => {
+        if (!typOspStatus.enabled) return "typOsp";
+        if (pixelStatus === "installed") {
+            return hasCapiConfig ? "complete" : "capi";
+        }
+        return "pixel";
+    });
     const isSubmitting = navigation.state === "submitting";
 
     const handleUpgradeSettings = () => {
@@ -241,13 +277,13 @@ export default function MigratePage() {
 
     // Update step based on pixel status changes
     useEffect(() => {
-        if (pixelStatus === "installed" && hasCapiConfig) {
+        if (pixelStatus === "installed" && hasCapiConfig && typOspStatus.enabled) {
             setCurrentStep("complete");
         }
         else if (pixelStatus === "installed") {
             setCurrentStep("capi");
         }
-    }, [pixelStatus, hasCapiConfig]);
+    }, [pixelStatus, hasCapiConfig, typOspStatus.enabled]);
     /* eslint-enable react-hooks/set-state-in-effect */
     const handleEnablePixel = () => {
         const formData = new FormData();
@@ -255,9 +291,10 @@ export default function MigratePage() {
         submit(formData, { method: "post" });
     };
     const steps = [
-        { id: "pixel", label: "启用 App Pixel", number: 1 },
-        { id: "capi", label: "配置服务端追踪", number: 2 },
-        { id: "complete", label: "完成设置", number: 3 },
+        { id: "typOsp", label: "升级 Checkout", number: 1 },
+        { id: "pixel", label: "启用 App Pixel", number: 2 },
+        { id: "capi", label: "配置服务端追踪", number: 3 },
+        { id: "complete", label: "完成设置", number: 4 },
     ];
     const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
@@ -395,10 +432,63 @@ export default function MigratePage() {
 
         <Layout>
           <Layout.Section>
+            {currentStep === "typOsp" && (<Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">
+                    第 1 步：升级 Checkout Extensibility
+                  </Text>
+                  
+                  <Banner tone="warning" title="需要升级结账页面">
+                    <BlockStack gap="200">
+                      <Text as="p">
+                        检测到您的店铺尚未完全启用 Checkout Extensibility（Thank You / Order Status 页面）。
+                        Shopify 将于 2025 年 8 月 28 日起停止支持旧版脚本。
+                      </Text>
+                    </BlockStack>
+                  </Banner>
+
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">为什么需要升级？</Text>
+                    <List type="bullet">
+                      <List.Item>旧版 additional scripts 将变为只读或失效</List.Item>
+                      <List.Item>Web Pixel 需要在新版结账页面才能获得最佳支持</List.Item>
+                      <List.Item>确保数据追踪的连续性和准确性</List.Item>
+                    </List>
+                  </BlockStack>
+
+                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <BlockStack gap="200">
+                      <Text as="p" fontWeight="semibold">如何升级：</Text>
+                      <List type="number">
+                        <List.Item>点击下方按钮前往 <strong>Shopify 后台 → 设置 → 结账</strong></List.Item>
+                        <List.Item>查找 <strong>"Upgrade to Checkout Extensibility"</strong> 或类似横幅</List.Item>
+                        <List.Item>按照提示创建并发布新的 Checkout Profile</List.Item>
+                      </List>
+                    </BlockStack>
+                  </Box>
+
+                  <InlineStack gap="200">
+                    <Button variant="primary" url={`https://admin.shopify.com/store/${shop.domain.replace('.myshopify.com', '')}/settings/checkout`} external target="_blank">
+                      前往 Shopify 后台升级
+                    </Button>
+                    <Button onClick={() => window.location.reload()}>
+                      已完成升级，刷新状态
+                    </Button>
+                    <Button onClick={() => setCurrentStep("pixel")} variant="tertiary">
+                      跳过（仅供测试）
+                    </Button>
+                  </InlineStack>
+                  
+                  <Text as="p" tone="subdued" variant="bodySm">
+                    如果您确认已升级但此处仍显示未完成，可能是 Shopify API 数据延迟（通常需几分钟）。您可以点击刷新或先跳过此步骤。
+                  </Text>
+                </BlockStack>
+              </Card>)}
+
             {currentStep === "pixel" && (<Card>
                 <BlockStack gap="400">
                   <Text as="h2" variant="headingMd">
-                    第 1 步：启用 App Pixel
+                    第 2 步：启用 App Pixel
                   </Text>
 
                   <Text as="p" tone="subdued">
@@ -461,7 +551,7 @@ export default function MigratePage() {
                   <Divider />
 
                   <Text as="h2" variant="headingMd">
-                    第 2 步：配置服务端追踪 (CAPI)
+                    第 3 步：配置服务端追踪 (CAPI)
                   </Text>
 
                   <Text as="p" tone="subdued">
