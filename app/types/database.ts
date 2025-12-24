@@ -12,6 +12,7 @@ import type {
   PlatformType,
   ConsentStrategyType,
 } from './enums';
+import { ok, err, type Result } from './result';
 
 // =============================================================================
 // ConversionJob CAPI Input
@@ -648,8 +649,6 @@ export function createJsonArrayParser<T>(
 // =============================================================================
 // Enhanced Parsers with Result Type
 // =============================================================================
-
-import { ok, err, type Result } from './result';
 
 /**
  * Parse error type for database Json fields.

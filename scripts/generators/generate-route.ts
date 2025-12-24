@@ -1,13 +1,13 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env node --experimental-strip-types
 /**
  * Route Generator Script
  *
  * Generates boilerplate for new Remix routes with consistent patterns.
  *
  * Usage:
- *   npx ts-node scripts/generators/generate-route.ts app.my-route
- *   npx ts-node scripts/generators/generate-route.ts api.my-endpoint --type api
- *   npx ts-node scripts/generators/generate-route.ts settings.platform --type settings
+ *   node --experimental-strip-types scripts/generators/generate-route.ts app.my-route
+ *   node --experimental-strip-types scripts/generators/generate-route.ts api.my-endpoint --type api
+ *   node --experimental-strip-types scripts/generators/generate-route.ts settings.platform --type settings
  */
 
 import * as fs from "fs";

@@ -1,14 +1,22 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node --experimental-strip-types
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const CONFIG_FILE = path.join(__dirname, "../extensions/shared/config.ts");
 const PLACEHOLDER = "__BACKEND_URL_PLACEHOLDER__";
+
 function readConfig(): string {
     return fs.readFileSync(CONFIG_FILE, "utf-8");
 }
+
 function writeConfig(content: string): void {
     fs.writeFileSync(CONFIG_FILE, content, "utf-8");
 }
+
 function injectBackendUrl(): void {
     const backendUrl = process.env.SHOPIFY_APP_URL;
     if (!backendUrl) {
@@ -31,6 +39,7 @@ function injectBackendUrl(): void {
     writeConfig(updatedConfig);
     console.log(`✅ Injected BACKEND_URL: ${backendUrl}`);
 }
+
 function restorePlaceholder(): void {
     const config = readConfig();
     const urlPattern = /const BUILD_TIME_URL = "([^"]+)";/;
@@ -44,6 +53,7 @@ function restorePlaceholder(): void {
         console.log("ℹ️  Placeholder already in place, nothing to restore");
     }
 }
+
 const command = process.argv[2];
 switch (command) {
     case "inject":
@@ -57,15 +67,15 @@ switch (command) {
 Extension Build Helper
 
 Usage:
-  npx ts-node scripts/build-extensions.ts inject   - Replace placeholder with SHOPIFY_APP_URL
-  npx ts-node scripts/build-extensions.ts restore  - Restore placeholder for version control
+  node --experimental-strip-types scripts/build-extensions.ts inject   - Replace placeholder with SHOPIFY_APP_URL
+  node --experimental-strip-types scripts/build-extensions.ts restore  - Restore placeholder for version control
 
 Environment Variables:
   SHOPIFY_APP_URL  - The backend URL to inject (required for inject command)
 
 Example:
-  SHOPIFY_APP_URL=https:                                                                               
+  SHOPIFY_APP_URL=https://your-app.example.com npm run ext:inject
   npm run deploy  # Shopify CLI builds extensions
-  npx ts-node scripts/build-extensions.ts restore
+  npm run ext:restore
 `);
 }

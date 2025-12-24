@@ -1,4 +1,4 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node --experimental-strip-types
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";

@@ -61,10 +61,20 @@ export interface PixelEventData {
   quantity?: number;
 }
 
+/**
+ * P0.1: Extended payload with ingestionKey and nonce in body.
+ * 
+ * This allows the pixel to send requests without custom headers,
+ * avoiding CORS preflight and improving delivery reliability.
+ */
 export interface PixelEventPayload {
   eventName: PixelEventName;
   timestamp: number;
   shopDomain: string;
+  /** P0.1: Moved from X-Tracking-Guardian-Key header to body */
+  ingestionKey?: string | null;
+  /** P0.1: Nonce for replay protection */
+  nonce?: string;
   consent?: ConsentState;
   data: PixelEventData;
 }
@@ -144,4 +154,3 @@ export interface PixelEventErrorResponse {
   maxSize?: number;
   retryAfter?: number;
 }
-

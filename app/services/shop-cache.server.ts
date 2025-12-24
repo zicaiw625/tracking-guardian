@@ -249,18 +249,17 @@ export async function invalidateAllShopCaches(shopDomain: string, shopId?: strin
  * Get cache statistics for monitoring.
  */
 export async function getShopCacheStats(): Promise<{
-  verification: { size: number; stats: unknown };
-  configs: { size: number; stats: unknown };
+  verification: { available: boolean };
+  configs: { available: boolean };
   billing: { size: number; hits: number; misses: number };
 }> {
+  // RedisCache doesn't expose size/stats directly, so we just indicate availability
   return {
     verification: {
-      size: await shopVerificationCache.size(),
-      stats: shopVerificationCache.getStats(),
+      available: true,
     },
     configs: {
-      size: await shopWithConfigsCache.size(),
-      stats: shopWithConfigsCache.getStats(),
+      available: true,
     },
     billing: {
       size: billingCheckCache.getStats().size,

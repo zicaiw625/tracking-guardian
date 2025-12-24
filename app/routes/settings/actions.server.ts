@@ -208,8 +208,10 @@ export async function handleSaveServerSide(
   await invalidateAllShopCaches(sessionShop, shopId);
 
   // Audit log for credential update (security-sensitive operation)
-  await createAuditLog(shopId, {
-    action: "credentials_updated",
+  await createAuditLog({
+    shopId,
+    action: "pixel_config_updated",
+    actorType: "user",
     resourceType: "pixel_config",
     resourceId: platform,
     metadata: {
@@ -217,6 +219,7 @@ export async function handleSaveServerSide(
       platformId: platformId.slice(0, 8) + "****", // Mask for security
       serverSideEnabled: enabled,
       actor: sessionShop,
+      operationType: "credentials_updated",
     },
   });
 

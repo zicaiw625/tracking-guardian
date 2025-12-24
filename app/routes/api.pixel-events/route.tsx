@@ -3,6 +3,9 @@
  *
  * Entry point for pixel event processing.
  * All logic is delegated to modular handlers.
+ * 
+ * P0.1: Supports text/plain Content-Type to avoid CORS preflight.
+ * P0.4: ingestionKey and nonce are now in body (not headers).
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
@@ -61,6 +64,50 @@ const CIRCUIT_BREAKER_CONFIG = {
 };
 
 // =============================================================================
+// Content-Type Parsing
+// =============================================================================
+
+/**
+ * P0.1: Check if Content-Type is acceptable.
+ * 
+ * We accept:
+ * - text/plain (preferred, avoids CORS preflight)
+ * - application/json (legacy support)
+ */
+function isAcceptableContentType(contentType: string | null): boolean {
+  if (!contentType) return false;
+  const lower = contentType.toLowerCase();
+  return lower.includes("text/plain") || lower.includes("application/json");
+}
+
+/**
+ * P0.1: Parse body as JSON regardless of Content-Type.
+ * 
+ * Both text/plain and application/json bodies contain JSON strings.
+ */
+async function parseBodyAsJson(request: Request): Promise<{ 
+  success: true; 
+  data: unknown; 
+  bodyLength: number;
+} | { 
+  success: false; 
+  error: string; 
+}> {
+  try {
+    const bodyText = await request.text();
+    
+    if (bodyText.length > MAX_BODY_SIZE) {
+      return { success: false, error: "payload_too_large" };
+    }
+    
+    const data = JSON.parse(bodyText);
+    return { success: true, data, bodyLength: bodyText.length };
+  } catch {
+    return { success: false, error: "invalid_json" };
+  }
+}
+
+// =============================================================================
 // Action Handler
 // =============================================================================
 
@@ -77,11 +124,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonWithCors({ error: "Method not allowed" }, { status: 405, request });
   }
 
-  // Content-Type check
+  // P0.1: Accept both text/plain and application/json
   const contentType = request.headers.get("Content-Type");
-  if (!contentType || !contentType.includes("application/json")) {
+  if (!isAcceptableContentType(contentType)) {
     return jsonWithCors(
-      { error: "Content-Type must be application/json" },
+      { error: "Content-Type must be text/plain or application/json" },
       { status: 415, request }
     );
   }
@@ -108,7 +155,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return jsonWithCors({ error: "Invalid origin" }, { status: 403, request });
   }
 
-  // Timestamp header validation
+  // P0.1: Timestamp validation from body (legacy header support for transition)
   const timestampHeader = request.headers.get("X-Tracking-Guardian-Timestamp");
   const shopDomainHeader = request.headers.get("x-shopify-shop-domain") || "unknown";
 
@@ -119,7 +166,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (anomalyCheck.shouldBlock) {
         logger.warn(`Circuit breaker triggered for ${shopDomainHeader}: ${anomalyCheck.reason}`);
       }
-      logger.debug("Invalid timestamp format, dropping request");
+      logger.debug("Invalid timestamp format in header, dropping request");
       return emptyResponseWithCors(request);
     }
 
@@ -133,8 +180,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.debug(`Timestamp outside window: diff=${timeDiff}ms, dropping request`);
       return emptyResponseWithCors(request);
     }
-  } else {
-    logger.debug(`Request from ${shopDomainHeader} missing timestamp header`);
   }
 
   // Rate limiting
@@ -153,7 +198,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    // Body size validation
+    // Body size validation via Content-Length header
     const contentLength = parseInt(request.headers.get("Content-Length") || "0", 10);
     if (contentLength > MAX_BODY_SIZE) {
       logger.warn(`Payload too large: ${contentLength} bytes (max ${MAX_BODY_SIZE})`);
@@ -163,22 +208,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    const bodyText = await request.text();
-    if (bodyText.length > MAX_BODY_SIZE) {
-      logger.warn(`Actual payload too large: ${bodyText.length} bytes (max ${MAX_BODY_SIZE})`);
-      return jsonWithCors(
-        { error: "Payload too large", maxSize: MAX_BODY_SIZE },
-        { status: 413, request }
-      );
-    }
-
-    // Parse JSON
-    let rawBody: unknown;
-    try {
-      rawBody = JSON.parse(bodyText);
-    } catch {
+    // P0.1: Parse body as JSON (works for both text/plain and application/json)
+    const parseResult = await parseBodyAsJson(request);
+    if (!parseResult.success) {
+      if (parseResult.error === "payload_too_large") {
+        logger.warn(`Actual payload too large (max ${MAX_BODY_SIZE})`);
+        return jsonWithCors(
+          { error: "Payload too large", maxSize: MAX_BODY_SIZE },
+          { status: 413, request }
+        );
+      }
       return jsonWithCors({ error: "Invalid JSON body" }, { status: 400, request });
     }
+
+    const rawBody = parseResult.data;
 
     // Validate request
     const validation = validateRequest(rawBody);
@@ -190,6 +233,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     const { payload } = validation;
+
+    // P0.4: Timestamp validation from body (if not already validated from header)
+    if (!timestampHeader) {
+      const now = Date.now();
+      const timeDiff = Math.abs(now - payload.timestamp);
+      if (timeDiff > TIMESTAMP_WINDOW_MS) {
+        const anomalyCheck = trackAnomaly(payload.shopDomain, "invalid_timestamp");
+        if (anomalyCheck.shouldBlock) {
+          logger.warn(`Circuit breaker triggered for ${payload.shopDomain}: ${anomalyCheck.reason}`);
+        }
+        logger.debug(`Body timestamp outside window: diff=${timeDiff}ms, dropping request`);
+        return emptyResponseWithCors(request);
+      }
+    }
 
     // Circuit breaker check
     const circuitCheck = await checkCircuitBreaker(payload.shopDomain, CIRCUIT_BREAKER_CONFIG);
@@ -261,8 +318,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request, shopAllowedDomains);
     }
 
+    // P0.4: Get ingestion key from body (primary) or header (legacy fallback)
+    const ingestionKeyFromBody = payload.ingestionKey;
+    const ingestionKeyFromHeader = request.headers.get("X-Tracking-Guardian-Key");
+    const ingestionKey = ingestionKeyFromBody || ingestionKeyFromHeader || null;
+
     // Key validation
-    const ingestionKey = request.headers.get("X-Tracking-Guardian-Key");
     const keyValidationOutcome = validateIngestionKey({
       shop,
       ingestionKey,
@@ -300,7 +361,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const { orderId, usedCheckoutTokenAsFallback } = matchKeyResult;
     const eventId = generatePurchaseEventId(orderId, shop.shopDomain);
 
-    // Check for duplicate
+    // P0.5: Check for duplicate EARLY (before any writes)
+    // Use checkoutToken + eventName as idempotency key
     const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, "purchase");
     if (alreadyRecorded) {
       return jsonWithCors(
@@ -326,8 +388,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // Nonce/replay protection
-    const nonceResult = await createEventNonce(shop.id, orderId, payload.timestamp);
+    // P0.4: Nonce/replay protection using nonce from body
+    const nonceFromBody = payload.nonce;
+    const nonceResult = await createEventNonce(
+      shop.id, 
+      orderId, 
+      payload.timestamp,
+      nonceFromBody
+    );
     if (nonceResult.isReplay) {
       metrics.pixelRejection({
         shopDomain: shop.shopDomain,
@@ -415,4 +483,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   return jsonWithCors({ status: "ok", endpoint: "pixel-events" }, { request });
 };
-

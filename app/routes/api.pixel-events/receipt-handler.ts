@@ -112,15 +112,21 @@ export function evaluateTrustLevel(
 }
 
 /**
- * Create nonce to prevent replay attacks.
+ * P0.4: Create nonce to prevent replay attacks.
+ * 
+ * Uses client-provided nonce if available (from body), otherwise generates
+ * a server-side nonce from orderId + timestamp.
+ * 
  * Returns true if nonce was created successfully (not a replay).
  */
 export async function createEventNonce(
   shopId: string,
   orderId: string,
-  timestamp: number
+  timestamp: number,
+  clientNonce?: string
 ): Promise<{ success: boolean; isReplay: boolean }> {
-  const nonceValue = `${orderId}:${timestamp}`;
+  // P0.4: Use client nonce if provided, otherwise generate from orderId + timestamp
+  const nonceValue = clientNonce || `${orderId}:${timestamp}`;
   const nonceExpiresAt = new Date(Date.now() + RETENTION_CONFIG.NONCE_EXPIRY_MS);
 
   try {

@@ -20,6 +20,7 @@ import { logger } from "../utils/logger.server";
 import type {
   ConversionData,
   PlatformCredentials,
+  ConversionApiResponse,
 } from "../types";
 import type { PlatformSendResult } from "./platforms/interface";
 

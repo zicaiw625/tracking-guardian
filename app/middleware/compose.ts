@@ -7,13 +7,19 @@
 import type {
   Middleware,
   MiddlewareContext,
-  Handler,
   ApiHandlerConfig,
 } from "./types";
 import { createContext } from "./types";
 import { buildErrorResponse } from "./error-handler";
 import { logger } from "../utils/logger.server";
 import { ensureAppError } from "../utils/errors";
+
+// Note: These imports are for re-export only, not used directly in this file.
+// They are re-exported so routes can import from a single location.
+export { withCors, withPixelCors } from "./cors";
+export { withRateLimit, standardRateLimit, strictRateLimit, webhookRateLimit } from "./rate-limit";
+export { withValidation } from "./validation";
+export { createContext } from "./types";
 
 // =============================================================================
 // Middleware Composition
@@ -129,20 +135,7 @@ export function createApiLoader<T = unknown>(
 }
 
 // =============================================================================
-// Common Middleware Combinations
-// =============================================================================
-
-import { withCors, withPixelCors } from "./cors";
-import { withRateLimit, standardRateLimit, strictRateLimit, webhookRateLimit } from "./rate-limit";
-import { withValidation } from "./validation";
-
 // Note: Middleware composition helpers have been simplified.
 // Use withCors, withPixelCors, withRateLimit, and withValidation directly
 // for building custom middleware stacks in your routes.
-
 // =============================================================================
-// Utility Exports
-// =============================================================================
-
-export { createContext } from "./types";
-

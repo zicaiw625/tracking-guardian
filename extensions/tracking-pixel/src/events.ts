@@ -34,56 +34,72 @@ export interface EventSenderConfig {
 }
 
 /**
- * P1-02: Send event using sendBeacon (preferred) with fetch keepalive fallback.
- * This ensures checkout_completed events are reliably sent even when page unloads.
+ * Retry configuration for checkout_completed events.
+ * Short delays to maximize chance of delivery before page unload.
  */
-function sendWithBeaconFallback(
+const RETRY_DELAYS_MS = [0, 300, 1200];
+const MAX_RETRIES = RETRY_DELAYS_MS.length;
+
+/**
+ * P0.1: Send checkout_completed event with retry mechanism.
+ * 
+ * Uses text/plain Content-Type to avoid CORS preflight.
+ * Authentication moved to body (no custom headers).
+ * Retries on network failure with exponential backoff.
+ */
+async function sendCheckoutCompletedWithRetry(
   url: string,
   body: string,
-  headers: Record<string, string>,
   isDevMode: boolean,
-  log: (...args: unknown[]) => void
-): void {
-  // P1-02: Try sendBeacon first for checkout_completed (most reliable during page unload)
-  if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-    try {
-      // sendBeacon with Blob allows setting Content-Type
-      const blob = new Blob([body], { type: "application/json" });
-      const sent = navigator.sendBeacon(url, blob);
-      if (sent) {
-        if (isDevMode) {
-          log("checkout_completed sent via sendBeacon");
-        }
-        return;
-      }
-      // sendBeacon returned false (queue full), fall through to fetch
+  log: (...args: unknown[]) => void,
+  retryIndex = 0
+): Promise<void> {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      // P0.1: Use text/plain to avoid CORS preflight (simple request)
+      // No custom headers - all auth data is in the body
+      headers: {
+        "Content-Type": "text/plain;charset=UTF-8",
+      },
+      // keepalive ensures the request survives page unload
+      keepalive: true,
+      body,
+    });
+
+    if (isDevMode) {
+      log(`checkout_completed sent, status: ${response.status}, attempt: ${retryIndex + 1}`);
+    }
+
+    // 2xx = success, 4xx = client error (don't retry), 5xx = server error (retry)
+    if (response.ok || (response.status >= 400 && response.status < 500)) {
+      return;
+    }
+
+    // Server error - retry if we have attempts left
+    if (retryIndex < MAX_RETRIES - 1) {
+      const delay = RETRY_DELAYS_MS[retryIndex + 1];
       if (isDevMode) {
-        log("sendBeacon returned false, falling back to fetch");
+        log(`checkout_completed server error, retrying in ${delay}ms`);
       }
-    } catch (e) {
+      setTimeout(() => {
+        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1);
+      }, delay);
+    }
+  } catch (error) {
+    // Network error - retry if we have attempts left
+    if (retryIndex < MAX_RETRIES - 1) {
+      const delay = RETRY_DELAYS_MS[retryIndex + 1];
       if (isDevMode) {
-        log("sendBeacon failed, falling back to fetch:", e);
+        log(`checkout_completed network error, retrying in ${delay}ms:`, error);
       }
+      setTimeout(() => {
+        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1);
+      }, delay);
+    } else if (isDevMode) {
+      log(`checkout_completed failed after ${MAX_RETRIES} attempts:`, error);
     }
   }
-
-  // P1-02: Fallback to fetch with keepalive
-  fetch(url, {
-    method: "POST",
-    headers,
-    keepalive: true,
-    body,
-  })
-    .then((response) => {
-      if (isDevMode) {
-        log(`checkout_completed sent via fetch, status: ${response.status}`);
-      }
-    })
-    .catch((error) => {
-      if (isDevMode) {
-        log("checkout_completed fetch failed:", error);
-      }
-    });
 }
 
 /**
@@ -112,12 +128,18 @@ export function createEventSender(config: EventSenderConfig) {
 
     try {
       const timestamp = Date.now();
+      // Generate a simple nonce for replay protection
+      const nonce = `${timestamp}-${Math.random().toString(36).substring(2, 10)}`;
       
-      // P1-03: Minimal payload - only essential fields for matching and consent
+      // P0.1: All auth/tracking data in body (no custom headers)
+      // This avoids CORS preflight for maximum delivery reliability
       const payload = {
         eventName,
         timestamp,
+        nonce,
         shopDomain,
+        // P0.1: ingestionKey moved to body (was in header)
+        ingestionKey: ingestionKey || null,
         consent: {
           marketing: consentManager.marketingAllowed,
           analytics: consentManager.analyticsAllowed,
@@ -127,25 +149,19 @@ export function createEventSender(config: EventSenderConfig) {
       };
 
       const body = JSON.stringify(payload);
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-
-      if (ingestionKey) {
-        headers["X-Tracking-Guardian-Key"] = ingestionKey;
-      }
-      headers["X-Tracking-Guardian-Timestamp"] = timestamp.toString();
-
       const url = `${backendUrl}/api/pixel-events`;
 
-      // P1-02: Use sendBeacon + fetch keepalive for checkout_completed
+      // P0.1: Use unified fetch path with retry for checkout_completed
+      // No sendBeacon fallback (unreliable in strict sandbox, can't set headers)
       if (eventName === "checkout_completed") {
-        sendWithBeaconFallback(url, body, headers, isDevMode, log);
+        sendCheckoutCompletedWithRetry(url, body, isDevMode, log);
       } else {
         // For any other events (should not happen after P0-02), use regular fetch
         fetch(url, {
           method: "POST",
-          headers,
+          headers: {
+            "Content-Type": "text/plain;charset=UTF-8",
+          },
           keepalive: true,
           body,
         }).catch((error) => {

@@ -1,14 +1,20 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
-import prisma from "../db.server";
 import { Prisma } from "@prisma/client";
+import { encryptJson } from "../utils/crypto.server";
+import type { PlatformCredentials } from "../types";
+import { logger } from "../utils/logger.server";
+import prisma from "../db.server";
+
 // P0-5: Deprecated pixel code generators removed - using server-side CAPI only
 // P0-4: bing and clarity removed - no server-side CAPI implementation
 export type Platform = "google" | "meta" | "tiktok";
+
 export interface MigrationConfig {
     platform: Platform;
     platformId: string;
     additionalConfig?: Record<string, string>;
 }
+
 export interface MigrationResult {
     success: boolean;
     platform: Platform;
@@ -16,6 +22,7 @@ export interface MigrationResult {
     instructions: string[];
     error?: string;
 }
+
 /**
  * P0-5: 统一产品叙事 - 服务端追踪
  * 
@@ -57,11 +64,13 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
         };
     }
 }
+
 export interface SavePixelConfigOptions {
     clientConfig?: Record<string, string | number | boolean>;
     credentialsEncrypted?: string;
     serverSideEnabled?: boolean;
 }
+
 export async function savePixelConfig(shopId: string, platform: Platform, platformId: string, options?: SavePixelConfigOptions) {
     const { clientConfig, credentialsEncrypted, serverSideEnabled } = options || {};
     return prisma.pixelConfig.upsert({
@@ -90,6 +99,7 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         },
     });
 }
+
 export async function completeMigration(shopId: string, platform: Platform) {
     return prisma.pixelConfig.update({
         where: {
@@ -104,12 +114,14 @@ export async function completeMigration(shopId: string, platform: Platform) {
         },
     });
 }
+
 export async function getPixelConfigs(shopId: string) {
     return prisma.pixelConfig.findMany({
         where: { shopId },
         orderBy: { createdAt: "desc" },
     });
 }
+
 export interface CreateWebPixelResult {
     success: boolean;
     webPixelId?: string;
@@ -119,6 +131,7 @@ export interface CreateWebPixelResult {
         message: string;
     }>;
 }
+
 /**
  * P0-01/P0-02: WebPixelSettings must EXACTLY match shopify.extension.toml settings schema.
  * 
@@ -149,6 +162,7 @@ export function buildWebPixelSettings(ingestionKey: string, shopDomain: string):
         shop_domain: shopDomain,
     };
 }
+
 export function isOurWebPixel(settings: unknown, shopDomain?: string): boolean {
     if (!settings || typeof settings !== "object")
         return false;
@@ -161,6 +175,7 @@ export function isOurWebPixel(settings: unknown, shopDomain?: string): boolean {
     }
     return true;
 }
+
 export function needsSettingsUpgrade(settings: unknown): boolean {
     if (!settings || typeof settings !== "object")
         return false;
@@ -176,6 +191,7 @@ export function needsSettingsUpgrade(settings: unknown): boolean {
     }
     return false;
 }
+
 // P0-6: 参数名从 ingestionSecret 改为 ingestionKey（减少误解）
 export async function createWebPixel(admin: AdminApiContext, ingestionKey?: string, shopDomain?: string): Promise<CreateWebPixelResult> {
     const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "");
@@ -234,6 +250,7 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
         };
     }
 }
+
 // P0-6: 参数名从 ingestionSecret 改为 ingestionKey（减少误解）
 export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string): Promise<CreateWebPixelResult> {
     const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "");
@@ -293,6 +310,7 @@ export async function updateWebPixel(admin: AdminApiContext, webPixelId: string,
         };
     }
 }
+
 /**
  * Upgrade WebPixel settings to latest schema.
  * Handles migration from ingestion_secret to ingestion_key.
@@ -359,6 +377,7 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         return [];
     }
 }
+
 export interface ScriptTagDeletionGuidance {
     title: string;
     manualSteps: string[];
@@ -366,6 +385,7 @@ export interface ScriptTagDeletionGuidance {
     platform?: string;
     deadline?: string;
 }
+
 export function getScriptTagDeletionGuidance(scriptTagId: number, shopDomain?: string, platform?: string): ScriptTagDeletionGuidance {
     const storeHandle = shopDomain?.replace(".myshopify.com", "");
     const adminUrl = storeHandle
@@ -387,6 +407,7 @@ export function getScriptTagDeletionGuidance(scriptTagId: number, shopDomain?: s
         platform,
     };
 }
+
 export function getScriptTagMigrationGuidance(platform: string, scriptTagId: number): {
     title: string;
     steps: string[];
@@ -441,10 +462,9 @@ export function getScriptTagMigrationGuidance(platform: string, scriptTagId: num
         warning: guidance.warning,
     };
 }
+
 // P0-4: generateBingPixelCode removed - no CAPI support for Bing
-import { encryptJson, decryptJson } from "../utils/crypto.server";
-import type { PlatformCredentials } from "../types";
-import { logger } from "../utils/logger.server";
+
 export async function migrateCredentialsToEncrypted(): Promise<{
     migrated: number;
     failed: number;
@@ -502,6 +522,7 @@ export async function migrateCredentialsToEncrypted(): Promise<{
     logger.info(`P0-09: Migration complete - ${migrated} migrated, ${failed} failed`);
     return { migrated, failed, errors };
 }
+
 export async function verifyCredentialsEncryption(): Promise<{
     total: number;
     encrypted: number;
@@ -548,6 +569,7 @@ export async function verifyCredentialsEncryption(): Promise<{
         unencryptedConfigs,
     };
 }
+
 export async function sanitizeExistingOrderPayloads(_batchSize = 500): Promise<{
     processed: number;
     cleaned: number;
@@ -556,6 +578,7 @@ export async function sanitizeExistingOrderPayloads(_batchSize = 500): Promise<{
     logger.info("P0-01: sanitizeExistingOrderPayloads is deprecated - orderPayload field has been removed");
     return { processed: 0, cleaned: 0, errors: 0 };
 }
+
 export async function getOrderPayloadStats(): Promise<{
     totalJobs: number;
     withOrderPayload: number;
@@ -575,4 +598,5 @@ export async function getOrderPayloadStats(): Promise<{
         needsSanitization: 0,
     };
 }
+
 // P0-4: generateClarityPixelCode removed - Clarity is client-side only
