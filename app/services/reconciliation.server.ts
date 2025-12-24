@@ -463,11 +463,17 @@ export async function getLatestReconciliation(shopId: string): Promise<Map<strin
 }
 
 // =============================================================================
-// P1-4: 对账可视化数据接口
+// P1-4: 送达对账可视化数据接口 (Delivery Reconciliation)
+// 
+// 注意：这是"送达对账"，对比的是：
+// - Shopify Webhook 订单数
+// - 我们成功发送到广告平台的事件数
+// 
+// 这不是"平台报表对账"（需要调用 Meta/Google/TikTok 的报表 API）。
 // =============================================================================
 
 /**
- * 缺口原因类型
+ * 送达缺口原因类型
  */
 export type GapReason = 
     | "no_pixel_receipt"      // 用户未到达感谢页（upsell/提前关闭）
@@ -485,24 +491,30 @@ export interface GapAnalysis {
     description: string;
 }
 
+/**
+ * 送达对账仪表板数据
+ * 
+ * 用于可视化展示"Shopify 订单 → 平台送达"的健康状况
+ */
 export interface ReconciliationDashboardData {
-    // 总览
+    // 分析期间
     period: {
         startDate: Date;
         endDate: Date;
         days: number;
     };
+    // 送达概览
     overview: {
-        totalWebhookOrders: number;
-        totalPixelReceipts: number;
-        totalGap: number;
-        gapPercentage: number;
-        totalSentToPlatforms: number;
-        matchRate: number;
+        totalWebhookOrders: number;      // Shopify Webhook 收到的订单数
+        totalPixelReceipts: number;      // 收到的像素事件数
+        totalGap: number;                // 送达缺口（订单 - 成功发送）
+        gapPercentage: number;           // 缺口率
+        totalSentToPlatforms: number;    // 成功发送到平台的数量
+        matchRate: number;               // 送达匹配率
     };
-    // 缺口分析
+    // 送达缺口原因分析
     gapAnalysis: GapAnalysis[];
-    // 按平台分解
+    // 按平台分解的送达情况
     platformBreakdown: Array<{
         platform: string;
         webhookOrders: number;
@@ -511,7 +523,7 @@ export interface ReconciliationDashboardData {
         gap: number;
         gapPercentage: number;
     }>;
-    // 趋势数据（按天）
+    // 每日送达趋势
     dailyTrend: Array<{
         date: string;
         webhookOrders: number;
@@ -527,7 +539,10 @@ export interface ReconciliationDashboardData {
 }
 
 /**
- * P1-4: 获取对账仪表板数据
+ * P1-4: 获取送达对账仪表板数据
+ * 
+ * 对比 Shopify Webhook 订单与成功发送到广告平台的事件数，
+ * 帮助商家理解送达健康状况和缺口原因。
  */
 export async function getReconciliationDashboardData(
     shopId: string,

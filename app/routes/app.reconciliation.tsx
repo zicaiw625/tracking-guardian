@@ -1,8 +1,12 @@
 /**
- * P1-4: 对账可视化页面
+ * P1-4: 送达对账可视化页面 (Delivery Reconciliation)
  *
- * 显示"像素收据 vs webhook 订单"的对比，
- * 帮助商家理解漏单原因并获得策略建议。
+ * 显示"Shopify Webhook 订单 vs 成功发送到广告平台"的对比，
+ * 帮助商家理解送达缺口原因并获得策略建议。
+ * 
+ * 注意：这是"送达对账"（我们是否成功把事件发到平台），
+ * 而非"平台报表对账"（平台实际记录了多少转化）。
+ * 后者需要集成各平台的报表 API，可作为高级功能。
  */
 
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
@@ -121,7 +125,7 @@ function OverviewCard({
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
-            对账概览
+            送达概览
           </Text>
           <Badge
             tone={isHealthy ? "success" : isWarning ? "warning" : "critical"}
@@ -227,7 +231,7 @@ function OverviewCard({
 }
 
 /**
- * 缺口原因分析卡片
+ * 送达缺口原因分析卡片
  */
 function GapAnalysisCard({
   gapAnalysis,
@@ -267,7 +271,7 @@ function GapAnalysisCard({
       <Card>
         <BlockStack gap="400">
           <Text as="h2" variant="headingMd">
-            缺口原因分析
+            送达缺口分析
           </Text>
           <Box padding="400">
             <InlineStack gap="200" blockAlign="center">
@@ -286,7 +290,7 @@ function GapAnalysisCard({
     <Card>
       <BlockStack gap="400">
         <Text as="h2" variant="headingMd">
-          缺口原因分析
+          送达缺口分析
         </Text>
 
         <BlockStack gap="300">
@@ -555,7 +559,7 @@ export default function ReconciliationPage() {
 
   if (!shop || !dashboardData) {
     return (
-      <Page title="对账分析">
+      <Page title="送达健康度">
         <Card>
           <EmptyState
             heading="暂无数据"
@@ -572,7 +576,7 @@ export default function ReconciliationPage() {
 
   return (
     <Page
-      title="对账分析"
+      title="送达健康度"
       subtitle={`分析期间：${periodLabel}`}
       primaryAction={{
         content: "刷新数据",
@@ -627,20 +631,26 @@ export default function ReconciliationPage() {
         <TrendCard dailyTrend={dashboardData.dailyTrend} />
 
         {/* 帮助信息 */}
-        <Banner title="关于对账分析" tone="info">
+        <Banner title="关于送达健康度" tone="info">
           <BlockStack gap="200">
             <p>
-              对账分析帮助您了解 Webhook 订单与 Pixel 收据之间的匹配情况。
-              理想情况下，每个 Webhook 订单都应该有对应的 Pixel 收据。
+              <strong>什么是送达健康度？</strong>送达健康度显示的是 Shopify 订单有多少成功发送到了广告平台（Meta、Google、TikTok 等）。
+              这是"我们是否成功投递事件"的视角，而非"平台实际归因了多少转化"。
             </p>
             <p>
-              <strong>常见缺口原因：</strong>
+              <strong>常见送达缺口原因：</strong>
             </p>
             <ul>
               <li>用户未到达感谢页（提前关闭浏览器、使用 upsell 应用等）</li>
               <li>用户未授权追踪同意（GDPR/CCPA 限制）</li>
               <li>网络问题导致像素事件未发送</li>
+              <li>平台 API 临时错误</li>
             </ul>
+            <p>
+              <strong>📊 想要"平台报表对账"？</strong>
+              如需对比"我们发送的转化数"与"Meta/Google 后台显示的转化数"，需要集成各平台的报表 API。
+              这是高级功能，如有需求请联系我们。
+            </p>
           </BlockStack>
         </Banner>
       </BlockStack>

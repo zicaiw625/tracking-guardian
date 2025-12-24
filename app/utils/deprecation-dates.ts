@@ -21,16 +21,24 @@ function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
     return new Date(defaultDate);
 }
 
-// Default dates (based on Shopify announcements as of 2024-12)
-// P0-3: 添加 Plus 自动升级窗口日期
+// Default dates based on official Shopify announcements
+// References:
+// - Plus upgrade: https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/plus-upgrade-guide
+// - ScriptTag: https://shopify.dev/docs/apps/build/online-store/blocking-script-tags
 const DEFAULT_DATES = {
+    // 2025-02-01: ScriptTag creation blocked for new installs
     scriptTagCreationBlocked: "2025-02-01",
-    plusScriptTagExecutionOff: "2025-08-28", // P2-02: Month-level precision, exact date TBD
-    nonPlusScriptTagExecutionOff: "2026-08-26", // P2-02: Month-level precision, exact date TBD
+    // 2025-08-28: Plus merchants - ScriptTags stop executing on TYP/OSP
+    plusScriptTagExecutionOff: "2025-08-28",
+    // 2026-08-26: Non-Plus merchants - ScriptTags stop executing
+    nonPlusScriptTagExecutionOff: "2026-08-26",
+    // 2025-08-28: Plus merchants - Additional Scripts become read-only
     plusAdditionalScriptsReadOnly: "2025-08-28",
+    // 2026-08-26: Non-Plus merchants - Additional Scripts become read-only  
     nonPlusAdditionalScriptsReadOnly: "2026-08-26",
     scriptTagBlocked: "2025-02-01",
-    // P0-3: Plus 商家自动升级窗口（Shopify 将在此期间自动将 Plus 商家迁移到新版页面）
+    // 2026-01: Shopify begins auto-upgrading Plus merchants to new TYP/OSP pages
+    // Legacy customizations will be cleared during auto-upgrade
     plusAutoUpgradeStart: "2026-01-01",
 } as const;
 
@@ -98,15 +106,33 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     },
     plusAdditionalScriptsReadOnly: {
         date: DEPRECATION_DATES.plusAdditionalScriptsReadOnly,
-        precision: "month",
-        displayLabel: "2025年8月",
-        isEstimate: true,
+        precision: "exact",
+        displayLabel: "2025-08-28",
+        isEstimate: false, // Confirmed by Shopify official docs
     },
     nonPlusAdditionalScriptsReadOnly: {
         date: DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly,
+        precision: "exact",
+        displayLabel: "2026-08-26",
+        isEstimate: false, // Confirmed by Shopify official docs
+    },
+    plusScriptTagExecutionOff: {
+        date: DEPRECATION_DATES.plusScriptTagExecutionOff,
+        precision: "exact",
+        displayLabel: "2025-08-28",
+        isEstimate: false,
+    },
+    nonPlusScriptTagExecutionOff: {
+        date: DEPRECATION_DATES.nonPlusScriptTagExecutionOff,
+        precision: "exact",
+        displayLabel: "2026-08-26",
+        isEstimate: false,
+    },
+    plusAutoUpgradeStart: {
+        date: DEPRECATION_DATES.plusAutoUpgradeStart,
         precision: "month",
-        displayLabel: "2026年8月",
-        isEstimate: true,
+        displayLabel: "2026年1月",
+        isEstimate: false, // Official timeline from Shopify
     },
 };
 export type ShopTier = "plus" | "non_plus" | "unknown";
@@ -171,14 +197,15 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
         : DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
-    const dateLabel = tier === "plus" ? "2025年8月起" : "2026年8月起";
+    // P0: 使用精确日期而非模糊的"年月起"表述
+    const dateLabel = tier === "plus" ? "2025-08-28" : "2026-08-26";
     if (daysRemaining <= 0) {
         return {
             isExpired: true,
             isWarning: false,
             daysRemaining: 0,
             deadline,
-            message: `${tierLabel}的 ScriptTag 已于 ${dateLabel}停止执行。请立即迁移到 Web Pixel 以恢复追踪功能。`,
+            message: `${tierLabel}的 ScriptTag 已于 ${dateLabel} 停止执行。请立即迁移到 Web Pixel 以恢复追踪功能。`,
             messageBrief: `已停止执行（${dateLabel}）`,
             tone: "critical",
         };
@@ -189,8 +216,8 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
             isWarning: true,
             daysRemaining,
             deadline,
-            message: `${tierLabel}的 ScriptTag 将于 ${dateLabel}停止执行（约 ${daysRemaining} 天后）。请尽快完成迁移！`,
-            messageBrief: `约 ${daysRemaining} 天后停止执行`,
+            message: `${tierLabel}的 ScriptTag 将于 ${dateLabel} 停止执行（剩余 ${daysRemaining} 天）。请尽快完成迁移！`,
+            messageBrief: `剩余 ${daysRemaining} 天`,
             tone: "warning",
         };
     }
@@ -199,8 +226,8 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
         isWarning: false,
         daysRemaining,
         deadline,
-        message: `${tierLabel}的 ScriptTag 将于 ${dateLabel}停止执行。建议提前迁移到 Web Pixel。`,
-        messageBrief: `${dateLabel}停止执行`,
+        message: `${tierLabel}的 ScriptTag 将于 ${dateLabel} 停止执行。建议提前迁移到 Web Pixel。`,
+        messageBrief: `截止 ${dateLabel}`,
         tone: "info",
     };
 }
@@ -213,14 +240,15 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
         : DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
-    const dateLabel = tier === "non_plus" ? "2026年8月起" : "2025年8月起";
+    // P0: 使用精确日期
+    const dateLabel = tier === "non_plus" ? "2026-08-26" : "2025-08-28";
     if (daysRemaining <= 0) {
         return {
             isExpired: true,
             isWarning: false,
             daysRemaining: 0,
             deadline,
-            message: `${tierLabel}的 Additional Scripts 已于 ${dateLabel}变为只读。请使用 Web Pixel 或 Checkout UI Extension 进行追踪。`,
+            message: `${tierLabel}的 Additional Scripts 已于 ${dateLabel} 变为只读。请使用 Web Pixel 或 Checkout UI Extension 进行追踪。`,
             messageBrief: `已只读（${dateLabel}）`,
             tone: "critical",
         };
@@ -231,8 +259,8 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
             isWarning: true,
             daysRemaining,
             deadline,
-            message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel}变为只读（约 ${daysRemaining} 天后）。请尽快迁移。`,
-            messageBrief: `约 ${daysRemaining} 天后只读`,
+            message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel} 变为只读（剩余 ${daysRemaining} 天）。请尽快迁移。`,
+            messageBrief: `剩余 ${daysRemaining} 天`,
             tone: "warning",
         };
     }
@@ -241,8 +269,8 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
         isWarning: false,
         daysRemaining,
         deadline,
-        message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel}变为只读。建议提前迁移到 Web Pixel。`,
-        messageBrief: `${dateLabel}只读`,
+        message: `${tierLabel}的 Additional Scripts 将于 ${dateLabel} 变为只读。建议提前迁移到 Web Pixel。`,
+        messageBrief: `截止 ${dateLabel}`,
         tone: "info",
     };
 }
@@ -320,10 +348,10 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     };
 } {
     const { tier, typOspPagesEnabled } = upgradeStatus;
-    const plusAdditionalScriptsWindowLabel = "2025年8月起";
-    const nonPlusAdditionalScriptsWindowLabel = "2026年8月起";
-    const windowLabel = tier === "non_plus" ? nonPlusAdditionalScriptsWindowLabel : plusAdditionalScriptsWindowLabel;
-    const windowDisclaimer = "（月份级窗口，具体日期以 Shopify 官方公告为准）";
+    // P0: 使用精确日期，移除"估计"口吻
+    const plusDeadlineLabel = "2025-08-28";
+    const nonPlusDeadlineLabel = "2026-08-26";
+    const deadlineLabel = tier === "non_plus" ? nonPlusDeadlineLabel : plusDeadlineLabel;
     
     // P0-3: 检查是否在 Plus 自动升级窗口内
     const isInPlusAutoUpgradeWindow = tier === "plus" && now >= DEPRECATION_DATES.plusAutoUpgradeStart;
@@ -381,7 +409,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
                 isUpgraded: null,
                 urgency: "critical",
                 title: "⚠️ Plus 商家：请确认页面升级状态",
-                message: `Plus 商家的 Additional Scripts 预计自 ${plusAdditionalScriptsWindowLabel} 起进入只读窗口期${windowDisclaimer}。` +
+                message: `Plus 商家的 Additional Scripts 已于 ${plusDeadlineLabel} 进入只读模式。` +
                     "如果您尚未升级到新版 Thank you / Order status 页面，旧脚本可能已停止运行。请检查您的追踪是否正常。" +
                     (reasonHint ? `\n${reasonHint}` : ""),
                 actions: [
@@ -400,8 +428,8 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             actions: [
                 "前往 Shopify 后台 → 设置 → 结账 查看当前页面版本",
                 `${tier === "plus"
-                    ? `Plus 商家：预计自 ${plusAdditionalScriptsWindowLabel} 起进入只读窗口期${windowDisclaimer}`
-                    : `预计距离只读窗口期还有约 ${Math.max(0, daysRemaining)} 天（${nonPlusAdditionalScriptsWindowLabel}）`}`,
+                    ? `Plus 商家截止日期：${plusDeadlineLabel}`
+                    : `非 Plus 商家：距截止日期（${nonPlusDeadlineLabel}）还有约 ${Math.max(0, daysRemaining)} 天`}`,
             ],
         };
     }
@@ -414,7 +442,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             isUpgraded: false,
             urgency: "critical",
             title: "🚨 Plus 商家：Additional Scripts 已进入只读模式",
-            message: `您的店铺尚未升级到新版页面，但 Plus 商家的 Additional Scripts 预计已进入只读窗口期（${plusAdditionalScriptsWindowLabel}）${windowDisclaimer}。` +
+            message: `您的店铺尚未升级到新版页面。Plus 商家的 Additional Scripts 已于 ${plusDeadlineLabel} 进入只读模式。` +
                 "Shopify 可能随时将您的页面迁移到新版本。" + autoUpgradeNote,
             actions: [
                 "立即配置 Web Pixel 以确保追踪不中断",
@@ -432,7 +460,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             isUpgraded: false,
             urgency: "critical",
             title: "截止日期已过 - 请立即迁移",
-            message: `Additional Scripts 预计已进入只读窗口期（${windowLabel}）${windowDisclaimer}。请尽快完成迁移以避免追踪中断。`,
+            message: `Additional Scripts 已于 ${deadlineLabel} 进入只读模式。请尽快完成迁移以避免追踪中断。`,
             actions: [
                 "立即配置 Web Pixel",
                 "验证追踪是否正常工作",
@@ -444,7 +472,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             isUpgraded: false,
             urgency: "high",
             title: `紧急：剩余 ${daysRemaining} 天`,
-            message: `您的店铺尚未升级到新版页面。Additional Scripts 预计约 ${daysRemaining} 天后进入只读窗口期（${windowLabel}）${windowDisclaimer}。`,
+            message: `您的店铺尚未升级到新版页面。Additional Scripts 将于 ${deadlineLabel} 进入只读模式（剩余 ${daysRemaining} 天）。`,
             actions: [
                 "尽快完成 Web Pixel 配置",
                 "测试迁移后的追踪功能",

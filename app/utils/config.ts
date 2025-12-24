@@ -851,6 +851,69 @@ export function getEnabledFeatures(): string[] {
 }
 
 // ============================================================================
+// P2: Pixel Event Endpoint Configuration
+// ============================================================================
+
+/**
+ * P2: Get the current pixel event ingestion URL.
+ * 
+ * This is used for:
+ * 1. Displaying to merchants in the admin UI for verification
+ * 2. Ensuring pixels are sending events to the correct endpoint
+ * 
+ * Returns:
+ * - The SHOPIFY_APP_URL if set
+ * - A default fallback URL otherwise
+ */
+export function getPixelEventIngestionUrl(): {
+    url: string;
+    isConfigured: boolean;
+    isLocalhost: boolean;
+    warning?: string;
+} {
+    const shopifyAppUrl = process.env.SHOPIFY_APP_URL;
+    const fallbackUrl = "https://tracking-guardian.onrender.com";
+    
+    if (!shopifyAppUrl) {
+        return {
+            url: fallbackUrl,
+            isConfigured: false,
+            isLocalhost: false,
+            warning: "SHOPIFY_APP_URL 未配置，使用默认的生产环境 URL。如果您运行在自己的服务器上，请确保在环境变量中设置 SHOPIFY_APP_URL。",
+        };
+    }
+    
+    try {
+        const parsed = new URL(shopifyAppUrl);
+        const isLocalhost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+        
+        return {
+            url: shopifyAppUrl,
+            isConfigured: true,
+            isLocalhost,
+            warning: isLocalhost 
+                ? "当前配置的是本地开发 URL，像素事件将不会发送到生产环境。" 
+                : undefined,
+        };
+    } catch {
+        return {
+            url: fallbackUrl,
+            isConfigured: false,
+            isLocalhost: false,
+            warning: `SHOPIFY_APP_URL 格式无效 (${shopifyAppUrl})，使用默认 URL。`,
+        };
+    }
+}
+
+/**
+ * P2: Get the full pixel event endpoint for a shop.
+ */
+export function getPixelEventEndpoint(): string {
+    const { url } = getPixelEventIngestionUrl();
+    return `${url}/api/pixel-events`;
+}
+
+// ============================================================================
 // Configuration Summary
 // ============================================================================
 

@@ -55,6 +55,77 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
         /twitter.*pixel/i,
         /static\.ads-twitter\.com/i,
     ],
+    // =============================================================================
+    // P1-1: Post-purchase Survey / Upsell / Affiliate 工具识别
+    // 这些工具在 Additional Scripts 中很常见，需要给出不同的迁移建议
+    // =============================================================================
+    
+    // Post-purchase Survey 工具
+    fairing: [  // Fairing (原 Enquire Labs)
+        /fairing/i,
+        /enquirelabs/i,
+        /post-purchase-survey/i,
+    ],
+    kno: [  // KnoCommerce
+        /knocommerce/i,
+        /kno\.com/i,
+    ],
+    zigpoll: [
+        /zigpoll/i,
+    ],
+    
+    // Post-purchase Upsell 工具
+    carthook: [
+        /carthook/i,
+    ],
+    aftersell: [
+        /aftersell/i,
+    ],
+    reconvert: [
+        /reconvert/i,
+    ],
+    zipify: [  // Zipify OneClickUpsell
+        /zipify/i,
+        /oneclickupsell/i,
+    ],
+    
+    // Affiliate/Referral 追踪
+    refersion: [
+        /refersion/i,
+    ],
+    referralcandy: [
+        /referralcandy/i,
+    ],
+    tapfiliate: [
+        /tapfiliate/i,
+    ],
+    impact: [  // Impact Radius / impact.com
+        /impact\.com/i,
+        /impactradius/i,
+    ],
+    partnerstack: [
+        /partnerstack/i,
+    ],
+    
+    // 其他常见工具
+    hotjar: [
+        /hotjar/i,
+        /hj\s*\(/i,
+    ],
+    lucky_orange: [
+        /luckyorange/i,
+    ],
+    klaviyo: [  // Klaviyo 的客户端追踪
+        /klaviyo/i,
+        /_learnq/i,
+    ],
+    attentive: [  // Attentive SMS
+        /attentive\.io/i,
+        /attentivemobile/i,
+    ],
+    postscript: [  // Postscript SMS
+        /postscript/i,
+    ],
 };
 
 // =============================================================================
@@ -134,6 +205,118 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         supportLevel: "unsupported",
         recommendation: "X 广告转化追踪目前没有官方 Shopify 应用，可考虑使用第三方集成或手动配置",
     },
+    
+    // =============================================================================
+    // P1-1: Post-purchase Survey / Upsell / Affiliate 工具
+    // =============================================================================
+    
+    // Post-purchase Survey 工具
+    fairing: {
+        name: "Fairing (Post-purchase Survey)",
+        supportLevel: "unsupported",
+        recommendation: "Fairing 提供官方 Shopify 应用，支持 Checkout Extensibility。建议迁移到官方应用或使用 Checkout UI Extension",
+        officialApp: "https://apps.shopify.com/enquire-post-purchase-surveys",
+    },
+    kno: {
+        name: "KnoCommerce (Survey)",
+        supportLevel: "unsupported",
+        recommendation: "KnoCommerce 有官方 Shopify 应用。如脚本是官方应用生成的，会自动迁移",
+        officialApp: "https://apps.shopify.com/kno-post-purchase-surveys",
+    },
+    zigpoll: {
+        name: "Zigpoll (Survey)",
+        supportLevel: "unsupported",
+        recommendation: "Zigpoll 提供 Checkout UI Extension 集成。建议使用官方应用",
+        officialApp: "https://apps.shopify.com/zigpoll",
+    },
+    
+    // Post-purchase Upsell 工具
+    carthook: {
+        name: "CartHook (Post-purchase Upsell)",
+        supportLevel: "unsupported",
+        recommendation: "CartHook 需要迁移到 Shopify 的 post-purchase extension。建议使用官方应用",
+        officialApp: "https://apps.shopify.com/carthook",
+    },
+    aftersell: {
+        name: "AfterSell (Upsell)",
+        supportLevel: "unsupported",
+        recommendation: "AfterSell 官方应用支持 Checkout Extensibility，建议迁移",
+        officialApp: "https://apps.shopify.com/aftersell",
+    },
+    reconvert: {
+        name: "ReConvert (Upsell & Thank You)",
+        supportLevel: "unsupported",
+        recommendation: "ReConvert 官方应用支持新版 Thank You 页面。如使用旧版脚本，需更新应用",
+        officialApp: "https://apps.shopify.com/reconvert-upsell-cross-sell",
+    },
+    zipify: {
+        name: "Zipify OneClickUpsell",
+        supportLevel: "unsupported",
+        recommendation: "Zipify OCU 支持 Checkout Extensibility。请确保使用最新版应用",
+        officialApp: "https://apps.shopify.com/zipify-oneclickupsell",
+    },
+    
+    // Affiliate/Referral 追踪
+    refersion: {
+        name: "Refersion (Affiliate)",
+        supportLevel: "unsupported",
+        recommendation: "Refersion 官方应用支持服务端追踪。建议迁移到官方应用",
+        officialApp: "https://apps.shopify.com/refersion",
+    },
+    referralcandy: {
+        name: "ReferralCandy",
+        supportLevel: "unsupported",
+        recommendation: "ReferralCandy 官方应用使用 Webhook 进行追踪，无需客户端脚本",
+        officialApp: "https://apps.shopify.com/referralcandy",
+    },
+    tapfiliate: {
+        name: "Tapfiliate (Affiliate)",
+        supportLevel: "unsupported",
+        recommendation: "Tapfiliate 支持服务端集成。建议迁移到官方应用或 API 集成",
+        officialApp: "https://apps.shopify.com/tapfiliate",
+    },
+    impact: {
+        name: "impact.com (Affiliate)",
+        supportLevel: "unsupported",
+        recommendation: "Impact.com 支持服务端 API 集成。建议联系 Impact 支持团队了解 Shopify Checkout Extensibility 迁移方案",
+    },
+    partnerstack: {
+        name: "PartnerStack",
+        supportLevel: "unsupported",
+        recommendation: "PartnerStack 支持 Webhook 集成，无需客户端脚本",
+        officialApp: "https://apps.shopify.com/partnerstack",
+    },
+    
+    // 其他常见工具
+    hotjar: {
+        name: "Hotjar (Heatmaps)",
+        supportLevel: "unsupported",
+        recommendation: "Hotjar 是用户行为分析工具（热力图/录屏）。在 Thank You 页面升级后，需在 Shopify 主题中添加代码，或使用 Web Pixel（仅限追踪事件）",
+    },
+    lucky_orange: {
+        name: "Lucky Orange",
+        supportLevel: "unsupported",
+        recommendation: "Lucky Orange 类似 Hotjar，是行为分析工具。需要在主题中添加代码",
+    },
+    klaviyo: {
+        name: "Klaviyo",
+        supportLevel: "unsupported",
+        recommendation: "Klaviyo 官方 Shopify 应用使用 Webhook 进行订单追踪，客户端脚本主要用于网站追踪。建议确保使用官方应用",
+        officialApp: "https://apps.shopify.com/klaviyo-email-marketing",
+    },
+    attentive: {
+        name: "Attentive (SMS)",
+        supportLevel: "unsupported",
+        recommendation: "Attentive 官方应用支持 Checkout Extensibility。请确保使用最新版应用",
+        officialApp: "https://apps.shopify.com/attentive",
+    },
+    postscript: {
+        name: "Postscript (SMS)",
+        supportLevel: "unsupported",
+        recommendation: "Postscript 官方应用支持新版 Checkout。请确保使用最新版应用",
+        officialApp: "https://apps.shopify.com/postscript-sms-marketing",
+    },
+    
     unknown: {
         name: "未知平台",
         supportLevel: "unsupported",

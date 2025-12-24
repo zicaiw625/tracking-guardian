@@ -33,8 +33,9 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
         let priority: "high" | "medium" | "low" = "high";
         let deadline: string | undefined;
 
-        const PLUS_SCRIPT_TAG_OFF_LABEL = "2025年8月起";
-        const NON_PLUS_SCRIPT_TAG_OFF_LABEL = "2026年8月起";
+        // P0: 使用精确日期而非模糊的"年月起"表述
+        const PLUS_SCRIPT_TAG_OFF_LABEL = "2025-08-28";
+        const NON_PLUS_SCRIPT_TAG_OFF_LABEL = "2026-08-26";
 
         if (plusExecutionStatus.isExpired) {
             deadlineNote = `⚠️ Plus 商家的 ScriptTag 预计已于 ${PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行！非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "预计也已停止执行" : `约剩余 ${nonPlusExecutionStatus.daysRemaining} 天`}`;
