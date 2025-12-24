@@ -45,7 +45,7 @@ const MEASUREMENT_ID_PATTERN = /^G-[A-Z0-9]+$/;
  */
 export class GooglePlatformService implements IPlatformService {
   readonly platform = Platform.GOOGLE;
-  readonly displayName = "Google Ads / GA4";
+  readonly displayName = "Google Analytics 4 (MP)";
 
   /**
    * Send a conversion event to GA4 via Measurement Protocol.

@@ -69,7 +69,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 duplicatePixels: [],
                 migrationActions: [],
             };
-            migrationActions = generateMigrationActions(enhancedResult);
+            const shopTier = (shop.shopTier as string) || "unknown";
+            migrationActions = generateMigrationActions(enhancedResult, shopTier);
         } catch (e) {
             // Fallback if generation fails
             migrationActions = [];
@@ -312,7 +313,7 @@ export default function ScanPage() {
     const getPlatformName = (platform: string) => {
         // P0-4: bing/clarity removed from CAPI support, but keep display names for detection
         const names: Record<string, string> = {
-            google: "Google Ads / GA4",
+            google: "Google Analytics 4 (MP)",
             meta: "Meta (Facebook) Pixel",
             tiktok: "TikTok Pixel",
             bing: "Microsoft Ads (Bing) ⚠️",  // Warning: not supported

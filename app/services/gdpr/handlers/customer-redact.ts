@@ -90,24 +90,6 @@ export async function processCustomerRedact(
     },
   });
 
-  // Find related checkout tokens for cascade deletion
-  const receiptsWithCheckoutTokens = await prisma.pixelEventReceipt.findMany({
-    where: {
-      shopId: shop.id,
-      orderId: { in: orderIdStrings },
-      checkoutToken: { not: null },
-    },
-    select: { checkoutToken: true },
-  });
-
-  const linkedCheckoutTokens = Array.from(
-    new Set(
-      receiptsWithCheckoutTokens
-        .map((r) => r.checkoutToken)
-        .filter((t): t is string => t !== null)
-    )
-  );
-
   let pixelReceiptByCheckoutToken = 0;
   let surveyByCheckoutTokenPattern = 0;
   let conversionLogByCheckoutToken = 0;
