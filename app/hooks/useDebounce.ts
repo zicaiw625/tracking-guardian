@@ -119,23 +119,28 @@ export function useDebounceCallback<Args extends unknown[]>(
  */
 export function useThrottle<T>(value: T, interval: number): T {
   const [throttledValue, setThrottledValue] = useState<T>(value);
-  const lastUpdated = useRef<number>(Date.now());
+  // Track last update time - initialized to 0, will be set on first effect
+  const lastUpdated = useRef<number>(0);
+  // Track pending value for use in timer callback
+  const pendingValue = useRef<T>(value);
 
   useEffect(() => {
+    pendingValue.current = value;
     const now = Date.now();
     const timeSinceLastUpdate = now - lastUpdated.current;
 
-    if (timeSinceLastUpdate >= interval) {
-      lastUpdated.current = now;
-      setThrottledValue(value);
-    } else {
-      const timer = setTimeout(() => {
-        lastUpdated.current = Date.now();
-        setThrottledValue(value);
-      }, interval - timeSinceLastUpdate);
+    // Calculate delay: 0 if enough time has passed, otherwise remaining time
+    const delay = lastUpdated.current === 0 
+      ? 0 
+      : Math.max(0, interval - timeSinceLastUpdate);
 
-      return () => clearTimeout(timer);
-    }
+    // Always use setTimeout to avoid synchronous setState in effect body
+    const timer = setTimeout(() => {
+      lastUpdated.current = Date.now();
+      setThrottledValue(pendingValue.current);
+    }, delay);
+
+    return () => clearTimeout(timer);
   }, [value, interval]);
 
   return throttledValue;

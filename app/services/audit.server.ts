@@ -19,6 +19,7 @@ export {
   // Functions
   createAuditLogEntry,
   batchCreateAuditLogs,
+  batchCreateAuditLogs as createAuditLogsBatch,
   getAuditLogsForShop,
   getAuditLogById,
   cleanupOldAuditLogs,
@@ -28,6 +29,3 @@ export {
   auditLog,
   createAuditLog,
 } from "./db/audit-repository.server";
-
-// Re-export batch create with original name
-export { batchCreateAuditLogs as createAuditLogsBatch } from "./db/audit-repository.server";

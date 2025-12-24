@@ -62,7 +62,7 @@ export {
   batchCompleteJobs,
   batchInsertReceipts,
   batchUpdateShops,
-  batchCreateAuditLogs,
+  // Note: batchCreateAuditLogs is exported from audit-repository.server as createAuditLogsBatch
   executeInTransaction,
   processInChunks,
   type JobCompletionData,
@@ -73,6 +73,7 @@ export {
 // Audit repository
 export {
   createAuditLogEntry,
+  batchCreateAuditLogs,
   batchCreateAuditLogs as createAuditLogsBatch,
   getAuditLogsForShop,
   getAuditLogById,

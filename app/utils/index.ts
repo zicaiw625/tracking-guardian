@@ -74,7 +74,8 @@ export {
   validationErrorResponse,
   withValidation,
   type ValidationResult,
-  type ValidationError,
+  // Note: ValidationError class also exported from ./errors/index
+  type ValidationError as ZodValidationError,
   type ValidateResult,
 } from "./validate-request";
 
@@ -324,7 +325,8 @@ export {
   // String utilities
   truncate,
   normalizeShopDomain,
-  getErrorMessage,
+  // Note: getErrorMessage also exported from ./errors/index with more features
+  getErrorMessage as getErrorMessageSimple,
   maskSensitive,
   // Object utilities
   getNestedValue,
@@ -407,9 +409,11 @@ export {
 // =============================================================================
 
 export {
-  successResponse,
+  // Note: successResponse and errorResponse also exported from ./errors/index for Result pattern
+  // These are for simple action responses (not Result-based)
+  successResponse as actionSuccessResponse,
   successMessage,
-  errorResponse,
+  errorResponse as actionErrorResponse,
   jsonSuccess,
   jsonSuccessMessage,
   jsonError,

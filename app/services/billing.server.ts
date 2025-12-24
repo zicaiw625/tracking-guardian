@@ -21,24 +21,3 @@
 
 // Re-export everything from the billing module
 export * from "./billing";
-
-// For backwards compatibility, also export the commonly used items directly
-export {
-  BILLING_PLANS,
-  type PlanId,
-  createSubscription,
-  getSubscriptionStatus,
-  cancelSubscription,
-  syncSubscriptionStatus,
-  handleSubscriptionConfirmation,
-  getCurrentYearMonth,
-  getOrCreateMonthlyUsage,
-  incrementMonthlyUsage,
-  incrementMonthlyUsageIdempotent,
-  tryReserveUsageSlot,
-  checkOrderLimit,
-  checkBillingGate,
-  // Atomic operations (race-condition safe)
-  checkAndReserveBillingSlot,
-  releaseBillingSlot,
-} from "./billing";

@@ -222,6 +222,9 @@ export function useFormManager<T extends Record<string, unknown>>(
     return result;
   }, [config, values]);
 
+  // Track initial values in state to avoid ref access during render
+  const [savedInitialValues, setSavedInitialValues] = useState<T>(initialValues);
+
   // Calculate if form is dirty (any value differs from initial)
   const isDirty = useMemo(() => {
     for (const key in values) {
@@ -230,15 +233,15 @@ export function useFormManager<T extends Record<string, unknown>>(
         ? fieldConfig.transform(values[key])
         : values[key];
       const initialValue = fieldConfig?.transform
-        ? fieldConfig.transform(initialValuesRef.current[key])
-        : initialValuesRef.current[key];
+        ? fieldConfig.transform(savedInitialValues[key])
+        : savedInitialValues[key];
 
       if (!isEqual(currentValue, initialValue)) {
         return true;
       }
     }
     return false;
-  }, [config, values]);
+  }, [config, values, savedInitialValues]);
 
   // Calculate if form is valid
   const isValid = useMemo(() => Object.keys(errors).length === 0, [errors]);
@@ -273,8 +276,8 @@ export function useFormManager<T extends Record<string, unknown>>(
         ? fieldConfig.transform(values[field])
         : values[field];
       const initialValue = fieldConfig?.transform
-        ? fieldConfig.transform(initialValuesRef.current[field])
-        : initialValuesRef.current[field];
+        ? fieldConfig.transform(savedInitialValues[field])
+        : savedInitialValues[field];
 
       return {
         value: values[field],
@@ -283,7 +286,7 @@ export function useFormManager<T extends Record<string, unknown>>(
         touched: touched[field] ?? false,
       };
     },
-    [config, values, errors, touched]
+    [config, values, savedInitialValues, errors, touched]
   );
 
   // Mark field as touched
@@ -302,15 +305,17 @@ export function useFormManager<T extends Record<string, unknown>>(
 
   // Reset with new initial values
   const resetWith = useCallback((newInitialValues: Partial<T>) => {
-    const merged = { ...initialValuesRef.current, ...newInitialValues };
+    const merged = { ...savedInitialValues, ...newInitialValues };
     initialValuesRef.current = merged;
+    setSavedInitialValues(merged);
     setValuesState(merged);
     setTouched({});
-  }, []);
+  }, [savedInitialValues]);
 
   // Commit current values as new initial values
   const commit = useCallback(() => {
     initialValuesRef.current = { ...values };
+    setSavedInitialValues({ ...values });
     setTouched({});
   }, [values]);
 
@@ -413,6 +418,8 @@ export function useField<T>(
 ) {
   const [value, setValue] = useState<T>(initialValue);
   const [touched, setTouched] = useState(false);
+  // Use state instead of ref to track initial value (avoids ref access during render)
+  const [savedInitial, setSavedInitial] = useState<T>(initialValue);
   const initialRef = useRef(initialValue);
 
   const error = useMemo(() => {
@@ -420,7 +427,7 @@ export function useField<T>(
     return validate(value);
   }, [value, validate]);
 
-  const isDirty = useMemo(() => !isEqual(value, initialRef.current), [value]);
+  const isDirty = useMemo(() => !isEqual(value, savedInitial), [value, savedInitial]);
 
   const reset = useCallback(() => {
     setValue(initialRef.current);
@@ -429,6 +436,7 @@ export function useField<T>(
 
   const resetWith = useCallback((newValue: T) => {
     initialRef.current = newValue;
+    setSavedInitial(newValue);
     setValue(newValue);
     setTouched(false);
   }, []);

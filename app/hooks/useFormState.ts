@@ -4,7 +4,7 @@
  * A hook for managing form state with dirty tracking.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 // =============================================================================
 // Types
@@ -135,16 +135,23 @@ export function useFormState<T extends Record<string, unknown>>(
   // Store initial values in a ref to avoid recreating them on every render
   const initialValuesRef = useRef<T>(initialValues);
   const [values, setValuesInternal] = useState<T>(initialValues);
-  const [isDirty, setIsDirty] = useState(false);
+  // Keep track of initial values in state for render-safe access  
+  const [savedInitialValues, setSavedInitialValues] = useState<T>(initialValues);
 
-  // Track dirty state
+  // Calculate dirty state from values (derived state, no effect needed)
+  const isDirty = useMemo(
+    () => !isEqual(values, savedInitialValues),
+    [values, savedInitialValues, isEqual]
+  );
+  
+  // Track dirty state changes for callback
+  const prevIsDirtyRef = useRef(isDirty);
   useEffect(() => {
-    const dirty = !isEqual(values, initialValuesRef.current);
-    if (dirty !== isDirty) {
-      setIsDirty(dirty);
-      onDirtyChange?.(dirty);
+    if (prevIsDirtyRef.current !== isDirty) {
+      prevIsDirtyRef.current = isDirty;
+      onDirtyChange?.(isDirty);
     }
-  }, [values, isDirty, isEqual, onDirtyChange]);
+  }, [isDirty, onDirtyChange]);
 
   // Set a single field
   const setField = useCallback(
@@ -178,13 +185,14 @@ export function useFormState<T extends Record<string, unknown>>(
   // Reset to new initial values
   const resetTo = useCallback((newInitialValues: T) => {
     initialValuesRef.current = newInitialValues;
+    setSavedInitialValues(newInitialValues);
     setValuesInternal(newInitialValues);
   }, []);
 
   // Commit current values as new initial values
   const commit = useCallback(() => {
     initialValuesRef.current = values;
-    setIsDirty(false);
+    setSavedInitialValues(values);
   }, [values]);
 
   return {
@@ -196,7 +204,7 @@ export function useFormState<T extends Record<string, unknown>>(
     reset,
     resetTo,
     commit,
-    initialValues: initialValuesRef.current,
+    initialValues: savedInitialValues,
   };
 }
 

@@ -73,5 +73,4 @@ export {
   processConversionJobs,
 } from "./conversion-job.server";
 
-// Audit (re-export from db for convenience)
-export { createAuditLog } from "./audit.server";
+// Note: createAuditLog is already exported from "./db"
