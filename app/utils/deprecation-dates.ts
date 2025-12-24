@@ -130,8 +130,8 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     },
     plusAutoUpgradeStart: {
         date: DEPRECATION_DATES.plusAutoUpgradeStart,
-        precision: "month",
-        displayLabel: "2026年1月",
+        precision: "exact",
+        displayLabel: "2026-01-01",
         isEstimate: false, // Official timeline from Shopify
     },
 };
@@ -356,7 +356,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     // P0-3: 检查是否在 Plus 自动升级窗口内
     const isInPlusAutoUpgradeWindow = tier === "plus" && now >= DEPRECATION_DATES.plusAutoUpgradeStart;
     const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow 
-        ? "⚡ Plus 商家自动升级窗口已开始（2026年1月起）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。"
+        ? "⚡ Plus 商家自动升级窗口已开始（2026-01-01 起）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。"
         : "";
     if (typOspPagesEnabled === true) {
         return {
@@ -436,8 +436,8 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     if (tier === "plus" && isPlusDeadlinePassed) {
         // P0-3: 添加自动升级窗口提示
         const autoUpgradeNote = isInPlusAutoUpgradeWindow
-            ? "\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（2026年1月起）。"
-            : "\n\n📅 2026年1月起，Shopify 将开始自动迁移 Plus 商家到新版页面。";
+            ? "\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（2026-01-01 起）。"
+            : "\n\n📅 2026-01-01 起，Shopify 将开始自动迁移 Plus 商家到新版页面。";
         return {
             isUpgraded: false,
             urgency: "critical",

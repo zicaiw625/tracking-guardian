@@ -22,15 +22,22 @@
 > - Clarity: 客户端会话回放工具，请在主题中直接添加
 
 ### 3. 追踪健康监控
-- 每日自动对账：Shopify 订单 vs 广告平台转化
+- 每日自动对账：Shopify 订单/Webhook 回执 vs 平台投递日志
+- 投递成功率监控：检测发送失败、超时、凭证过期等问题
 - 偏差率报警（邮件/Slack/Telegram）
 - 可视化监控面板
+
+> **说明**：当前对账功能验证的是「事件是否成功发送到广告平台」，而非「平台侧报表中的转化数」。
+> 这能帮助您定位丢失发生在像素端、服务器端还是网络层，但不包含平台侧转化报表回读。
 
 ### 4. 服务器端转化补齐
 - Shopify Webhooks 自动触发
 - Meta Conversions API (CAPI)
-- Google Ads Conversion API
+- GA4 Measurement Protocol
 - TikTok Events API
+
+> **注意**：当前 Google 集成使用的是 GA4 Measurement Protocol，暂不支持 Google Ads 离线转化导入。
+> 如需 Google Ads Enhanced Conversions，建议配合使用 Google 官方 Shopify 应用。
 
 ### 5. TY/OS 页面小组件 (Beta)
 - Post-purchase Survey（购后问卷）

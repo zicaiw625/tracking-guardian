@@ -220,7 +220,7 @@ export function isDateInRange(
 }
 
 /**
- * Get start and end of day
+ * Get start and end of day (local timezone)
  */
 export function getDayBounds(date: Date): { start: Date; end: Date } {
   const start = new Date(date);
@@ -228,6 +228,20 @@ export function getDayBounds(date: Date): { start: Date; end: Date } {
   
   const end = new Date(date);
   end.setHours(23, 59, 59, 999);
+  
+  return { start, end };
+}
+
+/**
+ * Get start and end of day in UTC (for consistent server-side statistics)
+ * Use this for daily aggregations to ensure timezone-independent results
+ */
+export function getUTCDayBounds(date: Date): { start: Date; end: Date } {
+  const start = new Date(date);
+  start.setUTCHours(0, 0, 0, 0);
+  
+  const end = new Date(date);
+  end.setUTCHours(23, 59, 59, 999);
   
   return { start, end };
 }

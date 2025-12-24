@@ -200,10 +200,11 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
         return [];
     }
     const results: ReconciliationResult[] = [];
+    // P0-3: 使用 UTC 边界确保跨时区一致性
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
     const reportDate = new Date(yesterday);
     const platforms = [...new Set(shopWithRelations.pixelConfigs.map(c => c.platform))];
     if (platforms.length === 0) {
@@ -548,10 +549,11 @@ export async function getReconciliationDashboardData(
     shopId: string,
     days: number = 7
 ): Promise<ReconciliationDashboardData> {
+    // P0-3: 使用 UTC 边界确保跨时区一致性
     const endDate = new Date();
     endDate.setUTCHours(0, 0, 0, 0);
     const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - days);
+    startDate.setUTCDate(startDate.getUTCDate() - days);
 
     // 获取店铺当前策略
     const shop = await prisma.shop.findUnique({
@@ -715,9 +717,9 @@ export async function getReconciliationDashboardData(
         };
     });
 
-    // 按天统计趋势
+    // 按天统计趋势（使用 UTC 日期）
     const dailyStats = new Map<string, { webhook: number; pixel: number }>();
-    for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(startDate); d < endDate; d.setUTCDate(d.getUTCDate() + 1)) {
         const dateStr = d.toISOString().split("T")[0];
         dailyStats.set(dateStr, { webhook: 0, pixel: 0 });
     }

@@ -491,6 +491,7 @@ export {
   formatDateTime,
   getRelativeTime,
   getDayBounds,
+  getUTCDayBounds,
   getMonthBounds,
   isDateInRange,
   // Object utilities

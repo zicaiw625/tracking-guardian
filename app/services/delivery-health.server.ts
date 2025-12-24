@@ -100,11 +100,12 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     if (!shop || !shop.isActive) {
         throw new Error("Shop not found or inactive");
     }
+    // P0-3: 使用 UTC 边界确保跨时区一致性
     const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(0, 0, 0, 0);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    yesterday.setUTCHours(0, 0, 0, 0);
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
     const conversionLogs = await prisma.conversionLog.findMany({
         where: {
             shopId,
