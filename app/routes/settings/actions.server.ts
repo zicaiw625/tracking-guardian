@@ -26,6 +26,7 @@ import {
   encryptJson,
 } from "../../services/alert-settings.server";
 import { logger } from "../../utils/logger.server";
+import { invalidateAllShopCaches } from "../../services/shop-cache.server";
 import type { AlertSettings } from "./types";
 
 // =============================================================================
@@ -203,6 +204,9 @@ export async function handleSaveServerSide(
     },
   });
 
+  // Invalidate cache after pixel config update
+  await invalidateAllShopCaches(sessionShop, shopId);
+
   // Audit log for credential update (security-sensitive operation)
   await createAuditLog(shopId, {
     action: "credentials_updated",
@@ -279,6 +283,9 @@ export async function handleRotateIngestionSecret(
       previousSecretExpiry: graceWindowExpiry,
     },
   });
+
+  // Invalidate shop cache after secret rotation
+  await invalidateAllShopCaches(sessionShop, shopId);
 
   let pixelSyncResult = { success: false, message: "" };
 

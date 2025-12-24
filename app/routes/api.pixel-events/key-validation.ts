@@ -1,7 +1,7 @@
 /**
  * Pixel Events API - Key Validation
  *
- * Ingestion key validation logic.
+ * Ingestion key validation logic with caching for high-frequency lookups.
  */
 
 import {
@@ -12,13 +12,17 @@ import {
   type ShopVerificationData,
   type ShopWithPixelConfigs,
 } from "../../utils/shop-access";
+import {
+  getCachedShopWithConfigs,
+  cacheShopWithConfigs,
+} from "../../services/shop-cache.server";
 import { isDevMode } from "../../utils/origin-validation";
 import { trackAnomaly } from "../../utils/rate-limiter";
 import { logger } from "../../utils/logger.server";
 import type { KeyValidationResult } from "./types";
 
 // =============================================================================
-// Shop Lookup
+// Shop Lookup (with caching)
 // =============================================================================
 
 /**
@@ -33,13 +37,29 @@ export async function getShopForPixelVerification(
 /**
  * Get shop data with pixel configs for verification.
  * 
- * This is an optimized version that fetches shop data and pixel configs
- * in a single database query to avoid N+1 pattern.
+ * This is an optimized version that:
+ * 1. Checks cache first (Redis or in-memory)
+ * 2. Falls back to database query
+ * 3. Caches the result for subsequent requests
+ * 
+ * Cache TTL is 1 minute to balance freshness and performance.
  */
 export async function getShopForPixelVerificationWithConfigs(
   shopDomain: string
 ): Promise<ShopWithPixelConfigs | null> {
-  return getShopForVerificationWithConfigs(shopDomain);
+  // Try cache first
+  const cached = await getCachedShopWithConfigs(shopDomain);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  // Cache miss - fetch from database
+  const shop = await getShopForVerificationWithConfigs(shopDomain);
+  
+  // Cache the result (including null for not-found shops)
+  await cacheShopWithConfigs(shopDomain, shop);
+  
+  return shop;
 }
 
 // =============================================================================

@@ -2,6 +2,14 @@
  * Security Headers Configuration
  *
  * Comprehensive security headers for different contexts within the Shopify app.
+ * 
+ * IMPORTANT: Embedded apps have their CSP managed by Shopify. Do NOT add CSP
+ * to HTML responses served within the Shopify Admin iframe.
+ * 
+ * CSP is only applied to:
+ * - API endpoints (JSON responses)
+ * - Webhook endpoints
+ * - Health check endpoints
  */
 
 // =============================================================================
@@ -10,7 +18,28 @@
 
 /**
  * Content Security Policy directives for API endpoints.
- * Note: Embedded app CSP is managed by Shopify.
+ * These are stricter than embedded app CSP since they serve JSON only.
+ */
+export const API_CSP_DIRECTIVES: Record<string, string[]> = {
+  "default-src": ["'none'"],
+  "frame-ancestors": ["'none'"],
+  "base-uri": ["'none'"],
+  "form-action": ["'none'"],
+  "object-src": ["'none'"],
+};
+
+/**
+ * Content Security Policy directives for webhook endpoints.
+ * Very restrictive since webhooks should only process data.
+ */
+export const WEBHOOK_CSP_DIRECTIVES: Record<string, string[]> = {
+  "default-src": ["'none'"],
+  "frame-ancestors": ["'none'"],
+};
+
+/**
+ * @deprecated Use API_CSP_DIRECTIVES or WEBHOOK_CSP_DIRECTIVES instead.
+ * Kept for backwards compatibility.
  */
 export const CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'self'"],
@@ -65,6 +94,7 @@ export const EMBEDDED_APP_HEADERS: Record<string, string> = {
 
 /**
  * Headers for API endpoints (JSON responses).
+ * Includes CSP for additional security.
  */
 export const API_SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
@@ -74,15 +104,18 @@ export const API_SECURITY_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   Pragma: "no-cache",
   Expires: "0",
+  "Content-Security-Policy": buildCspHeader(API_CSP_DIRECTIVES),
 };
 
 /**
  * Headers for webhook endpoints.
+ * Includes CSP for additional security.
  */
 export const WEBHOOK_SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Cache-Control": "no-store",
+  "Content-Security-Policy": buildCspHeader(WEBHOOK_CSP_DIRECTIVES),
 };
 
 /**
@@ -163,6 +196,14 @@ export function validateSecurityHeaders(): {
       issues.push("Missing X-Content-Type-Options: nosniff");
       break;
     }
+  }
+
+  // Check API and webhook headers have CSP
+  if (!API_SECURITY_HEADERS["Content-Security-Policy"]) {
+    issues.push("API headers should include Content-Security-Policy");
+  }
+  if (!WEBHOOK_SECURITY_HEADERS["Content-Security-Policy"]) {
+    issues.push("Webhook headers should include Content-Security-Policy");
   }
 
   return {

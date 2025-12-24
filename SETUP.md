@@ -449,6 +449,76 @@ LIMIT 50;
 
 ---
 
+## 生产环境部署检查清单
+
+在部署到生产环境之前，请确保以下项目已完成：
+
+### 必需环境变量
+
+| 变量 | 说明 | 验证方式 |
+|------|------|----------|
+| `ENCRYPTION_SECRET` | 敏感数据加密密钥 | `openssl rand -base64 32` 生成，至少 32 字符 |
+| `CRON_SECRET` | Cron 端点认证 | `openssl rand -hex 32` 生成，至少 32 字符 |
+| `DATABASE_URL` | PostgreSQL 连接字符串 | 必须以 `postgresql://` 或 `postgres://` 开头 |
+| `SHOPIFY_API_KEY` | Shopify 应用 API Key | 从 Partner Dashboard 获取 |
+| `SHOPIFY_API_SECRET` | Shopify 应用 API Secret | 从 Partner Dashboard 获取 |
+| `SHOPIFY_APP_URL` | 应用公开 URL | **必须使用 HTTPS** |
+
+### 推荐环境变量
+
+| 变量 | 说明 | 默认行为 |
+|------|------|----------|
+| `REDIS_URL` | Redis 连接 | 无 Redis 时使用内存存储（单实例限制） |
+| `RESEND_API_KEY` | 邮件通知 | 禁用邮件告警 |
+| `ENCRYPTION_SALT` | 密钥派生盐值 | 使用固定默认值 |
+
+### 安全检查
+
+- [ ] `ALLOW_UNSIGNED_PIXEL_EVENTS` **未设置或设为 false**（生产环境禁止为 true）
+- [ ] `ENCRYPTION_SECRET` 不是默认值或占位符
+- [ ] `CRON_SECRET` 不是默认值或占位符
+- [ ] `SHOPIFY_APP_URL` 使用 HTTPS
+- [ ] 数据库使用 SSL 连接（生产环境推荐）
+
+### 功能验证
+
+1. **应用安装**
+   - [ ] OAuth 流程正常完成
+   - [ ] 店铺数据正确保存到数据库
+
+2. **Webhook 处理**
+   - [ ] `ORDERS_PAID` webhook 正常接收和处理
+   - [ ] GDPR webhooks 正常处理
+
+3. **Web Pixel**
+   - [ ] Pixel 正确加载（查看浏览器 Network）
+   - [ ] `checkout_completed` 事件发送成功
+   - [ ] `PixelEventReceipt` 正确写入数据库
+
+4. **转化发送**
+   - [ ] Meta CAPI 正常发送
+   - [ ] Google Analytics MP 正常发送
+   - [ ] TikTok Events API 正常发送
+
+5. **Cron 任务**
+   - [ ] 端点认证正常（Bearer token 验证）
+   - [ ] 数据清理任务正常运行
+
+### 启动时验证
+
+应用启动时会自动验证配置。在日志中检查：
+
+```
+=== Configuration Status ===
+Environment: production
+✅ All configuration checks passed
+============================
+```
+
+如果看到警告或错误，请按提示修复配置。
+
+---
+
 ## 技术支持
 
 如有问题，请创建 GitHub Issue。

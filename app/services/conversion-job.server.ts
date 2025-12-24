@@ -8,9 +8,7 @@
 import prisma from "../db.server";
 import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "./billing.server";
 import { decryptCredentials } from "./credentials.server";
-import { sendConversionToGoogle } from "./platforms/google.service";
-import { sendConversionToMeta } from "./platforms/meta.service";
-import { sendConversionToTikTok } from "./platforms/tiktok.service";
+import { sendConversionToPlatform } from "./platforms";
 import { generateEventId, matchKeysEqual } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
 import { JOB_PROCESSING_CONFIG } from "../utils/config";
@@ -28,11 +26,7 @@ import {
 } from "../utils/receipt-trust";
 import type {
   ConversionData,
-  GoogleCredentials,
-  MetaCredentials,
-  TikTokCredentials,
   PlatformCredentials,
-  ConversionApiResponse,
 } from "../types";
 import type { PlatformSendResult } from "./platforms/interface";
 import {
@@ -253,6 +247,8 @@ async function findReceiptForJob(
 /**
  * Send conversion to a specific platform.
  * Returns typed result for type-safe error handling.
+ * 
+ * Uses the unified sendConversionToPlatform function from the platform factory.
  */
 async function sendToPlatform(
   platform: string,
@@ -260,33 +256,12 @@ async function sendToPlatform(
   conversionData: ConversionData,
   eventId: string
 ): Promise<PlatformSendResult> {
-  let result: PlatformSendResult;
-  
-  switch (platform) {
-    case "google":
-      result = await sendConversionToGoogle(
-        credentials as GoogleCredentials,
-        conversionData,
-        eventId
-      );
-      break;
-    case "meta":
-      result = await sendConversionToMeta(
-        credentials as MetaCredentials,
-        conversionData,
-        eventId
-      );
-      break;
-    case "tiktok":
-      result = await sendConversionToTikTok(
-        credentials as TikTokCredentials,
-        conversionData,
-        eventId
-      );
-      break;
-    default:
-      throw new Error(`Unsupported platform: ${platform}`);
-  }
+  const result = await sendConversionToPlatform(
+    platform,
+    credentials,
+    conversionData,
+    eventId
+  );
   
   if (!result.success) {
     throw new Error(result.error?.message || "Platform send failed");
