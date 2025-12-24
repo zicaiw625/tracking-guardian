@@ -1038,22 +1038,27 @@ GET /api/exports?type=audit&format=json&include_meta=true
 - 实际行为与 toml 声明一致
 - COMPLIANCE.md 中策略说明可供审核/商家引用
 
-### P0-6: 升级截止日期呈现改进
+### P0-6: 升级截止日期精确呈现
 
-**问题**: 将 Shopify 的"月份级"公告写成"精确到某日"的承诺（如 2026-01-01）。
+**背景**: Shopify 官方已明确给出精确截止日期：
+- 2025-02-01: ScriptTag 新建被阻止
+- 2025-08-28: Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读
+- 2026-08-26: 非 Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读
+- 2026-01-01: Shopify 开始自动升级 Plus 商家 TYP/OSP 页面
 
 **解决方案** (`deprecation-dates.ts`):
-1. **区分日期精度**:
-   - `DatePrecision`: "exact" | "month" | "quarter"
-   - 对于 Shopify 说"August 2025"的，UI 显示"2025年8月起"而非"2025-08-28"
+1. **所有面向商家的 deadline 使用精确日期**:
+   - `DEADLINE_METADATA` 中所有关键日期 `precision: "exact"`, `isEstimate: false`
+   - UI 显示如 "2025-08-28" 而非 "2025年8月起"
 
-2. **新增显示函数**:
-   - `getDateDisplayLabel(date, precision)`: 根据精度返回适当的标签
-   - `DEADLINE_METADATA`: 每个截止日期的精度元数据
+2. **Plus 自动升级窗口提醒**:
+   - `plusAutoUpgradeStart`: 2026-01-01
+   - 在 scanner 报告中显示倒计时提醒（剩余90/30天告警）
+   - 在升级状态页面显示自动升级风险
 
 **验收**:
-- UI 文案与帮助中心/官方公告一致
-- 不出现"过度精确"的时间承诺
+- 所有 UI 文案与 Shopify 官方文档中的精确日期一致
+- 不使用模糊的"月份级"表述（如"2025年8月起"）
 
 ### P0-7: checkoutProfiles 可观测性与降级
 

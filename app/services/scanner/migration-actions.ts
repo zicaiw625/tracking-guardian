@@ -10,7 +10,8 @@ import {
 import { 
     getScriptTagCreationStatus, 
     getScriptTagExecutionStatus, 
-    getAdditionalScriptsDeprecationStatus 
+    getAdditionalScriptsDeprecationStatus,
+    DEPRECATION_DATES,
 } from "../../utils/deprecation-dates";
 import { isOurWebPixel, needsSettingsUpgrade } from "../migration.server";
 
@@ -38,21 +39,21 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
         const NON_PLUS_SCRIPT_TAG_OFF_LABEL = "2026-08-26";
 
         if (plusExecutionStatus.isExpired) {
-            deadlineNote = `⚠️ Plus 商家的 ScriptTag 预计已于 ${PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行！非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "预计也已停止执行" : `约剩余 ${nonPlusExecutionStatus.daysRemaining} 天`}`;
+            deadlineNote = `⚠️ Plus 商家的 ScriptTag 已于 ${PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行！非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "也已停止执行" : `剩余 ${nonPlusExecutionStatus.daysRemaining} 天`}`;
             priority = "high";
-            deadline = "2025年8月";
+            deadline = PLUS_SCRIPT_TAG_OFF_LABEL;
         } else if (creationStatus.isExpired && isOrderStatusScript) {
             deadlineNote = `⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 Plus: ${PLUS_SCRIPT_TAG_OFF_LABEL} / 非 Plus: ${NON_PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行。`;
             priority = "high";
-            deadline = "2025年8月";
+            deadline = PLUS_SCRIPT_TAG_OFF_LABEL;
         } else if (plusExecutionStatus.isWarning) {
-            deadlineNote = `⏰ Plus 商家: 约剩余 ${plusExecutionStatus.daysRemaining} 天后停止执行（${PLUS_SCRIPT_TAG_OFF_LABEL}）；非 Plus 商家: 约剩余 ${nonPlusExecutionStatus.daysRemaining} 天（${NON_PLUS_SCRIPT_TAG_OFF_LABEL}）`;
+            deadlineNote = `⏰ Plus 商家: 剩余 ${plusExecutionStatus.daysRemaining} 天后停止执行（${PLUS_SCRIPT_TAG_OFF_LABEL}）；非 Plus 商家: 剩余 ${nonPlusExecutionStatus.daysRemaining} 天（${NON_PLUS_SCRIPT_TAG_OFF_LABEL}）`;
             priority = "high";
-            deadline = "2025年8月";
+            deadline = PLUS_SCRIPT_TAG_OFF_LABEL;
         } else {
-            deadlineNote = `📅 执行窗口期 - Plus: ${PLUS_SCRIPT_TAG_OFF_LABEL}（约剩余 ${plusExecutionStatus.daysRemaining} 天）；非 Plus: ${NON_PLUS_SCRIPT_TAG_OFF_LABEL}（约剩余 ${nonPlusExecutionStatus.daysRemaining} 天）`;
+            deadlineNote = `📅 执行窗口期 - Plus: ${PLUS_SCRIPT_TAG_OFF_LABEL}（剩余 ${plusExecutionStatus.daysRemaining} 天）；非 Plus: ${NON_PLUS_SCRIPT_TAG_OFF_LABEL}（剩余 ${nonPlusExecutionStatus.daysRemaining} 天）`;
             priority = "medium";
-            deadline = "2026年8月";
+            deadline = NON_PLUS_SCRIPT_TAG_OFF_LABEL;
         }
 
         // P0-1: Changed from "delete_script_tag" to "migrate_script_tag"
@@ -173,6 +174,38 @@ export function generateMigrationActions(result: EnhancedScanResult): MigrationA
             title: "启用服务端转化追踪 (CAPI)",
             description: "启用 Conversions API 可降低广告拦截器影响，提高追踪数据的一致性和完整性。",
         });
+    }
+
+    // P0-2: 添加 Plus 商家自动升级窗口提醒（2026-01-01 起）
+    const now = new Date();
+    const autoUpgradeStart = DEPRECATION_DATES.plusAutoUpgradeStart;
+    const daysToAutoUpgrade = Math.ceil((autoUpgradeStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const isInAutoUpgradeWindow = now >= autoUpgradeStart;
+    
+    // 如果存在任何 ScriptTag 或未配置的平台，添加自动升级提醒
+    const hasLegacyTracking = result.scriptTags.length > 0 || 
+        result.additionalScriptsPatterns.some(p => p.platform !== "unknown");
+    
+    if (hasLegacyTracking) {
+        if (isInAutoUpgradeWindow) {
+            actions.unshift({
+                type: "configure_pixel",
+                priority: "high",
+                title: "⚡ Plus 商家自动升级窗口已开始",
+                description: `Shopify 已于 2026-01-01 开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。` +
+                    `旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将在自动升级后失效。` +
+                    `请立即确认 Web Pixel 配置正确，避免追踪中断。`,
+            });
+        } else if (daysToAutoUpgrade <= 90) {
+            actions.push({
+                type: "configure_pixel",
+                priority: daysToAutoUpgrade <= 30 ? "high" : "medium",
+                title: `📅 Plus 自动升级倒计时：剩余 ${daysToAutoUpgrade} 天`,
+                description: `Shopify 将于 2026-01-01 开始自动将 Plus 商家迁移到新版页面。` +
+                    `自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。` +
+                    `建议提前完成迁移，确保控制迁移时机。`,
+            });
+        }
     }
 
     // Sort by priority

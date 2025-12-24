@@ -1401,7 +1401,7 @@ export default function ScanPage() {
                 <List type="bullet">
                   <List.Item>联系 Shopify 支持，提供 ScriptTag ID: {guidanceContent?.scriptTagId}</List.Item>
                   <List.Item>使用 Shopify GraphQL API 手动删除（需开发者权限）</List.Item>
-                  <List.Item>等待 ScriptTag 自动过期（2025年8月起 Plus 商家将停止执行）</List.Item>
+                  <List.Item>等待 ScriptTag 自动过期（Plus 商家将于 2025-08-28 停止执行，非 Plus 商家将于 2026-08-26 停止执行）</List.Item>
                 </List>
               </BlockStack>
 
