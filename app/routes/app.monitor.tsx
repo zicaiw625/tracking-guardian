@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable, Select, ProgressBar, Button, Icon, Link, } from "@shopify/polaris";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable, Select, ProgressBar, Button, Icon, Link, Banner } from "@shopify/polaris";
 import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, } from "@shopify/polaris-icons";
 import { useState } from "react";
 import { authenticate } from "../shopify.server";
@@ -57,16 +57,47 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         _count: true,
         _sum: { orderValue: true },
     });
+
+    // P1-9: Runtime configuration check
+    const appUrl = process.env.SHOPIFY_APP_URL || "";
+    const latestReceipt = await prisma.pixelEventReceipt.findFirst({
+        where: { shopId: shop.id },
+        orderBy: { createdAt: "desc" },
+        select: { 
+            originHost: true,
+            createdAt: true 
+        }
+    });
+
     return json({
         shop: { id: shop.id, domain: shopDomain },
         summary,
         history,
         conversionStats,
+        configHealth: {
+            appUrl,
+            lastPixelOrigin: latestReceipt?.originHost || null,
+            lastPixelTime: latestReceipt?.createdAt || null
+        }
     });
 };
 export default function MonitorPage() {
-    const { shop, summary, history, conversionStats } = useLoaderData<typeof loader>();
+    const { shop, summary, history, conversionStats, configHealth } = useLoaderData<typeof loader>();
     const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+    
+    // Check for environment mismatch
+    const isProd = configHealth.appUrl && !configHealth.appUrl.includes("ngrok") && !configHealth.appUrl.includes("localhost");
+    const isDevUrl = configHealth.appUrl && (configHealth.appUrl.includes("ngrok") || configHealth.appUrl.includes("trycloudflare"));
+    
+    // Warning if pixel is sending from a different host than expected (mostly for dev/prod mixups)
+    // Note: originHost is where the pixel RUNS (storefront), not where it sends TO.
+    // However, if we receive it, it means it sent to US.
+    // The check requested is "fallback URL" - if pixel sends to OLD url.
+    // If we received it, it sent to current URL. So this confirms connectivity.
+    // If we haven't received anything recently, that's the issue.
+    const lastHeartbeat = configHealth.lastPixelTime ? new Date(configHealth.lastPixelTime) : null;
+    const isHeartbeatStale = lastHeartbeat ? (Date.now() - lastHeartbeat.getTime() > 24 * 60 * 60 * 1000) : true;
+
     const summaryData: Record<string, DeliverySummary> = (summary ?? {}) as Record<string, DeliverySummary>;
     const historyData = ((history ?? []) as unknown as Array<Omit<DeliveryHealthReport, 'reportDate'> & {
         reportDate: string;
@@ -314,6 +345,64 @@ export default function MonitorPage() {
             ])}/>
             </BlockStack>
           </Card>)}
+
+        {/* Runtime Configuration Health Check */}
+        <Card>
+          <BlockStack gap="400">
+            <InlineStack align="space-between">
+              <Text as="h2" variant="headingMd">
+                运行环境自检
+              </Text>
+              <Badge tone={!isHeartbeatStale ? "success" : "warning"}>
+                {!isHeartbeatStale ? "连接正常" : "无近期心跳"}
+              </Badge>
+            </InlineStack>
+            
+            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+              <BlockStack gap="300">
+                <InlineStack align="space-between">
+                   <Text as="span" tone="subdued">当前应用后端 (App URL)</Text>
+                   <Text as="span" fontWeight="semibold">{configHealth.appUrl || "未检测到"}</Text>
+                </InlineStack>
+                {isDevUrl && (
+                  <Banner tone="warning">
+                    <Text as="p" variant="bodySm">
+                      ⚠️ 检测到开发环境 URL (ngrok/cloudflare)。请确保 Web Pixel 扩展已使用最新 URL 重新构建/推送，否则可能导致事件发送失败。
+                    </Text>
+                  </Banner>
+                )}
+                
+                <Divider />
+                
+                <InlineStack align="space-between">
+                   <Text as="span" tone="subdued">最近一次 Pixel 连接</Text>
+                   <Text as="span" fontWeight={configHealth.lastPixelTime ? "semibold" : "regular"}>
+                     {configHealth.lastPixelTime 
+                       ? new Date(configHealth.lastPixelTime).toLocaleString("zh-CN") 
+                       : "尚未收到事件"}
+                   </Text>
+                </InlineStack>
+                
+                {configHealth.lastPixelOrigin && (
+                  <InlineStack align="space-between">
+                     <Text as="span" tone="subdued">来源店铺域名 (Origin)</Text>
+                     <Text as="span">{configHealth.lastPixelOrigin}</Text>
+                  </InlineStack>
+                )}
+
+                {isHeartbeatStale && hasData && (
+                  <Banner tone="critical">
+                    <Text as="p" variant="bodySm">
+                      超过 24 小时未收到 Web Pixel 心跳事件。请检查：
+                      <br />1. Web Pixel 是否已在 Shopify 后台断开连接
+                      <br />2. 如果是开发环境，确保 App URL 未变更（ngrok 重启后需更新）
+                    </Text>
+                  </Banner>
+                )}
+              </BlockStack>
+            </Box>
+          </BlockStack>
+        </Card>
 
         
         <Card>

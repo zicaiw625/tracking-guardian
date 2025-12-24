@@ -1322,14 +1322,75 @@ export default function ScanPage() {
 
               {analysisResult && analysisResult.recommendations.length > 0 && (<Card>
                   <BlockStack gap="400">
-                    <Text as="h2" variant="headingMd">
-                      迁移建议
-                    </Text>
-                    <BlockStack gap="200">
-                      {analysisResult.recommendations.map((rec, index) => (<InlineStack key={index} gap="200" align="start">
-                          <Icon source={ArrowRightIcon} tone="success"/>
-                          <Text as="p">{rec}</Text>
-                        </InlineStack>))}
+                    <InlineStack align="space-between">
+                      <Text as="h2" variant="headingMd">
+                        迁移建议清单
+                      </Text>
+                      <Badge tone="info">人工分析结果</Badge>
+                    </InlineStack>
+                    <BlockStack gap="300">
+                      {analysisResult.recommendations.map((rec, index) => {
+                        // Simple parsing of the recommendation text
+                        const lines = rec.split('\n');
+                        const titleLine = lines[0] || "";
+                        const titleMatch = titleLine.match(/\*\*(.*?)\*\*/);
+                        const title = titleMatch ? titleMatch[1] : titleLine.replace(/^[^\w\u4e00-\u9fa5]+/, '');
+                        const details = lines.slice(1).map(l => l.trim()).filter(l => l.length > 0);
+                        
+                        // Extract link if exists
+                        const linkLine = details.find(l => l.includes("http"));
+                        const urlMatch = linkLine?.match(/(https?:\/\/[^\s]+)/);
+                        const url = urlMatch ? urlMatch[1] : null;
+                        
+                        // Determine action
+                        const isInternal = title.includes("Google Analytics") || title.includes("Meta Pixel") || title.includes("TikTok");
+                        const isExternal = !!url;
+
+                        // Check if it's the summary checklist
+                        if (rec.includes("迁移清单建议")) {
+                           return (
+                             <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
+                               <BlockStack gap="200">
+                                 <Text as="h3" variant="headingSm">📋 综合迁移建议</Text>
+                                 <List type="number">
+                                   {details.map((d, i) => {
+                                      const cleanText = d.replace(/^\d+\.\s*/, '').trim();
+                                      if (!cleanText) return null;
+                                      return <List.Item key={i}>{cleanText}</List.Item>;
+                                   })}
+                                 </List>
+                               </BlockStack>
+                             </Box>
+                           );
+                        }
+
+                        return (
+                          <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
+                            <BlockStack gap="300">
+                              <InlineStack align="space-between" blockAlign="start">
+                                <BlockStack gap="100">
+                                  <Text as="h3" variant="headingSm">{title}</Text>
+                                  {details.map((line, i) => (
+                                    <Text key={i} as="p" variant="bodySm" tone="subdued">
+                                      {line}
+                                    </Text>
+                                  ))}
+                                </BlockStack>
+                                {isInternal && (
+                                  <Button url="/app/migrate" size="slim" icon={ArrowRightIcon}>
+                                    去配置
+                                  </Button>
+                                )}
+                                {isExternal && !isInternal && (
+                                  <Button url={url!} external size="slim" icon={ShareIcon}>
+                                    查看应用
+                                  </Button>
+                                )}
+                              </InlineStack>
+                            </BlockStack>
+                          </Box>
+                        );
+                      })}
                     </BlockStack>
                     <Divider />
                     <Button url="/app/migrate" variant="primary">
