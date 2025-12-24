@@ -162,6 +162,7 @@ export interface ScanResult {
   scriptTags: ScriptTag[];
   checkoutConfig: CheckoutConfig | null;
   identifiedPlatforms: string[];
+  additionalScriptsPatterns: Array<{ platform: string; content: string }>;
   riskItems: RiskItem[];
   riskScore: number;
 }

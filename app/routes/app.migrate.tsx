@@ -292,13 +292,13 @@ export default function MigratePage() {
                 <strong>2025-02-01</strong>：新应用无法再创建 ScriptTag
               </List.Item>
               <List.Item>
-                <strong>2025-08-28 (Plus 商家)</strong>：checkout.liquid 脚本停止工作，升级截止
+                <strong>2025-08-28 (Plus 商家)</strong>：Thank you / Order status 页面旧版脚本停止工作，升级截止
               </List.Item>
               <List.Item>
                 <strong>2026年1月 (Plus 商家)</strong>：Shopify 开始自动升级 Thank You/Order Status 页面，未迁移的旧脚本将失效（旧自定义将丢失）
               </List.Item>
               <List.Item>
-                <strong>2026-08-26 (非 Plus 商家)</strong>：所有商家的 checkout.liquid 脚本停止工作
+                <strong>2026-08-26 (非 Plus 商家)</strong>：Thank you / Order status 页面旧版脚本停止工作
               </List.Item>
               <List.Item>
                 <strong>2025-08-28 (全量商家)</strong>：Additional Scripts 变为只读（不可编辑）

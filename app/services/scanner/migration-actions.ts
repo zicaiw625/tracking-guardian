@@ -39,22 +39,32 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         const PLUS_SCRIPT_TAG_OFF_LABEL = "2025-08-28";
         const NON_PLUS_SCRIPT_TAG_OFF_LABEL = "2026-08-26";
 
-        if (plusExecutionStatus.isExpired) {
-            deadlineNote = `⚠️ Plus 商家的 ScriptTag 已于 ${PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行！非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "也已停止执行" : `剩余 ${nonPlusExecutionStatus.daysRemaining} 天`}`;
+        // P0-2: 根据 shopTier 决定主状态和截止日期
+        const isPlus = shopTier === "plus";
+        const primaryStatus = isPlus ? plusExecutionStatus : nonPlusExecutionStatus;
+        const primaryDeadlineLabel = isPlus ? PLUS_SCRIPT_TAG_OFF_LABEL : NON_PLUS_SCRIPT_TAG_OFF_LABEL;
+
+        if (primaryStatus.isExpired) {
+            deadlineNote = `⚠️ ${isPlus ? "Plus" : "非 Plus"} 商家的 ScriptTag 已于 ${primaryDeadlineLabel} 停止执行！`;
+            if (isPlus) {
+                deadlineNote += ` (非 Plus 商家: ${nonPlusExecutionStatus.isExpired ? "也已停止执行" : `剩余 ${nonPlusExecutionStatus.daysRemaining} 天`})`;
+            } else {
+                deadlineNote += ` (Plus 商家已于 ${PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行)`;
+            }
             priority = "high";
-            deadline = PLUS_SCRIPT_TAG_OFF_LABEL;
+            deadline = primaryDeadlineLabel;
         } else if (creationStatus.isExpired && isOrderStatusScript) {
-            deadlineNote = `⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 Plus: ${PLUS_SCRIPT_TAG_OFF_LABEL} / 非 Plus: ${NON_PLUS_SCRIPT_TAG_OFF_LABEL} 停止执行。`;
+            deadlineNote = `⚠️ 2025-02-01 起已无法创建新的 ScriptTag。现有脚本仍在运行，但将于 ${primaryDeadlineLabel} 停止执行。`;
             priority = "high";
-            deadline = PLUS_SCRIPT_TAG_OFF_LABEL;
-        } else if (plusExecutionStatus.isWarning) {
-            deadlineNote = `⏰ Plus 商家: 剩余 ${plusExecutionStatus.daysRemaining} 天后停止执行（${PLUS_SCRIPT_TAG_OFF_LABEL}）；非 Plus 商家: 剩余 ${nonPlusExecutionStatus.daysRemaining} 天（${NON_PLUS_SCRIPT_TAG_OFF_LABEL}）`;
+            deadline = primaryDeadlineLabel;
+        } else if (primaryStatus.isWarning) {
+            deadlineNote = `⏰ ${isPlus ? "Plus" : "非 Plus"} 商家: ScriptTag 将于 ${primaryDeadlineLabel} 停止执行（剩余 ${primaryStatus.daysRemaining} 天）。`;
             priority = "high";
-            deadline = PLUS_SCRIPT_TAG_OFF_LABEL;
+            deadline = primaryDeadlineLabel;
         } else {
-            deadlineNote = `📅 执行窗口期 - Plus: ${PLUS_SCRIPT_TAG_OFF_LABEL}（剩余 ${plusExecutionStatus.daysRemaining} 天）；非 Plus: ${NON_PLUS_SCRIPT_TAG_OFF_LABEL}（剩余 ${nonPlusExecutionStatus.daysRemaining} 天）`;
+            deadlineNote = `📅 执行窗口期 - ${isPlus ? "Plus" : "非 Plus"} 商家截止日期: ${primaryDeadlineLabel}（剩余 ${primaryStatus.daysRemaining} 天）。`;
             priority = "medium";
-            deadline = NON_PLUS_SCRIPT_TAG_OFF_LABEL;
+            deadline = primaryDeadlineLabel;
         }
 
         // P0-1: Changed from "delete_script_tag" to "migrate_script_tag"

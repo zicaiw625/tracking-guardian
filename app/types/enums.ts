@@ -140,7 +140,7 @@ export type PlatformType = typeof Platform[keyof typeof Platform];
  * Platform display names for UI.
  */
 export const PLATFORM_DISPLAY_NAMES: Record<PlatformType, string> = {
-  [Platform.GOOGLE]: 'Google Ads / GA4',
+  [Platform.GOOGLE]: 'Google Analytics 4 (GA4)',
   [Platform.META]: 'Meta (Facebook)',
   [Platform.TIKTOK]: 'TikTok',
 };

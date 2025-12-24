@@ -34,8 +34,9 @@ const DEFAULT_DATES = {
     nonPlusScriptTagExecutionOff: "2026-08-26",
     // 2025-08-28: Plus merchants - Additional Scripts become read-only
     plusAdditionalScriptsReadOnly: "2025-08-28",
-    // 2026-08-26: Non-Plus merchants - Additional Scripts become read-only  
-    nonPlusAdditionalScriptsReadOnly: "2026-08-26",
+    // 2025-08-28: Non-Plus merchants - Additional Scripts also become read-only (view-only)
+    // Reference: https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/upgrade-guide
+    nonPlusAdditionalScriptsReadOnly: "2025-08-28",
     scriptTagBlocked: "2025-02-01",
     // 2026-01: Shopify begins auto-upgrading Plus merchants to new TYP/OSP pages
     // Legacy customizations will be cleared during auto-upgrade
@@ -240,8 +241,8 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
         : DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
-    // P0: 使用精确日期
-    const dateLabel = tier === "non_plus" ? "2026-08-26" : "2025-08-28";
+    // P0: 统一使用精确日期 (Plus 和 Non-Plus 都是 2025-08-28 起只读)
+    const dateLabel = "2025-08-28";
     if (daysRemaining <= 0) {
         return {
             isExpired: true,
