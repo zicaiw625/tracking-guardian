@@ -355,6 +355,23 @@ export const LineItemSchema = z.object({
   price: z.number().nonnegative(),
 });
 
+/**
+ * P1-2: 预哈希的 PII 数据
+ * 
+ * 这些字段已经是 SHA256 哈希值，平台 service 可以直接使用。
+ * 命名遵循 Meta CAPI 的规范。
+ */
+export interface PreHashedUserData {
+  em?: string;  // hashed email
+  ph?: string;  // hashed phone
+  fn?: string;  // hashed first name
+  ln?: string;  // hashed last name
+  ct?: string;  // hashed city
+  st?: string;  // hashed state
+  country?: string;  // hashed country
+  zp?: string;  // hashed zip
+}
+
 export interface ConversionData {
   orderId: string;
   orderNumber: string | null;
@@ -369,6 +386,9 @@ export interface ConversionData {
   country?: string | null;
   zip?: string | null;
   lineItems?: LineItem[];
+  // P1-2: 预哈希的 PII 数据（可选）
+  // 如果存在，平台 service 应优先使用这些数据，避免重复哈希
+  preHashedUserData?: PreHashedUserData | null;
 }
 
 export const ConversionDataSchema = z.object({

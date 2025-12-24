@@ -417,23 +417,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       origin
     );
 
-    // Check sale of data consent
-    if (!consentResult.saleOfDataAllowed) {
-      logger.debug(
-        `Skipping ConversionLog recording: sale_of_data not explicitly allowed ` +
-          `(saleOfData=${String(payload.consent?.saleOfData)}) [P0-04]`
-      );
-      return jsonWithCors(
-        {
-          success: true,
-          eventId,
-          message: "Sale of data not explicitly allowed - event acknowledged",
-        },
-        { request, shopAllowedDomains }
-      );
-    }
+    // P0-2: 移除全局 saleOfData 检查。改为在 filterPlatformsByConsent 中按平台的
+    // requiresSaleOfData 配置逐平台判断。这样 GA4 (requiresSaleOfData=false) 可以继续工作，
+    // 而 Meta/TikTok (requiresSaleOfData=true) 仍会被正确过滤。
 
-    // Filter platforms by consent
+    // Filter platforms by consent (包含 saleOfData 平台级检查)
     const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
       pixelConfigs,
       consentResult

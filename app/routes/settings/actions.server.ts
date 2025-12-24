@@ -307,7 +307,8 @@ export async function handleRotateIngestionSecret(
     });
 
     if (ourPixel) {
-      const result = await updateWebPixel(admin, ourPixel.id, newPlainSecret);
+      // P0-1: 传入 shopDomain 参数，确保 Web Pixel 的 shop_domain 字段也被更新
+      const result = await updateWebPixel(admin, ourPixel.id, newPlainSecret, sessionShop);
       if (result.success) {
         pixelSyncResult = {
           success: true,

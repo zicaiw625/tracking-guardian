@@ -480,12 +480,17 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         price: item.price || 0,
       }));
 
+      // P1-2: 从 capiInput 中提取预哈希的 PII 数据（如果存在）
+      const hashedUserData = capiInputParsed?.hashedUserData as ConversionData["preHashedUserData"] | undefined;
+      
       const conversionData: ConversionData = {
         orderId: job.orderId,
         orderNumber: job.orderNumber,
         value: Number(job.orderValue),
         currency: job.currency,
         lineItems,
+        // P1-2: 传递预哈希数据给平台 service
+        preHashedUserData: hashedUserData || null,
       };
 
       // Process all platforms in parallel
@@ -495,13 +500,8 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         const treatAsMarketing = clientConfig?.treatAsMarketing === true;
         const platformCategory = getEffectiveConsentCategory(platform, treatAsMarketing);
 
-        // Check sale of data opt-out
-        if (consentState?.saleOfDataAllowed === false) {
-          logger.debug(
-            `[P0-04] Skipping ${platform} for job ${job.id}: sale_of_data opt-out`
-          );
-          return { platform, result: "skipped:sale_of_data_opted_out", success: false, skipped: true };
-        }
+        // P0-2: 移除全局 saleOfData 检查。evaluatePlatformConsentWithStrategy 已经按平台的
+        // requiresSaleOfData 配置做了检查。这样 GA4 可以在只有 analytics 同意时工作。
 
         // Check trust level
         const trustAllowed = isSendAllowedByTrust(

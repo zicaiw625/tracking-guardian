@@ -22,6 +22,7 @@ function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
 }
 
 // Default dates (based on Shopify announcements as of 2024-12)
+// P0-3: 添加 Plus 自动升级窗口日期
 const DEFAULT_DATES = {
     scriptTagCreationBlocked: "2025-02-01",
     plusScriptTagExecutionOff: "2025-08-28", // P2-02: Month-level precision, exact date TBD
@@ -29,6 +30,8 @@ const DEFAULT_DATES = {
     plusAdditionalScriptsReadOnly: "2025-08-28",
     nonPlusAdditionalScriptsReadOnly: "2026-08-26",
     scriptTagBlocked: "2025-02-01",
+    // P0-3: Plus 商家自动升级窗口（Shopify 将在此期间自动将 Plus 商家迁移到新版页面）
+    plusAutoUpgradeStart: "2026-01-01",
 } as const;
 
 export const DEPRECATION_DATES = {
@@ -55,6 +58,11 @@ export const DEPRECATION_DATES = {
     scriptTagBlocked: parseEnvDate(
         process.env.DEPRECATION_SCRIPT_TAG_BLOCKED, 
         DEFAULT_DATES.scriptTagBlocked
+    ),
+    // P0-3: Plus 商家自动升级窗口
+    plusAutoUpgradeStart: parseEnvDate(
+        process.env.DEPRECATION_PLUS_AUTO_UPGRADE,
+        DEFAULT_DATES.plusAutoUpgradeStart
     ),
 } as const;
 export type DatePrecision = "exact" | "month" | "quarter";
@@ -305,12 +313,23 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     title: string;
     message: string;
     actions: string[];
+    // P0-3: 新增自动升级提示信息
+    autoUpgradeInfo?: {
+        isInAutoUpgradeWindow: boolean;
+        autoUpgradeMessage: string;
+    };
 } {
     const { tier, typOspPagesEnabled } = upgradeStatus;
     const plusAdditionalScriptsWindowLabel = "2025年8月起";
     const nonPlusAdditionalScriptsWindowLabel = "2026年8月起";
     const windowLabel = tier === "non_plus" ? nonPlusAdditionalScriptsWindowLabel : plusAdditionalScriptsWindowLabel;
     const windowDisclaimer = "（月份级窗口，具体日期以 Shopify 官方公告为准）";
+    
+    // P0-3: 检查是否在 Plus 自动升级窗口内
+    const isInPlusAutoUpgradeWindow = tier === "plus" && now >= DEPRECATION_DATES.plusAutoUpgradeStart;
+    const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow 
+        ? "⚡ Plus 商家自动升级窗口已开始（2026年1月起）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。"
+        : "";
     if (typOspPagesEnabled === true) {
         return {
             isUpgraded: true,
@@ -320,6 +339,10 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             actions: hasScriptTags
                 ? ["建议删除不再生效的旧版 ScriptTags 以保持配置整洁"]
                 : [],
+            autoUpgradeInfo: isInPlusAutoUpgradeWindow ? {
+                isInAutoUpgradeWindow: true,
+                autoUpgradeMessage: plusAutoUpgradeMessage,
+            } : undefined,
         };
     }
     const deadline = tier === "plus"
@@ -383,17 +406,25 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
         };
     }
     if (tier === "plus" && isPlusDeadlinePassed) {
+        // P0-3: 添加自动升级窗口提示
+        const autoUpgradeNote = isInPlusAutoUpgradeWindow
+            ? "\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（2026年1月起）。"
+            : "\n\n📅 2026年1月起，Shopify 将开始自动迁移 Plus 商家到新版页面。";
         return {
             isUpgraded: false,
             urgency: "critical",
             title: "🚨 Plus 商家：Additional Scripts 已进入只读模式",
             message: `您的店铺尚未升级到新版页面，但 Plus 商家的 Additional Scripts 预计已进入只读窗口期（${plusAdditionalScriptsWindowLabel}）${windowDisclaimer}。` +
-                "Shopify 可能随时将您的页面迁移到新版本。",
+                "Shopify 可能随时将您的页面迁移到新版本。" + autoUpgradeNote,
             actions: [
                 "立即配置 Web Pixel 以确保追踪不中断",
                 "检查 Web Pixel 和 CAPI 配置是否正确",
                 "考虑主动升级到新版页面以获得更好的控制",
             ],
+            autoUpgradeInfo: {
+                isInAutoUpgradeWindow: isInPlusAutoUpgradeWindow,
+                autoUpgradeMessage: plusAutoUpgradeMessage,
+            },
         };
     }
     if (daysRemaining <= 0) {

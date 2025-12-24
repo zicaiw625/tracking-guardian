@@ -9,9 +9,16 @@ export interface PlatformConsentConfig {
 /**
  * Platform consent configuration.
  * 
- * P0-4: Tracking Guardian only supports Google, Meta, and TikTok for server-side CAPI.
- * Other platforms (bing, clarity, pinterest, snapchat, twitter) are kept in detection
- * but not supported for CAPI migration.
+ * P0-4 + P1-1: Tracking Guardian 支持以下平台的服务端 CAPI：
+ * - GA4 (google): Google Analytics 4 Measurement Protocol
+ * - Meta (meta): Facebook/Instagram Conversions API
+ * - TikTok (tiktok): TikTok Events API
+ * 
+ * P1-1: Google Ads 已暂时移除 - 代码中识别了 google_ads 但无实际 CAPI 实现。
+ * 后续版本可通过 Enhanced Conversions 或离线转化上传实现。
+ * 
+ * Detection-only platforms (bing, clarity, pinterest, snapchat, twitter) 保留用于扫描和建议，
+ * 但不支持 CAPI 迁移。
  */
 export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
     // Supported platforms (have CAPI implementation)
@@ -29,13 +36,8 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
         consentReason: "用于转化追踪和广告优化",
         requiresSaleOfData: true,
     },
-    google_ads: {
-        category: "marketing",
-        name: "Google Ads",
-        dualUse: false,
-        consentReason: "用于转化追踪和广告优化",
-        requiresSaleOfData: true,
-    },
+    // P1-1: google_ads 已移除 - 无 CAPI 实现，避免误导用户
+    // 后续可通过 Enhanced Conversions 或离线转化上传实现
     google: {
         category: "analytics",
         name: "Google Analytics 4 (GA4)",

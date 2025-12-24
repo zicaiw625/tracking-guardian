@@ -1,28 +1,42 @@
 /**
  * Pixel Events API - Consent Filtering Logic
  *
- * P0.6: Handles consent-based filtering for pixel events.
+ * P0.6 + P0-2: Handles consent-based filtering for pixel events.
  * 
  * Consent Strategy (MUST match pixel-side consent.ts):
  * 
  * 1. All consent values default to FALSE (deny by default)
  * 2. Consent is only granted when EXPLICITLY set to true
- * 3. saleOfDataAllowed must be true for marketing platforms to send CAPI
+ * 3. P0-2: saleOfData 检查改为平台级别：
+ *    - 只有 requiresSaleOfData=true 的平台（Meta/TikTok）需要 saleOfData
+ *    - requiresSaleOfData=false 的平台（GA4）不需要 saleOfData
  * 4. The check flow is:
  *    - Pixel: sends event only if hasAnalyticsConsent() || hasMarketingConsent()
  *    - Backend: drops if no consent at all (hasAnyConsent check)
- *    - Backend: drops saleOfData if not explicitly allowed
- *    - Backend: filters platforms by marketing/analytics consent
+ *    - Backend: filters platforms by:
+ *      a) saleOfData (仅限 requiresSaleOfData=true 的平台)
+ *      b) marketing/analytics consent
  * 
  * This ensures:
  * - No data sent to third parties without explicit consent
- * - CCPA compliance via sale_of_data check
+ * - CCPA compliance via sale_of_data check (per platform config)
+ * - GA4 can still work with analytics-only consent
  * - Defense in depth (pixel + backend both check)
  */
 
-import { isMarketingPlatform, isAnalyticsPlatform } from "../../utils/platform-consent";
+import { isMarketingPlatform, isAnalyticsPlatform, PLATFORM_CONSENT_CONFIG } from "../../utils/platform-consent";
 import { logger, metrics } from "../../utils/logger.server";
 import type { ConsentState } from "./types";
+
+/**
+ * P0-2: 检查平台是否需要 saleOfData 同意。
+ * 从 PLATFORM_CONSENT_CONFIG 中读取配置，默认 true（保守策略）。
+ */
+function platformRequiresSaleOfData(platform: string): boolean {
+  const config = PLATFORM_CONSENT_CONFIG[platform];
+  // 默认 true（保守策略：未知平台也要求 saleOfData）
+  return config?.requiresSaleOfData ?? true;
+}
 
 // =============================================================================
 // Consent Check Types
@@ -102,8 +116,12 @@ export function logNoConsentDrop(
 /**
  * Filter platforms based on consent state.
  *
- * Marketing platforms require marketing consent.
- * Analytics platforms require analytics consent.
+ * P0-2: 改进版 - 按平台配置分别检查：
+ * 1. Marketing 平台：需要 marketing consent + (如果 requiresSaleOfData) saleOfData
+ * 2. Analytics 平台：需要 analytics consent + (如果 requiresSaleOfData) saleOfData
+ * 
+ * 这样 GA4 (requiresSaleOfData=false) 在只有 analytics 同意时也能工作，
+ * 而 Meta/TikTok (requiresSaleOfData=true) 需要额外的 saleOfData 同意。
  */
 export function filterPlatformsByConsent(
   pixelConfigs: Array<{ platform: string }>,
@@ -113,27 +131,40 @@ export function filterPlatformsByConsent(
   const skippedPlatforms: string[] = [];
 
   for (const config of pixelConfigs) {
-    // Marketing platforms need marketing consent
-    if (isMarketingPlatform(config.platform) && !consentResult.hasMarketingConsent) {
+    const platform = config.platform;
+    const requiresSaleOfData = platformRequiresSaleOfData(platform);
+    
+    // P0-2: 先检查 saleOfData（如果平台需要）
+    if (requiresSaleOfData && !consentResult.saleOfDataAllowed) {
       logger.debug(
-        `Skipping ${config.platform} ConversionLog: ` +
+        `Skipping ${platform} ConversionLog: ` +
+          `sale_of_data required but not allowed (saleOfData=${consentResult.saleOfDataAllowed}) [P0-2]`
+      );
+      skippedPlatforms.push(platform);
+      continue;
+    }
+
+    // Marketing platforms need marketing consent
+    if (isMarketingPlatform(platform) && !consentResult.hasMarketingConsent) {
+      logger.debug(
+        `Skipping ${platform} ConversionLog: ` +
           `marketing consent not granted (marketing=${consentResult.hasMarketingConsent})`
       );
-      skippedPlatforms.push(config.platform);
+      skippedPlatforms.push(platform);
       continue;
     }
 
     // Analytics platforms need analytics consent
-    if (isAnalyticsPlatform(config.platform) && !consentResult.hasAnalyticsConsent) {
+    if (isAnalyticsPlatform(platform) && !consentResult.hasAnalyticsConsent) {
       logger.debug(
-        `Skipping ${config.platform} ConversionLog: ` +
+        `Skipping ${platform} ConversionLog: ` +
           `analytics consent not granted (analytics=${consentResult.hasAnalyticsConsent})`
       );
-      skippedPlatforms.push(config.platform);
+      skippedPlatforms.push(platform);
       continue;
     }
 
-    platformsToRecord.push(config.platform);
+    platformsToRecord.push(platform);
   }
 
   return { platformsToRecord, skippedPlatforms };

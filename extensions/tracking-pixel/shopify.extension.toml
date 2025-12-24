@@ -15,26 +15,26 @@ runtime_context = "strict"
 # Customer Privacy settings determine when this pixel loads.
 # The pixel will ONLY load when ALL required consents are granted.
 #
-# CURRENT CONFIGURATION (strict mode):
-# - analytics = true: Pixel requires analytics consent to load
-# - marketing = true: Pixel requires marketing consent to load
-# - sale_of_data = "enabled": Pixel respects CCPA sale of data preferences
+# P0-4: 改进配置（更高覆盖率 + 服务端分层判断）
+# - analytics = true: Pixel 需要 analytics consent 才能加载
+# - marketing = false: Pixel 不强制要求 marketing consent（覆盖率更高）
+# - sale_of_data = "enabled": Pixel 尊重 CCPA 选择
 #
-# PRODUCT DECISION REQUIRED:
-# This configuration means the pixel only loads when users grant ALL permissions.
-# Expected coverage: Lower (only fully consented users)
-# Compliance: Maximum protection
+# 配置说明：
+# 这个配置允许 Pixel 在只有 analytics 同意时也能加载和发送事件。
+# 服务端（route.tsx / consent-filter.ts）会根据各平台的 requiresSaleOfData 和
+# marketing/analytics 配置，逐平台判断是否发送 CAPI。
+# - GA4 (requiresSaleOfData=false): 只需 analytics 同意
+# - Meta/TikTok (requiresSaleOfData=true): 需要 marketing + saleOfData 同意
 #
-# ALTERNATIVE OPTIONS:
-# 1. If you want opt-out users to still trigger (with LDU/limited data):
-#    sale_of_data = "ldu"  (requires implementing LDU logic in pixel code)
-# 2. If you want broader coverage at cost of some analytics:
-#    analytics = false     (pixel loads without analytics consent)
+# 预期效果：
+# - 覆盖率提高（analytics 同意的用户也能被追踪）
+# - 合规性保持（marketing 平台仍受服务端严格检查）
 #
 # Reference: https://shopify.dev/docs/api/web-pixels-api/pixel-privacy
 [customer_privacy]
 analytics = true
-marketing = true
+marketing = false
 preferences = false
 sale_of_data = "enabled"
 

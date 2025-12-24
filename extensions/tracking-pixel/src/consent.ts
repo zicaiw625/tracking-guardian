@@ -1,11 +1,19 @@
 /**
  * Consent Management Module
  * 
- * P0-04: Handles customer privacy consent state tracking and updates.
+ * P0-04 + P0-4: Handles customer privacy consent state tracking and updates.
  * 
  * SECURITY: All consent values default to FALSE (deny by default).
  * Consent is only granted when EXPLICITLY set to true.
  * Unknown/undefined values are treated as NOT consented.
+ * 
+ * P0-4 配置说明：
+ * shopify.extension.toml 中 marketing=false，意味着 Pixel 在只有 analytics 同意时
+ * 也能加载。服务端会根据各平台的配置（requiresSaleOfData, category）逐平台判断：
+ * - GA4: 只需 analytics 同意
+ * - Meta/TikTok: 需要 marketing + saleOfData 同意
+ * 
+ * 这个模块负责追踪当前的 consent 状态，并将其发送给后端，让后端做最终的平台级判断。
  */
 
 import type { CustomerPrivacyState, VisitorConsentCollectedEvent } from "./types";

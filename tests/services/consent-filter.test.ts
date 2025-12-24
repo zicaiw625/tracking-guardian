@@ -156,10 +156,10 @@ describe("Consent Filter - checkInitialConsent", () => {
 });
 
 describe("Consent Filter - filterPlatformsByConsent", () => {
+  // P1-1: google_ads removed - no CAPI implementation
   const marketingPlatforms = [
     { platform: "meta" },
     { platform: "tiktok" },
-    { platform: "google_ads" },
   ];
 
   const analyticsPlatforms = [
@@ -183,7 +183,7 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
 
       const result = filterPlatformsByConsent(marketingPlatforms, consent);
 
-      expect(result.platformsToRecord).toEqual(["meta", "tiktok", "google_ads"]);
+      expect(result.platformsToRecord).toEqual(["meta", "tiktok"]);
       expect(result.skippedPlatforms).toEqual([]);
     });
 
@@ -198,7 +198,7 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
       const result = filterPlatformsByConsent(marketingPlatforms, consent);
 
       expect(result.platformsToRecord).toEqual([]);
-      expect(result.skippedPlatforms).toEqual(["meta", "tiktok", "google_ads"]);
+      expect(result.skippedPlatforms).toEqual(["meta", "tiktok"]);
     });
   });
 
@@ -621,10 +621,10 @@ describe("Platform Consent - Category Detection", () => {
       expect(isMarketingPlatform("tiktok")).toBe(true);
     });
 
-    it("should identify Google Ads as marketing platform", () => {
-      expect(isMarketingPlatform("google_ads")).toBe(true);
-    });
-
+    // P1-1: google_ads test removed - no longer in PLATFORM_CONSENT_CONFIG
+    // Unknown platforms default to marketing, so this would still pass,
+    // but we remove the test to avoid confusion
+    
     it("should not identify Google Analytics as marketing platform", () => {
       expect(isMarketingPlatform("google")).toBe(false);
     });
@@ -702,7 +702,8 @@ describe("Consent - Real-World Scenarios", () => {
         saleOfDataAllowed: true,
       };
 
-      const platforms = ["meta", "google", "tiktok", "google_ads"];
+      // P1-1: google_ads removed from test - no CAPI implementation
+      const platforms = ["meta", "google", "tiktok"];
 
       for (const platform of platforms) {
         const result = evaluatePlatformConsent(platform, consent);

@@ -391,6 +391,9 @@ export type PiiQuality = "none" | "partial" | "good";
 
 /**
  * Build hashed user data for Meta CAPI.
+ * 
+ * P1-2: 优先使用预哈希数据（来自 webhook handler），
+ * 如果没有预哈希数据，则从原始 PII 字段中提取并哈希。
  */
 export async function buildMetaHashedUserData(
   data: ConversionData
@@ -398,6 +401,56 @@ export async function buildMetaHashedUserData(
   const userData: MetaUserData = {};
   const availableFields: string[] = [];
 
+  // P1-2: 优先使用预哈希数据
+  if (data.preHashedUserData) {
+    const pre = data.preHashedUserData;
+    
+    if (pre.em) {
+      userData.em = [pre.em];
+      availableFields.push("email");
+    }
+    if (pre.ph) {
+      userData.ph = [pre.ph];
+      availableFields.push("phone");
+    }
+    if (pre.fn) {
+      userData.fn = [pre.fn];
+      availableFields.push("firstName");
+    }
+    if (pre.ln) {
+      userData.ln = [pre.ln];
+      availableFields.push("lastName");
+    }
+    if (pre.ct) {
+      userData.ct = [pre.ct];
+      availableFields.push("city");
+    }
+    if (pre.st) {
+      userData.st = [pre.st];
+      availableFields.push("state");
+    }
+    if (pre.country) {
+      userData.country = [pre.country];
+      availableFields.push("country");
+    }
+    if (pre.zp) {
+      userData.zp = [pre.zp];
+      availableFields.push("zip");
+    }
+    
+    // 如果预哈希数据有任何字段，直接返回
+    if (availableFields.length > 0) {
+      let piiQuality: PiiQuality;
+      if (availableFields.includes("email") || availableFields.includes("phone")) {
+        piiQuality = "good";
+      } else {
+        piiQuality = "partial";
+      }
+      return { userData, piiQuality };
+    }
+  }
+
+  // 回退：从原始 PII 字段中提取并哈希（兼容旧数据）
   if (data.email) {
     userData.em = [await hashValue(normalizeEmail(data.email))];
     availableFields.push("email");
@@ -470,6 +523,8 @@ export async function buildMetaHashedUserData(
 
 /**
  * Build hashed user data for TikTok Events API.
+ * 
+ * P1-2: 优先使用预哈希数据，回退到从原始 PII 提取并哈希。
  */
 export async function buildTikTokHashedUserData(
   data: ConversionData
@@ -477,6 +532,25 @@ export async function buildTikTokHashedUserData(
   const user: TikTokUserData = {};
   let hasPii = false;
 
+  // P1-2: 优先使用预哈希数据
+  if (data.preHashedUserData) {
+    const pre = data.preHashedUserData;
+    
+    if (pre.em) {
+      user.email = pre.em;
+      hasPii = true;
+    }
+    if (pre.ph) {
+      user.phone_number = pre.ph;
+      hasPii = true;
+    }
+    
+    if (hasPii) {
+      return { user, hasPii };
+    }
+  }
+
+  // 回退：从原始 PII 提取并哈希
   if (data.email) {
     user.email = await hashValue(normalizeEmail(data.email));
     hasPii = true;

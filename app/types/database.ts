@@ -31,6 +31,21 @@ export interface CapiLineItem {
 }
 
 /**
+ * P1-2: 预哈希的 PII 数据
+ * 这些字段已经是 SHA256 哈希值，平台 service 可以直接使用。
+ */
+export interface HashedUserDataJson {
+  em?: string;  // hashed email
+  ph?: string;  // hashed phone
+  fn?: string;  // hashed first name
+  ln?: string;  // hashed last name
+  ct?: string;  // hashed city
+  st?: string;  // hashed state
+  country?: string;  // hashed country
+  zp?: string;  // hashed zip
+}
+
+/**
  * CAPI input stored in ConversionJob.capiInput.
  * Contains minimal data needed for platform API calls.
  * NO raw PII - only hashed versions if needed.
@@ -49,6 +64,8 @@ export interface CapiInputJson {
   webhookReceivedAt?: string;
   checkoutToken?: string | null;
   shopifyOrderId?: number | string;
+  // P1-2: 预哈希的 PII 数据（可选）
+  hashedUserData?: HashedUserDataJson | null;
 }
 
 /**
