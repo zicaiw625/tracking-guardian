@@ -266,10 +266,44 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         sentToPlatforms: sentToPlatformsCount,
         period: "24h",
     };
+
+    // P2-2: Webhook & Queue Health Metrics
+    const totalWebhooks24h = await prisma.webhookLog.count({
+        where: {
+            shopDomain,
+            receivedAt: { gte: last24h },
+        },
+    });
+    const failedWebhooks24h = await prisma.webhookLog.count({
+        where: {
+            shopDomain,
+            receivedAt: { gte: last24h },
+            status: "failed",
+        },
+    });
+    const queuedJobs = await prisma.conversionJob.count({
+        where: {
+            shopId: shop.id,
+            status: { in: ["queued", "processing"] },
+        },
+    });
+    const deadLetterJobs = await prisma.conversionJob.count({
+        where: {
+            shopId: shop.id,
+            status: "dead_letter",
+        },
+    });
+
     return json({
         checks,
         summary,
         eventFunnel,
+        webhookHealth: {
+            totalWebhooks24h,
+            failedWebhooks24h,
+            queuedJobs,
+            deadLetterJobs,
+        },
         lastUpdated: new Date().toISOString(),
     });
 };
@@ -677,6 +711,63 @@ export default function DiagnosticsPage() {
                 <Button url="/app/settings">配置 CAPI 凭证</Button>
                 <Button url="/app/migrate" variant="primary">安装/更新 Pixel</Button>
               </InlineStack>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  Webhook 与队列监控
+                </Text>
+                <Badge tone={data.webhookHealth.failedWebhooks24h > 0 || data.webhookHealth.deadLetterJobs > 0 ? "critical" : "success"}>
+                  {data.webhookHealth.failedWebhooks24h > 0 || data.webhookHealth.deadLetterJobs > 0 ? "异常" : "健康"}
+                </Badge>
+              </InlineStack>
+              <Divider />
+              <InlineStack gap="400" align="space-between">
+                <Box minWidth="45%">
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">Webhook 接收 (24h)</Text>
+                    <InlineStack gap="400">
+                        <Box>
+                            <Text as="p" variant="bodySm" tone="subdued">总接收</Text>
+                            <Text as="p" variant="headingLg">{data.webhookHealth.totalWebhooks24h}</Text>
+                        </Box>
+                        <Box>
+                            <Text as="p" variant="bodySm" tone="subdued">失败</Text>
+                            <Text as="p" variant="headingLg" tone={data.webhookHealth.failedWebhooks24h > 0 ? "critical" : "success"}>
+                                {data.webhookHealth.failedWebhooks24h}
+                            </Text>
+                        </Box>
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+                <Box minWidth="45%">
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">处理队列</Text>
+                    <InlineStack gap="400">
+                        <Box>
+                            <Text as="p" variant="bodySm" tone="subdued">排队中</Text>
+                            <Text as="p" variant="headingLg">{data.webhookHealth.queuedJobs}</Text>
+                        </Box>
+                        <Box>
+                            <Text as="p" variant="bodySm" tone="subdued">死信 (Dead Letter)</Text>
+                            <Text as="p" variant="headingLg" tone={data.webhookHealth.deadLetterJobs > 0 ? "critical" : "success"}>
+                                {data.webhookHealth.deadLetterJobs}
+                            </Text>
+                        </Box>
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+              </InlineStack>
+              {data.webhookHealth.deadLetterJobs > 0 && (
+                  <Banner tone="critical">
+                      <Text as="p">检测到 {data.webhookHealth.deadLetterJobs} 个任务在多次重试后失败。请检查日志或联系支持。</Text>
+                  </Banner>
+              )}
             </BlockStack>
           </Card>
         </Layout.Section>
