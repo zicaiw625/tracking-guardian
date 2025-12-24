@@ -313,7 +313,7 @@ export default function ScanPage() {
     const getPlatformName = (platform: string) => {
         // P0-4: bing/clarity removed from CAPI support, but keep display names for detection
         const names: Record<string, string> = {
-            google: "Google Analytics 4 (MP)",
+            google: "GA4 (Measurement Protocol)",
             meta: "Meta (Facebook) Pixel",
             tiktok: "TikTok Pixel",
             bing: "Microsoft Ads (Bing) ⚠️",  // Warning: not supported

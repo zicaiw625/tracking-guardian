@@ -295,7 +295,7 @@ export default function MigratePage() {
                 <strong>2025-08-28 (Plus 商家)</strong>：checkout.liquid 脚本停止工作，升级截止
               </List.Item>
               <List.Item>
-                <strong>2026年1月 (Plus 商家)</strong>：Shopify 开始自动升级 Thank You/Order Status 页面，未迁移的旧脚本将失效
+                <strong>2026年1月 (Plus 商家)</strong>：Shopify 开始自动升级 Thank You/Order Status 页面，未迁移的旧脚本将失效（旧自定义将丢失）
               </List.Item>
               <List.Item>
                 <strong>2026-08-26 (非 Plus 商家)</strong>：所有商家的 checkout.liquid 脚本停止工作

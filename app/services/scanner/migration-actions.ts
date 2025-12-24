@@ -12,13 +12,14 @@ import {
     getScriptTagExecutionStatus, 
     getAdditionalScriptsDeprecationStatus,
     DEPRECATION_DATES,
+    type ShopTier,
 } from "../../utils/deprecation-dates";
 import { isOurWebPixel, needsSettingsUpgrade } from "../migration.server";
 
 /**
  * Generate migration actions based on scan results
  */
-export function generateMigrationActions(result: EnhancedScanResult): MigrationAction[] {
+export function generateMigrationActions(result: EnhancedScanResult, shopTier: string): MigrationAction[] {
     const actions: MigrationAction[] = [];
 
     const creationStatus = getScriptTagCreationStatus();

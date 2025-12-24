@@ -287,7 +287,7 @@ export function usePlatformConfig(
  */
 export function getPlatformDisplayName(platform: string): string {
   const names: Record<string, string> = {
-    google: "Google Analytics / GA4",
+    google: "GA4 (Measurement Protocol)",
     meta: "Meta (Facebook)",
     tiktok: "TikTok",
   };

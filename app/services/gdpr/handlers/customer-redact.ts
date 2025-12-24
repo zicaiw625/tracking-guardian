@@ -47,8 +47,23 @@ export async function processCustomerRedact(
   }
 
   // Convert order IDs to strings and patterns
-  const orderIdStrings = ordersToRedact.map((id) => String(id));
-  const orderNumberPatterns = ordersToRedact.map((id) => `order_num:${id}`);
+  const orderIdStrings = ordersToRedact.map((id: number | string) => String(id));
+  const orderNumberPatterns = ordersToRedact.map((id: number | string) => `order_num:${id}`);
+
+  // P0 Fix: Find checkoutTokens before deleting pixel receipts
+  // We need these to perform cascading deletes for fallback data
+  const receiptsWithTokens = await prisma.pixelEventReceipt.findMany({
+    where: {
+      shopId: shop.id,
+      orderId: { in: orderIdStrings },
+      checkoutToken: { not: null },
+    },
+    select: { checkoutToken: true },
+  });
+
+  const linkedCheckoutTokens: string[] = receiptsWithTokens
+    .map((r: { checkoutToken: string | null }) => r.checkoutToken)
+    .filter((t: string | null): t is string => t !== null);
 
   // Delete conversion logs
   const conversionLogResult = await prisma.conversionLog.deleteMany({
