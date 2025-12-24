@@ -281,6 +281,32 @@ export default function MigratePage() {
           </BlockStack>
         </Banner>
 
+        {/* P0-5: 关键时间线提醒 */}
+        <Banner title="⏰ Shopify 追踪升级时间线" tone="warning">
+          <BlockStack gap="200">
+            <Text as="p">
+              Shopify 正在逐步淘汰旧版 ScriptTag 和 checkout.liquid 追踪方式：
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <strong>2025-02-01</strong>：新应用无法再创建 ScriptTag
+              </List.Item>
+              <List.Item>
+                <strong>2025-08-28 (Plus 商家)</strong>：checkout.liquid 脚本停止工作
+              </List.Item>
+              <List.Item>
+                <strong>2026-01-01 (Plus 商家)</strong>：Shopify 开始自动升级 Thank You/Order Status 页面，未迁移的旧脚本将失效
+              </List.Item>
+              <List.Item>
+                <strong>2026-08-26 (非 Plus 商家)</strong>：所有商家的 checkout.liquid 脚本停止工作
+              </List.Item>
+            </List>
+            <Text as="p" tone="subdued">
+              使用 Tracking Guardian 的 Web Pixel + 服务端 CAPI 方案可确保追踪在升级后继续正常工作。
+            </Text>
+          </BlockStack>
+        </Banner>
+
         {/* Pixel Settings Upgrade Banner */}
         {needsSettingsUpgrade && pixelStatus === "installed" && (
           <Banner 

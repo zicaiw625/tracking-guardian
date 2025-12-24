@@ -14,6 +14,7 @@ import { createAuditLog } from "../../services/audit.server";
 import {
   getExistingWebPixels,
   updateWebPixel,
+  isOurWebPixel,
 } from "../../services/migration.server";
 import { generateEncryptedIngestionSecret } from "../../utils/token-encryption";
 import type {
@@ -294,13 +295,12 @@ export async function handleRotateIngestionSecret(
 
   try {
     const existingPixels = await getExistingWebPixels(admin);
+    // P0-1: 使用 isOurWebPixel 函数严格匹配 shop_domain，避免更新错误的像素
     const ourPixel = existingPixels.find((p) => {
       try {
         const settings = JSON.parse(p.settings || "{}");
-        return (
-          typeof settings.ingestion_key === "string" ||
-          typeof settings.ingestion_secret === "string"
-        );
+        // P0-1: 严格检查 shop_domain，确保只更新属于当前店铺的像素
+        return isOurWebPixel(settings, sessionShop);
       } catch {
         return false;
       }

@@ -265,7 +265,8 @@ export function getPlatformConsentRequirements(platform: string): {
     if (requiresMarketing) {
         explanation = `${config.name}: 需要营销同意（marketingAllowed=true）`;
         if (config.requiresSaleOfData) {
-            explanation += ` + 数据共享同意（saleOfDataAllowed≠false）`;
+            // P0-6: 修正文案与逻辑一致 - 实际逻辑要求 saleOfDataAllowed === true
+            explanation += ` + 数据共享同意（saleOfDataAllowed=true）`;
         }
     }
     else {
