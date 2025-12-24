@@ -49,19 +49,6 @@ export interface PixelConfigForCredentials {
 }
 
 // =============================================================================
-// Legacy Types (for backwards compatibility)
-// =============================================================================
-
-/**
- * @deprecated Use Result-based functions instead
- */
-export interface DecryptCredentialsResult {
-  credentials: PlatformCredentials | null;
-  usedLegacy: boolean;
-  error?: string;
-}
-
-// =============================================================================
 // Result-Based Functions
 // =============================================================================
 
@@ -232,67 +219,4 @@ export function getValidCredentials(
   }
 
   return ok(decryptResult.value);
-}
-
-// =============================================================================
-// Legacy Functions (for backwards compatibility)
-// =============================================================================
-
-/**
- * @deprecated Use decryptCredentials() with Result type instead
- */
-export function getDecryptedCredentials(
-  pixelConfig: PixelConfigForCredentials,
-  platform: string
-): DecryptCredentialsResult {
-  const result = decryptCredentials(pixelConfig, platform);
-
-  if (result.ok) {
-    return {
-      credentials: result.value.credentials,
-      usedLegacy: result.value.usedLegacy,
-    };
-  }
-
-  return {
-    credentials: null,
-    usedLegacy: false,
-    error: result.error.message,
-  };
-}
-
-/**
- * @deprecated Use validatePlatformCredentials() with Result type instead
- */
-export function validateCredentials(
-  credentials: PlatformCredentials | null,
-  platform: string
-): { valid: boolean; error?: string } {
-  if (!credentials) {
-    return { valid: false, error: "No credentials available" };
-  }
-
-  const result = validatePlatformCredentials(credentials, platform);
-
-  if (result.ok) {
-    return { valid: true };
-  }
-
-  return { valid: false, error: result.error.message };
-}
-
-/**
- * @deprecated Use getValidCredentials() with Result type instead
- */
-export function getValidatedCredentials(
-  pixelConfig: PixelConfigForCredentials,
-  platform: string
-): { credentials: PlatformCredentials | null; error?: string } {
-  const result = getValidCredentials(pixelConfig, platform);
-
-  if (result.ok) {
-    return { credentials: result.value.credentials };
-  }
-
-  return { credentials: null, error: result.error.message };
 }

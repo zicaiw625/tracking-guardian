@@ -26,8 +26,8 @@ import type { PlatformSendResult } from "./platforms/interface";
 // Re-export from conversion-job for backwards compatibility
 export { processConversionJobs, calculateNextRetryTime } from "./conversion-job.server";
 
-// Re-export from credentials for backwards compatibility
-export { decryptCredentials, getDecryptedCredentials } from "./credentials.server";
+// Re-export from credentials for Result-based credential handling
+export { decryptCredentials } from "./credentials.server";
 
 // =============================================================================
 // Failure Classification

@@ -405,5 +405,3 @@ export function getRequiredSecret(envVar: string): string {
 export function getOptionalSecret(envVar: string, defaultValue: string): string {
     return process.env[envVar] || defaultValue;
 }
-
-}

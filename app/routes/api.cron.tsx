@@ -6,8 +6,14 @@
  * - Authentication via CRON_SECRET
  * - Replay protection
  * - Distributed locking to prevent concurrent execution
+ * - Crawler/bot detection for security
  *
  * Supports both POST (standard) and GET (for simple cron services).
+ * 
+ * Security Note:
+ * GET method is supported for compatibility with simple cron services.
+ * Authentication is via Authorization header, not URL parameters.
+ * Crawlers and bots are explicitly blocked from triggering execution.
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
@@ -16,11 +22,52 @@ import {
   cronSuccessResponse,
   cronSkippedResponse,
   cronErrorResponse,
+  forbiddenResponse,
 } from "../utils/responses";
 import { validateCronAuth, executeCronTasks, type CronResult } from "../cron";
 import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
-import { createRequestLogger } from "../utils/logger.server";
+import { createRequestLogger, logger } from "../utils/logger.server";
 import { withCronLock } from "../utils/cron-lock";
+
+// =============================================================================
+// Crawler Detection
+// =============================================================================
+
+/**
+ * Known crawler/bot User-Agent patterns to block.
+ * These should never be triggering cron jobs.
+ */
+const BLOCKED_USER_AGENTS = [
+  /googlebot/i,
+  /bingbot/i,
+  /yandexbot/i,
+  /baiduspider/i,
+  /duckduckbot/i,
+  /slurp/i,
+  /facebookexternalhit/i,
+  /twitterbot/i,
+  /linkedinbot/i,
+  /crawler/i,
+  /spider/i,
+  /bot\b/i,
+  /scraper/i,
+  /wget/i,
+  /curl\/\d/i,  // curl with version number (likely automated)
+];
+
+/**
+ * Check if the request appears to be from a crawler or bot.
+ */
+function isCrawlerRequest(request: Request): boolean {
+  const userAgent = request.headers.get("User-Agent") || "";
+  
+  // Empty User-Agent is suspicious for cron endpoints
+  if (!userAgent) {
+    return false; // Allow - some cron services don't send User-Agent
+  }
+  
+  return BLOCKED_USER_AGENTS.some(pattern => pattern.test(userAgent));
+}
 
 // =============================================================================
 // Request ID Generation
@@ -55,6 +102,16 @@ async function handleCronRequest(
     ...(method === "GET" && { method: "GET" }),
   });
   const startTime = Date.now();
+
+  // Block crawlers and bots (security measure for GET endpoint)
+  if (isCrawlerRequest(request)) {
+    const userAgent = request.headers.get("User-Agent") || "unknown";
+    logger.warn("[SECURITY] Blocked crawler/bot access to cron endpoint", {
+      userAgent: userAgent.substring(0, 100),
+      method,
+    });
+    return forbiddenResponse("Access denied");
+  }
 
   cronLogger.info(`Cron execution started${methodSuffix}`);
 

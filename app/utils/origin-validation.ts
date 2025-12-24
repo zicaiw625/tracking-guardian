@@ -47,6 +47,12 @@ interface RejectedOriginTracker {
 const rejectedOrigins = new Map<string, RejectedOriginTracker>();
 const TRACKING_WINDOW_MS = 60 * 60 * 1000;
 const ALERT_THRESHOLD = 10;
+/**
+ * Maximum number of unique origins to track.
+ * Prevents memory exhaustion under attack scenarios.
+ * When limit is reached, oldest entries are evicted.
+ */
+const MAX_TRACKED_ORIGINS = 10000;
 export function isDevMode(): boolean {
     const nodeEnv = process.env.NODE_ENV;
     return nodeEnv === "development" || nodeEnv === "test";
@@ -260,6 +266,12 @@ function trackRejectedOrigin(origin: string): void {
     const sanitizedOrigin = sanitizeOriginForLogging(origin);
     const existing = rejectedOrigins.get(sanitizedOrigin);
     if (!existing || (now - existing.firstSeen) > TRACKING_WINDOW_MS) {
+        // Before adding a new entry, check size limit
+        if (rejectedOrigins.size >= MAX_TRACKED_ORIGINS) {
+            // Evict oldest entries (up to 10% of max size)
+            evictOldestEntries(Math.ceil(MAX_TRACKED_ORIGINS * 0.1));
+        }
+        
         rejectedOrigins.set(sanitizedOrigin, {
             count: 1,
             firstSeen: now,
@@ -277,6 +289,28 @@ function trackRejectedOrigin(origin: string): void {
                 securityAlert: "rejected_origin_abuse",
             });
         }
+    }
+}
+
+/**
+ * Evict oldest entries from the tracking map to prevent memory growth.
+ * Uses LRU-style eviction based on lastSeen timestamp.
+ */
+function evictOldestEntries(count: number): void {
+    if (rejectedOrigins.size === 0) return;
+    
+    // Convert to array and sort by lastSeen (oldest first)
+    const entries = Array.from(rejectedOrigins.entries())
+        .sort((a, b) => a[1].lastSeen - b[1].lastSeen);
+    
+    // Remove the oldest entries
+    const toRemove = entries.slice(0, count);
+    for (const [origin] of toRemove) {
+        rejectedOrigins.delete(origin);
+    }
+    
+    if (toRemove.length > 0) {
+        logger.info(`[Origin Tracking] Evicted ${toRemove.length} stale entries (size limit: ${MAX_TRACKED_ORIGINS})`);
     }
 }
 function sanitizeOriginForLogging(origin: string): string {
