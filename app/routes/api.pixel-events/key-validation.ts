@@ -4,7 +4,14 @@
  * Ingestion key validation logic.
  */
 
-import { getShopForVerification, timingSafeEquals, verifyWithGraceWindow, type ShopVerificationData } from "../../utils/shop-access";
+import {
+  getShopForVerification,
+  getShopForVerificationWithConfigs,
+  timingSafeEquals,
+  verifyWithGraceWindow,
+  type ShopVerificationData,
+  type ShopWithPixelConfigs,
+} from "../../utils/shop-access";
 import { isDevMode } from "../../utils/origin-validation";
 import { trackAnomaly } from "../../utils/rate-limiter";
 import { logger } from "../../utils/logger.server";
@@ -21,6 +28,18 @@ export async function getShopForPixelVerification(
   shopDomain: string
 ): Promise<ShopVerificationData | null> {
   return getShopForVerification(shopDomain);
+}
+
+/**
+ * Get shop data with pixel configs for verification.
+ * 
+ * This is an optimized version that fetches shop data and pixel configs
+ * in a single database query to avoid N+1 pattern.
+ */
+export async function getShopForPixelVerificationWithConfigs(
+  shopDomain: string
+): Promise<ShopWithPixelConfigs | null> {
+  return getShopForVerificationWithConfigs(shopDomain);
 }
 
 // =============================================================================

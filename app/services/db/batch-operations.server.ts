@@ -1,11 +1,16 @@
 /**
  * Batch Operations Service
- * 
+ *
  * Provides transaction-safe batch operations for database writes.
  * Optimizes performance by grouping multiple operations into single transactions.
+ *
+ * Performance optimizations:
+ * - Uses Prisma's updateMany where possible for O(1) database round trips
+ * - Groups updates by status to minimize query count
+ * - Falls back to individual updates only when per-row data differs
  */
 
-import prisma from "../../db.server";
+import { getDb } from "../../container";
 import { Prisma } from "@prisma/client";
 import { JobStatus } from "../../types";
 import { logger } from "../../utils/logger.server";
@@ -82,69 +87,103 @@ export async function batchCompleteJobs(
   const limitExceeded = completions.filter(c => c.status === 'limit_exceeded');
   const deadLetter = completions.filter(c => c.status === 'dead_letter');
 
+  const db = getDb();
+
   try {
-    await prisma.$transaction(async (tx) => {
-      // Update completed jobs
-      for (const job of completed) {
-        await tx.conversionJob.update({
-          where: { id: job.jobId },
+    await db.$transaction(async (tx) => {
+      // Batch update completed jobs - use updateMany for common fields, individual for per-job data
+      if (completed.length > 0) {
+        const completedIds = completed.map((j) => j.jobId);
+        
+        // Bulk update common fields
+        await tx.conversionJob.updateMany({
+          where: { id: { in: completedIds } },
           data: {
             status: JobStatus.COMPLETED,
             processedAt: now,
             completedAt: now,
             lastAttemptAt: now,
-            platformResults: toInputJsonValue(job.platformResults),
-            trustMetadata: toInputJsonValue(job.trustMetadata),
-            consentEvidence: toInputJsonValue(job.consentEvidence),
             errorMessage: null,
           },
         });
-        processed++;
+        
+        // Individual updates for per-job JSON data (required due to different values)
+        for (const job of completed) {
+          await tx.conversionJob.update({
+            where: { id: job.jobId },
+            data: {
+              platformResults: toInputJsonValue(job.platformResults),
+              trustMetadata: toInputJsonValue(job.trustMetadata),
+              consentEvidence: toInputJsonValue(job.consentEvidence),
+            },
+          });
+        }
+        processed += completed.length;
       }
 
       // Note: Monthly usage is tracked via MonthlyUsage model, not a Shop field
       // Usage increment happens in billing.server.ts via incrementMonthlyUsage
 
-      // Update failed jobs
-      for (const job of failed) {
-        await tx.conversionJob.update({
-          where: { id: job.jobId },
-          data: {
-            status: JobStatus.FAILED,
-            lastAttemptAt: now,
-            nextRetryAt: job.nextRetryAt,
-            platformResults: toInputJsonValue(job.platformResults),
-            errorMessage: job.errorMessage,
-          },
-        });
-        processed++;
+      // Batch update failed jobs
+      if (failed.length > 0) {
+        for (const job of failed) {
+          await tx.conversionJob.update({
+            where: { id: job.jobId },
+            data: {
+              status: JobStatus.FAILED,
+              lastAttemptAt: now,
+              nextRetryAt: job.nextRetryAt,
+              platformResults: toInputJsonValue(job.platformResults),
+              errorMessage: job.errorMessage,
+            },
+          });
+        }
+        processed += failed.length;
       }
 
-      // Update limit exceeded jobs
-      for (const job of limitExceeded) {
-        await tx.conversionJob.update({
-          where: { id: job.jobId },
+      // Batch update limit exceeded jobs (all have same status, use updateMany)
+      if (limitExceeded.length > 0) {
+        const limitExceededIds = limitExceeded.map((j) => j.jobId);
+        await tx.conversionJob.updateMany({
+          where: { id: { in: limitExceededIds } },
           data: {
             status: JobStatus.LIMIT_EXCEEDED,
             lastAttemptAt: now,
-            errorMessage: job.errorMessage,
           },
         });
-        processed++;
+        // Individual updates for error messages
+        for (const job of limitExceeded) {
+          if (job.errorMessage) {
+            await tx.conversionJob.update({
+              where: { id: job.jobId },
+              data: { errorMessage: job.errorMessage },
+            });
+          }
+        }
+        processed += limitExceeded.length;
       }
 
-      // Update dead letter jobs
-      for (const job of deadLetter) {
-        await tx.conversionJob.update({
-          where: { id: job.jobId },
+      // Batch update dead letter jobs
+      if (deadLetter.length > 0) {
+        const deadLetterIds = deadLetter.map((j) => j.jobId);
+        await tx.conversionJob.updateMany({
+          where: { id: { in: deadLetterIds } },
           data: {
             status: JobStatus.DEAD_LETTER,
             lastAttemptAt: now,
-            platformResults: toInputJsonValue(job.platformResults),
-            errorMessage: job.errorMessage,
           },
         });
-        processed++;
+        // Individual updates for per-job data
+        for (const job of deadLetter) {
+          await tx.conversionJob.update({
+            where: { id: job.jobId },
+            data: {
+              platformResults: toInputJsonValue(job.platformResults),
+              errorMessage: job.errorMessage,
+            },
+          });
+        }
+        processed += deadLetter.length;
       }
     });
   } catch (error) {
@@ -187,8 +226,10 @@ export async function batchInsertReceipts(
   let processed = 0;
   const now = new Date();
 
+  const db = getDb();
+
   try {
-    await prisma.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       for (const receipt of receipts) {
         try {
           await tx.pixelEventReceipt.upsert({
@@ -209,7 +250,7 @@ export async function batchInsertReceipts(
               signatureStatus: receipt.signatureStatus,
               trustLevel: receipt.trustLevel,
               pixelTimestamp: receipt.pixelTimestamp ?? now,
-              isTrusted: receipt.trustLevel === 'trusted',
+              isTrusted: receipt.trustLevel === "trusted",
               metadata: toInputJsonValue(receipt.capiInput),
             },
             update: {
@@ -221,7 +262,8 @@ export async function batchInsertReceipts(
           });
           processed++;
         } catch (receiptError) {
-          const errMsg = receiptError instanceof Error ? receiptError.message : String(receiptError);
+          const errMsg =
+            receiptError instanceof Error ? receiptError.message : String(receiptError);
           errors.push({ id: `${receipt.shopId}:${receipt.orderId}`, error: errMsg });
         }
       }
@@ -267,8 +309,10 @@ export async function batchUpdateShops(
   const errors: Array<{ id: string; error: string }> = [];
   let processed = 0;
 
+  const db = getDb();
+
   try {
-    await prisma.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       for (const { shopId, data } of updates) {
         await tx.shop.update({
           where: { id: shopId },
@@ -312,14 +356,16 @@ export async function batchCreateAuditLogs(
     return { success: true, processed: 0, failed: 0, errors: [] };
   }
 
+  const db = getDb();
+
   try {
-    const result = await prisma.auditLog.createMany({
-      data: entries.map(entry => ({
+    const result = await db.auditLog.createMany({
+      data: entries.map((entry) => ({
         shopId: entry.shopId,
         action: entry.action,
-        actorType: 'system',
-        actorId: entry.actor || 'system',
-        resourceType: 'conversion_job',
+        actorType: "system",
+        actorId: entry.actor || "system",
+        resourceType: "conversion_job",
         metadata: toInputJsonValue(entry.details),
       })),
       skipDuplicates: true,
@@ -351,12 +397,14 @@ export async function batchCreateAuditLogs(
 export async function executeInTransaction<T>(
   operations: (tx: Prisma.TransactionClient) => Promise<T>
 ): Promise<{ success: true; result: T } | { success: false; error: string }> {
+  const db = getDb();
+
   try {
-    const result = await prisma.$transaction(operations);
+    const result = await db.$transaction(operations);
     return { success: true, result };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    logger.error('Transaction execution failed', { error: errorMsg });
+    logger.error("Transaction execution failed", { error: errorMsg });
     return { success: false, error: errorMsg };
   }
 }

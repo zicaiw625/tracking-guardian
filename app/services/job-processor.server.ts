@@ -12,10 +12,11 @@
 
 import prisma from "../db.server";
 import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "./billing.server";
-import { getDecryptedCredentials } from "./credentials.server";
+import { decryptCredentials } from "./credentials.server";
 import { sendConversionToPlatform } from "./platforms/factory";
 import { generateEventId } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
+import { JOB_PROCESSING_CONFIG } from "../utils/config";
 import { JobStatus, parseCapiInput, parsePixelClientConfig } from "../types";
 import type { ConversionData, PlatformCredentials } from "../types";
 
@@ -97,12 +98,15 @@ interface JobUpdateEntry {
 }
 
 // =============================================================================
-// Constants
+// Constants (from centralized config)
 // =============================================================================
 
-const BASE_DELAY_MS = 60 * 1000;
-const MAX_DELAY_MS = 2 * 60 * 60 * 1000;
-const DEFAULT_BATCH_SIZE = 50;
+const {
+  BASE_DELAY_MS,
+  MAX_DELAY_MS,
+  BACKOFF_MULTIPLIER,
+  BATCH_SIZE: DEFAULT_BATCH_SIZE,
+} = JOB_PROCESSING_CONFIG;
 
 // =============================================================================
 // Retry Logic
@@ -113,7 +117,7 @@ const DEFAULT_BATCH_SIZE = 50;
  */
 export function calculateNextRetryTime(attempts: number): Date {
   const delayMs = Math.min(
-    BASE_DELAY_MS * Math.pow(5, attempts - 1),
+    BASE_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempts - 1),
     MAX_DELAY_MS
   );
   const jitter = delayMs * 0.1 * Math.random();
@@ -320,14 +324,14 @@ async function sendToPlatformWithCredentials(
   eventId: string
 ): Promise<{ success: boolean; status: string }> {
   try {
-    const { credentials } = getDecryptedCredentials(
-      pixelConfig,
-      pixelConfig.platform
-    );
+    const credResult = decryptCredentials(pixelConfig, pixelConfig.platform);
 
-    if (!credentials) {
+    if (!credResult.ok) {
+      logger.warn(`Failed to decrypt credentials for ${pixelConfig.platform}: ${credResult.error.message}`);
       return { success: false, status: "failed:no_credentials" };
     }
+    
+    const credentials = credResult.value.credentials;
 
     // Build conversion data
     const lineItems = capiInput?.items?.map((item) => ({

@@ -31,4 +31,7 @@ export {
   tryReserveUsageSlot,
   checkOrderLimit,
   checkBillingGate,
+  // Atomic operations (race-condition safe)
+  checkAndReserveBillingSlot,
+  releaseBillingSlot,
 } from "./billing";

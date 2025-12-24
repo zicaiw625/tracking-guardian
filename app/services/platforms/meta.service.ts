@@ -350,10 +350,3 @@ export function extractMetaError(error: unknown): PlatformError | null {
   }
   return null;
 }
-
-/**
- * @deprecated Client-side code generation removed
- */
-export function generateMetaPixelCode(_config: { pixelId: string }): string {
-  return "";
-}

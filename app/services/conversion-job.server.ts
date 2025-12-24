@@ -7,12 +7,13 @@
 
 import prisma from "../db.server";
 import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "./billing.server";
-import { getDecryptedCredentials } from "./credentials.server";
+import { decryptCredentials } from "./credentials.server";
 import { sendConversionToGoogle } from "./platforms/google.service";
 import { sendConversionToMeta } from "./platforms/meta.service";
 import { sendConversionToTikTok } from "./platforms/tiktok.service";
 import { generateEventId, matchKeysEqual } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
+import { JOB_PROCESSING_CONFIG } from "../utils/config";
 import {
   evaluatePlatformConsentWithStrategy,
   getEffectiveConsentCategory,
@@ -42,15 +43,14 @@ import {
   parsePixelClientConfig,
 } from "../types";
 
-// Constants for retry timing
-const BASE_DELAY_MS = 60 * 1000;
-const MAX_DELAY_MS = 2 * 60 * 60 * 1000;
+// Use centralized config for retry timing
+const { BASE_DELAY_MS, MAX_DELAY_MS, BACKOFF_MULTIPLIER } = JOB_PROCESSING_CONFIG;
 
 /**
  * Calculate next retry time with exponential backoff and jitter.
  */
 export function calculateNextRetryTime(attempts: number): Date {
-  const delayMs = Math.min(BASE_DELAY_MS * Math.pow(5, attempts - 1), MAX_DELAY_MS);
+  const delayMs = Math.min(BASE_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempts - 1), MAX_DELAY_MS);
   const jitter = delayMs * 0.1 * Math.random();
   return new Date(Date.now() + delayMs + jitter);
 }
@@ -558,13 +558,16 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
 
         try {
           // Decrypt credentials
-          const { credentials } = getDecryptedCredentials(pixelConfig, pixelConfig.platform);
+          const credResult = decryptCredentials(pixelConfig, pixelConfig.platform);
 
-          if (!credentials) {
+          if (!credResult.ok) {
+            logger.warn(`Failed to decrypt credentials for ${pixelConfig.platform}: ${credResult.error.message}`);
             platformResults[pixelConfig.platform] = "failed:no_credentials";
             allSucceeded = false;
             continue;
           }
+          
+          const credentials = credResult.value.credentials;
 
           // Build conversion data using type-safe parsed input
           const lineItems = capiInputParsed?.items?.map((item) => ({

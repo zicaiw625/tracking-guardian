@@ -144,7 +144,11 @@ export async function handleDeleteAlert(formData: FormData) {
 // Server-Side Tracking Actions
 // =============================================================================
 
-export async function handleSaveServerSide(formData: FormData, shopId: string) {
+export async function handleSaveServerSide(
+  formData: FormData,
+  shopId: string,
+  sessionShop: string
+) {
   const platform = formData.get("platform") as string;
   const enabled = formData.get("enabled") === "true";
 
@@ -197,6 +201,26 @@ export async function handleSaveServerSide(formData: FormData, shopId: string) {
       credentialsEncrypted: encryptedCredentials,
       serverSideEnabled: enabled,
     },
+  });
+
+  // Audit log for credential update (security-sensitive operation)
+  await createAuditLog(shopId, {
+    action: "credentials_updated",
+    resourceType: "pixel_config",
+    resourceId: platform,
+    metadata: {
+      platform,
+      platformId: platformId.slice(0, 8) + "****", // Mask for security
+      serverSideEnabled: enabled,
+      actor: sessionShop,
+    },
+  });
+
+  logger.info("Server-side tracking credentials updated", {
+    shopId,
+    platform,
+    enabled,
+    platformIdMasked: platformId.slice(0, 8) + "****",
   });
 
   return json({ success: true, message: "服务端追踪配置已保存" });
@@ -420,7 +444,7 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       return handleTestAlert(formData);
 
     case "saveServerSide":
-      return handleSaveServerSide(formData, shop.id);
+      return handleSaveServerSide(formData, shop.id, session.shop);
 
     case "deleteAlert":
       return handleDeleteAlert(formData);

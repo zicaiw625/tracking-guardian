@@ -28,14 +28,11 @@ export {
   googleService,
   metaService,
   tiktokService,
-  // Legacy compatibility
+  // Legacy compatibility (deprecated but still in use)
   sendConversionToGoogle,
-  generateGooglePixelCode,
   sendConversionToMeta,
   extractMetaError,
-  generateMetaPixelCode,
   sendConversionToTikTok,
-  generateTikTokPixelCode,
   // Error utilities
   classifyHttpError,
   classifyJsError,

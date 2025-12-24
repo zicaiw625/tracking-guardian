@@ -35,7 +35,7 @@ import {
   logConsentFilterMetrics,
 } from "./consent-filter";
 import {
-  getShopForPixelVerification,
+  getShopForPixelVerificationWithConfigs,
   validateIngestionKey,
 } from "./key-validation";
 import {
@@ -45,7 +45,6 @@ import {
   createEventNonce,
   upsertPixelEventReceipt,
   recordConversionLogs,
-  getActivePixelConfigs,
   generatePurchaseEventId,
 } from "./receipt-handler";
 
@@ -224,14 +223,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request);
     }
 
-    // Get shop data
-    const shop = await getShopForPixelVerification(payload.shopDomain);
+    // Get shop data with pixel configs (optimized single query to avoid N+1)
+    const shop = await getShopForPixelVerificationWithConfigs(payload.shopDomain);
     if (!shop || !shop.isActive) {
       return jsonWithCors(
         { error: "Shop not found or inactive" },
         { status: 404, request }
       );
     }
+    
+    // Use preloaded pixel configs from the combined query
+    const pixelConfigs = shop.pixelConfigs;
 
     // Build allowed domains
     const shopAllowedDomains = buildShopAllowedDomains({
@@ -312,8 +314,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // Get pixel configs
-    const pixelConfigs = await getActivePixelConfigs(shop.id);
+    // Check pixel configs (already loaded with shop data)
     if (pixelConfigs.length === 0) {
       return jsonWithCors(
         {

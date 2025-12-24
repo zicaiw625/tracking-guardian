@@ -2,10 +2,21 @@
  * Base Repository Class
  *
  * Provides common database operations with type safety and error handling.
+ *
+ * Supports both direct instantiation and DI container injection:
+ *
+ * ```typescript
+ * // Direct instantiation (legacy):
+ * const repo = new ShopRepository();
+ *
+ * // With DI container (recommended):
+ * import { getDb } from "~/container";
+ * const repo = new ShopRepository(getDb());
+ * ```
  */
 
 import { type PrismaClient } from "@prisma/client";
-import prisma from "../../db.server";
+import { getDb } from "../../container";
 import { AppError, ErrorCode, Errors } from "../../utils/errors";
 import { logger } from "../../utils/logger.server";
 import { ok, err, type Result, type AsyncResult } from "../../types/result";
@@ -79,8 +90,14 @@ export abstract class BaseRepository<
   protected readonly db: PrismaClient;
   protected readonly modelName: string;
 
-  constructor(modelName: string) {
-    this.db = prisma;
+  /**
+   * Create a new repository instance.
+   *
+   * @param modelName - Name of the model for logging and error messages
+   * @param db - Optional PrismaClient instance (defaults to DI container)
+   */
+  constructor(modelName: string, db?: PrismaClient) {
+    this.db = db ?? getDb();
     this.modelName = modelName;
   }
 

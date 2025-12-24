@@ -79,6 +79,7 @@ export {
   type BillingGateBlocked,
   type BillingError,
   type BillingErrorType,
+  type AtomicReservationResult,
   // Legacy functions
   checkOrderLimit,
   checkBillingGate,
@@ -90,6 +91,9 @@ export {
   checkOrderLimitResult,
   checkBillingGateResult,
   canProcessOrdersResult,
+  // Atomic operations (race-condition safe)
+  checkAndReserveBillingSlot,
+  releaseBillingSlot,
   // Cache management
   invalidateBillingCache,
   invalidateAllBillingCaches,

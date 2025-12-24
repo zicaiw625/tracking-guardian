@@ -319,6 +319,175 @@ export async function isApproachingLimit(
 }
 
 // =============================================================================
+// Atomic Billing Gate (Race-Condition Safe)
+// =============================================================================
+
+import prisma from "../../db.server";
+import { getCurrentYearMonth } from "./usage.server";
+
+/**
+ * Result of atomic reservation attempt
+ */
+export interface AtomicReservationResult {
+  success: boolean;
+  current: number;
+  limit: number;
+  remaining: number;
+  alreadyCounted: boolean;
+}
+
+/**
+ * Atomically check billing limit and reserve a slot for an order.
+ *
+ * This function uses database-level atomic operations to prevent race conditions
+ * when multiple requests try to process orders simultaneously. The operation:
+ * 1. Checks if order is already counted (idempotent)
+ * 2. Atomically increments usage only if under limit
+ * 3. Returns whether the reservation succeeded
+ *
+ * Use this instead of separate checkBillingGate + incrementUsage calls
+ * to avoid race conditions in high-concurrency scenarios.
+ */
+export async function checkAndReserveBillingSlot(
+  shopId: string,
+  shopPlan: PlanId,
+  orderId: string
+): AsyncResult<AtomicReservationResult, BillingError> {
+  const yearMonth = getCurrentYearMonth();
+
+  try {
+    const planConfig = getPlanOrDefault(shopPlan);
+    const limit = planConfig.monthlyOrderLimit;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Step 1: Check if order is already processed (idempotent)
+      const existingJob = await tx.conversionJob.findUnique({
+        where: { shopId_orderId: { shopId, orderId } },
+        select: { status: true },
+      });
+
+      if (existingJob?.status === "completed") {
+        const usage = await tx.monthlyUsage.findUnique({
+          where: { shopId_yearMonth: { shopId, yearMonth } },
+          select: { sentCount: true },
+        });
+        const current = usage?.sentCount || 0;
+        return {
+          success: true,
+          current,
+          limit,
+          remaining: Math.max(0, limit - current),
+          alreadyCounted: true,
+        };
+      }
+
+      // Step 2: Ensure usage record exists
+      await tx.monthlyUsage.upsert({
+        where: { shopId_yearMonth: { shopId, yearMonth } },
+        create: { shopId, yearMonth, sentCount: 0 },
+        update: {},
+      });
+
+      // Step 3: Atomic increment with limit check using raw SQL
+      // This is the key to avoiding race conditions:
+      // UPDATE only succeeds if sentCount < limit
+      const updated = await tx.$executeRaw`
+        UPDATE "MonthlyUsage"
+        SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
+        WHERE "shopId" = ${shopId}
+          AND "yearMonth" = ${yearMonth}
+          AND "sentCount" < ${limit}
+      `;
+
+      // Step 4: Get final usage count
+      const finalUsage = await tx.monthlyUsage.findUnique({
+        where: { shopId_yearMonth: { shopId, yearMonth } },
+        select: { sentCount: true },
+      });
+
+      const current = finalUsage?.sentCount || 0;
+
+      if (updated === 0) {
+        // Limit was reached, reservation failed
+        return {
+          success: false,
+          current,
+          limit,
+          remaining: 0,
+          alreadyCounted: false,
+        };
+      }
+
+      // Reservation succeeded
+      return {
+        success: true,
+        current,
+        limit,
+        remaining: Math.max(0, limit - current),
+        alreadyCounted: false,
+      };
+    }, {
+      // Use serializable isolation for strongest consistency
+      isolationLevel: "Serializable",
+    });
+
+    // Invalidate cache on successful reservation
+    if (result.success && !result.alreadyCounted) {
+      billingCache.delete(`billing:${shopId}`);
+    }
+
+    return ok(result);
+  } catch (error) {
+    return err({
+      type: "DATABASE_ERROR",
+      message: error instanceof Error ? error.message : "Unknown database error",
+      shopId,
+    });
+  }
+}
+
+/**
+ * Release a previously reserved billing slot (for rollback scenarios).
+ *
+ * Call this when an operation that reserved a slot fails and needs to
+ * be rolled back to avoid charging the shop for unconverted orders.
+ */
+export async function releaseBillingSlot(
+  shopId: string,
+  yearMonth?: string
+): AsyncResult<number, BillingError> {
+  const ym = yearMonth || getCurrentYearMonth();
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Atomic decrement, but don't go below 0
+      await tx.$executeRaw`
+        UPDATE "MonthlyUsage"
+        SET "sentCount" = GREATEST("sentCount" - 1, 0), "updatedAt" = NOW()
+        WHERE "shopId" = ${shopId}
+          AND "yearMonth" = ${ym}
+      `;
+
+      const usage = await tx.monthlyUsage.findUnique({
+        where: { shopId_yearMonth: { shopId, yearMonth: ym } },
+        select: { sentCount: true },
+      });
+
+      return usage?.sentCount || 0;
+    });
+
+    billingCache.delete(`billing:${shopId}`);
+    return ok(result);
+  } catch (error) {
+    return err({
+      type: "DATABASE_ERROR",
+      message: error instanceof Error ? error.message : "Unknown database error",
+      shopId,
+    });
+  }
+}
+
+// =============================================================================
 // Cache Management
 // =============================================================================
 

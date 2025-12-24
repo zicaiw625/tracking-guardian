@@ -313,14 +313,3 @@ export async function sendConversionToGoogle(
 
   return result.response!;
 }
-
-/**
- * @deprecated Client-side code generation removed
- */
-export function generateGooglePixelCode(_config: {
-  measurementId: string;
-  conversionId?: string;
-  conversionLabel?: string;
-}): string {
-  return "";
-}

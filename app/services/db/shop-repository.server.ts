@@ -1,11 +1,13 @@
 /**
  * Shop Repository
- * 
+ *
  * Centralized data access layer for Shop entities.
  * Provides caching, query optimization, and type-safe operations.
+ *
+ * Uses DI container for database access.
  */
 
-import prisma from "../../db.server";
+import { getDb } from "../../container";
 import { shopConfigCache, SimpleCache } from "../../utils/cache";
 import type { PixelConfig } from "@prisma/client";
 
@@ -99,7 +101,7 @@ export async function getShopById(shopId: string): Promise<ShopBasic | null> {
     return cached as ShopBasic;
   }
 
-  const shop = await prisma.shop.findUnique({
+  const shop = await getDb().shop.findUnique({
     where: { id: shopId },
     select: SHOP_BASIC_SELECT,
   });
@@ -123,7 +125,7 @@ export async function getShopIdByDomain(domain: string): Promise<string | null> 
     return cached;
   }
 
-  const shop = await prisma.shop.findUnique({
+  const shop = await getDb().shop.findUnique({
     where: { shopDomain: normalizedDomain },
     select: { id: true },
   });
@@ -143,7 +145,7 @@ export async function getShopWithPixels(shopId: string): Promise<ShopWithPixels 
     return cached;
   }
 
-  const shop = await prisma.shop.findUnique({
+  const shop = await getDb().shop.findUnique({
     where: { id: shopId },
     select: SHOP_WITH_PIXELS_SELECT,
   });
@@ -167,7 +169,7 @@ export async function getShopWithPixels(shopId: string): Promise<ShopWithPixels 
  */
 export async function getShopWithBilling(shopId: string): Promise<ShopWithBilling | null> {
   // Not cached - billing data needs to be fresh
-  const shop = await prisma.shop.findUnique({
+  const shop = await getDb().shop.findUnique({
     where: { id: shopId },
     select: SHOP_WITH_BILLING_SELECT,
   });
@@ -198,7 +200,7 @@ export async function batchGetShops(shopIds: string[]): Promise<Map<string, Shop
 
   // Fetch uncached
   if (uncachedIds.length > 0) {
-    const shops = await prisma.shop.findMany({
+    const shops = await getDb().shop.findMany({
       where: { id: { in: uncachedIds } },
       select: SHOP_BASIC_SELECT,
     });
@@ -237,7 +239,7 @@ export async function batchGetShopsWithPixels(
 
   // Fetch uncached
   if (uncachedIds.length > 0) {
-    const shops = await prisma.shop.findMany({
+    const shops = await getDb().shop.findMany({
       where: { id: { in: uncachedIds } },
       select: SHOP_WITH_PIXELS_SELECT,
     });

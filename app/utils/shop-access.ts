@@ -128,6 +128,15 @@ export interface ShopVerificationData {
     primaryDomain: string | null;
     storefrontDomains: string[];
 }
+
+/**
+ * Extended shop data with pixel configurations.
+ * Used by pixel-events route to avoid N+1 query.
+ */
+export interface ShopWithPixelConfigs extends ShopVerificationData {
+    pixelConfigs: Array<{ platform: string }>;
+}
+
 export async function getShopForVerification(shopDomain: string): Promise<ShopVerificationData | null> {
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
@@ -163,6 +172,72 @@ export async function getShopForVerification(shopDomain: string): Promise<ShopVe
         previousSecretExpiry: shop.previousSecretExpiry,
         primaryDomain: shop.primaryDomain,
         storefrontDomains: shop.storefrontDomains,
+    };
+}
+
+/**
+ * Get shop for verification with active pixel configs included.
+ * 
+ * This is an optimized query that fetches shop data and pixel configs
+ * in a single database call to avoid N+1 query pattern.
+ * 
+ * @param shopDomain - The shop domain to look up
+ * @returns Shop verification data with pixel configs, or null if not found
+ */
+export async function getShopForVerificationWithConfigs(
+    shopDomain: string
+): Promise<ShopWithPixelConfigs | null> {
+    const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: {
+            id: true,
+            shopDomain: true,
+            isActive: true,
+            ingestionSecret: true,
+            previousIngestionSecret: true,
+            previousSecretExpiry: true,
+            primaryDomain: true,
+            storefrontDomains: true,
+            // Include pixel configs in the same query
+            pixelConfigs: {
+                where: {
+                    isActive: true,
+                    serverSideEnabled: true,
+                },
+                select: {
+                    platform: true,
+                },
+            },
+        },
+    });
+    
+    if (!shop) {
+        return null;
+    }
+    
+    const currentSecret = shop.ingestionSecret
+        ? decryptIngestionSecret(shop.ingestionSecret)
+        : null;
+        
+    let previousSecret: string | null = null;
+    if (
+        shop.previousIngestionSecret &&
+        shop.previousSecretExpiry &&
+        new Date() < shop.previousSecretExpiry
+    ) {
+        previousSecret = decryptIngestionSecret(shop.previousIngestionSecret);
+    }
+    
+    return {
+        id: shop.id,
+        shopDomain: shop.shopDomain,
+        isActive: shop.isActive,
+        ingestionSecret: currentSecret,
+        previousIngestionSecret: previousSecret,
+        previousSecretExpiry: shop.previousSecretExpiry,
+        primaryDomain: shop.primaryDomain,
+        storefrontDomains: shop.storefrontDomains,
+        pixelConfigs: shop.pixelConfigs,
     };
 }
 export function verifyWithGraceWindow(shop: ShopVerificationData, verifyFn: (secret: string) => boolean): {

@@ -256,21 +256,6 @@ export function isTypedTikTokCredentials(
 // =============================================================================
 
 /**
- * @deprecated Legacy type alias - use GoogleCredentials directly
- */
-export type LegacyGoogleCredentials = GoogleCredentials;
-
-/**
- * @deprecated Legacy type alias - use MetaCredentials directly
- */
-export type LegacyMetaCredentials = MetaCredentials;
-
-/**
- * @deprecated Legacy type alias - use TikTokCredentials directly
- */
-export type LegacyTikTokCredentials = TikTokCredentials;
-
-/**
  * Add platform discriminant to credentials.
  */
 export function upgradeCredentials(

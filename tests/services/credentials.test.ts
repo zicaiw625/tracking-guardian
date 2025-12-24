@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  // Result-based API (recommended)
+  decryptCredentials,
+  validatePlatformCredentials,
+  getValidCredentials,
+  // Legacy API (for backward compatibility)
   getDecryptedCredentials,
   validateCredentials,
   getValidatedCredentials,
@@ -9,7 +14,138 @@ import { encryptJson } from "../../app/utils/crypto.server";
 import type { GoogleCredentials, MetaCredentials, TikTokCredentials } from "../../app/types";
 
 describe("Credentials Service", () => {
-  describe("getDecryptedCredentials", () => {
+  // =========================================================================
+  // Result-based API Tests (Recommended)
+  // =========================================================================
+
+  describe("decryptCredentials (Result-based)", () => {
+    it("should return ok result with decrypted credentials", () => {
+      const credentials: GoogleCredentials = {
+        measurementId: "G-XXXXXXXX",
+        apiSecret: "secret123",
+      };
+      const encrypted = encryptJson(credentials);
+
+      const pixelConfig: PixelConfigForCredentials = {
+        credentialsEncrypted: encrypted,
+        platform: "google",
+      };
+
+      const result = decryptCredentials(pixelConfig, "google");
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.credentials).toEqual(credentials);
+        expect(result.value.usedLegacy).toBe(false);
+      }
+    });
+
+    it("should return error result when decryption fails", () => {
+      const pixelConfig: PixelConfigForCredentials = {
+        credentialsEncrypted: "invalid:encrypted:data",
+        platform: "google",
+      };
+
+      const result = decryptCredentials(pixelConfig, "google");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.type).toBe("NO_CREDENTIALS");
+      }
+    });
+
+    it("should return error result when no credentials available", () => {
+      const pixelConfig: PixelConfigForCredentials = {
+        credentialsEncrypted: null,
+        credentials: undefined,
+        platform: "google",
+      };
+
+      const result = decryptCredentials(pixelConfig, "google");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.type).toBe("NO_CREDENTIALS");
+        expect(result.error.platform).toBe("google");
+      }
+    });
+  });
+
+  describe("validatePlatformCredentials (Result-based)", () => {
+    it("should return ok for valid Google credentials", () => {
+      const credentials: GoogleCredentials = {
+        measurementId: "G-XXXXXXXX",
+        apiSecret: "secret123",
+      };
+
+      const result = validatePlatformCredentials(credentials, "google");
+
+      expect(result.ok).toBe(true);
+    });
+
+    it("should return error for invalid Google credentials", () => {
+      const credentials = {
+        measurementId: "G-XXXXXXXX",
+        // Missing apiSecret
+      } as GoogleCredentials;
+
+      const result = validatePlatformCredentials(credentials, "google");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.type).toBe("VALIDATION_FAILED");
+        expect(result.error.message).toContain("apiSecret");
+      }
+    });
+  });
+
+  describe("getValidCredentials (Result-based)", () => {
+    it("should return ok with valid decrypted and validated credentials", () => {
+      const credentials: GoogleCredentials = {
+        measurementId: "G-XXXXXXXX",
+        apiSecret: "secret123",
+      };
+      const encrypted = encryptJson(credentials);
+
+      const pixelConfig: PixelConfigForCredentials = {
+        credentialsEncrypted: encrypted,
+        platform: "google",
+      };
+
+      const result = getValidCredentials(pixelConfig, "google");
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.credentials).toEqual(credentials);
+      }
+    });
+
+    it("should return error when validation fails", () => {
+      const credentials = {
+        measurementId: "G-XXXXXXXX",
+        // Missing apiSecret
+      };
+      const encrypted = encryptJson(credentials);
+
+      const pixelConfig: PixelConfigForCredentials = {
+        credentialsEncrypted: encrypted,
+        platform: "google",
+      };
+
+      const result = getValidCredentials(pixelConfig, "google");
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.type).toBe("VALIDATION_FAILED");
+      }
+    });
+  });
+
+  // =========================================================================
+  // Legacy API Tests (Backward Compatibility)
+  // =========================================================================
+
+  describe("getDecryptedCredentials (Legacy)", () => {
     it("should decrypt encrypted credentials", () => {
       const credentials: GoogleCredentials = {
         measurementId: "G-XXXXXXXX",
@@ -110,7 +246,7 @@ describe("Credentials Service", () => {
     });
   });
 
-  describe("validateCredentials", () => {
+  describe("validateCredentials (Legacy)", () => {
     it("should return invalid for null credentials", () => {
       const result = validateCredentials(null, "google");
 
@@ -202,7 +338,7 @@ describe("Credentials Service", () => {
     });
   });
 
-  describe("getValidatedCredentials", () => {
+  describe("getValidatedCredentials (Legacy)", () => {
     it("should return credentials when valid", () => {
       const credentials: GoogleCredentials = {
         measurementId: "G-XXXXXXXX",

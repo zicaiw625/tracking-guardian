@@ -13,7 +13,7 @@ import {
   shouldRetry as shouldRetryPlatform,
 } from "./platforms/base-platform.service";
 import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "./billing.server";
-import { getDecryptedCredentials } from "./credentials.server";
+import { decryptCredentials } from "./credentials.server";
 import { sendConversionToGoogle } from "./platforms/google.service";
 import { sendConversionToMeta } from "./platforms/meta.service";
 import { sendConversionToTikTok } from "./platforms/tiktok.service";
@@ -33,7 +33,7 @@ import type { PlatformSendResult } from "./platforms/interface";
 export { processConversionJobs, calculateNextRetryTime } from "./conversion-job.server";
 
 // Re-export from credentials for backwards compatibility
-export { getDecryptedCredentials } from "./credentials.server";
+export { decryptCredentials, getDecryptedCredentials } from "./credentials.server";
 
 // =============================================================================
 // Failure Classification
@@ -402,20 +402,21 @@ export async function processPendingConversions(): Promise<{
       }
 
       // Decrypt credentials
-      const { credentials } = getDecryptedCredentials(pixelConfig, log.platform);
-      if (!credentials) {
+      const credResult = decryptCredentials(pixelConfig, log.platform);
+      if (!credResult.ok) {
         await prisma.conversionLog.update({
           where: { id: log.id },
           data: {
             status: "failed",
             attempts: 1,
             lastAttemptAt: new Date(),
-            errorMessage: "No credentials configured",
+            errorMessage: `No credentials configured: ${credResult.error.message}`,
           },
         });
         failed++;
         continue;
       }
+      const credentials = credResult.value.credentials;
 
       const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.shop.shopDomain);
       const conversionData: ConversionData = {
@@ -528,16 +529,17 @@ export async function processRetries(): Promise<{
       }
 
       // Decrypt credentials
-      const { credentials } = getDecryptedCredentials(pixelConfig, log.platform);
-      if (!credentials) {
+      const credResult2 = decryptCredentials(pixelConfig, log.platform);
+      if (!credResult2.ok) {
         await prisma.conversionLog.update({
           where: { id: log.id },
           data: { attempts: { increment: 1 } },
         });
-        await scheduleRetry(log.id, "No credentials configured - please set up in Settings");
+        await scheduleRetry(log.id, `No credentials configured: ${credResult2.error.message}`);
         failed++;
         continue;
       }
+      const credentials = credResult2.value.credentials;
 
       const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.shop.shopDomain);
       const conversionData: ConversionData = {

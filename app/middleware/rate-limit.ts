@@ -1,14 +1,23 @@
 /**
  * Rate Limiting Middleware
  *
- * Provides simple in-memory rate limiting for Remix routes.
- * For production use, consider a distributed solution like Redis.
+ * Provides rate limiting for Remix routes with Redis support
+ * and automatic fallback to in-memory store.
+ *
+ * Uses the unified Redis client from utils/redis-client for
+ * distributed rate limiting across multiple instances.
  */
 
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { RATE_LIMIT_CONFIG } from "../utils/config";
 import { logger } from "../utils/logger.server";
+import {
+  getRedisClient,
+  getRedisClientSync,
+  getRedisConnectionInfo,
+  type RedisClientWrapper,
+} from "../utils/redis-client";
 
 // =============================================================================
 // Types
@@ -31,14 +40,6 @@ export interface RateLimitConfig {
 }
 
 /**
- * Rate limit entry
- */
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-/**
  * Rate limit result
  */
 export interface RateLimitResult {
@@ -56,106 +57,153 @@ export type RateLimitedHandler<T> = (
 ) => Promise<T>;
 
 // =============================================================================
-// In-Memory Store
+// Redis-backed Rate Limit Store
 // =============================================================================
 
-/**
- * Simple in-memory rate limit store
- */
-class RateLimitStore {
-  private entries = new Map<string, RateLimitEntry>();
-  private cleanupInterval: NodeJS.Timeout | null = null;
+const RATE_LIMIT_PREFIX = "tg:mw:rl:";
 
-  constructor() {
-    // Clean up expired entries every minute
-    this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
+/**
+ * Distributed rate limit store using Redis with in-memory fallback
+ */
+class DistributedRateLimitStore {
+  private pendingInit: Promise<RedisClientWrapper> | null = null;
+
+  /**
+   * Get the Redis client (async initialization)
+   */
+  private async getClient(): Promise<RedisClientWrapper> {
+    if (!this.pendingInit) {
+      this.pendingInit = getRedisClient();
+    }
+    return this.pendingInit;
   }
 
   /**
-   * Check and update rate limit for a key
+   * Check and update rate limit for a key (async)
+   */
+  async checkAsync(
+    key: string,
+    maxRequests: number,
+    windowMs: number
+  ): Promise<RateLimitResult> {
+    const now = Date.now();
+    const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
+    const windowSeconds = Math.ceil(windowMs / 1000);
+
+    try {
+      const client = await this.getClient();
+      const count = await client.incr(fullKey);
+
+      // Set expiry on first request
+      if (count === 1) {
+        await client.expire(fullKey, windowSeconds);
+      }
+
+      // Get TTL for reset time
+      const ttl = await client.ttl(fullKey);
+      const resetAt = now + (ttl > 0 ? ttl * 1000 : windowMs);
+
+      if (count > maxRequests) {
+        const retryAfter = Math.ceil((resetAt - now) / 1000);
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt,
+          retryAfter,
+        };
+      }
+
+      return {
+        allowed: true,
+        remaining: maxRequests - count,
+        resetAt,
+      };
+    } catch (error) {
+      // Log error but don't block requests
+      logger.error("Rate limit check error (allowing request)", error);
+      return {
+        allowed: true,
+        remaining: maxRequests,
+        resetAt: now + windowMs,
+      };
+    }
+  }
+
+  /**
+   * Check rate limit synchronously (uses sync client, may be optimistic)
    */
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
     const now = Date.now();
-    const entry = this.entries.get(key);
+    const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
+    const windowSeconds = Math.ceil(windowMs / 1000);
 
-    // If no entry or expired, create new
-    if (!entry || entry.resetAt <= now) {
-      const resetAt = now + windowMs;
-      this.entries.set(key, { count: 1, resetAt });
+    try {
+      const client = getRedisClientSync();
+
+      // Fire and forget increment
+      client.incr(fullKey).then((count) => {
+        if (count === 1) {
+          client.expire(fullKey, windowSeconds).catch(() => {});
+        }
+      }).catch(() => {});
+
+      // Return optimistic result (async check may catch abuse later)
       return {
         allowed: true,
-        remaining: maxRequests - 1,
-        resetAt,
+        remaining: maxRequests,
+        resetAt: now + windowMs,
       };
-    }
-
-    // Increment count
-    entry.count++;
-
-    // Check if over limit
-    if (entry.count > maxRequests) {
-      const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    } catch {
       return {
-        allowed: false,
-        remaining: 0,
-        resetAt: entry.resetAt,
-        retryAfter,
+        allowed: true,
+        remaining: maxRequests,
+        resetAt: now + windowMs,
       };
     }
-
-    return {
-      allowed: true,
-      remaining: maxRequests - entry.count,
-      resetAt: entry.resetAt,
-    };
   }
 
   /**
-   * Clean up expired entries
+   * Get current store size (for monitoring)
    */
-  private cleanup(): void {
-    const now = Date.now();
-    let cleaned = 0;
+  async getSize(): Promise<number> {
+    try {
+      const client = await this.getClient();
+      const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
+      return keys.length;
+    } catch {
+      return 0;
+    }
+  }
 
-    for (const [key, entry] of this.entries) {
-      if (entry.resetAt <= now) {
-        this.entries.delete(key);
-        cleaned++;
+  /**
+   * Clear all entries (for testing)
+   */
+  async clear(): Promise<void> {
+    try {
+      const client = await this.getClient();
+      const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
+      for (const key of keys) {
+        await client.del(key);
       }
-    }
-
-    if (cleaned > 0) {
-      logger.debug(`Rate limit cleanup: removed ${cleaned} expired entries`);
+    } catch (error) {
+      logger.error("Failed to clear rate limit entries", error);
     }
   }
 
   /**
-   * Get current size
+   * Get connection info
    */
-  get size(): number {
-    return this.entries.size;
-  }
-
-  /**
-   * Clear all entries
-   */
-  clear(): void {
-    this.entries.clear();
-  }
-
-  /**
-   * Stop cleanup interval
-   */
-  stop(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
+  getConnectionInfo(): { mode: "redis" | "memory"; connected: boolean } {
+    const info = getRedisConnectionInfo();
+    return {
+      mode: info.mode,
+      connected: info.connected,
+    };
   }
 }
 
-// Global rate limit store
-const rateLimitStore = new RateLimitStore();
+// Global distributed rate limit store
+const rateLimitStore = new DistributedRateLimitStore();
 
 // =============================================================================
 // Key Extractors
@@ -209,7 +257,10 @@ export function pathShopKeyExtractor(request: Request): string {
 // =============================================================================
 
 /**
- * Rate limit middleware
+ * Rate limit middleware (async version - recommended)
+ *
+ * Uses Redis for distributed rate limiting across multiple instances.
+ * Falls back to in-memory store if Redis is unavailable.
  *
  * @example
  * ```typescript
@@ -243,13 +294,21 @@ export function withRateLimit<T>(
 
     // Get rate limit key
     const key = keyExtractor(request);
-    const result = rateLimitStore.check(key, maxRequests, windowMs);
+
+    // Use async check for accurate rate limiting
+    const result = await rateLimitStore.checkAsync(key, maxRequests, windowMs);
 
     // Set rate limit headers
     const headers = new Headers();
     headers.set("X-RateLimit-Limit", String(maxRequests));
     headers.set("X-RateLimit-Remaining", String(result.remaining));
     headers.set("X-RateLimit-Reset", String(Math.ceil(result.resetAt / 1000)));
+
+    // Add connection info header in development
+    if (process.env.NODE_ENV !== "production") {
+      const connInfo = rateLimitStore.getConnectionInfo();
+      headers.set("X-RateLimit-Backend", connInfo.mode);
+    }
 
     if (!result.allowed) {
       headers.set("Retry-After", String(result.retryAfter));
@@ -259,6 +318,7 @@ export function withRateLimit<T>(
         maxRequests,
         windowMs,
         retryAfter: result.retryAfter,
+        backend: rateLimitStore.getConnectionInfo().mode,
       });
 
       return json(
@@ -324,9 +384,21 @@ export const webhookRateLimit: RateLimitConfig = {
 // =============================================================================
 
 /**
- * Check rate limit without consuming a request
+ * Check rate limit asynchronously (accurate, uses Redis)
  */
-export function checkRateLimit(
+export async function checkRateLimitAsync(
+  key: string,
+  maxRequests: number,
+  windowMs: number
+): Promise<RateLimitResult> {
+  return rateLimitStore.checkAsync(key, maxRequests, windowMs);
+}
+
+/**
+ * Check rate limit synchronously (optimistic, may not be accurate)
+ * Use checkRateLimitAsync when accuracy is important.
+ */
+export function checkRateLimitSync(
   key: string,
   maxRequests: number,
   windowMs: number
@@ -337,13 +409,23 @@ export function checkRateLimit(
 /**
  * Get rate limit store size (for monitoring)
  */
-export function getRateLimitStoreSize(): number {
-  return rateLimitStore.size;
+export async function getRateLimitStoreSize(): Promise<number> {
+  return rateLimitStore.getSize();
 }
 
 /**
  * Clear rate limit store (for testing)
  */
-export function clearRateLimitStore(): void {
-  rateLimitStore.clear();
+export async function clearRateLimitStore(): Promise<void> {
+  await rateLimitStore.clear();
+}
+
+/**
+ * Get rate limit backend info
+ */
+export function getRateLimitBackendInfo(): {
+  mode: "redis" | "memory";
+  connected: boolean;
+} {
+  return rateLimitStore.getConnectionInfo();
 }

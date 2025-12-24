@@ -179,11 +179,12 @@ export {
 
 // =============================================================================
 // Legacy Function Re-exports (Backwards Compatibility)
+// These are deprecated but still in use - prefer using service instances instead.
 // =============================================================================
 
-export { sendConversionToGoogle, generateGooglePixelCode } from './google.service';
-export { sendConversionToMeta, extractMetaError, generateMetaPixelCode } from './meta.service';
-export { sendConversionToTikTok, generateTikTokPixelCode } from './tiktok.service';
+export { sendConversionToGoogle } from './google.service';
+export { sendConversionToMeta, extractMetaError } from './meta.service';
+export { sendConversionToTikTok } from './tiktok.service';
 
 // =============================================================================
 // Utility Re-exports

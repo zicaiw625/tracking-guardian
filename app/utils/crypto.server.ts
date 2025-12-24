@@ -36,6 +36,17 @@ export function getEncryptionKey(): Buffer {
             throw new Error("ENCRYPTION_SECRET must be set in test environment. " +
                 "Set ENCRYPTION_SECRET or ALLOW_INSECURE_TEST_SECRET=true for local tests.");
         }
+        // Additional safety: if Shopify credentials are configured, require ENCRYPTION_SECRET
+        // This prevents accidentally using the dev key with a real Shopify app
+        const hasShopifyCredentials = Boolean(process.env.SHOPIFY_API_SECRET);
+        const hasShopifyAppUrl = Boolean(process.env.SHOPIFY_APP_URL?.includes(".myshopify."));
+        if (hasShopifyCredentials && hasShopifyAppUrl) {
+            throw new Error(
+                "ENCRYPTION_SECRET must be set when connecting to a live Shopify app. " +
+                "Detected SHOPIFY_API_SECRET and a myshopify.com URL. " +
+                "Generate a secure secret using: openssl rand -base64 32"
+            );
+        }
         // Using console.warn here intentionally - this runs at startup before logger may be initialized
         // eslint-disable-next-line no-console
         console.warn("⚠️ [STARTUP] ENCRYPTION_SECRET not set. Using insecure default for local development only.");

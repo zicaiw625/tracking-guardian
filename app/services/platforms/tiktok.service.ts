@@ -351,10 +351,3 @@ export async function sendConversionToTikTok(
 
   return result.response!;
 }
-
-/**
- * @deprecated Client-side code generation removed
- */
-export function generateTikTokPixelCode(_config: { pixelId: string }): string {
-  return "";
-}

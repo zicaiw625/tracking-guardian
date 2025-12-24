@@ -351,6 +351,102 @@ export const MONITORING_CONFIG = {
     /** High heap usage warning threshold (80%) */
     HIGH_HEAP_USAGE_PERCENT: 80,
 } as const;
+
+/**
+ * Job processing configuration
+ * Used by conversion-job.server.ts, job-processor.server.ts, retry.server.ts
+ */
+export const JOB_PROCESSING_CONFIG = {
+    /** Base delay for exponential backoff (1 minute) */
+    BASE_DELAY_MS: 60 * 1000,
+
+    /** Maximum delay for exponential backoff (2 hours) */
+    MAX_DELAY_MS: 2 * 60 * 60 * 1000,
+
+    /** Backoff multiplier */
+    BACKOFF_MULTIPLIER: 5,
+
+    /** Maximum retry attempts for conversion jobs */
+    MAX_ATTEMPTS: 5,
+
+    /** Batch size for processing jobs */
+    BATCH_SIZE: 50,
+
+    /** Transaction timeout for job claiming (10 seconds) */
+    CLAIM_TIMEOUT_MS: 10 * 1000,
+} as const;
+
+/**
+ * Pixel validation configuration
+ * Used by pixel-events route, validation schemas
+ */
+export const PIXEL_VALIDATION_CONFIG = {
+    /** Maximum length for checkout token */
+    CHECKOUT_TOKEN_MAX_LENGTH: 128,
+
+    /** Maximum future timestamp offset allowed (24 hours) */
+    MAX_FUTURE_TIMESTAMP_MS: 24 * 60 * 60 * 1000,
+
+    /** Maximum order ID length */
+    MAX_ORDER_ID_LENGTH: 64,
+
+    /** Maximum order number length */
+    MAX_ORDER_NUMBER_LENGTH: 32,
+} as const;
+
+/**
+ * Query performance configuration
+ * Used by repositories and monitoring
+ */
+export const QUERY_PERFORMANCE_CONFIG = {
+    /** Threshold for slow query logging (100ms) */
+    SLOW_QUERY_THRESHOLD_MS: 100,
+
+    /** Maximum slow query logs to keep in memory */
+    MAX_SLOW_QUERY_LOGS: 100,
+
+    /** Default cache TTL (1 minute) */
+    DEFAULT_CACHE_TTL_MS: 60 * 1000,
+
+    /** Stale cache threshold (10 seconds before expiry) */
+    STALE_THRESHOLD_MS: 10 * 1000,
+} as const;
+
+/**
+ * Consent and trust configuration
+ * Used by consent-reconciler, receipt-trust
+ */
+export const CONSENT_CONFIG = {
+    /** Maximum time to wait for consent (24 hours) */
+    CONSENT_TIMEOUT_HOURS: 24,
+
+    /** Maximum age for pixel receipts (1 hour) */
+    MAX_RECEIPT_AGE_MS: 60 * 60 * 1000,
+
+    /** Maximum time skew allowed (15 minutes) */
+    MAX_TIME_SKEW_MS: 15 * 60 * 1000,
+
+    /** Window for tracking consent origin (1 hour) */
+    TRACKING_WINDOW_MS: 60 * 60 * 1000,
+} as const;
+
+/**
+ * Cron job configuration
+ */
+export const CRON_CONFIG = {
+    /** Replay protection window (5 minutes) */
+    REPLAY_PROTECTION_WINDOW_MS: 5 * 60 * 1000,
+
+    /** Maximum batches per cleanup run */
+    MAX_BATCHES_PER_RUN: 10,
+
+    /** Lock timeout (10 minutes) */
+    LOCK_TIMEOUT_MS: 10 * 60 * 1000,
+
+    /** Stale lock threshold (15 minutes) */
+    STALE_LOCK_THRESHOLD_MS: 15 * 60 * 1000,
+} as const;
+
 const REQUIRED_IN_PRODUCTION = [
     "DATABASE_URL",
     "SHOPIFY_API_KEY",
@@ -673,6 +769,21 @@ export const CONFIG = {
     
     // Monitoring
     monitoring: MONITORING_CONFIG,
+
+    // Job Processing
+    jobProcessing: JOB_PROCESSING_CONFIG,
+
+    // Pixel Validation
+    pixelValidation: PIXEL_VALIDATION_CONFIG,
+
+    // Query Performance
+    queryPerformance: QUERY_PERFORMANCE_CONFIG,
+
+    // Consent & Trust
+    consent: CONSENT_CONFIG,
+
+    // Cron Jobs
+    cron: CRON_CONFIG,
     
     // Feature Flags
     features: FEATURE_FLAGS,
