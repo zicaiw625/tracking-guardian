@@ -322,11 +322,17 @@ export function applySecurityHeaders(
  */
 export function containsSqlInjectionPattern(input: string): boolean {
   const patterns = [
+    // Stacking SQL keywords (e.g., SELECT ... FROM) to detect complex queries
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|UNION|INTO|FROM|WHERE|OR|AND)\b.*\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|UNION|FROM|WHERE)\b)/i,
+    // Statement termination followed by DML/DDL (e.g., '; DROP TABLE')
     /(['"];\s*(DROP|DELETE|INSERT|UPDATE|CREATE))/i,
+    // Tautologies used in blind injection (e.g., 'OR 1=1')
     /(\b(OR|AND)\s*['"]?\s*\d+\s*=\s*\d+)/i,
+    // Comment indicators (--) often used to ignore remainder of query
     /(--\s*$)/i,
+    // Semicolon followed by comment
     /(;\s*--)/i,
+    // Stored procedure execution
     /(\bEXEC\s*\()/i,
   ];
   
@@ -494,6 +500,9 @@ export function sha256(value: string): string {
  * Hash a value for storage (not for passwords - use bcrypt for those)
  */
 export function hashForStorage(value: string, salt?: string): string {
+  if (process.env.NODE_ENV === "production" && !process.env.HASH_SALT && !salt) {
+    throw new Error("Security Error: HASH_SALT is not defined in production environment. This is a critical security misconfiguration.");
+  }
   const actualSalt = salt || process.env.HASH_SALT || "default_salt";
   return sha256(`${actualSalt}:${value}`);
 }
