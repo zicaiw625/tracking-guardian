@@ -1,6 +1,8 @@
 import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, } from "@shopify/ui-extensions-react/customer-account";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BACKEND_URL } from "../../shared/config";
+import { createLogger } from "./logger";
+
 export default reactExtension("customer-account.order-status.block.render", () => <SurveyOrderStatus />);
 function SurveyOrderStatus() {
     const settings = useSettings();
@@ -15,9 +17,10 @@ function SurveyOrderStatus() {
     const [error, setError] = useState<string | null>(null);
     const title = (settings.survey_title as string) || "我们想听听您的意见";
     const question = (settings.survey_question as string) || "您是如何了解到我们的？";
+    
     const shopDomain = api.shop?.myshopifyDomain || "";
-    const isDevMode = shopDomain.includes(".myshopify.dev") ||
-        /-(dev|staging|test)\./i.test(shopDomain);
+    const logger = useMemo(() => createLogger(shopDomain, "[SurveyOrderStatus]"), [shopDomain]);
+
     const sources = [
         { id: "search", label: "搜索引擎" },
         { id: "social", label: "社交媒体" },
@@ -37,13 +40,11 @@ function SurveyOrderStatus() {
                 }
             }
             catch (err) {
-                if (isDevMode) {
-                    console.error("Failed to fetch order info:", err);
-                }
+                logger.error("Failed to fetch order info:", err);
             }
         }
         fetchOrderInfo();
-    }, [api]);
+    }, [api, logger]);
     const handleSubmit = async () => {
         if (selectedRating === null && selectedSource === null)
             return;
@@ -74,22 +75,16 @@ function SurveyOrderStatus() {
                     const errorData = await response.json();
                     throw new Error(errorData.error || "Failed to submit survey");
                 }
-                if (isDevMode) {
-                    console.log("Survey submitted successfully from order status page");
-                }
+                logger.log("Survey submitted successfully from order status page");
             }
             else {
-                if (isDevMode) {
-                    console.warn("Survey submission skipped: missing authentication or shop domain");
-                }
+                logger.warn("Survey submission skipped: missing authentication or shop domain");
                 throw new Error("Authentication or shop domain not available");
             }
             setSubmitted(true);
         }
         catch (err) {
-            if (isDevMode) {
-                console.error("Survey submission error:", err);
-            }
+            logger.error("Survey submission error:", err);
             setError("提交失败，请稍后重试");
         }
         finally {

@@ -1,6 +1,8 @@
 import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, } from "@shopify/ui-extensions-react/checkout";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BACKEND_URL } from "../../shared/config";
+import { createLogger } from "./logger";
+
 export default reactExtension("purchase.thank-you.block.render", () => <Survey />);
 function Survey() {
     const settings = useSettings();
@@ -16,9 +18,10 @@ function Survey() {
     const [error, setError] = useState<string | null>(null);
     const title = (settings.survey_title as string) || "我们想听听您的意见";
     const question = (settings.survey_question as string) || "您是如何了解到我们的？";
+    
     const shopDomain = api.shop?.myshopifyDomain || "";
-    const isDevMode = shopDomain.includes(".myshopify.dev") ||
-        /-(dev|staging|test)\./i.test(shopDomain);
+    const logger = useMemo(() => createLogger(shopDomain, "[Survey]"), [shopDomain]);
+
     useEffect(() => {
         async function fetchOrderAndCheckoutInfo() {
             try {
@@ -44,13 +47,11 @@ function Survey() {
                 }
             }
             catch (err) {
-                if (isDevMode) {
-                    console.error("Failed to get order/checkout info:", err);
-                }
+                logger.error("Failed to get order/checkout info:", err);
             }
         }
         fetchOrderAndCheckoutInfo();
-    }, [api]);
+    }, [api, logger]);
     const sources = [
         { id: "search", label: "搜索引擎" },
         { id: "social", label: "社交媒体" },
@@ -62,9 +63,7 @@ function Survey() {
         if (selectedRating === null && selectedSource === null)
             return;
         if (!orderId && !orderNumber && !checkoutToken) {
-            if (isDevMode) {
-                console.warn("[Survey] No order identifiers available");
-            }
+            logger.warn("No order identifiers available");
             return;
         }
         setSubmitting(true);
@@ -93,25 +92,19 @@ function Survey() {
                     const errorData = await response.json();
                     throw new Error(errorData.error || "Failed to submit survey");
                 }
-                if (isDevMode) {
-                    console.log("Survey submitted successfully", {
-                        hasCheckoutToken: !!checkoutToken,
-                        hasOrderId: !!orderId
-                    });
-                }
+                logger.log("Survey submitted successfully", {
+                    hasCheckoutToken: !!checkoutToken,
+                    hasOrderId: !!orderId
+                });
             }
             else {
-                if (isDevMode) {
-                    console.warn("Survey submission skipped: shop domain not available");
-                }
+                logger.warn("Survey submission skipped: shop domain not available");
                 throw new Error("Shop domain not available");
             }
             setSubmitted(true);
         }
         catch (err) {
-            if (isDevMode) {
-                console.error("Survey submission error:", err);
-            }
+            logger.error("Survey submission error:", err);
             setError("提交失败，请稍后重试");
         }
         finally {
