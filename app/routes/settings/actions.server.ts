@@ -38,6 +38,7 @@ import {
   SecureEmailSchema,
   SecureUrlSchema,
 } from "../../utils/security";
+import { PCD_CONFIG } from "../../utils/config";
 
 // ... existing imports
 
@@ -428,12 +429,27 @@ export async function handleUpdatePrivacySettings(
   shopId: string,
   sessionShop: string
 ) {
-  const piiEnabled = formData.get("piiEnabled") === "true";
+  const piiRequested = formData.get("piiEnabled") === "true";
   const pcdAcknowledged = formData.get("pcdAcknowledged") === "true";
   const consentStrategy =
     (formData.get("consentStrategy") as string) || "strict";
   const dataRetentionDays =
     parseInt(formData.get("dataRetentionDays") as string) || 90;
+
+  if (piiRequested && !PCD_CONFIG.APPROVED) {
+    logger.warn("PII enable attempt blocked: PCD approval is not granted", {
+      shopId,
+      sessionShop,
+    });
+    return json({
+      success: false,
+      message:
+        "Shopify Protected Customer Data (PCD) 审核未通过，当前禁止开启增强匹配/PII 发送。",
+      requirePcdApproval: true,
+    });
+  }
+
+  const piiEnabled = piiRequested && PCD_CONFIG.APPROVED;
 
   // If enabling PII, require acknowledgement of compliance obligations
   if (piiEnabled && !pcdAcknowledged) {
@@ -476,7 +492,13 @@ export async function handleUpdatePrivacySettings(
     action: "privacy_settings_updated",
     resourceType: "shop",
     resourceId: shopId,
-    metadata: { piiEnabled, pcdAcknowledged, consentStrategy, dataRetentionDays },
+    metadata: { 
+      piiEnabled, 
+      pcdAcknowledged, 
+      consentStrategy, 
+      dataRetentionDays,
+      pcdApproved: PCD_CONFIG.APPROVED,
+    },
   });
 
   return json({
@@ -530,4 +552,3 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       return json({ error: "Unknown action" }, { status: 400 });
   }
 }
-

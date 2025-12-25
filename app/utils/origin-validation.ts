@@ -5,6 +5,13 @@ export const SHOPIFY_ALLOWLIST = [
     "myshopify.com",
     "shopifypreview.com",
 ] as const;
+function shouldAllowNullOrigin(): boolean {
+    const envValue = process.env.PIXEL_ALLOW_NULL_ORIGIN;
+    if (!envValue)
+        return true;
+    const normalized = envValue.toLowerCase();
+    return normalized === "true" || normalized === "1" || normalized === "yes";
+}
 const ALLOWED_ORIGIN_PATTERNS: Array<{
     pattern: RegExp;
     description: string;
@@ -59,7 +66,7 @@ export function isDevMode(): boolean {
 }
 export function isValidShopifyOrigin(origin: string | null): boolean {
     if (origin === "null") {
-        return true;
+        return shouldAllowNullOrigin();
     }
     if (!origin) {
         return false;
@@ -73,12 +80,14 @@ export function validatePixelOriginPreBody(origin: string | null): {
     shouldReject: boolean;
 } {
     const devMode = isDevMode();
+    const allowNullOrigin = shouldAllowNullOrigin();
     if (origin === "null" || origin === null) {
+        const allowed = allowNullOrigin;
         return {
-            valid: devMode,
-            reason: devMode ? "sandbox_origin_dev" : "null_origin_blocked",
-            shouldLog: !devMode,
-            shouldReject: !devMode,
+            valid: allowed,
+            reason: allowed ? "null_origin_allowed" : "null_origin_blocked",
+            shouldLog: !allowed,
+            shouldReject: !allowed,
         };
     }
     if (!origin) {
@@ -125,11 +134,13 @@ export function validatePixelOriginForShop(origin: string | null, shopAllowedDom
     shouldReject: boolean;
 } {
     const devMode = isDevMode();
+    const allowNullOrigin = shouldAllowNullOrigin();
     if (origin === "null" || origin === null) {
+        const allowed = allowNullOrigin;
         return {
-            valid: devMode,
-            reason: devMode ? "sandbox_origin_dev" : "null_origin_blocked",
-            shouldReject: !devMode,
+            valid: allowed,
+            reason: allowed ? "null_origin_allowed" : "null_origin_blocked",
+            shouldReject: !allowed,
         };
     }
     if (!origin) {
@@ -262,7 +273,8 @@ export function validateOrigin(origin: string | null): {
     shouldLog: boolean;
 } {
     if (origin === "null") {
-        return { valid: true, reason: "sandbox_origin", shouldLog: false };
+        const allowed = shouldAllowNullOrigin();
+        return { valid: allowed, reason: allowed ? "null_origin_allowed" : "null_origin_blocked", shouldLog: !allowed };
     }
     if (!origin) {
         return { valid: false, reason: "missing_origin", shouldLog: true };
