@@ -414,35 +414,58 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
     id: string;
     settings: string | null;
 }>> {
+    const pixels: Array<{ id: string; settings: string | null }> = [];
+    let hasNextPage = true;
+    let cursor: string | null = null;
     try {
-        const response = await admin.graphql(`
-      query GetWebPixels {
-        webPixels(first: 50) {
-          edges {
-            node {
-              id
-              settings
+        while (hasNextPage) {
+            const response = await admin.graphql(`
+        query GetWebPixels($cursor: String) {
+          webPixels(first: 50, after: $cursor) {
+            edges {
+              node {
+                id
+                settings
+              }
+              cursor
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
             }
           }
         }
-      }
-      `);
-        const result = await response.json();
-        const edges = result.data?.webPixels?.edges || [];
-        return edges.map((edge: {
-            node: {
-                id: string;
-                settings: string | null;
+        `, { variables: { cursor } });
+            const result = await response.json();
+            const edges = (result.data?.webPixels?.edges || []) as Array<{
+                node: {
+                    id: string;
+                    settings: string | null;
+                };
+                cursor?: string | null;
+            }>;
+            const pageInfo = (result.data?.webPixels?.pageInfo || { hasNextPage: false, endCursor: null }) as {
+                hasNextPage: boolean;
+                endCursor: string | null;
             };
-        }) => ({
-            id: edge.node.id,
-            settings: edge.node.settings,
-        }));
+            for (const edge of edges) {
+                pixels.push({
+                    id: edge.node.id,
+                    settings: edge.node.settings,
+                });
+            }
+            hasNextPage = pageInfo.hasNextPage;
+            cursor = pageInfo.endCursor;
+            if (pixels.length > 500) {
+                logger.warn("WebPixels pagination limit reached (500)");
+                break;
+            }
+        }
     }
     catch (error) {
-        logger.error("Failed to get Web Pixels:", error);
-        return [];
+        logger.error("Failed to get Web Pixels (paginated):", error);
     }
+    return pixels;
 }
 
 export interface ScriptTagDeletionGuidance {
