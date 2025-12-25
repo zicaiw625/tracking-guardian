@@ -164,6 +164,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             shopDomain: true,
             ingestionSecret: true,
             webPixelId: true,
+            plan: true,
         },
     });
     if (!shop) {
@@ -172,6 +173,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const formData = await request.formData();
     const actionType = formData.get("_action");
     if (actionType === "enablePixel" || actionType === "upgradePixelSettings") {
+        if (actionType === "enablePixel" && !isPlanAtLeast(shop.plan, "growth")) {
+            return json({
+                _action: "enablePixel",
+                success: false,
+                error: "App Pixel 启用需 Growth 及以上套餐，请升级后重试。",
+            }, { status: 403 });
+        }
         let ingestionSecret: string | undefined = undefined;
         if (shop.ingestionSecret) {
             try {
