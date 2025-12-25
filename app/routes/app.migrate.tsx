@@ -177,7 +177,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const requiresGrowth = actionType === "enablePixel" || actionType === "upgradePixelSettings";
         if (requiresGrowth && !isPlanAtLeast(shop.plan, "growth")) {
             return json({
-                _action: "enablePixel",
+                _action: actionType,
                 success: false,
                 error: "App Pixel 相关操作需 Growth 及以上套餐，请升级后重试。",
             }, { status: 403 });
