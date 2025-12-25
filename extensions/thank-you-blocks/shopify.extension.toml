@@ -10,6 +10,7 @@ handle = "tracking-guardian-blocks"
 type = "ui_extension"
 name = "Post-purchase Survey"
 handle = "post-purchase-survey"
+uid = "5bbce4d5-0610-0b76-fa6d-c6fef535cee9f855bf02"
 
   [extensions.capabilities]
   network_access = true
@@ -25,6 +26,7 @@ handle = "post-purchase-survey"
 type = "ui_extension"
 name = "Order Status Survey"
 handle = "order-status-survey"
+uid = "47dc5576-827b-917a-6223-7c68db326d526075dfb3"
 
   [extensions.capabilities]
   network_access = true
@@ -40,6 +42,7 @@ handle = "order-status-survey"
 type = "ui_extension"
 name = "Shipping Progress Tracker"
 handle = "shipping-tracker"
+uid = "bef2635d-b17d-f9e5-c450-4597976fddffea5be910"
 
   [extensions.capabilities]
   network_access = false
@@ -55,6 +58,7 @@ handle = "shipping-tracker"
 type = "ui_extension"
 name = "Order Status Shipping Tracker"
 handle = "order-status-shipping-tracker"
+uid = "42c378fa-d787-9bb3-9f2d-ee152e6cf2f01a2bf2ea"
 
   [extensions.capabilities]
   network_access = false
@@ -70,6 +74,7 @@ handle = "order-status-shipping-tracker"
 type = "ui_extension"
 name = "Thank You Upsell Offer"
 handle = "upsell-offer"
+uid = "8ff9cced-1b31-c305-3b10-526580549f5e6864bc1a"
 
   [extensions.capabilities]
   network_access = false
@@ -85,6 +90,7 @@ handle = "upsell-offer"
 type = "ui_extension"
 name = "Order Status Upsell Offer"
 handle = "order-status-upsell-offer"
+uid = "d83854d0-2c3f-238c-9db2-263b144d459fed9be367"
 
   [extensions.capabilities]
   network_access = false
@@ -100,6 +106,7 @@ handle = "order-status-upsell-offer"
 type = "ui_extension"
 name = "Support & FAQ"
 handle = "support-faq"
+uid = "bf27e557-efdf-d8dc-ad0f-650e438de7faadccb23b"
 
   [extensions.capabilities]
   network_access = false
@@ -115,6 +122,7 @@ handle = "support-faq"
 type = "ui_extension"
 name = "Order Status Support & FAQ"
 handle = "order-status-support-faq"
+uid = "0aa738e0-79d9-076a-435f-5ad1ea813a9058225869"
 
   [extensions.capabilities]
   network_access = false

@@ -7,6 +7,7 @@
 # and copy the generated uid here, or check .shopify/project.json
 
 api_version = "2025-07"
+uid = "03d3e252-5760-443c-5403-68d2888bbf444a40ddc0"
 type = "web_pixel_extension"
 name = "Tracking Guardian Pixel"
 handle = "tracking-guardian-pixel"
