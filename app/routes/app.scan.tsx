@@ -1216,7 +1216,7 @@ export default function ScanPage() {
                           <Button url="/app/migrate" icon={ArrowRightIcon} size="slim" variant="primary">
                             前往迁移页面
                           </Button>
-                          <Button url="/app/migrate" icon={SettingsIcon} size="slim" variant="secondary">
+                          <Button url="/app/migrate#pixel" icon={SettingsIcon} size="slim" variant="secondary">
                             启用/升级 App Pixel
                           </Button>
                         </InlineStack>
