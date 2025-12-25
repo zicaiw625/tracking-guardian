@@ -301,7 +301,7 @@ export async function getDeliveryHealthSummary(shopId: string): Promise<Record<s
     }
     return summary;
 }
-interface DeliveryHealthJobResult {
+export interface DeliveryHealthJobResult {
     shopId: string;
     success: boolean;
     results?: DeliveryHealthResult[];

@@ -33,6 +33,10 @@ export function ErrorBoundary() {
   } else if (error instanceof Error) {
     message = error.message;
     code = error.name;
+  } else {
+    message = "发生未知错误。";
+    code = "UNKNOWN";
+    console.error("Unknown error caught in root ErrorBoundary:", error);
   }
 
   return (

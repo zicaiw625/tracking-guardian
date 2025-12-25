@@ -7,12 +7,13 @@
 import { processGDPRJobs, checkGDPRCompliance } from "../../services/gdpr.server";
 import { reconcilePendingConsent } from "../../services/consent-reconciler.server";
 import { processConversionJobs, processPendingConversions, processRetries } from "../../services/retry.server";
-import { runAllShopsDeliveryHealthCheck } from "../../services/delivery-health.server";
-import { runAllShopsReconciliation } from "../../services/reconciliation.server";
+import { runAllShopsDeliveryHealthCheck, type DeliveryHealthJobResult } from "../../services/delivery-health.server";
+import { runAllShopsReconciliation, type ReconciliationResult } from "../../services/reconciliation.server";
 import { logger } from "../../utils/logger.server";
 import { cleanupExpiredData } from "./cleanup";
 import { refreshAllShopsStatus } from "./shop-status";
 import type { CronResult, CronLogger } from "../types";
+import type { GDPRComplianceResult } from "../../services/gdpr.server";
 
 // =============================================================================
 // Task Executor
@@ -26,7 +27,7 @@ import type { CronResult, CronLogger } from "../types";
  */
 export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResult> {
   // 1. Process GDPR jobs first (compliance priority)
-  let gdprResults = { processed: 0, successful: 0, failed: 0 };
+  let gdprResults = { processed: 0, succeeded: 0, failed: 0 };
   try {
     cronLogger.info("Processing GDPR jobs...");
     gdprResults = await processGDPRJobs();
@@ -36,10 +37,16 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
   }
 
   // 2. Check GDPR compliance
-  let gdprCompliance = { isCompliant: true, overdueCount: 0, criticals: [], pendingCount: 0, warnings: [], oldestPendingAge: 0 };
+  let gdprCompliance: GDPRComplianceResult = {
+    isCompliant: true,
+    overdueCount: 0,
+    criticals: [],
+    pendingCount: 0,
+    warnings: [],
+    oldestPendingAge: null
+  };
   try {
     cronLogger.info("Checking GDPR compliance...");
-    // @ts-ignore - Ignore type mismatch for now due to complex return type
     gdprCompliance = await checkGDPRCompliance();
 
     if (!gdprCompliance.isCompliant) {
@@ -72,7 +79,7 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
   }
 
   // 4. Process conversion jobs
-  let jobResults = { processed: 0, successful: 0, failed: 0 };
+  let jobResults = { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0, skipped: 0 };
   try {
     cronLogger.info("Processing conversion jobs...");
     jobResults = await processConversionJobs();
@@ -82,7 +89,7 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
   }
 
   // 5. Process pending conversions
-  let pendingResults = { processed: 0, successful: 0, failed: 0 };
+  let pendingResults = { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
   try {
     cronLogger.info("Processing pending conversions...");
     pendingResults = await processPendingConversions();
@@ -92,7 +99,7 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
   }
 
   // 6. Process retries
-  let retryResults = { processed: 0, successful: 0, failed: 0 };
+  let retryResults = { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
   try {
     cronLogger.info("Processing pending conversion retries...");
     retryResults = await processRetries();
@@ -115,10 +122,15 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
   }
 
   // 8. Run reconciliation
-  let reconciliationResults = { processed: 0, succeeded: 0, failed: 0, results: [] };
+  let reconciliationResults: {
+    processed: number;
+    succeeded: number;
+    failed: number;
+    results: ReconciliationResult[];
+  } = { processed: 0, succeeded: 0, failed: 0, results: [] };
+  
   try {
     cronLogger.info("Running daily reconciliation...");
-    // @ts-ignore
     reconciliationResults = await runAllShopsReconciliation();
     cronLogger.info("Reconciliation completed", {
       processed: reconciliationResults.processed,
@@ -191,8 +203,11 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
   }
 
   return {
-    gdpr: gdprResults,
-    // @ts-ignore
+    gdpr: {
+        processed: gdprResults.processed,
+        succeeded: gdprResults.succeeded,
+        failed: gdprResults.failed
+    },
     gdprCompliance,
     // Map consent result to CronResult type (processed, matched, unmatched)
     consent: {
@@ -200,9 +215,25 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
       matched: consentResults.resolved,
       unmatched: consentResults.expired + consentResults.errors,
     },
-    jobs: jobResults,
-    pending: pendingResults,
-    retries: retryResults,
+    jobs: {
+        processed: jobResults.processed,
+        succeeded: jobResults.succeeded,
+        failed: jobResults.failed,
+        limitExceeded: jobResults.limitExceeded,
+        skipped: jobResults.skipped
+    },
+    pending: {
+        processed: pendingResults.processed,
+        succeeded: pendingResults.succeeded,
+        failed: pendingResults.failed,
+        limitExceeded: pendingResults.limitExceeded
+    },
+    retries: {
+        processed: retryResults.processed,
+        succeeded: retryResults.succeeded,
+        failed: retryResults.failed,
+        limitExceeded: retryResults.limitExceeded
+    },
     // Map health check results to DeliveryHealthResult
     deliveryHealth: {
       successful,
@@ -223,7 +254,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     shopStatusRefresh,
   };
 }
-}
 
 // =============================================================================
 // Re-exports
@@ -231,4 +261,3 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
 
 export { cleanupExpiredData } from "./cleanup";
 export { refreshAllShopsStatus } from "./shop-status";
-

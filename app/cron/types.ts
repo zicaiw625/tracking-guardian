@@ -103,6 +103,7 @@ export interface ConversionJobResult {
   succeeded: number;
   failed: number;
   skipped: number;
+  limitExceeded: number;
 }
 
 /**
