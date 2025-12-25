@@ -7,6 +7,7 @@
  */
 
 import prisma from "../db.server";
+import { getPlanDefinition, normalizePlan } from "../utils/plans";
 
 // Re-export types from shared module (safe for client import)
 export type {
@@ -137,6 +138,10 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       weeklyConversions: 0,
       hasAlertConfig: false,
       plan: "free",
+      planId: "free",
+      planLabel: getPlanDefinition("free").name,
+      planTagline: getPlanDefinition("free").tagline,
+      planFeatures: getPlanDefinition("free").features,
       scriptTagsCount: 0,
       hasOrderStatusScripts: false,
     };
@@ -147,6 +152,8 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     shop.reconciliationReports || [],
     configuredPlatforms
   );
+  const planId = normalizePlan(shop.plan);
+  const planDef = getPlanDefinition(planId);
 
   const latestScan = shop.scanReports[0];
   const scriptTagAnalysis = latestScan ? analyzeScriptTags(latestScan.scriptTags) : { count: 0, hasOrderStatusScripts: false };
@@ -167,6 +174,10 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     weeklyConversions: shop._count?.conversionLogs || 0,
     hasAlertConfig: (shop.alertConfigs?.length || 0) > 0,
     plan: shop.plan || "free",
+    planId,
+    planLabel: planDef.name,
+    planTagline: planDef.tagline,
+    planFeatures: planDef.features,
     scriptTagsCount: scriptTagAnalysis.count,
     hasOrderStatusScripts: scriptTagAnalysis.hasOrderStatusScripts,
   };
