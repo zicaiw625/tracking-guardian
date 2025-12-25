@@ -45,6 +45,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   // Fetch shop record with pixel configs
   let shopRecord: ShopWithPixelConfigs | null = null;
   try {
+    // P0-6: Early idempotency check to avoid unnecessary DB queries
+    if (context.webhookId) {
+      const lock = await tryAcquireWebhookLock(context.shop, context.webhookId, context.topic);
+      if (!lock.acquired) {
+        logger.info(`[Webhook Idempotency] Skipping duplicate (early check): ${context.topic} for ${context.shop}`);
+        return new Response("OK (duplicate)", { status: 200 });
+      }
+    }
+
     shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: context.shop },
       include: {
@@ -59,5 +68,5 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   // Dispatch to appropriate handler
-  return dispatchWebhook(context, shopRecord);
+  return dispatchWebhook(context, shopRecord, true);
 };

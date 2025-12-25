@@ -55,12 +55,13 @@ const GDPR_TOPICS = new Set([
  */
 export async function dispatchWebhook(
   context: WebhookContext,
-  shopRecord: ShopWithPixelConfigs | null
+  shopRecord: ShopWithPixelConfigs | null,
+  lockAcquired: boolean = false
 ): Promise<Response> {
   const { topic, shop, webhookId } = context;
 
   // Check for idempotency
-  if (webhookId) {
+  if (webhookId && !lockAcquired) {
     const lock = await tryAcquireWebhookLock(shop, webhookId, topic);
     if (!lock.acquired) {
       logger.info(`[Webhook Idempotency] Skipping duplicate: ${topic} for ${shop}`);

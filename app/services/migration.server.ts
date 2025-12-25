@@ -666,4 +666,27 @@ export async function getOrderPayloadStats(): Promise<{
     };
 }
 
+export async function checkAppScopes(admin: AdminApiContext): Promise<boolean> {
+    try {
+        const response = await admin.graphql(`
+            query GetAppScopes {
+                app {
+                    installation {
+                        accessScopes {
+                            handle
+                        }
+                    }
+                }
+            }
+        `);
+        const result = await response.json();
+        const scopes = result.data?.app?.installation?.accessScopes?.map((s: { handle: string }) => s.handle) || [];
+        return scopes.includes("read_customer_events");
+    } catch (error) {
+        logger.error("Failed to check app scopes:", error);
+        // Fail open if check fails (let Shopify API enforce it)
+        return true;
+    }
+}
+
 // P0-4: generateClarityPixelCode removed - Clarity is client-side only

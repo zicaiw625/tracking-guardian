@@ -318,6 +318,24 @@ export default function MigratePage() {
           </BlockStack>
         </Banner>
 
+        {!hasRequiredScopes && (
+          <Banner 
+            title="需更新授权" 
+            tone="critical"
+            action={{
+              content: "更新授权",
+              url: "/auth/login",
+              external: false,
+            }}
+          >
+            <BlockStack gap="200">
+              <Text as="p">
+                应用权限已更新（新增 read_customer_events），请重新授权以确保 Pixel 正常工作。
+              </Text>
+            </BlockStack>
+          </Banner>
+        )}
+
         {/* P0-5: 关键时间线提醒 */}
         <Banner title="⏰ Shopify 追踪升级时间线" tone="warning">
           <BlockStack gap="200">
