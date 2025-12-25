@@ -460,6 +460,9 @@ export default function MonitorPage() {
                     <Button url="/app/reconciliation" icon={SearchIcon}>
                       打开送达对账
                     </Button>
+                    <Button url="/app/scan" icon={SearchIcon} tone="primary" variant="secondary">
+                      重新扫描追踪配置
+                    </Button>
                   </InlineStack>
                 )}
 

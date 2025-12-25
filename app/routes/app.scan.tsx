@@ -1205,9 +1205,22 @@ export default function ScanPage() {
                     </Text>
 
                     <Banner tone="critical" title="Plus：2025-08-28 / 非 Plus：2026-08-26 将失效">
-                      <Text as="p" variant="bodySm">
-                        这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。
-                      </Text>
+                      <BlockStack gap="100">
+                        <Text as="p" variant="bodySm">
+                          这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          当前剩余：{deprecationStatus.additionalScripts.badge.text} — {deprecationStatus.additionalScripts.description}
+                        </Text>
+                        <InlineStack gap="200">
+                          <Button url="/app/migrate" icon={ArrowRightIcon} size="slim" variant="primary">
+                            前往迁移页面
+                          </Button>
+                          <Button url="/app/migrate" icon={SettingsIcon} size="slim" variant="secondary">
+                            启用/升级 App Pixel
+                          </Button>
+                        </InlineStack>
+                      </BlockStack>
                     </Banner>
 
                     <Banner tone="info">
