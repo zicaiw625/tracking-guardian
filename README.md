@@ -85,6 +85,8 @@ cd "Post-purchase Tracking Guardian"
 pnpm install
 ```
 
+> 项目已统一使用 **pnpm**，CI 也仅支持 pnpm。Yarn（含 Yarn PnP）已移除且不再支持。
+
 > 首次安装会生成 `pnpm-lock.yaml`，后续在 CI 或部署环境可使用 `pnpm install --frozen-lockfile` 确保依赖锁定。
 > 当前仓库未包含 `pnpm-lock.yaml`（受限于本环境的 npm registry 403），请在有正常 registry 访问的环境运行 `pnpm install --frozen-lockfile` 生成并提交，以便锁定依赖。
 
