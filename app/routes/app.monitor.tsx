@@ -7,8 +7,7 @@ import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getDeliveryHealthHistory, getDeliveryHealthSummary, type DeliveryHealthReport, } from "../services/delivery-health.server";
-import type { Platform } from "../types";
-import { PLATFORM_NAMES, isValidPlatform } from "../types";
+import { isValidPlatform, PLATFORM_NAMES } from "../types";
 interface DeliverySummary {
     platform: string;
     last7DaysAttempted: number;
@@ -94,11 +93,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 };
 export default function MonitorPage() {
-    const { shop, summary, history, conversionStats, configHealth, lastUpdated } = useLoaderData<typeof loader>();
+    const { summary, history, conversionStats, configHealth, lastUpdated } = useLoaderData<typeof loader>();
     const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
     
     // Check for environment mismatch
-    const isProd = configHealth.appUrl && !configHealth.appUrl.includes("ngrok") && !configHealth.appUrl.includes("localhost");
+    // const isProd = configHealth.appUrl && !configHealth.appUrl.includes("ngrok") && !configHealth.appUrl.includes("localhost");
     const isDevUrl = configHealth.appUrl && (configHealth.appUrl.includes("ngrok") || configHealth.appUrl.includes("trycloudflare"));
     
     // Warning if pixel is sending from a different host than expected (mostly for dev/prod mixups)

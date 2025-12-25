@@ -12,8 +12,6 @@
 
 import prisma, { type TransactionClient } from "../db.server";
 import {
-  checkBillingGate,
-  incrementMonthlyUsage,
   checkAndReserveBillingSlot,
   releaseBillingSlot,
   type PlanId,

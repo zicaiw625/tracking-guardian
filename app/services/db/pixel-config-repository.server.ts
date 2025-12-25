@@ -7,7 +7,7 @@
 
 import prisma from "../../db.server";
 import { SimpleCache } from "../../utils/cache";
-import { Platform, type PlatformType } from "../../types/enums";
+import { type PlatformType } from "../../types/enums";
 import type { PixelConfig, Prisma } from "@prisma/client";
 
 // =============================================================================
@@ -296,7 +296,7 @@ export async function batchGetPixelConfigs(
   }
 
   for (const config of configs) {
-    const shopConfigs = result.get(config.id.split("_")[0]) || [];
+    // const shopConfigs = result.get(config.id.split("_")[0]) || [];
     // We need to get shopId from the actual data, but it's not in CREDENTIALS_SELECT
     // Let's fix this by including shopId in the query
   }

@@ -108,7 +108,7 @@ export default prisma;
  * Get the Prisma client instance.
  * This is an alias for the default export, useful for explicit imports.
  */
-export { prisma };
+// export { prisma };
 
 /**
  * Type export for TransactionClient used in repository patterns.

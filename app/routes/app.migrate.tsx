@@ -484,7 +484,7 @@ export default function MigratePage() {
                       <Text as="p" fontWeight="semibold">如何升级：</Text>
                       <List type="number">
                         <List.Item>点击下方按钮前往 <strong>Shopify 后台 → 设置 → 结账</strong></List.Item>
-                        <List.Item>查找 <strong>“Upgrade to Checkout Extensibility”</strong> 或类似横幅</List.Item>
+                        <List.Item>查找 <strong>&ldquo;Upgrade to Checkout Extensibility&rdquo;</strong> 或类似横幅</List.Item>
                         <List.Item>按照提示创建并发布新的 Checkout Profile</List.Item>
                       </List>
                     </BlockStack>
