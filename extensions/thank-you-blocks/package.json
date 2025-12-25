@@ -2,6 +2,7 @@
   "name": "thank-you-blocks",
   "private": true,
   "version": "1.0.0",
+  "packageManager": "pnpm@10.11.0",
   "scripts": {
     "build": "tsc"
   },
@@ -15,4 +16,3 @@
     "typescript": "^5.4.2"
   }
 }
-

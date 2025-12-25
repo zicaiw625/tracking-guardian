@@ -8,7 +8,7 @@ services:
     runtime: node
     region: singapore  # 亚洲区域，可改为 oregon/frankfurt 等
     plan: free  # 可升级为 starter/standard
-    buildCommand: pnpm install && pnpm generate && pnpm db:deploy && pnpm build
+    buildCommand: pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm build
     startCommand: pnpm start
     healthCheckPath: /
     envVars:

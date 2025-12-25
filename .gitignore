@@ -1,5 +1,11 @@
 # Dependencies
 node_modules/
+package-lock.json
+yarn.lock
+.pnp.*
+.yarn/
+.yarnrc.yml
+.yarnrc
 
 # Build outputs
 build/
