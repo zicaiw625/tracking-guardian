@@ -10,7 +10,7 @@
  * - Structured result collection
  */
 
-import prisma from "../db.server";
+import prisma, { type TransactionClient } from "../db.server";
 import {
   checkBillingGate,
   incrementMonthlyUsage,
@@ -67,6 +67,7 @@ interface JobWithRelations {
   orderValue: number | { toNumber(): number };
   currency: string;
   capiInput: unknown;
+  platformResults: unknown;
   attempts: number;
   maxAttempts: number;
   createdAt: Date;
@@ -245,7 +246,7 @@ async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
   const now = new Date();
 
   const claimedIds = await prisma.$transaction(
-    async (tx) => {
+    async (tx: TransactionClient) => {
       const availableJobs = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM "ConversionJob"
         WHERE (
@@ -265,7 +266,7 @@ async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
         return [];
       }
 
-      const jobIds = availableJobs.map((j) => j.id);
+      const jobIds = availableJobs.map((j: { id: string }) => j.id);
       await tx.conversionJob.updateMany({
         where: { id: { in: jobIds } },
         data: { status: JobStatus.PROCESSING },
@@ -361,12 +362,23 @@ async function sendToPlatformsParallel(
   eventId: string,
   trustResult: ReturnType<typeof evaluateTrust>["trustResult"],
   consentState: ReturnType<typeof evaluateTrust>["consentState"],
-  strategy: string
-): Promise<{ platformResults: Record<string, string>; anySucceeded: boolean }> {
-  const platformResults: Record<string, string> = {};
+  strategy: string,
+  previousResults: Record<string, string> = {}
+): Promise<{ platformResults: Record<string, string>; anyFailed: boolean }> {
+  const platformResults: Record<string, string> = { ...previousResults };
 
   // Build send tasks
   const sendTasks = pixelConfigs.map(async (pixelConfig) => {
+    // Check if already sent successfully in previous attempt
+    if (previousResults[pixelConfig.platform] === "sent") {
+      return {
+        platform: pixelConfig.platform,
+        success: true,
+        status: "sent",
+        skipped: true,
+      };
+    }
+
     const clientConfig = parsePixelClientConfig(pixelConfig.clientConfig);
     const treatAsMarketing = clientConfig?.treatAsMarketing === true;
 
@@ -407,20 +419,24 @@ async function sendToPlatformsParallel(
   // Execute all sends in parallel
   const results = await Promise.allSettled(sendTasks);
 
-  let anySucceeded = false;
+  let anyFailed = false;
   for (const result of results) {
     if (result.status === "fulfilled") {
       platformResults[result.value.platform] = result.value.status;
-      if (result.value.success) {
-        anySucceeded = true;
+      // Consider it a failure if it wasn't successful AND wasn't skipped due to eligibility
+      // But wait, eligibility skip returns success=false, status='skipped:...'
+      // We want to retry only if status starts with 'failed:'
+      if (result.value.status.startsWith("failed:")) {
+        anyFailed = true;
       }
     } else {
       // Promise rejected - should be rare as we catch errors in sendToPlatformWithCredentials
       logger.error("Platform send task rejected:", result.reason);
+      anyFailed = true;
     }
   }
 
-  return { platformResults, anySucceeded };
+  return { platformResults, anyFailed };
 }
 
 /**
@@ -602,16 +618,18 @@ async function processSingleJob(
   }
 
   const strategy = job.shop.consentStrategy || "strict";
+  const previousResults = (job.platformResults as Record<string, string>) || {};
 
   // Send to all platforms in parallel
-  const { platformResults, anySucceeded } = await sendToPlatformsParallel(
+  const { platformResults, anyFailed } = await sendToPlatformsParallel(
     job.shop.pixelConfigs,
     job,
     capiInputParsed,
     eventId,
     trustResult,
     consentState,
-    strategy
+    strategy,
+    previousResults
   );
 
   // Build consent evidence
@@ -625,7 +643,7 @@ async function processSingleJob(
   // Prepare update
   const newAttempts = job.attempts + 1;
 
-  if (anySucceeded) {
+  if (!anyFailed) {
     // Success: Usage already incremented by checkAndReserveBillingSlot
     // No need to call incrementMonthlyUsage again.
 
@@ -666,7 +684,7 @@ async function processSingleJob(
           attempts: newAttempts,
           lastAttemptAt: now,
           platformResults,
-          errorMessage: "All platforms failed after max attempts",
+          errorMessage: "All platforms failed (or partially failed) after max attempts",
         },
       },
     };
@@ -682,7 +700,7 @@ async function processSingleJob(
         lastAttemptAt: now,
         nextRetryAt: calculateNextRetryTime(newAttempts),
         platformResults,
-        errorMessage: "All platforms failed, retrying...",
+        errorMessage: "Some platforms failed, retrying...",
       },
     },
   };
