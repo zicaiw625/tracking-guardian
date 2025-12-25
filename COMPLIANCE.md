@@ -42,6 +42,7 @@ This document outlines how Tracking Guardian handles customer data in compliance
 - Merchants do NOT need to complete PCD review themselves - this is the developer's responsibility
 - **Note (2025-12-10)**: Starting December 10, 2025, Web Pixel PII fields require PCD approval to be populated
 - **UI Policy**: The app UI uses neutral language (e.g., "may require PCD review") rather than claiming "PCD approved"
+- **PII-Null Resilience**: The app is fully functional without PII. Regression tests cover null/undefined PII for both pixel ingestion and server-side CAPI, ensuring attribution works with order-level signals only.
 
 ---
 

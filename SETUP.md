@@ -24,7 +24,7 @@
 # ===========================================
 SHOPIFY_API_KEY=your_api_key_here
 SHOPIFY_API_SECRET=your_api_secret_here
-SCOPES=read_orders,read_script_tags,read_pixels,write_pixels
+SCOPES=read_orders,read_script_tags,read_pixels,write_pixels,read_customer_events
 
 # App URL (开发时使用 ngrok/cloudflare tunnel)
 SHOPIFY_APP_URL=https://your-app-url.com
@@ -125,7 +125,7 @@ shopify app dev
      SHOPIFY_API_KEY=your_key
      SHOPIFY_API_SECRET=your_secret
      SHOPIFY_APP_URL=https://your-app.onrender.com
-     SCOPES=read_orders,read_script_tags,read_pixels,write_pixels
+     SCOPES=read_orders,read_script_tags,read_pixels,write_pixels,read_customer_events
      ```
 
 3. **配置定时任务（Cron Job）**

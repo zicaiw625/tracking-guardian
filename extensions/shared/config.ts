@@ -13,15 +13,18 @@ function resolveBackendUrl(): string {
     return BUILD_TIME_URL;
   }
   
-  // P2-1: 开发环境警告 - 此警告会在 pixel 加载时显示在浏览器控制台
-  // 生产构建时，CI 会因为缺少 SHOPIFY_APP_URL 而失败（见 build-extensions.ts）
-  console.warn(
-    "[Tracking Guardian] ⚠️ BACKEND_URL 未在构建时注入，使用默认生产 URL。" +
-    "如果这是本地开发，请设置 SHOPIFY_APP_URL 环境变量。" +
-    "如果这是生产环境，请检查构建流程是否正确运行了 ext:inject。"
+  // 开发环境允许 fallback 并提示；生产环境直接 fail-closed
+  const isDev = process.env.NODE_ENV !== "production";
+  if (isDev) {
+    console.warn(
+      "[Tracking Guardian] ⚠️ BACKEND_URL 未在构建时注入，使用默认开发 URL。" +
+      "请在本地设置 SHOPIFY_APP_URL 或运行 yarn ext:inject。"
+    );
+    return "https://tracking-guardian.onrender.com";
+  }
+  throw new Error(
+    "[Tracking Guardian] BACKEND_URL 未在构建时注入，生产环境禁止 fallback。请检查构建流程是否运行了 ext:inject 并正确设置 SHOPIFY_APP_URL。"
   );
-  
-  return "https://tracking-guardian.onrender.com";
 }
 
 export const BACKEND_URL = resolveBackendUrl();

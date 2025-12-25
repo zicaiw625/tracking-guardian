@@ -302,10 +302,26 @@ export default function ScanPage() {
             setIsAnalyzing(false);
         }
     }, [scriptContent]);
-    const tabs = [
-        { id: "auto-scan", content: "自动扫描" },
-        { id: "manual-analyze", content: "手动分析" },
-    ];
+  const tabs = [
+    { id: "auto-scan", content: "自动扫描" },
+    { id: "manual-analyze", content: "手动分析" },
+  ];
+  const paginationLimitWarning = (
+    <Banner tone="info" title="扫描分页说明">
+      <BlockStack gap="200">
+        <Text as="p">
+          Shopify API 结果是分页的。本扫描会自动迭代页面，但为了性能会在以下阈值停止并提示：
+        </Text>
+        <List type="bullet">
+          <List.Item>ScriptTags 最多处理 1000 条记录</List.Item>
+          <List.Item>Web Pixel 最多处理 200 条记录</List.Item>
+        </List>
+        <Text as="p" tone="subdued">
+          如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出（当前上限可调整，请联系我们）。
+        </Text>
+      </BlockStack>
+    </Banner>
+  );
     const getSeverityBadge = (severity: string) => {
         switch (severity) {
             case "high":
@@ -343,12 +359,13 @@ export default function ScanPage() {
             default: return "info";
         }
     };
-    return (<Page title="追踪脚本扫描" subtitle="扫描店铺中的追踪脚本，识别迁移风险">
-      <BlockStack gap="500">
-        {additionalScriptsWarning}
-        {upgradeStatus && (<Banner title={upgradeStatus.title} tone={getUpgradeBannerTone(upgradeStatus.urgency)}>
-            <BlockStack gap="200">
-              <Text as="p">{upgradeStatus.message}</Text>
+  return (<Page title="追踪脚本扫描" subtitle="扫描店铺中的追踪脚本，识别迁移风险">
+    <BlockStack gap="500">
+      {additionalScriptsWarning}
+      {paginationLimitWarning}
+      {upgradeStatus && (<Banner title={upgradeStatus.title} tone={getUpgradeBannerTone(upgradeStatus.urgency)}>
+        <BlockStack gap="200">
+          <Text as="p">{upgradeStatus.message}</Text>
               {upgradeStatus.actions.length > 0 && (<BlockStack gap="100">
                   {upgradeStatus.actions.map((action, idx) => (<Text key={idx} as="p" variant="bodySm">
                       • {action}
