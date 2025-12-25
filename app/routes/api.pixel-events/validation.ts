@@ -194,6 +194,28 @@ function validateCheckoutCompletedFields(
     }
   }
 
+  // Validate value and currency
+  if (eventData?.value !== undefined) {
+    const val = Number(eventData.value);
+    if (isNaN(val) || val < 0) {
+      return {
+        valid: false,
+        error: "Invalid order value",
+        code: "invalid_body",
+      };
+    }
+  }
+
+  if (eventData?.currency) {
+    if (typeof eventData.currency !== "string" || !/^[A-Z]{3}$/.test(eventData.currency)) {
+      return {
+        valid: false,
+        error: "Invalid currency format (must be 3-letter ISO code)",
+        code: "invalid_body",
+      };
+    }
+  }
+
   return null;
 }
 

@@ -30,11 +30,23 @@ import { logger } from "../../utils/logger.server";
 import { invalidateAllShopCaches } from "../../services/shop-cache.server";
 import type { AlertSettings } from "./types";
 
+import {
+  checkRateLimitAsync,
+  createRateLimitResponse,
+} from "../../utils/rate-limiter";
+import {
+  SecureEmailSchema,
+  SecureUrlSchema,
+} from "../../utils/security";
+
+// ... existing imports
+
 // =============================================================================
 // Alert Actions
 // =============================================================================
 
 export async function handleSaveAlert(
+// ... existing code
   formData: FormData,
   shopId: string,
   sessionShop: string
@@ -113,25 +125,58 @@ export async function handleSaveAlert(
   return json({ success: true, message: "警报配置已保存" });
 }
 
-export async function handleTestAlert(formData: FormData) {
+export async function handleTestAlert(request: Request, formData: FormData) {
+  // Rate limiting: 5 requests per minute for test alerts
+  const { isLimited, retryAfter } = await checkRateLimitAsync(request, "alert-test", {
+    maxRequests: 5,
+    windowMs: 60 * 1000,
+  });
+
+  if (isLimited) {
+    return createRateLimitResponse(retryAfter);
+  }
+
   const channel = formData.get("channel") as string;
   let settings: AlertSettings;
 
-  if (channel === "email") {
-    settings = { email: formData.get("email") as string };
-  } else if (channel === "slack") {
-    settings = { webhookUrl: formData.get("webhookUrl") as string };
-  } else if (channel === "telegram") {
-    settings = {
-      botToken: formData.get("botToken") as string,
-      chatId: formData.get("chatId") as string,
-    };
-  } else {
-    return json({ success: false, error: "Invalid channel" });
-  }
+  try {
+    if (channel === "email") {
+      const email = formData.get("email") as string;
+      const result = SecureEmailSchema.safeParse(email);
+      if (!result.success) {
+        return json({ success: false, error: "无效的邮箱格式" });
+      }
+      settings = { email: result.data };
+    } else if (channel === "slack") {
+      const webhookUrl = formData.get("webhookUrl") as string;
+      const result = SecureUrlSchema.safeParse(webhookUrl);
+      if (!result.success) {
+        return json({ success: false, error: "无效的 Webhook URL" });
+      }
+      settings = { webhookUrl: result.data };
+    } else if (channel === "telegram") {
+      const botToken = formData.get("botToken") as string;
+      const chatId = formData.get("chatId") as string;
+      
+      // Basic validation for Telegram Bot Token (digits:alphanumeric)
+      if (!/^\d+:[a-zA-Z0-9_-]+$/.test(botToken)) {
+        return json({ success: false, error: "无效的 Bot Token 格式" });
+      }
+      
+      settings = {
+        botToken,
+        chatId,
+      };
+    } else {
+      return json({ success: false, error: "Invalid channel" });
+    }
 
-  const result = await testNotification(channel, settings);
-  return json(result);
+    const result = await testNotification(channel, settings);
+    return json(result);
+  } catch (error) {
+    logger.error("Test alert failed", error);
+    return json({ success: false, error: "测试失败: 输入验证错误" });
+  }
 }
 
 export async function handleDeleteAlert(formData: FormData) {
@@ -237,9 +282,6 @@ export async function handleSaveServerSide(
 export async function handleTestConnection(formData: FormData) {
   const platform = formData.get("platform") as string;
 
-  // Simulate connection test
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
   if (platform === "meta") {
     const pixelId = formData.get("pixelId") as string;
     const accessToken = formData.get("accessToken") as string;
@@ -249,11 +291,26 @@ export async function handleTestConnection(formData: FormData) {
         message: "请填写 Pixel ID 和 Access Token",
       });
     }
+
+    // Basic format validation
+    if (!/^\d+$/.test(pixelId)) {
+      return json({
+        success: false,
+        message: "无效的 Pixel ID 格式（应为纯数字）",
+      });
+    }
+
+    if (!accessToken.startsWith("EA")) {
+      return json({
+        success: false,
+        message: "无效的 Access Token 格式（通常以 EA 开头）",
+      });
+    }
   }
 
   return json({
     success: true,
-    message: "连接测试成功！测试事件已发送到平台，请在平台后台检查是否收到事件。",
+    message: "连接配置格式验证通过。请注意：这仅验证了格式，并未实际发送测试事件。",
   });
 }
 
@@ -452,7 +509,7 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       return handleSaveAlert(formData, shop.id, session.shop);
 
     case "testAlert":
-      return handleTestAlert(formData);
+      return handleTestAlert(request, formData);
 
     case "saveServerSide":
       return handleSaveServerSide(formData, shop.id, session.shop);

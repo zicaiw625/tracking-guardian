@@ -396,7 +396,7 @@ export const SecureOrderIdSchema = z
   });
 
 /**
- * URL schema with protocol validation
+ * URL schema with protocol validation and SSRF protection
  */
 export const SecureUrlSchema = z
   .string()
@@ -411,7 +411,59 @@ export const SecureUrlSchema = z
     }
   }, {
     message: "Only HTTP and HTTPS URLs are allowed",
+  })
+  .refine((url) => isPublicUrl(url), {
+    message: "Internal or private URLs are not allowed",
   });
+
+/**
+ * Validate if a URL points to a public, non-internal address
+ * Prevents SSRF attacks by blocking localhost, private IPs, and metadata services
+ */
+export function isPublicUrl(urlStr: string): boolean {
+  try {
+    const url = new URL(urlStr);
+    const hostname = url.hostname.toLowerCase();
+
+    // Block localhost
+    if (hostname === "localhost") return false;
+
+    // Block IPv6 loopback
+    if (hostname === "::1" || hostname === "[::1]") return false;
+
+    // Check for IPv4 addresses
+    // Matches 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16
+    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const match = hostname.match(ipv4Regex);
+
+    if (match) {
+      const octet1 = parseInt(match[1], 10);
+      const octet2 = parseInt(match[2], 10);
+
+      // 127.0.0.0/8 (Loopback)
+      if (octet1 === 127) return false;
+
+      // 10.0.0.0/8 (Private)
+      if (octet1 === 10) return false;
+
+      // 172.16.0.0/12 (Private)
+      if (octet1 === 172 && octet2 >= 16 && octet2 <= 31) return false;
+
+      // 192.168.0.0/16 (Private)
+      if (octet1 === 192 && octet2 === 168) return false;
+
+      // 169.254.0.0/16 (Link-local / Cloud Metadata)
+      if (octet1 === 169 && octet2 === 254) return false;
+      
+      // 0.0.0.0/8 (Current network)
+      if (octet1 === 0) return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // =============================================================================
 // Token Generation

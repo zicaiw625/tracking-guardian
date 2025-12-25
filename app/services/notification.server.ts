@@ -113,7 +113,14 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
     }
     return true;
 }
+import { isPublicUrl } from "../utils/security";
+
 async function sendSlackAlert(settings: SlackAlertSettings, data: AlertData): Promise<boolean> {
+    if (!isPublicUrl(settings.webhookUrl)) {
+        logger.warn(`Blocked attempt to send Slack alert to non-public URL: ${settings.webhookUrl}`);
+        return false;
+    }
+
     const discrepancyPercent = (data.orderDiscrepancy * 100).toFixed(1);
     const dateStr = data.reportDate.toLocaleDateString("zh-CN");
     const appUrl = getAppUrl();
