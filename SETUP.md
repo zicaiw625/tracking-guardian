@@ -77,8 +77,7 @@ pnpm generate
 pnpm db:deploy
 ```
 
-> 仓库已包含 `pnpm-lock.yaml`，后续在 CI 或部署环境请使用 `pnpm install --frozen-lockfile` 确保依赖版本锁定。
-> 如需新增或升级依赖，请在可访问 registry 的环境执行 `pnpm install` 更新锁文件并提交。
+> 仓库已包含 `pnpm-lock.yaml`，后续在 CI 或部署环境请使用 `pnpm install --frozen-lockfile` 确保依赖版本锁定。当前锁文件基于本地缓存生成，如需与官方 registry 完全同步，请在可访问 npm registry 的环境重新运行 `pnpm install --lockfile-only` / `pnpm install` 更新锁文件并提交。
 
 ### 5. 本地开发
 

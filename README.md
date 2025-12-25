@@ -87,7 +87,7 @@ pnpm install
 
 > 项目已统一使用 **pnpm**，CI 也仅支持 pnpm。Yarn（含 Yarn PnP）已移除且不再支持，务必避免提交 `.pnp.*` 或 `.yarn/` 等文件。
 
-> 仓库已包含 `pnpm-lock.yaml`，在 CI 或部署环境请使用 `pnpm install --frozen-lockfile` 确保依赖锁定。如需更新依赖，请在可访问 registry 的环境执行 `pnpm install` 并提交更新后的锁文件。
+> 仓库已包含 `pnpm-lock.yaml`，在 CI 或部署环境请使用 `pnpm install --frozen-lockfile` 确保依赖锁定。当前锁文件基于本地缓存生成，如需完全同步官方 registry，请在可访问 npm registry 的环境重新运行 `pnpm install --lockfile-only` / `pnpm install` 并提交更新后的锁文件。
 
 2. **配置环境变量**
 
