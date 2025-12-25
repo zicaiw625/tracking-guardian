@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable, Select, ProgressBar, Button, Icon, Link, Banner } from "@shopify/polaris";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable, Select, ProgressBar, Button, Icon, Link, Banner, List } from "@shopify/polaris";
 import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, } from "~/components/icons";
 import { useState } from "react";
 import { authenticate } from "../shopify.server";
@@ -93,8 +93,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 };
 export default function MonitorPage() {
-    const { summary, history, conversionStats, configHealth, lastUpdated } = useLoaderData<typeof loader>();
-    const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+  const { summary, history, conversionStats, configHealth, lastUpdated } = useLoaderData<typeof loader>();
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
     
     // Check for environment mismatch
     // const isProd = configHealth.appUrl && !configHealth.appUrl.includes("ngrok") && !configHealth.appUrl.includes("localhost");
@@ -106,8 +106,40 @@ export default function MonitorPage() {
     // The check requested is "fallback URL" - if pixel sends to OLD url.
     // If we received it, it sent to current URL. So this confirms connectivity.
     // If we haven't received anything recently, that's the issue.
-    const lastHeartbeat = configHealth.lastPixelTime ? new Date(configHealth.lastPixelTime) : null;
-    const isHeartbeatStale = lastHeartbeat ? (new Date(lastUpdated).getTime() - lastHeartbeat.getTime() > 24 * 60 * 60 * 1000) : true;
+  const lastHeartbeat = configHealth.lastPixelTime ? new Date(configHealth.lastPixelTime) : null;
+  const isHeartbeatStale = lastHeartbeat ? (new Date(lastUpdated).getTime() - lastHeartbeat.getTime() > 24 * 60 * 60 * 1000) : true;
+
+  const heartbeatTone: "success" | "warning" | "critical" = (() => {
+    if (!lastHeartbeat) return "critical";
+    if (isHeartbeatStale) return "warning";
+    return "success";
+  })();
+
+  const heartbeatLabel = (() => {
+    if (!lastHeartbeat) return "未收到像素心跳";
+    const diffMs = new Date(lastUpdated).getTime() - lastHeartbeat.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours < 1) return "< 1 小时前";
+    if (diffHours < 24) return `${diffHours} 小时前`;
+    const diffDays = Math.ceil(diffHours / 24);
+    return `${diffDays} 天前`;
+  })();
+
+  const heartbeatDescription = (() => {
+    if (!lastHeartbeat) {
+      return "尚未收到任何像素请求，请先在测试店铺下单并确认 Web Pixel 已安装。";
+    }
+    if (isHeartbeatStale) {
+      return "超过 24 小时未收到新的像素请求，建议执行一次测试订单或检查域名配置。";
+    }
+    return "最近已收到像素心跳，可继续执行事件参数对账或多渠道验证。";
+  })();
+
+  const originHost = configHealth.lastPixelOrigin || "未记录";
+  const isOriginDevHost = originHost.includes("ngrok") || originHost.includes("trycloudflare") || originHost.includes("localhost");
+  const environmentWarning = isOriginDevHost && configHealth.appUrl && !configHealth.appUrl.includes("ngrok") && !configHealth.appUrl.includes("trycloudflare")
+    ? "像素来自开发隧道域名，而应用 URL 指向生产。请确认 Pixel 使用的 backend_url 是否为生产域名。"
+    : null;
 
     const summaryData: Record<string, DeliverySummary> = (summary ?? {}) as Record<string, DeliverySummary>;
     const historyData = ((history ?? []) as unknown as Array<Omit<DeliveryHealthReport, 'reportDate'> & {
@@ -376,7 +408,7 @@ export default function MonitorPage() {
             
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
-                <InlineStack align="space-between">
+                <InlineStack align="space-between" blockAlign="center">
                    <Text as="span" tone="subdued">当前应用后端 (App URL)</Text>
                    <Text as="span" fontWeight="semibold">{configHealth.appUrl || "未检测到"}</Text>
                 </InlineStack>
@@ -387,11 +419,21 @@ export default function MonitorPage() {
                     </Text>
                   </Banner>
                 )}
+                {environmentWarning && (
+                  <Banner tone="critical">
+                    <Text as="p" variant="bodySm">
+                      {environmentWarning}
+                    </Text>
+                  </Banner>
+                )}
                 
                 <Divider />
                 
-                <InlineStack align="space-between">
-                   <Text as="span" tone="subdued">最近一次 Pixel 连接</Text>
+                <InlineStack align="space-between" blockAlign="center">
+                   <InlineStack gap="200" blockAlign="center">
+                     <Badge tone={heartbeatTone}>{heartbeatLabel}</Badge>
+                     <Text as="span" tone="subdued">最近一次 Pixel 心跳</Text>
+                   </InlineStack>
                    <Text as="span" fontWeight={configHealth.lastPixelTime ? "semibold" : "regular"}>
                      {configHealth.lastPixelTime 
                        ? new Date(configHealth.lastPixelTime).toLocaleString("zh-CN") 
@@ -406,17 +448,66 @@ export default function MonitorPage() {
                   </InlineStack>
                 )}
 
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {heartbeatDescription}
+                </Text>
+
+                {(isHeartbeatStale || !lastHeartbeat) && (
+                  <InlineStack gap="200">
+                    <Button url="/app/migrate" icon={RefreshIcon} variant="primary">
+                      重新推送 App Pixel
+                    </Button>
+                    <Button url="/app/reconciliation" icon={SearchIcon}>
+                      打开送达对账
+                    </Button>
+                    <Button url="/app/scan" icon={SearchIcon} tone="primary" variant="secondary">
+                      重新扫描追踪配置
+                    </Button>
+                  </InlineStack>
+                )}
+
                 {isHeartbeatStale && hasData && (
                   <Banner tone="critical">
                     <Text as="p" variant="bodySm">
-                      超过 24 小时未收到 Web Pixel 心跳事件。请检查：
-                      <br />1. Web Pixel 是否已在 Shopify 后台断开连接
-                      <br />2. 如果是开发环境，确保 App URL 未变更（ngrok 重启后需更新）
+                      超过 24 小时未收到 Web Pixel 心跳事件。请检查：<br />
+                      1) Web Pixel 是否在 Shopify 后台被禁用<br />
+                      2) 域名是否更换（ngrok 重启后需更新 Pixel 配置）<br />
+                      3) 如为生产店铺，确认 storefront 是否启用新的 Thank you / Order status 页面
                     </Text>
                   </Banner>
                 )}
               </BlockStack>
             </Box>
+          </BlockStack>
+        </Card>
+
+        <Card>
+          <BlockStack gap="400">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h2" variant="headingMd">
+                测试模式与事件对账
+              </Text>
+              <Badge tone={heartbeatTone}>
+                {heartbeatTone === "success" ? "已收到心跳" : "需要测试订单"}
+              </Badge>
+            </InlineStack>
+            <Text as="p" tone="subdued">
+              使用下方步骤跑一单“测试订单”，可以验证 CAPI / Web Pixel 是否同时送达并排除参数缺失问题。
+            </Text>
+            <List type="bullet">
+              <List.Item>创建 1 笔低金额测试订单，确保结账完成后看到 Thank you / Order status 页面</List.Item>
+              <List.Item>在本页面查看“最近一次 Pixel 心跳”是否更新，并确认来源域名与环境匹配</List.Item>
+              <List.Item>前往“送达对账”页核对平台返回的发送结果与参数（如订单金额、货币、客户标识）</List.Item>
+              <List.Item>若仍未收到事件，重新在“迁移”页点击“启用/升级 App Pixel”以刷新最新 backend URL</List.Item>
+            </List>
+            <InlineStack gap="200">
+              <Button url="/app/scan" icon={RefreshIcon} variant="primary">
+                重新扫描像素配置
+              </Button>
+              <Button url="/app/reconciliation" icon={SearchIcon}>
+                查看送达对账
+              </Button>
+            </InlineStack>
           </BlockStack>
         </Card>
 
