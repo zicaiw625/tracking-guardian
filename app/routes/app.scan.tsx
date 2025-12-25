@@ -317,7 +317,7 @@ export default function ScanPage() {
           <List.Item>Web Pixel 最多处理 200 条记录</List.Item>
         </List>
         <Text as="p" tone="subdued">
-          如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出。
+          如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出（当前上限可调整，请联系我们）。
         </Text>
       </BlockStack>
     </Banner>
