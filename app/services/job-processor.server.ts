@@ -11,7 +11,13 @@
  */
 
 import prisma from "../db.server";
-import { checkBillingGate, incrementMonthlyUsage, type PlanId } from "./billing.server";
+import {
+  checkBillingGate,
+  incrementMonthlyUsage,
+  checkAndReserveBillingSlot,
+  releaseBillingSlot,
+  type PlanId,
+} from "./billing.server";
 import { decryptCredentials } from "./credentials.server";
 import { sendConversionToPlatform } from "./platforms/factory";
 import { generateEventId } from "../utils/crypto.server";
@@ -493,31 +499,7 @@ async function processSingleJob(
   receiptMap: Map<string, ReceiptFields>,
   now: Date
 ): Promise<{ result: JobProcessResult; update: JobUpdateEntry }> {
-  // Check billing limit
-  const billingCheck = await checkBillingGate(
-    job.shopId,
-    (job.shop.plan || "free") as PlanId
-  );
-
-  if (!billingCheck.allowed) {
-    logger.info(`Billing gate blocked job ${job.id}`, {
-      reason: billingCheck.reason,
-      usage: billingCheck.usage,
-    });
-    return {
-      result: "limit_exceeded",
-      update: {
-        id: job.id,
-        status: JobStatus.LIMIT_EXCEEDED,
-        data: {
-          errorMessage: `Monthly limit exceeded: ${billingCheck.usage.current}/${billingCheck.usage.limit}`,
-          lastAttemptAt: now,
-        },
-      },
-    };
-  }
-
-  // Skip if no platforms configured
+  // Skip if no platforms configured (check before billing to avoid unnecessary reservation)
   if (job.shop.pixelConfigs.length === 0) {
     logger.debug(`Job ${job.id}: No active platforms configured`);
     return {
@@ -529,6 +511,51 @@ async function processSingleJob(
           processedAt: now,
           completedAt: now,
           platformResults: { message: "No platforms configured" },
+        },
+      },
+    };
+  }
+
+  // Atomic Billing Reservation (Race-condition safe)
+  const reservationResult = await checkAndReserveBillingSlot(
+    job.shopId,
+    (job.shop.plan || "free") as PlanId,
+    job.orderId
+  );
+
+  if (!reservationResult.ok) {
+    logger.error(`Billing reservation failed for job ${job.id}: ${reservationResult.error.message}`);
+    // Treat DB error as a retryable failure
+    return {
+      result: "failed",
+      update: {
+        id: job.id,
+        status: JobStatus.FAILED,
+        data: {
+          attempts: job.attempts + 1,
+          lastAttemptAt: now,
+          nextRetryAt: calculateNextRetryTime(job.attempts + 1),
+          errorMessage: "Billing system error: " + reservationResult.error.message,
+        },
+      },
+    };
+  }
+
+  const reservation = reservationResult.value;
+
+  if (!reservation.success) {
+    logger.info(`Billing gate blocked job ${job.id}`, {
+      reason: "limit_exceeded",
+      usage: { current: reservation.current, limit: reservation.limit },
+    });
+    return {
+      result: "limit_exceeded",
+      update: {
+        id: job.id,
+        status: JobStatus.LIMIT_EXCEEDED,
+        data: {
+          errorMessage: `Monthly limit exceeded: ${reservation.current}/${reservation.limit}`,
+          lastAttemptAt: now,
         },
       },
     };
@@ -599,10 +626,8 @@ async function processSingleJob(
   const newAttempts = job.attempts + 1;
 
   if (anySucceeded) {
-    // Increment usage asynchronously
-    incrementMonthlyUsage(job.shopId, job.orderId).catch((err) =>
-      logger.warn(`Failed to increment monthly usage: ${err}`)
-    );
+    // Success: Usage already incremented by checkAndReserveBillingSlot
+    // No need to call incrementMonthlyUsage again.
 
     return {
       result: "succeeded",
@@ -623,7 +648,14 @@ async function processSingleJob(
     };
   }
 
-  // Handle failure
+  // Handle failure: Release the billing slot since we failed to convert
+  // Only release if it wasn't already counted before this attempt (idempotency)
+  if (!reservation.alreadyCounted) {
+    await releaseBillingSlot(job.shopId).catch(err => 
+      logger.error(`Failed to release billing slot for job ${job.id}: ${err.message}`)
+    );
+  }
+
   if (newAttempts >= job.maxAttempts) {
     return {
       result: "failed",

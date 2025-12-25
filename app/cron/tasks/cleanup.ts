@@ -185,6 +185,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
       conversionJobsCount,
       pixelReceiptsCount,
       webhookLogsCount,
+      scanReportsCount,
       reconciliationCount,
     ] = await Promise.all([
       // Conversion logs
@@ -279,6 +280,21 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         (ids) => prisma.webhookLog.deleteMany({ where: { id: { in: ids } } })
       ),
 
+      // Scan reports (simple time-based retention)
+      batchDelete(
+        "ScanReport",
+        () =>
+          prisma.scanReport.findMany({
+            where: {
+              shopId: { in: shopIds },
+              createdAt: { lt: cutoffDate },
+            },
+            select: { id: true },
+            take: CLEANUP_BATCH_SIZE,
+          }),
+        (ids) => prisma.scanReport.deleteMany({ where: { id: { in: ids } } })
+      ),
+
       // Reconciliation reports
       batchDelete(
         "ReconciliationReport",
@@ -301,25 +317,8 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     totalConversionJobs += conversionJobsCount;
     totalPixelEventReceipts += pixelReceiptsCount;
     totalWebhookLogs += webhookLogsCount;
+    totalScanReports += scanReportsCount;
     totalReconciliationReports += reconciliationCount;
-
-    // Clean up old scan reports (keep last 5 per shop)
-    for (const shop of shopsInGroup) {
-      const scanReportsToKeep = 5;
-      const oldScanReports = await prisma.scanReport.findMany({
-        where: { shopId: shop.id },
-        orderBy: { createdAt: "desc" },
-        skip: scanReportsToKeep,
-        select: { id: true },
-      });
-
-      if (oldScanReports.length > 0) {
-        const scanReportResult = await prisma.scanReport.deleteMany({
-          where: { id: { in: oldScanReports.map((r) => r.id) } },
-        });
-        totalScanReports += scanReportResult.count;
-      }
-    }
 
     // Log batch summary
     const totalDeleted =
@@ -329,6 +328,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
       conversionJobsCount +
       pixelReceiptsCount +
       webhookLogsCount +
+      scanReportsCount +
       reconciliationCount;
 
     if (totalDeleted > 0) {
@@ -341,6 +341,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         jobs: conversionJobsCount,
         receipts: pixelReceiptsCount,
         webhookLogs: webhookLogsCount,
+        scanReports: scanReportsCount,
         reconciliations: reconciliationCount,
       });
     }

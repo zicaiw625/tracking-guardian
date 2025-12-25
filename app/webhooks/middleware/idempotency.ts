@@ -48,6 +48,44 @@ export async function tryAcquireWebhookLock(
   } catch (error) {
     // P2002 is Prisma's unique constraint violation error code
     if ((error as { code?: string })?.code === "P2002") {
+      // Check if the existing lock is stale (dead letter)
+      const existing = await prisma.webhookLog.findUnique({
+        where: {
+          shopDomain_webhookId_topic: {
+            shopDomain,
+            webhookId,
+            topic,
+          },
+        },
+        select: { status: true, receivedAt: true },
+      });
+
+      // If lock is stuck in PROCESSING for > 5 minutes, assume dead and retry
+      if (existing?.status === WebhookStatus.PROCESSING) {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        if (existing.receivedAt < fiveMinutesAgo) {
+          logger.warn(
+            `[Webhook Idempotency] Dead lock detected for ${topic}/${webhookId}. Taking over.`
+          );
+          
+          // Update timestamp to refresh lock
+          await prisma.webhookLog.update({
+            where: {
+              shopDomain_webhookId_topic: {
+                shopDomain,
+                webhookId,
+                topic,
+              },
+            },
+            data: {
+              receivedAt: new Date(),
+            },
+          });
+          
+          return { acquired: true };
+        }
+      }
+
       logger.info(
         `[Webhook Idempotency] Duplicate webhook detected: ${topic} for ${shopDomain}, webhookId=${webhookId}`
       );

@@ -85,6 +85,11 @@ export async function processShopRedact(
     });
     deletedCounts.auditLogs = auditLogResult.count;
 
+    // Event nonces
+    await prisma.eventNonce.deleteMany({
+      where: { shopId: shop.id },
+    });
+
     // Scan reports
     const scanReportResult = await prisma.scanReport.deleteMany({
       where: { shopId: shop.id },

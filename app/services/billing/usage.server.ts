@@ -45,22 +45,23 @@ export interface ReservationResult {
 // =============================================================================
 
 /**
- * Get the current year-month string (YYYY-MM format)
+ * Get the current year-month string (YYYY-MM format) in UTC
  */
 export function getCurrentYearMonth(): string {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
 }
 
 /**
- * Parse year-month string into Date range
+ * Parse year-month string into Date range (UTC)
  */
 export function getMonthDateRange(yearMonth: string): { start: Date; end: Date } {
+  // Append -01 to get the first day of the month
   const start = new Date(`${yearMonth}-01T00:00:00.000Z`);
   const end = new Date(start);
-  end.setMonth(end.getMonth() + 1);
+  end.setUTCMonth(end.getUTCMonth() + 1);
   return { start, end };
 }
 

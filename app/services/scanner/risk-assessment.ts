@@ -2,7 +2,7 @@
 
 import type { RiskItem, RiskSeverity, ScriptTag } from "../../types";
 import type { EnhancedScanResult } from "./types";
-import { PLATFORM_PATTERNS } from "./patterns";
+import { PLATFORM_PATTERNS, PLATFORM_INFO, identifyPlatformFromSrc } from "./patterns";
 
 interface RiskRule {
     id: string;
@@ -66,17 +66,8 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
         }> = {};
 
         for (const tag of result.scriptTags) {
-            let platform = "unknown";
             const src = tag.src || "";
-            for (const [p, patterns] of Object.entries(PLATFORM_PATTERNS)) {
-                for (const pattern of patterns) {
-                    if (pattern.test(src)) {
-                        platform = p;
-                        break;
-                    }
-                }
-                if (platform !== "unknown") break;
-            }
+            const platform = identifyPlatformFromSrc(src);
 
             if (!platformScriptTags[platform]) {
                 platformScriptTags[platform] = { orderStatus: [], other: [] };
@@ -90,14 +81,16 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
         }
 
         for (const [platform, tags] of Object.entries(platformScriptTags)) {
+            const platformName = PLATFORM_INFO[platform]?.name || platform;
+            
             if (tags.orderStatus.length > 0) {
                 addRisk({
                     id: "deprecated_script_tag_order_status",
                     name: "订单状态页 ScriptTag（将被废弃）",
-                    description: `检测到 ${tags.orderStatus.length} 个用于订单状态页的 ScriptTag，这是 Shopify 废弃公告的主要目标`,
+                    description: `检测到 ${tags.orderStatus.length} 个用于订单状态页的 ScriptTag (${platformName})，这是 Shopify 废弃公告的主要目标`,
                     severity: "high",
                     points: 30,
-                    details: `平台: ${platform}, 脚本数量: ${tags.orderStatus.length}`,
+                    details: `平台: ${platformName}, 脚本数量: ${tags.orderStatus.length}`,
                     platform,
                 }, `order_status_${platform}`);
             }
@@ -106,10 +99,10 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
                 addRisk({
                     id: "deprecated_script_tag",
                     name: "ScriptTag API（建议迁移）",
-                    description: `检测到 ${tags.other.length} 个 ScriptTag，建议迁移到 Web Pixel 以获得更好的兼容性`,
+                    description: `检测到 ${tags.other.length} 个 ScriptTag (${platformName})，建议迁移到 Web Pixel 以获得更好的兼容性`,
                     severity: "medium",
                     points: 15,
-                    details: `平台: ${platform}, 范围: ${tags.other.map(t => t.display_scope || "all").join(", ")}`,
+                    details: `平台: ${platformName}, 范围: ${tags.other.map(t => t.display_scope || "all").join(", ")}`,
                     platform,
                 }, `script_tag_${platform}`);
             }
@@ -117,26 +110,36 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
     }
 
     // Check for inline tracking
-    if (result.identifiedPlatforms.length > 0 && result.scriptTags.length > 0) {
+    // Logic: If we see patterns in the page content (inline scripts) AND we identified platforms
+    // Note: identifiedPlatforms comes from detectPlatforms(pageContent)
+    if (result.identifiedPlatforms.length > 0) {
+         // Filter out script tags platforms to avoid double counting if possible, 
+         // but inline tracking is usually distinct from script tags.
+         // However, if we found a ScriptTag for Meta, and identifiedPlatforms includes Meta, 
+         // it implies inline code might be supporting the ScriptTag or independent.
+         // We'll keep the warning generic but informative.
+         
         addRisk({
             id: "inline_tracking",
             name: "内联追踪代码",
-            description: "检测到使用旧的追踪方式，建议迁移到 Shopify Web Pixel",
+            description: "检测到页面源码中包含硬编码的追踪脚本，建议迁移到 Shopify Web Pixel",
             severity: "medium",
             points: 20,
-            details: `检测到平台: ${result.identifiedPlatforms.join(", ")}`,
+            details: `检测到平台: ${result.identifiedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
         }, "inline_tracking");
     }
 
-    // Recommend server-side tracking
-    if (result.identifiedPlatforms.length > 0) {
+    // Recommend server-side tracking only for supported platforms
+    const supportedPlatforms = result.identifiedPlatforms.filter(p => PLATFORM_INFO[p]?.supportLevel === "supported");
+    
+    if (supportedPlatforms.length > 0) {
         addRisk({
             id: "no_server_side",
             name: "建议启用服务端追踪",
-            description: "仅依赖客户端追踪可能受广告拦截器和浏览器隐私设置影响",
+            description: "对于检测到的支持平台，建议开启 Conversion API 以抵抗广告拦截和提升数据准确性",
             severity: "low",
             points: 10,
-            details: "建议配置 Conversion API 以提高追踪数据的一致性和完整性",
+            details: `支持平台: ${supportedPlatforms.map(p => PLATFORM_INFO[p]?.name || p).join(", ")}`,
         }, "no_server_side");
     }
 
