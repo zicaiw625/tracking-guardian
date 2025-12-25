@@ -99,13 +99,17 @@ function Survey() {
                 }
             }
             else {
-                console.warn("Survey submission skipped: shop domain not available");
+                if (isDevMode) {
+                    console.warn("Survey submission skipped: shop domain not available");
+                }
                 throw new Error("Shop domain not available");
             }
             setSubmitted(true);
         }
         catch (err) {
-            console.error("Survey submission error:", err);
+            if (isDevMode) {
+                console.error("Survey submission error:", err);
+            }
             setError("提交失败，请稍后重试");
         }
         finally {

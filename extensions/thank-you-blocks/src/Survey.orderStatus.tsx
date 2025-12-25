@@ -77,13 +77,17 @@ function SurveyOrderStatus() {
                 }
             }
             else {
-                console.warn("Survey submission skipped: missing authentication or shop domain");
+                if (isDevMode) {
+                    console.warn("Survey submission skipped: missing authentication or shop domain");
+                }
                 throw new Error("Authentication or shop domain not available");
             }
             setSubmitted(true);
         }
         catch (err) {
-            console.error("Survey submission error:", err);
+            if (isDevMode) {
+                console.error("Survey submission error:", err);
+            }
             setError("提交失败，请稍后重试");
         }
         finally {

@@ -56,40 +56,12 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: encryptedSessionStorage,
   distribution: AppDistribution.AppStore,
-  webhooks: {
-    APP_UNINSTALLED: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    ORDERS_PAID: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    ORDERS_UPDATED: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    CUSTOMERS_DATA_REQUEST: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    CUSTOMERS_REDACT: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    SHOP_REDACT: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-  },
   hooks: {
     afterAuth: async ({ session, admin }) => {
       await handleAfterAuth(
         { session, admin },
-        // Type assertion needed due to Shopify SDK types being more specific
-        ((params: { session: { shop: string } }) => 
-          shopify.registerWebhooks(params as Parameters<typeof shopify.registerWebhooks>[0])
-        ) as (params: { session: { shop: string } }) => Promise<unknown>
+        // Webhooks are managed via shopify.app.toml, so no manual registration needed here
+        async () => Promise.resolve() 
       );
     },
   },
