@@ -5,9 +5,9 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 
 # Install dependencies
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY extensions ./extensions
-RUN pnpm install --filter ./...
+RUN pnpm install --frozen-lockfile --filter ./...
 
 # Copy source
 COPY . .
@@ -27,11 +27,11 @@ RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 ENV NODE_ENV=production
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY extensions ./extensions
 
 # Install only production dependencies
-RUN pnpm install --prod --ignore-scripts --filter ./...
+RUN pnpm install --prod --ignore-scripts --frozen-lockfile --filter ./...
 
 # Copy Prisma CLI (dev dependency) from builder for runtime migrations
 COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
