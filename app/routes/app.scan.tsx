@@ -197,6 +197,19 @@ export default function ScanPage() {
     const [pendingDelete, setPendingDelete] = useState<{ type: "webPixel"; id: string; gid: string; title: string } | null>(null);
     const [monthlyOrders, setMonthlyOrders] = useState(500);
     const isScanning = navigation.state === "submitting";
+
+    const additionalScriptsWarning = (
+      <Banner tone="warning" title="Additional Scripts 需手动粘贴">
+        <BlockStack gap="200">
+          <Text as="p">
+            Shopify API 无法读取 checkout.liquid / Additional Scripts。请在下方「脚本内容分析」中粘贴原始脚本，确保迁移报告涵盖 Thank you / Order status 页的自定义逻辑。
+          </Text>
+          <Text as="p" tone="subdued">
+            截止提醒：{deprecationStatus.additionalScripts.badge.text} — {deprecationStatus.additionalScripts.description}
+          </Text>
+        </BlockStack>
+      </Banner>
+    );
     
     // Declare identifiedPlatforms before useMemo uses it
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
@@ -328,7 +341,7 @@ export default function ScanPage() {
     };
     const riskItems = (latestScan?.riskItems as RiskItem[] | null) || [];
     // identifiedPlatforms is now declared earlier, before useMemo
-    const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
+  const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
         switch (urgency) {
             case "critical": return "critical";
             case "high": return "warning";
@@ -339,6 +352,7 @@ export default function ScanPage() {
     };
     return (<Page title="追踪脚本扫描" subtitle="扫描店铺中的追踪脚本，识别迁移风险">
       <BlockStack gap="500">
+        {additionalScriptsWarning}
         {upgradeStatus && (<Banner title={upgradeStatus.title} tone={getUpgradeBannerTone(upgradeStatus.urgency)}>
             <BlockStack gap="200">
               <Text as="p">{upgradeStatus.message}</Text>
@@ -1189,6 +1203,12 @@ export default function ScanPage() {
                       Shopify API 无法自动读取 Additional Scripts 内容。
                       请从 Shopify 后台复制脚本代码，粘贴到下方进行分析。
                     </Text>
+
+                    <Banner tone="critical" title="Plus：2025-08-28 / 非 Plus：2026-08-26 将失效">
+                      <Text as="p" variant="bodySm">
+                        这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。
+                      </Text>
+                    </Banner>
 
                     <Banner tone="info">
                       <BlockStack gap="200">
