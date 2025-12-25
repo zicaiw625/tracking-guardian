@@ -71,7 +71,7 @@
 
 ```bash
 cd "Post-purchase Tracking Guardian"
-npm install
+yarn install --frozen-lockfile
 ```
 
 2. **配置环境变量**
@@ -89,14 +89,14 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 3. **初始化数据库**
 
 ```bash
-npm run generate
-npm run db:push
+yarn generate
+yarn db:deploy
 ```
 
 4. **启动开发服务器**
 
 ```bash
-npm run dev
+yarn dev
 ```
 
 ### 部署
@@ -237,13 +237,13 @@ ScriptTag 清理需要商家手动操作：
 
 ```bash
 # 运行所有测试
-npm run test
+yarn test
 
 # 运行特定测试
-npm run test -- tests/services/scanner.test.ts
+yarn test tests/services/scanner.test.ts
 
 # 运行测试并生成覆盖率报告
-npm run test:coverage
+yarn test:coverage
 ```
 
 ## 贡献指南

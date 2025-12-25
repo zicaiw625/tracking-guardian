@@ -22,19 +22,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: npx prisma generate
+        run: yarn generate
 
       - name: ESLint
-        run: npm run lint
+        run: yarn lint
 
       - name: TypeScript Check
-        run: npm run typecheck
+        run: yarn typecheck
 
   compliance:
     name: Compliance Checks
@@ -47,25 +47,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: npx prisma generate
+        run: yarn generate
 
       # P2-01: GraphQL-only 检查 - 确保不使用 REST API
       - name: Check GraphQL-only
-        run: npm run lint:graphql-only
+        run: yarn lint:graphql-only
 
       # P2-01: API 版本一致性检查
       - name: Check API Version Consistency
-        run: npm run check:api-version
+        run: yarn check:api-version
 
       # P2-01: API 版本一致性测试
       - name: Test API Version Consistency
-        run: npm run test -- --testPathPattern='api-version-consistency'
+        run: yarn test --testPathPattern='api-version-consistency'
 
   test:
     name: Tests
@@ -79,16 +79,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: npx prisma generate
+        run: yarn generate
 
       - name: Run Tests
-        run: npm run test
+        run: yarn test
 
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
@@ -108,13 +108,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
-      - name: Run npm audit
-        run: npm audit --production --audit-level=high
+      - name: Run yarn audit
+        run: yarn audit --groups dependencies --level high
         continue-on-error: true
 
   build:
@@ -129,16 +129,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: npx prisma generate
+        run: yarn generate
 
       - name: Build
-        run: npm run build
+        run: yarn build
         env:
           NODE_ENV: production
-

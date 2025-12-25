@@ -1,0 +1,2 @@
+# This file ensures that Prisma Migrate uses a consistent provider.
+provider = "postgresql"

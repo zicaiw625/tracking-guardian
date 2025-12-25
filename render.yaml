@@ -8,8 +8,8 @@ services:
     runtime: node
     region: singapore  # 亚洲区域，可改为 oregon/frankfurt 等
     plan: free  # 可升级为 starter/standard
-    buildCommand: npm install && npx prisma generate && npx prisma db push && npm run build
-    startCommand: npm run start
+    buildCommand: yarn install --frozen-lockfile && yarn generate && yarn db:deploy && yarn build
+    startCommand: yarn start
     healthCheckPath: /
     envVars:
       - key: NODE_ENV
@@ -55,4 +55,3 @@ databases:
     region: singapore
     databaseName: tracking_guardian
     user: tracking_guardian_user
-
