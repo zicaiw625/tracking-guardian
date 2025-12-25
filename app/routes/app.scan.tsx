@@ -341,7 +341,7 @@ export default function ScanPage() {
     };
     const riskItems = (latestScan?.riskItems as RiskItem[] | null) || [];
     // identifiedPlatforms is now declared earlier, before useMemo
-    const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
+  const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
         switch (urgency) {
             case "critical": return "critical";
             case "high": return "warning";
