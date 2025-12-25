@@ -27,8 +27,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Prisma
-prisma/migrations/
+# Yarn (ensure Corepack artifacts don't pollute status)
+.yarn/
+.yarnrc.yml
 
 # Shopify
 .shopify/
@@ -38,4 +39,3 @@ coverage/
 
 # Misc
 *.pem
-

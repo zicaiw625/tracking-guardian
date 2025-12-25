@@ -70,40 +70,52 @@ export function validatePixelOriginPreBody(origin: string | null): {
     valid: boolean;
     reason: string;
     shouldLog: boolean;
+    shouldReject: boolean;
 } {
+    const devMode = isDevMode();
     if (origin === "null" || origin === null) {
-        return { valid: true, reason: "sandbox_origin", shouldLog: false };
+        return {
+            valid: devMode,
+            reason: devMode ? "sandbox_origin_dev" : "null_origin_blocked",
+            shouldLog: !devMode,
+            shouldReject: !devMode,
+        };
     }
     if (!origin) {
-        return { valid: true, reason: "no_origin_header", shouldLog: false };
+        return {
+            valid: devMode,
+            reason: devMode ? "no_origin_dev" : "missing_origin",
+            shouldLog: !devMode,
+            shouldReject: !devMode,
+        };
     }
     try {
         const url = new URL(origin);
         if (url.protocol === "file:") {
-            return { valid: false, reason: "file_protocol_blocked", shouldLog: true };
+            return { valid: false, reason: "file_protocol_blocked", shouldLog: true, shouldReject: true };
         }
         if (url.protocol === "chrome-extension:") {
-            return { valid: false, reason: "chrome_extension_blocked", shouldLog: true };
+            return { valid: false, reason: "chrome_extension_blocked", shouldLog: true, shouldReject: true };
         }
         if (url.protocol === "data:") {
-            return { valid: false, reason: "data_protocol_blocked", shouldLog: true };
+            return { valid: false, reason: "data_protocol_blocked", shouldLog: true, shouldReject: true };
         }
         if (url.protocol === "blob:") {
-            return { valid: false, reason: "blob_protocol_blocked", shouldLog: true };
+            return { valid: false, reason: "blob_protocol_blocked", shouldLog: true, shouldReject: true };
         }
         if (url.protocol === "http:") {
             if (isDevMode() && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) {
-                return { valid: true, reason: "dev_localhost_http", shouldLog: false };
+                return { valid: true, reason: "dev_localhost_http", shouldLog: false, shouldReject: false };
             }
-            return { valid: false, reason: "http_not_allowed", shouldLog: true };
+            return { valid: false, reason: "http_not_allowed", shouldLog: true, shouldReject: true };
         }
         if (url.protocol === "https:") {
-            return { valid: true, reason: "https_origin", shouldLog: false };
+            return { valid: true, reason: "https_origin", shouldLog: false, shouldReject: false };
         }
-        return { valid: false, reason: "invalid_protocol", shouldLog: true };
+        return { valid: false, reason: "invalid_protocol", shouldLog: true, shouldReject: true };
     }
     catch {
-        return { valid: false, reason: "malformed_origin", shouldLog: true };
+        return { valid: false, reason: "malformed_origin", shouldLog: true, shouldReject: true };
     }
 }
 export function validatePixelOriginForShop(origin: string | null, shopAllowedDomains: string[]): {
@@ -112,11 +124,20 @@ export function validatePixelOriginForShop(origin: string | null, shopAllowedDom
     matched?: string;
     shouldReject: boolean;
 } {
+    const devMode = isDevMode();
     if (origin === "null" || origin === null) {
-        return { valid: true, reason: "sandbox_origin", shouldReject: false };
+        return {
+            valid: devMode,
+            reason: devMode ? "sandbox_origin_dev" : "null_origin_blocked",
+            shouldReject: !devMode,
+        };
     }
     if (!origin) {
-        return { valid: true, reason: "no_origin_header", shouldReject: false };
+        return {
+            valid: devMode,
+            reason: devMode ? "no_origin_dev" : "missing_origin",
+            shouldReject: !devMode,
+        };
     }
     try {
         const url = new URL(origin);
