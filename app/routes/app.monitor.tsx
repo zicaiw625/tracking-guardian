@@ -8,7 +8,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getDeliveryHealthHistory, getDeliveryHealthSummary, type DeliveryHealthReport, } from "../services/delivery-health.server";
 import type { Platform } from "../types";
-import { PLATFORM_NAMES } from "../types";
+import { PLATFORM_NAMES, isValidPlatform } from "../types";
 interface DeliverySummary {
     platform: string;
     last7DaysAttempted: number;
@@ -40,7 +40,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shopDomain },
     });
     if (!shop) {
-        return json({ shop: null, summary: {}, history: [], conversionStats: null });
+        return json({ 
+            shop: null, 
+            summary: {}, 
+            history: [], 
+            conversionStats: null,
+            configHealth: {
+                appUrl: process.env.SHOPIFY_APP_URL || "",
+                lastPixelOrigin: null,
+                lastPixelTime: null
+            },
+            lastUpdated: new Date().toISOString()
+        });
     }
     const summary = await getDeliveryHealthSummary(shop.id);
     const history = await getDeliveryHealthHistory(shop.id, 30);
@@ -78,11 +89,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             appUrl,
             lastPixelOrigin: latestReceipt?.originHost || null,
             lastPixelTime: latestReceipt?.createdAt || null
-        }
+        },
+        lastUpdated: new Date().toISOString()
     });
 };
 export default function MonitorPage() {
-    const { shop, summary, history, conversionStats, configHealth } = useLoaderData<typeof loader>();
+    const { shop, summary, history, conversionStats, configHealth, lastUpdated } = useLoaderData<typeof loader>();
     const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
     
     // Check for environment mismatch
@@ -96,7 +108,7 @@ export default function MonitorPage() {
     // If we received it, it sent to current URL. So this confirms connectivity.
     // If we haven't received anything recently, that's the issue.
     const lastHeartbeat = configHealth.lastPixelTime ? new Date(configHealth.lastPixelTime) : null;
-    const isHeartbeatStale = lastHeartbeat ? (Date.now() - lastHeartbeat.getTime() > 24 * 60 * 60 * 1000) : true;
+    const isHeartbeatStale = lastHeartbeat ? (new Date(lastUpdated).getTime() - lastHeartbeat.getTime() > 24 * 60 * 60 * 1000) : true;
 
     const summaryData: Record<string, DeliverySummary> = (summary ?? {}) as Record<string, DeliverySummary>;
     const historyData = ((history ?? []) as unknown as Array<Omit<DeliveryHealthReport, 'reportDate'> & {
@@ -141,7 +153,7 @@ export default function MonitorPage() {
     const platformOptions = [
         { label: "所有平台", value: "all" },
         ...Object.keys(summaryData).map((p) => ({
-            label: PLATFORM_NAMES[p] || p,
+            label: isValidPlatform(p) ? PLATFORM_NAMES[p] : p,
             value: p,
         })),
     ];
@@ -261,7 +273,7 @@ export default function MonitorPage() {
                   <BlockStack gap="300">
                     <InlineStack align="space-between">
                       <Text as="h3" variant="headingMd">
-                        {PLATFORM_NAMES[platform] || platform}
+                        {isValidPlatform(platform) ? PLATFORM_NAMES[platform] : platform}
                       </Text>
                       <Badge tone={data.avgSuccessRate >= 0.95
                     ? "success"
@@ -306,7 +318,7 @@ export default function MonitorPage() {
                 过去 7 天转化发送统计
               </Text>
               <DataTable columnContentTypes={["text", "numeric", "numeric", "numeric", "text"]} headings={["平台", "总转化", "成功发送", "发送失败", "发送成功率"]} rows={Object.entries(processedStats).map(([platform, stats]) => [
-                PLATFORM_NAMES[platform] || platform,
+                isValidPlatform(platform) ? PLATFORM_NAMES[platform] : platform,
                 stats.total,
                 stats.sent,
                 stats.failed,
@@ -342,7 +354,7 @@ export default function MonitorPage() {
                 "状态",
             ]} rows={filteredHistory.slice(0, 20).map((report) => [
                 new Date(report.reportDate).toLocaleDateString("zh-CN"),
-                PLATFORM_NAMES[report.platform] || report.platform,
+                isValidPlatform(report.platform) ? PLATFORM_NAMES[report.platform] : report.platform,
                 report.shopifyOrders,
                 report.platformConversions,
                 `${(report.orderDiscrepancy * 100).toFixed(1)}%`,

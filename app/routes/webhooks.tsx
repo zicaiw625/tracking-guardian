@@ -10,6 +10,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { dispatchWebhook, type WebhookContext, type ShopWithPixelConfigs } from "../webhooks";
+import { tryAcquireWebhookLock } from "../webhooks/middleware/idempotency";
 
 // =============================================================================
 // Action Handler

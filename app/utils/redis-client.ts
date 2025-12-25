@@ -76,8 +76,6 @@ class InMemoryFallback implements RedisClientWrapper {
   }
 
   private cleanup(): void {
-    const now = Date.now();
-
     // Cleanup strings
     for (const [key, entry] of this.stringStore.entries()) {
       if (this.isExpired(entry.expiresAt)) {
@@ -406,22 +404,20 @@ class RedisClientFactory {
   }
 
   private createWrapper(client: RedisClientType): RedisClientWrapper {
-    const factory = this;
-
     return {
-      async get(key: string): Promise<string | null> {
+      get: async (key: string): Promise<string | null> => {
         try {
           return await client.get(key);
         } catch {
-          return factory.fallback.get(key);
+          return this.fallback.get(key);
         }
       },
 
-      async set(
+      set: async (
         key: string,
         value: string,
         options?: { EX?: number }
-      ): Promise<void> {
+      ): Promise<void> => {
         try {
           if (options?.EX) {
             await client.set(key, value, { EX: options.EX });
@@ -429,92 +425,92 @@ class RedisClientFactory {
             await client.set(key, value);
           }
         } catch {
-          await factory.fallback.set(key, value, options);
+          await this.fallback.set(key, value, options);
         }
       },
 
-      async del(key: string): Promise<number> {
+      del: async (key: string): Promise<number> => {
         try {
           return await client.del(key);
         } catch {
-          return factory.fallback.del(key);
+          return this.fallback.del(key);
         }
       },
 
-      async incr(key: string): Promise<number> {
+      incr: async (key: string): Promise<number> => {
         try {
           return await client.incr(key);
         } catch {
-          return factory.fallback.incr(key);
+          return this.fallback.incr(key);
         }
       },
 
-      async expire(key: string, seconds: number): Promise<boolean> {
+      expire: async (key: string, seconds: number): Promise<boolean> => {
         try {
           return await client.expire(key, seconds);
         } catch {
-          return factory.fallback.expire(key, seconds);
+          return this.fallback.expire(key, seconds);
         }
       },
 
-      async ttl(key: string): Promise<number> {
+      ttl: async (key: string): Promise<number> => {
         try {
           return await client.ttl(key);
         } catch {
-          return factory.fallback.ttl(key);
+          return this.fallback.ttl(key);
         }
       },
 
-      async hGetAll(key: string): Promise<Record<string, string>> {
+      hGetAll: async (key: string): Promise<Record<string, string>> => {
         try {
           return await client.hGetAll(key);
         } catch {
-          return factory.fallback.hGetAll(key);
+          return this.fallback.hGetAll(key);
         }
       },
 
-      async hSet(key: string, field: string, value: string): Promise<number> {
+      hSet: async (key: string, field: string, value: string): Promise<number> => {
         try {
           return await client.hSet(key, field, value);
         } catch {
-          return factory.fallback.hSet(key, field, value);
+          return this.fallback.hSet(key, field, value);
         }
       },
 
-      async hMSet(key: string, fields: Record<string, string>): Promise<void> {
+      hMSet: async (key: string, fields: Record<string, string>): Promise<void> => {
         try {
           await client.hSet(key, fields);
         } catch {
-          await factory.fallback.hMSet(key, fields);
+          await this.fallback.hMSet(key, fields);
         }
       },
 
-      async hIncrBy(
+      hIncrBy: async (
         key: string,
         field: string,
         increment: number
-      ): Promise<number> {
+      ): Promise<number> => {
         try {
           return await client.hIncrBy(key, field, increment);
         } catch {
-          return factory.fallback.hIncrBy(key, field, increment);
+          return this.fallback.hIncrBy(key, field, increment);
         }
       },
 
-      async keys(pattern: string): Promise<string[]> {
+      keys: async (pattern: string): Promise<string[]> => {
         try {
           return await client.keys(pattern);
         } catch {
-          return factory.fallback.keys(pattern);
+          return this.fallback.keys(pattern);
         }
       },
 
-      isConnected(): boolean {
-        return factory.connectionInfo.connected;
+      isConnected: (): boolean => {
+        return this.connectionInfo.connected;
       },
 
-      getConnectionInfo(): ConnectionInfo {
-        return { ...factory.connectionInfo };
+      getConnectionInfo: (): ConnectionInfo => {
+        return { ...this.connectionInfo };
       },
     };
   }

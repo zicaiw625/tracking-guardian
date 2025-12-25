@@ -82,7 +82,7 @@ function DataTypeCard({
           <Text as="h3" variant="headingSm">
             {title}
           </Text>
-          <Badge tone={tone}>{items.length} 项</Badge>
+          <Badge tone={tone}>{`${items.length} 项`}</Badge>
         </InlineStack>
         <Text as="p" variant="bodySm" tone="subdued">
           {description}
@@ -111,12 +111,17 @@ function CollapsibleSection({
   return (
     <Card>
       <BlockStack gap="300">
-        <Button
-          variant="plain"
-          textAlign="left"
+        <div
           onClick={() => setOpen(!open)}
-          ariaExpanded={open}
-          fullWidth
+          aria-expanded={open}
+          style={{ cursor: "pointer", width: "100%" }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setOpen(!open);
+            }
+          }}
         >
           <InlineStack align="space-between" blockAlign="center" gap="200">
             <Text as="span" variant="headingMd">
@@ -126,7 +131,7 @@ function CollapsibleSection({
               {open ? "▲" : "▼"}
             </Text>
           </InlineStack>
-        </Button>
+        </div>
         <Collapsible open={open} id={`section-${title}`}>
           <Box paddingBlockStart="200">{children}</Box>
         </Collapsible>

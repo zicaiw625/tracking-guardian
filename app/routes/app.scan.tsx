@@ -52,6 +52,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 identifiedPlatforms?: string[];
                 riskItems?: RiskItem[];
                 riskScore?: number;
+                additionalScriptsPatterns?: Array<{ platform: string; content: string }>;
             };
             // Re-generate migration actions from current scan data
             const { generateMigrationActions } = await import("../services/scanner/migration-actions");
@@ -68,6 +69,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 webPixels: webPixels.map(p => ({ id: p.id, settings: p.settings })),
                 duplicatePixels: [],
                 migrationActions: [],
+                additionalScriptsPatterns: (scanData.additionalScriptsPatterns as Array<{ platform: string; content: string }>) || [],
             };
             const shopTier = (shop.shopTier as string) || "unknown";
             migrationActions = generateMigrationActions(enhancedResult, shopTier);

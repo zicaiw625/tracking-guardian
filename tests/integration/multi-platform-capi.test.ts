@@ -43,15 +43,15 @@ vi.mock("../../app/utils/logger", () => ({
   },
 }));
 
-vi.mock("../../app/services/platforms/google.server", () => ({
+vi.mock("../../app/services/platforms/google.service", () => ({
   sendConversionToGoogle: vi.fn(),
 }));
 
-vi.mock("../../app/services/platforms/meta.server", () => ({
+vi.mock("../../app/services/platforms/meta.service", () => ({
   sendConversionToMeta: vi.fn(),
 }));
 
-vi.mock("../../app/services/platforms/tiktok.server", () => ({
+vi.mock("../../app/services/platforms/tiktok.service", () => ({
   sendConversionToTikTok: vi.fn(),
 }));
 
@@ -64,9 +64,9 @@ vi.mock("../../app/services/billing.server", () => ({
   incrementMonthlyUsage: vi.fn(),
 }));
 
-import { sendConversionToGoogle } from "../../app/services/platforms/google.server";
-import { sendConversionToMeta } from "../../app/services/platforms/meta.server";
-import { sendConversionToTikTok } from "../../app/services/platforms/tiktok.server";
+import { sendConversionToGoogle } from "../../app/services/platforms/google.service";
+import { sendConversionToMeta } from "../../app/services/platforms/meta.service";
+import { sendConversionToTikTok } from "../../app/services/platforms/tiktok.service";
 import { 
   verifyReceiptTrust, 
   isSendAllowedByTrust,

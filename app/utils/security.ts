@@ -360,7 +360,8 @@ export function validateDatabaseInput(input: unknown): boolean {
 export const SafeStringSchema = z
   .string()
   .max(10000, "String too long")
-  .refine((s) => !/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(s), {
+  // eslint-disable-next-line no-control-regex
+  .refine((s) => !/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(s), {
     message: "String contains invalid control characters",
   });
 

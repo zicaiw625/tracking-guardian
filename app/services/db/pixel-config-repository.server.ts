@@ -29,7 +29,7 @@ export interface PixelConfigCredentials {
 /**
  * Full pixel config with all fields.
  */
-export interface PixelConfigFull extends PixelConfig {}
+export type PixelConfigFull = PixelConfig;
 
 /**
  * Summary for displaying in UI.

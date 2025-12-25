@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useRevalidator } from "@remix-run/react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Box, Divider, Banner, ProgressBar, } from "@shopify/polaris";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Box, Divider, Banner, ProgressBar, DataTable, } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } from "../services/migration.server";
@@ -71,6 +71,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 sentToPlatforms: 0,
                 period: "24h",
             } as EventFunnel,
+            webhookHealth: {
+                totalWebhooks24h: 0,
+                failedWebhooks24h: 0,
+                queuedJobs: 0,
+                deadLetterJobs: 0,
+            },
+            recentEvents: [],
             lastUpdated: new Date().toISOString(),
         });
     }

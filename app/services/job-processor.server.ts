@@ -145,7 +145,7 @@ const BATCH_BACKOFF_CONFIG = {
 } as const;
 
 // Global backoff state (per process)
-let batchBackoffState: BatchBackoffState = {
+const batchBackoffState: BatchBackoffState = {
   consecutiveHighFailureBatches: 0,
   lastBatchFailureRate: 0,
   currentDelayMs: 0,

@@ -36,8 +36,8 @@ export default function PublicPrivacyPolicy() {
         <Card>
           <BlockStack gap="400">
             <Text as="p">
-              This privacy policy describes how Tracking Guardian ("we", "our",
-              "the App") collects, uses, and protects data when merchants
+              This privacy policy describes how Tracking Guardian (&quot;we&quot;, &quot;our&quot;,
+              &quot;the App&quot;) collects, uses, and protects data when merchants
               install and use our Shopify application.
             </Text>
 

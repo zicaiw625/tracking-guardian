@@ -44,6 +44,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 enabled: false,
                 lastChecked: null,
             },
+            hasRequiredScopes: false,
         });
     }
 
@@ -96,6 +97,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
     });
+    
+    // Check for required scopes
+    const hasRequiredScopes = session.scope?.split(",").includes("read_customer_events") || false;
 
     return json({
         shop: { id: shop.id, domain: shopDomain },
@@ -108,7 +112,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         typOspStatus: {
             enabled: typOspPagesEnabled ?? false,
             lastChecked: typOspLastChecked ? typOspLastChecked.toISOString() : null,
-        }
+        },
+        hasRequiredScopes
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -245,7 +250,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 type SetupStep = "typOsp" | "pixel" | "capi" | "complete";
 export default function MigratePage() {
-    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus } = useLoaderData<typeof loader>();
+    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -479,14 +484,14 @@ export default function MigratePage() {
                       <Text as="p" fontWeight="semibold">如何升级：</Text>
                       <List type="number">
                         <List.Item>点击下方按钮前往 <strong>Shopify 后台 → 设置 → 结账</strong></List.Item>
-                        <List.Item>查找 <strong>"Upgrade to Checkout Extensibility"</strong> 或类似横幅</List.Item>
+                        <List.Item>查找 <strong>“Upgrade to Checkout Extensibility”</strong> 或类似横幅</List.Item>
                         <List.Item>按照提示创建并发布新的 Checkout Profile</List.Item>
                       </List>
                     </BlockStack>
                   </Box>
 
                   <InlineStack gap="200">
-                    <Button variant="primary" url={`https://admin.shopify.com/store/${shop.domain.replace('.myshopify.com', '')}/settings/checkout`} external target="_blank">
+                    <Button variant="primary" url={`https://admin.shopify.com/store/${shop?.domain?.replace('.myshopify.com', '') || ''}/settings/checkout`} external target="_blank">
                       前往 Shopify 后台升级
                     </Button>
                     <Button onClick={() => window.location.reload()}>

@@ -138,41 +138,47 @@ export default function SettingsPage() {
 
   // Effects
   useEffect(() => {
-    if (selectedTab === 0) {
-      checkAlertFormDirty();
-    } else if (selectedTab === 1) {
-      checkServerFormDirty();
-    }
+    const timer = setTimeout(() => {
+      if (selectedTab === 0) {
+        checkAlertFormDirty();
+      } else if (selectedTab === 1) {
+        checkServerFormDirty();
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [selectedTab, checkAlertFormDirty, checkServerFormDirty]);
 
   // Reset form dirty state after successful save
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
-      if (selectedTab === 0) {
-        initialAlertValues.current = {
-          channel: alertChannel,
-          email: alertEmail,
-          slackWebhook: slackWebhook,
-          telegramToken: telegramToken,
-          telegramChatId: telegramChatId,
-          threshold: alertThreshold,
-          enabled: alertEnabled,
-        };
-        setAlertFormDirty(false);
-      } else if (selectedTab === 1) {
-        initialServerValues.current = {
-          platform: serverPlatform,
-          enabled: serverEnabled,
-          metaPixelId: metaPixelId,
-          metaAccessToken: metaAccessToken,
-          metaTestCode: metaTestCode,
-          googleMeasurementId: googleMeasurementId,
-          googleApiSecret: googleApiSecret,
-          tiktokPixelId: tiktokPixelId,
-          tiktokAccessToken: tiktokAccessToken,
-        };
-        setServerFormDirty(false);
-      }
+      const timer = setTimeout(() => {
+        if (selectedTab === 0) {
+          initialAlertValues.current = {
+            channel: alertChannel,
+            email: alertEmail,
+            slackWebhook: slackWebhook,
+            telegramToken: telegramToken,
+            telegramChatId: telegramChatId,
+            threshold: alertThreshold,
+            enabled: alertEnabled,
+          };
+          setAlertFormDirty(false);
+        } else if (selectedTab === 1) {
+          initialServerValues.current = {
+            platform: serverPlatform,
+            enabled: serverEnabled,
+            metaPixelId: metaPixelId,
+            metaAccessToken: metaAccessToken,
+            metaTestCode: metaTestCode,
+            googleMeasurementId: googleMeasurementId,
+            googleApiSecret: googleApiSecret,
+            tiktokPixelId: tiktokPixelId,
+            tiktokAccessToken: tiktokAccessToken,
+          };
+          setServerFormDirty(false);
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [
     actionData,

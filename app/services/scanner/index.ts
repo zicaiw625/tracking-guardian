@@ -358,7 +358,8 @@ export async function getCachedScanResult(
     return {
         scriptTags: (cached.scriptTags as ScriptTag[] | null) || [],
         checkoutConfig: (cached.checkoutConfig as CheckoutConfig | null) || null,
-        identifiedPlatforms: cached.identifiedPlatforms || [],
+        identifiedPlatforms: (cached.identifiedPlatforms as string[]) || [],
+        additionalScriptsPatterns: [], // Not stored in DB to avoid PII
         riskItems: (cached.riskItems as ScanResult["riskItems"] | null) || [],
         riskScore: cached.riskScore || 0,
         webPixels: [], // Web pixels need to be re-fetched for freshness
@@ -379,6 +380,13 @@ export async function scanShopTracking(
 ): Promise<EnhancedScanResult> {
     const { force = false, cacheTtlMs = SCAN_CACHE_TTL_MS } = options;
 
+    // Fetch shop tier for migration actions
+    const shop = await prisma.shop.findUnique({
+        where: { id: shopId },
+        select: { shopTier: true }
+    });
+    const shopTier = shop?.shopTier || "unknown";
+
     // P2-2: Check cache unless force refresh is requested
     if (!force) {
         const cached = await getCachedScanResult(shopId, cacheTtlMs);
@@ -387,7 +395,7 @@ export async function scanShopTracking(
             try {
                 cached.webPixels = await fetchAllWebPixels(admin);
                 cached.duplicatePixels = detectDuplicatePixels(cached);
-                cached.migrationActions = generateMigrationActions(cached);
+                cached.migrationActions = generateMigrationActions(cached, shopTier);
                 logger.info(`Returning cached scan with fresh web pixels for shop ${shopId}`);
             } catch (error) {
                 logger.warn(`Failed to refresh web pixels for cached scan: ${error}`);
@@ -400,6 +408,7 @@ export async function scanShopTracking(
         scriptTags: [],
         checkoutConfig: null,
         identifiedPlatforms: [],
+        additionalScriptsPatterns: [],
         riskItems: [],
         riskScore: 0,
         webPixels: [],
@@ -490,7 +499,7 @@ export async function scanShopTracking(
     logger.info(`Risk assessment complete: score=${result.riskScore}, items=${result.riskItems.length}`);
 
     // Generate migration actions
-    result.migrationActions = generateMigrationActions(result);
+    result.migrationActions = generateMigrationActions(result, shopTier);
     logger.info(`Generated ${result.migrationActions.length} migration actions`);
 
     // Save report

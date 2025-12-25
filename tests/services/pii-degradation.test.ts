@@ -67,7 +67,7 @@ describe("P0-01: PII Degradation Handling", () => {
   describe("Meta CAPI with degraded PII", () => {
     it("should build user data with no PII without throwing", async () => {
       const { sendConversionToMeta } = await import(
-        "../../app/services/platforms/meta.server"
+        "../../app/services/platforms/meta.service"
       );
 
       const conversionData: ConversionData = {
@@ -93,7 +93,7 @@ describe("P0-01: PII Degradation Handling", () => {
 
     it("should send conversion with partial PII", async () => {
       const { sendConversionToMeta } = await import(
-        "../../app/services/platforms/meta.server"
+        "../../app/services/platforms/meta.service"
       );
 
       const conversionData: ConversionData = {
@@ -129,7 +129,7 @@ describe("P0-01: PII Degradation Handling", () => {
   describe("TikTok Events API with degraded PII", () => {
     it("should send conversion with no PII without throwing", async () => {
       const { sendConversionToTikTok } = await import(
-        "../../app/services/platforms/tiktok.server"
+        "../../app/services/platforms/tiktok.service"
       );
 
       const conversionData: ConversionData = {
@@ -157,7 +157,7 @@ describe("P0-01: PII Degradation Handling", () => {
   describe("Error handling with degraded data", () => {
     it("should handle API errors gracefully with degraded PII", async () => {
       const { sendConversionToMeta } = await import(
-        "../../app/services/platforms/meta.server"
+        "../../app/services/platforms/meta.service"
       );
 
       const conversionData: ConversionData = {

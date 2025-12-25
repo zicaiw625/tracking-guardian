@@ -21,16 +21,10 @@ import { Platform, type PlatformType } from "./enums";
  */
 export type { PlatformType as Platform };
 
-export const PLATFORM_NAMES: Record<Platform, string> = {
+export const PLATFORM_NAMES: Record<PlatformType, string> = {
   [Platform.GOOGLE]: "GA4 (Measurement Protocol)",
   [Platform.META]: "Meta (Facebook)",
   [Platform.TIKTOK]: "TikTok",
-  [Platform.PINTEREST]: "Pinterest",
-  [Platform.SNAPCHAT]: "Snapchat",
-  [Platform.TWITTER]: "X (Twitter)",
-  [Platform.MICROSOFT]: "Microsoft Ads",
-  [Platform.CLARITY]: "Microsoft Clarity",
-  [Platform.UNKNOWN]: "Unknown",
 };
 
 // =============================================================================

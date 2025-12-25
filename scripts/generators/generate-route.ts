@@ -443,7 +443,7 @@ function generateRoute(config: RouteConfig): void {
   const componentName = toComponentName(config.name);
   const title = toTitle(config.name);
 
-  let content = template
+  const content = template
     .replace(/\{\{NAME\}\}/g, config.name)
     .replace(/\{\{COMPONENT_NAME\}\}/g, componentName)
     .replace(/\{\{TITLE\}\}/g, title);

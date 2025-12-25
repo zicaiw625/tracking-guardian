@@ -63,6 +63,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({
       shop: null,
       dashboardData: null,
+      selectedDays: 7,
     });
   }
 
@@ -309,7 +310,7 @@ function GapAnalysisCard({
                       {item.count} 个
                     </Text>
                     <Badge tone={getReasonTone(item.reason)}>
-                      {item.percentage.toFixed(0)}%
+                      {`${item.percentage.toFixed(0)}%`}
                     </Badge>
                   </InlineStack>
                 </InlineStack>
@@ -350,7 +351,7 @@ function RecommendationCard({
             策略建议
           </Text>
           <Badge>
-            当前: {strategyLabels[recommendation.currentStrategy] || recommendation.currentStrategy}
+            {`当前: ${strategyLabels[recommendation.currentStrategy] || recommendation.currentStrategy}`}
           </Badge>
         </InlineStack>
 
@@ -486,7 +487,7 @@ function TrendCard({
                       Pixel: {day.pixelReceipts}
                     </Text>
                     {day.gap > 0 && (
-                      <Badge tone="warning">缺口: {day.gap}</Badge>
+                      <Badge tone="warning">{`缺口: ${day.gap}`}</Badge>
                     )}
                   </InlineStack>
                 </InlineStack>
@@ -635,7 +636,7 @@ export default function ReconciliationPage() {
           <BlockStack gap="200">
             <p>
               <strong>什么是送达健康度？</strong>送达健康度显示的是 Shopify 订单有多少成功发送到了广告平台（Meta、Google、TikTok 等）。
-              这是"我们是否成功投递事件"的视角，而非"平台实际归因了多少转化"。
+              这是“我们是否成功投递事件”的视角，而非“平台实际归因了多少转化”。
             </p>
             <p>
               <strong>常见送达缺口原因：</strong>
@@ -647,8 +648,8 @@ export default function ReconciliationPage() {
               <li>平台 API 临时错误</li>
             </ul>
             <p>
-              <strong>📊 想要"平台报表对账"？</strong>
-              如需对比"我们发送的转化数"与"Meta/Google 后台显示的转化数"，需要集成各平台的报表 API。
+              <strong>📊 想要“平台报表对账”？</strong>
+              如需对比“我们发送的转化数”与“Meta/Google 后台显示的转化数”，需要集成各平台的报表 API。
               这是高级功能，如有需求请联系我们。
             </p>
           </BlockStack>
