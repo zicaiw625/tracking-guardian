@@ -396,10 +396,13 @@ export function getAllowedPatterns(): Array<{
     description: string;
     example?: string;
 }> {
+    const nullOriginAllowed = shouldAllowNullOrigin();
     return [
         {
             pattern: 'Origin: "null"',
-            description: "Web Pixel sandbox (expected)",
+            description: nullOriginAllowed
+                ? "Web Pixel sandbox (allowed by policy)"
+                : "Web Pixel sandbox (blocked: set PIXEL_ALLOW_NULL_ORIGIN=true to allow)",
             example: 'Origin: null',
         },
         ...ALLOWED_ORIGIN_PATTERNS.map(p => ({
