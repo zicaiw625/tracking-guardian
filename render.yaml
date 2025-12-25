@@ -8,8 +8,8 @@ services:
     runtime: node
     region: singapore  # 亚洲区域，可改为 oregon/frankfurt 等
     plan: free  # 可升级为 starter/standard
-    buildCommand: yarn install --frozen-lockfile && yarn generate && yarn db:deploy && yarn build
-    startCommand: yarn start
+    buildCommand: pnpm install && pnpm generate && pnpm db:deploy && pnpm build
+    startCommand: pnpm start
     healthCheckPath: /
     envVars:
       - key: NODE_ENV

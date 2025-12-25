@@ -82,8 +82,10 @@
 
 ```bash
 cd "Post-purchase Tracking Guardian"
-yarn install --frozen-lockfile
+pnpm install
 ```
+
+> 首次安装会生成 `pnpm-lock.yaml`，后续在 CI 或部署环境可使用 `pnpm install --frozen-lockfile` 确保依赖锁定。
 
 2. **配置环境变量**
 
@@ -100,14 +102,14 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 3. **初始化数据库**
 
 ```bash
-yarn generate
-yarn db:deploy
+pnpm generate
+pnpm db:deploy
 ```
 
 4. **启动开发服务器**
 
 ```bash
-yarn dev
+pnpm dev
 ```
 
 ### 部署
@@ -255,13 +257,13 @@ ScriptTag 清理需要商家手动操作：
 
 ```bash
 # 运行所有测试
-yarn test
+pnpm test
 
 # 运行特定测试
-yarn test tests/services/scanner.test.ts
+pnpm test tests/services/scanner.test.ts
 
 # 运行测试并生成覆盖率报告
-yarn test:coverage
+pnpm test:coverage
 ```
 
 ## 贡献指南

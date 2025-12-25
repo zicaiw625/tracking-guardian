@@ -366,7 +366,7 @@ Since we don't use PII fields, we're NOT affected by the 2025-12-10 PCD enforcem
 ### Code Verification
 - [ ] Run `grep -r "email\|phone\|address" extensions/` - should NOT show any data access
 - [ ] Run `./scripts/check-extension-urls.sh` - all URLs correct
-- [ ] All tests passing (`yarn test`)
+- [ ] All tests passing (`pnpm test`)
 
 ### Documentation
 - [ ] COMPLIANCE.md updated with correct dates
@@ -378,4 +378,3 @@ Since we don't use PII fields, we're NOT affected by the 2025-12-10 PCD enforcem
 *Document Version: 1.1*
 *Last Updated: 2025-12*
 *For Shopify App Store Review*
-
