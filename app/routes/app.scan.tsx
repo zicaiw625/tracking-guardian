@@ -1199,10 +1199,25 @@ export default function ScanPage() {
                     <Text as="h2" variant="headingMd">
                       手动分析 Additional Scripts
                     </Text>
-                    <Text as="p" tone="subdued">
-                      Shopify API 无法自动读取 Additional Scripts 内容。
-                      请从 Shopify 后台复制脚本代码，粘贴到下方进行分析。
-                    </Text>
+                    <BlockStack gap="200">
+                      <Text as="p" tone="subdued">
+                        Shopify API 无法自动读取 Additional Scripts 内容。
+                        请从 Shopify 后台复制脚本代码，粘贴到下方进行分析。
+                      </Text>
+                      <Banner tone="warning" title="隐私提示：请先脱敏再粘贴">
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodySm">
+                            • 可能包含客户信息、访问令牌或第三方密钥，请在粘贴前删除/替换敏感字段。
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            • 我们不会持久化或日志记录您粘贴的内容；仅在浏览器会话内用于本地分析。
+                          </Text>
+                          <Text as="p" variant="bodySm">
+                            • 请勿将脚本内容分享给他人或在公共场所粘贴。
+                          </Text>
+                        </BlockStack>
+                      </Banner>
+                    </BlockStack>
 
                     <Banner tone="critical" title="Plus：2025-08-28 / 非 Plus：2026-08-26 将失效">
                       <BlockStack gap="100">
