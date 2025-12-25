@@ -68,20 +68,23 @@ TELEGRAM_CHAT_ID=your_chat_id
 
 ```bash
 # 安装依赖
-yarn install --frozen-lockfile
+pnpm install
 
 # 生成 Prisma Client
-yarn generate
+pnpm generate
 
 # 创建数据库表（使用 migrate deploy，保持与生产一致）
-yarn db:deploy
+pnpm db:deploy
 ```
+
+> 首次安装会生成 `pnpm-lock.yaml`，后续在 CI 或部署环境可以使用 `pnpm install --frozen-lockfile` 来确保依赖版本锁定。
+> 当前仓库未包含 `pnpm-lock.yaml`（本环境访问 npm registry 返回 403），请在可访问 registry 的环境执行 `pnpm install --frozen-lockfile` 生成并提交锁文件。
 
 ### 5. 本地开发
 
 ```bash
 # 启动开发服务器
-yarn dev
+pnpm dev
 ```
 
 访问 `https://localhost:3000` 并使用 Shopify CLI 进行开发:
@@ -117,8 +120,8 @@ shopify app dev
    - Dashboard → New → Web Service
    - 连接 GitHub 仓库
    - 配置：
-    - Build Command: `yarn render-build`
-    - Start Command: `yarn start`
+    - Build Command: `pnpm render-build`
+    - Start Command: `pnpm start`
    - 添加环境变量：
      ```
      DATABASE_URL=<Internal Database URL>
@@ -143,7 +146,7 @@ shopify app dev
 
 ```bash
 # 安装 Railway CLI
-yarn global add @railway/cli
+pnpm add -g @railway/cli
 
 # 登录
 railway login
@@ -172,10 +175,10 @@ Extensions 需要通过 Shopify CLI 部署。**首次部署会自动生成必需
 
 ```bash
 cd extensions/tracking-pixel
-yarn install --frozen-lockfile
+pnpm install
 
 cd ../thank-you-blocks  
-yarn install --frozen-lockfile
+pnpm install
 ```
 
 #### 8.2 部署 Extensions（首次部署会生成 uid）
