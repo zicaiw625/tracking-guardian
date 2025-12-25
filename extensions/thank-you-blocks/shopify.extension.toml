@@ -7,7 +7,7 @@ handle = "tracking-guardian-blocks"
 # Survey Block - Thank You Page
 # =============================================================================
 [[extensions]]
-type = "checkout_ui_extension"
+type = "ui_extension"
 name = "Post-purchase Survey"
 handle = "post-purchase-survey"
 
@@ -22,7 +22,7 @@ handle = "post-purchase-survey"
 # Survey Block - Order Status Page (Customer Account)
 # =============================================================================
 [[extensions]]
-type = "customer_account_ui_extension"
+type = "ui_extension"
 name = "Order Status Survey"
 handle = "order-status-survey"
 
@@ -37,7 +37,7 @@ handle = "order-status-survey"
 # Shipping Tracker Block - Thank You Page
 # =============================================================================
 [[extensions]]
-type = "checkout_ui_extension"
+type = "ui_extension"
 name = "Shipping Progress Tracker"
 handle = "shipping-tracker"
 
@@ -52,7 +52,7 @@ handle = "shipping-tracker"
 # Shipping Tracker Block - Order Status Page (Customer Account)
 # =============================================================================
 [[extensions]]
-type = "customer_account_ui_extension"
+type = "ui_extension"
 name = "Order Status Shipping Tracker"
 handle = "order-status-shipping-tracker"
 
@@ -67,7 +67,7 @@ handle = "order-status-shipping-tracker"
 # Upsell Offer Block - Thank You Page
 # =============================================================================
 [[extensions]]
-type = "checkout_ui_extension"
+type = "ui_extension"
 name = "Thank You Upsell Offer"
 handle = "upsell-offer"
 
@@ -82,7 +82,7 @@ handle = "upsell-offer"
 # Upsell Offer Block - Order Status Page (Customer Account)
 # =============================================================================
 [[extensions]]
-type = "customer_account_ui_extension"
+type = "ui_extension"
 name = "Order Status Upsell Offer"
 handle = "order-status-upsell-offer"
 
@@ -97,7 +97,7 @@ handle = "order-status-upsell-offer"
 # Support / FAQ Block - Thank You Page
 # =============================================================================
 [[extensions]]
-type = "checkout_ui_extension"
+type = "ui_extension"
 name = "Support & FAQ"
 handle = "support-faq"
 
@@ -112,7 +112,7 @@ handle = "support-faq"
 # Support / FAQ Block - Order Status Page (Customer Account)
 # =============================================================================
 [[extensions]]
-type = "customer_account_ui_extension"
+type = "ui_extension"
 name = "Order Status Support & FAQ"
 handle = "order-status-support-faq"
 
