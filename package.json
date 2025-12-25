@@ -6,6 +6,7 @@
   "scripts": {
     "build": "remix vite:build",
     "dev": "shopify app dev",
+    "preinstall": "node scripts/enforce-pnpm.mjs",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
     "shopify": "shopify",
     "start": "remix-serve ./build/server/index.js",
