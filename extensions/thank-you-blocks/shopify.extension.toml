@@ -94,6 +94,36 @@ handle = "order-status-upsell-offer"
   target = "customer-account.order-status.block.render"
 
 # =============================================================================
+# Support / FAQ Block - Thank You Page
+# =============================================================================
+[[extensions]]
+type = "checkout_ui_extension"
+name = "Support & FAQ"
+handle = "support-faq"
+
+  [extensions.capabilities]
+  network_access = false
+
+  [[extensions.targeting]]
+  module = "./src/Support.tsx"
+  target = "purchase.thank-you.block.render"
+
+# =============================================================================
+# Support / FAQ Block - Order Status Page (Customer Account)
+# =============================================================================
+[[extensions]]
+type = "customer_account_ui_extension"
+name = "Order Status Support & FAQ"
+handle = "order-status-support-faq"
+
+  [extensions.capabilities]
+  network_access = false
+
+  [[extensions.targeting]]
+  module = "./src/Support.orderStatus.tsx"
+  target = "customer-account.order-status.block.render"
+
+# =============================================================================
 # Settings Schema
 # =============================================================================
 [settings]
@@ -146,5 +176,36 @@ handle = "order-status-upsell-offer"
   key = "continue_shopping_url"
   name = "Continue Shopping URL"
   description = "URL to redirect when clicking 'Continue Shopping' (optional, defaults to store home)"
+  type = "single_line_text_field"
+
+  # Support / FAQ Settings
+  [[settings.fields]]
+  key = "support_title"
+  name = "Support block title"
+  description = "Heading for the support/FAQ block"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "support_description"
+  name = "Support block description"
+  description = "Short description shown under the title"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "support_contact_url"
+  name = "Support contact URL"
+  description = "Link to your helpdesk/contact page (mailto: also supported)"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "support_contact_email"
+  name = "Support email fallback"
+  description = "Used to build mailto: link if contact URL is empty"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "support_faq_url"
+  name = "FAQ URL"
+  description = "Link to your FAQ/knowledge base"
   type = "single_line_text_field"
   
