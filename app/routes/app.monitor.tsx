@@ -2,7 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable, Select, ProgressBar, Button, Icon, Link, Banner } from "@shopify/polaris";
-import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, } from "@shopify/polaris-icons";
+import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, } from "~/components/icons";
 import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";

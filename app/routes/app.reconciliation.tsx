@@ -36,7 +36,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   RefreshIcon,
-} from "@shopify/polaris-icons";
+} from "~/components/icons";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -658,4 +658,3 @@ export default function ReconciliationPage() {
     </Page>
   );
 }
-

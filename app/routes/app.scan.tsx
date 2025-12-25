@@ -3,7 +3,7 @@ import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useActionData, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useMemo } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, } from "@shopify/polaris-icons";
+import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, analyzeScriptContent, type ScriptAnalysisResult } from "../services/scanner.server";

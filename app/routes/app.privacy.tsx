@@ -31,7 +31,7 @@ import {
   DeleteIcon,
   InfoIcon,
   CheckCircleIcon,
-} from "@shopify/polaris-icons";
+} from "~/components/icons";
 import { useState } from "react";
 
 import { authenticate } from "../shopify.server";
@@ -590,4 +590,3 @@ export default function PrivacyPage() {
     </Page>
   );
 }
-
