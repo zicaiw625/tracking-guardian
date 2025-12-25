@@ -453,8 +453,8 @@ export default function MonitorPage() {
                 </Text>
 
                 {(isHeartbeatStale || !lastHeartbeat) && (
-                  <InlineStack gap="200">
-                    <Button url="/app/migrate" icon={RefreshIcon} variant="primary">
+                  <InlineStack gap="200" wrap>
+                    <Button url="/app/migrate#pixel" icon={RefreshIcon} variant="primary">
                       重新推送 App Pixel
                     </Button>
                     <Button url="/app/reconciliation" icon={SearchIcon}>
@@ -500,12 +500,15 @@ export default function MonitorPage() {
               <List.Item>前往“送达对账”页核对平台返回的发送结果与参数（如订单金额、货币、客户标识）</List.Item>
               <List.Item>若仍未收到事件，重新在“迁移”页点击“启用/升级 App Pixel”以刷新最新 backend URL</List.Item>
             </List>
-            <InlineStack gap="200">
+            <InlineStack gap="200" wrap>
               <Button url="/app/scan" icon={RefreshIcon} variant="primary">
                 重新扫描像素配置
               </Button>
               <Button url="/app/reconciliation" icon={SearchIcon}>
                 查看送达对账
+              </Button>
+              <Button url="/app/migrate#pixel" icon={RefreshIcon} variant="secondary">
+                重新推送 App Pixel
               </Button>
             </InlineStack>
           </BlockStack>
