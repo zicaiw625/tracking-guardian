@@ -27,9 +27,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Prisma
-prisma/migrations/
-
 # Shopify
 .shopify/
 
@@ -38,4 +35,3 @@ coverage/
 
 # Misc
 *.pem
-
