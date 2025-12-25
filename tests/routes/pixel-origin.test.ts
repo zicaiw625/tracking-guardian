@@ -32,19 +32,19 @@ describe("isValidPixelOrigin", () => {
     it("accepts string 'null' origin", () => {
       const result = isValidPixelOrigin("null");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("sandbox_origin");
+      expect(result.reason).toBe("null_origin_allowed");
     });
 
     it("accepts null value", () => {
       const result = isValidPixelOrigin(null);
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("sandbox_origin");
+      expect(result.reason).toBe("null_origin_allowed");
     });
 
     it("accepts empty string (no origin header)", () => {
       const result = isValidPixelOrigin("");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("no_origin_header");
+      expect(result.reason).toBe("no_origin_dev");
     });
   });
 

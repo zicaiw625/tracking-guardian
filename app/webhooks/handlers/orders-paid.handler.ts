@@ -19,6 +19,7 @@ import type { OrderWebhookPayload } from "../../types";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
 import type { Prisma } from "@prisma/client";
 import { extractPIISafely, logPIIStatus, type ExtractedPII } from "../../utils/pii";
+import { PCD_CONFIG } from "../../utils/config";
 
 // =============================================================================
 // PII Hashing
@@ -135,7 +136,12 @@ async function buildCapiInput(
 
   // P1-2: 提取并哈希 PII（仅当 piiEnabled && pcdAcknowledged）
   let hashedUserData: HashedUserData | null = null;
-  const shouldExtractPii = shopConfig.piiEnabled && shopConfig.pcdAcknowledged;
+  const pcdApproved = PCD_CONFIG.APPROVED;
+  const shouldExtractPii = shopConfig.piiEnabled && shopConfig.pcdAcknowledged && pcdApproved;
+  
+  if (shopConfig.piiEnabled && !pcdApproved) {
+    logger.info(`[P1-2] Skipping PII extraction for order ${orderId}: PCD approval not granted`);
+  }
   
   if (shouldExtractPii) {
     const pii = extractPIISafely(orderPayload, true);
@@ -376,4 +382,3 @@ export async function handleOrdersPaid(
     orderId,
   };
 }
-

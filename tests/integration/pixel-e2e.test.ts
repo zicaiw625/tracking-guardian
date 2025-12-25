@@ -84,7 +84,24 @@ describe("Web Pixel E2E Flow", () => {
     it("should accept valid pixel event from Web Pixel sandbox (null origin)", () => {
       const result = validatePixelOriginPreBody("null");
       expect(result.valid).toBe(true);
-      expect(result.reason).toBe("sandbox_origin");
+      expect(result.reason).toBe("null_origin_allowed");
+    });
+
+    it("should block null origin when policy disabled via env", () => {
+      const originalEnv = process.env.PIXEL_ALLOW_NULL_ORIGIN;
+      process.env.PIXEL_ALLOW_NULL_ORIGIN = "false";
+
+      try {
+        const result = validatePixelOriginPreBody("null");
+        expect(result.valid).toBe(false);
+        expect(result.reason).toBe("null_origin_blocked");
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.PIXEL_ALLOW_NULL_ORIGIN;
+        } else {
+          process.env.PIXEL_ALLOW_NULL_ORIGIN = originalEnv;
+        }
+      }
     });
 
     it("should accept valid pixel event from myshopify.com origin", () => {
@@ -255,4 +272,3 @@ describe("Web Pixel E2E Flow", () => {
     });
   });
 });
-

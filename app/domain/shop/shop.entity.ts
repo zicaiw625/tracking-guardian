@@ -6,6 +6,7 @@
  */
 
 import type { PlanId } from "../../services/billing/plans";
+import { PCD_CONFIG } from "../../utils/config";
 
 // =============================================================================
 // Value Objects
@@ -193,7 +194,7 @@ export function getShopStatus(shop: Shop): ShopStatus {
  * Check if shop has PII enabled and acknowledged
  */
 export function isPiiFullyEnabled(shop: ShopWithConsent): boolean {
-  return shop.piiEnabled && shop.pcdAcknowledged;
+  return shop.piiEnabled && shop.pcdAcknowledged && PCD_CONFIG.APPROVED;
 }
 
 /**
@@ -277,4 +278,3 @@ export function isValidConsentStrategy(value: unknown): value is ConsentStrategy
 export function isValidShopTier(value: unknown): value is ShopTier {
   return value === "plus" || value === "non_plus" || value === "unknown";
 }
-

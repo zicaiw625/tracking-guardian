@@ -67,12 +67,12 @@ Tracking Guardian processes order data to:
 
 ### Principle: Collect Only What's Necessary
 
-1. **No customer PII for tracking**: Email, phone, name, address are NOT collected, stored, or sent to ad platforms
-2. **Order data only**: We only process order ID, value, currency, and line items for conversion tracking
+1. **No customer PII for tracking（默认）**: 默认不收集、不存储、不发送邮箱/电话/姓名/地址；**仅当 Shopify PCD 审核通过且商家在后台手动开启“增强匹配/PII”并确认合规义务后，才会对订单中的受保护字段做本地哈希并发送。**
+2. **Order data only（必需集）**: 我们只处理订单 ID、金额、币种和行项目用于转化回传
 3. **Configurable retention**: Merchants control how long we retain conversion logs
 4. **Automatic cleanup**: Data older than retention period is automatically deleted
 
-**Privacy-First Approach**: We do not use hashed PII for ad platform matching. While this may reduce match rates, it provides stronger privacy guarantees and simpler compliance.
+**Privacy-First Default**: 默认隐私优先模式不使用任何 PII（即便是哈希值）。只有在「PCD 审核通过 + 商家明确开启」后，才会启用受保护字段的哈希增强匹配，并仍遵守最小化与合规校验。
 
 ### Clarification on Personal Data (for Compliance Review)
 
@@ -331,7 +331,7 @@ Confirm mandatory webhooks are registered:
 #### Important Notes
 
 1. **Level 1 Access**: Our `read_orders` scope for reconciliation reports falls under Level 1 protected data
-2. **No PII Storage**: We don't store email/phone/name, so Level 2+ is NOT required
+2. **No Raw PII Storage**: 默认不存储邮箱/电话/姓名/地址等原始字段；仅在「PCD 审核通过 + 商家开启」时存储本地哈希后的受保护字段用于转化对账，仍避免原始 PII 落库
 3. **Review Timeline**: Protected Customer Data review may take 2-4 weeks
 
 ---
@@ -441,7 +441,7 @@ correctly gates which platforms receive data based on actual consent state.
 | Meta CAPI | Order ID, Value, Items | Attribution | Consent required |
 | TikTok Events | Order ID, Value, Items | Attribution | Consent required |
 
-**Note**: No PII (email, phone, address) is sent to any platform. This is a privacy-first design choice.
+**Note**: 默认不向任何平台发送邮箱/电话/地址等 PII；只有在「PCD 审核通过 + 商家开启增强匹配」时才会发送本地哈希后的受保护字段。
 
 ### What's Shared
 
