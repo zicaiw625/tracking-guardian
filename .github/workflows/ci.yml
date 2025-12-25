@@ -18,23 +18,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
 
       - name: Generate Prisma Client
-        run: yarn generate
+        run: pnpm generate
 
       - name: ESLint
-        run: yarn lint
+        run: pnpm lint
 
       - name: TypeScript Check
-        run: yarn typecheck
+        run: pnpm typecheck
 
   compliance:
     name: Compliance Checks
@@ -43,29 +54,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
 
       - name: Generate Prisma Client
-        run: yarn generate
+        run: pnpm generate
 
       # P2-01: GraphQL-only 检查 - 确保不使用 REST API
       - name: Check GraphQL-only
-        run: yarn lint:graphql-only
+        run: pnpm lint:graphql-only
 
       # P2-01: API 版本一致性检查
       - name: Check API Version Consistency
-        run: yarn check:api-version
+        run: pnpm check:api-version
 
       # P2-01: API 版本一致性测试
       - name: Test API Version Consistency
-        run: yarn test --testPathPattern='api-version-consistency'
+        run: pnpm test --testPathPattern='api-version-consistency'
 
   test:
     name: Tests
@@ -75,20 +97,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
 
       - name: Generate Prisma Client
-        run: yarn generate
+        run: pnpm generate
 
       - name: Run Tests
-        run: yarn test
+        run: pnpm test
 
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
@@ -104,17 +137,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
 
-      - name: Run yarn audit
-        run: yarn audit --groups dependencies --level high
+      - name: Run pnpm audit
+        run: pnpm audit --prod --audit-level high
         continue-on-error: true
 
   build:
@@ -125,19 +169,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
 
       - name: Generate Prisma Client
-        run: yarn generate
+        run: pnpm generate
 
       - name: Build
-        run: yarn build
+        run: pnpm build
         env:
           NODE_ENV: production
