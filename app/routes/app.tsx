@@ -3,6 +3,7 @@ import { json } from "@remix-run/node";
 import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
+import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
 import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json";
@@ -35,5 +36,9 @@ export const headers: HeadersFunction = (headersArgs) => {
     return boundary.headers(headersArgs);
 };
 export function ErrorBoundary() {
-    return boundary.error(useRouteError());
+    return (
+        <PolarisAppProvider i18n={translations}>
+            {boundary.error(useRouteError())}
+        </PolarisAppProvider>
+    );
 }
