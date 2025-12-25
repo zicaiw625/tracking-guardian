@@ -1,6 +1,6 @@
 name = "Tracking Guardian"
-client_id = "${SHOPIFY_API_KEY}"
-application_url = "${SHOPIFY_APP_URL}"
+client_id = "00abdc5a393d94902ada694e9cb85e5f"
+application_url = "https://tracking-guardian.onrender.com"
 embedded = true
 
 [access_scopes]
@@ -10,9 +10,9 @@ scopes = "read_orders,read_script_tags,read_pixels,write_pixels,read_customer_ev
 
 [auth]
 redirect_urls = [
-  "${SHOPIFY_APP_URL}/auth/callback",
-  "${SHOPIFY_APP_URL}/auth/shopify/callback",
-  "${SHOPIFY_APP_URL}/api/auth/callback"
+  "https://tracking-guardian.onrender.com/auth/callback",
+  "https://tracking-guardian.onrender.com/auth/shopify/callback",
+  "https://tracking-guardian.onrender.com/api/auth/callback"
 ]
 
 [webhooks]
@@ -33,4 +33,4 @@ embedded = false
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "${SHOPIFY_DEV_STORE_URL}"
+dev_store_url = "https://tracking-guardian.onrender.com"
