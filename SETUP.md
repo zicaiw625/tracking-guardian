@@ -78,6 +78,7 @@ pnpm db:deploy
 ```
 
 > 首次安装会生成 `pnpm-lock.yaml`，后续在 CI 或部署环境可以使用 `pnpm install --frozen-lockfile` 来确保依赖版本锁定。
+> 当前仓库未包含 `pnpm-lock.yaml`（本环境访问 npm registry 返回 403），请在可访问 registry 的环境执行 `pnpm install --frozen-lockfile` 生成并提交锁文件。
 
 ### 5. 本地开发
 

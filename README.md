@@ -86,6 +86,7 @@ pnpm install
 ```
 
 > 首次安装会生成 `pnpm-lock.yaml`，后续在 CI 或部署环境可使用 `pnpm install --frozen-lockfile` 确保依赖锁定。
+> 当前仓库未包含 `pnpm-lock.yaml`（受限于本环境的 npm registry 403），请在有正常 registry 访问的环境运行 `pnpm install --frozen-lockfile` 生成并提交，以便锁定依赖。
 
 2. **配置环境变量**
 
