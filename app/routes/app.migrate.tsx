@@ -332,6 +332,9 @@ export default function MigratePage() {
     }, [pixelStatus, hasCapiConfig, typOspStatus.enabled]);
     /* eslint-enable react-hooks/set-state-in-effect */
     const handleEnablePixel = () => {
+        if (!isGrowthOrAbove) {
+            return;
+        }
         const formData = new FormData();
         formData.append("_action", "enablePixel");
         submit(formData, { method: "post" });
@@ -683,7 +686,24 @@ export default function MigratePage() {
                 return null;
             })()}
 
-                  <Button variant="primary" onClick={handleEnablePixel} loading={isSubmitting} size="large">
+                  {!isGrowthOrAbove && (
+                    <Banner
+                      tone="warning"
+                      action={{ content: "升级至 Growth", url: "/app/settings?tab=billing" }}
+                    >
+                      <Text as="p">
+                        App Pixel 启用与 CAPI 迁移在 Growth 及以上套餐开放。请升级后继续。
+                      </Text>
+                    </Banner>
+                  )}
+
+                  <Button
+                    variant="primary"
+                    onClick={handleEnablePixel}
+                    loading={isSubmitting}
+                    size="large"
+                    disabled={!isGrowthOrAbove}
+                  >
                     一键启用 App Pixel
                   </Button>
                 </BlockStack>
@@ -727,11 +747,22 @@ export default function MigratePage() {
                     </BlockStack>
                   </Banner>
 
+                  {!isProOrAbove && (
+                    <Banner
+                      tone="warning"
+                      action={{ content: "升级至 Pro", url: "/app/settings?tab=billing" }}
+                    >
+                      <Text as="p">
+                        事件对账与多渠道 CAPI 配置在 Pro 及以上开放。请升级以继续配置凭证。
+                      </Text>
+                    </Banner>
+                  )}
+
                   <InlineStack gap="200">
-                    <Button variant="primary" url="/app/settings" size="large">
+                    <Button variant="primary" url="/app/settings" size="large" disabled={!isProOrAbove}>
                       前往配置 CAPI 凭证
                     </Button>
-                    <Button onClick={() => setCurrentStep("complete")}>
+                    <Button onClick={() => setCurrentStep("complete")} disabled={!isProOrAbove}>
                       稍后配置
                     </Button>
                   </InlineStack>
