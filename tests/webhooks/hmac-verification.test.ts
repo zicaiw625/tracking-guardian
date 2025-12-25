@@ -13,6 +13,7 @@ vi.mock("../../app/db.server", () => ({
     webhookLog: {
       create: vi.fn(),
       update: vi.fn(),
+      findUnique: vi.fn(),
     },
     gDPRJob: {
       create: vi.fn(),
@@ -55,6 +56,23 @@ vi.mock("../../app/utils/webhook-validation", () => ({
       return null;
     }
     return payload;
+  }),
+  parseGDPRDataRequestPayload: vi.fn().mockReturnValue({
+    shop_id: 123456789,
+    shop_domain: "test-shop.myshopify.com",
+    orders_requested: [1001, 1002],
+    customer_id: 987654321,
+    data_request_id: 12345,
+  }),
+  parseGDPRCustomerRedactPayload: vi.fn().mockReturnValue({
+    shop_id: 123456789,
+    shop_domain: "test-shop.myshopify.com",
+    customer_id: 987654321,
+    orders_to_redact: [1001, 1002],
+  }),
+  parseGDPRShopRedactPayload: vi.fn().mockReturnValue({
+    shop_id: 123456789,
+    shop_domain: "test-shop.myshopify.com",
   }),
 }));
 
