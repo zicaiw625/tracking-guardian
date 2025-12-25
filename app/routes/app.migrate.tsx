@@ -331,7 +331,7 @@ export default function MigratePage() {
     ];
     const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
-    const timelineItems = [
+    const timelineItems = deadlines ? [
         {
             title: "ScriptTag 创建限制",
             badge: deadlines?.scriptTag.badge,
@@ -342,7 +342,8 @@ export default function MigratePage() {
             badge: deadlines?.additionalScripts.badge,
             description: deadlines?.additionalScripts.description,
         },
-    ];
+    ] : [];
+    const migrationUrgencyActions = migrationUrgency?.actions ?? [];
     return (<Page title="设置追踪" subtitle="配置服务端转化追踪（Server-side CAPI）">
       <BlockStack gap="500">
         {upgradeStatus && (<Banner title={upgradeStatus.title} tone={upgradeStatus.urgency === "critical"
@@ -417,7 +418,7 @@ export default function MigratePage() {
                 </Badge>)}
             </InlineStack>
             <BlockStack gap="200">
-              {timelineItems.map((item, idx) => (<Box key={idx} background="bg-surface-secondary" padding="300" borderRadius="200">
+              {timelineItems.length > 0 ? timelineItems.map((item, idx) => (<Box key={idx} background="bg-surface-secondary" padding="300" borderRadius="200">
                   <InlineStack align="space-between" blockAlign="center">
                     <Text as="span" fontWeight="semibold">{item.title}</Text>
                     {item.badge && (<Badge tone={item.badge.tone}>{item.badge.text}</Badge>)}
@@ -425,7 +426,15 @@ export default function MigratePage() {
                   {item.description && (<Text as="p" variant="bodySm" tone="subdued">
                       {item.description}
                     </Text>)}
-                </Box>))}
+                </Box>)) : (<Text as="p" tone="subdued" variant="bodySm">
+                  当前无法加载截止日期，请稍后重试或刷新页面。
+                </Text>)}
+              {migrationUrgency?.primaryMessage && (<Text as="p" variant="bodySm">
+                  {migrationUrgency.primaryMessage}
+                </Text>)}
+              {migrationUrgencyActions.length > 0 && (<List type="bullet">
+                  {migrationUrgencyActions.map((action, idx) => (<List.Item key={idx}>{action}</List.Item>))}
+                </List>)}
               <Text as="p" tone="subdued">
                 {shopTier === "plus"
                 ? "Plus 商家建议在 2025-08-28 前完成迁移；2026 年 1 月起 Shopify 将逐步自动升级。"
