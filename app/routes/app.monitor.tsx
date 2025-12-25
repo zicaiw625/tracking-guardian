@@ -452,6 +452,17 @@ export default function MonitorPage() {
                   {heartbeatDescription}
                 </Text>
 
+                {(isHeartbeatStale || !lastHeartbeat) && (
+                  <InlineStack gap="200">
+                    <Button url="/app/migrate" icon={RefreshIcon} variant="primary">
+                      重新推送 App Pixel
+                    </Button>
+                    <Button url="/app/reconciliation" icon={SearchIcon}>
+                      打开送达对账
+                    </Button>
+                  </InlineStack>
+                )}
+
                 {isHeartbeatStale && hasData && (
                   <Banner tone="critical">
                     <Text as="p" variant="bodySm">

@@ -1204,6 +1204,12 @@ export default function ScanPage() {
                       请从 Shopify 后台复制脚本代码，粘贴到下方进行分析。
                     </Text>
 
+                    <Banner tone="critical" title="Plus：2025-08-28 / 非 Plus：2026-08-26 将失效">
+                      <Text as="p" variant="bodySm">
+                        这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。
+                      </Text>
+                    </Banner>
+
                     <Banner tone="info">
                       <BlockStack gap="200">
                         <Text as="p" fontWeight="semibold">如何获取 Additional Scripts：</Text>
