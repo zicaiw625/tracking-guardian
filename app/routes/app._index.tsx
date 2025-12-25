@@ -23,6 +23,7 @@ import {
   Banner,
   Link,
   ProgressBar,
+  List,
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
 
@@ -134,10 +135,16 @@ function QuickStatsCard({
   configuredPlatforms,
   weeklyConversions,
   plan,
+  planLabel,
+  planTagline,
+  planFeatures,
 }: {
   configuredPlatforms: number;
   weeklyConversions: number;
   plan: string;
+  planLabel?: string;
+  planTagline?: string;
+  planFeatures?: string[];
 }) {
   return (
     <Card>
@@ -162,8 +169,37 @@ function QuickStatsCard({
           <Divider />
           <InlineStack align="space-between">
             <Text as="span">当前套餐</Text>
-            <Badge>{plan === "free" ? "免费版" : plan}</Badge>
+            <Badge>
+              {planLabel || (plan === "free" ? "免费版" : plan)}
+            </Badge>
           </InlineStack>
+          {planTagline && (
+            <Text as="p" variant="bodySm" tone="subdued">
+              {planTagline}
+            </Text>
+          )}
+          {planFeatures && planFeatures.length > 0 && (
+            <List spacing="tight">
+              {planFeatures.slice(0, 3).map((f, i) => (
+                <List.Item key={i}>
+                  <Text as="span" variant="bodySm">{f}</Text>
+                </List.Item>
+              ))}
+              {planFeatures.length > 3 && (
+                <List.Item>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    ...更多权益，详见套餐页
+                  </Text>
+                </List.Item>
+              )}
+            </List>
+          )}
+          <Button
+            url="/app/settings?tab=billing"
+            size="slim"
+          >
+            查看套餐/升级
+          </Button>
         </BlockStack>
       </BlockStack>
     </Card>
@@ -460,11 +496,14 @@ export default function Index() {
             <HealthScoreCard score={data.healthScore} status={data.healthStatus} />
           </Layout.Section>
           <Layout.Section variant="oneThird">
-            <QuickStatsCard
-              configuredPlatforms={data.configuredPlatforms}
-              weeklyConversions={data.weeklyConversions}
-              plan={data.plan}
-            />
+          <QuickStatsCard
+            configuredPlatforms={data.configuredPlatforms}
+            weeklyConversions={data.weeklyConversions}
+            plan={data.plan}
+            planLabel={data.planLabel}
+            planTagline={data.planTagline}
+            planFeatures={data.planFeatures}
+          />
           </Layout.Section>
           <Layout.Section variant="oneThird">
             <LatestScanCard latestScan={loaderData.latestScan} />
