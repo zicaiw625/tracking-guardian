@@ -59,9 +59,7 @@ const shopify = shopifyApp({
   hooks: {
     afterAuth: async ({ session, admin }) => {
       await handleAfterAuth(
-        { session, admin },
-        // Webhooks are managed via shopify.app.toml, so no manual registration needed here
-        async () => Promise.resolve() 
+        { session, admin }
       );
     },
   },

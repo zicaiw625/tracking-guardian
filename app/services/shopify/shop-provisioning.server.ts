@@ -33,23 +33,6 @@ interface ShopInfo {
 }
 
 // =============================================================================
-// Type Guards
-// =============================================================================
-
-/**
- * Type guard for WebhookRegisterResults
- */
-export function isWebhookRegisterResults(
-  result: unknown
-): result is WebhookRegisterResults {
-  return (
-    typeof result === "object" &&
-    result !== null &&
-    !Array.isArray(result)
-  );
-}
-
-// =============================================================================
 // Shop Info Fetching
 // =============================================================================
 
@@ -108,56 +91,6 @@ async function fetchShopInfo(
   }
 
   return { primaryDomain: primaryDomainHost, shopTier };
-}
-
-// =============================================================================
-// Webhook Registration
-// =============================================================================
-
-/**
- * Register webhooks and log results
- */
-export async function registerAndLogWebhooks(
-  registerWebhooks: (params: { session: { shop: string } }) => Promise<unknown>,
-  session: { shop: string }
-): Promise<void> {
-  try {
-    const webhookResult = await registerWebhooks({ session });
-
-    if (isWebhookRegisterResults(webhookResult)) {
-      const entries = Object.entries(webhookResult);
-      const registered = entries.filter(([, results]) =>
-        results.some((r) => r.success)
-      );
-      const failed = entries.filter(([, results]) =>
-        results.some((r) => !r.success)
-      );
-
-      if (registered.length > 0) {
-        logger.info(`[Webhooks] Registered for ${session.shop}`, {
-          topics: registered.map(([topic]) => topic),
-        });
-      }
-
-      if (failed.length > 0) {
-        logger.error(
-          `[Webhooks] Failed to register for ${session.shop}`,
-          undefined,
-          {
-            failures: failed.map(([topic, results]) => ({
-              topic,
-              errors: results.map((r) => r.result?.message || "unknown error"),
-            })),
-          }
-        );
-      }
-    }
-  } catch (webhookError) {
-    logger.error(
-      `[Webhooks] Registration error for ${session.shop}`,
-      webhookError
-    );
-  }
 }
 
 // =============================================================================
@@ -220,20 +153,17 @@ async function upsertShopRecord(
  * Handle shop provisioning after successful OAuth authentication.
  *
  * This function:
- * 1. Registers required webhooks
- * 2. Cleans up deprecated webhook subscriptions
- * 3. Fetches shop info (primary domain, tier)
- * 4. Creates or updates shop record in database
- * 5. Generates ingestion secret if needed
+ * 1. Cleans up deprecated webhook subscriptions
+ * 2. Fetches shop info (primary domain, tier)
+ * 3. Creates or updates shop record in database
+ * 4. Generates ingestion secret if needed
+ * 
+ * Note: Webhooks are managed via shopify.app.toml, so no manual registration needed here.
  */
 export async function handleAfterAuth(
-  params: AfterAuthParams,
-  registerWebhooks: (params: { session: { shop: string } }) => Promise<unknown>
+  params: AfterAuthParams
 ): Promise<void> {
   const { session, admin } = params;
-
-  // Register webhooks
-  await registerAndLogWebhooks(registerWebhooks, session);
 
   // Cleanup deprecated webhooks
   if (admin) {

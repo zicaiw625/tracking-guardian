@@ -44,7 +44,9 @@ function Survey() {
                 }
             }
             catch (err) {
-                console.error("Failed to get order/checkout info:", err);
+                if (isDevMode) {
+                    console.error("Failed to get order/checkout info:", err);
+                }
             }
         }
         fetchOrderAndCheckoutInfo();
