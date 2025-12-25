@@ -5,11 +5,7 @@
  */
 
 import { Card, Text, BlockStack, InlineStack, Box, ProgressBar, Icon } from "@shopify/polaris";
-import {
-  ArrowUpIcon,
-  ArrowDownIcon,
-  MinusIcon,
-} from "@shopify/polaris-icons";
+import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from "~/components/icons";
 
 // =============================================================================
 // Types
@@ -351,4 +347,3 @@ export function StatItem({ label, value, unit }: StatItemProps) {
     </InlineStack>
   );
 }
-

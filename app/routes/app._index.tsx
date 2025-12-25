@@ -24,7 +24,7 @@ import {
   Link,
   ProgressBar,
 } from "@shopify/polaris";
-import { CheckCircleIcon } from "@shopify/polaris-icons";
+import { CheckCircleIcon } from "~/components/icons";
 
 import { authenticate } from "../shopify.server";
 import { getDashboardData } from "../services/dashboard.server";
