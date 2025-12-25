@@ -47,6 +47,7 @@
 - Post-purchase Survey（购后问卷）
 - Shipping Tracker（物流追踪）- Beta
 - Upsell Offer（二次购买优惠）- Beta
+- Support & FAQ 模块（客服入口、FAQ、继续购物）
 
 ## 技术栈
 
@@ -260,4 +261,3 @@ MIT License
 ## 支持
 
 如有问题，请创建 GitHub Issue 或联系技术支持。
-
