@@ -129,7 +129,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "🎯 **Google Analytics (GA4)**\n" +
                     "  → 迁移到: Tracking Guardian Web Pixel + 服务端 Measurement Protocol\n" +
                     "  → 操作: 在「设置」页面配置 GA4 Measurement ID 和 API Secret\n" +
-                    "  → 效果: 客户端 + 服务端双保险，不受广告拦截器影响"
+                    "  → 效果: 客户端 + 服务端双通路，通常更稳定；实际归因以平台数据为准"
                 );
                 break;
             case "google_ads":
@@ -155,7 +155,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "🎯 **Meta Pixel (Facebook/Instagram)**\n" +
                     "  → 迁移到: Tracking Guardian Web Pixel + 服务端 Conversions API\n" +
                     "  → 操作: 在「设置」页面配置 Pixel ID 和 Access Token\n" +
-                    "  → 效果: EMQ 评分提升，归因准确率提高（CAPI 不受 iOS 14.5 影响）"
+                    "  → 效果: 有助于提升事件匹配度；最终归因以 Meta 平台回传为准，仍可能受设备/隐私限制影响"
                 );
                 break;
             case "tiktok":
@@ -163,7 +163,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "🎯 **TikTok Pixel**\n" +
                     "  → 迁移到: Tracking Guardian Web Pixel + 服务端 Events API\n" +
                     "  → 操作: 在「设置」页面配置 Pixel Code 和 Access Token\n" +
-                    "  → 效果: 服务端追踪更稳定，提高事件匹配质量"
+                    "  → 效果: 服务端追踪有助于提升事件匹配质量；以 TikTok 归因结果为准"
                 );
                 break;
             case "bing":

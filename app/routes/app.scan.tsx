@@ -1,12 +1,13 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useActionData, useFetcher } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useMemo } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { scanShopTracking, getScanHistory, analyzeScriptContent, type ScriptAnalysisResult } from "../services/scanner.server";
+import { scanShopTracking, getScanHistory, type ScriptAnalysisResult } from "../services/scanner.server";
+import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import type { ScriptTag, RiskItem } from "../types";
@@ -155,23 +156,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     const formData = await request.formData();
     const actionType = formData.get("_action");
-    if (actionType === "analyzeScript") {
-        const scriptContent = formData.get("scriptContent") as string;
-        if (!scriptContent || scriptContent.trim().length === 0) {
-            return json({ error: "请粘贴要分析的脚本内容" }, { status: 400 });
-        }
-        try {
-            const analysisResult = analyzeScriptContent(scriptContent);
-            return json({
-                success: true,
-                actionType: "analyzeScript",
-                analysisResult
-            });
-        }
-        catch (error) {
-            logger.error("Script analysis error occurred (content not logged for privacy)");
-            return json({ error: error instanceof Error ? error.message : "分析失败" }, { status: 500 });
-        }
+    if (actionType && actionType !== "scan") {
+        return json({ error: "手动脚本分析已在浏览器本地执行，不会上传脚本内容。" }, { status: 400 });
     }
     try {
         const scanResult = await scanShopTracking(admin, shop.id);
@@ -184,13 +170,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 export default function ScanPage() {
     const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions } = useLoaderData<typeof loader>();
-    const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
     const deleteFetcher = useFetcher();
     const upgradeFetcher = useFetcher();
     const [selectedTab, setSelectedTab] = useState(0);
     const [scriptContent, setScriptContent] = useState("");
+    const [analysisResult, setAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
+    const [analysisError, setAnalysisError] = useState<string | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
     const [guidanceContent, setGuidanceContent] = useState<{ title: string; platform?: string; scriptTagId?: number } | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -300,15 +288,20 @@ export default function ScanPage() {
         formData.append("_action", "scan");
         submit(formData, { method: "post" });
     };
-    const handleAnalyzeScript = () => {
-        const formData = new FormData();
-        formData.append("_action", "analyzeScript");
-        formData.append("scriptContent", scriptContent);
-        submit(formData, { method: "post" });
-    };
-    const analysisResult = actionData && "analysisResult" in actionData
-        ? actionData.analysisResult as ScriptAnalysisResult
-        : null;
+    const handleAnalyzeScript = useCallback(() => {
+        setIsAnalyzing(true);
+        try {
+            const result = analyzeScriptContent(scriptContent);
+            setAnalysisResult(result);
+            setAnalysisError(null);
+        }
+        catch (error) {
+            setAnalysisError(error instanceof Error ? error.message : "分析失败，请稍后重试");
+        }
+        finally {
+            setIsAnalyzing(false);
+        }
+    }, [scriptContent]);
     const tabs = [
         { id: "auto-scan", content: "自动扫描" },
         { id: "manual-analyze", content: "手动分析" },
@@ -1210,6 +1203,9 @@ export default function ScanPage() {
                             • 可能包含客户信息、访问令牌或第三方密钥，请在粘贴前删除/替换敏感字段。
                           </Text>
                           <Text as="p" variant="bodySm">
+                            • 分析在浏览器本地完成，不会上传脚本正文；仅识别出的平台信息会用于生成迁移建议。
+                          </Text>
+                          <Text as="p" variant="bodySm">
                             • 我们不会持久化或日志记录您粘贴的内容；仅在浏览器会话内用于本地分析。
                           </Text>
                           <Text as="p" variant="bodySm">
@@ -1257,10 +1253,15 @@ export default function ScanPage() {
 </script>`} helpText="支持检测 Google、Meta、TikTok、Bing 等平台的追踪代码"/>
 
                     <InlineStack align="end">
-                      <Button variant="primary" onClick={handleAnalyzeScript} loading={isScanning} disabled={!scriptContent.trim()} icon={ClipboardIcon}>
+                      <Button variant="primary" onClick={handleAnalyzeScript} loading={isAnalyzing} disabled={!scriptContent.trim()} icon={ClipboardIcon}>
                         分析脚本
                       </Button>
                     </InlineStack>
+                    {analysisError && (
+                      <Banner tone="critical">
+                        <Text as="p" variant="bodySm">{analysisError}</Text>
+                      </Banner>
+                    )}
                   </BlockStack>
                 </Card>
               </Box>
