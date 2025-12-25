@@ -11,6 +11,7 @@ import { decryptIngestionSecret, isTokenEncrypted, encryptIngestionSecret } from
 import { randomBytes } from "crypto";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { logger } from "../utils/logger.server";
+import { formatDeadlineForUI, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getScriptTagDeprecationStatus, getUpgradeStatusMessage, type ShopTier, } from "../utils/deprecation-dates";
 
 function generateIngestionSecret(): string {
     return randomBytes(32).toString("hex");
@@ -29,6 +30,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             typOspPagesEnabled: true,
             typOspUpdatedAt: true,
             typOspLastCheckedAt: true,
+            typOspStatusReason: true,
+            shopTier: true,
         },
     });
 
@@ -40,11 +43,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             latestScan: null,
             needsSettingsUpgrade: false,
             currentPixelSettings: null,
+            shopTier: "unknown" as const,
             typOspStatus: {
                 enabled: false,
                 lastChecked: null,
             },
             hasRequiredScopes: false,
+            deadlines: null,
+            upgradeStatus: null,
+            migrationUrgency: null,
         });
     }
 
@@ -97,12 +104,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
     });
+    const shopTier = (shop.shopTier as ShopTier) || "unknown";
+    const scriptTagDeadline = formatDeadlineForUI(getScriptTagDeprecationStatus());
+    const additionalScriptsDeadline = formatDeadlineForUI(getAdditionalScriptsDeprecationStatus(shopTier));
+    const scriptTags = (latestScan?.scriptTags as { display_scope?: string }[] | null) || [];
+    const hasScriptTags = scriptTags.length > 0;
+    const hasOrderStatusScriptTags = scriptTags.some((tag) => tag.display_scope === "order_status");
+    const migrationUrgency = getMigrationUrgencyStatus(shopTier, hasScriptTags, hasOrderStatusScriptTags);
+    const upgradeStatus = getUpgradeStatusMessage({
+        tier: shopTier,
+        typOspPagesEnabled,
+        typOspUpdatedAt: typOspLastChecked || null,
+        typOspUnknownReason: shop.typOspStatusReason ?? undefined,
+        typOspUnknownError: undefined,
+    }, hasScriptTags);
     
     // Check for required scopes
     const hasRequiredScopes = session.scope?.split(",").includes("read_customer_events") || false;
 
     return json({
         shop: { id: shop.id, domain: shopDomain },
+        shopTier,
         pixelStatus: ourPixel ? "installed" as const : "not_installed" as const,
         pixelId: ourPixel?.id,
         hasCapiConfig,
@@ -113,7 +135,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             enabled: typOspPagesEnabled ?? false,
             lastChecked: typOspLastChecked ? typOspLastChecked.toISOString() : null,
         },
-        hasRequiredScopes
+        hasRequiredScopes,
+        deadlines: {
+            scriptTag: scriptTagDeadline,
+            additionalScripts: additionalScriptsDeadline,
+        },
+        upgradeStatus,
+        migrationUrgency,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -250,7 +278,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 type SetupStep = "typOsp" | "pixel" | "capi" | "complete";
 export default function MigratePage() {
-    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes } = useLoaderData<typeof loader>();
+    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -303,8 +331,38 @@ export default function MigratePage() {
     ];
     const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
+    const timelineItems = [
+        {
+            title: "ScriptTag 创建限制",
+            badge: deadlines?.scriptTag.badge,
+            description: deadlines?.scriptTag.description,
+        },
+        {
+            title: "Additional Scripts 只读",
+            badge: deadlines?.additionalScripts.badge,
+            description: deadlines?.additionalScripts.description,
+        },
+    ];
     return (<Page title="设置追踪" subtitle="配置服务端转化追踪（Server-side CAPI）">
       <BlockStack gap="500">
+        {upgradeStatus && (<Banner title={upgradeStatus.title} tone={upgradeStatus.urgency === "critical"
+            ? "critical"
+            : upgradeStatus.urgency === "high"
+                ? "warning"
+                : upgradeStatus.urgency === "resolved"
+                    ? "success"
+                    : "info"}>
+            <BlockStack gap="200">
+              <Text as="p">{upgradeStatus.message}</Text>
+              {upgradeStatus.actions.length > 0 && (<List type="bullet">
+                  {upgradeStatus.actions.map((item, idx) => (<List.Item key={idx}>{item}</List.Item>))}
+                </List>)}
+              {upgradeStatus.autoUpgradeInfo?.isInAutoUpgradeWindow && (<Text as="p" tone="caution" variant="bodySm">
+                  {upgradeStatus.autoUpgradeInfo.autoUpgradeMessage}
+                </Text>)}
+            </BlockStack>
+          </Banner>)}
+
         <Banner title="服务端转化追踪 (Server-side CAPI)" tone="info" action={{
             content: "了解更多",
             url: "https://shopify.dev/docs/api/web-pixels-api",
@@ -342,33 +400,40 @@ export default function MigratePage() {
         )}
 
         {/* P0-5: 关键时间线提醒 */}
-        <Banner title="⏰ Shopify 追踪升级时间线" tone="warning">
-          <BlockStack gap="200">
-            <Text as="p">
-              Shopify 正在逐步淘汰旧版 ScriptTag 和 checkout.liquid 追踪方式：
-            </Text>
-            <List type="bullet">
-              <List.Item>
-                <strong>2025-02-01</strong>：新应用无法再创建 ScriptTag
-              </List.Item>
-              <List.Item>
-                <strong>2025-08-28 (Plus 商家)</strong>：Thank you / Order status 页面旧版脚本停止工作，升级截止
-              </List.Item>
-              <List.Item>
-                <strong>2026年1月 (Plus 商家)</strong>：Shopify 开始自动升级 Thank You/Order Status 页面，未迁移的旧脚本将失效（旧自定义将丢失）
-              </List.Item>
-              <List.Item>
-                <strong>2026-08-26 (非 Plus 商家)</strong>：Thank you / Order status 页面旧版脚本停止工作
-              </List.Item>
-              <List.Item>
-                <strong>2025-08-28 (全量商家)</strong>：Additional Scripts 变为只读（不可编辑）
-              </List.Item>
-            </List>
-            <Text as="p" tone="subdued">
-              使用 Tracking Guardian 的 Web Pixel + 服务端 CAPI 方案可确保追踪在升级后继续正常工作。
-            </Text>
+        <Card>
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h2" variant="headingMd">⏰ Shopify 追踪升级时间线</Text>
+              {migrationUrgency && (<Badge tone={migrationUrgency.urgency === "critical"
+                ? "critical"
+                : migrationUrgency.urgency === "high"
+                    ? "warning"
+                    : "info"}>
+                  {migrationUrgency.urgency === "critical"
+                ? "紧急"
+                : migrationUrgency.urgency === "high"
+                    ? "高优先级"
+                    : "提示"}
+                </Badge>)}
+            </InlineStack>
+            <BlockStack gap="200">
+              {timelineItems.map((item, idx) => (<Box key={idx} background="bg-surface-secondary" padding="300" borderRadius="200">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="span" fontWeight="semibold">{item.title}</Text>
+                    {item.badge && (<Badge tone={item.badge.tone}>{item.badge.text}</Badge>)}
+                  </InlineStack>
+                  {item.description && (<Text as="p" variant="bodySm" tone="subdued">
+                      {item.description}
+                    </Text>)}
+                </Box>))}
+              <Text as="p" tone="subdued">
+                {shopTier === "plus"
+                ? "Plus 商家建议在 2025-08-28 前完成迁移；2026 年 1 月起 Shopify 将逐步自动升级。"
+                : "非 Plus 商家建议在 2026-08-26 前完成迁移，以确保 Thank you / Order status 页追踪不受影响。"}
+              </Text>
+            </BlockStack>
           </BlockStack>
-        </Banner>
+        </Card>
 
         {/* Pixel Settings Upgrade Banner */}
         {needsSettingsUpgrade && pixelStatus === "installed" && (
