@@ -12,6 +12,7 @@ import { randomBytes } from "crypto";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { logger } from "../utils/logger.server";
 import { formatDeadlineForUI, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getScriptTagDeprecationStatus, getUpgradeStatusMessage, type ShopTier, } from "../utils/deprecation-dates";
+import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
 
 function generateIngestionSecret(): string {
     return randomBytes(32).toString("hex");
@@ -27,6 +28,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shopDomain: true,
             ingestionSecret: true,
             webPixelId: true,
+            plan: true,
             typOspPagesEnabled: true,
             typOspUpdatedAt: true,
             typOspLastCheckedAt: true,
@@ -49,6 +51,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 lastChecked: null,
             },
             hasRequiredScopes: false,
+            planId: "free" as const,
+            planLabel: getPlanDefinition("free").name,
+            planTagline: getPlanDefinition("free").tagline,
             deadlines: null,
             upgradeStatus: null,
             migrationUrgency: null,
@@ -105,6 +110,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         orderBy: { createdAt: "desc" },
     });
     const shopTier = (shop.shopTier as ShopTier) || "unknown";
+    const planId = normalizePlan(shop.plan);
+    const planDef = getPlanDefinition(planId);
     const scriptTagDeadline = formatDeadlineForUI(getScriptTagDeprecationStatus());
     const additionalScriptsDeadline = formatDeadlineForUI(getAdditionalScriptsDeprecationStatus(shopTier));
     const scriptTags = (latestScan?.scriptTags as { display_scope?: string }[] | null) || [];
@@ -136,6 +143,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             lastChecked: typOspLastChecked ? typOspLastChecked.toISOString() : null,
         },
         hasRequiredScopes,
+        planId,
+        planLabel: planDef.name,
+        planTagline: planDef.tagline,
         deadlines: {
             scriptTag: scriptTagDeadline,
             additionalScripts: additionalScriptsDeadline,
@@ -278,10 +288,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 type SetupStep = "typOsp" | "pixel" | "capi" | "complete";
 export default function MigratePage() {
-    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, } = useLoaderData<typeof loader>();
+    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, planId, planLabel, planTagline, } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
+    const isGrowthOrAbove = isPlanAtLeast(planId, "growth");
+    const isProOrAbove = isPlanAtLeast(planId, "pro");
+    const isAgency = isPlanAtLeast(planId, "agency");
     const [currentStep, setCurrentStep] = useState<SetupStep>(() => {
         if (!typOspStatus.enabled) return "typOsp";
         if (pixelStatus === "installed") {
@@ -319,6 +332,9 @@ export default function MigratePage() {
     }, [pixelStatus, hasCapiConfig, typOspStatus.enabled]);
     /* eslint-enable react-hooks/set-state-in-effect */
     const handleEnablePixel = () => {
+        if (!isGrowthOrAbove) {
+            return;
+        }
         const formData = new FormData();
         formData.append("_action", "enablePixel");
         submit(formData, { method: "post" });
@@ -379,6 +395,46 @@ export default function MigratePage() {
               <List.Item>不受 iOS 14+ 隐私限制影响</List.Item>
               <List.Item>符合 GDPR/CCPA 要求</List.Item>
             </List>
+          </BlockStack>
+        </Banner>
+
+        <Banner
+          title={`当前套餐：${planLabel || planId}`}
+          tone={isGrowthOrAbove ? "success" : "warning"}
+          action={{
+            content: "查看套餐/升级",
+            url: "/app/settings?tab=billing",
+          }}
+        >
+          <BlockStack gap="200">
+            {planTagline && (
+              <Text as="p" variant="bodySm">{planTagline}</Text>
+            )}
+            {!isGrowthOrAbove && (
+              <List type="bullet">
+                <List.Item>像素迁移中心（App Pixel + CAPI 向导）在 Growth 及以上开放</List.Item>
+                <List.Item>高级 TY/OS 组件、事件对账与多渠道像素需 Pro 及以上</List.Item>
+                <List.Item>多店铺/白标报告在 Agency 套餐提供</List.Item>
+              </List>
+            )}
+            {isGrowthOrAbove && !isProOrAbove && (
+              <List type="bullet">
+                <List.Item>当前可用：App Pixel + 单/双渠道 CAPI 迁移</List.Item>
+                <List.Item>升级到 Pro 以解锁事件对账、告警与高级 TY/OS 模块</List.Item>
+              </List>
+            )}
+            {isProOrAbove && !isAgency && (
+              <List type="bullet">
+                <List.Item>已解锁多渠道像素 + 事件对账 + TY/OS 高级组件</List.Item>
+                <List.Item>如需多店铺协作/白标报告，可升级至 Agency</List.Item>
+              </List>
+            )}
+            {isAgency && (
+              <List type="bullet">
+                <List.Item>已解锁多店铺、协作与白标报告</List.Item>
+                <List.Item>如需迁移托管，可在支持渠道提交工单</List.Item>
+              </List>
+            )}
           </BlockStack>
         </Banner>
 
@@ -630,7 +686,24 @@ export default function MigratePage() {
                 return null;
             })()}
 
-                  <Button variant="primary" onClick={handleEnablePixel} loading={isSubmitting} size="large">
+                  {!isGrowthOrAbove && (
+                    <Banner
+                      tone="warning"
+                      action={{ content: "升级至 Growth", url: "/app/settings?tab=billing" }}
+                    >
+                      <Text as="p">
+                        App Pixel 启用与 CAPI 迁移在 Growth 及以上套餐开放。请升级后继续。
+                      </Text>
+                    </Banner>
+                  )}
+
+                  <Button
+                    variant="primary"
+                    onClick={handleEnablePixel}
+                    loading={isSubmitting}
+                    size="large"
+                    disabled={!isGrowthOrAbove}
+                  >
                     一键启用 App Pixel
                   </Button>
                 </BlockStack>
@@ -674,11 +747,22 @@ export default function MigratePage() {
                     </BlockStack>
                   </Banner>
 
+                  {!isProOrAbove && (
+                    <Banner
+                      tone="warning"
+                      action={{ content: "升级至 Pro", url: "/app/settings?tab=billing" }}
+                    >
+                      <Text as="p">
+                        事件对账与多渠道 CAPI 配置在 Pro 及以上开放。请升级以继续配置凭证。
+                      </Text>
+                    </Banner>
+                  )}
+
                   <InlineStack gap="200">
-                    <Button variant="primary" url="/app/settings" size="large">
+                    <Button variant="primary" url="/app/settings" size="large" disabled={!isProOrAbove}>
                       前往配置 CAPI 凭证
                     </Button>
-                    <Button onClick={() => setCurrentStep("complete")}>
+                    <Button onClick={() => setCurrentStep("complete")} disabled={!isProOrAbove}>
                       稍后配置
                     </Button>
                   </InlineStack>

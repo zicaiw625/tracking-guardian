@@ -49,6 +49,17 @@
 - Upsell Offer（二次购买优惠）- Beta
 - Support & FAQ 模块（客服入口、FAQ、继续购物）
 
+### 套餐与商业化（对齐“上线即可收费”）
+
+| 套餐 | 定价 | 适用场景 | 核心能力 |
+| --- | --- | --- | --- |
+| Free | $0 | 扫描、评估阶段 | 扫描报告、截止期提醒、脚本内容本地分析 |
+| Growth | $29/mo | 单店/单渠道迁移 | App Pixel 启用、GA4/Meta/TikTok（三选二）CAPI 向导、基础 TY/OS 组件 |
+| Pro | $79/mo | 多渠道运营 & 对账 | 多渠道像素、事件送达对账、告警/重试、高级 TY/OS 组件（FAQ/Upsell/Survey） |
+| Agency | $199/mo | 多店代理/协作 | 多店铺 & 协作、白标报告、迁移托管支持 |
+
+> 权限/功能 gating 已在前端页面展示：升级 CTA 位于仪表盘与迁移页；默认 plan 为 Free。
+
 ## 技术栈
 
 - **框架**: Remix + Shopify App Remix
@@ -162,6 +173,7 @@ railway up
 | `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
+| `read_customer_events` | （未来）事件对账/同意状态补充 | `app.migrate.tsx` 授权检测 | ⚠️ 场景化 |
 
 ### P0-1: ScriptTag 权限说明
 
@@ -196,6 +208,12 @@ ScriptTag 清理需要商家手动操作：
 - `shop/redact` - 店铺数据完全删除
 
 ## Built for Shopify (BFS) 特性
+
+### 合规与平台要求
+
+- **GraphQL Admin API**：所有 Admin 操作（WebPixel 创建/删除、checkoutProfiles 查询等）均使用 GraphQL，符合 2025-04-01 起新提交公共应用必须使用 GraphQL Admin API 的要求。代码参考：`app/services/admin-mutations.server.ts`、`app/services/checkout-profile.server.ts`。
+- **隐私与最小权限**：仅订阅 `checkout_completed` 事件；默认严格同意策略；PCD 功能需显式开启且数据即时哈希、不落库；权限表见上。
+- **上线检查**：健康度评分基于近 7 日对账差异率；监控页记录像素心跳来源与送达率，便于自检 BFS 可靠性指标。
 
 ### 性能优化
 
