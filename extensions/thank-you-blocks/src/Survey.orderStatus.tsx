@@ -37,7 +37,9 @@ function SurveyOrderStatus() {
                 }
             }
             catch (err) {
-                console.error("Failed to fetch order info:", err);
+                if (isDevMode) {
+                    console.error("Failed to fetch order info:", err);
+                }
             }
         }
         fetchOrderInfo();

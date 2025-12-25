@@ -28,8 +28,6 @@ export {
 // Shop provisioning
 export {
   handleAfterAuth,
-  registerAndLogWebhooks,
-  isWebhookRegisterResults,
 } from "./shop-provisioning.server";
 
 // Webhook cleanup
