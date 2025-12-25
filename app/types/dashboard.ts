@@ -28,6 +28,10 @@ export interface DashboardData {
   weeklyConversions: number;
   hasAlertConfig: boolean;
   plan: string;
+  planId?: import("../utils/plans").PlanId;
+  planLabel?: string;
+  planTagline?: string;
+  planFeatures?: string[];
   scriptTagsCount: number;
   hasOrderStatusScripts: boolean;
 }
@@ -105,4 +109,3 @@ export function getSetupProgress(steps: SetupStep[]): {
     percentage: Math.round((completed / total) * 100),
   };
 }
-
