@@ -18,7 +18,7 @@ function resolveBackendUrl(): string {
   if (isDev) {
     console.warn(
       "[Tracking Guardian] ⚠️ BACKEND_URL 未在构建时注入，使用默认开发 URL。" +
-      "请在本地设置 SHOPIFY_APP_URL 或运行 yarn ext:inject。"
+      "请在本地设置 SHOPIFY_APP_URL 或运行 pnpm ext:inject。"
     );
     return "https://tracking-guardian.onrender.com";
   }
