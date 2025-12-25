@@ -11,7 +11,7 @@ import { decryptCredentials } from "./credentials.server";
 import { sendConversionToPlatform } from "./platforms";
 import { generateEventId, matchKeysEqual } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
-import { JOB_PROCESSING_CONFIG } from "../utils/config";
+import { JOB_PROCESSING_CONFIG, PCD_CONFIG } from "../utils/config";
 import {
   evaluatePlatformConsentWithStrategy,
   getEffectiveConsentCategory,
@@ -313,6 +313,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
           shopDomain: true,
           plan: true,
           piiEnabled: true,
+          pcdAcknowledged: true,
           consentStrategy: true,
           primaryDomain: true,
           storefrontDomains: true,
@@ -482,6 +483,20 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
 
       // P1-2: 从 capiInput 中提取预哈希的 PII 数据（如果存在）
       const hashedUserData = capiInputParsed?.hashedUserData as ConversionData["preHashedUserData"] | undefined;
+      const piiAllowedByPolicy = PCD_CONFIG.APPROVED && job.shop.piiEnabled && job.shop.pcdAcknowledged;
+      const preHashedUserData = piiAllowedByPolicy ? hashedUserData || null : null;
+
+      if (!piiAllowedByPolicy && hashedUserData) {
+        logger.info(
+          `[PII] Dropping hashed user data for job ${job.id} due to PCD policy`,
+          {
+            shopId: job.shopId,
+            pcdApproved: PCD_CONFIG.APPROVED,
+            piiEnabled: job.shop.piiEnabled,
+            pcdAcknowledged: job.shop.pcdAcknowledged,
+          }
+        );
+      }
       
       const conversionData: ConversionData = {
         orderId: job.orderId,
@@ -490,7 +505,7 @@ export async function processConversionJobs(): Promise<ProcessConversionJobsResu
         currency: job.currency,
         lineItems,
         // P1-2: 传递预哈希数据给平台 service
-        preHashedUserData: hashedUserData || null,
+        preHashedUserData,
       };
 
       // Process all platforms in parallel
