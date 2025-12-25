@@ -417,6 +417,7 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
     const pixels: Array<{ id: string; settings: string | null }> = [];
     let hasNextPage = true;
     let cursor: string | null = null;
+    let previousCursor: string | null = null;
     try {
         while (hasNextPage) {
             const response = await admin.graphql(`
@@ -456,6 +457,11 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
             }
             hasNextPage = pageInfo.hasNextPage;
             cursor = pageInfo.endCursor;
+            if (cursor === previousCursor) {
+                logger.warn("WebPixels pagination cursor did not advance, stopping to avoid loop");
+                break;
+            }
+            previousCursor = cursor;
             if (pixels.length > 500) {
                 logger.warn("WebPixels pagination limit reached (500)");
                 break;

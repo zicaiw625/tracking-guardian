@@ -106,6 +106,7 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
     const allPixels: WebPixelInfo[] = [];
     let hasNextPage = true;
     let cursor: string | null = null;
+    let previousCursor: string | null = null;
 
     while (hasNextPage) {
         const response = await admin.graphql(`
@@ -139,6 +140,12 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
 
         hasNextPage = pageInfo.hasNextPage;
         cursor = pageInfo.endCursor;
+
+        if (cursor === previousCursor) {
+            logger.warn("WebPixels pagination cursor did not advance, stopping to avoid loop");
+            break;
+        }
+        previousCursor = cursor;
 
         if (allPixels.length > 200) {
             logger.warn("WebPixels pagination limit reached (200)");
@@ -525,4 +532,3 @@ export async function getScanHistory(shopId: string, limit = 10) {
         take: limit,
     });
 }
-
