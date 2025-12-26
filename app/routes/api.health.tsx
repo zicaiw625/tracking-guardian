@@ -5,12 +5,18 @@
  * Returns a simple JSON response with the application status.
  * 
  * Endpoints:
- * - GET /api/health - Basic health check
- * - GET /api/health?detailed=true - Detailed health check (requires auth)
+ * - GET /api/health - Basic health check (public)
+ * - GET /api/health?detailed=true - Detailed health check (requires auth via CRON_SECRET)
+ * 
+ * Security:
+ * - Detailed mode requires Bearer token authentication using CRON_SECRET
+ * - Unauthorized detailed requests are downgraded to basic health check
+ * - This prevents exposure of sensitive internal metrics (DB latency, memory usage)
  */
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import { timingSafeEqual } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { MONITORING_CONFIG } from "../utils/config";
@@ -99,11 +105,70 @@ function checkMemory(): HealthCheck {
 }
 
 /**
+ * Validate authentication for detailed health check.
+ * Uses CRON_SECRET as Bearer token for simplicity (same secret used by cron jobs).
+ * 
+ * @param request - Incoming HTTP request
+ * @returns true if authenticated, false otherwise
+ */
+function validateDetailedHealthAuth(request: Request): boolean {
+    const cronSecret = process.env.CRON_SECRET;
+    
+    // In development without CRON_SECRET, allow access for testing
+    if (!cronSecret && process.env.NODE_ENV !== "production") {
+        return true;
+    }
+    
+    // In production, CRON_SECRET must be set
+    if (!cronSecret) {
+        logger.warn("CRON_SECRET not configured - detailed health check disabled");
+        return false;
+    }
+    
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+        return false;
+    }
+    
+    // Validate Bearer token format
+    const expectedHeader = `Bearer ${cronSecret}`;
+    
+    // Use timing-safe comparison to prevent timing attacks
+    if (authHeader.length !== expectedHeader.length) {
+        return false;
+    }
+    
+    try {
+        const authBuffer = Buffer.from(authHeader);
+        const expectedBuffer = Buffer.from(expectedHeader);
+        return timingSafeEqual(authBuffer, expectedBuffer);
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Health check loader
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
-    const detailed = url.searchParams.get("detailed") === "true";
+    const detailedRequested = url.searchParams.get("detailed") === "true";
+    
+    // Validate authentication for detailed mode
+    // If auth fails, downgrade to basic health check (don't return 403 to avoid leaking endpoint info)
+    const isAuthenticated = detailedRequested ? validateDetailedHealthAuth(request) : false;
+    const detailed = detailedRequested && isAuthenticated;
+    
+    // Log unauthorized detailed health check attempts (for security monitoring)
+    if (detailedRequested && !isAuthenticated) {
+        const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
+            || request.headers.get("x-real-ip") 
+            || "unknown";
+        logger.warn("Unauthorized detailed health check attempt - downgrading to basic", { 
+            clientIP,
+            hasAuthHeader: !!request.headers.get("Authorization"),
+        });
+    }
     
     // Calculate uptime in seconds
     const uptime = Math.round((Date.now() - startTime) / 1000);
@@ -116,7 +181,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         uptime,
     };
     
-    // For detailed health checks, include component status
+    // For detailed health checks, include component status (requires authentication)
     if (detailed) {
         const [dbCheck, memCheck] = await Promise.all([
             checkDatabase(),

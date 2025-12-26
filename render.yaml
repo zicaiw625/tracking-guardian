@@ -1,5 +1,32 @@
 # Render Blueprint - 一键部署配置
 # https://render.com/docs/blueprint-spec
+#
+# ============================================================================
+# 重要：Cron Job 配置说明
+# ============================================================================
+# Render Blueprint 目前不支持声明 Cron Job，需要在 Render Dashboard 手动创建。
+#
+# 步骤：
+# 1. 登录 Render Dashboard (https://dashboard.render.com)
+# 2. 点击 "New" -> "Cron Job"
+# 3. 配置如下：
+#    - Name: tracking-guardian-cron
+#    - Region: 与 web service 相同 (singapore)
+#    - Schedule: */5 * * * * (每 5 分钟)
+#    - Command: curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<YOUR_APP_URL>/api/cron
+#    - Environment Variables:
+#      - CRON_SECRET: 从 web service 环境变量复制（或使用相同的 generateValue）
+#
+# 任务执行内容（参见 app/cron/tasks/index.ts）：
+# - GDPR 合规处理（优先级最高）
+# - Consent 对账
+# - Conversion 重试
+# - 交付健康度检查
+# - 数据清理（过期数据删除）
+# - 店铺状态刷新
+#
+# 详细部署指南请参见：docs/DEPLOY_RENDER.md
+# ============================================================================
 
 services:
   # Web 服务 - Shopify App

@@ -33,4 +33,5 @@ embedded = false
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "https://tracking-guardian.onrender.com"
+# dev_store_url: Shopify CLI 会在首次运行 `shopify app dev` 时自动提示选择开发商店
+# 如需手动指定，格式为: dev_store_url = "your-store.myshopify.com"
