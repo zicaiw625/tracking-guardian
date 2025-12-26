@@ -43,18 +43,22 @@ export interface ConversionLogResult {
 
 /**
  * Check if a client event has already been recorded.
+ * 
+ * PR-2: 改为使用 PixelEventReceipt 而不是 ConversionLog。
+ * Pixel API 不再写 ConversionLog，事实表由 job-processor 负责写入。
  */
 export async function isClientEventRecorded(
   shopId: string,
   orderId: string,
   eventType: string
 ): Promise<boolean> {
-  const existing = await prisma.conversionLog.findFirst({
+  const existing = await prisma.pixelEventReceipt.findUnique({
     where: {
-      shopId,
-      orderId,
-      eventType,
-      clientSideSent: true,
+      shopId_orderId_eventType: {
+        shopId,
+        orderId,
+        eventType,
+      },
     },
     select: { id: true },
   });

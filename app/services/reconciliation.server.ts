@@ -565,6 +565,7 @@ export async function getReconciliationDashboardData(
     const currentStrategy = shop?.consentStrategy || "strict";
 
     // 查询时间范围内的 ConversionJob（代表 webhook 订单）
+    // P1-4.1: 增加 capiInput 以获取 checkoutToken 用于 fallback 匹配
     const conversionJobs = await prisma.conversionJob.findMany({
         where: {
             shopId,
@@ -581,10 +582,12 @@ export async function getReconciliationDashboardData(
             createdAt: true,
             trustMetadata: true,
             consentEvidence: true,
+            capiInput: true, // P1-4.1: 用于 checkoutToken fallback 匹配
         },
     });
 
     // 查询时间范围内的 PixelEventReceipt
+    // P1-4.1: 增加 checkoutToken 用于 fallback 匹配
     const pixelReceipts = await prisma.pixelEventReceipt.findMany({
         where: {
             shopId,
@@ -599,6 +602,7 @@ export async function getReconciliationDashboardData(
             isTrusted: true,
             consentState: true,
             createdAt: true,
+            checkoutToken: true, // P1-4.1: 用于 fallback 匹配
         },
     });
 
@@ -621,10 +625,43 @@ export async function getReconciliationDashboardData(
         },
     });
 
-    // 创建 orderId 到 receipt 的映射
+    // P1-4.1: 创建双重映射以支持 checkoutToken fallback
+    // 映射1: orderId -> receipt（主要匹配）
     const receiptByOrderId = new Map(
         pixelReceipts.map(r => [r.orderId, r])
     );
+    // 映射2: checkoutToken -> receipt（fallback 匹配，用于 Pixel 无 orderId 场景）
+    const receiptByToken = new Map(
+        pixelReceipts
+            .filter(r => r.checkoutToken)
+            .map(r => [r.checkoutToken!, r])
+    );
+
+    /**
+     * P1-4.1: 查找匹配的 receipt
+     * 优先使用 orderId 匹配，其次使用 checkoutToken fallback
+     */
+    function findReceiptForJob(job: { orderId: string; capiInput: unknown }): typeof pixelReceipts[0] | undefined {
+        // 策略1: 直接通过 orderId 匹配
+        const byOrderId = receiptByOrderId.get(job.orderId);
+        if (byOrderId) return byOrderId;
+
+        // 策略2: 通过 webhook 的 checkoutToken 匹配 receipt
+        // 当 Pixel 侧因缺 orderId 使用 checkoutToken 生成 eventId 时，
+        // 这确保仍然可以正确关联 receipt
+        if (job.capiInput && typeof job.capiInput === 'object') {
+            const capiInput = job.capiInput as Record<string, unknown>;
+            const webhookCheckoutToken = typeof capiInput.checkoutToken === 'string' 
+                ? capiInput.checkoutToken 
+                : null;
+            if (webhookCheckoutToken) {
+                const byToken = receiptByToken.get(webhookCheckoutToken);
+                if (byToken) return byToken;
+            }
+        }
+
+        return undefined;
+    }
 
     // 分析缺口原因
     const gapReasonCounts: Record<GapReason, number> = {
@@ -638,7 +675,8 @@ export async function getReconciliationDashboardData(
     };
 
     for (const job of conversionJobs) {
-        const receipt = receiptByOrderId.get(job.orderId);
+        // P1-4.1: 使用双重匹配策略（orderId 优先，checkoutToken fallback）
+        const receipt = findReceiptForJob(job);
         
         if (!receipt) {
             // 没有收到像素事件

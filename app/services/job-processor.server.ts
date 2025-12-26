@@ -350,8 +350,25 @@ async function batchUpdateJobs(updates: JobUpdateEntry[]): Promise<void> {
 // =============================================================================
 
 /**
+ * PR-4: 平台发送结果结构
+ * 
+ * 用于更精确的计费决策：
+ * - anySent: 至少有一个平台成功发送
+ * - anyFailed: 至少有一个平台发送失败（可重试）
+ * - allSkipped: 所有平台都被跳过（consent/trust/无配置）
+ */
+interface PlatformSendResults {
+  platformResults: Record<string, string>;
+  anyFailed: boolean;
+  anySent: boolean;
+  allSkipped: boolean;
+}
+
+/**
  * Send to all platforms in parallel.
- * Returns results for each platform.
+ * Returns results for each platform with detailed status for billing decisions.
+ * 
+ * PR-4: 增加 anySent/allSkipped 状态，用于更精确的计费决策。
  */
 async function sendToPlatformsParallel(
   pixelConfigs: JobWithRelations["shop"]["pixelConfigs"],
@@ -362,7 +379,7 @@ async function sendToPlatformsParallel(
   consentState: ReturnType<typeof evaluateTrust>["consentState"],
   strategy: string,
   previousResults: Record<string, string> = {}
-): Promise<{ platformResults: Record<string, string>; anyFailed: boolean }> {
+): Promise<PlatformSendResults> {
   const platformResults: Record<string, string> = { ...previousResults };
 
   // Build send tasks
@@ -373,7 +390,8 @@ async function sendToPlatformsParallel(
         platform: pixelConfig.platform,
         success: true,
         status: "sent",
-        skipped: true,
+        skipped: false, // 之前已发送成功，不算 skipped
+        sent: true,
       };
     }
 
@@ -395,6 +413,7 @@ async function sendToPlatformsParallel(
         success: false,
         status: `skipped:${eligibility.skipReason}`,
         skipped: true,
+        sent: false,
       };
     }
 
@@ -411,6 +430,7 @@ async function sendToPlatformsParallel(
       success: sendResult.success,
       status: sendResult.status,
       skipped: false,
+      sent: sendResult.success,
     };
   });
 
@@ -418,12 +438,20 @@ async function sendToPlatformsParallel(
   const results = await Promise.allSettled(sendTasks);
 
   let anyFailed = false;
+  let anySent = false;
+  let skippedCount = 0;
+
   for (const result of results) {
     if (result.status === "fulfilled") {
       platformResults[result.value.platform] = result.value.status;
-      // Consider it a failure if it wasn't successful AND wasn't skipped due to eligibility
-      // But wait, eligibility skip returns success=false, status='skipped:...'
-      // We want to retry only if status starts with 'failed:'
+      
+      // PR-4: 跟踪发送状态
+      if (result.value.sent) {
+        anySent = true;
+      }
+      if (result.value.skipped) {
+        skippedCount++;
+      }
       if (result.value.status.startsWith("failed:")) {
         anyFailed = true;
       }
@@ -434,11 +462,112 @@ async function sendToPlatformsParallel(
     }
   }
 
-  return { platformResults, anyFailed };
+  // PR-4: allSkipped 表示所有平台都被跳过
+  const allSkipped = skippedCount === pixelConfigs.length && pixelConfigs.length > 0;
+
+  return { platformResults, anyFailed, anySent, allSkipped };
+}
+
+// =============================================================================
+// PR-3: ConversionLog Upsert（报表事实表）
+// =============================================================================
+
+/**
+ * PR-3: Upsert ConversionLog for each platform after sending.
+ * 
+ * ConversionLog 现在作为"每个平台的投递事实"由 job-processor 统一写入，
+ * 而不是由 Pixel API 写入。这确保了：
+ * 1. monitor/reconciliation 统一读 ConversionLog
+ * 2. 避免 orderId=checkoutToken 的 join 问题
+ * 3. 状态更准确（SENT/FAILED/SKIPPED）
+ */
+async function upsertConversionLogs(
+  job: JobWithRelations,
+  platformResults: Record<string, string>,
+  eventId: string,
+  now: Date
+): Promise<void> {
+  const upsertPromises = Object.entries(platformResults).map(async ([platform, status]) => {
+    // 解析状态
+    const isSent = status === "sent";
+    const isSkipped = status.startsWith("skipped:");
+    const isFailed = status.startsWith("failed:");
+    
+    // 确定 ConversionLog 状态
+    let logStatus: string;
+    let errorMessage: string | null = null;
+    
+    if (isSent) {
+      logStatus = "sent";
+    } else if (isSkipped) {
+      logStatus = "skipped"; // 新增状态，表示因 consent/trust 跳过
+      errorMessage = status; // e.g., "skipped:consent_analytics"
+    } else if (isFailed) {
+      logStatus = "failed";
+      errorMessage = status.substring(7); // 去掉 "failed:" 前缀
+    } else {
+      logStatus = "pending";
+    }
+
+    const orderValue =
+      typeof job.orderValue === "number"
+        ? job.orderValue
+        : job.orderValue.toNumber();
+
+    try {
+      await prisma.conversionLog.upsert({
+        where: {
+          shopId_orderId_platform_eventType: {
+            shopId: job.shopId,
+            orderId: job.orderId,
+            platform,
+            eventType: "purchase",
+          },
+        },
+        create: {
+          shopId: job.shopId,
+          orderId: job.orderId,
+          orderNumber: job.orderNumber,
+          orderValue,
+          currency: job.currency,
+          platform,
+          eventType: "purchase",
+          eventId,
+          status: logStatus,
+          attempts: job.attempts + 1,
+          lastAttemptAt: now,
+          serverSideSent: isSent,
+          sentAt: isSent ? now : null,
+          clientSideSent: false, // PR-2: Pixel API 不再写 ConversionLog
+          errorMessage,
+        },
+        update: {
+          orderNumber: job.orderNumber,
+          orderValue,
+          currency: job.currency,
+          eventId,
+          status: logStatus,
+          attempts: job.attempts + 1,
+          lastAttemptAt: now,
+          serverSideSent: isSent,
+          sentAt: isSent ? now : undefined,
+          errorMessage,
+        },
+      });
+    } catch (error) {
+      logger.warn(`Failed to upsert ConversionLog for ${platform}`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  await Promise.all(upsertPromises);
 }
 
 /**
  * Send to platform with credential decryption.
+ * 
+ * PR-1: 现在会传递 preHashedUserData 给平台服务，提升匹配率。
  */
 async function sendToPlatformWithCredentials(
   pixelConfig: JobWithRelations["shop"]["pixelConfigs"][0],
@@ -470,12 +599,16 @@ async function sendToPlatformWithCredentials(
         ? job.orderValue
         : job.orderValue.toNumber();
 
+    // PR-1: 传递预哈希 PII 数据（如果可用）
+    // capiInput.hashedUserData 来自 orders-paid webhook handler 的预哈希处理
     const conversionData: ConversionData = {
       orderId: job.orderId,
       orderNumber: job.orderNumber,
       value: orderValue,
       currency: job.currency,
       lineItems,
+      // PR-1: 预哈希 PII 数据传递给平台服务
+      preHashedUserData: capiInput?.hashedUserData ?? null,
     };
 
     // Send to platform using factory
@@ -575,7 +708,6 @@ async function processSingleJob(
     };
   }
 
-  const eventId = generateEventId(job.orderId, "purchase", job.shop.shopDomain);
   const capiInputParsed = parseCapiInput(job.capiInput);
   const webhookCheckoutToken = capiInputParsed?.checkoutToken;
 
@@ -587,6 +719,10 @@ async function processSingleJob(
     webhookCheckoutToken || undefined,
     job.createdAt
   );
+
+  // PR-1: 优先使用 receipt.eventId（确保平台去重一致性）
+  // 这解决了 Pixel 侧用 checkoutToken fallback 生成 eventId 与 server 侧不一致的问题
+  const eventId = receipt?.eventId ?? generateEventId(job.orderId, "purchase", job.shop.shopDomain);
 
   // Build shop context for trust evaluation
   const shopContext: ShopTrustContext = {
@@ -619,7 +755,8 @@ async function processSingleJob(
   const previousResults = (job.platformResults as Record<string, string>) || {};
 
   // Send to all platforms in parallel
-  const { platformResults, anyFailed } = await sendToPlatformsParallel(
+  // PR-4: 现在返回更详细的状态信息用于计费决策
+  const { platformResults, anyFailed, anySent, allSkipped } = await sendToPlatformsParallel(
     job.shop.pixelConfigs,
     job,
     capiInputParsed,
@@ -628,6 +765,12 @@ async function processSingleJob(
     consentState,
     strategy,
     previousResults
+  );
+
+  // PR-3: Upsert ConversionLog 作为报表事实表（fire and forget）
+  // 这确保 monitor/reconciliation 有准确的投递状态
+  upsertConversionLogs(job, platformResults, eventId, now).catch((err) =>
+    logger.warn(`Failed to upsert ConversionLogs for job ${job.id}: ${err}`)
   );
 
   // Build consent evidence
@@ -641,10 +784,94 @@ async function processSingleJob(
   // Prepare update
   const newAttempts = job.attempts + 1;
 
-  if (!anyFailed) {
-    // Success: Usage already incremented by checkAndReserveBillingSlot
-    // No need to call incrementMonthlyUsage again.
+  // ==========================================================================
+  // PR-4: 修正计费语义
+  // 
+  // 规则：
+  // 1. allSkipped=true（全部跳过）=> 不计费，release slot
+  // 2. anySent=true（至少一个成功）=> 计费，不 release（即使有部分失败）
+  // 3. anySent=false && anyFailed=true（全部失败）=> 不计费，release slot
+  // 
+  // 这确保：
+  // - "全部 skipped" 不会增加 MonthlyUsage.sentCount
+  // - "部分成功部分失败" 会计费 1 单，重试不会再次计费
+  // - "全失败" 不会计费
+  // ==========================================================================
 
+  // Case 1: 全部跳过（consent/trust/无配置）
+  if (allSkipped) {
+    // Release billing slot - 实际没发也不应计费
+    if (!reservation.alreadyCounted) {
+      await releaseBillingSlot(job.shopId).catch(err => 
+        logger.error(`Failed to release billing slot for job ${job.id}: ${err.message}`)
+      );
+    }
+
+    logger.info(`Job ${job.id}: All platforms skipped, not billing`);
+
+    return {
+      result: "skipped",
+      update: {
+        id: job.id,
+        status: JobStatus.COMPLETED,
+        data: {
+          attempts: newAttempts,
+          lastAttemptAt: now,
+          processedAt: now,
+          completedAt: now,
+          platformResults,
+          errorMessage: "All platforms skipped (consent/trust/config)",
+          trustMetadata: trustMetadata as object,
+          consentEvidence: JSON.parse(JSON.stringify(consentEvidence)),
+        },
+      },
+    };
+  }
+
+  // Case 2: 至少有一个平台成功发送
+  if (anySent) {
+    // 保留 billing slot（即使有部分失败）- 已产生价值
+    // 如果有部分失败，标记为 FAILED 以便重试，但不会再次计费（alreadyCounted=true）
+    if (anyFailed) {
+      if (newAttempts >= job.maxAttempts) {
+        return {
+          result: "succeeded", // 部分成功也算成功（已计费）
+          update: {
+            id: job.id,
+            status: JobStatus.COMPLETED, // 标记完成，部分平台成功
+            data: {
+              attempts: newAttempts,
+              lastAttemptAt: now,
+              processedAt: now,
+              completedAt: now,
+              platformResults,
+              errorMessage: "Partial success: some platforms failed after max attempts",
+              trustMetadata: trustMetadata as object,
+              consentEvidence: JSON.parse(JSON.stringify(consentEvidence)),
+            },
+          },
+        };
+      }
+
+      return {
+        result: "succeeded", // 部分成功已计费
+        update: {
+          id: job.id,
+          status: JobStatus.FAILED, // 标记失败以便重试剩余平台
+          data: {
+            attempts: newAttempts,
+            lastAttemptAt: now,
+            nextRetryAt: calculateNextRetryTime(newAttempts),
+            platformResults,
+            errorMessage: "Partial success: retrying failed platforms",
+            trustMetadata: trustMetadata as object,
+            consentEvidence: JSON.parse(JSON.stringify(consentEvidence)),
+          },
+        },
+      };
+    }
+
+    // 全部成功
     return {
       result: "succeeded",
       update: {
@@ -664,8 +891,8 @@ async function processSingleJob(
     };
   }
 
-  // Handle failure: Release the billing slot since we failed to convert
-  // Only release if it wasn't already counted before this attempt (idempotency)
+  // Case 3: 没有任何平台成功，且有失败（全部失败）
+  // Release billing slot - 没有产生价值
   if (!reservation.alreadyCounted) {
     await releaseBillingSlot(job.shopId).catch(err => 
       logger.error(`Failed to release billing slot for job ${job.id}: ${err.message}`)
@@ -682,7 +909,7 @@ async function processSingleJob(
           attempts: newAttempts,
           lastAttemptAt: now,
           platformResults,
-          errorMessage: "All platforms failed (or partially failed) after max attempts",
+          errorMessage: "All platforms failed after max attempts",
         },
       },
     };
@@ -698,7 +925,7 @@ async function processSingleJob(
         lastAttemptAt: now,
         nextRetryAt: calculateNextRetryTime(newAttempts),
         platformResults,
-        errorMessage: "Some platforms failed, retrying...",
+        errorMessage: "All platforms failed, retrying...",
       },
     },
   };

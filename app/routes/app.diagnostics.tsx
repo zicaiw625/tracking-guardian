@@ -42,12 +42,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             piiEnabled: true,
             consentStrategy: true,
             dataRetentionDays: true,
+            // P0-1: Only select non-sensitive fields - no credentials needed
+            // We only need to know if serverSideEnabled, not the actual credentials
             pixelConfigs: {
                 where: { isActive: true },
                 select: {
                     platform: true,
                     serverSideEnabled: true,
-                    credentialsEncrypted: true,
+                    // credentialsEncrypted excluded - not needed for diagnostics display
                 },
             },
         },

@@ -15,6 +15,9 @@ import { logger } from '../utils/logger.server';
 
 /**
  * Fields from PixelEventReceipt needed for job processing.
+ * 
+ * PR-1: 增加 eventId 字段，确保 job-processor 可以使用 pixel 侧生成的 eventId，
+ * 从而保证平台去重一致性。
  */
 export interface ReceiptFields {
   consentState: unknown;
@@ -26,6 +29,8 @@ export interface ReceiptFields {
   originHost: string | null;
   pixelTimestamp: Date | null;
   createdAt: Date;
+  /** PR-1: Pixel 侧生成的 eventId，用于平台去重一致性 */
+  eventId: string | null;
 }
 
 /**
@@ -44,6 +49,8 @@ export interface JobForReceiptMatch {
 
 /**
  * Select fields for receipt queries.
+ * 
+ * PR-1: 增加 eventId 字段选择，确保 job-processor 可以使用 pixel 侧生成的 eventId。
  */
 const RECEIPT_SELECT_FIELDS = {
   consentState: true,
@@ -56,6 +63,7 @@ const RECEIPT_SELECT_FIELDS = {
   pixelTimestamp: true,
   createdAt: true,
   shopId: true,
+  eventId: true, // PR-1: 用于平台去重一致性
 };
 
 /**

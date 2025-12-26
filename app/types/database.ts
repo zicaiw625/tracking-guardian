@@ -99,7 +99,35 @@ export function parseCapiInput(json: unknown): CapiInputJson | null {
     shopifyOrderId: typeof data.shopifyOrderId === 'number' || typeof data.shopifyOrderId === 'string' 
       ? data.shopifyOrderId 
       : undefined,
+    // PR-1: 修复预哈希 PII 数据解析
+    hashedUserData: parseHashedUserData(data.hashedUserData),
   };
+}
+
+/**
+ * Parse hashed user data from CAPI input.
+ * Returns null if no valid hashed data is present.
+ */
+function parseHashedUserData(json: unknown): HashedUserDataJson | null {
+  if (!json || typeof json !== 'object') {
+    return null;
+  }
+
+  const data = json as Record<string, unknown>;
+  const result: HashedUserDataJson = {};
+
+  // Only include fields that are non-empty strings (SHA256 hashes)
+  if (typeof data.em === 'string' && data.em) result.em = data.em;
+  if (typeof data.ph === 'string' && data.ph) result.ph = data.ph;
+  if (typeof data.fn === 'string' && data.fn) result.fn = data.fn;
+  if (typeof data.ln === 'string' && data.ln) result.ln = data.ln;
+  if (typeof data.ct === 'string' && data.ct) result.ct = data.ct;
+  if (typeof data.st === 'string' && data.st) result.st = data.st;
+  if (typeof data.country === 'string' && data.country) result.country = data.country;
+  if (typeof data.zp === 'string' && data.zp) result.zp = data.zp;
+
+  // Return null if no fields were parsed
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 function parseCapiLineItem(item: unknown): CapiLineItem | null {

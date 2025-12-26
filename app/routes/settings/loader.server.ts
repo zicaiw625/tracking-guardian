@@ -29,9 +29,31 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       weakConsentMode: true,
       consentStrategy: true,
       dataRetentionDays: true,
-      alertConfigs: true,
+      // P0-1: Only select non-sensitive fields for alertConfigs
+      // Excludes: settings (legacy, may contain sensitive data), settingsEncrypted
+      alertConfigs: {
+        select: {
+          id: true,
+          channel: true,
+          discrepancyThreshold: true,
+          isEnabled: true,
+          // Note: 'settings' field excluded - frontend doesn't need it for display
+          // and it may contain sensitive webhook URLs or tokens
+        },
+      },
+      // P0-1: Only select non-sensitive fields for pixelConfigs
+      // Excludes: credentials, credentialsEncrypted, clientConfig, eventMappings
       pixelConfigs: {
         where: { isActive: true },
+        select: {
+          id: true,
+          platform: true,
+          platformId: true,
+          serverSideEnabled: true,
+          clientSideEnabled: true,
+          isActive: true,
+          updatedAt: true, // Used as lastTestedAt proxy in frontend
+        },
       },
     },
   });
@@ -46,14 +68,33 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     shop?.previousSecretExpiry &&
     new Date() < shop.previousSecretExpiry;
 
+  // P0-1: Explicitly map fields to avoid exposing sensitive data
+  // Use explicit mapping instead of type assertion to ensure type safety
+  const alertConfigs: AlertConfigDisplay[] = shop?.alertConfigs.map((config) => ({
+    id: config.id,
+    channel: config.channel,
+    discrepancyThreshold: config.discrepancyThreshold,
+    isEnabled: config.isEnabled,
+  })) ?? [];
+
+  const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs.map((config) => ({
+    id: config.id,
+    platform: config.platform,
+    platformId: config.platformId,
+    serverSideEnabled: config.serverSideEnabled,
+    clientSideEnabled: config.clientSideEnabled,
+    isActive: config.isActive,
+    lastTestedAt: config.updatedAt, // Map updatedAt to lastTestedAt for frontend
+  })) ?? [];
+
   const data: SettingsLoaderData = {
     shop: shop
       ? {
           id: shop.id,
           domain: shopDomain,
           plan: shop.plan,
-          alertConfigs: shop.alertConfigs as AlertConfigDisplay[],
-          pixelConfigs: shop.pixelConfigs as PixelConfigDisplay[],
+          alertConfigs,
+          pixelConfigs,
           hasIngestionSecret:
             !!shop.ingestionSecret && shop.ingestionSecret.length > 0,
           hasActiveGraceWindow: !!hasActiveGraceWindow,

@@ -47,7 +47,7 @@ import {
   evaluateTrustLevel,
   createEventNonce,
   upsertPixelEventReceipt,
-  recordConversionLogs,
+  // PR-2: recordConversionLogs 不再使用，Pixel API 不再写 ConversionLog
   generatePurchaseEventId,
 } from "./receipt-handler";
 
@@ -427,20 +427,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       consentResult
     );
 
-    // Record conversion logs
-    const { recordedPlatforms } = await recordConversionLogs(
-      shop.id,
-      orderId,
-      eventId,
-      payload,
-      platformsToRecord
-    );
+    // PR-2: 移除 recordConversionLogs 调用
+    // Pixel API 不再写 ConversionLog，事实表由 job-processor 负责写入。
+    // 这避免了 orderId=checkoutToken 的 join 灾难，以及两套发送链路导致的重复发送问题。
+    // 现在 Pixel API 的职责收敛为：验证 -> 写 PixelEventReceipt + PixelEventNonce
 
-    // Log metrics
+    // Log metrics (使用 platformsToRecord 作为记录，实际发送由 job-processor 完成)
     logConsentFilterMetrics(
       shop.shopDomain,
       orderId,
-      recordedPlatforms,
+      platformsToRecord, // PR-2: 改为使用 platformsToRecord 而非 recordedPlatforms
       skippedPlatforms,
       consentResult
     );
@@ -451,7 +447,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventId,
         message: "Pixel event recorded, CAPI will be sent via webhook",
         clientSideSent: true,
-        platforms: recordedPlatforms,
+        platforms: platformsToRecord, // PR-2: 返回预期会发送的平台列表
         skippedPlatforms: skippedPlatforms.length > 0 ? skippedPlatforms : undefined,
         trusted: trustResult.isTrusted,
         consent: payload.consent || null,

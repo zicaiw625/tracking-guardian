@@ -5,12 +5,35 @@ export const SHOPIFY_ALLOWLIST = [
     "myshopify.com",
     "shopifypreview.com",
 ] as const;
+
+/**
+ * PR-5: 收紧 Pixel API 的 origin 要求
+ * 
+ * 生产环境默认不允许 null origin（避免非浏览器请求灌水）。
+ * 可以通过以下方式启用 null origin：
+ * 1. 设置 PIXEL_ALLOW_NULL_ORIGIN=true
+ * 2. 开发环境（NODE_ENV=development 或 test）
+ * 
+ * 注意：Shopify Web Pixel 可能发送 origin="null"（sandbox 环境），
+ * 如果需要支持，可以设置 PIXEL_ALLOW_NULL_ORIGIN=true。
+ */
 function shouldAllowNullOrigin(): boolean {
+    // 检查环境变量显式设置
     const envValue = process.env.PIXEL_ALLOW_NULL_ORIGIN;
-    if (!envValue)
+    if (envValue) {
+        const normalized = envValue.toLowerCase();
+        return normalized === "true" || normalized === "1" || normalized === "yes";
+    }
+    
+    // PR-5: 开发/测试环境默认允许 null origin（便于本地调试）
+    const nodeEnv = process.env.NODE_ENV;
+    if (nodeEnv === "development" || nodeEnv === "test") {
         return true;
-    const normalized = envValue.toLowerCase();
-    return normalized === "true" || normalized === "1" || normalized === "yes";
+    }
+    
+    // PR-5: 生产环境默认不允许 null origin（安全加固）
+    // 这可以防止 curl/脚本等非浏览器请求灌水
+    return false;
 }
 const ALLOWED_ORIGIN_PATTERNS: Array<{
     pattern: RegExp;

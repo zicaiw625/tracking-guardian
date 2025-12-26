@@ -88,24 +88,37 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Conversion jobs failed", error);
   }
 
-  // 5. Process pending conversions
+  // PR-2: 禁用 legacy log sender
+  // 5. Process pending conversions - DISABLED
+  // 原链路：ConversionLog (pending) -> retry.server.ts 发送平台
+  // 现链路：统一由 ConversionJob -> job-processor 处理
+  // 环境变量 LEGACY_LOG_SENDER=1 可临时启用（用于迁移期间或修复旧数据）
   let pendingResults = { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
-  try {
-    cronLogger.info("Processing pending conversions...");
-    pendingResults = await processPendingConversions();
-    cronLogger.info("Pending conversions completed", pendingResults);
-  } catch (error) {
-    cronLogger.error("Pending conversions failed", error);
+  if (process.env.LEGACY_LOG_SENDER === "1") {
+    try {
+      cronLogger.info("[LEGACY] Processing pending conversions...");
+      pendingResults = await processPendingConversions();
+      cronLogger.info("[LEGACY] Pending conversions completed", pendingResults);
+    } catch (error) {
+      cronLogger.error("[LEGACY] Pending conversions failed", error);
+    }
+  } else {
+    cronLogger.debug("Skipping legacy pending conversions (LEGACY_LOG_SENDER not enabled)");
   }
 
-  // 6. Process retries
+  // PR-2: 禁用 legacy log sender
+  // 6. Process retries - DISABLED
   let retryResults = { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
-  try {
-    cronLogger.info("Processing pending conversion retries...");
-    retryResults = await processRetries();
-    cronLogger.info("Retries completed", retryResults);
-  } catch (error) {
-    cronLogger.error("Retries processing failed", error);
+  if (process.env.LEGACY_LOG_SENDER === "1") {
+    try {
+      cronLogger.info("[LEGACY] Processing pending conversion retries...");
+      retryResults = await processRetries();
+      cronLogger.info("[LEGACY] Retries completed", retryResults);
+    } catch (error) {
+      cronLogger.error("[LEGACY] Retries processing failed", error);
+    }
+  } else {
+    cronLogger.debug("Skipping legacy retries (LEGACY_LOG_SENDER not enabled)");
   }
 
   // 7. Run delivery health check

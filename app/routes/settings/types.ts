@@ -29,7 +29,8 @@ export type AlertSettings =
 export interface AlertConfigDisplay {
   id: string;
   channel: string;
-  settings: Record<string, unknown> | null;
+  // P0-1: 'settings' field removed from display interface
+  // Sensitive webhook URLs and tokens are not exposed to frontend
   discrepancyThreshold: number;
   isEnabled: boolean;
 }
