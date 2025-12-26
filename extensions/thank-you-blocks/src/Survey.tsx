@@ -6,6 +6,7 @@ import { createLogger } from "./logger";
 export default reactExtension("purchase.thank-you.block.render", () => <Survey />);
 function Survey() {
     const settings = useSettings();
+    // P0-1: BACKEND_URL may be null if build-time injection failed
     const backendUrl = BACKEND_URL;
     const api = useApi();
     const [orderId, setOrderId] = useState<string | null>(null);
@@ -18,6 +19,9 @@ function Survey() {
     const [error, setError] = useState<string | null>(null);
     const title = (settings.survey_title as string) || "我们想听听您的意见";
     const question = (settings.survey_question as string) || "您是如何了解到我们的？";
+    
+    // P0-1: If backend URL is not configured, the survey cannot submit
+    const isBackendConfigured = !!backendUrl;
     
     const shopDomain = api.shop?.myshopifyDomain || "";
     const logger = useMemo(() => createLogger(shopDomain, "[Survey]"), [shopDomain]);
@@ -64,6 +68,12 @@ function Survey() {
             return;
         if (!orderId && !orderNumber && !checkoutToken) {
             logger.warn("No order identifiers available");
+            return;
+        }
+        // P0-1: Check if backend URL is configured
+        if (!backendUrl) {
+            logger.warn("Backend URL not configured, cannot submit survey");
+            setError("服务暂时不可用，请稍后再试");
             return;
         }
         setSubmitting(true);

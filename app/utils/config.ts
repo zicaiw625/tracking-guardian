@@ -460,6 +460,25 @@ const RECOMMENDED = [
     { key: "RESEND_API_KEY", reason: "for email notifications" },
     { key: "REDIS_URL", reason: "for shared rate limiting in multi-instance deployments" },
 ] as const;
+
+/**
+ * P1-5: Cron secret rotation configuration.
+ * 
+ * For zero-downtime secret rotation:
+ * 1. Set CRON_SECRET_PREVIOUS to current CRON_SECRET value
+ * 2. Set CRON_SECRET to new secret value
+ * 3. Deploy application
+ * 4. Update cron service to use new secret
+ * 5. Remove CRON_SECRET_PREVIOUS after all clients updated
+ */
+export const CRON_SECRET_CONFIG = {
+    /** Primary cron secret */
+    SECRET: process.env.CRON_SECRET || "",
+    /** Previous secret for rotation (optional) */
+    SECRET_PREVIOUS: process.env.CRON_SECRET_PREVIOUS || "",
+    /** Minimum recommended secret length */
+    MIN_LENGTH: 32,
+} as const;
 export interface ConfigValidationResult {
     valid: boolean;
     errors: string[];

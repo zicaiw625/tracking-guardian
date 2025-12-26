@@ -2,9 +2,12 @@
  * Cron Authentication Tests
  *
  * Tests for cron endpoint authentication and replay protection.
+ * 
+ * P1-5: Updated to test secret rotation support.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createHmac } from "crypto";
 import { createMockRequest } from "../setup";
 
 // Mock dependencies
@@ -22,16 +25,23 @@ vi.mock("../../app/utils/responses", () => ({
   serviceUnavailableResponse: vi.fn((msg) => new Response(msg, { status: 503 })),
 }));
 
-import { validateCronAuth, verifyReplayProtection } from "../../app/cron/auth";
+import { 
+  validateCronAuth, 
+  verifyReplayProtection,
+  isSecretRotationActive,
+  getRotationStatus,
+} from "../../app/cron/auth";
 import { logger } from "../../app/utils/logger.server";
 
 describe("Cron Authentication", () => {
   const originalEnv = process.env;
+  const testSecret = "test-cron-secret-12345678901234567890";
 
   beforeEach(() => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
-    process.env.CRON_SECRET = "test-cron-secret-12345678901234567890";
+    process.env.CRON_SECRET = testSecret;
+    process.env.CRON_SECRET_PREVIOUS = "";
     process.env.NODE_ENV = "production";
     process.env.CRON_STRICT_REPLAY = "true";
   });
@@ -40,26 +50,35 @@ describe("Cron Authentication", () => {
     process.env = originalEnv;
   });
 
-  describe("validateCronAuth", () => {
-    it("should return null for valid Bearer token", () => {
-      const request = createMockRequest("https://app.example.com/api/cron", {
-        headers: {
-          Authorization: "Bearer test-cron-secret-12345678901234567890",
-          "X-Cron-Timestamp": String(Math.floor(Date.now() / 1000)),
-        },
-      });
+  /**
+   * Helper to create a request with valid timestamp and signature
+   */
+  function createAuthenticatedRequest(
+    secret: string = testSecret,
+    overrideHeaders?: Record<string, string>
+  ) {
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac("sha256", secret).update(timestamp).digest("hex");
 
+    return createMockRequest("https://app.example.com/api/cron", {
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "X-Cron-Timestamp": timestamp,
+        "X-Cron-Signature": signature,
+        ...overrideHeaders,
+      },
+    });
+  }
+
+  describe("validateCronAuth", () => {
+    it("should return null for valid Bearer token with signature", () => {
+      const request = createAuthenticatedRequest();
       const result = validateCronAuth(request);
       expect(result).toBeNull();
     });
 
     it("should return error for invalid Bearer token", () => {
-      const request = createMockRequest("https://app.example.com/api/cron", {
-        headers: {
-          Authorization: "Bearer wrong-secret",
-        },
-      });
-
+      const request = createAuthenticatedRequest("wrong-secret");
       const result = validateCronAuth(request);
       expect(result).toBeInstanceOf(Response);
       expect(result?.status).toBe(401);
@@ -67,7 +86,6 @@ describe("Cron Authentication", () => {
 
     it("should return error for missing Bearer token", () => {
       const request = createMockRequest("https://app.example.com/api/cron");
-
       const result = validateCronAuth(request);
       expect(result).toBeInstanceOf(Response);
       expect(result?.status).toBe(401);
@@ -78,7 +96,6 @@ describe("Cron Authentication", () => {
       process.env.NODE_ENV = "development";
 
       const request = createMockRequest("https://app.example.com/api/cron");
-
       const result = validateCronAuth(request);
       expect(result).toBeNull();
       expect(logger.warn).toHaveBeenCalled();
@@ -89,18 +106,20 @@ describe("Cron Authentication", () => {
       process.env.NODE_ENV = "production";
 
       const request = createMockRequest("https://app.example.com/api/cron");
-
       const result = validateCronAuth(request);
       expect(result).toBeInstanceOf(Response);
       expect(result?.status).toBe(503);
     });
 
     it("should warn if CRON_SECRET is too short", () => {
-      process.env.CRON_SECRET = "short";
+      const shortSecret = "short";
+      process.env.CRON_SECRET = shortSecret;
+      // Disable strict replay for this test
+      process.env.CRON_STRICT_REPLAY = "false";
 
       const request = createMockRequest("https://app.example.com/api/cron", {
         headers: {
-          Authorization: "Bearer short",
+          Authorization: `Bearer ${shortSecret}`,
         },
       });
 
@@ -114,11 +133,14 @@ describe("Cron Authentication", () => {
   describe("verifyReplayProtection", () => {
     const cronSecret = "test-secret-for-hmac";
 
-    it("should accept request with valid timestamp", () => {
-      const timestamp = Math.floor(Date.now() / 1000);
+    it("should accept request with valid timestamp and signature in production", () => {
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const signature = createHmac("sha256", cronSecret).update(timestamp).digest("hex");
+
       const request = createMockRequest("https://app.example.com/api/cron", {
         headers: {
-          "X-Cron-Timestamp": String(timestamp),
+          "X-Cron-Timestamp": timestamp,
+          "X-Cron-Signature": signature,
         },
       });
 
@@ -127,10 +149,13 @@ describe("Cron Authentication", () => {
     });
 
     it("should reject request with expired timestamp", () => {
-      const oldTimestamp = Math.floor(Date.now() / 1000) - 600; // 10 minutes ago
+      const oldTimestamp = String(Math.floor(Date.now() / 1000) - 600); // 10 minutes ago
+      const signature = createHmac("sha256", cronSecret).update(oldTimestamp).digest("hex");
+
       const request = createMockRequest("https://app.example.com/api/cron", {
         headers: {
-          "X-Cron-Timestamp": String(oldTimestamp),
+          "X-Cron-Timestamp": oldTimestamp,
+          "X-Cron-Signature": signature,
         },
       });
 
@@ -140,10 +165,13 @@ describe("Cron Authentication", () => {
     });
 
     it("should reject request with future timestamp", () => {
-      const futureTimestamp = Math.floor(Date.now() / 1000) + 600; // 10 minutes in future
+      const futureTimestamp = String(Math.floor(Date.now() / 1000) + 600); // 10 minutes in future
+      const signature = createHmac("sha256", cronSecret).update(futureTimestamp).digest("hex");
+
       const request = createMockRequest("https://app.example.com/api/cron", {
         headers: {
-          "X-Cron-Timestamp": String(futureTimestamp),
+          "X-Cron-Timestamp": futureTimestamp,
+          "X-Cron-Signature": signature,
         },
       });
 
@@ -172,8 +200,20 @@ describe("Cron Authentication", () => {
       expect(result.valid).toBe(true);
     });
 
-    it("should accept valid HMAC signature", async () => {
-      const { createHmac } = await import("crypto");
+    it("should reject request with timestamp but missing signature in production", () => {
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const request = createMockRequest("https://app.example.com/api/cron", {
+        headers: {
+          "X-Cron-Timestamp": timestamp,
+        },
+      });
+
+      const result = verifyReplayProtection(request, cronSecret);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("Missing signature");
+    });
+
+    it("should accept valid HMAC signature", () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
       const signature = createHmac("sha256", cronSecret).update(timestamp).digest("hex");
 
@@ -203,5 +243,67 @@ describe("Cron Authentication", () => {
       expect(result.error).toContain("Invalid signature");
     });
   });
-});
 
+  describe("P1-5: Secret Rotation", () => {
+    const newSecret = "new-cron-secret-12345678901234567890";
+    const previousSecret = "old-cron-secret-12345678901234567890";
+
+    it("should accept authentication with primary secret", () => {
+      process.env.CRON_SECRET = newSecret;
+      process.env.CRON_SECRET_PREVIOUS = previousSecret;
+
+      const request = createAuthenticatedRequest(newSecret);
+      const result = validateCronAuth(request);
+      expect(result).toBeNull();
+    });
+
+    it("should accept authentication with previous secret during rotation", () => {
+      process.env.CRON_SECRET = newSecret;
+      process.env.CRON_SECRET_PREVIOUS = previousSecret;
+
+      const request = createAuthenticatedRequest(previousSecret);
+      const result = validateCronAuth(request);
+      expect(result).toBeNull();
+      // Should log that previous secret was used
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining("CRON_SECRET_PREVIOUS")
+      );
+    });
+
+    it("should reject invalid secret even when rotation is active", () => {
+      process.env.CRON_SECRET = newSecret;
+      process.env.CRON_SECRET_PREVIOUS = previousSecret;
+
+      const request = createAuthenticatedRequest("completely-wrong-secret");
+      const result = validateCronAuth(request);
+      expect(result).toBeInstanceOf(Response);
+      expect(result?.status).toBe(401);
+    });
+
+    it("should report rotation is active when both secrets are set", () => {
+      process.env.CRON_SECRET = newSecret;
+      process.env.CRON_SECRET_PREVIOUS = previousSecret;
+
+      expect(isSecretRotationActive()).toBe(true);
+    });
+
+    it("should report rotation is not active when only primary secret is set", () => {
+      process.env.CRON_SECRET = newSecret;
+      process.env.CRON_SECRET_PREVIOUS = "";
+
+      expect(isSecretRotationActive()).toBe(false);
+    });
+
+    it("should provide correct rotation status", () => {
+      process.env.CRON_SECRET = newSecret;
+      process.env.CRON_SECRET_PREVIOUS = previousSecret;
+
+      const status = getRotationStatus();
+      expect(status.rotationActive).toBe(true);
+      expect(status.hasPrimarySecret).toBe(true);
+      expect(status.hasPreviousSecret).toBe(true);
+      expect(status.primarySecretLength).toBe(newSecret.length);
+      expect(status.previousSecretLength).toBe(previousSecret.length);
+    });
+  });
+});

@@ -2,8 +2,12 @@
  * Cron Authentication Module
  *
  * Handles cron endpoint authentication including:
- * - Bearer token validation
+ * - Bearer token validation with rotation support
  * - Replay protection with timestamp and signature verification
+ * 
+ * P1-5: Enhanced with secret rotation support:
+ * - CRON_SECRET: Primary/current secret
+ * - CRON_SECRET_PREVIOUS: Previous secret (valid during rotation window)
  */
 
 import { createHmac, timingSafeEqual } from "crypto";
@@ -21,6 +25,90 @@ import type { ReplayProtectionResult } from "./types";
 /** Time window for replay protection (5 minutes) */
 const REPLAY_PROTECTION_WINDOW_MS = 5 * 60 * 1000;
 
+/** Minimum recommended secret length */
+const MIN_SECRET_LENGTH = 32;
+
+// =============================================================================
+// P1-5: Secret Rotation Support
+// =============================================================================
+
+/**
+ * P1-5: Get all valid cron secrets for rotation support.
+ * 
+ * Returns an array of secrets to try in order:
+ * 1. CRON_SECRET (primary)
+ * 2. CRON_SECRET_PREVIOUS (previous, for rotation window)
+ * 
+ * This allows for zero-downtime secret rotation:
+ * 1. Set CRON_SECRET_PREVIOUS to current secret
+ * 2. Set CRON_SECRET to new secret
+ * 3. Deploy
+ * 4. After all clients are updated, remove CRON_SECRET_PREVIOUS
+ */
+function getCronSecrets(): { secrets: string[]; primary: string | null } {
+  const primary = process.env.CRON_SECRET || null;
+  const previous = process.env.CRON_SECRET_PREVIOUS || null;
+
+  const secrets: string[] = [];
+  
+  if (primary) {
+    secrets.push(primary);
+  }
+  
+  if (previous && previous !== primary) {
+    secrets.push(previous);
+  }
+
+  return { secrets, primary };
+}
+
+/**
+ * P1-5: Validate a secret against a bearer token.
+ * Returns true if they match using timing-safe comparison.
+ */
+function validateBearerToken(authHeader: string | null, secret: string): boolean {
+  if (!authHeader) return false;
+  
+  const expectedHeader = `Bearer ${secret}`;
+  
+  // Use timing-safe comparison
+  if (authHeader.length !== expectedHeader.length) {
+    return false;
+  }
+
+  try {
+    const authBuffer = Buffer.from(authHeader);
+    const expectedBuffer = Buffer.from(expectedHeader);
+    return timingSafeEqual(authBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * P1-5: Check secrets and return which one matched (if any).
+ */
+function checkSecrets(
+  authHeader: string | null,
+  secrets: string[]
+): { matched: boolean; usedPrevious: boolean } {
+  if (secrets.length === 0) {
+    return { matched: false, usedPrevious: false };
+  }
+
+  // Try primary secret first
+  if (validateBearerToken(authHeader, secrets[0])) {
+    return { matched: true, usedPrevious: false };
+  }
+
+  // Try previous secret if available
+  if (secrets.length > 1 && validateBearerToken(authHeader, secrets[1])) {
+    return { matched: true, usedPrevious: true };
+  }
+
+  return { matched: false, usedPrevious: false };
+}
+
 // =============================================================================
 // Replay Protection
 // =============================================================================
@@ -28,13 +116,15 @@ const REPLAY_PROTECTION_WINDOW_MS = 5 * 60 * 1000;
 /**
  * Verify replay protection using timestamp and HMAC signature.
  * 
+ * P1-5: Updated to try signature verification with all valid secrets.
+ * 
  * @param request - Incoming HTTP request
- * @param cronSecret - The cron secret for signature verification
+ * @param secrets - Array of secrets to try for signature verification
  * @returns Validation result with error message if invalid
  */
-export function verifyReplayProtection(
+function verifyReplayProtectionWithSecrets(
   request: Request,
-  cronSecret: string
+  secrets: string[]
 ): ReplayProtectionResult {
   const timestamp = request.headers.get("X-Cron-Timestamp");
   const signature = request.headers.get("X-Cron-Signature");
@@ -75,27 +165,59 @@ export function verifyReplayProtection(
 
   // Verify signature if provided
   if (signature) {
-    const expectedSignature = createHmac("sha256", cronSecret)
-      .update(timestamp)
-      .digest("hex");
+    // P1-5: Try each secret for signature verification
+    let signatureValid = false;
+    let usedPreviousForSignature = false;
 
-    try {
-      const signatureBuffer = Buffer.from(signature, "hex");
-      const expectedBuffer = Buffer.from(expectedSignature, "hex");
+    for (let i = 0; i < secrets.length; i++) {
+      const secret = secrets[i];
+      const expectedSignature = createHmac("sha256", secret)
+        .update(timestamp)
+        .digest("hex");
 
-      if (signatureBuffer.length !== expectedBuffer.length) {
-        return { valid: false, error: "Invalid signature" };
+      try {
+        const signatureBuffer = Buffer.from(signature, "hex");
+        const expectedBuffer = Buffer.from(expectedSignature, "hex");
+
+        if (signatureBuffer.length !== expectedBuffer.length) {
+          continue;
+        }
+
+        if (timingSafeEqual(signatureBuffer, expectedBuffer)) {
+          signatureValid = true;
+          usedPreviousForSignature = i > 0;
+          break;
+        }
+      } catch {
+        continue;
       }
+    }
 
-      if (!timingSafeEqual(signatureBuffer, expectedBuffer)) {
-        return { valid: false, error: "Invalid signature" };
-      }
-    } catch {
-      return { valid: false, error: "Invalid signature format" };
+    if (!signatureValid) {
+      return { valid: false, error: "Invalid signature" };
+    }
+
+    // Log if previous secret was used for signature (for monitoring rotation)
+    if (usedPreviousForSignature) {
+      logger.info("[Cron] Signature verified using CRON_SECRET_PREVIOUS - consider updating clients");
     }
   }
 
   return { valid: true };
+}
+
+/**
+ * Verify replay protection using timestamp and HMAC signature.
+ * 
+ * @param request - Incoming HTTP request
+ * @param cronSecret - The cron secret for signature verification
+ * @returns Validation result with error message if invalid
+ */
+export function verifyReplayProtection(
+  request: Request,
+  cronSecret: string
+): ReplayProtectionResult {
+  return verifyReplayProtectionWithSecrets(request, [cronSecret]);
 }
 
 // =============================================================================
@@ -104,6 +226,10 @@ export function verifyReplayProtection(
 
 /**
  * Validate cron endpoint authentication.
+ * 
+ * P1-5: Enhanced with secret rotation support:
+ * - Supports CRON_SECRET and CRON_SECRET_PREVIOUS
+ * - Logs when previous secret is used (for monitoring)
  * 
  * Checks:
  * 1. CRON_SECRET is configured (required in production)
@@ -115,11 +241,13 @@ export function verifyReplayProtection(
  */
 export function validateCronAuth(request: Request): Response | null {
   const authHeader = request.headers.get("Authorization");
-  const cronSecret = process.env.CRON_SECRET;
   const isProduction = process.env.NODE_ENV === "production";
 
+  // P1-5: Get all valid secrets
+  const { secrets, primary } = getCronSecrets();
+
   // Check CRON_SECRET is configured
-  if (!cronSecret) {
+  if (!primary) {
     if (isProduction) {
       logger.error("CRITICAL: CRON_SECRET environment variable is not set in production");
       return serviceUnavailableResponse("Cron endpoint not configured");
@@ -129,12 +257,14 @@ export function validateCronAuth(request: Request): Response | null {
   }
 
   // Warn about weak secret
-  if (cronSecret.length < 32) {
-    logger.warn("CRON_SECRET is shorter than recommended 32 characters");
+  if (primary.length < MIN_SECRET_LENGTH) {
+    logger.warn(`CRON_SECRET is shorter than recommended ${MIN_SECRET_LENGTH} characters`);
   }
 
-  // Verify Bearer token
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  // P1-5: Check all secrets for bearer token
+  const { matched, usedPrevious } = checkSecrets(authHeader, secrets);
+
+  if (!matched) {
     const clientIP =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       request.headers.get("x-real-ip") ||
@@ -150,8 +280,16 @@ export function validateCronAuth(request: Request): Response | null {
     return unauthorizedResponse("Unauthorized");
   }
 
-  // Verify replay protection
-  const replayCheck = verifyReplayProtection(request, cronSecret);
+  // P1-5: Log if previous secret was used
+  if (usedPrevious) {
+    logger.info(
+      "[Cron] Authentication succeeded using CRON_SECRET_PREVIOUS - " +
+      "consider updating cron service to use new secret"
+    );
+  }
+
+  // Verify replay protection with all valid secrets
+  const replayCheck = verifyReplayProtectionWithSecrets(request, secrets);
   if (!replayCheck.valid) {
     logger.warn(`Cron replay protection failed: ${replayCheck.error}`);
     return unauthorizedResponse(replayCheck.error ?? "Replay protection failed");
@@ -160,3 +298,39 @@ export function validateCronAuth(request: Request): Response | null {
   return null;
 }
 
+// =============================================================================
+// Utility Exports
+// =============================================================================
+
+/**
+ * P1-5: Check if secret rotation is currently active.
+ * 
+ * This can be used by monitoring/health checks to track rotation status.
+ */
+export function isSecretRotationActive(): boolean {
+  const previous = process.env.CRON_SECRET_PREVIOUS;
+  const current = process.env.CRON_SECRET;
+  return Boolean(previous && current && previous !== current);
+}
+
+/**
+ * P1-5: Get rotation status for monitoring.
+ */
+export function getRotationStatus(): {
+  rotationActive: boolean;
+  hasPrimarySecret: boolean;
+  hasPreviousSecret: boolean;
+  primarySecretLength: number;
+  previousSecretLength: number;
+} {
+  const primary = process.env.CRON_SECRET || "";
+  const previous = process.env.CRON_SECRET_PREVIOUS || "";
+
+  return {
+    rotationActive: Boolean(previous && primary && previous !== primary),
+    hasPrimarySecret: Boolean(primary),
+    hasPreviousSecret: Boolean(previous),
+    primarySecretLength: primary.length,
+    previousSecretLength: previous.length,
+  };
+}

@@ -7,7 +7,7 @@ import {
   Link,
   View,
   useSettings,
-} from "@shopify/ui-extensions-react/checkout";
+} from "@shopify/ui-extensions-react/customer-account";
 
 export default reactExtension("customer-account.order-status.block.render", () => <SupportOrderStatus />);
 

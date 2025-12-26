@@ -545,6 +545,48 @@ export {
 export type MetricLabels = Record<string, string>;
 
 // =============================================================================
+// Tracing (P3)
+// =============================================================================
+
+export {
+  // Span management
+  startSpan,
+  withSpan,
+  withSpanAsync,
+  getCurrentSpan,
+  getCurrentTraceId,
+  addSpanEvent,
+  setSpanAttributes,
+  // HTTP tracing
+  startServerSpan,
+  endServerSpan,
+  extractTraceContext,
+  injectTraceContext,
+  // Database tracing
+  startDbSpan,
+  traceDbOperation,
+  // External service tracing
+  startExternalHttpSpan,
+  traceExternalHttp,
+  // Processor registration
+  registerSpanProcessor,
+  removeSpanProcessor,
+  // Combined export
+  tracing,
+  // Enums
+  SpanStatus,
+  SpanKind,
+  // Types
+  type Span,
+  type ActiveSpan,
+  type SpanContext,
+  type SpanAttributes,
+  type SpanEvent,
+  type SpanLink,
+  type SpanProcessor,
+} from "./tracing.server";
+
+// =============================================================================
 // JWT & Session
 // =============================================================================
 

@@ -56,23 +56,29 @@ export interface CartLine {
 }
 
 /**
- * P1-5: Pixel configuration structure (stored as JSON string in pixel_config field)
+ * P1-3: Pixel configuration structure (stored as JSON string in pixel_config field)
  * 
- * This allows runtime behavior changes without redeploying the pixel extension.
+ * IMPORTANT: This schema MUST be kept in sync with app/schemas/settings.ts
+ * The backend uses Zod for validation; this is the client-side equivalent.
+ * 
+ * Schema version is explicit to support future migrations without breaking
+ * existing deployments.
  */
 export interface PixelConfig {
-  /** Schema version for forward compatibility */
+  /** Schema version for forward compatibility. Must match backend. */
   schema_version: "1";
-  /** Event tracking mode */
+  /** Event tracking mode: purchase_only = checkout_completed only */
   mode: "purchase_only" | "full_funnel";
-  /** Enabled platforms (comma-separated: "meta,tiktok,ga4") */
+  /** Enabled platforms (comma-separated: "meta,tiktok,google") */
   enabled_platforms: string;
   /** Consent strictness level */
   strictness: "strict" | "balanced";
 }
 
 /**
- * Default pixel configuration
+ * P1-3: Default pixel configuration
+ * 
+ * IMPORTANT: Must match DEFAULT_PIXEL_CONFIG in app/schemas/settings.ts
  */
 export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   schema_version: "1",
@@ -82,7 +88,13 @@ export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
 };
 
 /**
- * Parse pixel_config JSON string with fallback to defaults
+ * P1-3: Parse and validate pixel_config JSON string
+ * 
+ * This function mirrors parseAndValidatePixelConfig from app/schemas/settings.ts
+ * but runs in the browser/worker context without Zod dependency.
+ * 
+ * Returns validated config or defaults on parse/validation failure.
+ * Never throws - uses fail-closed strategy.
  */
 export function parsePixelConfig(configStr?: string): PixelConfig {
   if (!configStr) {
@@ -92,19 +104,24 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
   try {
     const parsed = JSON.parse(configStr);
     
-    // Validate schema version
+    // Validate schema version - fail closed on unknown versions
     if (parsed.schema_version !== "1") {
-      console.warn("[PixelConfig] Unknown schema version, using defaults");
+      console.warn("[PixelConfig] Unknown schema version, using defaults:", parsed.schema_version);
       return DEFAULT_PIXEL_CONFIG;
     }
     
+    // Validate and normalize each field
+    const mode = parsed.mode === "full_funnel" ? "full_funnel" : "purchase_only";
+    const enabled_platforms = typeof parsed.enabled_platforms === "string" 
+      ? parsed.enabled_platforms 
+      : DEFAULT_PIXEL_CONFIG.enabled_platforms;
+    const strictness = parsed.strictness === "balanced" ? "balanced" : "strict";
+    
     return {
       schema_version: "1",
-      mode: parsed.mode === "full_funnel" ? "full_funnel" : "purchase_only",
-      enabled_platforms: typeof parsed.enabled_platforms === "string" 
-        ? parsed.enabled_platforms 
-        : DEFAULT_PIXEL_CONFIG.enabled_platforms,
-      strictness: parsed.strictness === "balanced" ? "balanced" : "strict",
+      mode,
+      enabled_platforms,
+      strictness,
     };
   } catch (e) {
     console.warn("[PixelConfig] Failed to parse config, using defaults:", e);

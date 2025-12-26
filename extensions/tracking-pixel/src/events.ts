@@ -25,7 +25,12 @@ export function toNumber(value: string | number | undefined | null, defaultValue
 }
 
 export interface EventSenderConfig {
-  backendUrl: string;
+  /**
+   * Backend URL for API calls.
+   * P0-1: May be null if build-time injection failed.
+   * When null, event sending is disabled (fail-closed).
+   */
+  backendUrl: string | null;
   shopDomain: string;
   ingestionKey?: string;
   isDevMode: boolean;
@@ -104,10 +109,28 @@ async function sendCheckoutCompletedWithRetry(
 
 /**
  * Create an event sender function.
+ * 
+ * P0-1: If backendUrl is null (build-time injection failed), the sender
+ * will be disabled and all events will be silently dropped.
  */
 export function createEventSender(config: EventSenderConfig) {
   const { backendUrl, shopDomain, ingestionKey, isDevMode, consentManager, logger } = config;
   const log = logger || (() => {});
+
+  // P0-1: Check if backend URL is available
+  // If not, return a no-op sender that silently drops all events
+  if (!backendUrl) {
+    if (isDevMode) {
+      log("⚠️ BACKEND_URL not configured - event sending disabled. " +
+          "Run pnpm ext:inject to inject the backend URL at build time.");
+    }
+    return async function sendToBackendDisabled(
+      _eventName: string, 
+      _data: Record<string, unknown>
+    ): Promise<void> {
+      // No-op: silently drop events when backend URL is not configured
+    };
+  }
 
   return async function sendToBackend(eventName: string, data: Record<string, unknown>): Promise<void> {
     // P0-02: Only checkout_completed is sent, but we still check consent

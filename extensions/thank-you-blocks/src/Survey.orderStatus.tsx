@@ -7,6 +7,7 @@ export default reactExtension("customer-account.order-status.block.render", () =
 function SurveyOrderStatus() {
     const settings = useSettings();
     const api = useApi();
+    // P0-1: BACKEND_URL may be null if build-time injection failed
     const backendUrl = BACKEND_URL;
     const [orderId, setOrderId] = useState<string | null>(null);
     const [orderNumber, setOrderNumber] = useState<string | null>(null);
@@ -50,6 +51,12 @@ function SurveyOrderStatus() {
             return;
         if (!orderId)
             return;
+        // P0-1: Check if backend URL is configured
+        if (!backendUrl) {
+            logger.warn("Backend URL not configured, cannot submit survey");
+            setError("服务暂时不可用，请稍后再试");
+            return;
+        }
         setSubmitting(true);
         setError(null);
         try {

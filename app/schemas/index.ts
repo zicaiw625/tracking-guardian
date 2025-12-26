@@ -7,7 +7,7 @@
 // Pixel event schema (primary/canonical definitions)
 export * from "./pixel-event";
 
-// Settings schemas
+// Settings schemas (including WebPixel settings - P1-3)
 export * from "./settings";
 
 // API schemas (excluding duplicates - LineItemSchema, PixelEventSchema, OrderIdSchema come from pixel-event)

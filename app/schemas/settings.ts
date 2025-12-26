@@ -218,6 +218,109 @@ export const PrivacySettingsSchema = z.object({
 export type PrivacySettings = z.infer<typeof PrivacySettingsSchema>;
 
 // =============================================================================
+// WebPixel Settings Schemas (P1-3)
+// =============================================================================
+
+/**
+ * P1-3: Pixel configuration schema version 1
+ * 
+ * This schema validates the JSON structure stored in pixel_config field.
+ * Version is explicit to support future migrations.
+ */
+export const PixelConfigSchemaV1 = z.object({
+  schema_version: z.literal("1"),
+  mode: z.enum(["purchase_only", "full_funnel"]),
+  enabled_platforms: z.string().default("meta,tiktok,google"),
+  strictness: z.enum(["strict", "balanced"]),
+});
+
+export type PixelConfigV1 = z.infer<typeof PixelConfigSchemaV1>;
+
+/**
+ * P1-3: Default pixel configuration (used when parsing fails)
+ */
+export const DEFAULT_PIXEL_CONFIG: PixelConfigV1 = {
+  schema_version: "1",
+  mode: "purchase_only",
+  enabled_platforms: "meta,tiktok,google",
+  strictness: "strict",
+};
+
+/**
+ * P1-3: WebPixel settings schema
+ * 
+ * CRITICAL: These field names MUST exactly match shopify.extension.toml settings.
+ * - ingestion_key: Shop-scoped key for event correlation
+ * - shop_domain: The myshopify.com domain
+ * - pixel_config: JSON string containing PixelConfig
+ */
+export const WebPixelSettingsSchema = z.object({
+  ingestion_key: z.string().min(1, "Ingestion key is required"),
+  shop_domain: z.string().min(1, "Shop domain is required"),
+  pixel_config: z.string().optional(),
+});
+
+export type WebPixelSettings = z.infer<typeof WebPixelSettingsSchema>;
+
+/**
+ * P1-3: Parse and validate pixel_config JSON string
+ * 
+ * Returns validated config or defaults on parse/validation failure.
+ * Logs warnings for debugging but never throws.
+ */
+export function parseAndValidatePixelConfig(configStr?: string): PixelConfigV1 {
+  if (!configStr) {
+    return DEFAULT_PIXEL_CONFIG;
+  }
+  
+  try {
+    const parsed = JSON.parse(configStr);
+    const result = PixelConfigSchemaV1.safeParse(parsed);
+    
+    if (!result.success) {
+      // Schema validation failed - could be version mismatch or invalid fields
+      console.warn("[PixelConfig] Validation failed, using defaults:", result.error.issues);
+      return DEFAULT_PIXEL_CONFIG;
+    }
+    
+    return result.data;
+  } catch (e) {
+    console.warn("[PixelConfig] JSON parse failed, using defaults:", e);
+    return DEFAULT_PIXEL_CONFIG;
+  }
+}
+
+/**
+ * P1-3: Build pixel_config JSON string from typed config
+ */
+export function buildPixelConfigString(config: Partial<PixelConfigV1>): string {
+  const fullConfig: PixelConfigV1 = {
+    ...DEFAULT_PIXEL_CONFIG,
+    ...config,
+    schema_version: "1", // Always use current version
+  };
+  
+  return JSON.stringify(fullConfig);
+}
+
+/**
+ * P1-3: Validate WebPixel settings for API mutation
+ * 
+ * Returns a Result-style object for easy error handling.
+ */
+export function validateWebPixelSettings(settings: unknown): 
+  | { ok: true; data: WebPixelSettings }
+  | { ok: false; errors: Record<string, string> } {
+  const result = WebPixelSettingsSchema.safeParse(settings);
+  
+  if (result.success) {
+    return { ok: true, data: result.data };
+  }
+  
+  return { ok: false, errors: extractZodErrors(result.error) };
+}
+
+// =============================================================================
 // Form Data Parsing Helpers
 // =============================================================================
 
