@@ -4,7 +4,7 @@
  * Provides a consistent way to make API calls with loading, error, and success states.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "@remix-run/react";
 
 // =============================================================================
@@ -324,19 +324,20 @@ export function useQuery<T>(
   }, [url, navigate, onSuccess, onError]);
 
   // Auto-fetch on mount
-  useState(() => {
+  useEffect(() => {
     if (enabled) {
       fetch_();
     }
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   // Refetch interval
-  useState(() => {
+  useEffect(() => {
     if (refetchInterval && enabled) {
       const intervalId = setInterval(fetch_, refetchInterval);
       return () => clearInterval(intervalId);
     }
-  });
+  }, [refetchInterval, enabled, fetch_]);
 
   return {
     ...state,

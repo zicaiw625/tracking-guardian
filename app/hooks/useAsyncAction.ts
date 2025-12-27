@@ -4,7 +4,7 @@
  * A hook for managing async actions with loading and error states.
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 // =============================================================================
 // Types
@@ -120,6 +120,14 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
 
   // Use ref to track if component is mounted
   const mountedRef = useRef(true);
+
+  // Cleanup on unmount to prevent state updates after unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const execute = useCallback(
     async (...args: Args): Promise<T | null> => {

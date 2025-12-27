@@ -29,24 +29,34 @@ function Survey() {
     useEffect(() => {
         async function fetchOrderAndCheckoutInfo() {
             try {
+                // Handle orderConfirmation - may be a Promise or direct object
                 if (api.orderConfirmation) {
-                    const orderData = await api.orderConfirmation;
+                    const orderData = api.orderConfirmation instanceof Promise
+                        ? await api.orderConfirmation
+                        : api.orderConfirmation;
                     if (orderData) {
                         setOrderId(orderData.id || null);
-                        setOrderNumber(orderData.number?.toString() || null);
+                        // Handle number that could be 0 (falsy but valid)
+                        setOrderNumber(orderData.number !== undefined && orderData.number !== null 
+                            ? String(orderData.number) 
+                            : null);
                     }
                 }
+                // Handle checkoutToken - may be various formats
                 if (api.checkoutToken) {
-                    const tokenValue = typeof api.checkoutToken === 'object' && 'current' in api.checkoutToken
-                        ? api.checkoutToken.current
-                        : api.checkoutToken;
+                    let tokenValue = api.checkoutToken;
+                    
+                    // Handle ref-like objects with .current property
+                    if (typeof tokenValue === 'object' && tokenValue !== null && 'current' in tokenValue) {
+                        tokenValue = (tokenValue as { current: unknown }).current;
+                    }
+                    
+                    // Extract string value
                     if (typeof tokenValue === 'string') {
                         setCheckoutToken(tokenValue);
-                    }
-                    else if (tokenValue && typeof tokenValue === 'object' && 'value' in tokenValue) {
-                        setCheckoutToken((tokenValue as {
-                            value: string;
-                        }).value || null);
+                    } else if (tokenValue && typeof tokenValue === 'object' && 'value' in tokenValue) {
+                        const valueObj = tokenValue as { value: string };
+                        setCheckoutToken(valueObj.value || null);
                     }
                 }
             }
