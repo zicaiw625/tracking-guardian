@@ -5,7 +5,7 @@
  * Refactored from the original monolithic app.settings.tsx file.
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLoaderData, useSubmit, useActionData, useNavigation } from "@remix-run/react";
 import { Page, BlockStack, Banner, Tabs, ContextualSaveBar } from "@shopify/polaris";
 
@@ -37,58 +37,28 @@ export default function SettingsPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
 
-  // Compute initial values from server data (memoized to avoid recalculation)
-  const serverInitialAlertValues = useMemo(() => {
-    const existingConfig = shop?.alertConfigs?.[0];
-    return {
-      channel: existingConfig?.channel || "email",
-      email: "", // Not exposed from server for security
-      slackWebhook: "", // Not exposed from server for security
-      telegramToken: "", // Not exposed from server for security
-      telegramChatId: "", // Not exposed from server for security
-      threshold: existingConfig ? String(Math.round(existingConfig.discrepancyThreshold * 100)) : "10",
-      enabled: existingConfig?.isEnabled ?? true,
-    };
-  }, [shop?.alertConfigs]);
-
-  const serverInitialServerValues = useMemo(() => {
-    // Find the first active platform config
-    const existingConfig = shop?.pixelConfigs?.[0];
-    return {
-      platform: existingConfig?.platform || "meta",
-      enabled: existingConfig?.serverSideEnabled ?? false,
-      metaPixelId: "", // Not exposed from server for security
-      metaAccessToken: "", // Not exposed from server for security
-      metaTestCode: "",
-      googleMeasurementId: "",
-      googleApiSecret: "",
-      tiktokPixelId: "",
-      tiktokAccessToken: "",
-    };
-  }, [shop?.pixelConfigs]);
-
   // Tab state
   const [selectedTab, setSelectedTab] = useState(0);
 
-  // Alert form state - initialized from server data
-  const [alertChannel, setAlertChannel] = useState(serverInitialAlertValues.channel);
-  const [alertEmail, setAlertEmail] = useState(serverInitialAlertValues.email);
-  const [slackWebhook, setSlackWebhook] = useState(serverInitialAlertValues.slackWebhook);
-  const [telegramToken, setTelegramToken] = useState(serverInitialAlertValues.telegramToken);
-  const [telegramChatId, setTelegramChatId] = useState(serverInitialAlertValues.telegramChatId);
-  const [alertThreshold, setAlertThreshold] = useState(serverInitialAlertValues.threshold);
-  const [alertEnabled, setAlertEnabled] = useState(serverInitialAlertValues.enabled);
+  // Alert form state
+  const [alertChannel, setAlertChannel] = useState("email");
+  const [alertEmail, setAlertEmail] = useState("");
+  const [slackWebhook, setSlackWebhook] = useState("");
+  const [telegramToken, setTelegramToken] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [alertThreshold, setAlertThreshold] = useState("10");
+  const [alertEnabled, setAlertEnabled] = useState(true);
 
-  // Server-side form state - initialized from server data
-  const [serverPlatform, setServerPlatform] = useState(serverInitialServerValues.platform);
-  const [serverEnabled, setServerEnabled] = useState(serverInitialServerValues.enabled);
-  const [metaPixelId, setMetaPixelId] = useState(serverInitialServerValues.metaPixelId);
-  const [metaAccessToken, setMetaAccessToken] = useState(serverInitialServerValues.metaAccessToken);
-  const [metaTestCode, setMetaTestCode] = useState(serverInitialServerValues.metaTestCode);
-  const [googleMeasurementId, setGoogleMeasurementId] = useState(serverInitialServerValues.googleMeasurementId);
-  const [googleApiSecret, setGoogleApiSecret] = useState(serverInitialServerValues.googleApiSecret);
-  const [tiktokPixelId, setTiktokPixelId] = useState(serverInitialServerValues.tiktokPixelId);
-  const [tiktokAccessToken, setTiktokAccessToken] = useState(serverInitialServerValues.tiktokAccessToken);
+  // Server-side form state
+  const [serverPlatform, setServerPlatform] = useState("meta");
+  const [serverEnabled, setServerEnabled] = useState(false);
+  const [metaPixelId, setMetaPixelId] = useState("");
+  const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [metaTestCode, setMetaTestCode] = useState("");
+  const [googleMeasurementId, setGoogleMeasurementId] = useState("");
+  const [googleApiSecret, setGoogleApiSecret] = useState("");
+  const [tiktokPixelId, setTiktokPixelId] = useState("");
+  const [tiktokAccessToken, setTiktokAccessToken] = useState("");
 
   // Form dirty state
   const [alertFormDirty, setAlertFormDirty] = useState(false);
@@ -97,27 +67,70 @@ export default function SettingsPage() {
   // Track if form has been initialized from server data
   const [formInitialized, setFormInitialized] = useState(false);
 
-  // Initial values refs - will be synced with server data
-  const initialAlertValues = useRef(serverInitialAlertValues);
-  const initialServerValues = useRef(serverInitialServerValues);
+  // Initial values refs
+  const initialAlertValues = useRef({
+    channel: "email",
+    email: "",
+    slackWebhook: "",
+    telegramToken: "",
+    telegramChatId: "",
+    threshold: "10",
+    enabled: true,
+  });
 
-  // Sync form state when server data changes (e.g., on first load or after navigation)
+  const initialServerValues = useRef({
+    platform: "meta",
+    enabled: false,
+    metaPixelId: "",
+    metaAccessToken: "",
+    metaTestCode: "",
+    googleMeasurementId: "",
+    googleApiSecret: "",
+    tiktokPixelId: "",
+    tiktokAccessToken: "",
+  });
+
+  // Initialize form state from server data on first load
   useEffect(() => {
     if (!formInitialized && shop) {
-      // Initialize alert form from server data
-      setAlertChannel(serverInitialAlertValues.channel);
-      setAlertThreshold(serverInitialAlertValues.threshold);
-      setAlertEnabled(serverInitialAlertValues.enabled);
-      initialAlertValues.current = serverInitialAlertValues;
+      // Initialize alert form from existing config
+      const existingAlertConfig = shop.alertConfigs?.[0];
+      if (existingAlertConfig) {
+        const channel = existingAlertConfig.channel || "email";
+        const threshold = String(Math.round(existingAlertConfig.discrepancyThreshold * 100));
+        const enabled = existingAlertConfig.isEnabled ?? true;
+        
+        setAlertChannel(channel);
+        setAlertThreshold(threshold);
+        setAlertEnabled(enabled);
+        
+        initialAlertValues.current = {
+          ...initialAlertValues.current,
+          channel,
+          threshold,
+          enabled,
+        };
+      }
 
-      // Initialize server-side form from server data
-      setServerPlatform(serverInitialServerValues.platform);
-      setServerEnabled(serverInitialServerValues.enabled);
-      initialServerValues.current = serverInitialServerValues;
+      // Initialize server-side form from existing config
+      const existingPixelConfig = shop.pixelConfigs?.[0];
+      if (existingPixelConfig) {
+        const platform = existingPixelConfig.platform || "meta";
+        const enabled = existingPixelConfig.serverSideEnabled ?? false;
+        
+        setServerPlatform(platform);
+        setServerEnabled(enabled);
+        
+        initialServerValues.current = {
+          ...initialServerValues.current,
+          platform,
+          enabled,
+        };
+      }
 
       setFormInitialized(true);
     }
-  }, [shop, formInitialized, serverInitialAlertValues, serverInitialServerValues]);
+  }, [shop, formInitialized]);
 
   const isSubmitting = navigation.state === "submitting";
 
