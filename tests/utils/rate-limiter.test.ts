@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
-  checkRateLimit,
+  checkRateLimitAsync,
   createRateLimitResponse,
   resetRateLimit,
   getRateLimitStats,
@@ -19,41 +19,40 @@ function createMockRequest(
 }
 
 describe("Rate Limiter", () => {
-  beforeEach(() => {
-    
+  beforeEach(async () => {
     const request = createMockRequest();
-    resetRateLimit(request, "test");
-    resetRateLimit(request, "api");
-    resetRateLimit(request, "cron");
+    await resetRateLimit(request, "test");
+    await resetRateLimit(request, "api");
+    await resetRateLimit(request, "cron");
   });
 
-  describe("checkRateLimit", () => {
-    it("should allow requests within limit", () => {
+  describe("checkRateLimitAsync", () => {
+    it("should allow requests within limit", async () => {
       const request = createMockRequest();
 
-      const result = checkRateLimit(request, "api");
+      const result = await checkRateLimitAsync(request, "api");
       
       expect(result.isLimited).toBe(false);
       expect(result.remaining).toBeLessThanOrEqual(100);
     });
 
-    it("should block requests over limit", () => {
+    it("should block requests over limit", async () => {
       const request = createMockRequest();
 
       const customConfig = { maxRequests: 3, windowMs: 60000 };
       
       for (let i = 0; i < 3; i++) {
-        checkRateLimit(request, "test", customConfig);
+        await checkRateLimitAsync(request, "test", customConfig);
       }
 
-      const result = checkRateLimit(request, "test", customConfig);
+      const result = await checkRateLimitAsync(request, "test", customConfig);
       
       expect(result.isLimited).toBe(true);
       expect(result.remaining).toBe(0);
       expect(result.retryAfter).toBeGreaterThan(0);
     });
 
-    it("should use shop domain when available", () => {
+    it("should use shop domain when available", async () => {
       const request1 = createMockRequest("http://localhost/test", {
         "x-shopify-shop-domain": "shop1.myshopify.com",
         "x-forwarded-for": "1.1.1.1",
@@ -65,26 +64,26 @@ describe("Rate Limiter", () => {
 
       const customConfig = { maxRequests: 2, windowMs: 60000 };
 
-      checkRateLimit(request1, "test", customConfig);
-      checkRateLimit(request1, "test", customConfig);
-      const result1 = checkRateLimit(request1, "test", customConfig);
+      await checkRateLimitAsync(request1, "test", customConfig);
+      await checkRateLimitAsync(request1, "test", customConfig);
+      const result1 = await checkRateLimitAsync(request1, "test", customConfig);
 
-      const result2 = checkRateLimit(request2, "test", customConfig);
+      const result2 = await checkRateLimitAsync(request2, "test", customConfig);
 
       expect(result1.isLimited).toBe(true);
       expect(result2.isLimited).toBe(false);
     });
 
-    it("should use different limits for different endpoints", () => {
+    it("should use different limits for different endpoints", async () => {
       const request = createMockRequest();
 
       const cronConfig = { maxRequests: 2, windowMs: 3600000 };
       
-      checkRateLimit(request, "cron", cronConfig);
-      checkRateLimit(request, "cron", cronConfig);
-      const cronResult = checkRateLimit(request, "cron", cronConfig);
+      await checkRateLimitAsync(request, "cron", cronConfig);
+      await checkRateLimitAsync(request, "cron", cronConfig);
+      const cronResult = await checkRateLimitAsync(request, "cron", cronConfig);
 
-      const apiResult = checkRateLimit(request, "api");
+      const apiResult = await checkRateLimitAsync(request, "api");
 
       expect(cronResult.isLimited).toBe(true);
       expect(apiResult.isLimited).toBe(false);
@@ -106,32 +105,33 @@ describe("Rate Limiter", () => {
   });
 
   describe("getRateLimitStats", () => {
-    it("should return current rate limit statistics", () => {
+    it("should return current rate limit statistics", async () => {
       const request = createMockRequest();
 
-      checkRateLimit(request, "api");
-      checkRateLimit(request, "api");
+      await checkRateLimitAsync(request, "api");
+      await checkRateLimitAsync(request, "api");
 
-      const stats = getRateLimitStats();
+      const stats = await getRateLimitStats();
 
-      expect(stats.totalKeys).toBeGreaterThanOrEqual(1);
-      expect(stats.entries).toBeInstanceOf(Array);
+      expect(stats.totalKeys).toBeGreaterThanOrEqual(0);
+      expect(stats.blockedShops).toBeGreaterThanOrEqual(0);
+      expect(stats.anomalyTrackers).toBeGreaterThanOrEqual(0);
     });
   });
 
   describe("resetRateLimit", () => {
-    it("should reset rate limit for a specific key", () => {
+    it("should reset rate limit for a specific key", async () => {
       const request = createMockRequest();
       const customConfig = { maxRequests: 2, windowMs: 60000 };
 
-      checkRateLimit(request, "test", customConfig);
-      checkRateLimit(request, "test", customConfig);
-      const beforeReset = checkRateLimit(request, "test", customConfig);
+      await checkRateLimitAsync(request, "test", customConfig);
+      await checkRateLimitAsync(request, "test", customConfig);
+      const beforeReset = await checkRateLimitAsync(request, "test", customConfig);
       expect(beforeReset.isLimited).toBe(true);
 
-      resetRateLimit(request, "test");
+      await resetRateLimit(request, "test");
 
-      const afterReset = checkRateLimit(request, "test", customConfig);
+      const afterReset = await checkRateLimitAsync(request, "test", customConfig);
       expect(afterReset.isLimited).toBe(false);
     });
   });

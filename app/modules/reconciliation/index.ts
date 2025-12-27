@@ -34,7 +34,7 @@ export {
   verifyReceiptTrust,
   isSendAllowedByTrust,
   buildTrustMetadata,
-  buildShopAllowedDomains,
+  buildShopAllowedDomains as buildShopAllowedDomainsForTrust,
   type TrustLevel,
   type UntrustedReason,
   type ReceiptTrustResult,

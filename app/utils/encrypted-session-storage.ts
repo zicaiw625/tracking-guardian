@@ -1,5 +1,13 @@
-import type { SessionStorage } from "@shopify/shopify-app-session-storage";
 import type { Session } from "@shopify/shopify-api";
+
+// Define SessionStorage interface inline since @shopify/shopify-app-session-storage is a peer dependency
+interface SessionStorage {
+  storeSession(session: Session): Promise<boolean>;
+  loadSession(id: string): Promise<Session | undefined>;
+  deleteSession(id: string): Promise<boolean>;
+  deleteSessions(ids: string[]): Promise<boolean>;
+  findSessionsByShop(shop: string): Promise<Session[]>;
+}
 import { encryptAccessToken, decryptAccessToken, isTokenEncrypted, TokenDecryptionError } from "./token-encryption";
 import { logger } from "./logger.server";
 export function createEncryptedSessionStorage(baseStorage: SessionStorage): SessionStorage {

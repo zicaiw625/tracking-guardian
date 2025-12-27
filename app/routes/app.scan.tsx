@@ -3,7 +3,7 @@ import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useMemo } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, } from "~/components/icons";
+import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, SettingsIcon, } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, type ScriptAnalysisResult } from "../services/scanner.server";
@@ -186,7 +186,7 @@ export default function ScanPage() {
     const [monthlyOrders, setMonthlyOrders] = useState(500);
     const isScanning = navigation.state === "submitting";
 
-    const additionalScriptsWarning = (
+    const additionalScriptsWarning = deprecationStatus ? (
       <Banner tone="warning" title="Additional Scripts 需手动粘贴">
         <BlockStack gap="200">
           <Text as="p">
@@ -197,7 +197,7 @@ export default function ScanPage() {
           </Text>
         </BlockStack>
       </Banner>
-    );
+    ) : null;
     
     // Declare identifiedPlatforms before useMemo uses it
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
@@ -1237,9 +1237,11 @@ export default function ScanPage() {
                         <Text as="p" variant="bodySm">
                           这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。
                         </Text>
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          当前剩余：{deprecationStatus.additionalScripts.badge.text} — {deprecationStatus.additionalScripts.description}
-                        </Text>
+                        {deprecationStatus && (
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            当前剩余：{deprecationStatus.additionalScripts.badge.text} — {deprecationStatus.additionalScripts.description}
+                          </Text>
+                        )}
                         <InlineStack gap="200">
                           <Button url="/app/migrate" icon={ArrowRightIcon} size="slim" variant="primary">
                             前往迁移页面

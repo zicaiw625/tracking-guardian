@@ -37,100 +37,68 @@ export default function SettingsPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
 
+  // Compute initial values from loader data
+  const existingAlertConfig = shop?.alertConfigs?.[0];
+  const existingPixelConfig = shop?.pixelConfigs?.[0];
+
   // Tab state
   const [selectedTab, setSelectedTab] = useState(0);
 
-  // Alert form state
-  const [alertChannel, setAlertChannel] = useState("email");
+  // Alert form state - initialize from loader data
+  const [alertChannel, setAlertChannel] = useState(() => existingAlertConfig?.channel || "email");
   const [alertEmail, setAlertEmail] = useState("");
   const [slackWebhook, setSlackWebhook] = useState("");
   const [telegramToken, setTelegramToken] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
-  const [alertThreshold, setAlertThreshold] = useState("10");
-  const [alertEnabled, setAlertEnabled] = useState(true);
+  const [alertThreshold, setAlertThreshold] = useState(() => 
+    existingAlertConfig ? String(Math.round(existingAlertConfig.discrepancyThreshold * 100)) : "10"
+  );
+  const [alertEnabled, setAlertEnabled] = useState(() => existingAlertConfig?.isEnabled ?? true);
 
-  // Server-side form state
-  const [serverPlatform, setServerPlatform] = useState("meta");
-  const [serverEnabled, setServerEnabled] = useState(false);
-  const [metaPixelId, setMetaPixelId] = useState("");
+  // Server-side form state - initialize from loader data
+  const [serverPlatform, setServerPlatform] = useState(() => existingPixelConfig?.platform || "meta");
+  const [serverEnabled, setServerEnabled] = useState(() => existingPixelConfig?.serverSideEnabled ?? false);
+  // Initialize platform IDs from existing config based on platform type
+  const [metaPixelId, setMetaPixelId] = useState(() => 
+    existingPixelConfig?.platform === "meta" ? (existingPixelConfig.platformId || "") : ""
+  );
   const [metaAccessToken, setMetaAccessToken] = useState("");
   const [metaTestCode, setMetaTestCode] = useState("");
-  const [googleMeasurementId, setGoogleMeasurementId] = useState("");
+  const [googleMeasurementId, setGoogleMeasurementId] = useState(() =>
+    existingPixelConfig?.platform === "google" ? (existingPixelConfig.platformId || "") : ""
+  );
   const [googleApiSecret, setGoogleApiSecret] = useState("");
-  const [tiktokPixelId, setTiktokPixelId] = useState("");
+  const [tiktokPixelId, setTiktokPixelId] = useState(() =>
+    existingPixelConfig?.platform === "tiktok" ? (existingPixelConfig.platformId || "") : ""
+  );
   const [tiktokAccessToken, setTiktokAccessToken] = useState("");
 
   // Form dirty state
   const [alertFormDirty, setAlertFormDirty] = useState(false);
   const [serverFormDirty, setServerFormDirty] = useState(false);
 
-  // Track if form has been initialized from server data
-  const [formInitialized, setFormInitialized] = useState(false);
-
-  // Initial values refs
+  // Initial values refs - computed from loader data
   const initialAlertValues = useRef({
-    channel: "email",
+    channel: existingAlertConfig?.channel || "email",
     email: "",
     slackWebhook: "",
     telegramToken: "",
     telegramChatId: "",
-    threshold: "10",
-    enabled: true,
+    threshold: existingAlertConfig ? String(Math.round(existingAlertConfig.discrepancyThreshold * 100)) : "10",
+    enabled: existingAlertConfig?.isEnabled ?? true,
   });
 
   const initialServerValues = useRef({
-    platform: "meta",
-    enabled: false,
-    metaPixelId: "",
+    platform: existingPixelConfig?.platform || "meta",
+    enabled: existingPixelConfig?.serverSideEnabled ?? false,
+    metaPixelId: existingPixelConfig?.platform === "meta" ? (existingPixelConfig.platformId || "") : "",
     metaAccessToken: "",
     metaTestCode: "",
-    googleMeasurementId: "",
+    googleMeasurementId: existingPixelConfig?.platform === "google" ? (existingPixelConfig.platformId || "") : "",
     googleApiSecret: "",
-    tiktokPixelId: "",
+    tiktokPixelId: existingPixelConfig?.platform === "tiktok" ? (existingPixelConfig.platformId || "") : "",
     tiktokAccessToken: "",
   });
-
-  // Initialize form state from server data on first load
-  useEffect(() => {
-    if (!formInitialized && shop) {
-      // Initialize alert form from existing config
-      const existingAlertConfig = shop.alertConfigs?.[0];
-      if (existingAlertConfig) {
-        const channel = existingAlertConfig.channel || "email";
-        const threshold = String(Math.round(existingAlertConfig.discrepancyThreshold * 100));
-        const enabled = existingAlertConfig.isEnabled ?? true;
-        
-        setAlertChannel(channel);
-        setAlertThreshold(threshold);
-        setAlertEnabled(enabled);
-        
-        initialAlertValues.current = {
-          ...initialAlertValues.current,
-          channel,
-          threshold,
-          enabled,
-        };
-      }
-
-      // Initialize server-side form from existing config
-      const existingPixelConfig = shop.pixelConfigs?.[0];
-      if (existingPixelConfig) {
-        const platform = existingPixelConfig.platform || "meta";
-        const enabled = existingPixelConfig.serverSideEnabled ?? false;
-        
-        setServerPlatform(platform);
-        setServerEnabled(enabled);
-        
-        initialServerValues.current = {
-          ...initialServerValues.current,
-          platform,
-          enabled,
-        };
-      }
-
-      setFormInitialized(true);
-    }
-  }, [shop, formInitialized]);
 
   const isSubmitting = navigation.state === "submitting";
 

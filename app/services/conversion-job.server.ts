@@ -47,29 +47,9 @@ export {
 } from './job-processor.server';
 
 // =============================================================================
-// Re-exports from Split Modules
+// Note: Receipt matching and trust evaluation are now exported from the ingest module
+// Import from "~/modules/ingest" for:
+// - batchFetchReceipts, findReceiptForJob, updateReceiptTrustLevel
+// - evaluateTrust, checkPlatformEligibility, buildConsentEvidence
+// - ReceiptFields, JobForReceiptMatch, ShopTrustContext, TrustEvaluationResult, PlatformEligibilityResult
 // =============================================================================
-
-/**
- * Receipt matching utilities
- */
-export { 
-  batchFetchReceipts,
-  findReceiptForJob,
-  updateReceiptTrustLevel,
-  type ReceiptFields,
-  type JobForReceiptMatch,
-} from './receipt-matcher.server';
-
-/**
- * Trust and consent evaluation utilities
- */
-export {
-  evaluateTrust,
-  checkPlatformEligibility,
-  buildConsentEvidence,
-  DEFAULT_TRUST_OPTIONS,
-  type ShopTrustContext,
-  type TrustEvaluationResult,
-  type PlatformEligibilityResult,
-} from './trust-evaluator.server';

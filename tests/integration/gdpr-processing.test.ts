@@ -68,6 +68,9 @@ vi.mock("../../app/db.server", () => ({
     monthlyUsage: {
       deleteMany: vi.fn(),
     },
+    eventNonce: {
+      deleteMany: vi.fn(),
+    },
   },
 }));
 

@@ -51,6 +51,18 @@ const MAX_RETRIES = RETRY_DELAYS_MS.length;
  * Uses text/plain Content-Type to avoid CORS preflight.
  * Authentication moved to body (no custom headers).
  * Retries on network failure with exponential backoff.
+ * 
+ * Note: Returns a Promise that resolves when the initial attempt completes,
+ * but subsequent retries happen asynchronously via setTimeout.
+ * This is by design - we want to return control to the caller ASAP
+ * while background retries continue to attempt delivery.
+ * 
+ * @param url - Backend endpoint URL
+ * @param body - JSON stringified payload
+ * @param isDevMode - Whether to log debug info
+ * @param log - Logger function
+ * @param retryIndex - Current retry attempt (0-based)
+ * @returns Promise that resolves when attempt completes (not when retries complete)
  */
 async function sendCheckoutCompletedWithRetry(
   url: string,
@@ -73,11 +85,22 @@ async function sendCheckoutCompletedWithRetry(
     });
 
     if (isDevMode) {
-      log(`checkout_completed sent, status: ${response.status}, attempt: ${retryIndex + 1}`);
+      log(`checkout_completed sent, status: ${response.status}, attempt: ${retryIndex + 1}/${MAX_RETRIES}`);
     }
 
     // 2xx = success, 4xx = client error (don't retry), 5xx = server error (retry)
-    if (response.ok || (response.status >= 400 && response.status < 500)) {
+    if (response.ok) {
+      if (isDevMode && retryIndex > 0) {
+        log(`checkout_completed succeeded on retry attempt ${retryIndex + 1}`);
+      }
+      return;
+    }
+    
+    if (response.status >= 400 && response.status < 500) {
+      // Client error - don't retry, log for debugging
+      if (isDevMode) {
+        log(`checkout_completed client error ${response.status}, not retrying`);
+      }
       return;
     }
 
@@ -85,24 +108,26 @@ async function sendCheckoutCompletedWithRetry(
     if (retryIndex < MAX_RETRIES - 1) {
       const delay = RETRY_DELAYS_MS[retryIndex + 1];
       if (isDevMode) {
-        log(`checkout_completed server error, retrying in ${delay}ms`);
+        log(`checkout_completed server error ${response.status}, retrying in ${delay}ms (attempt ${retryIndex + 2}/${MAX_RETRIES})`);
       }
       setTimeout(() => {
         sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1);
       }, delay);
+    } else if (isDevMode) {
+      log(`checkout_completed failed after ${MAX_RETRIES} attempts with server error ${response.status}`);
     }
   } catch (error) {
     // Network error - retry if we have attempts left
     if (retryIndex < MAX_RETRIES - 1) {
       const delay = RETRY_DELAYS_MS[retryIndex + 1];
       if (isDevMode) {
-        log(`checkout_completed network error, retrying in ${delay}ms:`, error);
+        log(`checkout_completed network error, retrying in ${delay}ms (attempt ${retryIndex + 2}/${MAX_RETRIES}):`, error);
       }
       setTimeout(() => {
         sendCheckoutCompletedWithRetry(url, body, isDevMode, log, retryIndex + 1);
       }, delay);
     } else if (isDevMode) {
-      log(`checkout_completed failed after ${MAX_RETRIES} attempts:`, error);
+      log(`checkout_completed failed after ${MAX_RETRIES} attempts with network error:`, error);
     }
   }
 }

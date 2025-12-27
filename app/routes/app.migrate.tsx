@@ -190,7 +190,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 }
                 else {
                     ingestionSecret = shop.ingestionSecret;
-                    const encryptedSecret = encryptIngestionSecret(ingestionSecret);
+                    const encryptedSecret = encryptIngestionSecret(ingestionSecret as string);
                     await prisma.shop.update({
                         where: { id: shop.id },
                         data: { ingestionSecret: encryptedSecret },

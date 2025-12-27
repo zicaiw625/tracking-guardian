@@ -54,8 +54,15 @@ describe("Scanner Pattern Detection", () => {
     });
 
     describe("identifyPlatformFromSrc", () => {
-        it("should identify Google from GTM URL", () => {
+        it("should identify GTM from GTM URL", () => {
+            // GTM has its own platform type for accurate tracking
             const src = "https://www.googletagmanager.com/gtm.js?id=GTM-XXXXX";
+            const platform = identifyPlatformFromSrc(src);
+            expect(platform).toBe("gtm");
+        });
+        
+        it("should identify Google from GA4 URL", () => {
+            const src = "https://www.google-analytics.com/analytics.js";
             const platform = identifyPlatformFromSrc(src);
             expect(platform).toBe("google");
         });

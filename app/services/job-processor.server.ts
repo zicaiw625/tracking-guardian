@@ -1087,8 +1087,6 @@ export async function processConversionJobs(
 }
 
 // =============================================================================
-// Re-exports for backwards compatibility
+// Note: Receipt matching and trust evaluation are now exported from the ingest module
+// Import from "~/modules/ingest" for: batchFetchReceipts, findReceiptForJob, evaluateTrust, etc.
 // =============================================================================
-
-export { batchFetchReceipts, findReceiptForJob } from "./receipt-matcher.server";
-export { evaluateTrust, checkPlatformEligibility } from "./trust-evaluator.server";

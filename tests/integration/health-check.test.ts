@@ -52,12 +52,21 @@ describe("Health Check Endpoint", () => {
     });
 
     describe("Detailed Health Check", () => {
-        it("should return detailed checks when detailed=true", async () => {
+        it("should return detailed checks when authenticated with detailed=true", async () => {
+            // Set up CRON_SECRET for authentication
+            const originalCronSecret = process.env.CRON_SECRET;
+            process.env.CRON_SECRET = "test-secret";
+            
             vi.mocked(prisma.$queryRaw).mockResolvedValue([{ 1: 1 }]);
 
             const { loader } = await import("../../app/routes/api.health");
 
-            const request = new Request("http://localhost/api/health?detailed=true");
+            // Include Bearer token for authenticated access
+            const request = new Request("http://localhost/api/health?detailed=true", {
+                headers: {
+                    "Authorization": "Bearer test-secret",
+                },
+            });
             const response = await loader({ request, params: {}, context: {} });
             const data = await response.json();
 
@@ -67,6 +76,25 @@ describe("Health Check Endpoint", () => {
             expect(data.checks.database.status).toBe("pass");
             expect(data.checks.memory).toBeDefined();
             expect(data.checks.memory.status).toBe("pass");
+            
+            // Restore original CRON_SECRET
+            process.env.CRON_SECRET = originalCronSecret;
+        });
+        
+        it("should downgrade to basic health check without authentication", async () => {
+            vi.mocked(prisma.$queryRaw).mockResolvedValue([{ 1: 1 }]);
+
+            const { loader } = await import("../../app/routes/api.health");
+
+            // Request detailed without auth - should be downgraded
+            const request = new Request("http://localhost/api/health?detailed=true");
+            const response = await loader({ request, params: {}, context: {} });
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.status).toBe("healthy");
+            // Without auth, checks should NOT be included
+            expect(data.checks).toBeUndefined();
         });
     });
 });

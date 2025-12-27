@@ -156,9 +156,15 @@ export function checkPlatformEligibility(
 ): PlatformEligibilityResult {
   const platformCategory = getEffectiveConsentCategory(platform, treatAsMarketing);
 
-  // Check sale of data opt-out first
+  // P0-04: Check sale of data consent with deny-by-default
+  // For platforms that require saleOfData (configured elsewhere), 
+  // this provides an additional layer of protection:
+  // - Block if explicitly opted out (saleOfDataAllowed === false)
+  // - The platform-level saleOfData requirement check is in consent-filter.ts/job-processor
+  // Note: We only check for explicit opt-out here; the "not allowed" case
+  // is handled by platformRequiresSaleOfData() in the consent filter layer
   if (consentState?.saleOfDataAllowed === false) {
-    logger.debug(`[P0-04] Platform blocked by sale_of_data opt-out`, {
+    logger.debug(`[P0-04] Platform blocked by explicit sale_of_data opt-out`, {
       platform,
     });
     return {

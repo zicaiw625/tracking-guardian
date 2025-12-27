@@ -18,20 +18,8 @@ export {
   type ProcessConversionJobsResult,
 } from "../../services/job-processor.server";
 
-// Re-exports from conversion-job for backwards compatibility
-export {
-  batchFetchReceipts,
-  findReceiptForJob,
-  updateReceiptTrustLevel,
-  evaluateTrust,
-  checkPlatformEligibility,
-  buildConsentEvidence,
-  type ReceiptFields,
-  type JobForReceiptMatch,
-  type ShopTrustContext,
-  type TrustEvaluationResult,
-  type PlatformEligibilityResult,
-} from "../../services/conversion-job.server";
+// Note: Receipt matching and trust evaluation are now exported from the ingest module
+// Import from "~/modules/ingest" for: batchFetchReceipts, findReceiptForJob, evaluateTrust, etc.
 
 // Platform adapters
 export {

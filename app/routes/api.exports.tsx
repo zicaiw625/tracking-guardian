@@ -132,7 +132,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     orderBy: { createdAt: "desc" },
                     take: EXPORT_LIMITS.conversions,
                 });
-                data = logs.map(log => ({
+                data = logs.map((log: typeof logs[number]) => ({
                     ...log,
                     orderValue: Number(log.orderValue),
                     createdAt: log.createdAt.toISOString(),
@@ -165,7 +165,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     orderBy: { createdAt: "desc" },
                     take: EXPORT_LIMITS.audit,
                 });
-                data = logs.map(log => ({
+                data = logs.map((log: typeof logs[number]) => ({
                     ...log,
                     createdAt: log.createdAt.toISOString(),
                     previousValue: log.previousValue ? "[REDACTED]" : null,
@@ -197,7 +197,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     orderBy: { createdAt: "desc" },
                     take: EXPORT_LIMITS.receipts,
                 });
-                data = receipts.map(receipt => ({
+                data = receipts.map((receipt: typeof receipts[number]) => ({
                     ...receipt,
                     pixelTimestamp: receipt.pixelTimestamp.toISOString(),
                     createdAt: receipt.createdAt.toISOString(),
@@ -230,7 +230,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     orderBy: { createdAt: "desc" },
                     take: EXPORT_LIMITS.jobs,
                 });
-                data = jobs.map(job => ({
+                data = jobs.map((job: typeof jobs[number]) => ({
                     ...job,
                     orderValue: Number(job.orderValue),
                     createdAt: job.createdAt.toISOString(),
@@ -277,7 +277,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     },
                 } : null;
 
-                data = scans.map(scan => ({
+                data = scans.map((scan: typeof scans[number]) => ({
                     ...scan,
                     createdAt: scan.createdAt.toISOString(),
                 }));

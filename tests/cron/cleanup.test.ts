@@ -211,7 +211,7 @@ describe("Cleanup Task", () => {
       expect(cutoffDate.getTime()).toBeLessThanOrEqual(expectedMinCutoff.getTime() + 86400000);
     });
 
-    it("should keep last 5 scan reports per shop", async () => {
+    it("should delete scan reports based on retention period", async () => {
       const mockShops = [{ id: "shop1", shopDomain: "shop1.myshopify.com", dataRetentionDays: 90 }];
       const oldScanReports = [{ id: "scan6" }, { id: "scan7" }];
 
@@ -232,12 +232,12 @@ describe("Cleanup Task", () => {
       const result = await cleanupExpiredData();
 
       expect(result.scanReportsDeleted).toBe(2);
-      expect(prisma.scanReport.findMany).toHaveBeenCalledWith({
-        where: { shopId: "shop1" },
-        orderBy: { createdAt: "desc" },
-        skip: 5,
-        select: { id: true },
-      });
+      // Scan reports are now deleted based on retention period (time-based cleanup)
+      expect(prisma.scanReport.findMany).toHaveBeenCalled();
+      const scanReportCall = (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(scanReportCall.where.shopId).toEqual({ in: ["shop1"] });
+      expect(scanReportCall.where.createdAt).toBeDefined();
+      expect(scanReportCall.select).toEqual({ id: true });
     });
   });
 });

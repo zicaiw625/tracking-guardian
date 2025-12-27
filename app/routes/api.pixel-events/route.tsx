@@ -143,7 +143,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     metrics.pixelRejection({
       shopDomain: shopDomainHeader,
-      reason: preBodyValidation.reason,
+      reason: preBodyValidation.reason as "invalid_origin" | "invalid_origin_protocol",
       originType: preBodyValidation.reason,
     });
     if (preBodyValidation.shouldLog) {

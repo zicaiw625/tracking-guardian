@@ -330,20 +330,26 @@ export function isValidPhone(phone: string): boolean {
 
 /**
  * Normalize phone number to E.164 format if possible.
+ * 
+ * E.164 format: +[country code][subscriber number]
+ * Examples: +14155551234, +442071234567
  */
 export function normalizePhone(phone: string): string | null {
+  // Check if original phone starts with +
+  const hasPlus = phone.startsWith("+");
   const digits = phone.replace(/\D/g, "");
 
   if (digits.length < 7 || digits.length > 15) {
     return null;
   }
 
-  // Assume US if 10 digits and no country code
-  if (digits.length === 10) {
+  // Assume US if 10 digits and no country code indicator
+  if (digits.length === 10 && !hasPlus) {
     return `+1${digits}`;
   }
 
-  return digits.startsWith("+") ? digits : `+${digits}`;
+  // Already has country code (indicated by + prefix or > 10 digits)
+  return `+${digits}`;
 }
 
 /**

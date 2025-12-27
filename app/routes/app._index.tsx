@@ -179,7 +179,7 @@ function QuickStatsCard({
             </Text>
           )}
           {planFeatures && planFeatures.length > 0 && (
-            <List spacing="tight">
+            <List>
               {planFeatures.slice(0, 3).map((f, i) => (
                 <List.Item key={i}>
                   <Text as="span" variant="bodySm">{f}</Text>

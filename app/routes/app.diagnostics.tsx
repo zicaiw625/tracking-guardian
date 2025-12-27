@@ -157,13 +157,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             details: "请手动检查 Web Pixel 配置",
         });
     }
-    const serverSideConfigs = shop.pixelConfigs.filter(c => c.serverSideEnabled);
+    const serverSideConfigs = shop.pixelConfigs.filter((c: { platform: string; serverSideEnabled: boolean }) => c.serverSideEnabled);
     if (serverSideConfigs.length > 0) {
         checks.push({
             name: "服务端追踪 (CAPI)",
             status: "pass",
             message: `已配置 ${serverSideConfigs.length} 个平台`,
-            details: serverSideConfigs.map(c => c.platform).join(", "),
+            details: serverSideConfigs.map((c: { platform: string }) => c.platform).join(", "),
         });
     }
     else {
@@ -318,7 +318,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
 
-    const orderIds = recentEventsRaw.map(e => e.orderId).filter(Boolean);
+    const orderIds = recentEventsRaw.map((e: { orderId: string | null }) => e.orderId).filter(Boolean) as string[];
     
     const relatedJobs = orderIds.length > 0 ? await prisma.conversionJob.findMany({
         where: { 
@@ -333,8 +333,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
     }) : [];
 
-    const recentEvents = recentEventsRaw.map(event => {
-        const job = relatedJobs.find(j => j.orderId === event.orderId);
+    type RecentEvent = typeof recentEventsRaw[number];
+    type RelatedJob = typeof relatedJobs[number];
+
+    const recentEvents = recentEventsRaw.map((event: RecentEvent) => {
+        const job = relatedJobs.find((j: RelatedJob) => j.orderId === event.orderId);
         return {
             ...event,
             jobStatus: job?.status || "pending_webhook", // If no job, it means webhook hasn't arrived or matched yet
@@ -816,7 +819,17 @@ export default function DiagnosticsPage() {
                     "后端处理",
                     "CAPI 结果",
                   ]}
-                  rows={data.recentEvents.map((event) => {
+                  rows={data.recentEvents.map((event: {
+                    id: string;
+                    orderId: string | null;
+                    eventType: string;
+                    createdAt: string;
+                    isTrusted: boolean;
+                    signatureStatus: string;
+                    jobStatus: string;
+                    platformResults?: unknown;
+                    jobError?: string | null;
+                  }) => {
                     const platforms = event.platformResults 
                         ? Object.keys(event.platformResults as Record<string, string>).join(", ") 
                         : "-";

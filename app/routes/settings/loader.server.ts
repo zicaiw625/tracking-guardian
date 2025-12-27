@@ -70,14 +70,27 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
 
   // P0-1: Explicitly map fields to avoid exposing sensitive data
   // Use explicit mapping instead of type assertion to ensure type safety
-  const alertConfigs: AlertConfigDisplay[] = shop?.alertConfigs.map((config) => ({
+  const alertConfigs: AlertConfigDisplay[] = shop?.alertConfigs.map((config: {
+    id: string;
+    channel: string;
+    discrepancyThreshold: number;
+    isEnabled: boolean;
+  }) => ({
     id: config.id,
     channel: config.channel,
     discrepancyThreshold: config.discrepancyThreshold,
     isEnabled: config.isEnabled,
   })) ?? [];
 
-  const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs.map((config) => ({
+  const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs.map((config: {
+    id: string;
+    platform: string;
+    platformId: string | null;
+    serverSideEnabled: boolean;
+    clientSideEnabled: boolean;
+    isActive: boolean;
+    updatedAt: Date;
+  }) => ({
     id: config.id,
     platform: config.platform,
     platformId: config.platformId,

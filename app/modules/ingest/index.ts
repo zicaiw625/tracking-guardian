@@ -34,8 +34,9 @@ export {
 
 // Pixel validation
 export {
-  validatePixelEventPayload,
+  validateRequest as validatePixelEventPayload,
   type ValidationResult,
+  type PixelEventPayload,
 } from "../../services/pixel-validation.server";
 
 // Origin validation

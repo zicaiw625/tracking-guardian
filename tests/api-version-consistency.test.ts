@@ -24,8 +24,9 @@ describe("API Version Consistency", () => {
   }
 
   function getServerVersion(): string | null {
+    // The API version is now defined in the modular app-config.server.ts file
     const content = readFileSync(
-      resolve(__dirname, "../app/shopify.server.ts"),
+      resolve(__dirname, "../app/services/shopify/app-config.server.ts"),
       "utf-8"
     );
     
