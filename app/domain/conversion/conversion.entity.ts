@@ -1,16 +1,5 @@
-/**
- * Conversion Domain Entity
- *
- * Represents conversion jobs and their lifecycle in the domain layer.
- */
 
-// =============================================================================
-// Value Objects
-// =============================================================================
 
-/**
- * Conversion job status
- */
 export type JobStatus =
   | "queued"
   | "processing"
@@ -19,35 +8,23 @@ export type JobStatus =
   | "limit_exceeded"
   | "dead_letter";
 
-/**
- * Platform send result status
- */
 export type PlatformResultStatus =
   | "sent"
   | "failed"
   | "skipped"
   | "pending";
 
-/**
- * Consent state
- */
 export interface ConsentState {
   marketing: boolean;
   analytics: boolean;
 }
 
-/**
- * Trust verification result
- */
 export interface TrustResult {
   level: "trusted" | "partial" | "untrusted" | "unknown";
   reason?: string;
   verifiedAt?: Date;
 }
 
-/**
- * Consent evidence for audit trail
- */
 export interface ConsentEvidence {
   strategy: string;
   usedConsent: ConsentState | null;
@@ -56,18 +33,12 @@ export interface ConsentEvidence {
   reason?: string;
 }
 
-/**
- * Trust metadata for audit trail
- */
 export interface TrustMetadata {
   trustLevel: string;
   reason?: string;
   verifiedAt?: string;
 }
 
-/**
- * Line item in an order
- */
 export interface LineItem {
   productId: string;
   variantId?: string;
@@ -76,52 +47,34 @@ export interface LineItem {
   price: number;
 }
 
-// =============================================================================
-// Conversion Job Entity
-// =============================================================================
-
-/**
- * Conversion job entity
- *
- * Represents an order that needs to be sent to ad platforms.
- */
 export interface ConversionJob {
   readonly id: string;
   readonly shopId: string;
-  
-  // Order data
+
   readonly orderId: string;
   readonly orderNumber: string | null;
   readonly orderValue: number;
   readonly currency: string;
-  
-  // CAPI input
+
   readonly capiInput: CapiInput | null;
-  
-  // Consent and trust
+
   readonly consentEvidence: ConsentEvidence | null;
   readonly trustMetadata: TrustMetadata | null;
-  
-  // Job status
+
   readonly status: JobStatus;
   readonly attempts: number;
   readonly maxAttempts: number;
   readonly lastAttemptAt: Date | null;
   readonly nextRetryAt: Date | null;
   readonly errorMessage: string | null;
-  
-  // Platform results
+
   readonly platformResults: Record<string, PlatformResultStatus> | null;
-  
-  // Timestamps
+
   readonly createdAt: Date;
   readonly processedAt: Date | null;
   readonly completedAt: Date | null;
 }
 
-/**
- * Minimal CAPI input data
- */
 export interface CapiInput {
   value: number;
   currency: string;
@@ -131,9 +84,6 @@ export interface CapiInput {
   hashedIdentifiers?: HashedIdentifiers;
 }
 
-/**
- * Hashed PII for ad platform matching
- */
 export interface HashedIdentifiers {
   email?: string;
   phone?: string;
@@ -145,9 +95,6 @@ export interface HashedIdentifiers {
   zip?: string;
 }
 
-/**
- * Job with shop context
- */
 export interface JobWithShop extends ConversionJob {
   readonly shop: {
     shopDomain: string;
@@ -157,13 +104,6 @@ export interface JobWithShop extends ConversionJob {
   };
 }
 
-// =============================================================================
-// Factory Functions
-// =============================================================================
-
-/**
- * Create a new conversion job
- */
 export function createConversionJob(params: {
   id: string;
   shopId: string;
@@ -196,13 +136,6 @@ export function createConversionJob(params: {
   };
 }
 
-// =============================================================================
-// Domain Logic
-// =============================================================================
-
-/**
- * Check if job can be retried
- */
 export function canRetry(job: ConversionJob): boolean {
   if (job.status === "completed" || job.status === "dead_letter" || job.status === "limit_exceeded") {
     return false;
@@ -210,16 +143,10 @@ export function canRetry(job: ConversionJob): boolean {
   return job.attempts < job.maxAttempts;
 }
 
-/**
- * Check if job has exhausted all retries
- */
 export function isExhausted(job: ConversionJob): boolean {
   return job.attempts >= job.maxAttempts;
 }
 
-/**
- * Check if job is in a terminal state
- */
 export function isTerminal(job: ConversionJob): boolean {
   return (
     job.status === "completed" ||
@@ -228,9 +155,6 @@ export function isTerminal(job: ConversionJob): boolean {
   );
 }
 
-/**
- * Check if job is ready for processing
- */
 export function isReady(job: ConversionJob): boolean {
   if (job.status !== "queued" && job.status !== "failed") {
     return false;
@@ -241,9 +165,6 @@ export function isReady(job: ConversionJob): boolean {
   return true;
 }
 
-/**
- * Calculate next retry time with exponential backoff
- */
 export function calculateNextRetryTime(
   attempts: number,
   baseDelayMs: number = 60000,
@@ -257,16 +178,10 @@ export function calculateNextRetryTime(
   return new Date(Date.now() + delayMs + jitter);
 }
 
-/**
- * Get the duration since job creation
- */
 export function getJobAge(job: ConversionJob): number {
   return Date.now() - job.createdAt.getTime();
 }
 
-/**
- * Check if all platforms succeeded
- */
 export function allPlatformsSucceeded(job: ConversionJob): boolean {
   if (!job.platformResults) return false;
   return Object.values(job.platformResults).every(
@@ -274,17 +189,11 @@ export function allPlatformsSucceeded(job: ConversionJob): boolean {
   );
 }
 
-/**
- * Check if any platform succeeded
- */
 export function anyPlatformSucceeded(job: ConversionJob): boolean {
   if (!job.platformResults) return false;
   return Object.values(job.platformResults).some((status) => status === "sent");
 }
 
-/**
- * Get failed platforms
- */
 export function getFailedPlatforms(job: ConversionJob): string[] {
   if (!job.platformResults) return [];
   return Object.entries(job.platformResults)
@@ -292,13 +201,6 @@ export function getFailedPlatforms(job: ConversionJob): string[] {
     .map(([platform]) => platform);
 }
 
-// =============================================================================
-// Type Guards
-// =============================================================================
-
-/**
- * Check if value is a valid job status
- */
 export function isValidJobStatus(value: unknown): value is JobStatus {
   return (
     value === "queued" ||
@@ -310,9 +212,6 @@ export function isValidJobStatus(value: unknown): value is JobStatus {
   );
 }
 
-/**
- * Check if value is a valid platform result status
- */
 export function isValidPlatformResultStatus(value: unknown): value is PlatformResultStatus {
   return (
     value === "sent" ||

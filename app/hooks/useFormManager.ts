@@ -1,45 +1,23 @@
-/**
- * Universal Form Manager Hook
- *
- * A generic, type-safe hook for managing form state with features:
- * - Automatic dirty tracking
- * - Initial values management
- * - Form reset functionality
- * - Contextual save bar integration
- * - Validation support
- */
+
 
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useNavigation } from "@remix-run/react";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Configuration for a single form field
- */
 export interface FieldConfig<T> {
-  /** Initial value for the field */
+
   initialValue: T;
-  /** Optional validation function */
+
   validate?: (value: T, allValues: Record<string, unknown>) => string | undefined;
-  /** Whether field is required */
+
   required?: boolean;
-  /** Field-level transform before comparison */
+
   transform?: (value: T) => T;
 }
 
-/**
- * Configuration object for all form fields
- */
 export type FormConfig<T extends Record<string, unknown>> = {
   [K in keyof T]: FieldConfig<T[K]>;
 };
 
-/**
- * Individual field state
- */
 export interface FieldState<T> {
   value: T;
   isDirty: boolean;
@@ -47,9 +25,6 @@ export interface FieldState<T> {
   touched: boolean;
 }
 
-/**
- * Form manager state
- */
 export interface FormState<T extends Record<string, unknown>> {
   values: T;
   isDirty: boolean;
@@ -58,51 +33,45 @@ export interface FormState<T extends Record<string, unknown>> {
   touched: Partial<Record<keyof T, boolean>>;
 }
 
-/**
- * Field setter with additional metadata
- */
 export interface FieldSetter<T> {
   (value: T): void;
   (updater: (prev: T) => T): void;
 }
 
-/**
- * Return type for the useFormManager hook
- */
 export interface FormManagerReturn<T extends Record<string, unknown>> {
-  /** Current form state */
+
   state: FormState<T>;
-  /** All field values */
+
   values: T;
-  /** Whether form has unsaved changes */
+
   isDirty: boolean;
-  /** Whether form is valid */
+
   isValid: boolean;
-  /** Whether form is currently submitting */
+
   isSubmitting: boolean;
-  /** Set a field value */
+
   setValue: <K extends keyof T>(field: K, value: T[K]) => void;
-  /** Set multiple field values at once */
+
   setValues: (values: Partial<T>) => void;
-  /** Get current value of a field */
+
   getValue: <K extends keyof T>(field: K) => T[K];
-  /** Get field-specific state */
+
   getFieldState: <K extends keyof T>(field: K) => FieldState<T[K]>;
-  /** Mark field as touched */
+
   touchField: (field: keyof T) => void;
-  /** Reset form to initial values */
+
   reset: () => void;
-  /** Reset form with new initial values */
+
   resetWith: (newInitialValues: Partial<T>) => void;
-  /** Commit current values as new initial values */
+
   commit: () => void;
-  /** Validate all fields and return whether form is valid */
+
   validate: () => boolean;
-  /** Get error for a specific field */
+
   getError: (field: keyof T) => string | undefined;
-  /** Build FormData from current values */
+
   toFormData: (action?: string) => FormData;
-  /** Get field props for integration with Polaris or other UI */
+
   getFieldProps: <K extends keyof T>(field: K) => {
     value: T[K];
     onChange: (value: T[K]) => void;
@@ -111,13 +80,6 @@ export interface FormManagerReturn<T extends Record<string, unknown>> {
   };
 }
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Deep equality check for primitive values and arrays/objects
- */
 function isEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (a === null || b === null) return false;
@@ -143,36 +105,10 @@ function isEqual(a: unknown, b: unknown): boolean {
   return false;
 }
 
-// =============================================================================
-// Main Hook
-// =============================================================================
-
-/**
- * Universal form manager hook
- *
- * @example
- * ```tsx
- * const form = useFormManager({
- *   email: { initialValue: "", required: true, validate: (v) => v.includes("@") ? undefined : "Invalid email" },
- *   name: { initialValue: "" },
- *   enabled: { initialValue: true },
- * });
- *
- * return (
- *   <form>
- *     <TextField {...form.getFieldProps("email")} label="Email" />
- *     <TextField {...form.getFieldProps("name")} label="Name" />
- *     <Checkbox checked={form.values.enabled} onChange={(v) => form.setValue("enabled", v)} />
- *
- *     {form.isDirty && <ContextualSaveBar onSave={handleSave} onDiscard={form.reset} />}
- *   </form>
- * );
- * ```
- */
 export function useFormManager<T extends Record<string, unknown>>(
   config: FormConfig<T>
 ): FormManagerReturn<T> {
-  // Extract initial values from config
+
   const initialValues = useMemo(() => {
     const values = {} as T;
     for (const key in config) {
@@ -181,20 +117,15 @@ export function useFormManager<T extends Record<string, unknown>>(
     return values;
   }, [config]);
 
-  // Store initial values reference (for reset)
   const initialValuesRef = useRef<T>(initialValues);
 
-  // Current values state
   const [values, setValuesState] = useState<T>(initialValues);
 
-  // Touched fields tracking
   const [touched, setTouched] = useState<Partial<Record<keyof T, boolean>>>({});
 
-  // Navigation state for submit detection
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
-  // Calculate errors based on current values
   const errors = useMemo(() => {
     const result: Partial<Record<keyof T, string>> = {};
 
@@ -202,7 +133,6 @@ export function useFormManager<T extends Record<string, unknown>>(
       const fieldConfig = config[key];
       const value = values[key];
 
-      // Check required
       if (fieldConfig.required) {
         if (value === undefined || value === null || value === "") {
           result[key] = `${String(key)} is required`;
@@ -210,7 +140,6 @@ export function useFormManager<T extends Record<string, unknown>>(
         }
       }
 
-      // Run custom validation
       if (fieldConfig.validate) {
         const error = fieldConfig.validate(value, values as Record<string, unknown>);
         if (error) {
@@ -222,10 +151,8 @@ export function useFormManager<T extends Record<string, unknown>>(
     return result;
   }, [config, values]);
 
-  // Track initial values in state to avoid ref access during render
   const [savedInitialValues, setSavedInitialValues] = useState<T>(initialValues);
 
-  // Calculate if form is dirty (any value differs from initial)
   const isDirty = useMemo(() => {
     for (const key in values) {
       const fieldConfig = config[key];
@@ -243,10 +170,8 @@ export function useFormManager<T extends Record<string, unknown>>(
     return false;
   }, [config, values, savedInitialValues]);
 
-  // Calculate if form is valid
   const isValid = useMemo(() => Object.keys(errors).length === 0, [errors]);
 
-  // Set a single field value
   const setValue = useCallback(<K extends keyof T>(field: K, value: T[K]) => {
     setValuesState((prev) => ({
       ...prev,
@@ -254,7 +179,6 @@ export function useFormManager<T extends Record<string, unknown>>(
     }));
   }, []);
 
-  // Set multiple values at once
   const setValues = useCallback((newValues: Partial<T>) => {
     setValuesState((prev) => ({
       ...prev,
@@ -262,13 +186,11 @@ export function useFormManager<T extends Record<string, unknown>>(
     }));
   }, []);
 
-  // Get a single field value
   const getValue = useCallback(
     <K extends keyof T>(field: K): T[K] => values[field],
     [values]
   );
 
-  // Get field-specific state
   const getFieldState = useCallback(
     <K extends keyof T>(field: K): FieldState<T[K]> => {
       const fieldConfig = config[field];
@@ -289,7 +211,6 @@ export function useFormManager<T extends Record<string, unknown>>(
     [config, values, savedInitialValues, errors, touched]
   );
 
-  // Mark field as touched
   const touchField = useCallback((field: keyof T) => {
     setTouched((prev) => ({
       ...prev,
@@ -297,13 +218,11 @@ export function useFormManager<T extends Record<string, unknown>>(
     }));
   }, []);
 
-  // Reset to initial values
   const reset = useCallback(() => {
     setValuesState(initialValuesRef.current);
     setTouched({});
   }, []);
 
-  // Reset with new initial values
   const resetWith = useCallback((newInitialValues: Partial<T>) => {
     const merged = { ...savedInitialValues, ...newInitialValues };
     initialValuesRef.current = merged;
@@ -312,16 +231,14 @@ export function useFormManager<T extends Record<string, unknown>>(
     setTouched({});
   }, [savedInitialValues]);
 
-  // Commit current values as new initial values
   const commit = useCallback(() => {
     initialValuesRef.current = { ...values };
     setSavedInitialValues({ ...values });
     setTouched({});
   }, [values]);
 
-  // Validate all fields
   const validate = useCallback(() => {
-    // Touch all fields
+
     const allTouched: Partial<Record<keyof T, boolean>> = {};
     for (const key in config) {
       allTouched[key] = true;
@@ -331,13 +248,11 @@ export function useFormManager<T extends Record<string, unknown>>(
     return Object.keys(errors).length === 0;
   }, [config, errors]);
 
-  // Get error for specific field
   const getError = useCallback(
     (field: keyof T) => (touched[field] ? errors[field] : undefined),
     [errors, touched]
   );
 
-  // Build FormData from current values
   const toFormData = useCallback(
     (action?: string): FormData => {
       const formData = new FormData();
@@ -364,7 +279,6 @@ export function useFormManager<T extends Record<string, unknown>>(
     [values]
   );
 
-  // Get field props for UI integration
   const getFieldProps = useCallback(
     <K extends keyof T>(field: K) => ({
       value: values[field],
@@ -375,7 +289,6 @@ export function useFormManager<T extends Record<string, unknown>>(
     [values, errors, touched, setValue, touchField]
   );
 
-  // Construct form state object
   const state: FormState<T> = {
     values,
     isDirty,
@@ -405,20 +318,13 @@ export function useFormManager<T extends Record<string, unknown>>(
   };
 }
 
-// =============================================================================
-// Specialized Hooks
-// =============================================================================
-
-/**
- * Simple hook for tracking a single form field
- */
 export function useField<T>(
   initialValue: T,
   validate?: (value: T) => string | undefined
 ) {
   const [value, setValue] = useState<T>(initialValue);
   const [touched, setTouched] = useState(false);
-  // Use state instead of ref to track initial value (avoids ref access during render)
+
   const [savedInitial, setSavedInitial] = useState<T>(initialValue);
   const initialRef = useRef(initialValue);
 
@@ -453,9 +359,6 @@ export function useField<T>(
   };
 }
 
-/**
- * Hook for managing form state after action completion
- */
 export function useFormAfterAction<T extends Record<string, unknown>>(
   form: FormManagerReturn<T>,
   actionData: { success?: boolean } | undefined | null
@@ -463,7 +366,7 @@ export function useFormAfterAction<T extends Record<string, unknown>>(
   const prevSuccessRef = useRef<boolean | undefined>(undefined);
 
   useEffect(() => {
-    // Only commit if this is a new success (not on re-render)
+
     if (actionData?.success && prevSuccessRef.current !== true) {
       form.commit();
     }
@@ -471,30 +374,16 @@ export function useFormAfterAction<T extends Record<string, unknown>>(
   }, [actionData?.success, form]);
 }
 
-// =============================================================================
-// Type Utilities
-// =============================================================================
-
-/**
- * Extract the values type from a form config
- */
 export type FormValues<C> = C extends FormConfig<infer T> ? T : never;
 
-/**
- * Create a simple field config from a value
- */
 export function field<T>(initialValue: T): FieldConfig<T> {
   return { initialValue };
 }
 
-/**
- * Create a required field config
- */
 export function requiredField<T>(
   initialValue: T,
   validate?: (value: T) => string | undefined
 ): FieldConfig<T> {
   return { initialValue, required: true, validate };
 }
-
 

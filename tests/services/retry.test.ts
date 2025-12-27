@@ -178,7 +178,7 @@ describe("Retry Service", () => {
       };
 
       const delay = getRetryDelay(error, 1);
-      expect(delay).toBe(120000); // 120 seconds in ms
+      expect(delay).toBe(120000);
     });
 
     it("should calculate exponential backoff when no retryAfter", () => {
@@ -192,7 +192,6 @@ describe("Retry Service", () => {
       const delay2 = getRetryDelay(error, 2);
       const delay3 = getRetryDelay(error, 3);
 
-      // Backoff should increase with attempts
       expect(delay2).toBeGreaterThan(delay1);
       expect(delay3).toBeGreaterThan(delay2);
     });

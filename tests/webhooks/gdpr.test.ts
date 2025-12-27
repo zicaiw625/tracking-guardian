@@ -93,7 +93,7 @@ describe("GDPR Compliance Webhooks", () => {
         topic: "CUSTOMERS_DATA_REQUEST",
         shop: "test-shop.myshopify.com",
         session: { shop: "test-shop.myshopify.com" },
-        admin: null, 
+        admin: null,
         payload: mockPayload,
       } as any);
 
@@ -128,7 +128,7 @@ describe("GDPR Compliance Webhooks", () => {
       const mockPayload = {
         shop_id: 123456789,
         shop_domain: "test-shop.myshopify.com",
-        orders_requested: [], 
+        orders_requested: [],
         customer: {
           id: 987654321,
         },
@@ -214,7 +214,7 @@ describe("GDPR Compliance Webhooks", () => {
       const mockPayload = {
         shop_id: 123456789,
         shop_domain: "test-shop.myshopify.com",
-        orders_to_redact: [1001, 1002], 
+        orders_to_redact: [1001, 1002],
         customer: {
           id: 987654321,
         },
@@ -250,7 +250,7 @@ describe("GDPR Compliance Webhooks", () => {
       vi.mocked(authenticate.webhook).mockResolvedValue({
         topic: "SHOP_REDACT",
         shop: "test-shop.myshopify.com",
-        session: null, 
+        session: null,
         admin: null,
         payload: mockPayload,
       } as any);
@@ -331,8 +331,8 @@ describe("GDPR Compliance Webhooks", () => {
         shop_domain: "test-shop.myshopify.com",
         customer: {
           id: 987654321,
-          email: "customer@example.com", 
-          phone: "+1234567890", 
+          email: "customer@example.com",
+          phone: "+1234567890",
         },
         orders_to_redact: [1001, 1002],
       };
@@ -436,7 +436,7 @@ describe("GDPR Compliance Webhooks", () => {
       } as any);
 
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(null);
-      
+
       vi.mocked(prisma.session.deleteMany).mockResolvedValue({ count: 0 });
       vi.mocked(prisma.webhookLog.deleteMany).mockResolvedValue({ count: 0 });
 
@@ -490,7 +490,7 @@ describe("GDPR Compliance Webhooks", () => {
       expect(prisma.pixelConfig.deleteMany).toBeDefined();
       expect(prisma.monthlyUsage.deleteMany).toBeDefined();
       expect(prisma.shop.delete).toBeDefined();
-      
+
       expect(tablesToDelete.length).toBe(13);
     });
   });

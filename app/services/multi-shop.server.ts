@@ -1,0 +1,471 @@
+import prisma from "../db.server";
+import { logger } from "../utils/logger.server";
+import { BILLING_PLANS, getMaxShops } from "./billing/plans";
+import type { PlanId } from "./billing/plans";
+
+export interface ShopGroupInfo {
+  id: string;
+  name: string;
+  ownerId: string;
+  memberCount: number;
+  createdAt: Date;
+}
+
+export interface ShopGroupMemberInfo {
+  id: string;
+  shopId: string;
+  shopDomain: string;
+  role: "owner" | "admin" | "member";
+  canEditSettings: boolean;
+  canViewReports: boolean;
+  canManageBilling: boolean;
+  joinedAt: Date;
+}
+
+export interface ShopGroupDetails extends ShopGroupInfo {
+  members: ShopGroupMemberInfo[];
+}
+
+export interface AggregatedStats {
+  totalOrders: number;
+  totalRevenue: number;
+  averageMatchRate: number;
+  platformBreakdown: Record<string, { orders: number; revenue: number }>;
+}
+
+export async function canManageMultipleShops(shopId: string): Promise<boolean> {
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { plan: true },
+  });
+  if (!shop) return false;
+  const planId = shop.plan as PlanId;
+  return getMaxShops(planId) > 1;
+}
+
+export async function getMaxShopsForShop(shopId: string): Promise<number> {
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { plan: true },
+  });
+  if (!shop) return 1;
+  return getMaxShops(shop.plan as PlanId);
+}
+
+export async function createShopGroup(
+  ownerId: string,
+  name: string
+): Promise<ShopGroupInfo | null> {
+  const canManage = await canManageMultipleShops(ownerId);
+  if (!canManage) {
+    logger.warn(`Shop ${ownerId} cannot manage multiple shops (plan limitation)`);
+    return null;
+  }
+
+  const existingCount = await prisma.shopGroup.count({
+    where: { ownerId },
+  });
+  const maxShops = await getMaxShopsForShop(ownerId);
+  if (existingCount >= maxShops) {
+    logger.warn(`Shop ${ownerId} has reached maximum groups limit`);
+    return null;
+  }
+  const group = await prisma.shopGroup.create({
+    data: {
+      name,
+      ownerId,
+      members: {
+        create: {
+          shopId: ownerId,
+          role: "owner",
+          canEditSettings: true,
+          canViewReports: true,
+          canManageBilling: true,
+        },
+      },
+    },
+    include: {
+      _count: { select: { members: true } },
+    },
+  });
+  logger.info(`Shop group created: ${group.id} by ${ownerId}`);
+  return {
+    id: group.id,
+    name: group.name,
+    ownerId: group.ownerId,
+    memberCount: group._count.members,
+    createdAt: group.createdAt,
+  };
+}
+
+export async function getShopGroups(ownerId: string): Promise<ShopGroupInfo[]> {
+  const groups = await prisma.shopGroup.findMany({
+    where: { ownerId },
+    include: {
+      _count: { select: { members: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return groups.map(group => ({
+    id: group.id,
+    name: group.name,
+    ownerId: group.ownerId,
+    memberCount: group._count.members,
+    createdAt: group.createdAt,
+  }));
+}
+
+export async function getGroupMemberships(shopId: string): Promise<ShopGroupInfo[]> {
+  const memberships = await prisma.shopGroupMember.findMany({
+    where: { shopId },
+    include: {
+      group: {
+        include: {
+          _count: { select: { members: true } },
+        },
+      },
+    },
+  });
+  return memberships.map(m => ({
+    id: m.group.id,
+    name: m.group.name,
+    ownerId: m.group.ownerId,
+    memberCount: m.group._count.members,
+    createdAt: m.group.createdAt,
+  }));
+}
+
+export async function getShopGroupDetails(
+  groupId: string,
+  requesterId: string
+): Promise<ShopGroupDetails | null> {
+  const group = await prisma.shopGroup.findUnique({
+    where: { id: groupId },
+    include: {
+      _count: { select: { members: true } },
+      members: {
+        include: {
+
+        },
+      },
+    },
+  });
+  if (!group) return null;
+
+  const requesterMembership = group.members.find(m => m.shopId === requesterId);
+  if (!requesterMembership && group.ownerId !== requesterId) {
+    return null;
+  }
+
+  const memberShopIds = group.members.map(m => m.shopId);
+  const shops = await prisma.shop.findMany({
+    where: { id: { in: memberShopIds } },
+    select: { id: true, shopDomain: true },
+  });
+  const shopMap = new Map(shops.map(s => [s.id, s.shopDomain]));
+  const members: ShopGroupMemberInfo[] = group.members.map(m => ({
+    id: m.id,
+    shopId: m.shopId,
+    shopDomain: shopMap.get(m.shopId) || "Unknown",
+    role: m.role as "owner" | "admin" | "member",
+    canEditSettings: m.canEditSettings,
+    canViewReports: m.canViewReports,
+    canManageBilling: m.canManageBilling,
+    joinedAt: m.createdAt,
+  }));
+  return {
+    id: group.id,
+    name: group.name,
+    ownerId: group.ownerId,
+    memberCount: group._count.members,
+    createdAt: group.createdAt,
+    members,
+  };
+}
+
+export async function addShopToGroup(
+  groupId: string,
+  shopId: string,
+  addedBy: string,
+  options: {
+    role?: "admin" | "member";
+    canEditSettings?: boolean;
+    canViewReports?: boolean;
+    canManageBilling?: boolean;
+  } = {}
+): Promise<boolean> {
+
+  const group = await prisma.shopGroup.findUnique({
+    where: { id: groupId },
+    include: {
+      members: true,
+      _count: { select: { members: true } },
+    },
+  });
+  if (!group) return false;
+
+  const adderMembership = group.members.find(m => m.shopId === addedBy);
+  if (!adderMembership || (adderMembership.role !== "owner" && adderMembership.role !== "admin")) {
+    if (group.ownerId !== addedBy) {
+      logger.warn(`Shop ${addedBy} cannot add members to group ${groupId}`);
+      return false;
+    }
+  }
+
+  const maxShops = await getMaxShopsForShop(group.ownerId);
+  if (group._count.members >= maxShops) {
+    logger.warn(`Group ${groupId} has reached maximum members limit`);
+    return false;
+  }
+
+  const existingMember = group.members.find(m => m.shopId === shopId);
+  if (existingMember) {
+    logger.info(`Shop ${shopId} is already in group ${groupId}`);
+    return true;
+  }
+  await prisma.shopGroupMember.create({
+    data: {
+      groupId,
+      shopId,
+      role: options.role || "member",
+      canEditSettings: options.canEditSettings ?? false,
+      canViewReports: options.canViewReports ?? true,
+      canManageBilling: options.canManageBilling ?? false,
+    },
+  });
+  logger.info(`Shop ${shopId} added to group ${groupId} by ${addedBy}`);
+  return true;
+}
+
+export async function removeShopFromGroup(
+  groupId: string,
+  shopId: string,
+  removedBy: string
+): Promise<boolean> {
+  const group = await prisma.shopGroup.findUnique({
+    where: { id: groupId },
+    include: { members: true },
+  });
+  if (!group) return false;
+
+  const removerMembership = group.members.find(m => m.shopId === removedBy);
+  const isOwner = group.ownerId === removedBy;
+  if (!isOwner && (!removerMembership || removerMembership.role !== "admin")) {
+
+    if (shopId !== removedBy) {
+      logger.warn(`Shop ${removedBy} cannot remove members from group ${groupId}`);
+      return false;
+    }
+  }
+
+  if (shopId === group.ownerId) {
+    logger.warn(`Cannot remove owner from group ${groupId}`);
+    return false;
+  }
+  await prisma.shopGroupMember.deleteMany({
+    where: { groupId, shopId },
+  });
+  logger.info(`Shop ${shopId} removed from group ${groupId} by ${removedBy}`);
+  return true;
+}
+
+export async function updateMemberPermissions(
+  groupId: string,
+  memberId: string,
+  updatedBy: string,
+  permissions: {
+    role?: "admin" | "member";
+    canEditSettings?: boolean;
+    canViewReports?: boolean;
+    canManageBilling?: boolean;
+  }
+): Promise<boolean> {
+  const group = await prisma.shopGroup.findUnique({
+    where: { id: groupId },
+    include: { members: true },
+  });
+  if (!group) return false;
+
+  if (group.ownerId !== updatedBy) {
+    logger.warn(`Shop ${updatedBy} cannot update permissions in group ${groupId}`);
+    return false;
+  }
+  await prisma.shopGroupMember.update({
+    where: { id: memberId },
+    data: {
+      role: permissions.role,
+      canEditSettings: permissions.canEditSettings,
+      canViewReports: permissions.canViewReports,
+      canManageBilling: permissions.canManageBilling,
+    },
+  });
+  return true;
+}
+
+export async function deleteShopGroup(
+  groupId: string,
+  deletedBy: string
+): Promise<boolean> {
+  const group = await prisma.shopGroup.findUnique({
+    where: { id: groupId },
+  });
+  if (!group || group.ownerId !== deletedBy) {
+    return false;
+  }
+  await prisma.shopGroup.delete({
+    where: { id: groupId },
+  });
+  logger.info(`Shop group ${groupId} deleted by ${deletedBy}`);
+  return true;
+}
+
+export async function getGroupAggregatedStats(
+  groupId: string,
+  requesterId: string,
+  days: number = 7
+): Promise<AggregatedStats | null> {
+  const group = await prisma.shopGroup.findUnique({
+    where: { id: groupId },
+    include: { members: true },
+  });
+  if (!group) return null;
+
+  const hasAccess = group.members.some(m => m.shopId === requesterId && m.canViewReports);
+  if (!hasAccess && group.ownerId !== requesterId) {
+    return null;
+  }
+  const memberShopIds = group.members.map(m => m.shopId);
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const logs = await prisma.conversionLog.findMany({
+    where: {
+      shopId: { in: memberShopIds },
+      status: "sent",
+      createdAt: { gte: since },
+    },
+    select: {
+      platform: true,
+      orderValue: true,
+    },
+  });
+  const platformBreakdown: Record<string, { orders: number; revenue: number }> = {};
+  let totalOrders = 0;
+  let totalRevenue = 0;
+  for (const log of logs) {
+    totalOrders++;
+    const value = Number(log.orderValue);
+    totalRevenue += value;
+    if (!platformBreakdown[log.platform]) {
+      platformBreakdown[log.platform] = { orders: 0, revenue: 0 };
+    }
+    platformBreakdown[log.platform].orders++;
+    platformBreakdown[log.platform].revenue += value;
+  }
+
+  const reports = await prisma.reconciliationReport.findMany({
+    where: {
+      shopId: { in: memberShopIds },
+      reportDate: { gte: since },
+    },
+    select: {
+      shopifyOrders: true,
+      platformConversions: true,
+    },
+  });
+  let totalShopifyOrders = 0;
+  let totalPlatformConversions = 0;
+  for (const report of reports) {
+    totalShopifyOrders += report.shopifyOrders;
+    totalPlatformConversions += report.platformConversions;
+  }
+  const averageMatchRate = totalShopifyOrders > 0
+    ? (totalPlatformConversions / totalShopifyOrders) * 100
+    : 100;
+  return {
+    totalOrders,
+    totalRevenue,
+    averageMatchRate,
+    platformBreakdown,
+  };
+}
+
+export async function getGroupShopBreakdown(
+  groupId: string,
+  requesterId: string,
+  days: number = 7
+): Promise<Array<{
+  shopId: string;
+  shopDomain: string;
+  orders: number;
+  revenue: number;
+  matchRate: number;
+}> | null> {
+  const group = await prisma.shopGroup.findUnique({
+    where: { id: groupId },
+    include: { members: true },
+  });
+  if (!group) return null;
+
+  const hasAccess = group.members.some(m => m.shopId === requesterId && m.canViewReports);
+  if (!hasAccess && group.ownerId !== requesterId) {
+    return null;
+  }
+  const memberShopIds = group.members.map(m => m.shopId);
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const shops = await prisma.shop.findMany({
+    where: { id: { in: memberShopIds } },
+    select: { id: true, shopDomain: true },
+  });
+  const shopMap = new Map(shops.map(s => [s.id, s.shopDomain]));
+
+  const breakdown: Map<string, { orders: number; revenue: number }> = new Map();
+  const logs = await prisma.conversionLog.groupBy({
+    by: ["shopId"],
+    where: {
+      shopId: { in: memberShopIds },
+      status: "sent",
+      createdAt: { gte: since },
+    },
+    _count: { id: true },
+    _sum: { orderValue: true },
+  });
+  for (const log of logs) {
+    breakdown.set(log.shopId, {
+      orders: log._count.id,
+      revenue: Number(log._sum.orderValue || 0),
+    });
+  }
+
+  const reports = await prisma.reconciliationReport.groupBy({
+    by: ["shopId"],
+    where: {
+      shopId: { in: memberShopIds },
+      reportDate: { gte: since },
+    },
+    _sum: { shopifyOrders: true, platformConversions: true },
+  });
+  const reconciliationMap = new Map<string, { shopifyOrders: number; platformConversions: number }>();
+  for (const report of reports) {
+    reconciliationMap.set(report.shopId, {
+      shopifyOrders: report._sum.shopifyOrders || 0,
+      platformConversions: report._sum.platformConversions || 0,
+    });
+  }
+  return memberShopIds.map(shopId => {
+    const stats = breakdown.get(shopId) || { orders: 0, revenue: 0 };
+    const recon = reconciliationMap.get(shopId);
+    const matchRate = recon && recon.shopifyOrders > 0
+      ? (recon.platformConversions / recon.shopifyOrders) * 100
+      : 100;
+    return {
+      shopId,
+      shopDomain: shopMap.get(shopId) || "Unknown",
+      orders: stats.orders,
+      revenue: stats.revenue,
+      matchRate,
+    };
+  });
+}

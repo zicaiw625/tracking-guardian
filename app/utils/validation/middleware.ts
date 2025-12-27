@@ -1,8 +1,4 @@
-/**
- * Validation Middleware
- *
- * Middleware-style validation for Remix loaders and actions.
- */
+
 
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
@@ -17,50 +13,16 @@ import {
   type ValidateResult,
 } from "./core";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Validated handler function for Remix
- */
 export type ValidatedHandler<TInput, TOutput> = (
   args: LoaderFunctionArgs | ActionFunctionArgs,
   data: TInput
 ) => Promise<TOutput>;
 
-/**
- * Validation options
- */
 export interface ValidationOptions {
   source: "json" | "formData" | "searchParams" | "params";
   errorPrefix?: string;
 }
 
-// =============================================================================
-// Middleware
-// =============================================================================
-
-/**
- * Create a validated action handler (Remix middleware style)
- *
- * @example
- * ```typescript
- * const UpdateSchema = z.object({
- *   name: z.string().min(1),
- *   email: z.string().email(),
- * });
- *
- * export const action = withValidationMiddleware(
- *   UpdateSchema,
- *   { source: "formData" },
- *   async (args, data) => {
- *     await updateUser(data);
- *     return json({ success: true });
- *   }
- * );
- * ```
- */
 export function withValidationMiddleware<TInput, TOutput>(
   schema: ZodSchema<TInput>,
   options: ValidationOptions,
@@ -92,9 +54,6 @@ export function withValidationMiddleware<TInput, TOutput>(
   };
 }
 
-/**
- * Create a validation error response (AppError style)
- */
 export function createValidationErrorResponse(
   error: AppError,
   prefix?: string
@@ -118,9 +77,6 @@ export function createValidationErrorResponse(
   return json(body, { status: 400 });
 }
 
-/**
- * Wrap a simple handler with validation error handling
- */
 export function withValidationHandler<T, R>(
   validator: (request: Request) => Promise<ValidateResult<T>>,
   handler: (data: T, request: Request) => Promise<R>
@@ -136,9 +92,6 @@ export function withValidationHandler<T, R>(
   };
 }
 
-/**
- * Create a simple validation error response
- */
 export function createSimpleValidationErrorResponse(
   error: string,
   details?: Record<string, string>
@@ -153,17 +106,7 @@ export function createSimpleValidationErrorResponse(
   );
 }
 
-// =============================================================================
-// Aliases for Backward Compatibility
-// =============================================================================
-
-/**
- * @deprecated Use withValidationMiddleware instead
- */
 export const withValidation = withValidationMiddleware;
 
-/**
- * @deprecated Use createValidationErrorResponse instead
- */
 export const validationErrorResponse = createValidationErrorResponse;
 

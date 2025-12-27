@@ -1,8 +1,4 @@
-/**
- * Webhook Cleanup Service
- *
- * Handles cleanup of deprecated webhook subscriptions.
- */
+
 
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../../utils/logger.server";
@@ -11,38 +7,17 @@ import type {
   WebhookDeleteMutationResponse,
 } from "../../types/shopify";
 
-// =============================================================================
-// Constants
-// =============================================================================
-
-/**
- * Deprecated webhook topics that should be cleaned up
- */
 const DEPRECATED_TOPICS = new Set<string>([
   "CHECKOUT_AND_ACCOUNTS_CONFIGURATIONS_UPDATE",
 ]);
 
-/**
- * Maximum pages to process during cleanup
- */
 const MAX_CLEANUP_PAGES = 10;
-
-// =============================================================================
-// Type Guards
-// =============================================================================
 
 interface DeprecatedSubscription {
   id: string;
   topic: string;
 }
 
-// =============================================================================
-// Functions
-// =============================================================================
-
-/**
- * Fetch all deprecated webhook subscriptions
- */
 async function fetchDeprecatedSubscriptions(
   admin: AdminApiContext,
   shopDomain: string
@@ -107,9 +82,6 @@ async function fetchDeprecatedSubscriptions(
   return deprecatedSubs;
 }
 
-/**
- * Delete a single webhook subscription
- */
 async function deleteSubscription(
   admin: AdminApiContext,
   shopDomain: string,
@@ -158,14 +130,6 @@ async function deleteSubscription(
   }
 }
 
-/**
- * Clean up deprecated webhook subscriptions for a shop.
- *
- * This function:
- * 1. Queries all webhook subscriptions for the shop
- * 2. Identifies subscriptions for deprecated topics
- * 3. Deletes each deprecated subscription
- */
 export async function cleanupDeprecatedWebhookSubscriptions(
   admin: AdminApiContext,
   shopDomain: string

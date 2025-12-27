@@ -1,19 +1,7 @@
-/**
- * Platform Credentials Validation Schemas
- *
- * Zod schemas for validating platform-specific credentials.
- * Provides type-safe validation with detailed error messages.
- */
+
 
 import { z } from "zod";
 
-// =============================================================================
-// Google Analytics / GA4 Credentials
-// =============================================================================
-
-/**
- * Google Analytics Measurement ID format: G-XXXXXXXXXX
- */
 export const GoogleMeasurementIdSchema = z
   .string()
   .min(1, "Measurement ID is required")
@@ -22,17 +10,11 @@ export const GoogleMeasurementIdSchema = z
     "Invalid Measurement ID format. Expected format: G-XXXXXXXXXX"
   );
 
-/**
- * Google Analytics API Secret (32+ character string)
- */
 export const GoogleApiSecretSchema = z
   .string()
   .min(1, "API Secret is required")
   .min(20, "API Secret appears too short");
 
-/**
- * Google Analytics credentials schema
- */
 export const GoogleCredentialsInputSchema = z.object({
   measurementId: GoogleMeasurementIdSchema,
   apiSecret: GoogleApiSecretSchema,
@@ -40,37 +22,21 @@ export const GoogleCredentialsInputSchema = z.object({
 
 export type GoogleCredentialsInput = z.infer<typeof GoogleCredentialsInputSchema>;
 
-// =============================================================================
-// Meta (Facebook) Credentials
-// =============================================================================
-
-/**
- * Meta Pixel ID format: 15-16 digit numeric string
- */
 export const MetaPixelIdSchema = z
   .string()
   .min(1, "Pixel ID is required")
   .regex(/^\d{15,16}$/, "Invalid Pixel ID format. Expected 15-16 digit number");
 
-/**
- * Meta Access Token (long-lived token, typically 100+ characters)
- */
 export const MetaAccessTokenSchema = z
   .string()
   .min(1, "Access Token is required")
   .min(50, "Access Token appears too short");
 
-/**
- * Meta Test Event Code (optional, for testing)
- */
 export const MetaTestEventCodeSchema = z
   .string()
   .regex(/^TEST\d+$/, "Test Event Code format: TEST followed by numbers")
   .optional();
 
-/**
- * Meta (Facebook) credentials schema
- */
 export const MetaCredentialsInputSchema = z.object({
   pixelId: MetaPixelIdSchema,
   accessToken: MetaAccessTokenSchema,
@@ -79,41 +45,24 @@ export const MetaCredentialsInputSchema = z.object({
 
 export type MetaCredentialsInput = z.infer<typeof MetaCredentialsInputSchema>;
 
-// =============================================================================
-// TikTok Credentials
-// =============================================================================
-
-/**
- * TikTok Pixel Code format: uppercase alphanumeric, 20+ characters
- */
 export const TikTokPixelCodeSchema = z
   .string()
   .min(1, "Pixel Code is required")
   .min(10, "Pixel Code appears too short");
 
-/**
- * TikTok Access Token
- */
 export const TikTokAccessTokenSchema = z
   .string()
   .min(1, "Access Token is required")
   .min(20, "Access Token appears too short");
 
-/**
- * TikTok Test Event Code (optional)
- */
 export const TikTokTestEventCodeSchema = z.string().optional();
 
-/**
- * TikTok credentials schema
- */
 export const TikTokCredentialsInputSchema = z.object({
   pixelCode: TikTokPixelCodeSchema,
   accessToken: TikTokAccessTokenSchema,
   testEventCode: TikTokTestEventCodeSchema,
 });
 
-// Also support pixelId as alias for pixelCode
 export const TikTokCredentialsInputSchemaWithAlias = z.object({
   pixelId: TikTokPixelCodeSchema.optional(),
   pixelCode: TikTokPixelCodeSchema.optional(),
@@ -127,34 +76,18 @@ export const TikTokCredentialsInputSchemaWithAlias = z.object({
 
 export type TikTokCredentialsInput = z.infer<typeof TikTokCredentialsInputSchema>;
 
-// =============================================================================
-// Typed Platform Credentials (with discriminant)
-// =============================================================================
-
-/**
- * Google credentials with platform discriminant
- */
 export const TypedGoogleCredentialsSchema = GoogleCredentialsInputSchema.extend({
   platform: z.literal("google"),
 });
 
-/**
- * Meta credentials with platform discriminant
- */
 export const TypedMetaCredentialsSchema = MetaCredentialsInputSchema.extend({
   platform: z.literal("meta"),
 });
 
-/**
- * TikTok credentials with platform discriminant
- */
 export const TypedTikTokCredentialsSchema = TikTokCredentialsInputSchema.extend({
   platform: z.literal("tiktok"),
 });
 
-/**
- * Discriminated union of all typed credentials
- */
 export const TypedPlatformCredentialsSchema = z.discriminatedUnion("platform", [
   TypedGoogleCredentialsSchema,
   TypedMetaCredentialsSchema,
@@ -166,16 +99,8 @@ export type TypedMetaCredentials = z.infer<typeof TypedMetaCredentialsSchema>;
 export type TypedTikTokCredentials = z.infer<typeof TypedTikTokCredentialsSchema>;
 export type TypedPlatformCredentials = z.infer<typeof TypedPlatformCredentialsSchema>;
 
-// =============================================================================
-// Platform Type Enum
-// =============================================================================
-
 export const PlatformTypeSchema = z.enum(["google", "meta", "tiktok"]);
 export type PlatformType = z.infer<typeof PlatformTypeSchema>;
-
-// =============================================================================
-// Validation Functions
-// =============================================================================
 
 export interface CredentialsValidationResult<T> {
   success: boolean;
@@ -183,9 +108,6 @@ export interface CredentialsValidationResult<T> {
   errors?: string[];
 }
 
-/**
- * Validate Google credentials
- */
 export function validateGoogleCredentials(
   input: unknown
 ): CredentialsValidationResult<GoogleCredentialsInput> {
@@ -199,9 +121,6 @@ export function validateGoogleCredentials(
   };
 }
 
-/**
- * Validate Meta credentials
- */
 export function validateMetaCredentials(
   input: unknown
 ): CredentialsValidationResult<MetaCredentialsInput> {
@@ -215,9 +134,6 @@ export function validateMetaCredentials(
   };
 }
 
-/**
- * Validate TikTok credentials
- */
 export function validateTikTokCredentials(
   input: unknown
 ): CredentialsValidationResult<TikTokCredentialsInput> {
@@ -231,9 +147,6 @@ export function validateTikTokCredentials(
   };
 }
 
-/**
- * Validate credentials for a specific platform
- */
 export function validateCredentialsForPlatform(
   platform: PlatformType,
   input: unknown
@@ -252,9 +165,6 @@ export function validateCredentialsForPlatform(
   }
 }
 
-/**
- * Validate typed platform credentials
- */
 export function validateTypedCredentials(
   input: unknown
 ): CredentialsValidationResult<TypedPlatformCredentials> {
@@ -268,31 +178,18 @@ export function validateTypedCredentials(
   };
 }
 
-// =============================================================================
-// Type Guards
-// =============================================================================
-
-/**
- * Check if credentials are for Google
- */
 export function isGoogleCredentialsInput(
   creds: TypedPlatformCredentials
 ): creds is TypedGoogleCredentials {
   return creds.platform === "google";
 }
 
-/**
- * Check if credentials are for Meta
- */
 export function isMetaCredentialsInput(
   creds: TypedPlatformCredentials
 ): creds is TypedMetaCredentials {
   return creds.platform === "meta";
 }
 
-/**
- * Check if credentials are for TikTok
- */
 export function isTikTokCredentialsInput(
   creds: TypedPlatformCredentials
 ): creds is TypedTikTokCredentials {

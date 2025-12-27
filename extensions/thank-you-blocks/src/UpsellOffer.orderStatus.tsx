@@ -1,8 +1,5 @@
-/**
- * UpsellOffer for Order Status Page (Customer Account)
- * 
- * Displays a discount offer to encourage repeat purchases.
- */
+
+
 import {
     reactExtension,
     BlockStack,
@@ -37,8 +34,7 @@ function UpsellOfferOrderStatus() {
     const continueShoppingUrl = (settings.continue_shopping_url as string) || "/";
 
     const handleCopyCode = () => {
-        // In customer account context, we can't use clipboard API
-        // Just show visual feedback
+
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };

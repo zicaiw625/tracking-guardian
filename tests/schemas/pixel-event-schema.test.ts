@@ -1,12 +1,8 @@
-/**
- * Pixel Event Schema Tests
- * 
- * Tests for Zod schema validation of pixel event payloads.
- */
+
 
 import { describe, it, expect } from "vitest";
-import { 
-  PixelEventSchema, 
+import {
+  PixelEventSchema,
   PixelEventNameSchema,
   ConsentSchema,
   validatePixelEvent,
@@ -64,11 +60,11 @@ describe("ConsentSchema", () => {
       expect(result.success).toBe(true);
     }
   });
-  
+
   it("should reject extra fields (strict mode)", () => {
-    const invalidConsent = { 
-      marketing: true, 
-      unknownField: "value" 
+    const invalidConsent = {
+      marketing: true,
+      unknownField: "value"
     };
     const result = ConsentSchema.safeParse(invalidConsent);
     expect(result.success).toBe(false);
@@ -191,14 +187,14 @@ describe("validatePixelEvent", () => {
       shopDomain: "test-shop.myshopify.com",
       data: { orderId: "12345" },
     };
-    
+
     const result = validatePixelEvent(payload);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.eventName).toBe("checkout_completed");
     }
   });
-  
+
   it("should return success for page_viewed event", () => {
     const payload = {
       eventName: "page_viewed",
@@ -206,7 +202,7 @@ describe("validatePixelEvent", () => {
       shopDomain: "test-shop.myshopify.com",
       data: { url: "https://example.com" },
     };
-    
+
     const result = validatePixelEvent(payload);
     expect(result.success).toBe(true);
   });

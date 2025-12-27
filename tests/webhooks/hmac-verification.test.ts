@@ -43,9 +43,9 @@ vi.mock("../../app/utils/logger", () => ({
 }));
 
 vi.mock("../../app/services/billing.server", () => ({
-  checkBillingGate: vi.fn().mockResolvedValue({ 
-    allowed: true, 
-    usage: { current: 0, limit: 100 } 
+  checkBillingGate: vi.fn().mockResolvedValue({
+    allowed: true,
+    usage: { current: 0, limit: 100 }
   }),
   incrementMonthlyUsage: vi.fn(),
 }));
@@ -203,7 +203,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
 
       expect(response.status).toBe(200);
       const text = await response.text();
-      // Accept either "OK" or "GDPR data request queued"
+
       expect(["OK", "GDPR data request queued"]).toContain(text);
     });
 
@@ -251,7 +251,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
 
       expect(response.status).toBe(200);
       const text = await response.text();
-      // Accept either "OK" or "GDPR customer redact queued"
+
       expect(["OK", "GDPR customer redact queued"]).toContain(text);
     });
 
@@ -295,7 +295,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
 
       expect(response.status).toBe(200);
       const text = await response.text();
-      // Accept either "OK" or "GDPR shop redact queued"
+
       expect(["OK", "GDPR shop redact queued"]).toContain(text);
     });
   });

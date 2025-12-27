@@ -1,14 +1,4 @@
-/**
- * Batch Operations Service
- *
- * Provides transaction-safe batch operations for database writes.
- * Optimizes performance by grouping multiple operations into single transactions.
- *
- * Performance optimizations:
- * - Uses Prisma's updateMany where possible for O(1) database round trips
- * - Groups updates by status to minimize query count
- * - Falls back to individual updates only when per-row data differs
- */
+
 
 import { getDb } from "../../container";
 import { Prisma } from "@prisma/client";
@@ -16,13 +6,6 @@ import { JobStatus } from "../../types";
 import { logger } from "../../utils/logger.server";
 import { toInputJsonValue } from "../../utils/prisma-json";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Job completion result for batch processing.
- */
 export interface JobCompletionData {
   jobId: string;
   shopId: string;
@@ -35,9 +18,6 @@ export interface JobCompletionData {
   nextRetryAt?: Date;
 }
 
-/**
- * Pixel event receipt data for batch insert.
- */
 export interface PixelReceiptData {
   shopId: string;
   orderId: string;
@@ -51,9 +31,6 @@ export interface PixelReceiptData {
   capiInput?: Prisma.JsonValue;
 }
 
-/**
- * Batch operation result.
- */
 export interface BatchResult<T = unknown> {
   success: boolean;
   processed: number;
@@ -62,14 +39,6 @@ export interface BatchResult<T = unknown> {
   results?: T[];
 }
 
-// =============================================================================
-// Batch Operations
-// =============================================================================
-
-/**
- * Batch complete multiple conversion jobs in a single transaction.
- * Updates job status and increments usage counters atomically.
- */
 export async function batchCompleteJobs(
   completions: JobCompletionData[]
 ): Promise<BatchResult> {
@@ -81,7 +50,6 @@ export async function batchCompleteJobs(
   const errors: Array<{ id: string; error: string }> = [];
   let processed = 0;
 
-  // Group by status for efficient updates
   const completed = completions.filter(c => c.status === 'completed');
   const failed = completions.filter(c => c.status === 'failed');
   const limitExceeded = completions.filter(c => c.status === 'limit_exceeded');
@@ -91,11 +59,10 @@ export async function batchCompleteJobs(
 
   try {
     await db.$transaction(async (tx) => {
-      // Batch update completed jobs - use updateMany for common fields, individual for per-job data
+
       if (completed.length > 0) {
         const completedIds = completed.map((j) => j.jobId);
-        
-        // Bulk update common fields
+
         await tx.conversionJob.updateMany({
           where: { id: { in: completedIds } },
           data: {
@@ -106,8 +73,7 @@ export async function batchCompleteJobs(
             errorMessage: null,
           },
         });
-        
-        // Individual updates for per-job JSON data (required due to different values)
+
         for (const job of completed) {
           await tx.conversionJob.update({
             where: { id: job.jobId },
@@ -121,10 +87,6 @@ export async function batchCompleteJobs(
         processed += completed.length;
       }
 
-      // Note: Monthly usage is tracked via MonthlyUsage model, not a Shop field
-      // Usage increment happens in billing.server.ts via incrementMonthlyUsage
-
-      // Batch update failed jobs
       if (failed.length > 0) {
         for (const job of failed) {
           await tx.conversionJob.update({
@@ -141,7 +103,6 @@ export async function batchCompleteJobs(
         processed += failed.length;
       }
 
-      // Batch update limit exceeded jobs (all have same status, use updateMany)
       if (limitExceeded.length > 0) {
         const limitExceededIds = limitExceeded.map((j) => j.jobId);
         await tx.conversionJob.updateMany({
@@ -151,7 +112,7 @@ export async function batchCompleteJobs(
             lastAttemptAt: now,
           },
         });
-        // Individual updates for error messages
+
         for (const job of limitExceeded) {
           if (job.errorMessage) {
             await tx.conversionJob.update({
@@ -163,7 +124,6 @@ export async function batchCompleteJobs(
         processed += limitExceeded.length;
       }
 
-      // Batch update dead letter jobs
       if (deadLetter.length > 0) {
         const deadLetterIds = deadLetter.map((j) => j.jobId);
         await tx.conversionJob.updateMany({
@@ -173,7 +133,7 @@ export async function batchCompleteJobs(
             lastAttemptAt: now,
           },
         });
-        // Individual updates for per-job data
+
         for (const job of deadLetter) {
           await tx.conversionJob.update({
             where: { id: job.jobId },
@@ -189,12 +149,11 @@ export async function batchCompleteJobs(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch complete jobs failed', { error: errorMsg, count: completions.length });
-    
-    // Mark all as errors
+
     for (const job of completions) {
       errors.push({ id: job.jobId, error: errorMsg });
     }
-    
+
     return {
       success: false,
       processed: 0,
@@ -211,10 +170,6 @@ export async function batchCompleteJobs(
   };
 }
 
-/**
- * Batch insert pixel event receipts.
- * Uses upsert to handle duplicates gracefully.
- */
 export async function batchInsertReceipts(
   receipts: PixelReceiptData[]
 ): Promise<BatchResult> {
@@ -254,7 +209,7 @@ export async function batchInsertReceipts(
               metadata: toInputJsonValue(receipt.capiInput),
             },
             update: {
-              // Update if newer data arrives
+
               consentState: toInputJsonValue(receipt.consentState),
               trustLevel: receipt.trustLevel,
               signatureStatus: receipt.signatureStatus,
@@ -271,7 +226,7 @@ export async function batchInsertReceipts(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch insert receipts failed', { error: errorMsg, count: receipts.length });
-    
+
     return {
       success: false,
       processed: 0,
@@ -288,10 +243,6 @@ export async function batchInsertReceipts(
   };
 }
 
-/**
- * Batch update shop configurations.
- * Useful for bulk settings changes.
- */
 export async function batchUpdateShops(
   updates: Array<{
     shopId: string;
@@ -324,7 +275,7 @@ export async function batchUpdateShops(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch update shops failed', { error: errorMsg, count: updates.length });
-    
+
     return {
       success: false,
       processed: 0,
@@ -341,9 +292,6 @@ export async function batchUpdateShops(
   };
 }
 
-/**
- * Batch create audit log entries.
- */
 export async function batchCreateAuditLogs(
   entries: Array<{
     shopId: string;
@@ -380,7 +328,7 @@ export async function batchCreateAuditLogs(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Batch create audit logs failed', { error: errorMsg, count: entries.length });
-    
+
     return {
       success: false,
       processed: 0,
@@ -390,10 +338,6 @@ export async function batchCreateAuditLogs(
   }
 }
 
-/**
- * Execute multiple operations in a single transaction.
- * Provides flexibility for complex batch operations.
- */
 export async function executeInTransaction<T>(
   operations: (tx: Prisma.TransactionClient) => Promise<T>
 ): Promise<{ success: true; result: T } | { success: false; error: string }> {
@@ -409,10 +353,6 @@ export async function executeInTransaction<T>(
   }
 }
 
-/**
- * Chunked batch processing for very large datasets.
- * Processes items in chunks to avoid memory issues and long-running transactions.
- */
 export async function processInChunks<T, R>(
   items: T[],
   chunkSize: number,
@@ -426,16 +366,15 @@ export async function processInChunks<T, R>(
   for (let i = 0; i < items.length; i += chunkSize) {
     const chunk = items.slice(i, i + chunkSize);
     const result = await processor(chunk);
-    
+
     totalProcessed += result.processed;
     totalFailed += result.failed;
     allErrors.push(...result.errors);
-    
+
     if (result.results) {
       allResults.push(...result.results);
     }
 
-    // Small delay between chunks to reduce database pressure
     if (i + chunkSize < items.length) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }

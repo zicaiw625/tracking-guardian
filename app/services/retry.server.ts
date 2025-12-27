@@ -1,9 +1,4 @@
-/**
- * Retry Service
- * 
- * Handles retry logic for failed conversions, ConversionLog processing,
- * and dead letter queue management.
- */
+
 
 import prisma from "../db.server";
 import { Prisma } from "@prisma/client";
@@ -24,19 +19,10 @@ import type {
 } from "../types";
 import type { PlatformSendResult } from "./platforms/interface";
 
-// Re-export from conversion-job for backwards compatibility
 export { processConversionJobs, calculateNextRetryTime } from "./conversion-job.server";
 
-// Re-export from credentials for Result-based credential handling
 export { decryptCredentials } from "./credentials.server";
 
-// =============================================================================
-// Failure Classification
-// =============================================================================
-
-/**
- * Categorized failure reasons for retry decisions.
- */
 export type FailureReason =
   | "token_expired"
   | "rate_limited"
@@ -46,9 +32,6 @@ export type FailureReason =
   | "config_error"
   | "unknown";
 
-/**
- * Convert platform error type to failure reason.
- */
 export function platformErrorToFailureReason(error: PlatformError): FailureReason {
   switch (error.type) {
     case "auth_error":
@@ -70,9 +53,6 @@ export function platformErrorToFailureReason(error: PlatformError): FailureReaso
   }
 }
 
-/**
- * Check if a platform error should trigger a retry.
- */
 export function shouldRetryFromPlatformError(
   error: PlatformError,
   currentAttempt: number,
@@ -81,9 +61,6 @@ export function shouldRetryFromPlatformError(
   return shouldRetryPlatform(error, currentAttempt, maxAttempts);
 }
 
-/**
- * Get delay before next retry based on platform error.
- */
 export function getRetryDelay(error: PlatformError, attempt: number): number {
   if (error.retryAfter) {
     return error.retryAfter * 1000;
@@ -91,9 +68,6 @@ export function getRetryDelay(error: PlatformError, attempt: number): number {
   return calculateBackoff(attempt);
 }
 
-/**
- * Classify failure reason from error message.
- */
 export function classifyFailureReason(errorMessage: string | null): FailureReason {
   if (!errorMessage) return "unknown";
 
@@ -159,33 +133,20 @@ export function classifyFailureReason(errorMessage: string | null): FailureReaso
   return "unknown";
 }
 
-/**
- * Check if failure reason should trigger immediate notification.
- */
 export function shouldNotifyImmediately(reason: FailureReason): boolean {
   return reason === "token_expired" || reason === "config_error";
 }
-
-// =============================================================================
-// Retry Scheduling
-// =============================================================================
 
 const MAX_ATTEMPTS = 5;
 const BASE_DELAY_MS = 60 * 1000;
 const MAX_DELAY_MS = 2 * 60 * 60 * 1000;
 
-/**
- * Calculate next retry time for ConversionLog with exponential backoff.
- */
 function calculateNextRetryTimeForLog(attempts: number): Date {
   const delayMs = Math.min(BASE_DELAY_MS * Math.pow(5, attempts - 1), MAX_DELAY_MS);
   const jitter = delayMs * 0.1 * Math.random();
   return new Date(Date.now() + delayMs + jitter);
 }
 
-/**
- * Schedule a retry or move to dead letter based on failure reason.
- */
 export async function scheduleRetry(
   logId: string,
   errorMessage: string
@@ -200,7 +161,6 @@ export async function scheduleRetry(
   const currentAttempts = log.attempts;
   const maxAttempts = log.maxAttempts || MAX_ATTEMPTS;
 
-  // Token/config errors go straight to dead letter
   if (failureReason === "token_expired" || failureReason === "config_error") {
     await prisma.conversionLog.update({
       where: { id: logId },
@@ -215,7 +175,6 @@ export async function scheduleRetry(
     return { scheduled: false, failureReason };
   }
 
-  // Max attempts reached
   if (currentAttempts >= maxAttempts) {
     await prisma.conversionLog.update({
       where: { id: logId },
@@ -230,7 +189,6 @@ export async function scheduleRetry(
     return { scheduled: false, failureReason };
   }
 
-  // Schedule retry
   const nextRetryAt = calculateNextRetryTimeForLog(currentAttempts);
   await prisma.conversionLog.update({
     where: { id: logId },
@@ -250,25 +208,12 @@ export async function scheduleRetry(
   return { scheduled: true, failureReason };
 }
 
-// =============================================================================
-// ConversionLog Processing
-// =============================================================================
-
-/**
- * Platform send result for internal use
- */
 interface PlatformSendResultInternal {
   success: boolean;
   response?: ConversionApiResponse;
   error?: string;
 }
 
-/**
- * Send conversion to platform based on platform type.
- * Returns typed result instead of unknown.
- * 
- * Uses the unified sendConversionToPlatform function from the platform factory.
- */
 async function sendToPlatformFromLog(
   platform: string,
   credentials: PlatformCredentials,
@@ -281,20 +226,17 @@ async function sendToPlatformFromLog(
     conversionData,
     eventId
   );
-  
+
   if (!result.success) {
     throw new Error(result.error?.message || "Platform send failed");
   }
-  
+
   return {
     success: true,
     response: result.response,
   };
 }
 
-/**
- * Process pending ConversionLog entries (status=pending, attempts=0).
- */
 export async function processPendingConversions(): Promise<{
   processed: number;
   succeeded: number;
@@ -338,7 +280,7 @@ export async function processPendingConversions(): Promise<{
 
   for (const log of pendingLogs) {
     try {
-      // Check billing limit
+
       const billingCheck = await checkBillingGate(
         log.shopId,
         (log.shop.plan || "free") as PlanId
@@ -361,7 +303,6 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
 
-      // Find matching pixel config
       const pixelConfig = log.shop.pixelConfigs.find((pc) => pc.platform === log.platform);
       if (!pixelConfig) {
         await prisma.conversionLog.update({
@@ -377,7 +318,6 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
 
-      // Decrypt credentials
       const credResult = decryptCredentials(pixelConfig, log.platform);
       if (!credResult.ok) {
         await prisma.conversionLog.update({
@@ -402,7 +342,6 @@ export async function processPendingConversions(): Promise<{
         currency: log.currency,
       };
 
-      // Send to platform
       const result = await sendToPlatformFromLog(log.platform, credentials, conversionData, eventId);
 
       await prisma.conversionLog.update({
@@ -434,9 +373,6 @@ export async function processPendingConversions(): Promise<{
   return { processed: pendingLogs.length, succeeded, failed, limitExceeded };
 }
 
-/**
- * Process ConversionLog entries scheduled for retry.
- */
 export async function processRetries(): Promise<{
   processed: number;
   succeeded: number;
@@ -473,7 +409,7 @@ export async function processRetries(): Promise<{
 
   for (const log of logsToRetry) {
     try {
-      // Check billing limit
+
       const billingCheck = await checkBillingGate(
         log.shopId,
         (log.shop.plan || "free") as PlanId
@@ -496,7 +432,6 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      // Find matching pixel config
       const pixelConfig = log.shop.pixelConfigs.find((pc) => pc.platform === log.platform);
       if (!pixelConfig) {
         await scheduleRetry(log.id, "Pixel config not found or disabled");
@@ -504,7 +439,6 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      // Decrypt credentials
       const credResult2 = decryptCredentials(pixelConfig, log.platform);
       if (!credResult2.ok) {
         await prisma.conversionLog.update({
@@ -525,7 +459,6 @@ export async function processRetries(): Promise<{
         currency: log.currency,
       };
 
-      // Send to platform
       const result = await sendToPlatformFromLog(log.platform, credentials, conversionData, eventId);
 
       await prisma.conversionLog.update({
@@ -559,13 +492,6 @@ export async function processRetries(): Promise<{
   return { processed: logsToRetry.length, succeeded, failed, limitExceeded };
 }
 
-// =============================================================================
-// Dead Letter Management
-// =============================================================================
-
-/**
- * Get dead letter items for a shop.
- */
 export async function getDeadLetterItems(
   shopId: string,
   limit = 50
@@ -599,9 +525,6 @@ export async function getDeadLetterItems(
   });
 }
 
-/**
- * Retry a single dead letter item.
- */
 export async function retryDeadLetter(logId: string): Promise<boolean> {
   const log = await prisma.conversionLog.findUnique({
     where: { id: logId },
@@ -627,9 +550,6 @@ export async function retryDeadLetter(logId: string): Promise<boolean> {
   return true;
 }
 
-/**
- * Retry all dead letters for a shop.
- */
 export async function retryAllDeadLetters(shopId: string): Promise<number> {
   const result = await prisma.conversionLog.updateMany({
     where: {
@@ -650,18 +570,11 @@ export async function retryAllDeadLetters(shopId: string): Promise<number> {
   return result.count;
 }
 
-// =============================================================================
-// Diagnostics
-// =============================================================================
-
-/**
- * Check for token expiration issues in recent failures.
- */
 export async function checkTokenExpirationIssues(shopId: string): Promise<{
   hasIssues: boolean;
   affectedPlatforms: string[];
 }> {
-  // P0-3: 使用 UTC 确保跨时区一致性
+
   const oneDayAgo = new Date();
   oneDayAgo.setUTCDate(oneDayAgo.getUTCDate() - 1);
 
@@ -683,9 +596,6 @@ export async function checkTokenExpirationIssues(shopId: string): Promise<{
   };
 }
 
-/**
- * Get retry statistics for a shop.
- */
 export async function getRetryStats(shopId: string): Promise<{
   pending: number;
   retrying: number;

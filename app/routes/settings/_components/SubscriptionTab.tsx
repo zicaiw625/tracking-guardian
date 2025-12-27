@@ -1,8 +1,4 @@
-/**
- * Subscription Tab Component
- *
- * Subscription plan settings tab content.
- */
+
 
 import {
   Layout,

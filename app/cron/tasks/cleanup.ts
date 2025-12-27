@@ -1,36 +1,12 @@
-/**
- * Data Cleanup Task
- *
- * Handles cleanup of expired data based on shop-specific retention settings.
- * Uses batched deletes to avoid long-running transactions.
- *
- * P0-02: Optimized with raw SQL for better performance.
- */
+
 
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import type { CleanupResult, DeletableRecord, BatchDeleteResult } from "../types";
 
-// =============================================================================
-// Constants
-// =============================================================================
-
 const CLEANUP_BATCH_SIZE = 1000;
 const MAX_BATCHES_PER_RUN = 10;
 
-// =============================================================================
-// Batch Delete Utility
-// =============================================================================
-
-/**
- * Batch delete records with pagination.
- * Deletes in batches to avoid long-running transactions.
- *
- * @param tableName - Name of the table for logging
- * @param findQuery - Function to find records to delete
- * @param deleteByIds - Function to delete records by IDs
- * @returns Total number of deleted records
- */
 async function batchDelete<T extends DeletableRecord>(
   tableName: string,
   findQuery: () => Promise<T[]>,
@@ -64,32 +40,17 @@ async function batchDelete<T extends DeletableRecord>(
   return totalDeleted;
 }
 
-// =============================================================================
-// Optimized Direct Deletes
-// =============================================================================
-
-/**
- * Direct delete without pre-fetching IDs.
- * More efficient for PostgreSQL when we have simple WHERE conditions.
- *
- * Uses deleteMany directly instead of find + delete pattern.
- * This is faster because it's a single database round trip.
- *
- * @param tableName - Table name for logging
- * @param deleteOperation - Prisma deleteMany operation to execute
- * @returns Total number of deleted records
- */
 async function directBatchDelete(
   tableName: string,
   deleteOperation: () => Promise<{ count: number }>
 ): Promise<number> {
   try {
     const result = await deleteOperation();
-    
+
     if (result.count > 0) {
       logger.debug(`[Cleanup] Direct deleted ${result.count} ${tableName}`);
     }
-    
+
     return result.count;
   } catch (error) {
     logger.error(`[Cleanup] Failed to delete from ${tableName}`, error);
@@ -97,16 +58,8 @@ async function directBatchDelete(
   }
 }
 
-// =============================================================================
-// Cleanup Task
-// =============================================================================
-
-/**
- * Clean up expired data across all tables.
- * Respects shop-specific data retention settings.
- */
 export async function cleanupExpiredData(): Promise<CleanupResult> {
-  // Clean up expired event nonces
+
   const eventNonceResult = await prisma.eventNonce.deleteMany({
     where: {
       expiresAt: { lt: new Date() },
@@ -117,8 +70,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     logger.info(`Cleaned up ${eventNonceResult.count} expired event nonces`);
   }
 
-  // Clean up old GDPR jobs (completed/failed > 30 days)
-  // P0-3: 使用 UTC 确保跨时区一致性
   const gdprCutoff = new Date();
   gdprCutoff.setUTCDate(gdprCutoff.getUTCDate() - 30);
 
@@ -133,7 +84,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     logger.info(`Cleaned up ${gdprJobResult.count} old GDPR jobs`);
   }
 
-  // Get active shops with data retention configured
   const shops = await prisma.shop.findMany({
     where: {
       isActive: true,
@@ -146,7 +96,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     },
   });
 
-  // Group shops by retention days for batch processing
   const shopsByRetention = new Map<number, Array<{ id: string; shopDomain: string }>>();
   for (const shop of shops) {
     const retentionDays = shop.dataRetentionDays || 90;
@@ -164,20 +113,16 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
   let totalScanReports = 0;
   let totalReconciliationReports = 0;
 
-  // Process each retention group
   for (const [retentionDays, shopsInGroup] of shopsByRetention) {
     const shopIds = shopsInGroup.map((s) => s.id);
     const shopDomains = shopsInGroup.map((s) => s.shopDomain);
 
-    // Calculate cutoff dates
-    // P0-3: 使用 UTC 确保跨时区一致性
     const cutoffDate = new Date();
     cutoffDate.setUTCDate(cutoffDate.getUTCDate() - retentionDays);
 
     const auditCutoff = new Date();
     auditCutoff.setUTCDate(auditCutoff.getUTCDate() - Math.max(retentionDays, 180));
 
-    // Batch delete all tables in parallel
     const [
       conversionLogsCount,
       surveyResponsesCount,
@@ -188,7 +133,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
       scanReportsCount,
       reconciliationCount,
     ] = await Promise.all([
-      // Conversion logs
+
       batchDelete(
         "ConversionLog",
         () =>
@@ -204,7 +149,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         (ids) => prisma.conversionLog.deleteMany({ where: { id: { in: ids } } })
       ),
 
-      // Survey responses
       batchDelete(
         "SurveyResponse",
         () =>
@@ -219,7 +163,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         (ids) => prisma.surveyResponse.deleteMany({ where: { id: { in: ids } } })
       ),
 
-      // Audit logs (minimum 180 days retention for compliance)
       batchDelete(
         "AuditLog",
         () =>
@@ -234,7 +177,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         (ids) => prisma.auditLog.deleteMany({ where: { id: { in: ids } } })
       ),
 
-      // Conversion jobs
       batchDelete(
         "ConversionJob",
         () =>
@@ -250,7 +192,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         (ids) => prisma.conversionJob.deleteMany({ where: { id: { in: ids } } })
       ),
 
-      // Pixel event receipts
       batchDelete(
         "PixelEventReceipt",
         () =>
@@ -265,7 +206,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         (ids) => prisma.pixelEventReceipt.deleteMany({ where: { id: { in: ids } } })
       ),
 
-      // Webhook logs
       batchDelete(
         "WebhookLog",
         () =>
@@ -280,7 +220,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         (ids) => prisma.webhookLog.deleteMany({ where: { id: { in: ids } } })
       ),
 
-      // Scan reports (simple time-based retention)
       batchDelete(
         "ScanReport",
         () =>
@@ -295,7 +234,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         (ids) => prisma.scanReport.deleteMany({ where: { id: { in: ids } } })
       ),
 
-      // Reconciliation reports
       batchDelete(
         "ReconciliationReport",
         () =>
@@ -320,7 +258,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     totalScanReports += scanReportsCount;
     totalReconciliationReports += reconciliationCount;
 
-    // Log batch summary
     const totalDeleted =
       conversionLogsCount +
       surveyResponsesCount +

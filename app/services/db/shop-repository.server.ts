@@ -1,23 +1,9 @@
-/**
- * Shop Repository
- *
- * Centralized data access layer for Shop entities.
- * Provides caching, query optimization, and type-safe operations.
- *
- * Uses DI container for database access.
- */
+
 
 import { getDb } from "../../container";
 import { shopConfigCache, SimpleCache } from "../../utils/cache";
 import type { PixelConfig } from "@prisma/client";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Minimal shop fields for most operations.
- */
 export interface ShopBasic {
   id: string;
   shopDomain: string;
@@ -27,42 +13,26 @@ export interface ShopBasic {
   isActive: boolean;
 }
 
-/**
- * Shop with all pixel configurations.
- */
 export interface ShopWithPixels extends ShopBasic {
   pixelConfigs: PixelConfig[];
   primaryDomain: string | null;
   storefrontDomains: string[] | null;
 }
 
-/**
- * Shop with billing information.
- */
 export interface ShopWithBilling extends ShopBasic {
   monthlyConversionCount: number;
   billingCycleStart: Date | null;
 }
 
-// =============================================================================
-// Cache Instances
-// =============================================================================
-
-// Cache for shop + pixel configs (used in conversion processing)
 const shopWithPixelsCache = new SimpleCache<ShopWithPixels | null>({
   maxSize: 500,
-  defaultTtlMs: 2 * 60 * 1000, // 2 minutes
+  defaultTtlMs: 2 * 60 * 1000,
 });
 
-// Cache for shop domain lookups
 const shopByDomainCache = new SimpleCache<string | null>({
   maxSize: 1000,
-  defaultTtlMs: 10 * 60 * 1000, // 10 minutes (domains rarely change)
+  defaultTtlMs: 10 * 60 * 1000,
 });
-
-// =============================================================================
-// Select Fields
-// =============================================================================
 
 const SHOP_BASIC_SELECT = {
   id: true,
@@ -88,13 +58,6 @@ const SHOP_WITH_BILLING_SELECT = {
   billingCycleStart: true,
 } as const;
 
-// =============================================================================
-// Repository Functions
-// =============================================================================
-
-/**
- * Get shop by ID with basic fields.
- */
 export async function getShopById(shopId: string): Promise<ShopBasic | null> {
   const cached = shopConfigCache.get(`shop:${shopId}`);
   if (cached !== undefined) {
@@ -113,13 +76,10 @@ export async function getShopById(shopId: string): Promise<ShopBasic | null> {
   return shop as ShopBasic | null;
 }
 
-/**
- * Get shop ID by domain (cached heavily since domain->ID mapping rarely changes).
- */
 export async function getShopIdByDomain(domain: string): Promise<string | null> {
   const normalizedDomain = domain.toLowerCase().trim();
   const cacheKey = `domain:${normalizedDomain}`;
-  
+
   const cached = shopByDomainCache.get(cacheKey);
   if (cached !== undefined) {
     return cached;
@@ -135,9 +95,6 @@ export async function getShopIdByDomain(domain: string): Promise<string | null> 
   return shopId;
 }
 
-/**
- * Get shop with pixel configurations (for conversion processing).
- */
 export async function getShopWithPixels(shopId: string): Promise<ShopWithPixels | null> {
   const cacheKey = `shop-pixels:${shopId}`;
   const cached = shopWithPixelsCache.get(cacheKey);
@@ -164,11 +121,8 @@ export async function getShopWithPixels(shopId: string): Promise<ShopWithPixels 
   return result;
 }
 
-/**
- * Get shop with billing information.
- */
 export async function getShopWithBilling(shopId: string): Promise<ShopWithBilling | null> {
-  // Not cached - billing data needs to be fresh
+
   const shop = await getDb().shop.findUnique({
     where: { id: shopId },
     select: SHOP_WITH_BILLING_SELECT,
@@ -177,10 +131,6 @@ export async function getShopWithBilling(shopId: string): Promise<ShopWithBillin
   return shop as ShopWithBilling | null;
 }
 
-/**
- * Batch fetch multiple shops by ID.
- * Returns a Map for O(1) lookup.
- */
 export async function batchGetShops(shopIds: string[]): Promise<Map<string, ShopBasic>> {
   if (shopIds.length === 0) return new Map();
 
@@ -188,7 +138,6 @@ export async function batchGetShops(shopIds: string[]): Promise<Map<string, Shop
   const result = new Map<string, ShopBasic>();
   const uncachedIds: string[] = [];
 
-  // Check cache first
   for (const id of uniqueIds) {
     const cached = shopConfigCache.get(`shop:${id}`);
     if (cached !== undefined) {
@@ -198,7 +147,6 @@ export async function batchGetShops(shopIds: string[]): Promise<Map<string, Shop
     }
   }
 
-  // Fetch uncached
   if (uncachedIds.length > 0) {
     const shops = await getDb().shop.findMany({
       where: { id: { in: uncachedIds } },
@@ -215,9 +163,6 @@ export async function batchGetShops(shopIds: string[]): Promise<Map<string, Shop
   return result;
 }
 
-/**
- * Batch fetch multiple shops with their pixel configs.
- */
 export async function batchGetShopsWithPixels(
   shopIds: string[]
 ): Promise<Map<string, ShopWithPixels>> {
@@ -227,7 +172,6 @@ export async function batchGetShopsWithPixels(
   const result = new Map<string, ShopWithPixels>();
   const uncachedIds: string[] = [];
 
-  // Check cache
   for (const id of uniqueIds) {
     const cached = shopWithPixelsCache.get(`shop-pixels:${id}`);
     if (cached !== undefined && cached !== null) {
@@ -237,7 +181,6 @@ export async function batchGetShopsWithPixels(
     }
   }
 
-  // Fetch uncached
   if (uncachedIds.length > 0) {
     const shops = await getDb().shop.findMany({
       where: { id: { in: uncachedIds } },
@@ -257,34 +200,21 @@ export async function batchGetShopsWithPixels(
   return result;
 }
 
-/**
- * Invalidate cache for a specific shop.
- */
 export function invalidateShopCache(shopId: string): void {
   shopConfigCache.delete(`shop:${shopId}`);
   shopWithPixelsCache.delete(`shop-pixels:${shopId}`);
 }
 
-/**
- * Invalidate cache for a shop by domain.
- */
 export function invalidateShopCacheByDomain(domain: string): void {
   const normalizedDomain = domain.toLowerCase().trim();
   shopByDomainCache.delete(`domain:${normalizedDomain}`);
 }
 
-/**
- * Clear all shop caches.
- */
 export function clearShopCaches(): void {
   shopConfigCache.clear();
   shopWithPixelsCache.clear();
   shopByDomainCache.clear();
 }
-
-// =============================================================================
-// Query Monitoring
-// =============================================================================
 
 interface SlowQueryLog {
   query: string;
@@ -297,9 +227,6 @@ const slowQueryLogs: SlowQueryLog[] = [];
 const SLOW_QUERY_THRESHOLD_MS = 100;
 const MAX_SLOW_QUERY_LOGS = 100;
 
-/**
- * Log slow queries for monitoring.
- */
 function logSlowQuery(query: string, durationMs: number, params?: unknown): void {
   if (durationMs >= SLOW_QUERY_THRESHOLD_MS) {
     slowQueryLogs.push({
@@ -309,7 +236,6 @@ function logSlowQuery(query: string, durationMs: number, params?: unknown): void
       timestamp: new Date(),
     });
 
-    // Keep only the most recent logs
     if (slowQueryLogs.length > MAX_SLOW_QUERY_LOGS) {
       slowQueryLogs.shift();
     }
@@ -318,23 +244,14 @@ function logSlowQuery(query: string, durationMs: number, params?: unknown): void
   }
 }
 
-/**
- * Get recent slow query logs.
- */
 export function getSlowQueryLogs(): SlowQueryLog[] {
   return [...slowQueryLogs];
 }
 
-/**
- * Clear slow query logs.
- */
 export function clearSlowQueryLogs(): void {
   slowQueryLogs.length = 0;
 }
 
-/**
- * Wrap a database operation with timing.
- */
 async function withTiming<T>(
   queryName: string,
   operation: () => Promise<T>,
@@ -353,14 +270,6 @@ async function withTiming<T>(
   }
 }
 
-// =============================================================================
-// Enhanced Batch Operations
-// =============================================================================
-
-/**
- * Chunked batch fetch for large ID lists.
- * Prevents query size limits from being exceeded.
- */
 export async function chunkedBatchGetShops(
   shopIds: string[],
   chunkSize: number = 100
@@ -379,27 +288,14 @@ export async function chunkedBatchGetShops(
   return result;
 }
 
-// =============================================================================
-// Query Performance Helpers
-// =============================================================================
-
-/**
- * Prefetch and cache shops for upcoming operations.
- */
 export async function prefetchShops(shopIds: string[]): Promise<void> {
   await batchGetShops(shopIds);
 }
 
-/**
- * Prefetch and cache shops with pixel configs.
- */
 export async function prefetchShopsWithPixels(shopIds: string[]): Promise<void> {
   await batchGetShopsWithPixels(shopIds);
 }
 
-/**
- * Get cache hit rate statistics.
- */
 export function getShopCacheStats(): {
   shopConfig: { hits: number; misses: number; hitRate: number };
   shopWithPixels: { hits: number; misses: number; hitRate: number };

@@ -1,8 +1,4 @@
-/**
- * Pixel Events API - Key Validation
- *
- * Ingestion key validation logic with caching for high-frequency lookups.
- */
+
 
 import {
   getShopForVerification,
@@ -21,50 +17,27 @@ import { trackAnomaly } from "../../utils/rate-limiter";
 import { logger } from "../../utils/logger.server";
 import type { KeyValidationResult } from "./types";
 
-// =============================================================================
-// Shop Lookup (with caching)
-// =============================================================================
-
-/**
- * Get shop data for verification.
- */
 export async function getShopForPixelVerification(
   shopDomain: string
 ): Promise<ShopVerificationData | null> {
   return getShopForVerification(shopDomain);
 }
 
-/**
- * Get shop data with pixel configs for verification.
- * 
- * This is an optimized version that:
- * 1. Checks cache first (Redis or in-memory)
- * 2. Falls back to database query
- * 3. Caches the result for subsequent requests
- * 
- * Cache TTL is 1 minute to balance freshness and performance.
- */
 export async function getShopForPixelVerificationWithConfigs(
   shopDomain: string
 ): Promise<ShopWithPixelConfigs | null> {
-  // Try cache first
+
   const cached = await getCachedShopWithConfigs(shopDomain);
   if (cached !== undefined) {
     return cached;
   }
 
-  // Cache miss - fetch from database
   const shop = await getShopForVerificationWithConfigs(shopDomain);
-  
-  // Cache the result (including null for not-found shops)
+
   await cacheShopWithConfigs(shopDomain, shop);
-  
+
   return shop;
 }
-
-// =============================================================================
-// Key Validation
-// =============================================================================
 
 export interface KeyValidationContext {
   shop: ShopVerificationData;
@@ -78,20 +51,15 @@ export type KeyValidationOutcome =
   | { type: "missing_key_request"; shopDomain: string }
   | { type: "key_mismatch"; shopDomain: string };
 
-/**
- * Validate the ingestion key against shop's secret.
- */
 export function validateIngestionKey(ctx: KeyValidationContext): KeyValidationOutcome {
   const { shop, ingestionKey } = ctx;
 
-  // Case 1: Shop has no ingestion secret configured
   if (!shop.ingestionSecret) {
     if (!isDevMode()) {
       logger.warn(`Rejected: Shop ${shop.shopDomain} has no ingestion key configured`);
       return { type: "missing_key_prod", shopDomain: shop.shopDomain };
     }
 
-    // Allow in dev mode
     logger.info(
       `[DEV] Shop ${shop.shopDomain} has no ingestion key configured - allowing request`
     );
@@ -101,7 +69,6 @@ export function validateIngestionKey(ctx: KeyValidationContext): KeyValidationOu
     };
   }
 
-  // Case 2: Request has no ingestion key
   if (!ingestionKey) {
     const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
     if (anomalyCheck.shouldBlock) {
@@ -111,7 +78,6 @@ export function validateIngestionKey(ctx: KeyValidationContext): KeyValidationOu
     return { type: "missing_key_request", shopDomain: shop.shopDomain };
   }
 
-  // Case 3: Verify key with grace window for rotation
   const matchResult = verifyWithGraceWindow(shop, (secret) =>
     timingSafeEquals(secret, ingestionKey)
   );
@@ -127,7 +93,6 @@ export function validateIngestionKey(ctx: KeyValidationContext): KeyValidationOu
     };
   }
 
-  // Case 4: Key mismatch
   const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
   if (anomalyCheck.shouldBlock) {
     logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);

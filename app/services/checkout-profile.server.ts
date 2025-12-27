@@ -40,17 +40,17 @@ export async function getTypOspActive(admin: AdminApiContext): Promise<TypOspSta
         }
       }
     `);
-        const data = await response.json() as { 
-            data?: { 
-                checkoutProfiles?: { 
-                    nodes?: Array<{ id: string; name?: string; isPublished?: boolean; typOspPagesActive?: boolean | null }> 
-                }; 
-                shop?: { 
-                    checkoutApiSupported?: boolean; 
-                    plan?: { shopifyPlus?: boolean } 
-                } 
-            }; 
-            errors?: Array<{ message?: string }> 
+        const data = await response.json() as {
+            data?: {
+                checkoutProfiles?: {
+                    nodes?: Array<{ id: string; name?: string; isPublished?: boolean; typOspPagesActive?: boolean | null }>
+                };
+                shop?: {
+                    checkoutApiSupported?: boolean;
+                    plan?: { shopifyPlus?: boolean }
+                }
+            };
+            errors?: Array<{ message?: string }>
         };
         if (data.errors) {
             logger.warn("GraphQL errors in checkoutProfiles query:", { errors: data.errors });

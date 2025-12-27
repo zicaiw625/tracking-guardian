@@ -76,3 +76,15 @@ export const ExportIcon: IconSource = createIcon(
 export const ShareIcon: IconSource = createIcon(
   "M14 6a2 2 0 10-1.53.72L8.9 8.9a2 2 0 100 2.2l3.57 2.18A2 2 0 1014 12a2 2 0 00-.12-.68l-3.68-2.25a2.01 2.01 0 000-.14l3.68-2.25A2 2 0 0014 6z",
 );
+
+export const PlayIcon: IconSource = createIcon(
+  "M6 4l10 6-10 6V4z",
+);
+
+export const PauseIcon: IconSource = createIcon(
+  "M6 4h3v12H6V4zm5 0h3v12h-3V4z",
+);
+
+export const StopIcon: IconSource = createIcon(
+  "M5 5h10v10H5V5z",
+);

@@ -200,7 +200,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
         return [];
     }
     const results: ReconciliationResult[] = [];
-    // P0-3: 使用 UTC 边界确保跨时区一致性
+
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const yesterday = new Date(today);
@@ -381,7 +381,7 @@ export async function getReconciliationHistory(shopId: string, days: number = 30
     revenueDiscrepancy: number;
     alertSent: boolean;
 }>> {
-    // P0-3: 使用 UTC 边界确保跨时区一致性
+
     const cutoffDate = new Date();
     cutoffDate.setUTCDate(cutoffDate.getUTCDate() - days);
     cutoffDate.setUTCHours(0, 0, 0, 0);
@@ -465,27 +465,14 @@ export async function getLatestReconciliation(shopId: string): Promise<Map<strin
     return result;
 }
 
-// =============================================================================
-// P1-4: 送达对账可视化数据接口 (Delivery Reconciliation)
-// 
-// 注意：这是"送达对账"，对比的是：
-// - Shopify Webhook 订单数
-// - 我们成功发送到广告平台的事件数
-// 
-// 这不是"平台报表对账"（需要调用 Meta/Google/TikTok 的报表 API）。
-// =============================================================================
-
-/**
- * 送达缺口原因类型
- */
-export type GapReason = 
-    | "no_pixel_receipt"      // 用户未到达感谢页（upsell/提前关闭）
-    | "consent_denied"        // consent 未授权
-    | "network_timeout"       // 网络中断/超时
-    | "trust_check_failed"    // 信任检查失败
-    | "billing_limit"         // 计费限制
-    | "platform_error"        // 平台发送失败
-    | "unknown";              // 未知原因
+export type GapReason =
+    | "no_pixel_receipt"
+    | "consent_denied"
+    | "network_timeout"
+    | "trust_check_failed"
+    | "billing_limit"
+    | "platform_error"
+    | "unknown";
 
 export interface GapAnalysis {
     reason: GapReason;
@@ -494,30 +481,25 @@ export interface GapAnalysis {
     description: string;
 }
 
-/**
- * 送达对账仪表板数据
- * 
- * 用于可视化展示"Shopify 订单 → 平台送达"的健康状况
- */
 export interface ReconciliationDashboardData {
-    // 分析期间
+
     period: {
         startDate: Date;
         endDate: Date;
         days: number;
     };
-    // 送达概览
+
     overview: {
-        totalWebhookOrders: number;      // Shopify Webhook 收到的订单数
-        totalPixelReceipts: number;      // 收到的像素事件数
-        totalGap: number;                // 送达缺口（订单 - 成功发送）
-        gapPercentage: number;           // 缺口率
-        totalSentToPlatforms: number;    // 成功发送到平台的数量
-        matchRate: number;               // 送达匹配率
+        totalWebhookOrders: number;
+        totalPixelReceipts: number;
+        totalGap: number;
+        gapPercentage: number;
+        totalSentToPlatforms: number;
+        matchRate: number;
     };
-    // 送达缺口原因分析
+
     gapAnalysis: GapAnalysis[];
-    // 按平台分解的送达情况
+
     platformBreakdown: Array<{
         platform: string;
         webhookOrders: number;
@@ -526,14 +508,14 @@ export interface ReconciliationDashboardData {
         gap: number;
         gapPercentage: number;
     }>;
-    // 每日送达趋势
+
     dailyTrend: Array<{
         date: string;
         webhookOrders: number;
         pixelReceipts: number;
         gap: number;
     }>;
-    // 策略建议
+
     recommendation: {
         currentStrategy: string;
         suggestedStrategy: string | null;
@@ -541,31 +523,22 @@ export interface ReconciliationDashboardData {
     };
 }
 
-/**
- * P1-4: 获取送达对账仪表板数据
- * 
- * 对比 Shopify Webhook 订单与成功发送到广告平台的事件数，
- * 帮助商家理解送达健康状况和缺口原因。
- */
 export async function getReconciliationDashboardData(
     shopId: string,
     days: number = 7
 ): Promise<ReconciliationDashboardData> {
-    // P0-3: 使用 UTC 边界确保跨时区一致性
+
     const endDate = new Date();
     endDate.setUTCHours(0, 0, 0, 0);
     const startDate = new Date(endDate);
     startDate.setUTCDate(startDate.getUTCDate() - days);
 
-    // 获取店铺当前策略
     const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { consentStrategy: true },
     });
     const currentStrategy = shop?.consentStrategy || "strict";
 
-    // 查询时间范围内的 ConversionJob（代表 webhook 订单）
-    // P1-4.1: 增加 capiInput 以获取 checkoutToken 用于 fallback 匹配
     const conversionJobs = await prisma.conversionJob.findMany({
         where: {
             shopId,
@@ -582,12 +555,10 @@ export async function getReconciliationDashboardData(
             createdAt: true,
             trustMetadata: true,
             consentEvidence: true,
-            capiInput: true, // P1-4.1: 用于 checkoutToken fallback 匹配
+            capiInput: true,
         },
     });
 
-    // 查询时间范围内的 PixelEventReceipt
-    // P1-4.1: 增加 checkoutToken 用于 fallback 匹配
     const pixelReceipts = await prisma.pixelEventReceipt.findMany({
         where: {
             shopId,
@@ -602,11 +573,10 @@ export async function getReconciliationDashboardData(
             isTrusted: true,
             consentState: true,
             createdAt: true,
-            checkoutToken: true, // P1-4.1: 用于 fallback 匹配
+            checkoutToken: true,
         },
     });
 
-    // 查询 ConversionLog 获取平台发送情况
     const conversionLogs = await prisma.conversionLog.findMany({
         where: {
             shopId,
@@ -625,34 +595,25 @@ export async function getReconciliationDashboardData(
         },
     });
 
-    // P1-4.1: 创建双重映射以支持 checkoutToken fallback
-    // 映射1: orderId -> receipt（主要匹配）
     const receiptByOrderId = new Map(
         pixelReceipts.map(r => [r.orderId, r])
     );
-    // 映射2: checkoutToken -> receipt（fallback 匹配，用于 Pixel 无 orderId 场景）
+
     const receiptByToken = new Map(
         pixelReceipts
             .filter(r => r.checkoutToken)
             .map(r => [r.checkoutToken!, r])
     );
 
-    /**
-     * P1-4.1: 查找匹配的 receipt
-     * 优先使用 orderId 匹配，其次使用 checkoutToken fallback
-     */
     function findReceiptForJob(job: { orderId: string; capiInput: unknown }): typeof pixelReceipts[0] | undefined {
-        // 策略1: 直接通过 orderId 匹配
+
         const byOrderId = receiptByOrderId.get(job.orderId);
         if (byOrderId) return byOrderId;
 
-        // 策略2: 通过 webhook 的 checkoutToken 匹配 receipt
-        // 当 Pixel 侧因缺 orderId 使用 checkoutToken 生成 eventId 时，
-        // 这确保仍然可以正确关联 receipt
         if (job.capiInput && typeof job.capiInput === 'object') {
             const capiInput = job.capiInput as Record<string, unknown>;
-            const webhookCheckoutToken = typeof capiInput.checkoutToken === 'string' 
-                ? capiInput.checkoutToken 
+            const webhookCheckoutToken = typeof capiInput.checkoutToken === 'string'
+                ? capiInput.checkoutToken
                 : null;
             if (webhookCheckoutToken) {
                 const byToken = receiptByToken.get(webhookCheckoutToken);
@@ -663,7 +624,6 @@ export async function getReconciliationDashboardData(
         return undefined;
     }
 
-    // 分析缺口原因
     const gapReasonCounts: Record<GapReason, number> = {
         no_pixel_receipt: 0,
         consent_denied: 0,
@@ -675,11 +635,11 @@ export async function getReconciliationDashboardData(
     };
 
     for (const job of conversionJobs) {
-        // P1-4.1: 使用双重匹配策略（orderId 优先，checkoutToken fallback）
+
         const receipt = findReceiptForJob(job);
-        
+
         if (!receipt) {
-            // 没有收到像素事件
+
             gapReasonCounts.no_pixel_receipt++;
         } else if (job.status === "limit_exceeded") {
             gapReasonCounts.billing_limit++;
@@ -699,24 +659,22 @@ export async function getReconciliationDashboardData(
         }
     }
 
-    // 计算总览
     const totalWebhookOrders = conversionJobs.length;
     const totalPixelReceipts = pixelReceipts.length;
     const totalGap = Math.max(0, totalWebhookOrders - totalPixelReceipts);
-    const gapPercentage = totalWebhookOrders > 0 
-        ? (totalGap / totalWebhookOrders) * 100 
-        : 0;
-    
-    const sentLogs = conversionLogs.filter(l => l.status === "sent");
-    const totalSentToPlatforms = new Set(sentLogs.map(l => l.orderId)).size;
-    const matchRate = totalWebhookOrders > 0 
-        ? (totalSentToPlatforms / totalWebhookOrders) * 100 
+    const gapPercentage = totalWebhookOrders > 0
+        ? (totalGap / totalWebhookOrders) * 100
         : 0;
 
-    // 构建缺口分析
+    const sentLogs = conversionLogs.filter(l => l.status === "sent");
+    const totalSentToPlatforms = new Set(sentLogs.map(l => l.orderId)).size;
+    const matchRate = totalWebhookOrders > 0
+        ? (totalSentToPlatforms / totalWebhookOrders) * 100
+        : 0;
+
     const totalGapCount = Object.values(gapReasonCounts).reduce((a, b) => a + b, 0);
     const gapAnalysis: GapAnalysis[] = [];
-    
+
     const reasonDescriptions: Record<GapReason, string> = {
         no_pixel_receipt: "用户未到达感谢页（提前关闭、upsell 中断等）",
         consent_denied: "用户未授权追踪同意（GDPR/CCPA）",
@@ -739,14 +697,13 @@ export async function getReconciliationDashboardData(
     }
     gapAnalysis.sort((a, b) => b.count - a.count);
 
-    // 按平台分解
     const platforms = [...new Set(conversionLogs.map(l => l.platform))];
     const platformBreakdown = platforms.map(platform => {
         const platformLogs = conversionLogs.filter(l => l.platform === platform);
         const sentCount = platformLogs.filter(l => l.status === "sent").length;
         const uniqueOrders = new Set(platformLogs.map(l => l.orderId)).size;
         const gap = uniqueOrders - sentCount;
-        
+
         return {
             platform,
             webhookOrders: uniqueOrders,
@@ -757,7 +714,6 @@ export async function getReconciliationDashboardData(
         };
     });
 
-    // 按天统计趋势（使用 UTC 日期）
     const dailyStats = new Map<string, { webhook: number; pixel: number }>();
     for (let d = new Date(startDate); d < endDate; d.setUTCDate(d.getUTCDate() + 1)) {
         const dateStr = d.toISOString().split("T")[0];
@@ -783,7 +739,6 @@ export async function getReconciliationDashboardData(
         gap: Math.max(0, stat.webhook - stat.pixel),
     }));
 
-    // 策略建议
     let suggestedStrategy: string | null = null;
     let suggestionReason: string | null = null;
 

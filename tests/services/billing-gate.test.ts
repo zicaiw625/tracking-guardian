@@ -1,12 +1,7 @@
-/**
- * Billing Gate Service Tests
- *
- * Tests for billing limit checks and gating functionality.
- */
+
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Mock the cache
 vi.mock("../../app/utils/cache", () => ({
   billingCache: {
     get: vi.fn(),
@@ -16,7 +11,6 @@ vi.mock("../../app/utils/cache", () => ({
   },
 }));
 
-// Mock Prisma
 vi.mock("../../app/db.server", () => ({
   default: {
     monthlyUsage: {
@@ -71,15 +65,13 @@ describe("Billing Gate Service", () => {
     });
 
     it("should respect plan-specific limits", () => {
-      // Starter plan
+
       expect(checkOrderLimit(100, "starter").exceeded).toBe(true);
       expect(checkOrderLimit(100, "pro").exceeded).toBe(false);
 
-      // Pro plan
       expect(checkOrderLimit(5000, "pro").exceeded).toBe(true);
       expect(checkOrderLimit(5000, "enterprise").exceeded).toBe(false);
 
-      // Enterprise plan
       expect(checkOrderLimit(50000, "enterprise").exceeded).toBe(true);
     });
   });
@@ -121,7 +113,7 @@ describe("Billing Gate Service", () => {
 
   describe("Monthly Usage Tracking", () => {
     it("should get or create monthly usage record", async () => {
-      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+      const currentMonth = new Date().toISOString().slice(0, 7);
       const mockUsage = {
         id: "usage-123",
         shopId: "shop-123",
@@ -212,16 +204,13 @@ describe("Billing Gate Service", () => {
     }
 
     it("should detect when usage is approaching limit", () => {
-      // At 80%
+
       expect(isApproachingLimit(80, 100)).toBe(true);
 
-      // Below 80%
       expect(isApproachingLimit(79, 100)).toBe(false);
 
-      // Well above 80%
       expect(isApproachingLimit(95, 100)).toBe(true);
 
-      // Already exceeded
       expect(isApproachingLimit(110, 100)).toBe(true);
     });
 
@@ -283,7 +272,7 @@ describe("Billing Gate Service", () => {
 
       expect(incrementIfNew("order-1")).toBe(true);
       expect(incrementIfNew("order-2")).toBe(true);
-      expect(incrementIfNew("order-1")).toBe(false); // Already processed
+      expect(incrementIfNew("order-1")).toBe(false);
       expect(processedOrders.size).toBe(2);
     });
   });

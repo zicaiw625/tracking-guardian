@@ -1,22 +1,21 @@
-// Platform detection patterns for tracking scripts
-// P1-1: 区分 GA4 (analytics) 和 Google Ads (marketing)
+
 
 export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
-    // P1-1: Google Analytics (GA4) - 纯分析平台，本应用支持
+
     google: [
         /gtag\s*\(/i,
         /google-analytics/i,
-        /G-[A-Z0-9]{10,}/i,  // GA4 Measurement ID
-        /UA-\d+-\d+/i,       // Universal Analytics (legacy)
+        /G-[A-Z0-9]{10,}/i,
+        /UA-\d+-\d+/i,
     ],
-    // P1-1: Google Ads - 广告平台，建议使用官方应用
+
     google_ads: [
-        /AW-\d{9,}/i,         // Google Ads Conversion ID
+        /AW-\d{9,}/i,
         /google_conversion/i,
         /googleadservices/i,
         /gtag.*conversion/i,
     ],
-    // P1-1: Google Tag Manager - 可用于多种追踪，需特别说明
+
     gtm: [
         /googletagmanager/i,
         /gtm\.js/i,
@@ -55,26 +54,20 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
         /twitter.*pixel/i,
         /static\.ads-twitter\.com/i,
     ],
-    // =============================================================================
-    // P1-1: Post-purchase Survey / Upsell / Affiliate 工具识别
-    // 这些工具在 Additional Scripts 中很常见，需要给出不同的迁移建议
-    // =============================================================================
-    
-    // Post-purchase Survey 工具
-    fairing: [  // Fairing (原 Enquire Labs)
+
+    fairing: [
         /fairing/i,
         /enquirelabs/i,
         /post-purchase-survey/i,
     ],
-    kno: [  // KnoCommerce
+    kno: [
         /knocommerce/i,
         /kno\.com/i,
     ],
     zigpoll: [
         /zigpoll/i,
     ],
-    
-    // Post-purchase Upsell 工具
+
     carthook: [
         /carthook/i,
     ],
@@ -84,12 +77,11 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
     reconvert: [
         /reconvert/i,
     ],
-    zipify: [  // Zipify OneClickUpsell
+    zipify: [
         /zipify/i,
         /oneclickupsell/i,
     ],
-    
-    // Affiliate/Referral 追踪
+
     refersion: [
         /refersion/i,
     ],
@@ -99,15 +91,14 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
     tapfiliate: [
         /tapfiliate/i,
     ],
-    impact: [  // Impact Radius / impact.com
+    impact: [
         /impact\.com/i,
         /impactradius/i,
     ],
     partnerstack: [
         /partnerstack/i,
     ],
-    
-    // 其他常见工具
+
     hotjar: [
         /hotjar/i,
         /hj\s*\(/i,
@@ -115,29 +106,19 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
     lucky_orange: [
         /luckyorange/i,
     ],
-    klaviyo: [  // Klaviyo 的客户端追踪
+    klaviyo: [
         /klaviyo/i,
         /_learnq/i,
     ],
-    attentive: [  // Attentive SMS
+    attentive: [
         /attentive\.io/i,
         /attentivemobile/i,
     ],
-    postscript: [  // Postscript SMS
+    postscript: [
         /postscript/i,
     ],
 };
 
-// =============================================================================
-// P1-1: Platform Categories and Recommendations
-// =============================================================================
-
-/**
- * P1-1: 平台类别定义
- * - supported: 本应用完全支持（可配置 CAPI）
- * - partial: 部分支持（建议使用官方应用）
- * - unsupported: 不支持（建议使用官方应用或其他方案）
- */
 export type PlatformSupportLevel = "supported" | "partial" | "unsupported";
 
 export interface PlatformInfo {
@@ -147,9 +128,6 @@ export interface PlatformInfo {
     officialApp?: string;
 }
 
-/**
- * P1-1: 平台信息配置
- */
 export const PLATFORM_INFO: Record<string, PlatformInfo> = {
     google: {
         name: "Google Analytics (GA4)",
@@ -205,12 +183,7 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         supportLevel: "unsupported",
         recommendation: "X 广告转化追踪目前没有官方 Shopify 应用，可考虑使用第三方集成或手动配置",
     },
-    
-    // =============================================================================
-    // P1-1: Post-purchase Survey / Upsell / Affiliate 工具
-    // =============================================================================
-    
-    // Post-purchase Survey 工具
+
     fairing: {
         name: "Fairing (Post-purchase Survey)",
         supportLevel: "unsupported",
@@ -229,8 +202,7 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         recommendation: "Zigpoll 提供 Checkout UI Extension 集成。建议使用官方应用",
         officialApp: "https://apps.shopify.com/zigpoll",
     },
-    
-    // Post-purchase Upsell 工具
+
     carthook: {
         name: "CartHook (Post-purchase Upsell)",
         supportLevel: "unsupported",
@@ -255,8 +227,7 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         recommendation: "Zipify OCU 支持 Checkout Extensibility。请确保使用最新版应用",
         officialApp: "https://apps.shopify.com/zipify-oneclickupsell",
     },
-    
-    // Affiliate/Referral 追踪
+
     refersion: {
         name: "Refersion (Affiliate)",
         supportLevel: "unsupported",
@@ -286,8 +257,7 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         recommendation: "PartnerStack 支持 Webhook 集成，无需客户端脚本",
         officialApp: "https://apps.shopify.com/partnerstack",
     },
-    
-    // 其他常见工具
+
     hotjar: {
         name: "Hotjar (Heatmaps)",
         supportLevel: "unsupported",
@@ -316,7 +286,7 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         recommendation: "Postscript 官方应用支持新版 Checkout。请确保使用最新版应用",
         officialApp: "https://apps.shopify.com/postscript-sms-marketing",
     },
-    
+
     unknown: {
         name: "未知平台",
         supportLevel: "unsupported",
@@ -324,16 +294,10 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
     },
 };
 
-/**
- * P1-1: 获取平台信息
- */
 export function getPlatformInfo(platform: string): PlatformInfo {
     return PLATFORM_INFO[platform] || PLATFORM_INFO.unknown;
 }
 
-/**
- * Detect platforms in the given content
- */
 export function detectPlatforms(content: string): string[] {
     const detected: string[] = [];
     for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
@@ -349,9 +313,6 @@ export function detectPlatforms(content: string): string[] {
     return detected;
 }
 
-/**
- * Identify platform from script source URL
- */
 export function identifyPlatformFromSrc(src: string): string {
     for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
         for (const pattern of patterns) {
@@ -363,10 +324,6 @@ export function identifyPlatformFromSrc(src: string): string {
     return "unknown";
 }
 
-/**
- * Get pattern type description for a matched pattern
- * P1-1: 更新以反映 Google Ads / GA4 分离
- */
 export function getPatternType(platform: string, pattern: RegExp): string {
     const patternStr = pattern.source;
     switch (platform) {

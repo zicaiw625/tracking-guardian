@@ -1,15 +1,7 @@
-/**
- * Metric Card Components
- *
- * Reusable components for displaying metrics and statistics.
- */
+
 
 import { Card, Text, BlockStack, InlineStack, Box, ProgressBar, Icon } from "@shopify/polaris";
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from "~/components/icons";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export type TrendDirection = "up" | "down" | "neutral";
 
@@ -19,32 +11,25 @@ export interface MetricValue {
   unit?: string;
 }
 
-// =============================================================================
-// Basic Metric Card
-// =============================================================================
-
 export interface MetricCardProps {
-  /** Card title */
+
   title: string;
-  /** Primary value */
+
   value: number | string;
-  /** Value unit (e.g., "条", "个", "%") */
+
   unit?: string;
-  /** Description or secondary info */
+
   description?: string;
-  /** Trend direction */
+
   trend?: TrendDirection;
-  /** Trend percentage or value */
+
   trendValue?: string;
-  /** Trend comparison period */
+
   trendPeriod?: string;
-  /** Loading state */
+
   loading?: boolean;
 }
 
-/**
- * Single metric display card
- */
 export function MetricCard({
   title,
   value,
@@ -119,30 +104,23 @@ export function MetricCard({
   );
 }
 
-// =============================================================================
-// Progress Metric Card
-// =============================================================================
-
 export interface ProgressMetricCardProps {
-  /** Card title */
+
   title: string;
-  /** Current value */
+
   current: number;
-  /** Maximum/total value */
+
   total: number;
-  /** Value unit */
+
   unit?: string;
-  /** Progress bar color */
+
   tone?: "primary" | "success" | "warning" | "critical";
-  /** Show percentage */
+
   showPercentage?: boolean;
-  /** Description */
+
   description?: string;
 }
 
-/**
- * Metric card with progress bar
- */
 export function ProgressMetricCard({
   title,
   current,
@@ -153,13 +131,13 @@ export function ProgressMetricCard({
   description,
 }: ProgressMetricCardProps) {
   const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
-  // Map our tone values to Polaris ProgressBar tone values
+
   const getProgressTone = (): "highlight" | "success" | "critical" | undefined => {
     if (percentage >= 90) return "critical";
-    if (percentage >= 70) return "highlight"; // Polaris uses "highlight" instead of "warning"
+    if (percentage >= 70) return "highlight";
     if (tone === "success") return "success";
     if (tone === "critical") return "critical";
-    return undefined; // Default/primary
+    return undefined;
   };
 
   return (
@@ -197,30 +175,23 @@ export function ProgressMetricCard({
   );
 }
 
-// =============================================================================
-// Comparison Metric Card
-// =============================================================================
-
 export interface ComparisonMetricCardProps {
-  /** Card title */
+
   title: string;
-  /** Left value label */
+
   leftLabel: string;
-  /** Left value */
+
   leftValue: number | string;
-  /** Right value label */
+
   rightLabel: string;
-  /** Right value */
+
   rightValue: number | string;
-  /** Value unit */
+
   unit?: string;
-  /** Highlight difference */
+
   highlightDifference?: boolean;
 }
 
-/**
- * Side-by-side comparison metric card
- */
 export function ComparisonMetricCard({
   title,
   leftLabel,
@@ -278,12 +249,8 @@ export function ComparisonMetricCard({
   );
 }
 
-// =============================================================================
-// Metric Grid
-// =============================================================================
-
 export interface MetricGridProps {
-  /** Metric items */
+
   items: Array<{
     title: string;
     value: number | string;
@@ -291,13 +258,10 @@ export interface MetricGridProps {
     trend?: TrendDirection;
     trendValue?: string;
   }>;
-  /** Number of columns */
+
   columns?: 2 | 3 | 4;
 }
 
-/**
- * Grid of metric cards
- */
 export function MetricGrid({ items, columns = 3 }: MetricGridProps) {
   return (
     <div
@@ -321,19 +285,12 @@ export function MetricGrid({ items, columns = 3 }: MetricGridProps) {
   );
 }
 
-// =============================================================================
-// Stat Item (Inline)
-// =============================================================================
-
 export interface StatItemProps {
   label: string;
   value: number | string;
   unit?: string;
 }
 
-/**
- * Inline stat item for lists
- */
 export function StatItem({ label, value, unit }: StatItemProps) {
   return (
     <InlineStack align="space-between">

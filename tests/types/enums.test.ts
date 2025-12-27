@@ -1,8 +1,4 @@
-/**
- * Enum Types Tests
- * 
- * Tests for type-safe enum constants (using const objects with as const).
- */
+
 
 import { describe, it, expect } from "vitest";
 import {
@@ -68,8 +64,7 @@ describe("TrustLevel", () => {
 
   it("should support comparison logic", () => {
     const trustLevels = [TrustLevel.UNTRUSTED, TrustLevel.PARTIAL, TrustLevel.TRUSTED];
-    
-    // Verify all levels are distinct
+
     expect(new Set(trustLevels).size).toBe(3);
   });
 });

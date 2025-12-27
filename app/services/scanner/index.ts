@@ -1,15 +1,15 @@
-// Scanner module - main entry point
+
 
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../../db.server";
 import type { ScanResult, ScriptTag, CheckoutConfig } from "../../types";
-import type { 
-    WebPixelInfo, 
-    EnhancedScanResult, 
-    ScanError, 
-    GraphQLEdge, 
+import type {
+    WebPixelInfo,
+    EnhancedScanResult,
+    ScanError,
+    GraphQLEdge,
     GraphQLPageInfo,
-    ScriptAnalysisResult 
+    ScriptAnalysisResult
 } from "./types";
 import { detectPlatforms, PLATFORM_PATTERNS } from "./patterns";
 import { assessRisks, calculateRiskScore } from "./risk-assessment";
@@ -18,21 +18,16 @@ import { analyzeScriptContent } from "./content-analysis";
 import { refreshTypOspStatus } from "../checkout-profile.server";
 import { logger } from "../../utils/logger.server";
 
-// Re-export types
-export type { 
-    WebPixelInfo, 
-    EnhancedScanResult, 
-    MigrationAction, 
-    ScriptAnalysisResult 
+export type {
+    WebPixelInfo,
+    EnhancedScanResult,
+    MigrationAction,
+    ScriptAnalysisResult
 } from "./types";
 export type { ScanResult, RiskItem } from "../../types";
 
-// Re-export functions
 export { analyzeScriptContent } from "./content-analysis";
 
-/**
- * Fetch all script tags with pagination
- */
 async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> {
     const allTags: ScriptTag[] = [];
     let hasNextPage = true;
@@ -77,7 +72,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
             const numericId = gidMatch ? parseInt(gidMatch[1], 10) : 0;
             allTags.push({
                 id: numericId,
-                gid: edge.node.id, // Preserve original GID for mutations
+                gid: edge.node.id,
                 src: edge.node.src,
                 event: "onload",
                 display_scope: edge.node.displayScope?.toLowerCase() || "all",
@@ -99,9 +94,6 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
     return allTags;
 }
 
-/**
- * Fetch all web pixels with pagination
- */
 async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]> {
     const allPixels: WebPixelInfo[] = [];
     let hasNextPage = true;
@@ -156,9 +148,6 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
     return allPixels;
 }
 
-/**
- * Collect script content from tags for analysis
- */
 function collectScriptContent(result: EnhancedScanResult): string {
     let content = "";
     for (const tag of result.scriptTags) {
@@ -167,13 +156,6 @@ function collectScriptContent(result: EnhancedScanResult): string {
     return content;
 }
 
-/**
- * P1-05: Improved duplicate pixel detection
- * 
- * Detects duplicates based on:
- * 1. Same platform AND same identifier (e.g., same GA4 Measurement ID)
- * 2. Ignores cross-application pixels (only flags duplicates within same platform type)
- */
 function detectDuplicatePixels(result: EnhancedScanResult): Array<{
     platform: string;
     count: number;
@@ -184,16 +166,12 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
         count: number;
         ids: string[];
     }> = [];
-    
-    // Track by platform AND identifier for more precise duplicate detection
-    // Key format: "{platform}:{identifier}" -> list of sources
+
     const platformIdentifiers: Record<string, { sources: string[]; platform: string }> = {};
 
-    // Check script tags - extract actual identifiers
     for (const tag of result.scriptTags) {
         const src = tag.src || "";
-        
-        // Google (GA4 or Google Ads)
+
         const ga4Match = src.match(/G-[A-Z0-9]+/);
         if (ga4Match) {
             const key = `google:${ga4Match[0]}`;
@@ -202,7 +180,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             }
             platformIdentifiers[key].sources.push(`scripttag_${tag.id}_${tag.gid || ""}`);
         }
-        
+
         const adsMatch = src.match(/AW-\d+/);
         if (adsMatch) {
             const key = `google_ads:${adsMatch[0]}`;
@@ -211,8 +189,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             }
             platformIdentifiers[key].sources.push(`scripttag_${tag.id}_${tag.gid || ""}`);
         }
-        
-        // Meta Pixel ID
+
         const metaMatch = src.match(/\b(\d{15,16})\b/);
         if (metaMatch && (src.includes("facebook") || src.includes("fbq") || src.includes("connect.facebook"))) {
             const key = `meta:${metaMatch[1]}`;
@@ -221,8 +198,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             }
             platformIdentifiers[key].sources.push(`scripttag_${tag.id}_${tag.gid || ""}`);
         }
-        
-        // TikTok Pixel ID
+
         const tiktokMatch = src.match(/[A-Z0-9]{20,}/i);
         if (tiktokMatch && (src.includes("tiktok") || src.includes("ttq"))) {
             const key = `tiktok:${tiktokMatch[0]}`;
@@ -233,7 +209,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
         }
     }
 
-    // Check web pixels - extract identifiers from settings
     for (const pixel of result.webPixels) {
         if (pixel.settings) {
             try {
@@ -241,11 +216,9 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                     ? JSON.parse(pixel.settings)
                     : pixel.settings;
 
-                // Check for explicit platform identifiers in settings
                 for (const [settingKey, value] of Object.entries(settings as Record<string, unknown>)) {
                     if (typeof value !== "string") continue;
-                    
-                    // GA4 Measurement ID
+
                     if (/^G-[A-Z0-9]+$/.test(value)) {
                         const key = `google:${value}`;
                         if (!platformIdentifiers[key]) {
@@ -253,7 +226,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                         }
                         platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
                     }
-                    // Google Ads
+
                     else if (/^AW-\d+$/.test(value)) {
                         const key = `google_ads:${value}`;
                         if (!platformIdentifiers[key]) {
@@ -261,7 +234,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                         }
                         platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
                     }
-                    // Meta Pixel ID (15-16 digits)
+
                     else if (/^\d{15,16}$/.test(value)) {
                         const key = `meta:${value}`;
                         if (!platformIdentifiers[key]) {
@@ -269,7 +242,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                         }
                         platformIdentifiers[key].sources.push(`webpixel_${pixel.id}_${settingKey}`);
                     }
-                    // TikTok Pixel ID
+
                     else if (/^[A-Z0-9]{20,}$/i.test(value) && !value.includes("://")) {
                         const key = `tiktok:${value}`;
                         if (!platformIdentifiers[key]) {
@@ -279,12 +252,11 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                     }
                 }
             } catch {
-                // Ignore parse errors
+
             }
         }
     }
 
-    // Find duplicates - only flag if same identifier appears multiple times
     for (const [key, data] of Object.entries(platformIdentifiers)) {
         if (data.sources.length > 1) {
             const [platform, identifier] = key.split(":");
@@ -300,9 +272,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
     return duplicates;
 }
 
-/**
- * Save scan report to database
- */
 async function saveScanReport(shopId: string, result: ScanResult, errorMessage: string | null = null): Promise<void> {
     await prisma.scanReport.create({
         data: {
@@ -319,28 +288,14 @@ async function saveScanReport(shopId: string, result: ScanResult, errorMessage: 
     });
 }
 
-// =============================================================================
-// P2-2: Scan Caching Configuration
-// =============================================================================
-
-/**
- * Default cache TTL in milliseconds (10 minutes)
- */
 const SCAN_CACHE_TTL_MS = 10 * 60 * 1000;
 
-/**
- * Check if a cached scan result is still valid
- */
 function isScanCacheValid(cachedAt: Date, ttlMs: number = SCAN_CACHE_TTL_MS): boolean {
     const now = Date.now();
     const cacheAge = now - cachedAt.getTime();
     return cacheAge < ttlMs;
 }
 
-/**
- * P2-2: Get cached scan result if available and valid
- * @returns The cached result or null if cache is expired/missing
- */
 export async function getCachedScanResult(
     shopId: string,
     ttlMs: number = SCAN_CACHE_TTL_MS
@@ -361,44 +316,36 @@ export async function getCachedScanResult(
 
     logger.debug(`Using cached scan result for shop ${shopId}, age: ${Date.now() - cached.completedAt.getTime()}ms`);
 
-    // Reconstruct EnhancedScanResult from cached data
     return {
         scriptTags: (cached.scriptTags as ScriptTag[] | null) || [],
         checkoutConfig: (cached.checkoutConfig as CheckoutConfig | null) || null,
         identifiedPlatforms: (cached.identifiedPlatforms as string[]) || [],
-        additionalScriptsPatterns: [], // Not stored in DB to avoid PII
+        additionalScriptsPatterns: [],
         riskItems: (cached.riskItems as ScanResult["riskItems"] | null) || [],
         riskScore: cached.riskScore || 0,
-        webPixels: [], // Web pixels need to be re-fetched for freshness
+        webPixels: [],
         duplicatePixels: [],
-        migrationActions: [], // Will be regenerated
+        migrationActions: [],
     };
 }
 
-/**
- * Main scan function - scans shop for tracking scripts and generates report
- * 
- * P2-2: Supports caching - use `force: true` to bypass cache
- */
 export async function scanShopTracking(
-    admin: AdminApiContext, 
+    admin: AdminApiContext,
     shopId: string,
     options: { force?: boolean; cacheTtlMs?: number } = {}
 ): Promise<EnhancedScanResult> {
     const { force = false, cacheTtlMs = SCAN_CACHE_TTL_MS } = options;
 
-    // Fetch shop tier for migration actions
     const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { shopTier: true }
     });
     const shopTier = shop?.shopTier || "unknown";
 
-    // P2-2: Check cache unless force refresh is requested
     if (!force) {
         const cached = await getCachedScanResult(shopId, cacheTtlMs);
         if (cached) {
-            // Re-fetch web pixels for freshness (they change more frequently)
+
             try {
                 cached.webPixels = await fetchAllWebPixels(admin);
                 cached.duplicatePixels = detectDuplicatePixels(cached);
@@ -425,7 +372,6 @@ export async function scanShopTracking(
 
     logger.info(`Starting enhanced scan for shop ${shopId}`);
 
-    // Refresh TYP/OSP status
     try {
         await refreshTypOspStatus(admin, shopId);
     } catch (error) {
@@ -438,7 +384,6 @@ export async function scanShopTracking(
         });
     }
 
-    // Fetch script tags
     try {
         result.scriptTags = await fetchAllScriptTags(admin);
         logger.info(`Found ${result.scriptTags.length} script tags (with pagination)`);
@@ -452,7 +397,6 @@ export async function scanShopTracking(
         });
     }
 
-    // Fetch checkout config
     try {
         const checkoutResponse = await admin.graphql(`
             query GetCheckoutConfig {
@@ -477,7 +421,6 @@ export async function scanShopTracking(
         });
     }
 
-    // Fetch web pixels
     try {
         result.webPixels = await fetchAllWebPixels(admin);
         logger.info(`Found ${result.webPixels.length} web pixels (with pagination)`);
@@ -491,25 +434,20 @@ export async function scanShopTracking(
         });
     }
 
-    // Analyze content and detect platforms
     const allScriptContent = collectScriptContent(result);
     result.identifiedPlatforms = detectPlatforms(allScriptContent);
     logger.info(`Identified platforms: ${result.identifiedPlatforms.join(", ") || "none"}`);
 
-    // Detect duplicates
     result.duplicatePixels = detectDuplicatePixels(result);
     logger.info(`Duplicate pixels found: ${result.duplicatePixels.length}`);
 
-    // Assess risks
     result.riskItems = assessRisks(result);
     result.riskScore = calculateRiskScore(result.riskItems);
     logger.info(`Risk assessment complete: score=${result.riskScore}, items=${result.riskItems.length}`);
 
-    // Generate migration actions
     result.migrationActions = generateMigrationActions(result, shopTier);
     logger.info(`Generated ${result.migrationActions.length} migration actions`);
 
-    // Save report
     try {
         await saveScanReport(shopId, result, errors.length > 0 ? JSON.stringify(errors) : null);
         logger.info(`Scan report saved for shop ${shopId}`);
@@ -522,9 +460,6 @@ export async function scanShopTracking(
     return result;
 }
 
-/**
- * Get scan history for a shop
- */
 export async function getScanHistory(shopId: string, limit = 10) {
     return prisma.scanReport.findMany({
         where: { shopId },

@@ -150,9 +150,9 @@ describe("Crypto Utils", () => {
       process.env.NODE_ENV = "development";
       delete process.env.ENCRYPTION_SECRET;
       delete process.env.DEV_ENCRYPTION_SECRET;
-      
+
       const result = validateEncryptionConfig();
-      
+
       expect(result.valid).toBe(true);
       expect(result.secretSource).toBe("fallback");
       expect(result.warnings.some(w => w.includes("No encryption secret configured"))).toBe(true);
@@ -161,9 +161,9 @@ describe("Crypto Utils", () => {
     it("should return warning for short ENCRYPTION_SECRET", () => {
       process.env.NODE_ENV = "development";
       process.env.ENCRYPTION_SECRET = "short-secret";
-      
+
       const result = validateEncryptionConfig();
-      
+
       expect(result.valid).toBe(true);
       expect(result.secretSource).toBe("ENCRYPTION_SECRET");
       expect(result.warnings.some(w => w.includes("shorter than recommended"))).toBe(true);
@@ -173,9 +173,9 @@ describe("Crypto Utils", () => {
       process.env.NODE_ENV = "development";
       delete process.env.ENCRYPTION_SECRET;
       process.env.DEV_ENCRYPTION_SECRET = "a-dev-specific-secret-key-here-32";
-      
+
       const result = validateEncryptionConfig();
-      
+
       expect(result.valid).toBe(true);
       expect(result.secretSource).toBe("DEV_ENCRYPTION_SECRET");
     });
@@ -184,9 +184,9 @@ describe("Crypto Utils", () => {
       process.env.NODE_ENV = "development";
       process.env.ENCRYPTION_SECRET = "primary-secret-key-here-32-chars";
       process.env.DEV_ENCRYPTION_SECRET = "dev-secret-should-not-be-used";
-      
+
       const result = validateEncryptionConfig();
-      
+
       expect(result.valid).toBe(true);
       expect(result.secretSource).toBe("ENCRYPTION_SECRET");
     });
@@ -195,9 +195,9 @@ describe("Crypto Utils", () => {
       process.env.NODE_ENV = "development";
       process.env.ENCRYPTION_SECRET = "a-very-long-and-secure-secret-key-here";
       process.env.ENCRYPTION_SALT = "unique-salt-value";
-      
+
       const result = validateEncryptionConfig();
-      
+
       expect(result.valid).toBe(true);
       expect(result.warnings).toHaveLength(0);
     });
@@ -206,9 +206,9 @@ describe("Crypto Utils", () => {
       process.env.NODE_ENV = "development";
       delete process.env.ENCRYPTION_SECRET;
       process.env.DEV_ENCRYPTION_SECRET = "short";
-      
+
       const result = validateEncryptionConfig();
-      
+
       expect(result.valid).toBe(true);
       expect(result.secretSource).toBe("DEV_ENCRYPTION_SECRET");
       expect(result.warnings.some(w => w.includes("DEV_ENCRYPTION_SECRET") && w.includes("shorter"))).toBe(true);
@@ -218,7 +218,7 @@ describe("Crypto Utils", () => {
       process.env.NODE_ENV = "production";
       delete process.env.ENCRYPTION_SECRET;
       process.env.DEV_ENCRYPTION_SECRET = "dev-secret";
-      
+
       expect(() => validateEncryptionConfig()).toThrow("ENCRYPTION_SECRET must be set in production");
     });
   });
@@ -238,7 +238,7 @@ describe("Crypto Utils", () => {
       const parts = encrypted.split(":");
       const tamperedCiphertext = parts[2].slice(0, -2) + "ff";
       const tampered = `${parts[0]}:${parts[1]}:${tamperedCiphertext}`;
-      
+
       expect(() => decrypt(tampered)).toThrow();
     });
 
@@ -249,7 +249,7 @@ describe("Crypto Utils", () => {
       const parts = encrypted.split(":");
       const tamperedAuthTag = "00".repeat(16);
       const tampered = `${parts[0]}:${tamperedAuthTag}:${parts[2]}`;
-      
+
       expect(() => decrypt(tampered)).toThrow();
     });
   });
@@ -305,9 +305,9 @@ describe("Crypto Utils", () => {
     });
 
     it("should normalize GID orderId", () => {
-      const result = generateMatchKey({ 
-        orderId: "gid://shopify/Order/12345", 
-        checkoutToken: null 
+      const result = generateMatchKey({
+        orderId: "gid://shopify/Order/12345",
+        checkoutToken: null
       });
       expect(result.matchKey).toBe("12345");
       expect(result.isOrderId).toBe(true);
@@ -417,14 +417,12 @@ describe("Crypto Utils", () => {
     it("should allow re-initialization with different secret", () => {
       process.env.NODE_ENV = "development";
       process.env.ENCRYPTION_SECRET = "first-secret-key-32-characters-!";
-      
+
       const encrypted1 = encrypt("test");
-      
-      // Reset and change secret
+
       resetEncryptionKeyCache();
       process.env.ENCRYPTION_SECRET = "second-secret-key-32-characters!";
-      
-      // Should now fail to decrypt with new key
+
       expect(() => decrypt(encrypted1)).toThrow();
     });
 
@@ -432,22 +430,19 @@ describe("Crypto Utils", () => {
       process.env.NODE_ENV = "development";
       process.env.ENCRYPTION_SECRET = "primary-secret-32-characters-!!";
       delete process.env.DEV_ENCRYPTION_SECRET;
-      
+
       const encrypted1 = encrypt("test-primary");
       const decrypted1 = decrypt(encrypted1);
       expect(decrypted1).toBe("test-primary");
-      
-      // Reset and switch to dev secret
+
       resetEncryptionKeyCache();
       delete process.env.ENCRYPTION_SECRET;
       process.env.DEV_ENCRYPTION_SECRET = "dev-only-secret-32-characters-!";
-      
-      // New encryption should work with dev secret
+
       const encrypted2 = encrypt("test-dev");
       const decrypted2 = decrypt(encrypted2);
       expect(decrypted2).toBe("test-dev");
-      
-      // Old encrypted data should fail
+
       expect(() => decrypt(encrypted1)).toThrow();
     });
   });
@@ -480,7 +475,7 @@ describe("Crypto Utils", () => {
         emptyArray: [],
         emptyObject: {},
       };
-      
+
       const encrypted = encryptJson(complex);
       const decrypted = decryptJson<typeof complex>(encrypted);
       expect(decrypted).toEqual(complex);

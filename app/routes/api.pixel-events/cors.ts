@@ -1,8 +1,4 @@
-/**
- * Pixel Events API - CORS Helpers
- *
- * CORS header handling for the pixel events endpoint.
- */
+
 
 import {
   getPixelEventsCorsHeaders,
@@ -10,29 +6,15 @@ import {
   jsonWithCors as jsonWithCorsBase,
 } from "../../utils/cors";
 
-// =============================================================================
-// Constants
-// =============================================================================
-
 export const PIXEL_CUSTOM_HEADERS = [
   "X-Tracking-Guardian-Key",
   "X-Tracking-Guardian-Timestamp",
 ];
 
-// =============================================================================
-// CORS Header Functions
-// =============================================================================
-
-/**
- * Get CORS headers for requests before body validation (no shop context).
- */
 export function getCorsHeadersPreBody(request: Request): HeadersInit {
   return getPixelEventsCorsHeaders(request, { customHeaders: PIXEL_CUSTOM_HEADERS });
 }
 
-/**
- * Get CORS headers for requests with shop context.
- */
 export function getCorsHeadersForShop(
   request: Request,
   shopAllowedDomains: string[]
@@ -44,13 +26,6 @@ export function getCorsHeadersForShop(
   );
 }
 
-// =============================================================================
-// Response Helpers
-// =============================================================================
-
-/**
- * Create JSON response with appropriate CORS headers.
- */
 export function jsonWithCors<T>(
   data: T,
   init: ResponseInit & {
@@ -73,9 +48,6 @@ export function jsonWithCors<T>(
   });
 }
 
-/**
- * Create empty response with CORS headers (for silent drops).
- */
 export function emptyResponseWithCors(
   request: Request,
   shopAllowedDomains?: string[]
@@ -90,9 +62,6 @@ export function emptyResponseWithCors(
   });
 }
 
-/**
- * Create OPTIONS preflight response.
- */
 export function optionsResponse(request: Request): Response {
   return new Response(null, {
     status: 204,

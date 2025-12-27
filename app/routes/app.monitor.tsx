@@ -39,10 +39,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shopDomain },
     });
     if (!shop) {
-        return json({ 
-            shop: null, 
-            summary: {}, 
-            history: [], 
+        return json({
+            shop: null,
+            summary: {},
+            history: [],
             conversionStats: null,
             configHealth: {
                 appUrl: process.env.SHOPIFY_APP_URL || "",
@@ -54,7 +54,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     const summary = await getDeliveryHealthSummary(shop.id);
     const history = await getDeliveryHealthHistory(shop.id, 30);
-    // P0-3: 使用 UTC 确保跨时区一致性
+
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
     sevenDaysAgo.setUTCHours(0, 0, 0, 0);
@@ -68,14 +68,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         _sum: { orderValue: true },
     });
 
-    // P1-9: Runtime configuration check
     const appUrl = process.env.SHOPIFY_APP_URL || "";
     const latestReceipt = await prisma.pixelEventReceipt.findFirst({
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
-        select: { 
+        select: {
             originHost: true,
-            createdAt: true 
+            createdAt: true
         }
     });
 
@@ -95,17 +94,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function MonitorPage() {
   const { summary, history, conversionStats, configHealth, lastUpdated } = useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
-    
-    // Check for environment mismatch
-    // const isProd = configHealth.appUrl && !configHealth.appUrl.includes("ngrok") && !configHealth.appUrl.includes("localhost");
+
     const isDevUrl = configHealth.appUrl && (configHealth.appUrl.includes("ngrok") || configHealth.appUrl.includes("trycloudflare"));
-    
-    // Warning if pixel is sending from a different host than expected (mostly for dev/prod mixups)
-    // Note: originHost is where the pixel RUNS (storefront), not where it sends TO.
-    // However, if we receive it, it means it sent to US.
-    // The check requested is "fallback URL" - if pixel sends to OLD url.
-    // If we received it, it sent to current URL. So this confirms connectivity.
-    // If we haven't received anything recently, that's the issue.
+
   const lastHeartbeat = configHealth.lastPixelTime ? new Date(configHealth.lastPixelTime) : null;
   const isHeartbeatStale = lastHeartbeat ? (new Date(lastUpdated).getTime() - lastHeartbeat.getTime() > 24 * 60 * 60 * 1000) : true;
 
@@ -198,7 +189,7 @@ export default function MonitorPage() {
             }
         ]}>
       <BlockStack gap="500">
-        
+
         {!hasData && (<Card>
             <BlockStack gap="500">
               <InlineStack align="space-between" blockAlign="center">
@@ -251,7 +242,6 @@ export default function MonitorPage() {
             </BlockStack>
           </Card>)}
 
-        
         {hasData && (<Layout>
             <Layout.Section variant="oneThird">
               <Card>
@@ -298,7 +288,6 @@ export default function MonitorPage() {
               </Card>
             </Layout.Section>
 
-            
             {Object.entries(summaryData).map(([platform, data]) => (<Layout.Section key={platform} variant="oneThird">
                 <Card>
                   <BlockStack gap="300">
@@ -342,7 +331,6 @@ export default function MonitorPage() {
               </Layout.Section>))}
           </Layout>)}
 
-        
         {processedStats && Object.keys(processedStats).length > 0 && (<Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
@@ -360,7 +348,6 @@ export default function MonitorPage() {
             </BlockStack>
           </Card>)}
 
-        
         {historyData.length > 0 && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
@@ -394,7 +381,7 @@ export default function MonitorPage() {
             </BlockStack>
           </Card>)}
 
-        {/* Runtime Configuration Health Check */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between">
@@ -405,7 +392,7 @@ export default function MonitorPage() {
                 {!isHeartbeatStale ? "连接正常" : "无近期心跳"}
               </Badge>
             </InlineStack>
-            
+
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="center">
@@ -426,21 +413,21 @@ export default function MonitorPage() {
                     </Text>
                   </Banner>
                 )}
-                
+
                 <Divider />
-                
+
                 <InlineStack align="space-between" blockAlign="center">
                    <InlineStack gap="200" blockAlign="center">
                      <Badge tone={heartbeatTone}>{heartbeatLabel}</Badge>
                      <Text as="span" tone="subdued">最近一次 Pixel 心跳</Text>
                    </InlineStack>
                    <Text as="span" fontWeight={configHealth.lastPixelTime ? "semibold" : "regular"}>
-                     {configHealth.lastPixelTime 
-                       ? new Date(configHealth.lastPixelTime).toLocaleString("zh-CN") 
+                     {configHealth.lastPixelTime
+                       ? new Date(configHealth.lastPixelTime).toLocaleString("zh-CN")
                        : "尚未收到事件"}
                    </Text>
                 </InlineStack>
-                
+
                 {configHealth.lastPixelOrigin && (
                   <InlineStack align="space-between">
                      <Text as="span" tone="subdued">来源店铺域名 (Origin)</Text>
@@ -514,14 +501,13 @@ export default function MonitorPage() {
           </BlockStack>
         </Card>
 
-        
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
               提高追踪准确性的建议
             </Text>
             <BlockStack gap="300">
-              
+
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <InlineStack align="space-between" blockAlign="center">
                   <BlockStack gap="100">
@@ -541,7 +527,6 @@ export default function MonitorPage() {
                 </InlineStack>
               </Box>
 
-              
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <InlineStack align="space-between" blockAlign="center">
                   <BlockStack gap="100">
@@ -561,7 +546,6 @@ export default function MonitorPage() {
                 </InlineStack>
               </Box>
 
-              
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <InlineStack align="space-between" blockAlign="center">
                   <BlockStack gap="100">

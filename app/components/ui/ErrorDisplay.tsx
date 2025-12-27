@@ -1,53 +1,38 @@
-/**
- * Error Display Components
- *
- * Reusable components for displaying errors to users.
- */
+
 
 import { Banner, Card, Text, BlockStack, Button, InlineStack } from "@shopify/polaris";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export interface ErrorDisplayProps {
-  /** Error title */
+
   title?: string;
-  /** Error message */
+
   message: string;
-  /** Error code for technical reference */
+
   code?: string;
-  /** Whether error is retryable */
+
   retryable?: boolean;
-  /** Retry callback */
+
   onRetry?: () => void;
-  /** Dismiss callback */
+
   onDismiss?: () => void;
-  /** Variant: inline banner or full card */
+
   variant?: "banner" | "card";
 }
 
 export interface ApiErrorDisplayProps {
-  /** API error response */
+
   error: {
     message?: string;
     error?: string;
     code?: string;
     details?: Array<{ field: string; message: string }>;
   } | string | null;
-  /** Retry callback */
+
   onRetry?: () => void;
-  /** Dismiss callback */
+
   onDismiss?: () => void;
 }
 
-// =============================================================================
-// Error Display Component
-// =============================================================================
-
-/**
- * Generic error display component
- */
 export function ErrorDisplay({
   title = "发生错误",
   message,
@@ -108,13 +93,6 @@ export function ErrorDisplay({
   );
 }
 
-// =============================================================================
-// API Error Display Component
-// =============================================================================
-
-/**
- * Display API error responses
- */
 export function ApiErrorDisplay({
   error,
   onRetry,
@@ -122,7 +100,6 @@ export function ApiErrorDisplay({
 }: ApiErrorDisplayProps) {
   if (!error) return null;
 
-  // Handle string errors
   if (typeof error === "string") {
     return (
       <ErrorDisplay
@@ -134,11 +111,9 @@ export function ApiErrorDisplay({
     );
   }
 
-  // Extract message
   const message = error.message || error.error || "发生未知错误";
   const code = error.code;
 
-  // Handle validation errors with details
   if (error.details && error.details.length > 0) {
     return (
       <Banner
@@ -174,17 +149,10 @@ export function ApiErrorDisplay({
   );
 }
 
-// =============================================================================
-// Network Error Display
-// =============================================================================
-
 export interface NetworkErrorProps {
   onRetry?: () => void;
 }
 
-/**
- * Display network connectivity errors
- */
 export function NetworkErrorDisplay({ onRetry }: NetworkErrorProps) {
   return (
     <ErrorDisplay
@@ -196,18 +164,11 @@ export function NetworkErrorDisplay({ onRetry }: NetworkErrorProps) {
   );
 }
 
-// =============================================================================
-// Not Found Display
-// =============================================================================
-
 export interface NotFoundProps {
   resource?: string;
   onBack?: () => void;
 }
 
-/**
- * Display resource not found errors
- */
 export function NotFoundDisplay({ resource = "资源", onBack }: NotFoundProps) {
   return (
     <Card>
@@ -226,10 +187,6 @@ export function NotFoundDisplay({ resource = "资源", onBack }: NotFoundProps) 
   );
 }
 
-// =============================================================================
-// Empty State Display
-// =============================================================================
-
 export interface EmptyStateProps {
   title?: string;
   message?: string;
@@ -239,9 +196,6 @@ export interface EmptyStateProps {
   };
 }
 
-/**
- * Display empty state (no data)
- */
 export function EmptyStateDisplay({
   title = "暂无数据",
   message = "当前没有可显示的内容。",

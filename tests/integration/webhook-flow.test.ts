@@ -1,18 +1,8 @@
-/**
- * Webhook Flow Integration Tests
- *
- * Tests the complete webhook processing flow including:
- * - HMAC verification
- * - Shop lookup
- * - Conversion job creation
- * - Receipt matching
- * - Platform dispatch
- */
+
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createHmac } from "crypto";
 
-// Mock dependencies
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
@@ -78,11 +68,9 @@ describe("Webhook Flow Integration", () => {
       const body = JSON.stringify({ id: "123", order_number: "1001" });
       const validHmac = generateHmac(body, webhookSecret);
 
-      // Tampered body
       const tamperedBody = JSON.stringify({ id: "123", order_number: "1002" });
       expect(verifyHmac(tamperedBody, validHmac, webhookSecret)).toBe(false);
 
-      // Wrong secret
       const wrongSecretHmac = generateHmac(body, "wrong-secret");
       expect(verifyHmac(body, wrongSecretHmac, webhookSecret)).toBe(false);
     });
@@ -219,7 +207,6 @@ describe("Webhook Flow Integration", () => {
         attempts: 0,
       };
 
-      // Simulate update on existing job
       (prisma.conversionJob.update as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...existingJob,
         attempts: 1,
@@ -264,7 +251,7 @@ describe("Webhook Flow Integration", () => {
     });
 
     it("should find matching receipt by orderId fallback", async () => {
-      // First call (by checkoutToken) returns null
+
       (prisma.pixelEventReceipt.findFirst as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({
@@ -275,13 +262,11 @@ describe("Webhook Flow Integration", () => {
           isTrusted: true,
         });
 
-      // Primary lookup
       const byToken = await prisma.pixelEventReceipt.findFirst({
         where: { shopId: "shop-123", checkoutToken: "unknown-token" },
       });
       expect(byToken).toBeNull();
 
-      // Fallback lookup
       const byOrderId = await prisma.pixelEventReceipt.findFirst({
         where: { shopId: "shop-123", orderId: "12345" },
       });
@@ -337,15 +322,12 @@ describe("Webhook Flow Integration", () => {
         saleOfData: true,
       };
 
-      // Meta requires marketing consent
       const metaAllowed = consentState.marketing === true;
       expect(metaAllowed).toBe(true);
 
-      // Google GA4 requires analytics consent
       const googleAllowed = consentState.analytics === true;
       expect(googleAllowed).toBe(false);
 
-      // TikTok requires marketing consent
       const tiktokAllowed = consentState.marketing === true;
       expect(tiktokAllowed).toBe(true);
     });
@@ -357,7 +339,6 @@ describe("Webhook Flow Integration", () => {
         saleOfData: false,
       };
 
-      // P0-04: saleOfData must be explicitly true
       const saleAllowed = consentState.saleOfData === true;
       expect(saleAllowed).toBe(false);
     });

@@ -68,16 +68,16 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
         html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #d72c0d;">⚠️ 追踪异常警报</h2>
-        
+
         <p>您的店铺 <strong>${data.shopDomain}</strong> 在 <strong>${data.platform}</strong> 平台的追踪数据出现异常：</p>
-        
+
         <div style="background: #f6f6f7; padding: 16px; border-radius: 8px; margin: 16px 0;">
           <p style="margin: 8px 0;"><strong>日期：</strong>${dateStr}</p>
           <p style="margin: 8px 0;"><strong>Shopify 订单数：</strong>${data.shopifyOrders}</p>
           <p style="margin: 8px 0;"><strong>平台记录转化数：</strong>${data.platformConversions}</p>
           <p style="margin: 8px 0; color: #d72c0d;"><strong>差异率：</strong>${discrepancyPercent}%</p>
         </div>
-        
+
         <p>可能的原因：</p>
         <ul>
           <li>追踪代码未正确触发</li>
@@ -85,21 +85,21 @@ async function sendEmailAlert(settings: EmailAlertSettings, data: AlertData): Pr
           <li>广告拦截器影响</li>
           <li>Checkout Extensibility 迁移问题</li>
         </ul>
-        
+
         <p>建议操作：</p>
         <ol>
           <li>检查 Web Pixel 是否正常工作</li>
           <li>查看广告平台的事件管理器</li>
           <li>考虑启用服务端转化 API</li>
         </ol>
-        
+
         <p style="margin-top: 24px;">
-          <a href="${appUrl}/app/monitor" 
+          <a href="${appUrl}/app/monitor"
              style="background: #008060; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
             查看详细报告
           </a>
         </p>
-        
+
         <hr style="margin: 24px 0; border: none; border-top: 1px solid #e1e3e5;" />
         <p style="color: #6d7175; font-size: 12px;">
           此邮件由 Tracking Guardian 自动发送。如需调整警报设置，请前往应用设置页面。

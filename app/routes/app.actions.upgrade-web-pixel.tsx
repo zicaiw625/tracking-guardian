@@ -1,23 +1,14 @@
-/**
- * Action Route: Upgrade WebPixel Settings
- * 
- * POST /app/actions/upgrade-web-pixel
- * 
- * Upgrades WebPixel settings to the latest schema version.
- * Handles migration from ingestion_secret to ingestion_key and adds missing fields.
- * 
- * P1-02: WebPixel settings schema version upgrade strategy
- */
+
 
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { 
-    getExistingWebPixels, 
-    isOurWebPixel, 
-    needsSettingsUpgrade, 
-    upgradeWebPixelSettings 
+import {
+    getExistingWebPixels,
+    isOurWebPixel,
+    needsSettingsUpgrade,
+    upgradeWebPixelSettings
 } from "../services/migration.server";
 import { decryptIngestionSecret } from "../utils/token-encryption";
 import { logger } from "../utils/logger.server";
@@ -31,8 +22,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     try {
         const shopDomain = session.shop;
-        
-        // Get shop record with ingestion secret
+
         const shop = await prisma.shop.findUnique({
             where: { shopDomain },
             select: {
@@ -49,7 +39,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }, { status: 404 });
         }
 
-        // Decrypt ingestion key
         let ingestionKey = "";
         if (shop.ingestionSecret) {
             try {
@@ -68,7 +57,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }, { status: 400 });
         }
 
-        // Get all existing web pixels
         const webPixels = await getExistingWebPixels(admin);
 
         if (webPixels.length === 0) {
@@ -78,7 +66,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }, { status: 404 });
         }
 
-        // Find our pixels that need upgrade
         const pixelsToUpgrade: Array<{
             id: string;
             settings: unknown;
@@ -99,7 +86,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     });
                 }
             } catch {
-                // Ignore parse errors
+
             }
         }
 
@@ -113,7 +100,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         logger.info(`Upgrading ${pixelsToUpgrade.length} WebPixel(s) for ${shopDomain}`);
 
-        // Upgrade each pixel
         const results: Array<{
             pixelId: string;
             success: boolean;
@@ -164,7 +150,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 pixelId: f.pixelId,
                 error: f.error,
             })),
-        }, { status: 207 }); // 207 Multi-Status
+        }, { status: 207 });
 
     } catch (error) {
         logger.error("Upgrade WebPixel action error", error);
@@ -175,7 +161,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 };
 
-// Loader to handle non-POST requests
 export const loader = async () => {
     return json({ error: "Method not allowed" }, { status: 405 });
 };

@@ -1,14 +1,6 @@
-/**
- * Platform API Mocks
- *
- * Mock implementations for platform APIs (Google, Meta, TikTok).
- */
+
 
 import { vi, type Mock } from "vitest";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export interface MockPlatformResponse {
   success: boolean;
@@ -23,13 +15,6 @@ export interface MockFetchHandler {
   (url: string, options?: RequestInit): Promise<Response>;
 }
 
-// =============================================================================
-// Response Factories
-// =============================================================================
-
-/**
- * Create a successful Meta CAPI response
- */
 export function createMetaSuccessResponse(eventsReceived: number = 1): MockPlatformResponse {
   return {
     success: true,
@@ -40,9 +25,6 @@ export function createMetaSuccessResponse(eventsReceived: number = 1): MockPlatf
   };
 }
 
-/**
- * Create a Meta CAPI error response
- */
 export function createMetaErrorResponse(
   message: string,
   code: number = 100
@@ -56,9 +38,6 @@ export function createMetaErrorResponse(
   };
 }
 
-/**
- * Create a successful Google Analytics response
- */
 export function createGoogleSuccessResponse(): MockPlatformResponse {
   return {
     success: true,
@@ -68,9 +47,6 @@ export function createGoogleSuccessResponse(): MockPlatformResponse {
   };
 }
 
-/**
- * Create a Google Analytics error response
- */
 export function createGoogleErrorResponse(message: string): MockPlatformResponse {
   return {
     success: false,
@@ -81,9 +57,6 @@ export function createGoogleErrorResponse(message: string): MockPlatformResponse
   };
 }
 
-/**
- * Create a successful TikTok response
- */
 export function createTikTokSuccessResponse(): MockPlatformResponse {
   return {
     success: true,
@@ -94,9 +67,6 @@ export function createTikTokSuccessResponse(): MockPlatformResponse {
   };
 }
 
-/**
- * Create a TikTok error response
- */
 export function createTikTokErrorResponse(
   message: string,
   code: number = 40001
@@ -110,25 +80,16 @@ export function createTikTokErrorResponse(
   };
 }
 
-// =============================================================================
-// Platform API Handlers
-// =============================================================================
-
-/**
- * Create mock fetch handler for Meta CAPI
- */
 export function createMetaApiHandler(
   response: MockPlatformResponse = createMetaSuccessResponse()
 ): MockFetchHandler {
   return async (url: string, options?: RequestInit): Promise<Response> => {
-    // Simulate network delay
+
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    // Parse request body for validation
     if (options?.body) {
       const body = JSON.parse(options.body as string);
-      
-      // Validate required fields
+
       if (!body.data || !Array.isArray(body.data)) {
         return new Response(
           JSON.stringify({
@@ -156,19 +117,15 @@ export function createMetaApiHandler(
   };
 }
 
-/**
- * Create mock fetch handler for Google Analytics
- */
 export function createGoogleApiHandler(
   response: MockPlatformResponse = createGoogleSuccessResponse()
 ): MockFetchHandler {
   return async (url: string, options?: RequestInit): Promise<Response> => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    // Validate measurement protocol request
     if (options?.body) {
       const body = JSON.parse(options.body as string);
-      
+
       if (!body.client_id) {
         return new Response(
           JSON.stringify({
@@ -189,19 +146,15 @@ export function createGoogleApiHandler(
   };
 }
 
-/**
- * Create mock fetch handler for TikTok Events API
- */
 export function createTikTokApiHandler(
   response: MockPlatformResponse = createTikTokSuccessResponse()
 ): MockFetchHandler {
   return async (url: string, options?: RequestInit): Promise<Response> => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    // Validate request
     if (options?.body) {
       const body = JSON.parse(options.body as string);
-      
+
       if (!body.pixel_code) {
         return new Response(
           JSON.stringify({
@@ -227,13 +180,6 @@ export function createTikTokApiHandler(
   };
 }
 
-// =============================================================================
-// Combined Mock Handler
-// =============================================================================
-
-/**
- * Create a combined mock fetch handler for all platforms
- */
 export function createCombinedPlatformHandler(options: {
   meta?: MockPlatformResponse;
   google?: MockPlatformResponse;
@@ -254,21 +200,13 @@ export function createCombinedPlatformHandler(options: {
       return tiktokHandler(url, init);
     }
 
-    // Unknown URL - return 404
     return new Response("Not Found", { status: 404 });
   };
 }
 
-// =============================================================================
-// Fetch Mock Setup
-// =============================================================================
-
 let originalFetch: typeof globalThis.fetch | null = null;
 let mockFetch: Mock | null = null;
 
-/**
- * Setup global fetch mock
- */
 export function setupFetchMock(handler?: MockFetchHandler): Mock {
   if (!originalFetch) {
     originalFetch = globalThis.fetch;
@@ -287,9 +225,6 @@ export function setupFetchMock(handler?: MockFetchHandler): Mock {
   return mockFetch;
 }
 
-/**
- * Restore original fetch
- */
 export function restoreFetch(): void {
   if (originalFetch) {
     globalThis.fetch = originalFetch;
@@ -298,20 +233,10 @@ export function restoreFetch(): void {
   mockFetch = null;
 }
 
-/**
- * Get current mock fetch
- */
 export function getMockFetch(): Mock | null {
   return mockFetch;
 }
 
-// =============================================================================
-// Error Simulation Helpers
-// =============================================================================
-
-/**
- * Create a rate limit handler
- */
 export function createRateLimitHandler(platform: "meta" | "google" | "tiktok"): MockFetchHandler {
   return async (): Promise<Response> => {
     const responses: Record<string, { body: unknown; status: number }> = {
@@ -343,9 +268,6 @@ export function createRateLimitHandler(platform: "meta" | "google" | "tiktok"): 
   };
 }
 
-/**
- * Create a timeout handler
- */
 export function createTimeoutHandler(delayMs: number = 35000): MockFetchHandler {
   return async (): Promise<Response> => {
     await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -353,22 +275,12 @@ export function createTimeoutHandler(delayMs: number = 35000): MockFetchHandler 
   };
 }
 
-/**
- * Create a network error handler
- */
 export function createNetworkErrorHandler(): MockFetchHandler {
   return async (): Promise<Response> => {
     throw new Error("Network error: ECONNREFUSED");
   };
 }
 
-// =============================================================================
-// Assertion Helpers
-// =============================================================================
-
-/**
- * Assert that Meta CAPI was called with correct parameters
- */
 export function assertMetaCapiCalled(
   mockFetch: Mock,
   expectedPixelId: string,
@@ -389,9 +301,6 @@ export function assertMetaCapiCalled(
   }
 }
 
-/**
- * Assert that Google Analytics was called
- */
 export function assertGoogleAnalyticsCalled(
   mockFetch: Mock,
   expectedMeasurementId: string
@@ -404,9 +313,6 @@ export function assertGoogleAnalyticsCalled(
   expect(googleCalls[0][0]).toContain(expectedMeasurementId);
 }
 
-/**
- * Assert that TikTok Events API was called
- */
 export function assertTikTokEventsCalled(
   mockFetch: Mock,
   expectedPixelCode?: string

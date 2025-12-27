@@ -1,10 +1,5 @@
-/**
- * Platform Domain Module
- *
- * Exports all platform-related domain types and interfaces.
- */
 
-// Types
+
 export {
   type Platform,
   type GoogleCredentials,
@@ -34,7 +29,6 @@ export {
   isRetryableErrorType,
 } from "./platform.types";
 
-// Service interfaces
 export {
   type CredentialsValidationResult,
   type IPlatformService,

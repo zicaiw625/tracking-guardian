@@ -6,7 +6,7 @@ import { createLogger } from "./logger";
 export default reactExtension("purchase.thank-you.block.render", () => <Survey />);
 function Survey() {
     const settings = useSettings();
-    // P0-1: BACKEND_URL may be null if build-time injection failed
+
     const backendUrl = BACKEND_URL;
     const api = useApi();
     const [orderId, setOrderId] = useState<string | null>(null);
@@ -19,39 +19,36 @@ function Survey() {
     const [error, setError] = useState<string | null>(null);
     const title = (settings.survey_title as string) || "我们想听听您的意见";
     const question = (settings.survey_question as string) || "您是如何了解到我们的？";
-    
-    // P0-1: If backend URL is not configured, the survey cannot submit
+
     const isBackendConfigured = !!backendUrl;
-    
+
     const shopDomain = api.shop?.myshopifyDomain || "";
     const logger = useMemo(() => createLogger(shopDomain, "[Survey]"), [shopDomain]);
 
     useEffect(() => {
         async function fetchOrderAndCheckoutInfo() {
             try {
-                // Handle orderConfirmation - may be a Promise or direct object
+
                 if (api.orderConfirmation) {
                     const orderData = api.orderConfirmation instanceof Promise
                         ? await api.orderConfirmation
                         : api.orderConfirmation;
                     if (orderData) {
                         setOrderId(orderData.id || null);
-                        // Handle number that could be 0 (falsy but valid)
-                        setOrderNumber(orderData.number !== undefined && orderData.number !== null 
-                            ? String(orderData.number) 
+
+                        setOrderNumber(orderData.number !== undefined && orderData.number !== null
+                            ? String(orderData.number)
                             : null);
                     }
                 }
-                // Handle checkoutToken - may be various formats
+
                 if (api.checkoutToken) {
                     let tokenValue = api.checkoutToken;
-                    
-                    // Handle ref-like objects with .current property
+
                     if (typeof tokenValue === 'object' && tokenValue !== null && 'current' in tokenValue) {
                         tokenValue = (tokenValue as { current: unknown }).current;
                     }
-                    
-                    // Extract string value
+
                     if (typeof tokenValue === 'string') {
                         setCheckoutToken(tokenValue);
                     } else if (tokenValue && typeof tokenValue === 'object' && 'value' in tokenValue) {
@@ -80,7 +77,7 @@ function Survey() {
             logger.warn("No order identifiers available");
             return;
         }
-        // P0-1: Check if backend URL is configured
+
         if (!backendUrl) {
             logger.warn("Backend URL not configured, cannot submit survey");
             setError("服务暂时不可用，请稍后再试");

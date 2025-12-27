@@ -1,19 +1,11 @@
 import { logger } from "./logger.server";
 import type { OrderWebhookPayload } from "../types";
 
-// ============================================
-// Order Webhook Payload Validation
-// ============================================
-
 export interface ValidationResult {
     valid: boolean;
     errors: string[];
     payload?: OrderWebhookPayload;
 }
-
-// ============================================
-// GDPR Webhook Payload Types and Validation
-// ============================================
 
 export interface GDPRDataRequestPayload {
     shop_id: number;
@@ -46,29 +38,29 @@ export function parseGDPRDataRequestPayload(data: unknown, shopDomain: string): 
         logger.warn(`[GDPR] Invalid data_request payload from ${shopDomain}: not an object`);
         return null;
     }
-    
+
     const raw = data as Record<string, unknown>;
     const errors: string[] = [];
-    
+
     if (typeof raw.shop_id !== "number") {
         errors.push("Missing or invalid 'shop_id'");
     }
     if (typeof raw.shop_domain !== "string") {
         errors.push("Missing or invalid 'shop_domain'");
     }
-    
+
     if (errors.length > 0) {
         logger.warn(`[GDPR] Invalid data_request payload from ${shopDomain}`, { errors });
         return null;
     }
-    
+
     const customer = raw.customer as Record<string, unknown> | undefined;
     const dataRequest = raw.data_request as Record<string, unknown> | undefined;
-    
+
     return {
         shop_id: raw.shop_id as number,
         shop_domain: raw.shop_domain as string,
-        orders_requested: Array.isArray(raw.orders_requested) 
+        orders_requested: Array.isArray(raw.orders_requested)
             ? raw.orders_requested.filter((id): id is number => typeof id === "number")
             : [],
         customer_id: typeof customer?.id === "number" ? customer.id : undefined,
@@ -81,24 +73,24 @@ export function parseGDPRCustomerRedactPayload(data: unknown, shopDomain: string
         logger.warn(`[GDPR] Invalid customer_redact payload from ${shopDomain}: not an object`);
         return null;
     }
-    
+
     const raw = data as Record<string, unknown>;
     const errors: string[] = [];
-    
+
     if (typeof raw.shop_id !== "number") {
         errors.push("Missing or invalid 'shop_id'");
     }
     if (typeof raw.shop_domain !== "string") {
         errors.push("Missing or invalid 'shop_domain'");
     }
-    
+
     if (errors.length > 0) {
         logger.warn(`[GDPR] Invalid customer_redact payload from ${shopDomain}`, { errors });
         return null;
     }
-    
+
     const customer = raw.customer as Record<string, unknown> | undefined;
-    
+
     return {
         shop_id: raw.shop_id as number,
         shop_domain: raw.shop_domain as string,
@@ -114,22 +106,22 @@ export function parseGDPRShopRedactPayload(data: unknown, shopDomain: string): G
         logger.warn(`[GDPR] Invalid shop_redact payload from ${shopDomain}: not an object`);
         return null;
     }
-    
+
     const raw = data as Record<string, unknown>;
     const errors: string[] = [];
-    
+
     if (typeof raw.shop_id !== "number") {
         errors.push("Missing or invalid 'shop_id'");
     }
     if (typeof raw.shop_domain !== "string") {
         errors.push("Missing or invalid 'shop_domain'");
     }
-    
+
     if (errors.length > 0) {
         logger.warn(`[GDPR] Invalid shop_redact payload from ${shopDomain}`, { errors });
         return null;
     }
-    
+
     return {
         shop_id: raw.shop_id as number,
         shop_domain: raw.shop_domain as string,

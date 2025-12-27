@@ -1,9 +1,4 @@
-/**
- * Trust Evaluation Service
- * 
- * Handles trust verification and consent evaluation for conversion jobs.
- * Provides centralized logic for determining if conversions should be sent.
- */
+
 
 import {
   verifyReceiptTrust,
@@ -23,13 +18,6 @@ import type { ReceiptFields } from './receipt-matcher.server';
 import { SignatureStatus } from '../types/enums';
 import { logger } from '../utils/logger.server';
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Shop data needed for trust evaluation.
- */
 export interface ShopTrustContext {
   shopDomain: string;
   primaryDomain: string | null;
@@ -37,63 +25,37 @@ export interface ShopTrustContext {
   consentStrategy: string;
 }
 
-/**
- * Result of trust and consent evaluation.
- */
 export interface TrustEvaluationResult {
   trustResult: ReceiptTrustResult;
   trustMetadata: Record<string, unknown>;
   consentState: ConsentState | null;
 }
 
-/**
- * Result of platform send eligibility check.
- */
 export interface PlatformEligibilityResult {
   allowed: boolean;
   skipReason?: string;
   usedConsent?: string;
 }
 
-// =============================================================================
-// Constants
-// =============================================================================
-
-/**
- * Default trust verification options.
- */
 export const DEFAULT_TRUST_OPTIONS: TrustVerificationOptions = {
   strictOriginValidation: true,
   allowNullOrigin: true,
-  maxReceiptAgeMs: 60 * 60 * 1000, // 1 hour
-  maxTimeSkewMs: 15 * 60 * 1000,   // 15 minutes
+  maxReceiptAgeMs: 60 * 60 * 1000,
+  maxTimeSkewMs: 15 * 60 * 1000,
 };
 
-// =============================================================================
-// Trust Evaluation
-// =============================================================================
-
-/**
- * Evaluate trust for a conversion job.
- * 
- * @param receipt - Matching pixel event receipt (if any)
- * @param webhookCheckoutToken - Checkout token from webhook
- * @param shop - Shop context for domain validation
- * @returns Trust evaluation result
- */
 export function evaluateTrust(
   receipt: ReceiptFields | null,
   webhookCheckoutToken: string | undefined,
   shop: ShopTrustContext
 ): TrustEvaluationResult {
-  // Build allowed domains for origin validation
+
   const shopAllowedDomains = buildShopAllowedDomains(
     shop.shopDomain,
     shop.primaryDomain,
     shop.storefrontDomains
   );
 
-  // Verify trust
   const trustResult = verifyReceiptTrust({
     receiptCheckoutToken: receipt?.checkoutToken,
     webhookCheckoutToken,
@@ -106,18 +68,14 @@ export function evaluateTrust(
     options: DEFAULT_TRUST_OPTIONS,
   });
 
-  // Build trust metadata for audit
   const trustMetadata = buildTrustMetadata(trustResult, {
     hasReceipt: !!receipt,
     receiptTrustLevel: receipt?.trustLevel,
     webhookHasCheckoutToken: !!webhookCheckoutToken,
   });
 
-  // Parse consent state
   const rawConsentState = parseConsentState(receipt?.consentState);
-  
-  // P0-04: saleOfData must be EXPLICITLY true, not just "not false"
-  // undefined/null/missing = NOT allowed (strict deny-by-default interpretation)
+
   const consentState: ConsentState | null = rawConsentState
     ? {
         marketing: rawConsentState.marketing,
@@ -133,20 +91,6 @@ export function evaluateTrust(
   };
 }
 
-// =============================================================================
-// Platform Eligibility
-// =============================================================================
-
-/**
- * Check if a platform is eligible to receive the conversion.
- * 
- * @param platform - Platform identifier
- * @param trustResult - Trust verification result
- * @param consentState - Consent state from receipt
- * @param strategy - Shop consent strategy
- * @param treatAsMarketing - Whether platform should be treated as marketing
- * @returns Eligibility result with skip reason if not allowed
- */
 export function checkPlatformEligibility(
   platform: string,
   trustResult: ReceiptTrustResult,
@@ -156,13 +100,6 @@ export function checkPlatformEligibility(
 ): PlatformEligibilityResult {
   const platformCategory = getEffectiveConsentCategory(platform, treatAsMarketing);
 
-  // P0-04: Check sale of data consent with deny-by-default
-  // For platforms that require saleOfData (configured elsewhere), 
-  // this provides an additional layer of protection:
-  // - Block if explicitly opted out (saleOfDataAllowed === false)
-  // - The platform-level saleOfData requirement check is in consent-filter.ts/job-processor
-  // Note: We only check for explicit opt-out here; the "not allowed" case
-  // is handled by platformRequiresSaleOfData() in the consent filter layer
   if (consentState?.saleOfDataAllowed === false) {
     logger.debug(`[P0-04] Platform blocked by explicit sale_of_data opt-out`, {
       platform,
@@ -173,7 +110,6 @@ export function checkPlatformEligibility(
     };
   }
 
-  // Check trust level
   const trustAllowed = isSendAllowedByTrust(
     trustResult,
     platform,
@@ -193,7 +129,6 @@ export function checkPlatformEligibility(
     };
   }
 
-  // Check consent
   const hasVerifiedReceipt = trustResult.trusted || trustResult.level === 'partial';
   const consentDecision = evaluatePlatformConsentWithStrategy(
     platform,
@@ -231,19 +166,6 @@ export function checkPlatformEligibility(
   };
 }
 
-// =============================================================================
-// Consent Evidence Builder
-// =============================================================================
-
-/**
- * Build consent evidence for audit logging.
- * 
- * @param strategy - Consent strategy used
- * @param hasReceipt - Whether receipt was found
- * @param trustResult - Trust verification result
- * @param consentState - Consent state
- * @returns Consent evidence object
- */
 export function buildConsentEvidence(
   strategy: string,
   hasReceipt: boolean,
@@ -259,13 +181,6 @@ export function buildConsentEvidence(
   };
 }
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Check if receipt matched webhook by checkout token.
- */
 export function didReceiptMatchByToken(
   receipt: ReceiptFields | null,
   webhookCheckoutToken: string | undefined
@@ -277,9 +192,6 @@ export function didReceiptMatchByToken(
   );
 }
 
-/**
- * Determine if any consent is available.
- */
 export function hasAnyConsentSignal(consentState: ConsentState | null): boolean {
   if (!consentState) return false;
   return (
@@ -289,9 +201,6 @@ export function hasAnyConsentSignal(consentState: ConsentState | null): boolean 
   );
 }
 
-/**
- * Get a human-readable trust summary.
- */
 export function getTrustSummary(trustResult: ReceiptTrustResult): string {
   if (trustResult.trusted) {
     return 'trusted';

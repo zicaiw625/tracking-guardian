@@ -241,7 +241,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 break;
             }
             case "scan": {
-                // P1-8: 扫描报告导出（利于 Agency 推广）
+
                 const scans = await prisma.scanReport.findMany({
                     where: {
                         shopId: shop.id,
@@ -259,8 +259,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     orderBy: { createdAt: "desc" },
                     take: EXPORT_LIMITS.scan,
                 });
-                
-                // Generate migration recommendations based on scan data
+
                 const latestScan = scans[0];
                 const migrationSummary = latestScan ? {
                     shopDomain: shop.shopDomain,
@@ -281,8 +280,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     ...scan,
                     createdAt: scan.createdAt.toISOString(),
                 }));
-                
-                // For scan reports, include migration summary in JSON output
+
                 if (format === "json" && migrationSummary) {
                     const output = {
                         exportedAt: new Date().toISOString(),
@@ -300,7 +298,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                         },
                     });
                 }
-                
+
                 filename = `scan_report_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
                 fieldDefs = FIELD_DEFINITIONS.scan;
                 break;
@@ -378,7 +376,6 @@ export function getFieldDefinitions(): Record<string, unknown> {
     };
 }
 
-// P1-8: Generate migration recommendations for scan report export
 interface ScanData {
     riskScore: number;
     scriptTags: unknown;
@@ -390,12 +387,12 @@ function generateMigrationRecommendations(scan: ScanData): string[] {
     const recommendations: string[] = [];
     const platforms = Array.isArray(scan.identifiedPlatforms) ? scan.identifiedPlatforms : [];
     const scriptTags = Array.isArray(scan.scriptTags) ? scan.scriptTags : [];
-    
+
     if (scriptTags.length > 0) {
         recommendations.push(`检测到 ${scriptTags.length} 个 ScriptTag，建议迁移到 Web Pixel`);
         recommendations.push("ScriptTag API 将于 2025-08-28（Plus）/ 2026-08-26（非 Plus）停止工作");
     }
-    
+
     if (platforms.includes("google")) {
         recommendations.push("Google: 配置 GA4 Measurement Protocol API 实现服务端追踪");
     }
@@ -411,7 +408,7 @@ function generateMigrationRecommendations(scan: ScanData): string[] {
     if (platforms.includes("clarity")) {
         recommendations.push("Clarity: 建议在主题中直接添加 Clarity 代码");
     }
-    
+
     if (scan.riskScore > 60) {
         recommendations.push("⚠️ 高风险：强烈建议立即开始迁移");
     } else if (scan.riskScore > 30) {
@@ -419,8 +416,8 @@ function generateMigrationRecommendations(scan: ScanData): string[] {
     } else {
         recommendations.push("✅ 低风险：追踪配置状态良好");
     }
-    
+
     recommendations.push("使用 Tracking Guardian 一键安装 Web Pixel 并配置服务端追踪");
-    
+
     return recommendations;
 }

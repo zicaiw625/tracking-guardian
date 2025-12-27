@@ -1,10 +1,5 @@
-/**
- * Shop Domain Module
- *
- * Exports all shop-related domain types and interfaces.
- */
 
-// Entity and types
+
 export {
   type Shop,
   type ShopBasic,
@@ -26,7 +21,6 @@ export {
   isValidShopTier,
 } from "./shop.entity";
 
-// Repository interface
 export {
   type IShopRepository,
   type FindShopOptions,

@@ -1,31 +1,16 @@
-/**
- * FormSection Component
- *
- * A container for grouping related form fields with a title and description.
- */
+
 
 import { BlockStack, Text, Divider, Box } from "@shopify/polaris";
 import type { ReactNode } from "react";
 
 export interface FormSectionProps {
-  /**
-   * Section title
-   */
+
   title: string;
 
-  /**
-   * Optional section description
-   */
   description?: string;
 
-  /**
-   * Whether to show a divider before the section
-   */
   showDivider?: boolean;
 
-  /**
-   * Children to render inside the section
-   */
   children: ReactNode;
 }
 

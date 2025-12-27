@@ -1,9 +1,4 @@
-/**
- * Pixel Events API - Validation Logic
- *
- * Request validation for pixel event payloads.
- * Implements P1-01 validation constants for abuse prevention.
- */
+
 
 import type {
   PixelEventPayload,
@@ -11,42 +6,14 @@ import type {
   ValidationResult,
 } from "./types";
 
-// =============================================================================
-// Validation Constants
-// =============================================================================
-
-/**
- * P1-01: Validation constants for abuse prevention
- *
- * Since the ingestion key (X-Tracking-Guardian-Key) is visible in browser DevTools,
- * we cannot rely on it as strong authentication. Instead, we use these validation
- * rules to filter out obviously malformed or abusive requests:
- *
- * 1. checkoutToken: Must match Shopify's token format
- * 2. orderId: Must be numeric or GID format
- * 3. timestamp: Must be reasonable (not 1970, not far future)
- * 4. consent fields: Must be boolean if present
- *
- * Actual trust comes from:
- * - Matching checkoutToken with webhook's checkout_token (see receipt-trust.ts)
- * - Origin validation against shop's allowed domains
- * - Nonce/replay protection
- */
 export const CHECKOUT_TOKEN_MIN_LENGTH = 8;
 export const CHECKOUT_TOKEN_MAX_LENGTH = 128;
 export const CHECKOUT_TOKEN_PATTERN = /^[a-zA-Z0-9_-]+$/;
 export const ORDER_ID_PATTERN = /^(gid:\/\/shopify\/Order\/)?(\d+)$/;
 export const SHOP_DOMAIN_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
-export const MIN_REASONABLE_TIMESTAMP = 1577836800000; // 2020-01-01
-export const MAX_FUTURE_TIMESTAMP_MS = 86400000; // 24 hours in future
+export const MIN_REASONABLE_TIMESTAMP = 1577836800000;
+export const MAX_FUTURE_TIMESTAMP_MS = 86400000;
 
-// =============================================================================
-// Validation Functions
-// =============================================================================
-
-/**
- * Validate the basic request body structure.
- */
 function validateBodyStructure(
   body: unknown
 ): { valid: true; data: Record<string, unknown> } | ValidationResult {
@@ -56,9 +23,6 @@ function validateBodyStructure(
   return { valid: true, data: body as Record<string, unknown> };
 }
 
-/**
- * Validate required fields: eventName, shopDomain, timestamp.
- */
 function validateRequiredFields(
   data: Record<string, unknown>
 ): ValidationResult | null {
@@ -86,7 +50,6 @@ function validateRequiredFields(
     return { valid: false, error: "Invalid timestamp type", code: "invalid_timestamp_type" };
   }
 
-  // P1-01: Validate timestamp is reasonable (not 1970, not far future)
   const now = Date.now();
   if (
     data.timestamp < MIN_REASONABLE_TIMESTAMP ||
@@ -99,12 +62,9 @@ function validateRequiredFields(
     };
   }
 
-  return null; // No errors
+  return null;
 }
 
-/**
- * Validate consent structure if present.
- */
 function validateConsentFormat(
   consent: unknown
 ): ValidationResult | null {
@@ -118,7 +78,6 @@ function validateConsentFormat(
 
   const consentObj = consent as Record<string, unknown>;
 
-  // P1-01: Consent fields must be booleans if present
   if (consentObj.marketing !== undefined && typeof consentObj.marketing !== "boolean") {
     return {
       valid: false,
@@ -146,9 +105,6 @@ function validateConsentFormat(
   return null;
 }
 
-/**
- * Validate checkout_completed event specific fields.
- */
 function validateCheckoutCompletedFields(
   eventData: Record<string, unknown> | undefined
 ): ValidationResult | null {
@@ -160,7 +116,6 @@ function validateCheckoutCompletedFields(
     };
   }
 
-  // P1-01: Validate checkoutToken format if present
   if (eventData?.checkoutToken) {
     const token = String(eventData.checkoutToken);
     if (
@@ -182,7 +137,6 @@ function validateCheckoutCompletedFields(
     }
   }
 
-  // P1-01: Validate orderId format if present (must be numeric or GID)
   if (eventData?.orderId) {
     const orderIdStr = String(eventData.orderId);
     if (!ORDER_ID_PATTERN.test(orderIdStr)) {
@@ -194,7 +148,6 @@ function validateCheckoutCompletedFields(
     }
   }
 
-  // Validate value and currency
   if (eventData?.value !== undefined) {
     const val = Number(eventData.value);
     if (isNaN(val) || val < 0) {
@@ -219,30 +172,24 @@ function validateCheckoutCompletedFields(
   return null;
 }
 
-/**
- * Main validation function for pixel event requests.
- */
 export function validateRequest(body: unknown): ValidationResult {
-  // Step 1: Validate body structure
+
   const bodyResult = validateBodyStructure(body);
   if (!bodyResult.valid) {
     return bodyResult as ValidationResult;
   }
   const data = (bodyResult as { valid: true; data: Record<string, unknown> }).data;
 
-  // Step 2: Validate required fields
   const requiredFieldsError = validateRequiredFields(data);
   if (requiredFieldsError) {
     return requiredFieldsError;
   }
 
-  // Step 3: Validate consent format
   const consentError = validateConsentFormat(data.consent);
   if (consentError) {
     return consentError;
   }
 
-  // Step 4: Validate checkout_completed specific fields
   if (data.eventName === "checkout_completed") {
     const eventData = data.data as Record<string, unknown> | undefined;
     const checkoutError = validateCheckoutCompletedFields(eventData);
@@ -251,7 +198,6 @@ export function validateRequest(body: unknown): ValidationResult {
     }
   }
 
-  // Build validated payload
   return {
     valid: true,
     payload: {
@@ -264,20 +210,10 @@ export function validateRequest(body: unknown): ValidationResult {
   };
 }
 
-/**
- * Check if an event is a primary event (triggers CAPI).
- */
 export function isPrimaryEvent(eventName: string): boolean {
   return eventName === "checkout_completed";
 }
 
-// =============================================================================
-// P1-5: Pixel Config Validation
-// =============================================================================
-
-/**
- * P1-5: Pixel configuration structure
- */
 export interface PixelConfig {
   schema_version: "1";
   mode: "purchase_only" | "full_funnel";
@@ -285,9 +221,6 @@ export interface PixelConfig {
   strictness: "strict" | "balanced";
 }
 
-/**
- * P1-5: Default pixel configuration
- */
 export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   schema_version: "1",
   mode: "purchase_only",
@@ -295,27 +228,23 @@ export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   strictness: "strict",
 };
 
-/**
- * P1-5: Parse and validate pixel_config from payload
- */
 export function parsePixelConfig(configStr?: string): PixelConfig {
   if (!configStr) {
     return DEFAULT_PIXEL_CONFIG;
   }
-  
+
   try {
     const parsed = JSON.parse(configStr);
-    
-    // Validate schema version
+
     if (parsed.schema_version !== "1") {
       return DEFAULT_PIXEL_CONFIG;
     }
-    
+
     return {
       schema_version: "1",
       mode: parsed.mode === "full_funnel" ? "full_funnel" : "purchase_only",
-      enabled_platforms: typeof parsed.enabled_platforms === "string" 
-        ? parsed.enabled_platforms 
+      enabled_platforms: typeof parsed.enabled_platforms === "string"
+        ? parsed.enabled_platforms
         : DEFAULT_PIXEL_CONFIG.enabled_platforms,
       strictness: parsed.strictness === "balanced" ? "balanced" : "strict",
     };
@@ -324,26 +253,22 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
   }
 }
 
-/**
- * P1-5: Check if a platform is enabled in the pixel config
- */
 export function isPlatformEnabled(config: PixelConfig, platform: string): boolean {
   const normalizedPlatform = platform.toLowerCase();
   const enabledPlatforms = config.enabled_platforms.toLowerCase().split(",").map(p => p.trim());
-  
-  // Handle aliases
+
   const platformAliases: Record<string, string[]> = {
     google: ["google", "ga4", "analytics"],
     meta: ["meta", "facebook", "fb"],
     tiktok: ["tiktok", "tt"],
   };
-  
+
   for (const [canonical, aliases] of Object.entries(platformAliases)) {
     if (aliases.includes(normalizedPlatform)) {
       return enabledPlatforms.some(p => aliases.includes(p) || p === canonical);
     }
   }
-  
+
   return enabledPlatforms.includes(normalizedPlatform);
 }
 

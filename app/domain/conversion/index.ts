@@ -1,10 +1,5 @@
-/**
- * Conversion Domain Module
- *
- * Exports all conversion-related domain types and interfaces.
- */
 
-// Entity and types
+
 export {
   type ConversionJob,
   type JobWithShop,
@@ -31,7 +26,6 @@ export {
   isValidPlatformResultStatus,
 } from "./conversion.entity";
 
-// Repository interface
 export {
   type IConversionJobRepository,
   type QueryPendingJobsOptions,

@@ -1,13 +1,4 @@
-/**
- * GDPR Webhook Handlers
- *
- * Handles GDPR-related webhooks:
- * - CUSTOMERS_DATA_REQUEST
- * - CUSTOMERS_REDACT
- * - SHOP_REDACT
- *
- * All GDPR requests are queued for async processing.
- */
+
 
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
@@ -19,13 +10,6 @@ import {
 import { GDPRJobStatus } from "../../types/enums";
 import type { WebhookContext, WebhookHandlerResult, GDPRJobType } from "../types";
 
-// =============================================================================
-// Queue GDPR Job
-// =============================================================================
-
-/**
- * Queue a GDPR job for async processing
- */
 async function queueGDPRJob(
   shopDomain: string,
   jobType: GDPRJobType,
@@ -43,13 +27,6 @@ async function queueGDPRJob(
   logger.info(`GDPR ${jobType} job queued for ${shopDomain}`);
 }
 
-// =============================================================================
-// Handlers
-// =============================================================================
-
-/**
- * Handle CUSTOMERS_DATA_REQUEST webhook
- */
 export async function handleCustomersDataRequest(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
@@ -85,9 +62,6 @@ export async function handleCustomersDataRequest(
   }
 }
 
-/**
- * Handle CUSTOMERS_REDACT webhook
- */
 export async function handleCustomersRedact(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
@@ -123,9 +97,6 @@ export async function handleCustomersRedact(
   }
 }
 
-/**
- * Handle SHOP_REDACT webhook
- */
 export async function handleShopRedact(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {

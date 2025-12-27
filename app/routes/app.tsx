@@ -24,6 +24,7 @@ export default function App() {
         </Link>
         <Link to="/app/scan">扫描报告</Link>
         <Link to="/app/migrate">迁移工具</Link>
+        <Link to="/app/verification">验收向导</Link>
         <Link to="/app/monitor">监控面板</Link>
         <Link to="/app/reconciliation">送达健康度</Link>
         <Link to="/app/privacy">隐私与数据</Link>

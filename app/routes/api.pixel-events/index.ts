@@ -1,10 +1,5 @@
-/**
- * Pixel Events API - Module Exports
- *
- * Re-exports all types and utilities from the modular structure.
- */
 
-// Types
+
 export type {
   PixelEventName,
   PixelEventPayload,
@@ -22,10 +17,8 @@ export type {
 
 export { PRIMARY_EVENTS, FUNNEL_EVENTS } from "./types";
 
-// Validation
 export { validateRequest, isPrimaryEvent } from "./validation";
 
-// Consent
 export {
   checkInitialConsent,
   filterPlatformsByConsent,
@@ -35,7 +28,6 @@ export {
   type PlatformFilterResult,
 } from "./consent-filter";
 
-// Receipt handling
 export {
   isClientEventRecorded,
   generateOrderMatchKey,
@@ -51,7 +43,6 @@ export {
   type ConversionLogResult,
 } from "./receipt-handler";
 
-// CORS
 export {
   PIXEL_CUSTOM_HEADERS,
   getCorsHeadersPreBody,
@@ -61,7 +52,6 @@ export {
   optionsResponse,
 } from "./cors";
 
-// Key validation
 export {
   getShopForPixelVerification,
   validateIngestionKey,

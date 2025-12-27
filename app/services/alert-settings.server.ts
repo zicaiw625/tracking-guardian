@@ -1,7 +1,6 @@
 import { encryptJson, decryptJson } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
 
-// Re-export for use in routes that need encryption
 export { encryptJson };
 
 export function encryptAlertSettings(channel: string, settings: Record<string, unknown>): string | null {

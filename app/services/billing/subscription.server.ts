@@ -1,25 +1,10 @@
-/**
- * Subscription Management Service
- *
- * Handles Shopify App Billing API interactions for subscription lifecycle:
- * - Creating subscriptions
- * - Querying subscription status
- * - Canceling subscriptions
- * - Syncing subscription state
- */
+
 
 import prisma from "../../db.server";
 import { createAuditLog } from "../audit.server";
 import { logger } from "../../utils/logger.server";
 import { BILLING_PLANS, type PlanId, detectPlanFromPrice } from "./plans";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Admin GraphQL client interface
- */
 export interface AdminGraphQL {
   graphql: (
     query: string,
@@ -27,9 +12,6 @@ export interface AdminGraphQL {
   ) => Promise<Response>;
 }
 
-/**
- * Result of creating a subscription
- */
 export interface SubscriptionResult {
   success: boolean;
   confirmationUrl?: string;
@@ -37,9 +19,6 @@ export interface SubscriptionResult {
   error?: string;
 }
 
-/**
- * Current subscription status
- */
 export interface SubscriptionStatus {
   hasActiveSubscription: boolean;
   plan: PlanId;
@@ -50,26 +29,16 @@ export interface SubscriptionStatus {
   isTrialing?: boolean;
 }
 
-/**
- * Result of canceling a subscription
- */
 export interface CancelResult {
   success: boolean;
   error?: string;
 }
 
-/**
- * Result of handling subscription confirmation
- */
 export interface ConfirmationResult {
   success: boolean;
   plan?: PlanId;
   error?: string;
 }
-
-// =============================================================================
-// GraphQL Mutations & Queries
-// =============================================================================
 
 const CREATE_SUBSCRIPTION_MUTATION = `
   mutation AppSubscriptionCreate(
@@ -143,13 +112,6 @@ const CANCEL_SUBSCRIPTION_MUTATION = `
   }
 `;
 
-// =============================================================================
-// Subscription Functions
-// =============================================================================
-
-/**
- * Create a new subscription for a shop
- */
 export async function createSubscription(
   admin: AdminGraphQL,
   shopDomain: string,
@@ -158,7 +120,7 @@ export async function createSubscription(
   isTest = false
 ): Promise<SubscriptionResult> {
   const plan = BILLING_PLANS[planId];
-  
+
   if (!plan || planId === "free") {
     return { success: false, error: "Invalid plan selected" };
   }
@@ -195,7 +157,7 @@ export async function createSubscription(
     }
 
     if (result?.confirmationUrl) {
-      // Create audit log
+
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },
@@ -230,9 +192,6 @@ export async function createSubscription(
   }
 }
 
-/**
- * Get the current subscription status for a shop
- */
 export async function getSubscriptionStatus(
   admin: AdminGraphQL,
   shopDomain: string
@@ -243,12 +202,12 @@ export async function getSubscriptionStatus(
     const subscriptions = data.data?.appInstallation?.activeSubscriptions || [];
 
     if (subscriptions.length === 0) {
-      // No active subscription, check local DB for plan
+
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { plan: true },
       });
-      
+
       return {
         hasActiveSubscription: false,
         plan: (shop?.plan as PlanId) || "free",
@@ -282,9 +241,6 @@ export async function getSubscriptionStatus(
   }
 }
 
-/**
- * Cancel an existing subscription
- */
 export async function cancelSubscription(
   admin: AdminGraphQL,
   shopDomain: string,
@@ -305,7 +261,6 @@ export async function cancelSubscription(
       return { success: false, error: errorMessage };
     }
 
-    // Update shop to free plan
     await prisma.shop.update({
       where: { shopDomain },
       data: {
@@ -314,7 +269,6 @@ export async function cancelSubscription(
       },
     });
 
-    // Create audit log
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: { id: true },
@@ -342,9 +296,6 @@ export async function cancelSubscription(
   }
 }
 
-/**
- * Sync subscription status from Shopify to local database
- */
 export async function syncSubscriptionStatus(
   admin: AdminGraphQL,
   shopDomain: string
@@ -362,9 +313,6 @@ export async function syncSubscriptionStatus(
   });
 }
 
-/**
- * Handle subscription confirmation callback from Shopify
- */
 export async function handleSubscriptionConfirmation(
   admin: AdminGraphQL,
   shopDomain: string,
@@ -384,7 +332,6 @@ export async function handleSubscriptionConfirmation(
         },
       });
 
-      // Create audit log
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { id: true },

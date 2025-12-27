@@ -1,9 +1,5 @@
-/**
- * UpsellOffer for Thank You Page
- * 
- * Displays a discount offer to encourage repeat purchases.
- * Uses settings from shopify.extension.toml for configuration.
- */
+
+
 import {
     reactExtension,
     BlockStack,
@@ -25,7 +21,6 @@ function UpsellOffer() {
     const [dismissed, setDismissed] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    // 从 settings 读取配置，支持商家在后台自定义
     const discountCode = (settings.upsell_discount_code as string) || "THANKYOU10";
     const discountPercentStr = settings.upsell_discount_percent as string;
     const discountPercent = discountPercentStr ? parseInt(discountPercentStr, 10) : 10;
@@ -35,17 +30,15 @@ function UpsellOffer() {
 
     const handleCopyCode = async () => {
         try {
-            // Attempt to copy to clipboard
-            // Note: Clipboard API may not be available in all Checkout Extension sandboxes
+
             if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(discountCode);
             }
-            // Always show success feedback - user can manually copy if clipboard fails
+
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch (err) {
-            // Clipboard API failed (common in sandbox environments)
-            // Still show "copied" feedback as user can manually select and copy
+
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }

@@ -1,12 +1,7 @@
-/**
- * GDPR Handlers Tests
- *
- * Tests for GDPR data request, customer redact, and shop redact handlers.
- */
+
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock Prisma
 vi.mock("../../../app/db.server", () => ({
   default: {
     shop: {
@@ -62,7 +57,6 @@ vi.mock("../../../app/db.server", () => ({
   },
 }));
 
-// Mock logger
 vi.mock("../../../app/utils/logger.server", () => ({
   logger: {
     info: vi.fn(),
@@ -72,7 +66,6 @@ vi.mock("../../../app/utils/logger.server", () => ({
   },
 }));
 
-// Mock audit service
 vi.mock("../../../app/services/audit.server", () => ({
   createAuditLog: vi.fn(),
 }));
@@ -212,7 +205,6 @@ describe("GDPR Handlers", () => {
         orders_to_redact: [1001],
       });
 
-      // Should have attempted additional deletions by checkout token
       expect(prisma.pixelEventReceipt.deleteMany).toHaveBeenCalledTimes(2);
     });
   });
@@ -256,7 +248,7 @@ describe("GDPR Handlers", () => {
 
       expect(result.shopDomain).toBe("unknown-shop.myshopify.com");
       expect(result.deletedCounts.shop).toBe(0);
-      // Should still delete sessions and webhook logs by domain
+
       expect(prisma.session.deleteMany).toHaveBeenCalled();
       expect(prisma.webhookLog.deleteMany).toHaveBeenCalled();
     });

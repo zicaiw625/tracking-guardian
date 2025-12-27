@@ -1,6 +1,5 @@
 import type { Session } from "@shopify/shopify-api";
 
-// Define SessionStorage interface inline since @shopify/shopify-app-session-storage is a peer dependency
 interface SessionStorage {
   storeSession(session: Session): Promise<boolean>;
   loadSession(id: string): Promise<Session | undefined>;

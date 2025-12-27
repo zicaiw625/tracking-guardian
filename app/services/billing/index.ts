@@ -1,18 +1,4 @@
-/**
- * Billing Module
- *
- * Centralized exports for all billing functionality.
- *
- * The billing system is split into focused modules:
- * - plans.ts: Plan definitions and utilities
- * - subscription.server.ts: Shopify subscription management
- * - usage.server.ts: Monthly usage tracking
- * - gate.server.ts: Billing limit checks
- */
 
-// =============================================================================
-// Plan Configuration
-// =============================================================================
 
 export {
   BILLING_PLANS,
@@ -28,11 +14,8 @@ export {
   getTrialDays,
   isHigherTier,
   getUpgradeOptions,
+  getMaxShops,
 } from "./plans";
-
-// =============================================================================
-// Subscription Management
-// =============================================================================
 
 export {
   type AdminGraphQL,
@@ -46,10 +29,6 @@ export {
   syncSubscriptionStatus,
   handleSubscriptionConfirmation,
 } from "./subscription.server";
-
-// =============================================================================
-// Usage Tracking
-// =============================================================================
 
 export {
   type MonthlyUsageRecord,
@@ -66,12 +45,8 @@ export {
   decrementMonthlyUsage,
 } from "./usage.server";
 
-// =============================================================================
-// Billing Gate
-// =============================================================================
-
 export {
-  // Types
+
   type OrderLimitResult,
   type UsageInfo,
   type BillingGateResult,
@@ -80,24 +55,24 @@ export {
   type BillingError,
   type BillingErrorType,
   type AtomicReservationResult,
-  // Legacy functions
+
   checkOrderLimit,
   checkBillingGate,
   canProcessOrders,
   getRemainingCapacity,
   getUsagePercentage,
   isApproachingLimit,
-  // Result-based functions
+
   checkOrderLimitResult,
   checkBillingGateResult,
   canProcessOrdersResult,
-  // Atomic operations (race-condition safe)
+
   checkAndReserveBillingSlot,
   releaseBillingSlot,
-  // Cache management
+
   invalidateBillingCache,
   invalidateAllBillingCaches,
-  // Utilities
+
   getUsageSummary,
   formatUsage,
   getSuggestedUpgrade,

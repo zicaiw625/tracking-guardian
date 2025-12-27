@@ -1,8 +1,4 @@
-/**
- * Prisma Shop Repository Implementation
- *
- * Implements IShopRepository using Prisma for data access.
- */
+
 
 import type { PrismaClient } from "@prisma/client";
 import { ok, err, type AsyncResult } from "../../types/result";
@@ -23,13 +19,6 @@ import type {
   ConsentStrategy,
 } from "../../domain/shop/shop.entity";
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Map Prisma shop to domain shop entity
- */
 function mapToDomainShop(prismaShop: {
   id: string;
   shopDomain: string;
@@ -90,19 +79,8 @@ function mapToDomainShop(prismaShop: {
   };
 }
 
-// =============================================================================
-// Repository Implementation
-// =============================================================================
-
-/**
- * Prisma-based shop repository
- */
 export class PrismaShopRepository implements IShopRepository {
   constructor(private readonly prisma: PrismaClient) {}
-
-  // =========================================================================
-  // Basic CRUD Operations
-  // =========================================================================
 
   async findById(id: string): AsyncResult<Shop | null, AppError> {
     try {
@@ -128,7 +106,6 @@ export class PrismaShopRepository implements IShopRepository {
         return ok(null);
       }
 
-      // Apply filters
       if (!options?.includeInactive && !shop.isActive) {
         return ok(null);
       }
@@ -231,10 +208,6 @@ export class PrismaShopRepository implements IShopRepository {
       return err(AppError.wrap(error, ErrorCode.DB_QUERY_ERROR, "Failed to soft delete shop"));
     }
   }
-
-  // =========================================================================
-  // Specialized Queries
-  // =========================================================================
 
   async getBasicById(id: string): AsyncResult<ShopBasic | null, AppError> {
     try {
@@ -373,10 +346,6 @@ export class PrismaShopRepository implements IShopRepository {
     }
   }
 
-  // =========================================================================
-  // Batch Operations
-  // =========================================================================
-
   async findManyByIds(ids: string[]): AsyncResult<Shop[], AppError> {
     try {
       const shops = await this.prisma.shop.findMany({
@@ -418,10 +387,6 @@ export class PrismaShopRepository implements IShopRepository {
     }
   }
 
-  // =========================================================================
-  // Existence Checks
-  // =========================================================================
-
   async exists(shopDomain: string): AsyncResult<boolean, AppError> {
     try {
       const count = await this.prisma.shop.count({
@@ -446,13 +411,6 @@ export class PrismaShopRepository implements IShopRepository {
   }
 }
 
-// =============================================================================
-// Factory Function
-// =============================================================================
-
-/**
- * Create a new Prisma shop repository
- */
 export function createShopRepository(prisma: PrismaClient): IShopRepository {
   return new PrismaShopRepository(prisma);
 }

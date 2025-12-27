@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { 
-  EMBEDDED_APP_HEADERS, 
+import {
+  EMBEDDED_APP_HEADERS,
   API_SECURITY_HEADERS,
   validateSecurityHeaders,
 } from "../../app/utils/security-headers";

@@ -1,24 +1,7 @@
-/**
- * Domain Layer
- *
- * Centralized exports for all domain modules.
- *
- * The domain layer contains:
- * - Entity definitions (business objects)
- * - Repository interfaces (data access contracts)
- * - Domain logic and validation
- * - Value objects
- *
- * This layer is independent of infrastructure concerns like databases,
- * frameworks, or external services.
- */
 
-// =============================================================================
-// Shop Domain
-// =============================================================================
 
 export {
-  // Entity
+
   type Shop,
   type ShopBasic,
   type ShopWithBilling,
@@ -37,7 +20,7 @@ export {
   getEffectiveConsentStrategy,
   isValidConsentStrategy,
   isValidShopTier,
-  // Repository
+
   type IShopRepository,
   type FindShopOptions,
   type UpdateShopOptions,
@@ -51,12 +34,8 @@ export {
   type ShopDomainEvent,
 } from "./shop";
 
-// =============================================================================
-// Conversion Domain
-// =============================================================================
-
 export {
-  // Entity
+
   type ConversionJob,
   type JobWithShop,
   type JobStatus,
@@ -80,7 +59,7 @@ export {
   getFailedPlatforms,
   isValidJobStatus,
   isValidPlatformResultStatus,
-  // Repository
+
   type IConversionJobRepository,
   type QueryPendingJobsOptions,
   type QueryByStatusOptions,
@@ -95,12 +74,8 @@ export {
   type ConversionJobEvent,
 } from "./conversion";
 
-// =============================================================================
-// Platform Domain
-// =============================================================================
-
 export {
-  // Types
+
   type Platform,
   type GoogleCredentials,
   type MetaCredentials,
@@ -127,7 +102,7 @@ export {
   isTikTokCredentials,
   isRetryableError,
   isRetryableErrorType,
-  // Service interfaces
+
   type CredentialsValidationResult,
   type IPlatformService,
   type IPlatformRegistry,

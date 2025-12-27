@@ -1,23 +1,9 @@
-/**
- * Admin Client Factory
- *
- * Creates GraphQL admin clients for making API calls on behalf of shops.
- * 
- * P1-1: Enhanced with:
- * - Automatic retry with exponential backoff
- * - 429/Retry-After handling
- * - Request cost and throttle status logging
- * - Structured error handling
- */
+
 
 import { ApiVersion, type AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../../db.server";
 import { decryptAccessToken } from "../../utils/token-encryption";
 import { logger, createTimer } from "../../utils/logger.server";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 interface GraphQLClientResponse {
   json: () => Promise<unknown>;
@@ -32,9 +18,6 @@ interface GraphQLClient {
   ): Promise<GraphQLClientResponse>;
 }
 
-/**
- * P1-1: GraphQL response with extensions for cost tracking
- */
 interface ShopifyGraphQLResponse<T = unknown> {
   data?: T;
   errors?: Array<{
@@ -57,9 +40,6 @@ interface ShopifyGraphQLResponse<T = unknown> {
   };
 }
 
-/**
- * P1-1: Retry configuration
- */
 interface RetryConfig {
   maxRetries: number;
   initialDelayMs: number;
@@ -67,18 +47,12 @@ interface RetryConfig {
   backoffMultiplier: number;
 }
 
-/**
- * P1-1: GraphQL request options
- */
 interface GraphQLRequestOptions {
   variables?: Record<string, unknown>;
   operationName?: string;
   retryConfig?: Partial<RetryConfig>;
 }
 
-/**
- * P1-1: GraphQL request result with metadata
- */
 interface GraphQLResult<T = unknown> {
   data?: T;
   errors?: Array<{ message: string; extensions?: Record<string, unknown> }>;
@@ -93,10 +67,6 @@ interface GraphQLResult<T = unknown> {
   duration: number;
 }
 
-// =============================================================================
-// Constants
-// =============================================================================
-
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
   initialDelayMs: 1000,
@@ -104,33 +74,20 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
   backoffMultiplier: 2,
 };
 
-/**
- * Error codes that should trigger a retry
- */
 const RETRYABLE_ERROR_CODES = new Set([
   "THROTTLED",
   "INTERNAL_SERVER_ERROR",
   "SERVICE_UNAVAILABLE",
 ]);
 
-/**
- * HTTP status codes that should trigger a retry
- */
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 
-// =============================================================================
-// Retry Logic
-// =============================================================================
-
-/**
- * P1-1: Calculate delay for retry with exponential backoff and jitter
- */
 function calculateRetryDelay(
   attempt: number,
   config: RetryConfig,
   retryAfterHeader?: string | null
 ): number {
-  // If Retry-After header is present, use it
+
   if (retryAfterHeader) {
     const retryAfterSeconds = parseInt(retryAfterHeader, 10);
     if (!isNaN(retryAfterSeconds)) {
@@ -138,27 +95,22 @@ function calculateRetryDelay(
     }
   }
 
-  // Exponential backoff with jitter
   const baseDelay = config.initialDelayMs * Math.pow(config.backoffMultiplier, attempt);
   const cappedDelay = Math.min(baseDelay, config.maxDelayMs);
   const jitter = cappedDelay * 0.1 * Math.random();
-  
+
   return Math.floor(cappedDelay + jitter);
 }
 
-/**
- * P1-1: Check if error is retryable
- */
 function isRetryableError(
   statusCode: number,
   errors?: ShopifyGraphQLResponse["errors"]
 ): boolean {
-  // Check HTTP status code
+
   if (RETRYABLE_STATUS_CODES.has(statusCode)) {
     return true;
   }
 
-  // Check GraphQL error codes
   if (errors) {
     return errors.some((error) => {
       const code = error.extensions?.code;
@@ -169,20 +121,10 @@ function isRetryableError(
   return false;
 }
 
-/**
- * P1-1: Sleep utility
- */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// =============================================================================
-// Enhanced GraphQL Client
-// =============================================================================
-
-/**
- * P1-1: Create an enhanced GraphQL client with retry and rate limit handling
- */
 function createEnhancedGraphQLClient(
   shopDomain: string,
   accessToken: string,
@@ -217,10 +159,8 @@ function createEnhancedGraphQLClient(
 
           lastResponse = response;
 
-          // Parse response to check for GraphQL errors
           const jsonResponse = await response.clone().json() as ShopifyGraphQLResponse;
 
-          // Log cost and throttle status if available
           if (jsonResponse.extensions?.cost) {
             const cost = jsonResponse.extensions.cost;
             logger.debug("[GraphQL] Request cost", {
@@ -235,10 +175,9 @@ function createEnhancedGraphQLClient(
               duration: timer.elapsed(),
             });
 
-            // Warn if we're running low on available cost
-            const availablePercent = 
+            const availablePercent =
               (cost.throttleStatus.currentlyAvailable / cost.throttleStatus.maximumAvailable) * 100;
-            
+
             if (availablePercent < 20) {
               logger.warn("[GraphQL] Low API budget", {
                 shopDomain,
@@ -249,7 +188,6 @@ function createEnhancedGraphQLClient(
             }
           }
 
-          // Check if we should retry
           if (isRetryableError(response.status, jsonResponse.errors)) {
             if (attempt < config.maxRetries) {
               const retryAfter = response.headers.get("Retry-After");
@@ -270,7 +208,6 @@ function createEnhancedGraphQLClient(
             }
           }
 
-          // Log successful request
           if (response.ok && !jsonResponse.errors) {
             logger.debug("[GraphQL] Request succeeded", {
               shopDomain,
@@ -279,7 +216,7 @@ function createEnhancedGraphQLClient(
               duration: timer.elapsed(),
             });
           } else if (jsonResponse.errors) {
-            // Log non-retryable GraphQL errors
+
             logger.warn("[GraphQL] Request completed with errors", {
               shopDomain,
               operationName: options?.operationName,
@@ -293,7 +230,6 @@ function createEnhancedGraphQLClient(
             });
           }
 
-          // Return response wrapper that preserves headers and status
           return {
             json: async () => jsonResponse,
             status: response.status,
@@ -302,7 +238,6 @@ function createEnhancedGraphQLClient(
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
 
-          // Network errors are retryable
           if (attempt < config.maxRetries) {
             const delay = calculateRetryDelay(attempt, config, null);
 
@@ -321,7 +256,6 @@ function createEnhancedGraphQLClient(
         }
       }
 
-      // All retries exhausted
       logger.error("[GraphQL] All retries exhausted", lastError, {
         shopDomain,
         operationName: options?.operationName,
@@ -329,7 +263,6 @@ function createEnhancedGraphQLClient(
         duration: timer.elapsed(),
       });
 
-      // Return last response if available, otherwise throw
       if (lastResponse) {
         return {
           json: async () => lastResponse!.json(),
@@ -343,13 +276,6 @@ function createEnhancedGraphQLClient(
   };
 }
 
-// =============================================================================
-// Token Retrieval (unchanged)
-// =============================================================================
-
-/**
- * Try to get access token from offline session
- */
 async function getAccessTokenFromSession(
   shopDomain: string
 ): Promise<string | null> {
@@ -379,9 +305,6 @@ async function getAccessTokenFromSession(
   return null;
 }
 
-/**
- * Try to get access token from shop record
- */
 async function getAccessTokenFromShop(
   shopDomain: string
 ): Promise<string | null> {
@@ -403,29 +326,13 @@ async function getAccessTokenFromShop(
   return null;
 }
 
-// =============================================================================
-// Public API
-// =============================================================================
-
-/**
- * Create an Admin API client for a shop.
- *
- * P1-1: Now uses enhanced client with:
- * - Automatic retry with exponential backoff
- * - 429/Retry-After handling
- * - Request cost tracking
- *
- * @param shopDomain - The shop's myshopify domain
- * @returns AdminApiContext or null if no valid token is available
- */
 export async function createAdminClientForShop(
   shopDomain: string
 ): Promise<AdminApiContext | null> {
   try {
-    // Try offline session first
+
     let accessToken = await getAccessTokenFromSession(shopDomain);
 
-    // Fall back to shop record
     if (!accessToken) {
       accessToken = await getAccessTokenFromShop(shopDomain);
     }
@@ -435,7 +342,6 @@ export async function createAdminClientForShop(
       return null;
     }
 
-    // Create and return enhanced client
     const graphqlClient = createEnhancedGraphQLClient(shopDomain, accessToken);
     return graphqlClient as unknown as AdminApiContext;
   } catch (error) {
@@ -444,9 +350,6 @@ export async function createAdminClientForShop(
   }
 }
 
-/**
- * Validate if we have a working admin client for a shop
- */
 export async function hasValidAdminClient(
   shopDomain: string
 ): Promise<boolean> {
@@ -454,12 +357,6 @@ export async function hasValidAdminClient(
   return client !== null;
 }
 
-/**
- * P1-1: Execute a GraphQL query with full result metadata
- * 
- * This is a convenience function that returns structured results
- * including cost information and retry count.
- */
 export async function executeGraphQL<T = unknown>(
   shopDomain: string,
   query: string,
@@ -467,7 +364,7 @@ export async function executeGraphQL<T = unknown>(
 ): Promise<GraphQLResult<T> | null> {
   const timer = createTimer();
   const client = await createAdminClientForShop(shopDomain);
-  
+
   if (!client) {
     return null;
   }
@@ -479,11 +376,10 @@ export async function executeGraphQL<T = unknown>(
     const result: GraphQLResult<T> = {
       data: json.data,
       errors: json.errors,
-      retries: 0, // The retry count is internal to the client
+      retries: 0,
       duration: timer.elapsed(),
     };
 
-    // Add cost information if available
     if (json.extensions?.cost) {
       const cost = json.extensions.cost;
       result.cost = {

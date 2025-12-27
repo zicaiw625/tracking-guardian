@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  // Result-based API
+
   decryptCredentials,
   validatePlatformCredentials,
   getValidCredentials,
@@ -10,9 +10,6 @@ import { encryptJson } from "../../app/utils/crypto.server";
 import type { GoogleCredentials, MetaCredentials, TikTokCredentials } from "../../app/types";
 
 describe("Credentials Service", () => {
-  // =========================================================================
-  // Result-based API Tests
-  // =========================================================================
 
   describe("decryptCredentials (Result-based)", () => {
     it("should return ok result with decrypted credentials", () => {
@@ -94,8 +91,8 @@ describe("Credentials Service", () => {
       };
 
       const pixelConfig: PixelConfigForCredentials = {
-        credentialsEncrypted: "invalid:encrypted:data", // This will fail
-        credentials: credentials, // Fallback to this
+        credentialsEncrypted: "invalid:encrypted:data",
+        credentials: credentials,
         platform: "google",
       };
 
@@ -124,7 +121,7 @@ describe("Credentials Service", () => {
     it("should return error for invalid Google credentials", () => {
       const credentials = {
         measurementId: "G-XXXXXXXX",
-        // Missing apiSecret
+
       } as GoogleCredentials;
 
       const result = validatePlatformCredentials(credentials, "google");
@@ -150,7 +147,7 @@ describe("Credentials Service", () => {
     it("should return error for invalid Meta credentials", () => {
       const credentials = {
         accessToken: "token123",
-        // Missing pixelId
+
       } as MetaCredentials;
 
       const result = validatePlatformCredentials(credentials, "meta");
@@ -176,7 +173,7 @@ describe("Credentials Service", () => {
     it("should return error for invalid TikTok credentials", () => {
       const credentials = {
         accessToken: "tiktok_token",
-        // Missing pixelCode
+
       } as unknown as TikTokCredentials;
 
       const result = validatePlatformCredentials(credentials, "tiktok");
@@ -213,7 +210,7 @@ describe("Credentials Service", () => {
     it("should return error when validation fails", () => {
       const credentials = {
         measurementId: "G-XXXXXXXX",
-        // Missing apiSecret
+
       };
       const encrypted = encryptJson(credentials);
 

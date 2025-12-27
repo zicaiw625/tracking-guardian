@@ -1,8 +1,4 @@
-/**
- * Error Boundary Components
- *
- * Unified error boundary components for handling route errors.
- */
+
 
 import { useRouteError, isRouteErrorResponse, Link } from "@remix-run/react";
 import {
@@ -16,10 +12,6 @@ import {
   Box,
 } from "@shopify/polaris";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface ErrorDisplayProps {
   title: string;
   message: string;
@@ -29,13 +21,6 @@ interface ErrorDisplayProps {
   onRetry?: () => void;
 }
 
-// =============================================================================
-// Error Display Component
-// =============================================================================
-
-/**
- * Reusable error display card component
- */
 export function ErrorCard({
   title,
   message,
@@ -74,10 +59,6 @@ export function ErrorCard({
     </Page>
   );
 }
-
-// =============================================================================
-// HTTP Error Messages
-// =============================================================================
 
 const HTTP_ERROR_MESSAGES: Record<number, { title: string; message: string }> = {
   400: {
@@ -118,9 +99,6 @@ const HTTP_ERROR_MESSAGES: Record<number, { title: string; message: string }> = 
   },
 };
 
-/**
- * Get error message for HTTP status code
- */
 function getHttpErrorInfo(status: number): { title: string; message: string } {
   return (
     HTTP_ERROR_MESSAGES[status] || {
@@ -130,26 +108,9 @@ function getHttpErrorInfo(status: number): { title: string; message: string } {
   );
 }
 
-// =============================================================================
-// Route Error Boundary
-// =============================================================================
-
-/**
- * Route error boundary component for Remix routes.
- *
- * Export this as `ErrorBoundary` in your route files to handle errors:
- *
- * @example
- * ```tsx
- * import { RouteErrorBoundary as ErrorBoundary } from "~/components/ErrorBoundary";
- *
- * export { ErrorBoundary };
- * ```
- */
 export function RouteErrorBoundary() {
   const error = useRouteError();
 
-  // Handle route error responses (thrown from loaders/actions)
   if (isRouteErrorResponse(error)) {
     const { title, message } = getHttpErrorInfo(error.status);
     return (
@@ -164,7 +125,6 @@ export function RouteErrorBoundary() {
     );
   }
 
-  // Handle JavaScript errors
   if (error instanceof Error) {
     const isDev = process.env.NODE_ENV !== "production";
     return (
@@ -182,7 +142,6 @@ export function RouteErrorBoundary() {
     );
   }
 
-  // Handle unknown errors
   return (
     <ErrorCard
       title="未知错误"
@@ -194,13 +153,6 @@ export function RouteErrorBoundary() {
   );
 }
 
-// =============================================================================
-// Inline Error Components
-// =============================================================================
-
-/**
- * Inline error display for use within pages
- */
 export function InlineError({
   title,
   message,
@@ -226,9 +178,6 @@ export function InlineError({
   );
 }
 
-/**
- * Empty state with error message
- */
 export function ErrorEmptyState({
   title,
   message,
@@ -256,13 +205,6 @@ export function ErrorEmptyState({
   );
 }
 
-// =============================================================================
-// Loading Error Component
-// =============================================================================
-
-/**
- * Error component for failed data loading
- */
 export function LoadingError({
   error,
   onRetry,
@@ -288,10 +230,6 @@ export function LoadingError({
     </Banner>
   );
 }
-
-// =============================================================================
-// Export Default
-// =============================================================================
 
 export default RouteErrorBoundary;
 

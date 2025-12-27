@@ -1,8 +1,4 @@
-/**
- * Security Tab Component
- *
- * Security and privacy settings tab content.
- */
+
 
 import {
   Layout,
@@ -19,8 +15,6 @@ import {
 } from "@shopify/polaris";
 import { useSubmit } from "@remix-run/react";
 
-// Define the shop data shape expected by this component
-// Using a looser type to support both Date and string (JSON serialized) types
 interface ShopData {
   id: string;
   domain: string;
@@ -53,9 +47,9 @@ export function SecurityTab({
   const submit = useSubmit();
 
   const handlePiiToggle = () => {
-    // If enabling PII, check PCD approval status first
+
     if (!shop?.piiEnabled) {
-      // If PCD not approved, block enabling
+
       if (!pcdApproved) {
         alert(
           "⚠️ 暂时无法启用 PII 增强匹配\n\n" +
@@ -76,7 +70,6 @@ export function SecurityTab({
         return;
       }
 
-      // PCD config allows enabling, show standard confirmation
       const confirmed = confirm(
         "⚠️ 启用 PII 增强匹配前，请仔细阅读以下内容：\n\n" +
           "【重要提醒】您确定需要启用吗？\n" +
@@ -154,7 +147,7 @@ export function SecurityTab({
 
             <Divider />
 
-            {/* Ingestion Key Section */}
+            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 Ingestion Key（关联令牌）
@@ -232,7 +225,7 @@ export function SecurityTab({
 
             <Divider />
 
-            {/* PII Settings Section */}
+            {}
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h3" variant="headingMd">
@@ -463,7 +456,7 @@ export function SecurityTab({
 
             <Divider />
 
-            {/* Data Retention Section */}
+            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 数据保留策略
@@ -538,7 +531,7 @@ export function SecurityTab({
 
             <Divider />
 
-            {/* Consent Strategy Section */}
+            {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 Consent 策略

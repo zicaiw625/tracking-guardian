@@ -1,15 +1,7 @@
-/**
- * Cached Database Queries
- *
- * Provides caching layer for frequently accessed database queries.
- */
+
 
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 interface CacheEntry<T> {
   data: T;
@@ -17,34 +9,19 @@ interface CacheEntry<T> {
 }
 
 interface CacheOptions {
-  /**
-   * Time to live in milliseconds
-   */
+
   ttlMs?: number;
 
-  /**
-   * Whether to refresh in background when near expiry
-   */
   staleWhileRevalidate?: boolean;
 }
 
-// =============================================================================
-// Cache Implementation
-// =============================================================================
+const DEFAULT_TTL_MS = 60_000;
+const STALE_THRESHOLD_MS = 10_000;
 
-const DEFAULT_TTL_MS = 60_000; // 1 minute
-const STALE_THRESHOLD_MS = 10_000; // 10 seconds before expiry
-
-/**
- * Simple in-memory cache
- */
 class QueryCache<T> {
   private cache = new Map<string, CacheEntry<T>>();
   private pendingRefresh = new Set<string>();
 
-  /**
-   * Get cached value or fetch fresh
-   */
   async getOrFetch(
     key: string,
     fetcher: () => Promise<T>,
@@ -54,9 +31,8 @@ class QueryCache<T> {
     const now = Date.now();
     const cached = this.cache.get(key);
 
-    // Return cached if valid
     if (cached && cached.expiry > now) {
-      // Check if near expiry and trigger background refresh
+
       if (
         staleWhileRevalidate &&
         cached.expiry - now < STALE_THRESHOLD_MS &&
@@ -67,7 +43,6 @@ class QueryCache<T> {
       return cached.data;
     }
 
-    // Fetch fresh data
     const data = await fetcher();
     this.cache.set(key, {
       data,
@@ -77,9 +52,6 @@ class QueryCache<T> {
     return data;
   }
 
-  /**
-   * Refresh cache in background
-   */
   private async refreshInBackground(
     key: string,
     fetcher: () => Promise<T>,
@@ -102,16 +74,10 @@ class QueryCache<T> {
     }
   }
 
-  /**
-   * Invalidate a specific cache entry
-   */
   invalidate(key: string): void {
     this.cache.delete(key);
   }
 
-  /**
-   * Invalidate entries matching a pattern
-   */
   invalidatePattern(pattern: string): void {
     const regex = new RegExp(pattern);
     for (const key of this.cache.keys()) {
@@ -121,17 +87,11 @@ class QueryCache<T> {
     }
   }
 
-  /**
-   * Clear all cache entries
-   */
   clear(): void {
     this.cache.clear();
     this.pendingRefresh.clear();
   }
 
-  /**
-   * Get cache statistics
-   */
   getStats(): { size: number; keys: string[] } {
     return {
       size: this.cache.size,
@@ -140,16 +100,8 @@ class QueryCache<T> {
   }
 }
 
-// =============================================================================
-// Cached Query Functions
-// =============================================================================
-
-// Shop cache instance
 const shopCache = new QueryCache<Awaited<ReturnType<typeof fetchShop>>>();
 
-/**
- * Fetch shop from database
- */
 async function fetchShop(shopDomain: string) {
   return prisma.shop.findUnique({
     where: { shopDomain },
@@ -169,9 +121,6 @@ async function fetchShop(shopDomain: string) {
   });
 }
 
-/**
- * Get shop with caching
- */
 export async function getCachedShop(
   shopDomain: string,
   options?: CacheOptions
@@ -183,24 +132,14 @@ export async function getCachedShop(
   );
 }
 
-/**
- * Invalidate shop cache
- */
 export function invalidateShopCache(shopDomain: string): void {
   shopCache.invalidate(`shop:${shopDomain}`);
 }
-
-// =============================================================================
-// Shop with Pixel Configs Cache
-// =============================================================================
 
 const shopWithConfigsCache = new QueryCache<
   Awaited<ReturnType<typeof fetchShopWithConfigs>>
 >();
 
-/**
- * Fetch shop with pixel configs from database
- */
 async function fetchShopWithConfigs(shopDomain: string) {
   return prisma.shop.findUnique({
     where: { shopDomain },
@@ -221,9 +160,6 @@ async function fetchShopWithConfigs(shopDomain: string) {
   });
 }
 
-/**
- * Get shop with pixel configs with caching
- */
 export async function getCachedShopWithConfigs(
   shopDomain: string,
   options?: CacheOptions
@@ -235,24 +171,14 @@ export async function getCachedShopWithConfigs(
   );
 }
 
-/**
- * Invalidate shop with configs cache
- */
 export function invalidateShopWithConfigsCache(shopDomain: string): void {
   shopWithConfigsCache.invalidate(`shopWithConfigs:${shopDomain}`);
 }
-
-// =============================================================================
-// Alert Configs Cache
-// =============================================================================
 
 const alertConfigsCache = new QueryCache<
   Awaited<ReturnType<typeof fetchAlertConfigs>>
 >();
 
-/**
- * Fetch alert configs from database
- */
 async function fetchAlertConfigs(shopId: string) {
   return prisma.alertConfig.findMany({
     where: { shopId, isEnabled: true },
@@ -265,9 +191,6 @@ async function fetchAlertConfigs(shopId: string) {
   });
 }
 
-/**
- * Get alert configs with caching
- */
 export async function getCachedAlertConfigs(
   shopId: string,
   options?: CacheOptions
@@ -279,24 +202,14 @@ export async function getCachedAlertConfigs(
   );
 }
 
-/**
- * Invalidate alert configs cache
- */
 export function invalidateAlertConfigsCache(shopId: string): void {
   alertConfigsCache.invalidate(`alertConfigs:${shopId}`);
 }
-
-// =============================================================================
-// Monthly Usage Cache
-// =============================================================================
 
 const monthlyUsageCache = new QueryCache<
   Awaited<ReturnType<typeof fetchMonthlyUsage>>
 >();
 
-/**
- * Fetch monthly usage from database
- */
 async function fetchMonthlyUsage(shopId: string) {
   const now = new Date();
   const year = now.getFullYear();
@@ -313,9 +226,6 @@ async function fetchMonthlyUsage(shopId: string) {
   });
 }
 
-/**
- * Get monthly usage with caching
- */
 export async function getCachedMonthlyUsage(
   shopId: string,
   options?: CacheOptions
@@ -326,24 +236,14 @@ export async function getCachedMonthlyUsage(
   return monthlyUsageCache.getOrFetch(
     key,
     () => fetchMonthlyUsage(shopId),
-    { ttlMs: 300_000, ...options } // 5 minute cache
+    { ttlMs: 300_000, ...options }
   );
 }
 
-/**
- * Invalidate monthly usage cache
- */
 export function invalidateMonthlyUsageCache(shopId: string): void {
   monthlyUsageCache.invalidatePattern(`monthlyUsage:${shopId}`);
 }
 
-// =============================================================================
-// Global Cache Management
-// =============================================================================
-
-/**
- * Clear all caches (useful for testing or maintenance)
- */
 export function clearAllCaches(): void {
   shopCache.clear();
   shopWithConfigsCache.clear();
@@ -352,9 +252,6 @@ export function clearAllCaches(): void {
   logger.info("[Cache] All caches cleared");
 }
 
-/**
- * Get cache statistics for monitoring
- */
 export function getCacheStats(): Record<string, { size: number; keys: string[] }> {
   return {
     shop: shopCache.getStats(),

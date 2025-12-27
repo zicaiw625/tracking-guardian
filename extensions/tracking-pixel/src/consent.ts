@@ -1,58 +1,32 @@
-/**
- * Consent Management Module
- * 
- * P0-04 + P0-4: Handles customer privacy consent state tracking and updates.
- * 
- * SECURITY: All consent values default to FALSE (deny by default).
- * Consent is only granted when EXPLICITLY set to true.
- * Unknown/undefined values are treated as NOT consented.
- * 
- * P0-4 配置说明：
- * shopify.extension.toml 中 marketing=false，意味着 Pixel 在只有 analytics 同意时
- * 也能加载。服务端会根据各平台的配置（requiresSaleOfData, category）逐平台判断：
- * - GA4: 只需 analytics 同意
- * - Meta/TikTok: 需要 marketing + saleOfData 同意
- * 
- * 这个模块负责追踪当前的 consent 状态，并将其发送给后端，让后端做最终的平台级判断。
- */
+
 
 import type { CustomerPrivacyState, VisitorConsentCollectedEvent } from "./types";
 
 export interface ConsentManager {
-  /** Whether marketing tracking is allowed */
+
   marketingAllowed: boolean;
-  /** Whether analytics tracking is allowed */
+
   analyticsAllowed: boolean;
-  /** Whether sale of data is allowed (CCPA) - P0-04: defaults to FALSE */
+
   saleOfDataAllowed: boolean;
-  /** Check if analytics consent is granted */
+
   hasAnalyticsConsent(): boolean;
-  /** Check if marketing consent is granted (includes sale of data check) */
+
   hasMarketingConsent(): boolean;
-  /** Check if full consent (both analytics and marketing) is granted */
+
   hasFullConsent(): boolean;
-  /** Update consent state from privacy status */
+
   updateFromStatus(status: CustomerPrivacyState | null | undefined, source: "init" | "event"): void;
 }
 
-/**
- * Create a consent manager instance.
- * 
- * P0-04: All consent values default to FALSE (deny by default).
- * This is the most privacy-protective default.
- * 
- * @param logger - Optional logging function
- * @returns ConsentManager instance
- */
 export function createConsentManager(logger?: (...args: unknown[]) => void): ConsentManager {
   const log = logger || (() => {});
-  
+
   let customerPrivacyStatus: CustomerPrivacyState | null = null;
-  
-  // P0-04: All defaults are FALSE (deny by default)
+
   let marketingAllowed = false;
   let analyticsAllowed = false;
-  let saleOfDataAllowed = false; // P0-04: Changed from true to false
+  let saleOfDataAllowed = false;
 
   function updateFromStatus(
     status: CustomerPrivacyState | null | undefined,
@@ -60,18 +34,15 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
   ): void {
     if (!status || typeof status !== "object") {
       log(`${source} customerPrivacy not available, consent state remains denied (P0-04)`);
-      // P0-04: Do NOT reset to permissive defaults when status is unavailable
+
       return;
     }
 
     customerPrivacyStatus = status;
-    
-    // P0-04: Strict boolean checks - only true === true grants consent
+
     marketingAllowed = customerPrivacyStatus.marketingAllowed === true;
     analyticsAllowed = customerPrivacyStatus.analyticsProcessingAllowed === true;
-    
-    // P0-04: saleOfDataAllowed must be EXPLICITLY true, not just "not false"
-    // This means undefined/null/missing field = NOT allowed
+
     saleOfDataAllowed = customerPrivacyStatus.saleOfDataAllowed === true;
 
     log(`Consent state updated from ${source}.customerPrivacy (P0-04 strict):`, {
@@ -91,7 +62,7 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
   }
 
   function hasMarketingConsent(): boolean {
-    // P0-04: Both must be explicitly true
+
     return marketingAllowed === true && saleOfDataAllowed === true;
   }
 
@@ -110,13 +81,6 @@ export function createConsentManager(logger?: (...args: unknown[]) => void): Con
   };
 }
 
-/**
- * Subscribe to consent changes if available.
- * 
- * @param customerPrivacy - Shopify customer privacy object
- * @param consentManager - Consent manager instance
- * @param logger - Optional logging function
- */
 export function subscribeToConsentChanges(
   customerPrivacy: { subscribe?: (event: string, handler: (e: VisitorConsentCollectedEvent) => void) => void },
   consentManager: ConsentManager,

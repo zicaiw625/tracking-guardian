@@ -1,59 +1,29 @@
-/**
- * Shop Cache Service
- *
- * Provides caching for frequently accessed shop data to reduce database load.
- * Uses Redis when available, with in-memory fallback.
- *
- * Cached queries:
- * - Shop verification data (ingestion key validation)
- * - Shop configurations (pixel configs)
- * - Billing/usage data
- */
+
 
 import { RedisCache, SimpleCache, TTL } from "../utils/cache";
 import { logger } from "../utils/logger.server";
 import type { ShopVerificationData, ShopWithPixelConfigs } from "../utils/shop-access";
 
-// =============================================================================
-// Cache Instances
-// =============================================================================
-
-/**
- * Redis cache for shop verification data.
- * Falls back to in-memory if Redis is unavailable.
- */
 const shopVerificationCache = new RedisCache<ShopVerificationData>({
   prefix: "shop:verify:",
-  defaultTtlMs: TTL.SHORT, // 1 minute - balance freshness and performance
+  defaultTtlMs: TTL.SHORT,
   useRedis: true,
 });
 
-/**
- * Redis cache for shop data with pixel configs.
- * Used by pixel-events route.
- */
 const shopWithConfigsCache = new RedisCache<ShopWithPixelConfigs>({
   prefix: "shop:configs:",
-  defaultTtlMs: TTL.SHORT, // 1 minute
+  defaultTtlMs: TTL.SHORT,
   useRedis: true,
 });
 
-/**
- * In-memory cache for billing checks.
- * Short TTL to ensure billing limits are enforced accurately.
- */
 const billingCheckCache = new SimpleCache<{
   allowed: boolean;
   reason?: string;
   usage: { current: number; limit: number };
 }>({
   maxSize: 1000,
-  defaultTtlMs: TTL.VERY_SHORT, // 30 seconds
+  defaultTtlMs: TTL.VERY_SHORT,
 });
-
-// =============================================================================
-// Cache Keys
-// =============================================================================
 
 function getVerificationKey(shopDomain: string): string {
   return shopDomain.toLowerCase();
@@ -67,13 +37,6 @@ function getBillingKey(shopId: string, yearMonth: string): string {
   return `${shopId}:${yearMonth}`;
 }
 
-// =============================================================================
-// Shop Verification Cache
-// =============================================================================
-
-/**
- * Get cached shop verification data.
- */
 export async function getCachedShopVerification(
   shopDomain: string
 ): Promise<ShopVerificationData | null | undefined> {
@@ -86,9 +49,6 @@ export async function getCachedShopVerification(
   }
 }
 
-/**
- * Cache shop verification data.
- */
 export async function cacheShopVerification(
   shopDomain: string,
   data: ShopVerificationData | null,
@@ -97,7 +57,7 @@ export async function cacheShopVerification(
   const key = getVerificationKey(shopDomain);
   try {
     if (data === null) {
-      // Cache null results for a shorter time
+
       await shopVerificationCache.set(key, null as unknown as ShopVerificationData, TTL.VERY_SHORT);
     } else {
       await shopVerificationCache.set(key, data, ttlMs);
@@ -107,9 +67,6 @@ export async function cacheShopVerification(
   }
 }
 
-/**
- * Invalidate shop verification cache.
- */
 export async function invalidateShopVerification(shopDomain: string): Promise<void> {
   const key = getVerificationKey(shopDomain);
   try {
@@ -120,13 +77,6 @@ export async function invalidateShopVerification(shopDomain: string): Promise<vo
   }
 }
 
-// =============================================================================
-// Shop With Configs Cache
-// =============================================================================
-
-/**
- * Get cached shop with pixel configs.
- */
 export async function getCachedShopWithConfigs(
   shopDomain: string
 ): Promise<ShopWithPixelConfigs | null | undefined> {
@@ -139,9 +89,6 @@ export async function getCachedShopWithConfigs(
   }
 }
 
-/**
- * Cache shop with pixel configs.
- */
 export async function cacheShopWithConfigs(
   shopDomain: string,
   data: ShopWithPixelConfigs | null,
@@ -159,14 +106,11 @@ export async function cacheShopWithConfigs(
   }
 }
 
-/**
- * Invalidate shop with configs cache.
- */
 export async function invalidateShopConfigs(shopDomain: string): Promise<void> {
   const key = getConfigsKey(shopDomain);
   try {
     await shopWithConfigsCache.delete(key);
-    // Also invalidate verification cache
+
     await invalidateShopVerification(shopDomain);
     logger.debug("Invalidated shop configs cache", { shopDomain });
   } catch (error) {
@@ -174,19 +118,12 @@ export async function invalidateShopConfigs(shopDomain: string): Promise<void> {
   }
 }
 
-// =============================================================================
-// Billing Cache
-// =============================================================================
-
 interface BillingCheckResult {
   allowed: boolean;
   reason?: string;
   usage: { current: number; limit: number };
 }
 
-/**
- * Get cached billing check result.
- */
 export function getCachedBillingCheck(
   shopId: string,
   yearMonth: string
@@ -195,9 +132,6 @@ export function getCachedBillingCheck(
   return billingCheckCache.get(key);
 }
 
-/**
- * Cache billing check result.
- */
 export function cacheBillingCheck(
   shopId: string,
   yearMonth: string,
@@ -207,27 +141,16 @@ export function cacheBillingCheck(
   billingCheckCache.set(key, result);
 }
 
-/**
- * Invalidate billing cache for a shop.
- */
 export function invalidateBillingCache(shopId: string, yearMonth?: string): void {
   if (yearMonth) {
     const key = getBillingKey(shopId, yearMonth);
     billingCheckCache.delete(key);
   } else {
-    // Clear all billing cache entries for this shop
+
     billingCheckCache.deletePattern(`${shopId}:`);
   }
 }
 
-// =============================================================================
-// Batch Invalidation
-// =============================================================================
-
-/**
- * Invalidate all caches for a shop.
- * Call this when shop settings are updated.
- */
 export async function invalidateAllShopCaches(shopDomain: string, shopId?: string): Promise<void> {
   await Promise.all([
     invalidateShopVerification(shopDomain),
@@ -241,19 +164,12 @@ export async function invalidateAllShopCaches(shopDomain: string, shopId?: strin
   logger.info("Invalidated all caches for shop", { shopDomain, shopId });
 }
 
-// =============================================================================
-// Cache Stats
-// =============================================================================
-
-/**
- * Get cache statistics for monitoring.
- */
 export async function getShopCacheStats(): Promise<{
   verification: { available: boolean };
   configs: { available: boolean };
   billing: { size: number; hits: number; misses: number };
 }> {
-  // RedisCache doesn't expose size/stats directly, so we just indicate availability
+
   return {
     verification: {
       available: true,
@@ -269,14 +185,6 @@ export async function getShopCacheStats(): Promise<{
   };
 }
 
-// =============================================================================
-// Warming Functions
-// =============================================================================
-
-/**
- * Warm the cache with frequently accessed shop data.
- * Call this during startup or after cache clear.
- */
 export async function warmShopCache(
   getShopFn: (domain: string) => Promise<ShopWithPixelConfigs | null>,
   shopDomains: string[]

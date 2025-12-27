@@ -1,16 +1,9 @@
-/**
- * Cron Authentication Tests
- *
- * Tests for cron endpoint authentication and replay protection.
- * 
- * P1-5: Updated to test secret rotation support.
- */
+
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHmac } from "crypto";
 import { createMockRequest } from "../setup";
 
-// Mock dependencies
 vi.mock("../../app/utils/logger.server", () => ({
   logger: {
     info: vi.fn(),
@@ -25,8 +18,8 @@ vi.mock("../../app/utils/responses", () => ({
   serviceUnavailableResponse: vi.fn((msg) => new Response(msg, { status: 503 })),
 }));
 
-import { 
-  validateCronAuth, 
+import {
+  validateCronAuth,
   verifyReplayProtection,
   isSecretRotationActive,
   getRotationStatus,
@@ -50,9 +43,6 @@ describe("Cron Authentication", () => {
     process.env = originalEnv;
   });
 
-  /**
-   * Helper to create a request with valid timestamp and signature
-   */
   function createAuthenticatedRequest(
     secret: string = testSecret,
     overrideHeaders?: Record<string, string>
@@ -114,7 +104,7 @@ describe("Cron Authentication", () => {
     it("should warn if CRON_SECRET is too short", () => {
       const shortSecret = "short";
       process.env.CRON_SECRET = shortSecret;
-      // Disable strict replay for this test
+
       process.env.CRON_STRICT_REPLAY = "false";
 
       const request = createMockRequest("https://app.example.com/api/cron", {
@@ -149,7 +139,7 @@ describe("Cron Authentication", () => {
     });
 
     it("should reject request with expired timestamp", () => {
-      const oldTimestamp = String(Math.floor(Date.now() / 1000) - 600); // 10 minutes ago
+      const oldTimestamp = String(Math.floor(Date.now() / 1000) - 600);
       const signature = createHmac("sha256", cronSecret).update(oldTimestamp).digest("hex");
 
       const request = createMockRequest("https://app.example.com/api/cron", {
@@ -165,7 +155,7 @@ describe("Cron Authentication", () => {
     });
 
     it("should reject request with future timestamp", () => {
-      const futureTimestamp = String(Math.floor(Date.now() / 1000) + 600); // 10 minutes in future
+      const futureTimestamp = String(Math.floor(Date.now() / 1000) + 600);
       const signature = createHmac("sha256", cronSecret).update(futureTimestamp).digest("hex");
 
       const request = createMockRequest("https://app.example.com/api/cron", {
@@ -264,7 +254,7 @@ describe("Cron Authentication", () => {
       const request = createAuthenticatedRequest(previousSecret);
       const result = validateCronAuth(request);
       expect(result).toBeNull();
-      // Should log that previous secret was used
+
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("CRON_SECRET_PREVIOUS")
       );

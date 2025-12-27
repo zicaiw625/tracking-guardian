@@ -1,11 +1,7 @@
-/**
- * Platform Service Factory Tests
- * 
- * Tests for the platform service factory pattern.
- */
+
 
 import { describe, it, expect } from "vitest";
-import { 
+import {
   getPlatformService,
   isPlatformSupported,
   getSupportedPlatforms,
@@ -166,7 +162,7 @@ describe("Credential validation", () => {
 
   describe("TikTok credentials", () => {
     it("should accept valid TikTok credentials", () => {
-      // TikTok Pixel ID must be 20+ alphanumeric characters
+
       const result = tiktokService.validateCredentials({
         pixelId: "ABCDEF1234567890ABCDEF",
         accessToken: "token123abc",
@@ -205,17 +201,17 @@ describe("Error parsing", () => {
       it("should parse Error objects", () => {
         const error = new Error("Test error message");
         const parsed = service.parseError(error);
-        
+
         expect(parsed).toHaveProperty("type");
         expect(parsed).toHaveProperty("message");
-        // Some implementations use "isRetryable", others use "retryable"
+
         expect("isRetryable" in parsed || "retryable" in parsed).toBe(true);
         expect(parsed.message).toContain("Test error message");
       });
 
       it("should parse string errors", () => {
         const parsed = service.parseError("String error");
-        
+
         expect(parsed).toHaveProperty("message");
         expect(parsed.message).toContain("String error");
       });
@@ -223,7 +219,7 @@ describe("Error parsing", () => {
       it("should handle null/undefined gracefully", () => {
         const parsedNull = service.parseError(null);
         const parsedUndefined = service.parseError(undefined);
-        
+
         expect(parsedNull).toHaveProperty("type");
         expect(parsedNull).toHaveProperty("message");
         expect(parsedUndefined).toHaveProperty("type");

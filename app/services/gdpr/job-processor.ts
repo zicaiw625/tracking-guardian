@@ -1,9 +1,4 @@
-/**
- * GDPR Job Processor
- *
- * Handles processing of queued GDPR jobs.
- * Manages job lifecycle: queued -> processing -> completed/failed.
- */
+
 
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
@@ -20,16 +15,6 @@ import type {
   GDPRJobResult,
 } from "./types";
 
-// =============================================================================
-// Single Job Processing
-// =============================================================================
-
-/**
- * Process a single GDPR job by ID.
- *
- * @param jobId - The job ID to process
- * @returns Processing result with success status
- */
 export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResult> {
   const job = await prisma.gDPRJob.findUnique({
     where: { id: jobId },
@@ -39,7 +24,6 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
     return { success: false, error: "Job not found" };
   }
 
-  // Skip already completed jobs
   if (job.status === "completed") {
     logger.debug(`[GDPR] Job ${jobId} already completed, skipping`);
     return {
@@ -48,7 +32,6 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
     };
   }
 
-  // Mark as processing
   await prisma.gDPRJob.update({
     where: { id: jobId },
     data: { status: "processing" },
@@ -57,7 +40,6 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
   try {
     let result: DataRequestResult | CustomerRedactResult | ShopRedactResult;
 
-    // Process based on job type
     switch (job.jobType) {
       case "data_request":
         result = await processDataRequest(job.shopDomain, job.payload as DataRequestPayload);
@@ -72,13 +54,12 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
         throw new Error(`Unknown GDPR job type: ${job.jobType}`);
     }
 
-    // Mark as completed
     await prisma.gDPRJob.update({
       where: { id: jobId },
       data: {
         status: "completed",
         result: result as object,
-        payload: {}, // Clear payload after processing for privacy
+        payload: {},
         processedAt: new Date(),
         completedAt: new Date(),
       },
@@ -93,7 +74,6 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
-    // Mark as failed
     await prisma.gDPRJob.update({
       where: { id: jobId },
       data: {
@@ -108,18 +88,8 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
   }
 }
 
-// =============================================================================
-// Batch Job Processing
-// =============================================================================
-
-/**
- * Process pending GDPR jobs in batch.
- * Processes up to 10 jobs per run.
- *
- * @returns Batch processing result with counts
- */
 export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
-  // Find pending jobs
+
   const pendingJobs = await prisma.gDPRJob.findMany({
     where: {
       status: { in: ["queued", "failed"] },
@@ -155,16 +125,6 @@ export async function processGDPRJobs(): Promise<ProcessGDPRJobsResult> {
   };
 }
 
-// =============================================================================
-// Job Status
-// =============================================================================
-
-/**
- * Get GDPR job status summary.
- *
- * @param shopDomain - Optional shop domain filter
- * @returns Status counts and recent jobs
- */
 export async function getGDPRJobStatus(shopDomain?: string): Promise<{
   queued: number;
   processing: number;

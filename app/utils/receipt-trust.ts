@@ -1,10 +1,8 @@
 import { logger } from "./logger.server";
 import { SHOPIFY_ALLOWLIST, extractOriginHost as extractOriginHostFromValidation, buildShopAllowedDomains as buildShopAllowedDomainsFromValidation } from "./origin-validation";
 
-// Re-export from origin-validation for backwards compatibility
 export { extractOriginHostFromValidation as extractOriginHost };
 
-// Wrapper for backwards compatibility with positional parameters
 export function buildShopAllowedDomains(myshopifyDomain: string, primaryDomain?: string | null, customDomains?: string[]): string[] {
     return buildShopAllowedDomainsFromValidation({
         shopDomain: myshopifyDomain,
@@ -203,4 +201,4 @@ export function buildTrustMetadata(trustResult: ReceiptTrustResult, additionalCo
         verifiedAt: new Date().toISOString(),
     };
 }
-// extractOriginHost and buildShopAllowedDomains are now re-exported from origin-validation.ts above
+

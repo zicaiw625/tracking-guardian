@@ -1,12 +1,4 @@
-/**
- * UI Component Exports
- *
- * Centralized exports for all reusable UI components.
- */
 
-// =============================================================================
-// Error Display Components
-// =============================================================================
 
 export {
   ErrorDisplay,
@@ -20,10 +12,6 @@ export {
   type NotFoundProps,
   type EmptyStateProps,
 } from "./ErrorDisplay";
-
-// =============================================================================
-// Loading State Components
-// =============================================================================
 
 export {
   PageSkeleton,
@@ -42,10 +30,6 @@ export {
   type FullScreenLoadingProps,
   type FormSkeletonProps,
 } from "./LoadingState";
-
-// =============================================================================
-// Status Badge Components
-// =============================================================================
 
 export {
   StatusBadge,
@@ -69,10 +53,6 @@ export {
   type BooleanStatusProps,
   type StatusWithCountProps,
 } from "./StatusBadge";
-
-// =============================================================================
-// Metric Card Components
-// =============================================================================
 
 export {
   MetricCard,

@@ -5,8 +5,6 @@ import type { PlatformCredentials } from "../types";
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
 
-// P0-5: Deprecated pixel code generators removed - using server-side CAPI only
-// P0-4: bing and clarity removed - no server-side CAPI implementation
 export type Platform = "google" | "meta" | "tiktok";
 
 export interface MigrationConfig {
@@ -23,21 +21,14 @@ export interface MigrationResult {
     error?: string;
 }
 
-/**
- * P0-5: 统一产品叙事 - 服务端追踪
- * 
- * Tracking Guardian 使用服务端 CAPI 进行转化追踪，不生成任何客户端代码。
- * 此函数返回配置指南，不再返回 pixelCode。
- */
 export function generatePixelCode(config: MigrationConfig): MigrationResult {
     try {
-        // P0-5: 验证平台支持
+
         const supportedPlatforms = ["google", "meta", "tiktok"];
         if (!supportedPlatforms.includes(config.platform)) {
             throw new Error(`Unsupported platform: ${config.platform}. Tracking Guardian supports Google, Meta, and TikTok.`);
         }
 
-        // P0-5: 服务端追踪指南，不包含任何客户端代码
         const serverSideInstructions = [
             "1. 前往 Tracking Guardian「迁移」页面，点击「一键启用 App Pixel」",
             "2. 前往「设置」页面，在「服务端追踪」部分配置平台凭证",
@@ -50,7 +41,7 @@ export function generatePixelCode(config: MigrationConfig): MigrationResult {
         return {
             success: true,
             platform: config.platform,
-            pixelCode: "", // P0-5: 不再生成客户端代码
+            pixelCode: "",
             instructions: serverSideInstructions,
         };
     }
@@ -132,11 +123,7 @@ export interface CreateWebPixelResult {
     }>;
 }
 
-// =============================================================================
-// P1-3: Re-export from centralized schemas
-// =============================================================================
-
-import { 
+import {
     DEFAULT_PIXEL_CONFIG,
     parseAndValidatePixelConfig,
     buildPixelConfigString,
@@ -144,19 +131,12 @@ import {
     type WebPixelSettings as WebPixelSettingsSchema,
 } from "../schemas/settings";
 
-// Re-export types for backwards compatibility
 export type PixelConfig = PixelConfigV1;
 export type WebPixelSettings = WebPixelSettingsSchema;
 export { DEFAULT_PIXEL_CONFIG };
 
-/**
- * Build settings object for webPixelCreate/webPixelUpdate mutations.
- * 
- * P0-02: Settings keys MUST exactly match shopify.extension.toml [settings.fields.*] keys.
- * P1-3: Now uses centralized Zod-validated schema.
- */
 export function buildWebPixelSettings(
-    ingestionKey: string, 
+    ingestionKey: string,
     shopDomain: string,
     pixelConfig?: Partial<PixelConfig>
 ): WebPixelSettings {
@@ -167,9 +147,6 @@ export function buildWebPixelSettings(
     };
 }
 
-/**
- * P1-3: Parse pixel_config from settings with Zod validation
- */
 export function parsePixelConfigFromSettings(configStr?: string): PixelConfig {
     return parseAndValidatePixelConfig(configStr);
 }
@@ -191,19 +168,18 @@ export function needsSettingsUpgrade(settings: unknown): boolean {
     if (!settings || typeof settings !== "object")
         return false;
     const s = settings as Record<string, unknown>;
-    // Upgrade needed if using legacy ingestion_secret instead of ingestion_key
+
     if (typeof s.ingestion_secret === "string" && typeof s.ingestion_key !== "string") {
         return true;
     }
-    // Upgrade needed if missing required shop_domain field
-    if ((typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string") 
+
+    if ((typeof s.ingestion_key === "string" || typeof s.ingestion_secret === "string")
         && typeof s.shop_domain !== "string") {
         return true;
     }
     return false;
 }
 
-// P0-6: 参数名从 ingestionSecret 改为 ingestionKey（减少误解）
 export async function createWebPixel(admin: AdminApiContext, ingestionKey?: string, shopDomain?: string): Promise<CreateWebPixelResult> {
     const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "");
     const settings = JSON.stringify(pixelSettings);
@@ -262,7 +238,6 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
     }
 }
 
-// P0-6: 参数名从 ingestionSecret 改为 ingestionKey（减少误解）
 export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string): Promise<CreateWebPixelResult> {
     const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "");
     const settings = JSON.stringify(pixelSettings);
@@ -322,10 +297,6 @@ export async function updateWebPixel(admin: AdminApiContext, webPixelId: string,
     }
 }
 
-/**
- * Upgrade WebPixel settings to latest schema.
- * Handles migration from ingestion_secret to ingestion_key.
- */
 export async function upgradeWebPixelSettings(
     admin: AdminApiContext,
     webPixelId: string,
@@ -341,10 +312,9 @@ export async function upgradeWebPixelSettings(
     }
 
     const s = currentSettings as Record<string, unknown>;
-    
-    // Determine the key to use (prefer existing ingestion_key, fallback to ingestion_secret)
+
     const existingKey = (s.ingestion_key as string) || (s.ingestion_secret as string) || ingestionKey;
-    
+
     logger.info(`Upgrading WebPixel settings for ${shopDomain}`, {
         webPixelId,
         hadIngestionSecret: typeof s.ingestion_secret === "string",
@@ -487,7 +457,7 @@ export function getScriptTagMigrationGuidance(platform: string, scriptTagId: num
                 "• 配置 Pixel ID 和 Access Token",
             ],
         },
-        // P0-4: bing and clarity entries removed - not supported
+
     };
     const guidance = platformGuidance[platform] || {
         title: `${platform} 平台迁移`,
@@ -502,8 +472,6 @@ export function getScriptTagMigrationGuidance(platform: string, scriptTagId: num
         warning: guidance.warning,
     };
 }
-
-// P0-4: generateBingPixelCode removed - no CAPI support for Bing
 
 export async function migrateCredentialsToEncrypted(): Promise<{
     migrated: number;
@@ -657,9 +625,8 @@ export async function checkAppScopes(admin: AdminApiContext): Promise<boolean> {
         return scopes.includes("read_customer_events");
     } catch (error) {
         logger.error("Failed to check app scopes:", error);
-        // Fail open if check fails (let Shopify API enforce it)
+
         return true;
     }
 }
 
-// P0-4: generateClarityPixelCode removed - Clarity is client-side only

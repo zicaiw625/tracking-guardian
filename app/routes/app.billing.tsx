@@ -1,7 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useSearchParams } from "@remix-run/react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, } from "@shopify/polaris";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, Icon, } from "@shopify/polaris";
+import { CheckCircleIcon } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { BILLING_PLANS, createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId, } from "../services/billing.server";
@@ -120,7 +121,6 @@ export default function BillingPage() {
             </p>
           </Banner>)}
 
-        
         <Layout>
           <Layout.Section>
             <Card>
@@ -134,7 +134,6 @@ export default function BillingPage() {
 
                 <Divider />
 
-                
                 <BlockStack gap="200">
                   <InlineStack align="space-between">
                     <Text as="span" variant="bodySm" tone="subdued">本月订单追踪</Text>
@@ -145,7 +144,6 @@ export default function BillingPage() {
                   <ProgressBar progress={usagePercent} tone={usagePercent >= 90 ? "critical" : undefined}/>
                 </BlockStack>
 
-                
                 <BlockStack gap="200">
                   <Text as="span" variant="headingSm">套餐功能</Text>
                   <List>
@@ -153,7 +151,6 @@ export default function BillingPage() {
                   </List>
                 </BlockStack>
 
-                
                 {subscription.hasActiveSubscription && subscription.plan !== "free" && (<>
                     <Divider />
                     <BlockStack gap="200">
@@ -177,9 +174,8 @@ export default function BillingPage() {
           </Layout.Section>
         </Layout>
 
-        
         <Text as="h2" variant="headingMd">可用套餐</Text>
-        
+
         <Layout>
           {Object.entries(plans).map(([planId, plan]) => {
             const isCurrentPlan = subscription.plan === planId;
@@ -224,17 +220,57 @@ export default function BillingPage() {
         })}
         </Layout>
 
-        
+        {/* Agency 多店管理入口 */}
+        {subscription.plan === "agency" && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <BlockStack gap="100">
+                  <InlineStack gap="200">
+                    <Text as="h2" variant="headingMd">🏢 Agency 多店管理</Text>
+                    <Badge tone="success">已解锁</Badge>
+                  </InlineStack>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    管理多个店铺、批量配置、团队协作
+                  </Text>
+                </BlockStack>
+                <Button url="/app/workspace" variant="primary">
+                  进入多店管理
+                </Button>
+              </InlineStack>
+              <Divider />
+              <InlineStack gap="400" wrap>
+                <InlineStack gap="100">
+                  <Icon source={CheckCircleIcon} tone="success" />
+                  <Text as="span" variant="bodySm">最多 50 个店铺</Text>
+                </InlineStack>
+                <InlineStack gap="100">
+                  <Icon source={CheckCircleIcon} tone="success" />
+                  <Text as="span" variant="bodySm">批量 Audit</Text>
+                </InlineStack>
+                <InlineStack gap="100">
+                  <Icon source={CheckCircleIcon} tone="success" />
+                  <Text as="span" variant="bodySm">团队协作</Text>
+                </InlineStack>
+                <InlineStack gap="100">
+                  <Icon source={CheckCircleIcon} tone="success" />
+                  <Text as="span" variant="bodySm">报告导出</Text>
+                </InlineStack>
+              </InlineStack>
+            </BlockStack>
+          </Card>
+        )}
+
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">常见问题</Text>
             <Divider />
-            
+
             <BlockStack gap="300">
               <BlockStack gap="100">
                 <Text as="span" fontWeight="semibold">什么时候开始计费？</Text>
                 <Text as="p" tone="subdued">
-                  付费套餐提供 7 天免费试用（企业版 14 天）。试用期结束后自动开始计费。
+                  付费套餐提供 7 天免费试用（Agency 版 14 天）。试用期结束后自动开始计费。
                 </Text>
               </BlockStack>
 
@@ -256,6 +292,14 @@ export default function BillingPage() {
                 <Text as="span" fontWeight="semibold">如何升级或降级套餐？</Text>
                 <Text as="p" tone="subdued">
                   您可以随时更改套餐。升级立即生效，降级在当前计费周期结束后生效。
+                </Text>
+              </BlockStack>
+
+              <BlockStack gap="100">
+                <Text as="span" fontWeight="semibold">Agency 版有哪些额外功能？</Text>
+                <Text as="p" tone="subdued">
+                  Agency 版支持多店管理（最多 50 个店铺）、批量配置、团队协作（Owner/Admin/Viewer 权限）、
+                  验收报告导出（PDF/CSV）以及专属客户成功经理。
                 </Text>
               </BlockStack>
             </BlockStack>

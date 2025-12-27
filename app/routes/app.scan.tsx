@@ -42,24 +42,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
     });
-    
-    // Parse migrationActions from the scan report if available
+
     let migrationActions: MigrationAction[] = [];
     if (latestScanRaw) {
         try {
-            // migrationActions might be stored in the scan result
-            const scanData = latestScanRaw as unknown as { 
+
+            const scanData = latestScanRaw as unknown as {
                 scriptTags?: ScriptTag[];
                 identifiedPlatforms?: string[];
                 riskItems?: RiskItem[];
                 riskScore?: number;
                 additionalScriptsPatterns?: Array<{ platform: string; content: string }>;
             };
-            // Re-generate migration actions from current scan data
+
             const { generateMigrationActions } = await import("../services/scanner/migration-actions");
             const { getExistingWebPixels } = await import("../services/migration.server");
-            
-            // Fetch current web pixels for accurate migration actions
+
             const webPixels = await getExistingWebPixels(admin);
             const enhancedResult: EnhancedScanResult = {
                 scriptTags: (scanData.scriptTags as ScriptTag[]) || [],
@@ -75,11 +73,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             const shopTier = (shop.shopTier as string) || "unknown";
             migrationActions = generateMigrationActions(enhancedResult, shopTier);
         } catch (e) {
-            // Fallback if generation fails
+
             migrationActions = [];
         }
     }
-    
+
     const latestScan = latestScanRaw;
     const scanHistory = await getScanHistory(shop.id, 5);
     const shopTier: ShopTier = (shop.shopTier as ShopTier) || "unknown";
@@ -198,23 +196,17 @@ export default function ScanPage() {
         </BlockStack>
       </Banner>
     ) : null;
-    
-    // Declare identifiedPlatforms before useMemo uses it
+
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
-    
-    // ROI 影响估算计算
-    // 注意：此处仅为帮助商户理解潜在风险的示意，不构成任何效果预测或保证
+
     const roiEstimate = useMemo(() => {
         const platforms = identifiedPlatforms.length || 1;
         const scriptTagCount = ((latestScan?.scriptTags as ScriptTag[] | null) || []).length;
-        
-        // 不迁移的事件丢失估算（仅供参考）
-        // 实际影响取决于客户群体、流量来源、广告策略等多种因素
+
         const eventsLostPerMonth = monthlyOrders * platforms;
-        
-        // 我们不提供具体金额估算，因为实际影响因店铺而异
+
         const hasRisk = scriptTagCount > 0;
-        
+
         return {
             eventsLostPerMonth,
             hasRisk,
@@ -225,8 +217,6 @@ export default function ScanPage() {
     const isDeleting = deleteFetcher.state === "submitting";
     const isUpgrading = upgradeFetcher.state === "submitting";
 
-    // P0-1: Show ScriptTag cleanup guidance instead of direct deletion
-    // (应用没有 write_script_tags 权限，无法直接删除 ScriptTag)
     const handleShowScriptTagGuidance = useCallback((scriptTagId: number, platform?: string) => {
         setGuidanceContent({
             title: `清理 ScriptTag #${scriptTagId}`,
@@ -236,13 +226,11 @@ export default function ScanPage() {
         setGuidanceModalOpen(true);
     }, []);
 
-    // Close guidance modal
     const closeGuidanceModal = useCallback(() => {
         setGuidanceModalOpen(false);
         setGuidanceContent(null);
     }, []);
 
-    // Handle WebPixel deletion (保留，因为有 write_pixels 权限)
     const handleDeleteWebPixel = useCallback((webPixelGid: string, platform?: string) => {
         setPendingDelete({
             type: "webPixel",
@@ -253,7 +241,6 @@ export default function ScanPage() {
         setDeleteModalOpen(true);
     }, []);
 
-    // Confirm WebPixel deletion
     const confirmDelete = useCallback(() => {
         if (!pendingDelete) return;
 
@@ -267,16 +254,14 @@ export default function ScanPage() {
         setPendingDelete(null);
     }, [pendingDelete, deleteFetcher]);
 
-    // Close delete modal
     const closeDeleteModal = useCallback(() => {
         setDeleteModalOpen(false);
         setPendingDelete(null);
     }, []);
 
-    // Handle WebPixel settings upgrade (P1-02)
     const handleUpgradePixelSettings = useCallback(() => {
         const formData = new FormData();
-        // Upgrade all pixels that need it (no specific GID)
+
         upgradeFetcher.submit(formData, {
             method: "post",
             action: "/app/actions/upgrade-web-pixel",
@@ -335,13 +320,13 @@ export default function ScanPage() {
         }
     };
     const getPlatformName = (platform: string) => {
-        // P0-4: bing/clarity removed from CAPI support, but keep display names for detection
+
         const names: Record<string, string> = {
             google: "GA4 (Measurement Protocol)",
             meta: "Meta (Facebook) Pixel",
             tiktok: "TikTok Pixel",
-            bing: "Microsoft Ads (Bing) ⚠️",  // Warning: not supported
-            clarity: "Microsoft Clarity ⚠️",   // Warning: not supported
+            bing: "Microsoft Ads (Bing) ⚠️",
+            clarity: "Microsoft Clarity ⚠️",
             pinterest: "Pinterest Tag",
             snapchat: "Snapchat Pixel",
             twitter: "Twitter/X Pixel",
@@ -349,7 +334,7 @@ export default function ScanPage() {
         return names[platform] || platform;
     };
     const riskItems = (latestScan?.riskItems as RiskItem[] | null) || [];
-    // identifiedPlatforms is now declared earlier, before useMemo
+
   const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
         switch (urgency) {
             case "critical": return "critical";
@@ -384,16 +369,16 @@ export default function ScanPage() {
           {selectedTab === 0 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
                 <InlineStack align="space-between">
-                  {/* P1-8: 导出和分享按钮 */}
+                  {}
                   {latestScan && (
                     <InlineStack gap="200">
-                      <Button 
-                        icon={ExportIcon} 
+                      <Button
+                        icon={ExportIcon}
                         onClick={() => window.open("/api/exports?type=scan&format=json&include_meta=true", "_blank")}
                       >
                         导出报告
                       </Button>
-                      <Button 
+                      <Button
                         icon={ShareIcon}
                         onClick={() => {
                           const shareData = {
@@ -532,7 +517,7 @@ export default function ScanPage() {
             </Layout.Section>
           </Layout>)}
 
-        {/* ROI 影响估算卡片 - 增强版：带交互式计算器 */}
+        {}
         {latestScan && !isScanning && latestScan.riskScore > 0 && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
@@ -541,7 +526,7 @@ export default function ScanPage() {
                 </Text>
                 <Badge tone="info">示例估算</Badge>
               </InlineStack>
-              
+
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
                   <strong>⚠️ 免责声明：</strong>以下为简化示意，仅帮助理解迁移的必要性。
@@ -550,7 +535,7 @@ export default function ScanPage() {
                 </Text>
               </Banner>
 
-              {/* 交互式订单量输入 */}
+              {}
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="p" fontWeight="semibold">
@@ -569,7 +554,7 @@ export default function ScanPage() {
                 </BlockStack>
               </Box>
 
-              {/* 事件丢失估算 - 基于实际输入 */}
+              {}
               <Box background="bg-fill-critical-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
@@ -578,8 +563,8 @@ export default function ScanPage() {
                       不迁移会丢失什么？（示意说明）
                     </Text>
                   </InlineStack>
-                  
-                  {/* 具体数字展示 */}
+
+                  {}
                   <InlineStack gap="400" align="space-between" wrap>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
@@ -615,7 +600,7 @@ export default function ScanPage() {
                       </BlockStack>
                     </Box>
                   </InlineStack>
-                  
+
                   <BlockStack gap="200">
                     {identifiedPlatforms.length > 0 ? (
                       identifiedPlatforms.map((platform) => (
@@ -651,7 +636,7 @@ export default function ScanPage() {
 
               <Divider />
 
-              {/* 迁移后恢复 - 显示具体收益 */}
+              {}
               <Box background="bg-fill-success-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <InlineStack gap="200" blockAlign="center">
@@ -661,7 +646,7 @@ export default function ScanPage() {
                     </Text>
                   </InlineStack>
 
-                  {/* 具体收益数字展示 */}
+                  {}
                   <InlineStack gap="400" align="space-between" wrap>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
@@ -733,7 +718,7 @@ export default function ScanPage() {
 
               <Divider />
 
-              {/* 对比卡片 */}
+              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
                   迁移前后对比
@@ -856,7 +841,7 @@ export default function ScanPage() {
             </BlockStack>
           </Card>)}
 
-        {/* Migration Actions with Delete Buttons */}
+        {}
         {latestScan && migrationActions && migrationActions.length > 0 && !isScanning && (<Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
@@ -865,26 +850,26 @@ export default function ScanPage() {
                 </Text>
                 <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
               </InlineStack>
-              
+
               {deleteFetcher.data ? (
-                <Banner 
+                <Banner
                   tone={(deleteFetcher.data as { success?: boolean }).success ? "success" : "critical"}
                   onDismiss={() => {}}
                 >
                   <Text as="p">
-                    {String((deleteFetcher.data as { message?: string }).message || 
+                    {String((deleteFetcher.data as { message?: string }).message ||
                      (deleteFetcher.data as { error?: string }).error || "操作完成")}
                   </Text>
                 </Banner>
               ) : null}
 
               {upgradeFetcher.data ? (
-                <Banner 
+                <Banner
                   tone={(upgradeFetcher.data as { success?: boolean }).success ? "success" : "critical"}
                   onDismiss={() => {}}
                 >
                   <Text as="p">
-                    {String((upgradeFetcher.data as { message?: string }).message || 
+                    {String((upgradeFetcher.data as { message?: string }).message ||
                      (upgradeFetcher.data as { error?: string }).error || "升级完成")}
                   </Text>
                 </Banner>
@@ -901,10 +886,10 @@ export default function ScanPage() {
                               {action.title}
                             </Text>
                             <Badge tone={
-                              action.priority === "high" ? "critical" : 
+                              action.priority === "high" ? "critical" :
                               action.priority === "medium" ? "warning" : "info"
                             }>
-                              {action.priority === "high" ? "高优先级" : 
+                              {action.priority === "high" ? "高优先级" :
                                action.priority === "medium" ? "中优先级" : "低优先级"}
                             </Badge>
                           </InlineStack>
@@ -916,16 +901,16 @@ export default function ScanPage() {
                           <Badge tone="warning">{`截止: ${action.deadline}`}</Badge>
                         )}
                       </InlineStack>
-                      
+
                       <Text as="p" variant="bodySm" tone="subdued">
                         {action.description}
                       </Text>
-                      
+
                       <InlineStack gap="200" align="end">
-                        {/* P0-1: ScriptTag 清理改为显示手动指南（应用无 write_script_tags 权限） */}
+                        {}
                         {action.type === "migrate_script_tag" && action.scriptTagId && (
-                          <Button 
-                            size="slim" 
+                          <Button
+                            size="slim"
                             icon={InfoIcon}
                             onClick={() => handleShowScriptTagGuidance(
                               action.scriptTagId!,
@@ -936,9 +921,9 @@ export default function ScanPage() {
                           </Button>
                         )}
                         {action.type === "remove_duplicate" && action.webPixelGid && (
-                          <Button 
-                            tone="critical" 
-                            size="slim" 
+                          <Button
+                            tone="critical"
+                            size="slim"
                             loading={isDeleting && pendingDelete?.gid === action.webPixelGid}
                             onClick={() => handleDeleteWebPixel(action.webPixelGid!, action.platform)}
                           >
@@ -946,8 +931,8 @@ export default function ScanPage() {
                           </Button>
                         )}
                         {action.type === "configure_pixel" && action.description?.includes("升级") && (
-                          <Button 
-                            size="slim" 
+                          <Button
+                            size="slim"
                             icon={RefreshIcon}
                             loading={isUpgrading}
                             onClick={handleUpgradePixelSettings}
@@ -956,8 +941,8 @@ export default function ScanPage() {
                           </Button>
                         )}
                         {action.type === "configure_pixel" && !action.description?.includes("升级") && (
-                          <Button 
-                            size="slim" 
+                          <Button
+                            size="slim"
                             url="/app/migrate"
                             icon={ArrowRightIcon}
                           >
@@ -965,8 +950,8 @@ export default function ScanPage() {
                           </Button>
                         )}
                         {action.type === "enable_capi" && (
-                          <Button 
-                            size="slim" 
+                          <Button
+                            size="slim"
                             url="/app/settings"
                             icon={ArrowRightIcon}
                           >
@@ -981,7 +966,7 @@ export default function ScanPage() {
             </BlockStack>
           </Card>)}
 
-        {/* P1-3: 迁移向导卡片 */}
+        {}
         {latestScan && !isScanning && (
           <Card>
             <BlockStack gap="400">
@@ -991,14 +976,14 @@ export default function ScanPage() {
                 </Text>
                 <Badge tone="info">P1-3 迁移闭环</Badge>
               </InlineStack>
-              
+
               <Text as="p" tone="subdued">
                 根据扫描结果，以下是完成迁移所需的步骤。点击各项可直接跳转到对应位置。
               </Text>
 
               <Divider />
 
-              {/* 分类一：Web Pixel 相关 */}
+              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   📦 Web Pixel 设置
@@ -1007,14 +992,14 @@ export default function ScanPage() {
                   Web Pixel 是 Shopify 推荐的客户端追踪方式，替代传统 ScriptTag。
                 </Text>
                 <InlineStack gap="300" wrap>
-                  <Button 
+                  <Button
                     url="https://admin.shopify.com/store/settings/customer_events"
                     external
                     icon={ShareIcon}
                   >
                     管理 Pixels（Shopify 后台）
                   </Button>
-                  <Button 
+                  <Button
                     url="/app/migrate"
                     icon={ArrowRightIcon}
                   >
@@ -1025,7 +1010,7 @@ export default function ScanPage() {
 
               <Divider />
 
-              {/* 分类二：Checkout Editor 相关 */}
+              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   🛒 Checkout Editor（Plus 专属）
@@ -1034,14 +1019,14 @@ export default function ScanPage() {
                   如果您是 Shopify Plus 商家，可以使用 Checkout UI Extension 替代 Additional Scripts。
                 </Text>
                 <InlineStack gap="300" wrap>
-                  <Button 
+                  <Button
                     url="https://admin.shopify.com/store/settings/checkout/editor"
                     external
                     icon={ShareIcon}
                   >
                     打开 Checkout Editor
                   </Button>
-                  <Button 
+                  <Button
                     url="https://shopify.dev/docs/apps/checkout/thank-you-order-status"
                     external
                     icon={InfoIcon}
@@ -1053,7 +1038,7 @@ export default function ScanPage() {
 
               <Divider />
 
-              {/* 分类三：迁移清单 */}
+              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   📋 迁移清单
@@ -1061,7 +1046,7 @@ export default function ScanPage() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   生成可导出的迁移步骤清单，方便团队协作或记录进度。
                 </Text>
-                
+
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <Text as="p" fontWeight="semibold">待迁移项目：</Text>
@@ -1081,9 +1066,9 @@ export default function ScanPage() {
                         <List.Item>...还有 {migrationActions.length - 5} 项</List.Item>
                       )}
                     </List>
-                    
+
                     <InlineStack gap="200" align="end">
-                      <Button 
+                      <Button
                         icon={ClipboardIcon}
                         onClick={() => {
                           const checklist = [
@@ -1092,7 +1077,7 @@ export default function ScanPage() {
                             `生成时间: ${new Date().toLocaleString("zh-CN")}`,
                             "",
                             "## 待处理项目",
-                            ...(migrationActions?.map((a, i) => 
+                            ...(migrationActions?.map((a, i) =>
                               `${i + 1}. [${a.priority === "high" ? "高" : a.priority === "medium" ? "中" : "低"}] ${a.title}${a.platform ? ` (${a.platform})` : ""}`
                             ) || ["无"]),
                             "",
@@ -1106,7 +1091,7 @@ export default function ScanPage() {
                       >
                         复制清单
                       </Button>
-                      <Button 
+                      <Button
                         icon={ExportIcon}
                         onClick={() => {
                           const checklist = [
@@ -1115,7 +1100,7 @@ export default function ScanPage() {
                             `生成时间: ${new Date().toLocaleString("zh-CN")}`,
                             "",
                             "待处理项目:",
-                            ...(migrationActions?.map((a, i) => 
+                            ...(migrationActions?.map((a, i) =>
                               `${i + 1}. [${a.priority === "high" ? "高优先级" : a.priority === "medium" ? "中优先级" : "低优先级"}] ${a.title}${a.platform ? ` (${a.platform})` : ""}`
                             ) || ["无"]),
                           ].join("\n");
@@ -1137,7 +1122,7 @@ export default function ScanPage() {
 
               <Divider />
 
-              {/* 替代方案分类 */}
+              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   🔄 替代方案一览
@@ -1401,23 +1386,20 @@ export default function ScanPage() {
                     </InlineStack>
                     <BlockStack gap="300">
                       {analysisResult.recommendations.map((rec, index) => {
-                        // Simple parsing of the recommendation text
+
                         const lines = rec.split('\n');
                         const titleLine = lines[0] || "";
                         const titleMatch = titleLine.match(/\*\*(.*?)\*\*/);
                         const title = titleMatch ? titleMatch[1] : titleLine.replace(/^[^\w\u4e00-\u9fa5]+/, '');
                         const details = lines.slice(1).map(l => l.trim()).filter(l => l.length > 0);
-                        
-                        // Extract link if exists
+
                         const linkLine = details.find(l => l.includes("http"));
                         const urlMatch = linkLine?.match(/(https?:\/\/[^\s]+)/);
                         const url = urlMatch ? urlMatch[1] : null;
-                        
-                        // Determine action
+
                         const isInternal = title.includes("Google Analytics") || title.includes("Meta Pixel") || title.includes("TikTok");
                         const isExternal = !!url;
 
-                        // Check if it's the summary checklist
                         if (rec.includes("迁移清单建议")) {
                            return (
                              <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -1472,7 +1454,7 @@ export default function ScanPage() {
             </BlockStack>)}
         </Tabs>
 
-        {/* P0-1: ScriptTag Cleanup Guidance Modal */}
+        {}
         <Modal
           open={guidanceModalOpen}
           onClose={closeGuidanceModal}
@@ -1496,7 +1478,7 @@ export default function ScanPage() {
                   请按照以下步骤手动清理，或等待原创建应用自动处理。
                 </Text>
               </Banner>
-              
+
               <BlockStack gap="200">
                 <Text as="p" fontWeight="semibold">推荐清理步骤：</Text>
                 <List type="number">
@@ -1552,7 +1534,7 @@ export default function ScanPage() {
           </Modal.Section>
         </Modal>
 
-        {/* WebPixel Delete Confirmation Modal */}
+        {}
         <Modal
           open={deleteModalOpen}
           onClose={closeDeleteModal}

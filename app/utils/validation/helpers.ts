@@ -1,20 +1,9 @@
-/**
- * Validation Helpers
- *
- * Additional validation utility functions.
- */
+
 
 import { AppError, ErrorCode } from "../errors/index";
 import type { Result } from "../../types/result";
 import { ok, err } from "../../types/result";
 
-// =============================================================================
-// Required Field Validation
-// =============================================================================
-
-/**
- * Require a value is present (not null/undefined)
- */
 export function require<T>(
   value: T | null | undefined,
   fieldName: string
@@ -32,9 +21,6 @@ export function require<T>(
   return ok(value);
 }
 
-/**
- * Require a string is not empty
- */
 export function requireNonEmpty(
   value: string | null | undefined,
   fieldName: string
@@ -52,13 +38,6 @@ export function requireNonEmpty(
   return ok(value.trim());
 }
 
-// =============================================================================
-// Format Validation
-// =============================================================================
-
-/**
- * Validate email format
- */
 export function validateEmail(email: string): Result<string, AppError> {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
@@ -74,9 +53,6 @@ export function validateEmail(email: string): Result<string, AppError> {
   return ok(email.toLowerCase());
 }
 
-/**
- * Validate URL format
- */
 export function validateUrl(url: string): Result<URL, AppError> {
   try {
     return ok(new URL(url));
@@ -92,9 +68,6 @@ export function validateUrl(url: string): Result<URL, AppError> {
   }
 }
 
-/**
- * Validate numeric value in range
- */
 export function validateRange(
   value: number,
   min: number,
@@ -114,15 +87,11 @@ export function validateRange(
   return ok(value);
 }
 
-/**
- * Validate Shopify domain format
- */
 export function validateShopDomain(
   domain: string
 ): Result<string, AppError> {
   const normalized = domain.toLowerCase().trim();
-  
-  // Must end with .myshopify.com
+
   if (!normalized.endsWith(".myshopify.com")) {
     return err(
       new AppError(
@@ -134,7 +103,6 @@ export function validateShopDomain(
     );
   }
 
-  // Extract shop name and validate
   const shopName = normalized.replace(".myshopify.com", "");
   if (!shopName || !/^[a-z0-9-]+$/.test(shopName)) {
     return err(
@@ -150,20 +118,15 @@ export function validateShopDomain(
   return ok(normalized);
 }
 
-/**
- * Validate Shopify Order ID format
- */
 export function validateOrderId(
   orderId: string
 ): Result<string, AppError> {
   const trimmed = orderId.trim();
 
-  // Allow numeric IDs
   if (/^\d+$/.test(trimmed)) {
     return ok(trimmed);
   }
 
-  // Allow GID format: gid://shopify/Order/123456
   if (trimmed.startsWith("gid://shopify/Order/")) {
     const id = trimmed.replace("gid://shopify/Order/", "");
     if (/^\d+$/.test(id)) {

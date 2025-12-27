@@ -19,7 +19,7 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   return json({
     lastUpdated: "December 2024",
-    contactEmail: "support@tracking-guardian.app", // Replace with actual email
+    contactEmail: "support@tracking-guardian.app",
   });
 };
 

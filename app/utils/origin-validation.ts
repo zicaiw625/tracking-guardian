@@ -6,33 +6,19 @@ export const SHOPIFY_ALLOWLIST = [
     "shopifypreview.com",
 ] as const;
 
-/**
- * PR-5: 收紧 Pixel API 的 origin 要求
- * 
- * 生产环境默认不允许 null origin（避免非浏览器请求灌水）。
- * 可以通过以下方式启用 null origin：
- * 1. 设置 PIXEL_ALLOW_NULL_ORIGIN=true
- * 2. 开发环境（NODE_ENV=development 或 test）
- * 
- * 注意：Shopify Web Pixel 可能发送 origin="null"（sandbox 环境），
- * 如果需要支持，可以设置 PIXEL_ALLOW_NULL_ORIGIN=true。
- */
 function shouldAllowNullOrigin(): boolean {
-    // 检查环境变量显式设置
+
     const envValue = process.env.PIXEL_ALLOW_NULL_ORIGIN;
     if (envValue) {
         const normalized = envValue.toLowerCase();
         return normalized === "true" || normalized === "1" || normalized === "yes";
     }
-    
-    // PR-5: 开发/测试环境默认允许 null origin（便于本地调试）
+
     const nodeEnv = process.env.NODE_ENV;
     if (nodeEnv === "development" || nodeEnv === "test") {
         return true;
     }
-    
-    // PR-5: 生产环境默认不允许 null origin（安全加固）
-    // 这可以防止 curl/脚本等非浏览器请求灌水
+
     return false;
 }
 const ALLOWED_ORIGIN_PATTERNS: Array<{
@@ -77,11 +63,7 @@ interface RejectedOriginTracker {
 const rejectedOrigins = new Map<string, RejectedOriginTracker>();
 const TRACKING_WINDOW_MS = 60 * 60 * 1000;
 const ALERT_THRESHOLD = 10;
-/**
- * Maximum number of unique origins to track.
- * Prevents memory exhaustion under attack scenarios.
- * When limit is reached, oldest entries are evicted.
- */
+
 const MAX_TRACKED_ORIGINS = 10000;
 export function isDevMode(): boolean {
     const nodeEnv = process.env.NODE_ENV;
@@ -322,12 +304,12 @@ function trackRejectedOrigin(origin: string): void {
     const sanitizedOrigin = sanitizeOriginForLogging(origin);
     const existing = rejectedOrigins.get(sanitizedOrigin);
     if (!existing || (now - existing.firstSeen) > TRACKING_WINDOW_MS) {
-        // Before adding a new entry, check size limit
+
         if (rejectedOrigins.size >= MAX_TRACKED_ORIGINS) {
-            // Evict oldest entries (up to 10% of max size)
+
             evictOldestEntries(Math.ceil(MAX_TRACKED_ORIGINS * 0.1));
         }
-        
+
         rejectedOrigins.set(sanitizedOrigin, {
             count: 1,
             firstSeen: now,
@@ -348,23 +330,17 @@ function trackRejectedOrigin(origin: string): void {
     }
 }
 
-/**
- * Evict oldest entries from the tracking map to prevent memory growth.
- * Uses LRU-style eviction based on lastSeen timestamp.
- */
 function evictOldestEntries(count: number): void {
     if (rejectedOrigins.size === 0) return;
-    
-    // Convert to array and sort by lastSeen (oldest first)
+
     const entries = Array.from(rejectedOrigins.entries())
         .sort((a, b) => a[1].lastSeen - b[1].lastSeen);
-    
-    // Remove the oldest entries
+
     const toRemove = entries.slice(0, count);
     for (const [origin] of toRemove) {
         rejectedOrigins.delete(origin);
     }
-    
+
     if (toRemove.length > 0) {
         logger.info(`[Origin Tracking] Evicted ${toRemove.length} stale entries (size limit: ${MAX_TRACKED_ORIGINS})`);
     }

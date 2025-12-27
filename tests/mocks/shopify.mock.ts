@@ -1,14 +1,6 @@
-/**
- * Shopify API Mocks
- *
- * Mock implementations for Shopify Admin API and webhooks.
- */
+
 
 import { vi, type Mock } from "vitest";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export interface MockSession {
   id: string;
@@ -45,13 +37,6 @@ export interface MockWebhookContext {
   admin?: MockAdminApi;
 }
 
-// =============================================================================
-// Factory Functions
-// =============================================================================
-
-/**
- * Create a mock session
- */
 export function createMockSession(overrides: Partial<MockSession> = {}): MockSession {
   return {
     id: `offline_test-shop.myshopify.com`,
@@ -64,9 +49,6 @@ export function createMockSession(overrides: Partial<MockSession> = {}): MockSes
   };
 }
 
-/**
- * Create a mock GraphQL response
- */
 export function createMockGraphQLResponse<T>(data: T, errors?: Array<{ message: string }>): {
   json: () => Promise<{ data: T; errors?: Array<{ message: string }> }>;
 } {
@@ -75,9 +57,6 @@ export function createMockGraphQLResponse<T>(data: T, errors?: Array<{ message: 
   };
 }
 
-/**
- * Create a mock Admin API
- */
 export function createMockAdminApi(): MockAdminApi {
   const graphql = vi.fn().mockResolvedValue(
     createMockGraphQLResponse({
@@ -99,9 +78,6 @@ export function createMockAdminApi(): MockAdminApi {
   };
 }
 
-/**
- * Create a mock Admin context
- */
 export function createMockAdminContext(overrides: Partial<MockAdminContext> = {}): MockAdminContext {
   return {
     session: createMockSession(overrides.session),
@@ -109,9 +85,6 @@ export function createMockAdminContext(overrides: Partial<MockAdminContext> = {}
   };
 }
 
-/**
- * Create a mock webhook context
- */
 export function createMockWebhookContext(
   topic: string,
   payload: unknown,
@@ -126,13 +99,6 @@ export function createMockWebhookContext(
   };
 }
 
-// =============================================================================
-// Order Webhook Payloads
-// =============================================================================
-
-/**
- * Create a mock ORDERS_PAID webhook payload
- */
 export function createMockOrderPayload(overrides: Partial<MockOrderPayload> = {}): MockOrderPayload {
   return {
     id: 12345678901234,
@@ -279,13 +245,6 @@ export interface MockLineItem {
   price: string;
 }
 
-// =============================================================================
-// GDPR Webhook Payloads
-// =============================================================================
-
-/**
- * Create a mock GDPR data request payload
- */
 export function createMockGDPRDataRequestPayload(): {
   shop_id: number;
   shop_domain: string;
@@ -303,9 +262,6 @@ export function createMockGDPRDataRequestPayload(): {
   };
 }
 
-/**
- * Create a mock GDPR customer redact payload
- */
 export function createMockGDPRCustomerRedactPayload(): {
   shop_id: number;
   shop_domain: string;
@@ -323,9 +279,6 @@ export function createMockGDPRCustomerRedactPayload(): {
   };
 }
 
-/**
- * Create a mock GDPR shop redact payload
- */
 export function createMockGDPRShopRedactPayload(): {
   shop_id: number;
   shop_domain: string;
@@ -336,13 +289,6 @@ export function createMockGDPRShopRedactPayload(): {
   };
 }
 
-// =============================================================================
-// GraphQL Response Mocks
-// =============================================================================
-
-/**
- * Create a mock shop query response
- */
 export function createMockShopQueryResponse(options: {
   shopifyPlus?: boolean;
   primaryDomain?: string;
@@ -360,9 +306,6 @@ export function createMockShopQueryResponse(options: {
   });
 }
 
-/**
- * Create a mock webhook subscription response
- */
 export function createMockWebhookSubscriptionResponse(
   topics: string[] = []
 ): ReturnType<typeof createMockGraphQLResponse> {
@@ -383,9 +326,6 @@ export function createMockWebhookSubscriptionResponse(
   });
 }
 
-/**
- * Create a mock web pixel create response
- */
 export function createMockWebPixelCreateResponse(
   success: boolean,
   pixelId?: string
@@ -406,19 +346,12 @@ export function createMockWebPixelCreateResponse(
   });
 }
 
-// =============================================================================
-// Authentication Mock
-// =============================================================================
-
 let mockAuthenticate: {
   admin: Mock;
   webhook: Mock;
   public: { appProxy: Mock };
 } | null = null;
 
-/**
- * Create mock authenticate object
- */
 export function createMockAuthenticate(): typeof mockAuthenticate {
   mockAuthenticate = {
     admin: vi.fn().mockResolvedValue(createMockAdminContext()),
@@ -437,9 +370,6 @@ export function createMockAuthenticate(): typeof mockAuthenticate {
   return mockAuthenticate;
 }
 
-/**
- * Get or create mock authenticate
- */
 export function getMockAuthenticate(): NonNullable<typeof mockAuthenticate> {
   if (!mockAuthenticate) {
     createMockAuthenticate();
@@ -447,9 +377,6 @@ export function getMockAuthenticate(): NonNullable<typeof mockAuthenticate> {
   return mockAuthenticate!;
 }
 
-/**
- * Reset mock authenticate
- */
 export function resetMockAuthenticate(): void {
   if (mockAuthenticate) {
     mockAuthenticate.admin.mockReset();

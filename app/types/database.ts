@@ -1,26 +1,14 @@
-/**
- * Database Type Definitions
- * 
- * Type-safe interfaces for Prisma Json fields and database operations.
- * These types ensure consistency when reading/writing Json columns.
- */
 
-import type { 
-  JobStatusType, 
-  TrustLevelType, 
+
+import type {
+  JobStatusType,
+  TrustLevelType,
   SignatureStatusType,
   PlatformType,
   ConsentStrategyType,
 } from './enums';
 import { ok, err, type Result } from './result';
 
-// =============================================================================
-// ConversionJob CAPI Input
-// =============================================================================
-
-/**
- * Line item structure in CAPI input.
- */
 export interface CapiLineItem {
   productId?: string;
   variantId?: string;
@@ -30,26 +18,17 @@ export interface CapiLineItem {
   price: number;
 }
 
-/**
- * P1-2: 预哈希的 PII 数据
- * 这些字段已经是 SHA256 哈希值，平台 service 可以直接使用。
- */
 export interface HashedUserDataJson {
-  em?: string;  // hashed email
-  ph?: string;  // hashed phone
-  fn?: string;  // hashed first name
-  ln?: string;  // hashed last name
-  ct?: string;  // hashed city
-  st?: string;  // hashed state
-  country?: string;  // hashed country
-  zp?: string;  // hashed zip
+  em?: string;
+  ph?: string;
+  fn?: string;
+  ln?: string;
+  ct?: string;
+  st?: string;
+  country?: string;
+  zp?: string;
 }
 
-/**
- * CAPI input stored in ConversionJob.capiInput.
- * Contains minimal data needed for platform API calls.
- * NO raw PII - only hashed versions if needed.
- */
 export interface CapiInputJson {
   orderId: string;
   value: number;
@@ -64,21 +43,17 @@ export interface CapiInputJson {
   webhookReceivedAt?: string;
   checkoutToken?: string | null;
   shopifyOrderId?: number | string;
-  // P1-2: 预哈希的 PII 数据（可选）
+
   hashedUserData?: HashedUserDataJson | null;
 }
 
-/**
- * Parse and validate CAPI input from database Json field.
- */
 export function parseCapiInput(json: unknown): CapiInputJson | null {
   if (!json || typeof json !== 'object') {
     return null;
   }
 
   const data = json as Record<string, unknown>;
-  
-  // Validate required fields
+
   if (typeof data.orderId !== 'string' || typeof data.value !== 'number') {
     return null;
   }
@@ -96,18 +71,14 @@ export function parseCapiInput(json: unknown): CapiInputJson | null {
     processedAt: typeof data.processedAt === 'string' ? data.processedAt : undefined,
     webhookReceivedAt: typeof data.webhookReceivedAt === 'string' ? data.webhookReceivedAt : undefined,
     checkoutToken: typeof data.checkoutToken === 'string' ? data.checkoutToken : null,
-    shopifyOrderId: typeof data.shopifyOrderId === 'number' || typeof data.shopifyOrderId === 'string' 
-      ? data.shopifyOrderId 
+    shopifyOrderId: typeof data.shopifyOrderId === 'number' || typeof data.shopifyOrderId === 'string'
+      ? data.shopifyOrderId
       : undefined,
-    // PR-1: 修复预哈希 PII 数据解析
+
     hashedUserData: parseHashedUserData(data.hashedUserData),
   };
 }
 
-/**
- * Parse hashed user data from CAPI input.
- * Returns null if no valid hashed data is present.
- */
 function parseHashedUserData(json: unknown): HashedUserDataJson | null {
   if (!json || typeof json !== 'object') {
     return null;
@@ -116,7 +87,6 @@ function parseHashedUserData(json: unknown): HashedUserDataJson | null {
   const data = json as Record<string, unknown>;
   const result: HashedUserDataJson = {};
 
-  // Only include fields that are non-empty strings (SHA256 hashes)
   if (typeof data.em === 'string' && data.em) result.em = data.em;
   if (typeof data.ph === 'string' && data.ph) result.ph = data.ph;
   if (typeof data.fn === 'string' && data.fn) result.fn = data.fn;
@@ -126,14 +96,13 @@ function parseHashedUserData(json: unknown): HashedUserDataJson | null {
   if (typeof data.country === 'string' && data.country) result.country = data.country;
   if (typeof data.zp === 'string' && data.zp) result.zp = data.zp;
 
-  // Return null if no fields were parsed
   return Object.keys(result).length > 0 ? result : null;
 }
 
 function parseCapiLineItem(item: unknown): CapiLineItem | null {
   if (!item || typeof item !== 'object') return null;
   const data = item as Record<string, unknown>;
-  
+
   return {
     productId: typeof data.productId === 'string' ? data.productId : undefined,
     variantId: typeof data.variantId === 'string' ? data.variantId : undefined,
@@ -144,29 +113,19 @@ function parseCapiLineItem(item: unknown): CapiLineItem | null {
   };
 }
 
-// =============================================================================
-// Consent State
-// =============================================================================
-
-/**
- * Consent state stored in PixelEventReceipt.consentState.
- */
 export interface ConsentStateJson {
   marketing?: boolean;
   analytics?: boolean;
   saleOfData?: boolean;
 }
 
-/**
- * Parse consent state from database Json field.
- */
 export function parseConsentState(json: unknown): ConsentStateJson | null {
   if (!json || typeof json !== 'object') {
     return null;
   }
 
   const data = json as Record<string, unknown>;
-  
+
   return {
     marketing: typeof data.marketing === 'boolean' ? data.marketing : undefined,
     analytics: typeof data.analytics === 'boolean' ? data.analytics : undefined,
@@ -174,13 +133,6 @@ export function parseConsentState(json: unknown): ConsentStateJson | null {
   };
 }
 
-// =============================================================================
-// Consent Evidence
-// =============================================================================
-
-/**
- * Consent evidence stored in ConversionJob.consentEvidence.
- */
 export interface ConsentEvidenceJson {
   strategy: ConsentStrategyType;
   hasReceipt: boolean;
@@ -191,16 +143,13 @@ export interface ConsentEvidenceJson {
   reason?: string;
 }
 
-/**
- * Parse consent evidence from database Json field.
- */
 export function parseConsentEvidence(json: unknown): ConsentEvidenceJson | null {
   if (!json || typeof json !== 'object') {
     return null;
   }
 
   const data = json as Record<string, unknown>;
-  
+
   return {
     strategy: (data.strategy as ConsentStrategyType) || 'strict',
     hasReceipt: data.hasReceipt === true,
@@ -212,13 +161,6 @@ export function parseConsentEvidence(json: unknown): ConsentEvidenceJson | null 
   };
 }
 
-// =============================================================================
-// Trust Metadata
-// =============================================================================
-
-/**
- * Trust metadata stored in ConversionJob.trustMetadata.
- */
 export interface TrustMetadataJson {
   trustLevel: TrustLevelType;
   reason?: string;
@@ -230,16 +172,13 @@ export interface TrustMetadataJson {
   originValidated?: boolean;
 }
 
-/**
- * Parse trust metadata from database Json field.
- */
 export function parseTrustMetadata(json: unknown): TrustMetadataJson | null {
   if (!json || typeof json !== 'object') {
     return null;
   }
 
   const data = json as Record<string, unknown>;
-  
+
   return {
     trustLevel: (data.trustLevel as TrustLevelType) || 'unknown',
     reason: typeof data.reason === 'string' ? data.reason : undefined,
@@ -252,18 +191,8 @@ export function parseTrustMetadata(json: unknown): TrustMetadataJson | null {
   };
 }
 
-// =============================================================================
-// Platform Results
-// =============================================================================
-
-/**
- * Platform results stored in ConversionJob.platformResults.
- */
 export type PlatformResultsJson = Record<PlatformType | string, string>;
 
-/**
- * Parse platform results from database Json field.
- */
 export function parsePlatformResults(json: unknown): PlatformResultsJson {
   if (!json || typeof json !== 'object') {
     return {};
@@ -271,79 +200,53 @@ export function parsePlatformResults(json: unknown): PlatformResultsJson {
 
   const data = json as Record<string, unknown>;
   const results: PlatformResultsJson = {};
-  
+
   for (const [key, value] of Object.entries(data)) {
     if (typeof value === 'string') {
       results[key] = value;
     }
   }
-  
+
   return results;
 }
 
-// =============================================================================
-// Alert Settings
-// =============================================================================
-
-/**
- * Email alert settings.
- */
 export interface EmailAlertSettingsJson {
   email: string;
   emailMasked?: string;
 }
 
-/**
- * Slack alert settings.
- */
 export interface SlackAlertSettingsJson {
   webhookUrl: string;
   configured?: boolean;
 }
 
-/**
- * Telegram alert settings.
- */
 export interface TelegramAlertSettingsJson {
   botToken: string;
   chatId: string;
   botTokenMasked?: string;
 }
 
-/**
- * Union of all alert settings types.
- */
-export type AlertSettingsJson = 
-  | EmailAlertSettingsJson 
-  | SlackAlertSettingsJson 
+export type AlertSettingsJson =
+  | EmailAlertSettingsJson
+  | SlackAlertSettingsJson
   | TelegramAlertSettingsJson;
 
-// =============================================================================
-// Pixel Config Client Config
-// =============================================================================
-
-/**
- * Client configuration stored in PixelConfig.clientConfig.
- */
 export interface PixelClientConfigJson {
   treatAsMarketing?: boolean;
   conversionLabels?: string[];
   eventMappings?: Record<string, string>;
 }
 
-/**
- * Parse pixel client config from database Json field.
- */
 export function parsePixelClientConfig(json: unknown): PixelClientConfigJson | null {
   if (!json || typeof json !== 'object') {
     return null;
   }
 
   const data = json as Record<string, unknown>;
-  
+
   return {
     treatAsMarketing: typeof data.treatAsMarketing === 'boolean' ? data.treatAsMarketing : undefined,
-    conversionLabels: Array.isArray(data.conversionLabels) 
+    conversionLabels: Array.isArray(data.conversionLabels)
       ? data.conversionLabels.filter((l): l is string => typeof l === 'string')
       : undefined,
     eventMappings: data.eventMappings && typeof data.eventMappings === 'object'
@@ -352,13 +255,6 @@ export function parsePixelClientConfig(json: unknown): PixelClientConfigJson | n
   };
 }
 
-// =============================================================================
-// Scan Report Risk Items
-// =============================================================================
-
-/**
- * Risk item in scan report.
- */
 export interface RiskItemJson {
   id: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
@@ -368,21 +264,18 @@ export interface RiskItemJson {
   recommendation?: string;
 }
 
-/**
- * Parse risk items from database Json field.
- */
 export function parseRiskItems(json: unknown): RiskItemJson[] {
   if (!Array.isArray(json)) {
     return [];
   }
 
   return json
-    .filter((item): item is Record<string, unknown> => 
+    .filter((item): item is Record<string, unknown> =>
       item !== null && typeof item === 'object'
     )
     .map(item => ({
       id: typeof item.id === 'string' ? item.id : '',
-      severity: ['low', 'medium', 'high', 'critical'].includes(item.severity as string) 
+      severity: ['low', 'medium', 'high', 'critical'].includes(item.severity as string)
         ? item.severity as RiskItemJson['severity']
         : 'low',
       title: typeof item.title === 'string' ? item.title : '',
@@ -393,28 +286,14 @@ export function parseRiskItems(json: unknown): RiskItemJson[] {
     .filter(item => item.id && item.title);
 }
 
-// =============================================================================
-// Identified Platforms
-// =============================================================================
-
-/**
- * Parse identified platforms from database Json field.
- */
 export function parseIdentifiedPlatforms(json: unknown): string[] {
   if (!Array.isArray(json)) {
     return [];
   }
-  
+
   return json.filter((p): p is string => typeof p === 'string');
 }
 
-// =============================================================================
-// Platform Response
-// =============================================================================
-
-/**
- * Platform API response structure.
- */
 export interface PlatformResponseJson {
   success?: boolean;
   events_received?: number;
@@ -427,23 +306,20 @@ export interface PlatformResponseJson {
   };
 }
 
-/**
- * Parse platform response from database Json field.
- */
 export function parsePlatformResponse(json: unknown): PlatformResponseJson | null {
   if (!json || typeof json !== 'object') {
     return null;
   }
 
   const data = json as Record<string, unknown>;
-  
+
   return {
     success: typeof data.success === 'boolean' ? data.success : undefined,
     events_received: typeof data.events_received === 'number' ? data.events_received : undefined,
     fbtrace_id: typeof data.fbtrace_id === 'string' ? data.fbtrace_id : undefined,
     conversionId: typeof data.conversionId === 'string' ? data.conversionId : undefined,
     timestamp: typeof data.timestamp === 'string' ? data.timestamp : undefined,
-    error: data.error && typeof data.error === 'object' 
+    error: data.error && typeof data.error === 'object'
       ? {
           code: typeof (data.error as Record<string, unknown>).code === 'number' || typeof (data.error as Record<string, unknown>).code === 'string'
             ? (data.error as Record<string, unknown>).code as number | string
@@ -456,31 +332,14 @@ export function parsePlatformResponse(json: unknown): PlatformResponseJson | nul
   };
 }
 
-// =============================================================================
-// Audit Log Metadata
-// =============================================================================
-
-/**
- * Audit log metadata structure.
- */
 export interface AuditMetadataJson {
   [key: string]: unknown;
 }
 
-// =============================================================================
-// Type Guards
-// =============================================================================
-
-/**
- * Check if json is valid CapiInputJson.
- */
 export function isCapiInputJson(json: unknown): json is CapiInputJson {
   return parseCapiInput(json) !== null;
 }
 
-/**
- * Check if json is valid ConsentStateJson.
- */
 export function isConsentStateJson(json: unknown): json is ConsentStateJson {
   if (!json || typeof json !== 'object') return false;
   const data = json as Record<string, unknown>;
@@ -491,27 +350,18 @@ export function isConsentStateJson(json: unknown): json is ConsentStateJson {
   );
 }
 
-/**
- * Check if json is valid ConsentEvidenceJson.
- */
 export function isConsentEvidenceJson(json: unknown): json is ConsentEvidenceJson {
   if (!json || typeof json !== 'object') return false;
   const data = json as Record<string, unknown>;
   return typeof data.strategy === 'string' && typeof data.hasReceipt === 'boolean';
 }
 
-/**
- * Check if json is valid TrustMetadataJson.
- */
 export function isTrustMetadataJson(json: unknown): json is TrustMetadataJson {
   if (!json || typeof json !== 'object') return false;
   const data = json as Record<string, unknown>;
   return typeof data.trustLevel === 'string';
 }
 
-/**
- * Check if json is valid RiskItemJson.
- */
 export function isRiskItemJson(json: unknown): json is RiskItemJson {
   if (!json || typeof json !== 'object') return false;
   const data = json as Record<string, unknown>;
@@ -523,131 +373,65 @@ export function isRiskItemJson(json: unknown): json is RiskItemJson {
   );
 }
 
-/**
- * Check if value is a valid PlatformType.
- */
 export function isPlatformType(value: unknown): value is PlatformType {
   return typeof value === 'string' && ['meta', 'google', 'tiktok'].includes(value);
 }
 
-/**
- * Check if value is a valid TrustLevelType.
- */
 export function isTrustLevelType(value: unknown): value is TrustLevelType {
   return typeof value === 'string' && ['full', 'partial', 'weak', 'none', 'unknown'].includes(value);
 }
 
-/**
- * Check if value is a valid JobStatusType.
- */
 export function isJobStatusType(value: unknown): value is JobStatusType {
   return typeof value === 'string' && ['pending', 'processing', 'success', 'failed', 'dead_letter'].includes(value);
 }
 
-/**
- * Check if value is a valid ConsentStrategyType.
- */
 export function isConsentStrategyType(value: unknown): value is ConsentStrategyType {
   return typeof value === 'string' && ['strict', 'balanced'].includes(value);
 }
 
-// =============================================================================
-// Safe Cast Helpers
-// =============================================================================
-
-/**
- * Safely cast unknown to CapiInputJson with fallback.
- */
 export function toCapiInputJson(json: unknown): CapiInputJson | null {
   return parseCapiInput(json);
 }
 
-/**
- * Safely cast unknown to ConsentStateJson with fallback.
- */
 export function toConsentStateJson(json: unknown): ConsentStateJson {
   return parseConsentState(json) ?? {};
 }
 
-/**
- * Safely cast unknown to ConsentEvidenceJson with fallback.
- */
 export function toConsentEvidenceJson(json: unknown): ConsentEvidenceJson | null {
   return parseConsentEvidence(json);
 }
 
-/**
- * Safely cast unknown to TrustMetadataJson with fallback.
- */
 export function toTrustMetadataJson(json: unknown): TrustMetadataJson | null {
   return parseTrustMetadata(json);
 }
 
-/**
- * Safely cast unknown to PlatformResultsJson with fallback.
- */
 export function toPlatformResultsJson(json: unknown): PlatformResultsJson {
   return parsePlatformResults(json);
 }
 
-/**
- * Assert value is a string or return default.
- */
 export function asString(value: unknown, fallback: string = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
-/**
- * Assert value is a number or return default.
- */
 export function asNumber(value: unknown, fallback: number = 0): number {
   return typeof value === 'number' && !isNaN(value) ? value : fallback;
 }
 
-/**
- * Assert value is a boolean or return default.
- */
 export function asBoolean(value: unknown, fallback: boolean = false): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
-/**
- * Assert value is an array or return default.
- */
 export function asArray<T>(value: unknown, fallback: T[] = []): T[] {
   return Array.isArray(value) ? value as T[] : fallback;
 }
 
-// =============================================================================
-// Type-Safe Json Parser Factory
-// =============================================================================
-
-/**
- * Parser options for type-safe parsing.
- */
 export interface ParserOptions<T> {
-  /** Fallback value if parsing fails */
+
   fallback?: T;
-  /** Whether to log parsing errors */
+
   logErrors?: boolean;
 }
 
-/**
- * Create a type-safe parser for Prisma Json fields.
- * 
- * @example
- * ```typescript
- * const parseMyJson = createJsonParser<MyType>(
- *   (data) => ({
- *     field1: asString(data.field1),
- *     field2: asNumber(data.field2),
- *   }),
- *   (data) => typeof data.field1 === 'string'
- * );
- * 
- * const result = parseMyJson(prismaRecord.jsonField);
- * ```
- */
 export function createJsonParser<T>(
   mapper: (data: Record<string, unknown>) => T,
   validator?: (data: Record<string, unknown>) => boolean
@@ -674,9 +458,6 @@ export function createJsonParser<T>(
   };
 }
 
-/**
- * Create a type-safe array parser for Prisma Json array fields.
- */
 export function createJsonArrayParser<T>(
   itemParser: (item: unknown) => T | null
 ): (json: unknown) => T[] {
@@ -691,22 +472,12 @@ export function createJsonArrayParser<T>(
   };
 }
 
-// =============================================================================
-// Enhanced Parsers with Result Type
-// =============================================================================
-
-/**
- * Parse error type for database Json fields.
- */
 export interface JsonParseError {
   type: 'INVALID_JSON' | 'MISSING_FIELD' | 'INVALID_TYPE' | 'VALIDATION_FAILED';
   message: string;
   field?: string;
 }
 
-/**
- * Parse CAPI input with Result type.
- */
 export function parseCapiInputResult(json: unknown): Result<CapiInputJson, JsonParseError> {
   if (!json || typeof json !== 'object') {
     return err({ type: 'INVALID_JSON', message: 'Expected object' });
@@ -727,11 +498,11 @@ export function parseCapiInputResult(json: unknown): Result<CapiInputJson, JsonP
     value: data.value,
     currency: asString(data.currency, 'USD'),
     orderNumber: typeof data.orderNumber === 'string' ? data.orderNumber : null,
-    items: Array.isArray(data.items) 
-      ? data.items.map(parseCapiLineItem).filter(Boolean) as CapiLineItem[] 
+    items: Array.isArray(data.items)
+      ? data.items.map(parseCapiLineItem).filter(Boolean) as CapiLineItem[]
       : undefined,
-    contentIds: Array.isArray(data.contentIds) 
-      ? data.contentIds.filter((id): id is string => typeof id === 'string') 
+    contentIds: Array.isArray(data.contentIds)
+      ? data.contentIds.filter((id): id is string => typeof id === 'string')
       : undefined,
     numItems: asNumber(data.numItems) || undefined,
     tax: asNumber(data.tax) || undefined,
@@ -745,9 +516,6 @@ export function parseCapiInputResult(json: unknown): Result<CapiInputJson, JsonP
   });
 }
 
-/**
- * Parse consent state with Result type.
- */
 export function parseConsentStateResult(json: unknown): Result<ConsentStateJson, JsonParseError> {
   if (!json || typeof json !== 'object') {
     return err({ type: 'INVALID_JSON', message: 'Expected object' });
@@ -755,7 +523,6 @@ export function parseConsentStateResult(json: unknown): Result<ConsentStateJson,
 
   const data = json as Record<string, unknown>;
 
-  // Validate boolean fields if present
   if (data.marketing !== undefined && typeof data.marketing !== 'boolean') {
     return err({ type: 'INVALID_TYPE', message: 'marketing must be boolean', field: 'marketing' });
   }
@@ -773,13 +540,6 @@ export function parseConsentStateResult(json: unknown): Result<ConsentStateJson,
   });
 }
 
-// =============================================================================
-// Strict Type Extractors
-// =============================================================================
-
-/**
- * Extract a required string field or throw.
- */
 export function requireString(value: unknown, fieldName: string): string {
   if (typeof value !== 'string') {
     throw new Error(`${fieldName} must be a string, got ${typeof value}`);
@@ -787,9 +547,6 @@ export function requireString(value: unknown, fieldName: string): string {
   return value;
 }
 
-/**
- * Extract a required number field or throw.
- */
 export function requireNumber(value: unknown, fieldName: string): number {
   if (typeof value !== 'number' || isNaN(value)) {
     throw new Error(`${fieldName} must be a number, got ${typeof value}`);
@@ -797,9 +554,6 @@ export function requireNumber(value: unknown, fieldName: string): number {
   return value;
 }
 
-/**
- * Extract a required boolean field or throw.
- */
 export function requireBoolean(value: unknown, fieldName: string): boolean {
   if (typeof value !== 'boolean') {
     throw new Error(`${fieldName} must be a boolean, got ${typeof value}`);
@@ -807,9 +561,6 @@ export function requireBoolean(value: unknown, fieldName: string): boolean {
   return value;
 }
 
-/**
- * Extract a required array field or throw.
- */
 export function requireArray<T>(value: unknown, fieldName: string): T[] {
   if (!Array.isArray(value)) {
     throw new Error(`${fieldName} must be an array, got ${typeof value}`);
@@ -817,9 +568,6 @@ export function requireArray<T>(value: unknown, fieldName: string): T[] {
   return value as T[];
 }
 
-/**
- * Extract a required object field or throw.
- */
 export function requireObject<T extends object>(value: unknown, fieldName: string): T {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${fieldName} must be an object, got ${typeof value}`);

@@ -1,52 +1,25 @@
-/**
- * Usage Tracking Service
- *
- * Tracks monthly order usage for billing purposes:
- * - Monthly usage aggregation
- * - Idempotent usage increments
- * - Usage slot reservation
- */
+
 
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { billingCache } from "../../utils/cache";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Monthly usage record
- */
 export interface MonthlyUsageRecord {
   id: string;
   sentCount: number;
 }
 
-/**
- * Result of incrementing usage
- */
 export interface IncrementResult {
   incremented: boolean;
   current: number;
 }
 
-/**
- * Result of reserving a usage slot
- */
 export interface ReservationResult {
   success: boolean;
   current: number;
   alreadyCounted: boolean;
 }
 
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/**
- * Get the current year-month string (YYYY-MM format) in UTC
- */
 export function getCurrentYearMonth(): string {
   const now = new Date();
   const year = now.getUTCFullYear();
@@ -54,24 +27,14 @@ export function getCurrentYearMonth(): string {
   return `${year}-${month}`;
 }
 
-/**
- * Parse year-month string into Date range (UTC)
- */
 export function getMonthDateRange(yearMonth: string): { start: Date; end: Date } {
-  // Append -01 to get the first day of the month
+
   const start = new Date(`${yearMonth}-01T00:00:00.000Z`);
   const end = new Date(start);
   end.setUTCMonth(end.getUTCMonth() + 1);
   return { start, end };
 }
 
-// =============================================================================
-// Usage Tracking Functions
-// =============================================================================
-
-/**
- * Get or create monthly usage record for a shop
- */
 export async function getOrCreateMonthlyUsage(
   shopId: string,
   yearMonth?: string
@@ -94,9 +57,6 @@ export async function getOrCreateMonthlyUsage(
   return usage;
 }
 
-/**
- * Get current monthly usage count
- */
 export async function getMonthlyUsageCount(
   shopId: string,
   yearMonth?: string
@@ -113,9 +73,6 @@ export async function getMonthlyUsageCount(
   return usage?.sentCount ?? 0;
 }
 
-/**
- * Check if an order has already been counted for a given month
- */
 export async function isOrderAlreadyCounted(
   shopId: string,
   orderId: string,
@@ -123,7 +80,6 @@ export async function isOrderAlreadyCounted(
 ): Promise<boolean> {
   const ym = yearMonth || getCurrentYearMonth();
 
-  // Check conversion job
   const existingJob = await prisma.conversionJob.findUnique({
     where: { shopId_orderId: { shopId, orderId } },
     select: { status: true },
@@ -133,7 +89,6 @@ export async function isOrderAlreadyCounted(
     return true;
   }
 
-  // Check conversion log
   const { start: startOfMonth, end: endOfMonth } = getMonthDateRange(ym);
 
   const sentLog = await prisma.conversionLog.findFirst({
@@ -152,11 +107,6 @@ export async function isOrderAlreadyCounted(
   return !!sentLog;
 }
 
-/**
- * Increment monthly usage for a shop (idempotent)
- *
- * Returns the new count. Will not increment if order already counted.
- */
 export async function incrementMonthlyUsage(
   shopId: string,
   orderId: string
@@ -164,7 +114,7 @@ export async function incrementMonthlyUsage(
   const yearMonth = getCurrentYearMonth();
 
   const result = await prisma.$transaction(async (tx) => {
-    // Check if order already completed
+
     const existingJob = await tx.conversionJob.findUnique({
       where: { shopId_orderId: { shopId, orderId } },
       select: { status: true },
@@ -178,7 +128,6 @@ export async function incrementMonthlyUsage(
       return { incremented: false, count: usage?.sentCount || 0 };
     }
 
-    // Check conversion log for this month
     const { start: startOfMonth, end: endOfMonth } = getMonthDateRange(yearMonth);
 
     const sentLog = await tx.conversionLog.findFirst({
@@ -202,7 +151,6 @@ export async function incrementMonthlyUsage(
       return { incremented: false, count: usage?.sentCount || 0 };
     }
 
-    // Increment usage
     const usage = await tx.monthlyUsage.upsert({
       where: {
         shopId_yearMonth: { shopId, yearMonth },
@@ -223,16 +171,13 @@ export async function incrementMonthlyUsage(
 
   if (result.incremented) {
     logger.debug(`Usage incremented for shop ${shopId}, order ${orderId}: ${result.count}`);
-    // Invalidate billing cache when usage changes
+
     billingCache.delete(`billing:${shopId}`);
   }
 
   return result.count;
 }
 
-/**
- * Increment monthly usage with explicit result (idempotent)
- */
 export async function incrementMonthlyUsageIdempotent(
   shopId: string,
   orderId: string
@@ -240,7 +185,7 @@ export async function incrementMonthlyUsageIdempotent(
   const yearMonth = getCurrentYearMonth();
 
   const result = await prisma.$transaction(async (tx) => {
-    // Check if order already completed
+
     const existingJob = await tx.conversionJob.findUnique({
       where: { shopId_orderId: { shopId, orderId } },
       select: { status: true },
@@ -253,7 +198,6 @@ export async function incrementMonthlyUsageIdempotent(
       return { incremented: false, current: usage?.sentCount || 0 };
     }
 
-    // Check conversion log
     const { start: startOfMonth, end: endOfMonth } = getMonthDateRange(yearMonth);
 
     const sentLog = await tx.conversionLog.findFirst({
@@ -273,7 +217,6 @@ export async function incrementMonthlyUsageIdempotent(
       return { incremented: false, current: usage?.sentCount || 0 };
     }
 
-    // Increment
     const usage = await tx.monthlyUsage.upsert({
       where: { shopId_yearMonth: { shopId, yearMonth } },
       create: { shopId, yearMonth, sentCount: 1 },
@@ -290,12 +233,6 @@ export async function incrementMonthlyUsageIdempotent(
   return result;
 }
 
-/**
- * Try to reserve a usage slot atomically
- *
- * This function uses a database-level atomic increment with a limit check,
- * ensuring no race conditions when multiple requests try to increment usage.
- */
 export async function tryReserveUsageSlot(
   shopId: string,
   orderId: string,
@@ -304,7 +241,7 @@ export async function tryReserveUsageSlot(
   const yearMonth = getCurrentYearMonth();
 
   const result = await prisma.$transaction(async (tx) => {
-    // Check if order already completed
+
     const existingJob = await tx.conversionJob.findUnique({
       where: { shopId_orderId: { shopId, orderId } },
       select: { status: true },
@@ -317,18 +254,16 @@ export async function tryReserveUsageSlot(
       return { success: true, current: usage?.sentCount || 0, alreadyCounted: true };
     }
 
-    // Ensure usage record exists
     await tx.monthlyUsage.upsert({
       where: { shopId_yearMonth: { shopId, yearMonth } },
       create: { shopId, yearMonth, sentCount: 0 },
       update: {},
     });
 
-    // Atomic increment with limit check
     const updated = await tx.$executeRaw`
       UPDATE "MonthlyUsage"
       SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
-      WHERE "shopId" = ${shopId} 
+      WHERE "shopId" = ${shopId}
         AND "yearMonth" = ${yearMonth}
         AND "sentCount" < ${limit}
     `;
@@ -359,9 +294,6 @@ export async function tryReserveUsageSlot(
   return result;
 }
 
-/**
- * Decrement usage (for rollback scenarios)
- */
 export async function decrementMonthlyUsage(
   shopId: string,
   yearMonth?: string
@@ -372,7 +304,7 @@ export async function decrementMonthlyUsage(
     const updated = await tx.$executeRaw`
       UPDATE "MonthlyUsage"
       SET "sentCount" = GREATEST("sentCount" - 1, 0), "updatedAt" = NOW()
-      WHERE "shopId" = ${shopId} 
+      WHERE "shopId" = ${shopId}
         AND "yearMonth" = ${ym}
     `;
 

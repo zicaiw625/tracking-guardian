@@ -1,30 +1,15 @@
-/**
- * Security Utilities
- *
- * Centralized security utilities for input validation, sanitization,
- * and protection against common vulnerabilities.
- */
+
 
 import { z } from "zod";
 import crypto from "crypto";
 
-// =============================================================================
-// Input Validation Constants
-// =============================================================================
-
-/**
- * Maximum request body sizes by endpoint type
- */
 export const MAX_BODY_SIZE = {
-  PIXEL_EVENT: 10 * 1024, // 10KB
-  WEBHOOK: 100 * 1024, // 100KB
-  API: 50 * 1024, // 50KB
-  FORM: 100 * 1024, // 100KB
+  PIXEL_EVENT: 10 * 1024,
+  WEBHOOK: 100 * 1024,
+  API: 50 * 1024,
+  FORM: 100 * 1024,
 } as const;
 
-/**
- * Rate limit tiers
- */
 export const RATE_LIMITS = {
   PIXEL_EVENTS: { windowMs: 60_000, maxRequests: 100 },
   API: { windowMs: 60_000, maxRequests: 60 },
@@ -32,38 +17,25 @@ export const RATE_LIMITS = {
   AUTH: { windowMs: 60_000, maxRequests: 10 },
 } as const;
 
-// =============================================================================
-// Input Sanitization
-// =============================================================================
-
-/**
- * Sanitize string input by removing potentially dangerous characters
- */
 export function sanitizeString(input: unknown): string {
   if (typeof input !== "string") {
     return "";
   }
-  
-  // Remove null bytes
+
   let sanitized = input.replace(/\0/g, "");
-  
-  // Trim whitespace
+
   sanitized = sanitized.trim();
-  
-  // Limit length
+
   if (sanitized.length > 10000) {
     sanitized = sanitized.substring(0, 10000);
   }
-  
+
   return sanitized;
 }
 
-/**
- * Sanitize object by recursively sanitizing string values
- */
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
   const sanitized: Record<string, unknown> = {};
-  
+
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === "string") {
       sanitized[key] = sanitizeString(value);
@@ -81,13 +53,10 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
       sanitized[key] = value;
     }
   }
-  
+
   return sanitized as T;
 }
 
-/**
- * Sanitize HTML by escaping special characters
- */
 export function escapeHtml(input: string): string {
   const htmlEntities: Record<string, string> = {
     "&": "&amp;",
@@ -97,40 +66,28 @@ export function escapeHtml(input: string): string {
     "'": "&#x27;",
     "/": "&#x2F;",
   };
-  
+
   return input.replace(/[&<>"'/]/g, (char) => htmlEntities[char] || char);
 }
 
-/**
- * Sanitize URL by validating and normalizing
- */
 export function sanitizeUrl(url: string): string | null {
   try {
     const parsed = new URL(url);
-    
-    // Only allow http and https protocols
+
     if (!["http:", "https:"].includes(parsed.protocol)) {
       return null;
     }
-    
-    // Prevent javascript: URLs that might slip through
+
     if (url.toLowerCase().includes("javascript:")) {
       return null;
     }
-    
+
     return parsed.toString();
   } catch {
     return null;
   }
 }
 
-// =============================================================================
-// HMAC Validation
-// =============================================================================
-
-/**
- * Compute HMAC-SHA256 signature
- */
 export function computeHmac(
   message: string | Buffer,
   secret: string,
@@ -141,9 +98,6 @@ export function computeHmac(
   return hmac.digest(encoding);
 }
 
-/**
- * Verify HMAC signature with timing-safe comparison
- */
 export function verifyHmac(
   message: string | Buffer,
   signature: string,
@@ -154,17 +108,14 @@ export function verifyHmac(
   return timingSafeEqual(computed, signature);
 }
 
-/**
- * Timing-safe string comparison
- */
 export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
-    // Still do a comparison to prevent timing attacks
+
     const buffer = Buffer.from(a);
     crypto.timingSafeEqual(buffer, buffer);
     return false;
   }
-  
+
   try {
     return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
   } catch {
@@ -172,13 +123,6 @@ export function timingSafeEqual(a: string, b: string): boolean {
   }
 }
 
-// =============================================================================
-// Request Validation
-// =============================================================================
-
-/**
- * Validate request body size
- */
 export function validateBodySize(
   contentLength: string | null,
   maxSize: number
@@ -186,25 +130,22 @@ export function validateBodySize(
   if (!contentLength) {
     return { valid: true };
   }
-  
+
   const size = parseInt(contentLength, 10);
   if (isNaN(size)) {
     return { valid: false, error: "Invalid content-length header" };
   }
-  
+
   if (size > maxSize) {
     return {
       valid: false,
       error: `Request body too large: ${size} bytes (max: ${maxSize})`,
     };
   }
-  
+
   return { valid: true };
 }
 
-/**
- * Validate request content type
- */
 export function validateContentType(
   contentType: string | null,
   allowedTypes: string[]
@@ -212,45 +153,39 @@ export function validateContentType(
   if (!contentType) {
     return { valid: false, error: "Missing content-type header" };
   }
-  
+
   const type = contentType.split(";")[0].trim().toLowerCase();
-  
+
   if (!allowedTypes.includes(type)) {
     return {
       valid: false,
       error: `Invalid content-type: ${type}. Allowed: ${allowedTypes.join(", ")}`,
     };
   }
-  
+
   return { valid: true };
 }
 
-/**
- * Validate request origin
- */
 export function validateOrigin(
   origin: string | null,
   allowedOrigins: string[]
 ): { valid: boolean; error?: string } {
-  // No origin header (e.g., same-origin or non-browser)
+
   if (!origin) {
     return { valid: true };
   }
-  
-  // Normalize origin
+
   const normalizedOrigin = origin.toLowerCase();
-  
-  // Check against allowed origins
+
   for (const allowed of allowedOrigins) {
     if (allowed === "*") {
       return { valid: true };
     }
-    
+
     if (normalizedOrigin === allowed.toLowerCase()) {
       return { valid: true };
     }
-    
-    // Support wildcard subdomains
+
     if (allowed.startsWith("*.")) {
       const domain = allowed.substring(2);
       if (
@@ -261,20 +196,13 @@ export function validateOrigin(
       }
     }
   }
-  
+
   return {
     valid: false,
     error: `Origin ${origin} not allowed`,
   };
 }
 
-// =============================================================================
-// Security Headers
-// =============================================================================
-
-/**
- * Standard security headers for API responses
- */
 export const API_SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -283,28 +211,22 @@ export const API_SECURITY_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store, max-age=0",
 };
 
-/**
- * Security headers for HTML responses
- */
 export const HTML_SECURITY_HEADERS: Record<string, string> = {
   ...API_SECURITY_HEADERS,
   "Content-Security-Policy":
     "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.shopify.com; style-src 'self' 'unsafe-inline' https://cdn.shopify.com; img-src 'self' data: https:; connect-src 'self' https://*.shopify.com https://*.myshopify.com",
 };
 
-/**
- * Apply security headers to a response
- */
 export function applySecurityHeaders(
   response: Response,
   headers: Record<string, string> = API_SECURITY_HEADERS
 ): Response {
   const newHeaders = new Headers(response.headers);
-  
+
   for (const [key, value] of Object.entries(headers)) {
     newHeaders.set(key, value);
   }
-  
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -312,62 +234,41 @@ export function applySecurityHeaders(
   });
 }
 
-// =============================================================================
-// SQL Injection Prevention
-// =============================================================================
-
-/**
- * Check if a string contains SQL injection patterns
- * Note: This is a defense-in-depth measure. Always use parameterized queries.
- */
 export function containsSqlInjectionPattern(input: string): boolean {
   const patterns = [
-    // Stacking SQL keywords (e.g., SELECT ... FROM) to detect complex queries
+
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|UNION|INTO|FROM|WHERE|OR|AND)\b.*\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|UNION|FROM|WHERE)\b)/i,
-    // Statement termination followed by DML/DDL (e.g., '; DROP TABLE')
+
     /(['"];\s*(DROP|DELETE|INSERT|UPDATE|CREATE))/i,
-    // Tautologies used in blind injection (e.g., 'OR 1=1')
+
     /(\b(OR|AND)\s*['"]?\s*\d+\s*=\s*\d+)/i,
-    // Comment indicators (--) often used to ignore remainder of query
+
     /(--\s*$)/i,
-    // Semicolon followed by comment
+
     /(;\s*--)/i,
-    // Stored procedure execution
+
     /(\bEXEC\s*\()/i,
   ];
-  
+
   return patterns.some((pattern) => pattern.test(input));
 }
 
-/**
- * Validate that input is safe for database queries
- */
 export function validateDatabaseInput(input: unknown): boolean {
   if (typeof input !== "string") {
     return true;
   }
-  
+
   return !containsSqlInjectionPattern(input);
 }
 
-// =============================================================================
-// Zod Schemas for Common Security Validations
-// =============================================================================
-
-/**
- * Safe string schema (no control characters, reasonable length)
- */
 export const SafeStringSchema = z
   .string()
   .max(10000, "String too long")
-  // eslint-disable-next-line no-control-regex
+
   .refine((s) => !/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(s), {
     message: "String contains invalid control characters",
   });
 
-/**
- * Shop domain schema
- */
 export const SecureShopDomainSchema = z
   .string()
   .min(1)
@@ -376,9 +277,6 @@ export const SecureShopDomainSchema = z
     message: "Invalid Shopify domain format",
   });
 
-/**
- * Email schema with additional security checks
- */
 export const SecureEmailSchema = z
   .string()
   .email()
@@ -391,9 +289,6 @@ export const SecureEmailSchema = z
   })
   .transform((email) => email.toLowerCase().trim());
 
-/**
- * Order ID schema
- */
 export const SecureOrderIdSchema = z
   .string()
   .min(1)
@@ -402,9 +297,6 @@ export const SecureOrderIdSchema = z
     message: "Invalid order ID format",
   });
 
-/**
- * URL schema with protocol validation and SSRF protection
- */
 export const SecureUrlSchema = z
   .string()
   .url()
@@ -423,23 +315,15 @@ export const SecureUrlSchema = z
     message: "Internal or private URLs are not allowed",
   });
 
-/**
- * Validate if a URL points to a public, non-internal address
- * Prevents SSRF attacks by blocking localhost, private IPs, and metadata services
- */
 export function isPublicUrl(urlStr: string): boolean {
   try {
     const url = new URL(urlStr);
     const hostname = url.hostname.toLowerCase();
 
-    // Block localhost
     if (hostname === "localhost") return false;
 
-    // Block IPv6 loopback
     if (hostname === "::1" || hostname === "[::1]") return false;
 
-    // Check for IPv4 addresses
-    // Matches 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16
     const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
     const match = hostname.match(ipv4Regex);
 
@@ -447,22 +331,16 @@ export function isPublicUrl(urlStr: string): boolean {
       const octet1 = parseInt(match[1], 10);
       const octet2 = parseInt(match[2], 10);
 
-      // 127.0.0.0/8 (Loopback)
       if (octet1 === 127) return false;
 
-      // 10.0.0.0/8 (Private)
       if (octet1 === 10) return false;
 
-      // 172.16.0.0/12 (Private)
       if (octet1 === 172 && octet2 >= 16 && octet2 <= 31) return false;
 
-      // 192.168.0.0/16 (Private)
       if (octet1 === 192 && octet2 === 168) return false;
 
-      // 169.254.0.0/16 (Link-local / Cloud Metadata)
       if (octet1 === 169 && octet2 === 254) return false;
-      
-      // 0.0.0.0/8 (Current network)
+
       if (octet1 === 0) return false;
     }
 
@@ -472,34 +350,18 @@ export function isPublicUrl(urlStr: string): boolean {
   }
 }
 
-// =============================================================================
-// Token Generation
-// =============================================================================
-
-/**
- * Generate a cryptographically secure random token
- */
 export function generateSecureToken(length: number = 32): string {
   return crypto.randomBytes(length).toString("hex");
 }
 
-/**
- * Generate a URL-safe random token
- */
 export function generateUrlSafeToken(length: number = 32): string {
   return crypto.randomBytes(length).toString("base64url");
 }
 
-/**
- * Hash a value with SHA-256
- */
 export function sha256(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-/**
- * Hash a value for storage (not for passwords - use bcrypt for those)
- */
 export function hashForStorage(value: string, salt?: string): string {
   if (process.env.NODE_ENV === "production" && !process.env.HASH_SALT && !salt) {
     throw new Error("Security Error: HASH_SALT is not defined in production environment. This is a critical security misconfiguration.");

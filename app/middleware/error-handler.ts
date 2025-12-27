@@ -1,8 +1,4 @@
-/**
- * Error Handler Middleware
- *
- * Provides standardized error handling for Remix routes.
- */
+
 
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
@@ -14,52 +10,21 @@ import {
 } from "../utils/errors";
 import { logger } from "../utils/logger.server";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Handler function type
- */
 export type RouteHandler<T> = (
   args: LoaderFunctionArgs | ActionFunctionArgs
 ) => Promise<T>;
 
-/**
- * Error handler options
- */
 export interface ErrorHandlerOptions {
-  /** Log all errors */
+
   logErrors?: boolean;
-  /** Include stack traces in development */
+
   includeStackInDev?: boolean;
-  /** Custom error transformer */
+
   transformError?: (error: AppError) => AppError;
-  /** Custom response builder */
+
   buildResponse?: (error: AppError) => Response;
 }
 
-// =============================================================================
-// Error Handler Middleware
-// =============================================================================
-
-/**
- * Wrap a handler with error handling
- *
- * This middleware catches all errors and converts them to
- * standardized JSON error responses.
- *
- * @example
- * ```typescript
- * export const loader = withErrorHandling(async ({ request }) => {
- *   const shop = await getShop(request);
- *   if (!shop) {
- *     throw AppError.notFound("Shop", "unknown");
- *   }
- *   return json({ shop });
- * });
- * ```
- */
 export function withErrorHandling<T>(
   handler: RouteHandler<T>,
   options?: ErrorHandlerOptions
@@ -74,25 +39,21 @@ export function withErrorHandling<T>(
     try {
       return await handler(args);
     } catch (error) {
-      // If already a Response, just rethrow (e.g., from throwErrorResponse)
+
       if (error instanceof Response) {
         throw error;
       }
 
-      // Convert to AppError
       let appError = ensureAppError(error);
 
-      // Apply custom transformation
       if (opts.transformError) {
         appError = opts.transformError(appError);
       }
 
-      // Log the error
       if (opts.logErrors) {
         logError(appError, args.request);
       }
 
-      // Build response
       if (opts.buildResponse) {
         return opts.buildResponse(appError);
       }
@@ -102,9 +63,6 @@ export function withErrorHandling<T>(
   };
 }
 
-/**
- * Wrap an async function with error handling (for use in loaders/actions)
- */
 export async function handleErrors<T>(
   fn: () => Promise<T>,
   options?: ErrorHandlerOptions
@@ -133,13 +91,6 @@ export async function handleErrors<T>(
   }
 }
 
-// =============================================================================
-// Error Response Building
-// =============================================================================
-
-/**
- * Build a JSON error response from an AppError
- */
 export function buildErrorResponse(
   error: AppError,
   includeStackInDev?: boolean
@@ -165,7 +116,6 @@ export function buildErrorResponse(
     error: errorDetails,
   };
 
-  // Include stack in development
   if (
     includeStackInDev &&
     process.env.NODE_ENV !== "production" &&
@@ -174,7 +124,6 @@ export function buildErrorResponse(
     body.stack = error.stack;
   }
 
-  // Add retry headers for rate limiting
   const headers = new Headers();
   if (error.metadata.retryAfter && status === 429) {
     headers.set(
@@ -186,21 +135,18 @@ export function buildErrorResponse(
   return json(body, { status, headers });
 }
 
-/**
- * Log an error with request context
- */
 function logError(error: AppError, request: Request): void {
   const url = new URL(request.url);
 
   if (error.isInternalError()) {
-    // Log internal errors with full details
+
     logger.error(`[${error.code}] ${error.message}`, error, {
       path: url.pathname,
       method: request.method,
       metadata: error.metadata,
     });
   } else {
-    // Log client errors at warn level
+
     logger.warn(`[${error.code}] ${error.message}`, {
       path: url.pathname,
       method: request.method,
@@ -209,31 +155,16 @@ function logError(error: AppError, request: Request): void {
   }
 }
 
-// =============================================================================
-// Error Throwing Utilities
-// =============================================================================
-
-/**
- * Throw a standardized error response
- *
- * Use this to trigger Remix's error handling with a proper response.
- */
 export function throwError(error: AppError): never {
   throw buildErrorResponse(error);
 }
 
-/**
- * Throw a 400 Bad Request error
- */
 export function throwBadRequest(message: string, field?: string): never {
   throw buildErrorResponse(
     new AppError(ErrorCode.VALIDATION_ERROR, message, false, { field })
   );
 }
 
-/**
- * Throw a 401 Unauthorized error
- */
 export function throwUnauthorized(message?: string): never {
   throw buildErrorResponse(
     new AppError(
@@ -243,9 +174,6 @@ export function throwUnauthorized(message?: string): never {
   );
 }
 
-/**
- * Throw a 403 Forbidden error
- */
 export function throwForbidden(message?: string): never {
   throw buildErrorResponse(
     new AppError(
@@ -255,9 +183,6 @@ export function throwForbidden(message?: string): never {
   );
 }
 
-/**
- * Throw a 404 Not Found error
- */
 export function throwNotFound(resource: string, id?: string): never {
   const message = id
     ? `${resource} '${id}' not found`
@@ -270,9 +195,6 @@ export function throwNotFound(resource: string, id?: string): never {
   );
 }
 
-/**
- * Throw a 429 Too Many Requests error
- */
 export function throwRateLimited(retryAfter?: number): never {
   throw buildErrorResponse(
     new AppError(
@@ -284,9 +206,6 @@ export function throwRateLimited(retryAfter?: number): never {
   );
 }
 
-/**
- * Throw a 500 Internal Server Error
- */
 export function throwInternalError(message?: string): never {
   throw buildErrorResponse(
     new AppError(
@@ -296,22 +215,12 @@ export function throwInternalError(message?: string): never {
   );
 }
 
-// =============================================================================
-// Conditional Throws
-// =============================================================================
-
-/**
- * Throw if condition is true
- */
 export function throwIf(condition: boolean, error: AppError): void {
   if (condition) {
     throwError(error);
   }
 }
 
-/**
- * Throw if value is null or undefined
- */
 export function throwIfNull<T>(
   value: T | null | undefined,
   error: AppError
@@ -321,9 +230,6 @@ export function throwIfNull<T>(
   }
 }
 
-/**
- * Throw not found if value is null
- */
 export function throwIfNotFound<T>(
   value: T | null | undefined,
   resource: string,

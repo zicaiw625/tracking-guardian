@@ -1,9 +1,4 @@
-/**
- * Conversion Job Repository
- * 
- * Centralized data access layer for ConversionJob entities.
- * Provides query optimization, batch operations, and transaction support.
- */
+
 
 import prisma from "../../db.server";
 import { Prisma } from "@prisma/client";
@@ -11,13 +6,6 @@ import type { ConversionJob } from "@prisma/client";
 import { JobStatus } from "../../types";
 import { toInputJsonValue } from "../../utils/prisma-json";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Fields needed for job processing.
- */
 export interface JobForProcessing {
   id: string;
   shopId: string;
@@ -31,21 +19,15 @@ export interface JobForProcessing {
   createdAt: Date;
 }
 
-/**
- * Options for querying pending jobs.
- */
 export interface QueryPendingJobsOptions {
-  /** Maximum number of jobs to fetch */
+
   limit?: number;
-  /** Maximum age of jobs to consider */
+
   maxAgeMs?: number;
-  /** Include failed jobs ready for retry */
+
   includeRetries?: boolean;
 }
 
-/**
- * Job status update data.
- */
 export interface JobStatusUpdate {
   status: string;
   attempts?: number;
@@ -58,10 +40,6 @@ export interface JobStatusUpdate {
   trustMetadata?: Prisma.JsonValue;
   consentEvidence?: Prisma.JsonValue;
 }
-
-// =============================================================================
-// Select Fields
-// =============================================================================
 
 const JOB_FOR_PROCESSING_SELECT = {
   id: true,
@@ -95,12 +73,6 @@ const JOB_WITH_SHOP_SELECT = {
   },
 } as const;
 
-// =============================================================================
-// Repository Functions
-// =============================================================================
-
-// Type for the shop data included with jobs
-// This matches what Prisma returns from JOB_WITH_SHOP_SELECT
 interface JobShopData {
   id: string;
   shopDomain: string;
@@ -129,16 +101,12 @@ interface JobShopData {
   }>;
 }
 
-/**
- * Get pending jobs ready for processing.
- * Includes both new jobs and failed jobs ready for retry.
- */
 export async function getPendingJobs(
   options: QueryPendingJobsOptions = {}
 ): Promise<Array<JobForProcessing & { shop: JobShopData }>> {
   const {
     limit = 100,
-    maxAgeMs = 24 * 60 * 60 * 1000, // 24 hours
+    maxAgeMs = 24 * 60 * 60 * 1000,
     includeRetries = true,
   } = options;
 
@@ -146,13 +114,13 @@ export async function getPendingJobs(
   const minCreatedAt = new Date(now.getTime() - maxAgeMs);
 
   const whereConditions: Prisma.ConversionJobWhereInput[] = [
-    // New jobs waiting to be processed
+
     { status: JobStatus.QUEUED },
-    { status: JobStatus.PROCESSING }, // Stuck processing
+    { status: JobStatus.PROCESSING },
   ];
 
   if (includeRetries) {
-    // Failed jobs ready for retry
+
     whereConditions.push({
       status: JobStatus.FAILED,
       nextRetryAt: { lte: now },
@@ -166,8 +134,8 @@ export async function getPendingJobs(
     },
     select: JOB_WITH_SHOP_SELECT,
     orderBy: [
-      { attempts: 'asc' }, // Prioritize fresh jobs
-      { createdAt: 'asc' }, // Then by age
+      { attempts: 'asc' },
+      { createdAt: 'asc' },
     ],
     take: limit,
   });
@@ -175,9 +143,6 @@ export async function getPendingJobs(
   return jobs as Array<JobForProcessing & { shop: JobShopData }>;
 }
 
-/**
- * Claim jobs for processing (atomic update to prevent double processing).
- */
 export async function claimJobsForProcessing(
   jobIds: string[],
   processedBy?: string
@@ -199,9 +164,6 @@ export async function claimJobsForProcessing(
   return result.count;
 }
 
-/**
- * Update job status with all related fields.
- */
 export async function updateJobStatus(
   jobId: string,
   update: JobStatusUpdate
@@ -223,9 +185,6 @@ export async function updateJobStatus(
   });
 }
 
-/**
- * Batch update multiple jobs with the same status.
- */
 export async function batchUpdateJobStatus(
   jobIds: string[],
   update: JobStatusUpdate
@@ -251,9 +210,6 @@ export async function batchUpdateJobStatus(
   return result.count;
 }
 
-/**
- * Create a new conversion job.
- */
 export async function createConversionJob(data: {
   shopId: string;
   orderId: string;
@@ -277,9 +233,6 @@ export async function createConversionJob(data: {
   });
 }
 
-/**
- * Check if a job already exists (for idempotency).
- */
 export async function jobExistsForOrder(
   shopId: string,
   orderId: string
@@ -295,19 +248,16 @@ export async function jobExistsForOrder(
   return existing !== null;
 }
 
-/**
- * Get job counts by status for monitoring.
- */
 export async function getJobCountsByStatus(
   shopId?: string,
   sinceDate?: Date
 ): Promise<Record<string, number>> {
   const where: Prisma.ConversionJobWhereInput = {};
-  
+
   if (shopId) {
     where.shopId = shopId;
   }
-  
+
   if (sinceDate) {
     where.createdAt = { gte: sinceDate };
   }
@@ -323,9 +273,6 @@ export async function getJobCountsByStatus(
   );
 }
 
-/**
- * Get dead letter jobs for review.
- */
 export async function getDeadLetterJobs(
   options: {
     limit?: number;
@@ -346,9 +293,6 @@ export async function getDeadLetterJobs(
   });
 }
 
-/**
- * Requeue dead letter jobs for retry.
- */
 export async function requeueDeadLetterJobs(
   jobIds: string[]
 ): Promise<number> {
@@ -370,13 +314,10 @@ export async function requeueDeadLetterJobs(
   return result.count;
 }
 
-/**
- * Clean up old completed jobs (data retention).
- */
 export async function cleanupOldJobs(
   retentionDays: number = 90
 ): Promise<number> {
-  // P0-3: 使用 UTC 确保跨时区一致性
+
   const cutoffDate = new Date();
   cutoffDate.setUTCDate(cutoffDate.getUTCDate() - retentionDays);
 

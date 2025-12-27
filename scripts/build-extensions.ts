@@ -19,10 +19,9 @@ function writeConfig(content: string): void {
 
 function injectBackendUrl(): void {
     const backendUrl = process.env.SHOPIFY_APP_URL;
-    
-    // P2: 在 CI/CD 环境中强制要求 SHOPIFY_APP_URL
+
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
-    
+
     if (!backendUrl) {
         if (isCI) {
             console.error("❌ SHOPIFY_APP_URL is required in CI/CD environment!");
@@ -34,10 +33,10 @@ function injectBackendUrl(): void {
         console.log("   Note: In production, always set SHOPIFY_APP_URL to avoid misdirected events.");
         return;
     }
-    
+
     try {
         const url = new URL(backendUrl);
-        // P2: 警告如果使用了本地开发 URL
+
         if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
             console.log("⚠️  WARNING: Using localhost URL. Pixel events will not work in production!");
         }
@@ -47,7 +46,7 @@ function injectBackendUrl(): void {
         console.error("   Please provide a valid URL (e.g., https://your-app.onrender.com)");
         process.exit(1);
     }
-    
+
     const config = readConfig();
     if (!config.includes(PLACEHOLDER)) {
         console.log("⚠️  Placeholder not found in config. Already replaced or config modified.");

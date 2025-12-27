@@ -154,8 +154,8 @@ describe("Reconciliation Service", () => {
 
       expect(result.meta).toBeDefined();
       expect(result.google).toBeDefined();
-      expect(result.meta.totalShopifyOrders).toBe(110); 
-      expect(result.meta.totalPlatformConversions).toBe(103); 
+      expect(result.meta.totalShopifyOrders).toBe(110);
+      expect(result.meta.totalPlatformConversions).toBe(103);
       expect(result.meta.reports).toHaveLength(2);
       expect(result.google.totalShopifyOrders).toBe(30);
     });

@@ -1,4 +1,4 @@
-// Risk assessment logic for scanner
+
 
 import type { RiskItem, RiskSeverity, ScriptTag } from "../../types";
 import type { EnhancedScanResult } from "./types";
@@ -43,9 +43,6 @@ export const RISK_RULES: RiskRule[] = [
     },
 ];
 
-/**
- * Assess risks based on scan results
- */
 export function assessRisks(result: EnhancedScanResult): RiskItem[] {
     const risks: RiskItem[] = [];
     const seenRiskKeys = new Set<string>();
@@ -58,7 +55,6 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
         }
     }
 
-    // Check script tags for deprecated patterns
     if (result.scriptTags.length > 0) {
         const platformScriptTags: Record<string, {
             orderStatus: ScriptTag[];
@@ -82,7 +78,7 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
 
         for (const [platform, tags] of Object.entries(platformScriptTags)) {
             const platformName = PLATFORM_INFO[platform]?.name || platform;
-            
+
             if (tags.orderStatus.length > 0) {
                 addRisk({
                     id: "deprecated_script_tag_order_status",
@@ -109,16 +105,8 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
         }
     }
 
-    // Check for inline tracking
-    // Logic: If we see patterns in the page content (inline scripts) AND we identified platforms
-    // Note: identifiedPlatforms comes from detectPlatforms(pageContent)
     if (result.identifiedPlatforms.length > 0) {
-         // Filter out script tags platforms to avoid double counting if possible, 
-         // but inline tracking is usually distinct from script tags.
-         // However, if we found a ScriptTag for Meta, and identifiedPlatforms includes Meta, 
-         // it implies inline code might be supporting the ScriptTag or independent.
-         // We'll keep the warning generic but informative.
-         
+
         addRisk({
             id: "inline_tracking",
             name: "内联追踪代码",
@@ -129,9 +117,8 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
         }, "inline_tracking");
     }
 
-    // Recommend server-side tracking only for supported platforms
     const supportedPlatforms = result.identifiedPlatforms.filter(p => PLATFORM_INFO[p]?.supportLevel === "supported");
-    
+
     if (supportedPlatforms.length > 0) {
         addRisk({
             id: "no_server_side",
@@ -146,9 +133,6 @@ export function assessRisks(result: EnhancedScanResult): RiskItem[] {
     return risks;
 }
 
-/**
- * Calculate risk score from risk items
- */
 export function calculateRiskScore(riskItems: RiskItem[]): number {
     if (riskItems.length === 0) {
         return 0;

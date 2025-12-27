@@ -1,13 +1,4 @@
-/**
- * P1-4: 送达对账可视化页面 (Delivery Reconciliation)
- *
- * 显示"Shopify Webhook 订单 vs 成功发送到广告平台"的对比，
- * 帮助商家理解送达缺口原因并获得策略建议。
- * 
- * 注意：这是"送达对账"（我们是否成功把事件发到平台），
- * 而非"平台报表对账"（平台实际记录了多少转化）。
- * 后者需要集成各平台的报表 API，可作为高级功能。
- */
+
 
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -46,10 +37,6 @@ import {
   type GapReason,
 } from "../services/reconciliation.server";
 
-// =============================================================================
-// Loader
-// =============================================================================
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -67,7 +54,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // 从 URL 获取天数参数
   const url = new URL(request.url);
   const days = parseInt(url.searchParams.get("days") || "7", 10);
   const validDays = [7, 14, 30].includes(days) ? days : 7;
@@ -80,10 +66,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     selectedDays: validDays,
   });
 };
-
-// =============================================================================
-// Action
-// =============================================================================
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -106,13 +88,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
-// =============================================================================
-// Components
-// =============================================================================
-
-/**
- * 概览卡片
- */
 function OverviewCard({
   overview,
 }: {
@@ -136,7 +111,7 @@ function OverviewCard({
         </InlineStack>
 
         <InlineStack gap="400" align="space-between" wrap>
-          {/* Webhook 订单 */}
+          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -153,12 +128,12 @@ function OverviewCard({
             </BlockStack>
           </Box>
 
-          {/* vs */}
+          {}
           <Text as="p" variant="headingLg" tone="subdued">
             vs
           </Text>
 
-          {/* Pixel 收据 */}
+          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -175,12 +150,12 @@ function OverviewCard({
             </BlockStack>
           </Box>
 
-          {/* = */}
+          {}
           <Text as="p" variant="headingLg" tone="subdued">
             =
           </Text>
 
-          {/* 缺口 */}
+          {}
           <Box
             background={isHealthy ? "bg-fill-success" : isWarning ? "bg-fill-warning" : "bg-fill-critical"}
             padding="400"
@@ -231,9 +206,6 @@ function OverviewCard({
   );
 }
 
-/**
- * 送达缺口原因分析卡片
- */
 function GapAnalysisCard({
   gapAnalysis,
 }: {
@@ -326,9 +298,6 @@ function GapAnalysisCard({
   );
 }
 
-/**
- * 策略建议卡片
- */
 function RecommendationCard({
   recommendation,
   onChangeStrategy,
@@ -393,9 +362,6 @@ function RecommendationCard({
   );
 }
 
-/**
- * 平台分解卡片
- */
 function PlatformBreakdownCard({
   platformBreakdown,
 }: {
@@ -445,9 +411,6 @@ function PlatformBreakdownCard({
   );
 }
 
-/**
- * 趋势图卡片
- */
 function TrendCard({
   dailyTrend,
 }: {
@@ -533,10 +496,6 @@ function TrendCard({
   );
 }
 
-// =============================================================================
-// Main Component
-// =============================================================================
-
 export default function ReconciliationPage() {
   const { shop, dashboardData, selectedDays } = useLoaderData<typeof loader>();
   const submit = useSubmit();
@@ -547,7 +506,7 @@ export default function ReconciliationPage() {
 
   const handleDaysChange = (value: string) => {
     setDays(value);
-    // 重新加载页面
+
     window.location.href = `/app/reconciliation?days=${value}`;
   };
 
@@ -586,7 +545,7 @@ export default function ReconciliationPage() {
       }}
     >
       <BlockStack gap="500">
-        {/* 时间范围选择 */}
+        {}
         <Card>
           <InlineStack align="space-between" blockAlign="center">
             <Text as="p" variant="bodySm">
@@ -606,17 +565,17 @@ export default function ReconciliationPage() {
           </InlineStack>
         </Card>
 
-        {/* 概览 */}
+        {}
         <OverviewCard overview={dashboardData.overview} />
 
         <Layout>
           <Layout.Section variant="oneHalf">
-            {/* 缺口分析 */}
+            {}
             <GapAnalysisCard gapAnalysis={dashboardData.gapAnalysis} />
           </Layout.Section>
 
           <Layout.Section variant="oneHalf">
-            {/* 策略建议 */}
+            {}
             <RecommendationCard
               recommendation={dashboardData.recommendation}
               onChangeStrategy={handleStrategyChange}
@@ -625,13 +584,13 @@ export default function ReconciliationPage() {
           </Layout.Section>
         </Layout>
 
-        {/* 平台分解 */}
+        {}
         <PlatformBreakdownCard platformBreakdown={dashboardData.platformBreakdown} />
 
-        {/* 趋势图 */}
+        {}
         <TrendCard dailyTrend={dashboardData.dailyTrend} />
 
-        {/* 帮助信息 */}
+        {}
         <Banner title="关于送达健康度" tone="info">
           <BlockStack gap="200">
             <p>

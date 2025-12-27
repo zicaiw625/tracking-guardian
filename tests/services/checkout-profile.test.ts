@@ -1,18 +1,9 @@
-   
-                                                  
-   
-        
-                                                  
-                                                    
-                                                        
-                                     
-   
+
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-                     
 type TypOspStatus = "enabled" | "disabled" | "unknown";
-type TypOspUnknownReason = 
+type TypOspUnknownReason =
   | "NOT_PLUS"
   | "NO_EDITOR_ACCESS"
   | "API_ERROR"
@@ -51,12 +42,11 @@ interface GraphQLResponse {
   errors?: Array<{ message: string }>;
 }
 
-                           
 function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult {
-         
+
   if (response.errors) {
     const errorMessages = response.errors.map(e => e.message || "").join(" ");
-    
+
     if (errorMessages.includes("access") || errorMessages.includes("permission")) {
       return {
         status: "unknown",
@@ -66,7 +56,7 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
         error: "Requires access to checkout and accounts editor",
       };
     }
-    
+
     if (errorMessages.includes("rate") || errorMessages.includes("throttle")) {
       return {
         status: "unknown",
@@ -76,7 +66,7 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
         error: "Rate limited, try again later",
       };
     }
-    
+
     return {
       status: "unknown",
       typOspPagesEnabled: null,
@@ -89,8 +79,7 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
   const profiles = response.data?.checkoutProfiles?.nodes || [];
   const shop = response.data?.shop;
   const isPlus = shop?.plan?.shopifyPlus === true;
-  
-                  
+
   if (profiles.length === 0) {
     if (!isPlus) {
       return {
@@ -101,7 +90,7 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
         error: "Non-Plus shops may not have checkoutProfiles access",
       };
     }
-    
+
     return {
       status: "unknown",
       typOspPagesEnabled: null,
@@ -111,9 +100,8 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
     };
   }
 
-                               
   const hasTypOspField = profiles.some(node => node.typOspPagesActive !== undefined);
-  
+
   if (!hasTypOspField) {
     const checkoutApiSupported = shop?.checkoutApiSupported === true;
     return {
@@ -123,11 +111,10 @@ function parseTypOspFromResponse(response: GraphQLResponse): TypOspStatusResult 
       confidence: "medium",
     };
   }
-  
-                                                    
+
   const publishedProfiles = profiles.filter(p => p.isPublished === true);
   const hasTypOspActive = publishedProfiles.some(p => p.typOspPagesActive === true);
-  
+
   return {
     status: hasTypOspActive ? "enabled" : "disabled",
     typOspPagesEnabled: hasTypOspActive,
@@ -235,7 +222,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
                 id: "gid://shopify/CheckoutProfile/1",
                 name: "Draft",
                 isPublished: false,
-                typOspPagesActive: true,          
+                typOspPagesActive: true,
               },
               {
                 id: "gid://shopify/CheckoutProfile/2",
@@ -336,7 +323,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
                 id: "gid://shopify/CheckoutProfile/1",
                 name: "Default",
                 isPublished: true,
-                                         
+
               },
             ],
           },

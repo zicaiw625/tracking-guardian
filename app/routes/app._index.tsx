@@ -1,9 +1,4 @@
-/**
- * Dashboard Page
- *
- * Main entry point for the Tracking Guardian app.
- * Shows setup progress, health score, and quick stats.
- */
+
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -37,23 +32,12 @@ import {
   type SetupStep,
 } from "../types/dashboard";
 
-// =============================================================================
-// Loader
-// =============================================================================
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const data = await getDashboardData(session.shop);
   return json(data);
 };
 
-// =============================================================================
-// Components
-// =============================================================================
-
-/**
- * Health score badge component.
- */
 function HealthBadge({ status }: { status: DashboardData["healthStatus"] }) {
   switch (status) {
     case "critical":
@@ -67,9 +51,6 @@ function HealthBadge({ status }: { status: DashboardData["healthStatus"] }) {
   }
 }
 
-/**
- * Health score card component.
- */
 function HealthScoreCard({
   score,
   status,
@@ -128,9 +109,6 @@ function HealthScoreCard({
   );
 }
 
-/**
- * Quick stats card component.
- */
 function QuickStatsCard({
   configuredPlatforms,
   weeklyConversions,
@@ -206,9 +184,6 @@ function QuickStatsCard({
   );
 }
 
-/**
- * Serialized latest scan type (Date becomes string after JSON serialization)
- */
 type SerializedLatestScan = {
   status: string;
   riskScore: number;
@@ -216,9 +191,6 @@ type SerializedLatestScan = {
   identifiedPlatforms: string[];
 } | null;
 
-/**
- * Latest scan card component.
- */
 function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
   return (
     <Card>
@@ -274,9 +246,6 @@ function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
   );
 }
 
-/**
- * Setup progress card component.
- */
 function SetupProgressCard({
   steps,
   nextStep,
@@ -346,9 +315,6 @@ function SetupProgressCard({
   );
 }
 
-/**
- * ScriptTag migration banner.
- */
 function ScriptTagMigrationBanner({
   scriptTagsCount,
   hasOrderStatusScripts,
@@ -394,9 +360,6 @@ function ScriptTagMigrationBanner({
   );
 }
 
-/**
- * Migration deadline banner.
- */
 function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number }) {
   return (
     <Banner
@@ -446,15 +409,9 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
   );
 }
 
-// =============================================================================
-// Main Component
-// =============================================================================
-
 export default function Index() {
   const loaderData = useLoaderData<typeof loader>();
-  
-  // Transform the serialized data back to the expected format
-  // Note: Dates are serialized as strings in the loader response
+
   const data: DashboardData = {
     ...loaderData,
     latestScan: loaderData.latestScan
@@ -479,7 +436,7 @@ export default function Index() {
       }
     >
       <BlockStack gap="500">
-        {/* Welcome Banner */}
+        {}
         <Banner title="欢迎使用 Tracking Guardian" tone="info" onDismiss={() => {}}>
           <p>
             帮助您扫描、迁移和监控 Thank you / Order status 页面的追踪脚本，
@@ -487,10 +444,10 @@ export default function Index() {
           </p>
         </Banner>
 
-        {/* Setup Progress */}
+        {}
         {!progress.allComplete && <SetupProgressCard steps={setupSteps} nextStep={nextStep} />}
 
-        {/* Stats Grid */}
+        {}
         <Layout>
           <Layout.Section variant="oneThird">
             <HealthScoreCard score={data.healthScore} status={data.healthStatus} />
@@ -510,7 +467,7 @@ export default function Index() {
           </Layout.Section>
         </Layout>
 
-        {/* Migration Banners */}
+        {}
         <ScriptTagMigrationBanner
           scriptTagsCount={data.scriptTagsCount}
           hasOrderStatusScripts={data.hasOrderStatusScripts}

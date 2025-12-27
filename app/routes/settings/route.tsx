@@ -1,9 +1,4 @@
-/**
- * Settings Route
- *
- * Main settings page with tabbed navigation.
- * Refactored from the original monolithic app.settings.tsx file.
- */
+
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLoaderData, useSubmit, useActionData, useNavigation } from "@remix-run/react";
@@ -19,16 +14,8 @@ import {
   SubscriptionTab,
 } from "./_components";
 
-// =============================================================================
-// Exports
-// =============================================================================
-
 export const loader = settingsLoader;
 export const action = settingsAction;
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export default function SettingsPage() {
   const { shop, tokenIssues, pcdApproved, pcdStatusMessage } =
@@ -37,29 +24,25 @@ export default function SettingsPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
 
-  // Compute initial values from loader data
   const existingAlertConfig = shop?.alertConfigs?.[0];
   const existingPixelConfig = shop?.pixelConfigs?.[0];
 
-  // Tab state
   const [selectedTab, setSelectedTab] = useState(0);
 
-  // Alert form state - initialize from loader data
   const [alertChannel, setAlertChannel] = useState(() => existingAlertConfig?.channel || "email");
   const [alertEmail, setAlertEmail] = useState("");
   const [slackWebhook, setSlackWebhook] = useState("");
   const [telegramToken, setTelegramToken] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
-  const [alertThreshold, setAlertThreshold] = useState(() => 
+  const [alertThreshold, setAlertThreshold] = useState(() =>
     existingAlertConfig ? String(Math.round(existingAlertConfig.discrepancyThreshold * 100)) : "10"
   );
   const [alertEnabled, setAlertEnabled] = useState(() => existingAlertConfig?.isEnabled ?? true);
 
-  // Server-side form state - initialize from loader data
   const [serverPlatform, setServerPlatform] = useState(() => existingPixelConfig?.platform || "meta");
   const [serverEnabled, setServerEnabled] = useState(() => existingPixelConfig?.serverSideEnabled ?? false);
-  // Initialize platform IDs from existing config based on platform type
-  const [metaPixelId, setMetaPixelId] = useState(() => 
+
+  const [metaPixelId, setMetaPixelId] = useState(() =>
     existingPixelConfig?.platform === "meta" ? (existingPixelConfig.platformId || "") : ""
   );
   const [metaAccessToken, setMetaAccessToken] = useState("");
@@ -73,11 +56,20 @@ export default function SettingsPage() {
   );
   const [tiktokAccessToken, setTiktokAccessToken] = useState("");
 
-  // Form dirty state
+  // Pinterest 状态
+  const [pinterestAdAccountId, setPinterestAdAccountId] = useState(() =>
+    existingPixelConfig?.platform === "pinterest" ? (existingPixelConfig.platformId || "") : ""
+  );
+  const [pinterestAccessToken, setPinterestAccessToken] = useState("");
+
+  // 环境状态
+  const [environment, setEnvironment] = useState<"test" | "live">(() =>
+    (existingPixelConfig?.environment as "test" | "live") ?? "live"
+  );
+
   const [alertFormDirty, setAlertFormDirty] = useState(false);
   const [serverFormDirty, setServerFormDirty] = useState(false);
 
-  // Initial values refs - computed from loader data
   const initialAlertValues = useRef({
     channel: existingAlertConfig?.channel || "email",
     email: "",
@@ -91,6 +83,7 @@ export default function SettingsPage() {
   const initialServerValues = useRef({
     platform: existingPixelConfig?.platform || "meta",
     enabled: existingPixelConfig?.serverSideEnabled ?? false,
+    environment: (existingPixelConfig?.environment as "test" | "live") ?? "live",
     metaPixelId: existingPixelConfig?.platform === "meta" ? (existingPixelConfig.platformId || "") : "",
     metaAccessToken: "",
     metaTestCode: "",
@@ -98,11 +91,12 @@ export default function SettingsPage() {
     googleApiSecret: "",
     tiktokPixelId: existingPixelConfig?.platform === "tiktok" ? (existingPixelConfig.platformId || "") : "",
     tiktokAccessToken: "",
+    pinterestAdAccountId: existingPixelConfig?.platform === "pinterest" ? (existingPixelConfig.platformId || "") : "",
+    pinterestAccessToken: "",
   });
 
   const isSubmitting = navigation.state === "submitting";
 
-  // Check form dirty state
   const checkAlertFormDirty = useCallback(() => {
     const initial = initialAlertValues.current;
     const isDirty =
@@ -129,17 +123,21 @@ export default function SettingsPage() {
     const isDirty =
       serverPlatform !== initial.platform ||
       serverEnabled !== initial.enabled ||
+      environment !== initial.environment ||
       metaPixelId !== initial.metaPixelId ||
       metaAccessToken !== initial.metaAccessToken ||
       metaTestCode !== initial.metaTestCode ||
       googleMeasurementId !== initial.googleMeasurementId ||
       googleApiSecret !== initial.googleApiSecret ||
       tiktokPixelId !== initial.tiktokPixelId ||
-      tiktokAccessToken !== initial.tiktokAccessToken;
+      tiktokAccessToken !== initial.tiktokAccessToken ||
+      pinterestAdAccountId !== initial.pinterestAdAccountId ||
+      pinterestAccessToken !== initial.pinterestAccessToken;
     setServerFormDirty(isDirty);
   }, [
     serverPlatform,
     serverEnabled,
+    environment,
     metaPixelId,
     metaAccessToken,
     metaTestCode,
@@ -147,9 +145,10 @@ export default function SettingsPage() {
     googleApiSecret,
     tiktokPixelId,
     tiktokAccessToken,
+    pinterestAdAccountId,
+    pinterestAccessToken,
   ]);
 
-  // Effects
   useEffect(() => {
     const timer = setTimeout(() => {
       if (selectedTab === 0) {
@@ -161,7 +160,6 @@ export default function SettingsPage() {
     return () => clearTimeout(timer);
   }, [selectedTab, checkAlertFormDirty, checkServerFormDirty]);
 
-  // Reset form dirty state after successful save
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
       const timer = setTimeout(() => {
@@ -180,6 +178,7 @@ export default function SettingsPage() {
           initialServerValues.current = {
             platform: serverPlatform,
             enabled: serverEnabled,
+            environment: environment,
             metaPixelId: metaPixelId,
             metaAccessToken: metaAccessToken,
             metaTestCode: metaTestCode,
@@ -187,6 +186,8 @@ export default function SettingsPage() {
             googleApiSecret: googleApiSecret,
             tiktokPixelId: tiktokPixelId,
             tiktokAccessToken: tiktokAccessToken,
+            pinterestAdAccountId: pinterestAdAccountId,
+            pinterestAccessToken: pinterestAccessToken,
           };
           setServerFormDirty(false);
         }
@@ -205,6 +206,7 @@ export default function SettingsPage() {
     alertEnabled,
     serverPlatform,
     serverEnabled,
+    environment,
     metaPixelId,
     metaAccessToken,
     metaTestCode,
@@ -212,9 +214,10 @@ export default function SettingsPage() {
     googleApiSecret,
     tiktokPixelId,
     tiktokAccessToken,
+    pinterestAdAccountId,
+    pinterestAccessToken,
   ]);
 
-  // Handlers
   const handleDiscardChanges = useCallback(() => {
     if (selectedTab === 0) {
       const initial = initialAlertValues.current;
@@ -230,6 +233,7 @@ export default function SettingsPage() {
       const initial = initialServerValues.current;
       setServerPlatform(initial.platform);
       setServerEnabled(initial.enabled);
+      setEnvironment(initial.environment);
       setMetaPixelId(initial.metaPixelId);
       setMetaAccessToken(initial.metaAccessToken);
       setMetaTestCode(initial.metaTestCode);
@@ -237,6 +241,8 @@ export default function SettingsPage() {
       setGoogleApiSecret(initial.googleApiSecret);
       setTiktokPixelId(initial.tiktokPixelId);
       setTiktokAccessToken(initial.tiktokAccessToken);
+      setPinterestAdAccountId(initial.pinterestAdAccountId);
+      setPinterestAccessToken(initial.pinterestAccessToken);
       setServerFormDirty(false);
     }
   }, [selectedTab]);
@@ -291,6 +297,7 @@ export default function SettingsPage() {
     formData.append("_action", "saveServerSide");
     formData.append("platform", serverPlatform);
     formData.append("enabled", serverEnabled.toString());
+    formData.append("environment", environment);
 
     if (serverPlatform === "meta") {
       formData.append("pixelId", metaPixelId);
@@ -302,12 +309,16 @@ export default function SettingsPage() {
     } else if (serverPlatform === "tiktok") {
       formData.append("pixelId", tiktokPixelId);
       formData.append("accessToken", tiktokAccessToken);
+    } else if (serverPlatform === "pinterest") {
+      formData.append("adAccountId", pinterestAdAccountId);
+      formData.append("accessToken", pinterestAccessToken);
     }
 
     submit(formData, { method: "post" });
   }, [
     serverPlatform,
     serverEnabled,
+    environment,
     metaPixelId,
     metaAccessToken,
     metaTestCode,
@@ -315,8 +326,27 @@ export default function SettingsPage() {
     googleApiSecret,
     tiktokPixelId,
     tiktokAccessToken,
+    pinterestAdAccountId,
+    pinterestAccessToken,
     submit,
   ]);
+
+  const handleSwitchEnvironment = useCallback((platform: string, env: "test" | "live") => {
+    const formData = new FormData();
+    formData.append("_action", "switchEnvironment");
+    formData.append("platform", platform);
+    formData.append("environment", env);
+    submit(formData, { method: "post" });
+  }, [submit]);
+
+  const handleRollbackEnvironment = useCallback((platform: string) => {
+    if (confirm("确定要回滚到上一个配置版本吗？")) {
+      const formData = new FormData();
+      formData.append("_action", "rollbackEnvironment");
+      formData.append("platform", platform);
+      submit(formData, { method: "post" });
+    }
+  }, [submit]);
 
   const handleTestConnection = useCallback(() => {
     const formData = new FormData();
@@ -352,7 +382,6 @@ export default function SettingsPage() {
     }
   }, [selectedTab, handleSaveAlert, handleSaveServerSide]);
 
-  // Tab configuration
   const tabs = [
     { id: "alerts", content: "警报通知" },
     { id: "server-side", content: "服务端追踪" },
@@ -424,6 +453,10 @@ export default function SettingsPage() {
               setServerPlatform={setServerPlatform}
               serverEnabled={serverEnabled}
               setServerEnabled={setServerEnabled}
+              environment={environment}
+              setEnvironment={setEnvironment}
+              onSwitchEnvironment={handleSwitchEnvironment}
+              onRollbackEnvironment={handleRollbackEnvironment}
               metaPixelId={metaPixelId}
               setMetaPixelId={setMetaPixelId}
               metaAccessToken={metaAccessToken}
@@ -438,6 +471,10 @@ export default function SettingsPage() {
               setTiktokPixelId={setTiktokPixelId}
               tiktokAccessToken={tiktokAccessToken}
               setTiktokAccessToken={setTiktokAccessToken}
+              pinterestAdAccountId={pinterestAdAccountId}
+              setPinterestAdAccountId={setPinterestAdAccountId}
+              pinterestAccessToken={pinterestAccessToken}
+              setPinterestAccessToken={setPinterestAccessToken}
               serverFormDirty={serverFormDirty}
               isSubmitting={isSubmitting}
               onSaveServerSide={handleSaveServerSide}

@@ -1,8 +1,4 @@
-/**
- * Webhook Middleware Index
- *
- * Re-exports all webhook middleware.
- */
+
 
 export {
   tryAcquireWebhookLock,

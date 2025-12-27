@@ -1,11 +1,4 @@
-/**
- * Action Route: Delete WebPixel
- * 
- * POST /app/actions/delete-web-pixel
- * 
- * Deletes a WebPixel using the GraphQL Admin API.
- * Requires write_pixels scope.
- */
+
 
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -23,10 +16,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
         const formData = await request.formData();
         const webPixelGid = formData.get("webPixelGid") as string;
-        const webPixelGids = formData.get("webPixelGids") as string; // JSON array for batch deletion
+        const webPixelGids = formData.get("webPixelGids") as string;
         const keepFirst = formData.get("keepFirst") === "true";
 
-        // Handle batch deletion (for duplicate removal)
         if (webPixelGids) {
             let gids: string[];
             try {
@@ -65,7 +57,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
         }
 
-        // Handle single deletion
         if (!webPixelGid) {
             return json({
                 success: false,
@@ -92,10 +83,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
         }
 
-        // Handle specific error cases
         if (result.userErrors && result.userErrors.length > 0) {
             const firstError = result.userErrors[0];
-            
+
             if (firstError.message.includes("not found")) {
                 return json({
                     success: false,
@@ -128,7 +118,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 };
 
-// Loader to handle non-POST requests
 export const loader = async () => {
     return json({ error: "Method not allowed" }, { status: 405 });
 };

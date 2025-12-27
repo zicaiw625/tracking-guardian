@@ -35,14 +35,14 @@ export default function Auth() {
             <Text variant="headingLg" as="h1">
               Tracking Guardian
             </Text>
-            
+
             {hasShopParam && errors ? (<Banner tone="critical">
                 <p>认证过程中发生错误，请重试或联系支持。</p>
               </Banner>) : (<>
                 <Banner tone="info">
                   <p>请通过 Shopify 管理后台访问此应用</p>
                 </Banner>
-                
+
                 <BlockStack gap="300">
                   <Text as="p" variant="bodyMd">
                     <strong>如果您已安装此应用：</strong>
@@ -50,7 +50,7 @@ export default function Auth() {
                   <Text as="p" tone="subdued">
                     打开 Shopify 管理后台 → 设置 → 应用和销售渠道 → Tracking Guardian
                   </Text>
-                  
+
                   <Text as="p" variant="bodyMd">
                     <strong>如果您尚未安装：</strong>
                   </Text>
@@ -58,7 +58,7 @@ export default function Auth() {
                     请从 Shopify App Store 搜索并安装「Tracking Guardian」
                   </Text>
                 </BlockStack>
-                
+
                 <Text as="p" tone="subdued" variant="bodySm">
                   根据 Shopify 平台要求，应用必须从 Shopify 管理后台或 App Store 启动，
                   不支持直接访问此页面进行登录。

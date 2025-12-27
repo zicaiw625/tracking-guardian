@@ -1,8 +1,4 @@
-/**
- * Google Analytics 4 Measurement Protocol Service
- *
- * Implements the IPlatformService interface for Google GA4 CAPI.
- */
+
 
 import type {
   ConversionData,
@@ -29,33 +25,19 @@ import {
   parseGoogleError,
 } from "./base-platform.service";
 
-// =============================================================================
-// Constants
-// =============================================================================
-
 const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";
 const MEASUREMENT_ID_PATTERN = /^G-[A-Z0-9]+$/;
 
-// =============================================================================
-// Google Platform Service
-// =============================================================================
-
-/**
- * Google Analytics 4 Measurement Protocol service implementation.
- */
 export class GooglePlatformService implements IPlatformService {
   readonly platform = Platform.GOOGLE;
   readonly displayName = "GA4 (Measurement Protocol)";
 
-  /**
-   * Send a conversion event to GA4 via Measurement Protocol.
-   */
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<PlatformSendResult> {
-    // Validate credentials type
+
     const googleCreds = credentials as GoogleCredentials;
     const validation = this.validateCredentials(googleCreds);
 
@@ -104,9 +86,6 @@ export class GooglePlatformService implements IPlatformService {
     }
   }
 
-  /**
-   * Validate Google credentials format.
-   */
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
 
@@ -134,9 +113,6 @@ export class GooglePlatformService implements IPlatformService {
     };
   }
 
-  /**
-   * Parse Google-specific error into standardized format.
-   */
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
       if (error.name === "AbortError") {
@@ -147,7 +123,6 @@ export class GooglePlatformService implements IPlatformService {
         };
       }
 
-      // Parse HTTP errors
       const httpMatch = error.message.match(/GA4.*error:\s*(\d+)/);
       if (httpMatch) {
         const statusCode = parseInt(httpMatch[1], 10);
@@ -164,9 +139,6 @@ export class GooglePlatformService implements IPlatformService {
     };
   }
 
-  /**
-   * Build the GA4 Measurement Protocol payload.
-   */
   async buildPayload(
     data: ConversionData,
     eventId: string
@@ -194,13 +166,6 @@ export class GooglePlatformService implements IPlatformService {
     };
   }
 
-  // ==========================================================================
-  // Private Methods
-  // ==========================================================================
-
-  /**
-   * Send the actual HTTP request to GA4.
-   */
   private async sendRequest(
     credentials: GoogleCredentials,
     data: ConversionData,
@@ -220,7 +185,6 @@ export class GooglePlatformService implements IPlatformService {
       DEFAULT_API_TIMEOUT_MS
     );
 
-    // GA4 returns 204 No Content on success
     if (response.status === 204 || response.ok) {
       return {
         success: true,
@@ -233,9 +197,6 @@ export class GooglePlatformService implements IPlatformService {
     throw new Error(`GA4 Measurement Protocol error: ${response.status} ${errorText}`);
   }
 
-  /**
-   * Classify HTTP error by status code.
-   */
   private classifyHttpError(statusCode: number, message: string): PlatformError {
     if (statusCode === 401 || statusCode === 403) {
       return {
@@ -274,24 +235,8 @@ export class GooglePlatformService implements IPlatformService {
   }
 }
 
-// =============================================================================
-// Singleton Export
-// =============================================================================
-
-/**
- * Singleton instance of Google platform service.
- */
 export const googleService = new GooglePlatformService();
 
-// =============================================================================
-// Legacy Export (Backwards Compatibility)
-// =============================================================================
-
-/**
- * Send conversion to Google.
- *
- * @deprecated Use googleService.sendConversion() instead
- */
 export async function sendConversionToGoogle(
   credentials: GoogleCredentials | null,
   conversionData: ConversionData,

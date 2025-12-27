@@ -1,14 +1,4 @@
-/**
- * Conversion Job Processor
- *
- * Main entry point for processing conversion jobs.
- * Coordinates receipt matching, trust evaluation, and platform sending.
- *
- * Optimized with:
- * - Batch database operations
- * - Parallel platform sending
- * - Structured result collection
- */
+
 
 import prisma, { type TransactionClient } from "../db.server";
 import {
@@ -24,7 +14,6 @@ import { JOB_PROCESSING_CONFIG } from "../utils/config";
 import { JobStatus, parseCapiInput, parsePixelClientConfig } from "../types";
 import type { ConversionData, PlatformCredentials } from "../types";
 
-// Import from split modules
 import {
   batchFetchReceipts,
   findReceiptForJob,
@@ -39,13 +28,6 @@ import {
   type ShopTrustContext,
 } from "./trust-evaluator.server";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Result of processing conversion jobs batch.
- */
 export interface ProcessConversionJobsResult {
   processed: number;
   succeeded: number;
@@ -54,9 +36,6 @@ export interface ProcessConversionJobsResult {
   skipped: number;
 }
 
-/**
- * Job with shop and pixel configs.
- */
 interface JobWithRelations {
   id: string;
   shopId: string;
@@ -88,23 +67,13 @@ interface JobWithRelations {
   };
 }
 
-/**
- * Result of processing a single job
- */
 type JobProcessResult = "succeeded" | "failed" | "limit_exceeded" | "skipped";
 
-/**
- * Batch update entry
- */
 interface JobUpdateEntry {
   id: string;
   status: string;
   data: Record<string, unknown>;
 }
-
-// =============================================================================
-// Constants (from centralized config)
-// =============================================================================
 
 const {
   BASE_DELAY_MS,
@@ -113,16 +82,6 @@ const {
   BATCH_SIZE: DEFAULT_BATCH_SIZE,
 } = JOB_PROCESSING_CONFIG;
 
-// =============================================================================
-// P2-2: Batch-Level Backoff Configuration
-// =============================================================================
-
-/**
- * P2-2: Batch backoff state for adaptive processing rate
- * 
- * When too many failures occur in a batch, we reduce processing speed
- * to allow external systems (platforms, DB) to recover.
- */
 interface BatchBackoffState {
   consecutiveHighFailureBatches: number;
   lastBatchFailureRate: number;
@@ -130,28 +89,24 @@ interface BatchBackoffState {
 }
 
 const BATCH_BACKOFF_CONFIG = {
-  /** Failure rate threshold to trigger backoff (e.g., 0.5 = 50%) */
+
   FAILURE_RATE_THRESHOLD: 0.5,
-  /** Initial delay between batches when backoff is triggered */
+
   INITIAL_BATCH_DELAY_MS: 1000,
-  /** Maximum delay between batches */
+
   MAX_BATCH_DELAY_MS: 30000,
-  /** Multiplier for exponential backoff */
+
   BACKOFF_MULTIPLIER: 2,
-  /** Number of consecutive good batches to reset backoff */
+
   RESET_THRESHOLD: 3,
 } as const;
 
-// Global backoff state (per process)
 const batchBackoffState: BatchBackoffState = {
   consecutiveHighFailureBatches: 0,
   lastBatchFailureRate: 0,
   currentDelayMs: 0,
 };
 
-/**
- * P2-2: Update batch backoff state based on batch results
- */
 function updateBatchBackoff(
   succeeded: number,
   failed: number,
@@ -164,9 +119,9 @@ function updateBatchBackoff(
   batchBackoffState.lastBatchFailureRate = failureRate;
 
   if (failureRate >= BATCH_BACKOFF_CONFIG.FAILURE_RATE_THRESHOLD) {
-    // High failure rate - increase backoff
+
     batchBackoffState.consecutiveHighFailureBatches++;
-    
+
     if (batchBackoffState.currentDelayMs === 0) {
       batchBackoffState.currentDelayMs = BATCH_BACKOFF_CONFIG.INITIAL_BATCH_DELAY_MS;
     } else {
@@ -182,16 +137,16 @@ function updateBatchBackoff(
       `Next batch delay: ${batchBackoffState.currentDelayMs}ms`
     );
   } else {
-    // Good batch - reduce backoff
+
     if (batchBackoffState.consecutiveHighFailureBatches > 0) {
       batchBackoffState.consecutiveHighFailureBatches--;
     }
-    
+
     if (batchBackoffState.consecutiveHighFailureBatches === 0) {
-      // Reset if we've had enough good batches
+
       batchBackoffState.currentDelayMs = 0;
     } else {
-      // Gradually reduce delay
+
       batchBackoffState.currentDelayMs = Math.floor(
         batchBackoffState.currentDelayMs / BATCH_BACKOFF_CONFIG.BACKOFF_MULTIPLIER
       );
@@ -199,16 +154,10 @@ function updateBatchBackoff(
   }
 }
 
-/**
- * P2-2: Get current batch delay (for external callers)
- */
 export function getBatchBackoffDelay(): number {
   return batchBackoffState.currentDelayMs;
 }
 
-/**
- * P2-2: Apply batch backoff delay if needed
- */
 async function applyBatchBackoff(): Promise<void> {
   if (batchBackoffState.currentDelayMs > 0) {
     logger.info(`[P2-2] Applying batch backoff delay: ${batchBackoffState.currentDelayMs}ms`);
@@ -216,13 +165,6 @@ async function applyBatchBackoff(): Promise<void> {
   }
 }
 
-// =============================================================================
-// Retry Logic
-// =============================================================================
-
-/**
- * Calculate next retry time with exponential backoff and jitter.
- */
 export function calculateNextRetryTime(attempts: number): Date {
   const delayMs = Math.min(
     BASE_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempts - 1),
@@ -232,14 +174,6 @@ export function calculateNextRetryTime(attempts: number): Date {
   return new Date(Date.now() + delayMs + jitter);
 }
 
-// =============================================================================
-// Job Claiming
-// =============================================================================
-
-/**
- * Claim jobs for processing using SELECT FOR UPDATE SKIP LOCKED.
- * This ensures atomic claim across multiple instances.
- */
 async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
   const now = new Date();
 
@@ -278,9 +212,6 @@ async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
   return claimedIds;
 }
 
-/**
- * Fetch jobs with relations for processing.
- */
 async function fetchJobsWithRelations(
   jobIds: string[]
 ): Promise<JobWithRelations[]> {
@@ -313,18 +244,9 @@ async function fetchJobsWithRelations(
   });
 }
 
-// =============================================================================
-// Batch Update Operations
-// =============================================================================
-
-/**
- * Batch update multiple jobs efficiently.
- * Groups updates by status for optimal query performance.
- */
 async function batchUpdateJobs(updates: JobUpdateEntry[]): Promise<void> {
   if (updates.length === 0) return;
 
-  // For single updates, use direct update
   if (updates.length === 1) {
     const { id, status, data } = updates[0];
     await prisma.conversionJob.update({
@@ -334,7 +256,6 @@ async function batchUpdateJobs(updates: JobUpdateEntry[]): Promise<void> {
     return;
   }
 
-  // For multiple updates, use transaction
   await prisma.$transaction(
     updates.map(({ id, status, data }) =>
       prisma.conversionJob.update({
@@ -345,18 +266,6 @@ async function batchUpdateJobs(updates: JobUpdateEntry[]): Promise<void> {
   );
 }
 
-// =============================================================================
-// Platform Sending (Parallelized)
-// =============================================================================
-
-/**
- * PR-4: 平台发送结果结构
- * 
- * 用于更精确的计费决策：
- * - anySent: 至少有一个平台成功发送
- * - anyFailed: 至少有一个平台发送失败（可重试）
- * - allSkipped: 所有平台都被跳过（consent/trust/无配置）
- */
 interface PlatformSendResults {
   platformResults: Record<string, string>;
   anyFailed: boolean;
@@ -364,12 +273,6 @@ interface PlatformSendResults {
   allSkipped: boolean;
 }
 
-/**
- * Send to all platforms in parallel.
- * Returns results for each platform with detailed status for billing decisions.
- * 
- * PR-4: 增加 anySent/allSkipped 状态，用于更精确的计费决策。
- */
 async function sendToPlatformsParallel(
   pixelConfigs: JobWithRelations["shop"]["pixelConfigs"],
   job: JobWithRelations,
@@ -382,15 +285,14 @@ async function sendToPlatformsParallel(
 ): Promise<PlatformSendResults> {
   const platformResults: Record<string, string> = { ...previousResults };
 
-  // Build send tasks
   const sendTasks = pixelConfigs.map(async (pixelConfig) => {
-    // Check if already sent successfully in previous attempt
+
     if (previousResults[pixelConfig.platform] === "sent") {
       return {
         platform: pixelConfig.platform,
         success: true,
         status: "sent",
-        skipped: false, // 之前已发送成功，不算 skipped
+        skipped: false,
         sent: true,
       };
     }
@@ -398,7 +300,6 @@ async function sendToPlatformsParallel(
     const clientConfig = parsePixelClientConfig(pixelConfig.clientConfig);
     const treatAsMarketing = clientConfig?.treatAsMarketing === true;
 
-    // Check platform eligibility
     const eligibility = checkPlatformEligibility(
       pixelConfig.platform,
       trustResult,
@@ -417,7 +318,6 @@ async function sendToPlatformsParallel(
       };
     }
 
-    // Send to platform
     const sendResult = await sendToPlatformWithCredentials(
       pixelConfig,
       job,
@@ -434,7 +334,6 @@ async function sendToPlatformsParallel(
     };
   });
 
-  // Execute all sends in parallel
   const results = await Promise.allSettled(sendTasks);
 
   let anyFailed = false;
@@ -444,8 +343,7 @@ async function sendToPlatformsParallel(
   for (const result of results) {
     if (result.status === "fulfilled") {
       platformResults[result.value.platform] = result.value.status;
-      
-      // PR-4: 跟踪发送状态
+
       if (result.value.sent) {
         anySent = true;
       }
@@ -456,31 +354,17 @@ async function sendToPlatformsParallel(
         anyFailed = true;
       }
     } else {
-      // Promise rejected - should be rare as we catch errors in sendToPlatformWithCredentials
+
       logger.error("Platform send task rejected:", result.reason);
       anyFailed = true;
     }
   }
 
-  // PR-4: allSkipped 表示所有平台都被跳过
   const allSkipped = skippedCount === pixelConfigs.length && pixelConfigs.length > 0;
 
   return { platformResults, anyFailed, anySent, allSkipped };
 }
 
-// =============================================================================
-// PR-3: ConversionLog Upsert（报表事实表）
-// =============================================================================
-
-/**
- * PR-3: Upsert ConversionLog for each platform after sending.
- * 
- * ConversionLog 现在作为"每个平台的投递事实"由 job-processor 统一写入，
- * 而不是由 Pixel API 写入。这确保了：
- * 1. monitor/reconciliation 统一读 ConversionLog
- * 2. 避免 orderId=checkoutToken 的 join 问题
- * 3. 状态更准确（SENT/FAILED/SKIPPED）
- */
 async function upsertConversionLogs(
   job: JobWithRelations,
   platformResults: Record<string, string>,
@@ -488,23 +372,22 @@ async function upsertConversionLogs(
   now: Date
 ): Promise<void> {
   const upsertPromises = Object.entries(platformResults).map(async ([platform, status]) => {
-    // 解析状态
+
     const isSent = status === "sent";
     const isSkipped = status.startsWith("skipped:");
     const isFailed = status.startsWith("failed:");
-    
-    // 确定 ConversionLog 状态
+
     let logStatus: string;
     let errorMessage: string | null = null;
-    
+
     if (isSent) {
       logStatus = "sent";
     } else if (isSkipped) {
-      logStatus = "skipped"; // 新增状态，表示因 consent/trust 跳过
-      errorMessage = status; // e.g., "skipped:consent_analytics"
+      logStatus = "skipped";
+      errorMessage = status;
     } else if (isFailed) {
       logStatus = "failed";
-      errorMessage = status.substring(7); // 去掉 "failed:" 前缀
+      errorMessage = status.substring(7);
     } else {
       logStatus = "pending";
     }
@@ -538,7 +421,7 @@ async function upsertConversionLogs(
           lastAttemptAt: now,
           serverSideSent: isSent,
           sentAt: isSent ? now : null,
-          clientSideSent: false, // PR-2: Pixel API 不再写 ConversionLog
+          clientSideSent: false,
           errorMessage,
         },
         update: {
@@ -564,11 +447,6 @@ async function upsertConversionLogs(
   await Promise.all(upsertPromises);
 }
 
-/**
- * Send to platform with credential decryption.
- * 
- * PR-1: 现在会传递 preHashedUserData 给平台服务，提升匹配率。
- */
 async function sendToPlatformWithCredentials(
   pixelConfig: JobWithRelations["shop"]["pixelConfigs"][0],
   job: JobWithRelations,
@@ -582,10 +460,9 @@ async function sendToPlatformWithCredentials(
       logger.warn(`Failed to decrypt credentials for ${pixelConfig.platform}: ${credResult.error.message}`);
       return { success: false, status: "failed:no_credentials" };
     }
-    
+
     const credentials = credResult.value.credentials;
 
-    // Build conversion data
     const lineItems = capiInput?.items?.map((item) => ({
       productId: item.productId || "",
       variantId: item.variantId || "",
@@ -599,19 +476,16 @@ async function sendToPlatformWithCredentials(
         ? job.orderValue
         : job.orderValue.toNumber();
 
-    // PR-1: 传递预哈希 PII 数据（如果可用）
-    // capiInput.hashedUserData 来自 orders-paid webhook handler 的预哈希处理
     const conversionData: ConversionData = {
       orderId: job.orderId,
       orderNumber: job.orderNumber,
       value: orderValue,
       currency: job.currency,
       lineItems,
-      // PR-1: 预哈希 PII 数据传递给平台服务
+
       preHashedUserData: capiInput?.hashedUserData ?? null,
     };
 
-    // Send to platform using factory
     const result = await sendConversionToPlatform(
       pixelConfig.platform,
       credentials as PlatformCredentials,
@@ -633,20 +507,12 @@ async function sendToPlatformWithCredentials(
   }
 }
 
-// =============================================================================
-// Single Job Processing
-// =============================================================================
-
-/**
- * Process a single conversion job.
- * Returns result and any necessary updates.
- */
 async function processSingleJob(
   job: JobWithRelations,
   receiptMap: Map<string, ReceiptFields>,
   now: Date
 ): Promise<{ result: JobProcessResult; update: JobUpdateEntry }> {
-  // Skip if no platforms configured (check before billing to avoid unnecessary reservation)
+
   if (job.shop.pixelConfigs.length === 0) {
     logger.debug(`Job ${job.id}: No active platforms configured`);
     return {
@@ -663,7 +529,6 @@ async function processSingleJob(
     };
   }
 
-  // Atomic Billing Reservation (Race-condition safe)
   const reservationResult = await checkAndReserveBillingSlot(
     job.shopId,
     (job.shop.plan || "free") as PlanId,
@@ -672,7 +537,7 @@ async function processSingleJob(
 
   if (!reservationResult.ok) {
     logger.error(`Billing reservation failed for job ${job.id}: ${reservationResult.error.message}`);
-    // Treat DB error as a retryable failure
+
     return {
       result: "failed",
       update: {
@@ -711,7 +576,6 @@ async function processSingleJob(
   const capiInputParsed = parseCapiInput(job.capiInput);
   const webhookCheckoutToken = capiInputParsed?.checkoutToken;
 
-  // Find matching receipt
   const receipt = await findReceiptForJob(
     receiptMap,
     job.shopId,
@@ -720,11 +584,8 @@ async function processSingleJob(
     job.createdAt
   );
 
-  // PR-1: 优先使用 receipt.eventId（确保平台去重一致性）
-  // 这解决了 Pixel 侧用 checkoutToken fallback 生成 eventId 与 server 侧不一致的问题
   const eventId = receipt?.eventId ?? generateEventId(job.orderId, "purchase", job.shop.shopDomain);
 
-  // Build shop context for trust evaluation
   const shopContext: ShopTrustContext = {
     shopDomain: job.shop.shopDomain,
     primaryDomain: job.shop.primaryDomain,
@@ -732,14 +593,12 @@ async function processSingleJob(
     consentStrategy: job.shop.consentStrategy || "strict",
   };
 
-  // Evaluate trust and consent
   const { trustResult, trustMetadata, consentState } = evaluateTrust(
     receipt,
     webhookCheckoutToken || undefined,
     shopContext
   );
 
-  // Update receipt trust level if matched (fire and forget)
   if (didReceiptMatchByToken(receipt, webhookCheckoutToken || undefined)) {
     updateReceiptTrustLevel(
       job.shopId,
@@ -754,8 +613,6 @@ async function processSingleJob(
   const strategy = job.shop.consentStrategy || "strict";
   const previousResults = (job.platformResults as Record<string, string>) || {};
 
-  // Send to all platforms in parallel
-  // PR-4: 现在返回更详细的状态信息用于计费决策
   const { platformResults, anyFailed, anySent, allSkipped } = await sendToPlatformsParallel(
     job.shop.pixelConfigs,
     job,
@@ -767,13 +624,10 @@ async function processSingleJob(
     previousResults
   );
 
-  // PR-3: Upsert ConversionLog 作为报表事实表（fire and forget）
-  // 这确保 monitor/reconciliation 有准确的投递状态
   upsertConversionLogs(job, platformResults, eventId, now).catch((err) =>
     logger.warn(`Failed to upsert ConversionLogs for job ${job.id}: ${err}`)
   );
 
-  // Build consent evidence
   const consentEvidence = buildConsentEvidence(
     strategy,
     !!receipt,
@@ -781,28 +635,12 @@ async function processSingleJob(
     consentState
   );
 
-  // Prepare update
   const newAttempts = job.attempts + 1;
 
-  // ==========================================================================
-  // PR-4: 修正计费语义
-  // 
-  // 规则：
-  // 1. allSkipped=true（全部跳过）=> 不计费，release slot
-  // 2. anySent=true（至少一个成功）=> 计费，不 release（即使有部分失败）
-  // 3. anySent=false && anyFailed=true（全部失败）=> 不计费，release slot
-  // 
-  // 这确保：
-  // - "全部 skipped" 不会增加 MonthlyUsage.sentCount
-  // - "部分成功部分失败" 会计费 1 单，重试不会再次计费
-  // - "全失败" 不会计费
-  // ==========================================================================
-
-  // Case 1: 全部跳过（consent/trust/无配置）
   if (allSkipped) {
-    // Release billing slot - 实际没发也不应计费
+
     if (!reservation.alreadyCounted) {
-      await releaseBillingSlot(job.shopId).catch(err => 
+      await releaseBillingSlot(job.shopId).catch(err =>
         logger.error(`Failed to release billing slot for job ${job.id}: ${err.message}`)
       );
     }
@@ -828,17 +666,15 @@ async function processSingleJob(
     };
   }
 
-  // Case 2: 至少有一个平台成功发送
   if (anySent) {
-    // 保留 billing slot（即使有部分失败）- 已产生价值
-    // 如果有部分失败，标记为 FAILED 以便重试，但不会再次计费（alreadyCounted=true）
+
     if (anyFailed) {
       if (newAttempts >= job.maxAttempts) {
         return {
-          result: "succeeded", // 部分成功也算成功（已计费）
+          result: "succeeded",
           update: {
             id: job.id,
-            status: JobStatus.COMPLETED, // 标记完成，部分平台成功
+            status: JobStatus.COMPLETED,
             data: {
               attempts: newAttempts,
               lastAttemptAt: now,
@@ -854,10 +690,10 @@ async function processSingleJob(
       }
 
       return {
-        result: "succeeded", // 部分成功已计费
+        result: "succeeded",
         update: {
           id: job.id,
-          status: JobStatus.FAILED, // 标记失败以便重试剩余平台
+          status: JobStatus.FAILED,
           data: {
             attempts: newAttempts,
             lastAttemptAt: now,
@@ -871,7 +707,6 @@ async function processSingleJob(
       };
     }
 
-    // 全部成功
     return {
       result: "succeeded",
       update: {
@@ -891,10 +726,8 @@ async function processSingleJob(
     };
   }
 
-  // Case 3: 没有任何平台成功，且有失败（全部失败）
-  // Release billing slot - 没有产生价值
   if (!reservation.alreadyCounted) {
-    await releaseBillingSlot(job.shopId).catch(err => 
+    await releaseBillingSlot(job.shopId).catch(err =>
       logger.error(`Failed to release billing slot for job ${job.id}: ${err.message}`)
     );
   }
@@ -931,31 +764,13 @@ async function processSingleJob(
   };
 }
 
-// =============================================================================
-// Main Processing Function
-// =============================================================================
-
-/**
- * Process a batch of conversion jobs.
- *
- * This function:
- * 1. Applies batch-level backoff if previous batches had high failure rates (P2-2)
- * 2. Claims jobs atomically using FOR UPDATE SKIP LOCKED
- * 3. Verifies billing limits
- * 4. Finds and verifies pixel receipts for consent
- * 5. Sends conversions to enabled platforms (in parallel)
- * 6. Batch updates job statuses
- * 7. Updates backoff state based on results (P2-2)
- */
 export async function processConversionJobs(
   batchSize: number = DEFAULT_BATCH_SIZE
 ): Promise<ProcessConversionJobsResult> {
   const now = new Date();
 
-  // P2-2: Apply batch-level backoff if needed
   await applyBatchBackoff();
 
-  // Claim jobs
   const claimedJobIds = await claimJobsForProcessing(batchSize);
 
   if (claimedJobIds.length === 0) {
@@ -971,10 +786,8 @@ export async function processConversionJobs(
 
   logger.info(`processConversionJobs: Claimed ${claimedJobIds.length} jobs`);
 
-  // Fetch jobs with relations
   const jobsToProcess = await fetchJobsWithRelations(claimedJobIds);
 
-  // Batch prefetch receipts
   const receiptMap = await batchFetchReceipts(
     jobsToProcess.map((j) => ({
       shopId: j.shopId,
@@ -984,14 +797,12 @@ export async function processConversionJobs(
     }))
   );
 
-  // Process each job and collect updates
   const updates: JobUpdateEntry[] = [];
   let succeeded = 0;
   let failed = 0;
   let limitExceeded = 0;
   let skipped = 0;
 
-  // Process jobs concurrently in smaller batches for efficiency
   const CONCURRENCY = 10;
   for (let i = 0; i < jobsToProcess.length; i += CONCURRENCY) {
     const batch = jobsToProcess.slice(i, i + CONCURRENCY);
@@ -1047,12 +858,11 @@ export async function processConversionJobs(
     }
   }
 
-  // Batch update all jobs
   try {
     await batchUpdateJobs(updates);
   } catch (error) {
     logger.error("Failed to batch update jobs:", error);
-    // Fall back to individual updates
+
     for (const update of updates) {
       try {
         await prisma.conversionJob.update({
@@ -1065,15 +875,14 @@ export async function processConversionJobs(
     }
   }
 
-  // P2-2: Update batch backoff state
   updateBatchBackoff(succeeded, failed, limitExceeded);
 
   logger.info(
     `processConversionJobs: Completed - ` +
       `${succeeded} succeeded, ${failed} failed, ` +
       `${limitExceeded} limit exceeded, ${skipped} skipped` +
-      (batchBackoffState.currentDelayMs > 0 
-        ? ` (backoff: ${batchBackoffState.currentDelayMs}ms)` 
+      (batchBackoffState.currentDelayMs > 0
+        ? ` (backoff: ${batchBackoffState.currentDelayMs}ms)`
         : "")
   );
 
@@ -1086,7 +895,3 @@ export async function processConversionJobs(
   };
 }
 
-// =============================================================================
-// Note: Receipt matching and trust evaluation are now exported from the ingest module
-// Import from "~/modules/ingest" for: batchFetchReceipts, findReceiptForJob, evaluateTrust, etc.
-// =============================================================================

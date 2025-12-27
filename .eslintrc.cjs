@@ -1,4 +1,4 @@
-                                             
+
 module.exports = {
   root: true,
   parserOptions: {
@@ -20,15 +20,14 @@ module.exports = {
     "node_modules/",
     "dist/",
     ".cache/",
-    "extensions/*/src/**/*.tsx", // Extensions have their own build system
+    "extensions/*/src/**/*.tsx",
     "extensions/*/src/**/*.ts",
   ],
 
-                
   extends: ["eslint:recommended"],
 
   overrides: [
-            
+
     {
       files: ["**/*.{js,jsx,ts,tsx}"],
       plugins: ["react", "jsx-a11y"],
@@ -53,7 +52,6 @@ module.exports = {
       },
     },
 
-                 
     {
       files: ["**/*.{ts,tsx}"],
       plugins: ["@typescript-eslint", "import"],
@@ -83,7 +81,6 @@ module.exports = {
       },
     },
 
-           
     {
       files: [".eslintrc.cjs"],
       env: {

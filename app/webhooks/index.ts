@@ -1,10 +1,5 @@
-/**
- * Webhooks Module
- *
- * Centralized webhook handling with modular handlers.
- */
 
-// Types
+
 export type {
   WebhookContext,
   WebhookHandlerResult,
@@ -14,10 +9,8 @@ export type {
   GDPRJobType,
 } from "./types";
 
-// Dispatcher
 export { dispatchWebhook } from "./dispatcher";
 
-// Handlers
 export {
   handleOrdersPaid,
   handleAppUninstalled,
@@ -26,7 +19,6 @@ export {
   handleShopRedact,
 } from "./handlers";
 
-// Middleware
 export {
   tryAcquireWebhookLock,
   updateWebhookStatus,

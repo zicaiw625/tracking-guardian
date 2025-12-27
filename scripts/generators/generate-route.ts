@@ -1,21 +1,8 @@
 #!/usr/bin/env node --experimental-strip-types
-/**
- * Route Generator Script
- *
- * Generates boilerplate for new Remix routes with consistent patterns.
- *
- * Usage:
- *   node --experimental-strip-types scripts/generators/generate-route.ts app.my-route
- *   node --experimental-strip-types scripts/generators/generate-route.ts api.my-endpoint --type api
- *   node --experimental-strip-types scripts/generators/generate-route.ts settings.platform --type settings
- */
+
 
 import * as fs from "fs";
 import * as path from "path";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 type RouteType = "page" | "api" | "settings";
 
@@ -25,10 +12,6 @@ interface RouteConfig {
   hasLoader: boolean;
   hasAction: boolean;
 }
-
-// =============================================================================
-// Templates
-// =============================================================================
 
 const PAGE_TEMPLATE = `import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -301,7 +284,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     const formData = await request.formData();
-    
+
     // TODO: Validate and save settings
     // const schema = z.object({ ... });
     // const result = schema.safeParse(Object.fromEntries(formData));
@@ -377,13 +360,9 @@ export default function {{COMPONENT_NAME}}Settings() {
 }
 `;
 
-// =============================================================================
-// Generator Logic
-// =============================================================================
-
 function parseArgs(): RouteConfig {
   const args = process.argv.slice(2);
-  
+
   if (args.length === 0) {
     console.error("Usage: generate-route <route-name> [--type page|api|settings]");
     process.exit(1);
@@ -397,7 +376,6 @@ function parseArgs(): RouteConfig {
     type = args[typeIndex + 1] as RouteType;
   }
 
-  // Auto-detect type from name
   if (name.startsWith("api.")) {
     type = "api";
   } else if (name.startsWith("settings.") || name.includes("/settings/")) {
@@ -448,7 +426,6 @@ function generateRoute(config: RouteConfig): void {
     .replace(/\{\{COMPONENT_NAME\}\}/g, componentName)
     .replace(/\{\{TITLE\}\}/g, title);
 
-  // Determine output path
   let outputPath: string;
   if (config.type === "settings") {
     const settingsName = config.name.replace(/^settings\./, "");
@@ -465,23 +442,19 @@ function generateRoute(config: RouteConfig): void {
     );
   }
 
-  // Create directory if needed
   const dir = path.dirname(outputPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  // Check if file exists
   if (fs.existsSync(outputPath)) {
     console.error(`File already exists: ${outputPath}`);
     process.exit(1);
   }
 
-  // Write file
   fs.writeFileSync(outputPath, content);
   console.log(`✓ Created ${outputPath}`);
 
-  // Generate test file
   const testPath = outputPath.replace("/app/routes/", "/tests/routes/").replace(".tsx", ".test.ts");
   const testDir = path.dirname(testPath);
   if (!fs.existsSync(testDir)) {
@@ -518,10 +491,6 @@ describe("${config.name}", () => {
 });
 `;
 }
-
-// =============================================================================
-// Main
-// =============================================================================
 
 const config = parseArgs();
 generateRoute(config);

@@ -1,17 +1,5 @@
-/**
- * Webhook-Related Type Definitions
- * 
- * Types for Shopify webhooks, order payloads, and API responses.
- */
 
-// =============================================================================
-// Order Webhook Payload
-// =============================================================================
 
-/**
- * Full order payload from Shopify webhooks.
- * Contains PII fields that should be handled with care.
- */
 export interface OrderWebhookPayload {
   id: number;
   order_number?: number | null;
@@ -52,10 +40,6 @@ export interface OrderWebhookPayload {
   }> | null;
 }
 
-/**
- * Minimal order payload without PII.
- * Used for logging and non-sensitive operations.
- */
 export interface MinimalOrderPayload {
   id: number;
   order_number?: number | null;
@@ -74,9 +58,6 @@ export interface MinimalOrderPayload {
   }> | null;
 }
 
-/**
- * Convert full order payload to minimal (PII-free) version.
- */
 export function toMinimalOrderPayload(order: OrderWebhookPayload): MinimalOrderPayload {
   return {
     id: order.id,
@@ -89,13 +70,6 @@ export function toMinimalOrderPayload(order: OrderWebhookPayload): MinimalOrderP
   };
 }
 
-// =============================================================================
-// API Response Types
-// =============================================================================
-
-/**
- * Standard API response wrapper.
- */
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -103,13 +77,6 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
-// =============================================================================
-// Survey Response
-// =============================================================================
-
-/**
- * Post-purchase survey response data.
- */
 export interface SurveyResponseData {
   orderId?: string;
   orderNumber?: string;
@@ -120,13 +87,6 @@ export interface SurveyResponseData {
   customAnswers?: Record<string, unknown>;
 }
 
-// =============================================================================
-// Shop Data
-// =============================================================================
-
-/**
- * Shop data structure for internal use.
- */
 export interface ShopData {
   id: string;
   shopDomain: string;
@@ -140,10 +100,6 @@ export interface ShopData {
   weakConsentMode?: boolean;
   consentStrategy?: string;
 }
-
-// =============================================================================
-// Scan and Risk Assessment
-// =============================================================================
 
 export type RiskSeverity = "high" | "medium" | "low";
 
@@ -168,9 +124,9 @@ export interface ScanResult {
 }
 
 export interface ScriptTag {
-  /** Numeric ID for display purposes */
+
   id: number;
-  /** Original GraphQL global ID (gid://shopify/ScriptTag/123) for mutations */
+
   gid?: string;
   src: string;
   event?: string;
@@ -186,10 +142,6 @@ export interface CheckoutConfig {
     storefront?: boolean;
   };
 }
-
-// =============================================================================
-// Alert Configuration
-// =============================================================================
 
 export type AlertChannel = "email" | "slack" | "telegram";
 
@@ -229,10 +181,6 @@ export interface AlertData {
   revenueDiscrepancy: number;
   shopDomain: string;
 }
-
-// =============================================================================
-// Reconciliation
-// =============================================================================
 
 export interface ReconciliationResult {
   platform: string;

@@ -1,20 +1,8 @@
-/**
- * Prisma JSON Type Utilities
- *
- * Type-safe utilities for working with Prisma JSON fields.
- * Provides runtime validation and type narrowing for database JSON columns.
- */
+
 
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 
-// =============================================================================
-// Zod Schemas for JSON Fields
-// =============================================================================
-
-/**
- * Line item schema for CAPI input
- */
 export const CapiLineItemSchema = z.object({
   productId: z.string().optional(),
   variantId: z.string().optional(),
@@ -24,9 +12,6 @@ export const CapiLineItemSchema = z.object({
   price: z.number(),
 });
 
-/**
- * CAPI input schema for ConversionJob.capiInput
- */
 export const CapiInputSchema = z.object({
   orderId: z.string(),
   value: z.number(),
@@ -43,28 +28,16 @@ export const CapiInputSchema = z.object({
   shopifyOrderId: z.union([z.number(), z.string()]).optional(),
 });
 
-/**
- * Consent state schema for PixelEventReceipt.consentState
- */
 export const ConsentStateSchema = z.object({
   marketing: z.boolean().optional(),
   analytics: z.boolean().optional(),
   saleOfData: z.boolean().optional(),
 });
 
-/**
- * Trust level enum values
- */
 const TrustLevelValues = ["trusted", "partial", "untrusted", "unknown"] as const;
 
-/**
- * Consent strategy enum values
- */
 const ConsentStrategyValues = ["strict", "balanced", "weak"] as const;
 
-/**
- * Consent evidence schema for ConversionJob.consentEvidence
- */
 export const ConsentEvidenceSchema = z.object({
   strategy: z.enum(ConsentStrategyValues),
   hasReceipt: z.boolean(),
@@ -75,9 +48,6 @@ export const ConsentEvidenceSchema = z.object({
   reason: z.string().optional(),
 });
 
-/**
- * Trust metadata schema for ConversionJob.trustMetadata
- */
 export const TrustMetadataSchema = z.object({
   trustLevel: z.enum(TrustLevelValues),
   reason: z.string().optional(),
@@ -89,19 +59,10 @@ export const TrustMetadataSchema = z.object({
   originValidated: z.boolean().optional(),
 });
 
-/**
- * Platform results schema for ConversionJob.platformResults
- */
 export const PlatformResultsSchema = z.record(z.string(), z.string());
 
-/**
- * Risk severity enum values
- */
 const RiskSeverityValues = ["low", "medium", "high", "critical"] as const;
 
-/**
- * Risk item schema for ScanReport.riskItems
- */
 export const RiskItemSchema = z.object({
   id: z.string(),
   severity: z.enum(RiskSeverityValues),
@@ -111,18 +72,12 @@ export const RiskItemSchema = z.object({
   recommendation: z.string().optional(),
 });
 
-/**
- * Pixel client config schema for PixelConfig.clientConfig
- */
 export const PixelClientConfigSchema = z.object({
   treatAsMarketing: z.boolean().optional(),
   conversionLabels: z.array(z.string()).optional(),
   eventMappings: z.record(z.string(), z.string()).optional(),
 });
 
-/**
- * Platform response schema for ConversionLog.platformResponse
- */
 export const PlatformResponseSchema = z.object({
   success: z.boolean().optional(),
   events_received: z.number().optional(),
@@ -137,10 +92,6 @@ export const PlatformResponseSchema = z.object({
     .optional(),
 });
 
-// =============================================================================
-// Type Exports
-// =============================================================================
-
 export type CapiLineItem = z.infer<typeof CapiLineItemSchema>;
 export type CapiInput = z.infer<typeof CapiInputSchema>;
 export type ConsentState = z.infer<typeof ConsentStateSchema>;
@@ -151,22 +102,12 @@ export type RiskItem = z.infer<typeof RiskItemSchema>;
 export type PixelClientConfig = z.infer<typeof PixelClientConfigSchema>;
 export type PlatformResponse = z.infer<typeof PlatformResponseSchema>;
 
-// =============================================================================
-// Safe Parsing Functions
-// =============================================================================
-
-/**
- * Result of safe parsing
- */
 export interface SafeParseResult<T> {
   success: boolean;
   data?: T;
   error?: z.ZodError;
 }
 
-/**
- * Safely parse CAPI input from JSON
- */
 export function safeParseCapiInput(json: unknown): SafeParseResult<CapiInput> {
   const result = CapiInputSchema.safeParse(json);
   return result.success
@@ -174,9 +115,6 @@ export function safeParseCapiInput(json: unknown): SafeParseResult<CapiInput> {
     : { success: false, error: result.error };
 }
 
-/**
- * Safely parse consent state from JSON
- */
 export function safeParseConsentState(json: unknown): SafeParseResult<ConsentState> {
   const result = ConsentStateSchema.safeParse(json);
   return result.success
@@ -184,9 +122,6 @@ export function safeParseConsentState(json: unknown): SafeParseResult<ConsentSta
     : { success: false, error: result.error };
 }
 
-/**
- * Safely parse consent evidence from JSON
- */
 export function safeParseConsentEvidence(
   json: unknown
 ): SafeParseResult<ConsentEvidence> {
@@ -196,9 +131,6 @@ export function safeParseConsentEvidence(
     : { success: false, error: result.error };
 }
 
-/**
- * Safely parse trust metadata from JSON
- */
 export function safeParseTrustMetadata(
   json: unknown
 ): SafeParseResult<TrustMetadata> {
@@ -208,9 +140,6 @@ export function safeParseTrustMetadata(
     : { success: false, error: result.error };
 }
 
-/**
- * Safely parse risk items from JSON array
- */
 export function safeParseRiskItems(json: unknown): SafeParseResult<RiskItem[]> {
   const result = z.array(RiskItemSchema).safeParse(json);
   return result.success
@@ -218,9 +147,6 @@ export function safeParseRiskItems(json: unknown): SafeParseResult<RiskItem[]> {
     : { success: false, error: result.error };
 }
 
-/**
- * Safely parse pixel client config from JSON
- */
 export function safeParsePixelClientConfig(
   json: unknown
 ): SafeParseResult<PixelClientConfig> {
@@ -230,20 +156,10 @@ export function safeParsePixelClientConfig(
     : { success: false, error: result.error };
 }
 
-// =============================================================================
-// Type-Safe JSON Field Utilities
-// =============================================================================
-
-/**
- * Convert typed object to Prisma JSON input
- */
 export function toJsonInput<T>(data: T): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(data)) as Prisma.InputJsonValue;
 }
 
-/**
- * Parse JSON with fallback
- */
 export function parseJsonWithFallback<T>(
   json: unknown,
   schema: z.ZodType<T>,
@@ -253,9 +169,6 @@ export function parseJsonWithFallback<T>(
   return result.success ? result.data : fallback;
 }
 
-/**
- * Parse JSON or return null
- */
 export function parseJsonOrNull<T>(
   json: unknown,
   schema: z.ZodType<T>
@@ -264,27 +177,14 @@ export function parseJsonOrNull<T>(
   return result.success ? result.data : null;
 }
 
-// =============================================================================
-// Type Guards
-// =============================================================================
-
-/**
- * Check if value is a non-null object
- */
 export function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/**
- * Check if value is a string array
- */
 export function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
-/**
- * Check if value is a valid JSON object for Prisma
- */
 export function isPrismaJson(value: unknown): value is Prisma.JsonValue {
   if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return true;
@@ -298,13 +198,6 @@ export function isPrismaJson(value: unknown): value is Prisma.JsonValue {
   return false;
 }
 
-// =============================================================================
-// Database Field Helpers
-// =============================================================================
-
-/**
- * Create empty CAPI input for new jobs
- */
 export function createEmptyCapiInput(orderId: string, value: number, currency = "USD"): CapiInput {
   return {
     orderId,
@@ -316,9 +209,6 @@ export function createEmptyCapiInput(orderId: string, value: number, currency = 
   };
 }
 
-/**
- * Create default consent state
- */
 export function createDefaultConsentState(): ConsentState {
   return {
     marketing: undefined,
@@ -327,9 +217,6 @@ export function createDefaultConsentState(): ConsentState {
   };
 }
 
-/**
- * Create default trust metadata
- */
 export function createDefaultTrustMetadata(): TrustMetadata {
   return {
     trustLevel: "unknown",
@@ -337,9 +224,6 @@ export function createDefaultTrustMetadata(): TrustMetadata {
   };
 }
 
-/**
- * Merge consent states (later values override earlier)
- */
 export function mergeConsentStates(
   base: ConsentState | null,
   override: ConsentState | null
@@ -351,10 +235,6 @@ export function mergeConsentStates(
   };
 }
 
-/**
- * Convert value to Prisma InputJsonValue.
- * Handles undefined by returning Prisma.DbNull (for setting to DB null).
- */
 export function toInputJsonValue(value: unknown): Prisma.InputJsonValue | typeof Prisma.DbNull {
   if (value === undefined || value === null) {
     return Prisma.DbNull;

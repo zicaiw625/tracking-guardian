@@ -1,24 +1,9 @@
-/**
- * Redis Client Factory
- *
- * Unified Redis client management for rate limiting, circuit breaker, and caching.
- * Provides a singleton pattern with automatic fallback to in-memory stores.
- *
- * Features:
- * - Single connection shared across all services
- * - Automatic reconnection handling
- * - Graceful fallback to in-memory when Redis is unavailable
- * - Connection status monitoring
- */
+
 
 import type { RedisClientType } from "redis";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export interface RedisClientWrapper {
-  // String operations
+
   get(key: string): Promise<string | null>;
   set(key: string, value: string, options?: { EX?: number }): Promise<void>;
   del(key: string): Promise<number>;
@@ -26,16 +11,13 @@ export interface RedisClientWrapper {
   expire(key: string, seconds: number): Promise<boolean>;
   ttl(key: string): Promise<number>;
 
-  // Hash operations
   hGetAll(key: string): Promise<Record<string, string>>;
   hSet(key: string, field: string, value: string): Promise<number>;
   hMSet(key: string, fields: Record<string, string>): Promise<void>;
   hIncrBy(key: string, field: string, increment: number): Promise<number>;
 
-  // Key operations
   keys(pattern: string): Promise<string[]>;
 
-  // Connection status
   isConnected(): boolean;
   getConnectionInfo(): ConnectionInfo;
 }
@@ -47,10 +29,6 @@ export interface ConnectionInfo {
   lastError?: string;
   reconnectAttempts: number;
 }
-
-// =============================================================================
-// In-Memory Fallback Implementation
-// =============================================================================
 
 interface MemoryEntry {
   value: string;
@@ -76,21 +54,19 @@ class InMemoryFallback implements RedisClientWrapper {
   }
 
   private cleanup(): void {
-    // Cleanup strings
+
     for (const [key, entry] of this.stringStore.entries()) {
       if (this.isExpired(entry.expiresAt)) {
         this.stringStore.delete(key);
       }
     }
 
-    // Cleanup hashes
     for (const [key, entry] of this.hashStore.entries()) {
       if (this.isExpired(entry.expiresAt)) {
         this.hashStore.delete(key);
       }
     }
 
-    // If still too large, remove oldest entries
     const totalSize = this.stringStore.size + this.hashStore.size;
     if (totalSize >= this.maxSize * 0.9) {
       const targetSize = Math.floor(this.maxSize * 0.7);
@@ -184,10 +160,10 @@ class InMemoryFallback implements RedisClientWrapper {
     }
 
     if (stringEntry || hashEntry) {
-      return -1; // Key exists but no TTL
+      return -1;
     }
 
-    return -2; // Key doesn't exist
+    return -2;
   }
 
   async hGetAll(key: string): Promise<Record<string, string>> {
@@ -238,7 +214,7 @@ class InMemoryFallback implements RedisClientWrapper {
   }
 
   async keys(pattern: string): Promise<string[]> {
-    // Simple pattern matching (only supports * at end)
+
     const prefix = pattern.replace(/\*$/, "");
     const results: string[] = [];
 
@@ -258,7 +234,7 @@ class InMemoryFallback implements RedisClientWrapper {
   }
 
   isConnected(): boolean {
-    return true; // In-memory is always "connected"
+    return true;
   }
 
   getConnectionInfo(): ConnectionInfo {
@@ -269,10 +245,6 @@ class InMemoryFallback implements RedisClientWrapper {
     };
   }
 }
-
-// =============================================================================
-// Redis Client Factory
-// =============================================================================
 
 class RedisClientFactory {
   private static instance: RedisClientFactory | null = null;
@@ -298,10 +270,6 @@ class RedisClientFactory {
     return RedisClientFactory.instance;
   }
 
-  /**
-   * Get the Redis client, initializing if necessary.
-   * Returns in-memory fallback if Redis is unavailable.
-   */
   async getClient(): Promise<RedisClientWrapper> {
     if (this.client) {
       return this.client;
@@ -315,9 +283,6 @@ class RedisClientFactory {
     return this.initPromise;
   }
 
-  /**
-   * Get client synchronously. Returns fallback if not initialized.
-   */
   getClientSync(): RedisClientWrapper {
     return this.client || this.fallback;
   }
@@ -326,10 +291,10 @@ class RedisClientFactory {
     const redisUrl = process.env.REDIS_URL;
 
     if (!redisUrl) {
-      // eslint-disable-next-line no-console
+
       console.log("[REDIS] No REDIS_URL configured, using in-memory store");
       if (process.env.NODE_ENV === "production") {
-        // eslint-disable-next-line no-console
+
         console.warn(
           "[REDIS] ⚠️ In-memory store in production - rate limiting will not be shared across instances"
         );
@@ -348,7 +313,7 @@ class RedisClientFactory {
       const client = createClient({ url: redisUrl });
 
       client.on("error", (err) => {
-        // eslint-disable-next-line no-console
+
         console.error("[REDIS] Client error:", err.message);
         this.connectionInfo.lastError = err.message;
         this.connectionInfo.connected = false;
@@ -356,7 +321,7 @@ class RedisClientFactory {
 
       client.on("reconnecting", () => {
         this.connectionInfo.reconnectAttempts++;
-        // eslint-disable-next-line no-console
+
         console.log(
           `[REDIS] Reconnecting (attempt ${this.connectionInfo.reconnectAttempts})...`
         );
@@ -365,7 +330,7 @@ class RedisClientFactory {
       client.on("connect", () => {
         this.connectionInfo.connected = true;
         this.connectionInfo.lastError = undefined;
-        // eslint-disable-next-line no-console
+
         console.log("[REDIS] Connected");
       });
 
@@ -376,19 +341,18 @@ class RedisClientFactory {
       this.connectionInfo = {
         connected: true,
         mode: "redis",
-        url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "//***:***@"), // Hide credentials
+        url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "//***:***@"),
         reconnectAttempts: 0,
       };
 
-      // eslint-disable-next-line no-console
       console.log("[REDIS] ✅ Redis client connected and ready");
 
       return this.client;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      // eslint-disable-next-line no-console
+
       console.error("[REDIS] Failed to connect:", errorMsg);
-      // eslint-disable-next-line no-console
+
       console.warn("[REDIS] ⚠️ Falling back to in-memory store");
 
       this.connectionInfo = {
@@ -515,24 +479,18 @@ class RedisClientFactory {
     };
   }
 
-  /**
-   * Get connection information
-   */
   getConnectionInfo(): ConnectionInfo {
     return { ...this.connectionInfo };
   }
 
-  /**
-   * Gracefully close the Redis connection
-   */
   async close(): Promise<void> {
     if (this.rawClient) {
       try {
         await this.rawClient.quit();
-        // eslint-disable-next-line no-console
+
         console.log("[REDIS] Connection closed");
       } catch (error) {
-        // eslint-disable-next-line no-console
+
         console.error("[REDIS] Error closing connection:", error);
       }
       this.rawClient = null;
@@ -541,9 +499,6 @@ class RedisClientFactory {
     this.initPromise = null;
   }
 
-  /**
-   * Reset the factory (mainly for testing)
-   */
   static reset(): void {
     if (RedisClientFactory.instance) {
       RedisClientFactory.instance.close().catch(() => {});
@@ -552,38 +507,21 @@ class RedisClientFactory {
   }
 }
 
-// =============================================================================
-// Exports
-// =============================================================================
-
-/**
- * Get the shared Redis client instance
- */
 export async function getRedisClient(): Promise<RedisClientWrapper> {
   return RedisClientFactory.getInstance().getClient();
 }
 
-/**
- * Get the Redis client synchronously (returns fallback if not ready)
- */
 export function getRedisClientSync(): RedisClientWrapper {
   return RedisClientFactory.getInstance().getClientSync();
 }
 
-/**
- * Get Redis connection information
- */
 export function getRedisConnectionInfo(): ConnectionInfo {
   return RedisClientFactory.getInstance().getConnectionInfo();
 }
 
-/**
- * Close the Redis connection gracefully
- */
 export async function closeRedisConnection(): Promise<void> {
   await RedisClientFactory.getInstance().close();
 }
 
-// Export the factory for advanced use cases
 export { RedisClientFactory };
 

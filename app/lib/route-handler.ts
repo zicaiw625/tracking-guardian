@@ -1,9 +1,4 @@
-/**
- * Route Handler Abstractions
- *
- * Provides consistent patterns for handling Remix action/loader functions.
- * Reduces boilerplate and ensures consistent error handling across routes.
- */
+
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
@@ -12,13 +7,6 @@ import { logger, createRequestLogger, type RequestLogger } from "../utils/logger
 import { type Result, ok, err } from "../types/result";
 import type { AdminApiContext, Session } from "@shopify/shopify-app-remix/server";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Authenticated context for route handlers
- */
 export interface AuthContext {
   session: Session;
   admin: AdminApiContext;
@@ -27,71 +15,39 @@ export interface AuthContext {
   logger: RequestLogger;
 }
 
-/**
- * Configuration for action handler
- */
 export interface ActionHandlerConfig<TInput, TOutput> {
-  /** Validate request body */
+
   validate?: (data: unknown) => Result<TInput, AppError>;
-  /** Execute the action logic */
+
   execute: (input: TInput, ctx: AuthContext) => Promise<Result<TOutput, AppError>>;
-  /** Custom error handler */
+
   onError?: (error: AppError, ctx: AuthContext) => Response;
-  /** Success status code */
+
   successStatus?: number;
 }
 
-/**
- * Configuration for loader handler
- */
 export interface LoaderHandlerConfig<TOutput> {
-  /** Execute the loader logic */
+
   execute: (ctx: AuthContext) => Promise<Result<TOutput, AppError>>;
-  /** Custom error handler */
+
   onError?: (error: AppError, ctx: AuthContext) => Response;
 }
 
-/**
- * Configuration for unauthenticated handler
- */
 export interface PublicHandlerConfig<TInput, TOutput> {
-  /** Validate request body */
+
   validate?: (data: unknown) => Result<TInput, AppError>;
-  /** Execute the logic */
+
   execute: (input: TInput, request: Request) => Promise<Result<TOutput, AppError>>;
-  /** Custom error handler */
+
   onError?: (error: AppError) => Response;
 }
 
-// =============================================================================
-// Handler Factories
-// =============================================================================
-
-/**
- * Create an authenticated action handler
- *
- * @example
- * ```typescript
- * export const action = createActionHandler({
- *   validate: (data) => {
- *     const result = MySchema.safeParse(data);
- *     if (!result.success) return err(AppError.validation(...));
- *     return ok(result.data);
- *   },
- *   execute: async (input, ctx) => {
- *     const result = await doSomething(input, ctx.shopDomain);
- *     return ok({ success: true, data: result });
- *   },
- * });
- * ```
- */
 export function createActionHandler<TInput = unknown, TOutput = unknown>(
   config: ActionHandlerConfig<TInput, TOutput>
 ): (args: ActionFunctionArgs) => Promise<Response> {
   return async ({ request }: ActionFunctionArgs) => {
     const requestLogger = createRequestLogger(request);
 
-    // Authenticate
     let ctx: AuthContext;
     try {
       const { session, admin } = await authenticate.admin(request);
@@ -110,7 +66,7 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
     }
 
     try {
-      // Parse request body
+
       let input: TInput;
       if (config.validate) {
         const body = await parseRequestBody(request);
@@ -123,7 +79,6 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
         input = (await parseRequestBody(request)) as TInput;
       }
 
-      // Execute action
       const result = await config.execute(input, ctx);
       if (!result.ok) {
         return handleError(result.error, ctx, config.onError);
@@ -140,16 +95,12 @@ export function createActionHandler<TInput = unknown, TOutput = unknown>(
   };
 }
 
-/**
- * Create an authenticated loader handler
- */
 export function createLoaderHandler<TOutput>(
   config: LoaderHandlerConfig<TOutput>
 ): (args: LoaderFunctionArgs) => Promise<Response> {
   return async ({ request }: LoaderFunctionArgs) => {
     const requestLogger = createRequestLogger(request);
 
-    // Authenticate
     let ctx: AuthContext;
     try {
       const { session, admin } = await authenticate.admin(request);
@@ -181,9 +132,6 @@ export function createLoaderHandler<TOutput>(
   };
 }
 
-/**
- * Create a public (unauthenticated) action handler
- */
 export function createPublicActionHandler<TInput = unknown, TOutput = unknown>(
   config: PublicHandlerConfig<TInput, TOutput>
 ): (args: ActionFunctionArgs) => Promise<Response> {
@@ -214,19 +162,12 @@ export function createPublicActionHandler<TInput = unknown, TOutput = unknown>(
   };
 }
 
-// =============================================================================
-// Webhook Handler
-// =============================================================================
-
-/**
- * Configuration for webhook handler
- */
 export interface WebhookHandlerConfig<TPayload, TOutput> {
-  /** Topic filter (optional) */
+
   topic?: string;
-  /** Validate payload */
+
   validate?: (payload: unknown) => Result<TPayload, AppError>;
-  /** Execute webhook logic */
+
   execute: (
     payload: TPayload,
     context: {
@@ -236,13 +177,10 @@ export interface WebhookHandlerConfig<TPayload, TOutput> {
       admin?: AdminApiContext;
     }
   ) => Promise<Result<TOutput, AppError>>;
-  /** Allow async processing (return 200 immediately) */
+
   async?: boolean;
 }
 
-/**
- * Create a webhook handler
- */
 export function createWebhookHandler<TPayload = unknown, TOutput = unknown>(
   config: WebhookHandlerConfig<TPayload, TOutput>
 ): (args: ActionFunctionArgs) => Promise<Response> {
@@ -250,14 +188,12 @@ export function createWebhookHandler<TPayload = unknown, TOutput = unknown>(
     try {
       const { topic, shop, payload, admin } = await authenticate.webhook(request);
 
-      // Topic filter
       if (config.topic && topic !== config.topic) {
         return new Response("OK", { status: 200 });
       }
 
       const webhookId = request.headers.get("X-Shopify-Webhook-Id");
 
-      // Validate payload
       let validatedPayload: TPayload;
       if (config.validate) {
         const validationResult = config.validate(payload);
@@ -274,27 +210,25 @@ export function createWebhookHandler<TPayload = unknown, TOutput = unknown>(
         validatedPayload = payload as TPayload;
       }
 
-      // Async processing - return immediately
       if (config.async) {
-        // Fire and forget
+
         config.execute(validatedPayload, { shop, webhookId, topic, admin }).catch((error) => {
           logger.error("Async webhook processing failed", error, { shop, topic });
         });
         return new Response("OK", { status: 200 });
       }
 
-      // Sync processing
       const result = await config.execute(validatedPayload, { shop, webhookId, topic, admin });
       if (!result.ok) {
         logger.error("Webhook processing failed", result.error, { shop, topic });
-        // Return 500 to trigger retry
+
         return new Response(result.error.message, { status: 500 });
       }
 
       return new Response("OK", { status: 200 });
     } catch (error) {
       if (error instanceof Response) {
-        // HMAC validation failed
+
         return error;
       }
       logger.error("Webhook handler error", error);
@@ -303,13 +237,6 @@ export function createWebhookHandler<TPayload = unknown, TOutput = unknown>(
   };
 }
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Parse request body safely
- */
 async function parseRequestBody(request: Request): Promise<unknown> {
   const contentType = request.headers.get("Content-Type") || "";
 
@@ -333,9 +260,6 @@ async function parseRequestBody(request: Request): Promise<unknown> {
   return {};
 }
 
-/**
- * Handle error and return appropriate response
- */
 function handleError(
   error: AppError,
   ctx: AuthContext,
@@ -356,9 +280,6 @@ function handleError(
   return json({ success: false, error: message, code }, { status });
 }
 
-/**
- * Handle error for public endpoints
- */
 function handlePublicError(
   error: AppError,
   customHandler?: (error: AppError) => Response
@@ -375,13 +296,6 @@ function handlePublicError(
   return json({ success: false, error: message, code }, { status });
 }
 
-// =============================================================================
-// Validation Helpers
-// =============================================================================
-
-/**
- * Create a validator from a Zod schema
- */
 export function createValidator<T>(
   schema: { safeParse: (data: unknown) => { success: true; data: T } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string }> } } }
 ): (data: unknown) => Result<T, AppError> {
@@ -406,9 +320,6 @@ export function createValidator<T>(
   };
 }
 
-/**
- * Combine multiple validators
- */
 export function composeValidators<T>(
   ...validators: Array<(data: T) => Result<T, AppError>>
 ): (data: T) => Result<T, AppError> {

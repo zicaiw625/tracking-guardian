@@ -1,19 +1,7 @@
-/**
- * Dashboard Types and Helpers
- *
- * Shared types and helper functions for the dashboard.
- * This file is safe to import from both server and client code.
- */
 
-// =============================================================================
-// Types
-// =============================================================================
 
 export type HealthStatus = "success" | "warning" | "critical" | "uninitialized";
 
-/**
- * Dashboard data returned from the server
- */
 export interface DashboardData {
   shopDomain: string;
   healthScore: number | null;
@@ -36,9 +24,6 @@ export interface DashboardData {
   hasOrderStatusScripts: boolean;
 }
 
-/**
- * Setup step definition
- */
 export interface SetupStep {
   id: string;
   label: string;
@@ -48,13 +33,6 @@ export interface SetupStep {
   done: boolean;
 }
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Get setup steps based on dashboard data
- */
 export function getSetupSteps(data: DashboardData): SetupStep[] {
   return [
     {
@@ -84,16 +62,10 @@ export function getSetupSteps(data: DashboardData): SetupStep[] {
   ];
 }
 
-/**
- * Get the next incomplete setup step
- */
 export function getNextSetupStep(steps: SetupStep[]): SetupStep | undefined {
   return steps.find((step) => !step.done);
 }
 
-/**
- * Calculate setup progress
- */
 export function getSetupProgress(steps: SetupStep[]): {
   completed: number;
   total: number;

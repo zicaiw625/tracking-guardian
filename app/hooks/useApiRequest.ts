@@ -1,15 +1,7 @@
-/**
- * API Request Hook
- *
- * Provides a consistent way to make API calls with loading, error, and success states.
- */
+
 
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "@remix-run/react";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export interface ApiState<T> {
   data: T | null;
@@ -24,11 +16,11 @@ export interface ApiError {
 }
 
 export interface UseApiRequestOptions {
-  /** Redirect on 401 error */
+
   redirectOnUnauthorized?: boolean;
-  /** Success callback */
+
   onSuccess?: () => void;
-  /** Error callback */
+
   onError?: (error: ApiError) => void;
 }
 
@@ -40,36 +32,6 @@ export interface ApiResponse<T> {
   details?: Array<{ field: string; message: string }>;
 }
 
-// =============================================================================
-// Hook
-// =============================================================================
-
-/**
- * Hook for making API requests with built-in state management.
- *
- * @example
- * ```tsx
- * function MyComponent() {
- *   const { execute, loading, error, data } = useApiRequest<MyData>();
- *
- *   const handleSubmit = async () => {
- *     const result = await execute('/api/endpoint', {
- *       method: 'POST',
- *       body: JSON.stringify({ key: 'value' }),
- *     });
- *
- *     if (result) {
- *       // Success
- *     }
- *   };
- *
- *   if (loading) return <Spinner />;
- *   if (error) return <ErrorDisplay error={error} />;
- *
- *   return <div>{data?.someField}</div>;
- * }
- * ```
- */
 export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
   const [state, setState] = useState<ApiState<T>>({
     data: null,
@@ -95,7 +57,6 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
           ...init,
         });
 
-        // Handle 401 Unauthorized
         if (response.status === 401 && options.redirectOnUnauthorized !== false) {
           navigate("/auth/login");
           return null;
@@ -149,38 +110,18 @@ export function useApiRequest<T = unknown>(options: UseApiRequestOptions = {}) {
   };
 }
 
-// =============================================================================
-// Mutation Hook
-// =============================================================================
-
 export interface UseMutationOptions<TInput, TOutput> {
-  /** API endpoint */
+
   url: string;
-  /** HTTP method */
+
   method?: "POST" | "PUT" | "PATCH" | "DELETE";
-  /** Transform input before sending */
+
   transformInput?: (input: TInput) => unknown;
-  /** Callbacks */
+
   onSuccess?: (data: TOutput) => void;
   onError?: (error: ApiError) => void;
 }
 
-/**
- * Hook for mutations (POST, PUT, DELETE) with optimistic updates support.
- *
- * @example
- * ```tsx
- * const { mutate, loading } = useMutation<CreateInput, CreateOutput>({
- *   url: '/api/resource',
- *   method: 'POST',
- *   onSuccess: () => toast.success('Created!'),
- * });
- *
- * <Button loading={loading} onClick={() => mutate({ name: 'Test' })}>
- *   Create
- * </Button>
- * ```
- */
 export function useMutation<TInput = unknown, TOutput = unknown>(
   options: UseMutationOptions<TInput, TOutput>
 ) {
@@ -248,31 +189,16 @@ export function useMutation<TInput = unknown, TOutput = unknown>(
   };
 }
 
-// =============================================================================
-// Query Hook
-// =============================================================================
-
 export interface UseQueryOptions<T> {
-  /** Auto-fetch on mount */
+
   enabled?: boolean;
-  /** Refetch interval in ms */
+
   refetchInterval?: number;
-  /** Callbacks */
+
   onSuccess?: (data: T) => void;
   onError?: (error: ApiError) => void;
 }
 
-/**
- * Hook for fetching data with auto-refresh support.
- *
- * @example
- * ```tsx
- * const { data, loading, error, refetch } = useQuery<MyData>(
- *   '/api/data',
- *   { refetchInterval: 30000 }
- * );
- * ```
- */
 export function useQuery<T>(
   url: string,
   options: UseQueryOptions<T> = {}
@@ -323,15 +249,13 @@ export function useQuery<T>(
     }
   }, [url, navigate, onSuccess, onError]);
 
-  // Auto-fetch on mount
   useEffect(() => {
     if (enabled) {
       fetch_();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [enabled]);
 
-  // Refetch interval
   useEffect(() => {
     if (refetchInterval && enabled) {
       const intervalId = setInterval(fetch_, refetchInterval);

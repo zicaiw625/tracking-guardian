@@ -1,15 +1,7 @@
-/**
- * Prisma Mock
- *
- * Mock implementation of Prisma client for testing.
- */
+
 
 import { vi, type Mock } from "vitest";
 import type { PrismaClient } from "@prisma/client";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export interface MockPrismaClient {
   shop: MockModel;
@@ -48,13 +40,6 @@ export interface MockModel {
   groupBy: Mock;
 }
 
-// =============================================================================
-// Factory Functions
-// =============================================================================
-
-/**
- * Create a mock model with all common Prisma methods
- */
 export function createMockModel(): MockModel {
   return {
     findUnique: vi.fn(),
@@ -73,9 +58,6 @@ export function createMockModel(): MockModel {
   };
 }
 
-/**
- * Create a full mock Prisma client
- */
 export function createMockPrismaClient(): MockPrismaClient {
   return {
     shop: createMockModel(),
@@ -99,13 +81,6 @@ export function createMockPrismaClient(): MockPrismaClient {
   };
 }
 
-// =============================================================================
-// Test Data Factories
-// =============================================================================
-
-/**
- * Create a mock shop
- */
 export function createMockShop(overrides: Partial<MockShop> = {}): MockShop {
   return {
     id: "shop_123",
@@ -151,9 +126,6 @@ export interface MockShop {
   updatedAt: Date;
 }
 
-/**
- * Create a mock pixel config
- */
 export function createMockPixelConfig(overrides: Partial<MockPixelConfig> = {}): MockPixelConfig {
   return {
     id: "config_123",
@@ -193,9 +165,6 @@ export interface MockPixelConfig {
   updatedAt: Date;
 }
 
-/**
- * Create a mock conversion job
- */
 export function createMockConversionJob(overrides: Partial<MockConversionJob> = {}): MockConversionJob {
   return {
     id: "job_123",
@@ -241,9 +210,6 @@ export interface MockConversionJob {
   completedAt: Date | null;
 }
 
-/**
- * Create a mock pixel event receipt
- */
 export function createMockPixelEventReceipt(overrides: Partial<MockPixelEventReceipt> = {}): MockPixelEventReceipt {
   return {
     id: "receipt_123",
@@ -279,44 +245,32 @@ export interface MockPixelEventReceipt {
   expiresAt: Date;
 }
 
-// =============================================================================
-// Setup Helpers
-// =============================================================================
-
-/**
- * Setup mock Prisma client with default returns
- */
 export function setupMockPrisma(mockPrisma: MockPrismaClient): void {
-  // Default shop not found
+
   mockPrisma.shop.findUnique.mockResolvedValue(null);
   mockPrisma.shop.findFirst.mockResolvedValue(null);
   mockPrisma.shop.findMany.mockResolvedValue([]);
   mockPrisma.shop.count.mockResolvedValue(0);
 
-  // Default config not found
   mockPrisma.pixelConfig.findUnique.mockResolvedValue(null);
   mockPrisma.pixelConfig.findFirst.mockResolvedValue(null);
   mockPrisma.pixelConfig.findMany.mockResolvedValue([]);
   mockPrisma.pixelConfig.count.mockResolvedValue(0);
 
-  // Default job operations
   mockPrisma.conversionJob.findUnique.mockResolvedValue(null);
   mockPrisma.conversionJob.findFirst.mockResolvedValue(null);
   mockPrisma.conversionJob.findMany.mockResolvedValue([]);
   mockPrisma.conversionJob.count.mockResolvedValue(0);
   mockPrisma.conversionJob.updateMany.mockResolvedValue({ count: 0 });
 
-  // Default receipt operations
   mockPrisma.pixelEventReceipt.findFirst.mockResolvedValue(null);
   mockPrisma.pixelEventReceipt.findMany.mockResolvedValue([]);
 
-  // Default nonce operations (no duplicates)
   mockPrisma.eventNonce.findUnique.mockResolvedValue(null);
   mockPrisma.eventNonce.create.mockImplementation((args) =>
     Promise.resolve({ id: "nonce_123", ...args.data })
   );
 
-  // Default monthly usage
   mockPrisma.monthlyUsage.findFirst.mockResolvedValue({
     id: "usage_123",
     shopId: "shop_123",
@@ -327,9 +281,6 @@ export function setupMockPrisma(mockPrisma: MockPrismaClient): void {
   });
 }
 
-/**
- * Reset all mocks
- */
 export function resetMockPrisma(mockPrisma: MockPrismaClient): void {
   Object.values(mockPrisma).forEach((model) => {
     if (model && typeof model === "object") {
@@ -342,15 +293,8 @@ export function resetMockPrisma(mockPrisma: MockPrismaClient): void {
   });
 }
 
-// =============================================================================
-// Global Mock Instance
-// =============================================================================
-
 let globalMockPrisma: MockPrismaClient | null = null;
 
-/**
- * Get or create global mock Prisma client
- */
 export function getMockPrisma(): MockPrismaClient {
   if (!globalMockPrisma) {
     globalMockPrisma = createMockPrismaClient();
@@ -359,9 +303,6 @@ export function getMockPrisma(): MockPrismaClient {
   return globalMockPrisma;
 }
 
-/**
- * Reset global mock Prisma client
- */
 export function resetGlobalMockPrisma(): void {
   if (globalMockPrisma) {
     resetMockPrisma(globalMockPrisma);

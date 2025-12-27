@@ -1,8 +1,4 @@
-/**
- * Shopify App Configuration
- *
- * Core Shopify app configuration and initialization.
- */
+
 
 import "@shopify/shopify-app-remix/adapters/node";
 import {
@@ -18,10 +14,6 @@ import { validateTokenEncryptionConfig } from "../../utils/token-encryption";
 import { logger } from "../../utils/logger.server";
 import { handleAfterAuth } from "./shop-provisioning.server";
 
-// =============================================================================
-// Token Encryption Validation
-// =============================================================================
-
 try {
   const encryptionValidation = validateTokenEncryptionConfig();
   if (encryptionValidation.warnings.length > 0) {
@@ -36,16 +28,8 @@ try {
   }
 }
 
-// =============================================================================
-// Session Storage
-// =============================================================================
-
 const baseSessionStorage = new PrismaSessionStorage(prisma);
 const encryptedSessionStorage = createEncryptedSessionStorage(baseSessionStorage);
-
-// =============================================================================
-// Shopify App Instance
-// =============================================================================
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -70,10 +54,6 @@ const shopify = shopifyApp({
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
     : {}),
 });
-
-// =============================================================================
-// Exports
-// =============================================================================
 
 export default shopify;
 export const apiVersion = ApiVersion.July25;

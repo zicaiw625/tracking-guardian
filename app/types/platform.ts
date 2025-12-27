@@ -1,128 +1,68 @@
-/**
- * Platform-Related Type Definitions
- *
- * Types for advertising platforms, credentials, and conversion data.
- * Uses Discriminated Unions for type-safe platform handling.
- */
+
 
 import { z } from "zod";
 import { Platform, type PlatformType } from "./enums";
 
-// =============================================================================
-// Platform Types (Discriminated Union)
-// =============================================================================
-
-/**
- * Supported platforms for server-side conversion tracking (CAPI).
- *
- * P0-4: bing and clarity removed - no server-side API implementation.
- * - Bing: Use Microsoft's official Shopify app instead
- * - Clarity: Client-side only tool, not suitable for CAPI
- */
 export type { PlatformType as Platform };
 
 export const PLATFORM_NAMES: Record<PlatformType, string> = {
   [Platform.GOOGLE]: "GA4 (Measurement Protocol)",
   [Platform.META]: "Meta (Facebook)",
   [Platform.TIKTOK]: "TikTok",
+  [Platform.PINTEREST]: "Pinterest",
 };
 
-// =============================================================================
-// Platform Credentials
-// =============================================================================
-
-/**
- * Google Analytics credentials
- */
 export interface GoogleCredentials {
   measurementId: string;
   apiSecret: string;
 }
 
-/**
- * Meta (Facebook) credentials
- */
 export interface MetaCredentials {
   pixelId: string;
   accessToken: string;
   testEventCode?: string;
 }
 
-/**
- * TikTok credentials
- */
 export interface TikTokCredentials {
   pixelId: string;
   accessToken: string;
   testEventCode?: string;
 }
 
-/**
- * Union of all platform credentials.
- */
+export interface PinterestCredentials {
+  adAccountId: string;
+  accessToken: string;
+  testMode?: boolean;
+}
+
 export type PlatformCredentials =
   | GoogleCredentials
   | MetaCredentials
-  | TikTokCredentials;
+  | TikTokCredentials
+  | PinterestCredentials;
 
-// =============================================================================
-// Discriminated Union Credentials (for type-safe handling)
-// =============================================================================
-
-/**
- * Google credentials with discriminant
- */
 export interface GoogleCredentialsTyped extends GoogleCredentials {
   readonly platform: "google";
 }
 
-/**
- * Meta credentials with discriminant
- */
 export interface MetaCredentialsTyped extends MetaCredentials {
   readonly platform: "meta";
 }
 
-/**
- * TikTok credentials with discriminant
- */
 export interface TikTokCredentialsTyped extends TikTokCredentials {
   readonly platform: "tiktok";
 }
 
-/**
- * Discriminated union of all platform credentials.
- * The 'platform' field acts as the discriminant.
- *
- * @example
- * ```typescript
- * function handleCredentials(creds: TypedPlatformCredentials) {
- *   switch (creds.platform) {
- *     case "google":
- *       console.log(creds.measurementId); // TypeScript knows this exists
- *       break;
- *     case "meta":
- *       console.log(creds.pixelId); // TypeScript knows this exists
- *       break;
- *     case "tiktok":
- *       console.log(creds.accessToken); // TypeScript knows this exists
- *       break;
- *   }
- * }
- * ```
- */
+export interface PinterestCredentialsTyped extends PinterestCredentials {
+  readonly platform: "pinterest";
+}
+
 export type TypedPlatformCredentials =
   | GoogleCredentialsTyped
   | MetaCredentialsTyped
-  | TikTokCredentialsTyped;
+  | TikTokCredentialsTyped
+  | PinterestCredentialsTyped;
 
-// =============================================================================
-// Zod Schemas for Runtime Validation
-// =============================================================================
-
-/**
- * Google credentials schema (without platform discriminant)
- */
 export const GoogleCredentialsSchema = z.object({
   measurementId: z
     .string()
@@ -131,9 +71,6 @@ export const GoogleCredentialsSchema = z.object({
   apiSecret: z.string().min(1, "API Secret is required"),
 });
 
-/**
- * Meta credentials schema (without platform discriminant)
- */
 export const MetaCredentialsSchema = z.object({
   pixelId: z
     .string()
@@ -143,52 +80,44 @@ export const MetaCredentialsSchema = z.object({
   testEventCode: z.string().optional(),
 });
 
-/**
- * TikTok credentials schema (without platform discriminant)
- */
 export const TikTokCredentialsSchema = z.object({
   pixelId: z.string().min(1, "Pixel ID is required"),
   accessToken: z.string().min(1, "Access Token is required"),
   testEventCode: z.string().optional(),
 });
 
-/**
- * Typed Google credentials schema with discriminant
- */
+export const PinterestCredentialsSchema = z.object({
+  adAccountId: z
+    .string()
+    .min(1, "Ad Account ID is required")
+    .regex(/^\d+$/, "Ad Account ID should be numeric"),
+  accessToken: z.string().min(1, "Access Token is required"),
+  testMode: z.boolean().optional(),
+});
+
 export const GoogleCredentialsTypedSchema = GoogleCredentialsSchema.extend({
   platform: z.literal("google"),
 });
 
-/**
- * Typed Meta credentials schema with discriminant
- */
 export const MetaCredentialsTypedSchema = MetaCredentialsSchema.extend({
   platform: z.literal("meta"),
 });
 
-/**
- * Typed TikTok credentials schema with discriminant
- */
 export const TikTokCredentialsTypedSchema = TikTokCredentialsSchema.extend({
   platform: z.literal("tiktok"),
 });
 
-/**
- * Combined typed credentials schema using discriminated union
- */
+export const PinterestCredentialsTypedSchema = PinterestCredentialsSchema.extend({
+  platform: z.literal("pinterest"),
+});
+
 export const PlatformCredentialsSchema = z.discriminatedUnion("platform", [
   GoogleCredentialsTypedSchema,
   MetaCredentialsTypedSchema,
   TikTokCredentialsTypedSchema,
+  PinterestCredentialsTypedSchema,
 ]);
 
-// =============================================================================
-// Type Guards (structure-based detection)
-// =============================================================================
-
-/**
- * Check if credentials are Google credentials (has measurementId)
- */
 export function isGoogleCredentials(
   creds: PlatformCredentials
 ): creds is GoogleCredentials {
@@ -200,9 +129,6 @@ export function isGoogleCredentials(
   );
 }
 
-/**
- * Check if credentials are Meta credentials (has pixelId but no measurementId)
- */
 export function isMetaCredentials(
   creds: PlatformCredentials
 ): creds is MetaCredentials {
@@ -215,10 +141,6 @@ export function isMetaCredentials(
   );
 }
 
-/**
- * Check if credentials are TikTok credentials
- * Note: TikTok and Meta have same structure, use platform context to distinguish
- */
 export function isTikTokCredentials(
   creds: PlatformCredentials
 ): creds is TikTokCredentials {
@@ -230,9 +152,6 @@ export function isTikTokCredentials(
   );
 }
 
-/**
- * Check if typed credentials are for a specific platform
- */
 export function isTypedGoogleCredentials(
   creds: TypedPlatformCredentials
 ): creds is GoogleCredentialsTyped {
@@ -251,13 +170,23 @@ export function isTypedTikTokCredentials(
   return creds.platform === Platform.TIKTOK;
 }
 
-// =============================================================================
-// Credential Utilities
-// =============================================================================
+export function isTypedPinterestCredentials(
+  creds: TypedPlatformCredentials
+): creds is PinterestCredentialsTyped {
+  return creds.platform === Platform.PINTEREST;
+}
 
-/**
- * Add platform discriminant to credentials.
- */
+export function isPinterestCredentials(
+  creds: PlatformCredentials
+): creds is PinterestCredentials {
+  return (
+    "adAccountId" in creds &&
+    "accessToken" in creds &&
+    typeof (creds as PinterestCredentials).adAccountId === "string" &&
+    typeof (creds as PinterestCredentials).accessToken === "string"
+  );
+}
+
 export function upgradeCredentials(
   platform: PlatformType,
   creds: PlatformCredentials
@@ -278,17 +207,19 @@ export function upgradeCredentials(
         platform: "tiktok",
         ...(creds as TikTokCredentials),
       };
+    case Platform.PINTEREST:
+      return {
+        platform: "pinterest",
+        ...(creds as PinterestCredentials),
+      };
     default: {
-      // Exhaustiveness check
+
       const _exhaustiveCheck: never = platform;
       throw new Error(`Unknown platform: ${_exhaustiveCheck}`);
     }
   }
 }
 
-/**
- * Validate and parse typed credentials with Zod
- */
 export function validateCredentials(
   input: unknown
 ): { success: true; data: TypedPlatformCredentials } | { success: false; errors: string[] } {
@@ -302,9 +233,6 @@ export function validateCredentials(
   };
 }
 
-/**
- * Validate credentials for a specific platform
- */
 export function validatePlatformCredentials(
   platform: PlatformType,
   input: unknown
@@ -320,6 +248,9 @@ export function validatePlatformCredentials(
     case Platform.TIKTOK:
       result = TikTokCredentialsSchema.safeParse(input);
       break;
+    case Platform.PINTEREST:
+      result = PinterestCredentialsSchema.safeParse(input);
+      break;
     default: {
       const _exhaustiveCheck: never = platform;
       return { success: false, errors: [`Unknown platform: ${_exhaustiveCheck}`] };
@@ -334,10 +265,6 @@ export function validatePlatformCredentials(
     errors: result.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`),
   };
 }
-
-// =============================================================================
-// Conversion Data
-// =============================================================================
 
 export interface LineItem {
   productId: string;
@@ -355,21 +282,15 @@ export const LineItemSchema = z.object({
   price: z.number().nonnegative(),
 });
 
-/**
- * P1-2: 预哈希的 PII 数据
- * 
- * 这些字段已经是 SHA256 哈希值，平台 service 可以直接使用。
- * 命名遵循 Meta CAPI 的规范。
- */
 export interface PreHashedUserData {
-  em?: string;  // hashed email
-  ph?: string;  // hashed phone
-  fn?: string;  // hashed first name
-  ln?: string;  // hashed last name
-  ct?: string;  // hashed city
-  st?: string;  // hashed state
-  country?: string;  // hashed country
-  zp?: string;  // hashed zip
+  em?: string;
+  ph?: string;
+  fn?: string;
+  ln?: string;
+  ct?: string;
+  st?: string;
+  country?: string;
+  zp?: string;
 }
 
 export interface ConversionData {
@@ -386,8 +307,7 @@ export interface ConversionData {
   country?: string | null;
   zip?: string | null;
   lineItems?: LineItem[];
-  // P1-2: 预哈希的 PII 数据（可选）
-  // 如果存在，平台 service 应优先使用这些数据，避免重复哈希
+
   preHashedUserData?: PreHashedUserData | null;
 }
 
@@ -444,13 +364,6 @@ export interface ConversionApiResponse {
   fbtrace_id?: string;
 }
 
-// =============================================================================
-// Platform Error Types
-// =============================================================================
-
-/**
- * Categories of platform API errors.
- */
 export type PlatformErrorType =
   | "auth_error"
   | "invalid_config"
@@ -462,43 +375,32 @@ export type PlatformErrorType =
   | "quota_exceeded"
   | "unknown";
 
-/**
- * Standardized platform error format.
- * Used across all platform services for consistent error handling.
- */
 export interface PlatformError {
-  /** Error category */
+
   type: PlatformErrorType;
-  /** Human-readable error message */
+
   message: string;
-  /** HTTP status code (if applicable) */
+
   statusCode?: number;
-  /** Platform-specific error code */
+
   platformCode?: string;
-  /** Platform-specific error message */
+
   platformMessage?: string;
-  /** Seconds to wait before retry (for rate limiting) */
+
   retryAfter?: number;
-  /** Whether the operation can be retried */
+
   isRetryable: boolean;
-  /** Platform trace ID (e.g., fbtrace_id for Meta) */
+
   traceId?: string;
-  /** Original error object for debugging */
+
   rawError?: unknown;
 }
 
-/**
- * Generic result type for platform operations.
- */
 export interface PlatformResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: PlatformError;
 }
-
-// =============================================================================
-// Pixel Configuration
-// =============================================================================
 
 export interface PixelConfigData {
   id: string;
@@ -517,10 +419,6 @@ export interface PixelConfigData {
   lastVerifiedAt?: Date;
 }
 
-// =============================================================================
-// Migration Types
-// =============================================================================
-
 export interface MigrationConfig {
   platform: PlatformType;
   platformId: string;
@@ -535,13 +433,6 @@ export interface MigrationResult {
   error?: string;
 }
 
-// =============================================================================
-// Platform Config with Credentials (Discriminated)
-// =============================================================================
-
-/**
- * Google platform configuration with credentials
- */
 export interface GooglePlatformConfig {
   platform: "google";
   platformId: string;
@@ -552,9 +443,6 @@ export interface GooglePlatformConfig {
   };
 }
 
-/**
- * Meta platform configuration with credentials
- */
 export interface MetaPlatformConfig {
   platform: "meta";
   platformId: string;
@@ -565,9 +453,6 @@ export interface MetaPlatformConfig {
   };
 }
 
-/**
- * TikTok platform configuration with credentials
- */
 export interface TikTokPlatformConfig {
   platform: "tiktok";
   platformId: string;
@@ -577,15 +462,19 @@ export interface TikTokPlatformConfig {
   };
 }
 
-/**
- * Discriminated union of platform configurations
- */
+export interface PinterestPlatformConfig {
+  platform: "pinterest";
+  platformId: string;
+  credentials: PinterestCredentials;
+  clientConfig?: {
+    treatAsMarketing?: boolean;
+  };
+}
+
 export type PlatformConfig =
   | GooglePlatformConfig
   | MetaPlatformConfig
-  | TikTokPlatformConfig;
+  | TikTokPlatformConfig
+  | PinterestPlatformConfig;
 
-/**
- * Extract credentials type from platform config
- */
 export type ExtractCredentials<T extends PlatformConfig> = T["credentials"];

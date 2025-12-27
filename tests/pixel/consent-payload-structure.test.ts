@@ -16,19 +16,19 @@ function parseInitialConsent(initCustomerPrivacy: CustomerPrivacyState | undefin
   analyticsAllowed: boolean;
   saleOfDataAllowed: boolean;
 } {
-  // P0-04: All defaults are FALSE (deny by default)
+
   if (!initCustomerPrivacy) {
     return {
       marketingAllowed: false,
       analyticsAllowed: false,
-      saleOfDataAllowed: false, // P0-04: Changed from true to false
+      saleOfDataAllowed: false,
     };
   }
 
   return {
     marketingAllowed: initCustomerPrivacy.marketingAllowed === true,
     analyticsAllowed: initCustomerPrivacy.analyticsProcessingAllowed === true,
-    // P0-04: saleOfData must be EXPLICITLY true, not just "not false"
+
     saleOfDataAllowed: initCustomerPrivacy.saleOfDataAllowed === true,
   };
 }
@@ -39,7 +39,7 @@ function parseConsentEvent(event: VisitorConsentCollectedEvent): {
   saleOfDataAllowed: boolean;
 } {
   const updatedPrivacy = event.customerPrivacy;
-  
+
   if (!updatedPrivacy) {
     throw new Error("Event missing customerPrivacy object");
   }
@@ -47,7 +47,7 @@ function parseConsentEvent(event: VisitorConsentCollectedEvent): {
   return {
     marketingAllowed: updatedPrivacy.marketingAllowed === true,
     analyticsAllowed: updatedPrivacy.analyticsProcessingAllowed === true,
-    // P0-04: saleOfData must be EXPLICITLY true, not just "not false"
+
     saleOfDataAllowed: updatedPrivacy.saleOfDataAllowed === true,
   };
 }
@@ -101,7 +101,6 @@ describe("P0-4: init.customerPrivacy structure", () => {
   it("should handle undefined init.customerPrivacy gracefully (P0-04: deny by default)", () => {
     const result = parseInitialConsent(undefined);
 
-    // P0-04: All consents default to FALSE when privacy state is unavailable
     expect(result.marketingAllowed).toBe(false);
     expect(result.analyticsAllowed).toBe(false);
     expect(result.saleOfDataAllowed).toBe(false);
@@ -181,7 +180,6 @@ describe("P0-4: Edge cases and type coercion", () => {
 
     const result = parseInitialConsent(initPrivacy);
 
-    // P0-04: undefined saleOfDataAllowed is treated as NOT allowed (strict mode)
     expect(result.saleOfDataAllowed).toBe(false);
   });
 });

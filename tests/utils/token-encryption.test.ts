@@ -136,7 +136,7 @@ describe("Token Encryption Utils", () => {
 
       expect(result.plain).toBeDefined();
       expect(result.encrypted).toBeDefined();
-      expect(result.plain.length).toBe(64); // 32 bytes = 64 hex chars
+      expect(result.plain.length).toBe(64);
     });
 
     it("should produce valid encrypted secret", () => {

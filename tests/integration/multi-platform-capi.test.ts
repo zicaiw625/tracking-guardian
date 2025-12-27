@@ -1,13 +1,7 @@
-/**
- * Multi-Platform CAPI Integration Tests
- * 
- * Tests the conversion job processing for multiple advertising platforms,
- * including credential handling, consent filtering, and trust verification.
- */
+
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Mock dependencies
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
@@ -67,14 +61,14 @@ vi.mock("../../app/services/billing.server", () => ({
 import { sendConversionToGoogle } from "../../app/services/platforms/google.service";
 import { sendConversionToMeta } from "../../app/services/platforms/meta.service";
 import { sendConversionToTikTok } from "../../app/services/platforms/tiktok.service";
-import { 
-  verifyReceiptTrust, 
+import {
+  verifyReceiptTrust,
   isSendAllowedByTrust,
-  buildShopAllowedDomains 
+  buildShopAllowedDomains
 } from "../../app/utils/receipt-trust";
-import { 
+import {
   evaluatePlatformConsentWithStrategy,
-  getEffectiveConsentCategory 
+  getEffectiveConsentCategory
 } from "../../app/utils/platform-consent";
 
 describe("Multi-Platform CAPI Integration", () => {
@@ -252,12 +246,11 @@ describe("Multi-Platform CAPI Integration", () => {
   describe("Sale of data blocking", () => {
     it("should block all platforms when saleOfDataAllowed is false", () => {
       const consentState = { marketing: true, analytics: true, saleOfDataAllowed: false };
-      
-      // When sale_of_data is opted out, marketing platforms should be blocked
+
       const metaDecision = evaluatePlatformConsentWithStrategy(
         "meta", "strict", consentState, true, false
       );
-      // This should be blocked due to sale_of_data being false
+
       expect(metaDecision.allowed).toBe(false);
     });
   });
@@ -299,7 +292,7 @@ describe("Multi-Platform CAPI Integration", () => {
 
   describe("Credential decryption failure handling", () => {
     it("should skip platform when credentials cannot be decrypted", () => {
-      // This tests the logic pattern used in processConversionJobs
+
       const pixelConfig = {
         platform: "meta",
         credentialsEncrypted: "invalid-encrypted-data",
@@ -307,16 +300,16 @@ describe("Multi-Platform CAPI Integration", () => {
       };
 
       let credentials = null;
-      
+
       try {
-        // Simulate decryption failure
+
         throw new Error("Decryption failed");
       } catch {
         credentials = null;
       }
 
       expect(credentials).toBeNull();
-      // In real flow, this would result in platformResults[platform] = "failed:no_credentials"
+
     });
   });
 

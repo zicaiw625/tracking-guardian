@@ -1,8 +1,4 @@
-/**
- * Settings Actions
- *
- * Server-side action handlers for settings routes.
- */
+
 
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -40,14 +36,8 @@ import {
 } from "../../utils/security";
 import { PCD_CONFIG } from "../../utils/config";
 
-// ... existing imports
-
-// =============================================================================
-// Alert Actions
-// =============================================================================
-
 export async function handleSaveAlert(
-// ... existing code
+
   formData: FormData,
   shopId: string,
   sessionShop: string
@@ -127,7 +117,7 @@ export async function handleSaveAlert(
 }
 
 export async function handleTestAlert(request: Request, formData: FormData) {
-  // Rate limiting: 5 requests per minute for test alerts
+
   const { isLimited, retryAfter } = await checkRateLimitAsync(request, "alert-test", {
     maxRequests: 5,
     windowMs: 60 * 1000,
@@ -158,12 +148,11 @@ export async function handleTestAlert(request: Request, formData: FormData) {
     } else if (channel === "telegram") {
       const botToken = formData.get("botToken") as string;
       const chatId = formData.get("chatId") as string;
-      
-      // Basic validation for Telegram Bot Token (digits:alphanumeric)
+
       if (!/^\d+:[a-zA-Z0-9_-]+$/.test(botToken)) {
         return json({ success: false, error: "无效的 Bot Token 格式" });
       }
-      
+
       settings = {
         botToken,
         chatId,
@@ -187,10 +176,6 @@ export async function handleDeleteAlert(formData: FormData) {
   });
   return json({ success: true, message: "警报配置已删除" });
 }
-
-// =============================================================================
-// Server-Side Tracking Actions
-// =============================================================================
 
 export async function handleSaveServerSide(
   formData: FormData,
@@ -251,10 +236,8 @@ export async function handleSaveServerSide(
     },
   });
 
-  // Invalidate cache after pixel config update
   await invalidateAllShopCaches(sessionShop, shopId);
 
-  // Audit log for credential update (security-sensitive operation)
   await createAuditLog({
     shopId,
     action: "pixel_config_updated",
@@ -263,7 +246,7 @@ export async function handleSaveServerSide(
     resourceId: platform,
     metadata: {
       platform,
-      platformId: platformId.slice(0, 8) + "****", // Mask for security
+      platformId: platformId.slice(0, 8) + "****",
       serverSideEnabled: enabled,
       actor: sessionShop,
       operationType: "credentials_updated",
@@ -293,7 +276,6 @@ export async function handleTestConnection(formData: FormData) {
       });
     }
 
-    // Basic format validation
     if (!/^\d+$/.test(pixelId)) {
       return json({
         success: false,
@@ -314,10 +296,6 @@ export async function handleTestConnection(formData: FormData) {
     message: "连接配置格式验证通过。请注意：这仅验证了格式，并未实际发送测试事件。",
   });
 }
-
-// =============================================================================
-// Security Actions
-// =============================================================================
 
 export async function handleRotateIngestionSecret(
   shopId: string,
@@ -346,18 +324,17 @@ export async function handleRotateIngestionSecret(
     },
   });
 
-  // Invalidate shop cache after secret rotation
   await invalidateAllShopCaches(sessionShop, shopId);
 
   let pixelSyncResult = { success: false, message: "" };
 
   try {
     const existingPixels = await getExistingWebPixels(admin);
-    // P0-1: 使用 isOurWebPixel 函数严格匹配 shop_domain，避免更新错误的像素
+
     const ourPixel = existingPixels.find((p) => {
       try {
         const settings = JSON.parse(p.settings || "{}");
-        // P0-1: 严格检查 shop_domain，确保只更新属于当前店铺的像素
+
         return isOurWebPixel(settings, sessionShop);
       } catch {
         return false;
@@ -365,7 +342,7 @@ export async function handleRotateIngestionSecret(
     });
 
     if (ourPixel) {
-      // P0-1: 传入 shopDomain 参数，确保 Web Pixel 的 shop_domain 字段也被更新
+
       const result = await updateWebPixel(admin, ourPixel.id, newPlainSecret, sessionShop);
       if (result.success) {
         pixelSyncResult = {
@@ -420,10 +397,6 @@ export async function handleRotateIngestionSecret(
   });
 }
 
-// =============================================================================
-// Privacy Actions
-// =============================================================================
-
 export async function handleUpdatePrivacySettings(
   formData: FormData,
   shopId: string,
@@ -451,7 +424,6 @@ export async function handleUpdatePrivacySettings(
 
   const piiEnabled = piiRequested && PCD_CONFIG.APPROVED;
 
-  // If enabling PII, require acknowledgement of compliance obligations
   if (piiEnabled && !pcdAcknowledged) {
     return json({
       success: false,
@@ -474,7 +446,6 @@ export async function handleUpdatePrivacySettings(
     dataRetentionDays,
   };
 
-  // Update PCD acknowledgement status
   if (piiEnabled && pcdAcknowledged) {
     updateData.pcdAcknowledged = true;
     updateData.pcdAcknowledgedAt = new Date();
@@ -492,10 +463,10 @@ export async function handleUpdatePrivacySettings(
     action: "privacy_settings_updated",
     resourceType: "shop",
     resourceId: shopId,
-    metadata: { 
-      piiEnabled, 
-      pcdAcknowledged, 
-      consentStrategy, 
+    metadata: {
+      piiEnabled,
+      pcdAcknowledged,
+      consentStrategy,
       dataRetentionDays,
       pcdApproved: PCD_CONFIG.APPROVED,
     },
@@ -506,10 +477,6 @@ export async function handleUpdatePrivacySettings(
     message: "隐私设置已更新",
   });
 }
-
-// =============================================================================
-// Main Action Handler
-// =============================================================================
 
 export async function settingsAction({ request }: ActionFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);

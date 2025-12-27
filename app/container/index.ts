@@ -1,26 +1,4 @@
-/**
- * Dependency Injection Container
- *
- * Main entry point for the DI container. Provides:
- * - Singleton application context
- * - Request-scoped context creation
- * - Service registration and resolution
- *
- * Usage:
- * ```typescript
- * import { container, withRequestContext } from "~/container";
- *
- * // In a route handler:
- * export const loader = async ({ request }: LoaderFunctionArgs) => {
- *   return withRequestContext(createRequestContext(request), async () => {
- *     const ctx = container.getContext();
- *     ctx.logger.info("Processing request");
- *     const shop = await ctx.db.shop.findUnique({ ... });
- *     return json({ shop });
- *   });
- * };
- * ```
- */
+
 
 import type { PrismaClient } from "@prisma/client";
 import prisma from "../db.server";
@@ -68,10 +46,6 @@ import {
   generateCorrelationId,
 } from "./context";
 
-// =============================================================================
-// Type Re-exports
-// =============================================================================
-
 export type {
   IAppContext,
   IScopedContext,
@@ -84,10 +58,6 @@ export type {
   LogContext,
   LogLevel,
 } from "./types";
-
-// =============================================================================
-// Context Re-exports
-// =============================================================================
 
 export {
   createRequestContext,
@@ -105,13 +75,6 @@ export {
   generateCorrelationId,
 } from "./context";
 
-// =============================================================================
-// Logger Adapter
-// =============================================================================
-
-/**
- * Adapt the existing logger to ILogger interface
- */
 function createLoggerAdapter(logger: typeof baseLogger): ILogger {
   return {
     debug: (message: string, context?: LogContext) => logger.debug(message, context),
@@ -126,13 +89,6 @@ function createLoggerAdapter(logger: typeof baseLogger): ILogger {
   };
 }
 
-// =============================================================================
-// Config Adapter
-// =============================================================================
-
-/**
- * Create the application config from existing config module
- */
 function createConfigAdapter(): IAppConfig {
   return {
     env: {
@@ -177,22 +133,12 @@ function createConfigAdapter(): IAppConfig {
   };
 }
 
-// =============================================================================
-// Container Implementation
-// =============================================================================
-
-/**
- * Service container implementation
- */
 class Container implements IContainer {
   private appContext: IAppContext | null = null;
   private singletons = new Map<string, unknown>();
   private singletonFactories = new Map<string, ServiceFactory<unknown>>();
   private scopedFactories = new Map<string, ScopedServiceFactory<unknown>>();
 
-  /**
-   * Initialize the container with dependencies
-   */
   initialize(
     db: PrismaClient,
     logger: ILogger,
@@ -201,9 +147,6 @@ class Container implements IContainer {
     this.appContext = createAppContext(db, logger, config);
   }
 
-  /**
-   * Get the application context
-   */
   getContext(): IAppContext {
     if (!this.appContext) {
       throw new Error("Container not initialized. Call initialize() first.");
@@ -211,51 +154,34 @@ class Container implements IContainer {
     return this.appContext;
   }
 
-  /**
-   * Create a scoped context for a request
-   */
   createScopedContext(requestContext: IRequestContext): IScopedContext {
     return createScopedContext(this.getContext(), requestContext);
   }
 
-  /**
-   * Register a singleton service
-   */
   registerSingleton<T>(key: string, factory: ServiceFactory<T>): void {
     this.singletonFactories.set(key, factory as ServiceFactory<unknown>);
   }
 
-  /**
-   * Register a scoped service
-   */
   registerScoped<T>(key: string, factory: ScopedServiceFactory<T>): void {
     this.scopedFactories.set(key, factory as ScopedServiceFactory<unknown>);
   }
 
-  /**
-   * Resolve a singleton service
-   */
   resolve<T>(key: string): T {
-    // Check if already instantiated
+
     if (this.singletons.has(key)) {
       return this.singletons.get(key) as T;
     }
 
-    // Get factory
     const factory = this.singletonFactories.get(key);
     if (!factory) {
       throw new Error(`Service "${key}" not registered`);
     }
 
-    // Create and cache instance
     const instance = factory(this.getContext());
     this.singletons.set(key, instance);
     return instance as T;
   }
 
-  /**
-   * Resolve a scoped service
-   */
   resolveScoped<T>(key: string, scopedContext: IScopedContext): T {
     const factory = this.scopedFactories.get(key);
     if (!factory) {
@@ -264,16 +190,10 @@ class Container implements IContainer {
     return factory(scopedContext) as T;
   }
 
-  /**
-   * Clear all cached singletons (for testing)
-   */
   clearSingletons(): void {
     this.singletons.clear();
   }
 
-  /**
-   * Reset the container (for testing)
-   */
   reset(): void {
     this.appContext = null;
     this.singletons.clear();
@@ -282,83 +202,39 @@ class Container implements IContainer {
   }
 }
 
-// =============================================================================
-// Singleton Container Instance
-// =============================================================================
-
-/**
- * Global container instance
- */
 export const container = new Container();
 
-// Initialize with default dependencies
 container.initialize(
   prisma,
   createLoggerAdapter(baseLogger),
   createConfigAdapter()
 );
 
-// =============================================================================
-// Convenience Functions
-// =============================================================================
-
-/**
- * Get the application context directly
- */
 export function getAppContext(): IAppContext {
   return container.getContext();
 }
 
-/**
- * Get the database client directly
- */
 export function getDb(): PrismaClient {
   return container.getContext().db;
 }
 
-/**
- * Get the logger directly
- */
 export function getLogger(): ILogger {
   return container.getContext().logger;
 }
 
-/**
- * Get the config directly
- */
 export function getConfig(): IAppConfig {
   return container.getContext().config;
 }
 
-// =============================================================================
-// Request Handler Wrapper
-// =============================================================================
-
-/**
- * Wrap a request handler with context
- *
- * This is a convenience wrapper that:
- * 1. Creates a request context
- * 2. Runs the handler within that context
- * 3. Logs request timing
- *
- * Usage:
- * ```typescript
- * export const loader = withContext(async (request, ctx) => {
- *   ctx.logger.info("Processing");
- *   return json({ data });
- * });
- * ```
- */
 export function withContext<T>(
   handler: (request: Request, ctx: IScopedContext) => Promise<T>
 ): (args: { request: Request }) => Promise<T> {
   return async ({ request }) => {
     const requestCtx = createRequestContext(request);
-    
+
     return withRequestContextAsync(requestCtx, async () => {
       const scopedCtx = container.createScopedContext(requestCtx);
-      
+
       scopedCtx.requestLogger.debug("Request started", {
         method: request.method,
         url: new URL(request.url).pathname,
@@ -366,11 +242,11 @@ export function withContext<T>(
 
       try {
         const result = await handler(request, scopedCtx);
-        
+
         scopedCtx.requestLogger.debug("Request completed", {
           durationMs: getRequestElapsedMs(requestCtx),
         });
-        
+
         return result;
       } catch (error) {
         scopedCtx.requestLogger.error("Request failed", error, {
@@ -382,13 +258,6 @@ export function withContext<T>(
   };
 }
 
-// =============================================================================
-// Service Registration Helpers
-// =============================================================================
-
-/**
- * Register a service factory
- */
 export function registerService<T>(
   key: string,
   factory: ServiceFactory<T>
@@ -396,9 +265,6 @@ export function registerService<T>(
   container.registerSingleton(key, factory);
 }
 
-/**
- * Register a scoped service factory
- */
 export function registerScopedService<T>(
   key: string,
   factory: ScopedServiceFactory<T>
@@ -406,20 +272,10 @@ export function registerScopedService<T>(
   container.registerScoped(key, factory);
 }
 
-/**
- * Resolve a service
- */
 export function resolveService<T>(key: string): T {
   return container.resolve<T>(key);
 }
 
-// =============================================================================
-// Testing Utilities
-// =============================================================================
-
-/**
- * Create a mock context for testing
- */
 export function createMockContext(overrides?: {
   db?: Partial<PrismaClient>;
   logger?: Partial<ILogger>;
@@ -455,9 +311,6 @@ export function createMockContext(overrides?: {
   };
 }
 
-/**
- * Create a mock scoped context for testing
- */
 export function createMockScopedContext(
   overrides?: Parameters<typeof createMockContext>[0],
   requestOverrides?: Partial<IRequestContext>

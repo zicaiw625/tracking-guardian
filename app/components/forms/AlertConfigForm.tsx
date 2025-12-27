@@ -1,14 +1,6 @@
-/**
- * AlertConfigForm Component
- *
- * Reusable form for configuring alert notifications.
- */
+
 
 import { BlockStack, TextField, Select, Checkbox } from "@shopify/polaris";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export type AlertChannel = "email" | "slack" | "telegram";
 
@@ -23,35 +15,16 @@ export interface AlertConfig {
 }
 
 export interface AlertConfigFormProps {
-  /**
-   * Current form values
-   */
+
   values: AlertConfig;
 
-  /**
-   * Callback when values change
-   */
   onChange: (values: AlertConfig) => void;
 
-  /**
-   * Field-level validation errors
-   */
   errors?: Record<string, string>;
 
-  /**
-   * Whether the form is disabled
-   */
   disabled?: boolean;
 }
 
-// =============================================================================
-// Component
-// =============================================================================
-
-/**
- * Form for configuring alert settings including channel selection
- * and channel-specific settings.
- */
 export function AlertConfigForm({
   values,
   onChange,
@@ -152,13 +125,6 @@ export function AlertConfigForm({
   );
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
-/**
- * Get default alert config values
- */
 export function getDefaultAlertConfig(): AlertConfig {
   return {
     channel: "email",
@@ -171,9 +137,6 @@ export function getDefaultAlertConfig(): AlertConfig {
   };
 }
 
-/**
- * Check if alert config is valid for submission
- */
 export function isAlertConfigValid(config: AlertConfig): boolean {
   switch (config.channel) {
     case "email":
@@ -187,9 +150,6 @@ export function isAlertConfigValid(config: AlertConfig): boolean {
   }
 }
 
-/**
- * Get channel-specific settings from config
- */
 export function getChannelSettings(
   config: AlertConfig
 ): Record<string, string> {

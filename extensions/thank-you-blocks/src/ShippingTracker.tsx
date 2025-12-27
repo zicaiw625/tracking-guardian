@@ -1,10 +1,5 @@
-/**
- * ShippingTracker for Thank You Page
- * 
- * P0-3: 订单状态入口 + 预计流程提示
- * 不冒充真实物流追踪号，只显示订单处理进度
- * 真实物流信息将通过邮件发送给客户
- */
+
+
 import {
     reactExtension,
     BlockStack,
@@ -23,13 +18,10 @@ function ShippingTracker() {
     const settings = useSettings();
     const order = useOrder();
 
-    // P0-3: 使用可配置的标题和提示文案
     const title = (settings.shipping_title as string) || "订单状态";
-    const tipText = (settings.shipping_tip_text as string) || 
+    const tipText = (settings.shipping_tip_text as string) ||
         "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。";
 
-    // P0-3: 只显示订单处理进度，不使用 confirmationNumber 冒充物流号
-    // confirmationNumber 是订单确认号，不是物流追踪号
     const shippingSteps = [
         { id: "ordered", label: "订单已确认", completed: true, date: "已完成" },
         { id: "processing", label: "处理中", completed: true, date: "进行中" },
@@ -94,7 +86,7 @@ function ShippingTracker() {
                 </InlineLayout>
             </BlockStack>
 
-            {/* P0-3: 移除了错误使用 confirmationNumber 作为物流追踪号的链接 */}
+            {}
 
             <View padding="tight" background="subdued" cornerRadius="base">
                 <BlockStack spacing="extraTight">

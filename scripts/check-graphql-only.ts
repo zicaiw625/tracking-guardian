@@ -1,85 +1,73 @@
-/**
- * P0-02: GraphQL-only Compliance Check
- * 
- * This script scans the codebase to ensure no REST API calls are introduced.
- * Shopify requires public apps to use GraphQL Admin API exclusively.
- * 
- * Usage: npm run lint:graphql-only
- */
+
 
 import * as fs from "fs";
 import * as path from "path";
 
-// Patterns that indicate REST API usage (forbidden)
 const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
     {
-        // REST API endpoint pattern (excluding graphql.json)
+
         pattern: /\/admin\/api\/\d{4}-\d{2}\/(?!graphql\.json)[a-z_]+/i,
         description: "REST API endpoint detected (use GraphQL instead)",
     },
     {
-        // Direct .json endpoints (REST resources)
+
         pattern: /\/admin\/api\/\d{4}-\d{2}\/[a-z_]+\.json/i,
         description: "REST .json endpoint detected",
     },
     {
-        // AdminRestApiClient usage
+
         pattern: /AdminRestApiClient/,
         description: "AdminRestApiClient import/usage detected (use GraphQL client)",
     },
     {
-        // restClient property access
+
         pattern: /\.restClient\b/,
         description: ".restClient property access detected",
     },
     {
-        // rest: true in client options
+
         pattern: /rest:\s*true/,
         description: "REST client option detected",
     },
     {
-        // shopify.clients.Rest
+
         pattern: /shopify\.clients\.Rest/,
         description: "Shopify REST client constructor detected",
     },
     {
-        // new Rest( or Rest.create(
+
         pattern: /\bnew\s+Rest\s*\(|Rest\.create\s*\(/,
         description: "REST client instantiation detected",
     },
 ];
 
-// Allowed patterns (false positives to ignore)
 const ALLOWED_PATTERNS: RegExp[] = [
-    // graphql.json endpoint is allowed
+
     /\/admin\/api\/\d{4}-\d{2}\/graphql\.json/,
-    // Comments mentioning REST for documentation
+
     /\/\/.*rest/i,
-    /\/\*.*rest.*\*\//is,
-    // String literals in error messages
+    /\/\*.*rest.*\*\
+
     /".*REST.*"/i,
     /'.*REST.*'/i,
-    // Test files discussing REST
+
     /\.test\.ts$/,
 ];
 
-// Directories to scan
 const SCAN_DIRECTORIES = [
     "app",
     "extensions",
 ];
 
-// File extensions to check
 const FILE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
 
-// Files/directories to ignore
 const IGNORE_PATTERNS = [
     "node_modules",
     ".git",
     "build",
     "dist",
     ".cache",
-    "scripts/check-graphql-only.ts", // Don't check self
+    "scripts/check-graphql-only.ts",
 ];
 
 interface Violation {
@@ -94,7 +82,7 @@ function shouldIgnore(filePath: string): boolean {
 }
 
 function isAllowed(line: string, filePath: string): boolean {
-    // Check if line matches any allowed pattern
+
     if (ALLOWED_PATTERNS.some(pattern => {
         if (pattern.source.endsWith("$")) {
             return pattern.test(filePath);
@@ -108,17 +96,17 @@ function isAllowed(line: string, filePath: string): boolean {
 
 function scanFile(filePath: string): Violation[] {
     const violations: Violation[] = [];
-    
+
     try {
         const content = fs.readFileSync(filePath, "utf-8");
         const lines = content.split("\n");
-        
+
         lines.forEach((line, index) => {
-            // Skip if line is in allowed patterns
+
             if (isAllowed(line, filePath)) {
                 return;
             }
-            
+
             for (const { pattern, description } of FORBIDDEN_PATTERNS) {
                 if (pattern.test(line)) {
                     violations.push({
@@ -127,53 +115,53 @@ function scanFile(filePath: string): Violation[] {
                         content: line.trim().substring(0, 100),
                         description,
                     });
-                    break; // Only report first match per line
+                    break;
                 }
             }
         });
     } catch (error) {
         console.error(`Error reading file ${filePath}:`, error);
     }
-    
+
     return violations;
 }
 
 function scanDirectory(dirPath: string): Violation[] {
     const violations: Violation[] = [];
-    
+
     if (!fs.existsSync(dirPath)) {
         return violations;
     }
-    
+
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    
+
     for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name);
-        
+
         if (shouldIgnore(fullPath)) {
             continue;
         }
-        
+
         if (entry.isDirectory()) {
             violations.push(...scanDirectory(fullPath));
         } else if (entry.isFile() && FILE_EXTENSIONS.some(ext => entry.name.endsWith(ext))) {
             violations.push(...scanFile(fullPath));
         }
     }
-    
+
     return violations;
 }
 
 function main(): void {
     console.log("🔍 Scanning for REST API usage (GraphQL-only compliance check)...\n");
-    
+
     const allViolations: Violation[] = [];
-    
+
     for (const dir of SCAN_DIRECTORIES) {
         const dirPath = path.join(process.cwd(), dir);
         allViolations.push(...scanDirectory(dirPath));
     }
-    
+
     if (allViolations.length === 0) {
         console.log("✅ No REST API usage detected. GraphQL-only compliance check passed!\n");
         process.exit(0);
@@ -181,18 +169,18 @@ function main(): void {
         console.error("❌ REST API usage detected! GraphQL-only compliance check failed.\n");
         console.error("Shopify requires public apps to use GraphQL Admin API exclusively.\n");
         console.error("Violations found:\n");
-        
+
         for (const violation of allViolations) {
             console.error(`  📍 ${violation.file}:${violation.line}`);
             console.error(`     ${violation.description}`);
             console.error(`     → ${violation.content}`);
             console.error("");
         }
-        
+
         console.error(`\nTotal: ${allViolations.length} violation(s)`);
         console.error("\nPlease replace REST API calls with GraphQL equivalents.");
         console.error("Reference: https://shopify.dev/docs/api/admin-graphql\n");
-        
+
         process.exit(1);
     }
 }

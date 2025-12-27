@@ -1,20 +1,7 @@
-/**
- * GDPR Processing Integration Tests
- *
- * Tests the complete GDPR job processing flow including:
- * - Job creation and queueing
- * - Job lifecycle management (queued -> processing -> completed/failed)
- * - Data request, customer redact, and shop redact workflows
- * - Error handling and recovery
- */
+
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// =============================================================================
-// Mock Setup (Must be before imports)
-// =============================================================================
-
-// Mock Prisma - define mocks inline to avoid hoisting issues
 vi.mock("../../app/db.server", () => ({
   default: {
     gDPRJob: {
@@ -87,22 +74,14 @@ vi.mock("../../app/services/audit.server", () => ({
   createAuditLog: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Import after mocks are defined
 import prisma from "../../app/db.server";
 import { processGDPRJob, processGDPRJobs, getGDPRJobStatus } from "../../app/services/gdpr/job-processor";
 
-// Get typed mock references
 const mockPrisma = vi.mocked(prisma);
 
-// Helper to reset all mocks
 function resetMocks() {
   vi.clearAllMocks();
 }
-
-
-// =============================================================================
-// Test Fixtures
-// =============================================================================
 
 const createMockJob = (overrides: Partial<{
   id: string;
@@ -134,10 +113,6 @@ const mockShop = {
   shopDomain: "test-shop.myshopify.com",
 };
 
-// =============================================================================
-// Single Job Processing Tests
-// =============================================================================
-
 describe("GDPR Job Processor Integration", () => {
   beforeEach(() => {
     resetMocks();
@@ -165,11 +140,10 @@ describe("GDPR Job Processor Integration", () => {
 
       expect(result.success).toBe(true);
 
-      // Verify job status transitions
       const updateCalls = mockPrisma.gDPRJob.update.mock.calls;
       expect(updateCalls[0][0].data.status).toBe("processing");
       expect(updateCalls[1][0].data.status).toBe("completed");
-      expect(updateCalls[1][0].data.payload).toEqual({}); // Payload cleared for privacy
+      expect(updateCalls[1][0].data.payload).toEqual({});
       expect(updateCalls[1][0].data.processedAt).toBeDefined();
       expect(updateCalls[1][0].data.completedAt).toBeDefined();
     });
@@ -210,7 +184,6 @@ describe("GDPR Job Processor Integration", () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe(errorMessage);
 
-      // Verify failed status update
       const failedUpdate = mockPrisma.gDPRJob.update.mock.calls.find(
         (call) => call[0].data.status === "failed"
       );
@@ -331,10 +304,9 @@ describe("GDPR Job Processor Integration", () => {
       mockPrisma.conversionJob.deleteMany.mockResolvedValue({ count: 1 });
       mockPrisma.surveyResponse.deleteMany.mockResolvedValue({ count: 0 });
 
-      // First call returns receipts with checkout tokens
       mockPrisma.pixelEventReceipt.deleteMany
-        .mockResolvedValueOnce({ count: 1 }) // By order ID
-        .mockResolvedValueOnce({ count: 2 }); // By checkout token
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 2 });
 
       mockPrisma.pixelEventReceipt.findMany.mockResolvedValue([
         { checkoutToken: "checkout-abc" },
@@ -343,7 +315,6 @@ describe("GDPR Job Processor Integration", () => {
 
       await processGDPRJob("job-123");
 
-      // Should have deleted by both order ID and checkout token
       expect(mockPrisma.pixelEventReceipt.deleteMany).toHaveBeenCalledTimes(2);
     });
   });
@@ -385,7 +356,6 @@ describe("GDPR Job Processor Integration", () => {
         },
       });
 
-      // Verify shop was deleted
       expect(mockPrisma.shop.delete).toHaveBeenCalledWith({
         where: { id: mockShop.id },
       });
@@ -399,22 +369,18 @@ describe("GDPR Job Processor Integration", () => {
 
       mockPrisma.gDPRJob.findUnique.mockResolvedValue(mockJob);
       mockPrisma.gDPRJob.update.mockResolvedValue(mockJob);
-      mockPrisma.shop.findUnique.mockResolvedValue(null); // Shop not found
+      mockPrisma.shop.findUnique.mockResolvedValue(null);
       mockPrisma.session.deleteMany.mockResolvedValue({ count: 0 });
       mockPrisma.webhookLog.deleteMany.mockResolvedValue({ count: 0 });
 
       const result = await processGDPRJob("job-123");
 
       expect(result.success).toBe(true);
-      // Should still try to delete sessions by domain
+
       expect(mockPrisma.session.deleteMany).toHaveBeenCalled();
     });
   });
 });
-
-// =============================================================================
-// Batch Job Processing Tests
-// =============================================================================
 
 describe("GDPR Batch Processing", () => {
   beforeEach(() => {
@@ -426,7 +392,7 @@ describe("GDPR Batch Processing", () => {
       const pendingJobs = [
         createMockJob({ id: "job-1", status: "queued" }),
         createMockJob({ id: "job-2", status: "queued", jobType: "customer_redact" }),
-        createMockJob({ id: "job-3", status: "failed" }), // Failed jobs are also retried
+        createMockJob({ id: "job-3", status: "failed" }),
       ];
 
       mockPrisma.gDPRJob.findMany.mockResolvedValue(pendingJobs);
@@ -476,7 +442,6 @@ describe("GDPR Batch Processing", () => {
       });
       mockPrisma.gDPRJob.update.mockResolvedValue(pendingJobs[0]);
 
-      // First and third succeed, second fails
       let callCount = 0;
       mockPrisma.shop.findUnique.mockImplementation(() => {
         callCount++;
@@ -502,7 +467,6 @@ describe("GDPR Batch Processing", () => {
 
       await processGDPRJobs();
 
-      // Verify the findMany was called with take: 10
       expect(mockPrisma.gDPRJob.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 10,
@@ -516,10 +480,6 @@ describe("GDPR Batch Processing", () => {
   });
 });
 
-// =============================================================================
-// Job Status Tests
-// =============================================================================
-
 describe("GDPR Job Status", () => {
   beforeEach(() => {
     resetMocks();
@@ -528,10 +488,10 @@ describe("GDPR Job Status", () => {
   describe("getGDPRJobStatus", () => {
     it("should return status counts and recent jobs", async () => {
       mockPrisma.gDPRJob.count
-        .mockResolvedValueOnce(5) // queued
-        .mockResolvedValueOnce(1) // processing
-        .mockResolvedValueOnce(100) // completed
-        .mockResolvedValueOnce(3); // failed
+        .mockResolvedValueOnce(5)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(3);
 
       mockPrisma.gDPRJob.findMany.mockResolvedValue([
         {
@@ -567,7 +527,6 @@ describe("GDPR Job Status", () => {
 
       await getGDPRJobStatus("specific-shop.myshopify.com");
 
-      // All count queries should include shopDomain filter
       expect(mockPrisma.gDPRJob.count).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -578,10 +537,6 @@ describe("GDPR Job Status", () => {
     });
   });
 });
-
-// =============================================================================
-// Edge Cases and Error Handling
-// =============================================================================
 
 describe("GDPR Processing Edge Cases", () => {
   beforeEach(() => {
@@ -677,7 +632,6 @@ describe("GDPR Processing Edge Cases", () => {
 
     await processGDPRJob("job-123");
 
-    // Verify payload was cleared in the completion update
     const completionUpdate = mockPrisma.gDPRJob.update.mock.calls.find(
       (call) => call[0].data.status === "completed"
     );

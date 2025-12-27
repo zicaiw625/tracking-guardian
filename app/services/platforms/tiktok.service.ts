@@ -1,8 +1,4 @@
-/**
- * TikTok Events API Service
- *
- * Implements the IPlatformService interface for TikTok CAPI.
- */
+
 
 import type {
   ConversionData,
@@ -29,27 +25,13 @@ import {
   type TikTokUserData,
 } from "./base-platform.service";
 
-// =============================================================================
-// Constants
-// =============================================================================
-
 const TIKTOK_API_URL = "https://business-api.tiktok.com/open_api/v1.3/pixel/track/";
 const PIXEL_ID_PATTERN = /^[A-Z0-9]{20,}$/i;
 
-// =============================================================================
-// TikTok Platform Service
-// =============================================================================
-
-/**
- * TikTok Events API service implementation.
- */
 export class TikTokPlatformService implements IPlatformService {
   readonly platform = Platform.TIKTOK;
   readonly displayName = "TikTok";
 
-  /**
-   * Send a conversion event to TikTok via Events API.
-   */
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
@@ -103,9 +85,6 @@ export class TikTokPlatformService implements IPlatformService {
     }
   }
 
-  /**
-   * Validate TikTok credentials format.
-   */
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
 
@@ -133,9 +112,6 @@ export class TikTokPlatformService implements IPlatformService {
     };
   }
 
-  /**
-   * Parse TikTok-specific error into standardized format.
-   */
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
       if (error.name === "AbortError") {
@@ -146,7 +122,6 @@ export class TikTokPlatformService implements IPlatformService {
         };
       }
 
-      // Parse TikTok API errors
       const apiMatch = error.message.match(/TikTok API error:\s*(.+)/);
       if (apiMatch) {
         return this.classifyTikTokError(apiMatch[1]);
@@ -162,9 +137,6 @@ export class TikTokPlatformService implements IPlatformService {
     };
   }
 
-  /**
-   * Build the TikTok Events API payload.
-   */
   async buildPayload(
     data: ConversionData,
     eventId: string
@@ -197,13 +169,6 @@ export class TikTokPlatformService implements IPlatformService {
     };
   }
 
-  // ==========================================================================
-  // Private Methods
-  // ==========================================================================
-
-  /**
-   * Send the actual HTTP request to TikTok.
-   */
   private async sendRequest(
     credentials: TikTokCredentials,
     data: ConversionData,
@@ -273,9 +238,6 @@ export class TikTokPlatformService implements IPlatformService {
     };
   }
 
-  /**
-   * Classify TikTok API error message.
-   */
   private classifyTikTokError(message: string): PlatformError {
     const lowerMessage = message.toLowerCase();
 
@@ -312,24 +274,8 @@ export class TikTokPlatformService implements IPlatformService {
   }
 }
 
-// =============================================================================
-// Singleton Export
-// =============================================================================
-
-/**
- * Singleton instance of TikTok platform service.
- */
 export const tiktokService = new TikTokPlatformService();
 
-// =============================================================================
-// Legacy Export (Backwards Compatibility)
-// =============================================================================
-
-/**
- * Send conversion to TikTok.
- *
- * @deprecated Use tiktokService.sendConversion() instead
- */
 export async function sendConversionToTikTok(
   credentials: TikTokCredentials | null,
   conversionData: ConversionData,

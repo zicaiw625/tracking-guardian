@@ -1,16 +1,9 @@
-/**
- * Database Infrastructure
- *
- * P2-1: Centralized database access layer with repositories.
- * Provides type-safe database operations with caching support.
- */
 
-// Prisma client
+
 export { default as prisma } from "../../db.server";
 
-// Re-export all from services/db/index.ts
 export {
-  // Shop repository
+
   getShopById,
   getShopIdByDomain,
   getShopWithPixels,
@@ -23,8 +16,7 @@ export {
   type ShopBasic,
   type ShopWithPixels,
   type ShopWithBilling,
-  
-  // Pixel config repository
+
   getShopPixelConfigs,
   getPixelConfigByPlatform,
   getPixelConfigById,
@@ -41,8 +33,7 @@ export {
   type PixelConfigFull,
   type PixelConfigSummary,
   type PixelConfigInput,
-  
-  // Conversion job repository
+
   getPendingJobs,
   claimJobsForProcessing,
   updateJobStatus,
@@ -56,8 +47,7 @@ export {
   type JobForProcessing,
   type QueryPendingJobsOptions,
   type JobStatusUpdate,
-  
-  // Batch operations
+
   batchCompleteJobs,
   batchInsertReceipts,
   batchUpdateShops,
@@ -66,8 +56,7 @@ export {
   type JobCompletionData,
   type PixelReceiptData,
   type BatchResult,
-  
-  // Audit repository
+
   createAuditLogEntry,
   batchCreateAuditLogs,
   getAuditLogsForShop,
@@ -84,8 +73,7 @@ export {
   type AuditLogQueryOptions,
   type AuditLogSummary,
   type AuditLogFull,
-  
-  // Cached queries
+
   getCachedShop,
   getCachedShopWithConfigs,
   invalidateShopWithConfigsCache,

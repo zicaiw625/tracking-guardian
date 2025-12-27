@@ -1,19 +1,7 @@
-/**
- * API Input Schemas
- *
- * Centralized Zod schemas for all API endpoint inputs.
- * Provides consistent validation across the application.
- */
+
 
 import { z } from "zod";
 
-// =============================================================================
-// Common Schemas
-// =============================================================================
-
-/**
- * Shop domain validation schema
- */
 export const ShopDomainSchema = z
   .string()
   .min(1, "Shop domain is required")
@@ -23,66 +11,38 @@ export const ShopDomainSchema = z
     "Invalid Shopify domain format"
   );
 
-/**
- * Order ID validation schema
- */
 export const OrderIdSchema = z
   .string()
   .min(1, "Order ID is required")
   .max(100, "Order ID too long")
   .regex(/^[a-zA-Z0-9-_:]+$/, "Invalid order ID format");
 
-/**
- * Checkout token validation schema
- */
 export const CheckoutTokenSchema = z
   .string()
   .min(1, "Checkout token is required")
   .max(100, "Checkout token too long");
 
-/**
- * Platform enum schema
- */
 export const PlatformSchema = z.enum(["google", "meta", "tiktok"]);
 
-/**
- * Currency code schema (ISO 4217)
- */
 export const CurrencySchema = z
   .string()
   .length(3, "Currency must be 3 characters")
   .regex(/^[A-Z]{3}$/, "Currency must be uppercase ISO 4217 code");
 
-/**
- * Positive number schema
- */
 export const PositiveNumberSchema = z.number().positive("Value must be positive");
 
-/**
- * Email schema with normalization
- */
 export const EmailSchema = z
   .string()
   .email("Invalid email format")
   .max(254, "Email too long")
   .transform((email) => email.toLowerCase().trim());
 
-/**
- * Phone schema (E.164 format recommended)
- */
 export const PhoneSchema = z
   .string()
   .min(7, "Phone number too short")
   .max(20, "Phone number too long")
   .regex(/^[+\d\s()-]+$/, "Invalid phone format");
 
-// =============================================================================
-// Survey API Schemas
-// =============================================================================
-
-/**
- * Survey response input schema
- */
 export const SurveyInputSchema = z.object({
   orderId: OrderIdSchema,
   orderNumber: z.string().max(50).optional(),
@@ -107,22 +67,12 @@ export const SurveyInputSchema = z.object({
 
 export type SurveyInput = z.infer<typeof SurveyInputSchema>;
 
-// =============================================================================
-// Pixel Events API Schemas
-// =============================================================================
-
-/**
- * Consent state schema
- */
 export const ConsentStateSchema = z.object({
   marketing: z.boolean().optional(),
   analytics: z.boolean().optional(),
   saleOfData: z.boolean().optional(),
 });
 
-/**
- * Line item schema
- */
 export const LineItemSchema = z.object({
   productId: z.string().optional(),
   variantId: z.string().optional(),
@@ -132,9 +82,6 @@ export const LineItemSchema = z.object({
   price: PositiveNumberSchema,
 });
 
-/**
- * Pixel event base schema
- */
 export const PixelEventBaseSchema = z.object({
   shopDomain: ShopDomainSchema,
   eventType: z.enum([
@@ -146,9 +93,6 @@ export const PixelEventBaseSchema = z.object({
   timestamp: z.number().int().positive(),
 });
 
-/**
- * Checkout completed event schema
- */
 export const CheckoutCompletedEventSchema = PixelEventBaseSchema.extend({
   eventType: z.literal("checkout_completed"),
   orderId: OrderIdSchema,
@@ -159,9 +103,6 @@ export const CheckoutCompletedEventSchema = PixelEventBaseSchema.extend({
   consent: ConsentStateSchema.optional(),
 });
 
-/**
- * Page view event schema
- */
 export const PageViewEventSchema = PixelEventBaseSchema.extend({
   eventType: z.literal("page_viewed"),
   pageUrl: z.string().url().max(2000).optional(),
@@ -169,9 +110,6 @@ export const PageViewEventSchema = PixelEventBaseSchema.extend({
   referrer: z.string().url().max(2000).optional(),
 });
 
-/**
- * Add to cart event schema
- */
 export const AddToCartEventSchema = PixelEventBaseSchema.extend({
   eventType: z.literal("add_to_cart"),
   productId: z.string(),
@@ -180,9 +118,6 @@ export const AddToCartEventSchema = PixelEventBaseSchema.extend({
   price: PositiveNumberSchema.optional(),
 });
 
-/**
- * Combined pixel event schema (discriminated union)
- */
 export const PixelEventSchema = z.discriminatedUnion("eventType", [
   CheckoutCompletedEventSchema,
   PageViewEventSchema,
@@ -193,13 +128,6 @@ export type PixelEvent = z.infer<typeof PixelEventSchema>;
 export type CheckoutCompletedEvent = z.infer<typeof CheckoutCompletedEventSchema>;
 export type ConsentState = z.infer<typeof ConsentStateSchema>;
 
-// =============================================================================
-// Tracking API Schemas
-// =============================================================================
-
-/**
- * Tracking event input schema
- */
 export const TrackingEventSchema = z.object({
   shopDomain: ShopDomainSchema,
   orderId: OrderIdSchema,
@@ -217,13 +145,6 @@ export const TrackingEventSchema = z.object({
 
 export type TrackingEvent = z.infer<typeof TrackingEventSchema>;
 
-// =============================================================================
-// Settings API Schemas
-// =============================================================================
-
-/**
- * Platform credentials schema
- */
 export const GoogleCredentialsSchema = z.object({
   measurementId: z
     .string()
@@ -247,9 +168,6 @@ export const TikTokCredentialsSchema = z.object({
   testEventCode: z.string().optional(),
 });
 
-/**
- * Pixel config update schema
- */
 export const PixelConfigUpdateSchema = z.object({
   platform: PlatformSchema,
   credentials: z.union([
@@ -261,9 +179,6 @@ export const PixelConfigUpdateSchema = z.object({
   serverSideEnabled: z.boolean().optional(),
 });
 
-/**
- * Shop settings update schema
- */
 export const ShopSettingsUpdateSchema = z.object({
   consentStrategy: z.enum(["strict", "balanced", "weak"]).optional(),
   piiEnabled: z.boolean().optional(),
@@ -272,38 +187,22 @@ export const ShopSettingsUpdateSchema = z.object({
 
 export type ShopSettingsUpdate = z.infer<typeof ShopSettingsUpdateSchema>;
 
-// =============================================================================
-// Alert Settings Schemas
-// =============================================================================
-
-/**
- * Email alert settings schema
- */
 export const EmailAlertSettingsSchema = z.object({
   type: z.literal("email"),
   email: EmailSchema,
 });
 
-/**
- * Slack alert settings schema
- */
 export const SlackAlertSettingsSchema = z.object({
   type: z.literal("slack"),
   webhookUrl: z.string().url().startsWith("https://hooks.slack.com/"),
 });
 
-/**
- * Telegram alert settings schema
- */
 export const TelegramAlertSettingsSchema = z.object({
   type: z.literal("telegram"),
   botToken: z.string().min(1),
   chatId: z.string().min(1),
 });
 
-/**
- * Combined alert settings schema
- */
 export const AlertSettingsSchema = z.discriminatedUnion("type", [
   EmailAlertSettingsSchema,
   SlackAlertSettingsSchema,
@@ -312,13 +211,6 @@ export const AlertSettingsSchema = z.discriminatedUnion("type", [
 
 export type AlertSettings = z.infer<typeof AlertSettingsSchema>;
 
-// =============================================================================
-// Cron API Schemas
-// =============================================================================
-
-/**
- * Cron task schema
- */
 export const CronTaskSchema = z.enum([
   "delivery_health",
   "reconciliation",
@@ -335,13 +227,6 @@ export const CronRequestSchema = z.object({
 
 export type CronRequest = z.infer<typeof CronRequestSchema>;
 
-// =============================================================================
-// Export API Schemas
-// =============================================================================
-
-/**
- * Export request schema
- */
 export const ExportRequestSchema = z.object({
   type: z.enum(["conversion_logs", "reconciliation_reports", "scan_reports"]),
   startDate: z.string().datetime().optional(),
@@ -353,13 +238,6 @@ export const ExportRequestSchema = z.object({
 
 export type ExportRequest = z.infer<typeof ExportRequestSchema>;
 
-// =============================================================================
-// Validation Helpers
-// =============================================================================
-
-/**
- * Validate and parse input with detailed error messages
- */
 export function validateInput<T>(
   schema: z.ZodType<T>,
   input: unknown
@@ -378,9 +256,6 @@ export function validateInput<T>(
   return { success: false, errors };
 }
 
-/**
- * Format Zod error for API response
- */
 export function formatZodError(error: z.ZodError): {
   message: string;
   details: Array<{ field: string; message: string }>;
@@ -396,9 +271,6 @@ export function formatZodError(error: z.ZodError): {
   };
 }
 
-/**
- * Create a validation middleware for a schema
- */
 export function createValidator<T>(schema: z.ZodType<T>) {
   return (input: unknown): T => {
     const result = schema.safeParse(input);

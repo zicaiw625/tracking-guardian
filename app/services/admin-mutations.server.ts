@@ -1,19 +1,7 @@
-/**
- * Admin Mutations Service
- * 
- * GraphQL mutations for managing WebPixels.
- * 
- * P0-1: ScriptTag 删除功能已移除
- * - 应用没有 write_script_tags 权限
- * - 改为提供手动清理指南
- */
+
 
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../utils/logger.server";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export interface MutationResult {
     success: boolean;
@@ -25,24 +13,11 @@ export interface MutationResult {
     }>;
 }
 
-// =============================================================================
-// WebPixel Mutations
-// =============================================================================
-
-/**
- * Delete a WebPixel by its GraphQL global ID.
- * 
- * Requires `write_pixels` scope.
- * 
- * @param admin - Admin API context
- * @param webPixelGid - GraphQL global ID (e.g., "gid://shopify/WebPixel/123")
- * @returns MutationResult with success status and any errors
- */
 export async function deleteWebPixel(
     admin: AdminApiContext,
     webPixelGid: string
 ): Promise<MutationResult> {
-    // Validate GID format
+
     if (!webPixelGid.startsWith("gid://shopify/WebPixel/")) {
         return {
             success: false,
@@ -88,7 +63,6 @@ export async function deleteWebPixel(
             };
         }
 
-        // Handle GraphQL-level errors
         const graphqlResult = result as { errors?: Array<{ message: string }> };
         if (graphqlResult.errors && graphqlResult.errors.length > 0) {
             const errorMessages = graphqlResult.errors.map((e) => e.message).join(", ");
@@ -112,14 +86,6 @@ export async function deleteWebPixel(
     }
 }
 
-/**
- * Delete multiple WebPixels, keeping one (for deduplication).
- * 
- * @param admin - Admin API context
- * @param webPixelGids - Array of WebPixel GIDs to delete
- * @param keepFirst - If true, keeps the first pixel and deletes the rest
- * @returns Array of MutationResults
- */
 export async function deleteMultipleWebPixels(
     admin: AdminApiContext,
     webPixelGids: string[],
@@ -133,12 +99,11 @@ export async function deleteMultipleWebPixels(
     const kept = keepFirst ? webPixelGids[0] : undefined;
 
     const results: MutationResult[] = [];
-    
+
     for (const gid of gidsToDelete) {
         const result = await deleteWebPixel(admin, gid);
         results.push(result);
-        
-        // Add small delay between deletions to avoid rate limiting
+
         if (gidsToDelete.indexOf(gid) < gidsToDelete.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
@@ -146,7 +111,7 @@ export async function deleteMultipleWebPixels(
 
     const successCount = results.filter(r => r.success).length;
     const failCount = results.filter(r => !r.success).length;
-    
+
     logger.info(`Deleted ${successCount}/${gidsToDelete.length} duplicate WebPixels`, {
         kept,
         failCount,

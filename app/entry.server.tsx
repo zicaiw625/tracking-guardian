@@ -82,8 +82,7 @@ export default async function handleRequest(request: Request, responseStatusCode
             },
             onError(error) {
                 responseStatusCode = 500;
-                // SSR error handler - using console intentionally
-                // eslint-disable-next-line no-console
+
                 console.error(error);
             },
         });

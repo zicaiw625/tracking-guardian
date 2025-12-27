@@ -1,23 +1,9 @@
-/**
- * Service Layer Error Types
- *
- * Specialized error types for different service domains.
- * These extend AppError with domain-specific semantics.
- */
+
 
 import { AppError, ErrorCode, type ErrorCodeType, type ErrorMetadata } from "./app-error";
 
-// =============================================================================
-// Base Service Error
-// =============================================================================
-
-/**
- * Base class for service-specific errors
- */
 export abstract class ServiceError extends AppError {
-  /**
-   * The service where this error originated
-   */
+
   public readonly service: string;
 
   constructor(
@@ -33,13 +19,6 @@ export abstract class ServiceError extends AppError {
   }
 }
 
-// =============================================================================
-// Billing Service Errors
-// =============================================================================
-
-/**
- * Billing-related errors
- */
 export class BillingError extends ServiceError {
   constructor(
     code: ErrorCodeType,
@@ -74,13 +53,6 @@ export class BillingError extends ServiceError {
   }
 }
 
-// =============================================================================
-// Platform Service Errors
-// =============================================================================
-
-/**
- * Platform API errors (Google, Meta, TikTok)
- */
 export class PlatformServiceError extends ServiceError {
   public readonly platform: string;
 
@@ -100,7 +72,7 @@ export class PlatformServiceError extends ServiceError {
       platform,
       ErrorCode.PLATFORM_TIMEOUT,
       `${platform} API request timed out after ${timeoutMs}ms`,
-      true, // retryable
+      true,
       { timeout: timeoutMs }
     );
   }
@@ -110,7 +82,7 @@ export class PlatformServiceError extends ServiceError {
       platform,
       ErrorCode.PLATFORM_RATE_LIMITED,
       `${platform} API rate limit exceeded`,
-      true, // retryable
+      true,
       { retryAfter }
     );
   }
@@ -120,7 +92,7 @@ export class PlatformServiceError extends ServiceError {
       platform,
       ErrorCode.PLATFORM_AUTH_ERROR,
       `${platform} authentication failed: ${message}`,
-      false // not retryable
+      false
     );
   }
 
@@ -129,7 +101,7 @@ export class PlatformServiceError extends ServiceError {
       platform,
       ErrorCode.PLATFORM_SERVER_ERROR,
       message || `${platform} server error (${statusCode})`,
-      true, // retryable
+      true,
       { httpStatus: statusCode }
     );
   }
@@ -139,7 +111,7 @@ export class PlatformServiceError extends ServiceError {
       platform,
       ErrorCode.PLATFORM_NETWORK_ERROR,
       `${platform} network error: ${originalMessage}`,
-      true // retryable
+      true
     );
   }
 
@@ -148,18 +120,11 @@ export class PlatformServiceError extends ServiceError {
       platform,
       ErrorCode.PLATFORM_INVALID_CONFIG,
       `Invalid ${platform} configuration: ${reason}`,
-      false // not retryable
+      false
     );
   }
 }
 
-// =============================================================================
-// Webhook Service Errors
-// =============================================================================
-
-/**
- * Webhook processing errors
- */
 export class WebhookError extends ServiceError {
   public readonly webhookId?: string;
   public readonly topic?: string;
@@ -207,13 +172,6 @@ export class WebhookError extends ServiceError {
   }
 }
 
-// =============================================================================
-// Database Service Errors
-// =============================================================================
-
-/**
- * Database operation errors
- */
 export class DatabaseError extends ServiceError {
   constructor(
     code: ErrorCodeType,
@@ -228,7 +186,7 @@ export class DatabaseError extends ServiceError {
     return new DatabaseError(
       ErrorCode.DB_CONNECTION_ERROR,
       `Database connection error: ${message}`,
-      true // retryable
+      true
     );
   }
 
@@ -249,7 +207,7 @@ export class DatabaseError extends ServiceError {
     return new DatabaseError(
       ErrorCode.DB_TRANSACTION_FAILED,
       `Transaction failed: ${message}`,
-      true // often retryable
+      true
     );
   }
 
@@ -266,13 +224,6 @@ export class DatabaseError extends ServiceError {
   }
 }
 
-// =============================================================================
-// Consent Service Errors
-// =============================================================================
-
-/**
- * Consent and trust verification errors
- */
 export class ConsentError extends ServiceError {
   constructor(
     code: ErrorCodeType,
@@ -313,13 +264,6 @@ export class ConsentError extends ServiceError {
   }
 }
 
-// =============================================================================
-// Validation Errors
-// =============================================================================
-
-/**
- * Input validation errors with field information
- */
 export class ValidationError extends ServiceError {
   public readonly field?: string;
   public readonly expected?: string;
@@ -381,13 +325,6 @@ export class ValidationError extends ServiceError {
   }
 }
 
-// =============================================================================
-// Authentication Errors
-// =============================================================================
-
-/**
- * Authentication and authorization errors
- */
 export class AuthError extends ServiceError {
   constructor(
     code: ErrorCodeType,
@@ -442,13 +379,6 @@ export class AuthError extends ServiceError {
   }
 }
 
-// =============================================================================
-// Not Found Errors
-// =============================================================================
-
-/**
- * Resource not found errors
- */
 export class NotFoundError extends ServiceError {
   public readonly resource: string;
   public readonly resourceId?: string;
@@ -461,15 +391,15 @@ export class NotFoundError extends ServiceError {
     const message = resourceId
       ? `${resource} with id '${resourceId}' not found`
       : `${resource} not found`;
-    
+
     const code = getNotFoundCodeForResource(resource);
-    
+
     super("resource", code, message, false, {
       resource,
       resourceId,
       ...metadata,
     });
-    
+
     this.resource = resource;
     this.resourceId = resourceId;
   }
@@ -491,9 +421,6 @@ export class NotFoundError extends ServiceError {
   }
 }
 
-/**
- * Get the appropriate not found error code for a resource type
- */
 function getNotFoundCodeForResource(resource: string): ErrorCodeType {
   switch (resource.toLowerCase()) {
     case "shop":
@@ -509,69 +436,38 @@ function getNotFoundCodeForResource(resource: string): ErrorCodeType {
   }
 }
 
-// =============================================================================
-// Type Guards
-// =============================================================================
-
-/**
- * Check if error is a service error
- */
 export function isServiceError(error: unknown): error is ServiceError {
   return error instanceof ServiceError;
 }
 
-/**
- * Check if error is a billing error
- */
 export function isBillingError(error: unknown): error is BillingError {
   return error instanceof BillingError;
 }
 
-/**
- * Check if error is a platform service error
- */
 export function isPlatformServiceError(error: unknown): error is PlatformServiceError {
   return error instanceof PlatformServiceError;
 }
 
-/**
- * Check if error is a webhook error
- */
 export function isWebhookError(error: unknown): error is WebhookError {
   return error instanceof WebhookError;
 }
 
-/**
- * Check if error is a database error
- */
 export function isDatabaseError(error: unknown): error is DatabaseError {
   return error instanceof DatabaseError;
 }
 
-/**
- * Check if error is a consent error
- */
 export function isConsentError(error: unknown): error is ConsentError {
   return error instanceof ConsentError;
 }
 
-/**
- * Check if error is a validation error
- */
 export function isValidationError(error: unknown): error is ValidationError {
   return error instanceof ValidationError;
 }
 
-/**
- * Check if error is an auth error
- */
 export function isAuthError(error: unknown): error is AuthError {
   return error instanceof AuthError;
 }
 
-/**
- * Check if error is a not found error
- */
 export function isNotFoundError(error: unknown): error is NotFoundError {
   return error instanceof NotFoundError;
 }

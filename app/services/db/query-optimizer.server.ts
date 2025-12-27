@@ -1,20 +1,8 @@
-/**
- * Query Optimizer Service
- *
- * Provides optimized database query patterns to avoid N+1 problems
- * and improve query performance.
- */
+
 
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Shop with active pixel configs
- */
 export interface ShopWithConfigs {
   id: string;
   shopDomain: string;
@@ -32,9 +20,6 @@ export interface ShopWithConfigs {
   }>;
 }
 
-/**
- * Job with all required relations for processing
- */
 export interface JobWithRelations {
   id: string;
   shopId: string;
@@ -49,9 +34,6 @@ export interface JobWithRelations {
   shop: ShopWithConfigs;
 }
 
-/**
- * Conversion log with shop info
- */
 export interface ConversionLogWithShop {
   id: string;
   shopId: string;
@@ -65,14 +47,6 @@ export interface ConversionLogWithShop {
   };
 }
 
-// =============================================================================
-// Optimized Queries
-// =============================================================================
-
-/**
- * Fetch jobs with all relations needed for processing.
- * Eliminates N+1 by eager loading shop and pixel configs.
- */
 export async function fetchJobsWithRelations(
   jobIds: string[]
 ): Promise<JobWithRelations[]> {
@@ -106,10 +80,6 @@ export async function fetchJobsWithRelations(
   });
 }
 
-/**
- * Fetch shops with their active pixel configurations.
- * Useful for bulk operations that need shop + config data.
- */
 export async function fetchShopsWithConfigs(
   shopDomains: string[]
 ): Promise<ShopWithConfigs[]> {
@@ -139,16 +109,11 @@ export async function fetchShopsWithConfigs(
   });
 }
 
-/**
- * Fetch pixel event receipts in batch.
- * Returns a Map for O(1) lookups.
- */
 export async function fetchReceiptsMap(
   queries: Array<{ shopId: string; orderId: string }>
 ): Promise<Map<string, { orderId: string; checkoutToken: string | null; consentState: unknown; trustLevel: string }>> {
   if (queries.length === 0) return new Map();
 
-  // Build OR conditions for efficient batch query
   const orConditions = queries.map(q => ({
     shopId: q.shopId,
     orderId: q.orderId,
@@ -165,7 +130,6 @@ export async function fetchReceiptsMap(
     },
   });
 
-  // Build map with composite key
   const map = new Map<string, { orderId: string; checkoutToken: string | null; consentState: unknown; trustLevel: string }>();
   for (const receipt of receipts) {
     const key = `${receipt.shopId}:${receipt.orderId}`;
@@ -180,10 +144,6 @@ export async function fetchReceiptsMap(
   return map;
 }
 
-/**
- * Fetch recent conversion logs for reconciliation.
- * Optimized for date range queries with proper indexing.
- */
 export async function fetchConversionLogsForReconciliation(
   shopId: string,
   startDate: Date,
@@ -210,9 +170,6 @@ export async function fetchConversionLogsForReconciliation(
   });
 }
 
-/**
- * Count pending jobs per shop for dashboard.
- */
 export async function countPendingJobsPerShop(
   shopIds: string[]
 ): Promise<Map<string, number>> {
@@ -235,13 +192,6 @@ export async function countPendingJobsPerShop(
   return map;
 }
 
-// =============================================================================
-// Pagination Helpers
-// =============================================================================
-
-/**
- * Cursor-based pagination for large datasets.
- */
 export interface CursorPaginationParams {
   cursor?: string;
   take: number;
@@ -254,9 +204,6 @@ export interface CursorPaginationResult<T> {
   hasMore: boolean;
 }
 
-/**
- * Paginate conversion logs with cursor.
- */
 export async function paginateConversionLogs(
   shopId: string,
   params: CursorPaginationParams
@@ -271,7 +218,7 @@ export async function paginateConversionLogs(
       status: true,
       createdAt: true,
     },
-    take: take + 1, // Fetch one extra to check if there's more
+    take: take + 1,
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     orderBy: { createdAt: orderBy },
@@ -288,13 +235,6 @@ export async function paginateConversionLogs(
   };
 }
 
-// =============================================================================
-// Aggregate Queries
-// =============================================================================
-
-/**
- * Get conversion statistics for a shop.
- */
 export async function getConversionStats(
   shopId: string,
   startDate: Date,
@@ -338,9 +278,6 @@ export async function getConversionStats(
   };
 }
 
-/**
- * Get job queue health metrics.
- */
 export async function getJobQueueHealth(): Promise<{
   queued: number;
   processing: number;
@@ -371,13 +308,6 @@ export async function getJobQueueHealth(): Promise<{
   };
 }
 
-// =============================================================================
-// Query Logging
-// =============================================================================
-
-/**
- * Log slow queries for monitoring.
- */
 export async function measureQuery<T>(
   name: string,
   query: () => Promise<T>,

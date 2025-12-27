@@ -1,8 +1,4 @@
-/**
- * Shop Provisioning Service
- *
- * Handles shop setup and provisioning after OAuth authentication.
- */
+
 
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../../db.server";
@@ -14,10 +10,6 @@ import { logger } from "../../utils/logger.server";
 import type { ShopQueryResponse, ShopTierValue } from "../../types/shopify";
 import type { WebhookRegisterResults } from "../../types/shopify";
 import { cleanupDeprecatedWebhookSubscriptions } from "./webhook-cleanup.server";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 interface AfterAuthParams {
   session: {
@@ -32,13 +24,6 @@ interface ShopInfo {
   shopTier: ShopTierValue;
 }
 
-// =============================================================================
-// Shop Info Fetching
-// =============================================================================
-
-/**
- * Fetch shop info from Shopify Admin API
- */
 async function fetchShopInfo(
   admin: AdminApiContext,
   shopDomain: string
@@ -93,13 +78,6 @@ async function fetchShopInfo(
   return { primaryDomain: primaryDomainHost, shopTier };
 }
 
-// =============================================================================
-// Shop Database Operations
-// =============================================================================
-
-/**
- * Upsert shop record in database
- */
 async function upsertShopRecord(
   shopDomain: string,
   accessToken: string | undefined,
@@ -135,7 +113,6 @@ async function upsertShopRecord(
     },
   });
 
-  // Generate ingestion secret for existing shops without one
   if (existingShop && !existingShop.ingestionSecret) {
     const secretForExisting = generateEncryptedIngestionSecret();
     await prisma.shop.update({
@@ -145,27 +122,11 @@ async function upsertShopRecord(
   }
 }
 
-// =============================================================================
-// Main After Auth Handler
-// =============================================================================
-
-/**
- * Handle shop provisioning after successful OAuth authentication.
- *
- * This function:
- * 1. Cleans up deprecated webhook subscriptions
- * 2. Fetches shop info (primary domain, tier)
- * 3. Creates or updates shop record in database
- * 4. Generates ingestion secret if needed
- * 
- * Note: Webhooks are managed via shopify.app.toml, so no manual registration needed here.
- */
 export async function handleAfterAuth(
   params: AfterAuthParams
 ): Promise<void> {
   const { session, admin } = params;
 
-  // Cleanup deprecated webhooks
   if (admin) {
     try {
       await cleanupDeprecatedWebhookSubscriptions(admin, session.shop);
@@ -179,12 +140,10 @@ export async function handleAfterAuth(
     }
   }
 
-  // Fetch shop info
   const shopInfo = admin
     ? await fetchShopInfo(admin, session.shop)
     : { primaryDomain: null, shopTier: "unknown" as ShopTierValue };
 
-  // Upsert shop record
   await upsertShopRecord(session.shop, session.accessToken, shopInfo);
 }
 

@@ -132,6 +132,38 @@ uid = "0aa738e0-79d9-076a-435f-5ad1ea813a9058225869"
   target = "customer-account.order-status.block.render"
 
 # =============================================================================
+# Reorder Block - Thank You Page
+# =============================================================================
+[[extensions]]
+type = "ui_extension"
+name = "Reorder Button"
+handle = "reorder-button"
+uid = "a1b2c3d4-5678-9012-3456-789012345678reorder"
+
+  [extensions.capabilities]
+  network_access = false
+
+  [[extensions.targeting]]
+  module = "./src/Reorder.tsx"
+  target = "purchase.thank-you.block.render"
+
+# =============================================================================
+# Reorder Block - Order Status Page (Customer Account)
+# =============================================================================
+[[extensions]]
+type = "ui_extension"
+name = "Order Status Reorder Button"
+handle = "order-status-reorder-button"
+uid = "b2c3d4e5-6789-0123-4567-890123456789reorder"
+
+  [extensions.capabilities]
+  network_access = false
+
+  [[extensions.targeting]]
+  module = "./src/Reorder.orderStatus.tsx"
+  target = "customer-account.order-status.block.render"
+
+# =============================================================================
 # Settings Schema
 # =============================================================================
 [settings]
@@ -216,4 +248,29 @@ uid = "0aa738e0-79d9-076a-435f-5ad1ea813a9058225869"
   name = "FAQ URL"
   description = "Link to your FAQ/knowledge base"
   type = "single_line_text_field"
-  
+
+  # Reorder Settings
+  [[settings.fields]]
+  key = "reorder_title"
+  name = "Reorder Block Title"
+  description = "Title for the reorder block (e.g., '📦 再次购买')"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "reorder_subtitle"
+  name = "Reorder Block Subtitle"
+  description = "Subtitle shown below the title"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "reorder_button_text"
+  name = "Reorder Button Text"
+  description = "Text on the reorder button (e.g., '再次购买 →')"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "reorder_show_items"
+  name = "Show Items List"
+  description = "Show the list of items from the order (true/false)"
+  type = "single_line_text_field"
+

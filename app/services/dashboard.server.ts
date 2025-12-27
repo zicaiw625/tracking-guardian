@@ -1,44 +1,24 @@
-/**
- * Dashboard Service
- *
- * Provides data aggregation for the main dashboard page.
- * Encapsulates all business logic for health scoring, setup progress,
- * and summary statistics.
- */
+
 
 import prisma from "../db.server";
 import { getPlanDefinition, normalizePlan } from "../utils/plans";
 
-// Re-export types from shared module (safe for client import)
 export type {
   DashboardData,
   SetupStep,
   HealthStatus,
 } from "../types/dashboard";
 
-// Re-export helper functions from shared module (safe for client import)
 export {
   getSetupSteps,
   getNextSetupStep,
   getSetupProgress,
 } from "../types/dashboard";
 
-// Import types for internal use
 import type { DashboardData, HealthStatus } from "../types/dashboard";
-
-// =============================================================================
-// Constants
-// =============================================================================
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-// =============================================================================
-// Health Score Calculation
-// =============================================================================
-
-/**
- * Calculate health score based on reconciliation report discrepancies.
- */
 function calculateHealthScore(
   recentReports: Array<{ orderDiscrepancy: number }>,
   configuredPlatforms: number
@@ -62,9 +42,6 @@ function calculateHealthScore(
   return { score: 95, status: "success" };
 }
 
-/**
- * Analyze script tags from scan report.
- */
 function analyzeScriptTags(
   scriptTags: unknown
 ): { count: number; hasOrderStatusScripts: boolean } {
@@ -79,13 +56,6 @@ function analyzeScriptTags(
   };
 }
 
-// =============================================================================
-// Main Dashboard Service
-// =============================================================================
-
-/**
- * Load dashboard data for a shop.
- */
 export async function getDashboardData(shopDomain: string): Promise<DashboardData> {
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
@@ -183,5 +153,3 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   };
 }
 
-// Note: getSetupSteps, getNextSetupStep, and getSetupProgress are now 
-// re-exported from ../types/dashboard for client-server code sharing

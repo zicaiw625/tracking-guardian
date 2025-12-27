@@ -1,42 +1,32 @@
-/**
- * Centralized Type Definitions
- * 
- * This module re-exports all type definitions from domain-specific modules.
- * Import types from here for convenience, or directly from specific modules
- * for better tree-shaking.
- */
 
-// =============================================================================
-// Enum Constants & Types
-// =============================================================================
 
 export {
-  // Job & Status Enums
+
   JobStatus,
   ConversionLogStatus,
   WebhookStatus,
   GDPRJobStatus,
   ScanStatus,
   MigrationStatus,
-  // Trust & Consent Enums
+
   TrustLevel as TrustLevelEnum,
   SignatureStatus,
   ConsentStrategy as ConsentStrategyEnum,
-  // Platform Enums
+
   Platform as PlatformEnum,
   PLATFORM_DISPLAY_NAMES,
   EventType,
-  // Shop & Billing Enums
+
   ShopTier,
   PlanId,
-  // Alert Enums
+
   AlertChannel as AlertChannelEnum,
   AlertFrequency,
-  // Audit Enums
+
   ActorType,
   AuditAction,
   PlatformResultStatus,
-  // Validators
+
   isValidJobStatus,
   isValidPlatform,
   isValidTrustLevel,
@@ -64,10 +54,6 @@ export type {
   PlatformResultStatusType,
 } from "./enums";
 
-// =============================================================================
-// Database Types (Prisma Json Fields)
-// =============================================================================
-
 export type {
   CapiLineItem,
   CapiInputJson,
@@ -86,7 +72,7 @@ export type {
 } from "./database";
 
 export {
-  // Parser functions
+
   parseCapiInput,
   parseConsentState,
   parseConsentEvidence,
@@ -96,43 +82,39 @@ export {
   parseRiskItems,
   parseIdentifiedPlatforms,
   parsePlatformResponse,
-  // Type guards
+
   isCapiInputJson,
   isConsentStateJson,
 } from "./database";
 
-// =============================================================================
-// Platform Types
-// =============================================================================
-
 export type {
-  // Platform identifier
+
   Platform,
-  // Credential types
+
   GoogleCredentials,
   MetaCredentials,
   TikTokCredentials,
   PlatformCredentials,
-  // Typed credentials with discriminant (for type-safe switch statements)
+
   GoogleCredentialsTyped,
   MetaCredentialsTyped,
   TikTokCredentialsTyped,
   TypedPlatformCredentials,
-  // Conversion types
+
   LineItem,
   ConversionData,
   ConversionStatus,
   ConversionLogData,
   ConversionApiResponse,
-  // Error types
+
   PlatformErrorType,
   PlatformError,
   PlatformResult,
-  // Config types
+
   PixelConfigData,
   MigrationConfig,
   MigrationResult,
-  // Discriminated config types
+
   GooglePlatformConfig,
   MetaPlatformConfig,
   TikTokPlatformConfig,
@@ -142,7 +124,7 @@ export type {
 
 export {
   PLATFORM_NAMES,
-  // Zod schemas for runtime validation
+
   GoogleCredentialsSchema,
   MetaCredentialsSchema,
   TikTokCredentialsSchema,
@@ -152,22 +134,18 @@ export {
   PlatformCredentialsSchema,
   LineItemSchema,
   ConversionDataSchema,
-  // Type guards
+
   isGoogleCredentials,
   isMetaCredentials,
   isTikTokCredentials,
   isTypedGoogleCredentials,
   isTypedMetaCredentials,
   isTypedTikTokCredentials,
-  // Utilities
+
   upgradeCredentials,
   validateCredentials,
   validatePlatformCredentials,
 } from "./platform";
-
-// =============================================================================
-// Consent Types
-// =============================================================================
 
 export type {
   ConsentCategory,
@@ -176,16 +154,12 @@ export type {
   ConsentDecision,
   PlatformConsentConfig,
   GDPRJobType,
-  // GDPRJobStatus is exported as a value from enums, type as GDPRJobStatusType
+
   GDPRJobData,
   TrustLevel,
   TrustResult,
   TrustVerificationOptions,
 } from "./consent";
-
-// =============================================================================
-// Webhook Types
-// =============================================================================
 
 export type {
   OrderWebhookPayload,
@@ -211,10 +185,6 @@ export type {
 } from "./webhook";
 
 export { toMinimalOrderPayload } from "./webhook";
-
-// =============================================================================
-// Shopify Types
-// =============================================================================
 
 export type {
   WebhookRegisterResult,
@@ -247,12 +217,8 @@ export {
   extractGraphQLErrors,
 } from "./shopify";
 
-// =============================================================================
-// Result Types
-// =============================================================================
-
 export {
-  // Core types
+
   type Result,
   type AsyncResult,
   type Ok,
@@ -261,13 +227,13 @@ export {
   type AsyncVoidResult,
   type SimpleResult,
   type IdResult,
-  // Constructors
+
   ok,
   err,
-  // Type guards
+
   isOk,
   isErr,
-  // Utilities
+
   unwrap,
   unwrapOr,
   unwrapOrElse,
@@ -276,12 +242,12 @@ export {
   flatMap,
   combine,
   combineAll,
-  // Async utilities
+
   fromPromise,
   fromThrowable,
   mapAsync,
   flatMapAsync,
-  // Pattern matching
+
   match,
   tap,
   tapErr,

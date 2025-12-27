@@ -54,7 +54,7 @@ describe("P0-02: PII Null Regression Tests", () => {
           items: [
             { id: "product-1", name: "Test Product", price: 84.01, quantity: 1 },
           ],
-          
+
           email: null,
           phone: null,
           firstName: null,
@@ -68,10 +68,10 @@ describe("P0-02: PII Null Regression Tests", () => {
       };
 
       expect(piiNullPayload.data.orderId).toBe("12345");
-      
+
       const normalizedId = normalizeOrderId(piiNullPayload.data.orderId);
       expect(normalizedId).toBe("12345");
-      
+
       const eventId = generateEventId(
         normalizedId,
         "purchase",
@@ -84,10 +84,10 @@ describe("P0-02: PII Null Regression Tests", () => {
     it("should generate consistent eventId regardless of PII presence", () => {
       const orderId = "12345";
       const shopDomain = "test-shop.myshopify.com";
-      
+
       const eventId1 = generateEventId(orderId, "purchase", shopDomain);
       const eventId2 = generateEventId(orderId, "purchase", shopDomain);
-      
+
       expect(eventId1).toBe(eventId2);
     });
 
@@ -104,9 +104,9 @@ describe("P0-02: PII Null Regression Tests", () => {
         },
       };
 
-      const effectiveId = payloadWithNullOrderId.data.orderId || 
+      const effectiveId = payloadWithNullOrderId.data.orderId ||
                           payloadWithNullOrderId.data.checkoutToken;
-      
+
       expect(effectiveId).toBe("checkout_token_abc123");
     });
   });
@@ -134,7 +134,7 @@ describe("P0-02: PII Null Regression Tests", () => {
       expect(capiInput.orderId).toBeTruthy();
       expect(capiInput.value).toBeGreaterThan(0);
       expect(capiInput.currency).toBeTruthy();
-      
+
       expect((capiInput as Record<string, unknown>).email).toBeUndefined();
       expect((capiInput as Record<string, unknown>).phone).toBeUndefined();
       expect((capiInput as Record<string, unknown>).firstName).toBeUndefined();
@@ -271,12 +271,12 @@ describe("P0-02: PII Null Regression Tests", () => {
     it("should deduplicate using eventId without PII", () => {
       const orderId = "12345";
       const shopDomain = "test-shop.myshopify.com";
-      
+
       const eventId = generateEventId(orderId, "purchase", shopDomain);
-      
+
       const eventId2 = generateEventId(orderId, "purchase", shopDomain);
       expect(eventId).toBe(eventId2);
-      
+
       const differentEventId = generateEventId("99999", "purchase", shopDomain);
       expect(eventId).not.toBe(differentEventId);
     });

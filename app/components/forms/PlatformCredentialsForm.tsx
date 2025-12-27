@@ -1,15 +1,7 @@
-/**
- * PlatformCredentialsForm Component
- *
- * Reusable form for configuring platform CAPI credentials.
- */
+
 
 import { BlockStack, TextField, Banner, Text } from "@shopify/polaris";
 import type { ReactNode } from "react";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export type PlatformType = "meta" | "google" | "tiktok";
 
@@ -35,35 +27,17 @@ export type PlatformCredentials =
   | TikTokCredentials;
 
 export interface PlatformCredentialsFormProps {
-  /**
-   * Platform type to configure
-   */
+
   platform: PlatformType;
 
-  /**
-   * Current credential values
-   */
   values: PlatformCredentials;
 
-  /**
-   * Callback when values change
-   */
   onChange: (values: PlatformCredentials) => void;
 
-  /**
-   * Field-level validation errors
-   */
   errors?: Record<string, string>;
 
-  /**
-   * Whether the form is disabled
-   */
   disabled?: boolean;
 }
-
-// =============================================================================
-// Platform-Specific Forms
-// =============================================================================
 
 interface MetaFormProps {
   values: MetaCredentials;
@@ -190,13 +164,6 @@ function TikTokForm({ values, onChange, errors, disabled }: TikTokFormProps) {
   );
 }
 
-// =============================================================================
-// Main Component
-// =============================================================================
-
-/**
- * Render platform-specific credential fields based on the selected platform.
- */
 export function PlatformCredentialsForm({
   platform,
   values,
@@ -237,13 +204,6 @@ export function PlatformCredentialsForm({
   }
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
-/**
- * Get empty credentials object for a platform
- */
 export function getEmptyCredentials(platform: PlatformType): PlatformCredentials {
   switch (platform) {
     case "meta":
@@ -255,9 +215,6 @@ export function getEmptyCredentials(platform: PlatformType): PlatformCredentials
   }
 }
 
-/**
- * Check if credentials are complete for a platform
- */
 export function areCredentialsComplete(
   platform: PlatformType,
   credentials: PlatformCredentials

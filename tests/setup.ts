@@ -7,11 +7,11 @@ process.env.CRON_SECRET = "test-cron-secret";
 process.env.SHOPIFY_APP_URL = "https://test-app.example.com";
 
 if (typeof globalThis.crypto === "undefined") {
-  
+
   globalThis.crypto = {
     subtle: {
       digest: async (_algorithm: string, data: Uint8Array) => {
-        
+
         const { createHash } = await import("crypto");
         const hash = createHash("sha256");
         hash.update(Buffer.from(data));

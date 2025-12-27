@@ -100,7 +100,7 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     if (!shop || !shop.isActive) {
         throw new Error("Shop not found or inactive");
     }
-    // P0-3: 使用 UTC 边界确保跨时区一致性
+
     const yesterday = new Date();
     yesterday.setUTCDate(yesterday.getUTCDate() - 1);
     yesterday.setUTCHours(0, 0, 0, 0);
@@ -211,7 +211,7 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
     return results;
 }
 export async function getDeliveryHealthHistory(shopId: string, days = 30): Promise<DeliveryHealthReport[]> {
-    // P0-3: 使用 UTC 边界确保跨时区一致性
+
     const startDate = new Date();
     startDate.setUTCDate(startDate.getUTCDate() - days);
     startDate.setUTCHours(0, 0, 0, 0);
@@ -242,7 +242,7 @@ export async function getDeliveryHealthHistory(shopId: string, days = 30): Promi
     }));
 }
 export async function getDeliveryHealthSummary(shopId: string): Promise<Record<string, DeliveryHealthSummary>> {
-    // P0-3: 使用 UTC 边界确保跨时区一致性
+
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
     sevenDaysAgo.setUTCHours(0, 0, 0, 0);

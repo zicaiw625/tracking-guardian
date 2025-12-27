@@ -1,17 +1,8 @@
-/**
- * Audit Repository
- *
- * Centralized data access layer for AuditLog entities.
- * Provides type-safe audit logging operations.
- */
+
 
 import prisma from "../../db.server";
 import { Prisma } from "@prisma/client";
 import { logger } from "../../utils/logger.server";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export type ActorType = "user" | "webhook" | "cron" | "api" | "system";
 
@@ -63,9 +54,6 @@ export type ResourceType =
   | "api_request"
   | "customer";
 
-/**
- * Audit log entry input.
- */
 export interface AuditLogEntry {
   actorType: ActorType;
   actorId?: string;
@@ -79,9 +67,6 @@ export interface AuditLogEntry {
   userAgent?: string;
 }
 
-/**
- * Query options for fetching audit logs.
- */
 export interface AuditLogQueryOptions {
   limit?: number;
   action?: AuditAction;
@@ -90,9 +75,6 @@ export interface AuditLogQueryOptions {
   toDate?: Date;
 }
 
-/**
- * Audit log summary entry.
- */
 export interface AuditLogSummary {
   id: string;
   actorType: string;
@@ -103,9 +85,6 @@ export interface AuditLogSummary {
   createdAt: Date;
 }
 
-/**
- * Full audit log entry.
- */
 export interface AuditLogFull extends AuditLogSummary {
   shopId: string;
   previousValue: unknown;
@@ -114,10 +93,6 @@ export interface AuditLogFull extends AuditLogSummary {
   ipAddress: string | null;
   userAgent: string | null;
 }
-
-// =============================================================================
-// Constants
-// =============================================================================
 
 const SENSITIVE_FIELDS = [
   "accessToken",
@@ -131,13 +106,6 @@ const SENSITIVE_FIELDS = [
   "credentialsEncrypted",
 ];
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Redact sensitive fields from an object for safe logging.
- */
 function redactSensitiveFields(
   obj: Record<string, unknown> | undefined
 ): Record<string, unknown> | undefined {
@@ -160,9 +128,6 @@ function redactSensitiveFields(
   return redacted;
 }
 
-/**
- * Extract request context for audit logging.
- */
 export function extractRequestContext(request: Request): {
   ipAddress?: string;
   userAgent?: string;
@@ -176,13 +141,6 @@ export function extractRequestContext(request: Request): {
   };
 }
 
-// =============================================================================
-// Repository Functions
-// =============================================================================
-
-/**
- * Create an audit log entry.
- */
 export async function createAuditLogEntry(
   shopId: string,
   entry: AuditLogEntry
@@ -218,9 +176,6 @@ export async function createAuditLogEntry(
   }
 }
 
-/**
- * Batch create multiple audit log entries.
- */
 export async function batchCreateAuditLogs(
   entries: Array<AuditLogEntry & { shopId: string }>
 ): Promise<number> {
@@ -251,9 +206,6 @@ export async function batchCreateAuditLogs(
   }
 }
 
-/**
- * Get audit logs for a shop.
- */
 export async function getAuditLogsForShop(
   shopId: string,
   options: AuditLogQueryOptions = {}
@@ -288,20 +240,14 @@ export async function getAuditLogsForShop(
   });
 }
 
-/**
- * Get a single audit log entry by ID.
- */
 export async function getAuditLogById(id: string): Promise<AuditLogFull | null> {
   return prisma.auditLog.findUnique({
     where: { id },
   });
 }
 
-/**
- * Cleanup old audit log entries.
- */
 export async function cleanupOldAuditLogs(retentionDays = 90): Promise<number> {
-  // P0-3: 使用 UTC 确保跨时区一致性
+
   const cutoffDate = new Date();
   cutoffDate.setUTCDate(cutoffDate.getUTCDate() - retentionDays);
 
@@ -315,9 +261,6 @@ export async function cleanupOldAuditLogs(retentionDays = 90): Promise<number> {
   return result.count;
 }
 
-/**
- * Count audit logs by action type for a shop.
- */
 export async function countAuditLogsByAction(
   shopId: string,
   fromDate?: Date
@@ -340,10 +283,6 @@ export async function countAuditLogsByAction(
   );
 }
 
-// =============================================================================
-// Legacy Compatibility (auditLog object for existing code)
-// =============================================================================
-
 export const auditLog = {
   record: createAuditLogEntry,
   getForShop: getAuditLogsForShop,
@@ -351,9 +290,6 @@ export const auditLog = {
   cleanup: cleanupOldAuditLogs,
 };
 
-/**
- * Convenience function matching existing interface.
- */
 export async function createAuditLog(
   entry: AuditLogEntry & { shopId: string }
 ): Promise<void> {

@@ -33,19 +33,19 @@ export default defineConfig({
       },
     },
     setupFiles: ["./tests/setup.ts"],
-    // Improve test reliability
+
     testTimeout: 10000,
     hookTimeout: 10000,
-    // Run tests in parallel for speed
+
     pool: "threads",
     poolOptions: {
       threads: {
         singleThread: false,
       },
     },
-    // Watch mode settings
+
     watch: false,
-    // Reporter for CI/CD
+
     reporters: ["default", "html"],
     outputFile: {
       html: "./coverage/test-report.html",

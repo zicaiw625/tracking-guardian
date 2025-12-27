@@ -1,19 +1,7 @@
-/**
- * Structured Logger with Correlation ID Support
- *
- * Provides structured logging with:
- * - Correlation ID propagation across requests
- * - Automatic PII redaction
- * - Structured JSON output in production
- * - Pretty output in development
- */
+
 
 import { randomBytes } from "crypto";
 import { AsyncLocalStorage } from "async_hooks";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -21,9 +9,6 @@ interface LogContext {
   [key: string]: unknown;
 }
 
-/**
- * Correlation context stored in AsyncLocalStorage
- */
 interface CorrelationContext {
   correlationId: string;
   shopDomain?: string;
@@ -33,9 +18,6 @@ interface CorrelationContext {
   [key: string]: unknown;
 }
 
-/**
- * Structured log entry
- */
 interface LogEntry {
   timestamp: string;
   level: LogLevel;
@@ -54,10 +36,6 @@ interface LogEntry {
   [key: string]: unknown;
 }
 
-// =============================================================================
-// Constants
-// =============================================================================
-
 const REQUEST_ID_HEADER = "X-Request-Id";
 const CORRELATION_ID_HEADER = "X-Correlation-Id";
 
@@ -73,36 +51,20 @@ const MIN_LOG_LEVEL: LogLevel =
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
-// =============================================================================
-// AsyncLocalStorage for Correlation Context
-// =============================================================================
-
 const correlationStorage = new AsyncLocalStorage<CorrelationContext>();
 
-/**
- * Generate a unique correlation ID
- */
 export function generateCorrelationId(): string {
   return randomBytes(12).toString("hex");
 }
 
-/**
- * Generate a request ID (shorter, for logging)
- */
 export function generateRequestId(): string {
   return randomBytes(8).toString("hex");
 }
 
-/**
- * Get request ID from request headers or generate new one
- */
 export function getRequestId(request: Request): string {
   return request.headers.get(REQUEST_ID_HEADER) || generateRequestId();
 }
 
-/**
- * Get correlation ID from request headers or generate new one
- */
 export function getCorrelationId(request: Request): string {
   return (
     request.headers.get(CORRELATION_ID_HEADER) ||
@@ -111,9 +73,6 @@ export function getCorrelationId(request: Request): string {
   );
 }
 
-/**
- * Run a function with correlation context
- */
 export function withCorrelation<T>(
   context: Partial<CorrelationContext>,
   fn: () => T
@@ -127,26 +86,16 @@ export function withCorrelation<T>(
   return correlationStorage.run(newContext, fn);
 }
 
-/**
- * Get current correlation context
- */
 export function getCorrelationContext(): CorrelationContext | undefined {
   return correlationStorage.getStore();
 }
 
-/**
- * Set additional context in current correlation
- */
 export function setCorrelationField(key: string, value: unknown): void {
   const context = correlationStorage.getStore();
   if (context) {
     context[key] = value;
   }
 }
-
-// =============================================================================
-// Sensitive Data Redaction
-// =============================================================================
 
 const SENSITIVE_FIELD_PATTERNS = [
   "accesstoken",
@@ -287,10 +236,6 @@ function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
   return sanitized;
 }
 
-// =============================================================================
-// Log Formatting
-// =============================================================================
-
 function buildLogEntry(
   level: LogLevel,
   message: string,
@@ -305,7 +250,6 @@ function buildLogEntry(
     message,
   };
 
-  // Add correlation context
   if (correlationContext) {
     entry.correlationId = correlationContext.correlationId;
     if (correlationContext.shopDomain) entry.shopDomain = correlationContext.shopDomain;
@@ -314,7 +258,6 @@ function buildLogEntry(
     if (correlationContext.platform) entry.platform = correlationContext.platform;
   }
 
-  // Add error info
   if (error) {
     if (error instanceof Error) {
       entry.error = {
@@ -327,7 +270,6 @@ function buildLogEntry(
     }
   }
 
-  // Add sanitized context
   if (context && Object.keys(context).length > 0) {
     const sanitized = sanitizeContext(context);
     Object.assign(entry, sanitized);
@@ -338,11 +280,10 @@ function buildLogEntry(
 
 function formatForConsole(entry: LogEntry): string {
   if (IS_PRODUCTION) {
-    // Structured JSON output for production (for log aggregation)
+
     return JSON.stringify(entry);
   }
 
-  // Pretty output for development
   const { timestamp, level, message, correlationId, ...rest } = entry;
   const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
   const corrId = correlationId ? ` [${correlationId.substring(0, 8)}]` : "";
@@ -356,10 +297,6 @@ function formatForConsole(entry: LogEntry): string {
 function shouldLog(level: LogLevel): boolean {
   return LOG_LEVELS[level] >= LOG_LEVELS[MIN_LOG_LEVEL];
 }
-
-// =============================================================================
-// Main Logger
-// =============================================================================
 
 interface Logger {
   debug(message: string, context?: LogContext): void;
@@ -445,10 +382,6 @@ const loggerImpl: Logger = {
 
 export const logger: Logger = loggerImpl;
 
-// =============================================================================
-// Request Logger
-// =============================================================================
-
 export interface RequestLogger {
   debug(message: string, context?: LogContext): void;
   info(message: string, context?: LogContext): void;
@@ -508,10 +441,6 @@ export function createRequestLogger(
   };
 }
 
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
 export function getLogLevel(): LogLevel {
   return MIN_LOG_LEVEL;
 }
@@ -519,10 +448,6 @@ export function getLogLevel(): LogLevel {
 export function isDebugEnabled(): boolean {
   return shouldLog("debug");
 }
-
-// =============================================================================
-// Metrics Logger
-// =============================================================================
 
 export const metrics = {
   pixelEvent(context: {
@@ -715,13 +640,6 @@ export const metrics = {
   },
 };
 
-// =============================================================================
-// Timer Utility
-// =============================================================================
-
-/**
- * Create a timer for measuring operation duration
- */
 export function createTimer(): { elapsed: () => number } {
   const start = performance.now();
   return {
@@ -729,9 +647,6 @@ export function createTimer(): { elapsed: () => number } {
   };
 }
 
-/**
- * Wrap an async function with timing and logging
- */
 export async function withTiming<T>(
   name: string,
   fn: () => Promise<T>,
@@ -748,13 +663,6 @@ export async function withTiming<T>(
   }
 }
 
-// =============================================================================
-// Structured Error Logging
-// =============================================================================
-
-/**
- * Error categories for structured logging
- */
 export type ErrorCategory =
   | "validation"
   | "authentication"
@@ -766,9 +674,6 @@ export type ErrorCategory =
   | "configuration"
   | "unknown";
 
-/**
- * Structured error context for consistent error logging
- */
 export interface ErrorContext {
   category: ErrorCategory;
   code?: string;
@@ -778,9 +683,6 @@ export interface ErrorContext {
   input?: LogContext;
 }
 
-/**
- * Log a structured error
- */
 export function logError(
   message: string,
   error: Error | unknown,
@@ -798,13 +700,6 @@ export function logError(
   });
 }
 
-// =============================================================================
-// Request Lifecycle Logging
-// =============================================================================
-
-/**
- * Log request start
- */
 export function logRequestStart(
   request: Request,
   context?: LogContext
@@ -822,9 +717,6 @@ export function logRequestStart(
   return { requestId, startTime: Date.now() };
 }
 
-/**
- * Log request completion
- */
 export function logRequestEnd(
   requestId: string,
   startTime: number,
@@ -842,13 +734,6 @@ export function logRequestEnd(
   });
 }
 
-// =============================================================================
-// Audit Logging
-// =============================================================================
-
-/**
- * Actions that should be audit logged
- */
 export type AuditAction =
   | "shop_installed"
   | "shop_uninstalled"
@@ -862,9 +747,6 @@ export type AuditAction =
   | "scan_requested"
   | "migration_started";
 
-/**
- * Log an audit event
- */
 export function logAudit(
   action: AuditAction,
   context: {
@@ -886,13 +768,6 @@ export function logAudit(
   });
 }
 
-// =============================================================================
-// Performance Logging
-// =============================================================================
-
-/**
- * Log slow operation warning
- */
 export function logSlowOperation(
   operation: string,
   duration: number,
@@ -909,9 +784,6 @@ export function logSlowOperation(
   }
 }
 
-/**
- * Log database query performance
- */
 export function logQueryPerformance(
   query: string,
   duration: number,
@@ -921,7 +793,7 @@ export function logQueryPerformance(
   const level = duration > 1000 ? "warn" : duration > 100 ? "info" : "debug";
 
   logger.log(level, "Database query", {
-    query: query.substring(0, 100), // Truncate long queries
+    query: query.substring(0, 100),
     duration,
     rowCount,
     _metric: "db_query",
@@ -929,13 +801,6 @@ export function logQueryPerformance(
   });
 }
 
-// =============================================================================
-// Health Check Logging
-// =============================================================================
-
-/**
- * Log health check result
- */
 export function logHealthCheck(
   service: string,
   healthy: boolean,

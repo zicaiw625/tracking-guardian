@@ -1,8 +1,4 @@
-/**
- * Webhook Dispatcher
- *
- * Routes incoming webhooks to appropriate handlers based on topic.
- */
+
 
 import { logger } from "../utils/logger.server";
 import { WebhookStatus } from "../types";
@@ -16,13 +12,6 @@ import {
 import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
 
-// =============================================================================
-// Topic to Handler Mapping
-// =============================================================================
-
-/**
- * Map of webhook topics to their handlers
- */
 const WEBHOOK_HANDLERS: Record<
   string,
   (
@@ -37,22 +26,12 @@ const WEBHOOK_HANDLERS: Record<
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
 };
 
-/**
- * Topics that don't require shop record to be active
- */
 const GDPR_TOPICS = new Set([
   "CUSTOMERS_DATA_REQUEST",
   "CUSTOMERS_REDACT",
   "SHOP_REDACT",
 ]);
 
-// =============================================================================
-// Dispatcher
-// =============================================================================
-
-/**
- * Dispatch a webhook to the appropriate handler
- */
 export async function dispatchWebhook(
   context: WebhookContext,
   shopRecord: ShopWithPixelConfigs | null,
@@ -60,7 +39,6 @@ export async function dispatchWebhook(
 ): Promise<Response> {
   const { topic, shop, webhookId } = context;
 
-  // Check for idempotency
   if (webhookId && !lockAcquired) {
     const lock = await tryAcquireWebhookLock(shop, webhookId, topic);
     if (!lock.acquired) {
@@ -69,13 +47,11 @@ export async function dispatchWebhook(
     }
   }
 
-  // Skip processing for uninstalled shops (except GDPR webhooks)
   if (!context.admin && !GDPR_TOPICS.has(topic)) {
     logger.info(`Webhook ${topic} received for uninstalled shop ${shop}`);
     return new Response("OK", { status: 200 });
   }
 
-  // Find handler for this topic
   const handler = WEBHOOK_HANDLERS[topic];
 
   if (!handler) {
@@ -92,11 +68,9 @@ export async function dispatchWebhook(
     return new Response("OK", { status: 200 });
   }
 
-  // Execute handler
   try {
     const result = await handler(context, shopRecord);
 
-    // Update webhook status
     if (webhookId) {
       const status = result.success
         ? WebhookStatus.PROCESSED

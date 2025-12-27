@@ -1,18 +1,7 @@
-/**
- * Shopify-Related Type Definitions
- *
- * Types for Shopify API interactions, webhooks, and session management.
- */
+
 
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
-// =============================================================================
-// Webhook Types
-// =============================================================================
-
-/**
- * Result of a single webhook registration attempt
- */
 export interface WebhookRegisterResult {
   success: boolean;
   result: {
@@ -21,14 +10,8 @@ export interface WebhookRegisterResult {
   };
 }
 
-/**
- * Map of webhook topics to their registration results
- */
 export type WebhookRegisterResults = Record<string, WebhookRegisterResult[]>;
 
-/**
- * Webhook subscription edge from GraphQL query
- */
 export interface WebhookSubscriptionEdge {
   node: {
     id: string;
@@ -37,9 +20,6 @@ export interface WebhookSubscriptionEdge {
   cursor: string;
 }
 
-/**
- * Webhook subscriptions query response
- */
 export interface WebhookSubscriptionsQueryResponse {
   data?: {
     webhookSubscriptions?: {
@@ -53,9 +33,6 @@ export interface WebhookSubscriptionsQueryResponse {
   errors?: Array<{ message?: string }>;
 }
 
-/**
- * Webhook deletion mutation response
- */
 export interface WebhookDeleteMutationResponse {
   data?: {
     webhookSubscriptionDelete?: {
@@ -68,13 +45,6 @@ export interface WebhookDeleteMutationResponse {
   };
 }
 
-// =============================================================================
-// Shop Query Types
-// =============================================================================
-
-/**
- * Shop data from GraphQL query
- */
 export interface ShopQueryResponse {
   data?: {
     shop?: {
@@ -92,25 +62,12 @@ export interface ShopQueryResponse {
   errors?: Array<{ message?: string }>;
 }
 
-/**
- * Shop tier classification
- */
 export type ShopTierValue = "plus" | "non_plus" | "unknown";
 
-// =============================================================================
-// Admin API Types
-// =============================================================================
-
-/**
- * GraphQL client response wrapper
- */
 export interface GraphQLResponse<T = unknown> {
   json: () => Promise<T>;
 }
 
-/**
- * Simple GraphQL client for background operations
- */
 export interface SimpleGraphQLClient {
   graphql(
     query: string,
@@ -118,18 +75,8 @@ export interface SimpleGraphQLClient {
   ): Promise<GraphQLResponse>;
 }
 
-/**
- * Extended Admin API context that can be null
- */
 export type NullableAdminContext = AdminApiContext | null;
 
-// =============================================================================
-// Session Types
-// =============================================================================
-
-/**
- * Shopify session with required fields for our use case
- */
 export interface ShopifySessionData {
   id: string;
   shop: string;
@@ -148,13 +95,6 @@ export interface ShopifySessionData {
   emailVerified?: boolean | null;
 }
 
-// =============================================================================
-// Web Pixel Types
-// =============================================================================
-
-/**
- * Web pixel create mutation response
- */
 export interface WebPixelCreateResponse {
   data?: {
     webPixelCreate?: {
@@ -169,9 +109,6 @@ export interface WebPixelCreateResponse {
   };
 }
 
-/**
- * Web pixel update mutation response
- */
 export interface WebPixelUpdateResponse {
   data?: {
     webPixelUpdate?: {
@@ -186,9 +123,6 @@ export interface WebPixelUpdateResponse {
   };
 }
 
-/**
- * Web pixel delete mutation response
- */
 export interface WebPixelDeleteResponse {
   data?: {
     webPixelDelete?: {
@@ -201,13 +135,6 @@ export interface WebPixelDeleteResponse {
   };
 }
 
-// =============================================================================
-// Checkout Profile Types
-// =============================================================================
-
-/**
- * Checkout profile query response
- */
 export interface CheckoutProfilesQueryResponse {
   data?: {
     checkoutProfiles?: {
@@ -223,13 +150,6 @@ export interface CheckoutProfilesQueryResponse {
   errors?: Array<{ message?: string }>;
 }
 
-// =============================================================================
-// Script Tag Types
-// =============================================================================
-
-/**
- * Script tag from Shopify API
- */
 export interface ScriptTagData {
   id: string;
   src: string;
@@ -239,9 +159,6 @@ export interface ScriptTagData {
   updated_at?: string;
 }
 
-/**
- * Script tags query response
- */
 export interface ScriptTagsQueryResponse {
   data?: {
     scriptTags?: {
@@ -252,13 +169,6 @@ export interface ScriptTagsQueryResponse {
   };
 }
 
-// =============================================================================
-// Order Types (for webhook payloads)
-// =============================================================================
-
-/**
- * Shopify order address
- */
 export interface ShopifyAddress {
   first_name?: string | null;
   last_name?: string | null;
@@ -275,9 +185,6 @@ export interface ShopifyAddress {
   name?: string | null;
 }
 
-/**
- * Shopify customer in order
- */
 export interface ShopifyCustomer {
   id?: number;
   email?: string | null;
@@ -287,9 +194,6 @@ export interface ShopifyCustomer {
   default_address?: ShopifyAddress | null;
 }
 
-/**
- * Shopify line item in order
- */
 export interface ShopifyLineItem {
   id?: number;
   product_id?: number | null;
@@ -307,9 +211,6 @@ export interface ShopifyLineItem {
   }>;
 }
 
-/**
- * Shopify money set
- */
 export interface ShopifyMoneySet {
   shop_money?: {
     amount: string;
@@ -321,9 +222,6 @@ export interface ShopifyMoneySet {
   };
 }
 
-/**
- * Full Shopify order from webhook
- */
 export interface ShopifyOrder {
   id: number;
   order_number?: number | null;
@@ -364,29 +262,16 @@ export interface ShopifyOrder {
   }>;
 }
 
-// =============================================================================
-// Type Guards
-// =============================================================================
-
-/**
- * Check if a value is a valid ShopTierValue
- */
 export function isShopTierValue(value: unknown): value is ShopTierValue {
   return value === "plus" || value === "non_plus" || value === "unknown";
 }
 
-/**
- * Check if response has errors
- */
 export function hasGraphQLErrors(
   response: { errors?: Array<{ message?: string }> } | undefined
 ): boolean {
   return !!(response?.errors && response.errors.length > 0);
 }
 
-/**
- * Extract error messages from GraphQL response
- */
 export function extractGraphQLErrors(
   response: { errors?: Array<{ message?: string }> } | undefined
 ): string[] {

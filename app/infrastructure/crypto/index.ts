@@ -1,14 +1,5 @@
-/**
- * Cryptography Infrastructure
- *
- * P2-1: Centralized cryptographic operations:
- * - Encryption/decryption
- * - Signing and verification
- * - Key management
- * - Token handling
- */
 
-// Core encryption
+
 export {
   getEncryptionKey,
   resetEncryptionKeyCache,
@@ -30,7 +21,6 @@ export {
   type MatchKeyResult,
 } from "../../utils/crypto.server";
 
-// Token encryption
 export {
   encryptAccessToken,
   decryptAccessToken,
@@ -39,7 +29,6 @@ export {
   isTokenEncrypted,
 } from "../../utils/token-encryption";
 
-// Secrets management
 export {
   checkSecurityViolations,
   enforceSecurityChecks,

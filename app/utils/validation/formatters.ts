@@ -1,39 +1,18 @@
-/**
- * Validation Formatters
- *
- * Utilities for formatting Zod errors into various formats.
- */
+
 
 import type { ZodError, ZodIssue } from "zod";
 import { AppError, ErrorCode } from "../errors/index";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Validation error detail for API responses
- */
 export interface ValidationErrorDetail {
   field: string;
   message: string;
   code: string;
 }
 
-// =============================================================================
-// Zod Error Utilities
-// =============================================================================
-
-/**
- * Get issues array from ZodError (compatible with Zod v4)
- */
 export function getZodIssues(error: ZodError<unknown>): ZodIssue[] {
   return (error as unknown as { issues: ZodIssue[] }).issues ?? [];
 }
 
-/**
- * Format Zod errors into a record (field -> message)
- */
 export function formatZodErrorsToRecord(
   error: ZodError<unknown>
 ): Record<string, string> {
@@ -50,9 +29,6 @@ export function formatZodErrorsToRecord(
   return errors;
 }
 
-/**
- * Format Zod errors into detailed array
- */
 export function formatZodErrorsToArray(
   error: ZodError<unknown>
 ): ValidationErrorDetail[] {
@@ -64,9 +40,6 @@ export function formatZodErrorsToArray(
   }));
 }
 
-/**
- * Get first error message from Zod error
- */
 export function getFirstZodError(error: ZodError<unknown>): string {
   const issues = getZodIssues(error);
   const firstError = issues[0];
@@ -77,9 +50,6 @@ export function getFirstZodError(error: ZodError<unknown>): string {
   return "Validation failed";
 }
 
-/**
- * Convert Zod error to AppError
- */
 export function zodErrorToAppError(zodError: ZodError<unknown>): AppError {
   const errors = formatZodErrorsToArray(zodError);
   const firstError = errors[0];
@@ -94,12 +64,5 @@ export function zodErrorToAppError(zodError: ZodError<unknown>): AppError {
   });
 }
 
-// =============================================================================
-// Aliases for Backward Compatibility
-// =============================================================================
-
-/**
- * @deprecated Use formatZodErrorsToArray instead
- */
 export const formatZodErrors = formatZodErrorsToArray;
 

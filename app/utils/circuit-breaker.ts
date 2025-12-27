@@ -1,23 +1,7 @@
-/**
- * Circuit Breaker
- *
- * Protects services from cascading failures by tracking error rates
- * and temporarily blocking requests when thresholds are exceeded.
- * Uses the unified Redis client factory for connection management.
- *
- * Features:
- * - Configurable thresholds and cooldown periods
- * - Redis support for multi-instance deployments
- * - Automatic fallback to in-memory when Redis is unavailable
- * - Connection status monitoring
- */
+
 
 import { getRedisClient, type RedisClientWrapper } from "./redis-client";
 import { logger } from "./logger.server";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export interface CircuitBreakerState {
   count: number;
@@ -38,10 +22,6 @@ export interface CircuitBreakerResult {
   retryAfter?: number;
 }
 
-// =============================================================================
-// Configuration
-// =============================================================================
-
 const CIRCUIT_BREAKER_PREFIX = "tg:cb:";
 
 const DEFAULT_CONFIG: CircuitBreakerConfig = {
@@ -49,10 +29,6 @@ const DEFAULT_CONFIG: CircuitBreakerConfig = {
   windowMs: 60 * 1000,
   cooldownMs: 60 * 1000,
 };
-
-// =============================================================================
-// Core Functions
-// =============================================================================
 
 function getKey(identifier: string): string {
   return `${CIRCUIT_BREAKER_PREFIX}${identifier}`;
@@ -95,15 +71,13 @@ async function incrementCounter(
   const cooldownSeconds = Math.ceil((config.cooldownMs || config.windowMs) / 1000);
 
   try {
-    // Increment counter
+
     const count = await client.hIncrBy(key, "count", 1);
 
-    // Set expiry on first increment
     if (count === 1) {
       await client.expire(key, windowSeconds);
     }
 
-    // Check if tripped
     const tripped = count > config.threshold;
 
     if (tripped) {
@@ -120,7 +94,7 @@ async function incrementCounter(
     };
   } catch (error) {
     logger.error("Circuit breaker increment error", error);
-    // Return safe default
+
     return {
       count: 1,
       resetTime: now + config.windowMs,
@@ -158,14 +132,6 @@ async function resetBreaker(
   }
 }
 
-// =============================================================================
-// Public API
-// =============================================================================
-
-/**
- * Check circuit breaker status and increment counter.
- * Returns whether the request should be blocked.
- */
 export async function checkCircuitBreaker(
   identifier: string,
   config: Partial<CircuitBreakerConfig> = {}
@@ -180,7 +146,6 @@ export async function checkCircuitBreaker(
     if (state.tripped) {
       const retryAfter = Math.ceil((state.resetTime - Date.now()) / 1000);
 
-      // Log only when first tripped
       if (state.count === finalConfig.threshold + 1) {
         logger.error(
           `🚨 Circuit breaker TRIPPED for ${identifier}: ` +
@@ -202,14 +167,11 @@ export async function checkCircuitBreaker(
     };
   } catch (error) {
     logger.error("Circuit breaker check error", error);
-    // Fail open - don't block on errors
+
     return { blocked: false };
   }
 }
 
-/**
- * Manually trip the circuit breaker for an identifier.
- */
 export async function tripCircuitBreaker(
   identifier: string,
   config: Partial<CircuitBreakerConfig> = {}
@@ -226,9 +188,6 @@ export async function tripCircuitBreaker(
   }
 }
 
-/**
- * Reset the circuit breaker for an identifier.
- */
 export async function resetCircuitBreaker(identifier: string): Promise<void> {
   const key = getKey(identifier);
 
@@ -241,9 +200,6 @@ export async function resetCircuitBreaker(identifier: string): Promise<void> {
   }
 }
 
-/**
- * Get the current state of the circuit breaker.
- */
 export async function getCircuitBreakerState(
   identifier: string
 ): Promise<CircuitBreakerState | null> {
@@ -258,9 +214,6 @@ export async function getCircuitBreakerState(
   }
 }
 
-/**
- * Check if an identifier is currently blocked.
- */
 export async function isCircuitBreakerTripped(
   identifier: string
 ): Promise<boolean> {
@@ -268,9 +221,6 @@ export async function isCircuitBreakerTripped(
   return state?.tripped ?? false;
 }
 
-/**
- * Get circuit breaker statistics.
- */
 export async function getCircuitBreakerStats(): Promise<{
   activeBreakers: number;
   trippedBreakers: number;

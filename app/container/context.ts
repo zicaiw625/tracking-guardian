@@ -1,9 +1,4 @@
-/**
- * Application Context Implementation
- *
- * Provides the DI container implementation with request context management.
- * Uses AsyncLocalStorage for request-scoped context propagation.
- */
+
 
 import { AsyncLocalStorage } from "async_hooks";
 import { randomBytes } from "crypto";
@@ -18,32 +13,16 @@ import type {
   LogLevel,
 } from "./types";
 
-// =============================================================================
-// Request Context Storage
-// =============================================================================
-
-/**
- * AsyncLocalStorage for request context propagation
- */
 export const requestContextStorage = new AsyncLocalStorage<IRequestContext>();
 
-/**
- * Generate a unique request ID
- */
 export function generateRequestId(): string {
   return randomBytes(8).toString("hex");
 }
 
-/**
- * Generate a correlation ID
- */
 export function generateCorrelationId(): string {
   return randomBytes(12).toString("hex");
 }
 
-/**
- * Get request ID from headers or generate new one
- */
 export function extractRequestId(request: Request): string {
   return (
     request.headers.get("X-Request-Id") ||
@@ -52,9 +31,6 @@ export function extractRequestId(request: Request): string {
   );
 }
 
-/**
- * Get correlation ID from headers or generate new one
- */
 export function extractCorrelationId(request: Request): string {
   return (
     request.headers.get("X-Correlation-Id") ||
@@ -63,9 +39,6 @@ export function extractCorrelationId(request: Request): string {
   );
 }
 
-/**
- * Create a request context from a Request object
- */
 export function createRequestContext(request: Request): IRequestContext {
   return {
     requestId: extractRequestId(request),
@@ -74,9 +47,6 @@ export function createRequestContext(request: Request): IRequestContext {
   };
 }
 
-/**
- * Create a request context from raw values
- */
 export function createRequestContextFromValues(
   requestId?: string,
   correlationId?: string
@@ -89,16 +59,10 @@ export function createRequestContextFromValues(
   };
 }
 
-/**
- * Get the current request context from AsyncLocalStorage
- */
 export function getCurrentRequestContext(): IRequestContext | undefined {
   return requestContextStorage.getStore();
 }
 
-/**
- * Run a function with a request context
- */
 export function withRequestContext<T>(
   context: IRequestContext,
   fn: () => T
@@ -106,9 +70,6 @@ export function withRequestContext<T>(
   return requestContextStorage.run(context, fn);
 }
 
-/**
- * Run an async function with a request context
- */
 export async function withRequestContextAsync<T>(
   context: IRequestContext,
   fn: () => Promise<T>
@@ -116,9 +77,6 @@ export async function withRequestContextAsync<T>(
   return requestContextStorage.run(context, fn);
 }
 
-/**
- * Update the current request context
- */
 export function updateRequestContext(updates: Partial<IRequestContext>): void {
   const current = requestContextStorage.getStore();
   if (current) {
@@ -126,13 +84,6 @@ export function updateRequestContext(updates: Partial<IRequestContext>): void {
   }
 }
 
-// =============================================================================
-// Logger Wrapper
-// =============================================================================
-
-/**
- * Create a logger that automatically includes request context
- */
 export function createContextAwareLogger(
   baseLogger: ILogger,
   getContext: () => IRequestContext | undefined
@@ -140,7 +91,7 @@ export function createContextAwareLogger(
   const enrichContext = (context?: LogContext): LogContext => {
     const reqCtx = getContext();
     if (!reqCtx) return context || {};
-    
+
     return {
       requestId: reqCtx.requestId,
       correlationId: reqCtx.correlationId,
@@ -177,13 +128,6 @@ export function createContextAwareLogger(
   };
 }
 
-// =============================================================================
-// Application Context Factory
-// =============================================================================
-
-/**
- * Application context implementation
- */
 class AppContext implements IAppContext {
   constructor(
     public readonly db: PrismaClient,
@@ -192,9 +136,6 @@ class AppContext implements IAppContext {
   ) {}
 }
 
-/**
- * Scoped context implementation
- */
 class ScopedContext implements IScopedContext {
   public readonly requestLogger: ILogger;
 
@@ -204,7 +145,7 @@ class ScopedContext implements IScopedContext {
     public readonly config: IAppConfig,
     public readonly request: IRequestContext
   ) {
-    // Create a logger with request context
+
     this.requestLogger = logger.child({
       requestId: request.requestId,
       correlationId: request.correlationId,
@@ -213,26 +154,20 @@ class ScopedContext implements IScopedContext {
   }
 }
 
-/**
- * Create the application context
- */
 export function createAppContext(
   db: PrismaClient,
   logger: ILogger,
   config: IAppConfig
 ): IAppContext {
-  // Wrap logger to automatically include request context from AsyncLocalStorage
+
   const contextAwareLogger = createContextAwareLogger(
     logger,
     getCurrentRequestContext
   );
-  
+
   return new AppContext(db, contextAwareLogger, config);
 }
 
-/**
- * Create a scoped context for a request
- */
 export function createScopedContext(
   appContext: IAppContext,
   requestContext: IRequestContext
@@ -245,41 +180,22 @@ export function createScopedContext(
   );
 }
 
-// =============================================================================
-// Context Helpers
-// =============================================================================
-
-/**
- * Get elapsed time since request start
- */
 export function getRequestElapsedMs(context: IRequestContext): number {
   return Date.now() - context.startTime;
 }
 
-/**
- * Add shop domain to current request context
- */
 export function setShopDomain(shopDomain: string): void {
   updateRequestContext({ shopDomain });
 }
 
-/**
- * Add order ID to current request context
- */
 export function setOrderId(orderId: string): void {
   updateRequestContext({ orderId });
 }
 
-/**
- * Add job ID to current request context
- */
 export function setJobId(jobId: string): void {
   updateRequestContext({ jobId });
 }
 
-/**
- * Add platform to current request context
- */
 export function setPlatform(platform: string): void {
   updateRequestContext({ platform });
 }

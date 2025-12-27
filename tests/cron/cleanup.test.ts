@@ -1,12 +1,7 @@
-/**
- * Cleanup Task Tests
- *
- * Tests for the data cleanup cron task.
- */
+
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock dependencies before imports
 vi.mock("../../app/db.server", () => ({
   default: {
     eventNonce: {
@@ -70,7 +65,6 @@ describe("Cleanup Task", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Default mock implementations
     (prisma.eventNonce.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
     (prisma.gDPRJob.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
     (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -128,7 +122,6 @@ describe("Cleanup Task", () => {
 
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
 
-      // Mock empty results for batch queries
       (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -164,7 +157,6 @@ describe("Cleanup Task", () => {
         .mockResolvedValue([]);
       (prisma.conversionLog.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 2 });
 
-      // Mock other batch queries as empty
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.conversionJob.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -186,7 +178,6 @@ describe("Cleanup Task", () => {
 
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
 
-      // Mock all batch queries as empty
       (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -198,16 +189,13 @@ describe("Cleanup Task", () => {
 
       await cleanupExpiredData();
 
-      // Check that auditLog.findMany was called with at least 180 day cutoff
       expect(prisma.auditLog.findMany).toHaveBeenCalled();
       const auditLogCall = (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
       const cutoffDate = auditLogCall.where.createdAt.lt;
 
-      // The cutoff should be 180 days ago (not 30)
       const expectedMinCutoff = new Date();
       expectedMinCutoff.setDate(expectedMinCutoff.getDate() - 180);
 
-      // Allow 1 day tolerance for test timing
       expect(cutoffDate.getTime()).toBeLessThanOrEqual(expectedMinCutoff.getTime() + 86400000);
     });
 
@@ -217,7 +205,6 @@ describe("Cleanup Task", () => {
 
       (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockShops);
 
-      // Mock all batch queries as empty except scan reports
       (prisma.conversionLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.surveyResponse.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
       (prisma.auditLog.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -232,7 +219,7 @@ describe("Cleanup Task", () => {
       const result = await cleanupExpiredData();
 
       expect(result.scanReportsDeleted).toBe(2);
-      // Scan reports are now deleted based on retention period (time-based cleanup)
+
       expect(prisma.scanReport.findMany).toHaveBeenCalled();
       const scanReportCall = (prisma.scanReport.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
       expect(scanReportCall.where.shopId).toEqual({ in: ["shop1"] });

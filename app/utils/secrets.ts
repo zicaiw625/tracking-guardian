@@ -1,9 +1,5 @@
 import { logger } from "./logger.server";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface SecretConfig {
     name: string;
     envVar: string;
@@ -12,10 +8,6 @@ interface SecretConfig {
     pattern?: RegExp;
     description?: string;
 }
-
-// =============================================================================
-// Required Secrets Configuration
-// =============================================================================
 
 const REQUIRED_SECRETS: SecretConfig[] = [
     {
@@ -69,7 +61,6 @@ const REQUIRED_SECRETS: SecretConfig[] = [
     },
 ];
 
-// Optional but recommended secrets
 const RECOMMENDED_SECRETS: SecretConfig[] = [
     {
         name: "Redis URL",
@@ -85,9 +76,6 @@ const RECOMMENDED_SECRETS: SecretConfig[] = [
         description: "API key for email notifications via Resend",
     },
 ];
-// =============================================================================
-// Security Violation Types
-// =============================================================================
 
 interface SecurityViolation {
     type: "fatal" | "warning";
@@ -95,15 +83,10 @@ interface SecurityViolation {
     code: string;
 }
 
-// =============================================================================
-// Security Violation Checks
-// =============================================================================
-
 export function checkSecurityViolations(): SecurityViolation[] {
     const isProduction = process.env.NODE_ENV === "production";
     const violations: SecurityViolation[] = [];
 
-    // P0-04: Check for unsigned pixel events in production
     if (isProduction && process.env.ALLOW_UNSIGNED_PIXEL_EVENTS === "true") {
         violations.push({
             type: "fatal",
@@ -124,9 +107,8 @@ export function checkSecurityViolations(): SecurityViolation[] {
         });
     }
 
-    // Check for insecure development defaults in production
     if (isProduction) {
-        // Check ENCRYPTION_SECRET is set
+
         if (!process.env.ENCRYPTION_SECRET) {
             violations.push({
                 type: "fatal",
@@ -137,7 +119,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
             });
         }
 
-        // Check CRON_SECRET is set
         if (!process.env.CRON_SECRET) {
             violations.push({
                 type: "fatal",
@@ -148,7 +129,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
             });
         }
 
-        // Check SHOPIFY_APP_URL is HTTPS
         const appUrl = process.env.SHOPIFY_APP_URL;
         if (appUrl && !appUrl.startsWith("https://")) {
             violations.push({
@@ -159,7 +139,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
             });
         }
 
-        // Check for debug flags that shouldn't be enabled in production
         if (process.env.FEATURE_DEBUG_LOGGING === "true") {
             violations.push({
                 type: "warning",
@@ -169,7 +148,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
             });
         }
 
-        // Check for weak consent mode in production (warning only)
         if (process.env.DEFAULT_CONSENT_STRATEGY === "weak") {
             violations.push({
                 type: "warning",
@@ -180,7 +158,6 @@ export function checkSecurityViolations(): SecurityViolation[] {
         }
     }
 
-    // Check for secrets that look like defaults or placeholders
     const suspiciousPatterns = [
         /^(test|demo|example|placeholder|changeme|secret|password|xxx+|000+)$/i,
         /^INSECURE.*DEV/i,
@@ -211,31 +188,27 @@ export function enforceSecurityChecks(): void {
     const fatalViolations = violations.filter(v => v.type === "fatal");
     const warnings = violations.filter(v => v.type === "warning");
 
-    // Log warnings
     for (const warning of warnings) {
         logger.warn(warning.message, { code: warning.code });
     }
 
-    // Print security summary to console for visibility
     if (violations.length > 0) {
-        // Using console intentionally for startup visibility
-        // eslint-disable-next-line no-console
+
         console.log("\n" + "=".repeat(80));
-        // eslint-disable-next-line no-console
+
         console.log("SECURITY CHECK SUMMARY");
-        // eslint-disable-next-line no-console
+
         console.log("=".repeat(80));
-        // eslint-disable-next-line no-console
+
         console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-        // eslint-disable-next-line no-console
+
         console.log(`Fatal issues: ${fatalViolations.length}`);
-        // eslint-disable-next-line no-console
+
         console.log(`Warnings: ${warnings.length}`);
-        // eslint-disable-next-line no-console
+
         console.log("=".repeat(80) + "\n");
     }
 
-    // Abort on fatal violations
     if (fatalViolations.length > 0) {
         const errorMessage = fatalViolations.map(v => `[${v.code}] ${v.message}`).join("\n\n");
         logger.error("FATAL SECURITY VIOLATION - Application startup aborted", undefined, {
@@ -248,14 +221,10 @@ export function enforceSecurityChecks(): void {
             `${"=".repeat(80)}\n`);
     }
 
-    // Log success if no issues
     if (violations.length === 0) {
         logger.info("Security checks passed - no violations detected");
     }
 }
-// =============================================================================
-// Validation
-// =============================================================================
 
 interface ValidationResult {
     valid: boolean;
@@ -265,9 +234,6 @@ interface ValidationResult {
     missingRecommended: string[];
 }
 
-/**
- * Validate all required and recommended secrets.
- */
 export function validateSecrets(): ValidationResult {
     const isProduction = process.env.NODE_ENV === "production";
     const errors: string[] = [];
@@ -275,10 +241,9 @@ export function validateSecrets(): ValidationResult {
     const missingRequired: string[] = [];
     const missingRecommended: string[] = [];
 
-    // Check required secrets
     for (const secret of REQUIRED_SECRETS) {
         const value = process.env[secret.envVar];
-        
+
         if (!value) {
             if (secret.required) {
                 missingRequired.push(secret.envVar);
@@ -291,13 +256,11 @@ export function validateSecrets(): ValidationResult {
             continue;
         }
 
-        // Check minimum length
         if (secret.minLength && value.length < secret.minLength) {
             const message = `${secret.name} (${secret.envVar}) is shorter than recommended ${secret.minLength} characters`;
             warnings.push(message);
         }
 
-        // Check pattern
         if (secret.pattern && !secret.pattern.test(value)) {
             const message = `${secret.name} (${secret.envVar}) does not match expected format`;
             if (isProduction) {
@@ -308,10 +271,9 @@ export function validateSecrets(): ValidationResult {
         }
     }
 
-    // Check recommended secrets
     for (const secret of RECOMMENDED_SECRETS) {
         const value = process.env[secret.envVar];
-        
+
         if (!value) {
             missingRecommended.push(secret.envVar);
             if (isProduction) {
@@ -322,7 +284,6 @@ export function validateSecrets(): ValidationResult {
         }
     }
 
-    // Log results
     for (const warning of warnings) {
         logger.warn(`Secret validation: ${warning}`);
     }
@@ -339,9 +300,6 @@ export function validateSecrets(): ValidationResult {
     };
 }
 
-/**
- * Get a summary of secret configuration for diagnostics.
- */
 export function getSecretsSummary(): {
     configured: string[];
     missing: string[];

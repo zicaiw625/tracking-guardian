@@ -31,7 +31,7 @@ describe("Rate Limiter", () => {
       const request = createMockRequest();
 
       const result = await checkRateLimitAsync(request, "api");
-      
+
       expect(result.isLimited).toBe(false);
       expect(result.remaining).toBeLessThanOrEqual(100);
     });
@@ -40,13 +40,13 @@ describe("Rate Limiter", () => {
       const request = createMockRequest();
 
       const customConfig = { maxRequests: 3, windowMs: 60000 };
-      
+
       for (let i = 0; i < 3; i++) {
         await checkRateLimitAsync(request, "test", customConfig);
       }
 
       const result = await checkRateLimitAsync(request, "test", customConfig);
-      
+
       expect(result.isLimited).toBe(true);
       expect(result.remaining).toBe(0);
       expect(result.retryAfter).toBeGreaterThan(0);
@@ -78,7 +78,7 @@ describe("Rate Limiter", () => {
       const request = createMockRequest();
 
       const cronConfig = { maxRequests: 2, windowMs: 3600000 };
-      
+
       await checkRateLimitAsync(request, "cron", cronConfig);
       await checkRateLimitAsync(request, "cron", cronConfig);
       const cronResult = await checkRateLimitAsync(request, "cron", cronConfig);

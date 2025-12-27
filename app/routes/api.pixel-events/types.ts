@@ -1,12 +1,4 @@
-/**
- * Pixel Events API - Type Definitions
- *
- * Centralized type definitions for the pixel events endpoint.
- */
 
-// =============================================================================
-// Event Types
-// =============================================================================
 
 export type PixelEventName =
   | "checkout_completed"
@@ -27,10 +19,6 @@ export const FUNNEL_EVENTS = [
   "page_viewed",
   "product_added_to_cart",
 ] as const;
-
-// =============================================================================
-// Payload Types
-// =============================================================================
 
 export interface ConsentState {
   marketing?: boolean;
@@ -61,27 +49,17 @@ export interface PixelEventData {
   quantity?: number;
 }
 
-/**
- * P0.1: Extended payload with ingestionKey and nonce in body.
- * 
- * This allows the pixel to send requests without custom headers,
- * avoiding CORS preflight and improving delivery reliability.
- */
 export interface PixelEventPayload {
   eventName: PixelEventName;
   timestamp: number;
   shopDomain: string;
-  /** P0.1: Moved from X-Tracking-Guardian-Key header to body */
+
   ingestionKey?: string | null;
-  /** P0.1: Nonce for replay protection */
+
   nonce?: string;
   consent?: ConsentState;
   data: PixelEventData;
 }
-
-// =============================================================================
-// Validation Types
-// =============================================================================
 
 export type ValidationErrorCode =
   | "invalid_body"
@@ -109,19 +87,11 @@ export interface ValidationFailure {
 
 export type ValidationResult = ValidationSuccess | ValidationFailure;
 
-// =============================================================================
-// Key Validation Types
-// =============================================================================
-
 export interface KeyValidationResult {
   matched: boolean;
   reason: string;
   usedPreviousSecret?: boolean;
 }
-
-// =============================================================================
-// Shop Context Types
-// =============================================================================
 
 export interface ShopContext {
   id: string;
@@ -133,10 +103,6 @@ export interface ShopContext {
   primaryDomain: string | null;
   storefrontDomains: string[];
 }
-
-// =============================================================================
-// Response Types
-// =============================================================================
 
 export interface PixelEventSuccessResponse {
   success: true;

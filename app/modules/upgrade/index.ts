@@ -1,16 +1,5 @@
-/**
- * Upgrade Module
- *
- * Handles Checkout Extensibility upgrade guidance:
- * - Deprecation date tracking
- * - Checkout profile status
- * - Migration urgency calculation
- * - Upgrade status messaging
- *
- * P2-1: Centralized upgrade guidance and timeline management.
- */
 
-// Deprecation dates and timeline
+
 export {
   DEPRECATION_DATES,
   DEADLINE_METADATA,
@@ -29,7 +18,6 @@ export {
   type DatePrecision,
 } from "../../utils/deprecation-dates";
 
-// Checkout profile management
 export {
   getTypOspActive,
   refreshTypOspStatus,
@@ -39,7 +27,6 @@ export {
   type TypOspStatusResult,
 } from "../../services/checkout-profile.server";
 
-// Shop tier detection
 export {
   getShopPlan,
   refreshShopTier,
@@ -49,7 +36,6 @@ export {
   type RefreshTierResult,
 } from "../../services/shop-tier.server";
 
-// Migration services
 export {
   createWebPixel,
   updateWebPixel,

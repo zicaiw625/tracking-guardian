@@ -1,15 +1,4 @@
-/**
- * Base Platform Service
- *
- * Abstract base class for platform CAPI services.
- * Provides common functionality and reduces code duplication across platforms.
- * 
- * This module consolidates all platform-related utilities including:
- * - HTTP request handling with timeout
- * - Error classification and parsing
- * - PII hashing utilities
- * - Retry logic helpers
- */
+
 
 import type {
   ConversionData,
@@ -31,13 +20,6 @@ import {
   DEFAULT_API_TIMEOUT_MS,
 } from "./interface";
 
-// =============================================================================
-// Error Classification Utilities
-// =============================================================================
-
-/**
- * Classify HTTP error by status code.
- */
 export function classifyHttpError(status: number, body?: unknown): PlatformError {
   const bodyStr = typeof body === "string" ? body : JSON.stringify(body || {});
 
@@ -89,9 +71,6 @@ export function classifyHttpError(status: number, body?: unknown): PlatformError
   }
 }
 
-/**
- * Classify JavaScript/network error.
- */
 export function classifyJsError(error: Error): PlatformError {
   const message = error.message.toLowerCase();
 
@@ -118,9 +97,6 @@ export function classifyJsError(error: Error): PlatformError {
   };
 }
 
-/**
- * Parse Meta API error response.
- */
 export function parseMetaError(response: unknown): PlatformError {
   const data = response as {
     error?: {
@@ -194,9 +170,6 @@ export function parseMetaError(response: unknown): PlatformError {
   }
 }
 
-/**
- * Parse Google Analytics error response.
- */
 export function parseGoogleError(response: unknown): PlatformError {
   const data = response as {
     validationMessages?: Array<{
@@ -247,9 +220,6 @@ export function parseGoogleError(response: unknown): PlatformError {
   }
 }
 
-/**
- * Parse TikTok API error response.
- */
 export function parseTikTokError(response: unknown): PlatformError {
   const data = response as {
     code?: number;
@@ -312,13 +282,6 @@ export function parseTikTokError(response: unknown): PlatformError {
   }
 }
 
-// =============================================================================
-// Retry Logic Utilities
-// =============================================================================
-
-/**
- * Calculate exponential backoff delay with jitter.
- */
 export function calculateBackoff(
   attempt: number,
   baseDelayMs = 1000,
@@ -329,9 +292,6 @@ export function calculateBackoff(
   return Math.floor(exponentialDelay + jitter);
 }
 
-/**
- * Determine if error should be retried.
- */
 export function shouldRetry(
   error: PlatformError,
   currentAttempt: number,
@@ -343,9 +303,6 @@ export function shouldRetry(
   return error.isRetryable;
 }
 
-/**
- * Format error for logging.
- */
 export function formatErrorForLog(error: PlatformError): Record<string, unknown> {
   return {
     type: error.type,
@@ -358,13 +315,6 @@ export function formatErrorForLog(error: PlatformError): Record<string, unknown>
   };
 }
 
-// =============================================================================
-// PII Hashing Utilities
-// =============================================================================
-
-/**
- * User data structure for Meta CAPI.
- */
 export interface MetaUserData {
   em?: string[];
   ph?: string[];
@@ -376,35 +326,22 @@ export interface MetaUserData {
   zp?: string[];
 }
 
-/**
- * User data structure for TikTok Events API.
- */
 export interface TikTokUserData {
   email?: string;
   phone_number?: string;
 }
 
-/**
- * PII quality assessment result.
- */
 export type PiiQuality = "none" | "partial" | "good";
 
-/**
- * Build hashed user data for Meta CAPI.
- * 
- * P1-2: 优先使用预哈希数据（来自 webhook handler），
- * 如果没有预哈希数据，则从原始 PII 字段中提取并哈希。
- */
 export async function buildMetaHashedUserData(
   data: ConversionData
 ): Promise<{ userData: MetaUserData; piiQuality: PiiQuality }> {
   const userData: MetaUserData = {};
   const availableFields: string[] = [];
 
-  // P1-2: 优先使用预哈希数据
   if (data.preHashedUserData) {
     const pre = data.preHashedUserData;
-    
+
     if (pre.em) {
       userData.em = [pre.em];
       availableFields.push("email");
@@ -437,8 +374,7 @@ export async function buildMetaHashedUserData(
       userData.zp = [pre.zp];
       availableFields.push("zip");
     }
-    
-    // 如果预哈希数据有任何字段，直接返回
+
     if (availableFields.length > 0) {
       let piiQuality: PiiQuality;
       if (availableFields.includes("email") || availableFields.includes("phone")) {
@@ -450,7 +386,6 @@ export async function buildMetaHashedUserData(
     }
   }
 
-  // 回退：从原始 PII 字段中提取并哈希（兼容旧数据）
   if (data.email) {
     userData.em = [await hashValue(normalizeEmail(data.email))];
     availableFields.push("email");
@@ -521,21 +456,15 @@ export async function buildMetaHashedUserData(
   return { userData, piiQuality };
 }
 
-/**
- * Build hashed user data for TikTok Events API.
- * 
- * P1-2: 优先使用预哈希数据，回退到从原始 PII 提取并哈希。
- */
 export async function buildTikTokHashedUserData(
   data: ConversionData
 ): Promise<{ user: TikTokUserData; hasPii: boolean }> {
   const user: TikTokUserData = {};
   let hasPii = false;
 
-  // P1-2: 优先使用预哈希数据
   if (data.preHashedUserData) {
     const pre = data.preHashedUserData;
-    
+
     if (pre.em) {
       user.email = pre.em;
       hasPii = true;
@@ -544,13 +473,12 @@ export async function buildTikTokHashedUserData(
       user.phone_number = pre.ph;
       hasPii = true;
     }
-    
+
     if (hasPii) {
       return { user, hasPii };
     }
   }
 
-  // 回退：从原始 PII 提取并哈希
   if (data.email) {
     user.email = await hashValue(normalizeEmail(data.email));
     hasPii = true;
@@ -564,38 +492,20 @@ export async function buildTikTokHashedUserData(
   return { user, hasPii };
 }
 
-// =============================================================================
-// Abstract Base Class
-// =============================================================================
-
-/**
- * Abstract base class for platform services.
- * Implements common patterns and reduces code duplication.
- */
 export abstract class BasePlatformService implements IPlatformService {
   abstract readonly platform: PlatformType;
   abstract readonly displayName: string;
 
-  /**
-   * API endpoint URL
-   */
   protected abstract readonly apiUrl: string;
 
-  /**
-   * API timeout in milliseconds
-   */
   protected readonly timeoutMs: number = DEFAULT_API_TIMEOUT_MS;
 
-  /**
-   * Send a conversion event to the platform.
-   * This template method handles common logic and delegates to subclasses.
-   */
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<PlatformSendResult> {
-    // Validate credentials
+
     const validation = this.validateCredentials(credentials);
 
     if (!validation.valid) {
@@ -635,43 +545,21 @@ export abstract class BasePlatformService implements IPlatformService {
     }
   }
 
-  /**
-   * Validate credentials format.
-   * Subclasses should implement specific validation logic.
-   */
   abstract validateCredentials(credentials: unknown): CredentialsValidationResult;
 
-  /**
-   * Parse platform-specific error into standardized format.
-   * Subclasses should implement specific error parsing.
-   */
   abstract parseError(error: unknown): PlatformError;
 
-  /**
-   * Build the platform-specific payload.
-   */
   abstract buildPayload(
     data: ConversionData,
     eventId: string
   ): Promise<Record<string, unknown>>;
 
-  /**
-   * Execute the HTTP request.
-   * Subclasses can override for platform-specific request handling.
-   */
   protected abstract executeRequest(
     credentials: PlatformCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse>;
 
-  // ==========================================================================
-  // Protected Helper Methods
-  // ==========================================================================
-
-  /**
-   * Make an HTTP request with timeout.
-   */
   protected async makeRequest(
     url: string,
     options: RequestInit
@@ -679,9 +567,6 @@ export abstract class BasePlatformService implements IPlatformService {
     return fetchWithTimeout(url, options, this.timeoutMs);
   }
 
-  /**
-   * Classify HTTP error by status code.
-   */
   protected classifyHttpError(
     statusCode: number,
     message: string
@@ -689,9 +574,6 @@ export abstract class BasePlatformService implements IPlatformService {
     return classifyHttpError(statusCode, message);
   }
 
-  /**
-   * Handle timeout errors.
-   */
   protected createTimeoutError(): PlatformError {
     return {
       type: "timeout",
@@ -700,9 +582,6 @@ export abstract class BasePlatformService implements IPlatformService {
     };
   }
 
-  /**
-   * Log successful conversion.
-   */
   protected logSuccess(
     orderId: string,
     eventId: string,
@@ -718,9 +597,6 @@ export abstract class BasePlatformService implements IPlatformService {
     });
   }
 
-  /**
-   * Log conversion error.
-   */
   protected logError(orderId: string, error: PlatformError): void {
     logger.error(`${this.displayName}: conversion failed`, {
       platform: this.platform,
@@ -731,13 +607,6 @@ export abstract class BasePlatformService implements IPlatformService {
     });
   }
 
-  // ==========================================================================
-  // Validation Helpers
-  // ==========================================================================
-
-  /**
-   * Validate required string field.
-   */
   protected validateRequired(
     credentials: Record<string, unknown>,
     field: string,
@@ -750,9 +619,6 @@ export abstract class BasePlatformService implements IPlatformService {
     return true;
   }
 
-  /**
-   * Validate field matches pattern.
-   */
   protected validatePattern(
     value: string,
     pattern: RegExp,
@@ -768,20 +634,10 @@ export abstract class BasePlatformService implements IPlatformService {
   }
 }
 
-// =============================================================================
-// Utility Types
-// =============================================================================
-
-/**
- * Options for creating a platform service
- */
 export interface PlatformServiceOptions {
   timeoutMs?: number;
 }
 
-/**
- * Result of a batch send operation
- */
 export interface BatchSendResult {
   results: Record<string, PlatformSendResult>;
   totalSucceeded: number;
@@ -789,13 +645,6 @@ export interface BatchSendResult {
   duration: number;
 }
 
-// =============================================================================
-// Batch Send Helper
-// =============================================================================
-
-/**
- * Send conversion to multiple platforms in parallel.
- */
 export async function sendToMultiplePlatforms(
   platforms: Array<{
     service: IPlatformService;

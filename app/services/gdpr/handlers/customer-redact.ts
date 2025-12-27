@@ -1,9 +1,4 @@
-/**
- * GDPR Customer Redact Handler
- *
- * Handles customer data deletion for GDPR compliance.
- * Deletes all data associated with specific orders/customers.
- */
+
 
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
@@ -11,18 +6,6 @@ import { createAuditLog } from "../../audit.server";
 import type { CustomerRedactPayload, CustomerRedactResult } from "../types";
 import { createEmptyCustomerRedactResult } from "../types";
 
-// =============================================================================
-// Customer Redact Processing
-// =============================================================================
-
-/**
- * Process a GDPR customer redact request.
- * Deletes all data associated with the specified orders.
- *
- * @param shopDomain - The shop domain making the request
- * @param payload - Customer redact payload with order info
- * @returns Deletion result with counts
- */
 export async function processCustomerRedact(
   shopDomain: string,
   payload: CustomerRedactPayload
@@ -35,7 +18,6 @@ export async function processCustomerRedact(
     ordersCount: ordersToRedact.length,
   });
 
-  // Find the shop
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
@@ -46,12 +28,9 @@ export async function processCustomerRedact(
     return createEmptyCustomerRedactResult(customerId);
   }
 
-  // Convert order IDs to strings and patterns
   const orderIdStrings = ordersToRedact.map((id: number | string) => String(id));
   const orderNumberPatterns = ordersToRedact.map((id: number | string) => `order_num:${id}`);
 
-  // P0 Fix: Find checkoutTokens before deleting pixel receipts
-  // We need these to perform cascading deletes for fallback data
   const receiptsWithTokens = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId: shop.id,
@@ -65,7 +44,6 @@ export async function processCustomerRedact(
     .map((r: { checkoutToken: string | null }) => r.checkoutToken)
     .filter((t: string | null): t is string => t !== null);
 
-  // Delete conversion logs
   const conversionLogResult = await prisma.conversionLog.deleteMany({
     where: {
       shopId: shop.id,
@@ -73,7 +51,6 @@ export async function processCustomerRedact(
     },
   });
 
-  // Delete conversion jobs
   const conversionJobResult = await prisma.conversionJob.deleteMany({
     where: {
       shopId: shop.id,
@@ -81,7 +58,6 @@ export async function processCustomerRedact(
     },
   });
 
-  // Delete pixel event receipts
   const pixelReceiptResult = await prisma.pixelEventReceipt.deleteMany({
     where: {
       shopId: shop.id,
@@ -89,7 +65,6 @@ export async function processCustomerRedact(
     },
   });
 
-  // Delete survey responses by order ID
   const surveyByOrderId = await prisma.surveyResponse.deleteMany({
     where: {
       shopId: shop.id,
@@ -97,7 +72,6 @@ export async function processCustomerRedact(
     },
   });
 
-  // Delete survey responses by order number pattern
   const surveyByOrderNumberPattern = await prisma.surveyResponse.deleteMany({
     where: {
       shopId: shop.id,
@@ -110,7 +84,7 @@ export async function processCustomerRedact(
   let conversionLogByCheckoutToken = 0;
 
   if (linkedCheckoutTokens.length > 0) {
-    // Delete additional pixel receipts by checkout token
+
     const additionalPixelReceipts = await prisma.pixelEventReceipt.deleteMany({
       where: {
         shopId: shop.id,
@@ -119,7 +93,6 @@ export async function processCustomerRedact(
     });
     pixelReceiptByCheckoutToken = additionalPixelReceipts.count;
 
-    // Delete surveys by checkout token pattern
     const checkoutPatterns = linkedCheckoutTokens.map((t) => `checkout:${t}`);
     const additionalSurveys = await prisma.surveyResponse.deleteMany({
       where: {
@@ -129,7 +102,6 @@ export async function processCustomerRedact(
     });
     surveyByCheckoutTokenPattern = additionalSurveys.count;
 
-    // Delete conversion logs by checkout token
     const additionalConversionLogs = await prisma.conversionLog.deleteMany({
       where: {
         shopId: shop.id,
@@ -139,7 +111,6 @@ export async function processCustomerRedact(
     conversionLogByCheckoutToken = additionalConversionLogs.count;
   }
 
-  // Build result
   const result: CustomerRedactResult = {
     customerId,
     ordersRedacted: ordersToRedact,
@@ -163,7 +134,6 @@ export async function processCustomerRedact(
     },
   });
 
-  // Create audit log
   await createAuditLog({
     shopId: shop.id,
     actorType: "webhook",

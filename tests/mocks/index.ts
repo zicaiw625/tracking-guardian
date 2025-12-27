@@ -1,12 +1,4 @@
-/**
- * Test Mocks Index
- *
- * Centralized exports for all test mocks.
- */
 
-// =============================================================================
-// Prisma Mocks
-// =============================================================================
 
 export {
   createMockModel,
@@ -27,32 +19,28 @@ export {
   type MockPixelEventReceipt,
 } from "./prisma.mock";
 
-// =============================================================================
-// Platform API Mocks
-// =============================================================================
-
 export {
-  // Response factories
+
   createMetaSuccessResponse,
   createMetaErrorResponse,
   createGoogleSuccessResponse,
   createGoogleErrorResponse,
   createTikTokSuccessResponse,
   createTikTokErrorResponse,
-  // API handlers
+
   createMetaApiHandler,
   createGoogleApiHandler,
   createTikTokApiHandler,
   createCombinedPlatformHandler,
-  // Fetch mock setup
+
   setupFetchMock,
   restoreFetch,
   getMockFetch,
-  // Error simulation
+
   createRateLimitHandler,
   createTimeoutHandler,
   createNetworkErrorHandler,
-  // Assertion helpers
+
   assertMetaCapiCalled,
   assertGoogleAnalyticsCalled,
   assertTikTokEventsCalled,
@@ -60,28 +48,24 @@ export {
   type MockFetchHandler,
 } from "./platforms.mock";
 
-// =============================================================================
-// Shopify Mocks
-// =============================================================================
-
 export {
-  // Factory functions
+
   createMockSession,
   createMockGraphQLResponse,
   createMockAdminApi,
   createMockAdminContext,
   createMockWebhookContext,
-  // Order payloads
+
   createMockOrderPayload,
-  // GDPR payloads
+
   createMockGDPRDataRequestPayload,
   createMockGDPRCustomerRedactPayload,
   createMockGDPRShopRedactPayload,
-  // GraphQL responses
+
   createMockShopQueryResponse,
   createMockWebhookSubscriptionResponse,
   createMockWebPixelCreateResponse,
-  // Authentication
+
   createMockAuthenticate,
   getMockAuthenticate,
   resetMockAuthenticate,

@@ -1,22 +1,7 @@
-/**
- * Rate Limiter
- *
- * Provides rate limiting for API endpoints with Redis support and in-memory fallback.
- * Uses the unified Redis client factory for connection management.
- *
- * Features:
- * - Configurable per-endpoint limits
- * - Automatic cleanup of expired entries
- * - Anomaly detection and shop blocking
- * - Redis support for multi-instance deployments
- */
+
 
 import { getRedisClient, getRedisClientSync, type RedisClientWrapper } from "./redis-client";
 import { logger } from "./logger.server";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 interface RateLimitEntry {
   count: number;
@@ -34,10 +19,6 @@ export interface RateLimitResult {
   resetTime: number;
   retryAfter: number;
 }
-
-// =============================================================================
-// Configuration
-// =============================================================================
 
 const RATE_LIMIT_PREFIX = "tg:rl:";
 
@@ -84,10 +65,6 @@ const DEFAULT_CONFIGS: Record<string, RateLimitConfig> = {
   },
 };
 
-// =============================================================================
-// Anomaly Detection
-// =============================================================================
-
 interface AnomalyTracker {
   invalidKeyCount: number;
   invalidOriginCount: number;
@@ -119,13 +96,11 @@ export function trackAnomaly(
 } {
   const now = Date.now();
 
-  // Check if already blocked
   const blocked = blockedShops.get(shopDomain);
   if (blocked && now - blocked.blockedAt < BLOCKED_SHOP_COOLDOWN_MS) {
     return { shouldBlock: true, reason: blocked.reason, severity: "critical" };
   }
 
-  // Get or create tracker
   let tracker = anomalyTrackers.get(shopDomain);
   if (!tracker || now - tracker.lastReset > ANOMALY_WINDOW_MS) {
     tracker = {
@@ -137,7 +112,6 @@ export function trackAnomaly(
     anomalyTrackers.set(shopDomain, tracker);
   }
 
-  // Increment counter
   switch (type) {
     case "invalid_key":
       tracker.invalidKeyCount++;
@@ -150,7 +124,6 @@ export function trackAnomaly(
       break;
   }
 
-  // Check thresholds
   const totalAnomalies =
     tracker.invalidKeyCount +
     tracker.invalidOriginCount +
@@ -294,10 +267,6 @@ export function cleanupAnomalyTrackers(): number {
   return cleaned;
 }
 
-// =============================================================================
-// Rate Limit Key Generation
-// =============================================================================
-
 function sanitizeKeyPart(value: string): string {
   return value.replace(/[^a-zA-Z0-9.\-_]/g, "").slice(0, 100);
 }
@@ -332,13 +301,6 @@ function getRateLimitKey(request: Request, endpoint: string): string {
   return `${RATE_LIMIT_PREFIX}${sanitizedEndpoint}:ip:${ip}`;
 }
 
-// =============================================================================
-// Rate Limit Core Functions
-// =============================================================================
-
-/**
- * Check rate limit asynchronously (recommended for most cases)
- */
 export async function checkRateLimitAsync(
   request: Request,
   endpoint: string,
@@ -370,7 +332,7 @@ export async function checkRateLimitAsync(
     return { isLimited, remaining, resetTime, retryAfter };
   } catch (error) {
     logger.error("Rate limit check error", error);
-    // Fail open - don't block on errors
+
     return {
       isLimited: false,
       remaining: config.maxRequests,
@@ -380,9 +342,6 @@ export async function checkRateLimitAsync(
   }
 }
 
-/**
- * Check rate limit synchronously (uses in-memory fallback if Redis not ready)
- */
 export function checkRateLimit(
   request: Request,
   endpoint: string,
@@ -398,7 +357,6 @@ export function checkRateLimit(
 
   const client = getRedisClientSync();
 
-  // Fire and forget increment
   client.incr(key).then((count) => {
     if (count === 1) {
       const windowSeconds = Math.ceil(config.windowMs / 1000);
@@ -408,7 +366,6 @@ export function checkRateLimit(
     logger.error("Rate limit increment error", err);
   });
 
-  // Return optimistic result
   return {
     isLimited: false,
     remaining: config.maxRequests,
@@ -416,10 +373,6 @@ export function checkRateLimit(
     retryAfter: Math.ceil(config.windowMs / 1000),
   };
 }
-
-// =============================================================================
-// Security Headers
-// =============================================================================
 
 export const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
@@ -446,10 +399,6 @@ export function addSecurityHeaders(response: Response): Response {
     headers,
   });
 }
-
-// =============================================================================
-// Response Helpers
-// =============================================================================
 
 export function createRateLimitResponse(retryAfter: number): Response {
   return new Response(
@@ -493,10 +442,6 @@ export function addRateLimitHeaders(
   });
 }
 
-// =============================================================================
-// Middleware Wrapper
-// =============================================================================
-
 export function withRateLimit<T>(
   endpoint: string,
   handler: (args: { request: Request }) => Promise<T>,
@@ -522,10 +467,6 @@ export function withRateLimit<T>(
     return response;
   };
 }
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
 
 export async function resetRateLimit(
   request: Request,

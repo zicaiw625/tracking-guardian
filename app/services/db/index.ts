@@ -1,10 +1,5 @@
-/**
- * Database Services Index
- *
- * Centralized exports for all database repository modules.
- */
 
-// Shop repository
+
 export {
   getShopById,
   getShopIdByDomain,
@@ -20,7 +15,6 @@ export {
   type ShopWithBilling,
 } from "./shop-repository.server";
 
-// Pixel config repository
 export {
   getShopPixelConfigs,
   getPixelConfigByPlatform,
@@ -40,7 +34,6 @@ export {
   type PixelConfigInput,
 } from "./pixel-config-repository.server";
 
-// Conversion job repository
 export {
   getPendingJobs,
   claimJobsForProcessing,
@@ -57,12 +50,11 @@ export {
   type JobStatusUpdate,
 } from "./conversion-repository.server";
 
-// Batch operations
 export {
   batchCompleteJobs,
   batchInsertReceipts,
   batchUpdateShops,
-  // Note: batchCreateAuditLogs is exported from audit-repository.server as createAuditLogsBatch
+
   executeInTransaction,
   processInChunks,
   type JobCompletionData,
@@ -70,7 +62,6 @@ export {
   type BatchResult,
 } from "./batch-operations.server";
 
-// Audit repository
 export {
   createAuditLogEntry,
   batchCreateAuditLogs,
@@ -91,7 +82,6 @@ export {
   type AuditLogFull,
 } from "./audit-repository.server";
 
-// Cached queries
 export {
   getCachedShop,
   invalidateShopCache as invalidateCachedShop,

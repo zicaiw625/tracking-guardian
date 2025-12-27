@@ -174,7 +174,7 @@ describe("Scanner Service", () => {
 
   describe("Risk Score Calculation", () => {
     type RiskSeverity = "high" | "medium" | "low";
-    
+
     interface RiskItem {
       id: string;
       name: string;
@@ -214,7 +214,7 @@ describe("Scanner Service", () => {
           points: 20,
         },
       ];
-      
+
       expect(calculateRiskScore(items)).toBe(30);
     });
 
@@ -228,7 +228,7 @@ describe("Scanner Service", () => {
           points: 20,
         },
       ];
-      
+
       expect(calculateRiskScore(items)).toBe(20);
     });
 
@@ -242,7 +242,7 @@ describe("Scanner Service", () => {
           points: 20,
         },
       ];
-      
+
       expect(calculateRiskScore(items)).toBe(10);
     });
 
@@ -252,7 +252,7 @@ describe("Scanner Service", () => {
         { id: "2", name: "B", description: "", severity: "high", points: 50 },
         { id: "3", name: "C", description: "", severity: "high", points: 50 },
       ];
-      
+
       expect(calculateRiskScore(items)).toBe(100);
     });
 
@@ -262,7 +262,7 @@ describe("Scanner Service", () => {
         { id: "2", name: "B", description: "", severity: "medium", points: 20 },
         { id: "3", name: "C", description: "", severity: "low", points: 10 },
       ];
-      
+
       expect(calculateRiskScore(items)).toBe(70);
     });
   });

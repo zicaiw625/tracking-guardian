@@ -1,13 +1,4 @@
-/**
- * Platform Service Registry
- *
- * Provides a registry pattern for platform services, replacing the simple factory.
- * Benefits:
- * - Dynamic registration of platforms
- * - Better testability (can mock/swap implementations)
- * - Support for platform discovery
- * - Centralized platform configuration
- */
+
 
 import type {
   IPlatformService,
@@ -24,21 +15,9 @@ import { ok, err, type AsyncResult } from "../../types/result";
 import { AppError, ErrorCode } from "../../utils/errors";
 import { logger, createTimer } from "../../utils/logger.server";
 
-// =============================================================================
-// Platform Registry Implementation
-// =============================================================================
-
-/**
- * Platform registry implementation
- *
- * Manages registration and lookup of platform services.
- */
 class PlatformRegistry implements IPlatformRegistry {
   private readonly services = new Map<Platform, IPlatformService>();
 
-  /**
-   * Register a platform service
-   */
   register(platform: Platform, service: IPlatformService): void {
     if (this.services.has(platform)) {
       logger.warn(`Platform ${platform} is being re-registered`);
@@ -47,64 +26,34 @@ class PlatformRegistry implements IPlatformRegistry {
     logger.debug(`Registered platform service: ${platform}`);
   }
 
-  /**
-   * Get a platform service
-   */
   get(platform: Platform): IPlatformService | undefined {
     return this.services.get(platform);
   }
 
-  /**
-   * Check if a platform is registered
-   */
   has(platform: Platform): boolean {
     return this.services.has(platform);
   }
 
-  /**
-   * Get all registered platforms
-   */
   getPlatforms(): Platform[] {
     return Array.from(this.services.keys());
   }
 
-  /**
-   * Get all platform services
-   */
   getAll(): Map<Platform, IPlatformService> {
     return new Map(this.services);
   }
 
-  /**
-   * Unregister a platform (mainly for testing)
-   */
   unregister(platform: Platform): boolean {
     return this.services.delete(platform);
   }
 
-  /**
-   * Clear all registrations (mainly for testing)
-   */
   clear(): void {
     this.services.clear();
   }
 }
 
-// =============================================================================
-// Platform Orchestrator Implementation
-// =============================================================================
-
-/**
- * Platform orchestrator implementation
- *
- * Coordinates sending conversions to one or more platforms.
- */
 class PlatformOrchestrator implements IPlatformOrchestrator {
   constructor(private readonly registry: IPlatformRegistry) {}
 
-  /**
-   * Send conversion to a single platform
-   */
   async sendToOne(
     platform: Platform,
     credentials: PlatformCredentials,
@@ -146,9 +95,6 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
     }
   }
 
-  /**
-   * Send conversion to multiple platforms in parallel
-   */
   async sendToMany(
     platforms: Array<{
       platform: Platform;
@@ -160,7 +106,6 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
     const overallTimer = createTimer();
     const results: Record<Platform, PlatformSendResult> = {} as Record<Platform, PlatformSendResult>;
 
-    // Send to all platforms in parallel
     const promises = platforms.map(async ({ platform, credentials }) => {
       const result = await this.sendToOne(platform, credentials, data, eventId);
 
@@ -180,7 +125,6 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
 
     await Promise.all(promises);
 
-    // Calculate summary
     let totalSucceeded = 0;
     let totalFailed = 0;
 
@@ -201,71 +145,40 @@ class PlatformOrchestrator implements IPlatformOrchestrator {
   }
 }
 
-// =============================================================================
-// Global Registry Instance
-// =============================================================================
-
-/**
- * Global platform registry instance
- */
 export const platformRegistry = new PlatformRegistry();
 
-/**
- * Global platform orchestrator instance
- */
 export const platformOrchestrator = new PlatformOrchestrator(platformRegistry);
 
-// =============================================================================
-// Registry Initialization
-// =============================================================================
-
-/**
- * Initialize platform registry with default services
- *
- * Call this once during app startup.
- */
 export function initializePlatformRegistry(
   services?: Partial<Record<Platform, IPlatformService>>
 ): void {
-  // Import services lazily to avoid circular dependencies
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   const { googleService } = require("./google.service");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   const { metaService } = require("./meta.service");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   const { tiktokService } = require("./tiktok.service");
 
-  // Register default services
+  const { pinterestService } = require("./pinterest.service");
+
   platformRegistry.register("google", services?.google ?? googleService);
   platformRegistry.register("meta", services?.meta ?? metaService);
   platformRegistry.register("tiktok", services?.tiktok ?? tiktokService);
+  platformRegistry.register("pinterest", services?.pinterest ?? pinterestService);
 
   logger.info("Platform registry initialized", {
     platforms: platformRegistry.getPlatforms(),
   });
 }
 
-/**
- * Check if registry is initialized
- */
 export function isRegistryInitialized(): boolean {
   return platformRegistry.getPlatforms().length > 0;
 }
 
-// =============================================================================
-// Convenience Functions
-// =============================================================================
-
-/**
- * Get a platform service from the global registry
- */
 export function getPlatformService(platform: Platform): IPlatformService | undefined {
   return platformRegistry.get(platform);
 }
 
-/**
- * Get a platform service, throwing if not found
- */
 export function requirePlatformService(platform: Platform): IPlatformService {
   const service = platformRegistry.get(platform);
   if (!service) {
@@ -274,23 +187,14 @@ export function requirePlatformService(platform: Platform): IPlatformService {
   return service;
 }
 
-/**
- * Check if a platform is supported
- */
 export function isPlatformSupported(platform: string): boolean {
   return platformRegistry.has(platform as Platform);
 }
 
-/**
- * Get all supported platforms
- */
 export function getSupportedPlatforms(): Platform[] {
   return platformRegistry.getPlatforms();
 }
 
-/**
- * Send conversion to a platform using the global orchestrator
- */
 export async function sendConversion(
   platform: Platform,
   credentials: PlatformCredentials,
@@ -300,9 +204,6 @@ export async function sendConversion(
   return platformOrchestrator.sendToOne(platform, credentials, data, eventId);
 }
 
-/**
- * Send conversion to multiple platforms using the global orchestrator
- */
 export async function sendToMultiplePlatforms(
   platforms: Array<{
     platform: Platform;
@@ -313,10 +214,6 @@ export async function sendToMultiplePlatforms(
 ): AsyncResult<MultiPlatformSendResult, AppError> {
   return platformOrchestrator.sendToMany(platforms, data, eventId);
 }
-
-// =============================================================================
-// Type Exports
-// =============================================================================
 
 export type {
   IPlatformService,

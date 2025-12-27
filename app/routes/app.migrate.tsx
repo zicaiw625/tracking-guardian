@@ -60,10 +60,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         });
     }
 
-    // P2-9: Refresh Checkout Extensibility Status
     let typOspPagesEnabled = shop.typOspPagesEnabled;
     let typOspLastChecked = shop.typOspLastCheckedAt || shop.typOspUpdatedAt;
-    const isStale = !typOspLastChecked || (Date.now() - typOspLastChecked.getTime()) > 6 * 60 * 60 * 1000; // 6 hours
+    const isStale = !typOspLastChecked || (Date.now() - typOspLastChecked.getTime()) > 6 * 60 * 60 * 1000;
 
     if (isStale) {
         try {
@@ -125,8 +124,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         typOspUnknownReason: shop.typOspStatusReason ?? undefined,
         typOspUnknownError: undefined,
     }, hasScriptTags);
-    
-    // Check for required scopes
+
     const hasRequiredScopes = session.scope?.split(",").includes("read_customer_events") || false;
 
     return json({
@@ -173,7 +171,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const formData = await request.formData();
     const actionType = formData.get("_action");
     if (actionType === "enablePixel" || actionType === "upgradePixelSettings") {
-        // Server-side plan gating to prevent bypass via crafted requests
+
         const requiresGrowth = actionType === "enablePixel" || actionType === "upgradePixelSettings";
         if (requiresGrowth && !isPlanAtLeast(shop.plan, "growth")) {
             return json({
@@ -227,14 +225,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
             ourPixelId = ourPixel?.id ?? null;
         }
-        
-        // For upgrade action, use the upgradeWebPixelSettings function
+
         if (actionType === "upgradePixelSettings" && ourPixelId) {
             const { upgradeWebPixelSettings } = await import("../services/migration.server");
             const existingPixels = await getExistingWebPixels(admin);
             const ourPixel = existingPixels.find((p) => p.id === ourPixelId);
             const currentSettings = ourPixel?.settings ? JSON.parse(ourPixel.settings) : {};
-            
+
             const result = await upgradeWebPixelSettings(
                 admin,
                 ourPixelId,
@@ -242,7 +239,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 shopDomain,
                 ingestionSecret
             );
-            
+
             if (result.success) {
                 logger.info(`[Migration] Upgraded WebPixel settings for ${shopDomain}`);
                 return json({
@@ -260,7 +257,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 });
             }
         }
-        
+
         let result;
         if (ourPixelId) {
             const { updateWebPixel } = await import("../services/migration.server");
@@ -319,8 +316,7 @@ export default function MigratePage() {
         formData.append("_action", "upgradePixelSettings");
         submit(formData, { method: "post" });
     };
-    // Update step based on action result
-    /* eslint-disable react-hooks/set-state-in-effect */
+
     useEffect(() => {
         const data = actionData as {
             _action?: string;
@@ -331,7 +327,6 @@ export default function MigratePage() {
         }
     }, [actionData]);
 
-    // Update step based on pixel status changes
     useEffect(() => {
         if (pixelStatus === "installed" && hasCapiConfig && typOspStatus.enabled) {
             setCurrentStep("complete");
@@ -340,7 +335,7 @@ export default function MigratePage() {
             setCurrentStep("capi");
         }
     }, [pixelStatus, hasCapiConfig, typOspStatus.enabled]);
-    /* eslint-enable react-hooks/set-state-in-effect */
+
     const handleEnablePixel = () => {
         if (!isGrowthOrAbove) {
             return;
@@ -449,8 +444,8 @@ export default function MigratePage() {
         </Banner>
 
         {!hasRequiredScopes && (
-          <Banner 
-            title="需更新授权" 
+          <Banner
+            title="需更新授权"
             tone="critical"
             action={{
               content: "更新授权",
@@ -466,7 +461,7 @@ export default function MigratePage() {
           </Banner>
         )}
 
-        {/* P0-5: 关键时间线提醒 */}
+        {}
         <Card>
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
@@ -510,10 +505,10 @@ export default function MigratePage() {
           </BlockStack>
         </Card>
 
-        {/* Pixel Settings Upgrade Banner */}
+        {}
         {needsSettingsUpgrade && pixelStatus === "installed" && (
-          <Banner 
-            title="Pixel 设置需要升级" 
+          <Banner
+            title="Pixel 设置需要升级"
             tone="warning"
             action={{
               content: "一键升级设置",
@@ -600,7 +595,7 @@ export default function MigratePage() {
                   <Text as="h2" variant="headingMd">
                     第 1 步：升级 Checkout Extensibility
                   </Text>
-                  
+
                   <Banner tone="warning" title="需要升级结账页面">
                     <BlockStack gap="200">
                       <Text as="p">
@@ -641,7 +636,7 @@ export default function MigratePage() {
                       跳过（仅供测试）
                     </Button>
                   </InlineStack>
-                  
+
                   <Text as="p" tone="subdued" variant="bodySm">
                     如果您确认已升级但此处仍显示未完成，可能是 Shopify API 数据延迟（通常需几分钟）。您可以点击刷新或先跳过此步骤。
                   </Text>
@@ -850,7 +845,7 @@ export default function MigratePage() {
                     工作原理
                   </Text>
                 </InlineStack>
-                
+
                 <BlockStack gap="300">
                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                     <BlockStack gap="200">
@@ -860,7 +855,7 @@ export default function MigratePage() {
                       </Text>
                     </BlockStack>
                   </Box>
-                  
+
                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                     <BlockStack gap="200">
                       <Text as="span" fontWeight="semibold">2. 服务端接收 Webhook</Text>
@@ -869,7 +864,7 @@ export default function MigratePage() {
                       </Text>
                     </BlockStack>
                   </Box>
-                  
+
                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                     <BlockStack gap="200">
                       <Text as="span" fontWeight="semibold">3. 发送 CAPI 转化</Text>

@@ -1,8 +1,4 @@
-/**
- * Pixel Events API - Receipt & Event Handling
- *
- * Handles pixel event receipt creation and conversion log recording.
- */
+
 
 import prisma from "../../db.server";
 import { generateEventId, generateMatchKey } from "../../utils/crypto.server";
@@ -11,10 +7,6 @@ import { logger } from "../../utils/logger.server";
 import { RETENTION_CONFIG } from "../../utils/config";
 import type { TrustLevel } from "../../utils/receipt-trust";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export interface MatchKeyResult {
   orderId: string;
@@ -37,16 +29,6 @@ export interface ConversionLogResult {
   failedPlatforms: string[];
 }
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Check if a client event has already been recorded.
- * 
- * PR-2: 改为使用 PixelEventReceipt 而不是 ConversionLog。
- * Pixel API 不再写 ConversionLog，事实表由 job-processor 负责写入。
- */
 export async function isClientEventRecorded(
   shopId: string,
   orderId: string,
@@ -65,9 +47,6 @@ export async function isClientEventRecorded(
   return !!existing;
 }
 
-/**
- * Generate order match key from orderId or checkoutToken.
- */
 export function generateOrderMatchKey(
   rawOrderId: string | null | undefined,
   checkoutToken: string | null | undefined,
@@ -91,9 +70,6 @@ export function generateOrderMatchKey(
   return { orderId, usedCheckoutTokenAsFallback };
 }
 
-/**
- * Evaluate trust level based on key validation and checkout token presence.
- */
 export function evaluateTrustLevel(
   keyValidation: KeyValidationResult,
   hasCheckoutToken: boolean
@@ -115,21 +91,13 @@ export function evaluateTrustLevel(
   return { isTrusted, trustLevel, untrustedReason };
 }
 
-/**
- * P0.4: Create nonce to prevent replay attacks.
- * 
- * Uses client-provided nonce if available (from body), otherwise generates
- * a server-side nonce from orderId + timestamp.
- * 
- * Returns true if nonce was created successfully (not a replay).
- */
 export async function createEventNonce(
   shopId: string,
   orderId: string,
   timestamp: number,
   clientNonce?: string
 ): Promise<{ success: boolean; isReplay: boolean }> {
-  // P0.4: Use client nonce if provided, otherwise generate from orderId + timestamp
+
   const nonceValue = clientNonce || `${orderId}:${timestamp}`;
   const nonceExpiresAt = new Date(Date.now() + RETENTION_CONFIG.NONCE_EXPIRY_MS);
 
@@ -149,13 +117,10 @@ export async function createEventNonce(
       return { success: false, isReplay: true };
     }
     logger.warn(`Nonce check failed: ${String(nonceError)}`);
-    return { success: true, isReplay: false }; // Continue on other errors
+    return { success: true, isReplay: false };
   }
 }
 
-/**
- * Create or update pixel event receipt.
- */
 export async function upsertPixelEventReceipt(
   shopId: string,
   orderId: string,
@@ -215,9 +180,6 @@ export async function upsertPixelEventReceipt(
   }
 }
 
-/**
- * Record conversion logs for platforms.
- */
 export async function recordConversionLogs(
   shopId: string,
   orderId: string,
@@ -233,7 +195,7 @@ export async function recordConversionLogs(
   }
 
   try {
-    // Try batch transaction first
+
     await prisma.$transaction(
       platformsToRecord.map((platform) =>
         prisma.conversionLog.upsert({
@@ -270,7 +232,6 @@ export async function recordConversionLogs(
   } catch (error) {
     logger.warn(`Failed to record client events in transaction`, { error: String(error) });
 
-    // Fallback to individual upserts
     for (const platform of platformsToRecord) {
       try {
         await prisma.conversionLog.upsert({
@@ -314,9 +275,6 @@ export async function recordConversionLogs(
   return { recordedPlatforms, failedPlatforms };
 }
 
-/**
- * Get active pixel configs for a shop.
- */
 export async function getActivePixelConfigs(
   shopId: string
 ): Promise<Array<{ platform: string }>> {
@@ -332,9 +290,6 @@ export async function getActivePixelConfigs(
   });
 }
 
-/**
- * Generate event ID for deduplication.
- */
 export function generatePurchaseEventId(
   orderId: string,
   shopDomain: string

@@ -1,7 +1,7 @@
 /**
- * Server Tracking Tab Component
- *
- * Server-side conversion tracking (CAPI) settings.
+ * 服务端追踪配置 Tab
+ * 支持 Meta/Google/TikTok/Pinterest 平台
+ * 支持 Test/Live 环境切换
  */
 
 import {
@@ -18,8 +18,13 @@ import {
   Banner,
   Badge,
   Box,
+  ButtonGroup,
+  Icon,
 } from "@shopify/polaris";
-import type { PixelConfigDisplay, TokenIssues } from "../types";
+import { RefreshIcon } from "~/components/icons";
+import type { TokenIssues } from "../types";
+
+type PixelEnvironment = "test" | "live";
 
 interface ServerTrackingTabProps {
   shop: {
@@ -30,6 +35,9 @@ interface ServerTrackingTabProps {
       serverSideEnabled: boolean;
       clientSideEnabled: boolean;
       isActive: boolean;
+      environment?: string;
+      configVersion?: number;
+      rollbackAllowed?: boolean;
       lastTestedAt?: string | Date | null;
     }>;
   } | null;
@@ -38,20 +46,34 @@ interface ServerTrackingTabProps {
   setServerPlatform: (value: string) => void;
   serverEnabled: boolean;
   setServerEnabled: (value: boolean) => void;
+  // 环境切换
+  environment: PixelEnvironment;
+  setEnvironment: (value: PixelEnvironment) => void;
+  onSwitchEnvironment?: (platform: string, env: PixelEnvironment) => void;
+  onRollbackEnvironment?: (platform: string) => void;
+  // Meta
   metaPixelId: string;
   setMetaPixelId: (value: string) => void;
   metaAccessToken: string;
   setMetaAccessToken: (value: string) => void;
   metaTestCode: string;
   setMetaTestCode: (value: string) => void;
+  // Google
   googleMeasurementId: string;
   setGoogleMeasurementId: (value: string) => void;
   googleApiSecret: string;
   setGoogleApiSecret: (value: string) => void;
+  // TikTok
   tiktokPixelId: string;
   setTiktokPixelId: (value: string) => void;
   tiktokAccessToken: string;
   setTiktokAccessToken: (value: string) => void;
+  // Pinterest
+  pinterestAdAccountId: string;
+  setPinterestAdAccountId: (value: string) => void;
+  pinterestAccessToken: string;
+  setPinterestAccessToken: (value: string) => void;
+  // Form state
   serverFormDirty: boolean;
   isSubmitting: boolean;
   onSaveServerSide: () => void;
@@ -65,6 +87,10 @@ export function ServerTrackingTab({
   setServerPlatform,
   serverEnabled,
   setServerEnabled,
+  environment = "live",
+  setEnvironment,
+  onSwitchEnvironment,
+  onRollbackEnvironment,
   metaPixelId,
   setMetaPixelId,
   metaAccessToken,
@@ -79,11 +105,18 @@ export function ServerTrackingTab({
   setTiktokPixelId,
   tiktokAccessToken,
   setTiktokAccessToken,
+  pinterestAdAccountId = "",
+  setPinterestAdAccountId,
+  pinterestAccessToken = "",
+  setPinterestAccessToken,
   serverFormDirty,
   isSubmitting,
   onSaveServerSide,
   onTestConnection,
 }: ServerTrackingTabProps) {
+  // 获取当前平台的配置
+  const currentConfig = shop?.pixelConfigs?.find(c => c.platform === serverPlatform);
+  const canRollback = currentConfig?.rollbackAllowed ?? false;
   return (
     <Layout>
       <Layout.Section>
@@ -112,7 +145,7 @@ export function ServerTrackingTab({
               </Banner>
             )}
 
-            {/* PCD Compliance Warning */}
+            {}
             <Banner
               title="受保护客户数据 (PCD) 访问权限说明"
               tone="warning"
@@ -155,10 +188,74 @@ export function ServerTrackingTab({
                 { label: "Meta Conversions API（CAPI）", value: "meta" },
                 { label: "Google GA4 Measurement Protocol", value: "google" },
                 { label: "TikTok Events API", value: "tiktok" },
+                { label: "Pinterest Conversions API", value: "pinterest" },
               ]}
               value={serverPlatform}
               onChange={setServerPlatform}
             />
+
+            {/* 环境切换 */}
+            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text as="span" fontWeight="semibold">
+                      运行环境
+                    </Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      测试环境用于验证配置，生产环境用于正式追踪
+                    </Text>
+                  </BlockStack>
+                  <InlineStack gap="200">
+                    <ButtonGroup variant="segmented">
+                      <Button
+                        pressed={environment === "test"}
+                        onClick={() => {
+                          setEnvironment("test");
+                          onSwitchEnvironment?.(serverPlatform, "test");
+                        }}
+                        size="slim"
+                      >
+                        🧪 测试
+                      </Button>
+                      <Button
+                        pressed={environment === "live"}
+                        onClick={() => {
+                          setEnvironment("live");
+                          onSwitchEnvironment?.(serverPlatform, "live");
+                        }}
+                        size="slim"
+                      >
+                        🚀 生产
+                      </Button>
+                    </ButtonGroup>
+                    {canRollback && (
+                      <Button
+                        icon={RefreshIcon}
+                        onClick={() => onRollbackEnvironment?.(serverPlatform)}
+                        size="slim"
+                        variant="plain"
+                      >
+                        回滚
+                      </Button>
+                    )}
+                  </InlineStack>
+                </InlineStack>
+                {environment === "test" && (
+                  <Banner tone="warning">
+                    <Text as="p" variant="bodySm">
+                      ⚠️ 测试模式：事件将发送到平台的测试端点，不会影响正式数据。
+                      验证完成后请切换到生产环境。
+                    </Text>
+                  </Banner>
+                )}
+                {currentConfig?.configVersion && (
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    配置版本: v{currentConfig.configVersion}
+                  </Text>
+                )}
+              </BlockStack>
+            </Box>
 
             {serverPlatform === "meta" && (
               <>
@@ -245,6 +342,42 @@ export function ServerTrackingTab({
               </>
             )}
 
+            {serverPlatform === "pinterest" && (
+              <>
+                <Banner tone="info">
+                  <p>
+                    <strong>Pinterest Conversions API</strong>{" "}
+                    允许您直接将转化数据发送到 Pinterest，提高广告归因准确性。
+                  </p>
+                </Banner>
+                <TextField
+                  label="Ad Account ID"
+                  value={pinterestAdAccountId}
+                  onChange={setPinterestAdAccountId}
+                  autoComplete="off"
+                  placeholder="例: 123456789012345678"
+                  helpText="在 Pinterest Ads Manager 中找到您的广告账户 ID"
+                  error={
+                    pinterestAdAccountId && !/^\d+$/.test(pinterestAdAccountId)
+                      ? "广告账户 ID 应为纯数字"
+                      : undefined
+                  }
+                />
+                <TextField
+                  label="Access Token"
+                  type="password"
+                  value={pinterestAccessToken}
+                  onChange={setPinterestAccessToken}
+                  autoComplete="off"
+                  helpText="在 Pinterest Developer Portal 中生成 API Access Token"
+                />
+                <Text as="p" variant="bodySm" tone="subdued">
+                  💡 提示：确保您的 Pinterest 应用已获得 Conversion API 访问权限。
+                  访问 <a href="https://developers.pinterest.com/docs/api/v5/" target="_blank" rel="noopener noreferrer">Pinterest API 文档</a> 了解更多。
+                </Text>
+              </>
+            )}
+
             <Checkbox
               label="启用服务端追踪"
               checked={serverEnabled}
@@ -306,9 +439,16 @@ export function ServerTrackingTab({
                             ? "Meta CAPI"
                             : config.platform === "google"
                               ? "Google Analytics 4 (GA4)"
-                              : "TikTok"}
+                              : config.platform === "pinterest"
+                                ? "Pinterest CAPI"
+                                : "TikTok"}
                         </Text>
-                        <Badge tone="success">已启用</Badge>
+                        <InlineStack gap="100">
+                          {config.environment === "test" && (
+                            <Badge tone="warning">测试</Badge>
+                          )}
+                          <Badge tone="success">已启用</Badge>
+                        </InlineStack>
                       </InlineStack>
                       {config.lastTestedAt && (
                         <Text as="span" variant="bodySm" tone="subdued">

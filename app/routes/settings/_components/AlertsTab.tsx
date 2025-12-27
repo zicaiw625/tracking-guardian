@@ -1,8 +1,4 @@
-/**
- * Alerts Tab Component
- *
- * Alert notification settings tab content.
- */
+
 
 import {
   Layout,

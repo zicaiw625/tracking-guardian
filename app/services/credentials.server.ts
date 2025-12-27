@@ -1,24 +1,10 @@
-/**
- * Credentials Decryption Service
- *
- * Centralized logic for decrypting platform credentials from PixelConfig.
- * Handles both modern encrypted credentials and legacy plaintext credentials.
- *
- * Uses Result type for type-safe error handling.
- */
+
 
 import { decryptJson } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
 import type { PlatformCredentials } from "../types";
 import { ok, err, type Result, fromThrowable } from "../types/result";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Error types for credential operations
- */
 export type CredentialErrorType =
   | "DECRYPTION_FAILED"
   | "NO_CREDENTIALS"
@@ -31,30 +17,17 @@ export interface CredentialError {
   platform?: string;
 }
 
-/**
- * Result of credential decryption with metadata
- */
 export interface CredentialsWithMetadata {
   credentials: PlatformCredentials;
   usedLegacy: boolean;
 }
 
-/**
- * PixelConfig shape for credential decryption
- */
 export interface PixelConfigForCredentials {
   credentialsEncrypted?: string | null;
   credentials?: unknown;
   platform?: string;
 }
 
-// =============================================================================
-// Result-Based Functions
-// =============================================================================
-
-/**
- * Try to decrypt from encrypted field.
- */
 function tryDecryptEncrypted(
   encrypted: string,
   platform: string
@@ -75,15 +48,12 @@ function tryDecryptEncrypted(
   return result;
 }
 
-/**
- * Try to read from legacy credentials field.
- */
 function tryReadLegacy(
   legacyCredentials: unknown,
   platform: string
 ): Result<PlatformCredentials, CredentialError> {
   if (typeof legacyCredentials === "string") {
-    // Legacy encrypted string
+
     const result = fromThrowable(
       () => decryptJson<PlatformCredentials>(legacyCredentials),
       (e): CredentialError => ({
@@ -100,7 +70,7 @@ function tryReadLegacy(
   }
 
   if (typeof legacyCredentials === "object" && legacyCredentials !== null) {
-    // Legacy plaintext object
+
     logger.info(`Using legacy plaintext credentials for ${platform} - please migrate`);
     return ok(legacyCredentials as PlatformCredentials);
   }
@@ -112,28 +82,19 @@ function tryReadLegacy(
   });
 }
 
-/**
- * Decrypts platform credentials from a PixelConfig using Result type.
- *
- * Tries the following in order:
- * 1. Decrypt from `credentialsEncrypted` field (preferred)
- * 2. Decrypt from legacy `credentials` field (if string)
- * 3. Use legacy `credentials` field directly (if object)
- */
 export function decryptCredentials(
   pixelConfig: PixelConfigForCredentials,
   platform: string
 ): Result<CredentialsWithMetadata, CredentialError> {
-  // Try encrypted credentials first (preferred)
+
   if (pixelConfig.credentialsEncrypted) {
     const encryptedResult = tryDecryptEncrypted(pixelConfig.credentialsEncrypted, platform);
     if (encryptedResult.ok) {
       return ok({ credentials: encryptedResult.value, usedLegacy: false });
     }
-    // Fall through to try legacy
+
   }
 
-  // Try legacy credentials
   if (pixelConfig.credentials) {
     const legacyResult = tryReadLegacy(pixelConfig.credentials, platform);
     if (legacyResult.ok) {
@@ -149,9 +110,6 @@ export function decryptCredentials(
   });
 }
 
-/**
- * Validates that credentials contain required fields for a platform.
- */
 export function validatePlatformCredentials(
   credentials: PlatformCredentials,
   platform: string
@@ -195,10 +153,6 @@ export function validatePlatformCredentials(
   return ok(credentials);
 }
 
-/**
- * Get validated credentials using Result type.
- * Combines decryption and validation in one call.
- */
 export function getValidCredentials(
   pixelConfig: PixelConfigForCredentials,
   platform: string

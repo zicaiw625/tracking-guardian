@@ -1,28 +1,13 @@
-/**
- * API Response Schemas
- *
- * Zod schemas for validating API responses.
- * Provides type-safe response structures for all endpoints.
- */
+
 
 import { z } from "zod";
 import { PlatformTypeSchema } from "./platform-credentials";
 
-// =============================================================================
-// Base Response Schemas
-// =============================================================================
-
-/**
- * Base success response schema
- */
 export const SuccessResponseSchema = z.object({
   success: z.literal(true),
   message: z.string().optional(),
 });
 
-/**
- * Base error response schema
- */
 export const ErrorResponseSchema = z.object({
   success: z.literal(false),
   error: z.string(),
@@ -37,9 +22,6 @@ export const ErrorResponseSchema = z.object({
     .optional(),
 });
 
-/**
- * Combined base response schema
- */
 export const BaseResponseSchema = z.discriminatedUnion("success", [
   SuccessResponseSchema,
   ErrorResponseSchema.extend({ success: z.literal(false) }),
@@ -49,13 +31,6 @@ export type SuccessResponse = z.infer<typeof SuccessResponseSchema>;
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
 export type BaseResponse = z.infer<typeof BaseResponseSchema>;
 
-// =============================================================================
-// Pixel Events API Responses
-// =============================================================================
-
-/**
- * Pixel event success response
- */
 export const PixelEventResponseSchema = z.object({
   success: z.literal(true),
   eventId: z.string(),
@@ -76,13 +51,6 @@ export const PixelEventResponseSchema = z.object({
 
 export type PixelEventResponse = z.infer<typeof PixelEventResponseSchema>;
 
-// =============================================================================
-// Scan API Responses
-// =============================================================================
-
-/**
- * Risk item schema
- */
 export const RiskItemResponseSchema = z.object({
   id: z.string(),
   severity: z.enum(["low", "medium", "high", "critical"]),
@@ -92,9 +60,6 @@ export const RiskItemResponseSchema = z.object({
   recommendation: z.string().optional(),
 });
 
-/**
- * Scan report response schema
- */
 export const ScanReportResponseSchema = z.object({
   id: z.string(),
   status: z.enum(["pending", "scanning", "completed", "failed"]),
@@ -111,13 +76,6 @@ export const ScanReportResponseSchema = z.object({
 export type RiskItemResponse = z.infer<typeof RiskItemResponseSchema>;
 export type ScanReportResponse = z.infer<typeof ScanReportResponseSchema>;
 
-// =============================================================================
-// Platform Config Responses
-// =============================================================================
-
-/**
- * Platform config response schema
- */
 export const PlatformConfigResponseSchema = z.object({
   id: z.string(),
   platform: PlatformTypeSchema,
@@ -129,20 +87,13 @@ export const PlatformConfigResponseSchema = z.object({
   migratedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-  // Credentials are never returned in responses
+
   hasCredentials: z.boolean(),
   lastVerifiedAt: z.string().datetime().nullable().optional(),
 });
 
 export type PlatformConfigResponse = z.infer<typeof PlatformConfigResponseSchema>;
 
-// =============================================================================
-// Conversion Log Responses
-// =============================================================================
-
-/**
- * Conversion log entry response schema
- */
 export const ConversionLogResponseSchema = z.object({
   id: z.string(),
   orderId: z.string(),
@@ -161,9 +112,6 @@ export const ConversionLogResponseSchema = z.object({
   sentAt: z.string().datetime().nullable().optional(),
 });
 
-/**
- * Conversion logs list response schema
- */
 export const ConversionLogsResponseSchema = z.object({
   success: z.literal(true),
   data: z.array(ConversionLogResponseSchema),
@@ -176,13 +124,6 @@ export const ConversionLogsResponseSchema = z.object({
 export type ConversionLogResponse = z.infer<typeof ConversionLogResponseSchema>;
 export type ConversionLogsResponse = z.infer<typeof ConversionLogsResponseSchema>;
 
-// =============================================================================
-// Reconciliation Responses
-// =============================================================================
-
-/**
- * Reconciliation report response schema
- */
 export const ReconciliationReportResponseSchema = z.object({
   id: z.string(),
   platform: z.string(),
@@ -200,13 +141,6 @@ export const ReconciliationReportResponseSchema = z.object({
 
 export type ReconciliationReportResponse = z.infer<typeof ReconciliationReportResponseSchema>;
 
-// =============================================================================
-// Health Check Responses
-// =============================================================================
-
-/**
- * Service health status
- */
 export const ServiceHealthSchema = z.object({
   name: z.string(),
   status: z.enum(["healthy", "degraded", "unhealthy"]),
@@ -214,9 +148,6 @@ export const ServiceHealthSchema = z.object({
   message: z.string().optional(),
 });
 
-/**
- * Health check response schema
- */
 export const HealthCheckResponseSchema = z.object({
   status: z.enum(["healthy", "degraded", "unhealthy"]),
   version: z.string(),
@@ -228,13 +159,6 @@ export const HealthCheckResponseSchema = z.object({
 export type ServiceHealth = z.infer<typeof ServiceHealthSchema>;
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;
 
-// =============================================================================
-// Shop Settings Responses
-// =============================================================================
-
-/**
- * Shop settings response schema
- */
 export const ShopSettingsResponseSchema = z.object({
   shopDomain: z.string(),
   plan: z.string(),
@@ -254,13 +178,6 @@ export const ShopSettingsResponseSchema = z.object({
 
 export type ShopSettingsResponse = z.infer<typeof ShopSettingsResponseSchema>;
 
-// =============================================================================
-// Alert Config Responses
-// =============================================================================
-
-/**
- * Alert config response schema
- */
 export const AlertConfigResponseSchema = z.object({
   id: z.string(),
   channel: z.enum(["email", "slack", "telegram"]),
@@ -269,7 +186,7 @@ export const AlertConfigResponseSchema = z.object({
   minOrdersForAlert: z.number(),
   frequency: z.enum(["daily", "weekly", "instant"]),
   lastAlertAt: z.string().datetime().nullable().optional(),
-  // Settings are partially masked for security
+
   settingsSummary: z.string().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -277,13 +194,6 @@ export const AlertConfigResponseSchema = z.object({
 
 export type AlertConfigResponse = z.infer<typeof AlertConfigResponseSchema>;
 
-// =============================================================================
-// Billing Responses
-// =============================================================================
-
-/**
- * Billing status response schema
- */
 export const BillingStatusResponseSchema = z.object({
   plan: z.string(),
   monthlyLimit: z.number(),
@@ -296,13 +206,6 @@ export const BillingStatusResponseSchema = z.object({
 
 export type BillingStatusResponse = z.infer<typeof BillingStatusResponseSchema>;
 
-// =============================================================================
-// Export Responses
-// =============================================================================
-
-/**
- * Export job response schema
- */
 export const ExportJobResponseSchema = z.object({
   id: z.string(),
   status: z.enum(["pending", "processing", "completed", "failed"]),
@@ -317,13 +220,6 @@ export const ExportJobResponseSchema = z.object({
 
 export type ExportJobResponse = z.infer<typeof ExportJobResponseSchema>;
 
-// =============================================================================
-// Cron Response
-// =============================================================================
-
-/**
- * Cron task result schema
- */
 export const CronTaskResultSchema = z.object({
   task: z.string(),
   success: z.boolean(),
@@ -332,9 +228,6 @@ export const CronTaskResultSchema = z.object({
   errors: z.array(z.string()).optional(),
 });
 
-/**
- * Cron response schema
- */
 export const CronResponseSchema = z.object({
   success: z.literal(true),
   results: z.array(CronTaskResultSchema),
@@ -345,13 +238,6 @@ export const CronResponseSchema = z.object({
 export type CronTaskResult = z.infer<typeof CronTaskResultSchema>;
 export type CronResponse = z.infer<typeof CronResponseSchema>;
 
-// =============================================================================
-// Validation Helpers
-// =============================================================================
-
-/**
- * Create a standard API response
- */
 export function createSuccessResponse<T>(
   data: T,
   message?: string
@@ -363,9 +249,6 @@ export function createSuccessResponse<T>(
   };
 }
 
-/**
- * Create a standard error response
- */
 export function createErrorResponse(
   error: string,
   code?: string,
@@ -379,9 +262,6 @@ export function createErrorResponse(
   };
 }
 
-/**
- * Validate and parse an API response
- */
 export function validateResponse<T>(
   schema: z.ZodType<T>,
   data: unknown

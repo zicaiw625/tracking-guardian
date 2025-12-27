@@ -1,10 +1,5 @@
-/**
- * Components Index
- *
- * Re-exports all shared components.
- */
 
-// Error handling
+
 export {
   RouteErrorBoundary,
   ErrorCard,
@@ -13,6 +8,5 @@ export {
   LoadingError,
 } from "./ErrorBoundary";
 
-// Forms
 export * from "./forms";
 

@@ -1,9 +1,4 @@
-/**
- * P2-1: Privacy & Data Explanation Page
- *
- * 向商家清晰说明应用的数据收集、使用、存储和删除机制。
- * 帮助商家理解合规性并正确回应客户询问。
- */
+
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -37,10 +32,6 @@ import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
-// =============================================================================
-// Loader
-// =============================================================================
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -59,10 +50,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     appDomain: process.env.APP_URL || "https://your-app-domain.com",
   });
 };
-
-// =============================================================================
-// Components
-// =============================================================================
 
 function DataTypeCard({
   title,
@@ -140,10 +127,6 @@ function CollapsibleSection({
   );
 }
 
-// =============================================================================
-// Main Component
-// =============================================================================
-
 export default function PrivacyPage() {
   const { shop, appDomain } = useLoaderData<typeof loader>();
 
@@ -153,7 +136,7 @@ export default function PrivacyPage() {
       subtitle="了解本应用如何收集、使用和保护您店铺的数据"
     >
       <BlockStack gap="500">
-        {/* 概览 Banner */}
+        {}
         <Banner title="数据处理概览" tone="info">
           <BlockStack gap="200">
             <p>
@@ -164,7 +147,7 @@ export default function PrivacyPage() {
           </BlockStack>
         </Banner>
 
-        {/* 当前配置状态 */}
+        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">
@@ -207,7 +190,7 @@ export default function PrivacyPage() {
 
         <Layout>
           <Layout.Section variant="oneHalf">
-            {/* 收集的数据类型 */}
+            {}
             <BlockStack gap="400">
               <Text as="h2" variant="headingLg">
                 <InlineStack gap="200" blockAlign="center">
@@ -254,7 +237,7 @@ export default function PrivacyPage() {
           </Layout.Section>
 
           <Layout.Section variant="oneHalf">
-            {/* 数据用途 */}
+            {}
             <BlockStack gap="400">
               <Text as="h2" variant="headingLg">
                 <InlineStack gap="200" blockAlign="center">
@@ -300,7 +283,7 @@ export default function PrivacyPage() {
           </Layout.Section>
         </Layout>
 
-        {/* 数据保存时长 */}
+        {}
         <CollapsibleSection title="数据保存时长" defaultOpen>
           <BlockStack gap="300">
             <Banner tone="info">
@@ -365,7 +348,7 @@ export default function PrivacyPage() {
           </BlockStack>
         </CollapsibleSection>
 
-        {/* 数据删除 */}
+        {}
         <CollapsibleSection title="数据删除方式">
           <BlockStack gap="300">
             <Text as="p">
@@ -427,7 +410,7 @@ export default function PrivacyPage() {
           </BlockStack>
         </CollapsibleSection>
 
-        {/* 安全措施 */}
+        {}
         <CollapsibleSection title="安全措施">
           <BlockStack gap="300">
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -488,7 +471,7 @@ export default function PrivacyPage() {
           </BlockStack>
         </CollapsibleSection>
 
-        {/* GDPR Webhooks 测试 */}
+        {}
         <CollapsibleSection title="GDPR Webhooks 测试指引">
           <BlockStack gap="300">
             <Text as="p">
@@ -551,7 +534,7 @@ export default function PrivacyPage() {
           </BlockStack>
         </CollapsibleSection>
 
-        {/* 相关链接 */}
+        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">

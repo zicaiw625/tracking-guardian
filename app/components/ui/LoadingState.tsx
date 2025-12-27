@@ -1,8 +1,4 @@
-/**
- * Loading State Components
- *
- * Reusable components for displaying loading states.
- */
+
 
 import {
   Card,
@@ -17,22 +13,15 @@ import {
   Text,
 } from "@shopify/polaris";
 
-// =============================================================================
-// Full Page Skeleton
-// =============================================================================
-
 export interface PageSkeletonProps {
-  /** Number of cards to show */
+
   cards?: number;
-  /** Show tabs */
+
   showTabs?: boolean;
-  /** Primary action placeholder */
+
   primaryAction?: boolean;
 }
 
-/**
- * Full page skeleton loader
- */
 export function PageSkeleton({
   cards = 2,
   showTabs = false,
@@ -58,20 +47,13 @@ export function PageSkeleton({
   );
 }
 
-// =============================================================================
-// Card Skeleton
-// =============================================================================
-
 export interface CardSkeletonProps {
-  /** Number of body text lines */
+
   lines?: number;
-  /** Show title */
+
   showTitle?: boolean;
 }
 
-/**
- * Single card skeleton loader
- */
 export function CardSkeleton({ lines = 3, showTitle = true }: CardSkeletonProps) {
   return (
     <Card>
@@ -83,25 +65,18 @@ export function CardSkeleton({ lines = 3, showTitle = true }: CardSkeletonProps)
   );
 }
 
-// =============================================================================
-// Table Skeleton
-// =============================================================================
-
 export interface TableSkeletonProps {
-  /** Number of rows */
+
   rows?: number;
-  /** Number of columns */
+
   columns?: number;
 }
 
-/**
- * Table skeleton loader
- */
 export function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
   return (
     <Card>
       <BlockStack gap="300">
-        {/* Header row */}
+        {}
         <InlineStack gap="400">
           {Array.from({ length: columns }).map((_, i) => (
             <Box key={i} minWidth="100px">
@@ -110,7 +85,7 @@ export function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
           ))}
         </InlineStack>
 
-        {/* Body rows */}
+        {}
         {Array.from({ length: rows }).map((_, rowIndex) => (
           <InlineStack key={rowIndex} gap="400">
             {Array.from({ length: columns }).map((_, colIndex) => (
@@ -125,18 +100,11 @@ export function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
   );
 }
 
-// =============================================================================
-// Stats Skeleton
-// =============================================================================
-
 export interface StatsSkeletonProps {
-  /** Number of stat cards */
+
   count?: number;
 }
 
-/**
- * Stats cards skeleton loader
- */
 export function StatsSkeleton({ count = 3 }: StatsSkeletonProps) {
   return (
     <InlineStack gap="400" wrap={false}>
@@ -154,20 +122,13 @@ export function StatsSkeleton({ count = 3 }: StatsSkeletonProps) {
   );
 }
 
-// =============================================================================
-// Inline Loading Spinner
-// =============================================================================
-
 export interface InlineSpinnerProps {
-  /** Loading message */
+
   message?: string;
-  /** Spinner size */
+
   size?: "small" | "large";
 }
 
-/**
- * Inline loading spinner with optional message
- */
 export function InlineSpinner({
   message = "加载中...",
   size = "small",
@@ -184,18 +145,11 @@ export function InlineSpinner({
   );
 }
 
-// =============================================================================
-// Full Screen Loading
-// =============================================================================
-
 export interface FullScreenLoadingProps {
-  /** Loading message */
+
   message?: string;
 }
 
-/**
- * Full screen loading overlay
- */
 export function FullScreenLoading({ message = "加载中..." }: FullScreenLoadingProps) {
   return (
     <Box
@@ -222,23 +176,15 @@ export function FullScreenLoading({ message = "加载中..." }: FullScreenLoadin
   );
 }
 
-// =============================================================================
-// Button Loading State
-// =============================================================================
-
 export interface ButtonLoadingProps {
-  /** Whether loading */
+
   loading: boolean;
-  /** Loading message */
+
   loadingText?: string;
-  /** Default text */
+
   children: React.ReactNode;
 }
 
-/**
- * Helper for button loading states
- * Usage: <Button loading={isLoading}>{buttonLoading(isLoading, "保存中...", "保存")}</Button>
- */
 export function buttonLoadingText(
   loading: boolean,
   loadingText: string,
@@ -247,18 +193,11 @@ export function buttonLoadingText(
   return loading ? loadingText : defaultText;
 }
 
-// =============================================================================
-// Form Skeleton
-// =============================================================================
-
 export interface FormSkeletonProps {
-  /** Number of fields */
+
   fields?: number;
 }
 
-/**
- * Form skeleton loader
- */
 export function FormSkeleton({ fields = 4 }: FormSkeletonProps) {
   return (
     <Card>

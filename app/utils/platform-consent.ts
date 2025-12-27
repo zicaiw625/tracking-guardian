@@ -6,22 +6,9 @@ export interface PlatformConsentConfig {
     consentReason: string;
     requiresSaleOfData: boolean;
 }
-/**
- * Platform consent configuration.
- * 
- * P0-4 + P1-1: Tracking Guardian 支持以下平台的服务端 CAPI：
- * - GA4 (google): Google Analytics 4 Measurement Protocol
- * - Meta (meta): Facebook/Instagram Conversions API
- * - TikTok (tiktok): TikTok Events API
- * 
- * P1-1: Google Ads 已暂时移除 - 代码中识别了 google_ads 但无实际 CAPI 实现。
- * 后续版本可通过 Enhanced Conversions 或离线转化上传实现。
- * 
- * Detection-only platforms (bing, clarity, pinterest, snapchat, twitter) 保留用于扫描和建议，
- * 但不支持 CAPI 迁移。
- */
+
 export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
-    // Supported platforms (have CAPI implementation)
+
     meta: {
         category: "marketing",
         name: "Meta (Facebook/Instagram)",
@@ -36,8 +23,7 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
         consentReason: "用于转化追踪和广告优化",
         requiresSaleOfData: true,
     },
-    // P1-1: google_ads 已移除 - 无 CAPI 实现，避免误导用户
-    // 后续可通过 Enhanced Conversions 或离线转化上传实现
+
     google: {
         category: "analytics",
         name: "Google Analytics 4 (GA4)",
@@ -45,8 +31,7 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
         consentReason: "用于网站分析和用户行为理解",
         requiresSaleOfData: false,
     },
-    // Detection-only platforms (no CAPI support in Tracking Guardian)
-    // Kept for scanning and recommendations
+
     bing: {
         category: "marketing",
         name: "Microsoft Ads (Bing) - 不支持 CAPI",
@@ -123,9 +108,7 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
         };
     }
     const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-    
-    // P0-04: For platforms requiring sale of data consent, saleOfDataAllowed must be EXPLICITLY true
-    // undefined/null/missing = NOT allowed (strict interpretation)
+
     if (requiresSaleOfData && consentState.saleOfDataAllowed !== true) {
         return {
             allowed: false,
@@ -178,8 +161,7 @@ export function evaluatePlatformConsent(platform: string, consentState: ConsentS
 export function evaluatePlatformConsentWithStrategy(platform: string, consentStrategy: string, consentState: ConsentState | null, hasPixelReceipt: boolean, treatAsMarketing = false): ConsentDecision {
     const config = PLATFORM_CONSENT_CONFIG[platform];
     const requiresSaleOfData = config?.requiresSaleOfData ?? true;
-    
-    // P0-04: For platforms requiring sale of data consent, must be EXPLICITLY true
+
     if (requiresSaleOfData && consentState?.saleOfDataAllowed !== true) {
         return {
             allowed: false,
@@ -265,7 +247,7 @@ export function getPlatformConsentRequirements(platform: string): {
     if (requiresMarketing) {
         explanation = `${config.name}: 需要营销同意（marketingAllowed=true）`;
         if (config.requiresSaleOfData) {
-            // P0-6: 修正文案与逻辑一致 - 实际逻辑要求 saleOfDataAllowed === true
+
             explanation += ` + 数据共享同意（saleOfDataAllowed=true）`;
         }
     }

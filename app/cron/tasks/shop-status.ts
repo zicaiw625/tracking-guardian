@@ -1,25 +1,10 @@
-/**
- * Shop Status Refresh Task
- *
- * Refreshes shop tier and TYP/OSP status for active shops.
- * Runs periodically to keep status information up-to-date.
- */
+
 
 import prisma from "../../db.server";
 import { refreshTypOspStatusWithOfflineToken } from "../../services/checkout-profile.server";
 import { refreshShopTier } from "../../services/shop-tier.server";
 import type { ShopStatusRefreshResult, CronLogger } from "../types";
 
-// =============================================================================
-// Shop Status Refresh
-// =============================================================================
-
-/**
- * Refresh shop tier and TYP/OSP status for stale shops.
- *
- * @param cronLogger - Logger instance for tracking progress
- * @returns Summary of refresh operations
- */
 export async function refreshAllShopsStatus(
   cronLogger: CronLogger
 ): Promise<ShopStatusRefreshResult> {
@@ -29,7 +14,6 @@ export async function refreshAllShopsStatus(
   const typOspUnknownReasons: Record<string, number> = {};
   let errors = 0;
 
-  // Find shops with stale status (> 6 hours old)
   const staleThreshold = new Date(Date.now() - 6 * 60 * 60 * 1000);
 
   const shopsToRefresh = await prisma.shop.findMany({
@@ -59,7 +43,7 @@ export async function refreshAllShopsStatus(
 
   for (const shop of shopsToRefresh) {
     try {
-      // Refresh shop tier
+
       const tierResult = await refreshShopTier(shop.id);
       if (tierResult.updated) {
         tierUpdates++;
@@ -69,7 +53,6 @@ export async function refreshAllShopsStatus(
         });
       }
 
-      // Refresh TYP/OSP status
       const typOspResult = await refreshTypOspStatusWithOfflineToken(shop.id, shop.shopDomain);
 
       if (typOspResult.status === "unknown") {

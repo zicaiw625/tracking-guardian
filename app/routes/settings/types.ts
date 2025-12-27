@@ -1,12 +1,4 @@
-/**
- * Settings Route Types
- *
- * Shared types for settings routes and components.
- */
 
-// =============================================================================
-// Alert Settings Types
-// =============================================================================
 
 export interface AlertSettingsEmail {
   email: string;
@@ -29,15 +21,10 @@ export type AlertSettings =
 export interface AlertConfigDisplay {
   id: string;
   channel: string;
-  // P0-1: 'settings' field removed from display interface
-  // Sensitive webhook URLs and tokens are not exposed to frontend
+
   discrepancyThreshold: number;
   isEnabled: boolean;
 }
-
-// =============================================================================
-// Pixel Config Types
-// =============================================================================
 
 export interface PixelConfigDisplay {
   id: string;
@@ -46,12 +33,11 @@ export interface PixelConfigDisplay {
   serverSideEnabled: boolean;
   clientSideEnabled: boolean;
   isActive: boolean;
+  environment?: "test" | "live";
+  configVersion?: number;
+  rollbackAllowed?: boolean;
   lastTestedAt?: Date | null;
 }
-
-// =============================================================================
-// Shop Data Types
-// =============================================================================
 
 export interface ShopSettingsData {
   id: string;
@@ -74,20 +60,12 @@ export interface TokenIssues {
   affectedPlatforms: string[];
 }
 
-// =============================================================================
-// Loader Data Types
-// =============================================================================
-
 export interface SettingsLoaderData {
   shop: ShopSettingsData | null;
   tokenIssues: TokenIssues;
   pcdApproved: boolean;
   pcdStatusMessage: string;
 }
-
-// =============================================================================
-// Action Response Types
-// =============================================================================
 
 export interface ActionSuccessResponse {
   success: true;

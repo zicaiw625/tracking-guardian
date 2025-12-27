@@ -1,35 +1,9 @@
-/**
- * Result Type Helper Functions
- *
- * Provides utility functions for working with the Result type throughout the application.
- * Use these helpers to convert between Result types and traditional try/catch patterns.
- */
+
 
 import { AppError, ErrorCode, ensureAppError } from "../utils/errors";
 import { ok, err, type Result, type AsyncResult, isOk, isErr } from "../types/result";
 import { logger } from "../utils/logger.server";
 
-// =============================================================================
-// Database Operation Helpers
-// =============================================================================
-
-/**
- * Wrap a Prisma operation in a Result type
- *
- * @example
- * ```typescript
- * const result = await wrapDbOperation(
- *   () => prisma.shop.findUnique({ where: { shopDomain } }),
- *   "Shop"
- * );
- *
- * if (result.ok) {
- *   // result.value is the shop or null
- * } else {
- *   // result.error is an AppError
- * }
- * ```
- */
 export async function wrapDbOperation<T>(
   operation: () => Promise<T>,
   resourceName: string = "Resource"
@@ -44,18 +18,6 @@ export async function wrapDbOperation<T>(
   }
 }
 
-/**
- * Wrap a Prisma operation that should return a non-null result
- *
- * @example
- * ```typescript
- * const result = await wrapDbFindRequired(
- *   () => prisma.shop.findUnique({ where: { shopDomain } }),
- *   "Shop",
- *   shopDomain
- * );
- * ```
- */
 export async function wrapDbFindRequired<T>(
   operation: () => Promise<T | null>,
   resourceName: string,
@@ -73,16 +35,13 @@ export async function wrapDbFindRequired<T>(
   }
 }
 
-/**
- * Convert Prisma errors to AppError
- */
 function handleDatabaseError(error: unknown, resourceName: string): AppError {
   if (error instanceof Error) {
-    // Handle Prisma-specific error codes
+
     const prismaError = error as { code?: string; meta?: { target?: string[] } };
 
     if (prismaError.code === "P2002") {
-      // Unique constraint violation
+
       const target = prismaError.meta?.target?.join(", ") || "field";
       return new AppError(
         ErrorCode.DB_UNIQUE_CONSTRAINT,
@@ -93,7 +52,7 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
     }
 
     if (prismaError.code === "P2025") {
-      // Record not found
+
       return new AppError(
         ErrorCode.NOT_FOUND_RESOURCE,
         `${resourceName} not found`,
@@ -103,7 +62,7 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
     }
 
     if (prismaError.code?.startsWith("P2")) {
-      // Other Prisma errors
+
       return new AppError(
         ErrorCode.DB_QUERY_ERROR,
         `Database error: ${error.message}`,
@@ -116,22 +75,6 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
   return ensureAppError(error, ErrorCode.DB_QUERY_ERROR);
 }
 
-// =============================================================================
-// External API Operation Helpers
-// =============================================================================
-
-/**
- * Wrap an external API call in a Result type with timeout
- *
- * @example
- * ```typescript
- * const result = await wrapApiCall(
- *   () => fetch(url).then(r => r.json()),
- *   "Meta CAPI",
- *   10000
- * );
- * ```
- */
 export async function wrapApiCall<T>(
   operation: () => Promise<T>,
   serviceName: string,
@@ -160,9 +103,6 @@ export async function wrapApiCall<T>(
   }
 }
 
-/**
- * Convert API errors to AppError
- */
 function handleApiError(error: unknown, serviceName: string): AppError {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
@@ -189,13 +129,6 @@ function handleApiError(error: unknown, serviceName: string): AppError {
   });
 }
 
-// =============================================================================
-// JSON Parsing Helpers
-// =============================================================================
-
-/**
- * Safely parse JSON with Result type
- */
 export function parseJson<T>(json: string): Result<T, AppError> {
   try {
     const parsed = JSON.parse(json) as T;
@@ -211,9 +144,6 @@ export function parseJson<T>(json: string): Result<T, AppError> {
   }
 }
 
-/**
- * Safely parse JSON from unknown type
- */
 export function parseJsonSafe<T>(
   input: unknown,
   validator?: (value: unknown) => value is T
@@ -246,25 +176,6 @@ export function parseJsonSafe<T>(
   return ok(input as T);
 }
 
-// =============================================================================
-// Batch Operation Helpers
-// =============================================================================
-
-/**
- * Execute multiple operations and collect results
- *
- * @example
- * ```typescript
- * const results = await collectResults([
- *   wrapDbOperation(() => prisma.shop.findUnique(...)),
- *   wrapDbOperation(() => prisma.pixelConfig.findMany(...)),
- * ]);
- *
- * if (results.ok) {
- *   const [shop, configs] = results.value;
- * }
- * ```
- */
 export async function collectResults<T extends readonly Result<unknown, AppError>[]>(
   results: [...{ [K in keyof T]: Promise<T[K]> }]
 ): Promise<Result<{ [K in keyof T]: T[K] extends Result<infer V, AppError> ? V : never }, AppError>> {
@@ -281,9 +192,6 @@ export async function collectResults<T extends readonly Result<unknown, AppError
   return ok(values as { [K in keyof T]: T[K] extends Result<infer V, AppError> ? V : never });
 }
 
-/**
- * Execute multiple operations and collect all errors
- */
 export async function collectAllResults<T>(
   operations: Promise<Result<T, AppError>>[]
 ): AsyncResult<T[], AppError[]> {
@@ -306,13 +214,6 @@ export async function collectAllResults<T>(
   return ok(values);
 }
 
-// =============================================================================
-// Result to Response Helpers
-// =============================================================================
-
-/**
- * Convert a Result to an HTTP Response
- */
 export function resultToResponse<T>(
   result: Result<T, AppError>,
   successStatus: number = 200
@@ -333,9 +234,6 @@ export function resultToResponse<T>(
   });
 }
 
-/**
- * Convert a Result to JSON Response (for Remix json() helper)
- */
 export function resultToJson<T>(
   result: Result<T, AppError>
 ): { success: true; data: T } | { success: false; error: string; code: string } {
@@ -347,13 +245,6 @@ export function resultToJson<T>(
   return { success: false, error: message, code };
 }
 
-// =============================================================================
-// Conditional Execution Helpers
-// =============================================================================
-
-/**
- * Execute operation only if a condition is met
- */
 export async function executeIf<T>(
   condition: boolean,
   operation: () => AsyncResult<T, AppError>,
@@ -365,9 +256,6 @@ export async function executeIf<T>(
   return operation();
 }
 
-/**
- * Chain multiple result operations
- */
 export async function chain<T, U>(
   result: Result<T, AppError>,
   operation: (value: T) => AsyncResult<U, AppError>
@@ -378,13 +266,6 @@ export async function chain<T, U>(
   return operation(result.value);
 }
 
-// =============================================================================
-// Logging Helpers
-// =============================================================================
-
-/**
- * Log result and return it unchanged
- */
 export function logResult<T, E>(
   result: Result<T, E>,
   context: string
@@ -401,10 +282,6 @@ export function logResult<T, E>(
   }
   return result;
 }
-
-// =============================================================================
-// Re-exports for convenience
-// =============================================================================
 
 export { ok, err, isOk, isErr };
 export type { Result, AsyncResult };

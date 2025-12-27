@@ -11,7 +11,7 @@ interface DiagnosticCheck {
     message: string;
     details?: string;
 }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 interface _DiagnosticsData {
     checks: DiagnosticCheck[];
     summary: {
@@ -42,14 +42,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             piiEnabled: true,
             consentStrategy: true,
             dataRetentionDays: true,
-            // P0-1: Only select non-sensitive fields - no credentials needed
-            // We only need to know if serverSideEnabled, not the actual credentials
+
             pixelConfigs: {
                 where: { isActive: true },
                 select: {
                     platform: true,
                     serverSideEnabled: true,
-                    // credentialsEncrypted excluded - not needed for diagnostics display
+
                 },
             },
         },
@@ -115,7 +114,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 settingsNeedUpgrade = false;
             }
         }
-        // P0-6: 只检查 ingestion_key 和 shop_domain，不检查 backend_url（构建时常量）
+
         const hasShopDomain = typeof pixelSettings.shop_domain === "string" && pixelSettings.shop_domain.length > 0;
         const hasIngestionKey = typeof pixelSettings.ingestion_key === "string" && pixelSettings.ingestion_key.length > 0;
         if (ourPixel) {
@@ -276,7 +275,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         period: "24h",
     };
 
-    // P2-2: Webhook & Queue Health Metrics
     const totalWebhooks24h = await prisma.webhookLog.count({
         where: {
             shopDomain,
@@ -303,7 +301,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
     });
 
-    // P2-10: Recent Pixel Events for Self-Diagnosis
     const recentEventsRaw = await prisma.pixelEventReceipt.findMany({
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
@@ -319,9 +316,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 
     const orderIds = recentEventsRaw.map((e: { orderId: string | null }) => e.orderId).filter(Boolean) as string[];
-    
+
     const relatedJobs = orderIds.length > 0 ? await prisma.conversionJob.findMany({
-        where: { 
+        where: {
             shopId: shop.id,
             orderId: { in: orderIds }
         },
@@ -340,7 +337,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const job = relatedJobs.find((j: RelatedJob) => j.orderId === event.orderId);
         return {
             ...event,
-            jobStatus: job?.status || "pending_webhook", // If no job, it means webhook hasn't arrived or matched yet
+            jobStatus: job?.status || "pending_webhook",
             platformResults: job?.platformResults,
             jobError: job?.errorMessage,
         };
@@ -549,7 +546,7 @@ export default function DiagnosticsPage() {
                   </Text>
                 </Banner>)}
 
-              {/* 漏斗健康度指标 */}
+              {}
               {data.eventFunnel.pixelRequests > 0 && (
                 <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                   <BlockStack gap="200">
@@ -579,8 +576,8 @@ export default function DiagnosticsPage() {
                           data.eventFunnel.sentToPlatforms / data.eventFunnel.matchedWebhook >= 0.9 ? "success" :
                           data.eventFunnel.sentToPlatforms / data.eventFunnel.matchedWebhook >= 0.5 ? "caution" : "critical"
                         }>
-                          {data.eventFunnel.matchedWebhook > 0 
-                            ? Math.round((data.eventFunnel.sentToPlatforms / data.eventFunnel.matchedWebhook) * 100) 
+                          {data.eventFunnel.matchedWebhook > 0
+                            ? Math.round((data.eventFunnel.sentToPlatforms / data.eventFunnel.matchedWebhook) * 100)
                             : 0}%
                         </Text>
                       </Box>
@@ -592,7 +589,7 @@ export default function DiagnosticsPage() {
           </Card>
         </Layout.Section>
 
-        {/* 追踪效果估算 - 增强版 ROI 可视化 */}
+        {}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -609,7 +606,7 @@ export default function DiagnosticsPage() {
 
               <Divider />
 
-              {/* 核心指标卡片 */}
+              {}
               <BlockStack gap="300">
                 <Box background={data.eventFunnel.sentToPlatforms > 0 ? "bg-fill-success-secondary" : "bg-fill-warning-secondary"} padding="400" borderRadius="200">
                   <BlockStack gap="200">
@@ -618,13 +615,13 @@ export default function DiagnosticsPage() {
                         🎯 转化事件捕获率
                       </Text>
                       <Badge tone={data.eventFunnel.sentToPlatforms > 0 ? "success" : "warning"}>
-                        {data.eventFunnel.pixelRequests > 0 
+                        {data.eventFunnel.pixelRequests > 0
                           ? `${Math.round((data.eventFunnel.sentToPlatforms / data.eventFunnel.pixelRequests) * 100)}%`
                           : "待配置"}
                       </Badge>
                     </InlineStack>
                     <Text as="p" variant="bodySm">
-                      {data.eventFunnel.sentToPlatforms > 0 
+                      {data.eventFunnel.sentToPlatforms > 0
                         ? `✅ 过去 24 小时：${data.eventFunnel.pixelRequests} 个订单 → ${data.eventFunnel.sentToPlatforms} 个转化事件发送成功`
                         : "⚠️ 尚未发送转化事件，请完成以下配置"}
                     </Text>
@@ -639,7 +636,7 @@ export default function DiagnosticsPage() {
 
               <Divider />
 
-              {/* 直观对比：仅客户端 vs 客户端+服务端 */}
+              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
                   💡 仅客户端追踪 vs 客户端+服务端追踪
@@ -647,9 +644,9 @@ export default function DiagnosticsPage() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   以下为示意说明，实际效果因店铺流量来源、客户群体、地区分布等因素而异，不构成效果保证
                 </Text>
-                
+
                 <InlineStack gap="400" wrap={false} align="space-between">
-                  {/* 仅客户端追踪 */}
+                  {}
                   <Box background="bg-fill-warning-secondary" padding="400" borderRadius="200" minWidth="45%">
                     <BlockStack gap="200">
                       <Text as="p" fontWeight="semibold" tone="caution">⚠️ 仅依赖客户端追踪</Text>
@@ -668,7 +665,7 @@ export default function DiagnosticsPage() {
                     </BlockStack>
                   </Box>
 
-                  {/* 客户端+服务端追踪 */}
+                  {}
                   <Box background="bg-fill-success-secondary" padding="400" borderRadius="200" minWidth="45%">
                     <BlockStack gap="200">
                       <Text as="p" fontWeight="semibold" tone="success">✅ 客户端 + 服务端 CAPI</Text>
@@ -691,12 +688,12 @@ export default function DiagnosticsPage() {
 
               <Divider />
 
-              {/* 您当前的状态 */}
+              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingMd">
                   📊 您当前的追踪状态
                 </Text>
-                
+
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
@@ -708,7 +705,7 @@ export default function DiagnosticsPage() {
                       </Badge>
                     </InlineStack>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {data.eventFunnel.pixelRequests > 0 
+                      {data.eventFunnel.pixelRequests > 0
                         ? `过去 24h 收到 ${data.eventFunnel.pixelRequests} 个事件，用户同意率 ${data.eventFunnel.passedKey > 0 ? Math.round((data.eventFunnel.passedKey / data.eventFunnel.pixelRequests) * 100) : 0}%`
                         : "客户端追踪是服务端追踪的补充，用于收集用户同意证据"}
                     </Text>
@@ -726,7 +723,7 @@ export default function DiagnosticsPage() {
                       </Badge>
                     </InlineStack>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {data.eventFunnel.sentToPlatforms > 0 
+                      {data.eventFunnel.sentToPlatforms > 0
                         ? `过去 24h 成功发送 ${data.eventFunnel.sentToPlatforms} 个转化到广告平台`
                         : "服务端追踪是核心功能，通过 Webhook 直接获取订单数据"}
                     </Text>
@@ -800,7 +797,7 @@ export default function DiagnosticsPage() {
               <Text as="p" variant="bodySm" tone="subdued">
                 实时显示最近接收到的 Pixel 事件及其后端处理状态
               </Text>
-              
+
               {data.recentEvents && data.recentEvents.length > 0 ? (
                 <DataTable
                   columnContentTypes={[
@@ -830,10 +827,10 @@ export default function DiagnosticsPage() {
                     platformResults?: unknown;
                     jobError?: string | null;
                   }) => {
-                    const platforms = event.platformResults 
-                        ? Object.keys(event.platformResults as Record<string, string>).join(", ") 
+                    const platforms = event.platformResults
+                        ? Object.keys(event.platformResults as Record<string, string>).join(", ")
                         : "-";
-                    
+
                     return [
                         new Date(event.createdAt).toLocaleTimeString("zh-CN"),
                         event.eventType,
@@ -908,7 +905,7 @@ export default function DiagnosticsPage() {
           </Card>
         </Layout.Section>
 
-        {/* P1-11: FAQ 常见问题 */}
+        {}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -916,7 +913,7 @@ export default function DiagnosticsPage() {
                 常见问题 (FAQ)
               </Text>
               <Divider />
-              
+
               <BlockStack gap="300">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
@@ -972,7 +969,7 @@ export default function DiagnosticsPage() {
           </Card>
         </Layout.Section>
 
-        {/* P1-11: 一键修复/指引 */}
+        {}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -980,7 +977,7 @@ export default function DiagnosticsPage() {
                 快速修复
               </Text>
               <Divider />
-              
+
               <BlockStack gap="300">
                 {data.checks.some(c => c.name === "Web Pixel" && c.status !== "pass") && (
                   <Box background="bg-surface-warning" padding="400" borderRadius="200">
@@ -1046,7 +1043,7 @@ export default function DiagnosticsPage() {
           </Card>
         </Layout.Section>
 
-        {/* Shopify 官方测试工具入口 */}
+        {}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -1057,7 +1054,7 @@ export default function DiagnosticsPage() {
                 使用 Shopify 官方工具验证您的 Web Pixel 是否正常工作。
               </Text>
               <Divider />
-              
+
               <BlockStack gap="300">
                 <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                   <BlockStack gap="200">
@@ -1070,7 +1067,7 @@ export default function DiagnosticsPage() {
                       路径：设置 → 客户事件 → 查看 Tracking Guardian Pixel
                     </Text>
                     <InlineStack gap="200">
-                      <Button 
+                      <Button
                         url="https://admin.shopify.com/settings/customer_events"
                         external
                         size="slim"
@@ -1109,7 +1106,7 @@ export default function DiagnosticsPage() {
                       在各广告平台的事件管理器中验证转化事件是否到达：
                     </Text>
                     <InlineStack gap="200" wrap>
-                      <Button 
+                      <Button
                         url="https://business.facebook.com/events_manager"
                         external
                         size="slim"
@@ -1117,7 +1114,7 @@ export default function DiagnosticsPage() {
                       >
                         Meta Events Manager
                       </Button>
-                      <Button 
+                      <Button
                         url="https://analytics.google.com/"
                         external
                         size="slim"
@@ -1125,7 +1122,7 @@ export default function DiagnosticsPage() {
                       >
                         Google Analytics
                       </Button>
-                      <Button 
+                      <Button
                         url="https://ads.tiktok.com/i18n/events_manager"
                         external
                         size="slim"

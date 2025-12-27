@@ -1,25 +1,5 @@
-/**
- * Security Headers Configuration
- *
- * Comprehensive security headers for different contexts within the Shopify app.
- * 
- * IMPORTANT: Embedded apps have their CSP managed by Shopify. Do NOT add CSP
- * to HTML responses served within the Shopify Admin iframe.
- * 
- * CSP is only applied to:
- * - API endpoints (JSON responses)
- * - Webhook endpoints
- * - Health check endpoints
- */
 
-// =============================================================================
-// CSP Directives
-// =============================================================================
 
-/**
- * Content Security Policy directives for API endpoints.
- * These are stricter than embedded app CSP since they serve JSON only.
- */
 export const API_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'none'"],
   "frame-ancestors": ["'none'"],
@@ -28,19 +8,11 @@ export const API_CSP_DIRECTIVES: Record<string, string[]> = {
   "object-src": ["'none'"],
 };
 
-/**
- * Content Security Policy directives for webhook endpoints.
- * Very restrictive since webhooks should only process data.
- */
 export const WEBHOOK_CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'none'"],
   "frame-ancestors": ["'none'"],
 };
 
-/**
- * @deprecated Use API_CSP_DIRECTIVES or WEBHOOK_CSP_DIRECTIVES instead.
- * Kept for backwards compatibility.
- */
 export const CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'self'"],
   "script-src": ["'self'", "https://cdn.shopify.com"],
@@ -59,9 +31,6 @@ export const CSP_DIRECTIVES: Record<string, string[]> = {
   "upgrade-insecure-requests": [],
 };
 
-/**
- * Build CSP header value from directives
- */
 export function buildCspHeader(
   directives: Record<string, string[]> = CSP_DIRECTIVES
 ): string {
@@ -75,14 +44,6 @@ export function buildCspHeader(
     .join("; ");
 }
 
-// =============================================================================
-// Header Collections
-// =============================================================================
-
-/**
- * Headers for embedded app pages (rendered inside Shopify Admin).
- * Note: CSP is NOT included here as Shopify manages it for embedded apps.
- */
 export const EMBEDDED_APP_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-XSS-Protection": "1; mode=block",
@@ -92,10 +53,6 @@ export const EMBEDDED_APP_HEADERS: Record<string, string> = {
     "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
 };
 
-/**
- * Headers for API endpoints (JSON responses).
- * Includes CSP for additional security.
- */
 export const API_SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -107,10 +64,6 @@ export const API_SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": buildCspHeader(API_CSP_DIRECTIVES),
 };
 
-/**
- * Headers for webhook endpoints.
- * Includes CSP for additional security.
- */
 export const WEBHOOK_SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -118,20 +71,12 @@ export const WEBHOOK_SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": buildCspHeader(WEBHOOK_CSP_DIRECTIVES),
 };
 
-/**
- * Headers for pixel event ingestion endpoints.
- * More permissive CORS for cross-origin pixel events.
- */
 export const PIXEL_INGESTION_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "Cache-Control": "no-store",
   "Access-Control-Max-Age": "86400",
 };
 
-/**
- * Headers for health check endpoints.
- * Allows caching for reduced load.
- */
 export const HEALTH_CHECK_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "Cache-Control": "max-age=10, must-revalidate",
@@ -164,28 +109,23 @@ export function getProductionSecurityHeaders(baseHeaders: Record<string, string>
         "Strict-Transport-Security": HSTS_HEADER,
     };
 }
-/**
- * Validate security headers configuration
- */
+
 export function validateSecurityHeaders(): {
   valid: boolean;
   issues: string[];
 } {
   const issues: string[] = [];
 
-  // Check that embedded app headers don't include CSP
   if (EMBEDDED_APP_HEADERS["Content-Security-Policy"]) {
     issues.push(
       "EMBEDDED_APP_HEADERS should NOT include Content-Security-Policy - Shopify handles this"
     );
   }
 
-  // Check X-Frame-Options for API endpoints
   if (API_SECURITY_HEADERS["X-Frame-Options"] !== "DENY") {
     issues.push("API headers should set X-Frame-Options: DENY");
   }
 
-  // Check all headers have X-Content-Type-Options
   const allHeaders = [
     EMBEDDED_APP_HEADERS,
     API_SECURITY_HEADERS,
@@ -198,7 +138,6 @@ export function validateSecurityHeaders(): {
     }
   }
 
-  // Check API and webhook headers have CSP
   if (!API_SECURITY_HEADERS["Content-Security-Policy"]) {
     issues.push("API headers should include Content-Security-Policy");
   }
@@ -212,13 +151,6 @@ export function validateSecurityHeaders(): {
   };
 }
 
-// =============================================================================
-// CORS Helpers
-// =============================================================================
-
-/**
- * CORS headers for preflight responses
- */
 export function getCorsPreflightHeaders(
   origin: string,
   allowedOrigins: string[] = []
@@ -238,9 +170,6 @@ export function getCorsPreflightHeaders(
   };
 }
 
-/**
- * CORS headers for actual responses
- */
 export function getCorsResponseHeaders(
   origin: string,
   allowedOrigins: string[] = []
@@ -258,13 +187,6 @@ export function getCorsResponseHeaders(
   };
 }
 
-// =============================================================================
-// Rate Limiting Headers
-// =============================================================================
-
-/**
- * Rate limiting response headers
- */
 export function getRateLimitHeaders(
   limit: number,
   remaining: number,
@@ -277,9 +199,6 @@ export function getRateLimitHeaders(
   };
 }
 
-/**
- * Rate limit exceeded response headers
- */
 export function getRateLimitExceededHeaders(
   retryAfterSeconds: number
 ): Record<string, string> {

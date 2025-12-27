@@ -1,8 +1,4 @@
-/**
- * Database Type Parsers Tests
- * 
- * Tests for type-safe parsing of JSON fields from database.
- */
+
 
 import { describe, it, expect } from "vitest";
 import {
@@ -26,7 +22,7 @@ describe("parseCapiInput", () => {
     };
 
     const result = parseCapiInput(input);
-    
+
     expect(result).not.toBeNull();
     expect(result?.orderId).toBe("order123");
     expect(result?.value).toBe(99.99);
@@ -50,7 +46,7 @@ describe("parseCapiInput", () => {
   });
 
   it("should return null for missing required fields", () => {
-    // Missing orderId and value
+
     const input = {
       checkoutToken: "token123",
     };
@@ -94,7 +90,7 @@ describe("parseConsentState", () => {
     };
 
     const result = parseConsentState(input);
-    
+
     expect(result).not.toBeNull();
     expect(result?.marketing).toBe(true);
     expect(result?.analytics).toBe(false);
@@ -104,7 +100,7 @@ describe("parseConsentState", () => {
   it("should handle partial consent state", () => {
     const input = { marketing: true };
     const result = parseConsentState(input);
-    
+
     expect(result).not.toBeNull();
     expect(result?.marketing).toBe(true);
     expect(result?.analytics).toBeUndefined();
@@ -119,10 +115,10 @@ describe("parseConsentState", () => {
     const result = parseConsentState({});
     expect(result).not.toBeNull();
   });
-  
+
   it("should filter non-boolean values", () => {
-    const input = { 
-      marketing: "yes", // should become undefined 
+    const input = {
+      marketing: "yes",
       analytics: true,
     };
     const result = parseConsentState(input);
@@ -138,7 +134,7 @@ describe("parsePixelClientConfig", () => {
     };
 
     const result = parsePixelClientConfig(input);
-    
+
     expect(result).not.toBeNull();
     expect(result?.treatAsMarketing).toBe(true);
   });
@@ -153,7 +149,7 @@ describe("parsePixelClientConfig", () => {
     const result = parsePixelClientConfig("invalid");
     expect(result).toBeNull();
   });
-  
+
   it("should handle null input", () => {
     const result = parsePixelClientConfig(null);
     expect(result).toBeNull();

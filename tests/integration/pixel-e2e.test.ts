@@ -1,13 +1,7 @@
-/**
- * Web Pixel End-to-End Integration Tests
- * 
- * Tests the complete flow from pixel event reception to receipt creation,
- * including origin validation, consent handling, and database operations.
- */
+
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Mock the database
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
@@ -40,10 +34,10 @@ vi.mock("../../app/utils/logger", () => ({
 }));
 
 import prisma from "../../app/db.server";
-import { 
-  validatePixelOriginPreBody, 
-  validatePixelOriginForShop, 
-  buildShopAllowedDomains 
+import {
+  validatePixelOriginPreBody,
+  validatePixelOriginForShop,
+  buildShopAllowedDomains
 } from "../../app/utils/origin-validation";
 
 describe("Web Pixel E2E Flow", () => {
@@ -117,21 +111,18 @@ describe("Web Pixel E2E Flow", () => {
         storefrontDomains: mockShop.storefrontDomains,
       });
 
-      // Shop's primary domain should be allowed
       const primaryResult = validatePixelOriginForShop(
         "https://www.teststore.com",
         allowedDomains
       );
       expect(primaryResult.valid).toBe(true);
 
-      // Subdomain of primary domain should be allowed
       const subdomainResult = validatePixelOriginForShop(
         "https://shop.teststore.com",
         allowedDomains
       );
       expect(subdomainResult.valid).toBe(true);
 
-      // External domain should be rejected
       const externalResult = validatePixelOriginForShop(
         "https://malicious-site.com",
         allowedDomains
@@ -149,7 +140,7 @@ describe("Web Pixel E2E Flow", () => {
         isTrusted: true,
         trustLevel: "trusted",
       });
-      
+
       (prisma.pixelEventReceipt.upsert as any) = mockUpsert;
 
       await prisma.pixelEventReceipt.upsert({
@@ -195,7 +186,7 @@ describe("Web Pixel E2E Flow", () => {
           id: "receipt-1",
           consentState: consent,
         });
-        
+
         (prisma.pixelEventReceipt.upsert as any) = mockUpsert;
 
         await prisma.pixelEventReceipt.upsert({
@@ -224,24 +215,20 @@ describe("Web Pixel E2E Flow", () => {
 
   describe("Replay protection", () => {
     it("should detect timestamp outside valid window", () => {
-      const TIMESTAMP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-      
+      const TIMESTAMP_WINDOW_MS = 10 * 60 * 1000;
+
       function isValidTimestamp(timestamp: number): boolean {
         const now = Date.now();
         const timeDiff = Math.abs(now - timestamp);
         return timeDiff <= TIMESTAMP_WINDOW_MS;
       }
 
-      // Valid: current time
       expect(isValidTimestamp(Date.now())).toBe(true);
 
-      // Valid: 5 minutes ago
       expect(isValidTimestamp(Date.now() - 5 * 60 * 1000)).toBe(true);
 
-      // Invalid: 15 minutes ago
       expect(isValidTimestamp(Date.now() - 15 * 60 * 1000)).toBe(false);
 
-      // Invalid: 1 hour from now (future)
       expect(isValidTimestamp(Date.now() + 60 * 60 * 1000)).toBe(false);
     });
   });

@@ -1,16 +1,5 @@
-/**
- * P2-02: Deprecation dates with environment variable override support.
- * 
- * These dates can be overridden via environment variables for quick hotfixes
- * when Shopify adjusts their timeline without requiring a code deployment.
- * 
- * Environment variables:
- * - DEPRECATION_SCRIPT_TAG_BLOCKED: Override scriptTagCreationBlocked
- * - DEPRECATION_PLUS_EXECUTION_OFF: Override plusScriptTagExecutionOff
- * - DEPRECATION_NON_PLUS_EXECUTION_OFF: Override nonPlusScriptTagExecutionOff
- * 
- * Format: ISO date string (e.g., "2025-08-28")
- */
+
+
 function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
     if (envVar && /^\d{4}-\d{2}-\d{2}$/.test(envVar)) {
         const parsed = new Date(envVar);
@@ -21,54 +10,48 @@ function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
     return new Date(defaultDate);
 }
 
-// Default dates based on official Shopify announcements
-// References:
-// - Plus upgrade: https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/plus-upgrade-guide
-// - ScriptTag: https://shopify.dev/docs/apps/build/online-store/blocking-script-tags
 const DEFAULT_DATES = {
-    // 2025-02-01: ScriptTag creation blocked for new installs
+
     scriptTagCreationBlocked: "2025-02-01",
-    // 2025-08-28: Plus merchants - ScriptTags stop executing on TYP/OSP
+
     plusScriptTagExecutionOff: "2025-08-28",
-    // 2026-08-26: Non-Plus merchants - ScriptTags stop executing
+
     nonPlusScriptTagExecutionOff: "2026-08-26",
-    // 2025-08-28: Plus merchants - Additional Scripts become read-only
+
     plusAdditionalScriptsReadOnly: "2025-08-28",
-    // 2025-08-28: Non-Plus merchants - Additional Scripts also become read-only (view-only)
-    // Reference: https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/upgrade-guide
+
     nonPlusAdditionalScriptsReadOnly: "2025-08-28",
     scriptTagBlocked: "2025-02-01",
-    // 2026-01: Shopify begins auto-upgrading Plus merchants to new TYP/OSP pages
-    // Legacy customizations will be cleared during auto-upgrade
+
     plusAutoUpgradeStart: "2026-01-01",
 } as const;
 
 export const DEPRECATION_DATES = {
     scriptTagCreationBlocked: parseEnvDate(
-        process.env.DEPRECATION_SCRIPT_TAG_BLOCKED, 
+        process.env.DEPRECATION_SCRIPT_TAG_BLOCKED,
         DEFAULT_DATES.scriptTagCreationBlocked
     ),
     plusScriptTagExecutionOff: parseEnvDate(
-        process.env.DEPRECATION_PLUS_EXECUTION_OFF, 
+        process.env.DEPRECATION_PLUS_EXECUTION_OFF,
         DEFAULT_DATES.plusScriptTagExecutionOff
     ),
     nonPlusScriptTagExecutionOff: parseEnvDate(
-        process.env.DEPRECATION_NON_PLUS_EXECUTION_OFF, 
+        process.env.DEPRECATION_NON_PLUS_EXECUTION_OFF,
         DEFAULT_DATES.nonPlusScriptTagExecutionOff
     ),
     plusAdditionalScriptsReadOnly: parseEnvDate(
-        process.env.DEPRECATION_PLUS_SCRIPTS_READONLY, 
+        process.env.DEPRECATION_PLUS_SCRIPTS_READONLY,
         DEFAULT_DATES.plusAdditionalScriptsReadOnly
     ),
     nonPlusAdditionalScriptsReadOnly: parseEnvDate(
-        process.env.DEPRECATION_NON_PLUS_SCRIPTS_READONLY, 
+        process.env.DEPRECATION_NON_PLUS_SCRIPTS_READONLY,
         DEFAULT_DATES.nonPlusAdditionalScriptsReadOnly
     ),
     scriptTagBlocked: parseEnvDate(
-        process.env.DEPRECATION_SCRIPT_TAG_BLOCKED, 
+        process.env.DEPRECATION_SCRIPT_TAG_BLOCKED,
         DEFAULT_DATES.scriptTagBlocked
     ),
-    // P0-3: Plus 商家自动升级窗口
+
     plusAutoUpgradeStart: parseEnvDate(
         process.env.DEPRECATION_PLUS_AUTO_UPGRADE,
         DEFAULT_DATES.plusAutoUpgradeStart
@@ -109,13 +92,13 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
         date: DEPRECATION_DATES.plusAdditionalScriptsReadOnly,
         precision: "exact",
         displayLabel: "2025-08-28",
-        isEstimate: false, // Confirmed by Shopify official docs
+        isEstimate: false,
     },
     nonPlusAdditionalScriptsReadOnly: {
         date: DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly,
         precision: "exact",
         displayLabel: "2025-08-28",
-        isEstimate: false, // Confirmed by Shopify official docs
+        isEstimate: false,
     },
     plusScriptTagExecutionOff: {
         date: DEPRECATION_DATES.plusScriptTagExecutionOff,
@@ -133,7 +116,7 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
         date: DEPRECATION_DATES.plusAutoUpgradeStart,
         precision: "month",
         displayLabel: "2026-01",
-        isEstimate: true, // Official timeline says "January 2026", not a specific day
+        isEstimate: true,
     },
 };
 export type ShopTier = "plus" | "non_plus" | "unknown";
@@ -198,7 +181,7 @@ export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date
         : DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
-    // P0: 使用精确日期而非模糊的"年月起"表述
+
     const dateLabel = tier === "plus" ? "2025-08-28" : "2026-08-26";
     if (daysRemaining <= 0) {
         return {
@@ -241,7 +224,7 @@ export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date 
         : DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
-    // P0: 统一使用精确日期 (Plus 和 Non-Plus 都是 2025-08-28 起只读)
+
     const dateLabel = "2025-08-28";
     if (daysRemaining <= 0) {
         return {
@@ -342,21 +325,20 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     title: string;
     message: string;
     actions: string[];
-    // P0-3: 新增自动升级提示信息
+
     autoUpgradeInfo?: {
         isInAutoUpgradeWindow: boolean;
         autoUpgradeMessage: string;
     };
 } {
     const { tier, typOspPagesEnabled } = upgradeStatus;
-    // P0: 使用精确日期，移除"估计"口吻
+
     const plusDeadlineLabel = "2025-08-28";
     const nonPlusDeadlineLabel = "2026-08-26";
     const deadlineLabel = tier === "non_plus" ? nonPlusDeadlineLabel : plusDeadlineLabel;
-    
-    // P0-3: 检查是否在 Plus 自动升级窗口内
+
     const isInPlusAutoUpgradeWindow = tier === "plus" && now >= DEPRECATION_DATES.plusAutoUpgradeStart;
-    const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow 
+    const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow
         ? "⚡ Plus 商家自动升级窗口已开始（2026年1月起）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。"
         : "";
     if (typOspPagesEnabled === true) {
@@ -435,7 +417,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
         };
     }
     if (tier === "plus" && isPlusDeadlinePassed) {
-        // P0-3: 添加自动升级窗口提示
+
         const autoUpgradeNote = isInPlusAutoUpgradeWindow
             ? "\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（2026年1月起）。"
             : "\n\n📅 2026年1月起，Shopify 将开始自动迁移 Plus 商家到新版页面。";

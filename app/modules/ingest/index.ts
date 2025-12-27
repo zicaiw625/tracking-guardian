@@ -1,17 +1,5 @@
-/**
- * Ingest Module
- *
- * Handles pixel event ingestion:
- * - Event validation and verification
- * - Origin and key validation
- * - Replay protection
- * - Receipt creation
- * - Trust evaluation
- *
- * P2-1: Centralized event ingestion with security layers.
- */
 
-// Receipt matching
+
 export {
   batchFetchReceipts,
   findReceiptForJob,
@@ -20,7 +8,6 @@ export {
   type JobForReceiptMatch,
 } from "../../services/receipt-matcher.server";
 
-// Trust evaluation
 export {
   evaluateTrust,
   checkPlatformEligibility,
@@ -32,14 +19,12 @@ export {
   type PlatformEligibilityResult,
 } from "../../services/trust-evaluator.server";
 
-// Pixel validation
 export {
   validateRequest as validatePixelEventPayload,
   type ValidationResult,
   type PixelEventPayload,
 } from "../../services/pixel-validation.server";
 
-// Origin validation
 export {
   validateOrigin,
   validatePixelOriginForShop,
@@ -49,7 +34,6 @@ export {
   isOriginInAllowlist,
 } from "../../utils/origin-validation";
 
-// Consent utilities
 export {
   evaluatePlatformConsent,
   evaluatePlatformConsentWithStrategy,

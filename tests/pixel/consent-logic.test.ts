@@ -58,15 +58,15 @@ describe("Backend platform filtering with consent", () => {
   ): boolean {
     const marketingPlatforms = ["meta", "tiktok", "google"];
     const analyticsPlatforms = ["clarity"];
-    
+
     if (marketingPlatforms.includes(platform)) {
       return marketingConsent;
     }
-    
+
     if (analyticsPlatforms.includes(platform)) {
       return analyticsConsent;
     }
-    
+
     return marketingConsent;
   }
 

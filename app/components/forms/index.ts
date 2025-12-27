@@ -1,8 +1,4 @@
-/**
- * Forms Components Index
- *
- * Re-exports all form components for convenient imports.
- */
+
 
 export {
   FormSection,

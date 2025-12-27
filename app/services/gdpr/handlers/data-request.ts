@@ -1,12 +1,4 @@
-/**
- * GDPR Data Request Handler
- *
- * Handles data request processing for GDPR compliance.
- * Exports customer data without deletion.
- * 
- * Performance: Uses batched queries to prevent memory issues
- * with large order counts.
- */
+
 
 import prisma from "../../../db.server";
 import { logger } from "../../../utils/logger.server";
@@ -19,29 +11,10 @@ import type {
 } from "../types";
 import { createEmptyDataRequestResult } from "../types";
 
-// =============================================================================
-// Configuration
-// =============================================================================
-
-/**
- * Maximum number of order IDs to process in a single batch.
- * Prevents memory issues and query timeouts with large datasets.
- */
 const BATCH_SIZE = 100;
 
-/**
- * Maximum records to return per table to prevent response size issues.
- * GDPR doesn't require returning all records at once; pagination is acceptable.
- */
 const MAX_RECORDS_PER_TABLE = 10000;
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Split an array into batches of specified size
- */
 function batchArray<T>(array: T[], size: number): T[][] {
   const batches: T[][] = [];
   for (let i = 0; i < array.length; i += size) {
@@ -50,9 +23,6 @@ function batchArray<T>(array: T[], size: number): T[][] {
   return batches;
 }
 
-/**
- * Fetch conversion logs for a batch of order IDs
- */
 async function fetchConversionLogsBatch(
   shopId: string,
   orderIds: string[]
@@ -93,9 +63,6 @@ async function fetchConversionLogsBatch(
   });
 }
 
-/**
- * Fetch survey responses for a batch of order IDs
- */
 async function fetchSurveyResponsesBatch(
   shopId: string,
   orderIds: string[]
@@ -126,9 +93,6 @@ async function fetchSurveyResponsesBatch(
   });
 }
 
-/**
- * Fetch pixel event receipts for a batch of order IDs
- */
 async function fetchPixelReceiptsBatch(
   shopId: string,
   orderIds: string[]
@@ -161,19 +125,6 @@ async function fetchPixelReceiptsBatch(
   });
 }
 
-// =============================================================================
-// Data Request Processing
-// =============================================================================
-
-/**
- * Process a GDPR data request.
- * Collects and exports all data associated with the specified orders.
- * Uses batched queries to handle large order counts without memory issues.
- *
- * @param shopDomain - The shop domain making the request
- * @param payload - Data request payload with customer/order info
- * @returns Exported data result
- */
 export async function processDataRequest(
   shopDomain: string,
   payload: DataRequestPayload
@@ -188,7 +139,6 @@ export async function processDataRequest(
     ordersCount: ordersRequested.length,
   });
 
-  // Find the shop
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
@@ -199,24 +149,21 @@ export async function processDataRequest(
     return createEmptyDataRequestResult(dataRequestId, customerId);
   }
 
-  // Convert order IDs to strings
   const orderIdStrings = ordersRequested.map((id) => String(id));
-  
-  // Split into batches to prevent memory issues
+
   const orderBatches = batchArray(orderIdStrings, BATCH_SIZE);
-  
+
   logger.debug(`[GDPR] Processing ${orderBatches.length} batches of orders`, {
     totalOrders: orderIdStrings.length,
     batchSize: BATCH_SIZE,
   });
 
-  // Fetch data in batches and aggregate results
   const allConversionLogs: Awaited<ReturnType<typeof fetchConversionLogsBatch>> = [];
   const allSurveyResponses: Awaited<ReturnType<typeof fetchSurveyResponsesBatch>> = [];
   const allPixelReceipts: Awaited<ReturnType<typeof fetchPixelReceiptsBatch>> = [];
 
   for (const batch of orderBatches) {
-    // Process each batch in parallel
+
     const [conversionLogs, surveyResponses, pixelReceipts] = await Promise.all([
       fetchConversionLogsBatch(shop.id, batch),
       fetchSurveyResponsesBatch(shop.id, batch),
@@ -227,7 +174,6 @@ export async function processDataRequest(
     allSurveyResponses.push(...surveyResponses);
     allPixelReceipts.push(...pixelReceipts);
 
-    // Check if we've hit the max records limit
     if (
       allConversionLogs.length >= MAX_RECORDS_PER_TABLE ||
       allSurveyResponses.length >= MAX_RECORDS_PER_TABLE ||
@@ -244,12 +190,10 @@ export async function processDataRequest(
     }
   }
 
-  // Truncate to max records if needed
   const conversionLogs = allConversionLogs.slice(0, MAX_RECORDS_PER_TABLE);
   const surveyResponses = allSurveyResponses.slice(0, MAX_RECORDS_PER_TABLE);
   const pixelReceipts = allPixelReceipts.slice(0, MAX_RECORDS_PER_TABLE);
 
-  // Transform to export format
   const exportedConversionLogs: ExportedConversionLog[] = conversionLogs.map((log) => ({
     orderId: log.orderId,
     orderNumber: log.orderNumber,
@@ -283,7 +227,6 @@ export async function processDataRequest(
     createdAt: receipt.createdAt.toISOString(),
   }));
 
-  // Build result
   const result: DataRequestResult = {
     dataRequestId,
     customerId,

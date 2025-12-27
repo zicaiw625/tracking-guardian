@@ -32,7 +32,7 @@ describe("Pixel Events API - Origin Validation", () => {
   describe("isValidShopifyOrigin", () => {
     let isValidShopifyOrigin: (origin: string | null) => boolean;
     let isValidDevOrigin: (origin: string | null) => boolean;
-    
+
     beforeEach(async () => {
       const module = await import("../../app/utils/origin-validation");
       isValidShopifyOrigin = module.isValidShopifyOrigin;
@@ -75,7 +75,7 @@ describe("Pixel Events API - Origin Validation", () => {
 
   describe("Dev origin validation", () => {
     let isValidDevOrigin: (origin: string | null) => boolean;
-    
+
     beforeEach(async () => {
       const module = await import("../../app/utils/origin-validation");
       isValidDevOrigin = module.isValidDevOrigin;
@@ -136,18 +136,18 @@ describe("Pixel Events API - Rate Limiting", () => {
   let trackAnomaly: (shopDomain: string, type: "invalid_key" | "invalid_origin" | "invalid_timestamp") => { shouldBlock: boolean; reason?: string };
   let unblockShop: (shopDomain: string) => boolean;
   let clearAllTracking: () => void;
-  
+
   beforeEach(async () => {
     vi.resetModules();
     const module = await import("../../app/utils/rate-limiter");
     trackAnomaly = module.trackAnomaly;
     unblockShop = module.unblockShop;
     clearAllTracking = module.clearAllTracking;
-    // Clear any state from previous tests
+
     if (clearAllTracking) {
       clearAllTracking();
     } else {
-      // Fallback if clearAllTracking doesn't exist
+
       unblockShop("test-store.myshopify.com");
       unblockShop("abuse-store.myshopify.com");
       unblockShop("mixed-store.myshopify.com");
@@ -163,19 +163,18 @@ describe("Pixel Events API - Rate Limiting", () => {
     for (let i = 0; i < 49; i++) {
       trackAnomaly("abuse-store.myshopify.com", "invalid_key");
     }
-    
+
     const result = trackAnomaly("abuse-store.myshopify.com", "invalid_key");
     expect(result.shouldBlock).toBe(true);
     expect(result.reason).toContain("invalid key");
   });
 
   it("tracks different anomaly types separately", () => {
-    // Use less than the invalidKey threshold (25) to ensure this type alone doesn't trigger block
+
     for (let i = 0; i < 20; i++) {
       trackAnomaly("mixed-store.myshopify.com", "invalid_key");
     }
-    
-    // A different anomaly type should not trigger block since each type has its own threshold
+
     const result = trackAnomaly("mixed-store.myshopify.com", "invalid_origin");
     expect(result.shouldBlock).toBe(false);
   });
@@ -219,7 +218,7 @@ describe("Pixel Events API - Request Validation", () => {
         currency: "USD",
       },
     };
-    
+
     expect(validatePayload(payload).valid).toBe(true);
   });
 
@@ -228,7 +227,7 @@ describe("Pixel Events API - Request Validation", () => {
       shopDomain: "test-store.myshopify.com",
       timestamp: Date.now(),
     };
-    
+
     const result = validatePayload(payload);
     expect(result.valid).toBe(false);
     expect(result.error).toBe("Missing eventName");
@@ -239,7 +238,7 @@ describe("Pixel Events API - Request Validation", () => {
       eventName: "checkout_completed",
       timestamp: Date.now(),
     };
-    
+
     const result = validatePayload(payload);
     expect(result.valid).toBe(false);
     expect(result.error).toBe("Missing shopDomain");
@@ -251,7 +250,7 @@ describe("Pixel Events API - Request Validation", () => {
       shopDomain: "not-a-valid-domain.com",
       timestamp: Date.now(),
     };
-    
+
     const result = validatePayload(payload);
     expect(result.valid).toBe(false);
     expect(result.error).toBe("Invalid shop domain format");
@@ -262,7 +261,7 @@ describe("Pixel Events API - Request Validation", () => {
       eventName: "checkout_completed",
       shopDomain: "test-store.myshopify.com",
     };
-    
+
     const result = validatePayload(payload);
     expect(result.valid).toBe(false);
     expect(result.error).toBe("Missing or invalid timestamp");
@@ -274,7 +273,7 @@ describe("Pixel Events API - Request Validation", () => {
       shopDomain: "test-store.myshopify.com",
       timestamp: "1234567890",
     };
-    
+
     const result = validatePayload(payload);
     expect(result.valid).toBe(false);
     expect(result.error).toBe("Missing or invalid timestamp");
@@ -284,7 +283,7 @@ describe("Pixel Events API - Request Validation", () => {
 describe("Pixel Events API - Consent Filtering", () => {
   let isMarketingPlatform: (platform: string) => boolean;
   let isAnalyticsPlatform: (platform: string) => boolean;
-  
+
   beforeEach(async () => {
     const module = await import("../../app/utils/platform-consent");
     isMarketingPlatform = module.isMarketingPlatform;
@@ -357,7 +356,7 @@ describe("Pixel Events API - Idempotent Writes", () => {
       orderId: "order-1",
       eventType: "purchase",
     });
-    
+
     (prisma.pixelEventReceipt.upsert as any) = mockUpsert;
 
     await prisma.pixelEventReceipt.upsert({
@@ -397,7 +396,7 @@ describe("Pixel Events API - Idempotent Writes", () => {
       platform: "meta",
       eventType: "purchase",
     });
-    
+
     (prisma.conversionLog.upsert as any) = mockUpsert;
 
     await prisma.conversionLog.upsert({

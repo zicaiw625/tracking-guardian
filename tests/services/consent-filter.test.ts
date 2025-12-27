@@ -1,21 +1,7 @@
-/**
- * Consent Filter Unit Tests
- *
- * Tests the consent filtering logic for pixel events and platform consent evaluation.
- * Covers:
- * - Initial consent checking
- * - Platform filtering by consent type
- * - P0-04 compliance (saleOfData strict interpretation)
- * - Consent reconciliation scenarios
- */
+
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// =============================================================================
-// Consent Filter Tests (from api.pixel-events/consent-filter.ts)
-// =============================================================================
-
-// Mock logger and metrics
 vi.mock("../../app/utils/logger.server", () => ({
   logger: {
     info: vi.fn(),
@@ -156,7 +142,7 @@ describe("Consent Filter - checkInitialConsent", () => {
 });
 
 describe("Consent Filter - filterPlatformsByConsent", () => {
-  // P1-1: google_ads removed - no CAPI implementation
+
   const marketingPlatforms = [
     { platform: "meta" },
     { platform: "tiktok" },
@@ -307,10 +293,6 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
   });
 });
 
-// =============================================================================
-// Platform Consent Tests (from utils/platform-consent.ts)
-// =============================================================================
-
 import {
   evaluatePlatformConsent,
   evaluatePlatformConsentWithStrategy,
@@ -365,7 +347,7 @@ describe("Platform Consent - evaluatePlatformConsent", () => {
     it("should allow Google Analytics when analytics=true (no saleOfData required)", () => {
       const consent: ConsentState = {
         analytics: true,
-        saleOfDataAllowed: false, // Should not matter for GA4
+        saleOfDataAllowed: false,
       };
 
       const result = evaluatePlatformConsent("google", consent);
@@ -459,7 +441,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         "meta",
         "strict",
         consent,
-        false // hasPixelReceipt
+        false
       );
 
       expect(result.allowed).toBe(false);
@@ -476,7 +458,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
         "meta",
         "strict",
         consent,
-        true // hasPixelReceipt
+        true
       );
 
       expect(result.allowed).toBe(true);
@@ -527,7 +509,7 @@ describe("Platform Consent - evaluatePlatformConsentWithStrategy", () => {
 
       const result = evaluatePlatformConsentWithStrategy(
         "meta",
-        "weak", // Any non-strict/balanced value
+        "weak",
         consent,
         false
       );
@@ -621,10 +603,6 @@ describe("Platform Consent - Category Detection", () => {
       expect(isMarketingPlatform("tiktok")).toBe(true);
     });
 
-    // P1-1: google_ads test removed - no longer in PLATFORM_CONSENT_CONFIG
-    // Unknown platforms default to marketing, so this would still pass,
-    // but we remove the test to avoid confusion
-    
     it("should not identify Google Analytics as marketing platform", () => {
       expect(isMarketingPlatform("google")).toBe(false);
     });
@@ -655,10 +633,6 @@ describe("Platform Consent - Category Detection", () => {
   });
 });
 
-// =============================================================================
-// Edge Cases and Integration Scenarios
-// =============================================================================
-
 describe("Consent - Real-World Scenarios", () => {
   describe("GDPR Region (EU)", () => {
     it("should block marketing when only analytics granted (common EU pattern)", () => {
@@ -681,14 +655,12 @@ describe("Consent - Real-World Scenarios", () => {
       const consent: ConsentState = {
         marketing: true,
         analytics: true,
-        saleOfDataAllowed: false, // User opted out of data sale
+        saleOfDataAllowed: false,
       };
 
-      // Marketing platforms that require saleOfData should be blocked
       const metaResult = evaluatePlatformConsent("meta", consent);
       expect(metaResult.allowed).toBe(false);
 
-      // Analytics platforms that don't require saleOfData should work
       const googleResult = evaluatePlatformConsent("google", consent);
       expect(googleResult.allowed).toBe(true);
     });
@@ -702,7 +674,6 @@ describe("Consent - Real-World Scenarios", () => {
         saleOfDataAllowed: true,
       };
 
-      // P1-1: google_ads removed from test - no CAPI implementation
       const platforms = ["meta", "google", "tiktok"];
 
       for (const platform of platforms) {
@@ -714,7 +685,7 @@ describe("Consent - Real-World Scenarios", () => {
 
   describe("Consent Banner Not Interacted", () => {
     it("should block all when no interaction (undefined values)", () => {
-      const consent: ConsentState = {}; // User hasn't interacted with consent banner
+      const consent: ConsentState = {};
 
       const metaResult = evaluatePlatformConsent("meta", consent);
       const googleResult = evaluatePlatformConsent("google", consent);

@@ -1,8 +1,4 @@
-/**
- * Settings Loader
- *
- * Shared loader for settings routes.
- */
+
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -29,20 +25,17 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       weakConsentMode: true,
       consentStrategy: true,
       dataRetentionDays: true,
-      // P0-1: Only select non-sensitive fields for alertConfigs
-      // Excludes: settings (legacy, may contain sensitive data), settingsEncrypted
+
       alertConfigs: {
         select: {
           id: true,
           channel: true,
           discrepancyThreshold: true,
           isEnabled: true,
-          // Note: 'settings' field excluded - frontend doesn't need it for display
-          // and it may contain sensitive webhook URLs or tokens
+
         },
       },
-      // P0-1: Only select non-sensitive fields for pixelConfigs
-      // Excludes: credentials, credentialsEncrypted, clientConfig, eventMappings
+
       pixelConfigs: {
         where: { isActive: true },
         select: {
@@ -52,7 +45,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
           serverSideEnabled: true,
           clientSideEnabled: true,
           isActive: true,
-          updatedAt: true, // Used as lastTestedAt proxy in frontend
+          updatedAt: true,
         },
       },
     },
@@ -68,8 +61,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     shop?.previousSecretExpiry &&
     new Date() < shop.previousSecretExpiry;
 
-  // P0-1: Explicitly map fields to avoid exposing sensitive data
-  // Use explicit mapping instead of type assertion to ensure type safety
   const alertConfigs: AlertConfigDisplay[] = shop?.alertConfigs.map((config: {
     id: string;
     channel: string;
@@ -97,7 +88,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     serverSideEnabled: config.serverSideEnabled,
     clientSideEnabled: config.clientSideEnabled,
     isActive: config.isActive,
-    lastTestedAt: config.updatedAt, // Map updatedAt to lastTestedAt for frontend
+    lastTestedAt: config.updatedAt,
   })) ?? [];
 
   const data: SettingsLoaderData = {

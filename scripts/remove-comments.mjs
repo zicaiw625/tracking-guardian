@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import ts from "typescript";
 
 const PROJECT_ROOT = process.cwd();
 
@@ -20,26 +19,16 @@ const IGNORE_DIR_NAMES = new Set([
   ".vercel",
 ]);
 
+const IGNORE_FILES = new Set([
+  "remove-comments.mjs",
+]);
+
 function shouldProcessFile(absPath) {
   const ext = path.extname(absPath);
   if (!VALID_EXTS.has(ext)) return false;
+  const basename = path.basename(absPath);
+  if (IGNORE_FILES.has(basename)) return false;
   return true;
-}
-
-function getScriptKindByExt(ext) {
-  switch (ext) {
-    case ".ts":
-      return ts.ScriptKind.TS;
-    case ".tsx":
-      return ts.ScriptKind.TSX;
-    case ".jsx":
-      return ts.ScriptKind.JSX;
-    case ".cjs":
-    case ".mjs":
-    case ".js":
-    default:
-      return ts.ScriptKind.JS;
-  }
 }
 
 function splitShebang(text) {
@@ -58,44 +47,162 @@ function detectNewline(text) {
   return text[i - 1] === "\r" ? "\r\n" : "\n";
 }
 
-function blankOutPreservingNewlines(slice) {
-  let out = "";
-  for (let i = 0; i < slice.length; i++) {
-    const ch = slice[i];
-    out += ch === "\n" || ch === "\r" ? ch : " ";
-  }
-  return out;
-}
-
 function removeCommentsFromSourceText(absPath, text) {
   const newline = detectNewline(text);
-  const ext = path.extname(absPath);
-  const scriptKind = getScriptKindByExt(ext);
-
   const { shebang, rest } = splitShebang(text);
-  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, rest);
-  scanner.setScriptKind(scriptKind);
 
-  const ranges = [];
-  while (true) {
-    const kind = scanner.scan();
-    if (kind === ts.SyntaxKind.EndOfFileToken) break;
-    if (kind === ts.SyntaxKind.SingleLineCommentTrivia || kind === ts.SyntaxKind.MultiLineCommentTrivia) {
-      ranges.push([scanner.getTokenPos(), scanner.getTextPos()]);
+  let result = "";
+  let i = 0;
+  const len = rest.length;
+
+  while (i < len) {
+    const char = rest[i];
+    const next = rest[i + 1];
+
+    if (char === "/" && next === "/") {
+      while (i < len && rest[i] !== "\n" && rest[i] !== "\r") {
+        i++;
+      }
+      continue;
     }
+
+    if (char === "/" && next === "*") {
+      i += 2;
+      while (i < len - 1) {
+        if (rest[i] === "*" && rest[i + 1] === "/") {
+          i += 2;
+          break;
+        }
+        if (rest[i] === "\n" || rest[i] === "\r") {
+          result += rest[i];
+        }
+        i++;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      const quote = char;
+      result += char;
+      i++;
+      while (i < len) {
+        if (rest[i] === "\\") {
+          result += rest[i];
+          i++;
+          if (i < len) {
+            result += rest[i];
+            i++;
+          }
+          continue;
+        }
+        if (rest[i] === "\n" || rest[i] === "\r") {
+          result += rest[i];
+          i++;
+          break;
+        }
+        if (rest[i] === quote) {
+          result += rest[i];
+          i++;
+          break;
+        }
+        result += rest[i];
+        i++;
+      }
+      continue;
+    }
+
+    if (char === "`") {
+      result += char;
+      i++;
+      while (i < len) {
+        if (rest[i] === "\\") {
+          result += rest[i];
+          i++;
+          if (i < len) {
+            result += rest[i];
+            i++;
+          }
+          continue;
+        }
+        if (rest[i] === "$" && rest[i + 1] === "{") {
+          result += "${";
+          i += 2;
+          let braceDepth = 1;
+          while (i < len && braceDepth > 0) {
+            if (rest[i] === "{") {
+              braceDepth++;
+              result += rest[i];
+              i++;
+            } else if (rest[i] === "}") {
+              braceDepth--;
+              if (braceDepth > 0) {
+                result += rest[i];
+              } else {
+                result += rest[i];
+              }
+              i++;
+            } else if (rest[i] === "/" && rest[i + 1] === "/") {
+              while (i < len && rest[i] !== "\n" && rest[i] !== "\r") {
+                i++;
+              }
+            } else if (rest[i] === "/" && rest[i + 1] === "*") {
+              i += 2;
+              while (i < len - 1) {
+                if (rest[i] === "*" && rest[i + 1] === "/") {
+                  i += 2;
+                  break;
+                }
+                if (rest[i] === "\n" || rest[i] === "\r") {
+                  result += rest[i];
+                }
+                i++;
+              }
+            } else if (rest[i] === '"' || rest[i] === "'") {
+              const q = rest[i];
+              result += rest[i];
+              i++;
+              while (i < len) {
+                if (rest[i] === "\\") {
+                  result += rest[i];
+                  i++;
+                  if (i < len) {
+                    result += rest[i];
+                    i++;
+                  }
+                  continue;
+                }
+                if (rest[i] === q) {
+                  result += rest[i];
+                  i++;
+                  break;
+                }
+                result += rest[i];
+                i++;
+              }
+            } else {
+              result += rest[i];
+              i++;
+            }
+          }
+          continue;
+        }
+        if (rest[i] === "`") {
+          result += rest[i];
+          i++;
+          break;
+        }
+        result += rest[i];
+        i++;
+      }
+      continue;
+    }
+
+    result += char;
+    i++;
   }
 
-  if (ranges.length === 0) {
-                                                     
-    const combined = shebang ? shebang + newline + rest : rest;
-    return combined.endsWith(newline) ? combined : combined + newline;
-  }
-
-  let cleaned = rest;
-  for (let i = ranges.length - 1; i >= 0; i--) {
-    const [start, end] = ranges[i];
-    cleaned = cleaned.slice(0, start) + blankOutPreservingNewlines(cleaned.slice(start, end)) + cleaned.slice(end);
-  }
+  let cleaned = result.split(newline).map(line => line.trimEnd()).join(newline);
+  cleaned = cleaned.replace(new RegExp(`(${newline}){3,}`, "g"), newline + newline);
 
   const combined = shebang ? shebang + newline + cleaned : cleaned;
   return combined.endsWith(newline) ? combined : combined + newline;
@@ -108,7 +215,6 @@ async function walk(dir, outFiles) {
   } catch {
     return;
   }
-
   for (const entry of entries) {
     if (entry.isDirectory()) {
       if (IGNORE_DIR_NAMES.has(entry.name)) continue;
@@ -125,14 +231,11 @@ async function main() {
   const args = new Set(process.argv.slice(2));
   const dryRun = args.has("--dry-run");
   const verify = args.has("--verify");
-
   const files = [];
   for (const dir of TARGET_DIRS) {
     await walk(dir, files);
   }
-
   files.sort();
-
   let changed = 0;
   let processed = 0;
   let commentTokens = 0;
@@ -143,25 +246,16 @@ async function main() {
     processed++;
     if (next !== original) changed++;
     if (!dryRun && !verify && next !== original) await fs.writeFile(file, next, "utf8");
-
     if (verify) {
-      const ext = path.extname(file);
-      const scriptKind = getScriptKindByExt(ext);
       const { rest } = splitShebang(next);
-      const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, rest);
-      scanner.setScriptKind(scriptKind);
-      while (true) {
-        const kind = scanner.scan();
-        if (kind === ts.SyntaxKind.EndOfFileToken) break;
-        if (kind === ts.SyntaxKind.SingleLineCommentTrivia || kind === ts.SyntaxKind.MultiLineCommentTrivia) {
-          commentTokens++;
-        }
-      }
+      const singleLineRegex = new RegExp("\\/\\/[^\\n\\r]*", "g");
+      const multiLineRegex = new RegExp("\\/\\*[\\s\\S]*?\\*\\/", "g");
+      const singleLineMatches = (rest.match(singleLineRegex) || []).filter(m => !m.startsWith("://"));
+      const multiLineMatches = rest.match(multiLineRegex) || [];
+      commentTokens += singleLineMatches.length + multiLineMatches.length;
     }
   }
-
   const mode = verify ? "VERIFY" : dryRun ? "DRY-RUN" : "WRITE";
-                                        
   console.log(
     `[remove-comments] mode=${mode} processed=${processed} changed=${changed}` +
       (verify ? ` remainingCommentTokens=${commentTokens}` : ""),
@@ -169,4 +263,3 @@ async function main() {
 }
 
 await main();
-

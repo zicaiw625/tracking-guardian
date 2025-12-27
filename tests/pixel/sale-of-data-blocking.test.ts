@@ -41,7 +41,7 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     (prisma.shop.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(mockShop);
     (prisma.pixelConfig.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockPixelConfigs);
     (prisma.conversionLog.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
@@ -73,7 +73,6 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
       expect(prisma.conversionLog.upsert).not.toHaveBeenCalled();
     });
 
-    // P0-04: undefined saleOfData is now treated as NOT allowed (strict)
     it("should NOT create ConversionLog when sale_of_data is undefined (P0-04 strict)", async () => {
       const payload = {
         eventName: "checkout_completed",
@@ -82,7 +81,7 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
         consent: {
           marketing: true,
           analytics: true,
-          // saleOfData is undefined - P0-04 says this should be treated as NOT allowed
+
         },
         data: {
           orderId: "12345",
@@ -90,8 +89,7 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
           currency: "USD",
         },
       };
-      
-      // P0-04: With saleOfData undefined, ConversionLog should NOT be created
+
       expect(prisma.conversionLog.upsert).not.toHaveBeenCalled();
     });
 
@@ -114,7 +112,6 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
     });
   });
 
-  // P0-04: Updated test matrix - undefined saleOfData is now treated as NOT allowed
   describe("Consent Logic Matrix (P0-04 strict)", () => {
     const testCases = [
       { marketing: true, analytics: true, saleOfData: true, shouldRecord: true, desc: "all granted" },
@@ -128,7 +125,7 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
 
     testCases.forEach(({ marketing, analytics, saleOfData, shouldRecord, desc }) => {
       it(`should ${shouldRecord ? "record" : "NOT record"} when ${desc}`, () => {
-        // P0-04: saleOfData must be EXPLICITLY true
+
         const saleOfDataAllowed = saleOfData === true;
         const hasMarketingConsent = marketing === true;
         const hasAnalyticsConsent = analytics === true;

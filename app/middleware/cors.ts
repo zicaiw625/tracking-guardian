@@ -1,14 +1,6 @@
-/**
- * CORS Middleware
- *
- * Handles Cross-Origin Resource Sharing for API endpoints.
- */
+
 
 import type { Middleware, MiddlewareContext, CorsOptions } from "./types";
-
-// =============================================================================
-// Default Configuration
-// =============================================================================
 
 const DEFAULT_CORS_OPTIONS: Required<CorsOptions> = {
   origin: "*",
@@ -20,13 +12,6 @@ const DEFAULT_CORS_OPTIONS: Required<CorsOptions> = {
   customHeaders: [],
 };
 
-// =============================================================================
-// CORS Header Builder
-// =============================================================================
-
-/**
- * Build CORS headers based on options and request
- */
 export function buildCorsHeaders(
   request: Request,
   options: CorsOptions = {}
@@ -35,7 +20,6 @@ export function buildCorsHeaders(
   const origin = request.headers.get("Origin");
   const headers: Record<string, string> = {};
 
-  // Determine allowed origin
   let allowedOrigin: string | null = null;
 
   if (typeof opts.origin === "function") {
@@ -54,33 +38,27 @@ export function buildCorsHeaders(
     headers["Access-Control-Allow-Origin"] = allowedOrigin;
   }
 
-  // Add Vary header when origin is dynamic
   if (typeof opts.origin === "function" || Array.isArray(opts.origin)) {
     headers["Vary"] = "Origin";
   }
 
-  // Methods
   if (opts.methods.length > 0) {
     headers["Access-Control-Allow-Methods"] = opts.methods.join(", ");
   }
 
-  // Allowed headers
   const allHeaders = [...opts.allowedHeaders, ...opts.customHeaders];
   if (allHeaders.length > 0) {
     headers["Access-Control-Allow-Headers"] = allHeaders.join(", ");
   }
 
-  // Exposed headers
   if (opts.exposedHeaders.length > 0) {
     headers["Access-Control-Expose-Headers"] = opts.exposedHeaders.join(", ");
   }
 
-  // Credentials
   if (opts.credentials) {
     headers["Access-Control-Allow-Credentials"] = "true";
   }
 
-  // Max age
   if (opts.maxAge > 0) {
     headers["Access-Control-Max-Age"] = String(opts.maxAge);
   }
@@ -88,9 +66,6 @@ export function buildCorsHeaders(
   return headers;
 }
 
-/**
- * Apply CORS headers to a response
- */
 export function applyCorsHeaders(
   response: Response,
   headers: Record<string, string>
@@ -108,19 +83,11 @@ export function applyCorsHeaders(
   });
 }
 
-// =============================================================================
-// Middleware Factory
-// =============================================================================
-
-/**
- * Create CORS middleware with options
- */
 export function withCors(options: CorsOptions = {}): Middleware {
   return async (context: MiddlewareContext) => {
     const { request } = context;
     const corsHeaders = buildCorsHeaders(request, options);
 
-    // Handle preflight request
     if (request.method === "OPTIONS") {
       return {
         continue: false,
@@ -131,23 +98,19 @@ export function withCors(options: CorsOptions = {}): Middleware {
       };
     }
 
-    // Store CORS headers in context for later application
     context.meta.corsHeaders = corsHeaders;
 
     return { continue: true, context };
   };
 }
 
-/**
- * Create CORS middleware for pixel events (more permissive)
- */
 export function withPixelCors(customHeaders: string[] = []): Middleware {
   return withCors({
     origin: (origin) => {
-      // Allow all HTTPS origins for pixel events
+
       if (!origin) return null;
       if (origin.startsWith("https://")) return origin;
-      // Allow localhost for development
+
       if (origin.startsWith("http://localhost")) return origin;
       return null;
     },
@@ -165,9 +128,6 @@ export function withPixelCors(customHeaders: string[] = []): Middleware {
   });
 }
 
-/**
- * Create CORS middleware for shop-specific domains
- */
 export function withShopCors(
   allowedDomains: string[],
   customHeaders: string[] = []
@@ -182,7 +142,7 @@ export function withShopCors(
           return origin;
         }
       } catch {
-        // Invalid URL
+
       }
 
       return null;
@@ -198,13 +158,6 @@ export function withShopCors(
   });
 }
 
-// =============================================================================
-// JSON Response Helper
-// =============================================================================
-
-/**
- * Create a JSON response with CORS headers
- */
 export function jsonWithCors<T>(
   data: T,
   context: MiddlewareContext,

@@ -1,22 +1,10 @@
-/**
- * Pixel Config Repository
- *
- * Centralized data access layer for PixelConfig entities.
- * Provides type-safe operations for platform credential management.
- */
+
 
 import prisma from "../../db.server";
 import { SimpleCache } from "../../utils/cache";
 import { type PlatformType } from "../../types/enums";
 import type { PixelConfig, Prisma } from "@prisma/client";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Minimal fields for credential lookup.
- */
 export interface PixelConfigCredentials {
   id: string;
   platform: string;
@@ -26,14 +14,8 @@ export interface PixelConfigCredentials {
   clientConfig: Prisma.JsonValue;
 }
 
-/**
- * Full pixel config with all fields.
- */
 export type PixelConfigFull = PixelConfig;
 
-/**
- * Summary for displaying in UI.
- */
 export interface PixelConfigSummary {
   id: string;
   platform: string;
@@ -45,9 +27,6 @@ export interface PixelConfigSummary {
   updatedAt: Date;
 }
 
-/**
- * Create/update input for pixel config.
- */
 export interface PixelConfigInput {
   platform: PlatformType;
   platformId?: string | null;
@@ -59,19 +38,10 @@ export interface PixelConfigInput {
   isActive?: boolean;
 }
 
-// =============================================================================
-// Cache
-// =============================================================================
-
-// Cache for shop's pixel configs (short TTL, frequently updated)
 const shopPixelConfigsCache = new SimpleCache<PixelConfigCredentials[]>({
   maxSize: 500,
-  defaultTtlMs: 60 * 1000, // 1 minute
+  defaultTtlMs: 60 * 1000,
 });
-
-// =============================================================================
-// Select Fields
-// =============================================================================
 
 const CREDENTIALS_SELECT = {
   id: true,
@@ -93,13 +63,6 @@ const SUMMARY_SELECT = {
   updatedAt: true,
 } as const;
 
-// =============================================================================
-// Repository Functions
-// =============================================================================
-
-/**
- * Get all active pixel configs for a shop (cached).
- */
 export async function getShopPixelConfigs(
   shopId: string,
   options: { serverSideOnly?: boolean; skipCache?: boolean } = {}
@@ -132,9 +95,6 @@ export async function getShopPixelConfigs(
   return configs;
 }
 
-/**
- * Get a specific pixel config by shop and platform.
- */
 export async function getPixelConfigByPlatform(
   shopId: string,
   platform: PlatformType
@@ -147,9 +107,6 @@ export async function getPixelConfigByPlatform(
   });
 }
 
-/**
- * Get pixel config by ID.
- */
 export async function getPixelConfigById(
   configId: string
 ): Promise<PixelConfigFull | null> {
@@ -158,9 +115,6 @@ export async function getPixelConfigById(
   });
 }
 
-/**
- * Get summaries for all configs of a shop.
- */
 export async function getPixelConfigSummaries(
   shopId: string
 ): Promise<PixelConfigSummary[]> {
@@ -173,9 +127,6 @@ export async function getPixelConfigSummaries(
   return configs;
 }
 
-/**
- * Create or update a pixel config (upsert).
- */
 export async function upsertPixelConfig(
   shopId: string,
   input: PixelConfigInput
@@ -211,15 +162,11 @@ export async function upsertPixelConfig(
     },
   });
 
-  // Invalidate cache
   invalidatePixelConfigCache(shopId);
 
   return config;
 }
 
-/**
- * Deactivate a pixel config.
- */
 export async function deactivatePixelConfig(
   shopId: string,
   platform: PlatformType
@@ -242,9 +189,6 @@ export async function deactivatePixelConfig(
   }
 }
 
-/**
- * Delete a pixel config.
- */
 export async function deletePixelConfig(
   shopId: string,
   platform: PlatformType
@@ -264,9 +208,6 @@ export async function deletePixelConfig(
   }
 }
 
-/**
- * Batch fetch pixel configs for multiple shops.
- */
 export async function batchGetPixelConfigs(
   shopIds: string[],
   serverSideOnly: boolean = false
@@ -289,19 +230,15 @@ export async function batchGetPixelConfigs(
     select: CREDENTIALS_SELECT,
   });
 
-  // Group by shopId
   const result = new Map<string, PixelConfigCredentials[]>();
   for (const shopId of uniqueIds) {
     result.set(shopId, []);
   }
 
   for (const config of configs) {
-    // const shopConfigs = result.get(config.id.split("_")[0]) || [];
-    // We need to get shopId from the actual data, but it's not in CREDENTIALS_SELECT
-    // Let's fix this by including shopId in the query
+
   }
 
-  // Re-query with shopId
   const configsWithShop = await prisma.pixelConfig.findMany({
     where,
     select: {
@@ -320,9 +257,6 @@ export async function batchGetPixelConfigs(
   return result;
 }
 
-/**
- * Check if a shop has any active server-side configs.
- */
 export async function hasServerSideConfigs(shopId: string): Promise<boolean> {
   const count = await prisma.pixelConfig.count({
     where: {
@@ -335,9 +269,6 @@ export async function hasServerSideConfigs(shopId: string): Promise<boolean> {
   return count > 0;
 }
 
-/**
- * Get list of platforms configured for a shop.
- */
 export async function getConfiguredPlatforms(
   shopId: string
 ): Promise<PlatformType[]> {
@@ -352,17 +283,11 @@ export async function getConfiguredPlatforms(
   return configs.map((c) => c.platform as PlatformType);
 }
 
-/**
- * Invalidate cache for a shop's pixel configs.
- */
 export function invalidatePixelConfigCache(shopId: string): void {
   shopPixelConfigsCache.delete(`configs:${shopId}:all`);
   shopPixelConfigsCache.delete(`configs:${shopId}:server`);
 }
 
-/**
- * Clear all pixel config caches.
- */
 export function clearPixelConfigCache(): void {
   shopPixelConfigsCache.clear();
 }

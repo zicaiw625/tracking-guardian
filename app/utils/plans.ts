@@ -1,9 +1,4 @@
-/**
- * Plan definitions & helpers
- *
- * Maps the business/packaging described in README into runtime-friendly
- * helpers for feature gating (scan vs. migration vs. multi渠道/agency).
- */
+
 
 export type PlanId = "free" | "growth" | "pro" | "agency";
 
@@ -52,9 +47,6 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
   },
 };
 
-/**
- * Normalize unknown plan ids to free for safe comparisons.
- */
 export function normalizePlan(plan: string | null | undefined): PlanId {
   if (plan && (PLAN_ORDER as string[]).includes(plan)) {
     return plan as PlanId;
@@ -66,9 +58,6 @@ export function getPlanDefinition(plan: string | null | undefined): PlanDefiniti
   return PLAN_DEFINITIONS[normalizePlan(plan)];
 }
 
-/**
- * Check whether current plan meets or exceeds the target tier.
- */
 export function isPlanAtLeast(current: string | null | undefined, target: PlanId): boolean {
   const currentIndex = PLAN_ORDER.indexOf(normalizePlan(current));
   const targetIndex = PLAN_ORDER.indexOf(target);

@@ -1,8 +1,4 @@
-/**
- * Meta (Facebook) Conversions API Service
- *
- * Implements the IPlatformService interface for Meta CAPI.
- */
+
 
 import type {
   ConversionData,
@@ -30,28 +26,14 @@ import {
   type MetaUserData,
 } from "./base-platform.service";
 
-// =============================================================================
-// Constants
-// =============================================================================
-
 const META_API_VERSION = "v21.0";
 const META_API_BASE_URL = "https://graph.facebook.com";
 const PIXEL_ID_PATTERN = /^\d{15,16}$/;
 
-// =============================================================================
-// Meta Platform Service
-// =============================================================================
-
-/**
- * Meta Conversions API service implementation.
- */
 export class MetaPlatformService implements IPlatformService {
   readonly platform = Platform.META;
   readonly displayName = "Meta (Facebook)";
 
-  /**
-   * Send a conversion event to Meta via Conversions API.
-   */
   async sendConversion(
     credentials: PlatformCredentials,
     data: ConversionData,
@@ -106,9 +88,6 @@ export class MetaPlatformService implements IPlatformService {
     }
   }
 
-  /**
-   * Validate Meta credentials format.
-   */
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
 
@@ -136,12 +115,9 @@ export class MetaPlatformService implements IPlatformService {
     };
   }
 
-  /**
-   * Parse Meta-specific error into standardized format.
-   */
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
-      // Check for attached platform error
+
       const attachedError = (error as Error & { platformError?: PlatformError }).platformError;
       if (attachedError) {
         return attachedError;
@@ -165,9 +141,6 @@ export class MetaPlatformService implements IPlatformService {
     };
   }
 
-  /**
-   * Build the Meta Conversions API payload.
-   */
   async buildPayload(
     data: ConversionData,
     eventId: string
@@ -202,13 +175,6 @@ export class MetaPlatformService implements IPlatformService {
     };
   }
 
-  // ==========================================================================
-  // Private Methods
-  // ==========================================================================
-
-  /**
-   * Send the actual HTTP request to Meta.
-   */
   private async sendRequest(
     credentials: MetaCredentials,
     data: ConversionData,
@@ -297,24 +263,8 @@ export class MetaPlatformService implements IPlatformService {
   }
 }
 
-// =============================================================================
-// Singleton Export
-// =============================================================================
-
-/**
- * Singleton instance of Meta platform service.
- */
 export const metaService = new MetaPlatformService();
 
-// =============================================================================
-// Legacy Export (Backwards Compatibility)
-// =============================================================================
-
-/**
- * Send conversion to Meta.
- *
- * @deprecated Use metaService.sendConversion() instead
- */
 export async function sendConversionToMeta(
   credentials: MetaCredentials | null,
   conversionData: ConversionData,
@@ -341,9 +291,6 @@ export async function sendConversionToMeta(
   return result.response!;
 }
 
-/**
- * Extract Meta error from exception.
- */
 export function extractMetaError(error: unknown): PlatformError | null {
   if (error instanceof Error) {
     return (error as Error & { platformError?: PlatformError }).platformError || null;

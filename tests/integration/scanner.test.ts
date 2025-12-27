@@ -1,6 +1,4 @@
-/**
- * Scanner Module Integration Tests
- */
+
 
 import { describe, it, expect } from "vitest";
 import { analyzeScriptContent } from "../../app/services/scanner/content-analysis";
@@ -22,7 +20,7 @@ describe("Scanner Pattern Detection", () => {
         });
 
         it("should detect TikTok Pixel from ttq calls", () => {
-            // Pattern matches ttq\s*\( - direct function calls like ttq('init', ...)
+
             const content = `ttq('init', 'PIXEL_ID');`;
             const platforms = detectPlatforms(content);
             expect(platforms).toContain("tiktok");
@@ -55,12 +53,12 @@ describe("Scanner Pattern Detection", () => {
 
     describe("identifyPlatformFromSrc", () => {
         it("should identify GTM from GTM URL", () => {
-            // GTM has its own platform type for accurate tracking
+
             const src = "https://www.googletagmanager.com/gtm.js?id=GTM-XXXXX";
             const platform = identifyPlatformFromSrc(src);
             expect(platform).toBe("gtm");
         });
-        
+
         it("should identify Google from GA4 URL", () => {
             const src = "https://www.google-analytics.com/analytics.js";
             const platform = identifyPlatformFromSrc(src);
@@ -100,7 +98,7 @@ describe("Risk Assessment", () => {
                 { id: "test2", name: "Low Risk", description: "Test", severity: "low" as const, points: 10 },
             ];
             const score = calculateRiskScore(risks);
-            // High: 30 * 1.5 = 45, Low: 10 * 0.5 = 5, Total = 50
+
             expect(score).toBe(50);
         });
 
@@ -159,7 +157,7 @@ describe("Content Analysis", () => {
         it("should extract GA4 Measurement IDs", () => {
             const content = `G-ABC1234XYZ`;
             const result = analyzeScriptContent(content);
-            expect(result.platformDetails.some(d => 
+            expect(result.platformDetails.some(d =>
                 d.platform === "google" && d.matchedPattern === "G-ABC1234XYZ"
             )).toBe(true);
         });

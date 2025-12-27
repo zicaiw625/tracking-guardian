@@ -1,17 +1,9 @@
-/**
- * Shop Repository
- *
- * Database operations for Shop model.
- */
+
 
 import { type Shop, type Prisma, type PixelConfig } from "@prisma/client";
 import { BaseRepository, type TransactionClient } from "./base-repository";
 import { ok, err, type AsyncResult } from "../../types/result";
 import { AppError, ErrorCode } from "../../utils/errors";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export type ShopCreate = Prisma.ShopCreateInput;
 export type ShopUpdate = Prisma.ShopUpdateInput;
@@ -25,10 +17,6 @@ export interface ShopWithRelations extends Shop {
   alertConfigs?: unknown[];
 }
 
-// =============================================================================
-// Shop Repository
-// =============================================================================
-
 export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate> {
   constructor() {
     super("Shop");
@@ -39,22 +27,12 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     return db.shop;
   }
 
-  // ===========================================================================
-  // Shop-Specific Queries
-  // ===========================================================================
-
-  /**
-   * Find shop by domain
-   */
   async findByDomain(
     shopDomain: string
   ): AsyncResult<Shop | null, AppError> {
     return this.findFirst({ shopDomain });
   }
 
-  /**
-   * Find shop by domain, throw if not found
-   */
   async findByDomainOrFail(
     shopDomain: string
   ): AsyncResult<Shop, AppError> {
@@ -73,9 +51,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     return ok(result.value);
   }
 
-  /**
-   * Find shop with pixel configs
-   */
   async findByDomainWithPixelConfigs(
     shopDomain: string
   ): AsyncResult<ShopWithPixelConfigs | null, AppError> {
@@ -94,9 +69,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     }
   }
 
-  /**
-   * Find shop with all active configurations
-   */
   async findByDomainWithConfig(
     shopDomain: string
   ): AsyncResult<ShopWithRelations | null, AppError> {
@@ -119,9 +91,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     }
   }
 
-  /**
-   * Upsert shop (create or update by domain)
-   */
   async upsertByDomain(
     shopDomain: string,
     createData: Omit<ShopCreate, "shopDomain">,
@@ -139,9 +108,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     }
   }
 
-  /**
-   * Update shop settings
-   */
   async updateSettings(
     shopDomain: string,
     settings: {
@@ -162,9 +128,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     }
   }
 
-  /**
-   * Update shop plan
-   */
   async updatePlan(
     shopDomain: string,
     plan: string,
@@ -181,9 +144,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     }
   }
 
-  /**
-   * Set shop as inactive (uninstalled)
-   */
   async setInactive(shopDomain: string): AsyncResult<Shop, AppError> {
     try {
       const result = await this.db.shop.update({
@@ -196,18 +156,12 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     }
   }
 
-  /**
-   * Find shops with active webhook configurations
-   */
   async findActiveShopsWithWebhooks(): AsyncResult<Shop[], AppError> {
     return this.findMany({
       isActive: true,
     });
   }
 
-  /**
-   * Find shops needing reconciliation
-   */
   async findShopsForReconciliation(
     minConfiguredPlatforms: number = 1
   ): AsyncResult<ShopWithPixelConfigs[], AppError> {
@@ -232,7 +186,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
         },
       });
 
-      // Filter by minimum configured platforms
       const filtered = result.filter(
         (shop) => shop.pixelConfigs.length >= minConfiguredPlatforms
       );
@@ -243,9 +196,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     }
   }
 
-  /**
-   * Get shop statistics
-   */
   async getStatistics(shopDomain: string): AsyncResult<{
     totalConversions: number;
     activePixelConfigs: number;
@@ -288,10 +238,6 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     }
   }
 }
-
-// =============================================================================
-// Singleton Export
-// =============================================================================
 
 let shopRepositoryInstance: ShopRepository | null = null;
 

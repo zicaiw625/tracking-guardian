@@ -186,7 +186,7 @@ describe("P0-01: PII Degradation Handling", () => {
 
       await expect(
         sendConversionToMeta(credentials, conversionData)
-      ).rejects.toThrow(); // Any error thrown is acceptable
+      ).rejects.toThrow();
     });
   });
 

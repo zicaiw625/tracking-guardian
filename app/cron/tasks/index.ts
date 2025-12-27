@@ -1,8 +1,4 @@
-/**
- * Cron Task Executor
- *
- * Orchestrates execution of all cron tasks in the correct order.
- */
+
 
 import { processGDPRJobs, checkGDPRCompliance } from "../../services/gdpr.server";
 import { reconcilePendingConsent } from "../../services/consent-reconciler.server";
@@ -15,18 +11,8 @@ import { refreshAllShopsStatus } from "./shop-status";
 import type { CronResult, CronLogger } from "../types";
 import type { GDPRComplianceResult } from "../../services/gdpr.server";
 
-// =============================================================================
-// Task Executor
-// =============================================================================
-
-/**
- * Execute all cron tasks in sequence.
- *
- * @param cronLogger - Logger with request context
- * @returns Combined results from all tasks
- */
 export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResult> {
-  // 1. Process GDPR jobs first (compliance priority)
+
   let gdprResults = { processed: 0, succeeded: 0, failed: 0 };
   try {
     cronLogger.info("Processing GDPR jobs...");
@@ -36,7 +22,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("GDPR processing failed", error);
   }
 
-  // 2. Check GDPR compliance
   let gdprCompliance: GDPRComplianceResult = {
     isCompliant: true,
     overdueCount: 0,
@@ -68,7 +53,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("GDPR compliance check failed", error);
   }
 
-  // 3. Reconcile pending consent
   let consentResults = { processed: 0, resolved: 0, expired: 0, errors: 0 };
   try {
     cronLogger.info("Reconciling pending consent...");
@@ -78,7 +62,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Consent reconciliation failed", error);
   }
 
-  // 4. Process conversion jobs
   let jobResults = { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0, skipped: 0 };
   try {
     cronLogger.info("Processing conversion jobs...");
@@ -88,11 +71,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Conversion jobs failed", error);
   }
 
-  // PR-2: 禁用 legacy log sender
-  // 5. Process pending conversions - DISABLED
-  // 原链路：ConversionLog (pending) -> retry.server.ts 发送平台
-  // 现链路：统一由 ConversionJob -> job-processor 处理
-  // 环境变量 LEGACY_LOG_SENDER=1 可临时启用（用于迁移期间或修复旧数据）
   let pendingResults = { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
   if (process.env.LEGACY_LOG_SENDER === "1") {
     try {
@@ -106,8 +84,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.debug("Skipping legacy pending conversions (LEGACY_LOG_SENDER not enabled)");
   }
 
-  // PR-2: 禁用 legacy log sender
-  // 6. Process retries - DISABLED
   let retryResults = { processed: 0, succeeded: 0, failed: 0, limitExceeded: 0 };
   if (process.env.LEGACY_LOG_SENDER === "1") {
     try {
@@ -121,7 +97,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.debug("Skipping legacy retries (LEGACY_LOG_SENDER not enabled)");
   }
 
-  // 7. Run delivery health check
   let healthCheckResults: any[] = [];
   let successful = 0;
   let failed = 0;
@@ -134,14 +109,13 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Delivery health check failed", error);
   }
 
-  // 8. Run reconciliation
   let reconciliationResults: {
     processed: number;
     succeeded: number;
     failed: number;
     results: ReconciliationResult[];
   } = { processed: 0, succeeded: 0, failed: 0, results: [] };
-  
+
   try {
     cronLogger.info("Running daily reconciliation...");
     reconciliationResults = await runAllShopsReconciliation();
@@ -155,7 +129,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Reconciliation failed", error);
   }
 
-  // 9. Clean up expired data
   let cleanupResults = {
     shopsProcessed: 0,
     conversionLogsDeleted: 0,
@@ -174,7 +147,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cleanupResults = await cleanupExpiredData();
     cronLogger.info("Cleanup completed", { ...cleanupResults });
 
-    // Log cleanup metrics
     const totalDeleted =
       cleanupResults.conversionLogsDeleted +
       cleanupResults.conversionJobsDeleted +
@@ -198,7 +170,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Cleanup failed", error);
   }
 
-  // 10. Refresh shop status
   let shopStatusRefresh = {
     shopsProcessed: 0,
     tierUpdates: 0,
@@ -222,7 +193,7 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
         failed: gdprResults.failed
     },
     gdprCompliance,
-    // Map consent result to CronResult type (processed, matched, unmatched)
+
     consent: {
       processed: consentResults.processed,
       matched: consentResults.resolved,
@@ -247,7 +218,7 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
         failed: retryResults.failed,
         limitExceeded: retryResults.limitExceeded
     },
-    // Map health check results to DeliveryHealthResult
+
     deliveryHealth: {
       successful,
       failed,
@@ -267,10 +238,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     shopStatusRefresh,
   };
 }
-
-// =============================================================================
-// Re-exports
-// =============================================================================
 
 export { cleanupExpiredData } from "./cleanup";
 export { refreshAllShopsStatus } from "./shop-status";

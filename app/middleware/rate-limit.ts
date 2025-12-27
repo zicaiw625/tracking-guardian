@@ -1,12 +1,4 @@
-/**
- * Rate Limiting Middleware
- *
- * Provides rate limiting for Remix routes with Redis support
- * and automatic fallback to in-memory store.
- *
- * Uses the unified Redis client from utils/redis-client for
- * distributed rate limiting across multiple instances.
- */
+
 
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
@@ -19,29 +11,19 @@ import {
   type RedisClientWrapper,
 } from "../utils/redis-client";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Rate limit configuration
- */
 export interface RateLimitConfig {
-  /** Maximum requests allowed in the window */
+
   maxRequests: number;
-  /** Time window in milliseconds */
+
   windowMs: number;
-  /** Key extractor function */
+
   keyExtractor?: (request: Request) => string;
-  /** Skip rate limiting for this request */
+
   skip?: (request: Request) => boolean;
-  /** Custom message */
+
   message?: string;
 }
 
-/**
- * Rate limit result
- */
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
@@ -49,29 +31,15 @@ export interface RateLimitResult {
   retryAfter?: number;
 }
 
-/**
- * Rate limited handler
- */
 export type RateLimitedHandler<T> = (
   args: LoaderFunctionArgs | ActionFunctionArgs
 ) => Promise<T>;
 
-// =============================================================================
-// In-Memory Fallback Rate Limit Store
-// =============================================================================
-
-/**
- * Entry in the in-memory rate limit store
- */
 interface MemoryRateLimitEntry {
   count: number;
   windowStart: number;
 }
 
-/**
- * In-memory rate limit store for fallback when Redis is unavailable.
- * Uses a Map with automatic cleanup to prevent memory exhaustion.
- */
 class InMemoryRateLimitStore {
   private store = new Map<string, MemoryRateLimitEntry>();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
@@ -84,69 +52,56 @@ class InMemoryRateLimitStore {
     this.startCleanup();
   }
 
-  /**
-   * Start periodic cleanup of expired entries
-   */
   private startCleanup(): void {
     if (this.cleanupInterval) return;
-    
+
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, this.cleanupIntervalMs);
-    
-    // Don't prevent process exit
+
     if (this.cleanupInterval.unref) {
       this.cleanupInterval.unref();
     }
   }
 
-  /**
-   * Clean up expired entries and enforce max keys limit
-   */
   private cleanup(): void {
     const now = Date.now();
     let cleaned = 0;
-    
-    // Remove expired entries
+
     for (const [key, entry] of this.store.entries()) {
-      // Assume max window of 5 minutes for cleanup
+
       if (now - entry.windowStart > 5 * 60 * 1000) {
         this.store.delete(key);
         cleaned++;
       }
     }
-    
-    // If still over limit, remove oldest entries
+
     if (this.store.size > this.maxKeys) {
       const entries = Array.from(this.store.entries())
         .sort((a, b) => a[1].windowStart - b[1].windowStart);
-      
+
       const toRemove = entries.slice(0, this.store.size - this.maxKeys);
       for (const [key] of toRemove) {
         this.store.delete(key);
         cleaned++;
       }
     }
-    
+
     if (cleaned > 0) {
       logger.debug(`[Rate Limit] Memory store cleanup: removed ${cleaned} entries, size: ${this.store.size}`);
     }
   }
 
-  /**
-   * Check and update rate limit for a key
-   */
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
     const now = Date.now();
     const entry = this.store.get(key);
-    
-    // Check if we need a new window
+
     if (!entry || now - entry.windowStart >= windowMs) {
-      // Enforce max keys before adding
+
       if (this.store.size >= this.maxKeys && !entry) {
         this.cleanup();
       }
-      
+
       this.store.set(key, { count: 1, windowStart: now });
       return {
         allowed: true,
@@ -154,11 +109,10 @@ class InMemoryRateLimitStore {
         resetAt: now + windowMs,
       };
     }
-    
-    // Increment count
+
     entry.count++;
     const resetAt = entry.windowStart + windowMs;
-    
+
     if (entry.count > maxRequests) {
       const retryAfter = Math.ceil((resetAt - now) / 1000);
       return {
@@ -168,7 +122,7 @@ class InMemoryRateLimitStore {
         retryAfter,
       };
     }
-    
+
     return {
       allowed: true,
       remaining: maxRequests - entry.count,
@@ -176,23 +130,14 @@ class InMemoryRateLimitStore {
     };
   }
 
-  /**
-   * Get current store size
-   */
   getSize(): number {
     return this.store.size;
   }
 
-  /**
-   * Clear all entries
-   */
   clear(): void {
     this.store.clear();
   }
 
-  /**
-   * Stop cleanup interval (for testing)
-   */
   stopCleanup(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
@@ -201,34 +146,19 @@ class InMemoryRateLimitStore {
   }
 }
 
-// Global in-memory fallback store
 const memoryRateLimitStore = new InMemoryRateLimitStore(
   RATE_LIMIT_CONFIG.MAX_KEYS,
   RATE_LIMIT_CONFIG.CLEANUP_INTERVAL_MS
 );
 
-// =============================================================================
-// Redis-backed Rate Limit Store with Memory Fallback
-// =============================================================================
-
 const RATE_LIMIT_PREFIX = "tg:mw:rl:";
 
-/**
- * Distributed rate limit store using Redis with in-memory fallback.
- * 
- * IMPORTANT: When Redis is unavailable, falls back to in-memory store
- * rather than allowing requests through. This ensures rate limiting
- * continues to work even during Redis outages.
- */
 class DistributedRateLimitStore {
   private pendingInit: Promise<RedisClientWrapper> | null = null;
   private redisHealthy = true;
   private lastRedisError: number = 0;
-  private readonly redisRetryIntervalMs = 30000; // Retry Redis every 30s
+  private readonly redisRetryIntervalMs = 30000;
 
-  /**
-   * Get the Redis client (async initialization)
-   */
   private async getClient(): Promise<RedisClientWrapper> {
     if (!this.pendingInit) {
       this.pendingInit = getRedisClient();
@@ -236,17 +166,11 @@ class DistributedRateLimitStore {
     return this.pendingInit;
   }
 
-  /**
-   * Check if we should try Redis again after a failure
-   */
   private shouldRetryRedis(): boolean {
     if (this.redisHealthy) return true;
     return Date.now() - this.lastRedisError > this.redisRetryIntervalMs;
   }
 
-  /**
-   * Mark Redis as unhealthy
-   */
   private markRedisUnhealthy(): void {
     if (this.redisHealthy) {
       logger.warn("[Rate Limit] Redis unavailable, falling back to in-memory store");
@@ -255,9 +179,6 @@ class DistributedRateLimitStore {
     this.lastRedisError = Date.now();
   }
 
-  /**
-   * Mark Redis as healthy
-   */
   private markRedisHealthy(): void {
     if (!this.redisHealthy) {
       logger.info("[Rate Limit] Redis connection restored");
@@ -265,12 +186,6 @@ class DistributedRateLimitStore {
     this.redisHealthy = true;
   }
 
-  /**
-   * Check and update rate limit for a key (async)
-   * 
-   * Falls back to in-memory store when Redis is unavailable,
-   * ensuring rate limiting continues to work.
-   */
   async checkAsync(
     key: string,
     maxRequests: number,
@@ -280,7 +195,6 @@ class DistributedRateLimitStore {
     const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
     const windowSeconds = Math.ceil(windowMs / 1000);
 
-    // If Redis is known to be unhealthy and not time to retry, use memory
     if (!this.shouldRetryRedis()) {
       return memoryRateLimitStore.check(key, maxRequests, windowMs);
     }
@@ -289,16 +203,13 @@ class DistributedRateLimitStore {
       const client = await this.getClient();
       const count = await client.incr(fullKey);
 
-      // Set expiry on first request
       if (count === 1) {
         await client.expire(fullKey, windowSeconds);
       }
 
-      // Get TTL for reset time
       const ttl = await client.ttl(fullKey);
       const resetAt = now + (ttl > 0 ? ttl * 1000 : windowMs);
 
-      // Mark Redis as healthy on success
       this.markRedisHealthy();
 
       if (count > maxRequests) {
@@ -317,27 +228,19 @@ class DistributedRateLimitStore {
         resetAt,
       };
     } catch (error) {
-      // Mark Redis as unhealthy and fall back to memory store
+
       this.markRedisUnhealthy();
       logger.error("[Rate Limit] Redis error, using memory fallback", error);
-      
-      // Use in-memory store instead of allowing request through
+
       return memoryRateLimitStore.check(key, maxRequests, windowMs);
     }
   }
 
-  /**
-   * Check rate limit synchronously with memory fallback
-   * 
-   * Note: This is a best-effort check. For accurate rate limiting,
-   * use checkAsync instead.
-   */
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
     const now = Date.now();
     const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
     const windowSeconds = Math.ceil(windowMs / 1000);
 
-    // If Redis is known to be unhealthy, use memory immediately
     if (!this.shouldRetryRedis()) {
       return memoryRateLimitStore.check(key, maxRequests, windowMs);
     }
@@ -345,7 +248,6 @@ class DistributedRateLimitStore {
     try {
       const client = getRedisClientSync();
 
-      // Fire and forget increment with error handling
       client.incr(fullKey).then((count) => {
         if (count === 1) {
           client.expire(fullKey, windowSeconds).catch(() => {});
@@ -356,39 +258,31 @@ class DistributedRateLimitStore {
         logger.debug("[Rate Limit] Sync Redis incr failed", { error: String(error) });
       });
 
-      // For sync check, also check memory store to ensure enforcement
-      // This provides a safety net in case Redis is slow or failing
       const memoryResult = memoryRateLimitStore.check(key, maxRequests, windowMs);
-      
+
       return memoryResult;
     } catch {
-      // Fall back to memory store
+
       this.markRedisUnhealthy();
       return memoryRateLimitStore.check(key, maxRequests, windowMs);
     }
   }
 
-  /**
-   * Get current store size (for monitoring)
-   */
   async getSize(): Promise<number> {
     try {
       const client = await this.getClient();
       const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
       return keys.length;
     } catch {
-      // Return memory store size as fallback
+
       return memoryRateLimitStore.getSize();
     }
   }
 
-  /**
-   * Clear all entries (for testing)
-   */
   async clear(): Promise<void> {
-    // Clear memory store
+
     memoryRateLimitStore.clear();
-    
+
     try {
       const client = await this.getClient();
       const keys = await client.keys(`${RATE_LIMIT_PREFIX}*`);
@@ -400,11 +294,8 @@ class DistributedRateLimitStore {
     }
   }
 
-  /**
-   * Get connection info including fallback status
-   */
-  getConnectionInfo(): { 
-    mode: "redis" | "memory"; 
+  getConnectionInfo(): {
+    mode: "redis" | "memory";
     connected: boolean;
     usingFallback: boolean;
   } {
@@ -416,24 +307,13 @@ class DistributedRateLimitStore {
     };
   }
 
-  /**
-   * Get memory store size (for monitoring)
-   */
   getMemoryStoreSize(): number {
     return memoryRateLimitStore.getSize();
   }
 }
 
-// Global distributed rate limit store
 const rateLimitStore = new DistributedRateLimitStore();
 
-// =============================================================================
-// Key Extractors
-// =============================================================================
-
-/**
- * Extract key from IP address
- */
 export function ipKeyExtractor(request: Request): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
@@ -448,52 +328,23 @@ export function ipKeyExtractor(request: Request): string {
   return "unknown";
 }
 
-/**
- * Extract key from shop domain
- */
 export function shopKeyExtractor(request: Request): string {
   const url = new URL(request.url);
   return url.searchParams.get("shop") ?? "unknown";
 }
 
-/**
- * Extract key from path + IP
- */
 export function pathIpKeyExtractor(request: Request): string {
   const url = new URL(request.url);
   const ip = ipKeyExtractor(request);
   return `${url.pathname}:${ip}`;
 }
 
-/**
- * Extract key from path + shop
- */
 export function pathShopKeyExtractor(request: Request): string {
   const url = new URL(request.url);
   const shop = shopKeyExtractor(request);
   return `${url.pathname}:${shop}`;
 }
 
-// =============================================================================
-// Rate Limit Middleware
-// =============================================================================
-
-/**
- * Rate limit middleware (async version - recommended)
- *
- * Uses Redis for distributed rate limiting across multiple instances.
- * Falls back to in-memory store if Redis is unavailable.
- *
- * @example
- * ```typescript
- * export const loader = withRateLimit(
- *   { maxRequests: 100, windowMs: 60000 },
- *   async ({ request }) => {
- *     return json({ data: "..." });
- *   }
- * );
- * ```
- */
 export function withRateLimit<T>(
   config: RateLimitConfig,
   handler: RateLimitedHandler<T>
@@ -509,24 +360,19 @@ export function withRateLimit<T>(
   return async (args) => {
     const { request } = args;
 
-    // Check if should skip
     if (skip?.(request)) {
       return handler(args);
     }
 
-    // Get rate limit key
     const key = keyExtractor(request);
 
-    // Use async check for accurate rate limiting
     const result = await rateLimitStore.checkAsync(key, maxRequests, windowMs);
 
-    // Set rate limit headers
     const headers = new Headers();
     headers.set("X-RateLimit-Limit", String(maxRequests));
     headers.set("X-RateLimit-Remaining", String(result.remaining));
     headers.set("X-RateLimit-Reset", String(Math.ceil(result.resetAt / 1000)));
 
-    // Add connection info header in development
     if (process.env.NODE_ENV !== "production") {
       const connInfo = rateLimitStore.getConnectionInfo();
       headers.set("X-RateLimit-Backend", connInfo.mode);
@@ -556,10 +402,8 @@ export function withRateLimit<T>(
       );
     }
 
-    // Call handler and add headers to response
     const response = await handler(args);
 
-    // If handler returned a Response, add headers
     if (response instanceof Response) {
       for (const [key, value] of headers) {
         response.headers.set(key, value);
@@ -570,44 +414,24 @@ export function withRateLimit<T>(
   };
 }
 
-// =============================================================================
-// Preset Configurations
-// =============================================================================
-
-/**
- * Standard API rate limit (from config)
- */
 export const standardRateLimit: RateLimitConfig = {
   maxRequests: RATE_LIMIT_CONFIG.PIXEL_EVENTS.maxRequests,
   windowMs: RATE_LIMIT_CONFIG.PIXEL_EVENTS.windowMs,
   keyExtractor: pathShopKeyExtractor,
 };
 
-/**
- * Strict rate limit for sensitive endpoints
- */
 export const strictRateLimit: RateLimitConfig = {
   maxRequests: 10,
   windowMs: 60000,
   keyExtractor: ipKeyExtractor,
 };
 
-/**
- * Webhook rate limit
- */
 export const webhookRateLimit: RateLimitConfig = {
   maxRequests: RATE_LIMIT_CONFIG.WEBHOOKS.maxRequests,
   windowMs: RATE_LIMIT_CONFIG.WEBHOOKS.windowMs,
   keyExtractor: shopKeyExtractor,
 };
 
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/**
- * Check rate limit asynchronously (accurate, uses Redis)
- */
 export async function checkRateLimitAsync(
   key: string,
   maxRequests: number,
@@ -616,10 +440,6 @@ export async function checkRateLimitAsync(
   return rateLimitStore.checkAsync(key, maxRequests, windowMs);
 }
 
-/**
- * Check rate limit synchronously (optimistic, may not be accurate)
- * Use checkRateLimitAsync when accuracy is important.
- */
 export function checkRateLimitSync(
   key: string,
   maxRequests: number,
@@ -628,23 +448,14 @@ export function checkRateLimitSync(
   return rateLimitStore.check(key, maxRequests, windowMs);
 }
 
-/**
- * Get rate limit store size (for monitoring)
- */
 export async function getRateLimitStoreSize(): Promise<number> {
   return rateLimitStore.getSize();
 }
 
-/**
- * Clear rate limit store (for testing)
- */
 export async function clearRateLimitStore(): Promise<void> {
   await rateLimitStore.clear();
 }
 
-/**
- * Get rate limit backend info
- */
 export function getRateLimitBackendInfo(): {
   mode: "redis" | "memory";
   connected: boolean;
@@ -653,9 +464,6 @@ export function getRateLimitBackendInfo(): {
   return rateLimitStore.getConnectionInfo();
 }
 
-/**
- * Get memory fallback store size (for monitoring)
- */
 export function getMemoryRateLimitStoreSize(): number {
   return rateLimitStore.getMemoryStoreSize();
 }

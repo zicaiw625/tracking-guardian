@@ -1,13 +1,10 @@
-// Script content analysis for scanner
+
 
 import type { RiskItem, RiskSeverity } from "../../types";
 import type { ScriptAnalysisResult } from "./types";
 import { PLATFORM_PATTERNS, getPatternType } from "./patterns";
 import { calculateRiskScore } from "./risk-assessment";
 
-/**
- * Analyze script content for platforms and risks
- */
 export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     const result: ScriptAnalysisResult = {
         identifiedPlatforms: [],
@@ -21,7 +18,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         return result;
     }
 
-    // Find platform matches
     const platformMatches: Map<string, {
         type: string;
         pattern: string;
@@ -42,7 +38,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         }
     }
 
-    // Build platform details
     for (const [platform, matches] of platformMatches.entries()) {
         result.identifiedPlatforms.push(platform);
         for (const match of matches) {
@@ -55,7 +50,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         }
     }
 
-    // Check for specific ID patterns
     const ga4Match = content.match(/G-[A-Z0-9]{10,}/gi);
     if (ga4Match) {
         for (const id of ga4Match) {
@@ -85,7 +79,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         }
     }
 
-    // Assess risks
     if (result.identifiedPlatforms.length > 0) {
         result.risks.push({
             id: "additional_scripts_detected",
@@ -96,7 +89,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             details: `检测到平台: ${result.identifiedPlatforms.join(", ")}`,
         });
 
-        // Check for legacy UA
         if (result.identifiedPlatforms.includes("google") && content.includes("UA-")) {
             result.risks.push({
                 id: "legacy_ua",
@@ -107,7 +99,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             });
         }
 
-        // Check for inline script tags
         if (content.includes("<script") && content.includes("</script>")) {
             result.risks.push({
                 id: "inline_script_tags",
@@ -121,7 +112,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
 
     result.riskScore = calculateRiskScore(result.risks);
 
-    // P1-1: Generate specific migration recommendations with clear targets
     for (const platform of result.identifiedPlatforms) {
         switch (platform) {
             case "google":
@@ -205,9 +195,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "  → 备选方案: 使用第三方集成或手动配置 X Conversions API"
                 );
                 break;
-            // =============================================================================
-            // P1-1: Post-purchase Survey 工具
-            // =============================================================================
+
             case "fairing":
                 result.recommendations.push(
                     "📋 **Fairing (Post-purchase Survey)**\n" +
@@ -231,9 +219,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "  → 链接: https://apps.shopify.com/zigpoll"
                 );
                 break;
-            // =============================================================================
-            // P1-1: Post-purchase Upsell 工具
-            // =============================================================================
+
             case "carthook":
                 result.recommendations.push(
                     "🛒 **CartHook (Post-purchase Upsell)**\n" +
@@ -265,9 +251,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "  → 链接: https://apps.shopify.com/zipify-oneclickupsell"
                 );
                 break;
-            // =============================================================================
-            // P1-1: Affiliate/Referral 追踪
-            // =============================================================================
+
             case "refersion":
                 result.recommendations.push(
                     "🤝 **Refersion (Affiliate)**\n" +
@@ -305,9 +289,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "  → 链接: https://apps.shopify.com/partnerstack"
                 );
                 break;
-            // =============================================================================
-            // P1-1: 其他常见工具
-            // =============================================================================
+
             case "hotjar":
                 result.recommendations.push(
                     "🔥 **Hotjar (Heatmaps/Recordings)**\n" +
@@ -367,7 +349,6 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         );
     }
 
-    // P1-1: Add a summary checklist if multiple platforms detected
     if (result.identifiedPlatforms.length >= 2) {
         result.recommendations.push(
             "\n📋 **迁移清单建议**:\n" +

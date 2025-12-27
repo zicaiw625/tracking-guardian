@@ -1,8 +1,4 @@
-/**
- * Core Validation Functions
- *
- * Basic validation functions that can be used independently.
- */
+
 
 import type { ZodSchema } from "zod";
 import { logger } from "../logger.server";
@@ -15,13 +11,6 @@ import {
   zodErrorToAppError,
 } from "./formatters";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Simple validation result (success/failure style)
- */
 export interface ValidationResult<T> {
   success: true;
   data: T;
@@ -35,13 +24,6 @@ export interface ValidationError {
 
 export type ValidateResult<T> = ValidationResult<T> | ValidationError;
 
-// =============================================================================
-// JSON Body Validation
-// =============================================================================
-
-/**
- * Validate JSON request body with Result type
- */
 export async function validateJsonBodyResult<T>(
   request: Request,
   schema: ZodSchema<T>
@@ -67,9 +49,6 @@ export async function validateJsonBodyResult<T>(
   }
 }
 
-/**
- * Validate JSON request body with simple result
- */
 export async function validateJsonBody<T>(
   request: Request,
   schema: ZodSchema<T>
@@ -111,9 +90,6 @@ export async function validateJsonBody<T>(
   }
 }
 
-/**
- * Validate JSON body and throw on failure
- */
 export async function requireValidJsonBody<T>(
   request: Request,
   schema: ZodSchema<T>
@@ -127,13 +103,6 @@ export async function requireValidJsonBody<T>(
   return result.data;
 }
 
-// =============================================================================
-// Form Data Validation
-// =============================================================================
-
-/**
- * Parse form data into object with type coercion
- */
 function formDataToObject(formData: FormData): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
 
@@ -156,9 +125,6 @@ function formDataToObject(formData: FormData): Record<string, unknown> {
   return obj;
 }
 
-/**
- * Validate form data with Result type
- */
 export async function validateFormDataResult<T>(
   request: Request,
   schema: ZodSchema<T>
@@ -185,9 +151,6 @@ export async function validateFormDataResult<T>(
   }
 }
 
-/**
- * Validate form data with simple result
- */
 export async function validateFormData<T>(
   request: Request,
   schema: ZodSchema<T>
@@ -223,9 +186,6 @@ export async function validateFormData<T>(
   }
 }
 
-/**
- * Validate form data and throw on failure
- */
 export async function requireValidFormData<T>(
   request: Request,
   schema: ZodSchema<T>
@@ -239,13 +199,6 @@ export async function requireValidFormData<T>(
   return result.data;
 }
 
-// =============================================================================
-// Search Params Validation
-// =============================================================================
-
-/**
- * Validate URL search parameters with Result type
- */
 export function validateSearchParamsResult<T>(
   request: Request,
   schema: ZodSchema<T>
@@ -261,9 +214,6 @@ export function validateSearchParamsResult<T>(
   return ok(result.data);
 }
 
-/**
- * Validate query parameters with simple result
- */
 export function validateQueryParams<T>(
   url: URL,
   schema: ZodSchema<T>
@@ -301,9 +251,6 @@ export function validateQueryParams<T>(
   };
 }
 
-/**
- * Validate query params and throw on failure
- */
 export function requireValidQueryParams<T>(url: URL, schema: ZodSchema<T>): T {
   const result = validateQueryParams(url, schema);
 
@@ -314,13 +261,6 @@ export function requireValidQueryParams<T>(url: URL, schema: ZodSchema<T>): T {
   return result.data;
 }
 
-// =============================================================================
-// Route Params Validation
-// =============================================================================
-
-/**
- * Validate route params with Result type
- */
 export function validateParamsResult<T>(
   params: Record<string, string | undefined>,
   schema: ZodSchema<T>
