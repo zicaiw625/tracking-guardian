@@ -21,14 +21,14 @@ import {
   List,
 } from "@shopify/polaris";
 
-import { authenticate } from "../../shopify.server";
-import prisma from "../../db.server";
+import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 import {
   getInvitationByToken,
   acceptInvitation,
   declineInvitation,
   type WorkspaceInvitation,
-} from "../../services/workspace-invitation.server";
+} from "../services/workspace-invitation.server";
 
 interface LoaderData {
   invitation: WorkspaceInvitation | null;

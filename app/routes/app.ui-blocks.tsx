@@ -45,10 +45,10 @@ import {
   getUiModuleConfigs,
   updateUiModuleConfig,
   resetModuleToDefault,
-  canUseModule,
   getEnabledModulesCount,
+} from "../services/ui-extension.server";
+import {
   UI_MODULES,
-  MODULE_KEYS,
   type ModuleKey,
   type UiModuleConfig,
   type SurveySettings,
@@ -56,7 +56,7 @@ import {
   type ReorderSettings,
   type OrderTrackingSettings,
   type UpsellSettings,
-} from "../services/ui-extension.server";
+} from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billing/plans";
 
 interface LoaderData {

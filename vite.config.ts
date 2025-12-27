@@ -58,5 +58,12 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 0,
+    rollupOptions: {
+      external: ["html-pdf-node", "archiver"],
+    },
+  },
+  ssr: {
+    noExternal: [],
+    external: ["html-pdf-node", "archiver"],
   },
 }) satisfies UserConfig;
