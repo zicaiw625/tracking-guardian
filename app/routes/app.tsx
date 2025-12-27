@@ -1,6 +1,6 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
+import { Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
@@ -19,18 +19,16 @@ export default function App() {
     const { apiKey } = useLoaderData<typeof loader>();
     return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={translations}>
       <NavMenu>
-        <Link to="/app" rel="home">
-          首页
-        </Link>
-        <Link to="/app/scan">扫描报告</Link>
-        <Link to="/app/migrate">迁移工具</Link>
-        <Link to="/app/ui-blocks">UI 模块</Link>
-        <Link to="/app/verification">验收向导</Link>
-        <Link to="/app/monitor">监控面板</Link>
-        <Link to="/app/reconciliation">送达健康度</Link>
-        <Link to="/app/workspace">多店管理</Link>
-        <Link to="/app/privacy">隐私与数据</Link>
-        <Link to="/app/settings">设置</Link>
+        <a href="/app" rel="home">首页</a>
+        <a href="/app/scan">扫描报告</a>
+        <a href="/app/migrate">迁移工具</a>
+        <a href="/app/ui-blocks">UI 模块</a>
+        <a href="/app/verification">验收向导</a>
+        <a href="/app/monitor">监控面板</a>
+        <a href="/app/reconciliation">送达健康度</a>
+        <a href="/app/workspace">多店管理</a>
+        <a href="/app/privacy">隐私与数据</a>
+        <a href="/app/settings">设置</a>
       </NavMenu>
       <Outlet />
     </AppProvider>);
