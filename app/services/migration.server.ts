@@ -352,6 +352,19 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         }
         `, { variables: { cursor } });
             const result = await response.json();
+            
+            // Check for GraphQL errors (e.g., missing scope or field not available)
+            if (result.errors && result.errors.length > 0) {
+                const errorMessage = result.errors[0]?.message || "Unknown GraphQL error";
+                // Check if this is a scope/permission issue
+                if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
+                    logger.warn("WebPixels API not available (may need to reinstall app for read_pixels scope):", errorMessage);
+                } else {
+                    logger.error("GraphQL error fetching WebPixels:", errorMessage);
+                }
+                return pixels; // Return empty array gracefully
+            }
+            
             const edges = (result.data?.webPixels?.edges || []) as Array<{
                 node: {
                     id: string;
@@ -383,7 +396,13 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         }
     }
     catch (error) {
-        logger.error("Failed to get Web Pixels (paginated):", error);
+        // Log but don't throw - return empty array to avoid breaking other functionality
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
+            logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", errorMessage);
+        } else {
+            logger.error("Failed to get Web Pixels (paginated):", error);
+        }
     }
     return pixels;
 }

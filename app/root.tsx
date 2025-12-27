@@ -1,5 +1,7 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useRouteError, isRouteErrorResponse } from "@remix-run/react";
-import { ErrorDisplay } from "./components/ui/ErrorDisplay";
+import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
+
+export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export default function App() {
     return (<html lang="zh-CN">
@@ -38,6 +40,7 @@ export function ErrorBoundary() {
     console.error("Unknown error caught in root ErrorBoundary:", error);
   }
 
+  // Use simple HTML/CSS for error display to avoid Polaris AppProvider requirement
   return (
     <html lang="zh-CN">
       <head>
@@ -45,17 +48,66 @@ export function ErrorBoundary() {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <Meta />
         <Links />
+        <style>{`
+          .error-container {
+            padding: 2rem;
+            max-width: 600px;
+            margin: 100px auto 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          }
+          .error-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e1e3e5;
+          }
+          .error-title {
+            color: #d72c0d;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0 0 0.75rem;
+          }
+          .error-message {
+            color: #1a1a1a;
+            font-size: 1rem;
+            margin: 0 0 0.5rem;
+            line-height: 1.5;
+          }
+          .error-code {
+            color: #6d7175;
+            font-size: 0.875rem;
+            margin: 0 0 1.25rem;
+          }
+          .error-button {
+            background: #008060;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s ease;
+          }
+          .error-button:hover {
+            background: #006e52;
+          }
+        `}</style>
       </head>
-      <body>
-        <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto", marginTop: "100px" }}>
-          <ErrorDisplay
-            title={title}
-            message={message}
-            code={code}
-            variant="card"
-            retryable={true}
-            onRetry={() => window.location.reload()}
-          />
+      <body style={{ margin: 0, backgroundColor: '#f6f6f7' }}>
+        <div className="error-container">
+          <div className="error-card">
+            <h1 className="error-title">{title}</h1>
+            <p className="error-message">{message}</p>
+            <p className="error-code">错误代码: {code}</p>
+            <button 
+              className="error-button"
+              onClick={() => window.location.reload()}
+            >
+              重试
+            </button>
+          </div>
         </div>
         <Scripts />
       </body>

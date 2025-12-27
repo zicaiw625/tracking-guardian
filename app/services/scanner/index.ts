@@ -100,48 +100,70 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
     let cursor: string | null = null;
     let previousCursor: string | null = null;
 
-    while (hasNextPage) {
-        const response = await admin.graphql(`
-            query GetWebPixels($cursor: String) {
-                webPixels(first: 50, after: $cursor) {
-                    edges {
-                        node {
-                            id
-                            settings
+    try {
+        while (hasNextPage) {
+            const response = await admin.graphql(`
+                query GetWebPixels($cursor: String) {
+                    webPixels(first: 50, after: $cursor) {
+                        edges {
+                            node {
+                                id
+                                settings
+                            }
+                            cursor
                         }
-                        cursor
-                    }
-                    pageInfo {
-                        hasNextPage
-                        endCursor
+                        pageInfo {
+                            hasNextPage
+                            endCursor
+                        }
                     }
                 }
+            `, { variables: { cursor } });
+
+            const data = await response.json();
+            
+            // Check for GraphQL errors (e.g., missing scope or field not available)
+            if (data.errors && data.errors.length > 0) {
+                const errorMessage = data.errors[0]?.message || "Unknown GraphQL error";
+                if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
+                    logger.warn("WebPixels API not available (may need to reinstall app for read_pixels scope):", errorMessage);
+                } else {
+                    logger.error("GraphQL error fetching WebPixels:", errorMessage);
+                }
+                return allPixels; // Return empty array gracefully
             }
-        `, { variables: { cursor } });
+            
+            const edges = data.data?.webPixels?.edges || [];
+            const pageInfo: GraphQLPageInfo = data.data?.webPixels?.pageInfo || { hasNextPage: false, endCursor: null };
 
-        const data = await response.json();
-        const edges = data.data?.webPixels?.edges || [];
-        const pageInfo: GraphQLPageInfo = data.data?.webPixels?.pageInfo || { hasNextPage: false, endCursor: null };
+            for (const edge of edges as GraphQLEdge<WebPixelInfo>[]) {
+                allPixels.push({
+                    id: edge.node.id,
+                    settings: edge.node.settings,
+                });
+            }
 
-        for (const edge of edges as GraphQLEdge<WebPixelInfo>[]) {
-            allPixels.push({
-                id: edge.node.id,
-                settings: edge.node.settings,
-            });
+            hasNextPage = pageInfo.hasNextPage;
+            cursor = pageInfo.endCursor;
+
+            if (cursor === previousCursor) {
+                logger.warn("WebPixels pagination cursor did not advance, stopping to avoid loop");
+                break;
+            }
+            previousCursor = cursor;
+
+            if (allPixels.length > 200) {
+                logger.warn("WebPixels pagination limit reached (200)");
+                break;
+            }
         }
-
-        hasNextPage = pageInfo.hasNextPage;
-        cursor = pageInfo.endCursor;
-
-        if (cursor === previousCursor) {
-            logger.warn("WebPixels pagination cursor did not advance, stopping to avoid loop");
-            break;
-        }
-        previousCursor = cursor;
-
-        if (allPixels.length > 200) {
-            logger.warn("WebPixels pagination limit reached (200)");
-            break;
+    } catch (error) {
+        // Log but don't throw - return empty array to avoid breaking other functionality
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
+            logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", errorMessage);
+        } else {
+            logger.error("Failed to fetch WebPixels (paginated):", error);
         }
     }
 
