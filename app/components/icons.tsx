@@ -88,3 +88,47 @@ export const PauseIcon: IconSource = createIcon(
 export const StopIcon: IconSource = createIcon(
   "M5 5h10v10H5V5z",
 );
+
+export const FileIcon: IconSource = createIcon(
+  "M4 4a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm7-1v5h5l-5-5z",
+);
+
+export const PlusIcon: IconSource = createIcon(
+  "M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z",
+);
+
+export const EditIcon: IconSource = createIcon(
+  "M14.85 3.15a1.5 1.5 0 00-2.12 0L4 11.88V16h4.12l8.73-8.73a1.5 1.5 0 000-2.12l-2-2zM6 14v-1.59l6.29-6.29 1.59 1.59L7.59 14H6z",
+);
+
+export const ExternalIcon: IconSource = createIcon(
+  "M12 3h5v5h-1.5V5.56L9.78 11.28l-1.06-1.06L14.44 4.5H12V3zm-7 3h5v1.5H5.5v7h7V10H14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z",
+);
+
+export const ChartLineIcon: IconSource = createIcon(
+  "M2 3v14h16v-2H4V3H2zm6.5 7.5L11 8l3 3 3-3.5 1.5 1.5-4.5 5.5-3-3-1.5 1.5-3-3.5z",
+);
+
+export const AlertTriangleIcon: IconSource = createIcon(
+  "M10 2l9 16H1L10 2zm0 4.5a1 1 0 00-1 1v3a1 1 0 002 0v-3a1 1 0 00-1-1zm0 6a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z",
+);
+
+export const ShieldCheckIcon: IconSource = createIcon(
+  "M10 2l7 3v5c0 4.25-2.9 8.18-7 9-4.1-.82-7-4.75-7-9V5l7-3zm-1 8.59l-2.3-2.3-1.4 1.42 3.7 3.7 5.7-5.71-1.4-1.41-4.3 4.3z",
+);
+
+export const BellIcon: IconSource = createIcon(
+  "M10 2a6 6 0 00-6 6v3l-1.5 1.5A1 1 0 003 14h14a1 1 0 00.5-1.87L16 11V8a6 6 0 00-6-6zm0 16a2 2 0 01-2-2h4a2 2 0 01-2 2z",
+);
+
+export const UsersIcon: IconSource = createIcon(
+  "M7 5a2 2 0 114 0 2 2 0 01-4 0zm2 3a4 4 0 00-4 4v2h8v-2a4 4 0 00-4-4zm7-3a2 2 0 100 4 2 2 0 000-4zm3 7a4 4 0 00-4-4h-1.26A5.99 5.99 0 0115 12v2h4v-2z",
+);
+
+export const TrendingUpIcon: IconSource = createIcon(
+  "M13.5 3l4 4-4 4-1.5-1.5L13.88 7.5H9a2.5 2.5 0 00-2.5 2.5v7H4v-7A5 5 0 019 5h4.88l-1.88-1.5L13.5 3z",
+);
+
+export const TrendingDownIcon: IconSource = createIcon(
+  "M13.5 17l4-4-4-4-1.5 1.5 1.88 2H9a2.5 2.5 0 01-2.5-2.5V3H4v7a5 5 0 005 5h4.88l-1.88 1.5 1.5 1.5z",
+);

@@ -10,6 +10,8 @@ export const PLATFORM_NAMES: Record<PlatformType, string> = {
   [Platform.META]: "Meta (Facebook)",
   [Platform.TIKTOK]: "TikTok",
   [Platform.PINTEREST]: "Pinterest",
+  [Platform.SNAPCHAT]: "Snapchat",
+  [Platform.TWITTER]: "Twitter/X",
 };
 
 export interface GoogleCredentials {
@@ -35,11 +37,25 @@ export interface PinterestCredentials {
   testMode?: boolean;
 }
 
+export interface SnapchatCredentials {
+  pixelId: string;
+  accessToken: string;
+  testMode?: boolean;
+}
+
+export interface TwitterCredentials {
+  pixelId: string;
+  accessToken: string;
+  testMode?: boolean;
+}
+
 export type PlatformCredentials =
   | GoogleCredentials
   | MetaCredentials
   | TikTokCredentials
-  | PinterestCredentials;
+  | PinterestCredentials
+  | SnapchatCredentials
+  | TwitterCredentials;
 
 export interface GoogleCredentialsTyped extends GoogleCredentials {
   readonly platform: "google";
@@ -57,11 +73,21 @@ export interface PinterestCredentialsTyped extends PinterestCredentials {
   readonly platform: "pinterest";
 }
 
+export interface SnapchatCredentialsTyped extends SnapchatCredentials {
+  readonly platform: "snapchat";
+}
+
+export interface TwitterCredentialsTyped extends TwitterCredentials {
+  readonly platform: "twitter";
+}
+
 export type TypedPlatformCredentials =
   | GoogleCredentialsTyped
   | MetaCredentialsTyped
   | TikTokCredentialsTyped
-  | PinterestCredentialsTyped;
+  | PinterestCredentialsTyped
+  | SnapchatCredentialsTyped
+  | TwitterCredentialsTyped;
 
 export const GoogleCredentialsSchema = z.object({
   measurementId: z
@@ -95,6 +121,18 @@ export const PinterestCredentialsSchema = z.object({
   testMode: z.boolean().optional(),
 });
 
+export const SnapchatCredentialsSchema = z.object({
+  pixelId: z.string().min(1, "Snap Pixel ID is required"),
+  accessToken: z.string().min(1, "Conversions API Token is required"),
+  testMode: z.boolean().optional(),
+});
+
+export const TwitterCredentialsSchema = z.object({
+  pixelId: z.string().min(1, "Twitter Pixel ID is required"),
+  accessToken: z.string().min(1, "OAuth Bearer Token is required"),
+  testMode: z.boolean().optional(),
+});
+
 export const GoogleCredentialsTypedSchema = GoogleCredentialsSchema.extend({
   platform: z.literal("google"),
 });
@@ -111,11 +149,21 @@ export const PinterestCredentialsTypedSchema = PinterestCredentialsSchema.extend
   platform: z.literal("pinterest"),
 });
 
+export const SnapchatCredentialsTypedSchema = SnapchatCredentialsSchema.extend({
+  platform: z.literal("snapchat"),
+});
+
+export const TwitterCredentialsTypedSchema = TwitterCredentialsSchema.extend({
+  platform: z.literal("twitter"),
+});
+
 export const PlatformCredentialsSchema = z.discriminatedUnion("platform", [
   GoogleCredentialsTypedSchema,
   MetaCredentialsTypedSchema,
   TikTokCredentialsTypedSchema,
   PinterestCredentialsTypedSchema,
+  SnapchatCredentialsTypedSchema,
+  TwitterCredentialsTypedSchema,
 ]);
 
 export function isGoogleCredentials(
@@ -176,6 +224,18 @@ export function isTypedPinterestCredentials(
   return creds.platform === Platform.PINTEREST;
 }
 
+export function isTypedSnapchatCredentials(
+  creds: TypedPlatformCredentials
+): creds is SnapchatCredentialsTyped {
+  return creds.platform === Platform.SNAPCHAT;
+}
+
+export function isTypedTwitterCredentials(
+  creds: TypedPlatformCredentials
+): creds is TwitterCredentialsTyped {
+  return creds.platform === Platform.TWITTER;
+}
+
 export function isPinterestCredentials(
   creds: PlatformCredentials
 ): creds is PinterestCredentials {
@@ -184,6 +244,28 @@ export function isPinterestCredentials(
     "accessToken" in creds &&
     typeof (creds as PinterestCredentials).adAccountId === "string" &&
     typeof (creds as PinterestCredentials).accessToken === "string"
+  );
+}
+
+export function isSnapchatCredentials(
+  creds: PlatformCredentials
+): creds is SnapchatCredentials {
+  return (
+    "pixelId" in creds &&
+    "accessToken" in creds &&
+    typeof (creds as SnapchatCredentials).pixelId === "string" &&
+    typeof (creds as SnapchatCredentials).accessToken === "string"
+  );
+}
+
+export function isTwitterCredentials(
+  creds: PlatformCredentials
+): creds is TwitterCredentials {
+  return (
+    "pixelId" in creds &&
+    "accessToken" in creds &&
+    typeof (creds as TwitterCredentials).pixelId === "string" &&
+    typeof (creds as TwitterCredentials).accessToken === "string"
   );
 }
 
@@ -211,6 +293,16 @@ export function upgradeCredentials(
       return {
         platform: "pinterest",
         ...(creds as PinterestCredentials),
+      };
+    case Platform.SNAPCHAT:
+      return {
+        platform: "snapchat",
+        ...(creds as SnapchatCredentials),
+      };
+    case Platform.TWITTER:
+      return {
+        platform: "twitter",
+        ...(creds as TwitterCredentials),
       };
     default: {
 
@@ -250,6 +342,12 @@ export function validatePlatformCredentials(
       break;
     case Platform.PINTEREST:
       result = PinterestCredentialsSchema.safeParse(input);
+      break;
+    case Platform.SNAPCHAT:
+      result = SnapchatCredentialsSchema.safeParse(input);
+      break;
+    case Platform.TWITTER:
+      result = TwitterCredentialsSchema.safeParse(input);
       break;
     default: {
       const _exhaustiveCheck: never = platform;
@@ -471,10 +569,30 @@ export interface PinterestPlatformConfig {
   };
 }
 
+export interface SnapchatPlatformConfig {
+  platform: "snapchat";
+  platformId: string;
+  credentials: SnapchatCredentials;
+  clientConfig?: {
+    treatAsMarketing?: boolean;
+  };
+}
+
+export interface TwitterPlatformConfig {
+  platform: "twitter";
+  platformId: string;
+  credentials: TwitterCredentials;
+  clientConfig?: {
+    treatAsMarketing?: boolean;
+  };
+}
+
 export type PlatformConfig =
   | GooglePlatformConfig
   | MetaPlatformConfig
   | TikTokPlatformConfig
-  | PinterestPlatformConfig;
+  | PinterestPlatformConfig
+  | SnapchatPlatformConfig
+  | TwitterPlatformConfig;
 
 export type ExtractCredentials<T extends PlatformConfig> = T["credentials"];

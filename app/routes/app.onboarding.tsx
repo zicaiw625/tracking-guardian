@@ -1,0 +1,822 @@
+/**
+ * Flow A: 安装后自动体检向导 (Onboarding Wizard)
+ * 对应设计方案 5. 关键用户流程 - Flow A
+ * 
+ * 功能:
+ * 1) 安装 -> 授权 -> 自动体检
+ * 2) 展示 Dashboard: 升级状态、风险分数、预计迁移时间
+ * 3) CTA: 开始 Audit
+ */
+
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
+import { useLoaderData, useSubmit, useNavigation, useSearchParams } from "@remix-run/react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Page,
+  Layout,
+  Card,
+  Text,
+  BlockStack,
+  InlineStack,
+  Badge,
+  Button,
+  Box,
+  Divider,
+  Banner,
+  ProgressBar,
+  Icon,
+  Spinner,
+  List,
+  Checkbox,
+} from "@shopify/polaris";
+import {
+  CheckCircleIcon,
+  AlertCircleIcon,
+  ArrowRightIcon,
+  ClockIcon,
+} from "~/components/icons";
+
+import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
+import { scanShopTracking } from "../services/scanner.server";
+import { refreshTypOspStatus } from "../services/checkout-profile.server";
+import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, type ShopTier } from "../utils/deprecation-dates";
+import type { ScriptTag, RiskItem } from "../types";
+import { logger } from "../utils/logger.server";
+
+// 预计迁移时间估算
+function estimateMigrationTime(
+  scriptTagCount: number,
+  platformCount: number,
+  riskScore: number
+): { hours: number; label: string; description: string } {
+  const baseTime = 0.5; // 基础时间 30 分钟
+  const perScriptTag = 0.25; // 每个 ScriptTag 15 分钟
+  const perPlatform = 0.5; // 每个平台 30 分钟
+  const riskMultiplier = riskScore > 60 ? 1.5 : riskScore > 30 ? 1.2 : 1;
+
+  const totalHours = (baseTime + scriptTagCount * perScriptTag + platformCount * perPlatform) * riskMultiplier;
+
+  if (totalHours <= 0.5) {
+    return { hours: totalHours, label: "约 30 分钟", description: "您的配置相对简单，迁移将非常快速" };
+  } else if (totalHours <= 1) {
+    return { hours: totalHours, label: "约 1 小时", description: "标准迁移流程，按步骤操作即可" };
+  } else if (totalHours <= 2) {
+    return { hours: totalHours, label: "约 1-2 小时", description: "需要一些时间处理多个平台或复杂配置" };
+  } else {
+    return { hours: totalHours, label: "2+ 小时", description: "建议分阶段完成迁移，确保每步验证" };
+  }
+}
+
+interface OnboardingData {
+  step: number;
+  isScanning: boolean;
+  scanComplete: boolean;
+  shop: {
+    id: string;
+    domain: string;
+    tier: ShopTier;
+    typOspEnabled: boolean | null;
+    typOspReason: string | null;
+  } | null;
+  scanResult: {
+    riskScore: number;
+    scriptTagCount: number;
+    platformCount: number;
+    platforms: string[];
+    hasOrderStatusScripts: boolean;
+    riskItems: RiskItem[];
+  } | null;
+  migrationEstimate: {
+    hours: number;
+    label: string;
+    description: string;
+  } | null;
+  urgency: {
+    level: "critical" | "high" | "medium" | "low" | "resolved";
+    label: string;
+    description: string;
+  } | null;
+  onboardingComplete: boolean;
+}
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { session, admin } = await authenticate.admin(request);
+  const shopDomain = session.shop;
+
+  const url = new URL(request.url);
+  const autoScan = url.searchParams.get("autoScan") === "true";
+  const skipOnboarding = url.searchParams.get("skip") === "true";
+
+  // 查找或创建店铺记录
+  let shop = await prisma.shop.findUnique({
+    where: { shopDomain },
+    select: {
+      id: true,
+      shopDomain: true,
+      shopTier: true,
+      typOspPagesEnabled: true,
+      typOspStatusReason: true,
+      scanReports: {
+        take: 1,
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  if (!shop) {
+    return json<OnboardingData>({
+      step: 1,
+      isScanning: false,
+      scanComplete: false,
+      shop: null,
+      scanResult: null,
+      migrationEstimate: null,
+      urgency: null,
+      onboardingComplete: false,
+    });
+  }
+
+  // 如果跳过 onboarding，直接重定向到首页
+  if (skipOnboarding) {
+    return redirect("/app");
+  }
+
+  // 获取最新扫描结果
+  const latestScan = shop.scanReports[0];
+  let scanResult: OnboardingData["scanResult"] = null;
+  let migrationEstimate: OnboardingData["migrationEstimate"] = null;
+  let urgency: OnboardingData["urgency"] = null;
+
+  if (latestScan) {
+    const scriptTags = (latestScan.scriptTags as ScriptTag[] | null) || [];
+    const platforms = (latestScan.identifiedPlatforms as string[] | null) || [];
+    const riskItems = (latestScan.riskItems as RiskItem[] | null) || [];
+    const hasOrderStatusScripts = scriptTags.some(tag => tag.display_scope === "order_status");
+
+    scanResult = {
+      riskScore: latestScan.riskScore,
+      scriptTagCount: scriptTags.length,
+      platformCount: platforms.length,
+      platforms,
+      hasOrderStatusScripts,
+      riskItems,
+    };
+
+    migrationEstimate = estimateMigrationTime(
+      scriptTags.length,
+      platforms.length,
+      latestScan.riskScore
+    );
+
+    // 计算紧急程度
+    const shopTier = (shop.shopTier as ShopTier) || "unknown";
+    const migrationUrgency = getMigrationUrgencyStatus(shopTier, scriptTags.length > 0, hasOrderStatusScripts);
+    urgency = {
+      level: migrationUrgency.urgency,
+      label: migrationUrgency.urgency === "critical" ? "紧急" : 
+             migrationUrgency.urgency === "high" ? "高优先级" :
+             migrationUrgency.urgency === "medium" ? "中等" : "低",
+      description: migrationUrgency.primaryMessage,
+    };
+  }
+
+  // 刷新 TYP/OSP 状态
+  let typOspEnabled = shop.typOspPagesEnabled;
+  let typOspReason = shop.typOspStatusReason;
+  
+  if (admin && typOspEnabled === null) {
+    try {
+      const typOspResult = await refreshTypOspStatus(admin, shop.id);
+      typOspEnabled = typOspResult.typOspPagesEnabled;
+      if (typOspResult.status === "unknown") {
+        typOspReason = typOspResult.unknownReason || null;
+      }
+    } catch (error) {
+      logger.error("Failed to refresh TYP/OSP status", { error });
+    }
+  }
+
+  const data: OnboardingData = {
+    step: latestScan ? 3 : 1,
+    isScanning: false,
+    scanComplete: !!latestScan,
+    shop: {
+      id: shop.id,
+      domain: shop.shopDomain,
+      tier: (shop.shopTier as ShopTier) || "unknown",
+      typOspEnabled,
+      typOspReason,
+    },
+    scanResult,
+    migrationEstimate,
+    urgency,
+    onboardingComplete: !!latestScan,
+  };
+
+  return json(data);
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session, admin } = await authenticate.admin(request);
+  const shopDomain = session.shop;
+  const formData = await request.formData();
+  const actionType = formData.get("_action");
+
+  const shop = await prisma.shop.findUnique({
+    where: { shopDomain },
+  });
+
+  if (!shop) {
+    return json({ error: "店铺未找到" }, { status: 404 });
+  }
+
+  if (actionType === "run_scan") {
+    try {
+      const scanResult = await scanShopTracking(admin, shop.id);
+      return json({ success: true, actionType: "run_scan", result: scanResult });
+    } catch (error) {
+      logger.error("Onboarding scan error", { error });
+      return json({ error: "扫描失败，请稍后重试" }, { status: 500 });
+    }
+  }
+
+  if (actionType === "complete_onboarding") {
+    // 标记 onboarding 完成（可以存储到 shop 配置中）
+    return redirect("/app/scan");
+  }
+
+  return json({ error: "未知操作" }, { status: 400 });
+};
+
+function UrgencyBadge({ level }: { level: string }) {
+  switch (level) {
+    case "critical":
+      return <Badge tone="critical">紧急</Badge>;
+    case "high":
+      return <Badge tone="warning">高优先级</Badge>;
+    case "medium":
+      return <Badge tone="attention">中等</Badge>;
+    case "low":
+      return <Badge tone="info">低</Badge>;
+    case "resolved":
+      return <Badge tone="success">已解决</Badge>;
+    default:
+      return <Badge>未知</Badge>;
+  }
+}
+
+function StepIndicator({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
+  return (
+    <Box padding="400">
+      <InlineStack gap="200" align="center">
+        {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
+          <InlineStack key={step} gap="100" blockAlign="center">
+            <Box
+              background={step <= currentStep ? "bg-fill-success" : "bg-surface-secondary"}
+              borderRadius="full"
+              padding="200"
+              minWidth="32px"
+            >
+              <Text
+                as="span"
+                variant="bodySm"
+                fontWeight="bold"
+                alignment="center"
+              >
+                {step < currentStep ? "✓" : step}
+              </Text>
+            </Box>
+            {step < totalSteps && (
+              <Box
+                background={step < currentStep ? "bg-fill-success" : "bg-surface-secondary"}
+                minWidth="40px"
+                minHeight="2px"
+              />
+            )}
+          </InlineStack>
+        ))}
+      </InlineStack>
+    </Box>
+  );
+}
+
+export default function OnboardingPage() {
+  const data = useLoaderData<typeof loader>();
+  const submit = useSubmit();
+  const navigation = useNavigation();
+  const [searchParams] = useSearchParams();
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  const isScanning = navigation.state === "submitting";
+  const autoScan = searchParams.get("autoScan") === "true";
+
+  // 自动开始扫描
+  useEffect(() => {
+    if (autoScan && !data.scanComplete && !isScanning) {
+      handleStartScan();
+    }
+  }, [autoScan]);
+
+  const handleStartScan = useCallback(() => {
+    const formData = new FormData();
+    formData.append("_action", "run_scan");
+    submit(formData, { method: "post" });
+  }, [submit]);
+
+  const handleCompleteOnboarding = useCallback(() => {
+    const formData = new FormData();
+    formData.append("_action", "complete_onboarding");
+    submit(formData, { method: "post" });
+  }, [submit]);
+
+  const getPlatformName = (platform: string) => {
+    const names: Record<string, string> = {
+      google: "Google Analytics 4",
+      meta: "Meta (Facebook) Pixel",
+      tiktok: "TikTok Pixel",
+      pinterest: "Pinterest Tag",
+      bing: "Microsoft Ads",
+      snapchat: "Snapchat Pixel",
+      twitter: "Twitter/X Pixel",
+    };
+    return names[platform] || platform;
+  };
+
+  if (!data.shop) {
+    return (
+      <Page title="欢迎使用 Tracking Guardian">
+        <Card>
+          <Banner tone="critical">
+            <Text as="p">店铺信息加载失败，请刷新页面重试。</Text>
+          </Banner>
+        </Card>
+      </Page>
+    );
+  }
+
+  return (
+    <Page
+      title="🚀 欢迎使用 Tracking Guardian"
+      subtitle="10 分钟定位风险，30 分钟完成迁移"
+    >
+      <BlockStack gap="500">
+        {/* 步骤指示器 */}
+        <Card>
+          <StepIndicator currentStep={data.step} totalSteps={3} />
+          <Divider />
+          <Box padding="400">
+            <InlineStack gap="400" align="space-between">
+              <BlockStack gap="100">
+                <Text as="span" variant="bodySm" tone="subdued">步骤 1</Text>
+                <Text as="span" fontWeight={data.step >= 1 ? "bold" : "regular"}>
+                  自动体检
+                </Text>
+              </BlockStack>
+              <BlockStack gap="100">
+                <Text as="span" variant="bodySm" tone="subdued">步骤 2</Text>
+                <Text as="span" fontWeight={data.step >= 2 ? "bold" : "regular"}>
+                  风险评估
+                </Text>
+              </BlockStack>
+              <BlockStack gap="100">
+                <Text as="span" variant="bodySm" tone="subdued">步骤 3</Text>
+                <Text as="span" fontWeight={data.step >= 3 ? "bold" : "regular"}>
+                  开始迁移
+                </Text>
+              </BlockStack>
+            </InlineStack>
+          </Box>
+        </Card>
+
+        {/* Step 1: 店铺状态概览 */}
+        <Card>
+          <BlockStack gap="400">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h2" variant="headingMd">
+                📋 店铺状态概览
+              </Text>
+              <Badge tone={data.shop.typOspEnabled ? "success" : "warning"}>
+                {data.shop.typOspEnabled ? "已升级新页面" : "使用旧页面"}
+              </Badge>
+            </InlineStack>
+
+            <Divider />
+
+            <Layout>
+              <Layout.Section variant="oneThird">
+                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" tone="subdued">店铺域名</Text>
+                    <Text as="p" fontWeight="semibold">{data.shop.domain}</Text>
+                  </BlockStack>
+                </Box>
+              </Layout.Section>
+              <Layout.Section variant="oneThird">
+                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" tone="subdued">店铺类型</Text>
+                    <Text as="p" fontWeight="semibold">
+                      {data.shop.tier === "plus" ? "Shopify Plus" : 
+                       data.shop.tier === "non_plus" ? "标准版" : "待检测"}
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </Layout.Section>
+              <Layout.Section variant="oneThird">
+                <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" tone="subdued">Thank you 页面</Text>
+                    <Text as="p" fontWeight="semibold">
+                      {data.shop.typOspEnabled === null ? "待检测" :
+                       data.shop.typOspEnabled ? "新版 (Extensibility)" : "旧版"}
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </Layout.Section>
+            </Layout>
+
+            {data.shop.typOspReason && !data.shop.typOspEnabled && (
+              <Banner tone="info">
+                <Text as="p" variant="bodySm">
+                  检测提示: {data.shop.typOspReason}
+                </Text>
+              </Banner>
+            )}
+          </BlockStack>
+        </Card>
+
+        {/* Step 2: 自动扫描 */}
+        {!data.scanComplete && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  🔍 自动体检
+                </Text>
+                {isScanning && <Spinner size="small" />}
+              </InlineStack>
+
+              <Text as="p" tone="subdued">
+                我们将自动扫描您店铺中的 ScriptTags、Web Pixels 和追踪配置，
+                识别需要迁移的脚本并评估风险等级。
+              </Text>
+
+              {isScanning ? (
+                <Box background="bg-surface-secondary" padding="600" borderRadius="200">
+                  <BlockStack gap="400" align="center">
+                    <Spinner size="large" />
+                    <Text as="p" fontWeight="semibold">正在扫描店铺配置...</Text>
+                    <ProgressBar progress={60} tone="primary" />
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      这通常需要 10-30 秒，请勿关闭页面
+                    </Text>
+                  </BlockStack>
+                </Box>
+              ) : (
+                <BlockStack gap="300">
+                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <BlockStack gap="200">
+                      <Text as="p" fontWeight="semibold">扫描内容包括：</Text>
+                      <List type="bullet">
+                        <List.Item>ScriptTags (第三方追踪脚本)</List.Item>
+                        <List.Item>Web Pixels (已安装的像素应用)</List.Item>
+                        <List.Item>Checkout 配置状态</List.Item>
+                        <List.Item>追踪平台识别 (GA4/Meta/TikTok 等)</List.Item>
+                      </List>
+                    </BlockStack>
+                  </Box>
+
+                  <Checkbox
+                    label="我了解扫描不会修改任何店铺设置"
+                    checked={acknowledged}
+                    onChange={setAcknowledged}
+                  />
+
+                  <InlineStack gap="200">
+                    <Button
+                      variant="primary"
+                      onClick={handleStartScan}
+                      disabled={!acknowledged}
+                      loading={isScanning}
+                      size="large"
+                    >
+                      开始自动体检
+                    </Button>
+                    <Button url="/app?skip=true" variant="plain">
+                      跳过，稍后扫描
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
+        )}
+
+        {/* Step 3: 扫描结果 */}
+        {data.scanComplete && data.scanResult && (
+          <>
+            {/* 风险评分卡片 */}
+            <Layout>
+              <Layout.Section variant="oneThird">
+                <Card>
+                  <BlockStack gap="400">
+                    <Text as="h2" variant="headingMd">风险评分</Text>
+                    <Box
+                      background={
+                        data.scanResult.riskScore > 60
+                          ? "bg-fill-critical"
+                          : data.scanResult.riskScore > 30
+                            ? "bg-fill-warning"
+                            : "bg-fill-success"
+                      }
+                      padding="600"
+                      borderRadius="200"
+                    >
+                      <BlockStack gap="200" align="center">
+                        <Text as="p" variant="heading3xl" fontWeight="bold">
+                          {data.scanResult.riskScore}
+                        </Text>
+                        <Text as="p" variant="bodySm">/100</Text>
+                      </BlockStack>
+                    </Box>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {data.scanResult.riskScore > 60
+                        ? "需要立即处理"
+                        : data.scanResult.riskScore > 30
+                          ? "建议尽快迁移"
+                          : "风险较低"}
+                    </Text>
+                  </BlockStack>
+                </Card>
+              </Layout.Section>
+
+              <Layout.Section variant="oneThird">
+                <Card>
+                  <BlockStack gap="400">
+                    <Text as="h2" variant="headingMd">预计迁移时间</Text>
+                    <Box background="bg-surface-secondary" padding="600" borderRadius="200">
+                      <BlockStack gap="200" align="center">
+                        <Icon source={ClockIcon} tone="base" />
+                        <Text as="p" variant="headingLg" fontWeight="bold">
+                          {data.migrationEstimate?.label || "待评估"}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {data.migrationEstimate?.description || "完成扫描后显示"}
+                    </Text>
+                  </BlockStack>
+                </Card>
+              </Layout.Section>
+
+              <Layout.Section variant="oneThird">
+                <Card>
+                  <BlockStack gap="400">
+                    <Text as="h2" variant="headingMd">迁移紧急度</Text>
+                    <Box
+                      background={
+                        data.urgency?.level === "critical"
+                          ? "bg-fill-critical-secondary"
+                          : data.urgency?.level === "high"
+                            ? "bg-fill-warning-secondary"
+                            : "bg-surface-secondary"
+                      }
+                      padding="600"
+                      borderRadius="200"
+                    >
+                      <BlockStack gap="200" align="center">
+                        <UrgencyBadge level={data.urgency?.level || "unknown"} />
+                        <Text as="p" variant="headingMd" fontWeight="bold">
+                          {data.urgency?.label || "待评估"}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {data.urgency?.description || ""}
+                    </Text>
+                  </BlockStack>
+                </Card>
+              </Layout.Section>
+            </Layout>
+
+            {/* 检测到的内容 */}
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">📊 检测结果摘要</Text>
+                <Divider />
+
+                <Layout>
+                  <Layout.Section variant="oneHalf">
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between">
+                        <Text as="span">ScriptTags 数量</Text>
+                        <Badge tone={data.scanResult.scriptTagCount > 0 ? "warning" : "success"}>
+                          {`${data.scanResult.scriptTagCount} 个`}
+                        </Badge>
+                      </InlineStack>
+                      <InlineStack align="space-between">
+                        <Text as="span">订单状态页脚本</Text>
+                        <Badge tone={data.scanResult.hasOrderStatusScripts ? "critical" : "success"}>
+                          {data.scanResult.hasOrderStatusScripts ? "有" : "无"}
+                        </Badge>
+                      </InlineStack>
+                      <InlineStack align="space-between">
+                        <Text as="span">识别的平台</Text>
+                        <Text as="span" fontWeight="semibold">
+                          {data.scanResult.platformCount} 个
+                        </Text>
+                      </InlineStack>
+                    </BlockStack>
+                  </Layout.Section>
+
+                  <Layout.Section variant="oneHalf">
+                    <BlockStack gap="200">
+                      <Text as="p" fontWeight="semibold">检测到的追踪平台：</Text>
+                      {data.scanResult.platforms.length > 0 ? (
+                        <InlineStack gap="100" wrap>
+                          {data.scanResult.platforms.map((platform) => (
+                            <Badge key={platform}>{getPlatformName(platform)}</Badge>
+                          ))}
+                        </InlineStack>
+                      ) : (
+                        <Text as="p" tone="subdued">未检测到已知追踪平台</Text>
+                      )}
+                    </BlockStack>
+                  </Layout.Section>
+                </Layout>
+              </BlockStack>
+            </Card>
+
+            {/* 风险项列表 */}
+            {data.scanResult.riskItems.length > 0 && (
+              <Card>
+                <BlockStack gap="400">
+                  <Text as="h2" variant="headingMd">⚠️ 风险项</Text>
+                  <Divider />
+
+                  <BlockStack gap="300">
+                    {data.scanResult.riskItems.slice(0, 5).map((item, index) => (
+                      <Box
+                        key={index}
+                        background="bg-surface-secondary"
+                        padding="400"
+                        borderRadius="200"
+                      >
+                        <InlineStack align="space-between" blockAlign="start">
+                          <BlockStack gap="100">
+                            <InlineStack gap="200">
+                              <Icon
+                                source={AlertCircleIcon}
+                                tone={
+                                  item.severity === "high"
+                                    ? "critical"
+                                    : item.severity === "medium"
+                                      ? "warning"
+                                      : "info"
+                                }
+                              />
+                              <Text as="span" fontWeight="semibold">{item.name}</Text>
+                            </InlineStack>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              {item.description}
+                            </Text>
+                          </BlockStack>
+                          <Badge
+                            tone={
+                              item.severity === "high"
+                                ? "critical"
+                                : item.severity === "medium"
+                                  ? "warning"
+                                  : "info"
+                            }
+                          >
+                            {item.severity === "high" ? "高风险" :
+                             item.severity === "medium" ? "中风险" : "低风险"}
+                          </Badge>
+                        </InlineStack>
+                      </Box>
+                    ))}
+                    {data.scanResult.riskItems.length > 5 && (
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        还有 {data.scanResult.riskItems.length - 5} 个风险项，查看完整报告了解详情
+                      </Text>
+                    )}
+                  </BlockStack>
+                </BlockStack>
+              </Card>
+            )}
+
+            {/* 下一步操作 */}
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">🎯 下一步操作</Text>
+                <Divider />
+
+                <BlockStack gap="300">
+                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <InlineStack gap="200">
+                          <Icon source={CheckCircleIcon} tone="success" />
+                          <Text as="span" fontWeight="semibold">1. 查看完整扫描报告</Text>
+                        </InlineStack>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          了解每个风险项的详情和迁移建议
+                        </Text>
+                      </BlockStack>
+                      <Button url="/app/scan" icon={ArrowRightIcon}>
+                        查看报告
+                      </Button>
+                    </InlineStack>
+                  </Box>
+
+                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <InlineStack gap="200">
+                          <Text as="span" fontWeight="semibold">2. 配置追踪平台凭证</Text>
+                        </InlineStack>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          设置 GA4、Meta、TikTok 等平台的 API 凭证
+                        </Text>
+                      </BlockStack>
+                      <Button url="/app/settings">
+                        前往设置
+                      </Button>
+                    </InlineStack>
+                  </Box>
+
+                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <InlineStack gap="200">
+                          <Text as="span" fontWeight="semibold">3. 安装 Web Pixel</Text>
+                        </InlineStack>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          替换旧的 ScriptTag，启用新的追踪方式
+                        </Text>
+                      </BlockStack>
+                      <Button url="/app/migrate">
+                        开始迁移
+                      </Button>
+                    </InlineStack>
+                  </Box>
+
+                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <InlineStack gap="200">
+                          <Text as="span" fontWeight="semibold">4. 验收测试</Text>
+                        </InlineStack>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          下测试订单，验证追踪是否正常工作
+                        </Text>
+                      </BlockStack>
+                      <Button url="/app/verification">
+                        验收向导
+                      </Button>
+                    </InlineStack>
+                  </Box>
+                </BlockStack>
+
+                <Divider />
+
+                <InlineStack align="end">
+                  <Button
+                    variant="primary"
+                    onClick={handleCompleteOnboarding}
+                    size="large"
+                    icon={ArrowRightIcon}
+                  >
+                    开始迁移之旅
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          </>
+        )}
+
+        {/* 帮助信息 */}
+        <Card>
+          <BlockStack gap="300">
+            <Text as="h2" variant="headingMd">💡 需要帮助？</Text>
+            <Text as="p" tone="subdued">
+              如果您在迁移过程中遇到问题，我们提供以下支持：
+            </Text>
+            <InlineStack gap="300" wrap>
+              <Button url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status" external>
+                Shopify 官方文档
+              </Button>
+              <Button url="/support">
+                联系支持
+              </Button>
+            </InlineStack>
+          </BlockStack>
+        </Card>
+      </BlockStack>
+    </Page>
+  );
+}
+

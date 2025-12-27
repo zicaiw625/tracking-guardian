@@ -5,6 +5,8 @@ import { reconcilePendingConsent } from "../../services/consent-reconciler.serve
 import { processConversionJobs, processPendingConversions, processRetries } from "../../services/retry.server";
 import { runAllShopsDeliveryHealthCheck, type DeliveryHealthJobResult } from "../../services/delivery-health.server";
 import { runAllShopsReconciliation, type ReconciliationResult } from "../../services/reconciliation.server";
+import { runAllShopAlertChecks } from "../../services/alert-dispatcher.server";
+import { cleanupExpiredNonces } from "../../services/capi-dedup.server";
 import { logger } from "../../utils/logger.server";
 import { cleanupExpiredData } from "./cleanup";
 import { refreshAllShopsStatus } from "./shop-status";
@@ -186,6 +188,28 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Shop status refresh failed", error);
   }
 
+  // Alert checks
+  let alertResults = { shopsChecked: 0, totalTriggered: 0, totalSent: 0 };
+  try {
+    cronLogger.info("Running alert checks...");
+    alertResults = await runAllShopAlertChecks();
+    cronLogger.info("Alert checks completed", { ...alertResults });
+  } catch (error) {
+    cronLogger.error("Alert checks failed", error);
+  }
+
+  // Cleanup expired nonces for dedup
+  let noncesCleanedUp = 0;
+  try {
+    cronLogger.info("Cleaning up expired event nonces...");
+    noncesCleanedUp = await cleanupExpiredNonces();
+    if (noncesCleanedUp > 0) {
+      cronLogger.info("Nonces cleanup completed", { count: noncesCleanedUp });
+    }
+  } catch (error) {
+    cronLogger.error("Nonces cleanup failed", error);
+  }
+
   return {
     gdpr: {
         processed: gdprResults.processed,
@@ -236,6 +260,12 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     },
     cleanup: cleanupResults,
     shopStatusRefresh,
+    alerts: {
+      shopsChecked: alertResults.shopsChecked,
+      triggered: alertResults.totalTriggered,
+      sent: alertResults.totalSent,
+    },
+    noncesCleanedUp,
   };
 }
 

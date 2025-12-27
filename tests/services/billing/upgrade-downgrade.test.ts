@@ -31,23 +31,23 @@ describe("Plan Upgrade/Downgrade", () => {
   describe("BILLING_PLANS configuration", () => {
     it("should have all required plans defined", () => {
       expect(BILLING_PLANS.free).toBeDefined();
+      expect(BILLING_PLANS.starter).toBeDefined();
       expect(BILLING_PLANS.growth).toBeDefined();
-      expect(BILLING_PLANS.pro).toBeDefined();
       expect(BILLING_PLANS.agency).toBeDefined();
     });
     it("should have increasing prices", () => {
       expect(BILLING_PLANS.free.price).toBe(0);
-      expect(BILLING_PLANS.growth.price).toBeLessThan(BILLING_PLANS.pro.price);
-      expect(BILLING_PLANS.pro.price).toBeLessThan(BILLING_PLANS.agency.price);
+      expect(BILLING_PLANS.starter.price).toBeLessThan(BILLING_PLANS.growth.price);
+      expect(BILLING_PLANS.growth.price).toBeLessThan(BILLING_PLANS.agency.price);
     });
     it("should have increasing order limits", () => {
       expect(BILLING_PLANS.free.monthlyOrderLimit).toBeLessThan(
+        BILLING_PLANS.starter.monthlyOrderLimit
+      );
+      expect(BILLING_PLANS.starter.monthlyOrderLimit).toBeLessThan(
         BILLING_PLANS.growth.monthlyOrderLimit
       );
       expect(BILLING_PLANS.growth.monthlyOrderLimit).toBeLessThan(
-        BILLING_PLANS.pro.monthlyOrderLimit
-      );
-      expect(BILLING_PLANS.pro.monthlyOrderLimit).toBeLessThan(
         BILLING_PLANS.agency.monthlyOrderLimit
       );
     });
@@ -61,19 +61,19 @@ describe("Plan Upgrade/Downgrade", () => {
     });
   });
   describe("detectPlanFromPrice", () => {
-    it("should detect growth plan from price", () => {
-      expect(detectPlanFromPrice(29)).toBe("growth");
-      expect(detectPlanFromPrice(29.00)).toBe("growth");
+    it("should detect starter plan from price", () => {
+      expect(detectPlanFromPrice(29)).toBe("starter");
+      expect(detectPlanFromPrice(29.00)).toBe("starter");
     });
-    it("should detect pro plan from price", () => {
-      expect(detectPlanFromPrice(79)).toBe("pro");
-      expect(detectPlanFromPrice(79.00)).toBe("pro");
+    it("should detect growth plan from price", () => {
+      expect(detectPlanFromPrice(79)).toBe("growth");
+      expect(detectPlanFromPrice(79.00)).toBe("growth");
     });
     it("should detect agency plan from price", () => {
       expect(detectPlanFromPrice(199)).toBe("agency");
       expect(detectPlanFromPrice(199.00)).toBe("agency");
     });
-    it("should default to free for prices below growth threshold", () => {
+    it("should default to free for prices below starter threshold", () => {
       expect(detectPlanFromPrice(0)).toBe("free");
       expect(detectPlanFromPrice(15)).toBe("free");
       expect(detectPlanFromPrice(28)).toBe("free");
@@ -84,54 +84,54 @@ describe("Plan Upgrade/Downgrade", () => {
     });
   });
   describe("Upgrade Flow Validation", () => {
-    const PLAN_HIERARCHY: PlanId[] = ["free", "growth", "pro", "agency"];
+    const PLAN_HIERARCHY: PlanId[] = ["free", "starter", "growth", "agency"];
     function isValidUpgrade(currentPlan: PlanId, targetPlan: PlanId): boolean {
       const currentIndex = PLAN_HIERARCHY.indexOf(currentPlan);
       const targetIndex = PLAN_HIERARCHY.indexOf(targetPlan);
       return targetIndex > currentIndex;
     }
+    it("should allow upgrading from free to starter", () => {
+      expect(isValidUpgrade("free", "starter")).toBe(true);
+    });
     it("should allow upgrading from free to growth", () => {
       expect(isValidUpgrade("free", "growth")).toBe(true);
     });
-    it("should allow upgrading from free to pro", () => {
-      expect(isValidUpgrade("free", "pro")).toBe(true);
+    it("should allow upgrading from starter to growth", () => {
+      expect(isValidUpgrade("starter", "growth")).toBe(true);
     });
-    it("should allow upgrading from growth to pro", () => {
-      expect(isValidUpgrade("growth", "pro")).toBe(true);
-    });
-    it("should allow upgrading from pro to agency", () => {
-      expect(isValidUpgrade("pro", "agency")).toBe(true);
+    it("should allow upgrading from growth to agency", () => {
+      expect(isValidUpgrade("growth", "agency")).toBe(true);
     });
     it("should not allow same plan upgrade", () => {
+      expect(isValidUpgrade("starter", "starter")).toBe(false);
       expect(isValidUpgrade("growth", "growth")).toBe(false);
-      expect(isValidUpgrade("pro", "pro")).toBe(false);
     });
     it("should not allow downgrading through upgrade flow", () => {
-      expect(isValidUpgrade("pro", "growth")).toBe(false);
-      expect(isValidUpgrade("agency", "pro")).toBe(false);
+      expect(isValidUpgrade("growth", "starter")).toBe(false);
+      expect(isValidUpgrade("agency", "growth")).toBe(false);
     });
   });
   describe("Downgrade Flow Validation", () => {
     function isValidDowngrade(currentPlan: PlanId, targetPlan: PlanId): boolean {
-      const hierarchy = ["free", "growth", "pro", "agency"];
+      const hierarchy = ["free", "starter", "growth", "agency"];
       return hierarchy.indexOf(targetPlan) < hierarchy.indexOf(currentPlan);
     }
     it("should allow downgrading to lower tier", () => {
-      expect(isValidDowngrade("agency", "pro")).toBe(true);
-      expect(isValidDowngrade("pro", "growth")).toBe(true);
-      expect(isValidDowngrade("growth", "free")).toBe(true);
+      expect(isValidDowngrade("agency", "growth")).toBe(true);
+      expect(isValidDowngrade("growth", "starter")).toBe(true);
+      expect(isValidDowngrade("starter", "free")).toBe(true);
     });
     it("should allow downgrading multiple tiers", () => {
       expect(isValidDowngrade("agency", "free")).toBe(true);
-      expect(isValidDowngrade("pro", "free")).toBe(true);
+      expect(isValidDowngrade("growth", "free")).toBe(true);
     });
     it("should not allow upgrading through downgrade flow", () => {
-      expect(isValidDowngrade("free", "growth")).toBe(false);
-      expect(isValidDowngrade("growth", "pro")).toBe(false);
+      expect(isValidDowngrade("free", "starter")).toBe(false);
+      expect(isValidDowngrade("starter", "growth")).toBe(false);
     });
   });
   describe("Feature Entitlements", () => {
-    function getPlanFeatures(plan: PlanId): string[] {
+    function getPlanFeatures(plan: PlanId): readonly string[] {
       return BILLING_PLANS[plan].features;
     }
     function hasFeature(plan: PlanId, feature: string): boolean {
@@ -146,10 +146,10 @@ describe("Plan Upgrade/Downgrade", () => {
     });
     it("should have more features in paid plans", () => {
       const freeFeatures = getPlanFeatures("free");
+      const starterFeatures = getPlanFeatures("starter");
       const growthFeatures = getPlanFeatures("growth");
-      const proFeatures = getPlanFeatures("pro");
-      expect(growthFeatures.length).toBeGreaterThanOrEqual(freeFeatures.length);
-      expect(proFeatures.length).toBeGreaterThanOrEqual(growthFeatures.length);
+      expect(starterFeatures.length).toBeGreaterThanOrEqual(freeFeatures.length);
+      expect(growthFeatures.length).toBeGreaterThanOrEqual(starterFeatures.length);
     });
     it("should have agency-specific features", () => {
       const agencyFeatures = getPlanFeatures("agency");
@@ -176,13 +176,13 @@ describe("Plan Upgrade/Downgrade", () => {
     }
     it("should increase limit on upgrade", async () => {
       vi.mocked(prisma.shop.update).mockResolvedValue({} as any);
-      const result = await updateShopPlan("test.myshopify.com", "pro");
-      expect(result.newLimit).toBe(BILLING_PLANS.pro.monthlyOrderLimit);
+      const result = await updateShopPlan("test.myshopify.com", "growth");
+      expect(result.newLimit).toBe(BILLING_PLANS.growth.monthlyOrderLimit);
       expect(prisma.shop.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            plan: "pro",
-            monthlyOrderLimit: BILLING_PLANS.pro.monthlyOrderLimit,
+            plan: "growth",
+            monthlyOrderLimit: BILLING_PLANS.growth.monthlyOrderLimit,
           }),
         })
       );
@@ -327,7 +327,7 @@ describe("Plan Upgrade/Downgrade", () => {
       const current = BILLING_PLANS[currentPlan];
       const target = BILLING_PLANS[targetPlan];
       const currentFeatureSet = new Set(current.features);
-      const additionalFeatures = target.features.filter(
+      const additionalFeatures = [...target.features].filter(
         (f) => !currentFeatureSet.has(f)
       );
       return {
@@ -339,12 +339,12 @@ describe("Plan Upgrade/Downgrade", () => {
       };
     }
     it("should show positive differences for upgrade", () => {
-      const comparison = comparePlans("free", "growth");
+      const comparison = comparePlans("free", "starter");
       expect(comparison.priceDifference).toBeGreaterThan(0);
       expect(comparison.limitDifference).toBeGreaterThan(0);
     });
     it("should show negative differences for downgrade", () => {
-      const comparison = comparePlans("pro", "growth");
+      const comparison = comparePlans("growth", "starter");
       expect(comparison.priceDifference).toBeLessThan(0);
       expect(comparison.limitDifference).toBeLessThan(0);
     });

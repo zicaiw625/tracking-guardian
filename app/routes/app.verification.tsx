@@ -36,6 +36,7 @@ import {
   ExportIcon,
   RefreshIcon,
   PlayIcon,
+  FileIcon,
 } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -224,6 +225,77 @@ export default function VerificationPage() {
     navigator.clipboard.writeText(fullText);
   }, [testGuide]);
 
+  // 导出 PDF
+  const handleExportPdf = useCallback(() => {
+    if (!latestRun) return;
+    window.open(`/api/reports/pdf?type=verification&runId=${latestRun.runId}`, "_blank");
+  }, [latestRun]);
+
+  // 导出 CSV
+  const handleExportCsv = useCallback(() => {
+    if (!latestRun) return;
+    
+    // 生成 CSV 内容
+    const lines: string[] = [];
+    
+    // 头部信息
+    lines.push('验收报告');
+    lines.push(`验收时间,${latestRun.completedAt ? new Date(latestRun.completedAt).toLocaleString("zh-CN") : '-'}`);
+    lines.push(`验收类型,${latestRun.runType === 'full' ? '完整验收' : '快速验收'}`);
+    lines.push('');
+    
+    // 评分摘要
+    lines.push('评分摘要');
+    lines.push('指标,数值');
+    const passRate = latestRun.totalTests > 0 ? Math.round((latestRun.passedTests / latestRun.totalTests) * 100) : 0;
+    lines.push(`通过率,${passRate}%`);
+    lines.push(`参数完整率,${latestRun.parameterCompleteness}%`);
+    lines.push(`金额准确率,${latestRun.valueAccuracy}%`);
+    lines.push('');
+    
+    // 测试统计
+    lines.push('测试统计');
+    lines.push(`通过,${latestRun.passedTests}`);
+    lines.push(`失败,${latestRun.failedTests}`);
+    lines.push(`参数缺失,${latestRun.missingParamTests}`);
+    lines.push('');
+    
+    // 平台
+    lines.push('测试平台');
+    lines.push(latestRun.platforms.join(','));
+    lines.push('');
+    
+    // 事件详情
+    if (latestRun.results && latestRun.results.length > 0) {
+      lines.push('事件详细记录');
+      lines.push('事件类型,平台,订单ID,金额,币种,状态,问题');
+      latestRun.results.forEach((r: {
+        eventType: string;
+        platform: string;
+        orderId?: string;
+        params?: { value?: number; currency?: string };
+        status: string;
+        discrepancies?: string[];
+        errors?: string[];
+      }) => {
+        const escapedErrors = [...(r.discrepancies || []), ...(r.errors || [])].join('; ').replace(/,/g, '；');
+        lines.push(`${r.eventType},${r.platform},${r.orderId || '-'},${r.params?.value?.toFixed(2) || '-'},${r.params?.currency || '-'},${
+          r.status === 'success' ? '成功' :
+          r.status === 'missing_params' ? '参数缺失' : '失败'
+        },${escapedErrors || '-'}`);
+      });
+    }
+    
+    const csvContent = lines.join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `verification-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [latestRun]);
+
   const tabs = [
     { id: "overview", content: "验收概览" },
     { id: "results", content: "详细结果" },
@@ -267,6 +339,18 @@ export default function VerificationPage() {
           onAction: () => revalidator.revalidate(),
           icon: RefreshIcon,
         },
+        ...(latestRun ? [
+          {
+            content: "导出 PDF",
+            onAction: handleExportPdf,
+            icon: FileIcon,
+          },
+          {
+            content: "导出 CSV",
+            onAction: handleExportCsv,
+            icon: ExportIcon,
+          },
+        ] : []),
       ]}
     >
       <BlockStack gap="500">

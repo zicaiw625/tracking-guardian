@@ -161,10 +161,16 @@ export function initializePlatformRegistry(
 
   const { pinterestService } = require("./pinterest.service");
 
+  const { snapchatService } = require("./snapchat.service");
+
+  const { twitterService } = require("./twitter.service");
+
   platformRegistry.register("google", services?.google ?? googleService);
   platformRegistry.register("meta", services?.meta ?? metaService);
   platformRegistry.register("tiktok", services?.tiktok ?? tiktokService);
   platformRegistry.register("pinterest", services?.pinterest ?? pinterestService);
+  platformRegistry.register("snapchat", services?.snapchat ?? snapchatService);
+  platformRegistry.register("twitter", services?.twitter ?? twitterService);
 
   logger.info("Platform registry initialized", {
     platforms: platformRegistry.getPlatforms(),

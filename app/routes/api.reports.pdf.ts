@@ -39,6 +39,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const reportType = url.searchParams.get("type") || "scan";
   const groupId = url.searchParams.get("groupId");
+  const runId = url.searchParams.get("runId") || undefined;
   const days = parseInt(url.searchParams.get("days") || "7", 10);
   const format = url.searchParams.get("format") || "pdf";
 
@@ -118,7 +119,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
 
       case "verification": {
-        const data = await fetchVerificationReportData(shop.id);
+        const data = await fetchVerificationReportData(shop.id, runId);
         if (!data) {
           return new Response(
             JSON.stringify({ error: "无验收报告数据" }),

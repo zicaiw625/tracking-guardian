@@ -530,6 +530,10 @@ export default function WorkspacePage() {
           content: "刷新",
           onAction: () => revalidator.revalidate(),
         },
+        {
+          content: "像素模板",
+          url: "/app/workspace/templates",
+        },
       ]}
     >
       <BlockStack gap="500">

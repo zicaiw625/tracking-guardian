@@ -85,6 +85,12 @@ export interface RetryProcessingResult {
   limitExceeded: number;
 }
 
+export interface AlertCheckResult {
+  shopsChecked: number;
+  triggered: number;
+  sent: number;
+}
+
 export interface CronResult {
   gdpr: GDPRProcessingResult;
   gdprCompliance: GDPRComplianceCheckResult;
@@ -96,6 +102,8 @@ export interface CronResult {
   reconciliation: ReconciliationTaskResult;
   cleanup: CleanupResult;
   shopStatusRefresh?: ShopStatusRefreshResult;
+  alerts?: AlertCheckResult;
+  noncesCleanedUp?: number;
 }
 
 interface CronResponseBase {

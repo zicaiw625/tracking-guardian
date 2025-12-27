@@ -45,7 +45,7 @@ describe("Subscription Service", () => {
     };
   });
   describe("createSubscription", () => {
-    it("should create subscription for growth plan", async () => {
+    it("should create subscription for starter plan", async () => {
       const mockResponse = {
         json: vi.fn().mockResolvedValue({
           data: {
@@ -66,7 +66,7 @@ describe("Subscription Service", () => {
       const result = await createSubscription(
         mockAdmin,
         "test-store.myshopify.com",
-        "growth",
+        "starter",
         "https://app.com/callback"
       );
       expect(result.success).toBe(true);
@@ -102,7 +102,7 @@ describe("Subscription Service", () => {
       const result = await createSubscription(
         mockAdmin,
         "test-store.myshopify.com",
-        "growth",
+        "starter",
         "https://app.com/callback"
       );
       expect(result.success).toBe(false);
@@ -115,7 +115,7 @@ describe("Subscription Service", () => {
       const result = await createSubscription(
         mockAdmin,
         "test-store.myshopify.com",
-        "growth",
+        "starter",
         "https://app.com/callback"
       );
       expect(result.success).toBe(false);
@@ -138,19 +138,19 @@ describe("Subscription Service", () => {
       await createSubscription(
         mockAdmin,
         "test-store.myshopify.com",
-        "pro",
+        "growth",
         "https://app.com/callback"
       );
       expect(mockAdmin.graphql).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           variables: expect.objectContaining({
-            name: expect.stringContaining(BILLING_PLANS.pro.name),
+            name: expect.stringContaining(BILLING_PLANS.growth.name),
             lineItems: expect.arrayContaining([
               expect.objectContaining({
                 plan: expect.objectContaining({
                   appRecurringPricingDetails: expect.objectContaining({
-                    price: { amount: BILLING_PLANS.pro.price, currencyCode: "USD" },
+                    price: { amount: BILLING_PLANS.growth.price, currencyCode: "USD" },
                   }),
                 }),
               }),
@@ -169,7 +169,7 @@ describe("Subscription Service", () => {
               activeSubscriptions: [
                 {
                   id: "gid://shopify/AppSubscription/123",
-                  name: "Tracking Guardian - Pro",
+                  name: "Tracking Guardian - Growth",
                   status: "ACTIVE",
                   trialDays: 0,
                   currentPeriodEnd: "2025-01-27T00:00:00Z",
@@ -196,7 +196,7 @@ describe("Subscription Service", () => {
       (mockAdmin.graphql as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
       const status = await getSubscriptionStatus(mockAdmin, "test-store.myshopify.com");
       expect(status.hasActiveSubscription).toBe(true);
-      expect(status.plan).toBe("pro");
+      expect(status.plan).toBe("growth");
       expect(status.status).toBe("ACTIVE");
     });
     it("should return free plan when no active subscription", async () => {
@@ -348,8 +348,8 @@ describe("Subscription Service", () => {
         expect.objectContaining({
           where: { shopDomain: "test-store.myshopify.com" },
           data: expect.objectContaining({
-            plan: "pro",
-            monthlyOrderLimit: BILLING_PLANS.pro.monthlyOrderLimit,
+            plan: "growth",
+            monthlyOrderLimit: BILLING_PLANS.growth.monthlyOrderLimit,
           }),
         })
       );
@@ -414,7 +414,7 @@ describe("Subscription Service", () => {
         "charge-123"
       );
       expect(result.success).toBe(true);
-      expect(result.plan).toBe("growth");
+      expect(result.plan).toBe("starter");
     });
     it("should fail when subscription is not active", async () => {
       const mockResponse = {
@@ -440,8 +440,8 @@ describe("Subscription Service", () => {
   describe("Plan Detection", () => {
     it("should detect correct plan from price", async () => {
       const testCases = [
-        { price: "29.00", expectedPlan: "growth" },
-        { price: "79.00", expectedPlan: "pro" },
+        { price: "29.00", expectedPlan: "starter" },
+        { price: "79.00", expectedPlan: "growth" },
         { price: "199.00", expectedPlan: "agency" },
       ];
       for (const { price, expectedPlan } of testCases) {

@@ -14,7 +14,7 @@ import { canManageMultipleShops, getShopGroupDetails } from "./multi-shop.server
 // ============================================================
 
 export interface PlatformConfig {
-  platform: "google" | "meta" | "tiktok" | "pinterest";
+  platform: "google" | "meta" | "tiktok" | "pinterest" | "snapchat" | "twitter";
   eventMappings?: Record<string, string>;
   clientSideEnabled?: boolean;
   serverSideEnabled?: boolean;
@@ -82,7 +82,7 @@ export async function createPixelTemplate(
   }
 
   // 验证平台配置
-  const validPlatforms = ["google", "meta", "tiktok", "pinterest"];
+  const validPlatforms = ["google", "meta", "tiktok", "pinterest", "snapchat", "twitter"];
   const invalidPlatforms = input.platforms.filter(
     (p) => !validPlatforms.includes(p.platform)
   );
@@ -446,7 +446,7 @@ export function getPresetTemplates(): Array<Omit<PixelTemplate, "id" | "ownerId"
     },
     {
       name: "全渠道追踪套件",
-      description: "包含 GA4、Meta、TikTok 和 Pinterest 的完整配置",
+      description: "包含 GA4、Meta、TikTok、Pinterest、Snapchat 和 Twitter 的完整配置",
       platforms: [
         {
           platform: "google",
@@ -465,6 +465,39 @@ export function getPresetTemplates(): Array<Omit<PixelTemplate, "id" | "ownerId"
         },
         {
           platform: "pinterest",
+          clientSideEnabled: true,
+          serverSideEnabled: true,
+        },
+        {
+          platform: "snapchat",
+          clientSideEnabled: true,
+          serverSideEnabled: true,
+        },
+        {
+          platform: "twitter",
+          clientSideEnabled: true,
+          serverSideEnabled: true,
+        },
+      ],
+      isPublic: true,
+      usageCount: 0,
+    },
+    {
+      name: "社交媒体追踪套件",
+      description: "TikTok、Snapchat 和 Twitter 社交平台追踪",
+      platforms: [
+        {
+          platform: "tiktok",
+          clientSideEnabled: true,
+          serverSideEnabled: true,
+        },
+        {
+          platform: "snapchat",
+          clientSideEnabled: true,
+          serverSideEnabled: true,
+        },
+        {
+          platform: "twitter",
           clientSideEnabled: true,
           serverSideEnabled: true,
         },

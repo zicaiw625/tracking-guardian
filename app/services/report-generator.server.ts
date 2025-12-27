@@ -952,6 +952,197 @@ export function generateBatchReportHtml(data: BatchReportData): string {
 /**
  * 获取批量报告数据
  */
+// ============================================================
+// CSV 导出功能
+// ============================================================
+
+/**
+ * 生成验收报告 CSV
+ */
+export function generateVerificationReportCsv(data: VerificationReportData): string {
+  const lines: string[] = [];
+  
+  // 头部信息
+  lines.push('验收报告');
+  lines.push(`店铺,${data.shopDomain}`);
+  lines.push(`套餐,${data.shopPlan}`);
+  lines.push(`生成时间,${data.generatedAt}`);
+  lines.push(`验收类型,${data.runType === 'full' ? '完整验收' : '快速验收'}`);
+  lines.push('');
+  
+  // 评分摘要
+  lines.push('评分摘要');
+  lines.push('指标,数值');
+  lines.push(`通过率,${data.scores.passRate}%`);
+  lines.push(`参数完整率,${data.scores.parameterCompleteness}%`);
+  lines.push(`金额准确率,${data.scores.valueAccuracy}%`);
+  lines.push('');
+  
+  // 平台状态
+  lines.push('平台配置状态');
+  lines.push('平台,配置状态,成功发送,失败,综合状态');
+  data.platforms.forEach(platform => {
+    lines.push(`${platform.name},${platform.configured ? '已配置' : '未配置'},${platform.eventsSent},${platform.eventsFailed},${
+      platform.status === 'success' ? '正常' :
+      platform.status === 'partial' ? '部分正常' :
+      platform.status === 'not_configured' ? '未配置' : '异常'
+    }`);
+  });
+  lines.push('');
+  
+  // 事件详情
+  if (data.events.length > 0) {
+    lines.push('事件详细记录');
+    lines.push('事件类型,平台,订单ID,金额,币种,状态,问题');
+    data.events.forEach(event => {
+      const escapedErrors = (event.errors || []).join('; ').replace(/,/g, '；');
+      lines.push(`${event.eventType},${event.platform},${event.orderId || '-'},${event.value ?? '-'},${event.currency || '-'},${
+        event.status === 'success' ? '成功' :
+        event.status === 'missing_params' ? '参数缺失' : '失败'
+      },${escapedErrors || '-'}`);
+    });
+    lines.push('');
+  }
+  
+  // 建议
+  if (data.recommendations.length > 0) {
+    lines.push('建议');
+    data.recommendations.forEach((rec, i) => {
+      lines.push(`${i + 1},${rec.replace(/,/g, '，')}`);
+    });
+  }
+  
+  return lines.join('\n');
+}
+
+/**
+ * 生成扫描报告 CSV
+ */
+export function generateScanReportCsv(data: ScanReportData): string {
+  const lines: string[] = [];
+  
+  // 头部信息
+  lines.push('追踪脚本扫描报告');
+  lines.push(`店铺,${data.shopDomain}`);
+  lines.push(`生成时间,${data.generatedAt}`);
+  lines.push(`风险评分,${data.riskScore}/100`);
+  lines.push(`风险等级,${data.riskLevel === 'high' ? '高风险' : data.riskLevel === 'medium' ? '中风险' : '低风险'}`);
+  lines.push('');
+  
+  // 截止日期
+  lines.push('迁移截止日期');
+  lines.push(`Plus 商家,${data.migrationDeadlines.plusDate},剩余 ${data.migrationDeadlines.daysUntilPlus} 天`);
+  lines.push(`非 Plus 商家,${data.migrationDeadlines.nonPlusDate},剩余 ${data.migrationDeadlines.daysUntilNonPlus} 天`);
+  lines.push('');
+  
+  // 检测到的平台
+  lines.push('检测到的平台');
+  lines.push(data.identifiedPlatforms.join(',') || '无');
+  lines.push('');
+  
+  // ScriptTags
+  if (data.scriptTags.length > 0) {
+    lines.push('ScriptTags');
+    lines.push('ID,Source,Display Scope');
+    data.scriptTags.forEach(tag => {
+      lines.push(`${tag.id},${tag.src},${tag.display_scope || '-'}`);
+    });
+    lines.push('');
+  }
+  
+  // 风险项
+  if (data.riskItems.length > 0) {
+    lines.push('风险详情');
+    lines.push('名称,严重程度,描述,详情');
+    data.riskItems.forEach(item => {
+      lines.push(`${item.name},${item.severity === 'high' ? '高' : item.severity === 'medium' ? '中' : '低'},${item.description.replace(/,/g, '，')},${(item.details || '').replace(/,/g, '，')}`);
+    });
+    lines.push('');
+  }
+  
+  // 建议
+  lines.push('迁移建议');
+  data.recommendations.forEach((rec, i) => {
+    lines.push(`${i + 1},${rec.replace(/,/g, '，')}`);
+  });
+  
+  return lines.join('\n');
+}
+
+/**
+ * 生成对账报告 CSV
+ */
+export function generateReconciliationReportCsv(data: ReconciliationReportData): string {
+  const lines: string[] = [];
+  
+  // 头部信息
+  lines.push('送达对账报告');
+  lines.push(`店铺,${data.shopDomain}`);
+  lines.push(`生成时间,${data.generatedAt}`);
+  lines.push(`统计周期,${data.period.startDate} 至 ${data.period.endDate}`);
+  lines.push(`总体匹配率,${data.overallMatchRate.toFixed(1)}%`);
+  lines.push('');
+  
+  // 平台详情
+  lines.push('平台送达详情');
+  lines.push('平台,Webhook订单,成功发送,缺口,缺口率');
+  data.platforms.forEach(platform => {
+    lines.push(`${platform.name},${platform.webhookOrders},${platform.sentToPlatform},${platform.gap},${platform.gapPercentage.toFixed(1)}%`);
+  });
+  lines.push('');
+  
+  // 缺口分析
+  if (data.gapAnalysis.length > 0) {
+    lines.push('缺口原因分析');
+    lines.push('原因,数量,占比');
+    data.gapAnalysis.forEach(gap => {
+      lines.push(`${gap.reason},${gap.count},${gap.percentage.toFixed(1)}%`);
+    });
+  }
+  
+  return lines.join('\n');
+}
+
+/**
+ * 生成批量报告 CSV
+ */
+export function generateBatchReportCsv(data: BatchReportData): string {
+  const lines: string[] = [];
+  
+  // 头部信息
+  lines.push('多店迁移验收报告');
+  lines.push(`工作区,${data.groupName}`);
+  lines.push(`生成时间,${data.generatedAt}`);
+  lines.push(`统计周期,${data.period.startDate} 至 ${data.period.endDate}`);
+  lines.push('');
+  
+  // 汇总
+  lines.push('汇总统计');
+  lines.push(`总店铺数,${data.summary.totalShops}`);
+  lines.push(`已扫描,${data.summary.scannedShops}`);
+  lines.push(`已迁移,${data.summary.migratedShops}`);
+  lines.push(`已验收,${data.summary.verifiedShops}`);
+  lines.push(`平均风险分,${data.summary.avgRiskScore.toFixed(1)}`);
+  lines.push(`平均匹配率,${data.summary.avgMatchRate.toFixed(1)}%`);
+  lines.push('');
+  
+  // 店铺详情
+  lines.push('店铺详情');
+  lines.push('店铺,风险分,迁移状态,验收状态,配置平台,最后扫描');
+  data.shops.forEach(shop => {
+    lines.push(`${shop.shopDomain},${shop.riskScore},${
+      shop.migrationStatus === 'completed' ? '已完成' :
+      shop.migrationStatus === 'in_progress' ? '进行中' : '未开始'
+    },${
+      shop.verificationStatus === 'passed' ? '通过' :
+      shop.verificationStatus === 'partial' ? '部分通过' :
+      shop.verificationStatus === 'failed' ? '失败' : '未验收'
+    },${shop.platforms.join('/') || '-'},${shop.lastScanDate || '-'}`);
+  });
+  
+  return lines.join('\n');
+}
+
 export async function fetchBatchReportData(
   groupId: string,
   requesterId: string,
