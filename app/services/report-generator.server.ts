@@ -517,3 +517,544 @@ export async function fetchReconciliationReportData(
     gapAnalysis: [],
   };
 }
+
+// ============================================================
+// 验收报告 (Verification Report)
+// 对应设计方案 4.5 Verification：事件对账与验收
+// ============================================================
+
+export interface VerificationReportData extends ReportData {
+  reportType: "audit";
+  shopPlan: string;
+  runType: "quick" | "full";
+  status: "completed" | "failed" | "partial";
+  scores: {
+    passRate: number;
+    parameterCompleteness: number;
+    valueAccuracy: number;
+  };
+  platforms: Array<{
+    name: string;
+    configured: boolean;
+    eventsSent: number;
+    eventsFailed: number;
+    status: "success" | "partial" | "failed" | "not_configured";
+  }>;
+  events: Array<{
+    eventType: string;
+    platform: string;
+    orderId?: string;
+    status: "success" | "failed" | "missing_params";
+    value?: number;
+    currency?: string;
+    errors?: string[];
+  }>;
+  recommendations: string[];
+}
+
+export function generateVerificationReportHtml(data: VerificationReportData): string {
+  const overallStatus = data.scores.passRate >= 80 ? "success" : 
+                       data.scores.passRate >= 50 ? "partial" : "failed";
+  const statusClass = overallStatus === "success" ? "low" : 
+                     overallStatus === "partial" ? "medium" : "high";
+  
+  return `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>验收报告 - ${data.shopDomain}</title>
+  ${CSS_STYLES}
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🛡️ Tracking Guardian</div>
+    <div class="meta">
+      <div>店铺: ${data.shopDomain}</div>
+      <div>套餐: ${data.shopPlan}</div>
+      <div>生成时间: ${data.generatedAt}</div>
+    </div>
+  </div>
+
+  <h1>迁移验收报告</h1>
+  
+  <div style="display: flex; gap: 20px; margin: 20px 0;">
+    <div class="score-box score-${statusClass}" style="flex: 1;">
+      <div class="score-value">${data.scores.passRate}%</div>
+      <div class="score-label">通过率</div>
+    </div>
+    <div class="score-box score-${data.scores.parameterCompleteness >= 80 ? 'low' : 'medium'}" style="flex: 1;">
+      <div class="score-value">${data.scores.parameterCompleteness}%</div>
+      <div class="score-label">参数完整率</div>
+    </div>
+    <div class="score-box score-${data.scores.valueAccuracy >= 95 ? 'low' : 'medium'}" style="flex: 1;">
+      <div class="score-value">${data.scores.valueAccuracy}%</div>
+      <div class="score-label">金额准确率</div>
+    </div>
+  </div>
+
+  <div class="${overallStatus === 'success' ? 'recommendation' : 'deadline-warning'}">
+    <strong>${overallStatus === 'success' ? '✅ 验收通过' : overallStatus === 'partial' ? '⚠️ 部分通过' : '❌ 验收失败'}</strong>
+    <p>${overallStatus === 'success' ? '您的追踪配置工作正常！建议定期运行验收以确保持续稳定。' :
+        overallStatus === 'partial' ? '部分测试未通过，请检查下方详情并修复问题。' :
+        '多项测试失败，请仔细检查配置并重新验收。'}</p>
+  </div>
+
+  <h2>📊 平台配置状态</h2>
+  <table>
+    <tr>
+      <th>平台</th>
+      <th>配置状态</th>
+      <th>成功发送</th>
+      <th>失败</th>
+      <th>综合状态</th>
+    </tr>
+    ${data.platforms.map(platform => `
+      <tr>
+        <td>${platform.name}</td>
+        <td>${platform.configured ? '<span class="badge badge-low">✓ 已配置</span>' : '<span class="badge badge-medium">未配置</span>'}</td>
+        <td>${platform.eventsSent}</td>
+        <td>${platform.eventsFailed}</td>
+        <td><span class="badge badge-${platform.status === 'success' ? 'low' : platform.status === 'partial' ? 'medium' : 'high'}">${
+          platform.status === 'success' ? '正常' :
+          platform.status === 'partial' ? '部分正常' :
+          platform.status === 'not_configured' ? '未配置' : '异常'
+        }</span></td>
+      </tr>
+    `).join('')}
+  </table>
+
+  ${data.events.length > 0 ? `
+  <h2 class="page-break">📝 事件详细记录</h2>
+  <table>
+    <tr>
+      <th>事件类型</th>
+      <th>平台</th>
+      <th>订单 ID</th>
+      <th>金额</th>
+      <th>状态</th>
+      <th>问题</th>
+    </tr>
+    ${data.events.slice(0, 20).map(event => `
+      <tr>
+        <td>${event.eventType}</td>
+        <td>${event.platform}</td>
+        <td>${event.orderId ? event.orderId.slice(-8) : '-'}</td>
+        <td>${event.value !== undefined ? `${event.currency || 'USD'} ${event.value.toFixed(2)}` : '-'}</td>
+        <td><span class="badge badge-${event.status === 'success' ? 'low' : event.status === 'missing_params' ? 'medium' : 'high'}">${
+          event.status === 'success' ? '成功' :
+          event.status === 'missing_params' ? '参数缺失' : '失败'
+        }</span></td>
+        <td style="font-size: 12px; color: #666;">${event.errors?.join('; ') || '-'}</td>
+      </tr>
+    `).join('')}
+    ${data.events.length > 20 ? `
+      <tr>
+        <td colspan="6" style="text-align: center; color: #666;">
+          ... 还有 ${data.events.length - 20} 条记录未显示
+        </td>
+      </tr>
+    ` : ''}
+  </table>
+  ` : `
+  <h2>📝 事件记录</h2>
+  <p style="color: #666;">暂无事件记录。请先完成测试订单后再运行验收。</p>
+  `}
+
+  ${data.recommendations.length > 0 ? `
+  <h2>💡 建议</h2>
+  ${data.recommendations.map(rec => `
+    <div class="recommendation">${rec}</div>
+  `).join('')}
+  ` : ''}
+
+  <div class="footer">
+    <p>本报告由 Tracking Guardian 自动生成</p>
+    <p>验收类型: ${data.runType === 'full' ? '完整验收' : '快速验收'}</p>
+    <p>如需帮助，请联系技术支持</p>
+  </div>
+</body>
+</html>
+`;
+}
+
+/**
+ * 获取验收报告数据
+ */
+export async function fetchVerificationReportData(
+  shopId: string,
+  runId?: string
+): Promise<VerificationReportData | null> {
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { 
+      shopDomain: true, 
+      plan: true,
+      pixelConfigs: {
+        where: { isActive: true },
+        select: { platform: true, serverSideEnabled: true },
+      },
+    },
+  });
+  if (!shop) return null;
+
+  // 获取最近的验收运行
+  const verificationRun = runId
+    ? await prisma.verificationRun.findUnique({ where: { id: runId } })
+    : await prisma.verificationRun.findFirst({
+        where: { shopId },
+        orderBy: { createdAt: "desc" },
+      });
+
+  if (!verificationRun) return null;
+
+  const summaryJson = verificationRun.summaryJson as {
+    totalEvents?: number;
+    successfulEvents?: number;
+    failedEvents?: number;
+    missingParamsEvents?: number;
+    platformResults?: Record<string, { sent: number; failed: number }>;
+  } | null;
+
+  const eventsJson = verificationRun.eventsJson as Array<{
+    eventType: string;
+    platform: string;
+    orderId?: string;
+    status: "success" | "failed" | "missing_params";
+    params?: { value?: number; currency?: string };
+    errors?: string[];
+    discrepancies?: string[];
+  }> | null;
+
+  const totalEvents = summaryJson?.totalEvents || 0;
+  const successfulEvents = summaryJson?.successfulEvents || 0;
+  const failedEvents = summaryJson?.failedEvents || 0;
+  const missingParamsEvents = summaryJson?.missingParamsEvents || 0;
+
+  const passRate = totalEvents > 0 
+    ? Math.round((successfulEvents / totalEvents) * 100) 
+    : 0;
+
+  // 计算参数完整率
+  const parameterCompleteness = totalEvents > 0
+    ? Math.round(((totalEvents - missingParamsEvents) / totalEvents) * 100)
+    : 100;
+
+  // 计算金额准确率 (基于事件数据)
+  const eventsWithValue = eventsJson?.filter(e => e.params?.value !== undefined) || [];
+  const valueAccuracy = eventsWithValue.length > 0
+    ? Math.round((eventsWithValue.filter(e => e.status === 'success').length / eventsWithValue.length) * 100)
+    : 100;
+
+  // 平台状态
+  const platformResults = summaryJson?.platformResults || {};
+  const configuredPlatforms = new Set(shop.pixelConfigs.map(c => c.platform));
+  
+  const platforms = ['google', 'meta', 'tiktok', 'pinterest'].map(platform => {
+    const results = platformResults[platform] || { sent: 0, failed: 0 };
+    const configured = configuredPlatforms.has(platform);
+    const total = results.sent + results.failed;
+    
+    let status: 'success' | 'partial' | 'failed' | 'not_configured' = 'not_configured';
+    if (!configured) {
+      status = 'not_configured';
+    } else if (total === 0) {
+      status = 'not_configured';
+    } else if (results.failed === 0) {
+      status = 'success';
+    } else if (results.sent > results.failed) {
+      status = 'partial';
+    } else {
+      status = 'failed';
+    }
+
+    const nameMap: Record<string, string> = {
+      google: 'GA4',
+      meta: 'Meta (Facebook)',
+      tiktok: 'TikTok',
+      pinterest: 'Pinterest',
+    };
+
+    return {
+      name: nameMap[platform] || platform,
+      configured,
+      eventsSent: results.sent,
+      eventsFailed: results.failed,
+      status,
+    };
+  });
+
+  // 事件详情
+  const events = (eventsJson || []).map(e => ({
+    eventType: e.eventType,
+    platform: e.platform,
+    orderId: e.orderId,
+    status: e.status,
+    value: e.params?.value,
+    currency: e.params?.currency,
+    errors: [...(e.errors || []), ...(e.discrepancies || [])],
+  }));
+
+  // 生成建议
+  const recommendations: string[] = [];
+  
+  if (failedEvents > 0) {
+    recommendations.push('存在失败的事件发送，请检查平台凭证是否正确配置');
+  }
+  if (missingParamsEvents > 0) {
+    recommendations.push(`${missingParamsEvents} 个事件缺少必要参数，可能影响归因效果`);
+  }
+  if (!configuredPlatforms.has('google')) {
+    recommendations.push('建议配置 GA4 服务端追踪以获得更完整的归因数据');
+  }
+  if (!configuredPlatforms.has('meta')) {
+    recommendations.push('建议配置 Meta CAPI 以提升 Facebook/Instagram 广告归因');
+  }
+  if (passRate >= 80) {
+    recommendations.push('✅ 验收通过！建议每周运行一次验收以确保持续稳定');
+  }
+
+  return {
+    shopDomain: shop.shopDomain,
+    generatedAt: new Date().toISOString(),
+    reportType: "audit",
+    shopPlan: shop.plan,
+    runType: (verificationRun.runType as "quick" | "full") || "quick",
+    status: passRate >= 80 ? "completed" : passRate >= 50 ? "partial" : "failed",
+    scores: {
+      passRate,
+      parameterCompleteness,
+      valueAccuracy,
+    },
+    platforms,
+    events,
+    recommendations,
+  };
+}
+
+// ============================================================
+// Agency 批量报告 (Batch Report)
+// 对应设计方案 4.7 Agency：导出"迁移验收报告"
+// ============================================================
+
+export interface BatchReportData extends ReportData {
+  reportType: "audit";
+  groupName: string;
+  period: { startDate: string; endDate: string };
+  summary: {
+    totalShops: number;
+    scannedShops: number;
+    migratedShops: number;
+    verifiedShops: number;
+    avgRiskScore: number;
+    avgMatchRate: number;
+  };
+  shops: Array<{
+    shopDomain: string;
+    riskScore: number;
+    migrationStatus: "completed" | "in_progress" | "not_started";
+    verificationStatus: "passed" | "partial" | "failed" | "not_verified";
+    platforms: string[];
+    lastScanDate?: string;
+    lastVerificationDate?: string;
+  }>;
+}
+
+export function generateBatchReportHtml(data: BatchReportData): string {
+  return `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>批量验收报告 - ${data.groupName}</title>
+  ${CSS_STYLES}
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🛡️ Tracking Guardian</div>
+    <div class="meta">
+      <div>工作区: ${data.groupName}</div>
+      <div>生成时间: ${data.generatedAt}</div>
+      <div>统计周期: ${data.period.startDate} 至 ${data.period.endDate}</div>
+    </div>
+  </div>
+
+  <h1>多店迁移验收报告</h1>
+  
+  <div style="display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap;">
+    <div class="score-box score-low" style="flex: 1; min-width: 150px;">
+      <div class="score-value">${data.summary.totalShops}</div>
+      <div class="score-label">总店铺数</div>
+    </div>
+    <div class="score-box score-${data.summary.scannedShops === data.summary.totalShops ? 'low' : 'medium'}" style="flex: 1; min-width: 150px;">
+      <div class="score-value">${data.summary.scannedShops}</div>
+      <div class="score-label">已扫描</div>
+    </div>
+    <div class="score-box score-${data.summary.migratedShops === data.summary.totalShops ? 'low' : 'medium'}" style="flex: 1; min-width: 150px;">
+      <div class="score-value">${data.summary.migratedShops}</div>
+      <div class="score-label">已迁移</div>
+    </div>
+    <div class="score-box score-${data.summary.verifiedShops === data.summary.totalShops ? 'low' : 'medium'}" style="flex: 1; min-width: 150px;">
+      <div class="score-value">${data.summary.verifiedShops}</div>
+      <div class="score-label">已验收</div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 20px; margin: 20px 0;">
+    <div class="score-box score-${data.summary.avgRiskScore <= 30 ? 'low' : data.summary.avgRiskScore <= 60 ? 'medium' : 'high'}" style="flex: 1;">
+      <div class="score-value">${data.summary.avgRiskScore.toFixed(1)}</div>
+      <div class="score-label">平均风险分</div>
+    </div>
+    <div class="score-box score-${data.summary.avgMatchRate >= 95 ? 'low' : data.summary.avgMatchRate >= 80 ? 'medium' : 'high'}" style="flex: 1;">
+      <div class="score-value">${data.summary.avgMatchRate.toFixed(1)}%</div>
+      <div class="score-label">平均匹配率</div>
+    </div>
+  </div>
+
+  <h2>📊 店铺详情</h2>
+  <table>
+    <tr>
+      <th>店铺</th>
+      <th>风险分</th>
+      <th>迁移状态</th>
+      <th>验收状态</th>
+      <th>配置平台</th>
+      <th>最后扫描</th>
+    </tr>
+    ${data.shops.map(shop => `
+      <tr>
+        <td>${shop.shopDomain}</td>
+        <td><span class="badge badge-${shop.riskScore <= 30 ? 'low' : shop.riskScore <= 60 ? 'medium' : 'high'}">${shop.riskScore}</span></td>
+        <td><span class="badge badge-${shop.migrationStatus === 'completed' ? 'low' : shop.migrationStatus === 'in_progress' ? 'medium' : 'high'}">${
+          shop.migrationStatus === 'completed' ? '已完成' :
+          shop.migrationStatus === 'in_progress' ? '进行中' : '未开始'
+        }</span></td>
+        <td><span class="badge badge-${shop.verificationStatus === 'passed' ? 'low' : shop.verificationStatus === 'partial' ? 'medium' : 'high'}">${
+          shop.verificationStatus === 'passed' ? '通过' :
+          shop.verificationStatus === 'partial' ? '部分通过' :
+          shop.verificationStatus === 'failed' ? '失败' : '未验收'
+        }</span></td>
+        <td>${shop.platforms.join(', ') || '-'}</td>
+        <td>${shop.lastScanDate || '-'}</td>
+      </tr>
+    `).join('')}
+  </table>
+
+  <div class="footer">
+    <p>本报告由 Tracking Guardian 自动生成</p>
+    <p>Agency 版专属功能</p>
+  </div>
+</body>
+</html>
+`;
+}
+
+/**
+ * 获取批量报告数据
+ */
+export async function fetchBatchReportData(
+  groupId: string,
+  requesterId: string,
+  days: number = 30
+): Promise<BatchReportData | null> {
+  // 导入 multi-shop 服务
+  const { getShopGroupDetails, getGroupAggregatedStats } = await import("./multi-shop.server");
+  
+  const groupDetails = await getShopGroupDetails(groupId, requesterId);
+  if (!groupDetails) return null;
+
+  const memberShopIds = groupDetails.members.map(m => m.shopId);
+  
+  // 获取店铺详情
+  const shops = await prisma.shop.findMany({
+    where: { id: { in: memberShopIds } },
+    select: {
+      id: true,
+      shopDomain: true,
+      pixelConfigs: {
+        where: { isActive: true, serverSideEnabled: true },
+        select: { platform: true },
+      },
+      scanReports: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { riskScore: true, createdAt: true },
+      },
+      verificationRuns: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { status: true, summaryJson: true, completedAt: true },
+      },
+    },
+  });
+
+  const endDate = new Date();
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - days);
+
+  // 计算汇总统计
+  let totalRiskScore = 0;
+  let scannedCount = 0;
+  let migratedCount = 0;
+  let verifiedCount = 0;
+
+  const shopData = shops.map(shop => {
+    const latestScan = shop.scanReports[0];
+    const latestVerification = shop.verificationRuns[0];
+    const platforms = shop.pixelConfigs.map(c => c.platform);
+
+    const riskScore = latestScan?.riskScore || 0;
+    if (latestScan) {
+      totalRiskScore += riskScore;
+      scannedCount++;
+    }
+
+    const migrationStatus = platforms.length > 0 
+      ? (platforms.length >= 2 ? 'completed' : 'in_progress')
+      : 'not_started';
+    
+    if (migrationStatus === 'completed') migratedCount++;
+
+    let verificationStatus: 'passed' | 'partial' | 'failed' | 'not_verified' = 'not_verified';
+    if (latestVerification) {
+      const summary = latestVerification.summaryJson as { passRate?: number } | null;
+      const passRate = summary?.passRate || 0;
+      verificationStatus = passRate >= 80 ? 'passed' : passRate >= 50 ? 'partial' : 'failed';
+      if (verificationStatus === 'passed') verifiedCount++;
+    }
+
+    return {
+      shopDomain: shop.shopDomain,
+      riskScore,
+      migrationStatus: migrationStatus as 'completed' | 'in_progress' | 'not_started',
+      verificationStatus,
+      platforms,
+      lastScanDate: latestScan?.createdAt?.toISOString().split('T')[0],
+      lastVerificationDate: latestVerification?.completedAt?.toISOString().split('T')[0],
+    };
+  });
+
+  // 获取匹配率
+  const stats = await getGroupAggregatedStats(groupId, requesterId, days);
+  const avgMatchRate = stats?.averageMatchRate || 100;
+
+  return {
+    shopDomain: groupDetails.name,
+    generatedAt: new Date().toISOString(),
+    reportType: "audit",
+    groupName: groupDetails.name,
+    period: {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    },
+    summary: {
+      totalShops: shops.length,
+      scannedShops: scannedCount,
+      migratedShops: migratedCount,
+      verifiedShops: verifiedCount,
+      avgRiskScore: scannedCount > 0 ? totalRiskScore / scannedCount : 0,
+      avgMatchRate,
+    },
+    shops: shopData,
+  };
+}

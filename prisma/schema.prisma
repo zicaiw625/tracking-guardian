@@ -842,6 +842,41 @@ model WorkspaceShop {
 }
 
 // ============================================================
+// PixelTemplate 模型 - 像素配置模板
+// 用于 Agency 批量应用像素配置
+// ============================================================
+
+model PixelTemplate {
+  id      String @id @default(cuid())
+  ownerId String // 创建者店铺 ID
+  name    String // 模板名称
+
+  // 平台配置结构（不含凭证，仅包含事件映射等配置）
+  // 结构: [{
+  //   platform: "google" | "meta" | "tiktok" | "pinterest",
+  //   eventMappings?: Record<string, string>,
+  //   clientSideEnabled?: boolean,
+  //   serverSideEnabled?: boolean,
+  // }]
+  platforms Json
+
+  // 模板描述
+  description String?
+
+  // 是否为公开模板（可被其他 Agency 用户复制）
+  isPublic Boolean @default(false)
+
+  // 使用次数统计
+  usageCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([isPublic])
+}
+
+// ============================================================
 // ShopGroup 模型 - 与迁移文件同步
 // 用于 multi-shop.server.ts 服务
 // ============================================================

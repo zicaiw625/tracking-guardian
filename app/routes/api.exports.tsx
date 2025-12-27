@@ -2,14 +2,22 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-type ExportType = "conversions" | "audit" | "receipts" | "jobs" | "scan";
-type ExportFormat = "csv" | "json";
+import {
+  generateScanReportPdf,
+  generateReconciliationReportPdf,
+  generateVerificationReportPdf,
+} from "../services/pdf-generator.server";
+
+type ExportType = "conversions" | "audit" | "receipts" | "jobs" | "scan" | "reconciliation" | "verification";
+type ExportFormat = "csv" | "json" | "pdf" | "html";
 const EXPORT_LIMITS = {
     conversions: 10000,
     audit: 5000,
     receipts: 10000,
     jobs: 5000,
     scan: 50,
+    reconciliation: 100,
+    verification: 50,
 };
 const FIELD_DEFINITIONS = {
     conversions: {
@@ -241,6 +249,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 break;
             }
             case "scan": {
+                // PDF 格式支持
+                if (format === "pdf") {
+                    const pdfResult = await generateScanReportPdf(shop.id);
+                    if (!pdfResult) {
+                        return new Response("PDF generation failed", { status: 500 });
+                    }
+                    return new Response(pdfResult.buffer, {
+                        status: 200,
+                        headers: {
+                            "Content-Type": pdfResult.contentType,
+                            "Content-Disposition": `attachment; filename="${pdfResult.filename}"`,
+                        },
+                    });
+                }
 
                 const scans = await prisma.scanReport.findMany({
                     where: {
@@ -303,6 +325,72 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 fieldDefs = FIELD_DEFINITIONS.scan;
                 break;
             }
+
+            case "reconciliation": {
+                // PDF 格式支持
+                if (format === "pdf") {
+                    const pdfResult = await generateReconciliationReportPdf(shop.id);
+                    if (!pdfResult) {
+                        return new Response("PDF generation failed", { status: 500 });
+                    }
+                    return new Response(pdfResult.buffer, {
+                        status: 200,
+                        headers: {
+                            "Content-Type": pdfResult.contentType,
+                            "Content-Disposition": `attachment; filename="${pdfResult.filename}"`,
+                        },
+                    });
+                }
+
+                // JSON/CSV 格式
+                const reports = await prisma.reconciliationReport.findMany({
+                    where: {
+                        shopId: shop.id,
+                        ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {}),
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: EXPORT_LIMITS.reconciliation,
+                });
+
+                data = reports.map((report: typeof reports[number]) => ({
+                    id: report.id,
+                    periodStart: report.periodStart.toISOString(),
+                    periodEnd: report.periodEnd.toISOString(),
+                    status: report.status,
+                    ordersTotal: report.ordersTotal,
+                    ordersMatched: report.ordersMatched,
+                    ordersMissed: report.ordersMissed,
+                    matchRate: report.matchRate,
+                    createdAt: report.createdAt.toISOString(),
+                }));
+                filename = `reconciliation_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
+                fieldDefs = {};
+                break;
+            }
+
+            case "verification": {
+                // 验收报告需要从 URL 参数获取数据或使用最新的验证运行
+                const verificationRuns = await prisma.verificationRun.findMany({
+                    where: { shopId: shop.id },
+                    orderBy: { createdAt: "desc" },
+                    take: EXPORT_LIMITS.verification,
+                });
+
+                data = verificationRuns.map((run: typeof verificationRuns[number]) => ({
+                    id: run.id,
+                    status: run.status,
+                    passRate: run.passRate,
+                    totalOrders: run.totalOrders,
+                    verifiedOrders: run.verifiedOrders,
+                    failedOrders: run.failedOrders,
+                    createdAt: run.createdAt.toISOString(),
+                    completedAt: run.completedAt?.toISOString() || null,
+                }));
+                filename = `verification_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
+                fieldDefs = {};
+                break;
+            }
+
             default:
                 return new Response(`Invalid export type: ${exportType}`, { status: 400 });
         }

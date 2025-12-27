@@ -36,9 +36,17 @@ import {
   DeleteIcon,
   EditIcon,
   ExportIcon,
+  SearchIcon,
+  RefreshIcon,
 } from "~/components/icons";
 
 import { authenticate } from "../shopify.server";
+import {
+  startBatchAudit,
+  getBatchAuditStatus,
+  type BatchAuditResult,
+  type BatchAuditJob,
+} from "../services/batch-audit.server";
 import prisma from "../db.server";
 import {
   canManageMultipleShops,
@@ -225,6 +233,88 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ success: true });
     }
 
+    case "batch_audit": {
+      const groupId = formData.get("groupId") as string;
+      if (!groupId) {
+        return json({ error: "请选择分组" }, { status: 400 });
+      }
+
+      const result = await startBatchAudit({
+        groupId,
+        requesterId: shop.id,
+        concurrency: 3,
+        skipRecentHours: 6,
+      });
+
+      if ("error" in result) {
+        return json({ error: result.error }, { status: 400 });
+      }
+
+      return json({ 
+        success: true, 
+        actionType: "batch_audit",
+        jobId: result.jobId,
+        message: "批量扫描已启动，请稍后刷新查看结果",
+      });
+    }
+
+    case "check_batch_audit": {
+      const jobId = formData.get("jobId") as string;
+      if (!jobId) {
+        return json({ error: "缺少任务 ID" }, { status: 400 });
+      }
+
+      const job = getBatchAuditStatus(jobId);
+      if (!job) {
+        return json({ error: "任务不存在或已过期" }, { status: 404 });
+      }
+
+      return json({ 
+        success: true, 
+        actionType: "check_batch_audit",
+        job,
+      });
+    }
+
+    case "send_invitation": {
+      const { createInvitation } = await import("../services/workspace-invitation.server");
+      
+      const groupId = formData.get("groupId") as string;
+      const inviteeEmail = formData.get("inviteeEmail") as string;
+      const role = (formData.get("role") as "admin" | "member") || "member";
+      
+      if (!groupId) {
+        return json({ error: "请选择分组" }, { status: 400 });
+      }
+      
+      if (!inviteeEmail) {
+        return json({ error: "请输入受邀者邮箱" }, { status: 400 });
+      }
+      
+      const result = await createInvitation({
+        groupId,
+        inviterId: shop.id,
+        inviteeEmail,
+        role,
+        permissions: {
+          canEditSettings: role === "admin",
+          canViewReports: true,
+          canManageBilling: false,
+        },
+      });
+      
+      if (!result) {
+        return json({ error: "创建邀请失败" }, { status: 400 });
+      }
+      
+      return json({
+        success: true,
+        actionType: "send_invitation",
+        inviteUrl: result.inviteUrl,
+        message: "邀请链接已生成",
+      });
+    }
+
     default:
       return json({ error: "未知操作" }, { status: 400 });
   }
@@ -301,10 +391,20 @@ export default function WorkspacePage() {
 
   const [selectedTab, setSelectedTab] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteeEmail, setInviteeEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
   const [showAddShopModal, setShowAddShopModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newShopDomain, setNewShopDomain] = useState("");
   const [newShopRole, setNewShopRole] = useState<"admin" | "member">("member");
+  
+  // 批量 Audit 状态
+  const [batchAuditJobId, setBatchAuditJobId] = useState<string | null>(null);
+  const [batchAuditStatus, setBatchAuditStatus] = useState<BatchAuditJob | null>(null);
+  const [batchAuditResult, setBatchAuditResult] = useState<BatchAuditResult | null>(null);
+  const [showBatchAuditResult, setShowBatchAuditResult] = useState(false);
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -341,9 +441,35 @@ export default function WorkspacePage() {
     [submit]
   );
 
+  // 批量 Audit 处理
+  const handleBatchAudit = useCallback(() => {
+    if (!selectedGroup) return;
+    if (!confirm(`确定要对「${selectedGroup.name}」中的所有店铺运行扫描吗？\n\n这将扫描 ${selectedGroup.memberCount} 个店铺，可能需要几分钟时间。`)) return;
+    
+    const formData = new FormData();
+    formData.append("_action", "batch_audit");
+    formData.append("groupId", selectedGroup.id);
+    submit(formData, { method: "post" });
+  }, [selectedGroup, submit]);
+
+  // 发送邀请处理
+  const handleSendInvitation = useCallback(() => {
+    if (!selectedGroup || !inviteeEmail.trim()) return;
+    const formData = new FormData();
+    formData.append("_action", "send_invitation");
+    formData.append("groupId", selectedGroup.id);
+    formData.append("inviteeEmail", inviteeEmail.trim());
+    formData.append("role", inviteRole);
+    submit(formData, { method: "post" });
+  }, [selectedGroup, inviteeEmail, inviteRole, submit]);
+
+  // 处理 action 响应
+  const actionData = navigation.state === "idle" ? null : null;
+  
   const tabs = [
     { id: "overview", content: "概览" },
     { id: "shops", content: "店铺管理" },
+    { id: "templates", content: "像素模板" },
     { id: "reports", content: "汇总报告" },
   ];
 
@@ -490,6 +616,14 @@ export default function WorkspacePage() {
                             </BlockStack>
                             <InlineStack gap="200">
                               <Button
+                                icon={SearchIcon}
+                                variant="primary"
+                                onClick={handleBatchAudit}
+                                loading={isSubmitting}
+                              >
+                                批量扫描
+                              </Button>
+                              <Button
                                 icon={DeleteIcon}
                                 tone="critical"
                                 variant="plain"
@@ -501,6 +635,14 @@ export default function WorkspacePage() {
                           </InlineStack>
 
                           <Divider />
+
+                          {/* 批量扫描提示 */}
+                          <Banner tone="info">
+                            <Text as="p" variant="bodySm">
+                              💡 <strong>批量扫描</strong>：一键对分组内所有店铺运行 Audit 扫描，
+                              识别追踪脚本风险并生成迁移建议。最近 6 小时内已扫描的店铺将被跳过。
+                            </Text>
+                          </Banner>
 
                           {/* 统计卡片 */}
                           {groupStats && (
@@ -568,12 +710,22 @@ export default function WorkspacePage() {
                     <Card>
                       <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
-                          <Text as="h2" variant="headingMd">
-                            分组成员
-                          </Text>
-                          <Text as="p" variant="bodySm" tone="subdued">
-                            {selectedGroup.memberCount} 个店铺
-                          </Text>
+                          <BlockStack gap="100">
+                            <Text as="h2" variant="headingMd">
+                              分组成员
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              {selectedGroup.memberCount} 个店铺
+                            </Text>
+                          </BlockStack>
+                          <Button
+                            icon={PlusIcon}
+                            onClick={() => setShowInviteModal(true)}
+                            variant="primary"
+                            size="slim"
+                          >
+                            邀请店铺
+                          </Button>
                         </InlineStack>
 
                         <Divider />
@@ -633,8 +785,92 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {/* 汇总报告 */}
+                {/* 像素模板 */}
                 {selectedTab === 2 && (
+                  <Box paddingBlockStart="400">
+                    <BlockStack gap="500">
+                      <Card>
+                        <BlockStack gap="400">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="h2" variant="headingMd">
+                              🎨 像素配置模板
+                            </Text>
+                            <Button variant="primary" size="slim">
+                              创建模板
+                            </Button>
+                          </InlineStack>
+                          
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            创建可重复使用的像素配置模板，批量应用到分组内的所有店铺。
+                          </Text>
+
+                          <Divider />
+
+                          {/* 预设模板 */}
+                          <BlockStack gap="300">
+                            <Text as="h3" variant="headingSm">
+                              系统预设模板
+                            </Text>
+                            
+                            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <BlockStack gap="100">
+                                  <Text as="span" fontWeight="semibold">
+                                    基础追踪套件
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    GA4 + Meta Pixel 的基础配置
+                                  </Text>
+                                </BlockStack>
+                                <Button size="slim">应用到分组</Button>
+                              </InlineStack>
+                            </Box>
+
+                            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <BlockStack gap="100">
+                                  <Text as="span" fontWeight="semibold">
+                                    全渠道追踪套件
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    GA4 + Meta + TikTok + Pinterest
+                                  </Text>
+                                </BlockStack>
+                                <Button size="slim">应用到分组</Button>
+                              </InlineStack>
+                            </Box>
+
+                            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <BlockStack gap="100">
+                                  <Text as="span" fontWeight="semibold">
+                                    仅服务端追踪
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    仅 CAPI，注重隐私
+                                  </Text>
+                                </BlockStack>
+                                <Button size="slim">应用到分组</Button>
+                              </InlineStack>
+                            </Box>
+                          </BlockStack>
+
+                          <Divider />
+
+                          <Banner tone="info">
+                            <Text as="p" variant="bodySm">
+                              💡 <strong>提示：</strong>模板只包含配置结构（启用哪些平台、事件映射等），
+                              不包含凭证（API Key、Access Token）。凭证需要在各店铺单独配置。
+                            </Text>
+                          </Banner>
+                        </BlockStack>
+                      </Card>
+                    </BlockStack>
+                  </Box>
+                )}
+
+                {/* 汇总报告 */}
+                {selectedTab === 3 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
                       <Card>
@@ -643,7 +879,15 @@ export default function WorkspacePage() {
                             <Text as="h2" variant="headingMd">
                               店铺详细数据
                             </Text>
-                            <Button icon={ExportIcon} size="slim">
+                            <Button 
+                              icon={ExportIcon} 
+                              size="slim"
+                              onClick={() => {
+                                if (selectedGroup) {
+                                  window.open(`/api/exports?type=group_breakdown&groupId=${selectedGroup.id}&format=csv`, "_blank");
+                                }
+                              }}
+                            >
                               导出 CSV
                             </Button>
                           </InlineStack>
@@ -689,8 +933,25 @@ export default function WorkspacePage() {
                             生成包含所有店铺迁移状态和验收结果的汇总报告。
                           </Text>
                           <InlineStack gap="200">
-                            <Button>导出 PDF 报告</Button>
-                            <Button variant="secondary">导出 CSV 数据</Button>
+                            <Button
+                              onClick={() => {
+                                if (selectedGroup) {
+                                  window.open(`/api/reports/pdf?type=batch&groupId=${selectedGroup.id}&format=html`, "_blank");
+                                }
+                              }}
+                            >
+                              预览 HTML 报告
+                            </Button>
+                            <Button
+                              variant="primary"
+                              onClick={() => {
+                                if (selectedGroup) {
+                                  window.open(`/api/reports/pdf?type=batch&groupId=${selectedGroup.id}`, "_blank");
+                                }
+                              }}
+                            >
+                              导出 PDF 报告
+                            </Button>
                           </InlineStack>
                         </BlockStack>
                       </Card>
@@ -733,6 +994,89 @@ export default function WorkspacePage() {
             <Text as="p" variant="bodySm" tone="subdued">
               分组可以帮助您管理多个店铺，例如按区域、品牌或客户分类。
             </Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      {/* 邀请成员模态框 */}
+      <Modal
+        open={showInviteModal}
+        onClose={() => {
+          setShowInviteModal(false);
+          setInviteeEmail("");
+          setGeneratedInviteUrl(null);
+        }}
+        title="邀请店铺加入分组"
+        primaryAction={
+          generatedInviteUrl
+            ? {
+                content: "复制链接",
+                onAction: () => {
+                  navigator.clipboard.writeText(generatedInviteUrl);
+                  // 可以添加 toast 提示
+                },
+              }
+            : {
+                content: "生成邀请链接",
+                onAction: handleSendInvitation,
+                loading: isSubmitting,
+                disabled: !inviteeEmail.trim(),
+              }
+        }
+        secondaryActions={[
+          {
+            content: generatedInviteUrl ? "关闭" : "取消",
+            onAction: () => {
+              setShowInviteModal(false);
+              setInviteeEmail("");
+              setGeneratedInviteUrl(null);
+            },
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            {generatedInviteUrl ? (
+              <>
+                <Banner tone="success">
+                  <Text as="p">邀请链接已生成！请将链接发送给被邀请的店铺。</Text>
+                </Banner>
+                <TextField
+                  label="邀请链接"
+                  value={generatedInviteUrl}
+                  readOnly
+                  autoComplete="off"
+                  helpText="链接有效期 7 天"
+                />
+              </>
+            ) : (
+              <>
+                <TextField
+                  label="受邀店铺邮箱（可选）"
+                  type="email"
+                  value={inviteeEmail}
+                  onChange={setInviteeEmail}
+                  placeholder="shop@example.com"
+                  autoComplete="off"
+                  helpText="用于发送邀请邮件，也可以手动分享链接"
+                />
+                <Select
+                  label="角色"
+                  options={[
+                    { label: "成员 - 仅查看报告", value: "member" },
+                    { label: "管理员 - 可编辑设置", value: "admin" },
+                  ]}
+                  value={inviteRole}
+                  onChange={(val) => setInviteRole(val as "admin" | "member")}
+                />
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    被邀请的店铺需要先安装 Tracking Guardian 应用，
+                    然后点击邀请链接接受邀请。
+                  </Text>
+                </Banner>
+              </>
+            )}
           </BlockStack>
         </Modal.Section>
       </Modal>

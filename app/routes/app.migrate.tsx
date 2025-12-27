@@ -740,6 +740,7 @@ export default function MigratePage() {
                         <List.Item>Google Analytics 4 (Measurement Protocol)</List.Item>
                         <List.Item>Meta Conversions API (Facebook CAPI)</List.Item>
                         <List.Item>TikTok Events API</List.Item>
+                        <List.Item>Pinterest Conversions API</List.Item>
                       </List>
                     </BlockStack>
                   </Box>
