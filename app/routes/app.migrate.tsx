@@ -1,7 +1,9 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useActionData } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useActionData, useRevalidator } from "@remix-run/react";
 import { useState, useEffect } from "react";
+import { useToastContext, EnhancedEmptyState } from "~/components/ui";
+import { PixelMigrationWizard, type PlatformConfig } from "~/components/migrate/PixelMigrationWizard";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, Icon, ProgressBar, Link, List, } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, SettingsIcon, LockIcon, } from "~/components/icons";
 import { authenticate } from "../shopify.server";
@@ -291,6 +293,87 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
         }
     }
+    if (actionType === "saveWizardConfigs") {
+        const { encryptJson } = await import("../utils/crypto.server");
+        const configsJson = formData.get("configs") as string;
+        
+        if (!configsJson) {
+            return json({ error: "缺少配置数据" }, { status: 400 });
+        }
+
+        try {
+            const configs = JSON.parse(configsJson) as Array<{
+                platform: string;
+                platformId: string;
+                credentials: Record<string, string>;
+                eventMappings: Record<string, string>;
+                environment: "test" | "live";
+            }>;
+
+            // 保存每个平台的配置
+            for (const config of configs) {
+                const platform = config.platform as "google" | "meta" | "tiktok" | "pinterest";
+                
+                // 构建凭证对象
+                let credentials: Record<string, string> = {};
+                if (platform === "google") {
+                    credentials = {
+                        measurementId: config.credentials.measurementId || "",
+                        apiSecret: config.credentials.apiSecret || "",
+                    };
+                } else {
+                    credentials = {
+                        pixelId: config.credentials.pixelId || "",
+                        accessToken: config.credentials.accessToken || "",
+                        ...(config.credentials.testEventCode && { testEventCode: config.credentials.testEventCode }),
+                    };
+                }
+
+                // 加密凭证
+                const encryptedCredentials = encryptJson(credentials);
+
+                // 保存配置
+                await prisma.pixelConfig.upsert({
+                    where: {
+                        shopId_platform: {
+                            shopId: shop.id,
+                            platform,
+                        },
+                    },
+                    update: {
+                        platformId: config.platformId,
+                        credentialsEncrypted: encryptedCredentials,
+                        serverSideEnabled: true,
+                        eventMappings: config.eventMappings as object,
+                        environment: config.environment,
+                        migrationStatus: "in_progress",
+                    },
+                    create: {
+                        shopId: shop.id,
+                        platform,
+                        platformId: config.platformId,
+                        credentialsEncrypted: encryptedCredentials,
+                        serverSideEnabled: true,
+                        eventMappings: config.eventMappings as object,
+                        environment: config.environment,
+                        migrationStatus: "in_progress",
+                    },
+                });
+            }
+
+            return json({
+                success: true,
+                _action: "saveWizardConfigs",
+                message: `已成功配置 ${configs.length} 个平台`,
+            });
+        } catch (error) {
+            logger.error("Failed to save wizard configs", error);
+            return json({
+                error: error instanceof Error ? error.message : "保存配置失败",
+            }, { status: 500 });
+        }
+    }
+
     return json({ error: "Unknown action" }, { status: 400 });
 };
 type SetupStep = "typOsp" | "pixel" | "capi" | "complete";
@@ -299,6 +382,7 @@ export default function MigratePage() {
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
+    const { showSuccess, showError } = useToastContext();
     const isGrowthOrAbove = isPlanAtLeast(planId, "growth");
     const isProOrAbove = isPlanAtLeast(planId, "pro");
     const isAgency = isPlanAtLeast(planId, "agency");
@@ -309,6 +393,8 @@ export default function MigratePage() {
         }
         return "pixel";
     });
+    const [showWizard, setShowWizard] = useState(false);
+    const revalidator = useRevalidator();
     const isSubmitting = navigation.state === "submitting";
 
     const handleUpgradeSettings = () => {
@@ -321,11 +407,33 @@ export default function MigratePage() {
         const data = actionData as {
             _action?: string;
             success?: boolean;
+            message?: string;
+            error?: string;
         } | undefined;
-        if (data?._action === "enablePixel" && data?.success) {
-            setCurrentStep("capi");
+        if (data?._action === "enablePixel") {
+            if (data?.success) {
+                showSuccess(data?.message || "App Pixel 已启用");
+                setCurrentStep("capi");
+            } else if (data?.error) {
+                showError(data.error);
+            }
+        } else if (data?._action === "upgradePixelSettings") {
+            if (data?.success) {
+                showSuccess(data?.message || "Pixel 设置已升级");
+            } else if (data?.error) {
+                showError(data.error);
+            }
+        } else if (data?._action === "saveWizardConfigs") {
+            if (data?.success) {
+                showSuccess(data?.message || "配置已保存");
+                setShowWizard(false);
+                revalidator.revalidate();
+                setCurrentStep("complete");
+            } else if (data?.error) {
+                showError(data.error);
+            }
         }
-    }, [actionData]);
+    }, [actionData, showSuccess, showError, revalidator]);
 
     useEffect(() => {
         if (pixelStatus === "installed" && hasCapiConfig && typOspStatus.enabled) {
@@ -342,6 +450,13 @@ export default function MigratePage() {
         }
         const formData = new FormData();
         formData.append("_action", "enablePixel");
+        submit(formData, { method: "post" });
+    };
+
+    const handleWizardComplete = (configs: PlatformConfig[]) => {
+        const formData = new FormData();
+        formData.append("_action", "saveWizardConfigs");
+        formData.append("configs", JSON.stringify(configs));
         submit(formData, { method: "post" });
     };
     const steps = [
@@ -365,6 +480,24 @@ export default function MigratePage() {
         },
     ] : [];
     const migrationUrgencyActions = migrationUrgency?.actions ?? [];
+    
+    // 处理 shop 为 null 的情况
+    if (!shop) {
+      return (
+        <Page title="设置追踪" subtitle="配置服务端转化追踪（Server-side CAPI）">
+          <EnhancedEmptyState
+            icon="⚠️"
+            title="店铺信息未找到"
+            description="未找到店铺信息，请重新安装应用。"
+            primaryAction={{
+              content: "返回首页",
+              url: "/app",
+            }}
+          />
+        </Page>
+      );
+    }
+    
     return (<Page title="设置追踪" subtitle="配置服务端转化追踪（Server-side CAPI）">
       <BlockStack gap="500">
         {upgradeStatus && (<Banner title={upgradeStatus.title} tone={upgradeStatus.urgency === "critical"
@@ -521,30 +654,7 @@ export default function MigratePage() {
                 检测到您的 App Pixel 使用旧版配置格式（缺少 shop_domain 或使用旧键名 ingestion_secret）。
                 请点击「一键升级设置」来更新到最新版本，以确保追踪功能正常工作。
               </Text>
-              {(() => {
-                const data = actionData as {
-                  _action?: string;
-                  success?: boolean;
-                  error?: string;
-                  message?: string;
-                } | undefined;
-                if (data?._action === "upgradePixelSettings") {
-                  if (data.success) {
-                    return (
-                      <Banner tone="success">
-                        <Text as="p">{data.message}</Text>
-                      </Banner>
-                    );
-                  } else {
-                    return (
-                      <Banner tone="critical">
-                        <Text as="p">升级失败: {data.error}</Text>
-                      </Banner>
-                    );
-                  }
-                }
-                return null;
-              })()}
+              {/* Toast 通知已处理 actionData 的反馈 */}
             </BlockStack>
           </Banner>
         )}
@@ -669,27 +779,7 @@ export default function MigratePage() {
                     </BlockStack>
                   </Box>
 
-                  {(() => {
-                const data = actionData as {
-                    _action?: string;
-                    success?: boolean;
-                    error?: string;
-                    message?: string;
-                } | undefined;
-                if (data?._action === "enablePixel") {
-                    if (data.success) {
-                        return (<Banner tone="success">
-                            <Text as="p">{data.message}</Text>
-                          </Banner>);
-                    }
-                    else {
-                        return (<Banner tone="critical">
-                            <Text as="p">启用失败: {data.error}</Text>
-                          </Banner>);
-                    }
-                }
-                return null;
-            })()}
+                  {/* Toast 通知已处理 actionData 的反馈，移除 Banner */}
 
                   {!isGrowthOrAbove && (
                     <Banner
@@ -714,66 +804,89 @@ export default function MigratePage() {
                 </BlockStack>
               </Card>)}
 
-            {currentStep === "capi" && (<Card>
-                <BlockStack gap="400">
-                  <InlineStack gap="200" blockAlign="center">
-                    <Icon source={CheckCircleIcon} tone="success"/>
-                    <Text as="h2" variant="headingMd">
-                      App Pixel 已启用
-                    </Text>
-                  </InlineStack>
+            {currentStep === "capi" && (
+              <>
+                {!showWizard ? (
+                  <Card>
+                    <BlockStack gap="400">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Icon source={CheckCircleIcon} tone="success"/>
+                        <Text as="h2" variant="headingMd">
+                          App Pixel 已启用
+                        </Text>
+                      </InlineStack>
 
-                  <Divider />
+                      <Divider />
 
-                  <Text as="h2" variant="headingMd">
-                    第 3 步：配置服务端追踪 (CAPI)
-                  </Text>
-
-                  <Text as="p" tone="subdued">
-                    配置广告平台的 Conversions API 凭证，让 Tracking Guardian 自动发送转化数据。
-                  </Text>
-
-                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-                    <BlockStack gap="300">
-                      <Text as="span" fontWeight="semibold">支持的平台：</Text>
-                      <List type="bullet">
-                        <List.Item>Google Analytics 4 (Measurement Protocol)</List.Item>
-                        <List.Item>Meta Conversions API (Facebook CAPI)</List.Item>
-                        <List.Item>TikTok Events API</List.Item>
-                        <List.Item>Pinterest Conversions API</List.Item>
-                      </List>
-                    </BlockStack>
-                  </Box>
-
-                  <Banner tone="info">
-                    <BlockStack gap="200">
-                      <Text as="p">
-                        在设置页面配置您需要的平台凭证。您可以同时启用多个平台。
+                      <Text as="h2" variant="headingMd">
+                        第 3 步：配置服务端追踪 (CAPI)
                       </Text>
-                    </BlockStack>
-                  </Banner>
 
-                  {!isProOrAbove && (
-                    <Banner
-                      tone="warning"
-                      action={{ content: "升级至 Pro", url: "/app/settings?tab=billing" }}
-                    >
-                      <Text as="p">
-                        事件对账与多渠道 CAPI 配置在 Pro 及以上开放。请升级以继续配置凭证。
+                      <Text as="p" tone="subdued">
+                        配置广告平台的 Conversions API 凭证，让 Tracking Guardian 自动发送转化数据。
                       </Text>
-                    </Banner>
-                  )}
 
-                  <InlineStack gap="200">
-                    <Button variant="primary" url="/app/settings" size="large" disabled={!isProOrAbove}>
-                      前往配置 CAPI 凭证
-                    </Button>
-                    <Button onClick={() => setCurrentStep("complete")} disabled={!isProOrAbove}>
-                      稍后配置
-                    </Button>
-                  </InlineStack>
-                </BlockStack>
-              </Card>)}
+                      <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                        <BlockStack gap="300">
+                          <Text as="span" fontWeight="semibold">支持的平台：</Text>
+                          <List type="bullet">
+                            <List.Item>Google Analytics 4 (Measurement Protocol)</List.Item>
+                            <List.Item>Meta Conversions API (Facebook CAPI)</List.Item>
+                            <List.Item>TikTok Events API</List.Item>
+                            <List.Item>Pinterest Conversions API</List.Item>
+                          </List>
+                        </BlockStack>
+                      </Box>
+
+                      <Banner tone="info">
+                        <BlockStack gap="200">
+                          <Text as="p">
+                            使用向导可以快速配置多个平台，或前往设置页面手动配置。
+                          </Text>
+                        </BlockStack>
+                      </Banner>
+
+                      {!isProOrAbove && (
+                        <Banner
+                          tone="warning"
+                          action={{ content: "升级至 Pro", url: "/app/settings?tab=billing" }}
+                        >
+                          <Text as="p">
+                            事件对账与多渠道 CAPI 配置在 Pro 及以上开放。请升级以继续配置凭证。
+                          </Text>
+                        </Banner>
+                      )}
+
+                      <InlineStack gap="200">
+                        <Button 
+                          variant="primary" 
+                          size="large" 
+                          disabled={!isProOrAbove}
+                          onClick={() => setShowWizard(true)}
+                        >
+                          使用向导配置
+                        </Button>
+                        <Button url="/app/settings" size="large" disabled={!isProOrAbove}>
+                          前往设置页面
+                        </Button>
+                        <Button onClick={() => setCurrentStep("complete")} disabled={!isProOrAbove}>
+                          稍后配置
+                        </Button>
+                      </InlineStack>
+                    </BlockStack>
+                  </Card>
+                ) : (
+                  <PixelMigrationWizard
+                    onComplete={handleWizardComplete}
+                    onCancel={() => setShowWizard(false)}
+                    initialPlatforms={identifiedPlatforms.filter((p): p is "google" | "meta" | "tiktok" | "pinterest" => 
+                      ["google", "meta", "tiktok", "pinterest"].includes(p)
+                    )}
+                    canManageMultiple={isAgency}
+                  />
+                )}
+              </>
+            )}
 
             {currentStep === "complete" && (<Card>
                 <BlockStack gap="400">

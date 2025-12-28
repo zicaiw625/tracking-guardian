@@ -8,6 +8,7 @@ import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json";
 import { authenticate } from "../shopify.server";
+import { ToastProvider } from "../components/ui/ToastProvider";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     await authenticate.admin(request);
@@ -30,7 +31,9 @@ export default function App() {
         <a href="/app/privacy">隐私与数据</a>
         <a href="/app/settings">设置</a>
       </NavMenu>
-      <Outlet />
+      <ToastProvider>
+        <Outlet />
+      </ToastProvider>
     </AppProvider>);
 }
 export const headers: HeadersFunction = (headersArgs) => {

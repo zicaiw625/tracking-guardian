@@ -116,7 +116,7 @@ export function DeadlineTimeline({
           padding="400"
           borderRadius="200"
         >
-          <BlockStack gap="000">
+          <BlockStack gap="100">
             {relevantEvents.map((event, index) => {
               const isPassed = event.date <= now;
               const isNext = event === nextEvent;
@@ -126,10 +126,10 @@ export function DeadlineTimeline({
               const isLast = index === relevantEvents.length - 1;
               return (
                 <Box key={event.id} paddingBlockEnd={isLast ? "0" : "400"}>
-                  <InlineStack gap="300" blockAlignment="start" wrap={false}>
+                  <InlineStack gap="300" blockAlign="start" wrap={false}>
                     {               }
                     <Box minWidth="24px">
-                      <BlockStack gap="000" inlineAlign="center">
+                      <BlockStack gap="100" inlineAlign="center">
                         {          }
                         <Tooltip content={isPassed ? "已过" : `距今 ${Math.abs(daysUntil)} 天`}>
                           <Box
@@ -185,7 +185,7 @@ export function DeadlineTimeline({
                     {}
                     <Box paddingBlockStart="0" minWidth="0">
                       <BlockStack gap={compact ? "050" : "100"}>
-                        <InlineStack gap="200" blockAlignment="center" wrap>
+                        <InlineStack gap="200" blockAlign="center" wrap>
                           <Text
                             as="span"
                             variant={compact ? "bodySm" : "bodyMd"}

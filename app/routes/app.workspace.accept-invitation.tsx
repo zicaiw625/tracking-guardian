@@ -20,6 +20,7 @@ import {
   Badge,
   List,
 } from "@shopify/polaris";
+import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -135,6 +136,7 @@ export default function AcceptInvitationPage() {
   const { invitation, error, shop, alreadyMember } = useLoaderData<typeof loader>();
   const submit = useSubmit();
   const navigation = useNavigation();
+  const { showSuccess, showError } = useToastContext();
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -157,14 +159,15 @@ export default function AcceptInvitationPage() {
   if (error || !invitation) {
     return (
       <Page title="邀请无效">
-        <Card>
-          <Banner tone="critical">
-            <Text as="p">{error || "邀请不存在或已失效"}</Text>
-          </Banner>
-          <Box paddingBlockStart="400">
-            <Button url="/app/workspace">返回工作区</Button>
-          </Box>
-        </Card>
+        <EnhancedEmptyState
+          icon="⚠️"
+          title="邀请无效"
+          description={error || "邀请不存在或已失效"}
+          primaryAction={{
+            content: "返回工作区",
+            url: "/app/workspace",
+          }}
+        />
       </Page>
     );
   }
@@ -172,16 +175,15 @@ export default function AcceptInvitationPage() {
   if (alreadyMember) {
     return (
       <Page title="已是成员">
-        <Card>
-          <Banner tone="info">
-            <Text as="p">您已经是「{invitation.groupName}」的成员。</Text>
-          </Banner>
-          <Box paddingBlockStart="400">
-            <Button url={`/app/workspace?groupId=${invitation.groupId}`} variant="primary">
-              查看工作区
-            </Button>
-          </Box>
-        </Card>
+        <EnhancedEmptyState
+          icon="✅"
+          title="已是成员"
+          description={`您已经是「${invitation.groupName}」的成员。`}
+          primaryAction={{
+            content: "查看工作区",
+            url: `/app/workspace?groupId=${invitation.groupId}`,
+          }}
+        />
       </Page>
     );
   }
@@ -189,17 +191,15 @@ export default function AcceptInvitationPage() {
   if (invitation.status === "expired") {
     return (
       <Page title="邀请已过期">
-        <Card>
-          <Banner tone="warning">
-            <Text as="p">
-              此邀请已于 {new Date(invitation.expiresAt).toLocaleDateString("zh-CN")} 过期。
-              请联系 {invitation.inviterDomain} 重新发送邀请。
-            </Text>
-          </Banner>
-          <Box paddingBlockStart="400">
-            <Button url="/app/workspace">返回工作区</Button>
-          </Box>
-        </Card>
+        <EnhancedEmptyState
+          icon="⏰"
+          title="邀请已过期"
+          description={`此邀请已于 ${new Date(invitation.expiresAt).toLocaleDateString("zh-CN")} 过期。请联系 ${invitation.inviterDomain} 重新发送邀请。`}
+          primaryAction={{
+            content: "返回工作区",
+            url: "/app/workspace",
+          }}
+        />
       </Page>
     );
   }
@@ -207,14 +207,15 @@ export default function AcceptInvitationPage() {
   if (invitation.status !== "pending") {
     return (
       <Page title="邀请状态无效">
-        <Card>
-          <Banner tone="warning">
-            <Text as="p">此邀请状态为「{invitation.status}」，无法操作。</Text>
-          </Banner>
-          <Box paddingBlockStart="400">
-            <Button url="/app/workspace">返回工作区</Button>
-          </Box>
-        </Card>
+        <EnhancedEmptyState
+          icon="⚠️"
+          title="邀请状态无效"
+          description={`此邀请状态为「${invitation.status}」，无法操作。`}
+          primaryAction={{
+            content: "返回工作区",
+            url: "/app/workspace",
+          }}
+        />
       </Page>
     );
   }

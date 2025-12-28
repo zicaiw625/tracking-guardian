@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLoaderData, useSubmit, useActionData, useNavigation } from "@remix-run/react";
 import { Page, BlockStack, Banner, Tabs, ContextualSaveBar } from "@shopify/polaris";
+import { useToastContext } from "~/components/ui";
 
 import { settingsLoader } from "./loader.server";
 import { settingsAction } from "./actions.server";
@@ -23,6 +24,18 @@ export default function SettingsPage() {
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
   const navigation = useNavigation();
+  const { showSuccess, showError } = useToastContext();
+
+  // 处理 action 响应并显示 Toast
+  useEffect(() => {
+    if (actionData) {
+      if (actionData.success) {
+        showSuccess(actionData.message || "设置已保存");
+      } else if (actionData.error) {
+        showError(actionData.error);
+      }
+    }
+  }, [actionData, showSuccess, showError]);
 
   const existingAlertConfig = shop?.alertConfigs?.[0];
   const existingPixelConfig = shop?.pixelConfigs?.[0];
@@ -411,14 +424,7 @@ export default function SettingsPage() {
       )}
 
       <BlockStack gap="500">
-        {actionData && "message" in actionData && (
-          <Banner
-            tone={actionData.success ? "success" : "critical"}
-            onDismiss={() => {}}
-          >
-            {actionData.message}
-          </Banner>
-        )}
+        {/* Toast 通知已处理 actionData 的反馈，移除 Banner */}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (

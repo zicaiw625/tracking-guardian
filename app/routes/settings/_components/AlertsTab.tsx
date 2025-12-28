@@ -14,6 +14,7 @@ import {
   Badge,
   Box,
 } from "@shopify/polaris";
+import { EnhancedEmptyState } from "~/components/ui";
 import type { AlertConfigDisplay } from "../types";
 
 interface AlertsTabProps {
@@ -129,15 +130,56 @@ export function AlertsTab({
               </>
             )}
 
+            <Divider />
+
+            <Text as="h3" variant="headingSm">
+              告警规则配置
+            </Text>
+
             <TextField
-              label="警报阈值 (%)"
+              label="事件失败率阈值 (%)"
               type="number"
               value={alertThreshold}
               onChange={setAlertThreshold}
               autoComplete="off"
-              helpText="当差异率超过此百分比时触发警报"
+              helpText="当事件发送失败率超过此百分比时触发警报（默认: 2%）"
               suffix="%"
             />
+
+            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+              <BlockStack gap="300">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  支持的告警类型：
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>事件失败率</strong> - 当发送失败率超过阈值时告警（默认 2%）
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>参数缺失率</strong> - 当 Purchase 事件缺参率超过阈值时告警（默认 10%）
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>事件量骤降</strong> - 当 24h 内事件量下降超过 50% 时告警
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>去重冲突</strong> - 当检测到重复事件 ID 时告警（默认 5 次）
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>像素心跳丢失</strong> - 当超过 24 小时未收到像素心跳时告警
+                    </Text>
+                  </List.Item>
+                </List>
+              </BlockStack>
+            </Box>
 
             <Checkbox
               label="启用警报通知"
@@ -206,9 +248,12 @@ export function AlertsTab({
                 </Box>
               ))
             ) : (
-              <Text as="p" tone="subdued">
-                尚未配置警报
-              </Text>
+              <EnhancedEmptyState
+                icon="🔔"
+                title="尚未配置警报"
+                description="配置警报通知后，当追踪数据出现异常时会收到通知。"
+                helpText="在上方表单中填写通知渠道信息并保存即可配置。"
+              />
             )}
           </BlockStack>
         </Card>

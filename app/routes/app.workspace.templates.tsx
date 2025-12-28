@@ -5,8 +5,9 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useRevalidator } from "@remix-run/react";
-import { useState, useCallback } from "react";
+import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
+import { useState, useCallback, useEffect } from "react";
+import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import {
   Page,
   Layout,
@@ -20,7 +21,6 @@ import {
   Divider,
   Banner,
   DataTable,
-  EmptyState,
   Modal,
   TextField,
   Select,
@@ -420,18 +420,15 @@ export default function WorkspaceTemplatesPage() {
             <Divider />
 
             {templates.length === 0 ? (
-              <EmptyState
-                heading="还没有自定义模板"
-                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                action={{
-                  content: "创建第一个模板",
+              <EnhancedEmptyState
+                icon="📋"
+                title="暂无模板"
+                description="创建自定义模板后，可以批量应用到分组中的多个店铺。"
+                primaryAction={{
+                  content: "创建模板",
                   onAction: () => setShowCreateModal(true),
                 }}
-              >
-                <Text as="p">
-                  创建自定义模板后，可以批量应用到分组中的多个店铺
-                </Text>
-              </EmptyState>
+              />
             ) : (
               <DataTable
                 columnContentTypes={["text", "text", "numeric", "text"]}

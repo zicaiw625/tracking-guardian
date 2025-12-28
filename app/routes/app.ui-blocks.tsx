@@ -7,8 +7,8 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useRevalidator } from "@remix-run/react";
-import { useState, useCallback } from "react";
+import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -27,7 +27,6 @@ import {
   Checkbox,
   Modal,
   Icon,
-  EmptyState,
   List,
   Collapsible,
   Tag,
@@ -38,6 +37,7 @@ import {
   SettingsIcon,
   RefreshIcon,
 } from "~/components/icons";
+import { EnhancedEmptyState, useToastContext } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -688,9 +688,11 @@ function LocalizationSettingsForm({
 
 export default function UiBlocksPage() {
   const { shop, modules, enabledCount, maxModules, planInfo } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
+  const { showSuccess, showError } = useToastContext();
 
   const [selectedTab, setSelectedTab] = useState(0);
   const [editingModule, setEditingModule] = useState<ModuleKey | null>(null);
@@ -699,6 +701,21 @@ export default function UiBlocksPage() {
   const [modalTab, setModalTab] = useState(0); // 0: 设置, 1: 本地化
 
   const isSubmitting = navigation.state === "submitting";
+
+  // 处理 action 响应并显示 Toast
+  useEffect(() => {
+    if (actionData) {
+      const data = actionData as { success?: boolean; error?: string; actionType?: string };
+      if (data.success) {
+        showSuccess("操作成功");
+        if (data.actionType === "update_settings" || data.actionType === "toggle_module") {
+          revalidator.revalidate();
+        }
+      } else if (data.error) {
+        showError(data.error);
+      }
+    }
+  }, [actionData, showSuccess, showError, revalidator]);
 
   const handleToggleModule = useCallback(
     (moduleKey: ModuleKey, enabled: boolean) => {
@@ -848,14 +865,12 @@ export default function UiBlocksPage() {
           <Box paddingBlockStart="400">
             <BlockStack gap="400">
               {filteredModules.length === 0 ? (
-                <Card>
-                  <EmptyState
-                    heading="暂无模块"
-                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                  >
-                    <Text as="p">此分类下暂无可用模块。</Text>
-                  </EmptyState>
-                </Card>
+                <EnhancedEmptyState
+                  icon="📦"
+                  title="暂无模块"
+                  description="此分类下暂无可用模块。"
+                  helpText="请选择其他分类查看模块，或等待新模块上线。"
+                />
               ) : (
                 filteredModules.map((module) => (
                   <ModuleCard
@@ -937,31 +952,31 @@ export default function UiBlocksPage() {
                   {editingModule === "survey" && editingSettings && (
                     <SurveySettingsForm
                       settings={editingSettings as SurveySettings}
-                      onChange={(s) => setEditingSettings(s)}
+                      onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
                     />
                   )}
                   {editingModule === "helpdesk" && editingSettings && (
                     <HelpdeskSettingsForm
                       settings={editingSettings as HelpdeskSettings}
-                      onChange={(s) => setEditingSettings(s)}
+                      onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
                     />
                   )}
                   {editingModule === "reorder" && editingSettings && (
                     <ReorderSettingsForm
                       settings={editingSettings as ReorderSettings}
-                      onChange={(s) => setEditingSettings(s)}
+                      onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
                     />
                   )}
                   {editingModule === "order_tracking" && editingSettings && (
                     <OrderTrackingSettingsForm
                       settings={editingSettings as OrderTrackingSettings}
-                      onChange={(s) => setEditingSettings(s)}
+                      onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
                     />
                   )}
                   {editingModule === "upsell" && editingSettings && (
                     <UpsellSettingsForm
                       settings={editingSettings as UpsellSettings}
-                      onChange={(s) => setEditingSettings(s)}
+                      onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
                     />
                   )}
                 </>

@@ -1,8 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
+import { useEffect } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, Icon, } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
+import { useToastContext } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { BILLING_PLANS, createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId, } from "../services/billing.server";
@@ -77,11 +79,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 export default function BillingPage() {
     const { subscription, usage, plans } = useLoaderData<typeof loader>();
+    const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
+    const { showSuccess, showError } = useToastContext();
+
+    // 处理 action 响应并显示 Toast
+    useEffect(() => {
+        if (actionData) {
+            const data = actionData as { success?: boolean; error?: string; actionType?: string };
+            if (data.success) {
+                if (data.actionType === "cancel") {
+                    showSuccess("订阅已取消");
+                } else {
+                    showSuccess("操作成功");
+                }
+            } else if (data.error) {
+                showError("操作失败：" + data.error);
+            }
+        }
+    }, [actionData, showSuccess, showError]);
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
-    const showSuccess = searchParams.get("success") === "true";
+    const showSuccessBanner = searchParams.get("success") === "true";
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
     const handleSubscribe = (planId: string) => {
@@ -103,7 +123,7 @@ export default function BillingPage() {
     };
     return (<Page title="订阅与计费">
       <BlockStack gap="500">
-        {showSuccess && (<Banner title="订阅成功！" tone="success" onDismiss={() => { }}>
+        {showSuccessBanner && (<Banner title="订阅成功！" tone="success" onDismiss={() => { }}>
             <p>您的订阅已激活，现在可以享受所有功能了。</p>
           </Banner>)}
 

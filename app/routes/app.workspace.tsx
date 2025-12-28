@@ -5,8 +5,8 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useRevalidator } from "@remix-run/react";
-import { useState, useCallback } from "react";
+import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -20,7 +20,6 @@ import {
   Divider,
   Banner,
   DataTable,
-  EmptyState,
   Modal,
   TextField,
   Select,
@@ -39,6 +38,7 @@ import {
   SearchIcon,
   RefreshIcon,
 } from "~/components/icons";
+import { EnhancedEmptyState, EmptyStateNoPermission, useToastContext } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import {
@@ -384,10 +384,12 @@ export default function WorkspacePage() {
     shopBreakdown,
     planInfo,
   } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
 
   const submit = useSubmit();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
+  const { showSuccess, showError } = useToastContext();
 
   const [selectedTab, setSelectedTab] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -407,6 +409,29 @@ export default function WorkspacePage() {
   const [showBatchAuditResult, setShowBatchAuditResult] = useState(false);
 
   const isSubmitting = navigation.state === "submitting";
+
+  // 处理 action 响应并显示 Toast
+  useEffect(() => {
+    if (actionData) {
+      if (actionData.success) {
+        const actionType = (actionData as { actionType?: string }).actionType;
+        if (actionType === "create_group") {
+          showSuccess("工作区创建成功！");
+        } else if (actionType === "delete_group") {
+          showSuccess("工作区已删除");
+        } else if (actionType === "add_shop") {
+          showSuccess("店铺已添加到工作区");
+        } else if (actionType === "remove_shop") {
+          showSuccess("店铺已从工作区移除");
+        } else {
+          showSuccess("操作成功");
+        }
+        revalidator.revalidate();
+      } else if (actionData.error) {
+        showError("操作失败：" + actionData.error);
+      }
+    }
+  }, [actionData, showSuccess, showError, revalidator]);
 
   const handleCreateGroup = useCallback(() => {
     if (!newGroupName.trim()) return;
@@ -463,8 +488,7 @@ export default function WorkspacePage() {
     submit(formData, { method: "post" });
   }, [selectedGroup, inviteeEmail, inviteRole, submit]);
 
-  // 处理 action 响应
-  const actionData = navigation.state === "idle" ? null : null;
+  // 处理 action 响应已通过 useEffect 在组件顶部完成
   
   const tabs = [
     { id: "overview", content: "概览" },
@@ -477,29 +501,10 @@ export default function WorkspacePage() {
   if (!canManage) {
     return (
       <Page title="多店管理">
-        <Card>
-          <EmptyState
-            heading="升级到 Agency 版解锁多店管理"
-            image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-            action={{
-              content: "查看套餐",
-              url: "/app/billing",
-            }}
-          >
-            <BlockStack gap="200">
-              <Text as="p">
-                Agency 版 (${BILLING_PLANS.agency.price}/月) 提供多店管理功能：
-              </Text>
-              <List type="bullet">
-                <List.Item>最多管理 50 个店铺</List.Item>
-                <List.Item>批量 Audit 与配置</List.Item>
-                <List.Item>团队协作 (Owner/Admin/Viewer)</List.Item>
-                <List.Item>迁移验收报告导出 (PDF/CSV)</List.Item>
-                <List.Item>汇总统计与对账</List.Item>
-              </List>
-            </BlockStack>
-          </EmptyState>
-        </Card>
+        <EmptyStateNoPermission
+          requiredFeature="Agency"
+          onUpgrade={() => window.location.href = "/app/billing"}
+        />
       </Page>
     );
   }
@@ -564,18 +569,15 @@ export default function WorkspacePage() {
 
         {/* 分组列表 */}
         {groups.length === 0 ? (
-          <Card>
-            <EmptyState
-              heading="尚未创建分组"
-              image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-              action={{
-                content: "创建第一个分组",
-                onAction: () => setShowCreateModal(true),
-              }}
-            >
-              <Text as="p">创建分组后，您可以将多个店铺添加到同一分组中进行统一管理。</Text>
-            </EmptyState>
-          </Card>
+          <EnhancedEmptyState
+            icon="📁"
+            title="尚未创建分组"
+            description="创建分组后，您可以将多个店铺添加到同一分组中进行统一管理。"
+            primaryAction={{
+              content: "创建第一个分组",
+              onAction: () => setShowCreateModal(true),
+            }}
+          />
         ) : (
           <>
             {/* 分组选择器 */}

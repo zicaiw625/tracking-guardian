@@ -196,7 +196,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
 
-    return new Response(pdfResult.buffer, {
+    return new Response(pdfResult.buffer as unknown as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${pdfResult.filename}"`,
@@ -229,6 +229,7 @@ async function generatePdfFromHtml(
 ): Promise<{ buffer: Buffer; filename: string } | null> {
   try {
     // 尝试使用 html-pdf-node
+    // @ts-expect-error - html-pdf-node is an optional dependency, may not have types
     const htmlPdfNode = await import("html-pdf-node").catch(() => null);
     
     if (htmlPdfNode) {

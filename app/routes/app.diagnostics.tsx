@@ -2,6 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useRevalidator } from "@remix-run/react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Box, Divider, Banner, ProgressBar, DataTable, } from "@shopify/polaris";
+import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } from "../services/migration.server";
@@ -414,6 +415,7 @@ function StatusBadge({ status }: { status: string }) {
 export default function DiagnosticsPage() {
     const data = useLoaderData<typeof loader>();
     const revalidator = useRevalidator();
+    const { showSuccess } = useToastContext();
     const getStatusBadge = (status: DiagnosticCheck["status"]) => {
         switch (status) {
             case "pass":
@@ -432,9 +434,14 @@ export default function DiagnosticsPage() {
             ? "highlight"
             : "success";
     const progressPercent = Math.round((data.summary.passed / data.summary.total) * 100);
+    const handleRefresh = () => {
+        revalidator.revalidate();
+        showSuccess("诊断检查已刷新");
+    };
+
     return (<Page title="诊断向导" subtitle="快速检查应用配置状态" primaryAction={{
             content: "刷新检查",
-            onAction: () => revalidator.revalidate(),
+            onAction: handleRefresh,
             loading: revalidator.state === "loading",
         }}>
       <Layout>
@@ -480,7 +487,15 @@ export default function DiagnosticsPage() {
 
               <Divider />
 
-              {data.checks.map((check, index) => (<Box key={index} paddingBlockEnd="400">
+              {data.checks.length === 0 ? (
+                <EnhancedEmptyState
+                  icon="🔍"
+                  title="暂无检查项"
+                  description="当前没有可执行的诊断检查。"
+                  helpText="请稍后刷新页面或联系支持。"
+                />
+              ) : (
+                data.checks.map((check, index) => (<Box key={index} paddingBlockEnd="400">
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <Text as="span" fontWeight="semibold">
@@ -498,7 +513,8 @@ export default function DiagnosticsPage() {
                   {index < data.checks.length - 1 && (<Box paddingBlockStart="400">
                       <Divider />
                     </Box>)}
-                </Box>))}
+                </Box>))
+              )}
             </BlockStack>
           </Card>
         </Layout.Section>

@@ -49,3 +49,13 @@ export {
   useDebounceCallback,
   useThrottle,
 } from './useDebounce';
+
+export {
+  useDebouncedValue,
+} from './useDebouncedValue';
+
+export {
+  useAutoSave,
+  type AutoSaveOptions,
+  type AutoSaveResult,
+} from './useAutoSave';

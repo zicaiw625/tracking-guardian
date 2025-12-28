@@ -2,11 +2,13 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable, Select, ProgressBar, Button, Icon, Link, Banner, List } from "@shopify/polaris";
-import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, } from "~/components/icons";
+import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, AlertCircleIcon, CheckCircleIcon, } from "~/components/icons";
+import { TableSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getDeliveryHealthHistory, getDeliveryHealthSummary, type DeliveryHealthReport, } from "../services/delivery-health.server";
+import { getAlertHistory, runAlertChecks, type AlertCheckResult } from "../services/alert-dispatcher.server";
 import { isValidPlatform, PLATFORM_NAMES } from "../types";
 interface DeliverySummary {
     platform: string;
@@ -78,6 +80,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
     });
 
+    // 获取告警配置状态
+    const alertConfigs = await prisma.alertConfig.findMany({
+        where: { shopId: shop.id, isEnabled: true },
+        select: { id: true, channel: true, frequency: true },
+    });
+
+    // 获取最近的告警历史
+    const recentAlerts = await getAlertHistory(shop.id, 10);
+
+    // 运行实时告警检查（仅检查，不发送，用于显示状态）
+    let currentAlertStatus: AlertCheckResult[] = [];
+    try {
+        const checkResult = await runAlertChecks(shop.id);
+        currentAlertStatus = checkResult.results.filter(r => r.triggered);
+    } catch (error) {
+        // 忽略检查错误，不影响页面加载
+    }
+
     return json({
         shop: { id: shop.id, domain: shopDomain },
         summary,
@@ -88,11 +108,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             lastPixelOrigin: latestReceipt?.originHost || null,
             lastPixelTime: latestReceipt?.createdAt || null
         },
+        alertConfigs: alertConfigs.length > 0,
+        alertCount: alertConfigs.length,
+        recentAlerts,
+        currentAlertStatus,
         lastUpdated: new Date().toISOString()
     });
 };
 export default function MonitorPage() {
-  const { summary, history, conversionStats, configHealth, lastUpdated } = useLoaderData<typeof loader>();
+  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, lastUpdated } = useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 
     const isDevUrl = configHealth.appUrl && (configHealth.appUrl.includes("ngrok") || configHealth.appUrl.includes("trycloudflare"));
@@ -190,57 +214,183 @@ export default function MonitorPage() {
         ]}>
       <BlockStack gap="500">
 
-        {!hasData && (<Card>
-            <BlockStack gap="500">
+        {!hasData && (
+          <EnhancedEmptyState
+            icon="📊"
+            title="还没开始监控"
+            description="连接平台后，我们会基于服务端转化发送日志计算发送成功率，帮助您发现追踪问题。"
+            helpText="完成平台连接并产生订单数据后开始评分。"
+            primaryAction={{
+              content: "配置追踪平台",
+              url: "/app/migrate",
+            }}
+            secondaryAction={{
+              content: "配置告警通知",
+              url: "/app/settings",
+            }}
+          />
+        )}
+
+        {/* 告警状态卡片 */}
+        {(currentAlertStatus.length > 0 || !alertConfigs) && (
+          <Card>
+            <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingLg">
-                    还没开始监控
-                  </Text>
-                  <Text as="p" tone="subdued">
-                    连接平台后，我们会基于服务端转化发送日志计算发送成功率，帮助您发现追踪问题。
-                  </Text>
-                </BlockStack>
-                <Badge tone="info">未初始化</Badge>
+                <Text as="h2" variant="headingMd">
+                  🔔 告警状态
+                </Text>
+                <Badge tone={currentAlertStatus.length > 0 ? "critical" : "success"}>
+                  {currentAlertStatus.length > 0 ? `${currentAlertStatus.length} 个告警` : "正常"}
+                </Badge>
               </InlineStack>
 
-              <Box background="bg-surface-secondary" padding="600" borderRadius="200">
-                <BlockStack gap="200" align="center">
-                  <Text as="p" variant="headingLg" fontWeight="semibold" tone="subdued">
-                    健康度评分
-                  </Text>
-                  <Text as="p" variant="heading2xl" fontWeight="bold" tone="subdued">
-                    --
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    完成平台连接并产生订单数据后开始评分
-                  </Text>
+              {currentAlertStatus.length > 0 ? (
+                <BlockStack gap="300">
+                  {currentAlertStatus.map((alert, idx) => (
+                    <Box
+                      key={idx}
+                      background={
+                        alert.severity === "critical"
+                          ? "bg-fill-critical-secondary"
+                          : alert.severity === "high"
+                            ? "bg-fill-warning-secondary"
+                            : "bg-surface-secondary"
+                      }
+                      padding="400"
+                      borderRadius="200"
+                    >
+                      <InlineStack align="space-between" blockAlign="start">
+                        <BlockStack gap="200">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Icon
+                              source={AlertCircleIcon}
+                              tone={alert.severity === "critical" ? "critical" : "warning"}
+                            />
+                            <Text as="span" fontWeight="semibold">
+                              {alert.alertType === "failure_rate"
+                                ? "事件失败率过高"
+                                : alert.alertType === "missing_params"
+                                  ? "参数缺失率过高"
+                                  : alert.alertType === "volume_drop"
+                                    ? "事件量骤降"
+                                    : alert.alertType === "dedup_conflict"
+                                      ? "去重冲突"
+                                      : alert.alertType === "pixel_heartbeat"
+                                        ? "像素心跳丢失"
+                                        : "告警"}
+                            </Text>
+                            <Badge
+                              tone={
+                                alert.severity === "critical"
+                                  ? "critical"
+                                  : alert.severity === "high"
+                                    ? "warning"
+                                    : "info"
+                              }
+                            >
+                              {alert.severity === "critical"
+                                ? "严重"
+                                : alert.severity === "high"
+                                  ? "高"
+                                  : "中"}
+                            </Badge>
+                          </InlineStack>
+                          <Text as="p" variant="bodySm">
+                            {alert.message}
+                          </Text>
+                        </BlockStack>
+                        <Button url="/app/settings?tab=alerts" size="slim" variant="secondary">
+                          配置告警
+                        </Button>
+                      </InlineStack>
+                    </Box>
+                  ))}
                 </BlockStack>
-              </Box>
+              ) : (
+                <Banner tone="success">
+                  <Text as="p" variant="bodySm">
+                    ✅ 所有监控指标正常，未发现异常情况。
+                  </Text>
+                </Banner>
+              )}
 
-              <Divider />
+              {!alertConfigs && (
+                <Banner tone="warning">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm">
+                      ⚠️ 尚未配置告警通知。配置后，当追踪出现异常时会自动通知您。
+                    </Text>
+                    <Button url="/app/settings?tab=alerts" size="slim" variant="primary">
+                      立即配置告警
+                    </Button>
+                  </BlockStack>
+                </Banner>
+              )}
 
-              <BlockStack gap="300">
-                <Text as="h3" variant="headingMd">
-                  开始监控
-                </Text>
-                <InlineStack gap="300">
-                  <Button url="/app/migrate" variant="primary">
-                    配置追踪平台
-                  </Button>
-                  <Button url="/app/settings">
-                    配置告警通知
+              {alertConfigs && alertCount > 0 && (
+                <InlineStack gap="200" align="end">
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    已配置 {alertCount} 个告警渠道
+                  </Text>
+                  <Button url="/app/settings?tab=alerts" size="slim" variant="plain">
+                    管理告警
                   </Button>
                 </InlineStack>
-              </BlockStack>
+              )}
 
-              <Text as="p" variant="bodySm" tone="subdued">
-                <Link url="https://help.shopify.com/en/manual/promoting-marketing/pixels" external>
-                  了解 Pixels 和 Customer Events
-                </Link>
-              </Text>
+              {recentAlerts.length > 0 && (
+                <>
+                  <Divider />
+                  <BlockStack gap="300">
+                    <Text as="h3" variant="headingSm">
+                      最近告警历史
+                    </Text>
+                    <DataTable
+                      columnContentTypes={["text", "text", "text", "text"]}
+                      headings={["时间", "类型", "严重程度", "消息"]}
+                      rows={recentAlerts.slice(0, 5).map((alert) => [
+                        new Date(alert.createdAt).toLocaleString("zh-CN"),
+                        alert.alertType === "failure_rate"
+                          ? "失败率"
+                          : alert.alertType === "missing_params"
+                            ? "缺参率"
+                            : alert.alertType === "volume_drop"
+                              ? "量降"
+                              : alert.alertType === "dedup_conflict"
+                                ? "去重冲突"
+                                : alert.alertType === "pixel_heartbeat"
+                                  ? "心跳丢失"
+                                  : alert.alertType,
+                        <Badge
+                          key={alert.id}
+                          tone={
+                            alert.severity === "critical"
+                              ? "critical"
+                              : alert.severity === "high"
+                                ? "warning"
+                                : "info"
+                          }
+                        >
+                          {alert.severity === "critical"
+                            ? "严重"
+                            : alert.severity === "high"
+                              ? "高"
+                              : "中"}
+                        </Badge>,
+                        alert.message,
+                      ])}
+                    />
+                    {recentAlerts.length > 5 && (
+                      <Button url="/app/settings?tab=alerts" variant="plain" size="slim">
+                        查看全部告警历史
+                      </Button>
+                    )}
+                  </BlockStack>
+                </>
+              )}
             </BlockStack>
-          </Card>)}
+          </Card>
+        )}
 
         {hasData && (<Layout>
             <Layout.Section variant="oneThird">

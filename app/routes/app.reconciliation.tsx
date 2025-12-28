@@ -2,8 +2,8 @@
 
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
-import { useState } from "react";
+import { useLoaderData, useSubmit, useNavigation, useActionData } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -20,7 +20,6 @@ import {
   DataTable,
   Select,
   ProgressBar,
-  EmptyState,
 } from "@shopify/polaris";
 import {
   AlertCircleIcon,
@@ -28,6 +27,7 @@ import {
   ClockIcon,
   RefreshIcon,
 } from "~/components/icons";
+import { EnhancedEmptyState, useToastContext } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -498,11 +498,24 @@ function TrendCard({
 
 export default function ReconciliationPage() {
   const { shop, dashboardData, selectedDays } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
+  const { showSuccess, showError } = useToastContext();
   const [days, setDays] = useState(String(selectedDays));
 
   const isLoading = navigation.state === "submitting";
+
+  // 处理 action 响应并显示 Toast
+  useEffect(() => {
+    if (actionData) {
+      if ("success" in actionData && actionData.success && "message" in actionData) {
+        showSuccess(actionData.message || "策略已更新");
+      } else if ("error" in actionData && actionData.error) {
+        showError(actionData.error);
+      }
+    }
+  }, [actionData, showSuccess, showError]);
 
   const handleDaysChange = (value: string) => {
     setDays(value);
@@ -520,14 +533,15 @@ export default function ReconciliationPage() {
   if (!shop || !dashboardData) {
     return (
       <Page title="送达健康度">
-        <Card>
-          <EmptyState
-            heading="暂无数据"
-            image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-          >
-            <p>请先完成平台配置并产生订单数据。</p>
-          </EmptyState>
-        </Card>
+        <EnhancedEmptyState
+          icon="📊"
+          title="暂无数据"
+          description="请先完成平台配置并产生订单数据。"
+          primaryAction={{
+            content: "前往配置",
+            url: "/app/settings",
+          }}
+        />
       </Page>
     );
   }

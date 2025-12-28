@@ -1,9 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useFetcher } from "@remix-run/react";
-import { useState, useCallback, useMemo } from "react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, EmptyState, Spinner, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
+import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData } from "@remix-run/react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, SettingsIcon, } from "~/components/icons";
+import { CardSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, type ScriptAnalysisResult } from "../services/scanner.server";
@@ -229,11 +230,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 export default function ScanPage() {
     const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions } = useLoaderData<typeof loader>();
+    const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
     const deleteFetcher = useFetcher();
     const upgradeFetcher = useFetcher();
     const saveAnalysisFetcher = useFetcher();
+    const { showSuccess, showError } = useToastContext();
     const [selectedTab, setSelectedTab] = useState(0);
     const [analysisSaved, setAnalysisSaved] = useState(false);
     const [scriptContent, setScriptContent] = useState("");
@@ -364,10 +367,42 @@ export default function ScanPage() {
     const saveAnalysisResult = saveAnalysisFetcher.data as { success?: boolean; message?: string; error?: string } | undefined;
     const isSavingAnalysis = saveAnalysisFetcher.state === "submitting";
 
-    // 当保存成功时更新状态
-    if (saveAnalysisResult?.success && !analysisSaved) {
-        setAnalysisSaved(true);
-    }
+    // 当保存成功时更新状态并显示Toast
+    useEffect(() => {
+        if (saveAnalysisResult) {
+            if (saveAnalysisResult.success) {
+                if (!analysisSaved) {
+                    setAnalysisSaved(true);
+                    showSuccess("分析结果已保存！");
+                }
+            } else if (saveAnalysisResult.error) {
+                showError("保存失败：" + saveAnalysisResult.error);
+            }
+        }
+    }, [saveAnalysisResult, analysisSaved, showSuccess, showError]);
+
+    // 处理删除和升级操作的Toast
+    useEffect(() => {
+        const deleteResult = deleteFetcher.data as { success?: boolean; message?: string; error?: string } | undefined;
+        if (deleteResult) {
+            if (deleteResult.success) {
+                showSuccess(deleteResult.message || "删除成功！");
+            } else {
+                showError(deleteResult.error || "删除失败");
+            }
+        }
+    }, [deleteFetcher.data, showSuccess, showError]);
+
+    useEffect(() => {
+        const upgradeResult = upgradeFetcher.data as { success?: boolean; message?: string; error?: string } | undefined;
+        if (upgradeResult) {
+            if (upgradeResult.success) {
+                showSuccess(upgradeResult.message || "升级成功！");
+            } else {
+                showError(upgradeResult.error || "升级失败");
+            }
+        }
+    }, [upgradeFetcher.data, showSuccess, showError]);
   const tabs = [
     { id: "auto-scan", content: "自动扫描" },
     { id: "manual-analyze", content: "手动分析" },
@@ -470,7 +505,7 @@ export default function ScanPage() {
                             navigator.share(shareData);
                           } else {
                             navigator.clipboard.writeText(shareData.text);
-                            alert("报告摘要已复制到剪贴板");
+                            showSuccess("报告摘要已复制到剪贴板");
                           }
                         }}
                       >
@@ -486,43 +521,33 @@ export default function ScanPage() {
                 </InlineStack>
               </Box>
 
-              {isScanning && (<Card>
+              {isScanning && (
+                <Card>
                   <BlockStack gap="400">
-                    <InlineStack gap="200" align="center">
-                      <Spinner size="small"/>
-                      <Text as="p">正在扫描店铺追踪配置...</Text>
-                    </InlineStack>
-                    <ProgressBar progress={75} tone="primary"/>
+                    <CardSkeleton lines={4} showTitle={true} />
+                    <Box paddingBlockStart="200">
+                      <ProgressBar progress={75} tone="primary"/>
+                    </Box>
                   </BlockStack>
-                </Card>)}
+                </Card>
+              )}
 
-              {!latestScan && !isScanning && (<Card>
-                  <EmptyState heading="还没有扫描报告" image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png" action={{
+              {!latestScan && !isScanning && (
+                <EnhancedEmptyState
+                  icon="🔍"
+                  title="还没有扫描报告"
+                  description="点击开始扫描，我们会自动检测 ScriptTags 和已安装的像素配置，并给出风险等级与迁移建议。预计耗时约 10 秒，不会修改任何设置。"
+                  helpText="关于 Additional Scripts：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts。请切换到「手动分析」标签页，粘贴脚本内容进行分析。"
+                  primaryAction={{
                     content: "开始扫描",
                     onAction: handleScan,
-                    loading: isScanning,
-                }}>
-                    <BlockStack gap="300">
-                      <Text as="p">
-                        点击开始扫描，我们会自动检测 <strong>ScriptTags</strong> 和已安装的像素配置，并给出风险等级与迁移建议。
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        预计耗时约 10 秒，不会修改任何设置
-                      </Text>
-                      <Banner tone="info">
-                        <BlockStack gap="200">
-                          <Text as="p">
-                            <strong>关于 Additional Scripts：</strong>Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts。
-                            请切换到「手动分析」标签页，粘贴脚本内容进行分析。
-                          </Text>
-                        </BlockStack>
-                      </Banner>
-                      <Link url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status" external>
-                        了解为何需要迁移（Checkout Extensibility）
-                      </Link>
-                    </BlockStack>
-                  </EmptyState>
-                </Card>)}
+                  }}
+                  secondaryAction={{
+                    content: "了解更多",
+                    url: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",
+                  }}
+                />
+              )}
 
         {latestScan && !isScanning && (<Layout>
             <Layout.Section variant="oneThird">
@@ -932,29 +957,7 @@ export default function ScanPage() {
                 <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
               </InlineStack>
 
-              {deleteFetcher.data ? (
-                <Banner
-                  tone={(deleteFetcher.data as { success?: boolean }).success ? "success" : "critical"}
-                  onDismiss={() => {}}
-                >
-                  <Text as="p">
-                    {String((deleteFetcher.data as { message?: string }).message ||
-                     (deleteFetcher.data as { error?: string }).error || "操作完成")}
-                  </Text>
-                </Banner>
-              ) : null}
-
-              {upgradeFetcher.data ? (
-                <Banner
-                  tone={(upgradeFetcher.data as { success?: boolean }).success ? "success" : "critical"}
-                  onDismiss={() => {}}
-                >
-                  <Text as="p">
-                    {String((upgradeFetcher.data as { message?: string }).message ||
-                     (upgradeFetcher.data as { error?: string }).error || "升级完成")}
-                  </Text>
-                </Banner>
-              ) : null}
+              {/* Toast 通知已处理 deleteFetcher 和 upgradeFetcher 的结果 */}
 
               <BlockStack gap="300">
                 {migrationActions.map((action, index) => (

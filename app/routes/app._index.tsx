@@ -21,6 +21,7 @@ import {
   List,
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
+import { EnhancedEmptyState } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import { getDashboardData } from "../services/dashboard.server";
@@ -192,6 +193,27 @@ type SerializedLatestScan = {
 } | null;
 
 function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
+  if (!latestScan) {
+    return (
+      <Card>
+        <BlockStack gap="400">
+          <Text as="h2" variant="headingMd">
+            最新扫描
+          </Text>
+          <EnhancedEmptyState
+            icon="🔍"
+            title="尚未进行扫描"
+            description="完成上方第 1 步开始扫描。预计耗时约 10 秒，不会修改任何设置。"
+            primaryAction={{
+              content: "开始扫描",
+              url: "/app/scan",
+            }}
+          />
+        </BlockStack>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <BlockStack gap="400">
@@ -199,48 +221,29 @@ function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
           <Text as="h2" variant="headingMd">
             最新扫描
           </Text>
-          {latestScan && (
-            <Badge
-              tone={
-                latestScan.riskScore > 60
-                  ? "critical"
-                  : latestScan.riskScore > 30
-                    ? "warning"
-                    : "success"
-              }
-            >
-              {`风险分 ${latestScan.riskScore}`}
-            </Badge>
-          )}
+          <Badge
+            tone={
+              latestScan.riskScore > 60
+                ? "critical"
+                : latestScan.riskScore > 30
+                  ? "warning"
+                  : "success"
+            }
+          >
+            {`风险分 ${latestScan.riskScore}`}
+          </Badge>
         </InlineStack>
-        {latestScan ? (
-          <BlockStack gap="200">
-            <Text as="p" variant="bodySm" tone="subdued">
-              扫描时间: {new Date(latestScan.createdAt).toLocaleDateString("zh-CN")}
-            </Text>
-            <Text as="p" variant="bodySm">
-              识别到的平台: {latestScan.identifiedPlatforms.join(", ") || "无"}
-            </Text>
-          </BlockStack>
-        ) : (
-          <Text as="p" tone="subdued">
-            尚未进行扫描
+        <BlockStack gap="200">
+          <Text as="p" variant="bodySm" tone="subdued">
+            扫描时间: {new Date(latestScan.createdAt).toLocaleDateString("zh-CN")}
           </Text>
-        )}
-        {latestScan ? (
-          <Button url="/app/scan" fullWidth>
-            查看扫描报告
-          </Button>
-        ) : (
-          <BlockStack gap="100">
-            <Text as="p" variant="bodySm" tone="subdued">
-              完成上方第 1 步开始扫描
-            </Text>
-            <Text as="p" variant="bodySm" tone="subdued">
-              预计耗时约 10 秒，不会修改任何设置
-            </Text>
-          </BlockStack>
-        )}
+          <Text as="p" variant="bodySm">
+            识别到的平台: {latestScan.identifiedPlatforms.join(", ") || "无"}
+          </Text>
+        </BlockStack>
+        <Button url="/app/scan" fullWidth>
+          查看扫描报告
+        </Button>
       </BlockStack>
     </Card>
   );

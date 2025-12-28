@@ -106,10 +106,10 @@ function getUrgencyTone(daysRemaining: number): "critical" | "warning" | "attent
   return "success";
 }
 
-function getUrgencyBackground(daysRemaining: number): string {
+function getUrgencyBackground(daysRemaining: number): "bg-fill-critical" | "bg-fill-caution" {
   if (daysRemaining <= 0) return "bg-fill-critical";
   if (daysRemaining <= 30) return "bg-fill-critical";
-  if (daysRemaining <= 90) return "bg-fill-warning";
+  if (daysRemaining <= 90) return "bg-fill-caution";
   return "bg-fill-caution";
 }
 
@@ -181,7 +181,7 @@ export function MigrationCountdown({
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="start" wrap={false}>
               <BlockStack gap="200">
-                <InlineStack gap="200" blockAlignment="center">
+                <InlineStack gap="200" blockAlign="center">
                   <Text as="span" variant="bodyMd" fontWeight="semibold">
                     ⏰ 迁移倒计时
                   </Text>
@@ -229,7 +229,7 @@ export function MigrationCountdown({
               </InlineStack>
               <ProgressBar
                 progress={progressPercentage}
-                tone={daysRemaining <= 30 ? "critical" : daysRemaining <= 90 ? "warning" : "primary"}
+                tone={daysRemaining <= 30 ? "critical" : daysRemaining <= 90 ? "highlight" : "primary"}
                 size="small"
               />
             </BlockStack>
@@ -315,7 +315,7 @@ export function MigrationCountdown({
                 borderColor="border-info"
               >
                 <InlineStack align="space-between" blockAlign="center">
-                  <InlineStack gap="300" blockAlignment="center">
+                  <InlineStack gap="300" blockAlign="center">
                     {          }
                     <Box
                       background={milestone.isPassed ? "bg-fill-success" : milestone.isNext ? "bg-fill-info" : "bg-surface"}

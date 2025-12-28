@@ -255,7 +255,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     if (!pdfResult) {
                         return new Response("PDF generation failed", { status: 500 });
                     }
-                    return new Response(pdfResult.buffer, {
+                    return new Response(pdfResult.buffer as unknown as BodyInit, {
                         status: 200,
                         headers: {
                             "Content-Type": pdfResult.contentType,
@@ -333,7 +333,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     if (!pdfResult) {
                         return new Response("PDF generation failed", { status: 500 });
                     }
-                    return new Response(pdfResult.buffer, {
+                    return new Response(pdfResult.buffer as unknown as BodyInit, {
                         status: 200,
                         headers: {
                             "Content-Type": pdfResult.contentType,
@@ -354,13 +354,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
                 data = reports.map((report: typeof reports[number]) => ({
                     id: report.id,
-                    periodStart: report.periodStart.toISOString(),
-                    periodEnd: report.periodEnd.toISOString(),
+                    platform: report.platform,
+                    reportDate: report.reportDate.toISOString().split("T")[0],
                     status: report.status,
-                    ordersTotal: report.ordersTotal,
-                    ordersMatched: report.ordersMatched,
-                    ordersMissed: report.ordersMissed,
-                    matchRate: report.matchRate,
+                    shopifyOrders: report.shopifyOrders,
+                    shopifyRevenue: report.shopifyRevenue.toString(),
+                    platformConversions: report.platformConversions,
+                    platformRevenue: report.platformRevenue.toString(),
+                    orderDiscrepancy: report.orderDiscrepancy,
+                    revenueDiscrepancy: report.revenueDiscrepancy,
+                    alertSent: report.alertSent,
                     createdAt: report.createdAt.toISOString(),
                 }));
                 filename = `reconciliation_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
@@ -376,16 +379,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     take: EXPORT_LIMITS.verification,
                 });
 
-                data = verificationRuns.map((run: typeof verificationRuns[number]) => ({
-                    id: run.id,
-                    status: run.status,
-                    passRate: run.passRate,
-                    totalOrders: run.totalOrders,
-                    verifiedOrders: run.verifiedOrders,
-                    failedOrders: run.failedOrders,
-                    createdAt: run.createdAt.toISOString(),
-                    completedAt: run.completedAt?.toISOString() || null,
-                }));
+                data = verificationRuns.map((run: typeof verificationRuns[number]) => {
+                    const summary = run.summaryJson as {
+                        totalEvents?: number;
+                        successfulEvents?: number;
+                        failedEvents?: number;
+                        passRate?: number;
+                    } | null;
+                    return {
+                        id: run.id,
+                        runName: run.runName,
+                        runType: run.runType,
+                        status: run.status,
+                        platforms: run.platforms.join(","),
+                        totalEvents: summary?.totalEvents ?? 0,
+                        successfulEvents: summary?.successfulEvents ?? 0,
+                        failedEvents: summary?.failedEvents ?? 0,
+                        passRate: summary?.passRate ?? 0,
+                        createdAt: run.createdAt.toISOString(),
+                        completedAt: run.completedAt?.toISOString() || null,
+                    };
+                });
                 filename = `verification_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
                 fieldDefs = {};
                 break;

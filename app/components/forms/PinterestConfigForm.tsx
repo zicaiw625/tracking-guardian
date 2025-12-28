@@ -112,7 +112,7 @@ export function PinterestConfigForm({
             <Box
               background="bg-fill-success-secondary"
               padding="100"
-              borderRadius="base"
+              borderRadius="100"
             >
               <Text as="span" variant="bodySm" tone="success">
                 ✓ 已配置

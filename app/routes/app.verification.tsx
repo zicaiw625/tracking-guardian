@@ -21,11 +21,9 @@ import {
   Banner,
   ProgressBar,
   DataTable,
-  EmptyState,
   Tabs,
   List,
   Icon,
-  Spinner,
   Modal,
   Collapsible,
 } from "@shopify/polaris";
@@ -38,6 +36,7 @@ import {
   PlayIcon,
   FileIcon,
 } from "~/components/icons";
+import { CardSkeleton, useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -201,9 +200,23 @@ function ScoreCard({
 export default function VerificationPage() {
   const { shop, configuredPlatforms, history, latestRun, testGuide, testItems } =
     useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
+  const { showSuccess, showError } = useToastContext();
+
+  // 处理 action 响应并显示 Toast
+  useEffect(() => {
+    if (actionData) {
+      if (actionData.success) {
+        showSuccess("验收运行已启动");
+        revalidator.revalidate();
+      } else if (actionData.error) {
+        showError(actionData.error);
+      }
+    }
+  }, [actionData, showSuccess, showError, revalidator]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [guideExpanded, setGuideExpanded] = useState(true);
@@ -305,14 +318,15 @@ export default function VerificationPage() {
   if (!shop) {
     return (
       <Page title="验收向导">
-        <Card>
-          <EmptyState
-            heading="未找到店铺配置"
-            image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-          >
-            <p>请确保应用已正确安装。</p>
-          </EmptyState>
-        </Card>
+        <EnhancedEmptyState
+          icon="⚠️"
+          title="未找到店铺配置"
+          description="请确保应用已正确安装。"
+          primaryAction={{
+            content: "返回首页",
+            url: "/app",
+          }}
+        />
       </Page>
     );
   }
@@ -457,10 +471,11 @@ export default function VerificationPage() {
               <BlockStack gap="500">
                 {isRunning && (
                   <Card>
-                    <BlockStack gap="300" align="center">
-                      <Spinner size="large" />
-                      <Text as="p">正在分析最近的事件数据...</Text>
-                      <ProgressBar progress={75} tone="primary" />
+                    <BlockStack gap="400">
+                      <CardSkeleton lines={3} showTitle={true} />
+                      <Box paddingBlockStart="200">
+                        <ProgressBar progress={75} tone="primary" />
+                      </Box>
                     </BlockStack>
                   </Card>
                 )}
@@ -621,25 +636,16 @@ export default function VerificationPage() {
                 )}
 
                 {!isRunning && !latestRun && (
-                  <Card>
-                    <EmptyState
-                      heading="尚未运行验收测试"
-                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                      action={{
-                        content: "运行验收",
-                        onAction: handleRunVerification,
-                      }}
-                    >
-                      <BlockStack gap="200">
-                        <Text as="p">
-                          按照上方的测试指引完成测试订单后，点击「运行验收」分析结果。
-                        </Text>
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          验收会分析过去 24 小时内的事件数据，验证追踪是否正常工作。
-                        </Text>
-                      </BlockStack>
-                    </EmptyState>
-                  </Card>
+                  <EnhancedEmptyState
+                    icon="✅"
+                    title="尚未运行验收"
+                    description="按照上方的测试指引完成测试订单后，点击「运行验收」分析结果。"
+                    helpText="验收会分析过去 24 小时内的事件数据，验证追踪是否正常工作。"
+                    primaryAction={{
+                      content: "运行验收",
+                      onAction: handleRunVerification,
+                    }}
+                  />
                 )}
               </BlockStack>
             </Box>
@@ -722,9 +728,15 @@ export default function VerificationPage() {
                       ])}
                     />
                   ) : (
-                    <Banner tone="info">
-                      <Text as="p">暂无验收历史记录。</Text>
-                    </Banner>
+                    <EnhancedEmptyState
+                      icon="📋"
+                      title="暂无验收历史记录"
+                      description="运行验收测试后，历史记录将显示在这里。"
+                      primaryAction={{
+                        content: "运行验收",
+                        onAction: handleRunVerification,
+                      }}
+                    />
                   )}
                 </BlockStack>
               </Card>

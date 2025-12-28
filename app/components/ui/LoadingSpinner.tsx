@@ -67,9 +67,9 @@ export function LoadingSpinner({
   }
 
   return (
-    <Box
-      padding="400"
+    <div
       style={{
+        padding: "var(--p-space-400)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -78,7 +78,7 @@ export function LoadingSpinner({
       }}
     >
       {content}
-    </Box>
+    </div>
   );
 }
 

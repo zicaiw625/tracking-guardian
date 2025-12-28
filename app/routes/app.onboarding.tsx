@@ -10,7 +10,7 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
 import { useState, useEffect, useCallback } from "react";
 import {
   Page,
@@ -26,7 +26,6 @@ import {
   Banner,
   ProgressBar,
   Icon,
-  Spinner,
   List,
   Checkbox,
 } from "@shopify/polaris";
@@ -36,6 +35,7 @@ import {
   ArrowRightIcon,
   ClockIcon,
 } from "~/components/icons";
+import { CardSkeleton, useToastContext } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -304,13 +304,32 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
 
 export default function OnboardingPage() {
   const data = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const [searchParams] = useSearchParams();
+  const { showSuccess, showError } = useToastContext();
   const [acknowledged, setAcknowledged] = useState(false);
 
   const isScanning = navigation.state === "submitting";
   const autoScan = searchParams.get("autoScan") === "true";
+
+  // 处理 action 响应并显示 Toast
+  useEffect(() => {
+    if (actionData) {
+      if ("success" in actionData && actionData.success) {
+        if ("actionType" in actionData && actionData.actionType === "run_scan") {
+          showSuccess("扫描完成！正在加载结果...");
+        } else if ("actionType" in actionData && actionData.actionType === "complete_onboarding") {
+          showSuccess("欢迎使用 Tracking Guardian！");
+        } else {
+          showSuccess("操作成功");
+        }
+      } else if ("error" in actionData && actionData.error) {
+        showError(actionData.error);
+      }
+    }
+  }, [actionData, showSuccess, showError]);
 
   // 自动开始扫描
   useEffect(() => {
@@ -455,7 +474,6 @@ export default function OnboardingPage() {
                 <Text as="h2" variant="headingMd">
                   🔍 自动体检
                 </Text>
-                {isScanning && <Spinner size="small" />}
               </InlineStack>
 
               <Text as="p" tone="subdued">
@@ -464,16 +482,17 @@ export default function OnboardingPage() {
               </Text>
 
               {isScanning ? (
-                <Box background="bg-surface-secondary" padding="600" borderRadius="200">
-                  <BlockStack gap="400" align="center">
-                    <Spinner size="large" />
-                    <Text as="p" fontWeight="semibold">正在扫描店铺配置...</Text>
-                    <ProgressBar progress={60} tone="primary" />
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      这通常需要 10-30 秒，请勿关闭页面
-                    </Text>
+                <Card>
+                  <BlockStack gap="400">
+                    <CardSkeleton lines={4} showTitle={true} />
+                    <Box paddingBlockStart="200">
+                      <ProgressBar progress={60} tone="primary" />
+                      <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                        这通常需要 10-30 秒，请勿关闭页面
+                      </Text>
+                    </Box>
                   </BlockStack>
-                </Box>
+                </Card>
               ) : (
                 <BlockStack gap="300">
                   <Box background="bg-surface-secondary" padding="400" borderRadius="200">
