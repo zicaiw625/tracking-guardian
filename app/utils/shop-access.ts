@@ -2,7 +2,7 @@
 
 import { timingSafeEqual, createHash } from "crypto";
 import prisma from "../db.server";
-import { decryptAccessToken, decryptIngestionSecret, TokenDecryptionError } from "./token-encryption";
+import { decryptAccessToken, decryptIngestionSecret, TokenDecryptionError, encryptAccessToken, isTokenEncrypted, encryptIngestionSecret } from "./token-encryption";
 import { logger } from "./logger.server";
 import type { Shop, PixelConfig, AlertConfig } from "@prisma/client";
 
@@ -210,8 +210,6 @@ export async function migrateShopTokensToEncrypted(): Promise<{
     skipped: number;
     errors: number;
 }> {
-    const { encryptAccessToken, isTokenEncrypted } = await import("./token-encryption");
-    const { encryptIngestionSecret } = await import("./token-encryption");
     let accessTokensMigrated = 0;
     let ingestionSecretsMigrated = 0;
     let skipped = 0;

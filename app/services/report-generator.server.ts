@@ -2,6 +2,7 @@ import prisma from "../db.server";
 import type { ScriptTag, RiskItem } from "../types";
 import { PLATFORM_INFO } from "./scanner/patterns";
 import { logger } from "../utils/logger.server";
+import { getShopGroupDetails, getGroupAggregatedStats } from "./multi-shop.server";
 
 export interface ReportData {
   shopDomain: string;
@@ -1148,9 +1149,6 @@ export async function fetchBatchReportData(
   requesterId: string,
   days: number = 30
 ): Promise<BatchReportData | null> {
-  // 导入 multi-shop 服务
-  const { getShopGroupDetails, getGroupAggregatedStats } = await import("./multi-shop.server");
-  
   const groupDetails = await getShopGroupDetails(groupId, requesterId);
   if (!groupDetails) return null;
 

@@ -8,8 +8,9 @@ import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banne
 import { CheckCircleIcon, AlertCircleIcon, SettingsIcon, LockIcon, } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { createWebPixel, getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade, } from "../services/migration.server";
+import { createWebPixel, getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade, upgradeWebPixelSettings, updateWebPixel } from "../services/migration.server";
 import { decryptIngestionSecret, isTokenEncrypted, encryptIngestionSecret } from "../utils/token-encryption";
+import { encryptJson } from "../utils/crypto.server";
 import { randomBytes } from "crypto";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { logger } from "../utils/logger.server";
@@ -229,7 +230,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         if (actionType === "upgradePixelSettings" && ourPixelId) {
-            const { upgradeWebPixelSettings } = await import("../services/migration.server");
             const existingPixels = await getExistingWebPixels(admin);
             const ourPixel = existingPixels.find((p) => p.id === ourPixelId);
             const currentSettings = ourPixel?.settings ? JSON.parse(ourPixel.settings) : {};
@@ -262,7 +262,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         let result;
         if (ourPixelId) {
-            const { updateWebPixel } = await import("../services/migration.server");
             result = await updateWebPixel(admin, ourPixelId, ingestionSecret, shopDomain);
         }
         else {
@@ -294,7 +293,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
     if (actionType === "saveWizardConfigs") {
-        const { encryptJson } = await import("../utils/crypto.server");
         const configsJson = formData.get("configs") as string;
         
         if (!configsJson) {

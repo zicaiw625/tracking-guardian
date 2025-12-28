@@ -3,18 +3,14 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
+import { getExistingWebPixels, isOurWebPixel } from "../../services/migration.server";
+import { deleteWebPixel } from "../../services/admin-mutations.server";
 
 async function tryCleanupWebPixel(
   admin: NonNullable<WebhookContext["admin"]>,
   shop: string
 ): Promise<void> {
   try {
-    const { getExistingWebPixels, isOurWebPixel } = await import(
-      "../../services/migration.server"
-    );
-    const { deleteWebPixel } = await import(
-      "../../services/admin-mutations.server"
-    );
 
     const typedAdmin = admin as {
       graphql: (

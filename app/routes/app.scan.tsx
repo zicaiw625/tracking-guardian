@@ -10,6 +10,9 @@ import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, type ScriptAnalysisResult } from "../services/scanner.server";
 import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
+import { generateMigrationActions } from "../services/scanner/migration-actions";
+import { getExistingWebPixels } from "../services/migration.server";
+import { createAuditAsset } from "../services/audit-asset.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import type { ScriptTag, RiskItem } from "../types";
 import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
@@ -55,9 +58,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 riskScore?: number;
                 additionalScriptsPatterns?: Array<{ platform: string; content: string }>;
             };
-
-            const { generateMigrationActions } = await import("../services/scanner/migration-actions");
-            const { getExistingWebPixels } = await import("../services/migration.server");
 
             const webPixels = await getExistingWebPixels(admin);
             const enhancedResult: EnhancedScanResult = {
@@ -164,7 +164,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ error: "缺少分析数据" }, { status: 400 });
             }
             const analysisData = JSON.parse(analysisDataStr) as ScriptAnalysisResult;
-            const { createAuditAsset } = await import("../services/audit-asset.server");
 
             const createdAssets = [];
             // 为每个检测到的平台创建 AuditAsset

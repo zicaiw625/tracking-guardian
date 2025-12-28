@@ -64,6 +64,7 @@ import {
   type ShopGroupDetails,
   type AggregatedStats,
 } from "../services/multi-shop.server";
+import { createInvitation } from "../services/workspace-invitation.server";
 import { BILLING_PLANS, type PlanId } from "../services/billing/plans";
 
 interface LoaderData {
@@ -277,8 +278,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     case "send_invitation": {
-      const { createInvitation } = await import("../services/workspace-invitation.server");
-      
       const groupId = formData.get("groupId") as string;
       const inviteeEmail = formData.get("inviteeEmail") as string;
       const role = (formData.get("role") as "admin" | "member") || "member";
