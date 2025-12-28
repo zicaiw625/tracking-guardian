@@ -3,7 +3,7 @@ import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useActionData, useRevalidator } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import { useToastContext, EnhancedEmptyState } from "~/components/ui";
-import { PixelMigrationWizard, type PlatformConfig } from "~/components/migrate/PixelMigrationWizard";
+import { PixelMigrationWizard } from "~/components/migrate/PixelMigrationWizard";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, Icon, ProgressBar, Link, List, } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, SettingsIcon, LockIcon, } from "~/components/icons";
 import { authenticate } from "../shopify.server";
@@ -453,11 +453,11 @@ export default function MigratePage() {
         submit(formData, { method: "post" });
     };
 
-    const handleWizardComplete = (configs: PlatformConfig[]) => {
-        const formData = new FormData();
-        formData.append("_action", "saveWizardConfigs");
-        formData.append("configs", JSON.stringify(configs));
-        submit(formData, { method: "post" });
+    const handleWizardComplete = () => {
+        // 向导内部已处理保存，这里只需要刷新和跳转
+        revalidator.revalidate();
+        setShowWizard(false);
+        setCurrentStep("complete");
     };
     const steps = [
         { id: "typOsp", label: "升级 Checkout", number: 1 },

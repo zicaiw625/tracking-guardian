@@ -2,214 +2,195 @@
 
 ## 📋 实现概述
 
-已成功实现增强的像素迁移向导功能，对应设计方案 4.3 Pixels：像素迁移中心。该向导提供了分步骤配置流程、事件映射可视化和预设模板库。
+已成功实现像素迁移向导的优化功能，包括：
+1. ✅ 分步骤配置流程
+2. ✅ 事件映射可视化
+3. ✅ 预设模板库
 
-## ✅ 已实现功能
+## 🎯 实现的功能
 
-### 1. 分步骤配置向导 ✅
+### 1. 分步骤配置流程
 
-实现了 4 步配置流程：
+实现了 5 步向导流程：
 
-1. **选择平台** - 支持多选（GA4/Meta/TikTok/Pinterest）
-2. **选择模板** - 预设模板或自定义配置
-3. **配置凭证** - 输入各平台的 API 凭证
-4. **检查配置** - 确认配置信息无误
+1. **选择平台** (`select`)
+   - 可视化平台选择界面
+   - 支持多平台同时配置
+   - 显示平台图标和描述
 
-**实现位置：**
-- `app/components/migrate/PixelMigrationWizard.tsx` - 向导组件
+2. **填写凭证** (`credentials`)
+   - 平台特定的凭证字段
+   - 环境切换（测试/生产）
+   - 实时验证
 
-### 2. 预设模板库 ✅
+3. **事件映射** (`mappings`)
+   - 可视化事件映射编辑器
+   - 默认推荐映射
+   - 支持自定义映射
 
-提供了 4 个预设模板：
+4. **检查配置** (`review`)
+   - 配置完整性检查
+   - 错误提示
+   - 配置摘要
 
-- **标准 GA4 配置** - 包含 purchase、begin_checkout、add_to_cart 等标准事件
-- **标准 Meta Pixel 配置** - 包含 Purchase、ViewContent、AddToCart、InitiateCheckout 等标准事件
-- **标准 TikTok Pixel 配置** - 包含 CompletePayment、ViewContent、AddToCart、InitiateCheckout 等标准事件
-- **多平台标准配置** - 同时配置 GA4、Meta 和 TikTok 的标准事件映射
+5. **测试验证** (`testing`)
+   - 配置保存确认
+   - 测试指引
+   - 快速链接到监控和验收页面
 
-**特点：**
-- 一键应用标准事件映射
-- 支持自定义事件映射
-- 模板可扩展
+### 2. 事件映射可视化
 
-### 3. 事件映射可视化编辑器 ✅
+- ✅ 表格形式展示事件映射
+- ✅ 支持实时编辑
+- ✅ 显示 Shopify 事件到平台事件的映射关系
+- ✅ 默认推荐映射（基于最佳实践）
 
-实现了可视化的事件映射编辑器：
+### 3. 预设模板库
 
-- **Shopify 事件 → 平台事件** 映射
-- 支持标准事件映射（checkout_completed、checkout_started、product_added_to_cart、product_viewed）
-- 每个平台提供对应的事件选项
-- 模态框编辑界面
+实现了两个预设模板：
 
-**支持的事件映射：**
+1. **标准配置**
+   - 适用于大多数电商店铺
+   - 包含 GA4、Meta、TikTok
+   - 基础事件映射
 
-| Shopify 事件 | GA4 | Meta | TikTok | Pinterest |
-|-------------|-----|------|--------|-----------|
-| checkout_completed | purchase | Purchase | CompletePayment | checkout |
-| checkout_started | begin_checkout | InitiateCheckout | InitiateCheckout | checkout |
-| product_added_to_cart | add_to_cart | AddToCart | AddToCart | addtocart |
-| product_viewed | view_item | ViewContent | ViewContent | pagevisit |
+2. **高级配置**
+   - 包含更多事件类型
+   - 支持 4 个平台（GA4、Meta、TikTok、Pinterest）
+   - 完整事件映射
 
-### 4. 凭证配置 ✅
+## 📁 文件结构
 
-支持各平台的凭证配置：
-
-**GA4:**
-- Measurement ID (G-XXXXXXXXXX)
-- API Secret
-
-**Meta:**
-- Pixel ID (15-16 位数字)
-- Access Token
-- Test Event Code (可选)
-
-**TikTok:**
-- Pixel ID
-- Access Token
-
-**Pinterest:**
-- Pixel ID
-- Access Token
-
-### 5. 环境切换 ✅
-
-支持测试/生产环境切换：
-- **测试模式** - 仅发送到沙盒/测试端点
-- **生产模式** - 发送到正式端点
-
-### 6. 配置验证 ✅
-
-在最后一步提供配置检查：
-- 凭证状态验证
-- 事件映射数量显示
-- 环境状态显示
-- 下一步操作指引
+```
+app/
+├── components/
+│   └── migrate/
+│       ├── PixelMigrationWizard.tsx  # 主向导组件
+│       └── index.ts                  # 导出文件
+└── routes/
+    └── app.migrate.tsx                # 迁移页面（已更新）
+```
 
 ## 🔧 技术实现
 
-### 组件结构
+### 组件架构
 
-```
+```typescript
 PixelMigrationWizard
-├── 步骤 1: 选择平台
-│   └── 多选平台（GA4/Meta/TikTok/Pinterest）
-├── 步骤 2: 选择模板
-│   ├── 预设模板列表
-│   └── 自定义选项
-├── 步骤 3: 配置凭证
-│   ├── 平台凭证表单
-│   └── 事件映射编辑按钮
-└── 步骤 4: 检查配置
-    ├── 配置摘要
-    └── 完成按钮
-
-EventMappingEditor (模态框)
-└── 事件映射编辑器
+├── SelectPlatformStep      # 步骤1：选择平台
+├── CredentialsStep         # 步骤2：填写凭证
+├── EventMappingsStep       # 步骤3：事件映射
+├── ReviewStep              # 步骤4：检查配置
+└── TestingStep             # 步骤5：测试验证
 ```
+
+### 状态管理
+
+- 使用 React Hooks (`useState`, `useCallback`)
+- 平台配置存储在组件状态中
+- 支持多平台同时配置
 
 ### 数据流
 
-1. **用户选择平台** → 更新 `selectedPlatforms`
-2. **选择模板** → 应用标准事件映射到 `configs`
-3. **配置凭证** → 更新 `configs` 中的凭证信息
-4. **完成配置** → 调用 `onComplete` 回调，保存到数据库
+1. 用户选择平台 → 更新 `selectedPlatforms` 和 `platformConfigs`
+2. 填写凭证 → 更新对应平台的 `credentials`
+3. 配置事件映射 → 更新对应平台的 `eventMappings`
+4. 检查配置 → 验证所有必填字段
+5. 保存配置 → 提交到 `/app/migrate` action handler
 
-### 集成点
+### 后端集成
 
-**迁移页面集成：**
-- `app/routes/app.migrate.tsx` - 在 CAPI 配置步骤中集成向导
-- 添加了 `saveWizardConfigs` action 处理配置保存
-- 支持从扫描结果自动识别平台
-
-**配置保存：**
-- 使用 `encryptJson` 加密凭证
+- Action handler: `saveWizardConfigs`
 - 保存到 `PixelConfig` 表
-- 支持环境切换和事件映射
+- 凭证加密存储
+- 支持环境切换（test/live）
 
-## 📝 使用流程
+## 🎨 用户体验优化
 
-### 商家使用流程
+### 进度指示
+- 步骤进度条
+- 当前步骤高亮
+- 已完成步骤标记
 
-1. **进入迁移页面** → 点击"使用向导配置"
-2. **选择平台** → 勾选需要配置的平台（可多选）
-3. **选择模板** → 选择预设模板或自定义
-4. **配置凭证** → 输入各平台的 API 凭证
-   - 可点击"编辑事件映射"自定义事件映射
-5. **检查配置** → 确认配置信息
-6. **完成配置** → 系统自动保存并创建像素配置
+### 错误处理
+- 实时验证
+- 清晰的错误提示
+- 配置完整性检查
 
-### 开发者扩展
+### 引导提示
+- 每个步骤的说明文字
+- 平台特定的帮助文本
+- 凭证获取指引
 
-**添加新模板：**
-```typescript
-const NEW_TEMPLATE: PixelTemplate = {
-  id: "custom-template",
-  name: "自定义模板",
-  description: "描述",
-  platforms: ["google", "meta"],
-  isPublic: true,
-};
-```
+## 📊 支持的平台
 
-**添加新平台：**
-1. 在 `Platform` 类型中添加新平台
-2. 在 `getPlatformName` 和 `getPlatformDescription` 中添加名称和描述
-3. 在 `STANDARD_EVENT_MAPPINGS` 中添加标准事件映射
-4. 在凭证配置中添加平台特定的表单字段
+| 平台 | 图标 | 凭证字段 | 默认事件映射 |
+|------|------|----------|--------------|
+| Google Analytics 4 | 🔵 | Measurement ID, API Secret | checkout_completed → purchase |
+| Meta (Facebook) | 📘 | Pixel ID, Access Token, Test Event Code | checkout_completed → Purchase |
+| TikTok | 🎵 | Pixel ID, Access Token | checkout_completed → CompletePayment |
+| Pinterest | 📌 | Tag ID, Access Token | checkout_completed → checkout |
 
-## 🎯 优势
+## 🔄 与现有功能的集成
 
-1. **用户体验优化**
-   - 分步骤引导，降低配置复杂度
-   - 可视化事件映射，直观易懂
-   - 预设模板快速配置
+### 与迁移页面集成
+- 在 `app.migrate.tsx` 的 "配置服务端追踪" 步骤中调用
+- 通过 `showWizard` 状态控制显示/隐藏
+- 完成后自动跳转到完成步骤
 
-2. **功能完整性**
-   - 支持多平台同时配置
-   - 支持测试/生产环境切换
-   - 支持自定义事件映射
+### 与设置页面集成
+- 配置保存后可在设置页面查看和编辑
+- 支持后续修改凭证和映射
 
-3. **可扩展性**
-   - 模板系统易于扩展
-   - 组件化设计，易于维护
-   - 类型安全
+## 🚀 使用流程
 
-## 📊 与设计方案对比
+1. **进入迁移页面** (`/app/migrate`)
+2. **完成前两步**：升级 Checkout → 启用 App Pixel
+3. **点击"使用向导配置"**：进入像素迁移向导
+4. **选择平台**：勾选要配置的平台，或应用预设模板
+5. **填写凭证**：为每个平台填写 API 凭证
+6. **配置事件映射**：检查或修改事件映射
+7. **检查配置**：确认所有配置正确
+8. **保存配置**：保存并进入测试步骤
+9. **测试验证**：创建测试订单，在监控页面验证
 
-| 设计方案要求 | 实现状态 | 说明 |
-|------------|---------|------|
-| 分步骤配置向导 | ✅ 完成 | 4 步向导流程 |
-| 事件映射可视化 | ✅ 完成 | 模态框编辑器 |
-| 预设模板库 | ✅ 完成 | 4 个预设模板 |
-| 多平台支持 | ✅ 完成 | GA4/Meta/TikTok/Pinterest |
-| 环境切换 | ✅ 完成 | Test/Live 模式 |
-| 配置验证 | ✅ 完成 | 最后一步检查 |
+## ✅ 完成状态
 
-## 🚀 后续优化建议
+- ✅ 分步骤配置流程
+- ✅ 事件映射可视化
+- ✅ 预设模板库
+- ✅ 凭证加密存储
+- ✅ 环境切换（test/live）
+- ✅ 配置验证
+- ✅ 错误处理
+- ✅ 与现有系统集成
 
-1. **模板管理**
-   - 允许商家保存自定义模板
-   - 模板分享功能（Agency 套餐）
+## 🔮 未来增强建议
 
-2. **配置导入/导出**
-   - 导出配置为 JSON
-   - 从 JSON 导入配置
+1. **更多预设模板**
+   - 行业特定模板（时尚、电子、食品等）
+   - 自定义模板保存
+
+2. **事件映射增强**
+   - 支持更多 Shopify 事件
+   - 映射规则验证
+   - 映射预览
 
 3. **批量配置**
-   - Agency 套餐支持批量应用模板到多个店铺
+   - 从模板批量应用
+   - 配置导入/导出
 
-4. **配置测试**
-   - 在配置过程中测试凭证有效性
-   - 实时验证事件映射
+4. **测试工具集成**
+   - 在向导内直接测试
+   - 实时验证凭证有效性
 
-## 📁 相关文件
+## 📝 注意事项
 
-- `app/components/migrate/PixelMigrationWizard.tsx` - 向导组件
-- `app/routes/app.migrate.tsx` - 迁移页面（集成向导）
-- `app/services/migration.server.ts` - 迁移服务
-- `app/utils/crypto.server.ts` - 凭证加密工具
+1. **套餐限制**：向导功能需要 Pro 及以上套餐
+2. **凭证安全**：所有凭证均加密存储
+3. **环境切换**：建议先在测试模式验证，再切换到生产模式
+4. **事件映射**：当前仅支持 `checkout_completed` 事件，未来可扩展
 
-## ✅ 总结
+## 🎉 总结
 
-像素迁移向导已成功实现，提供了完整的配置流程和良好的用户体验。该功能符合设计方案要求，并具备良好的可扩展性，为后续功能增强奠定了基础。
-
+像素迁移向导已成功实现，提供了直观、易用的配置流程，大大简化了商家配置多个广告平台的过程。通过分步骤引导、可视化编辑和预设模板，商家可以在几分钟内完成复杂的像素迁移配置。
