@@ -154,8 +154,69 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     const formData = await request.formData();
     const actionType = formData.get("_action");
+
+    // 处理保存手动分析结果到 AuditAsset
+    if (actionType === "save_analysis") {
+        try {
+            const analysisDataStr = formData.get("analysisData") as string;
+            if (!analysisDataStr) {
+                return json({ error: "缺少分析数据" }, { status: 400 });
+            }
+            const analysisData = JSON.parse(analysisDataStr) as ScriptAnalysisResult;
+            const { createAuditAsset } = await import("../services/audit-asset.server");
+
+            const createdAssets = [];
+            // 为每个检测到的平台创建 AuditAsset
+            for (const platform of analysisData.identifiedPlatforms) {
+                const asset = await createAuditAsset(shop.id, {
+                    sourceType: "manual_paste",
+                    category: "pixel",
+                    platform,
+                    displayName: `手动粘贴: ${platform}`,
+                    riskLevel: "high",
+                    suggestedMigration: "web_pixel",
+                    details: {
+                        source: "manual_paste",
+                        analysisRiskScore: analysisData.riskScore,
+                        detectedPatterns: analysisData.platformDetails
+                            .filter(d => d.type === platform)
+                            .map(d => d.matchedPattern),
+                    },
+                });
+                if (asset) createdAssets.push(asset);
+            }
+
+            // 如果没有检测到平台但有风险，创建通用记录
+            if (analysisData.identifiedPlatforms.length === 0 && analysisData.riskScore > 0) {
+                const asset = await createAuditAsset(shop.id, {
+                    sourceType: "manual_paste",
+                    category: "other",
+                    displayName: "未识别的脚本",
+                    riskLevel: analysisData.riskScore > 60 ? "high" : "medium",
+                    suggestedMigration: "none",
+                    details: {
+                        source: "manual_paste",
+                        analysisRiskScore: analysisData.riskScore,
+                        risks: analysisData.risks,
+                    },
+                });
+                if (asset) createdAssets.push(asset);
+            }
+
+            return json({
+                success: true,
+                actionType: "save_analysis",
+                savedCount: createdAssets.length,
+                message: `已保存 ${createdAssets.length} 个审计资产记录`,
+            });
+        } catch (error) {
+            logger.error("Save analysis error", error);
+            return json({ error: error instanceof Error ? error.message : "保存失败" }, { status: 500 });
+        }
+    }
+
     if (actionType && actionType !== "scan") {
-        return json({ error: "手动脚本分析已在浏览器本地执行，不会上传脚本内容。" }, { status: 400 });
+        return json({ error: "不支持的操作类型" }, { status: 400 });
     }
     try {
         const scanResult = await scanShopTracking(admin, shop.id);
@@ -172,7 +233,9 @@ export default function ScanPage() {
     const navigation = useNavigation();
     const deleteFetcher = useFetcher();
     const upgradeFetcher = useFetcher();
+    const saveAnalysisFetcher = useFetcher();
     const [selectedTab, setSelectedTab] = useState(0);
+    const [analysisSaved, setAnalysisSaved] = useState(false);
     const [scriptContent, setScriptContent] = useState("");
     const [analysisResult, setAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
     const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -275,6 +338,7 @@ export default function ScanPage() {
     };
     const handleAnalyzeScript = useCallback(() => {
         setIsAnalyzing(true);
+        setAnalysisSaved(false); // 重置保存状态
         try {
             const result = analyzeScriptContent(scriptContent);
             setAnalysisResult(result);
@@ -287,6 +351,23 @@ export default function ScanPage() {
             setIsAnalyzing(false);
         }
     }, [scriptContent]);
+
+    const handleSaveAnalysis = useCallback(() => {
+        if (!analysisResult) return;
+        const formData = new FormData();
+        formData.append("_action", "save_analysis");
+        formData.append("analysisData", JSON.stringify(analysisResult));
+        saveAnalysisFetcher.submit(formData, { method: "post" });
+    }, [analysisResult, saveAnalysisFetcher]);
+
+    // 处理保存结果
+    const saveAnalysisResult = saveAnalysisFetcher.data as { success?: boolean; message?: string; error?: string } | undefined;
+    const isSavingAnalysis = saveAnalysisFetcher.state === "submitting";
+
+    // 当保存成功时更新状态
+    if (saveAnalysisResult?.success && !analysisSaved) {
+        setAnalysisSaved(true);
+    }
   const tabs = [
     { id: "auto-scan", content: "自动扫描" },
     { id: "manual-analyze", content: "手动分析" },
@@ -1451,6 +1532,50 @@ export default function ScanPage() {
                     </Button>
                   </BlockStack>
                 </Card>)}
+
+              {/* 保存分析结果到 AuditAsset */}
+              {analysisResult && (
+                <Card>
+                  <BlockStack gap="400">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <Text as="h2" variant="headingMd">
+                          保存分析结果
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          将分析结果保存到审计资产记录，方便后续跟踪迁移进度
+                        </Text>
+                      </BlockStack>
+                      {analysisSaved ? (
+                        <Badge tone="success">已保存</Badge>
+                      ) : null}
+                    </InlineStack>
+
+                    {saveAnalysisResult?.error && (
+                      <Banner tone="critical">
+                        <Text as="p">{saveAnalysisResult.error}</Text>
+                      </Banner>
+                    )}
+
+                    {saveAnalysisResult?.success && (
+                      <Banner tone="success">
+                        <Text as="p">{saveAnalysisResult.message}</Text>
+                      </Banner>
+                    )}
+
+                    <InlineStack gap="200" align="end">
+                      <Button
+                        onClick={handleSaveAnalysis}
+                        loading={isSavingAnalysis}
+                        disabled={analysisSaved || analysisResult.identifiedPlatforms.length === 0 && analysisResult.riskScore === 0}
+                        icon={CheckCircleIcon}
+                      >
+                        {analysisSaved ? "已保存" : "保存到审计记录"}
+                      </Button>
+                    </InlineStack>
+                  </BlockStack>
+                </Card>
+              )}
             </BlockStack>)}
         </Tabs>
 

@@ -273,9 +273,76 @@ export async function runBatchAuditSync(
 // ============================================================
 
 /**
+ * 获取店铺的 offline session
+ * 通过 Prisma session storage 获取已存储的 session
+ */
+async function getOfflineSession(shopDomain: string): Promise<{
+  accessToken: string;
+  shop: string;
+} | null> {
+  try {
+    // 查找该店铺的 offline session
+    const session = await prisma.session.findFirst({
+      where: {
+        shop: shopDomain,
+        isOnline: false, // offline token
+      },
+      select: {
+        accessToken: true,
+        shop: true,
+      },
+    });
+
+    if (session?.accessToken) {
+      return {
+        accessToken: session.accessToken,
+        shop: session.shop,
+      };
+    }
+    return null;
+  } catch (error) {
+    logger.error(`Failed to get offline session for ${shopDomain}:`, error);
+    return null;
+  }
+}
+
+/**
+ * 创建 admin API 客户端用于异步操作
+ */
+async function createAdminClientForShop(shopDomain: string): Promise<{
+  graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response>;
+} | null> {
+  const session = await getOfflineSession(shopDomain);
+  if (!session) {
+    logger.warn(`No offline session found for shop: ${shopDomain}`);
+    return null;
+  }
+
+  // 使用 Shopify API 创建 GraphQL 客户端
+  const apiVersion = process.env.SHOPIFY_API_VERSION || "2025-01";
+  const shopifyApiUrl = `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`;
+
+  return {
+    graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+      const response = await fetch(shopifyApiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": session.accessToken,
+        },
+        body: JSON.stringify({
+          query,
+          variables: options?.variables,
+        }),
+      });
+      return response;
+    },
+  };
+}
+
+/**
  * 异步执行批量 Audit (用于后台任务)
- * 注意：此函数需要能够获取各店铺的 admin context
- * 在当前架构下，这需要通过 session 存储实现
+ * 使用 offline access token 从 session storage 获取各店铺的访问权限
  */
 async function executeBatchAuditAsync(
   jobId: string,
@@ -292,23 +359,88 @@ async function executeBatchAuditAsync(
   const results: ShopAuditResult[] = [];
   const totalShops = groupDetails.members.length;
 
-  // 由于 async 任务无法直接获取 admin context，这里标记为待实现
-  // 生产环境需要：
-  // 1. 使用 offline access token
-  // 2. 或者通过 session storage 获取各店铺的 session
-  logger.warn(
-    `Batch audit async execution: need to implement admin context retrieval for ${totalShops} shops`
-  );
+  logger.info(`Starting async batch audit for ${totalShops} shops`, { jobId });
 
-  // TODO: 实现基于 offline token 的扫描
-  // 目前先标记所有店铺为 skipped
-  for (const member of groupDetails.members) {
-    results.push({
-      shopId: member.shopId,
-      shopDomain: member.shopDomain,
-      status: "skipped",
-      error: "异步批量扫描功能开发中",
-    });
+  // 检查最近扫描记录 (跳过最近已扫描的)
+  const skipSince = new Date();
+  skipSince.setHours(skipSince.getHours() - options.skipRecentHours);
+
+  const recentScans = await prisma.scanReport.findMany({
+    where: {
+      shopId: { in: groupDetails.members.map((m) => m.shopId) },
+      createdAt: { gte: skipSince },
+      status: "completed",
+    },
+    select: { shopId: true },
+  });
+  const recentlyScannedIds = new Set(recentScans.map((s) => s.shopId));
+
+  // 分批并行处理
+  for (let i = 0; i < groupDetails.members.length; i += options.concurrency) {
+    const batch = groupDetails.members.slice(i, i + options.concurrency);
+    
+    const batchResults = await Promise.allSettled(
+      batch.map(async (member) => {
+        const startTime = Date.now();
+
+        // 跳过最近已扫描的
+        if (recentlyScannedIds.has(member.shopId)) {
+          return {
+            shopId: member.shopId,
+            shopDomain: member.shopDomain,
+            status: "skipped" as const,
+            error: `最近 ${options.skipRecentHours} 小时内已扫描`,
+          };
+        }
+
+        try {
+          // 获取 admin 客户端
+          const adminClient = await createAdminClientForShop(member.shopDomain);
+          if (!adminClient) {
+            return {
+              shopId: member.shopId,
+              shopDomain: member.shopDomain,
+              status: "failed" as const,
+              error: "无法获取店铺访问权限，请确保店铺已授权 offline 访问",
+            };
+          }
+
+          // 执行扫描
+          const scanResult = await scanShopTracking(
+            { graphql: adminClient.graphql } as Parameters<typeof scanShopTracking>[0],
+            member.shopId
+          );
+
+          return {
+            shopId: member.shopId,
+            shopDomain: member.shopDomain,
+            status: "success" as const,
+            scanReportId: scanResult.id,
+            riskScore: scanResult.riskScore,
+            identifiedPlatforms: scanResult.identifiedPlatforms,
+            duration: Date.now() - startTime,
+          };
+        } catch (err) {
+          logger.error(`Async batch audit failed for shop ${member.shopDomain}:`, err);
+          return {
+            shopId: member.shopId,
+            shopDomain: member.shopDomain,
+            status: "failed" as const,
+            error: err instanceof Error ? err.message : "未知错误",
+            duration: Date.now() - startTime,
+          };
+        }
+      })
+    );
+
+    // 处理结果
+    for (const result of batchResults) {
+      if (result.status === "fulfilled") {
+        results.push(result.value);
+      } else {
+        logger.error("Unexpected batch audit rejection:", result.reason);
+      }
+    }
 
     // 更新进度
     job.progress = Math.round((results.length / totalShops) * 100);
@@ -334,6 +466,15 @@ async function executeBatchAuditAsync(
     duration: completedAt.getTime() - startedAt.getTime(),
   };
   job.updatedAt = new Date();
+
+  logger.info(`Async batch audit completed`, {
+    jobId,
+    totalShops,
+    completed: job.result.completedShops,
+    failed: job.result.failedShops,
+    skipped: job.result.skippedShops,
+    duration: job.result.duration,
+  });
 }
 
 /**

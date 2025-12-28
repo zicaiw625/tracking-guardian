@@ -56,6 +56,7 @@ import {
   type ReorderSettings,
   type OrderTrackingSettings,
   type UpsellSettings,
+  type LocalizationSettings,
 } from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billing/plans";
 
@@ -133,10 +134,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     case "update_settings": {
       const moduleKey = formData.get("moduleKey") as ModuleKey;
       const settingsJson = formData.get("settings") as string;
+      const localizationJson = formData.get("localization") as string | null;
       
       try {
         const settings = JSON.parse(settingsJson);
-        const result = await updateUiModuleConfig(shop.id, moduleKey, { settings });
+        const localization = localizationJson ? JSON.parse(localizationJson) : undefined;
+        const result = await updateUiModuleConfig(shop.id, moduleKey, { settings, localization });
         if (!result.success) {
           return json({ error: result.error }, { status: 400 });
         }
@@ -559,6 +562,130 @@ function UpsellSettingsForm({
   );
 }
 
+// 常用语言列表
+const COMMON_LOCALES = [
+  { value: "en", label: "English" },
+  { value: "zh-CN", label: "简体中文" },
+  { value: "zh-TW", label: "繁體中文" },
+  { value: "ja", label: "日本語" },
+  { value: "ko", label: "한국어" },
+  { value: "es", label: "Español" },
+  { value: "fr", label: "Français" },
+  { value: "de", label: "Deutsch" },
+  { value: "pt", label: "Português" },
+  { value: "it", label: "Italiano" },
+];
+
+// 本地化设置表单
+function LocalizationSettingsForm({
+  localization,
+  onChange,
+  moduleKey,
+}: {
+  localization: LocalizationSettings | undefined;
+  onChange: (localization: LocalizationSettings) => void;
+  moduleKey: ModuleKey;
+}) {
+  const [selectedLocale, setSelectedLocale] = useState<string>("en");
+  const currentLocaleData = localization?.[selectedLocale] || {};
+
+  const handleFieldChange = (field: string, value: string) => {
+    const updated = {
+      ...localization,
+      [selectedLocale]: {
+        ...(localization?.[selectedLocale] || {}),
+        [field]: value,
+      },
+    };
+    onChange(updated);
+  };
+
+  // 根据模块类型显示不同的可翻译字段
+  const getEditableFields = () => {
+    switch (moduleKey) {
+      case "survey":
+        return [
+          { key: "title", label: "标题", placeholder: "We want to hear from you" },
+          { key: "question", label: "问题", placeholder: "How did you hear about us?" },
+        ];
+      case "helpdesk":
+        return [
+          { key: "title", label: "标题", placeholder: "Order Help & Support" },
+          { key: "description", label: "描述", placeholder: "Need help with your order?" },
+        ];
+      case "reorder":
+        return [
+          { key: "title", label: "标题", placeholder: "Order Again" },
+          { key: "subtitle", label: "副标题", placeholder: "Loved your purchase? Get it again!" },
+          { key: "buttonText", label: "按钮文字", placeholder: "Reorder Now" },
+        ];
+      case "order_tracking":
+        return [
+          { key: "title", label: "标题", placeholder: "Track Your Order" },
+        ];
+      case "upsell":
+        return [
+          { key: "title", label: "标题", placeholder: "You might also like" },
+          { key: "subtitle", label: "副标题", placeholder: "Complete your purchase" },
+        ];
+      default:
+        return [];
+    }
+  };
+
+  return (
+    <BlockStack gap="400">
+      <Banner tone="info">
+        <Text as="p" variant="bodySm">
+          为不同语言的客户提供本地化内容。选择语言后编辑对应的翻译文本。
+        </Text>
+      </Banner>
+
+      <Select
+        label="选择语言"
+        options={COMMON_LOCALES}
+        value={selectedLocale}
+        onChange={setSelectedLocale}
+      />
+
+      <Divider />
+
+      {getEditableFields().map((field) => (
+        <TextField
+          key={field.key}
+          label={`${field.label} (${selectedLocale})`}
+          value={(currentLocaleData as Record<string, string>)[field.key] || ""}
+          onChange={(value) => handleFieldChange(field.key, value)}
+          autoComplete="off"
+          placeholder={field.placeholder}
+          helpText={`默认值将用于未翻译的语言`}
+        />
+      ))}
+
+      {Object.keys(localization || {}).length > 0 && (
+        <Collapsible
+          open={true}
+          id="localization-preview"
+          transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
+        >
+          <Box paddingBlockStart="300">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                已配置的语言:
+              </Text>
+              <InlineStack gap="100">
+                {Object.keys(localization || {}).map((locale) => (
+                  <Tag key={locale}>{locale}</Tag>
+                ))}
+              </InlineStack>
+            </BlockStack>
+          </Box>
+        </Collapsible>
+      )}
+    </BlockStack>
+  );
+}
+
 export default function UiBlocksPage() {
   const { shop, modules, enabledCount, maxModules, planInfo } = useLoaderData<typeof loader>();
   const submit = useSubmit();
@@ -568,6 +695,8 @@ export default function UiBlocksPage() {
   const [selectedTab, setSelectedTab] = useState(0);
   const [editingModule, setEditingModule] = useState<ModuleKey | null>(null);
   const [editingSettings, setEditingSettings] = useState<Record<string, unknown> | null>(null);
+  const [editingLocalization, setEditingLocalization] = useState<LocalizationSettings | undefined>(undefined);
+  const [modalTab, setModalTab] = useState(0); // 0: 设置, 1: 本地化
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -587,6 +716,8 @@ export default function UiBlocksPage() {
     if (module) {
       setEditingModule(moduleKey);
       setEditingSettings(module.settings as Record<string, unknown>);
+      setEditingLocalization(module.localization);
+      setModalTab(0); // 重置到设置标签
     }
   }, [modules]);
 
@@ -597,10 +728,15 @@ export default function UiBlocksPage() {
     formData.append("_action", "update_settings");
     formData.append("moduleKey", editingModule);
     formData.append("settings", JSON.stringify(editingSettings));
+    // 同时保存本地化设置
+    if (editingLocalization) {
+      formData.append("localization", JSON.stringify(editingLocalization));
+    }
     submit(formData, { method: "post" });
     setEditingModule(null);
     setEditingSettings(null);
-  }, [editingModule, editingSettings, submit]);
+    setEditingLocalization(undefined);
+  }, [editingModule, editingSettings, editingLocalization, submit]);
 
   const handleResetModule = useCallback(() => {
     if (!editingModule) return;
@@ -759,6 +895,7 @@ export default function UiBlocksPage() {
         onClose={() => {
           setEditingModule(null);
           setEditingSettings(null);
+          setEditingLocalization(undefined);
         }}
         title={`配置 ${editingModule ? UI_MODULES[editingModule].name : ""}`}
         primaryAction={{
@@ -777,42 +914,69 @@ export default function UiBlocksPage() {
             onAction: () => {
               setEditingModule(null);
               setEditingSettings(null);
+              setEditingLocalization(undefined);
             },
           },
         ]}
         size="large"
       >
         <Modal.Section>
-          {editingModule === "survey" && editingSettings && (
-            <SurveySettingsForm
-              settings={editingSettings as SurveySettings}
-              onChange={(s) => setEditingSettings(s)}
-            />
-          )}
-          {editingModule === "helpdesk" && editingSettings && (
-            <HelpdeskSettingsForm
-              settings={editingSettings as HelpdeskSettings}
-              onChange={(s) => setEditingSettings(s)}
-            />
-          )}
-          {editingModule === "reorder" && editingSettings && (
-            <ReorderSettingsForm
-              settings={editingSettings as ReorderSettings}
-              onChange={(s) => setEditingSettings(s)}
-            />
-          )}
-          {editingModule === "order_tracking" && editingSettings && (
-            <OrderTrackingSettingsForm
-              settings={editingSettings as OrderTrackingSettings}
-              onChange={(s) => setEditingSettings(s)}
-            />
-          )}
-          {editingModule === "upsell" && editingSettings && (
-            <UpsellSettingsForm
-              settings={editingSettings as UpsellSettings}
-              onChange={(s) => setEditingSettings(s)}
-            />
-          )}
+          {/* 模态框内标签页切换 */}
+          <Tabs
+            tabs={[
+              { id: "settings", content: "基础设置" },
+              { id: "localization", content: "🌐 多语言" },
+            ]}
+            selected={modalTab}
+            onSelect={setModalTab}
+          >
+            <Box paddingBlockStart="400">
+              {/* 基础设置标签页 */}
+              {modalTab === 0 && (
+                <>
+                  {editingModule === "survey" && editingSettings && (
+                    <SurveySettingsForm
+                      settings={editingSettings as SurveySettings}
+                      onChange={(s) => setEditingSettings(s)}
+                    />
+                  )}
+                  {editingModule === "helpdesk" && editingSettings && (
+                    <HelpdeskSettingsForm
+                      settings={editingSettings as HelpdeskSettings}
+                      onChange={(s) => setEditingSettings(s)}
+                    />
+                  )}
+                  {editingModule === "reorder" && editingSettings && (
+                    <ReorderSettingsForm
+                      settings={editingSettings as ReorderSettings}
+                      onChange={(s) => setEditingSettings(s)}
+                    />
+                  )}
+                  {editingModule === "order_tracking" && editingSettings && (
+                    <OrderTrackingSettingsForm
+                      settings={editingSettings as OrderTrackingSettings}
+                      onChange={(s) => setEditingSettings(s)}
+                    />
+                  )}
+                  {editingModule === "upsell" && editingSettings && (
+                    <UpsellSettingsForm
+                      settings={editingSettings as UpsellSettings}
+                      onChange={(s) => setEditingSettings(s)}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* 本地化设置标签页 */}
+              {modalTab === 1 && editingModule && (
+                <LocalizationSettingsForm
+                  localization={editingLocalization}
+                  onChange={setEditingLocalization}
+                  moduleKey={editingModule}
+                />
+              )}
+            </Box>
+          </Tabs>
         </Modal.Section>
       </Modal>
     </Page>

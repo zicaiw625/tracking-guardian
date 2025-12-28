@@ -17,6 +17,10 @@ import { generateMigrationActions } from "./migration-actions";
 import { analyzeScriptContent } from "./content-analysis";
 import { refreshTypOspStatus } from "../checkout-profile.server";
 import { logger } from "../../utils/logger.server";
+import { 
+    batchCreateAuditAssets, 
+    type AuditAssetInput 
+} from "../audit-asset.server";
 
 export type {
     WebPixelInfo,
@@ -294,21 +298,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
     return duplicates;
 }
 
-async function saveScanReport(shopId: string, result: ScanResult, errorMessage: string | null = null): Promise<void> {
-    await prisma.scanReport.create({
-        data: {
-            shopId,
-            scriptTags: JSON.parse(JSON.stringify(result.scriptTags)),
-            checkoutConfig: result.checkoutConfig ? JSON.parse(JSON.stringify(result.checkoutConfig)) : undefined,
-            identifiedPlatforms: result.identifiedPlatforms,
-            riskItems: JSON.parse(JSON.stringify(result.riskItems)),
-            riskScore: result.riskScore,
-            status: errorMessage ? "completed_with_errors" : "completed",
-            errorMessage,
-            completedAt: new Date(),
-        },
-    });
-}
+// saveScanReport logic has been inlined into scanShopTracking to support AuditAsset sync
 
 const SCAN_CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -470,13 +460,91 @@ export async function scanShopTracking(
     result.migrationActions = generateMigrationActions(result, shopTier);
     logger.info(`Generated ${result.migrationActions.length} migration actions`);
 
+    let scanReportId: string | undefined;
     try {
-        await saveScanReport(shopId, result, errors.length > 0 ? JSON.stringify(errors) : null);
-        logger.info(`Scan report saved for shop ${shopId}`);
+        const savedReport = await prisma.scanReport.create({
+            data: {
+                shopId,
+                scriptTags: JSON.parse(JSON.stringify(result.scriptTags)),
+                checkoutConfig: result.checkoutConfig ? JSON.parse(JSON.stringify(result.checkoutConfig)) : undefined,
+                identifiedPlatforms: result.identifiedPlatforms,
+                riskItems: JSON.parse(JSON.stringify(result.riskItems)),
+                riskScore: result.riskScore,
+                status: errors.length > 0 ? "completed_with_errors" : "completed",
+                errorMessage: errors.length > 0 ? JSON.stringify(errors) : null,
+                completedAt: new Date(),
+            },
+        });
+        scanReportId = savedReport.id;
+        logger.info(`Scan report saved for shop ${shopId}`, { scanReportId });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("Error saving scan report:", error);
         throw new Error(`Failed to save scan report: ${errorMessage}`);
+    }
+
+    // 同步扫描结果到 AuditAsset 表
+    try {
+        const auditAssets: AuditAssetInput[] = [];
+        
+        // 从 ScriptTags 创建 AuditAssets
+        for (const tag of result.scriptTags) {
+            const platforms = detectPlatforms(tag.src || "");
+            const platform = platforms[0]; // 使用检测到的第一个平台
+            
+            auditAssets.push({
+                sourceType: "api_scan",
+                category: platform ? "pixel" : "other",
+                platform: platform || undefined,
+                displayName: platform 
+                    ? `ScriptTag: ${platform}` 
+                    : `ScriptTag #${tag.id}`,
+                riskLevel: tag.display_scope === "order_status" ? "high" : "medium",
+                suggestedMigration: "web_pixel",
+                details: {
+                    scriptTagId: tag.id,
+                    scriptTagGid: tag.gid,
+                    src: tag.src,
+                    displayScope: tag.display_scope,
+                },
+                scanReportId,
+            });
+        }
+        
+        // 从识别到的平台创建 AuditAssets（如果还没有对应的 ScriptTag）
+        for (const platform of result.identifiedPlatforms) {
+            const hasScriptTag = result.scriptTags.some(tag => 
+                detectPlatforms(tag.src || "").includes(platform)
+            );
+            
+            if (!hasScriptTag) {
+                auditAssets.push({
+                    sourceType: "api_scan",
+                    category: "pixel",
+                    platform,
+                    displayName: `Detected: ${platform}`,
+                    riskLevel: "medium",
+                    suggestedMigration: "web_pixel",
+                    details: {
+                        source: "platform_detection",
+                    },
+                    scanReportId,
+                });
+            }
+        }
+        
+        if (auditAssets.length > 0) {
+            const auditResult = await batchCreateAuditAssets(shopId, auditAssets, scanReportId);
+            logger.info(`AuditAssets synced from scan`, { 
+                shopId, 
+                scanReportId,
+                created: auditResult.created,
+                updated: auditResult.updated,
+            });
+        }
+    } catch (error) {
+        // AuditAsset 同步失败不应阻止扫描完成
+        logger.error("Failed to sync AuditAssets from scan", { shopId, error });
     }
 
     return result;
