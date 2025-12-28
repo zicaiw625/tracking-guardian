@@ -26,17 +26,13 @@ import {
   Icon,
   Modal,
   List,
-  Tabs,
   DataTable,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
   AlertCircleIcon,
   ArrowRightIcon,
-  ArrowLeftIcon,
   SettingsIcon,
-  PlayIcon,
-  CheckIcon,
 } from "~/components/icons";
 import { useSubmit, useNavigation } from "@remix-run/react";
 import { useToastContext } from "~/components/ui";
@@ -55,16 +51,11 @@ interface PlatformConfig {
     // GA4
     measurementId?: string;
     apiSecret?: string;
-    // Meta
+    // Meta/TikTok/Pinterest (共享字段)
     pixelId?: string;
     accessToken?: string;
+    // Meta 特有
     testEventCode?: string;
-    // TikTok
-    pixelId?: string;
-    accessToken?: string;
-    // Pinterest
-    pixelId?: string;
-    accessToken?: string;
   };
   eventMappings: Record<string, string>;
   environment: "test" | "live";
@@ -579,7 +570,7 @@ export function PixelMigrationWizard({
               像素迁移向导
             </Text>
             <Badge tone="info">
-              步骤 {currentStepIndex + 1} / {steps.length}
+              {`步骤 ${currentStepIndex + 1} / ${steps.length}`}
             </Badge>
           </InlineStack>
           <ProgressBar progress={progress} tone="primary" size="small" />
@@ -605,7 +596,7 @@ export function PixelMigrationWizard({
                     fontWeight="bold"
                     alignment="center"
                   >
-                    {index < currentStepIndex ? "✓" : step.number}
+                    {index < currentStepIndex ? "✓" : String(step.number)}
                   </Text>
                 </Box>
                 <Text
@@ -640,7 +631,6 @@ export function PixelMigrationWizard({
                   setCurrentStep(prevStep);
                 }}
                 disabled={isSubmitting}
-                icon={ArrowLeftIcon}
               >
                 上一步
               </Button>
@@ -650,7 +640,7 @@ export function PixelMigrationWizard({
                 variant="primary"
                 onClick={handleSave}
                 loading={isSubmitting}
-                icon={CheckIcon}
+                icon={CheckCircleIcon}
               >
                 保存配置
               </Button>
@@ -932,22 +922,26 @@ function EventMappingsStep({
 
               <Divider />
 
-              <DataTable
-                columnContentTypes={["text", "text"]}
-                headings={["Shopify 事件", "平台事件"]}
-                rows={shopifyEvents.map((shopifyEvent) => [
-                  shopifyEvent,
-                  <TextField
-                    key={shopifyEvent}
-                    value={config.eventMappings[shopifyEvent] || ""}
-                    onChange={(value) =>
-                      onEventMappingUpdate(platform, shopifyEvent, value)
-                    }
-                    placeholder="输入平台事件名称"
-                    autoComplete="off"
-                  />,
-                ])}
-              />
+              <BlockStack gap="300">
+                {shopifyEvents.map((shopifyEvent) => (
+                  <InlineStack key={shopifyEvent} gap="300" align="space-between" blockAlign="center">
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                      {shopifyEvent}
+                    </Text>
+                    <Box minWidth="300px">
+                      <TextField
+                        label=""
+                        value={config.eventMappings[shopifyEvent] || ""}
+                        onChange={(value) =>
+                          onEventMappingUpdate(platform, shopifyEvent, value)
+                        }
+                        placeholder="输入平台事件名称"
+                        autoComplete="off"
+                      />
+                    </Box>
+                  </InlineStack>
+                ))}
+              </BlockStack>
             </BlockStack>
           </Card>
         );

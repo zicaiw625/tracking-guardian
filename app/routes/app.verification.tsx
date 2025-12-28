@@ -5,8 +5,8 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useRevalidator } from "@remix-run/react";
-import { useState, useCallback } from "react";
+import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -209,11 +209,12 @@ export default function VerificationPage() {
   // 处理 action 响应并显示 Toast
   useEffect(() => {
     if (actionData) {
-      if (actionData.success) {
+      const data = actionData as { success?: boolean; error?: string; actionType?: string };
+      if (data.success) {
         showSuccess("验收运行已启动");
         revalidator.revalidate();
-      } else if (actionData.error) {
-        showError(actionData.error);
+      } else if (data.error) {
+        showError(data.error);
       }
     }
   }, [actionData, showSuccess, showError, revalidator]);
@@ -403,7 +404,7 @@ export default function VerificationPage() {
             <Collapsible open={guideExpanded} id="guide-collapsible">
               <BlockStack gap="300">
                 <InlineStack gap="200">
-                  <Badge tone="info">预计时间: {testGuide.estimatedTime}</Badge>
+                  <Badge tone="info">{`预计时间: ${testGuide.estimatedTime}`}</Badge>
                   {configuredPlatforms.map((p) => (
                     <PlatformBadge key={p} platform={p} />
                   ))}
@@ -777,7 +778,7 @@ export default function VerificationPage() {
                         <PlatformBadge key={p} platform={p} />
                       ))}
                       {item.platforms.length > 3 && (
-                        <Badge>+{item.platforms.length - 3}</Badge>
+                        <Badge>{`+${item.platforms.length - 3}`}</Badge>
                       )}
                     </InlineStack>
                   </InlineStack>
