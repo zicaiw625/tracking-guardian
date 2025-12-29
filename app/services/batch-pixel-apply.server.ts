@@ -18,6 +18,8 @@ export interface BatchApplyOptions {
   targetShopIds: string[];
   overwriteExisting?: boolean;
   skipIfExists?: boolean;
+  maxRetries?: number;
+  concurrency?: number;
 }
 
 export interface BatchApplyResult {
@@ -32,6 +34,8 @@ export interface BatchApplyResult {
     status: "success" | "failed" | "skipped";
     message: string;
     platformsApplied?: string[];
+    attempts?: number;
+    errorType?: "validation" | "database" | "permission" | "unknown";
   }>;
 }
 
@@ -184,9 +188,23 @@ export async function deletePixelTemplate(
 export async function batchApplyPixelTemplate(
   options: BatchApplyOptions & { jobId?: string }
 ): Promise<BatchApplyResult & { jobId?: string }> {
-  const { templateId, targetShopIds, overwriteExisting = false, skipIfExists = true, jobId } = options;
+  const { 
+    templateId, 
+    targetShopIds, 
+    overwriteExisting = false, 
+    skipIfExists = true, 
+    jobId,
+    maxRetries = 1,
+    concurrency = 3,
+  } = options;
 
-  logger.info("Starting batch apply", { templateId, shopCount: targetShopIds.length, jobId });
+  logger.info("Starting batch apply", { 
+    templateId, 
+    shopCount: targetShopIds.length, 
+    jobId,
+    maxRetries,
+    concurrency,
+  });
 
   const currentJobId = jobId || createBatchJob("pixel_apply", targetShopIds[0] || "", targetShopIds.length);
   updateBatchJobProgress(currentJobId, { status: "running" });
@@ -208,6 +226,29 @@ export async function batchApplyPixelTemplate(
         shopDomain: "",
         status: "failed" as const,
         message: "模板不存在",
+        errorType: "validation" as const,
+      })),
+      jobId: currentJobId,
+    };
+  }
+
+  if (!template.platforms || template.platforms.length === 0) {
+    updateBatchJobProgress(currentJobId, {
+      status: "failed",
+      error: "模板不包含任何平台配置",
+    });
+    return {
+      success: false,
+      totalShops: targetShopIds.length,
+      successCount: 0,
+      failedCount: targetShopIds.length,
+      skippedCount: 0,
+      results: targetShopIds.map(shopId => ({
+        shopId,
+        shopDomain: "",
+        status: "failed" as const,
+        message: "模板不包含任何平台配置",
+        errorType: "validation" as const,
       })),
       jobId: currentJobId,
     };
@@ -218,43 +259,50 @@ export async function batchApplyPixelTemplate(
   let failedCount = 0;
   let skippedCount = 0;
 
-  for (let i = 0; i < targetShopIds.length; i++) {
-    const shopId = targetShopIds[i];
-    try {
-      const result = await applyTemplateToShop(
-        shopId,
-        template.platforms,
-        overwriteExisting,
-        skipIfExists
-      );
+  for (let i = 0; i < targetShopIds.length; i += concurrency) {
+    const batch = targetShopIds.slice(i, i + concurrency);
+    
+    const batchResults = await Promise.allSettled(
+      batch.map(shopId => 
+        applyTemplateToShopWithRetry(
+          shopId,
+          template.platforms,
+          overwriteExisting,
+          skipIfExists,
+          maxRetries
+        )
+      )
+    );
 
-      if (result.status === "success") {
-        successCount++;
-      } else if (result.status === "skipped") {
-        skippedCount++;
+    for (const result of batchResults) {
+      if (result.status === "fulfilled") {
+        const applyResult = result.value;
+        if (applyResult.status === "success") {
+          successCount++;
+        } else if (applyResult.status === "skipped") {
+          skippedCount++;
+        } else {
+          failedCount++;
+        }
+        results.push(applyResult);
       } else {
         failedCount++;
+        results.push({
+          shopId: "",
+          shopDomain: "",
+          status: "failed",
+          message: result.reason instanceof Error ? result.reason.message : "未知错误",
+          errorType: "unknown",
+        });
+        logger.error("Unexpected batch apply rejection:", result.reason);
       }
-
-      results.push(result);
-
-      updateBatchJobProgress(currentJobId, {
-        completedItems: successCount + skippedCount,
-        failedItems: failedCount,
-        skippedItems: skippedCount,
-      });
-    } catch (error) {
-      failedCount++;
-      results.push({
-        shopId,
-        shopDomain: "",
-        status: "failed",
-        message: error instanceof Error ? error.message : "未知错误",
-      });
-      updateBatchJobProgress(currentJobId, {
-        failedItems: failedCount,
-      });
     }
+
+    updateBatchJobProgress(currentJobId, {
+      completedItems: successCount + skippedCount,
+      failedItems: failedCount,
+      skippedItems: skippedCount,
+    });
   }
 
   await prisma.pixelTemplate.update({
@@ -298,6 +346,22 @@ export function getBatchApplyJobStatus(jobId: string) {
   return getBatchJobStatus(jobId);
 }
 
+function classifyApplyError(error: unknown): "validation" | "database" | "permission" | "unknown" {
+  if (!(error instanceof Error)) return "unknown";
+  
+  const message = error.message.toLowerCase();
+  if (message.includes("prisma") || message.includes("database") || message.includes("unique constraint") || message.includes("foreign key")) {
+    return "database";
+  }
+  if (message.includes("permission") || message.includes("access") || message.includes("unauthorized")) {
+    return "permission";
+  }
+  if (message.includes("validation") || message.includes("invalid") || message.includes("required")) {
+    return "validation";
+  }
+  return "unknown";
+}
+
 async function applyTemplateToShop(
   shopId: string,
   platforms: PixelTemplateConfig[],
@@ -309,103 +373,162 @@ async function applyTemplateToShop(
   status: "success" | "failed" | "skipped";
   message: string;
   platformsApplied?: string[];
+  errorType?: "validation" | "database" | "permission" | "unknown";
 }> {
-  const shop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: {
-      id: true,
-      shopDomain: true,
-      plan: true,
-      pixelConfigs: {
-        select: { platform: true },
+  try {
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: {
+        id: true,
+        shopDomain: true,
+        plan: true,
+        pixelConfigs: {
+          select: { platform: true },
+        },
       },
-    },
-  });
+    });
 
-  if (!shop) {
-    return {
-      shopId,
-      shopDomain: "",
-      status: "failed",
-      message: "店铺不存在",
-    };
-  }
+    if (!shop) {
+      return {
+        shopId,
+        shopDomain: "",
+        status: "failed",
+        message: "店铺不存在",
+        errorType: "validation",
+      };
+    }
 
-  const planLimit = getPixelDestinationsLimit(shop.plan as PlanId);
-  const existingPlatforms = shop.pixelConfigs.map(c => c.platform);
-  const newPlatforms = platforms.filter(p => !existingPlatforms.includes(p.platform));
+    if (!platforms || platforms.length === 0) {
+      return {
+        shopId,
+        shopDomain: shop.shopDomain,
+        status: "failed",
+        message: "模板不包含任何平台配置",
+        errorType: "validation",
+      };
+    }
 
-  if (planLimit !== -1 && existingPlatforms.length + newPlatforms.length > planLimit) {
-    return {
-      shopId,
-      shopDomain: shop.shopDomain,
-      status: "failed",
-      message: `超出套餐限制 (最多 ${planLimit} 个平台)`,
-    };
-  }
+    const planLimit = getPixelDestinationsLimit(shop.plan as PlanId);
+    const existingPlatforms = shop.pixelConfigs.map(c => c.platform);
+    const newPlatforms = platforms.filter(p => !existingPlatforms.includes(p.platform));
 
-  const appliedPlatforms: string[] = [];
+    if (planLimit !== -1 && existingPlatforms.length + newPlatforms.length > planLimit) {
+      return {
+        shopId,
+        shopDomain: shop.shopDomain,
+        status: "failed",
+        message: `超出套餐限制 (最多 ${planLimit} 个平台)`,
+        errorType: "validation",
+      };
+    }
 
-  for (const platformConfig of platforms) {
-    const existingConfig = existingPlatforms.includes(platformConfig.platform);
+    const appliedPlatforms: string[] = [];
 
-    if (existingConfig) {
-      if (skipIfExists && !overwriteExisting) {
+    for (const platformConfig of platforms) {
+      const existingConfig = existingPlatforms.includes(platformConfig.platform);
 
-        continue;
-      }
+      if (existingConfig) {
+        if (skipIfExists && !overwriteExisting) {
+          continue;
+        }
 
-      if (overwriteExisting) {
-
-        await prisma.pixelConfig.update({
-          where: {
-            shopId_platform: {
-              shopId,
-              platform: platformConfig.platform,
+        if (overwriteExisting) {
+          await prisma.pixelConfig.update({
+            where: {
+              shopId_platform: {
+                shopId,
+                platform: platformConfig.platform,
+              },
             },
-          },
+            data: {
+              eventMappings: platformConfig.eventMappings as object,
+              clientSideEnabled: platformConfig.clientSideEnabled ?? true,
+              serverSideEnabled: platformConfig.serverSideEnabled ?? false,
+              migrationStatus: "not_started",
+            },
+          });
+          appliedPlatforms.push(platformConfig.platform);
+        }
+      } else {
+        await prisma.pixelConfig.create({
           data: {
-            eventMappings: platformConfig.eventMappings,
+            shopId,
+            platform: platformConfig.platform,
+            eventMappings: platformConfig.eventMappings as object,
             clientSideEnabled: platformConfig.clientSideEnabled ?? true,
             serverSideEnabled: platformConfig.serverSideEnabled ?? false,
+            isActive: false,
             migrationStatus: "not_started",
           },
         });
         appliedPlatforms.push(platformConfig.platform);
       }
-    } else {
-
-      await prisma.pixelConfig.create({
-        data: {
-          shopId,
-          platform: platformConfig.platform,
-          eventMappings: platformConfig.eventMappings,
-          clientSideEnabled: platformConfig.clientSideEnabled ?? true,
-          serverSideEnabled: platformConfig.serverSideEnabled ?? false,
-          isActive: false,
-          migrationStatus: "not_started",
-        },
-      });
-      appliedPlatforms.push(platformConfig.platform);
     }
-  }
 
-  if (appliedPlatforms.length === 0 && skipIfExists) {
+    if (appliedPlatforms.length === 0 && skipIfExists) {
+      return {
+        shopId,
+        shopDomain: shop.shopDomain,
+        status: "skipped",
+        message: "所有平台配置已存在",
+      };
+    }
+
     return {
       shopId,
       shopDomain: shop.shopDomain,
-      status: "skipped",
-      message: "所有平台配置已存在",
+      status: "success",
+      message: `成功应用 ${appliedPlatforms.length} 个平台配置`,
+      platformsApplied: appliedPlatforms,
+    };
+  } catch (error) {
+    logger.error(`Failed to apply template to shop ${shopId}:`, error);
+    return {
+      shopId,
+      shopDomain: "",
+      status: "failed",
+      message: error instanceof Error ? error.message : "未知错误",
+      errorType: classifyApplyError(error),
     };
   }
+}
 
-  return {
-    shopId,
-    shopDomain: shop.shopDomain,
-    status: "success",
-    message: `成功应用 ${appliedPlatforms.length} 个平台配置`,
-    platformsApplied: appliedPlatforms,
-  };
+async function applyTemplateToShopWithRetry(
+  shopId: string,
+  platforms: PixelTemplateConfig[],
+  overwriteExisting: boolean,
+  skipIfExists: boolean,
+  maxRetries: number = 1
+): Promise<{
+  shopId: string;
+  shopDomain: string;
+  status: "success" | "failed" | "skipped";
+  message: string;
+  platformsApplied?: string[];
+  attempts?: number;
+  errorType?: "validation" | "database" | "permission" | "unknown";
+}> {
+  let lastResult: Awaited<ReturnType<typeof applyTemplateToShop>> | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    lastResult = await applyTemplateToShop(shopId, platforms, overwriteExisting, skipIfExists);
+    
+    if (lastResult.status === "success" || lastResult.status === "skipped") {
+      return { ...lastResult, attempts: attempt };
+    }
+    
+    if (lastResult.errorType === "validation" || lastResult.errorType === "permission") {
+      return { ...lastResult, attempts: attempt };
+    }
+    
+    if (attempt <= maxRetries) {
+      const delay = 500 * attempt;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      logger.warn(`Retrying template apply for shop ${shopId}, attempt ${attempt + 1}/${maxRetries + 1}`);
+    }
+  }
+  
+  return { ...lastResult!, attempts: maxRetries + 1 };
 }
 
 export const PRESET_TEMPLATES: Array<{

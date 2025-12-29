@@ -14,6 +14,7 @@ import { getDeliveryHealthHistory, getDeliveryHealthSummary, type DeliveryHealth
 import { getAlertHistory, runAlertChecks, type AlertCheckResult } from "../services/alert-dispatcher.server";
 import { isValidPlatform, PLATFORM_NAMES } from "../types";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats, checkMonitoringAlerts, getMissingParamsHistory, reconcileChannels, type EventMonitoringStats, type EventVolumeStats, type ChannelReconciliationResult } from "../services/monitoring.server";
+import { analyzeDedupConflicts } from "../services/capi-dedup.server";
 import { getMissingParamsRate } from "../services/event-validation.server";
 interface DeliverySummary {
     platform: string;
@@ -104,7 +105,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     }
 
-    const [monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation] = await Promise.all([
+    const last24h = new Date();
+    last24h.setHours(last24h.getHours() - 24);
+
+    const [monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis] = await Promise.all([
         getEventMonitoringStats(shop.id, 24),
         getMissingParamsStats(shop.id, 24),
         getEventVolumeStats(shop.id),
@@ -112,6 +116,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         getMissingParamsHistory(shop.id, 7).catch(() => []),
         getEventVolumeHistory(shop.id, 7).catch(() => []),
         reconcileChannels(shop.id, 24).catch(() => []),
+        analyzeDedupConflicts(shop.id, last24h, new Date()).catch(() => null),
     ]);
 
     return json({
@@ -135,11 +140,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         missingParamsHistory,
         eventVolumeHistory,
         channelReconciliation,
+        dedupAnalysis,
         lastUpdated: new Date().toISOString()
     });
 };
 export default function MonitorPage() {
-  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, lastUpdated } = useLoaderData<typeof loader>();
+  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis, lastUpdated } = useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedChartPlatform, setSelectedChartPlatform] = useState<string>("all");
 
@@ -671,6 +677,168 @@ export default function MonitorPage() {
                     ⚠️ 部分平台存在较大差异，建议检查事件发送配置或联系平台技术支持。
                   </Text>
                 </Banner>
+              )}
+            </BlockStack>
+          </Card>
+        )}
+
+        {}
+
+        {dedupAnalysis && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  🔄 去重冲突检测（最近24小时）
+                </Text>
+                {dedupAnalysis.duplicateRate > 5 ? (
+                  <Badge tone="critical">冲突率: {dedupAnalysis.duplicateRate.toFixed(2)}%</Badge>
+                ) : dedupAnalysis.duplicateRate > 1 ? (
+                  <Badge tone="warning">冲突率: {dedupAnalysis.duplicateRate.toFixed(2)}%</Badge>
+                ) : (
+                  <Badge tone="success">冲突率: {dedupAnalysis.duplicateRate.toFixed(2)}%</Badge>
+                )}
+              </InlineStack>
+
+              {dedupAnalysis.totalEvents === 0 ? (
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    暂无事件数据，完成订单后将显示去重冲突统计。
+                  </Text>
+                </Banner>
+              ) : dedupAnalysis.duplicateEvents === 0 ? (
+                <Banner tone="success">
+                  <Text as="p" variant="bodySm">
+                    ✅ 未检测到去重冲突，所有事件 ID 唯一。
+                  </Text>
+                </Banner>
+              ) : (
+                <BlockStack gap="300">
+                  <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodySm" tone="subdued">冲突率</Text>
+                        <Text
+                          as="span"
+                          variant="headingLg"
+                          tone={dedupAnalysis.duplicateRate > 5 ? "critical" : dedupAnalysis.duplicateRate > 1 ? "warning" : "success"}
+                        >
+                          {dedupAnalysis.duplicateRate.toFixed(2)}%
+                        </Text>
+                      </BlockStack>
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodySm" tone="subdued">冲突事件数</Text>
+                        <Text as="span" variant="headingMd">
+                          {dedupAnalysis.duplicateEvents} / {dedupAnalysis.totalEvents}
+                        </Text>
+                      </BlockStack>
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodySm" tone="subdued">唯一事件数</Text>
+                        <Text as="span" variant="headingMd" tone="success">
+                          {dedupAnalysis.uniqueEvents}
+                        </Text>
+                      </BlockStack>
+                    </InlineStack>
+                  </Box>
+
+                  <Divider />
+
+                  {Object.keys(dedupAnalysis.byPlatform).length > 0 && (
+                    <>
+                      <Text as="h3" variant="headingSm">
+                        按平台统计
+                      </Text>
+                      <BlockStack gap="200">
+                        {Object.entries(dedupAnalysis.byPlatform).map(([platform, stats]) => {
+                          const platformName = isValidPlatform(platform)
+                            ? PLATFORM_NAMES[platform]
+                            : platform;
+                          return (
+                            <Box
+                              key={platform}
+                              background="bg-surface-secondary"
+                              padding="300"
+                              borderRadius="200"
+                            >
+                              <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text as="span" fontWeight="semibold">
+                                    {platformName}
+                                  </Text>
+                                  <Badge
+                                    tone={
+                                      stats.duplicateRate > 5
+                                        ? "critical"
+                                        : stats.duplicateRate > 1
+                                          ? "warning"
+                                          : "success"
+                                    }
+                                  >
+                                    冲突率: {stats.duplicateRate.toFixed(2)}%
+                                  </Badge>
+                                </InlineStack>
+                                <InlineStack align="space-between">
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    总事件数
+                                  </Text>
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    {stats.total}
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between">
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    冲突事件数
+                                  </Text>
+                                  <Text
+                                    as="span"
+                                    variant="bodySm"
+                                    fontWeight="semibold"
+                                    tone={stats.duplicates > 0 ? "warning" : "success"}
+                                  >
+                                    {stats.duplicates}
+                                  </Text>
+                                </InlineStack>
+                              </BlockStack>
+                            </Box>
+                          );
+                        })}
+                      </BlockStack>
+                    </>
+                  )}
+
+                  {dedupAnalysis.topDuplicates.length > 0 && (
+                    <>
+                      <Divider />
+                      <Text as="h3" variant="headingSm">
+                        主要冲突事件（前10个）
+                      </Text>
+                      <DataTable
+                        columnContentTypes={["text", "text", "text", "numeric"]}
+                        headings={["订单ID", "平台", "事件ID", "重复次数"]}
+                        rows={dedupAnalysis.topDuplicates.slice(0, 10).map((dup) => [
+                          dup.orderId,
+                          isValidPlatform(dup.platform) ? PLATFORM_NAMES[dup.platform] : dup.platform,
+                          dup.eventId || "-",
+                          dup.count.toString(),
+                        ])}
+                      />
+                    </>
+                  )}
+
+                  {dedupAnalysis.duplicateRate > 5 && (
+                    <Banner tone="critical">
+                      <BlockStack gap="200">
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          ⚠️ 去重冲突率较高
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          检测到 {dedupAnalysis.duplicateEvents} 个重复事件，冲突率为 {dedupAnalysis.duplicateRate.toFixed(2)}%。
+                          这可能导致平台侧重复计算转化数据。建议检查事件发送逻辑，确保每个订单的每个事件类型只发送一次。
+                        </Text>
+                      </BlockStack>
+                    </Banner>
+                  )}
+                </BlockStack>
               )}
             </BlockStack>
           </Card>

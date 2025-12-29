@@ -16,6 +16,8 @@ import {
   List,
   DataTable,
   Icon,
+  Checkbox,
+  ButtonGroup,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
@@ -238,6 +240,9 @@ export function EventMappingEditor({
   onEnableChange,
 }: EventMappingEditorProps) {
   const [selectedShopifyEvent, setSelectedShopifyEvent] = useState<string | null>(null);
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  const [bulkMappingValue, setBulkMappingValue] = useState<string>("");
+  const [showComparison, setShowComparison] = useState<boolean>(false);
   const platformEvents = PLATFORM_EVENTS[platform];
 
   const validateMapping = useCallback(
@@ -278,6 +283,33 @@ export function EventMappingEditor({
     });
   }, [platform, onMappingChange]);
 
+  const applyBulkMapping = useCallback(() => {
+    if (!bulkMappingValue || selectedEvents.size === 0) return;
+    selectedEvents.forEach((shopifyEvent) => {
+      onMappingChange(shopifyEvent, bulkMappingValue);
+    });
+    setSelectedEvents(new Set());
+    setBulkMappingValue("");
+  }, [bulkMappingValue, selectedEvents, onMappingChange]);
+
+  const toggleEventSelection = useCallback((eventId: string) => {
+    const newSelected = new Set(selectedEvents);
+    if (newSelected.has(eventId)) {
+      newSelected.delete(eventId);
+    } else {
+      newSelected.add(eventId);
+    }
+    setSelectedEvents(newSelected);
+  }, [selectedEvents]);
+
+  const selectAll = useCallback(() => {
+    setSelectedEvents(new Set(SHOPIFY_EVENTS.map(e => e.id)));
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedEvents(new Set());
+  }, []);
+
   const getMappingStatus = useCallback(
     (shopifyEvent: string, platformEvent: string) => {
       const validation = validateMapping(shopifyEvent, platformEvent);
@@ -300,10 +332,46 @@ export function EventMappingEditor({
           <Text as="h3" variant="headingMd">
             事件映射配置 - {PLATFORM_NAMES[platform]}
           </Text>
-          <Button size="slim" onClick={applyRecommended}>
-            应用推荐映射
-          </Button>
+          <InlineStack gap="200">
+            <Button size="slim" variant="plain" onClick={() => setShowComparison(!showComparison)}>
+              {showComparison ? "隐藏对比" : "显示对比视图"}
+            </Button>
+            <Button size="slim" onClick={applyRecommended}>
+              应用推荐映射
+            </Button>
+          </InlineStack>
         </InlineStack>
+
+        {selectedEvents.size > 0 && (
+          <Banner tone="info">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                批量编辑模式：已选择 {selectedEvents.size} 个事件
+              </Text>
+              <InlineStack gap="200" blockAlign="center">
+                <Select
+                  label="批量映射到"
+                  labelHidden
+                  options={[
+                    { label: "选择平台事件", value: "" },
+                    ...platformEvents.map((event) => ({
+                      label: `${event.name} - ${event.description}`,
+                      value: event.id,
+                    })),
+                  ]}
+                  value={bulkMappingValue}
+                  onChange={setBulkMappingValue}
+                />
+                <Button size="slim" onClick={applyBulkMapping} disabled={!bulkMappingValue}>
+                  应用
+                </Button>
+                <Button size="slim" variant="plain" onClick={clearSelection}>
+                  取消选择
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Banner>
+        )}
 
         <Banner tone="info">
           <BlockStack gap="200">
@@ -316,22 +384,82 @@ export function EventMappingEditor({
 
         <Divider />
 
+        {showComparison && (
+          <Box paddingBlockEnd="400">
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h4" variant="headingSm">
+                  映射对比视图
+                </Text>
+                <DataTable
+                  columnContentTypes={["text", "text", "text", "text"]}
+                  headings={["Shopify 事件", "当前映射", "推荐映射", "状态"]}
+                  rows={SHOPIFY_EVENTS.map((shopifyEvent) => {
+                    const currentMapping = mappings[shopifyEvent.id] || "";
+                    const recommendedMapping = RECOMMENDED_MAPPINGS[platform][shopifyEvent.id] || "";
+                    const isRecommended = currentMapping === recommendedMapping;
+                    const platformEvent = platformEvents.find(e => e.id === currentMapping);
+                    const recommendedPlatformEvent = platformEvents.find(e => e.id === recommendedMapping);
+                    
+                    return [
+                      shopifyEvent.name,
+                      currentMapping ? `${platformEvent?.name || currentMapping}` : "未映射",
+                      recommendedMapping ? `${recommendedPlatformEvent?.name || recommendedMapping}` : "-",
+                      isRecommended ? (
+                        <Badge key="rec" tone="success">推荐</Badge>
+                      ) : currentMapping ? (
+                        <Badge key="custom" tone="info">自定义</Badge>
+                      ) : (
+                        <Badge key="none" tone="warning">未配置</Badge>
+                      ),
+                    ];
+                  })}
+                />
+              </BlockStack>
+            </Card>
+          </Box>
+        )}
+
         <BlockStack gap="300">
+          <InlineStack align="space-between" blockAlign="center">
+            <Text as="span" variant="bodySm" tone="subdued">
+              选择多个事件可进行批量编辑
+            </Text>
+            <InlineStack gap="200">
+              <Button size="slim" variant="plain" onClick={selectAll}>
+                全选
+              </Button>
+              {selectedEvents.size > 0 && (
+                <Button size="slim" variant="plain" onClick={clearSelection}>
+                  清除选择
+                </Button>
+              )}
+            </InlineStack>
+          </InlineStack>
+          
           {SHOPIFY_EVENTS.map((shopifyEvent) => {
             const currentMapping = mappings[shopifyEvent.id] || "";
             const mappingStatus = currentMapping
               ? getMappingStatus(shopifyEvent.id, currentMapping)
               : null;
+            const isSelected = selectedEvents.has(shopifyEvent.id);
+            const recommendedMapping = RECOMMENDED_MAPPINGS[platform][shopifyEvent.id] || "";
 
             return (
               <Card key={shopifyEvent.id}>
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="start">
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" fontWeight="semibold">
-                          {shopifyEvent.name}
-                        </Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <Checkbox
+                        label=""
+                        checked={isSelected}
+                        onChange={() => toggleEventSelection(shopifyEvent.id)}
+                      />
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text as="span" fontWeight="semibold">
+                            {shopifyEvent.name}
+                          </Text>
                         {mappingStatus?.status === "recommended" && (
                           <Badge tone="success">推荐</Badge>
                         )}
@@ -340,6 +468,11 @@ export function EventMappingEditor({
                         )}
                         {mappingStatus?.status === "custom" && (
                           <Badge tone="info">自定义</Badge>
+                        )}
+                        {showComparison && recommendedMapping && currentMapping !== recommendedMapping && (
+                          <Badge tone="warning">
+                            推荐: {platformEvents.find(e => e.id === recommendedMapping)?.name || recommendedMapping}
+                          </Badge>
                         )}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">

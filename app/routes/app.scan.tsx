@@ -2459,13 +2459,27 @@ export default function ScanPage() {
 
                     <Banner tone="info">
                       <BlockStack gap="200">
-                        <Text as="p" fontWeight="semibold">如何获取 Additional Scripts：</Text>
-                        <Text as="p" variant="bodySm">
-                          1. 前往 Shopify 后台 → 设置 → 结账
-                          <br />2. 找到「订单状态页面」或「Additional Scripts」区域
-                          <br />3. 复制其中的所有代码
-                          <br />4. 粘贴到下方文本框中
-                        </Text>
+                        <InlineStack align="space-between" blockAlign="start">
+                          <BlockStack gap="200">
+                            <Text as="p" fontWeight="semibold">如何获取 Additional Scripts：</Text>
+                            <Text as="p" variant="bodySm">
+                              1. 前往 Shopify 后台 → 设置 → 结账
+                              <br />2. 找到「订单状态页面」或「Additional Scripts」区域
+                              <br />3. 复制其中的所有代码
+                              <br />4. 粘贴到下方文本框中
+                            </Text>
+                          </BlockStack>
+                          <Button
+                            onClick={() => {
+                              setGuidanceContent({ title: "从 Shopify 升级向导导入脚本" });
+                              setGuidanceModalOpen(true);
+                            }}
+                            variant="plain"
+                            size="slim"
+                          >
+                            从升级向导导入
+                          </Button>
+                        </InlineStack>
                       </BlockStack>
                     </Banner>
 

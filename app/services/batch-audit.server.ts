@@ -15,6 +15,8 @@ export interface BatchAuditOptions {
   concurrency?: number;
 
   skipRecentHours?: number;
+
+  maxRetries?: number;
 }
 
 export interface ShopAuditResult {
@@ -26,6 +28,8 @@ export interface ShopAuditResult {
   identifiedPlatforms?: string[];
   error?: string;
   duration?: number;
+  attempts?: number;
+  errorType?: "permission" | "network" | "timeout" | "unknown";
 }
 
 export interface BatchAuditSummary {
@@ -63,9 +67,9 @@ export interface BatchAuditJob {
 const batchAuditJobs = new Map<string, BatchAuditJob>();
 
 export async function startBatchAudit(
-  options: BatchAuditOptions
+  options: BatchAuditOptions & { maxRetries?: number }
 ): Promise<{ jobId: string } | { error: string }> {
-  const { groupId, requesterId, concurrency = 3, skipRecentHours = 6 } = options;
+  const { groupId, requesterId, concurrency = 3, skipRecentHours = 6, maxRetries = 2 } = options;
 
   const canManage = await canManageMultipleShops(requesterId);
   if (!canManage) {
@@ -88,7 +92,7 @@ export async function startBatchAudit(
   };
   batchAuditJobs.set(jobId, job);
 
-  executeBatchAuditAsync(jobId, groupDetails, { concurrency, skipRecentHours }).catch(
+  executeBatchAuditAsync(jobId, groupDetails, { concurrency, skipRecentHours, maxRetries }).catch(
     (err) => {
       logger.error(`Batch audit job ${jobId} failed:`, err);
       const failedJob = batchAuditJobs.get(jobId);
@@ -290,10 +294,93 @@ async function createAdminClientForShop(shopDomain: string): Promise<{
   };
 }
 
+function classifyError(error: unknown): "permission" | "network" | "timeout" | "unknown" {
+  if (!(error instanceof Error)) return "unknown";
+  
+  const message = error.message.toLowerCase();
+  if (message.includes("permission") || message.includes("access") || message.includes("unauthorized") || message.includes("401") || message.includes("403")) {
+    return "permission";
+  }
+  if (message.includes("timeout") || message.includes("timed out") || message.includes("504") || message.includes("503")) {
+    return "timeout";
+  }
+  if (message.includes("network") || message.includes("connection") || message.includes("econnrefused") || message.includes("enotfound")) {
+    return "network";
+  }
+  return "unknown";
+}
+
+async function scanShopWithRetry(
+  member: { shopId: string; shopDomain: string },
+  maxRetries: number = 2,
+  retryDelayMs: number = 1000
+): Promise<ShopAuditResult> {
+  const startTime = Date.now();
+  let lastError: unknown = null;
+  let errorType: "permission" | "network" | "timeout" | "unknown" = "unknown";
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      const adminClient = await createAdminClientForShop(member.shopDomain);
+      if (!adminClient) {
+        return {
+          shopId: member.shopId,
+          shopDomain: member.shopDomain,
+          status: "failed",
+          error: "无法获取店铺访问权限，请确保店铺已授权 offline 访问",
+          attempts: attempt,
+          errorType: "permission",
+          duration: Date.now() - startTime,
+        };
+      }
+
+      const scanResult = await scanShopTracking(
+        { graphql: adminClient.graphql } as Parameters<typeof scanShopTracking>[0],
+        member.shopId
+      );
+
+      return {
+        shopId: member.shopId,
+        shopDomain: member.shopDomain,
+        status: "success",
+        scanReportId: scanResult.id,
+        riskScore: scanResult.riskScore,
+        identifiedPlatforms: scanResult.identifiedPlatforms,
+        duration: Date.now() - startTime,
+        attempts: attempt,
+      };
+    } catch (err) {
+      lastError = err;
+      errorType = classifyError(err);
+      
+      logger.warn(`Batch audit attempt ${attempt}/${maxRetries + 1} failed for shop ${member.shopDomain}:`, {
+        error: err instanceof Error ? err.message : "Unknown error",
+        errorType,
+        attempt,
+      });
+
+      if (attempt <= maxRetries) {
+        const delay = retryDelayMs * attempt;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  return {
+    shopId: member.shopId,
+    shopDomain: member.shopDomain,
+    status: "failed",
+    error: lastError instanceof Error ? lastError.message : "未知错误",
+    attempts: maxRetries + 1,
+    errorType,
+    duration: Date.now() - startTime,
+  };
+}
+
 async function executeBatchAuditAsync(
   jobId: string,
   groupDetails: { id: string; name: string; members: Array<{ shopId: string; shopDomain: string }> },
-  options: { concurrency: number; skipRecentHours: number }
+  options: { concurrency: number; skipRecentHours: number; maxRetries?: number }
 ): Promise<void> {
   const job = batchAuditJobs.get(jobId);
   if (!job) return;
@@ -304,8 +391,9 @@ async function executeBatchAuditAsync(
   const startedAt = new Date();
   const results: ShopAuditResult[] = [];
   const totalShops = groupDetails.members.length;
+  const maxRetries = options.maxRetries ?? 2;
 
-  logger.info(`Starting async batch audit for ${totalShops} shops`, { jobId });
+  logger.info(`Starting async batch audit for ${totalShops} shops`, { jobId, maxRetries });
 
   const skipSince = new Date();
   skipSince.setHours(skipSince.getHours() - options.skipRecentHours);
@@ -325,59 +413,29 @@ async function executeBatchAuditAsync(
 
     const batchResults = await Promise.allSettled(
       batch.map(async (member) => {
-        const startTime = Date.now();
-
         if (recentlyScannedIds.has(member.shopId)) {
           return {
             shopId: member.shopId,
             shopDomain: member.shopDomain,
             status: "skipped" as const,
             error: `最近 ${options.skipRecentHours} 小时内已扫描`,
+            attempts: 0,
           };
         }
 
-        try {
-
-          const adminClient = await createAdminClientForShop(member.shopDomain);
-          if (!adminClient) {
-            return {
-              shopId: member.shopId,
-              shopDomain: member.shopDomain,
-              status: "failed" as const,
-              error: "无法获取店铺访问权限，请确保店铺已授权 offline 访问",
-            };
-          }
-
-          const scanResult = await scanShopTracking(
-            { graphql: adminClient.graphql } as Parameters<typeof scanShopTracking>[0],
-            member.shopId
-          );
-
-          return {
-            shopId: member.shopId,
-            shopDomain: member.shopDomain,
-            status: "success" as const,
-            scanReportId: scanResult.id,
-            riskScore: scanResult.riskScore,
-            identifiedPlatforms: scanResult.identifiedPlatforms,
-            duration: Date.now() - startTime,
-          };
-        } catch (err) {
-          logger.error(`Async batch audit failed for shop ${member.shopDomain}:`, err);
-          return {
-            shopId: member.shopId,
-            shopDomain: member.shopDomain,
-            status: "failed" as const,
-            error: err instanceof Error ? err.message : "未知错误",
-            duration: Date.now() - startTime,
-          };
-        }
+        return await scanShopWithRetry(member, maxRetries);
       })
     );
 
     for (const result of batchResults) {
       if (result.status === "fulfilled") {
         results.push(result.value);
+        if (result.value.status === "failed") {
+          logger.error(`Batch audit failed for shop ${result.value.shopDomain} after ${result.value.attempts} attempts:`, {
+            error: result.value.error,
+            errorType: result.value.errorType,
+          });
+        }
       } else {
         logger.error("Unexpected batch audit rejection:", result.reason);
       }

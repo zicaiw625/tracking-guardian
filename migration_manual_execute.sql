@@ -33,3 +33,4 @@ WHERE table_name = 'AuditAsset'
     AND column_name IN ('priority', 'estimatedTimeMinutes', 'dependencies')
 ORDER BY column_name;
 
+
