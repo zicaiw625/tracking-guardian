@@ -194,7 +194,7 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                 return allTags;
             }
 
-            const pageInfo: GraphQLPageInfo = scriptTagsData.pageInfo || { hasNextPage: false, endCursor: null };
+            let pageInfo: GraphQLPageInfo = scriptTagsData.pageInfo || { hasNextPage: false, endCursor: null };
             if (typeof pageInfo !== "object" || pageInfo === null) {
                 logger.warn("Invalid pageInfo structure, using defaults");
                 pageInfo = { hasNextPage: false, endCursor: null };
@@ -318,7 +318,7 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
                 return allPixels;
             }
 
-            const pageInfo: GraphQLPageInfo = webPixelsData.pageInfo || { hasNextPage: false, endCursor: null };
+            let pageInfo: GraphQLPageInfo = webPixelsData.pageInfo || { hasNextPage: false, endCursor: null };
             if (typeof pageInfo !== "object" || pageInfo === null) {
                 logger.warn("Invalid pageInfo structure in webPixels, using defaults");
                 pageInfo = { hasNextPage: false, endCursor: null };
