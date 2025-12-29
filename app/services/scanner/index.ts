@@ -34,6 +34,14 @@ export type { ScanResult, RiskItem } from "../../types";
 export { analyzeScriptContent } from "./content-analysis";
 
 /**
+ * 扫描功能配置常量
+ */
+const SCAN_CACHE_TTL_MS = 10 * 60 * 1000; // 10 分钟 - 缓存有效期
+const MAX_SCRIPT_TAGS = SCANNER_CONFIG.MAX_SCRIPT_TAGS; // ScriptTags 分页限制 - 防止内存溢出，超过此数量将停止分页
+const MAX_WEB_PIXELS = SCANNER_CONFIG.MAX_WEB_PIXELS; // WebPixels 分页限制 - 防止内存溢出，超过此数量将停止分页
+const MAX_PAGINATION_ITERATIONS = 50; // 最大分页迭代次数 - 防止无限循环，超过此次数将停止分页
+
+/**
  * 验证 GraphQL 响应中的 edges 数组结构
  */
 function validateGraphQLEdges<T>(edges: unknown): edges is GraphQLEdge<T>[] {
@@ -529,14 +537,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
 }
 
 // saveScanReport logic has been inlined into scanShopTracking to support AuditAsset sync
-
-/**
- * 扫描功能配置常量
- */
-const SCAN_CACHE_TTL_MS = 10 * 60 * 1000; // 10 分钟 - 缓存有效期
-const MAX_SCRIPT_TAGS = SCANNER_CONFIG.MAX_SCRIPT_TAGS; // ScriptTags 分页限制 - 防止内存溢出，超过此数量将停止分页
-const MAX_WEB_PIXELS = SCANNER_CONFIG.MAX_WEB_PIXELS; // WebPixels 分页限制 - 防止内存溢出，超过此数量将停止分页
-const MAX_PAGINATION_ITERATIONS = 50; // 最大分页迭代次数 - 防止无限循环，超过此次数将停止分页
 
 function isScanCacheValid(cachedAt: Date, ttlMs: number = SCAN_CACHE_TTL_MS): boolean {
     const now = Date.now();
