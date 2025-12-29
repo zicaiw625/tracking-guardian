@@ -17,6 +17,7 @@ import { generateMigrationActions } from "./migration-actions";
 import { analyzeScriptContent } from "./content-analysis";
 import { refreshTypOspStatus } from "../checkout-profile.server";
 import { logger } from "../../utils/logger.server";
+import { SCANNER_CONFIG } from "../../utils/config";
 import { 
     batchCreateAuditAssets, 
     type AuditAssetInput 
@@ -528,8 +529,6 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
 }
 
 // saveScanReport logic has been inlined into scanShopTracking to support AuditAsset sync
-
-import { SCANNER_CONFIG } from "../../utils/config";
 
 /**
  * 扫描功能配置常量
