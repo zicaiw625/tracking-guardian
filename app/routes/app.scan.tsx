@@ -488,7 +488,7 @@ export default function ScanPage() {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
             setAnalysisError(errorMessage);
-            logger.error("Script analysis error", { error: errorMessage });
+            console.error("Script analysis error", { error: errorMessage });
         } finally {
             setIsAnalyzing(false);
         }
