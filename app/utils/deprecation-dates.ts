@@ -20,7 +20,7 @@ const DEFAULT_DATES = {
 
     plusAdditionalScriptsReadOnly: "2025-08-28",
 
-    nonPlusAdditionalScriptsReadOnly: "2025-08-28",
+    nonPlusAdditionalScriptsReadOnly: "2026-08-26",
     scriptTagBlocked: "2025-02-01",
 
     plusAutoUpgradeStart: "2026-01-01",
@@ -97,7 +97,7 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     nonPlusAdditionalScriptsReadOnly: {
         date: DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly,
         precision: "exact",
-        displayLabel: "2025-08-28",
+        displayLabel: "2026-08-26",
         isEstimate: false,
     },
     plusScriptTagExecutionOff: {
@@ -176,13 +176,15 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
     };
 }
 export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date()): DeprecationStatus {
+    // ✅ 修复：明确处理 unknown tier，使用更保守的日期（non_plus）
     const deadline = tier === "plus"
         ? DEPRECATION_DATES.plusScriptTagExecutionOff
         : DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
 
-    const dateLabel = tier === "plus" ? "2025-08-28" : "2026-08-26";
+    // ✅ 修复：使用动态日期格式化，避免硬编码
+    const dateLabel = getDateDisplayLabel(deadline, "exact");
     if (daysRemaining <= 0) {
         return {
             isExpired: true,
@@ -219,13 +221,15 @@ export function getScriptTagDeprecationStatus(now: Date = new Date()): Deprecati
     return getScriptTagCreationStatus(now);
 }
 export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date = new Date()): DeprecationStatus {
-    const deadline = tier === "non_plus"
-        ? DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly
-        : DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
+    // ✅ 修复：明确处理 unknown tier，使用更保守的日期（non_plus）
+    const deadline = tier === "plus"
+        ? DEPRECATION_DATES.plusAdditionalScriptsReadOnly
+        : DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
 
-    const dateLabel = "2025-08-28";
+    // ✅ 修复：使用动态日期格式化，避免硬编码
+    const dateLabel = getDateDisplayLabel(deadline, "exact");
     if (daysRemaining <= 0) {
         return {
             isExpired: true,
@@ -333,13 +337,16 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
 } {
     const { tier, typOspPagesEnabled } = upgradeStatus;
 
-    const plusDeadlineLabel = "2025-08-28";
-    const nonPlusDeadlineLabel = "2026-08-26";
-    const deadlineLabel = tier === "non_plus" ? nonPlusDeadlineLabel : plusDeadlineLabel;
+    // ✅ 修复：使用动态日期格式化，避免硬编码
+    const plusDeadlineLabel = getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact");
+    const nonPlusDeadlineLabel = getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact");
+    // ✅ 修复：unknown tier 使用更保守的日期（non_plus）
+    const deadlineLabel = tier === "plus" ? plusDeadlineLabel : nonPlusDeadlineLabel;
 
     const isInPlusAutoUpgradeWindow = tier === "plus" && now >= DEPRECATION_DATES.plusAutoUpgradeStart;
+    const autoUpgradeStartLabel = getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
     const plusAutoUpgradeMessage = isInPlusAutoUpgradeWindow
-        ? "⚡ Plus 商家自动升级窗口已开始（2026年1月起）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。"
+        ? `⚡ Plus 商家自动升级窗口已开始（${autoUpgradeStartLabel}起）：Shopify 正在逐步将 Plus 商家的 Thank you / Order status 页面自动迁移到新版本。`
         : "";
     if (typOspPagesEnabled === true) {
         return {
@@ -356,11 +363,10 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             } : undefined,
         };
     }
+    // ✅ 修复：明确处理 unknown tier，使用更保守的日期（non_plus）
     const deadline = tier === "plus"
         ? DEPRECATION_DATES.plusAdditionalScriptsReadOnly
-        : tier === "non_plus"
-            ? DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly
-            : DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
+        : DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly;
     const daysRemaining = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     const isPlusDeadlinePassed = now >= DEPRECATION_DATES.plusAdditionalScriptsReadOnly;
     if (typOspPagesEnabled === null || typOspPagesEnabled === undefined) {
@@ -419,8 +425,8 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     if (tier === "plus" && isPlusDeadlinePassed) {
 
         const autoUpgradeNote = isInPlusAutoUpgradeWindow
-            ? "\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（2026年1月起）。"
-            : "\n\n📅 2026年1月起，Shopify 将开始自动迁移 Plus 商家到新版页面。";
+            ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起）。`
+            : `\n\n📅 ${autoUpgradeStartLabel}起，Shopify 将开始自动迁移 Plus 商家到新版页面。`;
         return {
             isUpgraded: false,
             urgency: "critical",

@@ -31,6 +31,7 @@ import {
     safeFormatDate,
 } from "../utils/scan-data-validation";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../utils/security";
+import crypto from "crypto";
 
 // 常量定义
 const TIMEOUTS = {
@@ -38,6 +39,26 @@ const TIMEOUTS = {
     SET_TIMEOUT_FALLBACK: 10,
     EXPORT_CLEANUP: 100,
 } as const;
+
+// save_analysis action 相关常量
+const SAVE_ANALYSIS_LIMITS = {
+    MAX_INPUT_SIZE: 1024 * 1024, // 1MB
+    MAX_PLATFORMS: 50,
+    MAX_PLATFORM_DETAILS: 200,
+    MAX_RISKS: 100,
+    MAX_RECOMMENDATIONS: 100,
+    MAX_RECOMMENDATION_LENGTH: 500,
+    MAX_PLATFORM_NAME_LENGTH: 100,
+    MAX_PATTERN_LENGTH: 50,
+    MAX_DETECTED_PATTERNS: 20,
+    MAX_RISKS_IN_DETAILS: 50,
+    MIN_PLATFORM_NAME_LENGTH: 1,
+    MIN_RISK_SCORE: 0,
+    MAX_RISK_SCORE: 100,
+} as const;
+
+// 平台名称格式验证正则表达式（只允许小写字母、数字和下划线）
+const PLATFORM_NAME_REGEX = /^[a-z0-9_]+$/;
 
 // 共享类型定义
 type FetcherResult = {
@@ -87,6 +108,28 @@ function cancelIdleCallbackOrTimeout(handle: number | IdleCallbackHandle | null)
     } else {
         clearTimeout(handle as number);
     }
+}
+
+/**
+ * 递归检查对象/数组中的敏感信息
+ */
+function checkSensitiveInfoInData(obj: unknown, depth: number = 0): boolean {
+    // 防止深度过深导致栈溢出
+    if (depth > 10) return false;
+    
+    if (typeof obj === "string") {
+        return containsSensitiveInfo(obj);
+    }
+    
+    if (Array.isArray(obj)) {
+        return obj.some(item => checkSensitiveInfoInData(item, depth + 1));
+    }
+    
+    if (obj && typeof obj === "object") {
+        return Object.values(obj).some(value => checkSensitiveInfoInData(value, depth + 1));
+    }
+    
+    return false;
 }
 
 // 类型守卫：验证 shopTier 是否为有效的 ShopTier 类型
@@ -302,28 +345,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 处理保存手动分析结果到 AuditAsset
     if (actionType === "save_analysis") {
         try {
+            // ✅ 修复 #13: 输入大小早期验证
             const analysisDataStr = formData.get("analysisData") as string;
             if (!analysisDataStr) {
                 return json({ error: "缺少分析数据" }, { status: 400 });
             }
-            
-            // 检测敏感信息
-            if (containsSensitiveInfo(analysisDataStr)) {
-                logger.warn("Analysis data contains potential sensitive information", { 
+            if (analysisDataStr.length > SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE) {
+                logger.warn("Analysis data too large", { 
                     shopId: shop.id,
-                    contentLength: analysisDataStr.length 
+                    contentLength: analysisDataStr.length,
+                    maxSize: SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE
                 });
                 return json({ 
-                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。" 
+                    error: `分析数据过大（最大 ${SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE / 1024}KB）` 
                 }, { status: 400 });
             }
             
-            // 验证和解析分析数据
+            // ✅ 修复 #4: 优化验证顺序 - 先解析 JSON
             let parsedData: unknown;
             try {
                 parsedData = JSON.parse(analysisDataStr);
             } catch (parseError) {
-                logger.warn("Failed to parse analysis data JSON", { shopId: shop.id, error: parseError });
+                logger.warn("Failed to parse analysis data JSON", { 
+                    shopId: shop.id, 
+                    error: parseError instanceof Error ? parseError.message : String(parseError),
+                    actionType: "save_analysis"
+                });
                 return json({ error: "无法解析分析数据：无效的 JSON 格式" }, { status: 400 });
             }
             
@@ -334,13 +381,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             
             const data = parsedData as Record<string, unknown>;
             
-            // 验证必需字段
-            if (!Array.isArray(data.identifiedPlatforms)) {
-                return json({ error: "无效的分析数据格式：identifiedPlatforms 必须是数组" }, { status: 400 });
+            // ✅ 修复 #2: 在 JSON 解析后，递归检测敏感信息
+            if (checkSensitiveInfoInData(parsedData)) {
+                logger.warn("Analysis data contains potential sensitive information", { 
+                    shopId: shop.id,
+                    contentLength: analysisDataStr.length,
+                    actionType: "save_analysis"
+                });
+                return json({ 
+                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。" 
+                }, { status: 400 });
             }
             
-            if (typeof data.riskScore !== "number" || data.riskScore < 0 || data.riskScore > 100) {
-                return json({ error: "无效的分析数据格式：riskScore 必须是 0-100 之间的数字" }, { status: 400 });
+            // ✅ 修复 #4: 优化验证顺序 - 先检查基本类型
+            if (!Array.isArray(data.identifiedPlatforms)) {
+                return json({ error: "无效的分析数据格式：identifiedPlatforms 必须是数组" }, { status: 400 });
             }
             
             if (!Array.isArray(data.platformDetails)) {
@@ -351,9 +406,60 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ error: "无效的分析数据格式：risks 必须是数组" }, { status: 400 });
             }
             
-            // 验证 identifiedPlatforms 中的元素都是字符串
-            if (!data.identifiedPlatforms.every((p: unknown) => typeof p === "string")) {
-                return json({ error: "无效的分析数据格式：identifiedPlatforms 中的元素必须是字符串" }, { status: 400 });
+            if (!Array.isArray(data.recommendations)) {
+                return json({ error: "无效的分析数据格式：recommendations 必须是数组" }, { status: 400 });
+            }
+            
+            // ✅ 修复 #4: 早期长度检查（防止恶意数据）
+            if (data.identifiedPlatforms.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS) {
+                return json({ 
+                    error: `identifiedPlatforms 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS} 个）` 
+                }, { status: 400 });
+            }
+            
+            if (data.platformDetails.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS) {
+                return json({ 
+                    error: `platformDetails 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS} 个）` 
+                }, { status: 400 });
+            }
+            
+            if (data.risks.length > SAVE_ANALYSIS_LIMITS.MAX_RISKS) {
+                return json({ 
+                    error: `risks 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RISKS} 个）` 
+                }, { status: 400 });
+            }
+            
+            if (data.recommendations.length > SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS) {
+                return json({ 
+                    error: `recommendations 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS} 个）` 
+                }, { status: 400 });
+            }
+            
+            // ✅ 修复 #7: 更严格的 riskScore 验证
+            if (
+                typeof data.riskScore !== "number" || 
+                !Number.isFinite(data.riskScore) ||
+                !Number.isInteger(data.riskScore) ||
+                data.riskScore < SAVE_ANALYSIS_LIMITS.MIN_RISK_SCORE || 
+                data.riskScore > SAVE_ANALYSIS_LIMITS.MAX_RISK_SCORE
+            ) {
+                return json({ 
+                    error: "无效的分析数据格式：riskScore 必须是 0-100 之间的整数" 
+                }, { status: 400 });
+            }
+            
+            // ✅ 修复 #1: 统一平台名称验证（在第一次验证时就检查格式）
+            if (!data.identifiedPlatforms.every((p: unknown) => {
+                return (
+                    typeof p === "string" && 
+                    p.length >= SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH && 
+                    p.length <= SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH && 
+                    PLATFORM_NAME_REGEX.test(p)
+                );
+            })) {
+                return json({ 
+                    error: `无效的分析数据格式：identifiedPlatforms 中的元素必须是有效的平台名称（小写字母、数字、下划线，${SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH}-${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH}字符）` 
+                }, { status: 400 });
             }
             
             // 验证 platformDetails 数组元素结构
@@ -384,37 +490,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ error: "无效的分析数据格式：risks 中的元素结构不正确" }, { status: 400 });
             }
             
-            // 限制数组长度，防止恶意数据
-            const MAX_PLATFORMS = 50;
-            const MAX_PLATFORM_DETAILS = 200;
-            const MAX_RISKS = 100;
-            
-            if (data.identifiedPlatforms.length > MAX_PLATFORMS) {
-                return json({ error: `identifiedPlatforms 数组过长（最多 ${MAX_PLATFORMS} 个）` }, { status: 400 });
+            // ✅ 修复 #6: 验证 recommendations 元素长度
+            if (!data.recommendations.every((r: unknown) => {
+                return (
+                    typeof r === "string" && 
+                    r.length > 0 && 
+                    r.length <= SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATION_LENGTH
+                );
+            })) {
+                return json({ 
+                    error: `无效的分析数据格式：recommendations 中的元素必须是长度 1-${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATION_LENGTH} 的字符串` 
+                }, { status: 400 });
             }
             
-            if (data.platformDetails.length > MAX_PLATFORM_DETAILS) {
-                return json({ error: `platformDetails 数组过长（最多 ${MAX_PLATFORM_DETAILS} 个）` }, { status: 400 });
-            }
-            
-            if (data.risks.length > MAX_RISKS) {
-                return json({ error: `risks 数组过长（最多 ${MAX_RISKS} 个）` }, { status: 400 });
-            }
-            
-            // 验证 recommendations 数组
-            if (!Array.isArray(data.recommendations)) {
-                return json({ error: "无效的分析数据格式：recommendations 必须是数组" }, { status: 400 });
-            }
-            
-            if (!data.recommendations.every((r: unknown) => typeof r === "string")) {
-                return json({ error: "无效的分析数据格式：recommendations 中的元素必须是字符串" }, { status: 400 });
-            }
-            
-            if (data.recommendations.length > 100) {
-                return json({ error: "recommendations 数组过长（最多 100 个）" }, { status: 400 });
-            }
-            
-            // ✅ 修复 #6: 清理 platformDetails 中的敏感信息（多次清理确保完全清除）
+            // ✅ 修复 #3: 优化敏感信息清理逻辑（单次清理即可，如果仍有敏感信息则替换）
             const sanitizedPlatformDetails = (data.platformDetails as Array<{
                 platform: string;
                 type: string;
@@ -423,22 +512,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }>).map(detail => {
                 let pattern = detail.matchedPattern;
                 
-                // 多次清理，处理嵌套的敏感信息
-                let previousPattern = "";
-                let iterations = 0;
-                while (pattern !== previousPattern && iterations < 5) {
-                    previousPattern = pattern;
-                    pattern = sanitizeSensitiveInfo(pattern);
-                    iterations++;
-                }
+                // 先进行单次清理
+                pattern = sanitizeSensitiveInfo(pattern);
                 
-                // 再次检测，如果仍有敏感信息则完全替换
+                // 如果仍有敏感信息，直接替换为占位符
                 if (containsSensitiveInfo(pattern)) {
                     pattern = "[REDACTED_PATTERN]";
                 }
                 
-                // 限制长度，避免存储过多信息
-                pattern = pattern.length > 50 ? pattern.substring(0, 50) + "..." : pattern;
+                // ✅ 修复 #12: 使用常量限制长度（在清理后限制，避免截断敏感信息）
+                if (pattern.length > SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) {
+                    pattern = pattern.substring(0, SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) + "...";
+                }
+                
                 return { ...detail, matchedPattern: pattern };
             });
             
@@ -451,16 +537,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 recommendations: data.recommendations as string[],
             };
 
+            // ✅ 修复 #9: 记录失败的资产创建
             const createdAssets = [];
-            // 为每个检测到的平台创建 AuditAsset
-            // 验证平台名称格式的正则表达式（只允许小写字母、数字和下划线）
-            const PLATFORM_NAME_REGEX = /^[a-z0-9_]+$/;
+            const failedAssets: string[] = [];
+            
+            // ✅ 修复 #1: 平台名称已在前面统一验证，这里不需要再次验证
             for (const platform of analysisData.identifiedPlatforms) {
-                // 验证平台名称格式和长度
-                if (typeof platform !== "string" || platform.length > 100 || !PLATFORM_NAME_REGEX.test(platform)) {
-                    logger.warn(`Skipping invalid platform name: ${platform}`, { shopId: shop.id });
-                    continue;
-                }
+                // ✅ 修复 #8: 限制 detectedPatterns 数组大小
+                const detectedPatterns = analysisData.platformDetails
+                    .filter(d => d.platform === platform)
+                    .slice(0, SAVE_ANALYSIS_LIMITS.MAX_DETECTED_PATTERNS)
+                    .map(d => d.matchedPattern);
+                
                 const asset = await createAuditAsset(shop.id, {
                     sourceType: "manual_paste",
                     category: "pixel",
@@ -471,17 +559,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     details: {
                         source: "manual_paste",
                         analysisRiskScore: analysisData.riskScore,
-                        // 使用已清理的 matchedPattern（已在上面清理）
-                        detectedPatterns: analysisData.platformDetails
-                            .filter(d => d.platform === platform)
-                            .map(d => d.matchedPattern), // 已经是清理和截断后的值
+                        detectedPatterns,
                     },
                 });
-                if (asset) createdAssets.push(asset);
+                
+                if (asset) {
+                    createdAssets.push(asset);
+                } else {
+                    failedAssets.push(platform);
+                    logger.warn("Failed to create AuditAsset for platform", { 
+                        shopId: shop.id, 
+                        platform,
+                        actionType: "save_analysis"
+                    });
+                }
             }
 
+            // ✅ 修复 #8: 限制 risks 数组大小
             // 如果没有检测到平台但有风险，创建通用记录
             if (analysisData.identifiedPlatforms.length === 0 && analysisData.riskScore > 0) {
+                const risksForDetails = analysisData.risks.slice(0, SAVE_ANALYSIS_LIMITS.MAX_RISKS_IN_DETAILS);
                 const asset = await createAuditAsset(shop.id, {
                     sourceType: "manual_paste",
                     category: "other",
@@ -491,21 +588,55 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     details: {
                         source: "manual_paste",
                         analysisRiskScore: analysisData.riskScore,
-                        risks: analysisData.risks,
+                        risks: risksForDetails,
                     },
                 });
-                if (asset) createdAssets.push(asset);
+                
+                if (asset) {
+                    createdAssets.push(asset);
+                } else {
+                    failedAssets.push("未识别的脚本");
+                    logger.warn("Failed to create AuditAsset for unidentified script", { 
+                        shopId: shop.id,
+                        actionType: "save_analysis"
+                    });
+                }
+            }
+            
+            // ✅ 修复 #9: 如果有部分失败，在响应中包含警告信息
+            if (failedAssets.length > 0) {
+                logger.warn("Some assets failed to create", { 
+                    shopId: shop.id, 
+                    failedCount: failedAssets.length,
+                    failedPlatforms: failedAssets,
+                    actionType: "save_analysis"
+                });
             }
 
             return json({
                 success: true,
                 actionType: "save_analysis",
                 savedCount: createdAssets.length,
-                message: `已保存 ${createdAssets.length} 个审计资产记录`,
+                message: createdAssets.length > 0 
+                    ? `已保存 ${createdAssets.length} 个审计资产记录${failedAssets.length > 0 ? `，${failedAssets.length} 个失败` : ''}`
+                    : "保存失败，请检查日志",
+                ...(failedAssets.length > 0 && { warning: `${failedAssets.length} 个资产保存失败` })
             });
         } catch (error) {
-            logger.error("Save analysis error", error);
-            return json({ error: error instanceof Error ? error.message : "保存失败" }, { status: 500 });
+            // ✅ 修复 #5: 改进错误处理，不直接暴露错误信息给用户
+            const errorId = crypto.randomBytes(4).toString('hex');
+            logger.error("Save analysis error", { 
+                errorId,
+                shopId: shop.id,
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                actionType: "save_analysis"
+            });
+            
+            return json({ 
+                error: "保存失败，请稍后重试",
+                errorId // 用于支持团队追踪问题
+            }, { status: 500 });
         }
     }
 

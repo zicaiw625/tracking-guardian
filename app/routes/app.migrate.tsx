@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useActionData, useRevalidator } from "@remix-run/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { PixelMigrationWizard } from "~/components/migrate/PixelMigrationWizard";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, Icon, ProgressBar, Link, List, } from "@shopify/polaris";
@@ -14,7 +14,7 @@ import { encryptJson } from "../utils/crypto.server";
 import { randomBytes } from "crypto";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { logger } from "../utils/logger.server";
-import { formatDeadlineForUI, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getScriptTagDeprecationStatus, getUpgradeStatusMessage, type ShopTier, } from "../utils/deprecation-dates";
+import { formatDeadlineForUI, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getScriptTagDeprecationStatus, getUpgradeStatusMessage, DEPRECATION_DATES, getDateDisplayLabel, type ShopTier, } from "../utils/deprecation-dates";
 import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
 
 function generateIngestionSecret(): string {
@@ -393,7 +393,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return json({ error: "Unknown action" }, { status: 400 });
 };
+
+// 类型定义
 type SetupStep = "typOsp" | "pixel" | "capi" | "complete";
+
+interface TimelineItem {
+    id: string;
+    title: string;
+    badge: {
+        tone: "critical" | "warning" | "attention" | "success";
+        text: string;
+    };
+    description: string;
+}
 export default function MigratePage() {
     const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, planId, planLabel, planTagline, } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
@@ -420,6 +432,7 @@ export default function MigratePage() {
         submit(formData, { method: "post" });
     };
 
+    // ✅ 修复 #3: 合并两个 useEffect，避免竞态条件，确保步骤状态更新逻辑清晰
     useEffect(() => {
         const data = actionData as {
             _action?: string;
@@ -427,12 +440,16 @@ export default function MigratePage() {
             message?: string;
             error?: string;
         } | undefined;
+        
+        // 优先处理 actionData 的更新（用户操作触发的状态变更）
         if (data?._action === "enablePixel") {
             if (data?.success) {
                 showSuccess(data?.message || "App Pixel 已启用");
                 setCurrentStep("capi");
+                return; // 避免被后续逻辑覆盖
             } else if (data?.error) {
                 showError(data.error);
+                return;
             }
         } else if (data?._action === "upgradePixelSettings") {
             if (data?.success) {
@@ -440,26 +457,32 @@ export default function MigratePage() {
             } else if (data?.error) {
                 showError(data.error);
             }
+            // upgradePixelSettings 不改变步骤状态，直接返回
+            return;
         } else if (data?._action === "saveWizardConfigs") {
             if (data?.success) {
                 showSuccess(data?.message || "配置已保存");
                 setShowWizard(false);
                 revalidator.revalidate();
                 setCurrentStep("complete");
+                return; // 避免被后续逻辑覆盖
             } else if (data?.error) {
                 showError(data.error);
+                return;
             }
         }
-    }, [actionData, showSuccess, showError, revalidator]);
-
-    useEffect(() => {
+        
+        // 基于当前状态计算步骤（仅在非 actionData 触发时执行）
         if (pixelStatus === "installed" && hasCapiConfig && typOspStatus.enabled) {
             setCurrentStep("complete");
-        }
-        else if (pixelStatus === "installed") {
+        } else if (pixelStatus === "installed") {
             setCurrentStep("capi");
+        } else if (!typOspStatus.enabled) {
+            setCurrentStep("typOsp");
+        } else {
+            setCurrentStep("pixel");
         }
-    }, [pixelStatus, hasCapiConfig, typOspStatus.enabled]);
+    }, [actionData, pixelStatus, hasCapiConfig, typOspStatus.enabled, showSuccess, showError, revalidator]);
 
     const handleEnablePixel = () => {
         if (!isGrowthOrAbove) {
@@ -482,21 +505,41 @@ export default function MigratePage() {
         { id: "capi", label: "配置服务端追踪", number: 3 },
         { id: "complete", label: "完成设置", number: 4 },
     ];
-    const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
+    // ✅ 修复 #1: 处理 currentStepIndex 边界情况，确保不会为 -1，并添加验证
+    const stepIndex = steps.findIndex((s) => s.id === currentStep);
+    if (stepIndex === -1) {
+        console.error(`[MigratePage] Invalid currentStep: ${currentStep}. Available steps:`, steps.map(s => s.id));
+    }
+    const currentStepIndex = Math.max(0, stepIndex);
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
-    const timelineItems = deadlines ? [
+    // ✅ 修复 #2: 添加类型定义和改进错误处理
+    const timelineItems: TimelineItem[] = deadlines && deadlines.scriptTag && deadlines.additionalScripts ? [
         {
+            id: "scriptTag",
             title: "ScriptTag 创建限制",
-            badge: deadlines?.scriptTag.badge,
-            description: deadlines?.scriptTag.description,
+            badge: deadlines.scriptTag.badge,
+            description: deadlines.scriptTag.description,
         },
         {
+            id: "additionalScripts",
             title: "Additional Scripts 只读",
-            badge: deadlines?.additionalScripts.badge,
-            description: deadlines?.additionalScripts.description,
+            badge: deadlines.additionalScripts.badge,
+            description: deadlines.additionalScripts.description,
         },
     ] : [];
     const migrationUrgencyActions = migrationUrgency?.actions ?? [];
+    
+    // ✅ 修复 #5: 使用统一的日期格式化函数，避免硬编码和环境差异
+    const migrationSuggestionText = useMemo(() => {
+        if (shopTier === "plus") {
+            const deadlineDate = getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact");
+            const autoUpgradeDate = getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
+            return `Plus 商家建议在 ${deadlineDate} 前完成迁移；${autoUpgradeDate}起 Shopify 将逐步自动升级。`;
+        } else {
+            const deadlineDate = getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact");
+            return `非 Plus 商家建议在 ${deadlineDate} 前完成迁移，以确保 Thank you / Order status 页追踪不受影响。`;
+        }
+    }, [shopTier]);
     
     // 处理 shop 为 null 的情况
     if (!shop) {
@@ -629,7 +672,7 @@ export default function MigratePage() {
                 </Badge>)}
             </InlineStack>
             <BlockStack gap="200">
-              {timelineItems.length > 0 ? timelineItems.map((item, idx) => (<Box key={idx} background="bg-surface-secondary" padding="300" borderRadius="200">
+              {timelineItems.length > 0 ? timelineItems.map((item) => (<Box key={item.id} background="bg-surface-secondary" padding="300" borderRadius="200">
                   <InlineStack align="space-between" blockAlign="center">
                     <Text as="span" fontWeight="semibold">{item.title}</Text>
                     {item.badge && (<Badge tone={item.badge.tone}>{item.badge.text}</Badge>)}
@@ -647,9 +690,7 @@ export default function MigratePage() {
                   {migrationUrgencyActions.map((action, idx) => (<List.Item key={idx}>{action}</List.Item>))}
                 </List>)}
               <Text as="p" tone="subdued">
-                {shopTier === "plus"
-                ? "Plus 商家建议在 2025-08-28 前完成迁移；2026 年 1 月起 Shopify 将逐步自动升级。"
-                : "非 Plus 商家建议在 2026-08-26 前完成迁移，以确保 Thank you / Order status 页追踪不受影响。"}
+                {migrationSuggestionText}
               </Text>
             </BlockStack>
           </BlockStack>
@@ -697,7 +738,18 @@ export default function MigratePage() {
                   {index < steps.length - 1 && (<Box background={index < currentStepIndex ? "bg-fill-success" : "bg-surface-secondary"} minWidth="60px" minHeight="2px"/>)}
                 </InlineStack>))}
             </InlineStack>
-            <ProgressBar progress={((currentStepIndex + 1) / steps.length) * 100} tone="primary" size="small"/>
+            {/* ✅ 修复：进度条显示已完成步骤的比例
+                 - 如果当前步骤是 "complete"，显示 100%
+                 - 否则显示当前步骤索引 / 总步骤数（当前步骤之前的步骤视为已完成） */}
+            <ProgressBar 
+                progress={
+                    currentStep === "complete" 
+                        ? 100 
+                        : (currentStepIndex / steps.length) * 100
+                } 
+                tone="primary" 
+                size="small"
+            />
           </BlockStack>
         </Card>
 
