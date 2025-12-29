@@ -144,7 +144,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     const latestScan = latestScanRaw;
-    const scanHistory = await getScanHistory(shop.id, 5);
+    // 获取扫描历史，失败时返回空数组
+    let scanHistory: Awaited<ReturnType<typeof getScanHistory>> = [];
+    try {
+        scanHistory = await getScanHistory(shop.id, 5);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logger.error("Failed to fetch scan history", {
+            shopId: shop.id,
+            error: errorMessage,
+        });
+        // 失败时返回空数组，不影响页面其他功能
+        scanHistory = [];
+    }
     
     // 使用共享验证函数验证 scriptTags（如果 latestScan 存在但未在 try 块中验证）
     const scriptTags: ScriptTag[] = latestScan 
@@ -768,6 +780,59 @@ export default function ScanPage() {
         };
         return names[platform] || platform;
     };
+
+    // 状态文本映射函数 - 提取到外部避免重复创建
+    const getStatusText = useCallback((status: string | null | undefined): string => {
+        if (!status) return "未知";
+        switch (status) {
+            case "completed":
+                return "完成";
+            case "completed_with_errors":
+                return "完成（有错误）";
+            case "failed":
+                return "失败";
+            case "scanning":
+                return "扫描中";
+            case "pending":
+                return "等待中";
+            default:
+                return status; // 未知状态直接显示原始值
+        }
+    }, []);
+
+    // 处理扫描历史数据，使用 useMemo 优化性能
+    const processedScanHistory = useMemo(() => {
+        return scanHistory
+            .filter((scan): scan is NonNullable<typeof scan> => scan !== null)
+            .map((scan) => {
+                // 类型安全验证
+                const riskScore = validateRiskScore(scan.riskScore);
+                const platforms = validateStringArray(scan.identifiedPlatforms);
+                
+                // 改进的日期处理：更严格地验证日期有效性
+                let createdAt: Date | null = null;
+                if (scan.createdAt) {
+                    try {
+                        const parsed = new Date(scan.createdAt);
+                        // 验证日期是否有效（不是 NaN）
+                        if (!isNaN(parsed.getTime())) {
+                            createdAt = parsed;
+                        }
+                    } catch {
+                        // 忽略解析错误，保持 createdAt 为 null
+                    }
+                }
+                
+                const status = getStatusText(scan.status);
+                
+                return [
+                    createdAt ? safeFormatDate(createdAt) : "未知",
+                    riskScore, // 直接传入数字类型，与 columnContentTypes 的 "numeric" 匹配
+                    platforms.join(", ") || "-",
+                    status,
+                ];
+            });
+    }, [scanHistory, getStatusText]);
 
     // 迁移清单相关常量
     const MAX_VISIBLE_ACTIONS = 5;
@@ -1691,28 +1756,37 @@ export default function ScanPage() {
           </Card>
         )}
 
-        {scanHistory.length > 1 && (<Card>
+        {processedScanHistory.length > 0 ? (
+          <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
                 扫描历史
               </Text>
-              <DataTable columnContentTypes={["text", "numeric", "text", "text"]} headings={["扫描时间", "风险分", "检测平台", "状态"]} rows={scanHistory.filter((scan): scan is NonNullable<typeof scan> => scan !== null).map((scan) => {
-                    // 类型安全验证
-                    const riskScore = validateRiskScore(scan.riskScore);
-                    const platforms = validateStringArray(scan.identifiedPlatforms);
-                    // 使用安全的日期解析函数
-                    const createdAt = safeParseDate(scan.createdAt);
-                    const status = scan.status === "completed" ? "完成" : scan.status || "未知";
-                    
-                    return [
-                        safeFormatDate(createdAt),
-                        String(riskScore),
-                        platforms.join(", ") || "-",
-                        status,
-                    ];
-                })}/>
+              <DataTable 
+                columnContentTypes={["text", "numeric", "text", "text"]} 
+                headings={["扫描时间", "风险分", "检测平台", "状态"]} 
+                rows={processedScanHistory}
+              />
             </BlockStack>
-          </Card>)}
+          </Card>
+        ) : (
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                扫描历史
+              </Text>
+              <EnhancedEmptyState
+                icon="📋"
+                title="暂无扫描历史"
+                description="执行扫描后，历史记录将显示在这里。"
+                primaryAction={{
+                  content: "开始扫描",
+                  onAction: handleScan,
+                }}
+              />
+            </BlockStack>
+          </Card>
+        )}
 
               {latestScan && latestScan.riskScore > 0 && (<Banner title="建议进行迁移" tone="warning" action={{ content: "前往迁移工具", url: "/app/migrate" }}>
                   <p>

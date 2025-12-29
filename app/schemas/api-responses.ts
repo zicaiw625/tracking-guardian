@@ -62,7 +62,7 @@ export const RiskItemResponseSchema = z.object({
 
 export const ScanReportResponseSchema = z.object({
   id: z.string(),
-  status: z.enum(["pending", "scanning", "completed", "failed"]),
+  status: z.enum(["pending", "scanning", "completed", "completed_with_errors", "failed"]),
   riskScore: z.number().min(0).max(100),
   riskItems: z.array(RiskItemResponseSchema),
   identifiedPlatforms: z.array(z.string()),

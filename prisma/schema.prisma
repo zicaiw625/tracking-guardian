@@ -146,7 +146,7 @@ model ScanReport {
   // Identified platforms
   identifiedPlatforms Json? // e.g., ["google", "meta", "tiktok"]
 
-  status       String  @default("pending") // pending, scanning, completed, failed
+  status       String  @default("pending") // pending, scanning, completed, completed_with_errors, failed
   errorMessage String?
 
   createdAt   DateTime  @default(now())

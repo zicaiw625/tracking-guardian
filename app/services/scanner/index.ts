@@ -821,10 +821,22 @@ export async function scanShopTracking(
     return result;
 }
 
-export async function getScanHistory(shopId: string, limit = 10) {
+/**
+ * 获取扫描历史记录
+ * @param shopId - 店铺 ID
+ * @param limit - 返回记录数量限制，默认 10，范围 1-100
+ * @returns 扫描报告数组，按创建时间降序排列
+ */
+export async function getScanHistory(
+    shopId: string,
+    limit: number = 10
+): Promise<Awaited<ReturnType<typeof prisma.scanReport.findMany>>> {
+    // 验证并限制 limit 参数范围，防止过大或负值
+    const validLimit = Math.max(1, Math.min(limit, 100));
+    
     return prisma.scanReport.findMany({
         where: { shopId },
         orderBy: { createdAt: "desc" },
-        take: limit,
+        take: validLimit,
     });
 }
