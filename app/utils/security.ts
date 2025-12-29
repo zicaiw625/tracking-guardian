@@ -370,3 +370,92 @@ export function hashForStorage(value: string, salt?: string): string {
   return sha256(`${actualSalt}:${value}`);
 }
 
+/**
+ * 检测文本中是否包含敏感信息（API keys、tokens、密码等）
+ * @param text - 待检测的文本
+ * @returns 如果检测到敏感信息返回 true
+ */
+export function containsSensitiveInfo(text: string): boolean {
+  if (typeof text !== "string" || text.length === 0) {
+    return false;
+  }
+
+  const sensitivePatterns = [
+    // API keys (各种格式)
+    /(?:api[_-]?key|apikey)[\s:=]+['"]?([a-zA-Z0-9_-]{20,})['"]?/gi,
+    // Access tokens
+    /(?:access[_-]?token|token|bearer)[\s:=]+['"]?([a-zA-Z0-9_-]{20,})['"]?/gi,
+    // Secrets and passwords
+    /(?:secret|password|pwd|passwd)[\s:=]+['"]?([^\s'"]{10,})['"]?/gi,
+    // Email addresses (可能包含客户信息)
+    /(?:email|mailto)[\s:=]+['"]?([^\s'"]+@[^\s'"]+\.[a-z]{2,})['"]?/gi,
+    // Phone numbers
+    /(?:phone|tel|mobile)[\s:=]+['"]?(\+?[0-9]{10,})['"]?/gi,
+    // Credit card patterns (简化的检测)
+    /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/gi,
+    // AWS keys
+    /AKIA[0-9A-Z]{16}/gi,
+    // Private keys (RSA, EC等)
+    /-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----/gi,
+    // OAuth tokens
+    /oauth[_-]?token[\s:=]+['"]?([a-zA-Z0-9_-]{20,})['"]?/gi,
+  ];
+
+  return sensitivePatterns.some((pattern) => pattern.test(text));
+}
+
+/**
+ * 清理文本中的敏感信息
+ * @param text - 待清理的文本
+ * @returns 清理后的文本
+ */
+export function sanitizeSensitiveInfo(text: string): string {
+  if (typeof text !== "string" || text.length === 0) {
+    return text;
+  }
+
+  let sanitized = text;
+
+  // 替换敏感信息为 [REDACTED]
+  const replacementPatterns = [
+    {
+      pattern: /(?:api[_-]?key|apikey)[\s:=]+['"]?[^'"]+['"]?/gi,
+      replacement: "[API_KEY_REDACTED]",
+    },
+    {
+      pattern: /(?:access[_-]?token|token|bearer)[\s:=]+['"]?[^'"]+['"]?/gi,
+      replacement: "[TOKEN_REDACTED]",
+    },
+    {
+      pattern: /(?:secret|password|pwd|passwd)[\s:=]+['"]?[^'"]+['"]?/gi,
+      replacement: "[SECRET_REDACTED]",
+    },
+    {
+      pattern: /(?:email|mailto)[\s:=]+['"]?[^\s'"]+@[^\s'"]+\.[a-z]{2,}['"]?/gi,
+      replacement: "[EMAIL_REDACTED]",
+    },
+    {
+      pattern: /(?:phone|tel|mobile)[\s:=]+['"]?\+?[0-9]{10,}['"]?/gi,
+      replacement: "[PHONE_REDACTED]",
+    },
+    {
+      pattern: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/gi,
+      replacement: "[CARD_REDACTED]",
+    },
+    {
+      pattern: /AKIA[0-9A-Z]{16}/gi,
+      replacement: "[AWS_KEY_REDACTED]",
+    },
+    {
+      pattern: /-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(RSA\s+)?PRIVATE\s+KEY-----/gi,
+      replacement: "[PRIVATE_KEY_REDACTED]",
+    },
+  ];
+
+  for (const { pattern, replacement } of replacementPatterns) {
+    sanitized = sanitized.replace(pattern, replacement);
+  }
+
+  return sanitized;
+}
+

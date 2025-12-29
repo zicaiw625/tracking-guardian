@@ -10,12 +10,13 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, type ScriptAnalysisResult } from "../services/scanner.server";
 import { analyzeScriptContent } from "../services/scanner/content-analysis";
+import { calculateRiskScore } from "../services/scanner/risk-assessment";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { generateMigrationActions } from "../services/scanner/migration-actions";
 import { getExistingWebPixels } from "../services/migration.server";
 import { createAuditAsset } from "../services/audit-asset.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
-import { SCANNER_CONFIG } from "../utils/config";
+import { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } from "../utils/config";
 import type { ScriptTag, RiskItem } from "../types";
 import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
 import { logger } from "../utils/logger.server";
@@ -28,14 +29,64 @@ import {
     safeParseDate,
     safeFormatDate,
 } from "../utils/scan-data-validation";
+import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../utils/security";
+
+// 常量定义
+const TIMEOUTS = {
+    IDLE_CALLBACK: 100,
+    SET_TIMEOUT_FALLBACK: 10,
+    EXPORT_CLEANUP: 100,
+} as const;
 
 // 共享类型定义
 type FetcherResult = {
     success?: boolean;
     message?: string;
     error?: string;
-    details?: unknown;
+    details?: {
+        message?: string;
+        [key: string]: unknown;
+    };
 };
+
+// 类型守卫：验证 FetcherResult
+function isFetcherResult(data: unknown): data is FetcherResult {
+    return (
+        typeof data === "object" &&
+        data !== null &&
+        ("success" in data || "error" in data || "message" in data)
+    );
+}
+
+// 辅助函数：安全地解析日期
+function parseDateSafely(dateValue: unknown): Date | null {
+    if (!dateValue) return null;
+    try {
+        const parsed = new Date(dateValue as string);
+        return !isNaN(parsed.getTime()) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+// 类型定义：IdleCallbackHandle
+type IdleCallbackHandle = ReturnType<typeof requestIdleCallback>;
+
+// 辅助函数：安全地取消空闲回调或超时
+function cancelIdleCallbackOrTimeout(handle: number | IdleCallbackHandle | null): void {
+    if (handle === null) return;
+    
+    if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        // 检查是否是 IdleCallbackHandle
+        if (typeof handle === 'number') {
+            cancelIdleCallback(handle as IdleCallbackHandle);
+        } else {
+            cancelIdleCallback(handle);
+        }
+    } else {
+        clearTimeout(handle as number);
+    }
+}
 
 // 类型守卫：验证 shopTier 是否为有效的 ShopTier 类型
 function isValidShopTier(tier: unknown): tier is ShopTier {
@@ -243,6 +294,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ error: "缺少分析数据" }, { status: 400 });
             }
             
+            // 检测敏感信息
+            if (containsSensitiveInfo(analysisDataStr)) {
+                logger.warn("Analysis data contains potential sensitive information", { 
+                    shopId: shop.id,
+                    contentLength: analysisDataStr.length 
+                });
+                return json({ 
+                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。" 
+                }, { status: 400 });
+            }
+            
             // 验证和解析分析数据
             let parsedData: unknown;
             try {
@@ -339,15 +401,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ error: "recommendations 数组过长（最多 100 个）" }, { status: 400 });
             }
             
+            // ✅ 修复 #6: 清理 platformDetails 中的敏感信息（多次清理确保完全清除）
+            const sanitizedPlatformDetails = (data.platformDetails as Array<{
+                platform: string;
+                type: string;
+                confidence: "high" | "medium" | "low";
+                matchedPattern: string;
+            }>).map(detail => {
+                let pattern = detail.matchedPattern;
+                
+                // 多次清理，处理嵌套的敏感信息
+                let previousPattern = "";
+                let iterations = 0;
+                while (pattern !== previousPattern && iterations < 5) {
+                    previousPattern = pattern;
+                    pattern = sanitizeSensitiveInfo(pattern);
+                    iterations++;
+                }
+                
+                // 再次检测，如果仍有敏感信息则完全替换
+                if (containsSensitiveInfo(pattern)) {
+                    pattern = "[REDACTED_PATTERN]";
+                }
+                
+                // 限制长度，避免存储过多信息
+                pattern = pattern.length > 50 ? pattern.substring(0, 50) + "..." : pattern;
+                return { ...detail, matchedPattern: pattern };
+            });
+            
             // 经过完整验证后，安全地转换为 ScriptAnalysisResult
             const analysisData: ScriptAnalysisResult = {
                 identifiedPlatforms: data.identifiedPlatforms as string[],
-                platformDetails: data.platformDetails as Array<{
-                    platform: string;
-                    type: string;
-                    confidence: "high" | "medium" | "low";
-                    matchedPattern: string;
-                }>,
+                platformDetails: sanitizedPlatformDetails,
                 risks: data.risks as RiskItem[],
                 riskScore: data.riskScore as number,
                 recommendations: data.recommendations as string[],
@@ -355,9 +440,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
             const createdAssets = [];
             // 为每个检测到的平台创建 AuditAsset
+            // 验证平台名称格式的正则表达式（只允许小写字母、数字和下划线）
+            const PLATFORM_NAME_REGEX = /^[a-z0-9_]+$/;
             for (const platform of analysisData.identifiedPlatforms) {
-                // 验证平台名称
-                if (typeof platform !== "string" || platform.length > 100) {
+                // 验证平台名称格式和长度
+                if (typeof platform !== "string" || platform.length > 100 || !PLATFORM_NAME_REGEX.test(platform)) {
                     logger.warn(`Skipping invalid platform name: ${platform}`, { shopId: shop.id });
                     continue;
                 }
@@ -371,9 +458,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     details: {
                         source: "manual_paste",
                         analysisRiskScore: analysisData.riskScore,
+                        // 使用已清理的 matchedPattern（已在上面清理）
                         detectedPatterns: analysisData.platformDetails
                             .filter(d => d.platform === platform)
-                            .map(d => d.matchedPattern),
+                            .map(d => d.matchedPattern), // 已经是清理和截断后的值
                     },
                 });
                 if (asset) createdAssets.push(asset);
@@ -425,6 +513,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: error instanceof Error ? error.message : "Scan failed" }, { status: 500 });
     }
 };
+
+// 提取到组件外部，使用严格的类型定义
+function getUpgradeBannerTone(
+    urgency: "critical" | "high" | "medium" | "low" | "resolved"
+): "critical" | "warning" | "info" | "success" {
+    switch (urgency) {
+        case "critical": return "critical";
+        case "high": return "warning";
+        case "medium": return "warning";
+        case "resolved": return "success";
+        case "low": return "info";
+        default: {
+            // 类型守卫：如果传入的值不在预期范围内，返回info作为降级处理
+            const _exhaustive: never = urgency;
+            return "info";
+        }
+    }
+}
+
 export default function ScanPage() {
     const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
@@ -440,6 +547,7 @@ export default function ScanPage() {
     const [analysisResult, setAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
     const [analysisError, setAnalysisError] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analysisProgress, setAnalysisProgress] = useState<{ current: number; total: number } | null>(null);
     const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
     const [guidanceContent, setGuidanceContent] = useState<{ title: string; platform?: string; scriptTagId?: number } | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -454,6 +562,9 @@ export default function ScanPage() {
     const isMountedRef = useRef(true);
     const reloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const idleCallbackHandlesRef = useRef<Array<number | IdleCallbackHandle>>([]);
+    const exportBlobUrlRef = useRef<string | null>(null);
 
     const additionalScriptsWarning = (
       <Banner tone="warning" title="Additional Scripts 需手动粘贴">
@@ -505,6 +616,45 @@ export default function ScanPage() {
     const closeGuidanceModal = useCallback(() => {
         setGuidanceModalOpen(false);
         setGuidanceContent(null);
+    }, []);
+
+    // ✅ 修复 #5: 提取错误处理函数，确保取消操作时正确清理状态
+    const handleAnalysisError = useCallback((error: unknown, contentLength: number) => {
+        // ✅ 修复 #5: 取消操作时确保清理所有状态
+        if (error instanceof Error && error.message === "Analysis cancelled") {
+            if (isMountedRef.current) {
+                setIsAnalyzing(false);
+                setAnalysisError(null);
+                setAnalysisResult(null);
+                setAnalysisProgress(null);
+                setAnalysisSaved(false);
+                analysisSavedRef.current = false;
+            }
+            return; // 取消操作不需要显示错误
+        }
+        
+        let errorMessage: string;
+        if (error instanceof TypeError) {
+            errorMessage = "脚本格式错误，请检查输入内容";
+        } else if (error instanceof RangeError) {
+            errorMessage = "脚本内容过长，请分段分析";
+        } else {
+            errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
+        }
+        
+        if (isMountedRef.current) {
+            setAnalysisError(errorMessage);
+            setAnalysisResult(null);
+            setAnalysisSaved(false);
+            analysisSavedRef.current = false;
+        }
+        
+        console.error("Script analysis error", {
+            error: errorMessage,
+            errorType: error instanceof Error ? error.constructor.name : "Unknown",
+            contentLength,
+            hasContent: contentLength > 0,
+        });
     }, []);
 
     const handleDeleteWebPixel = useCallback((webPixelGid: string, platform?: string) => {
@@ -564,11 +714,11 @@ export default function ScanPage() {
         formData.append("_action", "scan");
         submit(formData, { method: "post" });
     };
-    const handleAnalyzeScript = useCallback(() => {
+    const handleAnalyzeScript = useCallback(async () => {
         if (isAnalyzing) return; // 防止重复提交
 
         // 输入验证
-        const MAX_CONTENT_LENGTH = 500000; // 500KB 限制
+        const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
         const trimmedContent = scriptContent.trim();
         
         if (!trimmedContent) {
@@ -581,65 +731,269 @@ export default function ScanPage() {
             return;
         }
         
+        // ✅ 修复 #1: 在分析前检测敏感信息
+        if (containsSensitiveInfo(trimmedContent)) {
+            setAnalysisError("检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再分析。");
+            return;
+        }
+        
         setIsAnalyzing(true);
         setAnalysisSaved(false); // 重置保存状态
         analysisSavedRef.current = false;
         setAnalysisError(null);
+        setAnalysisProgress(null); // 重置进度
         
         try {
-            const result = analyzeScriptContent(trimmedContent);
+            // ✅ 修复 #3: 创建 AbortController 用于取消操作
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+            abortControllerRef.current = new AbortController();
+            const signal = abortControllerRef.current.signal;
+            
+            // 对于大内容，使用分批处理避免阻塞UI
+            // 使用 requestIdleCallback 或 setTimeout 来分批处理
+            const CHUNK_SIZE = SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE;
+            const isLargeContent = trimmedContent.length > CHUNK_SIZE;
+            
+            let result: ScriptAnalysisResult;
+            
+            if (isLargeContent) {
+                // ✅ 修复 #2: 大内容分批处理，使用 Map 和 Set 去重
+                result = {
+                    identifiedPlatforms: [],
+                    platformDetails: [],
+                    risks: [],
+                    riskScore: 0,
+                    recommendations: [],
+                };
+                
+                // 使用 Map 和 Set 进行去重
+                const platformDetailsMap = new Map<string, typeof result.platformDetails[0]>();
+                const risksMap = new Map<string, typeof result.risks[0]>();
+                const recommendationsSet = new Set<string>();
+                const platformsSet = new Set<string>();
+                
+                // 计算总块数
+                const totalChunks = Math.ceil(trimmedContent.length / CHUNK_SIZE);
+                
+                // 分批处理每个块
+                for (let i = 0; i < totalChunks; i++) {
+                    // ✅ 修复 #3: 检查是否已取消，并清理状态
+                    if (signal.aborted || !isMountedRef.current) {
+                        if (isMountedRef.current) {
+                            setIsAnalyzing(false);
+                            setAnalysisError(null);
+                            setAnalysisProgress(null);
+                        }
+                        return;
+                    }
+                    
+                    // ✅ 修复 #6: 更新进度
+                    if (isMountedRef.current) {
+                        setAnalysisProgress({ current: i + 1, total: totalChunks });
+                    }
+                    
+                    // ✅ 修复 #1: 使用 requestIdleCallback 进行真正的异步处理，并正确跟踪和清理
+                    await new Promise<void>((resolve) => {
+                        const processChunk = () => {
+                            // 再次检查是否已取消
+                            if (signal.aborted || !isMountedRef.current) {
+                                if (isMountedRef.current) {
+                                    setIsAnalyzing(false);
+                                    setAnalysisError(null);
+                                    setAnalysisProgress(null);
+                                }
+                                resolve();
+                                return;
+                            }
+                            
+                            try {
+                                // 动态获取块内容，不预先存储所有块
+                                const start = i * CHUNK_SIZE;
+                                const end = Math.min(start + CHUNK_SIZE, trimmedContent.length);
+                                const chunk = trimmedContent.slice(start, end);
+                                
+                                // 同步调用分析函数
+                                let chunkResult: ScriptAnalysisResult;
+                                try {
+                                    chunkResult = analyzeScriptContent(chunk);
+                                } catch (syncError) {
+                                    // ✅ 修复 #5: 捕获同步异常
+                                    console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
+                                    resolve();
+                                    return;
+                                }
+                                
+                                // ✅ 修复 #2: 合并结果并去重（使用完整 matchedPattern 作为键的一部分）
+                                // 合并平台列表
+                                for (const platform of chunkResult.identifiedPlatforms) {
+                                    platformsSet.add(platform);
+                                }
+                                
+                                // 合并平台详情（去重）- 使用完整 matchedPattern 避免边界情况
+                                for (const detail of chunkResult.platformDetails) {
+                                    // 使用完整 matchedPattern 作为键，避免截断导致的误判
+                                    const key = `${detail.platform}-${detail.type}-${detail.matchedPattern}`;
+                                    if (!platformDetailsMap.has(key)) {
+                                        platformDetailsMap.set(key, detail);
+                                    }
+                                }
+                                
+                                // 合并风险（去重）
+                                for (const risk of chunkResult.risks) {
+                                    if (!risksMap.has(risk.id)) {
+                                        risksMap.set(risk.id, risk);
+                                    }
+                                }
+                                
+                                // 合并建议（去重）
+                                for (const rec of chunkResult.recommendations) {
+                                    recommendationsSet.add(rec);
+                                }
+                                
+                                resolve();
+                            } catch (error) {
+                                // 单个块失败不影响整体
+                                console.warn(`Chunk ${i} analysis failed:`, error);
+                                resolve();
+                            }
+                        };
+                        
+                        // ✅ 修复 #1: 使用 requestIdleCallback 如果可用，否则降级到 setTimeout，并跟踪句柄
+                        let handle: number | IdleCallbackHandle;
+                        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+                            handle = requestIdleCallback(processChunk, { timeout: TIMEOUTS.IDLE_CALLBACK });
+                            idleCallbackHandlesRef.current.push(handle);
+                        } else {
+                            handle = setTimeout(processChunk, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number;
+                            idleCallbackHandlesRef.current.push(handle);
+                        }
+                    });
+                }
+                
+                // ✅ 修复 #2: 将去重后的结果转换为数组
+                result.identifiedPlatforms = Array.from(platformsSet);
+                result.platformDetails = Array.from(platformDetailsMap.values());
+                result.risks = Array.from(risksMap.values());
+                result.recommendations = Array.from(recommendationsSet);
+                
+                // 重新计算风险评分
+                if (result.risks.length > 0) {
+                    result.riskScore = calculateRiskScore(result.risks);
+                }
+                
+                // 清除进度
+                if (isMountedRef.current) {
+                    setAnalysisProgress(null);
+                }
+            } else {
+                // 小内容直接处理
+                // ✅ 修复 #3: 检查是否已取消，并清理状态
+                if (signal.aborted || !isMountedRef.current) {
+                    if (isMountedRef.current) {
+                        setIsAnalyzing(false);
+                        setAnalysisError(null);
+                    }
+                    return;
+                }
+                
+                result = await new Promise<ScriptAnalysisResult>((resolve, reject) => {
+                    const processContent = () => {
+                        // 再次检查是否已取消
+                        if (signal.aborted || !isMountedRef.current) {
+                            if (isMountedRef.current) {
+                                setIsAnalyzing(false);
+                                setAnalysisError(null);
+                                setAnalysisProgress(null);
+                            }
+                            reject(new Error("Analysis cancelled"));
+                            return;
+                        }
+                        
+                        try {
+                            resolve(analyzeScriptContent(trimmedContent));
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    
+                    // ✅ 修复 #1: 使用 requestIdleCallback 如果可用，否则降级到 setTimeout，并跟踪句柄
+                    let handle: number | IdleCallbackHandle;
+                    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+                        handle = requestIdleCallback(processContent, { timeout: TIMEOUTS.IDLE_CALLBACK });
+                        idleCallbackHandlesRef.current.push(handle);
+                    } else {
+                        handle = setTimeout(processContent, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number;
+                        idleCallbackHandlesRef.current.push(handle);
+                    }
+                });
+            }
+            
             if (isMountedRef.current) {
                 setAnalysisResult(result);
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
-            if (isMountedRef.current) {
-                setAnalysisError(errorMessage);
-            }
-            // 改进错误日志记录，不包含敏感内容
-            console.error("Script analysis error", {
-                error: errorMessage,
-                contentLength: trimmedContent.length,
-                hasContent: trimmedContent.length > 0,
-            });
+            // ✅ 修复 #5: 使用提取的错误处理函数
+            handleAnalysisError(error, trimmedContent.length);
         } finally {
             if (isMountedRef.current) {
                 setIsAnalyzing(false);
+                setAnalysisProgress(null);
             }
         }
-    }, [scriptContent, isAnalyzing]); // 明确包含所有使用的状态
+    }, [scriptContent, isAnalyzing, handleAnalysisError]); // 明确包含所有使用的状态
 
     // 处理保存结果
     const isSavingAnalysis = saveAnalysisFetcher.state === "submitting";
 
     const handleSaveAnalysis = useCallback(() => {
-        if (!analysisResult || isSavingAnalysis || analysisSaved) return; // 防止重复提交
+        // ✅ 修复 #4: 更严格的检查，防止竞态条件
+        if (!analysisResult) return;
+        
+        // 使用原子操作检查所有条件
+        if (analysisSavedRef.current || isSavingAnalysis || saveAnalysisFetcher.state !== "idle") {
+            return;
+        }
+        
+        // ✅ 修复 #4: 立即设置所有标志，防止重复提交
+        analysisSavedRef.current = true;
+        setAnalysisSaved(true); // 同步更新 state，避免状态不一致
 
         const formData = new FormData();
         formData.append("_action", "save_analysis");
         formData.append("analysisData", JSON.stringify(analysisResult));
         saveAnalysisFetcher.submit(formData, { method: "post" });
-    }, [analysisResult, saveAnalysisFetcher, isSavingAnalysis, analysisSaved]);
+    }, [analysisResult, saveAnalysisFetcher, isSavingAnalysis]);
 
     // 当保存成功时更新状态并显示Toast
     useEffect(() => {
-        const result = saveAnalysisFetcher.data as FetcherResult | undefined;
+        // ✅ 修复 #4: 使用类型守卫进行安全的类型检查
+        const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
         if (!result || saveAnalysisFetcher.state !== "idle" || !isMountedRef.current) return;
         
         if (result.success) {
-            // 只在第一次成功时显示消息，避免重复触发
+            // 确保状态同步
             if (!analysisSavedRef.current) {
                 analysisSavedRef.current = true;
-                setAnalysisSaved(true);
-                showSuccess("分析结果已保存！");
             }
+            setAnalysisSaved(true);
+            showSuccess("分析结果已保存！");
         } else if (result.error) {
+            // 失败时重置
+            analysisSavedRef.current = false;
+            setAnalysisSaved(false);
             showError("保存失败：" + result.error);
-            // 重置保存状态，允许重试
+        }
+    }, [saveAnalysisFetcher.data, saveAnalysisFetcher.state, showSuccess, showError]);
+
+    // 当分析结果变化时，重置保存状态
+    useEffect(() => {
+        if (analysisResult) {
             analysisSavedRef.current = false;
             setAnalysisSaved(false);
         }
-    }, [saveAnalysisFetcher.data, saveAnalysisFetcher.state, showSuccess, showError]);
+    }, [analysisResult]);
 
     // 防抖的数据重新加载函数
     const reloadData = useCallback(() => {
@@ -654,14 +1008,11 @@ export default function ScanPage() {
         isReloadingRef.current = true;
         submit(new FormData(), { method: "get" });
         
-        // 使用闭包捕获当前定时器 ID，确保清理逻辑正确
+        // 使用闭包保存的 timeoutId，不依赖 ref
         const timeoutId = setTimeout(() => {
-            // 只检查挂载状态，简化逻辑
-            if (isMountedRef.current) {
+            // 使用闭包保存的 timeoutId，不依赖 ref
+            if (isMountedRef.current && reloadTimeoutRef.current === timeoutId) {
                 isReloadingRef.current = false;
-            }
-            // 只有在定时器 ID 匹配时才清理
-            if (reloadTimeoutRef.current === timeoutId) {
                 reloadTimeoutRef.current = null;
             }
         }, 1000);
@@ -671,7 +1022,8 @@ export default function ScanPage() {
 
     // 处理删除操作的结果
     useEffect(() => {
-        const deleteResult = deleteFetcher.data as FetcherResult | undefined;
+        // ✅ 修复 #4: 使用类型守卫进行安全的类型检查
+        const deleteResult = isFetcherResult(deleteFetcher.data) ? deleteFetcher.data : undefined;
         if (!deleteResult || deleteFetcher.state !== "idle" || !isMountedRef.current) return;
         
         if (deleteResult.success) {
@@ -696,7 +1048,8 @@ export default function ScanPage() {
     }, [deleteFetcher.data, deleteFetcher.state, showSuccess, showError, reloadData]);
 
     useEffect(() => {
-        const upgradeResult = upgradeFetcher.data as FetcherResult | undefined;
+        // ✅ 修复 #4: 使用类型守卫进行安全的类型检查
+        const upgradeResult = isFetcherResult(upgradeFetcher.data) ? upgradeFetcher.data : undefined;
         if (!upgradeResult || upgradeFetcher.state !== "idle" || !isMountedRef.current) return;
         
         if (upgradeResult.success) {
@@ -720,18 +1073,33 @@ export default function ScanPage() {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
+            // ✅ 修复 #3: 取消正在进行的分析操作
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+            }
+            // ✅ 修复 #1: 清理所有 idle callback handles，防止内存泄漏
+            idleCallbackHandlesRef.current.forEach(handle => {
+                cancelIdleCallbackOrTimeout(handle);
+            });
+            idleCallbackHandlesRef.current = [];
             // 清理重新加载定时器，防止内存泄漏
             if (reloadTimeoutRef.current) {
                 clearTimeout(reloadTimeoutRef.current);
                 reloadTimeoutRef.current = null;
             }
-            // 清理导出定时器，防止内存泄漏
+            // ✅ 修复 #2: 清理导出定时器和 Blob URL，防止内存泄漏
             if (exportTimeoutRef.current) {
                 clearTimeout(exportTimeoutRef.current);
                 exportTimeoutRef.current = null;
             }
-            // 重置重新加载标志
+            if (exportBlobUrlRef.current) {
+                URL.revokeObjectURL(exportBlobUrlRef.current);
+                exportBlobUrlRef.current = null;
+            }
+            // 重置所有标志，防止状态不一致
             isReloadingRef.current = false;
+            analysisSavedRef.current = false;
         };
     }, []);
   const tabs = [
@@ -809,19 +1177,8 @@ export default function ScanPage() {
                 const riskScore = validateRiskScore(scan.riskScore);
                 const platforms = validateStringArray(scan.identifiedPlatforms);
                 
-                // 改进的日期处理：更严格地验证日期有效性
-                let createdAt: Date | null = null;
-                if (scan.createdAt) {
-                    try {
-                        const parsed = new Date(scan.createdAt);
-                        // 验证日期是否有效（不是 NaN）
-                        if (!isNaN(parsed.getTime())) {
-                            createdAt = parsed;
-                        }
-                    } catch {
-                        // 忽略解析错误，保持 createdAt 为 null
-                    }
-                }
+                // ✅ 修复 #7: 使用共享的日期解析函数
+                const createdAt = parseDateSafely(scan.createdAt);
                 
                 const status = getStatusText(scan.status);
                 
@@ -879,16 +1236,6 @@ export default function ScanPage() {
     const riskItems = useMemo(() => {
         return validateRiskItemsArray(latestScan?.riskItems);
     }, [latestScan?.riskItems]);
-
-  const getUpgradeBannerTone = (urgency: string): "critical" | "warning" | "info" | "success" => {
-        switch (urgency) {
-            case "critical": return "critical";
-            case "high": return "warning";
-            case "medium": return "warning";
-            case "resolved": return "success";
-            default: return "info";
-        }
-    };
   // 检查是否有部分刷新的警告
   const partialRefreshWarning = actionData && 
     typeof actionData === "object" && 
@@ -912,22 +1259,37 @@ export default function ScanPage() {
       {additionalScriptsWarning}
       {paginationLimitWarning}
       {partialRefreshWarning}
-      {upgradeStatus && (<Banner title={upgradeStatus.title} tone={getUpgradeBannerTone(upgradeStatus.urgency)}>
-        <BlockStack gap="200">
-          <Text as="p">{upgradeStatus.message}</Text>
-              {upgradeStatus.actions.length > 0 && (<BlockStack gap="100">
-                  {upgradeStatus.actions.map((action, idx) => (<Text key={idx} as="p" variant="bodySm">
+      {upgradeStatus && upgradeStatus.title && upgradeStatus.message && (() => {
+        // ✅ 修复 #7: 使用共享的日期解析函数
+        const lastUpdatedDate = parseDateSafely(upgradeStatus.lastUpdated);
+
+        return (
+          <Banner title={upgradeStatus.title} tone={getUpgradeBannerTone(upgradeStatus.urgency)}>
+            <BlockStack gap="200">
+              <Text as="p">{upgradeStatus.message}</Text>
+              {(upgradeStatus.actions?.length ?? 0) > 0 && (
+                <BlockStack gap="100">
+                  {upgradeStatus.actions.map((action, idx) => (
+                    <Text key={idx} as="p" variant="bodySm">
                       • {action}
-                    </Text>))}
-                </BlockStack>)}
-              {!upgradeStatus.hasOfficialSignal && (<Text as="p" variant="bodySm" tone="subdued">
+                    </Text>
+                  ))}
+                </BlockStack>
+              )}
+              {!upgradeStatus.hasOfficialSignal && (
+                <Text as="p" variant="bodySm" tone="subdued">
                   提示：我们尚未完成一次有效的升级状态检测。请稍后重试、重新授权应用，或等待后台定时任务自动刷新。
-                </Text>)}
-              {upgradeStatus.lastUpdated && !isNaN(new Date(upgradeStatus.lastUpdated).getTime()) && (<Text as="p" variant="bodySm" tone="subdued">
-                  状态更新时间: {new Date(upgradeStatus.lastUpdated).toLocaleString("zh-CN")}
-                </Text>)}
+                </Text>
+              )}
+              {lastUpdatedDate && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  状态更新时间: {lastUpdatedDate.toLocaleString("zh-CN")}
+                </Text>
+              )}
             </BlockStack>
-          </Banner>)}
+          </Banner>
+        );
+      })()}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (<BlockStack gap="500">
@@ -1663,10 +2025,19 @@ export default function ScanPage() {
                         onClick={() => {
                           if (isExporting) return;
                           setIsExporting(true);
+                          
+                          // ✅ 修复 #2: 清理之前的 Blob URL（如果存在）
+                          if (exportBlobUrlRef.current) {
+                            URL.revokeObjectURL(exportBlobUrlRef.current);
+                            exportBlobUrlRef.current = null;
+                          }
+                          
                           try {
                             const checklist = generateChecklistText("plain");
                             const blob = new Blob([checklist], { type: "text/plain" });
                             const url = URL.createObjectURL(blob);
+                            exportBlobUrlRef.current = url; // 保存 URL 引用以便清理
+                            
                             const a = document.createElement("a");
                             a.href = url;
                             a.download = `migration-checklist-${new Date().toISOString().split("T")[0]}.txt`;
@@ -1675,7 +2046,7 @@ export default function ScanPage() {
                             try {
                               document.body.appendChild(a);
                               a.click();
-                              // 延迟移除，确保下载开始，使用 ref 保存以便清理
+                              // ✅ 修复 #2: 延迟移除，确保下载开始，使用 ref 保存以便清理
                               exportTimeoutRef.current = setTimeout(() => {
                                 try {
                                   if (a.parentNode) {
@@ -1684,12 +2055,20 @@ export default function ScanPage() {
                                 } catch (removeError) {
                                   console.warn("Failed to remove download link:", removeError);
                                 }
-                                URL.revokeObjectURL(url);
+                                // 清理 Blob URL
+                                if (exportBlobUrlRef.current) {
+                                  URL.revokeObjectURL(exportBlobUrlRef.current);
+                                  exportBlobUrlRef.current = null;
+                                }
                                 exportTimeoutRef.current = null;
-                              }, 100);
+                              }, TIMEOUTS.EXPORT_CLEANUP);
                             } catch (domError) {
                               console.error("Failed to trigger download:", domError);
-                              URL.revokeObjectURL(url);
+                              // ✅ 修复 #2: 确保在错误情况下也清理 URL
+                              if (exportBlobUrlRef.current) {
+                                URL.revokeObjectURL(exportBlobUrlRef.current);
+                                exportBlobUrlRef.current = null;
+                              }
                               showError("导出失败：无法创建下载链接");
                               setIsExporting(false);
                               return;
@@ -1699,6 +2078,11 @@ export default function ScanPage() {
                             setIsExporting(false);
                           } catch (error) {
                             console.error("导出失败:", error);
+                            // ✅ 修复 #2: 确保在错误情况下也清理 URL
+                            if (exportBlobUrlRef.current) {
+                              URL.revokeObjectURL(exportBlobUrlRef.current);
+                              exportBlobUrlRef.current = null;
+                            }
                             showError("导出失败，请重试");
                             setIsExporting(false);
                           }
@@ -1870,9 +2254,19 @@ export default function ScanPage() {
                         分析脚本
                       </Button>
                     </InlineStack>
+                    {analysisProgress && (
+                      <Box paddingBlockStart="200">
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          分析进度: {analysisProgress.current} / {analysisProgress.total}
+                        </Text>
+                        <ProgressBar progress={(analysisProgress.current / analysisProgress.total) * 100} />
+                      </Box>
+                    )}
                     {analysisError && (
                       <Banner tone="critical">
-                        <Text as="p" variant="bodySm">{analysisError}</Text>
+                        <div role="alert" aria-live="assertive">
+                          <Text as="p" variant="bodySm">{analysisError}</Text>
+                        </div>
                       </Banner>
                     )}
                   </BlockStack>

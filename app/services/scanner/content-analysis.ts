@@ -4,11 +4,13 @@ import type { RiskItem, RiskSeverity } from "../../types";
 import type { ScriptAnalysisResult } from "./types";
 import { PLATFORM_PATTERNS, getPatternType } from "./patterns";
 import { calculateRiskScore } from "./risk-assessment";
+import { SCRIPT_ANALYSIS_CONFIG } from "../../utils/config";
+import { sanitizeSensitiveInfo } from "../../utils/security";
 
 /**
  * 脚本内容分析配置常量
  */
-const MAX_CONTENT_LENGTH = 500000; // 500KB - 最大分析内容长度，超过此长度将截断以避免性能问题
+const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
 
 export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     const result: ScriptAnalysisResult = {
@@ -47,9 +49,16 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 if (!platformMatches.has(platform)) {
                     platformMatches.set(platform, []);
                 }
+                // ✅ 修复：立即清理敏感信息，避免在前端显示
+                let matchedPattern = match[0];
+                matchedPattern = sanitizeSensitiveInfo(matchedPattern);
+                // 限制长度
+                if (matchedPattern.length > 50) {
+                    matchedPattern = matchedPattern.substring(0, 50) + "...";
+                }
                 platformMatches.get(platform)!.push({
                     type: getPatternType(platform, pattern),
-                    pattern: match[0],
+                    pattern: matchedPattern,
                 });
             }
         }
@@ -58,11 +67,12 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     for (const [platform, matches] of platformMatches.entries()) {
         result.identifiedPlatforms.push(platform);
         for (const match of matches) {
+            // matchedPattern 已经在上面清理过了，直接使用
             result.platformDetails.push({
                 platform,
                 type: match.type,
                 confidence: matches.length > 1 ? "high" : "medium",
-                matchedPattern: match.pattern.substring(0, 50) + (match.pattern.length > 50 ? "..." : ""),
+                matchedPattern: match.pattern, // 已经是清理和截断后的值
             });
         }
     }
@@ -70,12 +80,17 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     const ga4Match = contentToAnalyze.match(/G-[A-Z0-9]{10,}/gi);
     if (ga4Match) {
         for (const id of ga4Match) {
+            // ✅ 修复：清理敏感信息
+            let cleanedId = sanitizeSensitiveInfo(id);
+            if (cleanedId.length > 50) {
+                cleanedId = cleanedId.substring(0, 50) + "...";
+            }
             if (!result.platformDetails.some(d => d.matchedPattern.includes(id))) {
                 result.platformDetails.push({
                     platform: "google",
                     type: "GA4 Measurement ID",
                     confidence: "high",
-                    matchedPattern: id,
+                    matchedPattern: cleanedId,
                 });
             }
         }
@@ -86,11 +101,16 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         for (const match of metaPixelMatch) {
             const pixelId = match.match(/\d{15,16}/)?.[0];
             if (pixelId && !result.platformDetails.some(d => d.matchedPattern.includes(pixelId))) {
+                // ✅ 修复：清理敏感信息（Pixel ID 通常不是敏感信息，但为了一致性也清理）
+                let cleanedPixelId = sanitizeSensitiveInfo(pixelId);
+                if (cleanedPixelId.length > 50) {
+                    cleanedPixelId = cleanedPixelId.substring(0, 50) + "...";
+                }
                 result.platformDetails.push({
                     platform: "meta",
                     type: "Pixel ID",
                     confidence: "high",
-                    matchedPattern: pixelId,
+                    matchedPattern: cleanedPixelId,
                 });
             }
         }

@@ -19,6 +19,7 @@ import { analyzeScriptContent } from "../../services/scanner/content-analysis";
 import type { ScriptAnalysisResult } from "../../services/scanner.server";
 import { getSeverityBadge, getPlatformName } from "./utils";
 import { AnalysisResultSummary } from "./AnalysisResultSummary";
+import { SCRIPT_ANALYSIS_CONFIG } from "../../utils/config";
 
 interface DeprecationInfo {
   badge: { text: string };
@@ -36,9 +37,9 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
   const [analysisResult, setAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const handleAnalyzeScript = useCallback(() => {
+  const handleAnalyzeScript = useCallback(async () => {
     // 输入验证
-    const MAX_CONTENT_LENGTH = 500000; // 500KB 限制
+    const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
     const trimmedContent = scriptContent.trim();
     
     if (!trimmedContent) {
@@ -55,11 +56,22 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
     setAnalysisError(null);
     
     try {
-      const result = analyzeScriptContent(trimmedContent);
+      // 使用 Promise 和 setTimeout 将分析任务移到下一个事件循环，避免阻塞UI
+      const result = await new Promise<ScriptAnalysisResult>((resolve, reject) => {
+        setTimeout(() => {
+          try {
+            resolve(analyzeScriptContent(trimmedContent));
+          } catch (error) {
+            reject(error);
+          }
+        }, 0);
+      });
       setAnalysisResult(result);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
       setAnalysisError(errorMessage);
+      // 清除旧的分析结果
+      setAnalysisResult(null);
       // 客户端组件使用 console.error 是合理的，但确保错误信息详细
       const errorDetails = error instanceof Error ? error.stack : String(error);
       console.error("Script analysis error:", {

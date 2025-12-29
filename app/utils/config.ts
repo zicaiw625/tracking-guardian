@@ -236,6 +236,12 @@ export const SCANNER_CONFIG = {
     MAX_CONTENT_LENGTH: 100 * 1024,
 } as const;
 
+export const SCRIPT_ANALYSIS_CONFIG = {
+
+    MAX_CONTENT_LENGTH: 500000, // 500KB - 最大分析内容长度
+    CHUNK_SIZE: 50000, // 50KB - 分批处理时的块大小
+} as const;
+
 export const MONITORING_CONFIG = {
 
     AGGREGATION_INTERVAL_MS: 60 * 1000,
