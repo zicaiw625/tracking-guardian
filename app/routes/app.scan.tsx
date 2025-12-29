@@ -434,11 +434,14 @@ export default function ScanPage() {
     const [pendingDelete, setPendingDelete] = useState<{ type: "webPixel"; id: string; gid: string; title: string } | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [monthlyOrders, setMonthlyOrders] = useState(500);
+    const [isCopying, setIsCopying] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const isScanning = navigation.state === "submitting";
     const analysisSavedRef = useRef(false);
     const isReloadingRef = useRef(false);
     const isMountedRef = useRef(true);
     const reloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const additionalScriptsWarning = (
       <Banner tone="warning" title="Additional Scripts 需手动粘贴">
@@ -469,20 +472,12 @@ export default function ScanPage() {
     const identifiedPlatformsCount = identifiedPlatforms.length;
     const scriptTagsCount = scriptTags.length;
 
-    const roiEstimate = useMemo(() => {
-        // 边界值检查：确保所有值都是非负数
-        const platforms = Math.max(0, identifiedPlatformsCount);
-        const scriptTagCount = Math.max(0, scriptTagsCount);
-        const orders = Math.max(0, monthlyOrders);
-
-        const eventsLostPerMonth = orders * platforms;
-
-        return {
-            eventsLostPerMonth,
-            platforms,
-            scriptTagCount,
-        };
-    }, [monthlyOrders, identifiedPlatformsCount, scriptTagsCount]);
+    // 计算简单，直接计算即可，useMemo 开销可能大于收益
+    const roiEstimate = {
+        eventsLostPerMonth: Math.max(0, monthlyOrders) * Math.max(0, identifiedPlatformsCount),
+        platforms: Math.max(0, identifiedPlatformsCount),
+        scriptTagCount: Math.max(0, scriptTagsCount),
+    };
     const isDeleting = deleteFetcher.state === "submitting";
     const isUpgrading = upgradeFetcher.state === "submitting";
 
@@ -600,7 +595,7 @@ export default function ScanPage() {
                 setIsAnalyzing(false);
             }
         }
-    }, [scriptContent]); // 移除 isAnalyzing 依赖，它只用于防护，不需要触发重新创建
+    }, [scriptContent, isAnalyzing]); // 明确包含所有使用的状态
 
     // 处理保存结果
     const isSavingAnalysis = saveAnalysisFetcher.state === "submitting";
@@ -646,12 +641,14 @@ export default function ScanPage() {
         
         isReloadingRef.current = true;
         submit(new FormData(), { method: "get" });
+        
         // 使用闭包捕获当前定时器 ID，确保清理逻辑正确
         const timeoutId = setTimeout(() => {
-            // 双重检查：定时器 ID 和挂载状态
-            if (reloadTimeoutRef.current === timeoutId && isMountedRef.current) {
+            // 只检查挂载状态，简化逻辑
+            if (isMountedRef.current) {
                 isReloadingRef.current = false;
             }
+            // 只有在定时器 ID 匹配时才清理
             if (reloadTimeoutRef.current === timeoutId) {
                 reloadTimeoutRef.current = null;
             }
@@ -716,6 +713,11 @@ export default function ScanPage() {
                 clearTimeout(reloadTimeoutRef.current);
                 reloadTimeoutRef.current = null;
             }
+            // 清理导出定时器，防止内存泄漏
+            if (exportTimeoutRef.current) {
+                clearTimeout(exportTimeoutRef.current);
+                exportTimeoutRef.current = null;
+            }
             // 重置重新加载标志
             isReloadingRef.current = false;
         };
@@ -766,6 +768,47 @@ export default function ScanPage() {
         };
         return names[platform] || platform;
     };
+
+    // 迁移清单相关常量
+    const MAX_VISIBLE_ACTIONS = 5;
+
+    // 生成迁移清单文本的共享函数
+    const generateChecklistText = useCallback((format: "markdown" | "plain"): string => {
+        const items = migrationActions && migrationActions.length > 0
+            ? migrationActions.map((a, i) => {
+                const priorityText = format === "markdown"
+                    ? (a.priority === "high" ? "高" : a.priority === "medium" ? "中" : "低")
+                    : (a.priority === "high" ? "高优先级" : a.priority === "medium" ? "中优先级" : "低优先级");
+                const platformText = a.platform ? ` (${getPlatformName(a.platform)})` : "";
+                return `${i + 1}. [${priorityText}] ${a.title}${platformText}`;
+            })
+            : ["无"];
+
+        if (format === "markdown") {
+            return [
+                "# 迁移清单",
+                `店铺: ${shop?.domain || "未知"}`,
+                `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+                "",
+                "## 待处理项目",
+                ...items,
+                "",
+                "## 快速链接",
+                "- Pixels 管理: https://admin.shopify.com/store/settings/customer_events",
+                "- Checkout Editor: https://admin.shopify.com/store/settings/checkout/editor",
+                "- 应用迁移工具: /app/migrate",
+            ].join("\n");
+        } else {
+            return [
+                "迁移清单",
+                `店铺: ${shop?.domain || "未知"}`,
+                `生成时间: ${new Date().toLocaleString("zh-CN")}`,
+                "",
+                "待处理项目:",
+                ...items,
+            ].join("\n");
+        }
+    }, [migrationActions, shop?.domain, getPlatformName]);
     
     // 使用共享验证函数进行类型安全的验证，与 loader 中的验证逻辑保持一致
     const riskItems = useMemo(() => {
@@ -782,7 +825,11 @@ export default function ScanPage() {
         }
     };
   // 检查是否有部分刷新的警告
-  const partialRefreshWarning = actionData && (actionData as { partialRefresh?: boolean }).partialRefresh ? (
+  const partialRefreshWarning = actionData && 
+    typeof actionData === "object" && 
+    actionData !== null &&
+    "partialRefresh" in actionData &&
+    (actionData as { partialRefresh?: boolean }).partialRefresh ? (
     <Banner tone="warning" title="部分数据刷新失败">
       <BlockStack gap="200">
         <Text as="p" variant="bodySm">
@@ -852,16 +899,20 @@ export default function ScanPage() {
                               if (error instanceof Error && error.name !== 'AbortError') {
                                 console.error("分享失败:", error);
                                 // 降级到剪贴板
-                                try {
-                                  await navigator.clipboard.writeText(shareData.text);
-                                  showSuccess("报告摘要已复制到剪贴板");
-                                } catch (clipboardError) {
-                                  console.error("复制失败:", clipboardError);
-                                  showError("无法分享或复制，请手动复制");
+                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                  try {
+                                    await navigator.clipboard.writeText(shareData.text);
+                                    showSuccess("报告摘要已复制到剪贴板");
+                                  } catch (clipboardError) {
+                                    console.error("复制失败:", clipboardError);
+                                    showError("无法分享或复制，请手动复制");
+                                  }
+                                } else {
+                                  showError("浏览器不支持分享或复制功能");
                                 }
                               }
                             }
-                          } else {
+                          } else if (navigator.clipboard && navigator.clipboard.writeText) {
                             try {
                               await navigator.clipboard.writeText(shareData.text);
                               showSuccess("报告摘要已复制到剪贴板");
@@ -869,6 +920,8 @@ export default function ScanPage() {
                               console.error("复制失败:", error);
                               showError("复制失败，请手动复制");
                             }
+                          } else {
+                            showError("浏览器不支持分享或复制功能");
                           }
                         }}
                       >
@@ -1324,7 +1377,7 @@ export default function ScanPage() {
 
               <BlockStack gap="300">
                 {migrationActions.map((action, index) => (
-                  <Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
+                  <Box key={`${action.type}-${action.platform || 'unknown'}-${action.scriptTagId || action.webPixelGid || index}`} background="bg-surface-secondary" padding="400" borderRadius="200">
                     <BlockStack gap="300">
                       <InlineStack align="space-between" blockAlign="start">
                         <BlockStack gap="100">
@@ -1499,8 +1552,8 @@ export default function ScanPage() {
                     <Text as="p" fontWeight="semibold">待迁移项目：</Text>
                     <List type="number">
                       {migrationActions && migrationActions.length > 0 ? (
-                        migrationActions.slice(0, 5).map((action, i) => (
-                          <List.Item key={i}>
+                        migrationActions.slice(0, MAX_VISIBLE_ACTIONS).map((action) => (
+                          <List.Item key={`${action.type}-${action.platform || 'unknown'}-${action.scriptTagId || action.webPixelGid || 'no-id'}`}>
                             {action.title}
                             {action.platform && ` (${getPlatformName(action.platform)})`}
                             {action.priority === "high" && " ⚠️"}
@@ -1509,36 +1562,31 @@ export default function ScanPage() {
                       ) : (
                         <List.Item>暂无待处理项目 ✅</List.Item>
                       )}
-                      {migrationActions && migrationActions.length > 5 && (
-                        <List.Item>...还有 {migrationActions.length - 5} 项</List.Item>
+                      {migrationActions && migrationActions.length > MAX_VISIBLE_ACTIONS && (
+                        <List.Item>...还有 {migrationActions.length - MAX_VISIBLE_ACTIONS} 项</List.Item>
                       )}
                     </List>
 
                     <InlineStack gap="200" align="end">
                       <Button
                         icon={ClipboardIcon}
+                        loading={isCopying}
                         onClick={async () => {
-                          const checklist = [
-                            "# 迁移清单",
-                            `店铺: ${shop?.domain || "未知"}`,
-                            `生成时间: ${new Date().toLocaleString("zh-CN")}`,
-                            "",
-                            "## 待处理项目",
-                            ...(migrationActions?.map((a, i) =>
-                              `${i + 1}. [${a.priority === "high" ? "高" : a.priority === "medium" ? "中" : "低"}] ${a.title}${a.platform ? ` (${a.platform})` : ""}`
-                            ) || ["无"]),
-                            "",
-                            "## 快速链接",
-                            "- Pixels 管理: https://admin.shopify.com/store/settings/customer_events",
-                            "- Checkout Editor: https://admin.shopify.com/store/settings/checkout/editor",
-                            "- 应用迁移工具: /app/migrate",
-                          ].join("\n");
+                          if (isCopying) return;
+                          setIsCopying(true);
                           try {
-                            await navigator.clipboard.writeText(checklist);
-                            showSuccess("清单已复制到剪贴板");
+                            const checklist = generateChecklistText("markdown");
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                              await navigator.clipboard.writeText(checklist);
+                              showSuccess("清单已复制到剪贴板");
+                            } else {
+                              showError("浏览器不支持复制功能");
+                            }
                           } catch (error) {
                             console.error("复制失败:", error);
                             showError("复制失败，请手动复制");
+                          } finally {
+                            setIsCopying(false);
                           }
                         }}
                       >
@@ -1546,34 +1594,48 @@ export default function ScanPage() {
                       </Button>
                       <Button
                         icon={ExportIcon}
+                        loading={isExporting}
                         onClick={() => {
+                          if (isExporting) return;
+                          setIsExporting(true);
                           try {
-                            const checklist = [
-                              "迁移清单",
-                              `店铺: ${shop?.domain || "未知"}`,
-                              `生成时间: ${new Date().toLocaleString("zh-CN")}`,
-                              "",
-                              "待处理项目:",
-                              ...(migrationActions?.map((a, i) =>
-                                `${i + 1}. [${a.priority === "high" ? "高优先级" : a.priority === "medium" ? "中优先级" : "低优先级"}] ${a.title}${a.platform ? ` (${a.platform})` : ""}`
-                              ) || ["无"]),
-                            ].join("\n");
+                            const checklist = generateChecklistText("plain");
                             const blob = new Blob([checklist], { type: "text/plain" });
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement("a");
                             a.href = url;
                             a.download = `migration-checklist-${new Date().toISOString().split("T")[0]}.txt`;
-                            document.body.appendChild(a); // 某些浏览器需要先添加到 DOM
-                            a.click();
-                            document.body.removeChild(a);
-                            // 延迟 revoke，确保下载开始
-                            setTimeout(() => {
+                            
+                            // 安全地添加和移除 DOM 元素
+                            try {
+                              document.body.appendChild(a);
+                              a.click();
+                              // 延迟移除，确保下载开始，使用 ref 保存以便清理
+                              exportTimeoutRef.current = setTimeout(() => {
+                                try {
+                                  if (a.parentNode) {
+                                    document.body.removeChild(a);
+                                  }
+                                } catch (removeError) {
+                                  console.warn("Failed to remove download link:", removeError);
+                                }
+                                URL.revokeObjectURL(url);
+                                exportTimeoutRef.current = null;
+                              }, 100);
+                            } catch (domError) {
+                              console.error("Failed to trigger download:", domError);
                               URL.revokeObjectURL(url);
-                            }, 100);
+                              showError("导出失败：无法创建下载链接");
+                              setIsExporting(false);
+                              return;
+                            }
+                            
                             showSuccess("清单导出成功");
+                            setIsExporting(false);
                           } catch (error) {
                             console.error("导出失败:", error);
                             showError("导出失败，请重试");
+                            setIsExporting(false);
                           }
                         }}
                       >
