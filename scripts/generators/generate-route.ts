@@ -27,12 +27,8 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface LoaderData {
-  // Define your loader data type here
+
 }
 
 interface ActionData {
@@ -40,25 +36,16 @@ interface ActionData {
   error?: string;
 }
 
-// =============================================================================
-// Loader
-// =============================================================================
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
 
   logger.debug("[{{NAME}}] Loading data", { shopDomain });
 
-  // TODO: Implement loader logic
   const data: LoaderData = {};
 
   return json(data);
 };
-
-// =============================================================================
-// Action
-// =============================================================================
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -68,7 +55,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     const formData = await request.formData();
-    // TODO: Implement action logic
 
     return json<ActionData>({ success: true });
   } catch (error) {
@@ -79,10 +65,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   }
 };
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export default function {{COMPONENT_NAME}}() {
   const data = useLoaderData<typeof loader>();
@@ -102,7 +84,7 @@ export default function {{COMPONENT_NAME}}() {
                   {actionData.error}
                 </Text>
               )}
-              {/* TODO: Implement UI */}
+              {}
             </BlockStack>
           </Card>
         </Layout.Section>
@@ -119,20 +101,12 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { API_SECURITY_HEADERS } from "../utils/security";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
   code?: string;
 }
-
-// =============================================================================
-// Loader (GET)
-// =============================================================================
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -141,7 +115,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     logger.debug("[{{NAME}}] GET request", { shopDomain });
 
-    // TODO: Implement GET logic
     const data = {};
 
     return json<ApiResponse<typeof data>>(
@@ -161,10 +134,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-// =============================================================================
-// Action (POST/PUT/DELETE)
-// =============================================================================
-
 export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const { session } = await authenticate.admin(request);
@@ -174,11 +143,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.debug("[{{NAME}}] \${method} request", { shopDomain });
 
     const body = await request.json();
-    // TODO: Validate body with Zod schema
 
     switch (method) {
       case "POST":
-        // TODO: Implement POST logic
+
         return json<ApiResponse<unknown>>(
           { success: true, data: {} },
           { status: 201, headers: API_SECURITY_HEADERS }
@@ -186,14 +154,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       case "PUT":
       case "PATCH":
-        // TODO: Implement PUT/PATCH logic
+
         return json<ApiResponse<unknown>>(
           { success: true, data: {} },
           { headers: API_SECURITY_HEADERS }
         );
 
       case "DELETE":
-        // TODO: Implement DELETE logic
+
         return json<ApiResponse<unknown>>(
           { success: true },
           { headers: API_SECURITY_HEADERS }
@@ -239,14 +207,10 @@ import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { useFormDirty } from "../../hooks";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface LoaderData {
-  // Define settings data type
+
   settings: {
-    // fields
+
   };
 }
 
@@ -256,25 +220,16 @@ interface ActionData {
   fieldErrors?: Record<string, string>;
 }
 
-// =============================================================================
-// Loader
-// =============================================================================
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
 
   logger.debug("[{{NAME}}] Loading settings", { shopDomain });
 
-  // TODO: Load settings from database
   const settings = {};
 
   return json<LoaderData>({ settings });
 };
-
-// =============================================================================
-// Action
-// =============================================================================
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -284,10 +239,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     const formData = await request.formData();
-
-    // TODO: Validate and save settings
-    // const schema = z.object({ ... });
-    // const result = schema.safeParse(Object.fromEntries(formData));
 
     return json<ActionData>({ success: true });
   } catch (error) {
@@ -299,17 +250,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 };
 
-// =============================================================================
-// Component
-// =============================================================================
-
 export default function {{COMPONENT_NAME}}Settings() {
   const { settings } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
-  // Track form dirty state
   const { isDirty, setInitialValues, handleChange } = useFormDirty();
 
   return (
@@ -339,7 +285,7 @@ export default function {{COMPONENT_NAME}}Settings() {
                 </Text>
 
                 <FormLayout>
-                  {/* TODO: Add form fields */}
+                  {}
                 </FormLayout>
 
                 <Button
@@ -477,14 +423,14 @@ describe("${config.name}", () => {
 
   describe("loader", () => {
     it("should return data for authenticated users", async () => {
-      // TODO: Implement test
+
       expect(true).toBe(true);
     });
   });
 
   describe("action", () => {
     it("should handle POST requests", async () => {
-      // TODO: Implement test
+
       expect(true).toBe(true);
     });
   });

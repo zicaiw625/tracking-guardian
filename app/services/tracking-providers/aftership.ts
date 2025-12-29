@@ -1,9 +1,4 @@
-/**
- * AfterShip 物流追踪服务集成
- *
- * AfterShip 是最流行的物流追踪聚合服务之一，支持 900+ 运输商
- * API 文档: https://www.aftership.com/docs/tracking/
- */
+
 
 import { logger } from "../../utils/logger.server";
 import type {
@@ -18,16 +13,12 @@ import type {
   TrackingWebhookEvent,
 } from "./types";
 
-// ============================================================
-// AfterShip API 类型
-// ============================================================
-
 interface AfterShipTracking {
   id: string;
   tracking_number: string;
-  slug: string; // carrier code
+  slug: string;
   title: string;
-  tag: string; // status tag
+  tag: string;
   subtag: string;
   subtag_message: string;
   expected_delivery: string | null;
@@ -60,10 +51,6 @@ interface AfterShipApiResponse<T> {
   data: T;
 }
 
-// ============================================================
-// 状态映射
-// ============================================================
-
 const AFTERSHIP_STATUS_MAP: Record<string, TrackingStatus> = {
   Pending: TrackingStatus.PENDING,
   InfoReceived: TrackingStatus.INFO_RECEIVED,
@@ -80,17 +67,13 @@ function mapAfterShipStatus(tag: string): TrackingStatus {
   return AFTERSHIP_STATUS_MAP[tag] || TrackingStatus.UNKNOWN;
 }
 
-// ============================================================
-// AfterShip Provider 实现
-// ============================================================
-
 export class AfterShipProvider implements ITrackingProvider {
   readonly name = "AfterShip";
   readonly code = "aftership";
 
   private apiKey: string = "";
   private webhookSecret: string = "";
-  private baseUrl = "https://api.aftership.com/v4";
+  private baseUrl = "https:
 
   async initialize(credentials: TrackingProviderCredentials): Promise<void> {
     this.apiKey = credentials.apiKey;
@@ -151,8 +134,6 @@ export class AfterShipProvider implements ITrackingProvider {
     let successCount = 0;
     let failureCount = 0;
 
-    // AfterShip 没有官方的批量查询 API，需要逐个查询
-    // 使用 Promise.allSettled 并行处理
     const promises = request.trackings.map((t) =>
       this.getTracking(t.trackingNumber, t.carrierCode)
     );
@@ -245,11 +226,11 @@ export class AfterShipProvider implements ITrackingProvider {
   verifyWebhookSignature(payload: string, signature: string): boolean {
     if (!this.webhookSecret) {
       logger.warn("AfterShip webhook secret not configured");
-      return true; // 如果没有配置密钥，暂时允许通过
+      return true;
     }
 
     try {
-      // AfterShip 使用 HMAC-SHA256
+
       const crypto = require("crypto");
       const expectedSignature = crypto
         .createHmac("sha256", this.webhookSecret)
@@ -280,10 +261,6 @@ export class AfterShipProvider implements ITrackingProvider {
       return null;
     }
   }
-
-  // ============================================================
-  // 辅助方法
-  // ============================================================
 
   private transformTracking(tracking: AfterShipTracking): TrackingResult {
     return {
@@ -316,10 +293,6 @@ export class AfterShipProvider implements ITrackingProvider {
     };
   }
 }
-
-// ============================================================
-// 导出单例
-// ============================================================
 
 export const afterShipProvider = new AfterShipProvider();
 

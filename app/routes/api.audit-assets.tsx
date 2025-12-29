@@ -1,11 +1,4 @@
-/**
- * AuditAsset API
- * 对应设计方案 4.2 Audit - 资产管理
- * 
- * POST /api/audit-assets - 创建/更新审计资产（手动粘贴或商家确认）
- * GET /api/audit-assets - 获取审计资产列表
- * DELETE /api/audit-assets?id=xxx - 删除审计资产
- */
+
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -26,7 +19,6 @@ import {
 import { analyzeScriptContent } from "../services/scanner/content-analysis";
 import { logger } from "../utils/logger.server";
 
-// GET: 获取审计资产
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -65,7 +57,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-// POST/DELETE: 创建/更新/删除审计资产
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shopDomain = session.shop;
@@ -93,32 +84,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ success });
   }
 
-  // POST: 创建或更新
   const formData = await request.formData();
   const actionType = formData.get("_action") as string;
 
   try {
     switch (actionType) {
       case "create_from_paste": {
-        // Bug #3 修复: 手动粘贴脚本内容并分析，添加输入验证和长度限制
+
         const scriptContent = formData.get("scriptContent") as string;
-        
+
         if (!scriptContent) {
           return json({ error: "Missing script content" }, { status: 400 });
         }
 
-        // 添加长度限制（1MB）
         const MAX_SCRIPT_LENGTH = 1024 * 1024;
         if (scriptContent.length > MAX_SCRIPT_LENGTH) {
-          return json({ 
-            error: `Script content too large. Maximum size is ${MAX_SCRIPT_LENGTH / 1024}KB` 
+          return json({
+            error: `Script content too large. Maximum size is ${MAX_SCRIPT_LENGTH / 1024}KB`
           }, { status: 400 });
         }
 
-        // 分析脚本内容（内部已有长度限制和敏感信息清理）
         const analysisResult = analyzeScriptContent(scriptContent);
-        
-        // 为每个检测到的平台创建 AuditAsset
+
         const createdAssets = [];
         for (const platform of analysisResult.identifiedPlatforms) {
           const asset = await createAuditAsset(shop.id, {
@@ -126,7 +113,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             category: "pixel",
             platform,
             displayName: `手动粘贴: ${platform}`,
-            riskLevel: "high", // 手动粘贴的通常是需要迁移的
+            riskLevel: "high",
             suggestedMigration: "web_pixel",
             details: {
               source: "manual_paste",
@@ -139,7 +126,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           if (asset) createdAssets.push(asset);
         }
 
-        // 如果没有检测到平台，创建一个通用记录
         if (analysisResult.identifiedPlatforms.length === 0 && analysisResult.riskScore > 0) {
           const asset = await createAuditAsset(shop.id, {
             sourceType: "manual_paste",
@@ -169,7 +155,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       case "confirm_merchant": {
-        // 商家确认的资产
+
         const platform = formData.get("platform") as string;
         const category = formData.get("category") as AssetCategory || "pixel";
         const displayName = formData.get("displayName") as string;
@@ -194,7 +180,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       case "update_status": {
-        // 更新迁移状态
+
         const assetId = formData.get("assetId") as string;
         const status = formData.get("status") as MigrationStatus;
 

@@ -38,25 +38,25 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const handleAnalyzeScript = useCallback(async () => {
-    // 输入验证
+
     const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
     const trimmedContent = scriptContent.trim();
-    
+
     if (!trimmedContent) {
       setAnalysisError("请输入脚本内容");
       return;
     }
-    
+
     if (trimmedContent.length > MAX_CONTENT_LENGTH) {
       setAnalysisError(`脚本内容过长（最多 ${MAX_CONTENT_LENGTH} 个字符）。请分段分析或联系支持。`);
       return;
     }
-    
+
     setIsAnalyzing(true);
     setAnalysisError(null);
-    
+
     try {
-      // 使用 Promise 和 setTimeout 将分析任务移到下一个事件循环，避免阻塞UI
+
       const result = await new Promise<ScriptAnalysisResult>((resolve, reject) => {
         setTimeout(() => {
           try {
@@ -70,9 +70,9 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
       setAnalysisError(errorMessage);
-      // 清除旧的分析结果
+
       setAnalysisResult(null);
-      // 客户端组件使用 console.error 是合理的，但确保错误信息详细
+
       const errorDetails = error instanceof Error ? error.stack : String(error);
       console.error("Script analysis error:", {
         message: errorMessage,

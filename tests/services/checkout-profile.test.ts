@@ -130,7 +130,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid://shopify/CheckoutProfile/1",
+                id: "gid:
                 name: "Default",
                 isPublished: true,
                 typOspPagesActive: true,
@@ -160,7 +160,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid://shopify/CheckoutProfile/1",
+                id: "gid:
                 name: "Default",
                 isPublished: true,
                 typOspPagesActive: false,
@@ -187,13 +187,13 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid://shopify/CheckoutProfile/1",
+                id: "gid:
                 name: "Default",
                 isPublished: true,
                 typOspPagesActive: false,
               },
               {
-                id: "gid://shopify/CheckoutProfile/2",
+                id: "gid:
                 name: "Custom",
                 isPublished: true,
                 typOspPagesActive: true,
@@ -219,13 +219,13 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid://shopify/CheckoutProfile/1",
+                id: "gid:
                 name: "Draft",
                 isPublished: false,
                 typOspPagesActive: true,
               },
               {
-                id: "gid://shopify/CheckoutProfile/2",
+                id: "gid:
                 name: "Published",
                 isPublished: true,
                 typOspPagesActive: false,
@@ -320,7 +320,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid://shopify/CheckoutProfile/1",
+                id: "gid:
                 name: "Default",
                 isPublished: true,
 

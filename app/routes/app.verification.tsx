@@ -1,12 +1,9 @@
-/**
- * 验收向导页面 - Verification Wizard
- * 对应设计方案 4.5 Verification：事件对账与验收
- */
+
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import {
   Page,
   Layout,
@@ -37,6 +34,9 @@ import {
   FileIcon,
 } from "~/components/icons";
 import { CardSkeleton, useToastContext, EnhancedEmptyState } from "~/components/ui";
+import { lazy, Suspense } from "react";
+
+const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -77,7 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const configuredPlatforms = shop.pixelConfigs.map((c) => c.platform);
   const history = await getVerificationHistory(shop.id, 5);
-  // 使用可选链安全访问数组第一个元素
+
   const latestRun = history?.[0] ?? null;
 
   return json({
@@ -114,7 +114,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (actionType === "run_verification") {
     const runId = formData.get("runId") as string;
     if (!runId) {
-      // 创建新运行并立即执行
+
       const newRunId = await createVerificationRun(shop.id, { runType: "quick" });
       await startVerificationRun(newRunId);
       const result = await analyzeRecentEvents(shop.id, newRunId);
@@ -207,7 +207,6 @@ export default function VerificationPage() {
   const revalidator = useRevalidator();
   const { showSuccess, showError } = useToastContext();
 
-  // 处理 action 响应并显示 Toast
   useEffect(() => {
     if (actionData) {
       const data = actionData as { success?: boolean; error?: string; actionType?: string };
@@ -240,26 +239,23 @@ export default function VerificationPage() {
     navigator.clipboard.writeText(fullText);
   }, [testGuide]);
 
-  // 导出 PDF
   const handleExportPdf = useCallback(() => {
     if (!latestRun) return;
     window.open(`/api/reports/pdf?type=verification&runId=${latestRun.runId}`, "_blank");
   }, [latestRun]);
 
-  // 导出 CSV
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
-    
-    // 生成 CSV 内容
+
     const lines: string[] = [];
-    
-    // 头部信息
+
     lines.push('验收报告');
     lines.push(`验收时间,${latestRun.completedAt ? new Date(latestRun.completedAt).toLocaleString("zh-CN") : '-'}`);
     lines.push(`验收类型,${latestRun.runType === 'full' ? '完整验收' : '快速验收'}`);
+    lines.push(`验收名称,${latestRun.runName || '-'}`);
+    lines.push(`测试平台,${latestRun.platforms.join('; ')}`);
     lines.push('');
-    
-    // 评分摘要
+
     lines.push('评分摘要');
     lines.push('指标,数值');
     const passRate = latestRun.totalTests > 0 ? Math.round((latestRun.passedTests / latestRun.totalTests) * 100) : 0;
@@ -267,40 +263,59 @@ export default function VerificationPage() {
     lines.push(`参数完整率,${latestRun.parameterCompleteness}%`);
     lines.push(`金额准确率,${latestRun.valueAccuracy}%`);
     lines.push('');
-    
-    // 测试统计
+
     lines.push('测试统计');
+    lines.push('类型,数量');
     lines.push(`通过,${latestRun.passedTests}`);
     lines.push(`失败,${latestRun.failedTests}`);
     lines.push(`参数缺失,${latestRun.missingParamTests}`);
+    lines.push(`总计,${latestRun.totalTests}`);
     lines.push('');
-    
-    // 平台
-    lines.push('测试平台');
-    lines.push(latestRun.platforms.join(','));
-    lines.push('');
-    
-    // 事件详情
+
+    if (latestRun.reconciliation) {
+      lines.push('渠道对账');
+      lines.push('指标,数值');
+      lines.push(`Pixel 和 CAPI 都有,${latestRun.reconciliation.pixelVsCapi.both}`);
+      lines.push(`仅 Pixel,${latestRun.reconciliation.pixelVsCapi.pixelOnly}`);
+      lines.push(`仅 CAPI,${latestRun.reconciliation.pixelVsCapi.capiOnly}`);
+      lines.push(`因同意阻止,${latestRun.reconciliation.pixelVsCapi.consentBlocked}`);
+      lines.push('');
+
+      if (latestRun.reconciliation.consistencyIssues && latestRun.reconciliation.consistencyIssues.length > 0) {
+        lines.push('一致性问题');
+        lines.push('订单ID,问题类型,问题描述');
+        latestRun.reconciliation.consistencyIssues.forEach((issue: {
+          orderId: string;
+          issue: string;
+          type: string;
+        }) => {
+          lines.push(`${issue.orderId},${issue.type},${issue.issue.replace(/,/g, '；')}`);
+        });
+        lines.push('');
+      }
+    }
+
     if (latestRun.results && latestRun.results.length > 0) {
       lines.push('事件详细记录');
-      lines.push('事件类型,平台,订单ID,金额,币种,状态,问题');
+      lines.push('事件类型,平台,订单ID,订单号,金额,币种,状态,问题');
       latestRun.results.forEach((r: {
         eventType: string;
         platform: string;
         orderId?: string;
+        orderNumber?: string;
         params?: { value?: number; currency?: string };
         status: string;
         discrepancies?: string[];
         errors?: string[];
       }) => {
         const escapedErrors = [...(r.discrepancies || []), ...(r.errors || [])].join('; ').replace(/,/g, '；');
-        lines.push(`${r.eventType},${r.platform},${r.orderId || '-'},${r.params?.value?.toFixed(2) || '-'},${r.params?.currency || '-'},${
+        lines.push(`${r.eventType},${r.platform},${r.orderId || '-'},${r.orderNumber || '-'},${r.params?.value?.toFixed(2) || '-'},${r.params?.currency || '-'},${
           r.status === 'success' ? '成功' :
           r.status === 'missing_params' ? '参数缺失' : '失败'
         },${escapedErrors || '-'}`);
       });
     }
-    
+
     const csvContent = lines.join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -314,6 +329,7 @@ export default function VerificationPage() {
   const tabs = [
     { id: "overview", content: "验收概览" },
     { id: "results", content: "详细结果" },
+    { id: "realtime", content: "实时监控" },
     { id: "history", content: "历史记录" },
   ];
 
@@ -370,7 +386,7 @@ export default function VerificationPage() {
       ]}
     >
       <BlockStack gap="500">
-        {/* 配置状态检查 */}
+        {}
         {configuredPlatforms.length === 0 && (
           <Banner
             title="未配置服务端追踪"
@@ -381,7 +397,7 @@ export default function VerificationPage() {
           </Banner>
         )}
 
-        {/* 测试指引卡片 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -467,7 +483,7 @@ export default function VerificationPage() {
         </Card>
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-          {/* 验收概览 */}
+          {}
           {selectedTab === 0 && (
             <Box paddingBlockStart="400">
               <BlockStack gap="500">
@@ -484,7 +500,7 @@ export default function VerificationPage() {
 
                 {!isRunning && latestRun && (
                   <>
-                    {/* 评分卡片 */}
+                    {}
                     <Layout>
                       <Layout.Section variant="oneThird">
                         <ScoreCard
@@ -524,7 +540,7 @@ export default function VerificationPage() {
                       </Layout.Section>
                     </Layout>
 
-                    {/* 验收状态 */}
+                    {}
                     <Card>
                       <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
@@ -567,7 +583,7 @@ export default function VerificationPage() {
                           </BlockStack>
                         </InlineStack>
 
-                        {/* 统计摘要 */}
+                        {}
                         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                           <InlineStack gap="400" align="space-between">
                             <BlockStack gap="100" align="center">
@@ -600,7 +616,7 @@ export default function VerificationPage() {
                           </InlineStack>
                         </Box>
 
-                        {/* 建议 */}
+                        {}
                         {latestRun.failedTests > 0 && (
                           <Banner tone="critical" title="存在失败的测试项">
                             <BlockStack gap="100">
@@ -632,6 +648,88 @@ export default function VerificationPage() {
                             </Text>
                           </Banner>
                         )}
+
+                        {}
+                        {latestRun.reconciliation && (
+                          <Box paddingBlockStart="400">
+                            <Divider />
+                            <BlockStack gap="300" paddingBlockStart="400">
+                              <Text as="h3" variant="headingSm">
+                                📊 渠道对账
+                              </Text>
+                              <Layout>
+                                <Layout.Section variant="oneQuarter">
+                                  <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                                    <BlockStack gap="100" align="center">
+                                      <Text as="p" variant="headingLg" fontWeight="bold">
+                                        {latestRun.reconciliation.pixelVsCapi.both}
+                                      </Text>
+                                      <Text as="p" variant="bodySm" tone="subdued">
+                                        两者都有
+                                      </Text>
+                                    </BlockStack>
+                                  </Box>
+                                </Layout.Section>
+                                <Layout.Section variant="oneQuarter">
+                                  <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                                    <BlockStack gap="100" align="center">
+                                      <Text as="p" variant="headingLg" fontWeight="bold">
+                                        {latestRun.reconciliation.pixelVsCapi.pixelOnly}
+                                      </Text>
+                                      <Text as="p" variant="bodySm" tone="subdued">
+                                        仅 Pixel
+                                      </Text>
+                                    </BlockStack>
+                                  </Box>
+                                </Layout.Section>
+                                <Layout.Section variant="oneQuarter">
+                                  <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                                    <BlockStack gap="100" align="center">
+                                      <Text as="p" variant="headingLg" fontWeight="bold">
+                                        {latestRun.reconciliation.pixelVsCapi.capiOnly}
+                                      </Text>
+                                      <Text as="p" variant="bodySm" tone="subdued">
+                                        仅 CAPI
+                                      </Text>
+                                    </BlockStack>
+                                  </Box>
+                                </Layout.Section>
+                                <Layout.Section variant="oneQuarter">
+                                  <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                                    <BlockStack gap="100" align="center">
+                                      <Text as="p" variant="headingLg" fontWeight="bold">
+                                        {latestRun.reconciliation.pixelVsCapi.consentBlocked}
+                                      </Text>
+                                      <Text as="p" variant="bodySm" tone="subdued">
+                                        因同意阻止
+                                      </Text>
+                                    </BlockStack>
+                                  </Box>
+                                </Layout.Section>
+                              </Layout>
+                              {latestRun.reconciliation.consistencyIssues && latestRun.reconciliation.consistencyIssues.length > 0 && (
+                                <Banner tone="warning" title="发现一致性问题">
+                                  <List type="bullet">
+                                    {latestRun.reconciliation.consistencyIssues.slice(0, 5).map((issue, idx) => (
+                                      <List.Item key={idx}>
+                                        <Text as="span" variant="bodySm">
+                                          <strong>订单 {issue.orderId}:</strong> {issue.issue}
+                                        </Text>
+                                      </List.Item>
+                                    ))}
+                                    {latestRun.reconciliation.consistencyIssues.length > 5 && (
+                                      <List.Item>
+                                        <Text as="span" variant="bodySm" tone="subdued">
+                                          还有 {latestRun.reconciliation.consistencyIssues.length - 5} 个问题，详见详细结果
+                                        </Text>
+                                      </List.Item>
+                                    )}
+                                  </List>
+                                </Banner>
+                              )}
+                            </BlockStack>
+                          </Box>
+                        )}
                       </BlockStack>
                     </Card>
                   </>
@@ -653,7 +751,7 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {/* 详细结果 */}
+          {}
           {selectedTab === 1 && (
             <Box paddingBlockStart="400">
               <Card>
@@ -705,8 +803,17 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {/* 历史记录 */}
+          {}
           {selectedTab === 2 && (
+            <Box paddingBlockStart="400">
+              <Suspense fallback={<CardSkeleton lines={3} />}>
+                <RealtimeEventMonitor shopId={shop.id} />
+              </Suspense>
+            </Box>
+          )}
+
+          {}
+          {selectedTab === 3 && (
             <Box paddingBlockStart="400">
               <Card>
                 <BlockStack gap="400">
@@ -746,7 +853,7 @@ export default function VerificationPage() {
           )}
         </Tabs>
 
-        {/* 测试项说明 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -789,7 +896,7 @@ export default function VerificationPage() {
           </BlockStack>
         </Card>
 
-        {/* 快速链接 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -805,7 +912,7 @@ export default function VerificationPage() {
         </Card>
       </BlockStack>
 
-      {/* 指引模态框 */}
+      {}
       <Modal
         open={showGuideModal}
         onClose={() => setShowGuideModal(false)}

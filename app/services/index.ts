@@ -45,7 +45,6 @@ export {
   processConversionJobs,
 } from "./conversion-job.server";
 
-// Alert dispatcher
 export {
   runAlertChecks,
   runAllShopAlertChecks,
@@ -58,7 +57,6 @@ export {
   acknowledgeAlert,
 } from "./alert-dispatcher.server";
 
-// Enhanced reconciliation
 export {
   runReconciliation,
   fetchShopifyOrders,
@@ -66,7 +64,6 @@ export {
   saveReconciliationReport,
 } from "./enhanced-reconciliation.server";
 
-// Batch pixel template
 export {
   createPixelTemplate,
   getPixelTemplates,
@@ -78,7 +75,6 @@ export {
   PRESET_TEMPLATES,
 } from "./batch-pixel-apply.server";
 
-// CAPI Dedup
 export {
   generateEventId,
   generateTimestampedEventId,
@@ -94,7 +90,6 @@ export {
   formatSnapchatDedupId,
 } from "./capi-dedup.server";
 
-// AuditAsset - 设计方案 4.2
 export {
   createAuditAsset,
   batchCreateAuditAssets,
@@ -113,7 +108,6 @@ export {
   type AuditAssetSummary,
 } from "./audit-asset.server";
 
-// Pixel Rollback - 设计方案 4.3
 export {
   saveConfigSnapshot,
   rollbackConfig,

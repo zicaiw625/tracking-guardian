@@ -10,7 +10,7 @@ export const AlertSlackSchema = z.object({
   webhookUrl: z
     .string()
     .url("请输入有效的 URL")
-    .startsWith("https://hooks.slack.com/", "请输入有效的 Slack Webhook URL"),
+    .startsWith("https:
 });
 
 export const AlertTelegramSchema = z.object({

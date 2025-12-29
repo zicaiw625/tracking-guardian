@@ -50,7 +50,7 @@ describe("Cron Authentication", () => {
     const timestamp = String(Math.floor(Date.now() / 1000));
     const signature = createHmac("sha256", secret).update(timestamp).digest("hex");
 
-    return createMockRequest("https://app.example.com/api/cron", {
+    return createMockRequest("https:
       headers: {
         Authorization: `Bearer ${secret}`,
         "X-Cron-Timestamp": timestamp,
@@ -75,7 +75,7 @@ describe("Cron Authentication", () => {
     });
 
     it("should return error for missing Bearer token", () => {
-      const request = createMockRequest("https://app.example.com/api/cron");
+      const request = createMockRequest("https:
       const result = validateCronAuth(request);
       expect(result).toBeInstanceOf(Response);
       expect(result?.status).toBe(401);
@@ -85,7 +85,7 @@ describe("Cron Authentication", () => {
       process.env.CRON_SECRET = "";
       process.env.NODE_ENV = "development";
 
-      const request = createMockRequest("https://app.example.com/api/cron");
+      const request = createMockRequest("https:
       const result = validateCronAuth(request);
       expect(result).toBeNull();
       expect(logger.warn).toHaveBeenCalled();
@@ -95,7 +95,7 @@ describe("Cron Authentication", () => {
       process.env.CRON_SECRET = "";
       process.env.NODE_ENV = "production";
 
-      const request = createMockRequest("https://app.example.com/api/cron");
+      const request = createMockRequest("https:
       const result = validateCronAuth(request);
       expect(result).toBeInstanceOf(Response);
       expect(result?.status).toBe(503);
@@ -107,7 +107,7 @@ describe("Cron Authentication", () => {
 
       process.env.CRON_STRICT_REPLAY = "false";
 
-      const request = createMockRequest("https://app.example.com/api/cron", {
+      const request = createMockRequest("https:
         headers: {
           Authorization: `Bearer ${shortSecret}`,
         },
@@ -127,7 +127,7 @@ describe("Cron Authentication", () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
       const signature = createHmac("sha256", cronSecret).update(timestamp).digest("hex");
 
-      const request = createMockRequest("https://app.example.com/api/cron", {
+      const request = createMockRequest("https:
         headers: {
           "X-Cron-Timestamp": timestamp,
           "X-Cron-Signature": signature,
@@ -142,7 +142,7 @@ describe("Cron Authentication", () => {
       const oldTimestamp = String(Math.floor(Date.now() / 1000) - 600);
       const signature = createHmac("sha256", cronSecret).update(oldTimestamp).digest("hex");
 
-      const request = createMockRequest("https://app.example.com/api/cron", {
+      const request = createMockRequest("https:
         headers: {
           "X-Cron-Timestamp": oldTimestamp,
           "X-Cron-Signature": signature,
@@ -158,7 +158,7 @@ describe("Cron Authentication", () => {
       const futureTimestamp = String(Math.floor(Date.now() / 1000) + 600);
       const signature = createHmac("sha256", cronSecret).update(futureTimestamp).digest("hex");
 
-      const request = createMockRequest("https://app.example.com/api/cron", {
+      const request = createMockRequest("https:
         headers: {
           "X-Cron-Timestamp": futureTimestamp,
           "X-Cron-Signature": signature,
@@ -170,7 +170,7 @@ describe("Cron Authentication", () => {
     });
 
     it("should reject request with invalid timestamp format", () => {
-      const request = createMockRequest("https://app.example.com/api/cron", {
+      const request = createMockRequest("https:
         headers: {
           "X-Cron-Timestamp": "not-a-number",
         },
@@ -184,7 +184,7 @@ describe("Cron Authentication", () => {
     it("should allow missing timestamp in development", () => {
       process.env.NODE_ENV = "development";
 
-      const request = createMockRequest("https://app.example.com/api/cron");
+      const request = createMockRequest("https:
 
       const result = verifyReplayProtection(request, cronSecret);
       expect(result.valid).toBe(true);
@@ -192,7 +192,7 @@ describe("Cron Authentication", () => {
 
     it("should reject request with timestamp but missing signature in production", () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
-      const request = createMockRequest("https://app.example.com/api/cron", {
+      const request = createMockRequest("https:
         headers: {
           "X-Cron-Timestamp": timestamp,
         },
@@ -207,7 +207,7 @@ describe("Cron Authentication", () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
       const signature = createHmac("sha256", cronSecret).update(timestamp).digest("hex");
 
-      const request = createMockRequest("https://app.example.com/api/cron", {
+      const request = createMockRequest("https:
         headers: {
           "X-Cron-Timestamp": timestamp,
           "X-Cron-Signature": signature,
@@ -221,7 +221,7 @@ describe("Cron Authentication", () => {
     it("should reject invalid HMAC signature", () => {
       const timestamp = String(Math.floor(Date.now() / 1000));
 
-      const request = createMockRequest("https://app.example.com/api/cron", {
+      const request = createMockRequest("https:
         headers: {
           "X-Cron-Timestamp": timestamp,
           "X-Cron-Signature": "invalidsignature",

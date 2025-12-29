@@ -232,9 +232,9 @@ describe("buildTrustMetadata", () => {
 
 describe("extractOriginHost", () => {
   it("should extract hostname from valid URL", () => {
-    expect(extractOriginHost("https://example.com")).toBe("example.com");
-    expect(extractOriginHost("https://www.example.com")).toBe("www.example.com");
-    expect(extractOriginHost("https://example.com:8080")).toBe("example.com");
+    expect(extractOriginHost("https:
+    expect(extractOriginHost("https:
+    expect(extractOriginHost("https:
   });
 
   it("should return null for sandbox origin", () => {

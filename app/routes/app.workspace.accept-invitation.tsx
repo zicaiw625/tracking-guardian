@@ -1,8 +1,4 @@
-/**
- * 接受工作区邀请页面
- * 
- * 用于处理邀请链接，显示邀请详情并允许用户接受或拒绝
- */
+
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
@@ -82,7 +78,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // 检查是否已经是成员
   const existingMember = await prisma.shopGroupMember.findFirst({
     where: {
       groupId: invitation.groupId,
@@ -224,7 +219,7 @@ export default function AcceptInvitationPage() {
     <Page title="接受工作区邀请">
       <Card>
         <BlockStack gap="500">
-          {/* 邀请信息 */}
+          {}
           <BlockStack gap="200">
             <InlineStack align="center" gap="300">
               <Text as="span" variant="headingXl">
@@ -241,7 +236,7 @@ export default function AcceptInvitationPage() {
 
           <Divider />
 
-          {/* 邀请详情 */}
+          {}
           <Box background="bg-surface-secondary" padding="400" borderRadius="200">
             <BlockStack gap="300">
               <InlineStack align="space-between">
@@ -282,7 +277,7 @@ export default function AcceptInvitationPage() {
             </BlockStack>
           </Box>
 
-          {/* 权限说明 */}
+          {}
           <BlockStack gap="200">
             <Text as="h3" variant="headingSm">
               您将获得的权限
@@ -302,14 +297,14 @@ export default function AcceptInvitationPage() {
 
           <Divider />
 
-          {/* 当前店铺信息 */}
+          {}
           <Banner tone="info">
             <Text as="p" variant="bodySm">
               您将以 <strong>{shop?.shopDomain}</strong> 的身份加入此工作区。
             </Text>
           </Banner>
 
-          {/* 操作按钮 */}
+          {}
           <InlineStack gap="300" align="end">
             <Button
               onClick={handleDecline}

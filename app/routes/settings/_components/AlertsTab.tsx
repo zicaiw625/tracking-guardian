@@ -13,9 +13,14 @@ import {
   Divider,
   Badge,
   Box,
+  List,
 } from "@shopify/polaris";
 import { EnhancedEmptyState } from "~/components/ui";
+import { ThresholdSlider } from "~/components/settings/ThresholdSlider";
+import { ThresholdConfigCard, type ThresholdConfig } from "~/components/settings/ThresholdConfigCard";
 import type { AlertConfigDisplay } from "../types";
+import { useState, useEffect } from "react";
+import { useFetcher } from "@remix-run/react";
 
 interface AlertsTabProps {
   shop: {
@@ -39,6 +44,16 @@ interface AlertsTabProps {
   isSubmitting: boolean;
   onSaveAlert: () => void;
   onTestAlert: () => void;
+
+  failureRateThreshold?: string;
+  setFailureRateThreshold?: (value: string) => void;
+  missingParamsThreshold?: string;
+  setMissingParamsThreshold?: (value: string) => void;
+  volumeDropThreshold?: string;
+  setVolumeDropThreshold?: (value: string) => void;
+
+  alertFrequency?: string;
+  setAlertFrequency?: (value: string) => void;
 }
 
 export function AlertsTab({
@@ -61,6 +76,14 @@ export function AlertsTab({
   isSubmitting,
   onSaveAlert,
   onTestAlert,
+  failureRateThreshold = "2",
+  setFailureRateThreshold = () => {},
+  missingParamsThreshold = "5",
+  setMissingParamsThreshold = () => {},
+  volumeDropThreshold = "50",
+  setVolumeDropThreshold = () => {},
+  alertFrequency = "daily",
+  setAlertFrequency = () => {},
 }: AlertsTabProps) {
   return (
     <Layout>
@@ -104,7 +127,7 @@ export function AlertsTab({
                 value={slackWebhook}
                 onChange={setSlackWebhook}
                 autoComplete="off"
-                placeholder="https://hooks.slack.com/services/..."
+                placeholder="https:
                 helpText="在 Slack 中创建 Incoming Webhook 获取此 URL"
               />
             )}
@@ -136,15 +159,77 @@ export function AlertsTab({
               告警规则配置
             </Text>
 
-            <TextField
-              label="事件失败率阈值 (%)"
-              type="number"
-              value={alertThreshold}
-              onChange={setAlertThreshold}
-              autoComplete="off"
-              helpText="当事件发送失败率超过此百分比时触发警报（默认: 2%）"
-              suffix="%"
-            />
+            <BlockStack gap="400">
+              <ThresholdSlider
+                label="事件失败率阈值"
+                value={parseFloat(failureRateThreshold) || 2}
+                onChange={(val) => setFailureRateThreshold(String(val))}
+                min={0}
+                max={50}
+                step={0.5}
+                helpText="当事件发送失败率超过此百分比时触发警报（推荐: 2-5%）"
+                unit="%"
+                colorRanges={[
+                  { min: 0, max: 2, tone: "success" },
+                  { min: 2, max: 10, tone: "warning" },
+                  { min: 10, max: 50, tone: "critical" },
+                ]}
+              />
+
+              <Divider />
+
+              <ThresholdSlider
+                label="缺参率阈值"
+                value={parseFloat(missingParamsThreshold) || 5}
+                onChange={(val) => setMissingParamsThreshold(String(val))}
+                min={0}
+                max={50}
+                step={0.5}
+                helpText="当事件参数缺失率超过此百分比时触发警报（推荐: 5-10%）"
+                unit="%"
+                colorRanges={[
+                  { min: 0, max: 5, tone: "success" },
+                  { min: 5, max: 10, tone: "warning" },
+                  { min: 10, max: 50, tone: "critical" },
+                ]}
+              />
+
+              <Divider />
+
+              <ThresholdSlider
+                label="事件量骤降阈值"
+                value={parseFloat(volumeDropThreshold) || 50}
+                onChange={(val) => setVolumeDropThreshold(String(val))}
+                min={0}
+                max={100}
+                step={5}
+                helpText="当 24 小时内事件量下降超过此百分比时触发警报（推荐: 50%）"
+                unit="%"
+                colorRanges={[
+                  { min: 0, max: 30, tone: "success" },
+                  { min: 30, max: 70, tone: "warning" },
+                  { min: 70, max: 100, tone: "critical" },
+                ]}
+              />
+
+              <Divider />
+
+              <Text as="h4" variant="headingSm" tone="subdued">
+                告警频率配置
+              </Text>
+
+              <Select
+                label="告警频率"
+                options={[
+                  { label: "即时通知", value: "instant" },
+                  { label: "每日汇总", value: "daily" },
+                  { label: "每周汇总", value: "weekly" },
+                ]}
+                value={alertFrequency}
+                onChange={(value) => setAlertFrequency(value)}
+                helpText="选择告警通知的频率。即时通知会在检测到异常时立即发送，汇总模式会在指定时间发送所有告警的汇总报告。"
+              />
+            </BlockStack>
 
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">

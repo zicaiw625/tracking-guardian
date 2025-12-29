@@ -286,7 +286,7 @@ export function extractShopifyId(gid: string | number): string {
   if (typeof gid === "number") {
     return String(gid);
   }
-  if (gid.startsWith("gid://")) {
+  if (gid.startsWith("gid:
     const parts = gid.split("/");
     return parts[parts.length - 1];
   }

@@ -1,7 +1,4 @@
-/**
- * Toast Provider 组件
- * 提供全局 Toast 通知上下文
- */
+
 
 import { createContext, useContext, ReactNode } from "react";
 import { ToastContainer, useToast, type Toast } from "./Toast";
@@ -19,7 +16,7 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export function useToastContext() {
   const context = useContext(ToastContext);
   if (!context) {
-    // 如果没有 Provider，返回空函数（降级处理）
+
     return {
       showToast: () => {},
       showSuccess: () => {},

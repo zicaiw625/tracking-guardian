@@ -1,22 +1,9 @@
-/**
- * 告警调度服务
- * 对应设计方案 4.6 Monitoring - 告警功能
- * 
- * 功能:
- * - 事件失败率告警 (> 阈值)
- * - Purchase 缺参率告警
- * - 事件量骤降告警 (24h 量降 > 50%)
- * - 去重冲突告警
- */
+
 
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger.server";
 import type { AlertData } from "../types";
-
-// ============================================================
-// 类型定义
-// ============================================================
 
 export interface AlertCheckResult {
   shopId: string;
@@ -28,44 +15,153 @@ export interface AlertCheckResult {
   data?: Record<string, unknown>;
 }
 
-export type AlertType = 
-  | "failure_rate"        // 事件失败率
-  | "missing_params"      // 参数缺失率
-  | "volume_drop"         // 事件量骤降
-  | "dedup_conflict"      // 去重冲突
-  | "reconciliation"      // 对账差异
-  | "pixel_heartbeat";    // 像素心跳丢失
+export type AlertType =
+  | "failure_rate"
+  | "missing_params"
+  | "volume_drop"
+  | "dedup_conflict"
+  | "reconciliation"
+  | "pixel_heartbeat";
 
 interface AlertThresholds {
-  failureRateThreshold: number;      // 失败率阈值 (0-1)
-  missingParamsThreshold: number;    // 缺参率阈值 (0-1)
-  volumeDropThreshold: number;       // 量降阈值 (0-1)
-  dedupConflictThreshold: number;    // 去重冲突阈值 (次数)
-  heartbeatStaleHours: number;       // 心跳过期时间 (小时)
+  failureRateThreshold: number;
+  missingParamsThreshold: number;
+  volumeDropThreshold: number;
+  dedupConflictThreshold: number;
+  heartbeatStaleHours: number;
 }
 
 const DEFAULT_THRESHOLDS: AlertThresholds = {
-  failureRateThreshold: 0.02,        // 2% 失败率
-  missingParamsThreshold: 0.1,       // 10% 缺参率
-  volumeDropThreshold: 0.5,          // 50% 量降
-  dedupConflictThreshold: 5,         // 5 次重复
-  heartbeatStaleHours: 24,           // 24 小时
+  failureRateThreshold: 0.02,
+  missingParamsThreshold: 0.1,
+  volumeDropThreshold: 0.5,
+  dedupConflictThreshold: 5,
+  heartbeatStaleHours: 24,
 };
 
-// ============================================================
-// 告警检查函数
-// ============================================================
+export interface ThresholdRecommendation {
+  failureRate: number;
+  missingParams: number;
+  volumeDrop: number;
+  dedupConflict: number;
+}
 
-/**
- * 检查事件失败率
- */
+export async function getThresholdRecommendations(
+  shopId: string
+): Promise<ThresholdRecommendation> {
+  const { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } = await import("./monitoring.server");
+
+  const [monitoringStats, missingParamsStats, volumeStats] = await Promise.all([
+    getEventMonitoringStats(shopId, 24 * 7),
+    getMissingParamsStats(shopId, 24 * 7),
+    getEventVolumeStats(shopId),
+  ]);
+
+  const failureRateRecommendation = Math.max(
+    1,
+    Math.min(
+      10,
+      monitoringStats.failureRate + (monitoringStats.failureRate * 0.5)
+    )
+  );
+
+  const totalWithMissingParams = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+  const missingParamsRate = monitoringStats.totalEvents > 0
+    ? (totalWithMissingParams / monitoringStats.totalEvents) * 100
+    : 0;
+  const missingParamsRecommendation = Math.max(
+    2,
+    Math.min(
+      20,
+      missingParamsRate + (missingParamsRate * 0.5)
+    )
+  );
+
+  const volumeDropRecommendation = volumeStats.stdDev
+    ? Math.max(30, Math.min(70, 50 + (volumeStats.stdDev / (volumeStats.average7Days || 1)) * 100))
+    : 50;
+
+  return {
+    failureRate: failureRateRecommendation,
+    missingParams: missingParamsRecommendation,
+    volumeDrop: volumeDropRecommendation,
+    dedupConflict: 5,
+  };
+}
+
+export interface ThresholdTestResult {
+  failureRate: {
+    wouldTrigger: boolean;
+    currentValue: number;
+    threshold: number;
+    triggerCount: number;
+  };
+  missingParams: {
+    wouldTrigger: boolean;
+    currentValue: number;
+    threshold: number;
+    triggerCount: number;
+  };
+  volumeDrop: {
+    wouldTrigger: boolean;
+    currentValue: number;
+    threshold: number;
+  };
+}
+
+export async function testThresholds(
+  shopId: string,
+  thresholds: {
+    failureRate?: number;
+    missingParams?: number;
+    volumeDrop?: number;
+  }
+): Promise<ThresholdTestResult> {
+  const { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } = await import("./monitoring.server");
+
+  const [monitoringStats, missingParamsStats, volumeStats] = await Promise.all([
+    getEventMonitoringStats(shopId, 24),
+    getMissingParamsStats(shopId, 24),
+    getEventVolumeStats(shopId),
+  ]);
+
+  const totalWithMissingParams = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+  const missingParamsRate = monitoringStats.totalEvents > 0
+    ? (totalWithMissingParams / monitoringStats.totalEvents) * 100
+    : 0;
+
+  const failureRateThreshold = thresholds.failureRate ?? DEFAULT_THRESHOLDS.failureRateThreshold * 100;
+  const missingParamsThreshold = thresholds.missingParams ?? DEFAULT_THRESHOLDS.missingParamsThreshold * 100;
+  const volumeDropThreshold = thresholds.volumeDrop ?? DEFAULT_THRESHOLDS.volumeDropThreshold * 100;
+
+  return {
+    failureRate: {
+      wouldTrigger: monitoringStats.failureRate > failureRateThreshold,
+      currentValue: monitoringStats.failureRate,
+      threshold: failureRateThreshold,
+      triggerCount: monitoringStats.failureRate > failureRateThreshold ? 1 : 0,
+    },
+    missingParams: {
+      wouldTrigger: missingParamsRate > missingParamsThreshold,
+      currentValue: missingParamsRate,
+      threshold: missingParamsThreshold,
+      triggerCount: missingParamsRate > missingParamsThreshold ? 1 : 0,
+    },
+    volumeDrop: {
+      wouldTrigger: volumeStats.isDrop && Math.abs(volumeStats.changePercent) > volumeDropThreshold,
+      currentValue: Math.abs(volumeStats.changePercent),
+      threshold: volumeDropThreshold,
+    },
+  };
+}
+
 export async function checkFailureRate(
   shopId: string,
   shopDomain: string,
   thresholds: Partial<AlertThresholds> = {}
 ): Promise<AlertCheckResult> {
   const threshold = thresholds.failureRateThreshold ?? DEFAULT_THRESHOLDS.failureRateThreshold;
-  
+
   const last24h = new Date();
   last24h.setHours(last24h.getHours() - 24);
 
@@ -82,7 +178,7 @@ export async function checkFailureRate(
   const failed = stats.find(s => s.status === "failed")?._count || 0;
   const failureRate = total > 0 ? failed / total : 0;
 
-  const triggered = failureRate > threshold && total >= 10; // 至少 10 条才触发
+  const triggered = failureRate > threshold && total >= 10;
 
   return {
     shopId,
@@ -95,73 +191,166 @@ export async function checkFailureRate(
   };
 }
 
-/**
- * 检查参数缺失率
- */
 export async function checkMissingParams(
   shopId: string,
   shopDomain: string,
   thresholds: Partial<AlertThresholds> = {}
 ): Promise<AlertCheckResult> {
   const threshold = thresholds.missingParamsThreshold ?? DEFAULT_THRESHOLDS.missingParamsThreshold;
-  
+
   const last24h = new Date();
   last24h.setHours(last24h.getHours() - 24);
 
-  // 检查 purchase 事件中缺少 value 或 currency 的比例
-  const allPurchases = await prisma.conversionLog.count({
+  const allEvents = await prisma.conversionLog.groupBy({
+    by: ["eventType"],
     where: {
       shopId,
-      eventType: "purchase",
       createdAt: { gte: last24h },
     },
+    _count: true,
   });
 
-  // 查找缺少关键参数的记录 (通过 platformResponse 或 errorMessage 判断)
-  const purchasesWithIssues = await prisma.conversionLog.count({
+  const eventsWithMissingParams = await prisma.conversionLog.groupBy({
+    by: ["eventType"],
     where: {
       shopId,
-      eventType: "purchase",
       createdAt: { gte: last24h },
       OR: [
         { errorMessage: { contains: "missing" } },
         { errorMessage: { contains: "required" } },
         { orderValue: { equals: 0 } },
+        { currency: null },
+        { currency: "" },
       ],
     },
+    _count: true,
   });
 
-  const missingRate = allPurchases > 0 ? purchasesWithIssues / allPurchases : 0;
-  const triggered = missingRate > threshold && allPurchases >= 5;
+  const totalEvents = allEvents.reduce((sum, e) => sum + e._count, 0);
+  const totalMissing = eventsWithMissingParams.reduce((sum, e) => sum + e._count, 0);
+  const overallMissingRate = totalEvents > 0 ? totalMissing / totalEvents : 0;
+
+  const missingRateByEventType: Record<string, number> = {};
+  allEvents.forEach((event) => {
+    const missingCount = eventsWithMissingParams.find(
+      (e) => e.eventType === event.eventType
+    )?._count || 0;
+    if (event._count > 0) {
+      missingRateByEventType[event.eventType] = missingCount / event._count;
+    }
+  });
+
+  if (overallMissingRate > threshold && totalEvents >= 10) {
+
+    const topMissingEventType = Object.entries(missingRateByEventType)
+      .sort(([, a], [, b]) => b - a)[0];
+
+    return {
+      shopId,
+      shopDomain,
+      triggered: true,
+      alertType: "missing_params",
+      severity: overallMissingRate > 0.2 ? "high" : overallMissingRate > 0.1 ? "medium" : "low",
+      message: `事件参数缺失率 ${(overallMissingRate * 100).toFixed(1)}% 超过阈值 ${(threshold * 100).toFixed(1)}%${
+        topMissingEventType
+          ? `（${topMissingEventType[0]} 事件缺参率: ${(topMissingEventType[1] * 100).toFixed(1)}%）`
+          : ""
+      }`,
+      data: {
+        totalEvents,
+        totalMissing,
+        overallMissingRate,
+        missingRateByEventType,
+        threshold,
+      },
+    };
+  }
+
+  const criticalEventTypes = ["purchase", "checkout_completed"];
+  for (const eventType of criticalEventTypes) {
+    const eventMissingRate = missingRateByEventType[eventType];
+    if (eventMissingRate && eventMissingRate > threshold * 1.5) {
+      const eventTotal = allEvents.find((e) => e.eventType === eventType)?._count || 0;
+      if (eventTotal >= 5) {
+        return {
+          shopId,
+          shopDomain,
+          triggered: true,
+          alertType: "missing_params",
+          severity: eventMissingRate > 0.3 ? "high" : "medium",
+          message: `${eventType} 事件参数缺失率 ${(eventMissingRate * 100).toFixed(1)}% 超过阈值 ${(threshold * 1.5 * 100).toFixed(1)}%`,
+          data: {
+            eventType,
+            eventTotal,
+            eventMissing: eventsWithMissingParams.find((e) => e.eventType === eventType)?._count || 0,
+            eventMissingRate,
+            threshold: threshold * 1.5,
+          },
+        };
+      }
+    }
+  }
 
   return {
     shopId,
     shopDomain,
-    triggered,
+    triggered: false,
     alertType: "missing_params",
-    severity: missingRate > 0.2 ? "high" : "medium",
-    message: `Purchase 事件参数缺失率 ${(missingRate * 100).toFixed(1)}% 超过阈值`,
-    data: { allPurchases, purchasesWithIssues, missingRate, threshold },
+    severity: "low",
+    message: `事件参数缺失率正常 (${(overallMissingRate * 100).toFixed(1)}%)`,
+    data: {
+      totalEvents,
+      totalMissing,
+      overallMissingRate,
+      missingRateByEventType,
+      threshold,
+    },
   };
 }
 
-/**
- * 检查事件量骤降
- */
 export async function checkVolumeDrop(
   shopId: string,
   shopDomain: string,
   thresholds: Partial<AlertThresholds> = {}
 ): Promise<AlertCheckResult> {
   const threshold = thresholds.volumeDropThreshold ?? DEFAULT_THRESHOLDS.volumeDropThreshold;
-  
+
+  const { detectEventVolumeDrop } = await import("./anomaly-detection.server");
+  const anomalyResult = await detectEventVolumeDrop(shopId, 24);
+
+  if (anomalyResult.isAnomaly) {
+    const severityMap: Record<"low" | "medium" | "high", "critical" | "high" | "medium" | "low"> = {
+      low: "low",
+      medium: "medium",
+      high: "critical",
+    };
+
+    return {
+      shopId,
+      shopDomain,
+      triggered: true,
+      alertType: "volume_drop",
+      severity: severityMap[anomalyResult.severity],
+      message: anomalyResult.message,
+      data: {
+        current24h: anomalyResult.current24h,
+        previous24h: anomalyResult.previous24h,
+        average7Days: anomalyResult.average7Days,
+        changePercent: anomalyResult.changePercent,
+        threshold: anomalyResult.threshold,
+        severity: anomalyResult.severity,
+      },
+    };
+  }
+
   const now = new Date();
   const last24h = new Date(now);
   last24h.setHours(last24h.getHours() - 24);
   const prev24h = new Date(last24h);
   prev24h.setHours(prev24h.getHours() - 24);
+  const prev48h = new Date(prev24h);
+  prev48h.setHours(prev48h.getHours() - 24);
 
-  // 当前 24 小时事件量
   const currentVolume = await prisma.conversionLog.count({
     where: {
       shopId,
@@ -169,7 +358,6 @@ export async function checkVolumeDrop(
     },
   });
 
-  // 前一个 24 小时事件量
   const previousVolume = await prisma.conversionLog.count({
     where: {
       shopId,
@@ -177,35 +365,117 @@ export async function checkVolumeDrop(
     },
   });
 
-  // 计算降幅
+  const previous2Volume = await prisma.conversionLog.count({
+    where: {
+      shopId,
+      createdAt: { gte: prev48h, lt: prev24h },
+    },
+  });
+
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const recent7DaysLogs = await prisma.conversionLog.findMany({
+    where: {
+      shopId,
+      createdAt: { gte: sevenDaysAgo },
+    },
+    select: {
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
   const dropRate = previousVolume > 0 ? (previousVolume - currentVolume) / previousVolume : 0;
-  const triggered = dropRate > threshold && previousVolume >= 10;
+  const simpleDrop = dropRate > threshold && previousVolume >= 10;
+
+  let avgDrop = false;
+  let avgDropRate = 0;
+  if (recent7DaysLogs.length > 0) {
+
+    const dailyCounts = new Map<string, number>();
+    recent7DaysLogs.forEach((log) => {
+      const day = log.createdAt.toISOString().split("T")[0];
+      dailyCounts.set(day, (dailyCounts.get(day) || 0) + 1);
+    });
+
+    const counts = Array.from(dailyCounts.values());
+    if (counts.length > 0) {
+      const mean = counts.reduce((sum, c) => sum + c, 0) / counts.length;
+      const variance = counts.reduce((sum, c) => sum + Math.pow(c - mean, 2), 0) / counts.length;
+      const stdDev = Math.sqrt(variance);
+
+      const thresholdValue = mean - 2 * stdDev;
+      if (currentVolume < thresholdValue && thresholdValue > 0 && mean > 0) {
+        avgDrop = true;
+        avgDropRate = (mean - currentVolume) / mean;
+      }
+    }
+  }
+
+  let recent3DaysAvg = 0;
+  let recent3DaysDrop = false;
+  if (previousVolume > 0 && previous2Volume > 0) {
+    recent3DaysAvg = (previousVolume + previous2Volume + currentVolume) / 3;
+    const expectedMin = recent3DaysAvg * (1 - threshold);
+    if (currentVolume < expectedMin && recent3DaysAvg > 0) {
+      recent3DaysDrop = true;
+    }
+  }
+
+  const triggered = simpleDrop || avgDrop || recent3DaysDrop;
+
+  let severity: "critical" | "high" | "medium" | "low" = "low";
+  if (dropRate > 0.8 || avgDropRate > 0.8) {
+    severity = "critical";
+  } else if (dropRate > 0.6 || avgDropRate > 0.6) {
+    severity = "high";
+  } else if (dropRate > threshold || avgDrop || recent3DaysDrop) {
+    severity = "medium";
+  }
+
+  let message = "";
+  if (simpleDrop) {
+    message = `事件量骤降 ${(dropRate * 100).toFixed(1)}%（前24h: ${previousVolume}，当前24h: ${currentVolume}）`;
+  } else if (avgDrop) {
+    message = `事件量低于历史平均值 ${(avgDropRate * 100).toFixed(1)}%（当前24h: ${currentVolume}）`;
+  } else if (recent3DaysDrop) {
+    message = `事件量低于最近3天平均值（当前24h: ${currentVolume}，平均值: ${recent3DaysAvg.toFixed(0)}）`;
+  }
 
   return {
     shopId,
     shopDomain,
     triggered,
     alertType: "volume_drop",
-    severity: dropRate > 0.8 ? "critical" : dropRate > 0.6 ? "high" : "medium",
-    message: `事件量骤降 ${(dropRate * 100).toFixed(1)}%（前24h: ${previousVolume}，当前24h: ${currentVolume}）`,
-    data: { currentVolume, previousVolume, dropRate, threshold },
+    severity,
+    message,
+    data: {
+      currentVolume,
+      previousVolume,
+      previous2Volume,
+      dropRate,
+      avgDropRate,
+      recent3DaysAvg,
+      threshold,
+      detectionMethods: {
+        simple: simpleDrop,
+        average: avgDrop,
+        recent3Days: recent3DaysDrop,
+      },
+    },
   };
 }
 
-/**
- * 检查去重冲突
- */
 export async function checkDedupConflicts(
   shopId: string,
   shopDomain: string,
   thresholds: Partial<AlertThresholds> = {}
 ): Promise<AlertCheckResult> {
   const threshold = thresholds.dedupConflictThreshold ?? DEFAULT_THRESHOLDS.dedupConflictThreshold;
-  
+
   const last24h = new Date();
   last24h.setHours(last24h.getHours() - 24);
 
-  // 查找同一 eventId 出现多次的情况
   const duplicates = await prisma.$queryRaw<Array<{ eventId: string; count: bigint }>>`
     SELECT "eventId", COUNT(*) as count
     FROM "ConversionLog"
@@ -231,16 +501,13 @@ export async function checkDedupConflicts(
   };
 }
 
-/**
- * 检查像素心跳
- */
 export async function checkPixelHeartbeat(
   shopId: string,
   shopDomain: string,
   thresholds: Partial<AlertThresholds> = {}
 ): Promise<AlertCheckResult> {
   const staleHours = thresholds.heartbeatStaleHours ?? DEFAULT_THRESHOLDS.heartbeatStaleHours;
-  
+
   const lastReceipt = await prisma.pixelEventReceipt.findFirst({
     where: { shopId },
     orderBy: { createdAt: "desc" },
@@ -268,13 +535,6 @@ export async function checkPixelHeartbeat(
   };
 }
 
-// ============================================================
-// 告警调度
-// ============================================================
-
-/**
- * 运行所有告警检查并发送通知
- */
 export async function runAlertChecks(shopId: string): Promise<{
   checked: number;
   triggered: number;
@@ -288,6 +548,12 @@ export async function runAlertChecks(shopId: string): Promise<{
       shopDomain: true,
       alertConfigs: {
         where: { isEnabled: true },
+        select: {
+          id: true,
+          settings: true,
+          discrepancyThreshold: true,
+          frequency: true,
+        },
       },
     },
   });
@@ -297,29 +563,35 @@ export async function runAlertChecks(shopId: string): Promise<{
     return { checked: 0, triggered: 0, sent: 0, results: [] };
   }
 
+  const firstConfig = shop.alertConfigs[0];
+  const settings = firstConfig?.settings as { thresholds?: { failureRate?: number; missingParams?: number; volumeDrop?: number } } | undefined;
+
+  const thresholds: Partial<AlertThresholds> = {
+    failureRateThreshold: settings?.thresholds?.failureRate ?? (firstConfig?.discrepancyThreshold ?? DEFAULT_THRESHOLDS.failureRateThreshold),
+    missingParamsThreshold: settings?.thresholds?.missingParams ?? (firstConfig?.discrepancyThreshold ? firstConfig.discrepancyThreshold * 2.5 : DEFAULT_THRESHOLDS.missingParamsThreshold),
+    volumeDropThreshold: settings?.thresholds?.volumeDrop ?? DEFAULT_THRESHOLDS.volumeDropThreshold,
+  };
+
   const results: AlertCheckResult[] = [];
 
-  // 运行所有检查
-  results.push(await checkFailureRate(shopId, shop.shopDomain));
-  results.push(await checkMissingParams(shopId, shop.shopDomain));
-  results.push(await checkVolumeDrop(shopId, shop.shopDomain));
+  results.push(await checkFailureRate(shopId, shop.shopDomain, thresholds));
+  results.push(await checkMissingParams(shopId, shop.shopDomain, thresholds));
+  results.push(await checkVolumeDrop(shopId, shop.shopDomain, thresholds));
   results.push(await checkDedupConflicts(shopId, shop.shopDomain));
   results.push(await checkPixelHeartbeat(shopId, shop.shopDomain));
 
   const triggeredAlerts = results.filter(r => r.triggered);
   let sent = 0;
 
-  // 对每个触发的告警发送通知
   for (const alertResult of triggeredAlerts) {
     for (const config of shop.alertConfigs) {
-      // 检查频率限制
+
       const canSend = await canSendAlert(config.id, config.frequency);
       if (!canSend) {
         logger.debug(`Skipping alert due to frequency limit`, { configId: config.id });
         continue;
       }
 
-      // 转换为 AlertData 格式
       const alertData: AlertData = {
         platform: alertResult.alertType,
         reportDate: new Date(),
@@ -328,7 +600,7 @@ export async function runAlertChecks(shopId: string): Promise<{
         orderDiscrepancy: (alertResult.data?.failureRate as number) || 0,
         revenueDiscrepancy: 0,
         shopDomain: shop.shopDomain,
-        // 额外字段通过扩展传递
+
         customMessage: alertResult.message,
         alertType: alertResult.alertType,
         severity: alertResult.severity,
@@ -364,9 +636,6 @@ export async function runAlertChecks(shopId: string): Promise<{
   };
 }
 
-/**
- * 检查是否可以发送告警（基于频率限制）
- */
 async function canSendAlert(configId: string, frequency: string): Promise<boolean> {
   const config = await prisma.alertConfig.findUnique({
     where: { id: configId },
@@ -381,7 +650,7 @@ async function canSendAlert(configId: string, frequency: string): Promise<boolea
 
   switch (frequency) {
     case "instant":
-      return hoursSinceLastAlert >= 1; // 最少 1 小时间隔
+      return hoursSinceLastAlert >= 1;
     case "hourly":
       return hoursSinceLastAlert >= 1;
     case "daily":
@@ -393,9 +662,6 @@ async function canSendAlert(configId: string, frequency: string): Promise<boolea
   }
 }
 
-/**
- * 批量运行所有店铺的告警检查（用于 cron job）
- */
 export async function runAllShopAlertChecks(): Promise<{
   shopsChecked: number;
   totalTriggered: number;
@@ -437,10 +703,6 @@ export async function runAllShopAlertChecks(): Promise<{
   };
 }
 
-// ============================================================
-// 获取告警历史
-// ============================================================
-
 export async function getAlertHistory(
   shopId: string,
   limit: number = 50
@@ -452,7 +714,7 @@ export async function getAlertHistory(
   createdAt: Date;
   acknowledged: boolean;
 }>> {
-  // 从 AuditLog 中获取告警记录
+
   const logs = await prisma.auditLog.findMany({
     where: {
       shopId,
@@ -480,9 +742,6 @@ export async function getAlertHistory(
   });
 }
 
-/**
- * 确认告警（标记为已读）
- */
 export async function acknowledgeAlert(
   alertId: string,
   shopId: string

@@ -1,9 +1,4 @@
-/**
- * 批量 Audit 服务
- * 对应设计方案 4.7 Agency：批量运行 Audit
- *
- * 允许 Agency 用户一键对工作区内所有店铺运行 Audit 扫描
- */
+
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -11,18 +6,14 @@ import { canManageMultipleShops, getShopGroupDetails } from "./multi-shop.server
 import { scanShopTracking } from "./scanner.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
-// ============================================================
-// 类型定义
-// ============================================================
-
 export interface BatchAuditOptions {
-  /** 工作区分组 ID */
+
   groupId: string;
-  /** 请求者店铺 ID (用于权限验证) */
+
   requesterId: string;
-  /** 最大并发数 */
+
   concurrency?: number;
-  /** 是否跳过最近 N 小时内已扫描的店铺 */
+
   skipRecentHours?: number;
 }
 
@@ -69,35 +60,23 @@ export interface BatchAuditJob {
   updatedAt: Date;
 }
 
-// 内存中的任务状态 (生产环境建议使用 Redis)
 const batchAuditJobs = new Map<string, BatchAuditJob>();
 
-// ============================================================
-// 核心函数
-// ============================================================
-
-/**
- * 启动批量 Audit 任务
- * 返回任务 ID，可用于轮询进度
- */
 export async function startBatchAudit(
   options: BatchAuditOptions
 ): Promise<{ jobId: string } | { error: string }> {
   const { groupId, requesterId, concurrency = 3, skipRecentHours = 6 } = options;
 
-  // 1. 权限检查
   const canManage = await canManageMultipleShops(requesterId);
   if (!canManage) {
     return { error: "当前套餐不支持批量 Audit，请升级到 Agency 版" };
   }
 
-  // 2. 获取分组详情
   const groupDetails = await getShopGroupDetails(groupId, requesterId);
   if (!groupDetails) {
     return { error: "分组不存在或无权访问" };
   }
 
-  // 3. 创建任务
   const jobId = `batch-audit-${groupId}-${Date.now()}`;
   const job: BatchAuditJob = {
     id: jobId,
@@ -109,8 +88,6 @@ export async function startBatchAudit(
   };
   batchAuditJobs.set(jobId, job);
 
-  // 4. 异步执行 (不阻塞响应)
-  // 注意：这里不能直接使用 admin context，需要在调用处传入或重新获取
   executeBatchAuditAsync(jobId, groupDetails, { concurrency, skipRecentHours }).catch(
     (err) => {
       logger.error(`Batch audit job ${jobId} failed:`, err);
@@ -130,29 +107,21 @@ export async function startBatchAudit(
   return { jobId };
 }
 
-/**
- * 获取批量 Audit 任务状态
- */
 export function getBatchAuditStatus(jobId: string): BatchAuditJob | null {
   return batchAuditJobs.get(jobId) || null;
 }
 
-/**
- * 同步执行批量 Audit (用于不需要进度追踪的场景)
- */
 export async function runBatchAuditSync(
   options: BatchAuditOptions,
   adminContextGetter: (shopId: string) => Promise<AdminApiContext | null>
 ): Promise<BatchAuditResult | { error: string }> {
   const { groupId, requesterId, concurrency = 3, skipRecentHours = 6 } = options;
 
-  // 1. 权限检查
   const canManage = await canManageMultipleShops(requesterId);
   if (!canManage) {
     return { error: "当前套餐不支持批量 Audit，请升级到 Agency 版" };
   }
 
-  // 2. 获取分组详情
   const groupDetails = await getShopGroupDetails(groupId, requesterId);
   if (!groupDetails) {
     return { error: "分组不存在或无权访问" };
@@ -161,14 +130,12 @@ export async function runBatchAuditSync(
   const startedAt = new Date();
   const results: ShopAuditResult[] = [];
 
-  // 3. 获取需要扫描的店铺
   const shopIds = groupDetails.members.map((m) => m.shopId);
   const shops = await prisma.shop.findMany({
     where: { id: { in: shopIds } },
     select: { id: true, shopDomain: true },
   });
 
-  // 4. 检查最近扫描记录 (跳过最近已扫描的)
   const skipSince = new Date();
   skipSince.setHours(skipSince.getHours() - skipRecentHours);
 
@@ -182,11 +149,9 @@ export async function runBatchAuditSync(
   });
   const recentlyScannedIds = new Set(recentScans.map((s) => s.shopId));
 
-  // 5. 分批并行扫描
   const shopsToScan = shops.filter((s) => !recentlyScannedIds.has(s.id));
   const skippedShops = shops.filter((s) => recentlyScannedIds.has(s.id));
 
-  // 添加跳过的店铺到结果
   for (const shop of skippedShops) {
     results.push({
       shopId: shop.id,
@@ -196,7 +161,6 @@ export async function runBatchAuditSync(
     });
   }
 
-  // 并行扫描（限制并发）
   for (let i = 0; i < shopsToScan.length; i += concurrency) {
     const batch = shopsToScan.slice(i, i + concurrency);
     const batchResults = await Promise.allSettled(
@@ -237,12 +201,11 @@ export async function runBatchAuditSync(
       })
     );
 
-    // 处理结果
     for (const result of batchResults) {
       if (result.status === "fulfilled") {
         results.push(result.value);
       } else {
-        // Promise.allSettled rejected (不应该发生，但以防万一)
+
         logger.error("Unexpected batch audit rejection:", result.reason);
       }
     }
@@ -250,7 +213,6 @@ export async function runBatchAuditSync(
 
   const completedAt = new Date();
 
-  // 6. 计算汇总统计
   const summary = calculateSummary(results);
 
   return {
@@ -268,24 +230,16 @@ export async function runBatchAuditSync(
   };
 }
 
-// ============================================================
-// 内部辅助函数
-// ============================================================
-
-/**
- * 获取店铺的 offline session
- * 通过 Prisma session storage 获取已存储的 session
- */
 async function getOfflineSession(shopDomain: string): Promise<{
   accessToken: string;
   shop: string;
 } | null> {
   try {
-    // 查找该店铺的 offline session
+
     const session = await prisma.session.findFirst({
       where: {
         shop: shopDomain,
-        isOnline: false, // offline token
+        isOnline: false,
       },
       select: {
         accessToken: true,
@@ -306,9 +260,6 @@ async function getOfflineSession(shopDomain: string): Promise<{
   }
 }
 
-/**
- * 创建 admin API 客户端用于异步操作
- */
 async function createAdminClientForShop(shopDomain: string): Promise<{
   graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response>;
 } | null> {
@@ -318,9 +269,8 @@ async function createAdminClientForShop(shopDomain: string): Promise<{
     return null;
   }
 
-  // 使用 Shopify API 创建 GraphQL 客户端
   const apiVersion = process.env.SHOPIFY_API_VERSION || "2025-01";
-  const shopifyApiUrl = `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`;
+  const shopifyApiUrl = `https:
 
   return {
     graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
@@ -340,10 +290,6 @@ async function createAdminClientForShop(shopDomain: string): Promise<{
   };
 }
 
-/**
- * 异步执行批量 Audit (用于后台任务)
- * 使用 offline access token 从 session storage 获取各店铺的访问权限
- */
 async function executeBatchAuditAsync(
   jobId: string,
   groupDetails: { id: string; name: string; members: Array<{ shopId: string; shopDomain: string }> },
@@ -361,7 +307,6 @@ async function executeBatchAuditAsync(
 
   logger.info(`Starting async batch audit for ${totalShops} shops`, { jobId });
 
-  // 检查最近扫描记录 (跳过最近已扫描的)
   const skipSince = new Date();
   skipSince.setHours(skipSince.getHours() - options.skipRecentHours);
 
@@ -375,15 +320,13 @@ async function executeBatchAuditAsync(
   });
   const recentlyScannedIds = new Set(recentScans.map((s) => s.shopId));
 
-  // 分批并行处理
   for (let i = 0; i < groupDetails.members.length; i += options.concurrency) {
     const batch = groupDetails.members.slice(i, i + options.concurrency);
-    
+
     const batchResults = await Promise.allSettled(
       batch.map(async (member) => {
         const startTime = Date.now();
 
-        // 跳过最近已扫描的
         if (recentlyScannedIds.has(member.shopId)) {
           return {
             shopId: member.shopId,
@@ -394,7 +337,7 @@ async function executeBatchAuditAsync(
         }
 
         try {
-          // 获取 admin 客户端
+
           const adminClient = await createAdminClientForShop(member.shopDomain);
           if (!adminClient) {
             return {
@@ -405,7 +348,6 @@ async function executeBatchAuditAsync(
             };
           }
 
-          // 执行扫描
           const scanResult = await scanShopTracking(
             { graphql: adminClient.graphql } as Parameters<typeof scanShopTracking>[0],
             member.shopId
@@ -433,7 +375,6 @@ async function executeBatchAuditAsync(
       })
     );
 
-    // 处理结果
     for (const result of batchResults) {
       if (result.status === "fulfilled") {
         results.push(result.value);
@@ -442,7 +383,6 @@ async function executeBatchAuditAsync(
       }
     }
 
-    // 更新进度
     job.progress = Math.round((results.length / totalShops) * 100);
     job.updatedAt = new Date();
   }
@@ -477,9 +417,6 @@ async function executeBatchAuditAsync(
   });
 }
 
-/**
- * 计算汇总统计
- */
 function calculateSummary(results: ShopAuditResult[]): BatchAuditSummary {
   const successResults = results.filter((r) => r.status === "success" && r.riskScore !== undefined);
 
@@ -494,7 +431,6 @@ function calculateSummary(results: ShopAuditResult[]): BatchAuditSummary {
   ).length;
   const lowRiskCount = successResults.filter((r) => (r.riskScore || 0) <= 30).length;
 
-  // 平台统计
   const platformBreakdown: Record<string, number> = {};
   for (const result of successResults) {
     for (const platform of result.identifiedPlatforms || []) {
@@ -511,9 +447,6 @@ function calculateSummary(results: ShopAuditResult[]): BatchAuditSummary {
   };
 }
 
-/**
- * 清理过期的任务记录 (建议定期调用)
- */
 export function cleanupOldJobs(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
   const now = Date.now();
   let cleaned = 0;

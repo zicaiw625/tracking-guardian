@@ -127,22 +127,12 @@ export async function getPixelConfigSummaries(
   return configs;
 }
 
-/**
- * 创建或更新像素配置
- * 
- * 注意：此函数使用部分更新策略，只有提供的字段会被更新。
- * undefined 值会被跳过，不会覆盖现有数据。
- * 
- * 如果要禁用服务端追踪，必须同时设置 serverSideEnabled: false。
- * 如果要启用服务端追踪，必须同时提供 credentialsEncrypted。
- */
 export async function upsertPixelConfig(
   shopId: string,
   input: PixelConfigInput
 ): Promise<PixelConfigFull> {
   const { platform, ...data } = input;
 
-  // 验证：如果启用服务端追踪，必须有加密凭证
   if (data.serverSideEnabled === true && !data.credentialsEncrypted) {
     throw new Error(
       "启用服务端追踪时必须提供 credentialsEncrypted。如果只需要客户端追踪，请设置 serverSideEnabled: false。"
@@ -167,7 +157,7 @@ export async function upsertPixelConfig(
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? true,
     },
-    // 使用 ?? undefined 来跳过未提供的字段，保持与 savePixelConfig 一致的行为
+
     update: {
       platformId: data.platformId ?? undefined,
       credentialsEncrypted: data.credentialsEncrypted ?? undefined,
@@ -274,16 +264,6 @@ export async function batchGetPixelConfigs(
   return result;
 }
 
-/**
- * 检查店铺是否有有效的服务端配置
- * 
- * 有效的服务端配置必须同时满足：
- * - isActive === true
- * - serverSideEnabled === true
- * - credentialsEncrypted 存在且为非空字符串
- * 
- * 这与 dashboard.server.ts 中的 hasServerSideConfig 计算逻辑保持一致
- */
 export async function hasServerSideConfigs(shopId: string): Promise<boolean> {
   const configs = await prisma.pixelConfig.findMany({
     where: {
@@ -295,7 +275,6 @@ export async function hasServerSideConfigs(shopId: string): Promise<boolean> {
     select: { credentialsEncrypted: true },
   });
 
-  // 防御性检查：确保 credentialsEncrypted 是非空字符串（避免空字符串加密值被误判为有效）
   return configs.some(
     (config) =>
       config.credentialsEncrypted &&

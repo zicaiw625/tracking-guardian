@@ -51,11 +51,11 @@ describe("Subscription Service", () => {
           data: {
             appSubscriptionCreate: {
               appSubscription: {
-                id: "gid://shopify/AppSubscription/123",
+                id: "gid:
                 status: "PENDING",
                 trialDays: 0,
               },
-              confirmationUrl: "https://admin.shopify.com/charges/confirm",
+              confirmationUrl: "https:
               userErrors: [],
             },
           },
@@ -67,18 +67,18 @@ describe("Subscription Service", () => {
         mockAdmin,
         "test-store.myshopify.com",
         "starter",
-        "https://app.com/callback"
+        "https:
       );
       expect(result.success).toBe(true);
       expect(result.confirmationUrl).toBeDefined();
-      expect(result.subscriptionId).toBe("gid://shopify/AppSubscription/123");
+      expect(result.subscriptionId).toBe("gid:
     });
     it("should return error for free plan", async () => {
       const result = await createSubscription(
         mockAdmin,
         "test-store.myshopify.com",
         "free",
-        "https://app.com/callback"
+        "https:
       );
       expect(result.success).toBe(false);
       expect(result.error).toBe("Invalid plan selected");
@@ -103,7 +103,7 @@ describe("Subscription Service", () => {
         mockAdmin,
         "test-store.myshopify.com",
         "starter",
-        "https://app.com/callback"
+        "https:
       );
       expect(result.success).toBe(false);
       expect(result.error).toContain("Invalid price format");
@@ -116,7 +116,7 @@ describe("Subscription Service", () => {
         mockAdmin,
         "test-store.myshopify.com",
         "starter",
-        "https://app.com/callback"
+        "https:
       );
       expect(result.success).toBe(false);
       expect(result.error).toBe("Network error");
@@ -127,7 +127,7 @@ describe("Subscription Service", () => {
           data: {
             appSubscriptionCreate: {
               appSubscription: { id: "sub-1", status: "PENDING" },
-              confirmationUrl: "https://confirm.url",
+              confirmationUrl: "https:
               userErrors: [],
             },
           },
@@ -139,7 +139,7 @@ describe("Subscription Service", () => {
         mockAdmin,
         "test-store.myshopify.com",
         "growth",
-        "https://app.com/callback"
+        "https:
       );
       expect(mockAdmin.graphql).toHaveBeenCalledWith(
         expect.any(String),
@@ -168,7 +168,7 @@ describe("Subscription Service", () => {
             appInstallation: {
               activeSubscriptions: [
                 {
-                  id: "gid://shopify/AppSubscription/123",
+                  id: "gid:
                   name: "Tracking Guardian - Growth",
                   status: "ACTIVE",
                   trialDays: 0,
@@ -279,7 +279,7 @@ describe("Subscription Service", () => {
       const result = await cancelSubscription(
         mockAdmin,
         "test-store.myshopify.com",
-        "gid://shopify/AppSubscription/123"
+        "gid:
       );
       expect(result.success).toBe(true);
       expect(prisma.shop.update).toHaveBeenCalledWith(

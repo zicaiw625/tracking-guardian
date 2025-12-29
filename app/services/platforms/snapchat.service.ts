@@ -1,8 +1,4 @@
-/**
- * Snapchat Conversions API Service
- * 
- * Snapchat CAPI 文档: https://marketingapi.snapchat.com/docs/#conversions-api
- */
+
 
 import type {
   ConversionData,
@@ -26,16 +22,14 @@ import {
   hashUserData,
 } from "./base-platform.service";
 
-const SNAPCHAT_API_BASE_URL = "https://tr.snapchat.com/v2/conversion";
+const SNAPCHAT_API_BASE_URL = "https:
 
-// Snapchat 凭证类型
 export interface SnapchatCredentials {
-  pixelId: string;        // Snap Pixel ID
-  accessToken: string;    // Conversions API Token
-  testMode?: boolean;     // 是否为测试模式
+  pixelId: string;
+  accessToken: string;
+  testMode?: boolean;
 }
 
-// Snapchat 事件类型映射
 const SNAPCHAT_EVENT_TYPES = {
   purchase: "PURCHASE",
   add_to_cart: "ADD_CART",
@@ -158,8 +152,7 @@ export class SnapchatPlatformService implements IPlatformService {
     eventId: string
   ): Promise<Record<string, unknown>> {
     const eventTime = Math.floor(Date.now() / 1000);
-    
-    // 构建哈希用户数据
+
     const hashedEmail = data.email ? await hashUserData(data.email.toLowerCase().trim()) : undefined;
     const hashedPhone = data.phone ? await hashUserData(data.phone.replace(/\D/g, '')) : undefined;
 
@@ -167,7 +160,7 @@ export class SnapchatPlatformService implements IPlatformService {
       event_type: SNAPCHAT_EVENT_TYPES.purchase,
       event_conversion_type: "WEB",
       event_tag: eventId,
-      timestamp: eventTime * 1000, // Snapchat 使用毫秒
+      timestamp: eventTime * 1000,
       hashed_email: hashedEmail,
       hashed_phone_number: hashedPhone,
       price: data.value,
@@ -185,7 +178,6 @@ export class SnapchatPlatformService implements IPlatformService {
   ): Promise<ConversionApiResponse> {
     const eventTime = Math.floor(Date.now() / 1000);
 
-    // 构建哈希用户数据
     const hashedEmail = data.email ? await hashUserData(data.email.toLowerCase().trim()) : undefined;
     const hashedPhone = data.phone ? await hashUserData(data.phone.replace(/\D/g, '')) : undefined;
 

@@ -4,12 +4,17 @@ import { useLoaderData } from "@remix-run/react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable, Select, ProgressBar, Button, Icon, Link, Banner, List } from "@shopify/polaris";
 import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, AlertCircleIcon, CheckCircleIcon, } from "~/components/icons";
 import { TableSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
+import { MissingParamsChart } from "~/components/monitor/MissingParamsChart";
+import { EventVolumeChart } from "~/components/monitor/EventVolumeChart";
+import { RealtimeEventMonitor } from "~/components/monitor/RealtimeEventMonitor";
 import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getDeliveryHealthHistory, getDeliveryHealthSummary, type DeliveryHealthReport, } from "../services/delivery-health.server";
 import { getAlertHistory, runAlertChecks, type AlertCheckResult } from "../services/alert-dispatcher.server";
 import { isValidPlatform, PLATFORM_NAMES } from "../types";
+import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats, checkMonitoringAlerts, getMissingParamsHistory, reconcileChannels, type EventMonitoringStats, type EventVolumeStats, type ChannelReconciliationResult } from "../services/monitoring.server";
+import { getMissingParamsRate } from "../services/event-validation.server";
 interface DeliverySummary {
     platform: string;
     last7DaysAttempted: number;
@@ -51,7 +56,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 lastPixelOrigin: null,
                 lastPixelTime: null
             },
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            monitoringStats: null,
+            missingParamsStats: [],
+            volumeStats: null,
+            monitoringAlert: null,
         });
     }
     const summary = await getDeliveryHealthSummary(shop.id);
@@ -80,23 +89,30 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
     });
 
-    // 获取告警配置状态
     const alertConfigs = await prisma.alertConfig.findMany({
         where: { shopId: shop.id, isEnabled: true },
         select: { id: true, channel: true, frequency: true },
     });
 
-    // 获取最近的告警历史
     const recentAlerts = await getAlertHistory(shop.id, 10);
 
-    // 运行实时告警检查（仅检查，不发送，用于显示状态）
     let currentAlertStatus: AlertCheckResult[] = [];
     try {
         const checkResult = await runAlertChecks(shop.id);
         currentAlertStatus = checkResult.results.filter(r => r.triggered);
     } catch (error) {
-        // 忽略检查错误，不影响页面加载
+
     }
+
+    const [monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation] = await Promise.all([
+        getEventMonitoringStats(shop.id, 24),
+        getMissingParamsStats(shop.id, 24),
+        getEventVolumeStats(shop.id),
+        checkMonitoringAlerts(shop.id).catch(() => null),
+        getMissingParamsHistory(shop.id, 7).catch(() => []),
+        getEventVolumeHistory(shop.id, 7).catch(() => []),
+        reconcileChannels(shop.id, 24).catch(() => []),
+    ]);
 
     return json({
         shop: { id: shop.id, domain: shopDomain },
@@ -112,12 +128,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         alertCount: alertConfigs.length,
         recentAlerts,
         currentAlertStatus,
+        monitoringStats,
+        missingParamsStats,
+        volumeStats,
+        monitoringAlert,
+        missingParamsHistory,
+        eventVolumeHistory,
+        channelReconciliation,
         lastUpdated: new Date().toISOString()
     });
 };
 export default function MonitorPage() {
-  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, lastUpdated } = useLoaderData<typeof loader>();
+  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, lastUpdated } = useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+  const [selectedChartPlatform, setSelectedChartPlatform] = useState<string>("all");
 
     const isDevUrl = configHealth.appUrl && (configHealth.appUrl.includes("ngrok") || configHealth.appUrl.includes("trycloudflare"));
 
@@ -231,7 +255,428 @@ export default function MonitorPage() {
           />
         )}
 
-        {/* 告警状态卡片 */}
+        {}
+        {monitoringAlert && monitoringAlert.shouldAlert && (
+          <Banner
+            title="监控告警"
+            tone={monitoringAlert.severity === "critical" ? "critical" : "warning"}
+          >
+            <BlockStack gap="200">
+              <Text as="p">{monitoringAlert.reason}</Text>
+              {monitoringStats && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  成功率: {monitoringStats.successRate.toFixed(2)}% |
+                  失败率: {monitoringStats.failureRate.toFixed(2)}%
+                </Text>
+              )}
+            </BlockStack>
+          </Banner>
+        )}
+
+        {}
+        {volumeStats && volumeStats.isDrop && (
+          <Banner
+            title="事件量下降"
+            tone="warning"
+          >
+            <BlockStack gap="200">
+              <Text as="p">
+                最近24小时事件量: {volumeStats.current24h} |
+                前24小时: {volumeStats.previous24h} |
+                变化: {volumeStats.changePercent.toFixed(2)}%
+              </Text>
+              {volumeStats.average7Days !== undefined && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  7天平均值: {volumeStats.average7Days.toFixed(0)} |
+                  标准差: {volumeStats.stdDev?.toFixed(0) || "N/A"} |
+                  异常阈值: {volumeStats.threshold?.toFixed(0) || "N/A"}
+                </Text>
+              )}
+              <Text as="p" variant="bodySm" tone="subdued">
+                如果下降超过50%，可能发生追踪断档，请检查像素配置和网络连接。
+              </Text>
+            </BlockStack>
+          </Banner>
+        )}
+
+        {}
+        {shop && (
+          <RealtimeEventMonitor
+            shopId={shop.id}
+            autoStart={false}
+          />
+        )}
+
+        {}
+        {eventVolumeHistory && eventVolumeHistory.length > 0 && volumeStats && (
+          <EventVolumeChart
+            historyData={eventVolumeHistory}
+            current24h={volumeStats.current24h}
+            previous24h={volumeStats.previous24h}
+            changePercent={volumeStats.changePercent}
+            isDrop={volumeStats.isDrop}
+          />
+        )}
+
+        {}
+        {monitoringStats && missingParamsStats && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  📊 缺参率监控（最近24小时）
+                </Text>
+                {monitoringStats.totalEvents > 0 && (
+                  <Badge
+                    tone={
+                      (() => {
+                        const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+                        const missingRate = (totalMissing / monitoringStats.totalEvents) * 100;
+                        return missingRate < 5 ? "success" : missingRate < 10 ? "warning" : "critical";
+                      })()
+                    }
+                  >
+                    {(() => {
+                      const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+                      const missingRate = (totalMissing / monitoringStats.totalEvents) * 100;
+                      return `缺参率: ${missingRate.toFixed(2)}%`;
+                    })()}
+                  </Badge>
+                )}
+              </InlineStack>
+
+              {monitoringStats.totalEvents === 0 ? (
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    暂无事件数据，完成订单后将显示缺参率统计。
+                  </Text>
+                </Banner>
+              ) : missingParamsStats.length === 0 ? (
+                <Banner tone="success">
+                  <Text as="p" variant="bodySm">
+                    ✅ 所有事件参数完整，未发现缺失情况。
+                  </Text>
+                </Banner>
+              ) : (
+                <BlockStack gap="300">
+                  {}
+                  <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodySm" tone="subdued">总体缺参率</Text>
+                        <Text
+                          as="span"
+                          variant="headingLg"
+                          tone={(() => {
+                            const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+                            const missingRate = (totalMissing / monitoringStats.totalEvents) * 100;
+                            return missingRate < 5 ? "success" : missingRate < 10 ? "warning" : "critical";
+                          })()}
+                        >
+                          {(() => {
+                            const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+                            const missingRate = (totalMissing / monitoringStats.totalEvents) * 100;
+                            return `${missingRate.toFixed(2)}%`;
+                          })()}
+                        </Text>
+                      </BlockStack>
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodySm" tone="subdued">缺失事件数</Text>
+                        <Text as="span" variant="headingMd">
+                          {missingParamsStats.reduce((sum, s) => sum + s.count, 0)} / {monitoringStats.totalEvents}
+                        </Text>
+                      </BlockStack>
+                    </InlineStack>
+                  </Box>
+
+                  <Divider />
+
+                  {}
+                  {monitoringStats.totalEvents > 0 && (
+                    <Box
+                      background={(() => {
+                        const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+                        const overallRate = (totalMissing / monitoringStats.totalEvents) * 100;
+                        if (overallRate < 5) return "bg-fill-success-secondary";
+                        if (overallRate < 10) return "bg-fill-warning-secondary";
+                        return "bg-fill-critical-secondary";
+                      })()}
+                      padding="400"
+                      borderRadius="200"
+                    >
+                      <BlockStack gap="200">
+                        <Text as="h3" variant="headingSm">
+                          总体缺参率
+                        </Text>
+                        <InlineStack gap="400" wrap>
+                          <Box>
+                            <BlockStack gap="100">
+                              <Text as="span" variant="bodySm" tone="subdued">缺参率</Text>
+                              <Text
+                                as="span"
+                                variant="headingXl"
+                                tone={(() => {
+                                  const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+                                  const overallRate = (totalMissing / monitoringStats.totalEvents) * 100;
+                                  if (overallRate < 5) return "success";
+                                  if (overallRate < 10) return "warning";
+                                  return "critical";
+                                })()}
+                                fontWeight="bold"
+                              >
+                                {(() => {
+                                  const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+                                  return monitoringStats.totalEvents > 0
+                                    ? ((totalMissing / monitoringStats.totalEvents) * 100).toFixed(2)
+                                    : "0.00";
+                                })()}%
+                              </Text>
+                            </BlockStack>
+                          </Box>
+                          <Box>
+                            <BlockStack gap="100">
+                              <Text as="span" variant="bodySm" tone="subdued">缺失事件数</Text>
+                              <Text as="span" variant="headingLg" fontWeight="semibold">
+                                {missingParamsStats.reduce((sum, s) => sum + s.count, 0)} / {monitoringStats.totalEvents}
+                              </Text>
+                            </BlockStack>
+                          </Box>
+                          <Box>
+                            <BlockStack gap="100">
+                              <Text as="span" variant="bodySm" tone="subdued">涉及平台/事件</Text>
+                              <Text as="span" variant="headingLg" fontWeight="semibold">
+                                {missingParamsStats.length} 种组合
+                              </Text>
+                            </BlockStack>
+                          </Box>
+                        </InlineStack>
+                      </BlockStack>
+                    </Box>
+                  )}
+
+                  {}
+                  <Text as="h3" variant="headingSm">
+                    详细统计
+                  </Text>
+                  <BlockStack gap="200">
+                    {missingParamsStats.slice(0, 10).map((stat, idx) => {
+                      const platformName = isValidPlatform(stat.platform)
+                        ? PLATFORM_NAMES[stat.platform]
+                        : stat.platform;
+                      const missingRate = monitoringStats.totalEvents > 0
+                        ? (stat.count / monitoringStats.totalEvents) * 100
+                        : 0;
+
+                      return (
+                        <Box
+                          key={idx}
+                          background="bg-surface-secondary"
+                          padding="300"
+                          borderRadius="200"
+                        >
+                          <BlockStack gap="200">
+                            <InlineStack align="space-between" blockAlign="center">
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone={missingRate < 5 ? "success" : missingRate < 10 ? "warning" : "critical"}>
+                                  {platformName} - {stat.eventType}
+                                </Badge>
+                                <Text as="span" variant="bodySm" tone="subdued">
+                                  {stat.count} 次缺失
+                                </Text>
+                              </InlineStack>
+                              <Text as="span" variant="bodySm" fontWeight="semibold">
+                                {missingRate.toFixed(2)}%
+                              </Text>
+                            </InlineStack>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              缺失参数: {stat.missingParams.join(", ")}
+                            </Text>
+                          </BlockStack>
+                        </Box>
+                      );
+                    })}
+                  </BlockStack>
+
+                  {missingParamsStats.length > 10 && (
+                    <Banner tone="info">
+                      <Text as="p" variant="bodySm">
+                        还有 {missingParamsStats.length - 10} 种参数缺失情况未显示。建议检查事件配置。
+                      </Text>
+                    </Banner>
+                  )}
+                </BlockStack>
+              )}
+
+              {}
+              {missingParamsHistory && missingParamsHistory.length > 0 && (
+                <>
+                  <Divider />
+                  <MissingParamsChart
+                    historyData={missingParamsHistory}
+                    selectedPlatform={selectedChartPlatform}
+                    onPlatformChange={setSelectedChartPlatform}
+                  />
+                </>
+              )}
+            </BlockStack>
+          </Card>
+        )}
+
+        {}
+        {monitoringStats && (
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                📈 实时监控统计（最近24小时）
+              </Text>
+              <BlockStack gap="300">
+                <InlineStack gap="400" wrap>
+                  <Box minWidth="200px">
+                    <BlockStack gap="100">
+                      <Text as="span" variant="bodySm" tone="subdued">总事件数</Text>
+                      <Text as="span" variant="headingLg">{monitoringStats.totalEvents}</Text>
+                    </BlockStack>
+                  </Box>
+                  <Box minWidth="200px">
+                    <BlockStack gap="100">
+                      <Text as="span" variant="bodySm" tone="subdued">成功率</Text>
+                      <Text as="span" variant="headingLg" tone={monitoringStats.successRate >= 95 ? "success" : monitoringStats.successRate >= 90 ? "warning" : "critical"}>
+                        {monitoringStats.successRate.toFixed(2)}%
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <Box minWidth="200px">
+                    <BlockStack gap="100">
+                      <Text as="span" variant="bodySm" tone="subdued">失败率</Text>
+                      <Text as="span" variant="headingLg" tone={monitoringStats.failureRate < 2 ? "success" : monitoringStats.failureRate < 5 ? "warning" : "critical"}>
+                        {monitoringStats.failureRate.toFixed(2)}%
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                </InlineStack>
+                {Object.keys(monitoringStats.byPlatform).length > 0 && (
+                  <>
+                    <Divider />
+                    {Object.entries(monitoringStats.byPlatform).map(([platform, stats]) => (
+                      <Box key={platform} background="bg-surface-secondary" padding="300" borderRadius="200">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text as="span" fontWeight="semibold">
+                            {isValidPlatform(platform) ? PLATFORM_NAMES[platform] : platform}
+                          </Text>
+                          <InlineStack gap="300">
+                            <Badge tone={stats.successRate >= 95 ? "success" : stats.successRate >= 90 ? "warning" : "critical"}>
+                              成功率: {stats.successRate.toFixed(2)}%
+                            </Badge>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              {stats.success}/{stats.total}
+                            </Text>
+                          </InlineStack>
+                        </InlineStack>
+                      </Box>
+                    ))}
+                  </>
+                )}
+              </BlockStack>
+            </BlockStack>
+          </Card>
+        )}
+
+        {}
+        {channelReconciliation && channelReconciliation.length > 0 && (
+          <Card>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                🔄 渠道对账（最近24小时）
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                比较 Shopify 订单与平台事件的一致性，确保追踪数据准确
+              </Text>
+              <BlockStack gap="300">
+                {channelReconciliation.map((recon) => {
+                  const platformName = isValidPlatform(recon.platform)
+                    ? PLATFORM_NAMES[recon.platform]
+                    : recon.platform;
+
+                  return (
+                    <Box
+                      key={recon.platform}
+                      background={
+                        recon.matchRate >= 95
+                          ? "bg-surface-success"
+                          : recon.matchRate >= 90
+                            ? "bg-surface-warning"
+                            : "bg-surface-critical"
+                      }
+                      padding="400"
+                      borderRadius="200"
+                    >
+                      <BlockStack gap="200">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text as="span" fontWeight="semibold">
+                            {platformName}
+                          </Text>
+                          <Badge
+                            tone={
+                              recon.matchRate >= 95
+                                ? "success"
+                                : recon.matchRate >= 90
+                                  ? "warning"
+                                  : "critical"
+                            }
+                          >
+                            匹配率: {recon.matchRate.toFixed(2)}%
+                          </Badge>
+                        </InlineStack>
+                        <BlockStack gap="100">
+                          <InlineStack align="space-between">
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              Shopify 订单
+                            </Text>
+                            <Text as="span" variant="bodySm" fontWeight="semibold">
+                              {recon.shopifyOrders}
+                            </Text>
+                          </InlineStack>
+                          <InlineStack align="space-between">
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              平台事件
+                            </Text>
+                            <Text as="span" variant="bodySm" fontWeight="semibold">
+                              {recon.platformEvents}
+                            </Text>
+                          </InlineStack>
+                          {recon.discrepancy > 0 && (
+                            <InlineStack align="space-between">
+                              <Text as="span" variant="bodySm" tone="subdued">
+                                差异
+                              </Text>
+                              <Text
+                                as="span"
+                                variant="bodySm"
+                                fontWeight="semibold"
+                                tone={recon.discrepancyRate > 10 ? "critical" : "warning"}
+                              >
+                                {recon.discrepancy} ({recon.discrepancyRate.toFixed(2)}%)
+                              </Text>
+                            </InlineStack>
+                          )}
+                        </BlockStack>
+                      </BlockStack>
+                    </Box>
+                  );
+                })}
+              </BlockStack>
+              {channelReconciliation.some((r) => r.discrepancyRate > 10) && (
+                <Banner tone="warning">
+                  <Text as="p" variant="bodySm">
+                    ⚠️ 部分平台存在较大差异，建议检查事件发送配置或联系平台技术支持。
+                  </Text>
+                </Banner>
+              )}
+            </BlockStack>
+          </Card>
+        )}
+
+        {}
         {(currentAlertStatus.length > 0 || !alertConfigs) && (
           <Card>
             <BlockStack gap="400">

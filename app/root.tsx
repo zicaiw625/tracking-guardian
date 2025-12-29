@@ -8,8 +8,13 @@ export default function App() {
       <head>
         <meta charSet="utf-8"/>
         <meta name="viewport" content="width=device-width,initial-scale=1"/>
-        <link rel="preconnect" href="https://cdn.shopify.com/"/>
-        <link rel="stylesheet" href="https://cdn.shopify.com/static/fonts/inter/v4/styles.css"/>
+        {}
+        <link rel="dns-prefetch" href="https:
+        <link rel="preconnect" href="https:
+        <link rel="preconnect" href="https:
+        <link rel="preconnect" href="https:
+        {}
+        <link rel="stylesheet" href="https:
         <Meta />
         <Links />
       </head>
@@ -40,7 +45,6 @@ export function ErrorBoundary() {
     console.error("Unknown error caught in root ErrorBoundary:", error);
   }
 
-  // Use simple HTML/CSS for error display to avoid Polaris AppProvider requirement
   return (
     <html lang="zh-CN">
       <head>
@@ -101,7 +105,7 @@ export function ErrorBoundary() {
             <h1 className="error-title">{title}</h1>
             <p className="error-message">{message}</p>
             <p className="error-code">错误代码: {code}</p>
-            <button 
+            <button
               className="error-button"
               onClick={() => window.location.reload()}
             >

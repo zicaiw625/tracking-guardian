@@ -11,6 +11,7 @@ import {
     useOrder,
     Divider,
 } from "@shopify/ui-extensions-react/checkout";
+import { useMemo } from "react";
 
 export default reactExtension("purchase.thank-you.block.render", () => <ShippingTracker />);
 
@@ -18,16 +19,18 @@ function ShippingTracker() {
     const settings = useSettings();
     const order = useOrder();
 
-    const title = (settings.shipping_title as string) || "订单状态";
-    const tipText = (settings.shipping_tip_text as string) ||
-        "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。";
+    const title = useMemo(() => (settings.shipping_title as string) || "订单状态", [settings.shipping_title]);
+    const tipText = useMemo(() => (settings.shipping_tip_text as string) ||
+        "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。", [settings.shipping_tip_text]);
 
-    const shippingSteps = [
+    const shippingSteps = useMemo(() => [
         { id: "ordered", label: "订单已确认", completed: true, date: "已完成" },
         { id: "processing", label: "处理中", completed: true, date: "进行中" },
         { id: "shipped", label: "已发货", completed: false, date: "待发货" },
         { id: "delivered", label: "已送达", completed: false, date: "待送达" },
-    ];
+    ], []);
+
+    const confirmationNumber = useMemo(() => order?.confirmationNumber || "处理中...", [order?.confirmationNumber]);
 
     return (
         <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
@@ -81,7 +84,7 @@ function ShippingTracker() {
                         订单编号
                     </Text>
                     <Text size="small" emphasis="bold">
-                        {order?.confirmationNumber || "处理中..."}
+                        {confirmationNumber}
                     </Text>
                 </InlineLayout>
             </BlockStack>

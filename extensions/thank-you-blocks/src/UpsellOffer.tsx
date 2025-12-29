@@ -12,7 +12,7 @@ import {
     Divider,
     Banner,
 } from "@shopify/ui-extensions-react/checkout";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 
 export default reactExtension("purchase.thank-you.block.render", () => <UpsellOffer />);
 
@@ -21,14 +21,18 @@ function UpsellOffer() {
     const [dismissed, setDismissed] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const discountCode = (settings.upsell_discount_code as string) || "THANKYOU10";
-    const discountPercentStr = settings.upsell_discount_percent as string;
-    const discountPercent = discountPercentStr ? parseInt(discountPercentStr, 10) : 10;
-    const expiryHoursStr = settings.upsell_expiry_hours as string;
-    const expiryHours = expiryHoursStr ? parseInt(expiryHoursStr, 10) : 24;
-    const continueShoppingUrl = (settings.continue_shopping_url as string) || "/";
+    const discountCode = useMemo(() => (settings.upsell_discount_code as string) || "THANKYOU10", [settings.upsell_discount_code]);
+    const discountPercent = useMemo(() => {
+        const discountPercentStr = settings.upsell_discount_percent as string;
+        return discountPercentStr ? parseInt(discountPercentStr, 10) : 10;
+    }, [settings.upsell_discount_percent]);
+    const expiryHours = useMemo(() => {
+        const expiryHoursStr = settings.upsell_expiry_hours as string;
+        return expiryHoursStr ? parseInt(expiryHoursStr, 10) : 24;
+    }, [settings.upsell_expiry_hours]);
+    const continueShoppingUrl = useMemo(() => (settings.continue_shopping_url as string) || "/", [settings.continue_shopping_url]);
 
-    const handleCopyCode = async () => {
+    const handleCopyCode = useCallback(async () => {
         try {
 
             if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
@@ -42,7 +46,11 @@ function UpsellOffer() {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         }
-    };
+    }, [discountCode]);
+
+    const handleDismiss = useCallback(() => {
+        setDismissed(true);
+    }, []);
 
     if (dismissed) {
         return null;
@@ -54,7 +62,7 @@ function UpsellOffer() {
                 <Text size="medium" emphasis="bold">
                     🎁 专属感谢优惠
                 </Text>
-                <Button kind="plain" onPress={() => setDismissed(true)}>
+                <Button kind="plain" onPress={handleDismiss}>
                     ✕
                 </Button>
             </InlineLayout>

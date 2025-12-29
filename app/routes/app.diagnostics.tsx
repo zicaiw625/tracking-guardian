@@ -1084,7 +1084,7 @@ export default function DiagnosticsPage() {
                     </Text>
                     <InlineStack gap="200">
                       <Button
-                        url="https://admin.shopify.com/settings/customer_events"
+                        url="https:
                         external
                         size="slim"
                       >
@@ -1123,7 +1123,7 @@ export default function DiagnosticsPage() {
                     </Text>
                     <InlineStack gap="200" wrap>
                       <Button
-                        url="https://business.facebook.com/events_manager"
+                        url="https:
                         external
                         size="slim"
                         variant="secondary"
@@ -1131,7 +1131,7 @@ export default function DiagnosticsPage() {
                         Meta Events Manager
                       </Button>
                       <Button
-                        url="https://analytics.google.com/"
+                        url="https:
                         external
                         size="slim"
                         variant="secondary"
@@ -1139,7 +1139,7 @@ export default function DiagnosticsPage() {
                         Google Analytics
                       </Button>
                       <Button
-                        url="https://ads.tiktok.com/i18n/events_manager"
+                        url="https:
                         external
                         size="slim"
                         variant="secondary"

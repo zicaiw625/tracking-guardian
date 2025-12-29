@@ -1,7 +1,4 @@
-/**
- * 优化的加载骨架屏组件
- * 用于提升感知性能，替代 Spinner
- */
+
 
 import {
   SkeletonPage,
@@ -22,9 +19,6 @@ export interface PageSkeletonProps {
   title?: string;
 }
 
-/**
- * 页面级骨架屏
- */
 export function PageSkeleton({
   cards = 2,
   showTabs = false,
@@ -57,11 +51,8 @@ export interface CardSkeletonProps {
   showImage?: boolean;
 }
 
-/**
- * 卡片骨架屏
- */
-export function CardSkeleton({ 
-  lines = 3, 
+export function CardSkeleton({
+  lines = 3,
   showTitle = true,
   showImage = false,
 }: CardSkeletonProps) {
@@ -84,11 +75,8 @@ export interface TableSkeletonProps {
   showHeader?: boolean;
 }
 
-/**
- * 表格骨架屏
- */
-export function TableSkeleton({ 
-  rows = 5, 
+export function TableSkeleton({
+  rows = 5,
   columns = 4,
   showHeader = true,
 }: TableSkeletonProps) {
@@ -124,9 +112,6 @@ export interface StatsSkeletonProps {
   showTrend?: boolean;
 }
 
-/**
- * 统计卡片骨架屏
- */
 export function StatsSkeleton({ count = 3, showTrend = false }: StatsSkeletonProps) {
   return (
     <InlineStack gap="400" wrap={false}>
@@ -155,9 +140,6 @@ export interface ListSkeletonProps {
   showAvatar?: boolean;
 }
 
-/**
- * 列表骨架屏
- */
 export function ListSkeleton({ items = 5, showAvatar = false }: ListSkeletonProps) {
   return (
     <Card>
@@ -182,9 +164,6 @@ export interface FormSkeletonProps {
   showActions?: boolean;
 }
 
-/**
- * 表单骨架屏
- */
 export function FormSkeleton({ fields = 4, showActions = true }: FormSkeletonProps) {
   return (
     <Card>
@@ -217,9 +196,6 @@ export function FormSkeleton({ fields = 4, showActions = true }: FormSkeletonPro
   );
 }
 
-/**
- * 仪表板骨架屏（3列布局）
- */
 export function DashboardSkeleton() {
   return (
     <BlockStack gap="500">

@@ -1,32 +1,20 @@
-/**
- * UI 辅助工具函数
- * 提供常用的 UI 相关工具函数
- */
 
-/**
- * 格式化数字，添加千位分隔符
- */
+
 export function formatNumber(num: number | string, decimals = 0): string {
   const n = typeof num === "string" ? parseFloat(num) : num;
   if (isNaN(n)) return "0";
-  
+
   return new Intl.NumberFormat("zh-CN", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(n);
 }
 
-/**
- * 格式化百分比
- */
 export function formatPercent(value: number, decimals = 1): string {
   if (isNaN(value)) return "0%";
   return `${value.toFixed(decimals)}%`;
 }
 
-/**
- * 格式化货币
- */
 export function formatCurrency(
   amount: number | string,
   currency = "USD",
@@ -43,9 +31,6 @@ export function formatCurrency(
   }).format(amt);
 }
 
-/**
- * 格式化日期时间
- */
 export function formatDateTime(
   date: Date | string | number,
   options: Intl.DateTimeFormatOptions = {}
@@ -68,9 +53,6 @@ export function formatDateTime(
   return new Intl.DateTimeFormat("zh-CN", defaultOptions).format(d);
 }
 
-/**
- * 格式化相对时间（如：2小时前）
- */
 export function formatRelativeTime(date: Date | string | number): string {
   const d = typeof date === "string" || typeof date === "number"
     ? new Date(date)
@@ -89,26 +71,20 @@ export function formatRelativeTime(date: Date | string | number): string {
   if (diffMins < 60) return `${diffMins} 分钟前`;
   if (diffHours < 24) return `${diffHours} 小时前`;
   if (diffDays < 7) return `${diffDays} 天前`;
-  
+
   return formatDateTime(d, { year: "numeric", month: "short", day: "numeric" });
 }
 
-/**
- * 截断文本并添加省略号
- */
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength) + "…";
 }
 
-/**
- * 获取状态颜色（用于 Badge 等组件）
- */
 export function getStatusTone(
   status: string
 ): "success" | "critical" | "warning" | "info" | "attention" {
   const statusLower = status.toLowerCase();
-  
+
   if (statusLower.includes("success") || statusLower.includes("完成") || statusLower.includes("成功")) {
     return "success";
   }
@@ -121,46 +97,33 @@ export function getStatusTone(
   if (statusLower.includes("pending") || statusLower.includes("等待") || statusLower.includes("处理中")) {
     return "attention";
   }
-  
+
   return "info";
 }
 
-/**
- * 获取风险等级颜色
- */
 export function getRiskTone(score: number): "success" | "warning" | "critical" {
   if (score >= 70) return "critical";
   if (score >= 40) return "warning";
   return "success";
 }
 
-/**
- * 计算进度百分比（带边界检查）
- */
 export function calculateProgress(current: number, total: number): number {
   if (total === 0) return 0;
   const progress = (current / total) * 100;
   return Math.max(0, Math.min(100, progress));
 }
 
-/**
- * 生成唯一 ID
- */
 export function generateId(prefix = "id"): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-/**
- * 复制到剪贴板
- */
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(text);
       return true;
     }
-    
-    // 降级方案
+
     const textArea = document.createElement("textarea");
     textArea.value = text;
     textArea.style.position = "fixed";
@@ -176,33 +139,24 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-/**
- * 判断是否为移动设备
- */
 export function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false;
   return window.innerWidth < 768;
 }
 
-/**
- * 判断是否为平板设备
- */
 export function isTabletDevice(): boolean {
   if (typeof window === "undefined") return false;
   const width = window.innerWidth;
   return width >= 768 && width < 1024;
 }
 
-/**
- * 获取响应式布局列数
- */
 export function getResponsiveColumns(
   mobile: number = 1,
   tablet: number = 2,
   desktop: number = 3
 ): number {
   if (typeof window === "undefined") return desktop;
-  
+
   const width = window.innerWidth;
   if (width < 768) return mobile;
   if (width < 1024) return tablet;

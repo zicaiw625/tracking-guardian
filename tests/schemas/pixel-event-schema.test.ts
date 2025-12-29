@@ -109,7 +109,7 @@ describe("PixelEventSchema", () => {
     timestamp: Date.now(),
     shopDomain: "test-shop.myshopify.com",
     data: {
-      orderId: "gid://shopify/Order/12345",
+      orderId: "gid:
       checkoutToken: "valid-checkout-token-123",
     },
   };
@@ -154,7 +154,7 @@ describe("PixelEventSchema", () => {
       timestamp: Date.now(),
       shopDomain: "test-shop.myshopify.com",
       data: {
-        url: "https://test-shop.myshopify.com/products/test",
+        url: "https:
         title: "Test Product",
       },
     };
@@ -200,7 +200,7 @@ describe("validatePixelEvent", () => {
       eventName: "page_viewed",
       timestamp: Date.now(),
       shopDomain: "test-shop.myshopify.com",
-      data: { url: "https://example.com" },
+      data: { url: "https:
     };
 
     const result = validatePixelEvent(payload);

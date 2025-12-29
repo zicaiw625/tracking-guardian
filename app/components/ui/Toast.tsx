@@ -1,7 +1,4 @@
-/**
- * Toast 通知组件
- * 用于显示操作成功/失败的临时提示
- */
+
 
 import { useCallback, useEffect, useState } from "react";
 import { Banner, InlineStack, Icon, Text, Box, BlockStack } from "@shopify/polaris";
@@ -13,7 +10,7 @@ export interface Toast {
   id: string;
   message: string;
   type: ToastType;
-  duration?: number; // 自动关闭时间（毫秒），0 表示不自动关闭
+  duration?: number;
 }
 
 interface ToastProps {
@@ -31,8 +28,8 @@ function ToastItem({ toast, onDismiss }: ToastProps) {
     }
   }, [toast.id, toast.duration, onDismiss]);
 
-  const tone = toast.type === "success" ? "success" : 
-               toast.type === "error" ? "critical" : 
+  const tone = toast.type === "success" ? "success" :
+               toast.type === "error" ? "critical" :
                toast.type === "warning" ? "warning" : "info";
 
   const icon = toast.type === "success" ? CheckCircleIcon :
@@ -84,7 +81,6 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   );
 }
 
-// Hook for managing toasts
 export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -106,7 +102,7 @@ export function useToast() {
   }, [showToast]);
 
   const showError = useCallback((message: string, duration?: number) => {
-    showToast(message, "error", duration || 5000); // 错误消息显示更久
+    showToast(message, "error", duration || 5000);
   }, [showToast]);
 
   const showInfo = useCallback((message: string, duration?: number) => {
@@ -128,7 +124,6 @@ export function useToast() {
   };
 }
 
-// CSS animation (should be added to global styles)
 const toastStyles = `
 @keyframes slideIn {
   from {
@@ -142,6 +137,5 @@ const toastStyles = `
 }
 `;
 
-// Export styles to be added to root stylesheet
 export { toastStyles };
 

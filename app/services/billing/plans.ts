@@ -1,12 +1,4 @@
-/**
- * 套餐配置 - 对齐设计方案 v1.0 第 11 节商业化定价
- * 
- * 套餐体系:
- * - Free: 免费版，Audit 扫描报告 + 迁移清单
- * - Starter ($29/月): 1个像素目的地 + 1个页面模块 + 基础验收
- * - Growth ($79/月): 3个像素目的地 + 全部页面模块 + 事件对账 + 告警
- * - Agency ($199/月): 多店 workspace + 批量交付 + 报告导出 + 团队协作
- */
+
 
 export interface PlanFeatures {
   id: string;
@@ -16,14 +8,14 @@ export interface PlanFeatures {
   monthlyOrderLimit: number;
   trialDays?: number;
   features: readonly string[];
-  // v1.0 新增字段
-  pixelDestinations: number; // 支持的像素目的地数量
-  uiModules: number; // 支持的 UI 模块数量 (-1 表示无限)
-  includesVerification: boolean; // 是否包含验收功能
-  includesAlerts: boolean; // 是否包含告警功能
-  includesReconciliation: boolean; // 是否包含事件对账
-  includesAgency: boolean; // 是否包含 Agency 多店功能
-  tagline?: string; // 套餐标语
+
+  pixelDestinations: number;
+  uiModules: number;
+  includesVerification: boolean;
+  includesAlerts: boolean;
+  includesReconciliation: boolean;
+  includesAgency: boolean;
+  tagline?: string;
 }
 
 export const BILLING_PLANS = {
@@ -78,7 +70,7 @@ export const BILLING_PLANS = {
     monthlyOrderLimit: 10000,
     trialDays: 7,
     pixelDestinations: 3,
-    uiModules: -1, // 无限
+    uiModules: -1,
     includesVerification: true,
     includesAlerts: true,
     includesReconciliation: true,
@@ -101,8 +93,8 @@ export const BILLING_PLANS = {
     price: 199,
     monthlyOrderLimit: 100000,
     trialDays: 14,
-    pixelDestinations: -1, // 无限
-    uiModules: -1, // 无限
+    pixelDestinations: -1,
+    uiModules: -1,
     includesVerification: true,
     includesAlerts: true,
     includesReconciliation: true,
@@ -123,19 +115,16 @@ export const BILLING_PLANS = {
   },
 } as const;
 
-// 兼容旧代码：enterprise 别名指向 agency
 export const BILLING_PLANS_COMPAT = {
   ...BILLING_PLANS,
   enterprise: BILLING_PLANS.agency,
-  pro: BILLING_PLANS.growth, // 兼容旧 pro 套餐
+  pro: BILLING_PLANS.growth,
 } as const;
 
 export type PlanId = keyof typeof BILLING_PLANS;
 
-// v1.0 新套餐 ID 列表
 export const PLAN_IDS: readonly PlanId[] = ["free", "starter", "growth", "agency"];
 
-// 兼容旧套餐 ID
 export const PLAN_IDS_COMPAT: readonly string[] = ["free", "starter", "pro", "growth", "enterprise", "agency"];
 
 export function isValidPlanId(planId: string): planId is PlanId {
@@ -152,8 +141,7 @@ export function getPlanConfig(planId: PlanId): typeof BILLING_PLANS[PlanId] {
 
 export function getPlanOrDefault(planId: string | null | undefined): typeof BILLING_PLANS[PlanId] {
   if (!planId) return BILLING_PLANS.free;
-  
-  // 处理兼容性：pro -> growth, enterprise -> agency
+
   const normalizedId = normalizePlanId(planId);
   if (isValidPlanId(normalizedId)) {
     return BILLING_PLANS[normalizedId];
@@ -161,9 +149,6 @@ export function getPlanOrDefault(planId: string | null | undefined): typeof BILL
   return BILLING_PLANS.free;
 }
 
-/**
- * 标准化套餐 ID（处理旧版本兼容）
- */
 export function normalizePlanId(planId: string): PlanId {
   switch (planId) {
     case "pro":
@@ -212,27 +197,20 @@ export function getUpgradeOptions(currentPlan: PlanId): PlanId[] {
   return tierOrder.slice(currentIndex + 1);
 }
 
-/**
- * 获取套餐允许管理的最大店铺数量
- * 用于 Agency 多店功能
- */
 export function getMaxShops(planId: PlanId): number {
   switch (planId) {
     case "agency":
-      return 50; // Agency 版最多 50 个店铺
+      return 50;
     case "growth":
-      return 1; // 成长版仅限单店
+      return 1;
     case "starter":
-      return 1; // 入门版仅限单店
+      return 1;
     case "free":
     default:
-      return 1; // 免费版仅限单店
+      return 1;
   }
 }
 
-/**
- * 检查套餐是否支持某功能
- */
 export function planSupportsFeature(
   planId: PlanId,
   feature: "verification" | "alerts" | "reconciliation" | "agency"
@@ -252,23 +230,14 @@ export function planSupportsFeature(
   }
 }
 
-/**
- * 获取套餐允许的像素目的地数量
- */
 export function getPixelDestinationsLimit(planId: PlanId): number {
   return BILLING_PLANS[planId].pixelDestinations;
 }
 
-/**
- * 获取套餐允许的 UI 模块数量
- */
 export function getUiModulesLimit(planId: PlanId): number {
   return BILLING_PLANS[planId].uiModules;
 }
 
-/**
- * 获取套餐标语
- */
 export function getPlanTagline(planId: PlanId): string | undefined {
   return BILLING_PLANS[planId].tagline;
 }

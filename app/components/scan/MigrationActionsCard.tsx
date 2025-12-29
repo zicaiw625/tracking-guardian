@@ -98,6 +98,13 @@ export function MigrationActionsCard({
                 <Text as="p" variant="bodySm" tone="subdued">
                   {action.description}
                 </Text>
+                {action.estimatedTimeMinutes && (
+                  <InlineStack gap="200" blockAlign="center">
+                    <Badge tone="info">
+                      预计时间: {action.estimatedTimeMinutes} 分钟
+                    </Badge>
+                  </InlineStack>
+                )}
                 <InlineStack gap="200" align="end">
                   {action.type === "migrate_script_tag" && action.scriptTagId && (
                     <Button

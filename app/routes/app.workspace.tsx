@@ -1,12 +1,9 @@
-/**
- * Agency Workspace 管理页面
- * 对应设计方案 4.7 Agency：多店与交付
- */
+
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import {
   Page,
   Layout,
@@ -47,6 +44,17 @@ import {
   type BatchAuditResult,
   type BatchAuditJob,
 } from "../services/batch-audit.server";
+import {
+  batchApplyPixelTemplate,
+  getPixelTemplates,
+  getBatchApplyJobStatus,
+  type BatchApplyResult,
+} from "../services/batch-pixel-apply.server";
+import { lazy, Suspense } from "react";
+import { CardSkeleton } from "~/components/ui";
+
+const BatchApplyWizard = lazy(() => import("../components/workspace/BatchApplyWizard").then(module => ({ default: module.BatchApplyWizard })));
+export type { PixelTemplate, ShopInfo } from "../components/workspace/BatchApplyWizard";
 import prisma from "../db.server";
 import {
   canManageMultipleShops,
@@ -115,7 +123,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const maxShops = await getMaxShopsForShop(shop.id);
   const groups = await getShopGroups(shop.id);
 
-  // 如果有分组，加载第一个分组的详情
   let selectedGroup: ShopGroupDetails | null = null;
   let groupStats: AggregatedStats | null = null;
   let shopBreakdown: Array<{
@@ -251,11 +258,37 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: result.error }, { status: 400 });
       }
 
-      return json({ 
-        success: true, 
+      return json({
+        success: true,
         actionType: "batch_audit",
         jobId: result.jobId,
-        message: "批量扫描已启动，请稍后刷新查看结果",
+        message: "批量扫描已启动",
+      });
+    }
+
+    case "startBatchAudit": {
+
+      const groupId = formData.get("groupId") as string;
+      if (!groupId) {
+        return json({ error: "请选择分组" }, { status: 400 });
+      }
+
+      const result = await startBatchAudit({
+        groupId,
+        requesterId: shop.id,
+        concurrency: 3,
+        skipRecentHours: 6,
+      });
+
+      if ("error" in result) {
+        return json({ error: result.error }, { status: 400 });
+      }
+
+      return json({
+        success: true,
+        actionType: "batch_audit",
+        jobId: result.jobId,
+        message: "批量扫描已启动",
       });
     }
 
@@ -270,9 +303,64 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "任务不存在或已过期" }, { status: 404 });
       }
 
-      return json({ 
-        success: true, 
+      return json({
+        success: true,
         actionType: "check_batch_audit",
+        job,
+      });
+    }
+
+    case "batch_apply_template": {
+      const templateId = formData.get("templateId") as string;
+      const groupId = formData.get("groupId") as string;
+      const overwriteExisting = formData.get("overwriteExisting") === "true";
+      const skipIfExists = formData.get("skipIfExists") === "true";
+
+      if (!templateId || !groupId) {
+        return json({ error: "缺少必要参数" }, { status: 400 });
+      }
+
+      const group = await getShopGroupDetails(groupId, shop.id);
+      if (!group) {
+        return json({ error: "分组不存在" }, { status: 404 });
+      }
+
+      const shopIds = group.members.map((m) => m.shopId);
+
+      const result = await batchApplyPixelTemplate({
+        templateId,
+        targetShopIds: shopIds,
+        overwriteExisting,
+        skipIfExists,
+      });
+
+      if ("error" in result) {
+        return json({ error: result.error }, { status: 400 });
+      }
+
+      return json({
+        success: true,
+        actionType: "batch_apply_template",
+        jobId: result.jobId,
+        message: `批量应用已启动，正在处理 ${shopIds.length} 个店铺`,
+        result,
+      });
+    }
+
+    case "check_batch_apply": {
+      const jobId = formData.get("jobId") as string;
+      if (!jobId) {
+        return json({ error: "缺少任务 ID" }, { status: 400 });
+      }
+
+      const job = getBatchApplyJobStatus(jobId);
+      if (!job) {
+        return json({ error: "任务不存在或已过期" }, { status: 404 });
+      }
+
+      return json({
+        success: true,
+        actionType: "check_batch_apply",
         job,
       });
     }
@@ -281,15 +369,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const groupId = formData.get("groupId") as string;
       const inviteeEmail = formData.get("inviteeEmail") as string;
       const role = (formData.get("role") as "admin" | "member") || "member";
-      
+
       if (!groupId) {
         return json({ error: "请选择分组" }, { status: 400 });
       }
-      
+
       if (!inviteeEmail) {
         return json({ error: "请输入受邀者邮箱" }, { status: 400 });
       }
-      
+
       const result = await createInvitation({
         groupId,
         inviterId: shop.id,
@@ -301,11 +389,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           canManageBilling: false,
         },
       });
-      
+
       if (!result) {
         return json({ error: "创建邀请失败" }, { status: 400 });
       }
-      
+
       return json({
         success: true,
         actionType: "send_invitation",
@@ -400,16 +488,24 @@ export default function WorkspacePage() {
   const [newGroupName, setNewGroupName] = useState("");
   const [newShopDomain, setNewShopDomain] = useState("");
   const [newShopRole, setNewShopRole] = useState<"admin" | "member">("member");
-  
-  // 批量 Audit 状态
+
   const [batchAuditJobId, setBatchAuditJobId] = useState<string | null>(null);
   const [batchAuditStatus, setBatchAuditStatus] = useState<BatchAuditJob | null>(null);
   const [batchAuditResult, setBatchAuditResult] = useState<BatchAuditResult | null>(null);
   const [showBatchAuditResult, setShowBatchAuditResult] = useState(false);
 
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportReportType, setExportReportType] = useState<"verification" | "scan">("verification");
+  const [exportFormat, setExportFormat] = useState<"csv" | "json">("csv");
+  const [exportResult, setExportResult] = useState<any>(null);
+
+  const [showBatchApplyModal, setShowBatchApplyModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<PixelTemplate | null>(null);
+  const [batchApplyJobId, setBatchApplyJobId] = useState<string | null>(null);
+  const [batchApplyStatus, setBatchApplyStatus] = useState<any>(null);
+
   const isSubmitting = navigation.state === "submitting";
 
-  // 处理 action 响应并显示 Toast
   useEffect(() => {
     if (actionData) {
       if (actionData.success) {
@@ -422,6 +518,19 @@ export default function WorkspacePage() {
           showSuccess("店铺已添加到工作区");
         } else if (actionType === "remove_shop") {
           showSuccess("店铺已从工作区移除");
+        } else if (actionType === "export_batch") {
+          setExportResult(actionData);
+          showSuccess("批量导出完成");
+        } else if (actionType === "batch_apply_template") {
+          const data = actionData as { jobId?: string; result?: BatchApplyResult };
+          if (data.jobId) {
+            setBatchApplyJobId(data.jobId);
+            showSuccess("批量应用已启动，正在处理中...");
+
+          } else if (data.result) {
+            setBatchApplyStatus(data.result);
+            showSuccess(`批量应用完成：成功 ${data.result.successCount}，失败 ${data.result.failedCount}`);
+          }
         } else {
           showSuccess("操作成功");
         }
@@ -431,6 +540,87 @@ export default function WorkspacePage() {
       }
     }
   }, [actionData, showSuccess, showError, revalidator]);
+
+  const handleBatchExport = useCallback(() => {
+    if (!selectedGroup) return;
+
+    const formData = new FormData();
+    formData.append("_action", "export_batch");
+    formData.append("reportType", exportReportType);
+    formData.append("format", exportFormat);
+    formData.append("groupId", selectedGroup.id);
+
+    fetch("/api/batch-reports", {
+      method: "POST",
+      body: formData,
+    })
+      .then((res) => {
+        if (res.headers.get("content-type")?.includes("application/json")) {
+          return res.json();
+        } else {
+
+          return res.blob().then((blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = res.headers.get("content-disposition")?.split("filename=")[1]?.replace(/"/g, "") || `batch-report-${Date.now()}.${exportFormat}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            return { success: true, downloaded: true };
+          });
+        }
+      })
+      .then((data) => {
+        if (data.success) {
+          if (data.downloaded) {
+            showSuccess("批量报告已下载");
+          } else {
+            setExportResult(data);
+            setShowExportModal(false);
+            showSuccess("批量导出完成");
+          }
+        } else {
+          showError(data.error || "导出失败");
+        }
+      })
+      .catch((error) => {
+        showError("导出失败：" + (error.message || "未知错误"));
+      });
+  }, [selectedGroup, exportReportType, exportFormat, showSuccess, showError]);
+
+  const handleBatchApply = useCallback(async (options: {
+    overwriteExisting: boolean;
+    skipIfExists: boolean;
+  }) => {
+    if (!selectedTemplate || !selectedGroup) return;
+
+    const formData = new FormData();
+    formData.append("_action", "batch_apply_template");
+    formData.append("templateId", selectedTemplate.id);
+    formData.append("groupId", selectedGroup.id);
+    formData.append("overwriteExisting", String(options.overwriteExisting));
+    formData.append("skipIfExists", String(options.skipIfExists));
+
+    try {
+      const response = await fetch("/app/workspace", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setBatchApplyJobId(data.jobId || null);
+        showSuccess("批量应用已启动，正在处理中...");
+
+      } else {
+        showError(data.error || "批量应用失败");
+      }
+    } catch (error) {
+      showError("批量应用失败：" + (error instanceof Error ? error.message : "未知错误"));
+    }
+  }, [selectedTemplate, selectedGroup, showSuccess, showError]);
 
   const handleCreateGroup = useCallback(() => {
     if (!newGroupName.trim()) return;
@@ -465,18 +655,16 @@ export default function WorkspacePage() {
     [submit]
   );
 
-  // 批量 Audit 处理
   const handleBatchAudit = useCallback(() => {
     if (!selectedGroup) return;
     if (!confirm(`确定要对「${selectedGroup.name}」中的所有店铺运行扫描吗？\n\n这将扫描 ${selectedGroup.memberCount} 个店铺，可能需要几分钟时间。`)) return;
-    
+
     const formData = new FormData();
     formData.append("_action", "batch_audit");
     formData.append("groupId", selectedGroup.id);
     submit(formData, { method: "post" });
   }, [selectedGroup, submit]);
 
-  // 发送邀请处理
   const handleSendInvitation = useCallback(() => {
     if (!selectedGroup || !inviteeEmail.trim()) return;
     const formData = new FormData();
@@ -487,8 +675,6 @@ export default function WorkspacePage() {
     submit(formData, { method: "post" });
   }, [selectedGroup, inviteeEmail, inviteRole, submit]);
 
-  // 处理 action 响应已通过 useEffect 在组件顶部完成
-  
   const tabs = [
     { id: "overview", content: "概览" },
     { id: "shops", content: "店铺管理" },
@@ -496,7 +682,6 @@ export default function WorkspacePage() {
     { id: "reports", content: "汇总报告" },
   ];
 
-  // 未启用 Agency 功能
   if (!canManage) {
     return (
       <Page title="多店管理">
@@ -508,7 +693,6 @@ export default function WorkspacePage() {
     );
   }
 
-  // 没有店铺信息
   if (!shop) {
     return (
       <Page title="多店管理">
@@ -541,7 +725,7 @@ export default function WorkspacePage() {
       ]}
     >
       <BlockStack gap="500">
-        {/* 套餐信息 */}
+        {}
         <Card>
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">
@@ -566,7 +750,7 @@ export default function WorkspacePage() {
           </InlineStack>
         </Card>
 
-        {/* 分组列表 */}
+        {}
         {groups.length === 0 ? (
           <EnhancedEmptyState
             icon="📁"
@@ -579,7 +763,7 @@ export default function WorkspacePage() {
           />
         ) : (
           <>
-            {/* 分组选择器 */}
+            {}
             <Card>
               <BlockStack gap="300">
                 <Text as="h2" variant="headingMd">
@@ -600,14 +784,14 @@ export default function WorkspacePage() {
               </BlockStack>
             </Card>
 
-            {/* 选中的分组详情 */}
+            {}
             {selectedGroup && (
               <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-                {/* 概览 */}
+                {}
                 {selectedTab === 0 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
-                      {/* 分组信息 */}
+                      {}
                       <Card>
                         <BlockStack gap="400">
                           <InlineStack align="space-between" blockAlign="center">
@@ -641,7 +825,7 @@ export default function WorkspacePage() {
 
                           <Divider />
 
-                          {/* 批量扫描提示 */}
+                          {}
                           <Banner tone="info">
                             <Text as="p" variant="bodySm">
                               💡 <strong>批量扫描</strong>：一键对分组内所有店铺运行 Audit 扫描，
@@ -649,7 +833,7 @@ export default function WorkspacePage() {
                             </Text>
                           </Banner>
 
-                          {/* 统计卡片 */}
+                          {}
                           {groupStats && (
                             <Layout>
                               <Layout.Section variant="oneThird">
@@ -684,7 +868,7 @@ export default function WorkspacePage() {
                         </BlockStack>
                       </Card>
 
-                      {/* 平台分布 */}
+                      {}
                       {groupStats && Object.keys(groupStats.platformBreakdown).length > 0 && (
                         <Card>
                           <BlockStack gap="400">
@@ -709,7 +893,7 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {/* 店铺管理 */}
+                {}
                 {selectedTab === 1 && (
                   <Box paddingBlockStart="400">
                     <Card>
@@ -790,7 +974,7 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {/* 像素模板 */}
+                {}
                 {selectedTab === 2 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
@@ -804,19 +988,19 @@ export default function WorkspacePage() {
                               创建模板
                             </Button>
                           </InlineStack>
-                          
+
                           <Text as="p" variant="bodySm" tone="subdued">
                             创建可重复使用的像素配置模板，批量应用到分组内的所有店铺。
                           </Text>
 
                           <Divider />
 
-                          {/* 预设模板 */}
+                          {}
                           <BlockStack gap="300">
                             <Text as="h3" variant="headingSm">
                               系统预设模板
                             </Text>
-                            
+
                             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                               <InlineStack align="space-between" blockAlign="center">
                                 <BlockStack gap="100">
@@ -827,7 +1011,23 @@ export default function WorkspacePage() {
                                     GA4 + Meta Pixel 的基础配置
                                   </Text>
                                 </BlockStack>
-                                <Button size="slim">应用到分组</Button>
+                                <Button
+                              size="slim"
+                              onClick={() => {
+                                setSelectedTemplate({
+                                  id: "basic-tracking",
+                                  name: "基础追踪套件",
+                                  description: "GA4 + Meta Pixel 的基础配置，适合刚开始追踪的店铺",
+                                  platforms: [
+                                    { platform: "google", clientSideEnabled: true, serverSideEnabled: true },
+                                    { platform: "meta", clientSideEnabled: true, serverSideEnabled: true },
+                                  ],
+                                });
+                                setShowBatchApplyModal(true);
+                              }}
+                            >
+                              应用到分组
+                            </Button>
                               </InlineStack>
                             </Box>
 
@@ -841,7 +1041,25 @@ export default function WorkspacePage() {
                                     GA4 + Meta + TikTok + Pinterest
                                   </Text>
                                 </BlockStack>
-                                <Button size="slim">应用到分组</Button>
+                                <Button
+                                  size="slim"
+                                  onClick={() => {
+                                    setSelectedTemplate({
+                                      id: "full-channel",
+                                      name: "全渠道追踪套件",
+                                      description: "GA4 + Meta + TikTok + Pinterest，覆盖主流广告平台",
+                                      platforms: [
+                                        { platform: "google", clientSideEnabled: true, serverSideEnabled: true },
+                                        { platform: "meta", clientSideEnabled: true, serverSideEnabled: true },
+                                        { platform: "tiktok", clientSideEnabled: true, serverSideEnabled: true },
+                                        { platform: "pinterest", clientSideEnabled: true, serverSideEnabled: false },
+                                      ],
+                                    });
+                                    setShowBatchApplyModal(true);
+                                  }}
+                                >
+                                  应用到分组
+                                </Button>
                               </InlineStack>
                             </Box>
 
@@ -855,7 +1073,23 @@ export default function WorkspacePage() {
                                     仅 CAPI，注重隐私
                                   </Text>
                                 </BlockStack>
-                                <Button size="slim">应用到分组</Button>
+                                <Button
+                                  size="slim"
+                                  onClick={() => {
+                                    setSelectedTemplate({
+                                      id: "capi-only",
+                                      name: "仅服务端追踪",
+                                      description: "仅 CAPI，最大化隐私保护，适合对隐私要求高的店铺",
+                                      platforms: [
+                                        { platform: "google", clientSideEnabled: false, serverSideEnabled: true },
+                                        { platform: "meta", clientSideEnabled: false, serverSideEnabled: true },
+                                      ],
+                                    });
+                                    setShowBatchApplyModal(true);
+                                  }}
+                                >
+                                  应用到分组
+                                </Button>
                               </InlineStack>
                             </Box>
                           </BlockStack>
@@ -874,7 +1108,7 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-                {/* 汇总报告 */}
+                {}
                 {selectedTab === 3 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
@@ -884,8 +1118,8 @@ export default function WorkspacePage() {
                             <Text as="h2" variant="headingMd">
                               店铺详细数据
                             </Text>
-                            <Button 
-                              icon={ExportIcon} 
+                            <Button
+                              icon={ExportIcon}
                               size="slim"
                               onClick={() => {
                                 if (selectedGroup) {
@@ -931,35 +1165,87 @@ export default function WorkspacePage() {
 
                       <Card>
                         <BlockStack gap="400">
-                          <Text as="h2" variant="headingMd">
-                            📄 验收报告导出
-                          </Text>
-                          <Text as="p" variant="bodySm" tone="subdued">
-                            生成包含所有店铺迁移状态和验收结果的汇总报告。
-                          </Text>
-                          <InlineStack gap="200">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <BlockStack gap="100">
+                              <Text as="h2" variant="headingMd">
+                                📄 批量报告导出
+                              </Text>
+                              <Text as="p" variant="bodySm" tone="subdued">
+                                批量导出分组内所有店铺的验收报告或扫描报告
+                              </Text>
+                            </BlockStack>
                             <Button
-                              onClick={() => {
-                                if (selectedGroup) {
-                                  window.open(`/api/reports/pdf?type=batch&groupId=${selectedGroup.id}&format=html`, "_blank");
-                                }
-                              }}
-                            >
-                              预览 HTML 报告
-                            </Button>
-                            <Button
+                              icon={ExportIcon}
+                              onClick={() => setShowExportModal(true)}
                               variant="primary"
-                              onClick={() => {
-                                if (selectedGroup) {
-                                  window.open(`/api/reports/pdf?type=batch&groupId=${selectedGroup.id}`, "_blank");
-                                }
-                              }}
                             >
-                              导出 PDF 报告
+                              批量导出
                             </Button>
                           </InlineStack>
+
+                          <Divider />
+
+                          <BlockStack gap="300">
+                            <Text as="h3" variant="headingSm">
+                              支持的导出类型
+                            </Text>
+                            <List type="bullet">
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  <strong>验收报告</strong> - 包含所有店铺的验收测试结果和评分
+                                </Text>
+                              </List.Item>
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  <strong>扫描报告</strong> - 包含所有店铺的风险扫描结果和迁移建议
+                                </Text>
+                              </List.Item>
+                            </List>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              导出格式支持 CSV 和 JSON，可一次性下载所有店铺的报告数据。
+                            </Text>
+                          </BlockStack>
                         </BlockStack>
                       </Card>
+
+                      {}
+                      {exportResult && (
+                        <Card>
+                          <BlockStack gap="400">
+                            <Text as="h2" variant="headingMd">
+                              导出结果
+                            </Text>
+                            <Banner
+                              tone={exportResult.success ? "success" : "warning"}
+                            >
+                              <Text as="p" variant="bodySm">
+                                {exportResult.success
+                                  ? `✅ 成功导出 ${exportResult.result.successCount} 个店铺的报告`
+                                  : `⚠️ 部分导出失败，成功 ${exportResult.result.successCount} 个，失败 ${exportResult.result.failedCount} 个`}
+                              </Text>
+                            </Banner>
+                            {exportResult.result.combinedReport && (
+                              <Button
+                                variant="primary"
+                                onClick={() => {
+                                  const blob = new Blob(
+                                    [exportResult.result.combinedReport.content],
+                                    { type: exportResult.result.combinedReport.mimeType }
+                                  );
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement("a");
+                                  a.href = url;
+                                  a.download = exportResult.result.combinedReport.filename;
+                                  a.click();
+                                  URL.revokeObjectURL(url);
+                                }}
+                              >
+                                下载合并报告 ({exportResult.result.combinedReport.filename})
+                              </Button>
+                            )}
+                          </BlockStack>
+                        </Card>
+                      )}
                     </BlockStack>
                   </Box>
                 )}
@@ -969,7 +1255,7 @@ export default function WorkspacePage() {
         )}
       </BlockStack>
 
-      {/* 创建分组模态框 */}
+      {}
       <Modal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -1003,7 +1289,62 @@ export default function WorkspacePage() {
         </Modal.Section>
       </Modal>
 
-      {/* 邀请成员模态框 */}
+      {}
+      <Modal
+        open={showExportModal}
+        onClose={() => {
+          setShowExportModal(false);
+          setExportReportType("verification");
+          setExportFormat("csv");
+        }}
+        title="批量导出报告"
+        primaryAction={{
+          content: "导出",
+          onAction: handleBatchExport,
+          loading: isSubmitting,
+        }}
+        secondaryActions={[
+          {
+            content: "取消",
+            onAction: () => {
+              setShowExportModal(false);
+              setExportReportType("verification");
+              setExportFormat("csv");
+            },
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <Select
+              label="报告类型"
+              options={[
+                { label: "验收报告", value: "verification" },
+                { label: "扫描报告", value: "scan" },
+              ]}
+              value={exportReportType}
+              onChange={(val) => setExportReportType(val as "verification" | "scan")}
+            />
+            <Select
+              label="导出格式"
+              options={[
+                { label: "CSV (Excel 兼容)", value: "csv" },
+                { label: "JSON (结构化数据)", value: "json" },
+              ]}
+              value={exportFormat}
+              onChange={(val) => setExportFormat(val as "csv" | "json")}
+            />
+            <Banner tone="info">
+              <Text as="p" variant="bodySm">
+                将导出「{selectedGroup?.name}」分组内所有 {selectedGroup?.memberCount || 0} 个店铺的报告。
+                导出完成后可下载合并报告文件。
+              </Text>
+            </Banner>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      {}
       <Modal
         open={showInviteModal}
         onClose={() => {
@@ -1018,7 +1359,7 @@ export default function WorkspacePage() {
                 content: "复制链接",
                 onAction: () => {
                   navigator.clipboard.writeText(generatedInviteUrl);
-                  // 可以添加 toast 提示
+
                 },
               }
             : {
@@ -1085,6 +1426,37 @@ export default function WorkspacePage() {
           </BlockStack>
         </Modal.Section>
       </Modal>
+
+      {}
+      {showBatchApplyModal && selectedTemplate && selectedGroup && (
+        <Modal
+          open={showBatchApplyModal}
+          onClose={() => {
+            setShowBatchApplyModal(false);
+            setSelectedTemplate(null);
+          }}
+          title="批量应用像素模板"
+          large
+        >
+          <Modal.Section>
+            <Suspense fallback={<CardSkeleton lines={5} />}>
+              <BatchApplyWizard
+                template={selectedTemplate}
+                targetShops={selectedGroup.members.map((m) => ({
+                  shopId: m.shopId,
+                  shopDomain: m.shopDomain,
+                  hasExistingConfig: false,
+                }))}
+                onConfirm={handleBatchApply}
+                onCancel={() => {
+                  setShowBatchApplyModal(false);
+                  setSelectedTemplate(null);
+                }}
+              />
+            </Suspense>
+          </Modal.Section>
+        </Modal>
+      )}
     </Page>
   );
 }

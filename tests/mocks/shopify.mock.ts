@@ -313,7 +313,7 @@ export function createMockWebhookSubscriptionResponse(
     webhookSubscriptions: {
       edges: topics.map((topic, i) => ({
         node: {
-          id: `gid://shopify/WebhookSubscription/${i + 1}`,
+          id: `gid:
           topic,
         },
         cursor: `cursor_${i}`,
@@ -333,7 +333,7 @@ export function createMockWebPixelCreateResponse(
   if (success) {
     return createMockGraphQLResponse({
       webPixelCreate: {
-        webPixel: { id: pixelId || "gid://shopify/WebPixel/123" },
+        webPixel: { id: pixelId || "gid:
         userErrors: [],
       },
     });

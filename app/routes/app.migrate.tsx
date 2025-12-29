@@ -1,9 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useActionData, useRevalidator } from "@remix-run/react";
-import { useState, useEffect, useMemo } from "react";
-import { useToastContext, EnhancedEmptyState } from "~/components/ui";
-import { PixelMigrationWizard } from "~/components/migrate/PixelMigrationWizard";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { useToastContext, EnhancedEmptyState, CardSkeleton } from "~/components/ui";
+
+const PixelMigrationWizard = lazy(() => import("~/components/migrate/PixelMigrationWizard").then(module => ({ default: module.PixelMigrationWizard })));
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, Icon, ProgressBar, Link, List, } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, SettingsIcon, LockIcon, } from "~/components/icons";
 import { authenticate } from "../shopify.server";
@@ -16,6 +17,7 @@ import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { logger } from "../utils/logger.server";
 import { formatDeadlineForUI, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getScriptTagDeprecationStatus, getUpgradeStatusMessage, DEPRECATION_DATES, getDateDisplayLabel, type ShopTier, } from "../utils/deprecation-dates";
 import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
+import { getWizardTemplates } from "../services/pixel-template.server";
 
 function generateIngestionSecret(): string {
     return randomBytes(32).toString("hex");
@@ -130,6 +132,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const hasRequiredScopes = session.scope?.split(",").includes("read_customer_events") || false;
 
+    const templates = await getWizardTemplates(shop.id);
+
     return json({
         shop: { id: shop.id, domain: shopDomain },
         shopTier,
@@ -153,6 +157,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
         upgradeStatus,
         migrationUrgency,
+        templates,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -210,11 +215,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
             logger.info(`[Migration] Generated new ingestionSecret for ${shopDomain}`);
         }
-        // 此时 ingestionSecret 一定已设置
+
         const finalIngestionSecret: string = ingestionSecret;
-        
+
         let ourPixelId = shop.webPixelId;
-        
+
         if (!ourPixelId) {
             const existingPixels = await getExistingWebPixels(admin);
             const ourPixel = existingPixels.find((p) => {
@@ -240,7 +245,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 }, { status: 404 });
             }
 
-            // 获取 pixel 信息用于升级
             const existingPixels = await getExistingWebPixels(admin);
             const ourPixel = existingPixels.find((p) => p.id === ourPixelId);
             if (!ourPixel) {
@@ -278,7 +282,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
         }
 
-        // actionType === "enablePixel"
         let result;
         if (ourPixelId) {
             result = await updateWebPixel(admin, ourPixelId, finalIngestionSecret, shopDomain);
@@ -313,7 +316,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     if (actionType === "saveWizardConfigs") {
         const configsJson = formData.get("configs") as string;
-        
+
         if (!configsJson) {
             return json({ error: "缺少配置数据" }, { status: 400 });
         }
@@ -327,11 +330,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 environment: "test" | "live";
             }>;
 
-            // 保存每个平台的配置
             for (const config of configs) {
                 const platform = config.platform as "google" | "meta" | "tiktok" | "pinterest";
-                
-                // 构建凭证对象
+
                 let credentials: Record<string, string> = {};
                 if (platform === "google") {
                     credentials = {
@@ -346,10 +347,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     };
                 }
 
-                // 加密凭证
                 const encryptedCredentials = encryptJson(credentials);
 
-                // 保存配置
                 await prisma.pixelConfig.upsert({
                     where: {
                         shopId_platform: {
@@ -391,10 +390,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
+    if (actionType === "validateTestEnvironment") {
+        const platform = formData.get("platform") as string;
+        const shopIdParam = formData.get("shopId") as string;
+
+        if (!platform || !shopIdParam) {
+            return json({
+                valid: false,
+                message: "缺少必要参数",
+            }, { status: 400 });
+        }
+
+        try {
+            const { validateTestEnvironment } = await import("../services/migration-wizard.server");
+            const result = await validateTestEnvironment(shopIdParam, platform as "google" | "meta" | "tiktok" | "pinterest");
+            return json(result);
+        } catch (error) {
+            logger.error("Failed to validate test environment", error);
+            return json({
+                valid: false,
+                message: error instanceof Error ? error.message : "验证失败",
+            }, { status: 500 });
+        }
+    }
+
     return json({ error: "Unknown action" }, { status: 400 });
 };
 
-// 类型定义
 type SetupStep = "typOsp" | "pixel" | "capi" | "complete";
 
 interface TimelineItem {
@@ -407,7 +429,7 @@ interface TimelineItem {
     description: string;
 }
 export default function MigratePage() {
-    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, planId, planLabel, planTagline, } = useLoaderData<typeof loader>();
+    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, planId, planLabel, planTagline, templates, } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -432,7 +454,6 @@ export default function MigratePage() {
         submit(formData, { method: "post" });
     };
 
-    // ✅ 修复 #3: 合并两个 useEffect，避免竞态条件，确保步骤状态更新逻辑清晰
     useEffect(() => {
         const data = actionData as {
             _action?: string;
@@ -440,13 +461,12 @@ export default function MigratePage() {
             message?: string;
             error?: string;
         } | undefined;
-        
-        // 优先处理 actionData 的更新（用户操作触发的状态变更）
+
         if (data?._action === "enablePixel") {
             if (data?.success) {
                 showSuccess(data?.message || "App Pixel 已启用");
                 setCurrentStep("capi");
-                return; // 避免被后续逻辑覆盖
+                return;
             } else if (data?.error) {
                 showError(data.error);
                 return;
@@ -457,7 +477,7 @@ export default function MigratePage() {
             } else if (data?.error) {
                 showError(data.error);
             }
-            // upgradePixelSettings 不改变步骤状态，直接返回
+
             return;
         } else if (data?._action === "saveWizardConfigs") {
             if (data?.success) {
@@ -465,14 +485,17 @@ export default function MigratePage() {
                 setShowWizard(false);
                 revalidator.revalidate();
                 setCurrentStep("complete");
-                return; // 避免被后续逻辑覆盖
+
+                setTimeout(() => {
+                    window.location.href = "/app/verification";
+                }, 2000);
+                return;
             } else if (data?.error) {
                 showError(data.error);
                 return;
             }
         }
-        
-        // 基于当前状态计算步骤（仅在非 actionData 触发时执行）
+
         if (pixelStatus === "installed" && hasCapiConfig && typOspStatus.enabled) {
             setCurrentStep("complete");
         } else if (pixelStatus === "installed") {
@@ -494,7 +517,7 @@ export default function MigratePage() {
     };
 
     const handleWizardComplete = () => {
-        // 向导内部已处理保存，这里只需要刷新和跳转
+
         revalidator.revalidate();
         setShowWizard(false);
         setCurrentStep("complete");
@@ -505,14 +528,14 @@ export default function MigratePage() {
         { id: "capi", label: "配置服务端追踪", number: 3 },
         { id: "complete", label: "完成设置", number: 4 },
     ];
-    // ✅ 修复 #1: 处理 currentStepIndex 边界情况，确保不会为 -1，并添加验证
+
     const stepIndex = steps.findIndex((s) => s.id === currentStep);
     if (stepIndex === -1) {
         console.error(`[MigratePage] Invalid currentStep: ${currentStep}. Available steps:`, steps.map(s => s.id));
     }
     const currentStepIndex = Math.max(0, stepIndex);
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];
-    // ✅ 修复 #2: 添加类型定义和改进错误处理
+
     const timelineItems: TimelineItem[] = deadlines && deadlines.scriptTag && deadlines.additionalScripts ? [
         {
             id: "scriptTag",
@@ -528,8 +551,7 @@ export default function MigratePage() {
         },
     ] : [];
     const migrationUrgencyActions = migrationUrgency?.actions ?? [];
-    
-    // ✅ 修复 #5: 使用统一的日期格式化函数，避免硬编码和环境差异
+
     const migrationSuggestionText = useMemo(() => {
         if (shopTier === "plus") {
             const deadlineDate = getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact");
@@ -540,8 +562,7 @@ export default function MigratePage() {
             return `非 Plus 商家建议在 ${deadlineDate} 前完成迁移，以确保 Thank you / Order status 页追踪不受影响。`;
         }
     }, [shopTier]);
-    
-    // 处理 shop 为 null 的情况
+
     if (!shop) {
       return (
         <Page title="设置追踪" subtitle="配置服务端转化追踪（Server-side CAPI）">
@@ -557,7 +578,7 @@ export default function MigratePage() {
         </Page>
       );
     }
-    
+
     return (<Page title="设置追踪" subtitle="配置服务端转化追踪（Server-side CAPI）">
       <BlockStack gap="500">
         {upgradeStatus && (<Banner title={upgradeStatus.title} tone={upgradeStatus.urgency === "critical"
@@ -580,7 +601,7 @@ export default function MigratePage() {
 
         <Banner title="服务端转化追踪 (Server-side CAPI)" tone="info" action={{
             content: "了解更多",
-            url: "https://shopify.dev/docs/api/web-pixels-api",
+            url: "https:
             external: true,
         }}>
           <BlockStack gap="200">
@@ -712,7 +733,7 @@ export default function MigratePage() {
                 检测到您的 App Pixel 使用旧版配置格式（缺少 shop_domain 或使用旧键名 ingestion_secret）。
                 请点击「一键升级设置」来更新到最新版本，以确保追踪功能正常工作。
               </Text>
-              {/* Toast 通知已处理 actionData 的反馈 */}
+              {}
             </BlockStack>
           </Banner>
         )}
@@ -738,16 +759,16 @@ export default function MigratePage() {
                   {index < steps.length - 1 && (<Box background={index < currentStepIndex ? "bg-fill-success" : "bg-surface-secondary"} minWidth="60px" minHeight="2px"/>)}
                 </InlineStack>))}
             </InlineStack>
-            {/* ✅ 修复：进度条显示已完成步骤的比例
-                 - 如果当前步骤是 "complete"，显示 100%
-                 - 否则显示当前步骤索引 / 总步骤数（当前步骤之前的步骤视为已完成） */}
-            <ProgressBar 
+            {
+
+}
+            <ProgressBar
                 progress={
-                    currentStep === "complete" 
-                        ? 100 
+                    currentStep === "complete"
+                        ? 100
                         : (currentStepIndex / steps.length) * 100
-                } 
-                tone="primary" 
+                }
+                tone="primary"
                 size="small"
             />
           </BlockStack>
@@ -805,7 +826,7 @@ export default function MigratePage() {
                   </Box>
 
                   <InlineStack gap="200">
-                    <Button variant="primary" url={`https://admin.shopify.com/store/${shop?.domain?.replace('.myshopify.com', '') || ''}/settings/checkout`} external target="_blank">
+                    <Button variant="primary" url={`https:
                       前往 Shopify 后台升级
                     </Button>
                     <Button onClick={() => window.location.reload()}>
@@ -848,7 +869,7 @@ export default function MigratePage() {
                     </BlockStack>
                   </Box>
 
-                  {/* Toast 通知已处理 actionData 的反馈，移除 Banner */}
+                  {}
 
                   {!isGrowthOrAbove && (
                     <Banner
@@ -927,9 +948,9 @@ export default function MigratePage() {
                       )}
 
                       <InlineStack gap="200">
-                        <Button 
-                          variant="primary" 
-                          size="large" 
+                        <Button
+                          variant="primary"
+                          size="large"
                           disabled={!isProOrAbove}
                           onClick={() => setShowWizard(true)}
                         >
@@ -945,14 +966,18 @@ export default function MigratePage() {
                     </BlockStack>
                   </Card>
                 ) : (
-                  <PixelMigrationWizard
-                    onComplete={handleWizardComplete}
-                    onCancel={() => setShowWizard(false)}
-                    initialPlatforms={identifiedPlatforms.filter((p): p is "google" | "meta" | "tiktok" | "pinterest" => 
-                      ["google", "meta", "tiktok", "pinterest"].includes(p)
-                    )}
-                    canManageMultiple={isAgency}
-                  />
+                  <Suspense fallback={<CardSkeleton lines={5} />}>
+                    <PixelMigrationWizard
+                      onComplete={handleWizardComplete}
+                      onCancel={() => setShowWizard(false)}
+                      shopId={shop?.id}
+                      initialPlatforms={identifiedPlatforms.filter((p): p is "google" | "meta" | "tiktok" | "pinterest" =>
+                        ["google", "meta", "tiktok", "pinterest"].includes(p)
+                      )}
+                      canManageMultiple={isAgency}
+                      templates={templates}
+                    />
+                  </Suspense>
                 )}
               </>
             )}

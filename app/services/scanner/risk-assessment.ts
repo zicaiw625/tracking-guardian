@@ -149,6 +149,26 @@ export function calculateRiskScore(riskItems: RiskItem[]): number {
         return sum + item.points * weight;
     }, 0);
 
+    const highRiskCount = riskItems.filter(item => item.severity === "high").length;
+    const mediumRiskCount = riskItems.filter(item => item.severity === "medium").length;
+
+    let multiplier = 1.0;
+    if (highRiskCount >= 3) {
+        multiplier = 1.3;
+    } else if (highRiskCount >= 2) {
+        multiplier = 1.2;
+    } else if (highRiskCount === 1 && mediumRiskCount >= 3) {
+        multiplier = 1.1;
+    }
+
+    const adjustedScore = weightedPoints * multiplier;
+
+    const maxPossibleScore = 200;
+    const normalizedScore = Math.min(100, Math.round((adjustedScore / maxPossibleScore) * 100));
+
+    return normalizedScore;
+}
+
     return Math.min(100, Math.round(weightedPoints));
 }
 

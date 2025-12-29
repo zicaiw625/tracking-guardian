@@ -1,0 +1,196 @@
+
+
+import prisma from "../db.server";
+import { logger } from "../utils/logger.server";
+import { BILLING_PLANS, type PlanId, getPlanOrDefault, getPixelDestinationsLimit, getUiModulesLimit, planSupportsFeature } from "./plans";
+
+export interface FeatureGateResult {
+  allowed: boolean;
+  reason?: string;
+  current?: number;
+  limit?: number;
+}
+
+export async function checkPixelDestinationsLimit(
+  shopId: string,
+  shopPlan: PlanId
+): Promise<FeatureGateResult> {
+  const planConfig = getPlanOrDefault(shopPlan);
+  const limit = getPixelDestinationsLimit(shopPlan);
+
+  if (limit === -1) {
+    return { allowed: true };
+  }
+
+  const currentCount = await prisma.pixelConfig.count({
+    where: {
+      shopId,
+      isActive: true,
+      serverSideEnabled: true,
+    },
+  });
+
+  if (currentCount >= limit) {
+    return {
+      allowed: false,
+      reason: `当前套餐最多支持 ${limit} 个像素目的地，您已配置 ${currentCount} 个。请升级套餐或停用部分配置。`,
+      current: currentCount,
+      limit,
+    };
+  }
+
+  return {
+    allowed: true,
+    current: currentCount,
+    limit,
+  };
+}
+
+export async function checkUiModulesLimit(
+  shopId: string,
+  shopPlan: PlanId
+): Promise<FeatureGateResult> {
+  const planConfig = getPlanOrDefault(shopPlan);
+  const limit = getUiModulesLimit(shopPlan);
+
+  if (limit === -1) {
+    return { allowed: true };
+  }
+
+  const currentCount = await prisma.uiExtensionSetting.count({
+    where: {
+      shopId,
+      isEnabled: true,
+    },
+  });
+
+  if (currentCount >= limit) {
+    return {
+      allowed: false,
+      reason: `当前套餐最多支持 ${limit} 个 UI 模块，您已启用 ${currentCount} 个。请升级套餐或停用部分模块。`,
+      current: currentCount,
+      limit,
+    };
+  }
+
+  return {
+    allowed: true,
+    current: currentCount,
+    limit,
+  };
+}
+
+export function checkFeatureAccess(
+  shopPlan: PlanId,
+  feature: "verification" | "alerts" | "reconciliation" | "agency"
+): FeatureGateResult {
+  const hasAccess = planSupportsFeature(shopPlan, feature);
+
+  if (!hasAccess) {
+    const planConfig = getPlanOrDefault(shopPlan);
+    const featureNames: Record<typeof feature, string> = {
+      verification: "验收功能",
+      alerts: "告警功能",
+      reconciliation: "事件对账",
+      agency: "Agency 多店功能",
+    };
+
+    return {
+      allowed: false,
+      reason: `${featureNames[feature]}需要 ${getRequiredPlanName(feature)} 及以上套餐。当前套餐：${planConfig.name}`,
+    };
+  }
+
+  return { allowed: true };
+}
+
+function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency"): string {
+  switch (feature) {
+    case "verification":
+      return "Starter";
+    case "alerts":
+    case "reconciliation":
+      return "Growth";
+    case "agency":
+      return "Agency";
+  }
+}
+
+export async function canCreatePixelConfig(
+  shopId: string,
+  shopPlan: PlanId
+): Promise<FeatureGateResult> {
+  const pixelLimitCheck = await checkPixelDestinationsLimit(shopId, shopPlan);
+  if (!pixelLimitCheck.allowed) {
+    return pixelLimitCheck;
+  }
+
+  const planConfig = getPlanOrDefault(shopPlan);
+  if (planConfig.pixelDestinations === 0) {
+    return {
+      allowed: false,
+      reason: `像素配置功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+    };
+  }
+
+  return { allowed: true };
+}
+
+export async function canCreateUiModule(
+  shopId: string,
+  shopPlan: PlanId
+): Promise<FeatureGateResult> {
+  const uiLimitCheck = await checkUiModulesLimit(shopId, shopPlan);
+  if (!uiLimitCheck.allowed) {
+    return uiLimitCheck;
+  }
+
+  const planConfig = getPlanOrDefault(shopPlan);
+  if (planConfig.uiModules === 0) {
+    return {
+      allowed: false,
+      reason: `UI 模块功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+    };
+  }
+
+  return { allowed: true };
+}
+
+export async function getFeatureLimitsSummary(
+  shopId: string,
+  shopPlan: PlanId
+): Promise<{
+  pixelDestinations: { current: number; limit: number; unlimited: boolean };
+  uiModules: { current: number; limit: number; unlimited: boolean };
+  features: {
+    verification: boolean;
+    alerts: boolean;
+    reconciliation: boolean;
+    agency: boolean;
+  };
+}> {
+  const [pixelLimit, uiLimit] = await Promise.all([
+    checkPixelDestinationsLimit(shopId, shopPlan),
+    checkUiModulesLimit(shopId, shopPlan),
+  ]);
+
+  return {
+    pixelDestinations: {
+      current: pixelLimit.current || 0,
+      limit: pixelLimit.limit || 0,
+      unlimited: pixelLimit.limit === -1,
+    },
+    uiModules: {
+      current: uiLimit.current || 0,
+      limit: uiLimit.limit || 0,
+      unlimited: uiLimit.limit === -1,
+    },
+    features: {
+      verification: planSupportsFeature(shopPlan, "verification"),
+      alerts: planSupportsFeature(shopPlan, "alerts"),
+      reconciliation: planSupportsFeature(shopPlan, "reconciliation"),
+      agency: planSupportsFeature(shopPlan, "agency"),
+    },
+  };
+}
+

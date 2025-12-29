@@ -176,14 +176,13 @@ export function getScriptTagCreationStatus(now: Date = new Date()): DeprecationS
     };
 }
 export function getScriptTagExecutionStatus(tier: ShopTier, now: Date = new Date()): DeprecationStatus {
-    // ✅ 修复：明确处理 unknown tier，使用更保守的日期（non_plus）
+
     const deadline = tier === "plus"
         ? DEPRECATION_DATES.plusScriptTagExecutionOff
         : DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
 
-    // ✅ 修复：使用动态日期格式化，避免硬编码
     const dateLabel = getDateDisplayLabel(deadline, "exact");
     if (daysRemaining <= 0) {
         return {
@@ -221,14 +220,13 @@ export function getScriptTagDeprecationStatus(now: Date = new Date()): Deprecati
     return getScriptTagCreationStatus(now);
 }
 export function getAdditionalScriptsDeprecationStatus(tier: ShopTier, now: Date = new Date()): DeprecationStatus {
-    // ✅ 修复：明确处理 unknown tier，使用更保守的日期（non_plus）
+
     const deadline = tier === "plus"
         ? DEPRECATION_DATES.plusAdditionalScriptsReadOnly
         : DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly;
     const daysRemaining = getDaysRemaining(deadline, now);
     const tierLabel = tier === "plus" ? "Plus 商家" : tier === "non_plus" ? "非 Plus 商家" : "商家";
 
-    // ✅ 修复：使用动态日期格式化，避免硬编码
     const dateLabel = getDateDisplayLabel(deadline, "exact");
     if (daysRemaining <= 0) {
         return {
@@ -337,10 +335,9 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
 } {
     const { tier, typOspPagesEnabled } = upgradeStatus;
 
-    // ✅ 修复：使用动态日期格式化，避免硬编码
     const plusDeadlineLabel = getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact");
     const nonPlusDeadlineLabel = getDateDisplayLabel(DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly, "exact");
-    // ✅ 修复：unknown tier 使用更保守的日期（non_plus）
+
     const deadlineLabel = tier === "plus" ? plusDeadlineLabel : nonPlusDeadlineLabel;
 
     const isInPlusAutoUpgradeWindow = tier === "plus" && now >= DEPRECATION_DATES.plusAutoUpgradeStart;
@@ -363,7 +360,7 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
             } : undefined,
         };
     }
-    // ✅ 修复：明确处理 unknown tier，使用更保守的日期（non_plus）
+
     const deadline = tier === "plus"
         ? DEPRECATION_DATES.plusAdditionalScriptsReadOnly
         : DEPRECATION_DATES.nonPlusAdditionalScriptsReadOnly;

@@ -1,11 +1,13 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData } from "@remix-run/react";
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, SettingsIcon, } from "~/components/icons";
 import { CardSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { AnalysisResultSummary } from "~/components/scan";
+
+const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor").then(module => ({ default: module.ScriptCodeEditor })));
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, type ScriptAnalysisResult } from "../services/scanner.server";
@@ -14,9 +16,10 @@ import { calculateRiskScore } from "../services/scanner/risk-assessment";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { generateMigrationActions } from "../services/scanner/migration-actions";
 import { getExistingWebPixels } from "../services/migration.server";
-import { createAuditAsset } from "../services/audit-asset.server";
+import { createAuditAsset, batchCreateAuditAssets } from "../services/audit-asset.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
+import { generateMigrationTimeline, getMigrationProgress } from "../services/migration-priority.server";
 import { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } from "../utils/config";
 import type { ScriptTag, RiskItem } from "../types";
 import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
@@ -33,16 +36,14 @@ import {
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../utils/security";
 import crypto from "crypto";
 
-// 常量定义
 const TIMEOUTS = {
     IDLE_CALLBACK: 100,
     SET_TIMEOUT_FALLBACK: 10,
     EXPORT_CLEANUP: 100,
 } as const;
 
-// save_analysis action 相关常量
 const SAVE_ANALYSIS_LIMITS = {
-    MAX_INPUT_SIZE: 1024 * 1024, // 1MB
+    MAX_INPUT_SIZE: 1024 * 1024,
     MAX_PLATFORMS: 50,
     MAX_PLATFORM_DETAILS: 200,
     MAX_RISKS: 100,
@@ -57,10 +58,8 @@ const SAVE_ANALYSIS_LIMITS = {
     MAX_RISK_SCORE: 100,
 } as const;
 
-// 平台名称格式验证正则表达式（只允许小写字母、数字和下划线）
 const PLATFORM_NAME_REGEX = /^[a-z0-9_]+$/;
 
-// 共享类型定义
 type FetcherResult = {
     success?: boolean;
     message?: string;
@@ -71,7 +70,6 @@ type FetcherResult = {
     };
 };
 
-// 类型守卫：验证 FetcherResult
 function isFetcherResult(data: unknown): data is FetcherResult {
     return (
         typeof data === "object" &&
@@ -80,7 +78,6 @@ function isFetcherResult(data: unknown): data is FetcherResult {
     );
 }
 
-// 辅助函数：安全地解析日期
 function parseDateSafely(dateValue: unknown): Date | null {
     if (!dateValue) return null;
     try {
@@ -91,15 +88,13 @@ function parseDateSafely(dateValue: unknown): Date | null {
     }
 }
 
-// 类型定义：IdleCallbackHandle
 type IdleCallbackHandle = ReturnType<typeof requestIdleCallback>;
 
-// 辅助函数：安全地取消空闲回调或超时
 function cancelIdleCallbackOrTimeout(handle: number | IdleCallbackHandle | null): void {
     if (handle === null) return;
-    
+
     if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        // 检查是否是 IdleCallbackHandle
+
         if (typeof handle === 'number') {
             cancelIdleCallback(handle as IdleCallbackHandle);
         } else {
@@ -110,31 +105,27 @@ function cancelIdleCallbackOrTimeout(handle: number | IdleCallbackHandle | null)
     }
 }
 
-/**
- * 递归检查对象/数组中的敏感信息
- */
 function checkSensitiveInfoInData(obj: unknown, depth: number = 0): boolean {
-    // 防止深度过深导致栈溢出
+
     if (depth > 10) return false;
-    
+
     if (typeof obj === "string") {
         return containsSensitiveInfo(obj);
     }
-    
+
     if (Array.isArray(obj)) {
         return obj.some(item => checkSensitiveInfoInData(item, depth + 1));
     }
-    
+
     if (obj && typeof obj === "object") {
         return Object.values(obj).some(value => checkSensitiveInfoInData(value, depth + 1));
     }
-    
+
     return false;
 }
 
-// 类型守卫：验证 shopTier 是否为有效的 ShopTier 类型
 function isValidShopTier(tier: unknown): tier is ShopTier {
-    return typeof tier === "string" && 
+    return typeof tier === "string" &&
            (tier === "plus" || tier === "non_plus" || tier === "unknown");
 }
 
@@ -165,6 +156,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             planId: "free" as const,
             planLabel: "免费版",
             planTagline: "扫描报告 + 基础建议",
+            migrationTimeline: null,
+            migrationProgress: null,
         });
     }
     const latestScanRaw = await prisma.scanReport.findFirst({
@@ -172,17 +165,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         orderBy: { createdAt: "desc" },
     });
 
-    // 使用类型守卫安全地获取 shopTier（只验证一次，避免重复）
-    const shopTier: ShopTier = isValidShopTier(shop.shopTier) 
-        ? shop.shopTier 
+    const shopTier: ShopTier = isValidShopTier(shop.shopTier)
+        ? shop.shopTier
         : "unknown";
 
     let migrationActions: MigrationAction[] = [];
     if (latestScanRaw) {
         try {
-            // 使用共享验证函数进行类型安全的数据验证
+
             const rawData = latestScanRaw;
-            
+
             const scriptTags = validateScriptTagsArray(rawData.scriptTags);
             const identifiedPlatforms = validateStringArray(rawData.identifiedPlatforms);
             const riskItems = validateRiskItemsArray(rawData.riskItems);
@@ -191,20 +183,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 (rawData as Record<string, unknown>).additionalScriptsPatterns
             );
 
-            // 获取 Web Pixels，如果失败则使用空数组
             let webPixels: Array<{ id: string; settings: string | null }> = [];
             try {
                 webPixels = await getExistingWebPixels(admin);
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Unknown error";
-                logger.warn("Failed to fetch web pixels during scan data processing", { 
+                logger.warn("Failed to fetch web pixels during scan data processing", {
                     shopId: shop.id,
-                    error: errorMessage 
+                    error: errorMessage
                 });
-                // 继续使用空数组，不影响其他数据的处理
+
             }
-            
-            // 经过运行时验证的数据可以直接使用，无需类型断言
+
             const enhancedResult: EnhancedScanResult = {
                 scriptTags,
                 checkoutConfig: null,
@@ -216,14 +206,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 migrationActions: [],
                 additionalScriptsPatterns,
             };
-            
+
             migrationActions = generateMigrationActions(enhancedResult, shopTier);
         } catch (e) {
-            // 区分不同类型的错误，提供更详细的日志
+
             const errorMessage = e instanceof Error ? e.message : "Unknown error";
             const errorType = e instanceof Error ? e.constructor.name : "Unknown";
-            
-            // 对于数据格式错误，记录更详细的日志
+
             if (errorType === "TypeError" || errorMessage.includes("Cannot read")) {
                 logger.error("Data format error in scan data processing", {
                     shopId: shop.id,
@@ -243,7 +232,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     const latestScan = latestScanRaw;
-    // 获取扫描历史，失败时返回空数组
+
     let scanHistory: Awaited<ReturnType<typeof getScanHistory>> = [];
     try {
         scanHistory = await getScanHistory(shop.id, 5);
@@ -253,12 +242,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shopId: shop.id,
             error: errorMessage,
         });
-        // 失败时返回空数组，不影响页面其他功能
+
         scanHistory = [];
     }
-    
-    // 使用共享验证函数验证 scriptTags（如果 latestScan 存在但未在 try 块中验证）
-    const scriptTags: ScriptTag[] = latestScan 
+
+    const scriptTags: ScriptTag[] = latestScan
         ? validateScriptTagsArray(latestScan.scriptTags)
         : [];
     const hasScriptTags = scriptTags.length > 0;
@@ -298,11 +286,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         typOspUnknownError,
     };
     const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
-    
-    // 处理套餐信息
+
     const planId = normalizePlan(shop.plan);
     const planDef = getPlanDefinition(planId);
-    
+
+    const [migrationTimeline, migrationProgress] = await Promise.all([
+        generateMigrationTimeline(shop.id).catch(() => null),
+        getMigrationProgress(shop.id).catch(() => null),
+    ]);
+
     return json({
         shop: { id: shop.id, domain: shopDomain },
         latestScan,
@@ -328,6 +320,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         planId,
         planLabel: planDef.name,
         planTagline: planDef.tagline,
+        migrationTimeline,
+        migrationProgress,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -342,127 +336,118 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const formData = await request.formData();
     const actionType = formData.get("_action");
 
-    // 处理保存手动分析结果到 AuditAsset
     if (actionType === "save_analysis") {
         try {
-            // ✅ 修复 #13: 输入大小早期验证
+
             const analysisDataStr = formData.get("analysisData") as string;
             if (!analysisDataStr) {
                 return json({ error: "缺少分析数据" }, { status: 400 });
             }
             if (analysisDataStr.length > SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE) {
-                logger.warn("Analysis data too large", { 
+                logger.warn("Analysis data too large", {
                     shopId: shop.id,
                     contentLength: analysisDataStr.length,
                     maxSize: SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE
                 });
-                return json({ 
-                    error: `分析数据过大（最大 ${SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE / 1024}KB）` 
+                return json({
+                    error: `分析数据过大（最大 ${SAVE_ANALYSIS_LIMITS.MAX_INPUT_SIZE / 1024}KB）`
                 }, { status: 400 });
             }
-            
-            // ✅ 修复 #4: 优化验证顺序 - 先解析 JSON
+
             let parsedData: unknown;
             try {
                 parsedData = JSON.parse(analysisDataStr);
             } catch (parseError) {
-                logger.warn("Failed to parse analysis data JSON", { 
-                    shopId: shop.id, 
+                logger.warn("Failed to parse analysis data JSON", {
+                    shopId: shop.id,
                     error: parseError instanceof Error ? parseError.message : String(parseError),
                     actionType: "save_analysis"
                 });
                 return json({ error: "无法解析分析数据：无效的 JSON 格式" }, { status: 400 });
             }
-            
-            // 验证数据结构
+
             if (!parsedData || typeof parsedData !== "object") {
                 return json({ error: "无效的分析数据格式：必须是对象" }, { status: 400 });
             }
-            
+
             const data = parsedData as Record<string, unknown>;
-            
-            // ✅ 修复 #2: 在 JSON 解析后，递归检测敏感信息
+
             if (checkSensitiveInfoInData(parsedData)) {
-                logger.warn("Analysis data contains potential sensitive information", { 
+                logger.warn("Analysis data contains potential sensitive information", {
                     shopId: shop.id,
                     contentLength: analysisDataStr.length,
                     actionType: "save_analysis"
                 });
-                return json({ 
-                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。" 
+                return json({
+                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再保存。"
                 }, { status: 400 });
             }
-            
-            // ✅ 修复 #4: 优化验证顺序 - 先检查基本类型
+
             if (!Array.isArray(data.identifiedPlatforms)) {
                 return json({ error: "无效的分析数据格式：identifiedPlatforms 必须是数组" }, { status: 400 });
             }
-            
+
             if (!Array.isArray(data.platformDetails)) {
                 return json({ error: "无效的分析数据格式：platformDetails 必须是数组" }, { status: 400 });
             }
-            
+
             if (!Array.isArray(data.risks)) {
                 return json({ error: "无效的分析数据格式：risks 必须是数组" }, { status: 400 });
             }
-            
+
             if (!Array.isArray(data.recommendations)) {
                 return json({ error: "无效的分析数据格式：recommendations 必须是数组" }, { status: 400 });
             }
-            
-            // ✅ 修复 #4: 早期长度检查（防止恶意数据）
+
             if (data.identifiedPlatforms.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS) {
-                return json({ 
-                    error: `identifiedPlatforms 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS} 个）` 
+                return json({
+                    error: `identifiedPlatforms 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORMS} 个）`
                 }, { status: 400 });
             }
-            
+
             if (data.platformDetails.length > SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS) {
-                return json({ 
-                    error: `platformDetails 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS} 个）` 
+                return json({
+                    error: `platformDetails 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_DETAILS} 个）`
                 }, { status: 400 });
             }
-            
+
             if (data.risks.length > SAVE_ANALYSIS_LIMITS.MAX_RISKS) {
-                return json({ 
-                    error: `risks 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RISKS} 个）` 
+                return json({
+                    error: `risks 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RISKS} 个）`
                 }, { status: 400 });
             }
-            
+
             if (data.recommendations.length > SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS) {
-                return json({ 
-                    error: `recommendations 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS} 个）` 
+                return json({
+                    error: `recommendations 数组过长（最多 ${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATIONS} 个）`
                 }, { status: 400 });
             }
-            
-            // ✅ 修复 #7: 更严格的 riskScore 验证
+
             if (
-                typeof data.riskScore !== "number" || 
+                typeof data.riskScore !== "number" ||
                 !Number.isFinite(data.riskScore) ||
                 !Number.isInteger(data.riskScore) ||
-                data.riskScore < SAVE_ANALYSIS_LIMITS.MIN_RISK_SCORE || 
+                data.riskScore < SAVE_ANALYSIS_LIMITS.MIN_RISK_SCORE ||
                 data.riskScore > SAVE_ANALYSIS_LIMITS.MAX_RISK_SCORE
             ) {
-                return json({ 
-                    error: "无效的分析数据格式：riskScore 必须是 0-100 之间的整数" 
+                return json({
+                    error: "无效的分析数据格式：riskScore 必须是 0-100 之间的整数"
                 }, { status: 400 });
             }
-            
-            // ✅ 修复 #1: 统一平台名称验证（在第一次验证时就检查格式）
+
             if (!data.identifiedPlatforms.every((p: unknown) => {
                 return (
-                    typeof p === "string" && 
-                    p.length >= SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH && 
-                    p.length <= SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH && 
+                    typeof p === "string" &&
+                    p.length >= SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH &&
+                    p.length <= SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH &&
                     PLATFORM_NAME_REGEX.test(p)
                 );
             })) {
-                return json({ 
-                    error: `无效的分析数据格式：identifiedPlatforms 中的元素必须是有效的平台名称（小写字母、数字、下划线，${SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH}-${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH}字符）` 
+                return json({
+                    error: `无效的分析数据格式：identifiedPlatforms 中的元素必须是有效的平台名称（小写字母、数字、下划线，${SAVE_ANALYSIS_LIMITS.MIN_PLATFORM_NAME_LENGTH}-${SAVE_ANALYSIS_LIMITS.MAX_PLATFORM_NAME_LENGTH}字符）`
                 }, { status: 400 });
             }
-            
-            // 验证 platformDetails 数组元素结构
+
             if (!data.platformDetails.every((p: unknown) => {
                 if (typeof p !== "object" || p === null) return false;
                 const detail = p as Record<string, unknown>;
@@ -475,8 +460,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             })) {
                 return json({ error: "无效的分析数据格式：platformDetails 中的元素结构不正确" }, { status: 400 });
             }
-            
-            // 验证 risks 数组元素结构
+
             if (!data.risks.every((r: unknown) => {
                 if (typeof r !== "object" || r === null) return false;
                 const risk = r as Record<string, unknown>;
@@ -489,21 +473,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             })) {
                 return json({ error: "无效的分析数据格式：risks 中的元素结构不正确" }, { status: 400 });
             }
-            
-            // ✅ 修复 #6: 验证 recommendations 元素长度
+
             if (!data.recommendations.every((r: unknown) => {
                 return (
-                    typeof r === "string" && 
-                    r.length > 0 && 
+                    typeof r === "string" &&
+                    r.length > 0 &&
                     r.length <= SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATION_LENGTH
                 );
             })) {
-                return json({ 
-                    error: `无效的分析数据格式：recommendations 中的元素必须是长度 1-${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATION_LENGTH} 的字符串` 
+                return json({
+                    error: `无效的分析数据格式：recommendations 中的元素必须是长度 1-${SAVE_ANALYSIS_LIMITS.MAX_RECOMMENDATION_LENGTH} 的字符串`
                 }, { status: 400 });
             }
-            
-            // ✅ 修复 #3: 优化敏感信息清理逻辑（单次清理即可，如果仍有敏感信息则替换）
+
             const sanitizedPlatformDetails = (data.platformDetails as Array<{
                 platform: string;
                 type: string;
@@ -511,24 +493,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 matchedPattern: string;
             }>).map(detail => {
                 let pattern = detail.matchedPattern;
-                
-                // 先进行单次清理
+
                 pattern = sanitizeSensitiveInfo(pattern);
-                
-                // 如果仍有敏感信息，直接替换为占位符
+
                 if (containsSensitiveInfo(pattern)) {
                     pattern = "[REDACTED_PATTERN]";
                 }
-                
-                // ✅ 修复 #12: 使用常量限制长度（在清理后限制，避免截断敏感信息）
+
                 if (pattern.length > SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) {
                     pattern = pattern.substring(0, SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) + "...";
                 }
-                
+
                 return { ...detail, matchedPattern: pattern };
             });
-            
-            // 经过完整验证后，安全地转换为 ScriptAnalysisResult
+
             const analysisData: ScriptAnalysisResult = {
                 identifiedPlatforms: data.identifiedPlatforms as string[],
                 platformDetails: sanitizedPlatformDetails,
@@ -537,18 +515,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 recommendations: data.recommendations as string[],
             };
 
-            // ✅ 修复 #9: 记录失败的资产创建
             const createdAssets = [];
             const failedAssets: string[] = [];
-            
-            // ✅ 修复 #1: 平台名称已在前面统一验证，这里不需要再次验证
+
             for (const platform of analysisData.identifiedPlatforms) {
-                // ✅ 修复 #8: 限制 detectedPatterns 数组大小
+
                 const detectedPatterns = analysisData.platformDetails
                     .filter(d => d.platform === platform)
                     .slice(0, SAVE_ANALYSIS_LIMITS.MAX_DETECTED_PATTERNS)
                     .map(d => d.matchedPattern);
-                
+
                 const asset = await createAuditAsset(shop.id, {
                     sourceType: "manual_paste",
                     category: "pixel",
@@ -562,21 +538,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         detectedPatterns,
                     },
                 });
-                
+
                 if (asset) {
                     createdAssets.push(asset);
                 } else {
                     failedAssets.push(platform);
-                    logger.warn("Failed to create AuditAsset for platform", { 
-                        shopId: shop.id, 
+                    logger.warn("Failed to create AuditAsset for platform", {
+                        shopId: shop.id,
                         platform,
                         actionType: "save_analysis"
                     });
                 }
             }
 
-            // ✅ 修复 #8: 限制 risks 数组大小
-            // 如果没有检测到平台但有风险，创建通用记录
             if (analysisData.identifiedPlatforms.length === 0 && analysisData.riskScore > 0) {
                 const risksForDetails = analysisData.risks.slice(0, SAVE_ANALYSIS_LIMITS.MAX_RISKS_IN_DETAILS);
                 const asset = await createAuditAsset(shop.id, {
@@ -591,22 +565,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         risks: risksForDetails,
                     },
                 });
-                
+
                 if (asset) {
                     createdAssets.push(asset);
                 } else {
                     failedAssets.push("未识别的脚本");
-                    logger.warn("Failed to create AuditAsset for unidentified script", { 
+                    logger.warn("Failed to create AuditAsset for unidentified script", {
                         shopId: shop.id,
                         actionType: "save_analysis"
                     });
                 }
             }
-            
-            // ✅ 修复 #9: 如果有部分失败，在响应中包含警告信息
+
             if (failedAssets.length > 0) {
-                logger.warn("Some assets failed to create", { 
-                    shopId: shop.id, 
+                logger.warn("Some assets failed to create", {
+                    shopId: shop.id,
                     failedCount: failedAssets.length,
                     failedPlatforms: failedAssets,
                     actionType: "save_analysis"
@@ -617,25 +590,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 success: true,
                 actionType: "save_analysis",
                 savedCount: createdAssets.length,
-                message: createdAssets.length > 0 
+                message: createdAssets.length > 0
                     ? `已保存 ${createdAssets.length} 个审计资产记录${failedAssets.length > 0 ? `，${failedAssets.length} 个失败` : ''}`
                     : "保存失败，请检查日志",
                 ...(failedAssets.length > 0 && { warning: `${failedAssets.length} 个资产保存失败` })
             });
         } catch (error) {
-            // ✅ 修复 #5: 改进错误处理，不直接暴露错误信息给用户
+
             const errorId = crypto.randomBytes(4).toString('hex');
-            logger.error("Save analysis error", { 
+            logger.error("Save analysis error", {
                 errorId,
                 shopId: shop.id,
                 error: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : undefined,
                 actionType: "save_analysis"
             });
-            
-            return json({ 
+
+            return json({
                 error: "保存失败，请稍后重试",
-                errorId // 用于支持团队追踪问题
+                errorId
             }, { status: 500 });
         }
     }
@@ -645,9 +618,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     try {
         const scanResult = await scanShopTracking(admin, shop.id);
-        return json({ 
-            success: true, 
-            actionType: "scan", 
+        return json({
+            success: true,
+            actionType: "scan",
             result: scanResult,
             partialRefresh: scanResult._partialRefresh || false,
         });
@@ -658,7 +631,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 };
 
-// 提取到组件外部，使用严格的类型定义
 function getUpgradeBannerTone(
     urgency: "critical" | "high" | "medium" | "low" | "resolved"
 ): "critical" | "warning" | "info" | "success" {
@@ -669,7 +641,7 @@ function getUpgradeBannerTone(
         case "resolved": return "success";
         case "low": return "info";
         default: {
-            // 类型守卫：如果传入的值不在预期范围内，返回info作为降级处理
+
             const _exhaustive: never = urgency;
             return "info";
         }
@@ -677,7 +649,7 @@ function getUpgradeBannerTone(
 }
 
 export default function ScanPage() {
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline } = useLoaderData<typeof loader>();
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -710,8 +682,6 @@ export default function ScanPage() {
     const idleCallbackHandlesRef = useRef<Array<number | IdleCallbackHandle>>([]);
     const exportBlobUrlRef = useRef<string | null>(null);
 
-    // 套餐级别判断 - 使用显式检查确保类型安全
-    // normalizePlan 确保 planId 总是有效值，但显式检查提升代码可读性
     const planIdSafe = planId || "free";
     const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
     const isProOrAbove = isPlanAtLeast(planIdSafe, "pro");
@@ -728,25 +698,34 @@ export default function ScanPage() {
               截止提醒：{deprecationStatus.additionalScripts.badge.text} — {deprecationStatus.additionalScripts.description}
             </Text>
           )}
+          <Button
+            size="slim"
+            variant="plain"
+            onClick={() => {
+              setGuidanceContent({
+                title: "如何从 Shopify 升级向导获取脚本清单",
+                platform: undefined,
+              });
+              setGuidanceModalOpen(true);
+            }}
+          >
+            📋 查看获取脚本清单的详细步骤
+          </Button>
         </BlockStack>
       </Banner>
     );
 
-    // 使用共享验证函数进行类型安全的验证和转换
     const identifiedPlatforms = useMemo(() => {
         return validateStringArray(latestScan?.identifiedPlatforms);
     }, [latestScan?.identifiedPlatforms]);
-    
-    // 使用共享验证函数提取 scriptTags
+
     const scriptTags = useMemo(() => {
         return validateScriptTagsArray(latestScan?.scriptTags);
     }, [latestScan?.scriptTags]);
 
-    // 优化 useMemo 依赖项，使用稳定的值而非数组引用
     const identifiedPlatformsCount = identifiedPlatforms.length;
     const scriptTagsCount = scriptTags.length;
 
-    // 计算简单，直接计算即可，useMemo 开销可能大于收益
     const roiEstimate = {
         eventsLostPerMonth: Math.max(0, monthlyOrders) * Math.max(0, identifiedPlatformsCount),
         platforms: Math.max(0, identifiedPlatformsCount),
@@ -769,9 +748,8 @@ export default function ScanPage() {
         setGuidanceContent(null);
     }, []);
 
-    // ✅ 修复 #5: 提取错误处理函数，确保取消操作时正确清理状态
     const handleAnalysisError = useCallback((error: unknown, contentLength: number) => {
-        // ✅ 修复 #5: 取消操作时确保清理所有状态
+
         if (error instanceof Error && error.message === "Analysis cancelled") {
             if (isMountedRef.current) {
                 setIsAnalyzing(false);
@@ -781,9 +759,9 @@ export default function ScanPage() {
                 setAnalysisSaved(false);
                 analysisSavedRef.current = false;
             }
-            return; // 取消操作不需要显示错误
+            return;
         }
-        
+
         let errorMessage: string;
         if (error instanceof TypeError) {
             errorMessage = "脚本格式错误，请检查输入内容";
@@ -792,14 +770,14 @@ export default function ScanPage() {
         } else {
             errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
         }
-        
+
         if (isMountedRef.current) {
             setAnalysisError(errorMessage);
             setAnalysisResult(null);
             setAnalysisSaved(false);
             analysisSavedRef.current = false;
         }
-        
+
         console.error("Script analysis error", {
             error: errorMessage,
             errorType: error instanceof Error ? error.constructor.name : "Unknown",
@@ -822,14 +800,12 @@ export default function ScanPage() {
     const confirmDelete = useCallback(() => {
         if (!pendingDelete || isDeleting) return;
 
-        // 验证 GID 格式
         if (!pendingDelete.gid || typeof pendingDelete.gid !== "string") {
             setDeleteError("无效的 WebPixel ID");
             return;
         }
 
-        // 验证 GID 格式是否符合 Shopify 规范
-        if (!pendingDelete.gid.startsWith("gid://shopify/WebPixel/")) {
+        if (!pendingDelete.gid.startsWith("gid:
             setDeleteError("WebPixel ID 格式不正确");
             return;
         }
@@ -844,14 +820,14 @@ export default function ScanPage() {
     }, [pendingDelete, deleteFetcher, isDeleting]);
 
     const closeDeleteModal = useCallback(() => {
-        if (isDeleting) return; // 删除进行中时不允许关闭
+        if (isDeleting) return;
         setDeleteModalOpen(false);
         setPendingDelete(null);
         setDeleteError(null);
     }, [isDeleting]);
 
     const handleUpgradePixelSettings = useCallback(() => {
-        if (isUpgrading) return; // 防止重复提交
+        if (isUpgrading) return;
 
         const formData = new FormData();
         upgradeFetcher.submit(formData, {
@@ -866,51 +842,47 @@ export default function ScanPage() {
         submit(formData, { method: "post" });
     };
     const handleAnalyzeScript = useCallback(async () => {
-        if (isAnalyzing) return; // 防止重复提交
+        if (isAnalyzing) return;
 
-        // 输入验证
         const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
         const trimmedContent = scriptContent.trim();
-        
+
         if (!trimmedContent) {
             setAnalysisError("请输入脚本内容");
             return;
         }
-        
+
         if (trimmedContent.length > MAX_CONTENT_LENGTH) {
             setAnalysisError(`脚本内容过长（最多 ${MAX_CONTENT_LENGTH} 个字符）。请分段分析或联系支持。`);
             return;
         }
-        
-        // ✅ 修复 #1: 在分析前检测敏感信息
+
         if (containsSensitiveInfo(trimmedContent)) {
             setAnalysisError("检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再分析。");
             return;
         }
-        
+
         setIsAnalyzing(true);
-        setAnalysisSaved(false); // 重置保存状态
+        setAnalysisSaved(false);
         analysisSavedRef.current = false;
         setAnalysisError(null);
-        setAnalysisProgress(null); // 重置进度
-        
+        setAnalysisProgress(null);
+
         try {
-            // ✅ 修复 #3: 创建 AbortController 用于取消操作
+
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
             abortControllerRef.current = new AbortController();
             const signal = abortControllerRef.current.signal;
-            
-            // 对于大内容，使用分批处理避免阻塞UI
-            // 使用 requestIdleCallback 或 setTimeout 来分批处理
+
             const CHUNK_SIZE = SCRIPT_ANALYSIS_CONFIG.CHUNK_SIZE;
             const isLargeContent = trimmedContent.length > CHUNK_SIZE;
-            
+
             let result: ScriptAnalysisResult;
-            
+
             if (isLargeContent) {
-                // ✅ 修复 #2: 大内容分批处理，使用 Map 和 Set 去重
+
                 result = {
                     identifiedPlatforms: [],
                     platformDetails: [],
@@ -918,19 +890,16 @@ export default function ScanPage() {
                     riskScore: 0,
                     recommendations: [],
                 };
-                
-                // 使用 Map 和 Set 进行去重
+
                 const platformDetailsMap = new Map<string, typeof result.platformDetails[0]>();
                 const risksMap = new Map<string, typeof result.risks[0]>();
                 const recommendationsSet = new Set<string>();
                 const platformsSet = new Set<string>();
-                
-                // 计算总块数
+
                 const totalChunks = Math.ceil(trimmedContent.length / CHUNK_SIZE);
-                
-                // 分批处理每个块
+
                 for (let i = 0; i < totalChunks; i++) {
-                    // ✅ 修复 #3: 检查是否已取消，并清理状态
+
                     if (signal.aborted || !isMountedRef.current) {
                         if (isMountedRef.current) {
                             setIsAnalyzing(false);
@@ -939,16 +908,14 @@ export default function ScanPage() {
                         }
                         return;
                     }
-                    
-                    // ✅ 修复 #6: 更新进度
+
                     if (isMountedRef.current) {
                         setAnalysisProgress({ current: i + 1, total: totalChunks });
                     }
-                    
-                    // ✅ 修复 #1: 使用 requestIdleCallback 进行真正的异步处理，并正确跟踪和清理
+
                     await new Promise<void>((resolve) => {
                         const processChunk = () => {
-                            // 再次检查是否已取消
+
                             if (signal.aborted || !isMountedRef.current) {
                                 if (isMountedRef.current) {
                                     setIsAnalyzing(false);
@@ -958,60 +925,53 @@ export default function ScanPage() {
                                 resolve();
                                 return;
                             }
-                            
+
                             try {
-                                // 动态获取块内容，不预先存储所有块
+
                                 const start = i * CHUNK_SIZE;
                                 const end = Math.min(start + CHUNK_SIZE, trimmedContent.length);
                                 const chunk = trimmedContent.slice(start, end);
-                                
-                                // 同步调用分析函数
+
                                 let chunkResult: ScriptAnalysisResult;
                                 try {
                                     chunkResult = analyzeScriptContent(chunk);
                                 } catch (syncError) {
-                                    // ✅ 修复 #5: 捕获同步异常
+
                                     console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
                                     resolve();
                                     return;
                                 }
-                                
-                                // ✅ 修复 #2: 合并结果并去重（使用完整 matchedPattern 作为键的一部分）
-                                // 合并平台列表
+
                                 for (const platform of chunkResult.identifiedPlatforms) {
                                     platformsSet.add(platform);
                                 }
-                                
-                                // 合并平台详情（去重）- 使用完整 matchedPattern 避免边界情况
+
                                 for (const detail of chunkResult.platformDetails) {
-                                    // 使用完整 matchedPattern 作为键，避免截断导致的误判
+
                                     const key = `${detail.platform}-${detail.type}-${detail.matchedPattern}`;
                                     if (!platformDetailsMap.has(key)) {
                                         platformDetailsMap.set(key, detail);
                                     }
                                 }
-                                
-                                // 合并风险（去重）
+
                                 for (const risk of chunkResult.risks) {
                                     if (!risksMap.has(risk.id)) {
                                         risksMap.set(risk.id, risk);
                                     }
                                 }
-                                
-                                // 合并建议（去重）
+
                                 for (const rec of chunkResult.recommendations) {
                                     recommendationsSet.add(rec);
                                 }
-                                
+
                                 resolve();
                             } catch (error) {
-                                // 单个块失败不影响整体
+
                                 console.warn(`Chunk ${i} analysis failed:`, error);
                                 resolve();
                             }
                         };
-                        
-                        // ✅ 修复 #1: 使用 requestIdleCallback 如果可用，否则降级到 setTimeout，并跟踪句柄
+
                         let handle: number | IdleCallbackHandle;
                         if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
                             handle = requestIdleCallback(processChunk, { timeout: TIMEOUTS.IDLE_CALLBACK });
@@ -1022,25 +982,21 @@ export default function ScanPage() {
                         }
                     });
                 }
-                
-                // ✅ 修复 #2: 将去重后的结果转换为数组
+
                 result.identifiedPlatforms = Array.from(platformsSet);
                 result.platformDetails = Array.from(platformDetailsMap.values());
                 result.risks = Array.from(risksMap.values());
                 result.recommendations = Array.from(recommendationsSet);
-                
-                // 重新计算风险评分
+
                 if (result.risks.length > 0) {
                     result.riskScore = calculateRiskScore(result.risks);
                 }
-                
-                // 清除进度
+
                 if (isMountedRef.current) {
                     setAnalysisProgress(null);
                 }
             } else {
-                // 小内容直接处理
-                // ✅ 修复 #3: 检查是否已取消，并清理状态
+
                 if (signal.aborted || !isMountedRef.current) {
                     if (isMountedRef.current) {
                         setIsAnalyzing(false);
@@ -1048,10 +1004,10 @@ export default function ScanPage() {
                     }
                     return;
                 }
-                
+
                 result = await new Promise<ScriptAnalysisResult>((resolve, reject) => {
                     const processContent = () => {
-                        // 再次检查是否已取消
+
                         if (signal.aborted || !isMountedRef.current) {
                             if (isMountedRef.current) {
                                 setIsAnalyzing(false);
@@ -1061,15 +1017,14 @@ export default function ScanPage() {
                             reject(new Error("Analysis cancelled"));
                             return;
                         }
-                        
+
                         try {
                             resolve(analyzeScriptContent(trimmedContent));
                         } catch (error) {
                             reject(error);
                         }
                     };
-                    
-                    // ✅ 修复 #1: 使用 requestIdleCallback 如果可用，否则降级到 setTimeout，并跟踪句柄
+
                     let handle: number | IdleCallbackHandle;
                     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
                         handle = requestIdleCallback(processContent, { timeout: TIMEOUTS.IDLE_CALLBACK });
@@ -1080,12 +1035,20 @@ export default function ScanPage() {
                     }
                 });
             }
-            
+
             if (isMountedRef.current) {
                 setAnalysisResult(result);
+
+                if (result.identifiedPlatforms.length > 0 || result.risks.length > 0) {
+                    const formData = new FormData();
+                    formData.append("_action", "analyze_manual_script");
+                    formData.append("scriptContent", trimmedContent);
+
+                    submit(formData, { method: "post" });
+                }
             }
         } catch (error) {
-            // ✅ 修复 #5: 使用提取的错误处理函数
+
             handleAnalysisError(error, trimmedContent.length);
         } finally {
             if (isMountedRef.current) {
@@ -1093,23 +1056,20 @@ export default function ScanPage() {
                 setAnalysisProgress(null);
             }
         }
-    }, [scriptContent, isAnalyzing, handleAnalysisError]); // 明确包含所有使用的状态
+    }, [scriptContent, isAnalyzing, handleAnalysisError, submit]);
 
-    // 处理保存结果
     const isSavingAnalysis = saveAnalysisFetcher.state === "submitting";
 
     const handleSaveAnalysis = useCallback(() => {
-        // ✅ 修复 #4: 更严格的检查，防止竞态条件
+
         if (!analysisResult) return;
-        
-        // 使用原子操作检查所有条件
+
         if (analysisSavedRef.current || isSavingAnalysis || saveAnalysisFetcher.state !== "idle") {
             return;
         }
-        
-        // ✅ 修复 #4: 立即设置所有标志，防止重复提交
+
         analysisSavedRef.current = true;
-        setAnalysisSaved(true); // 同步更新 state，避免状态不一致
+        setAnalysisSaved(true);
 
         const formData = new FormData();
         formData.append("_action", "save_analysis");
@@ -1117,28 +1077,26 @@ export default function ScanPage() {
         saveAnalysisFetcher.submit(formData, { method: "post" });
     }, [analysisResult, saveAnalysisFetcher, isSavingAnalysis]);
 
-    // 当保存成功时更新状态并显示Toast
     useEffect(() => {
-        // ✅ 修复 #4: 使用类型守卫进行安全的类型检查
+
         const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
         if (!result || saveAnalysisFetcher.state !== "idle" || !isMountedRef.current) return;
-        
+
         if (result.success) {
-            // 确保状态同步
+
             if (!analysisSavedRef.current) {
                 analysisSavedRef.current = true;
             }
             setAnalysisSaved(true);
             showSuccess("分析结果已保存！");
         } else if (result.error) {
-            // 失败时重置
+
             analysisSavedRef.current = false;
             setAnalysisSaved(false);
             showError("保存失败：" + result.error);
         }
     }, [saveAnalysisFetcher.data, saveAnalysisFetcher.state, showSuccess, showError]);
 
-    // 当分析结果变化时，重置保存状态
     useEffect(() => {
         if (analysisResult) {
             analysisSavedRef.current = false;
@@ -1146,46 +1104,42 @@ export default function ScanPage() {
         }
     }, [analysisResult]);
 
-    // 防抖的数据重新加载函数
     const reloadData = useCallback(() => {
         if (isReloadingRef.current || !isMountedRef.current) return;
-        
-        // 清理之前的定时器
+
         if (reloadTimeoutRef.current) {
             clearTimeout(reloadTimeoutRef.current);
             reloadTimeoutRef.current = null;
         }
-        
+
         isReloadingRef.current = true;
         submit(new FormData(), { method: "get" });
-        
-        // 使用闭包保存的 timeoutId，不依赖 ref
+
         const timeoutId = setTimeout(() => {
-            // 使用闭包保存的 timeoutId，不依赖 ref
+
             if (isMountedRef.current && reloadTimeoutRef.current === timeoutId) {
                 isReloadingRef.current = false;
                 reloadTimeoutRef.current = null;
             }
         }, 1000);
-        
+
         reloadTimeoutRef.current = timeoutId;
     }, [submit]);
 
-    // 处理删除操作的结果
     useEffect(() => {
-        // ✅ 修复 #4: 使用类型守卫进行安全的类型检查
+
         const deleteResult = isFetcherResult(deleteFetcher.data) ? deleteFetcher.data : undefined;
         if (!deleteResult || deleteFetcher.state !== "idle" || !isMountedRef.current) return;
-        
+
         if (deleteResult.success) {
             showSuccess(deleteResult.message || "删除成功！");
             setDeleteModalOpen(false);
             setPendingDelete(null);
             setDeleteError(null);
-            // 删除成功后重新加载数据以获取最新状态（带防抖保护）
+
             reloadData();
         } else {
-            // 处理详细错误信息
+
             let errorMessage = deleteResult.error || "删除失败";
             if (deleteResult.details && typeof deleteResult.details === "object") {
                 const details = deleteResult.details as { message?: string };
@@ -1199,13 +1153,13 @@ export default function ScanPage() {
     }, [deleteFetcher.data, deleteFetcher.state, showSuccess, showError, reloadData]);
 
     useEffect(() => {
-        // ✅ 修复 #4: 使用类型守卫进行安全的类型检查
+
         const upgradeResult = isFetcherResult(upgradeFetcher.data) ? upgradeFetcher.data : undefined;
         if (!upgradeResult || upgradeFetcher.state !== "idle" || !isMountedRef.current) return;
-        
+
         if (upgradeResult.success) {
             showSuccess(upgradeResult.message || "升级成功！");
-            // 升级成功后重新加载数据以获取最新状态（带防抖保护）
+
             reloadData();
         } else {
             let errorMessage = upgradeResult.error || "升级失败";
@@ -1219,27 +1173,26 @@ export default function ScanPage() {
         }
     }, [upgradeFetcher.data, upgradeFetcher.state, showSuccess, showError, reloadData]);
 
-    // 组件挂载时设置标志，卸载时清理
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
-            // ✅ 修复 #3: 取消正在进行的分析操作
+
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
                 abortControllerRef.current = null;
             }
-            // ✅ 修复 #1: 清理所有 idle callback handles，防止内存泄漏
+
             idleCallbackHandlesRef.current.forEach(handle => {
                 cancelIdleCallbackOrTimeout(handle);
             });
             idleCallbackHandlesRef.current = [];
-            // 清理重新加载定时器，防止内存泄漏
+
             if (reloadTimeoutRef.current) {
                 clearTimeout(reloadTimeoutRef.current);
                 reloadTimeoutRef.current = null;
             }
-            // ✅ 修复 #2: 清理导出定时器和 Blob URL，防止内存泄漏
+
             if (exportTimeoutRef.current) {
                 clearTimeout(exportTimeoutRef.current);
                 exportTimeoutRef.current = null;
@@ -1248,7 +1201,7 @@ export default function ScanPage() {
                 URL.revokeObjectURL(exportBlobUrlRef.current);
                 exportBlobUrlRef.current = null;
             }
-            // 重置所有标志，防止状态不一致
+
             isReloadingRef.current = false;
             analysisSavedRef.current = false;
         };
@@ -1300,7 +1253,6 @@ export default function ScanPage() {
         return names[platform] || platform;
     };
 
-    // 状态文本映射函数 - 提取到外部避免重复创建
     const getStatusText = useCallback((status: string | null | undefined): string => {
         if (!status) return "未知";
         switch (status) {
@@ -1315,37 +1267,33 @@ export default function ScanPage() {
             case "pending":
                 return "等待中";
             default:
-                return status; // 未知状态直接显示原始值
+                return status;
         }
     }, []);
 
-    // 处理扫描历史数据，使用 useMemo 优化性能
     const processedScanHistory = useMemo(() => {
         return scanHistory
             .filter((scan): scan is NonNullable<typeof scan> => scan !== null)
             .map((scan) => {
-                // 类型安全验证
+
                 const riskScore = validateRiskScore(scan.riskScore);
                 const platforms = validateStringArray(scan.identifiedPlatforms);
-                
-                // ✅ 修复 #7: 使用共享的日期解析函数
+
                 const createdAt = parseDateSafely(scan.createdAt);
-                
+
                 const status = getStatusText(scan.status);
-                
+
                 return [
                     createdAt ? safeFormatDate(createdAt) : "未知",
-                    riskScore, // 直接传入数字类型，与 columnContentTypes 的 "numeric" 匹配
+                    riskScore,
                     platforms.join(", ") || "-",
                     status,
                 ];
             });
     }, [scanHistory, getStatusText]);
 
-    // 迁移清单相关常量
     const MAX_VISIBLE_ACTIONS = 5;
 
-    // 生成迁移清单文本的共享函数
     const generateChecklistText = useCallback((format: "markdown" | "plain"): string => {
         const items = migrationActions && migrationActions.length > 0
             ? migrationActions.map((a, i) => {
@@ -1367,8 +1315,8 @@ export default function ScanPage() {
                 ...items,
                 "",
                 "## 快速链接",
-                "- Pixels 管理: https://admin.shopify.com/store/settings/customer_events",
-                "- Checkout Editor: https://admin.shopify.com/store/settings/checkout/editor",
+                "- Pixels 管理: https:
+                "- Checkout Editor: https:
                 "- 应用迁移工具: /app/migrate",
             ].join("\n");
         } else {
@@ -1382,14 +1330,13 @@ export default function ScanPage() {
             ].join("\n");
         }
     }, [migrationActions, shop?.domain, getPlatformName]);
-    
-    // 使用共享验证函数进行类型安全的验证，与 loader 中的验证逻辑保持一致
+
     const riskItems = useMemo(() => {
         return validateRiskItemsArray(latestScan?.riskItems);
     }, [latestScan?.riskItems]);
-  // 检查是否有部分刷新的警告
-  const partialRefreshWarning = actionData && 
-    typeof actionData === "object" && 
+
+  const partialRefreshWarning = actionData &&
+    typeof actionData === "object" &&
     actionData !== null &&
     "partialRefresh" in actionData &&
     (actionData as { partialRefresh?: boolean }).partialRefresh ? (
@@ -1411,7 +1358,7 @@ export default function ScanPage() {
       {paginationLimitWarning}
       {partialRefreshWarning}
       {upgradeStatus && upgradeStatus.title && upgradeStatus.message && (() => {
-        // ✅ 修复 #7: 使用共享的日期解析函数
+
         const lastUpdatedDate = parseDateSafely(upgradeStatus.lastUpdated);
 
         return (
@@ -1442,7 +1389,7 @@ export default function ScanPage() {
         );
       })()}
 
-      {/* 订阅计划卡片 */}
+      {}
       {planId && planLabel && (
         <Banner
           title={`当前套餐：${planLabel}`}
@@ -1501,25 +1448,25 @@ export default function ScanPage() {
                       <Button
                         icon={ShareIcon}
                         onClick={async () => {
-                          // 类型安全验证
+
                           const validatedRiskScore = validateRiskScore(latestScan.riskScore);
-                          // 使用安全的日期解析函数
+
                           const scanDate = safeParseDate(latestScan.createdAt);
-                          
+
                           const shareData = {
                             title: "追踪脚本扫描报告",
                             text: `店铺追踪扫描报告\n风险评分: ${validatedRiskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${scanDate.toLocaleString("zh-CN")}`,
                           };
-                          
+
                           if (navigator.share) {
                             try {
                               await navigator.share(shareData);
                               showSuccess("报告已分享");
                             } catch (error) {
-                              // 用户取消分享不算错误，但其他错误需要处理
+
                               if (error instanceof Error && error.name !== 'AbortError') {
                                 console.error("分享失败:", error);
-                                // 降级到剪贴板
+
                                 if (navigator.clipboard && navigator.clipboard.writeText) {
                                   try {
                                     await navigator.clipboard.writeText(shareData.text);
@@ -1581,7 +1528,7 @@ export default function ScanPage() {
                   }}
                   secondaryAction={{
                     content: "了解更多",
-                    url: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",
+                    url: "https:
                   }}
                 />
               )}
@@ -1994,7 +1941,7 @@ export default function ScanPage() {
                 <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
               </InlineStack>
 
-              {/* Toast 通知已处理 deleteFetcher 和 upgradeFetcher 的结果 */}
+              {}
 
               <BlockStack gap="300">
                 {migrationActions.map((action, index) => (
@@ -2088,6 +2035,93 @@ export default function ScanPage() {
           </Card>)}
 
         {}
+        {}
+        {migrationProgress && migrationTimeline && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  📊 迁移进度
+                </Text>
+                <Badge tone={migrationProgress.completionRate === 100 ? "success" : "attention"}>
+                  {`${Math.round(migrationProgress.completionRate)}% 完成`}
+                </Badge>
+              </InlineStack>
+
+              <BlockStack gap="300">
+                <ProgressBar
+                  progress={migrationProgress.completionRate}
+                  tone={migrationProgress.completionRate === 100 ? "success" : "primary"}
+                  size="medium"
+                />
+                <InlineStack gap="400" align="space-between" wrap>
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      总计: {migrationProgress.total} 项
+                    </Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      已完成: {migrationProgress.completed} | 进行中: {migrationProgress.inProgress} | 待处理: {migrationProgress.pending}
+                    </Text>
+                  </BlockStack>
+                  {migrationTimeline.totalEstimatedTime > 0 && (
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      预计剩余时间: {String(Math.round(migrationTimeline.totalEstimatedTime / 60))} 小时 {String(migrationTimeline.totalEstimatedTime % 60)} 分钟
+                    </Text>
+                  )}
+                </InlineStack>
+              </BlockStack>
+
+              {}
+              {migrationTimeline.assets.length > 0 && (
+                <>
+                  <Divider />
+                  <BlockStack gap="300">
+                    <Text as="h3" variant="headingSm">
+                      下一步建议
+                    </Text>
+                    {migrationTimeline.assets
+                      .filter((item) => item.canStart && item.asset.migrationStatus === "pending")
+                      .slice(0, 3)
+                      .map((item) => (
+                        <Box key={item.asset.id} background="bg-surface-secondary" padding="300" borderRadius="200">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <BlockStack gap="100">
+                              <InlineStack gap="200" blockAlign="center">
+                                <Text as="span" fontWeight="semibold">
+                                  {item.asset.displayName || item.asset.platform || "未知资产"}
+                                </Text>
+                                <Badge tone={item.priority.priority >= 8 ? "critical" : item.priority.priority >= 5 ? "warning" : "info"}>
+                                  {`优先级 ${item.priority.priority}/10`}
+                                </Badge>
+                              </InlineStack>
+                              <Text as="span" variant="bodySm" tone="subdued">
+                                {item.priority.reason} • 预计 {String(item.priority.estimatedTime)} 分钟
+                              </Text>
+                            </BlockStack>
+                            <Button
+                              size="slim"
+                              url={`/app/migrate?asset=${item.asset.id}`}
+                            >
+                              开始迁移
+                            </Button>
+                          </InlineStack>
+                        </Box>
+                      ))}
+                    {migrationTimeline.assets.filter((item) => item.canStart && item.asset.migrationStatus === "pending").length === 0 && (
+                      <Banner tone="success">
+                        <Text as="p" variant="bodySm">
+                          所有可立即开始的迁移任务已完成！请检查是否有依赖项需要先完成。
+                        </Text>
+                      </Banner>
+                    )}
+                  </BlockStack>
+                </>
+              )}
+            </BlockStack>
+          </Card>
+        )}
+
+        {}
         {latestScan && !isScanning && (
           <Card>
             <BlockStack gap="400">
@@ -2114,7 +2148,7 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url="https://admin.shopify.com/store/settings/customer_events"
+                    url="https:
                     external
                     icon={ShareIcon}
                   >
@@ -2141,14 +2175,14 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url="https://admin.shopify.com/store/settings/checkout/editor"
+                    url="https:
                     external
                     icon={ShareIcon}
                   >
                     打开 Checkout Editor
                   </Button>
                   <Button
-                    url="https://shopify.dev/docs/apps/checkout/thank-you-order-status"
+                    url="https:
                     external
                     icon={InfoIcon}
                   >
@@ -2219,28 +2253,26 @@ export default function ScanPage() {
                         onClick={() => {
                           if (isExporting) return;
                           setIsExporting(true);
-                          
-                          // ✅ 修复 #2: 清理之前的 Blob URL（如果存在）
+
                           if (exportBlobUrlRef.current) {
                             URL.revokeObjectURL(exportBlobUrlRef.current);
                             exportBlobUrlRef.current = null;
                           }
-                          
+
                           try {
                             const checklist = generateChecklistText("plain");
                             const blob = new Blob([checklist], { type: "text/plain" });
                             const url = URL.createObjectURL(blob);
-                            exportBlobUrlRef.current = url; // 保存 URL 引用以便清理
-                            
+                            exportBlobUrlRef.current = url;
+
                             const a = document.createElement("a");
                             a.href = url;
                             a.download = `migration-checklist-${new Date().toISOString().split("T")[0]}.txt`;
-                            
-                            // 安全地添加和移除 DOM 元素
+
                             try {
                               document.body.appendChild(a);
                               a.click();
-                              // ✅ 修复 #2: 延迟移除，确保下载开始，使用 ref 保存以便清理
+
                               exportTimeoutRef.current = setTimeout(() => {
                                 try {
                                   if (a.parentNode) {
@@ -2249,7 +2281,7 @@ export default function ScanPage() {
                                 } catch (removeError) {
                                   console.warn("Failed to remove download link:", removeError);
                                 }
-                                // 清理 Blob URL
+
                                 if (exportBlobUrlRef.current) {
                                   URL.revokeObjectURL(exportBlobUrlRef.current);
                                   exportBlobUrlRef.current = null;
@@ -2258,7 +2290,7 @@ export default function ScanPage() {
                               }, TIMEOUTS.EXPORT_CLEANUP);
                             } catch (domError) {
                               console.error("Failed to trigger download:", domError);
-                              // ✅ 修复 #2: 确保在错误情况下也清理 URL
+
                               if (exportBlobUrlRef.current) {
                                 URL.revokeObjectURL(exportBlobUrlRef.current);
                                 exportBlobUrlRef.current = null;
@@ -2267,12 +2299,12 @@ export default function ScanPage() {
                               setIsExporting(false);
                               return;
                             }
-                            
+
                             showSuccess("清单导出成功");
                             setIsExporting(false);
                           } catch (error) {
                             console.error("导出失败:", error);
-                            // ✅ 修复 #2: 确保在错误情况下也清理 URL
+
                             if (exportBlobUrlRef.current) {
                               URL.revokeObjectURL(exportBlobUrlRef.current);
                               exportBlobUrlRef.current = null;
@@ -2340,9 +2372,9 @@ export default function ScanPage() {
               <Text as="h2" variant="headingMd">
                 扫描历史
               </Text>
-              <DataTable 
-                columnContentTypes={["text", "numeric", "text", "text"]} 
-                headings={["扫描时间", "风险分", "检测平台", "状态"]} 
+              <DataTable
+                columnContentTypes={["text", "numeric", "text", "text"]}
+                headings={["扫描时间", "风险分", "检测平台", "状态"]}
                 rows={processedScanHistory}
               />
             </BlockStack>
@@ -2437,17 +2469,20 @@ export default function ScanPage() {
                       </BlockStack>
                     </Banner>
 
-                    <TextField label="粘贴脚本内容" value={scriptContent} onChange={setScriptContent} multiline={8} autoComplete="off" placeholder={`<!-- 示例 -->
+                    <Suspense fallback={<CardSkeleton lines={5} />}>
+                      <ScriptCodeEditor
+                        value={scriptContent}
+                        onChange={setScriptContent}
+                        onAnalyze={handleAnalyzeScript}
+                        analysisResult={analysisResult}
+                        isAnalyzing={isAnalyzing}
+                        placeholder={`<!-- 示例 -->
 <script>
   gtag('event', 'purchase', {...});
   fbq('track', 'Purchase', {...});
-</script>`} helpText="支持检测 Google、Meta、TikTok、Bing 等平台的追踪代码"/>
-
-                    <InlineStack align="end">
-                      <Button variant="primary" onClick={handleAnalyzeScript} loading={isAnalyzing} disabled={!scriptContent.trim()} icon={ClipboardIcon}>
-                        分析脚本
-                      </Button>
-                    </InlineStack>
+</script>`}
+                      />
+                    </Suspense>
                     {analysisProgress && (
                       <Box paddingBlockStart="200">
                         <Text as="p" variant="bodySm" tone="subdued">
@@ -2578,7 +2613,7 @@ export default function ScanPage() {
                   </BlockStack>
                 </Card>)}
 
-              {/* 保存分析结果到 AuditAsset */}
+              {}
               {analysisResult && (
                 <Card>
                   <BlockStack gap="400">
@@ -2642,12 +2677,58 @@ export default function ScanPage() {
         >
           <Modal.Section>
             <BlockStack gap="400">
-              <Banner tone="info">
-                <Text as="p" variant="bodySm">
-                  由于 Shopify 权限限制，应用无法直接删除 ScriptTag。
-                  请按照以下步骤手动清理，或等待原创建应用自动处理。
-                </Text>
-              </Banner>
+              {guidanceContent?.title?.includes("升级向导") ? (
+                <>
+                  <Text as="p" variant="bodyMd">
+                    您可以从 Shopify Admin 的升级向导中获取脚本清单，然后手动补充到扫描报告中。
+                  </Text>
+                  <List type="number">
+                    <List.Item>
+                      <Text as="span" fontWeight="semibold">访问升级向导</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        在 Shopify Admin 中，前往「设置」→「结账和订单处理」→「Thank you / Order status 页面升级」
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" fontWeight="semibold">查看脚本清单</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        升级向导会显示当前使用的 Additional Scripts 和 ScriptTags 列表
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" fontWeight="semibold">复制脚本内容</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        对于每个脚本，复制其完整内容（包括 URL 或内联代码）
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" fontWeight="semibold">粘贴到本页面</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        返回本页面，在「脚本内容分析」标签页中粘贴脚本内容，点击「分析脚本」进行识别
+                      </Text>
+                    </List.Item>
+                  </List>
+                  <Banner tone="info">
+                    <Text as="p" variant="bodySm">
+                      💡 提示：如果升级向导中显示的脚本较多，建议分批粘贴和分析，避免一次性处理过多内容。
+                    </Text>
+                  </Banner>
+                  <Button
+                    url="https:
+                    external
+                    variant="primary"
+                  >
+                    打开 Shopify 升级向导帮助文档
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Banner tone="info">
+                    <Text as="p" variant="bodySm">
+                      由于 Shopify 权限限制，应用无法直接删除 ScriptTag。
+                      请按照以下步骤手动清理，或等待原创建应用自动处理。
+                    </Text>
+                  </Banner>
 
               <BlockStack gap="200">
                 <Text as="p" fontWeight="semibold">推荐清理步骤：</Text>
@@ -2698,6 +2779,8 @@ export default function ScanPage() {
                       因为服务端 CAPI 将接管所有转化追踪功能。
                     </Text>
                   </Banner>
+                </>
+              )}
                 </>
               )}
             </BlockStack>

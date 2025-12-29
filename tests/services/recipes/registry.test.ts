@@ -166,8 +166,8 @@ describe("Recipe Registry", () => {
     it("should require HTTPS for webhook URL", () => {
       const endpointUrl = CUSTOM_WEBHOOK_RECIPE.configFields.find(f => f.key === "endpointUrl");
       const pattern = new RegExp(endpointUrl!.validationPattern!);
-      expect(pattern.test("https://api.example.com/webhook")).toBe(true);
-      expect(pattern.test("http://api.example.com/webhook")).toBe(false);
+      expect(pattern.test("https:
+      expect(pattern.test("http:
     });
     it("should support multiple auth types", () => {
       const authType = CUSTOM_WEBHOOK_RECIPE.configFields.find(f => f.key === "authType");

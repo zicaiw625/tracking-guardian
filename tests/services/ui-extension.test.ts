@@ -1,7 +1,4 @@
-/**
- * UI Extension 服务测试 - UI Extension Service Tests
- * 对应设计方案 4.4 Thank you / Order status UI 模块库
- */
+
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -105,8 +102,6 @@ describe("UI Extension Service", () => {
 
       const result = await canUseModule("shop-1", "survey");
 
-      // survey 模块需要 starter 计划，free 计划应该被拒绝
-      // 实际行为取决于 UI_MODULES 配置
       expect(result).toBeDefined();
       expect(result).toHaveProperty("allowed");
       expect(result).toHaveProperty("requiredPlan");
@@ -128,7 +123,7 @@ describe("UI Extension Service", () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue({
         plan: "starter",
       } as any);
-      // starter 计划限制为 1 个模块
+
       vi.mocked(prisma.uiExtensionSetting.count).mockResolvedValue(1);
 
       const result = await canUseModule("shop-1", "survey");
@@ -249,7 +244,6 @@ describe("UI Extension Service", () => {
         isEnabled: true,
       });
 
-      // 如果 free 计划不允许，应该失败
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
     });
@@ -303,7 +297,6 @@ describe("UI Extension Service", () => {
         { moduleKey: "helpdesk", isEnabled: true },
       ]);
 
-      // 至少有一个失败时，success 应该为 false
       expect(result.results.length).toBe(2);
     });
   });

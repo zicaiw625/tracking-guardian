@@ -1,5 +1,5 @@
 import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, } from "@shopify/ui-extensions-react/checkout";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { BACKEND_URL } from "../../shared/config";
 import { createLogger } from "./logger";
 
@@ -17,12 +17,11 @@ function Survey() {
     const [submitting, setSubmitting] = useState(false);
     const [selectedSource, setSelectedSource] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const title = (settings.survey_title as string) || "我们想听听您的意见";
-    const question = (settings.survey_question as string) || "您是如何了解到我们的？";
 
-    const isBackendConfigured = !!backendUrl;
-
-    const shopDomain = api.shop?.myshopifyDomain || "";
+    const title = useMemo(() => (settings.survey_title as string) || "我们想听听您的意见", [settings.survey_title]);
+    const question = useMemo(() => (settings.survey_question as string) || "您是如何了解到我们的？", [settings.survey_question]);
+    const isBackendConfigured = useMemo(() => !!backendUrl, [backendUrl]);
+    const shopDomain = useMemo(() => api.shop?.myshopifyDomain || "", [api.shop?.myshopifyDomain]);
     const logger = useMemo(() => createLogger(shopDomain, "[Survey]"), [shopDomain]);
 
     useEffect(() => {
@@ -63,14 +62,16 @@ function Survey() {
         }
         fetchOrderAndCheckoutInfo();
     }, [api, logger]);
-    const sources = [
+
+    const sources = useMemo(() => [
         { id: "search", label: "搜索引擎" },
         { id: "social", label: "社交媒体" },
         { id: "friend", label: "朋友推荐" },
         { id: "ad", label: "广告" },
         { id: "other", label: "其他" },
-    ];
-    const handleSubmit = async () => {
+    ], []);
+
+    const handleSubmit = useCallback(async () => {
         if (selectedRating === null && selectedSource === null)
             return;
         if (!orderId && !orderNumber && !checkoutToken) {
@@ -127,7 +128,21 @@ function Survey() {
         finally {
             setSubmitting(false);
         }
-    };
+    }, [selectedRating, selectedSource, orderId, orderNumber, checkoutToken, backendUrl, api, logger]);
+
+    const handleRatingSelect = useCallback((rating: number) => {
+        setSelectedRating(rating);
+    }, []);
+
+    const handleSourceSelect = useCallback((sourceId: string) => {
+        setSelectedSource(sourceId);
+    }, []);
+
+    const canSubmit = useMemo(() => {
+        return (selectedRating !== null || selectedSource !== null) &&
+               (orderId || orderNumber || checkoutToken) &&
+               !submitting;
+    }, [selectedRating, selectedSource, orderId, orderNumber, checkoutToken, submitting]);
     if (submitted) {
         return (<BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
         <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
@@ -149,7 +164,7 @@ function Survey() {
       <BlockStack spacing="tight">
         <Text size="small">请为本次购物体验打分：</Text>
         <InlineLayout spacing="tight" columns={["auto", "auto", "auto", "auto", "auto"]}>
-          {[1, 2, 3, 4, 5].map((rating) => (<Pressable key={rating} onPress={() => setSelectedRating(rating)}>
+          {[1, 2, 3, 4, 5].map((rating) => (<Pressable key={rating} onPress={() => handleRatingSelect(rating)}>
               <View padding="extraTight" cornerRadius="base" background={selectedRating && selectedRating >= rating ? "accent" : "transparent"}>
                 <Text size="large">
                   {selectedRating && selectedRating >= rating ? "★" : "☆"}
@@ -162,14 +177,14 @@ function Survey() {
       <BlockStack spacing="tight">
         <Text size="small">{question}</Text>
         <InlineLayout spacing="tight" columns={["auto", "auto", "auto"]}>
-          {sources.slice(0, 3).map((source) => (<Pressable key={source.id} onPress={() => setSelectedSource(source.id)}>
+          {sources.slice(0, 3).map((source) => (<Pressable key={source.id} onPress={() => handleSourceSelect(source.id)}>
               <View padding="tight" cornerRadius="base" border={selectedSource === source.id ? "accent" : "base"} background={selectedSource === source.id ? "accent" : "transparent"}>
                 <Text size="small">{source.label}</Text>
               </View>
             </Pressable>))}
         </InlineLayout>
         <InlineLayout spacing="tight" columns={["auto", "auto"]}>
-          {sources.slice(3).map((source) => (<Pressable key={source.id} onPress={() => setSelectedSource(source.id)}>
+          {sources.slice(3).map((source) => (<Pressable key={source.id} onPress={() => handleSourceSelect(source.id)}>
               <View padding="tight" cornerRadius="base" border={selectedSource === source.id ? "accent" : "base"} background={selectedSource === source.id ? "accent" : "transparent"}>
                 <Text size="small">{source.label}</Text>
               </View>
@@ -183,9 +198,7 @@ function Survey() {
           </Text>
         </View>)}
 
-      <Button kind="secondary" onPress={handleSubmit} disabled={(selectedRating === null && selectedSource === null) ||
-            submitting ||
-            (!orderId && !orderNumber && !checkoutToken)} loading={submitting}>
+      <Button kind="secondary" onPress={handleSubmit} disabled={!canSubmit} loading={submitting}>
         {submitting ? "提交中..." : "提交反馈"}
       </Button>
     </BlockStack>);

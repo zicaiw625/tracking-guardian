@@ -4,7 +4,7 @@ import { vi } from "vitest";
 process.env.NODE_ENV = "test";
 process.env.ENCRYPTION_SECRET = "test-encryption-secret-key-for-testing";
 process.env.CRON_SECRET = "test-cron-secret";
-process.env.SHOPIFY_APP_URL = "https://test-app.example.com";
+process.env.SHOPIFY_APP_URL = "https:
 
 if (typeof globalThis.crypto === "undefined") {
 

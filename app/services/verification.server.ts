@@ -1,12 +1,10 @@
-/**
- * 验收服务 - Verification Service
- * 对应设计方案 4.5 Verification：事件对账与验收
- */
+
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { reconcilePixelVsCapi, type ReconciliationResult } from "./enhanced-reconciliation.server";
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
-// 验收测试项定义
 export interface VerificationTestItem {
   id: string;
   name: string;
@@ -16,7 +14,6 @@ export interface VerificationTestItem {
   platforms: string[];
 }
 
-// 验收测试清单
 export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
   {
     id: "purchase",
@@ -60,7 +57,6 @@ export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
   },
 ];
 
-// 验收结果类型
 export interface VerificationEventResult {
   testItemId: string;
   eventType: string;
@@ -98,14 +94,25 @@ export interface VerificationSummary {
   failedTests: number;
   missingParamTests: number;
   notTestedCount: number;
-  parameterCompleteness: number; // 0-100
-  valueAccuracy: number; // 0-100
+  parameterCompleteness: number;
+  valueAccuracy: number;
   results: VerificationEventResult[];
+
+  reconciliation?: {
+    pixelVsCapi: {
+      pixelOnly: number;
+      capiOnly: number;
+      both: number;
+      consentBlocked: number;
+    };
+    consistencyIssues?: Array<{
+      orderId: string;
+      issue: string;
+      type: "value_mismatch" | "currency_mismatch" | "missing" | "duplicate";
+    }>;
+  };
 }
 
-/**
- * 创建新的验收运行
- */
 export async function createVerificationRun(
   shopId: string,
   options: {
@@ -117,7 +124,6 @@ export async function createVerificationRun(
 ): Promise<string> {
   const { runName = "验收测试", runType = "quick", platforms = [], testItems = [] } = options;
 
-  // 如果没有指定平台，获取已配置的平台
   let targetPlatforms = platforms;
   if (targetPlatforms.length === 0) {
     const configs = await prisma.pixelConfig.findMany({
@@ -148,9 +154,6 @@ export async function createVerificationRun(
   return run.id;
 }
 
-/**
- * 开始验收运行
- */
 export async function startVerificationRun(runId: string): Promise<void> {
   await prisma.verificationRun.update({
     where: { id: runId },
@@ -161,9 +164,6 @@ export async function startVerificationRun(runId: string): Promise<void> {
   });
 }
 
-/**
- * 获取验收运行状态和结果
- */
 export async function getVerificationRun(runId: string): Promise<VerificationSummary | null> {
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
@@ -178,6 +178,7 @@ export async function getVerificationRun(runId: string): Promise<VerificationSum
 
   const summary = run.summaryJson as Record<string, unknown> | null;
   const events = (run.eventsJson as VerificationEventResult[]) || [];
+  const reconciliation = summary?.reconciliation as VerificationSummary["reconciliation"] | undefined;
 
   return {
     runId: run.id,
@@ -196,23 +197,21 @@ export async function getVerificationRun(runId: string): Promise<VerificationSum
     parameterCompleteness: (summary?.parameterCompleteness as number) || 0,
     valueAccuracy: (summary?.valueAccuracy as number) || 0,
     results: events,
+    reconciliation,
   };
 }
 
-/**
- * 分析最近的事件并生成验收结果
- */
 export async function analyzeRecentEvents(
   shopId: string,
   runId: string,
   options: {
     since?: Date;
     platforms?: string[];
+    admin?: AdminApiContext;
   } = {}
 ): Promise<VerificationSummary> {
-  const { since = new Date(Date.now() - 24 * 60 * 60 * 1000), platforms } = options;
+  const { since = new Date(Date.now() - 24 * 60 * 60 * 1000), platforms, admin } = options;
 
-  // 获取验收运行信息
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
   });
@@ -223,7 +222,6 @@ export async function analyzeRecentEvents(
 
   const targetPlatforms = platforms || run.platforms;
 
-  // 获取最近的转化日志
   const conversionLogs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -234,7 +232,6 @@ export async function analyzeRecentEvents(
     take: 100,
   });
 
-  // 获取像素事件收据
   const pixelReceipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
@@ -244,7 +241,6 @@ export async function analyzeRecentEvents(
     take: 100,
   });
 
-  // 分析结果
   const results: VerificationEventResult[] = [];
   let passedTests = 0;
   let failedTests = 0;
@@ -252,7 +248,6 @@ export async function analyzeRecentEvents(
   let totalValueAccuracy = 0;
   let valueChecks = 0;
 
-  // 按订单分组分析
   const orderIds = [...new Set(conversionLogs.map((l) => l.orderId))];
 
   for (const orderId of orderIds) {
@@ -263,14 +258,13 @@ export async function analyzeRecentEvents(
       const discrepancies: string[] = [];
       const errors: string[] = [];
 
-      // 检查状态
       if (log.status === "failed" || log.status === "dead_letter") {
         failedTests++;
         if (log.errorMessage) {
           errors.push(log.errorMessage);
         }
       } else if (log.status === "sent") {
-        // 检查参数完整性
+
         const hasValue = log.orderValue !== null;
         const hasCurrency = !!log.currency;
         const hasEventId = !!log.eventId;
@@ -283,10 +277,9 @@ export async function analyzeRecentEvents(
           passedTests++;
         }
 
-        // 计算金额准确性（如果有像素收据可以对比）
         if (receipt && hasValue) {
           valueChecks++;
-          totalValueAccuracy += 100; // 简化：假设一致
+          totalValueAccuracy += 100;
         }
 
         results.push({
@@ -319,7 +312,44 @@ export async function analyzeRecentEvents(
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
 
-  // 更新验收运行
+  let reconciliation: VerificationSummary["reconciliation"] | undefined;
+  try {
+    const endDate = new Date();
+    const pixelVsCapi = await reconcilePixelVsCapi(shopId, since, endDate);
+
+    const consistencyIssues: VerificationSummary["reconciliation"]["consistencyIssues"] = [];
+
+    const orderPlatformMap = new Map<string, Map<string, number>>();
+    for (const log of conversionLogs) {
+      const key = `${log.orderId}_${log.platform}`;
+      const count = orderPlatformMap.get(log.orderId)?.get(log.platform) || 0;
+      if (!orderPlatformMap.has(log.orderId)) {
+        orderPlatformMap.set(log.orderId, new Map());
+      }
+      orderPlatformMap.get(log.orderId)!.set(log.platform, count + 1);
+    }
+
+    for (const [orderId, platformMap] of orderPlatformMap) {
+      for (const [platform, count] of platformMap) {
+        if (count > 1) {
+          consistencyIssues.push({
+            orderId,
+            issue: `${platform} 平台重复发送 ${count} 次`,
+            type: "duplicate",
+          });
+        }
+      }
+    }
+
+    reconciliation = {
+      pixelVsCapi,
+      consistencyIssues: consistencyIssues.length > 0 ? consistencyIssues : undefined,
+    };
+  } catch (error) {
+    logger.error("Failed to perform reconciliation during verification", { error, shopId, runId });
+
+  }
+
   await prisma.verificationRun.update({
     where: { id: runId },
     data: {
@@ -333,6 +363,7 @@ export async function analyzeRecentEvents(
         notTestedCount: 0,
         parameterCompleteness,
         valueAccuracy,
+        reconciliation,
       },
       eventsJson: results,
     },
@@ -355,12 +386,10 @@ export async function analyzeRecentEvents(
     parameterCompleteness,
     valueAccuracy,
     results,
+    reconciliation,
   };
 }
 
-/**
- * 获取商店的验收历史
- */
 export async function getVerificationHistory(
   shopId: string,
   limit = 10
@@ -394,9 +423,6 @@ export async function getVerificationHistory(
   });
 }
 
-/**
- * 生成测试订单指引
- */
 export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
   steps: Array<{
     step: number;
@@ -464,9 +490,6 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
   };
 }
 
-/**
- * 导出验收报告
- */
 export async function exportVerificationReport(
   runId: string,
   format: "json" | "csv" = "json"

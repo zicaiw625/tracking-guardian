@@ -100,6 +100,26 @@ function removeCommentsFromSourceText(absPath, text) {
           i++;
           break;
         }
+        if (rest[i] === "/" && rest[i + 1] === "/") {
+          while (i < len && rest[i] !== "\n" && rest[i] !== "\r") {
+            i++;
+          }
+          continue;
+        }
+        if (rest[i] === "/" && rest[i + 1] === "*") {
+          i += 2;
+          while (i < len - 1) {
+            if (rest[i] === "*" && rest[i + 1] === "/") {
+              i += 2;
+              break;
+            }
+            if (rest[i] === "\n" || rest[i] === "\r") {
+              result += rest[i];
+            }
+            i++;
+          }
+          continue;
+        }
         if (rest[i] === quote) {
           result += rest[i];
           i++;
@@ -190,6 +210,30 @@ function removeCommentsFromSourceText(absPath, text) {
           result += rest[i];
           i++;
           break;
+        }
+        if (rest[i] === "/" && rest[i + 1] === "/") {
+          while (i < len && rest[i] !== "\n" && rest[i] !== "\r") {
+            i++;
+          }
+          if (i < len && (rest[i] === "\n" || rest[i] === "\r")) {
+            result += rest[i];
+            i++;
+          }
+          continue;
+        }
+        if (rest[i] === "/" && rest[i + 1] === "*") {
+          i += 2;
+          while (i < len - 1) {
+            if (rest[i] === "*" && rest[i + 1] === "/") {
+              i += 2;
+              break;
+            }
+            if (rest[i] === "\n" || rest[i] === "\r") {
+              result += rest[i];
+            }
+            i++;
+          }
+          continue;
         }
         result += rest[i];
         i++;

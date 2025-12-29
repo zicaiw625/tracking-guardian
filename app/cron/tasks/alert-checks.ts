@@ -1,13 +1,4 @@
-/**
- * 告警检查定时任务
- * 对应设计方案 4.6 Monitoring - 告警功能
- * 
- * 运行频率: 每小时一次
- * 功能:
- * - 检查所有活跃店铺的告警条件
- * - 发送触发的告警通知
- * - 清理过期的 EventNonce 记录
- */
+
 
 import { runAllShopAlertChecks } from "../../services/alert-dispatcher.server";
 import { cleanupExpiredNonces } from "../../services/capi-dedup.server";
@@ -23,9 +14,6 @@ export interface AlertCheckResult {
   errors: string[];
 }
 
-/**
- * 执行告警检查任务
- */
 export async function runAlertCheckTask(): Promise<AlertCheckResult> {
   const startTime = Date.now();
   const errors: string[] = [];
@@ -38,7 +26,7 @@ export async function runAlertCheckTask(): Promise<AlertCheckResult> {
   let noncesCleanedUp = 0;
 
   try {
-    // 1. 运行所有店铺的告警检查
+
     const alertResult = await runAllShopAlertChecks();
     shopsChecked = alertResult.shopsChecked;
     alertsTriggered = alertResult.totalTriggered;
@@ -50,7 +38,7 @@ export async function runAlertCheckTask(): Promise<AlertCheckResult> {
   }
 
   try {
-    // 2. 清理过期的 EventNonce 记录
+
     noncesCleanedUp = await cleanupExpiredNonces();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -80,9 +68,6 @@ export async function runAlertCheckTask(): Promise<AlertCheckResult> {
   };
 }
 
-/**
- * Cron 入口点
- */
 export default async function handler(): Promise<AlertCheckResult> {
   return runAlertCheckTask();
 }

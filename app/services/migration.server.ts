@@ -4,6 +4,8 @@ import { encryptJson } from "../utils/crypto.server";
 import type { PlatformCredentials } from "../types";
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
+import { canCreatePixelConfig } from "./billing/feature-gates.server";
+import { normalizePlan } from "../utils/plans";
 
 export type Platform = "google" | "meta" | "tiktok";
 
@@ -62,24 +64,39 @@ export interface SavePixelConfigOptions {
     serverSideEnabled?: boolean;
 }
 
-/**
- * 保存像素配置
- * 
- * 注意：
- * - 如果设置 serverSideEnabled: true，必须同时提供 credentialsEncrypted
- * - 使用 ?? undefined 来跳过未提供的字段，只更新明确提供的字段
- * - 这样可以避免意外覆盖现有配置
- */
 export async function savePixelConfig(shopId: string, platform: Platform, platformId: string, options?: SavePixelConfigOptions) {
     const { clientConfig, credentialsEncrypted, serverSideEnabled } = options || {};
-    
-    // 验证：如果启用服务端追踪，必须有加密凭证
+
     if (serverSideEnabled === true && !credentialsEncrypted) {
         throw new Error(
             `启用服务端追踪时必须提供 credentialsEncrypted。平台: ${platform}, shopId: ${shopId}`
         );
     }
-    
+
+    const existingConfig = await prisma.pixelConfig.findUnique({
+        where: {
+            shopId_platform: {
+                shopId,
+                platform,
+            },
+        },
+    });
+
+    if (!existingConfig && serverSideEnabled) {
+        const shop = await prisma.shop.findUnique({
+            where: { id: shopId },
+            select: { plan: true },
+        });
+
+        if (shop) {
+            const planId = normalizePlan(shop.plan);
+            const limitCheck = await canCreatePixelConfig(shopId, planId);
+            if (!limitCheck.allowed) {
+                throw new Error(limitCheck.reason || "已达到像素目的地数量限制");
+            }
+        }
+    }
+
     return prisma.pixelConfig.upsert({
         where: {
             shopId_platform: {
@@ -368,19 +385,18 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         }
         `, { variables: { cursor } });
             const result = await response.json();
-            
-            // Check for GraphQL errors (e.g., missing scope or field not available)
+
             if (result.errors && result.errors.length > 0) {
                 const errorMessage = result.errors[0]?.message || "Unknown GraphQL error";
-                // Check if this is a scope/permission issue
+
                 if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
                     logger.warn("WebPixels API not available (may need to reinstall app for read_pixels scope):", errorMessage);
                 } else {
                     logger.error("GraphQL error fetching WebPixels:", errorMessage);
                 }
-                return pixels; // Return empty array gracefully
+                return pixels;
             }
-            
+
             const edges = (result.data?.webPixels?.edges || []) as Array<{
                 node: {
                     id: string;
@@ -412,7 +428,7 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         }
     }
     catch (error) {
-        // Log but don't throw - return empty array to avoid breaking other functionality
+
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
             logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", errorMessage);
@@ -434,7 +450,7 @@ export interface ScriptTagDeletionGuidance {
 export function getScriptTagDeletionGuidance(scriptTagId: number, shopDomain?: string, platform?: string): ScriptTagDeletionGuidance {
     const storeHandle = shopDomain?.replace(".myshopify.com", "");
     const adminUrl = storeHandle
-        ? `https://admin.shopify.com/store/${storeHandle}/settings/customer_events`
+        ? `https:
         : undefined;
     return {
         title: `删除 ScriptTag #${scriptTagId}`,

@@ -2,6 +2,9 @@
 
 import prisma from "../db.server";
 import { getPlanDefinition, normalizePlan } from "../utils/plans";
+import { generateMigrationTimeline } from "./migration-priority.server";
+import { getMigrationChecklist } from "./migration-checklist.server";
+import { logger } from "../utils/logger.server";
 
 export type {
   DashboardData,
@@ -96,6 +99,48 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         },
       },
     },
+    select: {
+      id: true,
+      shopDomain: true,
+      plan: true,
+      typOspPagesEnabled: true,
+      installedAt: true,
+      scanReports: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          status: true,
+          riskScore: true,
+          createdAt: true,
+          identifiedPlatforms: true,
+          scriptTags: true,
+        },
+      },
+      pixelConfigs: {
+        where: { isActive: true },
+        select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
+      },
+      reconciliationReports: {
+        orderBy: { reportDate: "desc" },
+        take: 7,
+        select: { orderDiscrepancy: true },
+      },
+      alertConfigs: {
+        where: { isEnabled: true },
+        select: { id: true },
+      },
+      _count: {
+        select: {
+          conversionLogs: {
+            where: {
+              createdAt: {
+                gte: new Date(Date.now() - SEVEN_DAYS_MS),
+              },
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!shop) {
@@ -118,15 +163,8 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     };
   }
 
-  // 计算已配置的平台数量（包括客户端和服务端配置）
-  // 注意：此值用于 UI 显示，与 hasServerSideConfig 不同
-  // hasServerSideConfig 只检查有效的服务端配置（需要 serverSideEnabled 和有效凭证）
   const configuredPlatforms = shop.pixelConfigs?.length || 0;
-  
-  // 计算服务端配置数量（用于健康度评分，因为只有服务端追踪才产生对账数据）
-  // 注意：必须同时满足 serverSideEnabled === true 和 credentialsEncrypted !== null
-  // 这是因为仅启用服务端追踪但没有凭证的情况下，追踪实际上无法工作
-  // 防御性检查：确保 credentialsEncrypted 是非空字符串（避免空字符串加密值被误判为有效）
+
   const serverSideConfigsCount = shop.pixelConfigs?.filter(
     (config) =>
       config.serverSideEnabled &&
@@ -141,9 +179,46 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   const planId = normalizePlan(shop.plan);
   const planDef = getPlanDefinition(planId);
 
-  // 使用可选链安全访问数组第一个元素
   const latestScan = shop.scanReports?.[0];
   const scriptTagAnalysis = latestScan ? analyzeScriptTags(latestScan.scriptTags) : { count: 0, hasOrderStatusScripts: false };
+
+  let estimatedMigrationTimeMinutes = 30;
+  try {
+    const migrationTimeline = await generateMigrationTimeline(shop.id);
+    if (migrationTimeline && migrationTimeline.totalEstimatedTime > 0) {
+      estimatedMigrationTimeMinutes = migrationTimeline.totalEstimatedTime;
+    } else if (latestScan) {
+
+      estimatedMigrationTimeMinutes = Math.max(
+        30,
+        scriptTagAnalysis.count * 15 +
+          ((latestScan.identifiedPlatforms as string[]) || []).length * 10
+      );
+    }
+  } catch (error) {
+    logger.error("Failed to calculate migration timeline", { shopId: shop.id, error });
+
+    if (latestScan) {
+      estimatedMigrationTimeMinutes = Math.max(
+        30,
+        scriptTagAnalysis.count * 15 +
+          ((latestScan.identifiedPlatforms as string[]) || []).length * 10
+      );
+    }
+  }
+
+  const isNewInstall = shop.installedAt &&
+    (Date.now() - shop.installedAt.getTime()) < 24 * 60 * 60 * 1000;
+  const showOnboarding = isNewInstall && !latestScan;
+
+  let migrationChecklist = null;
+  if (latestScan) {
+    try {
+      migrationChecklist = await getMigrationChecklist(shop.id, false);
+    } catch (error) {
+      logger.error("Failed to get migration checklist", { shopId: shop.id, error });
+    }
+  }
 
   return {
     shopDomain,
@@ -168,6 +243,19 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     planFeatures: planDef.features,
     scriptTagsCount: scriptTagAnalysis.count,
     hasOrderStatusScripts: scriptTagAnalysis.hasOrderStatusScripts,
+    typOspPagesEnabled: shop.typOspPagesEnabled ?? false,
+    estimatedMigrationTimeMinutes,
+    showOnboarding,
+    migrationChecklist: migrationChecklist
+      ? {
+          totalItems: migrationChecklist.totalItems,
+          highPriorityItems: migrationChecklist.highPriorityItems,
+          mediumPriorityItems: migrationChecklist.mediumPriorityItems,
+          lowPriorityItems: migrationChecklist.lowPriorityItems,
+          estimatedTotalTime: migrationChecklist.estimatedTotalTime,
+          topItems: migrationChecklist.items.slice(0, 5),
+        }
+      : null,
   };
 }
 

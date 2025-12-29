@@ -1,8 +1,4 @@
-/**
- * 服务端追踪配置 Tab
- * 支持 Meta/Google/TikTok/Pinterest 平台
- * 支持 Test/Live 环境切换
- */
+
 
 import {
   Layout,
@@ -20,9 +16,15 @@ import {
   Box,
   ButtonGroup,
   Icon,
+  Collapsible,
+  Tabs,
 } from "@shopify/polaris";
-import { RefreshIcon } from "~/components/icons";
+import { RefreshIcon, HistoryIcon } from "~/components/icons";
 import type { TokenIssues } from "../types";
+import { ConfigComparison } from "~/components/settings/ConfigComparison";
+import { VersionHistory } from "~/components/settings/VersionHistory";
+import { useState, useEffect, useCallback } from "react";
+import { useFetcher } from "@remix-run/react";
 
 type PixelEnvironment = "test" | "live";
 
@@ -46,34 +48,34 @@ interface ServerTrackingTabProps {
   setServerPlatform: (value: string) => void;
   serverEnabled: boolean;
   setServerEnabled: (value: boolean) => void;
-  // 环境切换
+
   environment: PixelEnvironment;
   setEnvironment: (value: PixelEnvironment) => void;
   onSwitchEnvironment?: (platform: string, env: PixelEnvironment) => void;
   onRollbackEnvironment?: (platform: string) => void;
-  // Meta
+
   metaPixelId: string;
   setMetaPixelId: (value: string) => void;
   metaAccessToken: string;
   setMetaAccessToken: (value: string) => void;
   metaTestCode: string;
   setMetaTestCode: (value: string) => void;
-  // Google
+
   googleMeasurementId: string;
   setGoogleMeasurementId: (value: string) => void;
   googleApiSecret: string;
   setGoogleApiSecret: (value: string) => void;
-  // TikTok
+
   tiktokPixelId: string;
   setTiktokPixelId: (value: string) => void;
   tiktokAccessToken: string;
   setTiktokAccessToken: (value: string) => void;
-  // Pinterest
+
   pinterestAdAccountId: string;
   setPinterestAdAccountId: (value: string) => void;
   pinterestAccessToken: string;
   setPinterestAccessToken: (value: string) => void;
-  // Form state
+
   serverFormDirty: boolean;
   isSubmitting: boolean;
   onSaveServerSide: () => void;
@@ -114,9 +116,30 @@ export function ServerTrackingTab({
   onSaveServerSide,
   onTestConnection,
 }: ServerTrackingTabProps) {
-  // 获取当前平台的配置
+
   const currentConfig = shop?.pixelConfigs?.find(c => c.platform === serverPlatform);
   const canRollback = currentConfig?.rollbackAllowed ?? false;
+
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyTab, setHistoryTab] = useState(0);
+  const comparisonFetcher = useFetcher<{ comparison?: any }>();
+  const historyFetcher = useFetcher<{ history?: any[] }>();
+
+  const loadComparison = useCallback(() => {
+    comparisonFetcher.load(`/api/pixel-config-history?platform=${serverPlatform}&type=comparison`);
+  }, [serverPlatform, comparisonFetcher]);
+
+  const loadHistory = useCallback(() => {
+    historyFetcher.load(`/api/pixel-config-history?platform=${serverPlatform}&type=history&limit=10`);
+  }, [serverPlatform, historyFetcher]);
+
+  useEffect(() => {
+    if (showHistory && historyTab === 0) {
+      loadComparison();
+    } else if (showHistory && historyTab === 1) {
+      loadHistory();
+    }
+  }, [showHistory, historyTab, loadComparison, loadHistory]);
   return (
     <Layout>
       <Layout.Section>
@@ -151,7 +174,7 @@ export function ServerTrackingTab({
               tone="warning"
               action={{
                 content: "了解更多",
-                url: "https://shopify.dev/docs/apps/launch/protected-customer-data",
+                url: "https:
                 external: true,
               }}
             >
@@ -194,7 +217,7 @@ export function ServerTrackingTab({
               onChange={setServerPlatform}
             />
 
-            {/* 环境切换 */}
+            {}
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="center">
@@ -373,7 +396,7 @@ export function ServerTrackingTab({
                 />
                 <Text as="p" variant="bodySm" tone="subdued">
                   💡 提示：确保您的 Pinterest 应用已获得 Conversion API 访问权限。
-                  访问 <a href="https://developers.pinterest.com/docs/api/v5/" target="_blank" rel="noopener noreferrer">Pinterest API 文档</a> 了解更多。
+                  访问 <a href="https:
                 </Text>
               </>
             )}
@@ -405,7 +428,53 @@ export function ServerTrackingTab({
               >
                 测试连接
               </Button>
+              {currentConfig && (
+                <Button
+                  icon={HistoryIcon}
+                  onClick={() => {
+                    setShowHistory(!showHistory);
+                    if (!showHistory) {
+                      loadComparison();
+                      loadHistory();
+                    }
+                  }}
+                  variant="plain"
+                >
+                  {showHistory ? "隐藏历史" : "查看历史"}
+                </Button>
+              )}
             </InlineStack>
+
+            {}
+            {showHistory && currentConfig && (
+              <Box paddingBlockStart="400">
+                <Tabs
+                  tabs={[
+                    { id: "comparison", content: "配置对比" },
+                    { id: "history", content: "版本历史" },
+                  ]}
+                  selected={historyTab}
+                  onSelect={setHistoryTab}
+                >
+                  <Box paddingBlockStart="400">
+                    {historyTab === 0 && comparisonFetcher.data?.comparison && (
+                      <ConfigComparison
+                        current={comparisonFetcher.data.comparison.current}
+                        previous={comparisonFetcher.data.comparison.previous}
+                        differences={comparisonFetcher.data.comparison.differences}
+                        platform={serverPlatform}
+                      />
+                    )}
+                    {historyTab === 1 && historyFetcher.data?.history && (
+                      <VersionHistory
+                        history={historyFetcher.data.history}
+                        platform={serverPlatform}
+                      />
+                    )}
+                  </Box>
+                </Tabs>
+              </Box>
+            )}
             {serverFormDirty && (
               <Text as="p" variant="bodySm" tone="caution">
                 请先保存配置后再测试连接

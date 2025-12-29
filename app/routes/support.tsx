@@ -22,7 +22,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return json({
     host: url.host,
     contactEmail: "support@tracking-guardian.app",
-    faqUrl: "https://tracking-guardian.app/support",
+    faqUrl: "https:
   });
 };
 
@@ -61,7 +61,7 @@ export default function PublicSupportPage() {
                     </List.Item>
                     <List.Item>
                       Status page:{" "}
-                      <Link url="https://status.tracking-guardian.app" external>
+                      <Link url="https:
                         status.tracking-guardian.app
                       </Link>
                     </List.Item>

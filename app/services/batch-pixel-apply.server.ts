@@ -1,21 +1,10 @@
-/**
- * 批量像素模板应用服务
- * 对应设计方案 4.7 Agency - 批量应用像素模板
- * 
- * 功能:
- * - 从模板批量创建像素配置
- * - 跨店铺应用配置
- * - 进度追踪和错误处理
- */
+
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import type { PlanId } from "./billing/plans";
 import { getPixelDestinationsLimit } from "./billing/plans";
-
-// ============================================================
-// 类型定义
-// ============================================================
+import { createBatchJob, updateBatchJobProgress, getBatchJobStatus } from "./batch-job-queue.server";
 
 export interface PixelTemplateConfig {
   platform: string;
@@ -54,13 +43,6 @@ export interface TemplateCreateOptions {
   isPublic?: boolean;
 }
 
-// ============================================================
-// 模板管理
-// ============================================================
-
-/**
- * 创建像素模板
- */
 export async function createPixelTemplate(
   options: TemplateCreateOptions
 ): Promise<{ success: boolean; templateId?: string; error?: string }> {
@@ -83,9 +65,6 @@ export async function createPixelTemplate(
   }
 }
 
-/**
- * 获取模板列表
- */
 export async function getPixelTemplates(
   ownerId: string,
   includePublic: boolean = true
@@ -121,9 +100,6 @@ export async function getPixelTemplates(
   }));
 }
 
-/**
- * 获取模板详情
- */
 export async function getPixelTemplate(
   templateId: string
 ): Promise<{
@@ -150,9 +126,6 @@ export async function getPixelTemplate(
   };
 }
 
-/**
- * 更新模板
- */
 export async function updatePixelTemplate(
   templateId: string,
   ownerId: string,
@@ -184,9 +157,6 @@ export async function updatePixelTemplate(
   }
 }
 
-/**
- * 删除模板
- */
 export async function deletePixelTemplate(
   templateId: string,
   ownerId: string
@@ -211,23 +181,22 @@ export async function deletePixelTemplate(
   }
 }
 
-// ============================================================
-// 批量应用
-// ============================================================
-
-/**
- * 批量应用像素模板到多个店铺
- */
 export async function batchApplyPixelTemplate(
-  options: BatchApplyOptions
-): Promise<BatchApplyResult> {
-  const { templateId, targetShopIds, overwriteExisting = false, skipIfExists = true } = options;
+  options: BatchApplyOptions & { jobId?: string }
+): Promise<BatchApplyResult & { jobId?: string }> {
+  const { templateId, targetShopIds, overwriteExisting = false, skipIfExists = true, jobId } = options;
 
-  logger.info("Starting batch apply", { templateId, shopCount: targetShopIds.length });
+  logger.info("Starting batch apply", { templateId, shopCount: targetShopIds.length, jobId });
 
-  // 获取模板
+  const currentJobId = jobId || createBatchJob("pixel_apply", targetShopIds[0] || "", targetShopIds.length);
+  updateBatchJobProgress(currentJobId, { status: "running" });
+
   const template = await getPixelTemplate(templateId);
   if (!template) {
+    updateBatchJobProgress(currentJobId, {
+      status: "failed",
+      error: "模板不存在",
+    });
     return {
       success: false,
       totalShops: targetShopIds.length,
@@ -240,6 +209,7 @@ export async function batchApplyPixelTemplate(
         status: "failed" as const,
         message: "模板不存在",
       })),
+      jobId: currentJobId,
     };
   }
 
@@ -248,7 +218,8 @@ export async function batchApplyPixelTemplate(
   let failedCount = 0;
   let skippedCount = 0;
 
-  for (const shopId of targetShopIds) {
+  for (let i = 0; i < targetShopIds.length; i++) {
+    const shopId = targetShopIds[i];
     try {
       const result = await applyTemplateToShop(
         shopId,
@@ -266,6 +237,12 @@ export async function batchApplyPixelTemplate(
       }
 
       results.push(result);
+
+      updateBatchJobProgress(currentJobId, {
+        completedItems: successCount + skippedCount,
+        failedItems: failedCount,
+        skippedItems: skippedCount,
+      });
     } catch (error) {
       failedCount++;
       results.push({
@@ -274,13 +251,27 @@ export async function batchApplyPixelTemplate(
         status: "failed",
         message: error instanceof Error ? error.message : "未知错误",
       });
+      updateBatchJobProgress(currentJobId, {
+        failedItems: failedCount,
+      });
     }
   }
 
-  // 更新模板使用次数
   await prisma.pixelTemplate.update({
     where: { id: templateId },
     data: { usageCount: { increment: successCount } },
+  });
+
+  updateBatchJobProgress(currentJobId, {
+    status: failedCount === 0 ? "completed" : "completed",
+    result: {
+      success: failedCount === 0,
+      totalShops: targetShopIds.length,
+      successCount,
+      failedCount,
+      skippedCount,
+      results,
+    },
   });
 
   logger.info("Batch apply completed", {
@@ -289,6 +280,7 @@ export async function batchApplyPixelTemplate(
     successCount,
     failedCount,
     skippedCount,
+    jobId: currentJobId,
   });
 
   return {
@@ -298,12 +290,14 @@ export async function batchApplyPixelTemplate(
     failedCount,
     skippedCount,
     results,
+    jobId: currentJobId,
   };
 }
 
-/**
- * 将模板应用到单个店铺
- */
+export function getBatchApplyJobStatus(jobId: string) {
+  return getBatchJobStatus(jobId);
+}
+
 async function applyTemplateToShop(
   shopId: string,
   platforms: PixelTemplateConfig[],
@@ -337,7 +331,6 @@ async function applyTemplateToShop(
     };
   }
 
-  // 检查套餐限制
   const planLimit = getPixelDestinationsLimit(shop.plan as PlanId);
   const existingPlatforms = shop.pixelConfigs.map(c => c.platform);
   const newPlatforms = platforms.filter(p => !existingPlatforms.includes(p.platform));
@@ -358,12 +351,12 @@ async function applyTemplateToShop(
 
     if (existingConfig) {
       if (skipIfExists && !overwriteExisting) {
-        // 跳过已存在的配置
+
         continue;
       }
 
       if (overwriteExisting) {
-        // 更新现有配置
+
         await prisma.pixelConfig.update({
           where: {
             shopId_platform: {
@@ -381,7 +374,7 @@ async function applyTemplateToShop(
         appliedPlatforms.push(platformConfig.platform);
       }
     } else {
-      // 创建新配置
+
       await prisma.pixelConfig.create({
         data: {
           shopId,
@@ -389,7 +382,7 @@ async function applyTemplateToShop(
           eventMappings: platformConfig.eventMappings,
           clientSideEnabled: platformConfig.clientSideEnabled ?? true,
           serverSideEnabled: platformConfig.serverSideEnabled ?? false,
-          isActive: false, // 需要配置凭证后才激活
+          isActive: false,
           migrationStatus: "not_started",
         },
       });
@@ -414,10 +407,6 @@ async function applyTemplateToShop(
     platformsApplied: appliedPlatforms,
   };
 }
-
-// ============================================================
-// 预设模板
-// ============================================================
 
 export const PRESET_TEMPLATES: Array<{
   id: string;
@@ -527,9 +516,6 @@ export const PRESET_TEMPLATES: Array<{
   },
 ];
 
-/**
- * 应用预设模板
- */
 export async function applyPresetTemplate(
   presetId: string,
   shopId: string,

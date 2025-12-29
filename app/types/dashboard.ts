@@ -23,6 +23,26 @@ export interface DashboardData {
   planFeatures?: string[];
   scriptTagsCount: number;
   hasOrderStatusScripts: boolean;
+
+  typOspPagesEnabled?: boolean;
+  estimatedMigrationTimeMinutes?: number;
+  showOnboarding?: boolean;
+
+  migrationChecklist?: {
+    totalItems: number;
+    highPriorityItems: number;
+    mediumPriorityItems: number;
+    lowPriorityItems: number;
+    estimatedTotalTime: number;
+    topItems: Array<{
+      id: string;
+      title: string;
+      riskLevel: "high" | "medium" | "low";
+      priority: number;
+      estimatedTime: number;
+      status: "pending" | "in_progress" | "completed" | "skipped";
+    }>;
+  } | null;
 }
 
 export interface SetupStep {
@@ -34,14 +54,6 @@ export interface SetupStep {
   done: boolean;
 }
 
-/**
- * 获取设置步骤列表
- * 
- * 步骤完成判断逻辑：
- * - Step 1 (扫描): 只要有扫描记录就算完成（表示用户已经尝试过扫描，即使扫描失败也算完成）
- * - Step 2 (迁移): 需要有效的服务端配置（serverSideEnabled && credentialsEncrypted），因为描述明确说明需要配置服务端转化追踪
- * - Step 3 (警报): 需要启用的警报配置（isEnabled: true），禁用的警报不算完成
- */
 export function getSetupSteps(data: DashboardData): SetupStep[] {
   return [
     {
@@ -50,7 +62,7 @@ export function getSetupSteps(data: DashboardData): SetupStep[] {
       description: "扫描现有的追踪脚本和像素",
       cta: "开始扫描",
       url: "/app/scan",
-      // 只要有扫描记录就算完成，表示用户已经尝试过扫描
+
       done: data.latestScan !== null,
     },
     {
@@ -59,7 +71,7 @@ export function getSetupSteps(data: DashboardData): SetupStep[] {
       description: "配置服务端转化追踪",
       cta: "配置迁移",
       url: "/app/migrate",
-      // 需要有效的服务端配置：同时满足 serverSideEnabled && credentialsEncrypted
+
       done: data.hasServerSideConfig,
     },
     {
@@ -68,7 +80,7 @@ export function getSetupSteps(data: DashboardData): SetupStep[] {
       description: "配置健康监控警报",
       cta: "配置警报",
       url: "/app/settings?tab=alerts",
-      // 需要启用的警报配置，禁用的警报不算完成（因为不起作用）
+
       done: data.hasAlertConfig,
     },
   ];

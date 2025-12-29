@@ -179,7 +179,7 @@ function main(): void {
 
         console.error(`\nTotal: ${allViolations.length} violation(s)`);
         console.error("\nPlease replace REST API calls with GraphQL equivalents.");
-        console.error("Reference: https://shopify.dev/docs/api/admin-graphql\n");
+        console.error("Reference: https:
 
         process.exit(1);
     }

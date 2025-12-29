@@ -1,12 +1,4 @@
-/**
- * 商家升级向导确认 UI 组件
- * 对应设计方案 4.2 Audit - 商家从升级向导确认补充
- * 
- * 功能:
- * - 引导商家从 Shopify 升级向导复制清单
- * - 手动确认已识别的资产
- * - 补充自动扫描未识别的脚本
- */
+
 
 import { useState, useCallback } from "react";
 import {
@@ -34,10 +26,6 @@ import {
   ExternalIcon,
 } from "../icons";
 
-// ============================================================
-// 类型定义
-// ============================================================
-
 export interface MigrationItem {
   id: string;
   name: string;
@@ -48,6 +36,10 @@ export interface MigrationItem {
   suggestedMigration: "web_pixel" | "ui_extension" | "server_side" | "none";
   confirmed: boolean;
   notes?: string;
+
+  estimatedTimeMinutes?: number;
+
+  migrationStatus?: "pending" | "in_progress" | "completed" | "skipped";
 }
 
 export interface MigrationChecklistProps {
@@ -57,10 +49,6 @@ export interface MigrationChecklistProps {
   onExportChecklist: () => void;
   shopTier: "plus" | "non_plus" | "unknown";
 }
-
-// ============================================================
-// 辅助函数
-// ============================================================
 
 const getMigrationTypeLabel = (type: MigrationItem["suggestedMigration"]) => {
   switch (type) {
@@ -103,10 +91,6 @@ const getTypeLabel = (type: MigrationItem["type"]) => {
   }
 };
 
-// ============================================================
-// 主组件
-// ============================================================
-
 export function MigrationChecklist({
   items,
   onItemConfirm,
@@ -124,6 +108,15 @@ export function MigrationChecklist({
   const confirmedCount = items.filter((i) => i.confirmed).length;
   const highRiskCount = items.filter((i) => i.riskLevel === "high").length;
   const pendingCount = items.filter((i) => !i.confirmed).length;
+
+  const totalEstimatedMinutes = items
+    .filter((i) => i.confirmed && i.estimatedTimeMinutes)
+    .reduce((sum, i) => sum + (i.estimatedTimeMinutes || 0), 0);
+  const totalEstimatedHours = Math.ceil(totalEstimatedMinutes / 60);
+
+  const progressPercent = items.length > 0
+    ? Math.round((confirmedCount / items.length) * 100)
+    : 100;
 
   const handleAddItem = useCallback(() => {
     if (!newItemName.trim()) return;
@@ -143,36 +136,57 @@ export function MigrationChecklist({
   }, [newItemName, newItemType, newItemNotes, onAddManualItem]);
 
   const shopifyUpgradeUrl = shopTier === "plus"
-    ? "https://admin.shopify.com/store/settings/checkout/editor"
-    : "https://admin.shopify.com/store/settings/checkout";
+    ? "https:
+    : "https:
 
   return (
     <>
       <Card>
         <BlockStack gap="400">
-          {/* 标题和进度 */}
-          <InlineStack align="space-between" blockAlign="center">
-            <BlockStack gap="100">
-              <Text as="h2" variant="headingMd">
-                📋 迁移清单确认
-              </Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                确认需要迁移的资产，补充自动扫描未识别的项目
-              </Text>
-            </BlockStack>
-            <InlineStack gap="200">
-              <Badge tone={confirmedCount === items.length ? "success" : "attention"}>
-                {`${confirmedCount}/${items.length} 已确认`}
-              </Badge>
-              {highRiskCount > 0 && (
-                <Badge tone="critical">{`${highRiskCount} 高风险`}</Badge>
-              )}
+          {}
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="100">
+                <Text as="h2" variant="headingMd">
+                  📋 迁移清单确认
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  确认需要迁移的资产，补充自动扫描未识别的项目
+                </Text>
+              </BlockStack>
+              <InlineStack gap="200">
+                <Badge tone={confirmedCount === items.length ? "success" : "attention"}>
+                  {`${confirmedCount}/${items.length} 已确认`}
+                </Badge>
+                {highRiskCount > 0 && (
+                  <Badge tone="critical">{`${highRiskCount} 高风险`}</Badge>
+                )}
+              </InlineStack>
             </InlineStack>
-          </InlineStack>
+
+            {}
+            {items.length > 0 && (
+              <BlockStack gap="200">
+                <ProgressBar progress={progressPercent} tone="primary" size="small" />
+                <InlineStack gap="400" align="space-between">
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    进度: {progressPercent}%
+                  </Text>
+                  {totalEstimatedMinutes > 0 && (
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      预计总时间: {totalEstimatedHours > 0
+                        ? `${totalEstimatedHours} 小时 ${totalEstimatedMinutes % 60} 分钟`
+                        : `${totalEstimatedMinutes} 分钟`}
+                    </Text>
+                  )}
+                </InlineStack>
+              </BlockStack>
+            )}
+          </BlockStack>
 
           <Divider />
 
-          {/* 引导 Banner */}
+          {}
           <Banner
             title="从 Shopify 升级向导补充信息"
             tone="info"
@@ -187,7 +201,7 @@ export function MigrationChecklist({
             </Text>
           </Banner>
 
-          {/* 资产列表 */}
+          {}
           <BlockStack gap="300">
             {items.length === 0 ? (
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
@@ -221,12 +235,34 @@ export function MigrationChecklist({
                           </Text>
                           {item.platform && <Badge>{item.platform}</Badge>}
                         </InlineStack>
-                        <InlineStack gap="100">
+                        <InlineStack gap="100" wrap>
                           <Badge tone="info">{getTypeLabel(item.type)}</Badge>
                           {getRiskBadge(item.riskLevel)}
                           <Text as="span" variant="bodySm" tone="subdued">
                             • {getMigrationTypeLabel(item.suggestedMigration)}
                           </Text>
+                          {item.estimatedTimeMinutes && (
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              • 预计 {item.estimatedTimeMinutes} 分钟
+                            </Text>
+                          )}
+                          {item.migrationStatus && (
+                            <Badge
+                              tone={
+                                item.migrationStatus === "completed"
+                                  ? "success"
+                                  : item.migrationStatus === "in_progress"
+                                    ? "info"
+                                    : "subdued"
+                              }
+                            >
+                              {item.migrationStatus === "completed"
+                                ? "已完成"
+                                : item.migrationStatus === "in_progress"
+                                  ? "进行中"
+                                  : "待处理"}
+                            </Badge>
+                          )}
                         </InlineStack>
                         {item.notes && (
                           <Text as="p" variant="bodySm" tone="subdued">
@@ -258,7 +294,7 @@ export function MigrationChecklist({
 
           <Divider />
 
-          {/* 手动补充区域 */}
+          {}
           <BlockStack gap="200">
             <div
               role="button"
@@ -300,7 +336,7 @@ export function MigrationChecklist({
 
           <Divider />
 
-          {/* 操作按钮 */}
+          {}
           <InlineStack gap="200" align="end">
             <Button onClick={onExportChecklist} icon={ClipboardIcon}>
               导出清单
@@ -317,7 +353,7 @@ export function MigrationChecklist({
         </BlockStack>
       </Card>
 
-      {/* 添加项目模态框 */}
+      {}
       <Modal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -374,7 +410,7 @@ export function MigrationChecklist({
         </Modal.Section>
       </Modal>
 
-      {/* 指南模态框 */}
+      {}
       <Modal
         open={showGuideModal}
         onClose={() => setShowGuideModal(false)}

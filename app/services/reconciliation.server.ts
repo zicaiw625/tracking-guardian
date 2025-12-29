@@ -86,7 +86,7 @@ async function getShopifyOrderStats(shopDomain: string, accessToken: string | nu
         } | null;
         errors?: unknown[];
     }> {
-        const response = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/graphql.json`, {
+        const response = await fetch(`https:
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

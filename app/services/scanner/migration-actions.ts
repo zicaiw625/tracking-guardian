@@ -17,6 +17,66 @@ import {
 import { isOurWebPixel, needsSettingsUpgrade } from "../migration.server";
 import { logger } from "../../utils/logger.server";
 
+export function estimateMigrationTime(action: MigrationAction): number {
+    let baseTime = 0;
+
+    switch (action.type) {
+        case "migrate_script_tag":
+            baseTime = 15;
+            break;
+        case "configure_pixel":
+            baseTime = 10;
+            break;
+        case "enable_capi":
+            baseTime = 5;
+            break;
+        case "remove_duplicate":
+            baseTime = 3;
+            break;
+        default:
+            baseTime = 10;
+    }
+
+    if (action.priority === "high") {
+        baseTime += 10;
+    } else if (action.priority === "low") {
+        baseTime -= 2;
+    }
+
+    if (action.platform) {
+        const platformInfo = getPlatformInfo(action.platform);
+        if (platformInfo.supportLevel === "partial") {
+            baseTime += 15;
+        } else if (platformInfo.supportLevel === "unsupported") {
+            baseTime += 30;
+        }
+    }
+
+    return Math.max(5, baseTime);
+}
+
+export function calculateMigrationProgress(
+    totalActions: MigrationAction[],
+    completedActionIds: string[]
+): number {
+    if (totalActions.length === 0) return 100;
+    const completed = totalActions.filter((action) => {
+        const actionId = getActionId(action);
+        return completedActionIds.includes(actionId);
+    }).length;
+    return Math.round((completed / totalActions.length) * 100);
+}
+
+export function getActionId(action: MigrationAction): string {
+    if (action.scriptTagId) {
+        return `script_tag_${action.scriptTagId}`;
+    }
+    if (action.webPixelGid) {
+        return `pixel_${action.webPixelGid}`;
+    }
+    return `${action.type}_${action.platform || "unknown"}_${action.title}`;
+}
+
 export function generateMigrationActions(result: EnhancedScanResult, shopTier: string): MigrationAction[] {
     const actions: MigrationAction[] = [];
 
@@ -62,6 +122,16 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             deadline = primaryDeadlineLabel;
         }
 
+        const estimatedTime = estimateMigrationTime({
+            type: "migrate_script_tag",
+            priority,
+            platform,
+            title: `迁移 ScriptTag: ${platform}`,
+            description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 配置 CAPI 凭证  3) 测试追踪  4) 手动清理此 ScriptTag（查看指南）`,
+            scriptTagId: tag.id,
+            deadline,
+        });
+
         actions.push({
             type: "migrate_script_tag",
             priority,
@@ -70,6 +140,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             description: `${deadlineNote}\n\n推荐步骤：1) 启用 App Pixel  2) 配置 CAPI 凭证  3) 测试追踪  4) 手动清理此 ScriptTag（查看指南）`,
             scriptTagId: tag.id,
             deadline,
+            estimatedTimeMinutes: estimatedTime,
         });
     }
 
@@ -79,33 +150,36 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         const platformInfo = getPlatformInfo(platform);
 
         if (platformInfo.supportLevel === "unsupported") {
-
-            actions.push({
+            const action: MigrationAction = {
                 type: "configure_pixel",
                 priority: "low",
                 platform,
                 title: `${platformInfo.name}: 建议使用官方方案`,
                 description: platformInfo.recommendation +
                     (platformInfo.officialApp ? `\n\n👉 官方应用: ${platformInfo.officialApp}` : ""),
-            });
+            };
+            action.estimatedTimeMinutes = estimateMigrationTime(action);
+            actions.push(action);
         } else if (platformInfo.supportLevel === "partial") {
-
-            actions.push({
+            const action: MigrationAction = {
                 type: "configure_pixel",
                 priority: "medium",
                 platform,
                 title: `${platformInfo.name}: 需要评估迁移方案`,
                 description: platformInfo.recommendation,
-            });
+            };
+            action.estimatedTimeMinutes = estimateMigrationTime(action);
+            actions.push(action);
         } else if (!configuredPlatforms.has(platform)) {
-
-            actions.push({
+            const action: MigrationAction = {
                 type: "configure_pixel",
                 priority: "medium",
                 platform,
                 title: `配置 ${platformInfo.name}`,
                 description: `检测到 ${platformInfo.name} 追踪代码，但尚未配置。${platformInfo.recommendation}`,
-            });
+            };
+            action.estimatedTimeMinutes = estimateMigrationTime(action);
+            actions.push(action);
         }
     }
 
@@ -125,7 +199,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
 
         const gidsToDelete = webPixelGids.slice(1);
 
-        actions.push({
+        const duplicateAction: MigrationAction = {
             type: "remove_duplicate",
             priority: "medium",
             platform: dup.platform,
@@ -133,11 +207,13 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             description: `检测到 ${dup.count} 个 ${dup.platform} 像素配置，可能导致重复追踪。建议只保留一个。` +
                 (gidsToDelete.length > 0 ? ` (可删除 ${gidsToDelete.length} 个)` : ""),
             webPixelGid: gidsToDelete[0],
-        });
+        };
+        duplicateAction.estimatedTimeMinutes = estimateMigrationTime(duplicateAction);
+        actions.push(duplicateAction);
     }
 
     const hasAppPixelConfigured = result.webPixels.some(p => {
-        // 类型安全：p.settings 可能是 string | null
+
         if (!p.settings || typeof p.settings !== "string") return false;
         try {
             const settings = JSON.parse(p.settings);
@@ -149,7 +225,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
     });
 
     const pixelNeedsUpgrade = result.webPixels.some(p => {
-        // 类型安全：p.settings 可能是 string | null
+
         if (!p.settings || typeof p.settings !== "string") return false;
         try {
             const settings = JSON.parse(p.settings);
@@ -161,21 +237,25 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
     });
 
     if (pixelNeedsUpgrade) {
-        actions.push({
+        const upgradeAction: MigrationAction = {
             type: "configure_pixel",
             priority: "medium",
             title: "升级 App Pixel 配置",
             description: "检测到旧版 Pixel 配置（缺少 shop_domain 或仍使用 ingestion_secret 旧字段）。请重新启用 App Pixel 以升级到新版配置格式。",
-        });
+        };
+        upgradeAction.estimatedTimeMinutes = estimateMigrationTime(upgradeAction);
+        actions.push(upgradeAction);
     }
 
     if (!hasAppPixelConfigured && result.identifiedPlatforms.length > 0) {
-        actions.push({
+        const capiAction: MigrationAction = {
             type: "enable_capi",
             priority: "low",
             title: "启用服务端转化追踪 (CAPI)",
             description: "启用 Conversions API 可降低广告拦截器影响，提高追踪数据的一致性和完整性。",
-        });
+        };
+        capiAction.estimatedTimeMinutes = estimateMigrationTime(capiAction);
+        actions.push(capiAction);
     }
 
     const now = new Date();
@@ -188,23 +268,27 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
 
     if (hasLegacyTracking && shopTier === "plus") {
         if (isInAutoUpgradeWindow) {
-            actions.unshift({
+            const autoUpgradeAction: MigrationAction = {
                 type: "configure_pixel",
                 priority: "high",
                 title: "⚡ Plus 商家自动升级窗口已开始",
                 description: `Shopify 已于 2026年1月 开始自动将 Plus 商家迁移到新版 Thank you / Order status 页面。` +
                     `旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将在自动升级后失效。` +
                     `请立即确认 Web Pixel 配置正确，避免追踪中断。`,
-            });
+            };
+            autoUpgradeAction.estimatedTimeMinutes = estimateMigrationTime(autoUpgradeAction);
+            actions.unshift(autoUpgradeAction);
         } else if (daysToAutoUpgrade <= 90) {
-            actions.push({
+            const countdownAction: MigrationAction = {
                 type: "configure_pixel",
                 priority: daysToAutoUpgrade <= 30 ? "high" : "medium",
                 title: `📅 Plus 自动升级倒计时：剩余 ${daysToAutoUpgrade} 天`,
                 description: `Shopify 将于 2026年1月 开始自动将 Plus 商家迁移到新版页面。` +
                     `自动升级后，旧的 Additional Scripts、ScriptTags、checkout.liquid 自定义将失效。` +
                     `建议提前完成迁移，确保控制迁移时机。`,
-            });
+            };
+            countdownAction.estimatedTimeMinutes = estimateMigrationTime(countdownAction);
+            actions.push(countdownAction);
         }
     }
 
@@ -218,7 +302,7 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
     const configuredPlatforms = new Set<string>();
 
     for (const pixel of result.webPixels) {
-        // 类型安全：pixel.settings 可能是 string | null
+
         if (pixel.settings && typeof pixel.settings === "string") {
             try {
                 const settings = JSON.parse(pixel.settings);
@@ -240,7 +324,7 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
                 for (const [key, value] of Object.entries(settings as Record<string, unknown>)) {
                     if (typeof value !== "string") continue;
 
-                    if (value.includes("://") || value.length > 100) continue;
+                    if (value.includes(":
 
                     if (/^G-[A-Z0-9]{7,12}$/.test(value)) {
                         configuredPlatforms.add("google");
@@ -260,7 +344,7 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
                 }
             } catch (error) {
                 logger.warn(`Failed to parse pixel settings for pixel ${pixel.id} in getConfiguredPlatforms:`, error instanceof Error ? error.message : String(error));
-                // 继续处理其他像素
+
                 continue;
             }
         }

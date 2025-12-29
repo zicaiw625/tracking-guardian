@@ -1,7 +1,4 @@
-/**
- * 验收服务测试 - Verification Service Tests
- * 对应设计方案 4.5 Verification：事件对账与验收
- */
+
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -294,7 +291,7 @@ describe("Verification Service", () => {
 
       expect(result).toBeDefined();
       expect(result.status).toBe("completed");
-      // analyzeRecentEvents 按订单分组，相同 orderId 的多个日志会被合并
+
       expect(result.totalTests).toBeGreaterThan(0);
       expect(result.results.length).toBeGreaterThan(0);
       expect(prisma.verificationRun.update).toHaveBeenCalled();

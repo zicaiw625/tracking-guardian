@@ -1,20 +1,8 @@
-/**
- * Workspace 邀请服务
- * 支持 Agency 用户邀请其他店铺加入分组
- *
- * 流程：
- * 1. Owner 发起邀请 -> 生成邀请链接/Token
- * 2. 被邀请方点击链接 -> 验证 Token 并显示邀请详情
- * 3. 被邀请方接受邀请 -> 加入分组
- */
+
 
 import { randomBytes } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-
-// ============================================================
-// 类型定义
-// ============================================================
 
 export interface WorkspaceInvitation {
   id: string;
@@ -64,13 +52,6 @@ export interface AcceptInvitationResult {
   groupName?: string;
 }
 
-// ============================================================
-// 邀请管理
-// ============================================================
-
-/**
- * 创建邀请
- */
 export async function createInvitation(
   input: CreateInvitationInput
 ): Promise<InvitationResult | null> {
@@ -85,7 +66,7 @@ export async function createInvitation(
   } = input;
 
   try {
-    // 验证分组存在且 inviter 是 owner
+
     const group = await prisma.shopGroup.findFirst({
       where: {
         id: groupId,
@@ -101,7 +82,6 @@ export async function createInvitation(
       return null;
     }
 
-    // 获取邀请者店铺信息
     const inviterShop = await prisma.shop.findUnique({
       where: { id: inviterId },
       select: { shopDomain: true },
@@ -111,11 +91,9 @@ export async function createInvitation(
       return null;
     }
 
-    // 生成唯一 token
     const token = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
 
-    // 存储邀请（使用 AuditLog 临时存储，后续可以创建专门的表）
     const invitationData: WorkspaceInvitation = {
       id: randomBytes(16).toString("hex"),
       groupId,
@@ -136,7 +114,6 @@ export async function createInvitation(
       createdAt: new Date(),
     };
 
-    // 存储到 AuditLog（临时方案）
     await prisma.auditLog.create({
       data: {
         shopId: inviterId,
@@ -146,8 +123,7 @@ export async function createInvitation(
       },
     });
 
-    // 生成邀请链接
-    const baseUrl = process.env.SHOPIFY_APP_URL || "https://your-app.com";
+    const baseUrl = process.env.SHOPIFY_APP_URL || "https:
     const inviteUrl = `${baseUrl}/app/workspace/accept-invitation?token=${token}`;
 
     logger.info(`Workspace invitation created: ${invitationData.id} for group ${groupId}`);
@@ -162,27 +138,24 @@ export async function createInvitation(
   }
 }
 
-/**
- * 获取邀请详情（通过 token）
- */
 export async function getInvitationByToken(
   token: string
 ): Promise<WorkspaceInvitation | null> {
   try {
-    // 从 AuditLog 查找邀请
+
     const logs = await prisma.auditLog.findMany({
       where: {
         action: "workspace_invitation_created",
       },
       orderBy: { createdAt: "desc" },
-      take: 100, // 只搜索最近的 100 条
+      take: 100,
     });
 
     for (const log of logs) {
       try {
         const invitation = JSON.parse(log.details || "{}") as WorkspaceInvitation;
         if (invitation.token === token) {
-          // 检查是否过期
+
           if (new Date(invitation.expiresAt) < new Date()) {
             invitation.status = "expired";
           }
@@ -200,9 +173,6 @@ export async function getInvitationByToken(
   }
 }
 
-/**
- * 接受邀请
- */
 export async function acceptInvitation(
   token: string,
   acceptorShopId: string
@@ -226,7 +196,6 @@ export async function acceptInvitation(
       return { success: false, message: "邀请已被拒绝" };
     }
 
-    // 检查是否已经是成员
     const existingMember = await prisma.shopGroupMember.findFirst({
       where: {
         groupId: invitation.groupId,
@@ -238,7 +207,6 @@ export async function acceptInvitation(
       return { success: false, message: "您已经是该分组的成员" };
     }
 
-    // 添加到分组
     await prisma.shopGroupMember.create({
       data: {
         groupId: invitation.groupId,
@@ -250,7 +218,6 @@ export async function acceptInvitation(
       },
     });
 
-    // 记录接受事件
     await prisma.auditLog.create({
       data: {
         shopId: acceptorShopId,
@@ -279,9 +246,6 @@ export async function acceptInvitation(
   }
 }
 
-/**
- * 拒绝邀请
- */
 export async function declineInvitation(
   token: string,
   declinerShopId: string
@@ -297,7 +261,6 @@ export async function declineInvitation(
       return { success: false, message: "邀请状态无效" };
     }
 
-    // 记录拒绝事件
     await prisma.auditLog.create({
       data: {
         shopId: declinerShopId,
@@ -320,15 +283,12 @@ export async function declineInvitation(
   }
 }
 
-/**
- * 获取分组的待处理邀请列表
- */
 export async function getPendingInvitations(
   groupId: string,
   ownerId: string
 ): Promise<WorkspaceInvitation[]> {
   try {
-    // 验证权限
+
     const group = await prisma.shopGroup.findFirst({
       where: {
         id: groupId,
@@ -340,7 +300,6 @@ export async function getPendingInvitations(
       return [];
     }
 
-    // 从 AuditLog 查找邀请
     const logs = await prisma.auditLog.findMany({
       where: {
         action: "workspace_invitation_created",
@@ -356,7 +315,7 @@ export async function getPendingInvitations(
       try {
         const invitation = JSON.parse(log.details || "{}") as WorkspaceInvitation;
         if (invitation.groupId === groupId && invitation.status === "pending") {
-          // 检查是否过期
+
           if (new Date(invitation.expiresAt) < new Date()) {
             invitation.status = "expired";
           }
@@ -374,15 +333,12 @@ export async function getPendingInvitations(
   }
 }
 
-/**
- * 撤销邀请
- */
 export async function revokeInvitation(
   invitationId: string,
   ownerId: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    // 从 AuditLog 查找邀请
+
     const logs = await prisma.auditLog.findMany({
       where: {
         action: "workspace_invitation_created",
@@ -399,7 +355,7 @@ export async function revokeInvitation(
         const invitation = JSON.parse(log.details || "{}") as WorkspaceInvitation;
         if (invitation.id === invitationId) {
           found = true;
-          // 记录撤销事件
+
           await prisma.auditLog.create({
             data: {
               shopId: ownerId,
@@ -430,13 +386,6 @@ export async function revokeInvitation(
   }
 }
 
-// ============================================================
-// 邮件模板
-// ============================================================
-
-/**
- * 生成邀请邮件 HTML
- */
 export function generateInvitationEmailHtml(
   invitation: WorkspaceInvitation,
   inviteUrl: string
@@ -594,9 +543,6 @@ export function generateInvitationEmailHtml(
   `;
 }
 
-/**
- * 生成邀请邮件纯文本版本
- */
 export function generateInvitationEmailText(
   invitation: WorkspaceInvitation,
   inviteUrl: string

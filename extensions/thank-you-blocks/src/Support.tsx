@@ -8,20 +8,23 @@ import {
   View,
   useSettings,
 } from "@shopify/ui-extensions-react/checkout";
+import { useMemo } from "react";
 
 export default reactExtension("purchase.thank-you.block.render", () => <SupportBlock />);
 
 function SupportBlock() {
   const settings = useSettings();
 
-  const title = (settings.support_title as string) || "订单帮助与售后";
-  const description =
+  const title = useMemo(() => (settings.support_title as string) || "订单帮助与售后", [settings.support_title]);
+  const description = useMemo(() =>
     (settings.support_description as string) ||
-    "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。";
-  const faqUrl = (settings.support_faq_url as string) || "/pages/faq";
-  const contactEmail = settings.support_contact_email as string;
-  const contactUrl = (settings.support_contact_url as string) || (contactEmail ? `mailto:${contactEmail}` : "/pages/contact");
-  const continueShoppingUrl = (settings.continue_shopping_url as string) || "/";
+    "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。", [settings.support_description]);
+  const faqUrl = useMemo(() => (settings.support_faq_url as string) || "/pages/faq", [settings.support_faq_url]);
+  const contactUrl = useMemo(() => {
+    const contactEmail = settings.support_contact_email as string;
+    return (settings.support_contact_url as string) || (contactEmail ? `mailto:${contactEmail}` : "/pages/contact");
+  }, [settings.support_contact_url, settings.support_contact_email]);
+  const continueShoppingUrl = useMemo(() => (settings.continue_shopping_url as string) || "/", [settings.continue_shopping_url]);
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">

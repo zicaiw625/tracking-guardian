@@ -1,9 +1,4 @@
-/**
- * Pinterest Conversions API Service
- * 对应设计方案 4.3 像素迁移中心 - Pinterest 支持
- *
- * Pinterest API 文档: https://developers.pinterest.com/docs/api/v5/#tag/conversion_events
- */
+
 
 import type {
   ConversionData,
@@ -24,18 +19,15 @@ import {
 } from "./interface";
 import { classifyHttpError, classifyJsError, hashSHA256 } from "./base-platform.service";
 
-// Pinterest API 配置
 const PINTEREST_API_VERSION = "v5";
-const PINTEREST_API_BASE_URL = "https://api.pinterest.com";
+const PINTEREST_API_BASE_URL = "https:
 
-// Pinterest 凭证类型
 export interface PinterestCredentials extends PlatformCredentials {
-  adAccountId: string; // Pinterest Ad Account ID
-  accessToken: string; // Pinterest API Access Token
-  testMode?: boolean; // 是否使用测试模式
+  adAccountId: string;
+  accessToken: string;
+  testMode?: boolean;
 }
 
-// Pinterest 事件类型
 type PinterestEventType =
   | "checkout"
   | "add_to_cart"
@@ -47,24 +39,22 @@ type PinterestEventType =
   | "view_category"
   | "custom";
 
-// Pinterest 用户数据
 interface PinterestUserData {
-  em?: string[]; // Hashed email (SHA256)
-  ph?: string[]; // Hashed phone (SHA256)
-  ge?: string[]; // Gender
-  bd?: string[]; // Birth date
-  ln?: string[]; // Hashed last name
-  fn?: string[]; // Hashed first name
-  ct?: string[]; // City
-  st?: string[]; // State
-  zp?: string[]; // Zip code
-  country?: string[]; // Country
-  external_id?: string[]; // External customer ID
-  click_id?: string; // Pinterest click ID
-  partner_id?: string; // Partner ID
+  em?: string[];
+  ph?: string[];
+  ge?: string[];
+  bd?: string[];
+  ln?: string[];
+  fn?: string[];
+  ct?: string[];
+  st?: string[];
+  zp?: string[];
+  country?: string[];
+  external_id?: string[];
+  click_id?: string;
+  partner_id?: string;
 }
 
-// Pinterest 自定义数据
 interface PinterestCustomData {
   currency?: string;
   value?: string;
@@ -78,10 +68,9 @@ interface PinterestCustomData {
   order_id?: string;
   search_string?: string;
   opt_out_type?: string;
-  np?: string; // Named partner
+  np?: string;
 }
 
-// Pinterest 事件数据
 interface PinterestEventData {
   event_name: PinterestEventType;
   action_source: "app_android" | "app_ios" | "web" | "offline";
@@ -103,7 +92,6 @@ interface PinterestEventData {
   language?: string;
 }
 
-// Pinterest API 响应
 interface PinterestApiResponse {
   num_events_received: number;
   num_events_processed: number;
@@ -186,14 +174,12 @@ export class PinterestPlatformService implements IPlatformService {
 
     const creds = credentials as Record<string, unknown>;
 
-    // 验证 Ad Account ID
     if (!creds.adAccountId || typeof creds.adAccountId !== "string") {
       errors.push("adAccountId is required");
     } else if (!/^\d+$/.test(creds.adAccountId)) {
       errors.push(`Invalid Pinterest Ad Account ID format: ${creds.adAccountId}. Expected numeric ID.`);
     }
 
-    // 验证 Access Token
     if (!creds.accessToken || typeof creds.accessToken !== "string") {
       errors.push("accessToken is required");
     } else if (creds.accessToken.length < 10) {
@@ -208,7 +194,7 @@ export class PinterestPlatformService implements IPlatformService {
 
   parseError(error: unknown): PlatformError {
     if (error instanceof Error) {
-      // 检查是否有附加的平台错误
+
       const attachedError = (error as Error & { platformError?: PlatformError }).platformError;
       if (attachedError) {
         return attachedError;
@@ -267,21 +253,19 @@ export class PinterestPlatformService implements IPlatformService {
   private async buildUserData(data: ConversionData): Promise<PinterestUserData> {
     const userData: PinterestUserData = {};
 
-    // Pinterest 需要 SHA256 哈希的用户数据
     if (data.customerEmail) {
       const normalizedEmail = data.customerEmail.toLowerCase().trim();
       userData.em = [await hashSHA256(normalizedEmail)];
     }
 
     if (data.customerPhone) {
-      // 移除非数字字符
+
       const normalizedPhone = data.customerPhone.replace(/\D/g, "");
       if (normalizedPhone.length >= 10) {
         userData.ph = [await hashSHA256(normalizedPhone)];
       }
     }
 
-    // 如果有客户 ID，作为 external_id
     if (data.customerId) {
       userData.external_id = [data.customerId];
     }
@@ -325,7 +309,6 @@ export class PinterestPlatformService implements IPlatformService {
       data: [eventData],
     };
 
-    // 如果是测试模式，添加测试标记
     if (credentials.testMode) {
       logger.info(`Pinterest CAPI: sending in test mode`, {
         orderId: data.orderId.slice(0, 8),
@@ -358,7 +341,6 @@ export class PinterestPlatformService implements IPlatformService {
 
     const result: PinterestApiResponse = await response.json();
 
-    // 检查事件级别的错误
     if (result.events && result.events.length > 0) {
       const failedEvents = result.events.filter((e) => e.status === "failed");
       if (failedEvents.length > 0) {
@@ -385,12 +367,10 @@ export class PinterestPlatformService implements IPlatformService {
     statusCode: number,
     errorData: Record<string, unknown>
   ): PlatformError {
-    // Pinterest 特定错误处理
+
     const code = errorData.code as number | undefined;
     const message = (errorData.message as string) || `HTTP ${statusCode}`;
 
-    // Pinterest 错误代码映射
-    // 参考: https://developers.pinterest.com/docs/api/v5/#section/Error-handling
     switch (code) {
       case 1:
         return {
@@ -409,7 +389,7 @@ export class PinterestPlatformService implements IPlatformService {
           type: "rate_limit",
           message: `Rate limit exceeded: ${message}`,
           isRetryable: true,
-          retryAfterMs: 60000, // 1 分钟后重试
+          retryAfterMs: 60000,
         };
       case 4:
         return {
@@ -429,12 +409,8 @@ export class PinterestPlatformService implements IPlatformService {
   }
 }
 
-// 单例服务实例
 export const pinterestService = new PinterestPlatformService();
 
-/**
- * 发送转化到 Pinterest (兼容旧接口)
- */
 export async function sendConversionToPinterest(
   credentials: PinterestCredentials | null,
   conversionData: ConversionData,
@@ -461,14 +437,11 @@ export async function sendConversionToPinterest(
   return result.response!;
 }
 
-/**
- * 验证 Pinterest 凭证
- */
 export async function validatePinterestCredentials(
   credentials: PinterestCredentials
 ): Promise<{ valid: boolean; error?: string }> {
   try {
-    // 调用 Pinterest API 验证凭证
+
     const url = `${PINTEREST_API_BASE_URL}/${PINTEREST_API_VERSION}/ad_accounts/${credentials.adAccountId}`;
 
     const response = await fetchWithTimeout(

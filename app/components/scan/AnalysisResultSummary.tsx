@@ -16,10 +16,6 @@ interface AnalysisResultSummaryProps {
   analysisResult: ScriptAnalysisResult;
 }
 
-/**
- * 分析结果摘要组件
- * 显示风险评分、检测到的平台和检测详情
- */
 export function AnalysisResultSummary({ analysisResult }: AnalysisResultSummaryProps) {
   return (
     <Layout>

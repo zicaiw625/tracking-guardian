@@ -78,7 +78,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect GTM script", () => {
-        const content = "https://www.googletagmanager.com/gtm.js";
+        const content = "https:
         expect(detectPlatforms(content)).toContain("google");
       });
 
@@ -95,7 +95,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect Facebook SDK script", () => {
-        const content = "https://connect.facebook.net/en_US/fbevents.js";
+        const content = "https:
         expect(detectPlatforms(content)).toContain("meta");
       });
 
@@ -117,7 +117,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect TikTok analytics domain", () => {
-        const content = "https://analytics.tiktok.com/i18n/pixel/events.js";
+        const content = "https:
         expect(detectPlatforms(content)).toContain("tiktok");
       });
     });
@@ -129,7 +129,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect bat.bing.com", () => {
-        const content = "//bat.bing.com/bat.js";
+        const content = "
         expect(detectPlatforms(content)).toContain("bing");
       });
     });
@@ -141,7 +141,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect clarity.ms domain", () => {
-        const content = "https://www.clarity.ms/tag/projectid";
+        const content = "https:
         expect(detectPlatforms(content)).toContain("clarity");
       });
     });

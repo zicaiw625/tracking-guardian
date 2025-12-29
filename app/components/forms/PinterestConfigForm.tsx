@@ -1,7 +1,4 @@
-/**
- * Pinterest 凭证配置表单
- * 对应设计方案 4.3 像素迁移中心 - Pinterest 支持
- */
+
 
 import { useState, useCallback } from "react";
 import {
@@ -25,21 +22,21 @@ export interface PinterestCredentialsInput {
 }
 
 export interface PinterestConfigFormProps {
-  /** 现有配置 (如果已配置) */
+
   config?: {
     adAccountId: string;
     hasAccessToken: boolean;
     testMode: boolean;
   };
-  /** 保存回调 */
+
   onSave: (data: PinterestCredentialsInput) => void;
-  /** 是否正在保存 */
+
   isLoading?: boolean;
-  /** 验证状态 */
+
   validationStatus?: "idle" | "validating" | "valid" | "invalid";
-  /** 验证错误信息 */
+
   validationError?: string;
-  /** 触发验证 */
+
   onValidate?: (data: PinterestCredentialsInput) => void;
 }
 
@@ -56,20 +53,17 @@ export function PinterestConfigForm({
   const [testMode, setTestMode] = useState(config?.testMode ?? true);
   const [showToken, setShowToken] = useState(false);
 
-  // 表单验证
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // Ad Account ID 验证
     if (!adAccountId.trim()) {
       newErrors.adAccountId = "请输入 Pinterest Ad Account ID";
     } else if (!/^\d+$/.test(adAccountId.trim())) {
       newErrors.adAccountId = "Ad Account ID 应为纯数字";
     }
 
-    // Access Token 验证 (仅在未配置或需要更新时必填)
     if (!config?.hasAccessToken && !accessToken.trim()) {
       newErrors.accessToken = "请输入 Pinterest Access Token";
     } else if (accessToken.trim() && accessToken.trim().length < 20) {
@@ -128,7 +122,7 @@ export function PinterestConfigForm({
               不受浏览器限制影响，提高广告归因准确性。
             </Text>
             <Link
-              url="https://developers.pinterest.com/docs/api/v5/#tag/conversion_events"
+              url="https:
               external
             >
               查看 Pinterest API 文档
@@ -138,7 +132,7 @@ export function PinterestConfigForm({
 
         <Divider />
 
-        {/* Ad Account ID */}
+        {}
         <TextField
           label="Ad Account ID"
           value={adAccountId}
@@ -149,7 +143,7 @@ export function PinterestConfigForm({
           autoComplete="off"
         />
 
-        {/* Access Token */}
+        {}
         <TextField
           label="Access Token"
           value={accessToken}
@@ -170,7 +164,7 @@ export function PinterestConfigForm({
           }
         />
 
-        {/* Test Mode */}
+        {}
         <Checkbox
           label="测试模式"
           checked={testMode}
@@ -180,7 +174,7 @@ export function PinterestConfigForm({
 
         <Divider />
 
-        {/* 获取凭证指南 */}
+        {}
         <BlockStack gap="200">
           <Text as="p" variant="headingSm">
             如何获取 Pinterest API 凭证
@@ -189,7 +183,7 @@ export function PinterestConfigForm({
             <li>
               <Text as="span" variant="bodySm">
                 登录{" "}
-                <Link url="https://developers.pinterest.com/" external>
+                <Link url="https:
                   Pinterest Developers
                 </Link>
               </Text>
@@ -207,7 +201,7 @@ export function PinterestConfigForm({
             <li>
               <Text as="span" variant="bodySm">
                 在{" "}
-                <Link url="https://ads.pinterest.com/" external>
+                <Link url="https:
                   Pinterest Ads Manager
                 </Link>{" "}
                 中找到您的 Ad Account ID
@@ -218,7 +212,7 @@ export function PinterestConfigForm({
 
         <Divider />
 
-        {/* 验证状态 */}
+        {}
         {validationStatus === "validating" && (
           <Banner tone="info">
             <Text as="p">正在验证凭证...</Text>
@@ -235,7 +229,7 @@ export function PinterestConfigForm({
           </Banner>
         )}
 
-        {/* 操作按钮 */}
+        {}
         <InlineStack gap="200" align="end">
           {onValidate && (
             <Button

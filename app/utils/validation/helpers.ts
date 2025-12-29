@@ -127,8 +127,8 @@ export function validateOrderId(
     return ok(trimmed);
   }
 
-  if (trimmed.startsWith("gid://shopify/Order/")) {
-    const id = trimmed.replace("gid://shopify/Order/", "");
+  if (trimmed.startsWith("gid:
+    const id = trimmed.replace("gid:
     if (/^\d+$/.test(id)) {
       return ok(trimmed);
     }

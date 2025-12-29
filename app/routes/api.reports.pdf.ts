@@ -1,15 +1,4 @@
-/**
- * PDF 报告导出 API
- * 对应设计方案 4.7 Agency：导出"迁移验收报告"（PDF/CSV）
- * 
- * GET /api/reports/pdf?type=scan|reconciliation|verification|batch
- * 
- * Query Parameters:
- * - type: 报告类型
- * - groupId: 批量报告的工作区 ID (仅 type=batch 时需要)
- * - days: 统计周期天数 (默认 7)
- * - format: pdf | html (默认 pdf，html 用于预览)
- */
+
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
@@ -43,7 +32,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const days = parseInt(url.searchParams.get("days") || "7", 10);
   const format = url.searchParams.get("format") || "pdf";
 
-  // 获取店铺信息
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true, plan: true },
@@ -58,7 +46,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const planId = normalizePlanId(shop.plan);
 
-  // 批量报告需要 Agency 套餐
   if (reportType === "batch") {
     if (!planSupportsFeature(planId as PlanId, "agency")) {
       return new Response(
@@ -170,7 +157,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       );
     }
 
-    // 如果请求 HTML 格式（用于预览）
     if (format === "html") {
       return new Response(html, {
         headers: {
@@ -180,13 +166,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
 
-    // 生成 PDF
-    // 注意：这里使用简化的 PDF 生成方式
-    // 在生产环境中，建议使用专业的 PDF 服务
     const pdfResult = await generatePdfFromHtml(html, reportType, shopDomain);
-    
+
     if (!pdfResult) {
-      // 如果 PDF 生成失败，返回 HTML 作为回退
+
       logger.warn("PDF generation failed, returning HTML as fallback");
       return new Response(html, {
         headers: {
@@ -206,7 +189,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } catch (error) {
     logger.error("Report generation error:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: "生成报告时发生错误",
         details: error instanceof Error ? error.message : "Unknown error",
       }),
@@ -218,20 +201,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-/**
- * 从 HTML 生成 PDF
- * 使用 pdf-generator 服务
- */
 async function generatePdfFromHtml(
   html: string,
   reportType: string,
   shopDomain: string
 ): Promise<{ buffer: Buffer; filename: string } | null> {
   try {
-    // 尝试使用 html-pdf-node
-    // @ts-expect-error - html-pdf-node is an optional dependency, may not have types
+
     const htmlPdfNode = await import("html-pdf-node").catch(() => null);
-    
+
     if (htmlPdfNode) {
       const file = { content: html };
       const options = {
@@ -244,15 +222,14 @@ async function generatePdfFromHtml(
         },
         printBackground: true,
       };
-      
+
       const buffer = await htmlPdfNode.default.generatePdf(file, options);
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `${reportType}-report-${shopDomain.replace(/\./g, "_")}-${timestamp}.pdf`;
-      
+
       return { buffer, filename };
     }
 
-    // 如果 html-pdf-node 不可用，返回 null 让调用者处理回退
     logger.warn("html-pdf-node not available");
     return null;
   } catch (error) {

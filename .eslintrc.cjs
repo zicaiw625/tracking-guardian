@@ -20,8 +20,8 @@ module.exports = {
     "node_modules/",
     "dist/",
     ".cache/",
-    "extensions/*/src/**/*.tsx",
-    "extensions/*/src/**/*.ts",
+    "extensions*.tsx",
+    "extensions*.ts",
   ],
 
   extends: ["eslint:recommended"],
@@ -29,31 +29,9 @@ module.exports = {
   overrides: [
 
     {
-      files: ["**/*.{js,jsx,ts,tsx}"],
-      plugins: ["react", "jsx-a11y"],
-      extends: [
-        "plugin:react/recommended",
-        "plugin:react/jsx-runtime",
-        "plugin:react-hooks/recommended",
-        "plugin:jsx-a11y/recommended",
-      ],
-      settings: {
-        react: {
-          version: "detect",
-        },
-        formComponents: ["Form"],
-        linkComponents: [
-          { name: "Link", linkAttribute: "to" },
-          { name: "NavLink", linkAttribute: "to" },
-        ],
-        "import/resolver": {
-          typescript: {},
-        },
-      },
-    },
+      files: ["**
 
-    {
-      files: ["**/*.{ts,tsx}"],
+*.{ts,tsx}"],
       plugins: ["@typescript-eslint", "import"],
       parser: "@typescript-eslint/parser",
       settings: {

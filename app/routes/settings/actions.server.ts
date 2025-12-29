@@ -36,6 +36,11 @@ import {
   SecureUrlSchema,
 } from "../../utils/security";
 import { PCD_CONFIG } from "../../utils/config";
+import {
+  switchEnvironment,
+  rollbackConfig,
+  type PixelEnvironment,
+} from "../../services/pixel-rollback.server";
 
 export async function handleSaveAlert(
 
@@ -46,6 +51,18 @@ export async function handleSaveAlert(
   const channel = formData.get("channel") as string;
   const threshold = parseFloat(formData.get("threshold") as string) / 100;
   const enabled = formData.get("enabled") === "true";
+
+  const failureRateThreshold = formData.get("failureRateThreshold")
+    ? parseFloat(formData.get("failureRateThreshold") as string) / 100
+    : threshold;
+  const missingParamsThreshold = formData.get("missingParamsThreshold")
+    ? parseFloat(formData.get("missingParamsThreshold") as string) / 100
+    : threshold * 2.5;
+  const volumeDropThreshold = formData.get("volumeDropThreshold")
+    ? parseFloat(formData.get("volumeDropThreshold") as string) / 100
+    : 0.5;
+
+  const frequency = (formData.get("frequency") as "instant" | "daily" | "weekly") || "daily";
 
   const rawSettings: Record<string, unknown> = {};
   if (channel === "email") {
@@ -61,6 +78,12 @@ export async function handleSaveAlert(
 
   const nonSensitiveSettings: Record<string, unknown> = {
     channel,
+
+    thresholds: {
+      failureRate: failureRateThreshold,
+      missingParams: missingParamsThreshold,
+      volumeDrop: volumeDropThreshold,
+    },
     ...(channel === "email" && rawSettings.email
       ? {
           emailMasked: String(rawSettings.email).replace(
@@ -89,6 +112,7 @@ export async function handleSaveAlert(
       settings: nonSensitiveSettings as Prisma.InputJsonValue,
       settingsEncrypted: encryptedSettings,
       discrepancyThreshold: threshold,
+      frequency,
       isEnabled: enabled,
     },
     create: {
@@ -97,6 +121,7 @@ export async function handleSaveAlert(
       settings: nonSensitiveSettings as Prisma.InputJsonValue,
       settingsEncrypted: encryptedSettings,
       discrepancyThreshold: threshold,
+      frequency,
       isEnabled: enabled,
     },
   });
@@ -111,6 +136,10 @@ export async function handleSaveAlert(
     metadata: {
       channel,
       threshold,
+      failureRateThreshold,
+      missingParamsThreshold,
+      volumeDropThreshold,
+      frequency,
     },
   });
 
@@ -192,15 +221,14 @@ export async function handleSaveServerSide(
   if (platform === "google") {
     const measurementId = (formData.get("measurementId") as string) || "";
     const apiSecret = (formData.get("apiSecret") as string) || "";
-    
-    // 验证：如果启用服务端追踪，必须填写所有凭证字段
+
     if (enabled && (!measurementId || !apiSecret)) {
       return json(
         { error: "启用服务端追踪时必须填写 Measurement ID 和 API Secret" },
         { status: 400 }
       );
     }
-    
+
     const googleCreds: GoogleCredentials = {
       measurementId,
       apiSecret,
@@ -211,15 +239,14 @@ export async function handleSaveServerSide(
     const pixelId = (formData.get("pixelId") as string) || "";
     const accessToken = (formData.get("accessToken") as string) || "";
     const testEventCode = (formData.get("testEventCode") as string) || undefined;
-    
-    // 验证：如果启用服务端追踪，必须填写所有凭证字段
+
     if (enabled && (!pixelId || !accessToken)) {
       return json(
         { error: "启用服务端追踪时必须填写 Pixel ID 和 Access Token" },
         { status: 400 }
       );
     }
-    
+
     const metaCreds: MetaCredentials = {
       pixelId,
       accessToken,
@@ -230,15 +257,14 @@ export async function handleSaveServerSide(
   } else if (platform === "tiktok") {
     const pixelId = (formData.get("pixelId") as string) || "";
     const accessToken = (formData.get("accessToken") as string) || "";
-    
-    // 验证：如果启用服务端追踪，必须填写所有凭证字段
+
     if (enabled && (!pixelId || !accessToken)) {
       return json(
         { error: "启用服务端追踪时必须填写 Pixel ID 和 Access Token" },
         { status: 400 }
       );
     }
-    
+
     const tiktokCreds: TikTokCredentials = {
       pixelId,
       accessToken,
@@ -248,15 +274,14 @@ export async function handleSaveServerSide(
   } else if (platform === "pinterest") {
     const adAccountId = (formData.get("adAccountId") as string) || "";
     const accessToken = (formData.get("accessToken") as string) || "";
-    
-    // 验证：如果启用服务端追踪，必须填写所有凭证字段
+
     if (enabled && (!adAccountId || !accessToken)) {
       return json(
         { error: "启用服务端追踪时必须填写 Ad Account ID 和 Access Token" },
         { status: 400 }
       );
     }
-    
+
     const pinterestCreds: PinterestCredentials = {
       adAccountId,
       accessToken,
@@ -267,7 +292,6 @@ export async function handleSaveServerSide(
     return json({ error: "Unsupported platform" }, { status: 400 });
   }
 
-  // 检查凭证是否为空（所有必需字段都为空字符串）
   const hasNonEmptyCredentials = (() => {
     if (platform === "google") {
       const creds = credentials as GoogleCredentials;
@@ -285,12 +309,8 @@ export async function handleSaveServerSide(
     return false;
   })();
 
-  // 注意：即使禁用服务端追踪，我们仍然保存凭证，以便用户稍后重新启用时无需重新输入
-  // 这样用户可以暂时禁用追踪，而不会丢失已配置的凭证信息
-  // 但是，如果凭证为空（用户清空了所有字段），则不保存空凭证，保留现有凭证
   const encryptedCredentials = hasNonEmptyCredentials ? encryptJson(credentials) : null;
 
-  // 构建更新数据：如果凭证为空且禁用，则不更新凭证字段（保留现有凭证）
   const updateData: {
     credentialsEncrypted?: string | null;
     serverSideEnabled: boolean;
@@ -299,10 +319,9 @@ export async function handleSaveServerSide(
   };
 
   if (enabled || hasNonEmptyCredentials) {
-    // 启用时或凭证非空时，更新凭证
+
     updateData.credentialsEncrypted = encryptedCredentials;
   }
-  // 如果禁用且凭证为空，不更新 credentialsEncrypted（保留现有凭证）
 
   await prisma.pixelConfig.upsert({
     where: {
@@ -323,7 +342,6 @@ export async function handleSaveServerSide(
 
   await invalidateAllShopCaches(sessionShop, shopId);
 
-  // 处理 platformId 为空字符串的情况
   const maskedPlatformId = platformId ? platformId.slice(0, 8) + "****" : "未设置";
 
   await createAuditLog({
@@ -602,6 +620,90 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
 
     case "updatePrivacySettings":
       return handleUpdatePrivacySettings(formData, shop.id, session.shop);
+
+    case "switchEnvironment": {
+      const platform = formData.get("platform") as string;
+      const newEnvironment = formData.get("environment") as PixelEnvironment;
+
+      if (!platform || !newEnvironment) {
+        return json({
+          success: false,
+          error: "缺少 platform 或 environment 参数"
+        }, { status: 400 });
+      }
+
+      if (!["test", "live"].includes(newEnvironment)) {
+        return json({
+          success: false,
+          error: "无效的环境参数"
+        }, { status: 400 });
+      }
+
+      const result = await switchEnvironment(shop.id, platform, newEnvironment);
+
+      if (result.success) {
+        await invalidateAllShopCaches(sessionShop, shop.id);
+        await createAuditLog({
+          shopId: shop.id,
+          actorType: "user",
+          actorId: sessionShop,
+          action: "pixel_config_updated",
+          resourceType: "pixel_config",
+          resourceId: platform,
+          metadata: {
+            operation: "environment_switch",
+            platform,
+            previousEnvironment: result.previousEnvironment,
+            newEnvironment: result.newEnvironment,
+          },
+        });
+      }
+
+      return json({
+        success: result.success,
+        message: result.message,
+        previousEnvironment: result.previousEnvironment,
+        newEnvironment: result.newEnvironment,
+      });
+    }
+
+    case "rollbackEnvironment": {
+      const platform = formData.get("platform") as string;
+
+      if (!platform) {
+        return json({
+          success: false,
+          error: "缺少 platform 参数"
+        }, { status: 400 });
+      }
+
+      const result = await rollbackConfig(shop.id, platform);
+
+      if (result.success) {
+        await invalidateAllShopCaches(sessionShop, shop.id);
+        await createAuditLog({
+          shopId: shop.id,
+          actorType: "user",
+          actorId: sessionShop,
+          action: "pixel_config_updated",
+          resourceType: "pixel_config",
+          resourceId: platform,
+          metadata: {
+            operation: "rollback",
+            platform,
+            previousVersion: result.previousVersion,
+            currentVersion: result.currentVersion,
+          },
+        });
+      }
+
+      return json({
+        success: result.success,
+        message: result.message,
+        previousVersion: result.previousVersion,
+        currentVersion: result.currentVersion,
+      });
+    }
 
     default:
       return json({ error: "Unknown action" }, { status: 400 });

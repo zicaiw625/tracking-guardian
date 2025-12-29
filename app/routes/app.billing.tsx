@@ -84,7 +84,6 @@ export default function BillingPage() {
     const navigation = useNavigation();
     const { showSuccess, showError } = useToastContext();
 
-    // 处理 action 响应并显示 Toast
     useEffect(() => {
         if (actionData) {
             const data = actionData as { success?: boolean; error?: string; actionType?: string };
@@ -240,7 +239,7 @@ export default function BillingPage() {
         })}
         </Layout>
 
-        {/* Agency 多店管理入口 */}
+        {}
         {subscription.plan === "agency" && (
           <Card>
             <BlockStack gap="400">

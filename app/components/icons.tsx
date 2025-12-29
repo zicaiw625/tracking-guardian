@@ -132,3 +132,7 @@ export const TrendingUpIcon: IconSource = createIcon(
 export const TrendingDownIcon: IconSource = createIcon(
   "M13.5 17l4-4-4-4-1.5 1.5 1.88 2H9a2.5 2.5 0 01-2.5-2.5V3H4v7a5 5 0 005 5h4.88l-1.88 1.5 1.5 1.5z",
 );
+
+export const HistoryIcon: IconSource = createIcon(
+  "M10 2a8 8 0 100 16 8 8 0 000-16zm.75 4.5v3.44l2.72 1.63-.75 1.23L9 11V6.5h1.75z",
+);

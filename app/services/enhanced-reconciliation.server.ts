@@ -1,22 +1,9 @@
-/**
- * 增强版渠道对账服务
- * 对应设计方案 4.5 Verification - 渠道对账
- * 
- * 功能:
- * - 与 Shopify 订单金额对比
- * - 本地一致性检查
- * - 像素端与服务端对账
- * - 平台返回验证
- */
+
 
 import prisma from "../db.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../utils/logger.server";
 import { Decimal } from "@prisma/client/runtime/library";
-
-// ============================================================
-// 类型定义
-// ============================================================
 
 export interface ReconciliationResult {
   shopId: string;
@@ -80,13 +67,6 @@ interface ShopifyOrder {
   financialStatus: string;
 }
 
-// ============================================================
-// Shopify 订单获取
-// ============================================================
-
-/**
- * 从 Shopify 获取指定时间范围的订单
- */
 export async function fetchShopifyOrders(
   admin: AdminApiContext,
   startDate: Date,
@@ -133,21 +113,11 @@ export async function fetchShopifyOrders(
   }
 }
 
-/**
- * 从订单 GID 中提取数字 ID
- */
 function extractOrderId(gid: string): string {
   const match = gid.match(/Order\/(\d+)/);
   return match ? match[1] : gid;
 }
 
-// ============================================================
-// 对账核心逻辑
-// ============================================================
-
-/**
- * 执行完整对账
- */
 export async function runReconciliation(
   admin: AdminApiContext,
   shopId: string,
@@ -156,10 +126,8 @@ export async function runReconciliation(
 ): Promise<ReconciliationResult> {
   logger.info("Starting reconciliation", { shopId, startDate, endDate });
 
-  // 1. 获取 Shopify 订单
   const shopifyOrders = await fetchShopifyOrders(admin, startDate, endDate);
-  
-  // 2. 获取本地追踪记录
+
   const conversionLogs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -168,7 +136,6 @@ export async function runReconciliation(
     },
   });
 
-  // 3. 获取 Pixel 收据
   const pixelReceipts = await prisma.pixelEventReceipt.findMany({
     where: {
       shopId,
@@ -177,7 +144,6 @@ export async function runReconciliation(
     },
   });
 
-  // 4. 构建对账映射
   const shopifyOrderMap = new Map<string, ShopifyOrder>();
   shopifyOrders.forEach(order => {
     const orderId = extractOrderId(order.id);
@@ -196,7 +162,6 @@ export async function runReconciliation(
     receiptMap.set(receipt.orderId, receipt);
   });
 
-  // 5. 执行对账
   const discrepancies: OrderDiscrepancy[] = [];
   const platformStats: Record<string, PlatformReconciliation> = {};
   const issues: ReconciliationIssue[] = [];
@@ -205,7 +170,6 @@ export async function runReconciliation(
   let totalTrackedRevenue = 0;
   let matchedOrders = 0;
 
-  // 检查每个 Shopify 订单
   for (const [orderId, shopifyOrder] of shopifyOrderMap) {
     const shopifyValue = parseFloat(shopifyOrder.totalPriceSet.shopMoney.amount);
     const shopifyCurrency = shopifyOrder.totalPriceSet.shopMoney.currencyCode;
@@ -215,7 +179,7 @@ export async function runReconciliation(
     const receipt = receiptMap.get(orderId);
 
     if (!conversions || conversions.length === 0) {
-      // 订单未被追踪
+
       discrepancies.push({
         orderId,
         orderNumber: shopifyOrder.name,
@@ -229,7 +193,6 @@ export async function runReconciliation(
     } else {
       matchedOrders++;
 
-      // 按平台统计
       for (const conversion of conversions) {
         const platform = conversion.platform;
         if (!platformStats[platform]) {
@@ -254,7 +217,6 @@ export async function runReconciliation(
           platformStats[platform].ordersFailed++;
         }
 
-        // 检查金额一致性
         const trackedValue = Number(conversion.orderValue);
         totalTrackedRevenue += trackedValue;
 
@@ -285,7 +247,6 @@ export async function runReconciliation(
         }
       }
 
-      // 检查重复发送
       if (conversions.length > 1) {
         const platformCounts = new Map<string, number>();
         conversions.forEach(c => {
@@ -313,14 +274,12 @@ export async function runReconciliation(
     }
   }
 
-  // 计算平台成功率
   for (const stats of Object.values(platformStats)) {
     stats.successRate = stats.ordersTracked > 0
       ? stats.ordersSent / stats.ordersTracked
       : 0;
   }
 
-  // 生成问题汇总
   const missingCount = discrepancies.filter(d => d.discrepancyType === "missing").length;
   if (missingCount > 0) {
     issues.push({
@@ -364,8 +323,8 @@ export async function runReconciliation(
       totalTrackedEvents: conversionLogs.length,
       totalTrackedRevenue,
       matchRate: shopifyOrders.length > 0 ? matchedOrders / shopifyOrders.length : 1,
-      revenueMatchRate: totalShopifyRevenue > 0 
-        ? Math.min(totalTrackedRevenue / totalShopifyRevenue, 1) 
+      revenueMatchRate: totalShopifyRevenue > 0
+        ? Math.min(totalTrackedRevenue / totalShopifyRevenue, 1)
         : 1,
     },
     platforms: platformStats,
@@ -383,22 +342,15 @@ export async function runReconciliation(
   return result;
 }
 
-// ============================================================
-// Pixel vs CAPI 对账
-// ============================================================
-
-/**
- * 对比 Pixel 收据和 CAPI 发送记录
- */
 export async function reconcilePixelVsCapi(
   shopId: string,
   startDate: Date,
   endDate: Date
 ): Promise<{
-  pixelOnly: number;      // 只有 Pixel 没有 CAPI
-  capiOnly: number;       // 只有 CAPI 没有 Pixel
-  both: number;           // 两者都有
-  consentBlocked: number; // 因同意而阻止
+  pixelOnly: number;
+  capiOnly: number;
+  both: number;
+  consentBlocked: number;
   details: Array<{
     orderId: string;
     hasPixel: boolean;
@@ -445,7 +397,7 @@ export async function reconcilePixelVsCapi(
   });
 
   const allOrderIds = new Set([...pixelMap.keys(), ...capiMap.keys()]);
-  
+
   let pixelOnly = 0;
   let capiOnly = 0;
   let both = 0;
@@ -468,7 +420,7 @@ export async function reconcilePixelVsCapi(
       both++;
     } else if (hasPixel && !hasCapi) {
       pixelOnly++;
-      // 检查是否因 consent 阻止
+
       if (pixelConsent && !pixelConsent.marketing) {
         consentBlocked++;
       }
@@ -490,21 +442,14 @@ export async function reconcilePixelVsCapi(
     capiOnly,
     both,
     consentBlocked,
-    details: details.slice(0, 100), // 限制返回数量
+    details: details.slice(0, 100),
   };
 }
 
-// ============================================================
-// 保存对账报告
-// ============================================================
-
-/**
- * 保存对账报告到数据库
- */
 export async function saveReconciliationReport(
   result: ReconciliationResult
 ): Promise<string> {
-  // 按平台创建对账记录
+
   for (const [platform, stats] of Object.entries(result.platforms)) {
     await prisma.reconciliationReport.upsert({
       where: {

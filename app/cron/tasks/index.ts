@@ -188,7 +188,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Shop status refresh failed", error);
   }
 
-  // Alert checks
   let alertResults = { shopsChecked: 0, totalTriggered: 0, totalSent: 0 };
   try {
     cronLogger.info("Running alert checks...");
@@ -198,7 +197,6 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.error("Alert checks failed", error);
   }
 
-  // Cleanup expired nonces for dedup
   let noncesCleanedUp = 0;
   try {
     cronLogger.info("Cleaning up expired event nonces...");

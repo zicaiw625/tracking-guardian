@@ -26,7 +26,6 @@ export default function SettingsPage() {
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
 
-  // 处理 action 响应并显示 Toast
   useEffect(() => {
     if (actionData) {
       if (actionData.success) {
@@ -40,22 +39,19 @@ export default function SettingsPage() {
   const existingAlertConfig = shop?.alertConfigs?.[0];
   const existingPixelConfig = shop?.pixelConfigs?.[0];
 
-  // 从 URL 参数读取 tab，支持 billing 和 subscription 两种参数名（向后兼容）
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  
-  // 根据 URL 参数计算标签页索引
+
   const getTabIndex = (tab: string | null): number => {
-    if (tab === "billing" || tab === "subscription") return 3; // 订阅计划标签页
-    if (tab === "alerts") return 0; // 警报通知标签页
-    if (tab === "server-side" || tab === "server") return 1; // 服务端追踪标签页
-    if (tab === "security") return 2; // 安全与隐私标签页
-    return 0; // 默认显示第一个标签页
+    if (tab === "billing" || tab === "subscription") return 3;
+    if (tab === "alerts") return 0;
+    if (tab === "server-side" || tab === "server") return 1;
+    if (tab === "security") return 2;
+    return 0;
   };
 
   const [selectedTab, setSelectedTab] = useState(() => getTabIndex(tabParam));
 
-  // 当 URL 参数变化时，同步更新标签页（处理浏览器前进/后退等情况）
   useEffect(() => {
     const newTabIndex = getTabIndex(tabParam);
     if (newTabIndex !== selectedTab) {
@@ -72,6 +68,21 @@ export default function SettingsPage() {
     existingAlertConfig ? String(Math.round(existingAlertConfig.discrepancyThreshold * 100)) : "10"
   );
   const [alertEnabled, setAlertEnabled] = useState(() => existingAlertConfig?.isEnabled ?? true);
+
+  const settings = existingAlertConfig?.settings as { thresholds?: { failureRate?: number; missingParams?: number; volumeDrop?: number } } | undefined;
+  const [failureRateThreshold, setFailureRateThreshold] = useState(() =>
+    settings?.thresholds?.failureRate ? String(Math.round(settings.thresholds.failureRate * 100)) : "2"
+  );
+  const [missingParamsThreshold, setMissingParamsThreshold] = useState(() =>
+    settings?.thresholds?.missingParams ? String(Math.round(settings.thresholds.missingParams * 100)) : "5"
+  );
+  const [volumeDropThreshold, setVolumeDropThreshold] = useState(() =>
+    settings?.thresholds?.volumeDrop ? String(Math.round(settings.thresholds.volumeDrop * 100)) : "50"
+  );
+
+  const [alertFrequency, setAlertFrequency] = useState(() =>
+    existingAlertConfig?.frequency || "daily"
+  );
 
   const [serverPlatform, setServerPlatform] = useState(() => existingPixelConfig?.platform || "meta");
   const [serverEnabled, setServerEnabled] = useState(() => existingPixelConfig?.serverSideEnabled ?? false);
@@ -90,13 +101,11 @@ export default function SettingsPage() {
   );
   const [tiktokAccessToken, setTiktokAccessToken] = useState("");
 
-  // Pinterest 状态
   const [pinterestAdAccountId, setPinterestAdAccountId] = useState(() =>
     existingPixelConfig?.platform === "pinterest" ? (existingPixelConfig.platformId || "") : ""
   );
   const [pinterestAccessToken, setPinterestAccessToken] = useState("");
 
-  // 环境状态
   const [environment, setEnvironment] = useState<"test" | "live">(() =>
     (existingPixelConfig?.environment as "test" | "live") ?? "live"
   );
@@ -104,6 +113,7 @@ export default function SettingsPage() {
   const [alertFormDirty, setAlertFormDirty] = useState(false);
   const [serverFormDirty, setServerFormDirty] = useState(false);
 
+  const settings = existingAlertConfig?.settings as { thresholds?: { failureRate?: number; missingParams?: number; volumeDrop?: number } } | undefined;
   const initialAlertValues = useRef({
     channel: existingAlertConfig?.channel || "email",
     email: "",
@@ -112,6 +122,10 @@ export default function SettingsPage() {
     telegramChatId: "",
     threshold: existingAlertConfig ? String(Math.round(existingAlertConfig.discrepancyThreshold * 100)) : "10",
     enabled: existingAlertConfig?.isEnabled ?? true,
+    failureRateThreshold: settings?.thresholds?.failureRate ? String(Math.round(settings.thresholds.failureRate * 100)) : "2",
+    missingParamsThreshold: settings?.thresholds?.missingParams ? String(Math.round(settings.thresholds.missingParams * 100)) : "5",
+    volumeDropThreshold: settings?.thresholds?.volumeDrop ? String(Math.round(settings.thresholds.volumeDrop * 100)) : "50",
+    alertFrequency: existingAlertConfig?.frequency || "daily",
   });
 
   const initialServerValues = useRef({
@@ -140,7 +154,11 @@ export default function SettingsPage() {
       telegramToken !== initial.telegramToken ||
       telegramChatId !== initial.telegramChatId ||
       alertThreshold !== initial.threshold ||
-      alertEnabled !== initial.enabled;
+      alertEnabled !== initial.enabled ||
+      failureRateThreshold !== (initial.failureRateThreshold || "2") ||
+      missingParamsThreshold !== (initial.missingParamsThreshold || "5") ||
+      volumeDropThreshold !== (initial.volumeDropThreshold || "50") ||
+      alertFrequency !== (initial.alertFrequency || "daily");
     setAlertFormDirty(isDirty);
   }, [
     alertChannel,
@@ -150,6 +168,10 @@ export default function SettingsPage() {
     telegramChatId,
     alertThreshold,
     alertEnabled,
+    failureRateThreshold,
+    missingParamsThreshold,
+    volumeDropThreshold,
+    alertFrequency,
   ]);
 
   const checkServerFormDirty = useCallback(() => {
@@ -206,6 +228,10 @@ export default function SettingsPage() {
             telegramChatId: telegramChatId,
             threshold: alertThreshold,
             enabled: alertEnabled,
+            failureRateThreshold: failureRateThreshold,
+            missingParamsThreshold: missingParamsThreshold,
+            volumeDropThreshold: volumeDropThreshold,
+            alertFrequency: alertFrequency,
           };
           setAlertFormDirty(false);
         } else if (selectedTab === 1) {
@@ -262,6 +288,10 @@ export default function SettingsPage() {
       setTelegramChatId(initial.telegramChatId);
       setAlertThreshold(initial.threshold);
       setAlertEnabled(initial.enabled);
+      setFailureRateThreshold(initial.failureRateThreshold || "2");
+      setMissingParamsThreshold(initial.missingParamsThreshold || "5");
+      setVolumeDropThreshold(initial.volumeDropThreshold || "50");
+      setAlertFrequency(initial.alertFrequency || "daily");
       setAlertFormDirty(false);
     } else if (selectedTab === 1) {
       const initial = initialServerValues.current;
@@ -288,6 +318,12 @@ export default function SettingsPage() {
     formData.append("threshold", alertThreshold);
     formData.append("enabled", alertEnabled.toString());
 
+    formData.append("failureRateThreshold", failureRateThreshold);
+    formData.append("missingParamsThreshold", missingParamsThreshold);
+    formData.append("volumeDropThreshold", volumeDropThreshold);
+
+    formData.append("frequency", alertFrequency);
+
     if (alertChannel === "email") {
       formData.append("email", alertEmail);
     } else if (alertChannel === "slack") {
@@ -306,6 +342,10 @@ export default function SettingsPage() {
     telegramChatId,
     alertThreshold,
     alertEnabled,
+    failureRateThreshold,
+    missingParamsThreshold,
+    volumeDropThreshold,
+    alertFrequency,
     submit,
   ]);
 
@@ -445,7 +485,7 @@ export default function SettingsPage() {
       )}
 
       <BlockStack gap="500">
-        {/* Toast 通知已处理 actionData 的反馈，移除 Banner */}
+        {}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (
@@ -469,6 +509,14 @@ export default function SettingsPage() {
               isSubmitting={isSubmitting}
               onSaveAlert={handleSaveAlert}
               onTestAlert={handleTestAlert}
+              failureRateThreshold={failureRateThreshold}
+              setFailureRateThreshold={setFailureRateThreshold}
+              missingParamsThreshold={missingParamsThreshold}
+              setMissingParamsThreshold={setMissingParamsThreshold}
+              volumeDropThreshold={volumeDropThreshold}
+              setVolumeDropThreshold={setVolumeDropThreshold}
+              alertFrequency={alertFrequency}
+              setAlertFrequency={setAlertFrequency}
             />
           )}
 

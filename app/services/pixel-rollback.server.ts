@@ -1,20 +1,8 @@
-/**
- * 像素配置回滚服务
- * 对应设计方案 4.3 Pixels - 配置版本与回滚
- * 
- * 功能:
- * - 保存配置快照
- * - 一键回滚到上个版本
- * - 环境切换 (Test/Live)
- */
+
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { createAuditLogEntry } from "./db/audit-repository.server";
-
-// ============================================================
-// 类型定义
-// ============================================================
 
 export type PixelEnvironment = "test" | "live";
 
@@ -42,13 +30,6 @@ export interface EnvironmentSwitchResult {
   newEnvironment?: PixelEnvironment;
 }
 
-// ============================================================
-// 配置快照管理
-// ============================================================
-
-/**
- * 在更新配置前保存快照
- */
 export async function saveConfigSnapshot(
   shopId: string,
   platform: string
@@ -82,10 +63,10 @@ export async function saveConfigSnapshot(
       },
     });
 
-    logger.info("Config snapshot saved", { 
-      shopId, 
-      platform, 
-      version: config.configVersion + 1 
+    logger.info("Config snapshot saved", {
+      shopId,
+      platform,
+      version: config.configVersion + 1
     });
     return true;
   } catch (error) {
@@ -94,9 +75,6 @@ export async function saveConfigSnapshot(
   }
 }
 
-/**
- * 回滚到上一个版本
- */
 export async function rollbackConfig(
   shopId: string,
   platform: string
@@ -123,7 +101,6 @@ export async function rollbackConfig(
     const snapshot = config.previousConfig as PixelConfigSnapshot;
     const previousVersion = config.configVersion;
 
-    // 执行回滚
     await prisma.pixelConfig.update({
       where: { id: config.id },
       data: {
@@ -134,14 +111,13 @@ export async function rollbackConfig(
         clientConfig: snapshot.clientConfig as object,
         environment: snapshot.environment,
         credentialsEncrypted: snapshot.credentialsEncrypted,
-        // 回滚后清除快照，防止连续回滚
+
         previousConfig: null,
         rollbackAllowed: false,
         configVersion: { increment: 1 },
       },
     });
 
-    // 记录审计日志
     await createAuditLogEntry(shopId, {
       actorType: "user",
       action: "pixel_config_updated",
@@ -155,9 +131,9 @@ export async function rollbackConfig(
       },
     });
 
-    logger.info("Config rolled back", { 
-      shopId, 
-      platform, 
+    logger.info("Config rolled back", {
+      shopId,
+      platform,
       fromVersion: previousVersion,
       toVersion: config.configVersion + 1,
     });
@@ -177,13 +153,6 @@ export async function rollbackConfig(
   }
 }
 
-// ============================================================
-// 环境切换
-// ============================================================
-
-/**
- * 切换环境 (Test/Live)
- */
 export async function switchEnvironment(
   shopId: string,
   platform: string,
@@ -212,10 +181,8 @@ export async function switchEnvironment(
       };
     }
 
-    // 切换前保存快照
     await saveConfigSnapshot(shopId, platform);
 
-    // 执行切换
     await prisma.pixelConfig.update({
       where: { id: config.id },
       data: {
@@ -223,7 +190,6 @@ export async function switchEnvironment(
       },
     });
 
-    // 记录审计日志
     await createAuditLogEntry(shopId, {
       actorType: "user",
       action: "pixel_config_updated",
@@ -237,11 +203,11 @@ export async function switchEnvironment(
       },
     });
 
-    logger.info("Environment switched", { 
-      shopId, 
-      platform, 
-      from: previousEnvironment, 
-      to: newEnvironment 
+    logger.info("Environment switched", {
+      shopId,
+      platform,
+      from: previousEnvironment,
+      to: newEnvironment
     });
 
     return {
@@ -259,9 +225,6 @@ export async function switchEnvironment(
   }
 }
 
-/**
- * 获取配置的版本历史信息
- */
 export async function getConfigVersionInfo(
   shopId: string,
   platform: string
@@ -292,9 +255,6 @@ export async function getConfigVersionInfo(
   };
 }
 
-/**
- * 批量获取所有平台的版本信息
- */
 export async function getAllConfigVersions(
   shopId: string
 ): Promise<Array<{
@@ -323,5 +283,137 @@ export async function getAllConfigVersions(
     environment: c.environment as PixelEnvironment,
     isActive: c.isActive,
   }));
+}
+
+export async function getConfigComparison(
+  shopId: string,
+  platform: string
+): Promise<{
+  current: PixelConfigSnapshot & { version: number; updatedAt: Date };
+  previous: PixelConfigSnapshot | null;
+  differences: Array<{
+    field: string;
+    current: unknown;
+    previous: unknown;
+    changed: boolean;
+  }>;
+} | null> {
+  const config = await prisma.pixelConfig.findUnique({
+    where: { shopId_platform: { shopId, platform } },
+    select: {
+      platformId: true,
+      clientSideEnabled: true,
+      serverSideEnabled: true,
+      eventMappings: true,
+      clientConfig: true,
+      environment: true,
+      credentialsEncrypted: true,
+      previousConfig: true,
+      configVersion: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!config) return null;
+
+  const current: PixelConfigSnapshot & { version: number; updatedAt: Date } = {
+    platformId: config.platformId,
+    clientSideEnabled: config.clientSideEnabled,
+    serverSideEnabled: config.serverSideEnabled,
+    eventMappings: config.eventMappings as Record<string, unknown> | null,
+    clientConfig: config.clientConfig as Record<string, unknown> | null,
+    environment: config.environment as PixelEnvironment,
+    credentialsEncrypted: config.credentialsEncrypted,
+    version: config.configVersion,
+    updatedAt: config.updatedAt,
+  };
+
+  const previous = config.previousConfig as PixelConfigSnapshot | null;
+
+  const differences: Array<{
+    field: string;
+    current: unknown;
+    previous: unknown;
+    changed: boolean;
+  }> = [];
+
+  if (previous) {
+    const fields: Array<keyof PixelConfigSnapshot> = [
+      "platformId",
+      "clientSideEnabled",
+      "serverSideEnabled",
+      "eventMappings",
+      "clientConfig",
+      "environment",
+    ];
+
+    for (const field of fields) {
+      const currentValue = current[field];
+      const previousValue = previous[field];
+      const changed = JSON.stringify(currentValue) !== JSON.stringify(previousValue);
+
+      differences.push({
+        field,
+        current: currentValue,
+        previous: previousValue,
+        changed,
+      });
+    }
+
+    differences.push({
+      field: "credentialsEncrypted",
+      current: current.credentialsEncrypted ? "***已设置***" : null,
+      previous: previous.credentialsEncrypted ? "***已设置***" : null,
+      changed: !!current.credentialsEncrypted !== !!previous.credentialsEncrypted,
+    });
+  }
+
+  return {
+    current,
+    previous,
+    differences,
+  };
+}
+
+export async function getConfigVersionHistory(
+  shopId: string,
+  platform: string,
+  limit: number = 10
+): Promise<Array<{
+  version: number;
+  timestamp: Date;
+  operation: string;
+  changes: Record<string, unknown>;
+}>> {
+  const auditLogs = await prisma.auditLog.findMany({
+    where: {
+      shopId,
+      resourceType: "pixel_config",
+      action: {
+        in: ["pixel_config_updated", "pixel_config_changed"],
+      },
+      metadata: {
+        path: ["platform"],
+        equals: platform,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      createdAt: true,
+      metadata: true,
+      action: true,
+    },
+  });
+
+  return auditLogs.map((log, index) => {
+    const metadata = log.metadata as Record<string, unknown>;
+    return {
+      version: (metadata.newVersion as number) || (metadata.currentVersion as number) || (limit - index),
+      timestamp: log.createdAt,
+      operation: metadata.operation as string || log.action,
+      changes: metadata as Record<string, unknown>,
+    };
+  });
 }
 

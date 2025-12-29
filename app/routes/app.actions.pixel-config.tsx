@@ -1,14 +1,11 @@
-/**
- * 像素配置操作 API
- * 处理回滚、环境切换等操作
- */
+
 
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { 
-  rollbackConfig, 
+import {
+  rollbackConfig,
   switchEnvironment,
   type PixelEnvironment,
 } from "../services/pixel-rollback.server";
@@ -50,9 +47,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "switch_environment": {
         const newEnvironment = formData.get("environment") as PixelEnvironment;
         if (!newEnvironment || !["test", "live"].includes(newEnvironment)) {
-          return json({ 
-            success: false, 
-            error: "无效的环境参数" 
+          return json({
+            success: false,
+            error: "无效的环境参数"
           }, { status: 400 });
         }
 
@@ -70,9 +67,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   } catch (error) {
     logger.error("Pixel config action error", { actionType, platform, error });
-    return json({ 
-      success: false, 
-      error: "操作失败，请稍后重试" 
+    return json({
+      success: false,
+      error: "操作失败，请稍后重试"
     }, { status: 500 });
   }
 };

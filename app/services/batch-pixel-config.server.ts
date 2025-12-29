@@ -1,17 +1,8 @@
-/**
- * 批量像素配置服务
- * 对应设计方案 4.7 Agency：批量应用像素模板
- *
- * 允许 Agency 用户创建像素配置模板，并批量应用到多个店铺
- */
+
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { canManageMultipleShops, getShopGroupDetails } from "./multi-shop.server";
-
-// ============================================================
-// 类型定义
-// ============================================================
 
 export interface PlatformConfig {
   platform: "google" | "meta" | "tiktok" | "pinterest" | "snapchat" | "twitter";
@@ -43,7 +34,7 @@ export interface BatchApplyOptions {
   groupId: string;
   requesterId: string;
   templateId: string;
-  targetShopIds?: string[]; // 如果不指定，则应用到分组内所有店铺
+  targetShopIds?: string[];
   overwriteExisting?: boolean;
 }
 
@@ -63,25 +54,17 @@ export interface BatchApplyResult {
   }>;
 }
 
-// ============================================================
-// 模板管理
-// ============================================================
-
-/**
- * 创建像素配置模板
- */
 export async function createPixelTemplate(
   ownerId: string,
   input: CreateTemplateInput
 ): Promise<PixelTemplate | null> {
-  // 权限检查
+
   const canManage = await canManageMultipleShops(ownerId);
   if (!canManage) {
     logger.warn(`Shop ${ownerId} cannot create pixel templates (plan limitation)`);
     return null;
   }
 
-  // 验证平台配置
   const validPlatforms = ["google", "meta", "tiktok", "pinterest", "snapchat", "twitter"];
   const invalidPlatforms = input.platforms.filter(
     (p) => !validPlatforms.includes(p.platform)
@@ -121,9 +104,6 @@ export async function createPixelTemplate(
   }
 }
 
-/**
- * 获取用户的像素模板列表
- */
 export async function listPixelTemplates(ownerId: string): Promise<PixelTemplate[]> {
   const templates = await prisma.pixelTemplate.findMany({
     where: {
@@ -148,9 +128,6 @@ export async function listPixelTemplates(ownerId: string): Promise<PixelTemplate
   }));
 }
 
-/**
- * 获取单个模板详情
- */
 export async function getPixelTemplate(
   templateId: string,
   requesterId: string
@@ -161,7 +138,6 @@ export async function getPixelTemplate(
 
   if (!template) return null;
 
-  // 权限检查：必须是所有者或模板是公开的
   if (template.ownerId !== requesterId && !template.isPublic) {
     return null;
   }
@@ -179,9 +155,6 @@ export async function getPixelTemplate(
   };
 }
 
-/**
- * 更新像素模板
- */
 export async function updatePixelTemplate(
   templateId: string,
   ownerId: string,
@@ -223,9 +196,6 @@ export async function updatePixelTemplate(
   }
 }
 
-/**
- * 删除像素模板
- */
 export async function deletePixelTemplate(
   templateId: string,
   ownerId: string
@@ -250,37 +220,26 @@ export async function deletePixelTemplate(
   }
 }
 
-// ============================================================
-// 批量应用
-// ============================================================
-
-/**
- * 批量应用像素模板到多个店铺
- */
 export async function batchApplyTemplate(
   options: BatchApplyOptions
 ): Promise<BatchApplyResult | { error: string }> {
   const { groupId, requesterId, templateId, targetShopIds, overwriteExisting = false } = options;
 
-  // 1. 权限检查
   const canManage = await canManageMultipleShops(requesterId);
   if (!canManage) {
     return { error: "当前套餐不支持批量操作，请升级到 Agency 版" };
   }
 
-  // 2. 获取模板
   const template = await getPixelTemplate(templateId, requesterId);
   if (!template) {
     return { error: "模板不存在或无权访问" };
   }
 
-  // 3. 获取分组详情
   const groupDetails = await getShopGroupDetails(groupId, requesterId);
   if (!groupDetails) {
     return { error: "分组不存在或无权访问" };
   }
 
-  // 4. 确定目标店铺
   let targetShops = groupDetails.members;
   if (targetShopIds && targetShopIds.length > 0) {
     const targetSet = new Set(targetShopIds);
@@ -291,7 +250,6 @@ export async function batchApplyTemplate(
     return { error: "没有可应用的目标店铺" };
   }
 
-  // 5. 应用模板
   const details: BatchApplyResult["details"] = [];
   let successCount = 0;
   let failedCount = 0;
@@ -299,7 +257,7 @@ export async function batchApplyTemplate(
 
   for (const member of targetShops) {
     try {
-      // 检查是否有权限编辑该店铺
+
       if (member.shopId !== requesterId && !member.canEditSettings) {
         details.push({
           shopId: member.shopId,
@@ -311,23 +269,20 @@ export async function batchApplyTemplate(
         continue;
       }
 
-      // 获取现有配置
       const existingConfigs = await prisma.pixelConfig.findMany({
         where: { shopId: member.shopId, isActive: true },
         select: { platform: true },
       });
       const existingPlatforms = new Set(existingConfigs.map((c) => c.platform));
 
-      // 应用模板中的每个平台配置
       const appliedPlatforms: string[] = [];
 
       for (const platformConfig of template.platforms) {
-        // 如果已存在且不覆盖，跳过
+
         if (existingPlatforms.has(platformConfig.platform) && !overwriteExisting) {
           continue;
         }
 
-        // 创建或更新配置
         await prisma.pixelConfig.upsert({
           where: {
             shopId_platform: {
@@ -383,7 +338,6 @@ export async function batchApplyTemplate(
     }
   }
 
-  // 6. 更新模板使用次数
   await prisma.pixelTemplate.update({
     where: { id: templateId },
     data: { usageCount: { increment: successCount } },
@@ -407,13 +361,6 @@ export async function batchApplyTemplate(
   };
 }
 
-// ============================================================
-// 预设模板
-// ============================================================
-
-/**
- * 获取系统预设模板
- */
 export function getPresetTemplates(): Array<Omit<PixelTemplate, "id" | "ownerId" | "createdAt" | "updatedAt">> {
   return [
     {

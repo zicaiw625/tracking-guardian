@@ -1,8 +1,4 @@
-/**
- * Twitter/X Conversions API Service
- * 
- * Twitter CAPI 文档: https://developer.twitter.com/en/docs/twitter-ads-api/measurement/api-reference/conversions
- */
+
 
 import type {
   ConversionData,
@@ -26,16 +22,14 @@ import {
   hashUserData,
 } from "./base-platform.service";
 
-const TWITTER_API_BASE_URL = "https://ads-api.twitter.com/12/measurement/conversions";
+const TWITTER_API_BASE_URL = "https:
 
-// Twitter/X 凭证类型
 export interface TwitterCredentials {
-  pixelId: string;        // Twitter Pixel ID
-  accessToken: string;    // OAuth 2.0 Bearer Token
-  testMode?: boolean;     // 是否为测试模式
+  pixelId: string;
+  accessToken: string;
+  testMode?: boolean;
 }
 
-// Twitter 事件类型映射
 const TWITTER_EVENT_TYPES = {
   purchase: "Purchase",
   add_to_cart: "AddToCart",
@@ -160,8 +154,7 @@ export class TwitterPlatformService implements IPlatformService {
     eventId: string
   ): Promise<Record<string, unknown>> {
     const eventTime = new Date().toISOString();
-    
-    // 构建哈希用户数据
+
     const hashedEmail = data.email ? await hashUserData(data.email.toLowerCase().trim()) : undefined;
     const hashedPhone = data.phone ? await hashUserData(data.phone.replace(/\D/g, '')) : undefined;
 
@@ -193,7 +186,6 @@ export class TwitterPlatformService implements IPlatformService {
   ): Promise<ConversionApiResponse> {
     const eventTime = new Date().toISOString();
 
-    // 构建哈希用户数据
     const hashedEmail = data.email ? await hashUserData(data.email.toLowerCase().trim()) : undefined;
     const hashedPhone = data.phone ? await hashUserData(data.phone.replace(/\D/g, '')) : undefined;
 
@@ -245,12 +237,11 @@ export class TwitterPlatformService implements IPlatformService {
       const errorData = await response.json().catch(() => ({}));
       let platformError: PlatformError;
 
-      // Twitter 特定错误处理
       if (errorData.errors && Array.isArray(errorData.errors)) {
         const twitterErrors = errorData.errors.map((e: { message?: string }) => e.message).join("; ");
         platformError = {
-          type: response.status === 401 ? "auth_error" : 
-                response.status === 429 ? "rate_limited" : 
+          type: response.status === 401 ? "auth_error" :
+                response.status === 429 ? "rate_limited" :
                 response.status >= 500 ? "server_error" : "validation_error",
           message: twitterErrors || `HTTP ${response.status}`,
           statusCode: response.status,

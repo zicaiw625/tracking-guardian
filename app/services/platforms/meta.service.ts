@@ -27,7 +27,7 @@ import {
 } from "./base-platform.service";
 
 const META_API_VERSION = "v21.0";
-const META_API_BASE_URL = "https://graph.facebook.com";
+const META_API_BASE_URL = "https:
 const PIXEL_ID_PATTERN = /^\d{15,16}$/;
 
 export class MetaPlatformService implements IPlatformService {

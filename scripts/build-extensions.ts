@@ -26,7 +26,7 @@ function injectBackendUrl(): void {
         if (isCI) {
             console.error("❌ SHOPIFY_APP_URL is required in CI/CD environment!");
             console.error("   Please set SHOPIFY_APP_URL environment variable to your app's URL.");
-            console.error("   Example: SHOPIFY_APP_URL=https://your-app.onrender.com");
+            console.error("   Example: SHOPIFY_APP_URL=https:
             process.exit(1);
         }
         console.log("⚠️  SHOPIFY_APP_URL not set, using default production URL");
@@ -43,7 +43,7 @@ function injectBackendUrl(): void {
     }
     catch {
         console.error(`❌ Invalid SHOPIFY_APP_URL: ${backendUrl}`);
-        console.error("   Please provide a valid URL (e.g., https://your-app.onrender.com)");
+        console.error("   Please provide a valid URL (e.g., https:
         process.exit(1);
     }
 
@@ -91,7 +91,7 @@ Environment Variables:
   SHOPIFY_APP_URL  - The backend URL to inject (required for inject command)
 
 Example:
-  SHOPIFY_APP_URL=https://your-app.example.com npm run ext:inject
+  SHOPIFY_APP_URL=https:
   npm run deploy  # Shopify CLI builds extensions
   npm run ext:restore
 `);

@@ -65,7 +65,7 @@ describe("Web Pixel E2E Flow", () => {
         saleOfData: true,
       },
       data: {
-        orderId: "gid://shopify/Order/12345",
+        orderId: "gid:
         checkoutToken: "abc123-checkout-token",
         value: 149.99,
         currency: "USD",
@@ -99,7 +99,7 @@ describe("Web Pixel E2E Flow", () => {
     });
 
     it("should accept valid pixel event from myshopify.com origin", () => {
-      const result = validatePixelOriginPreBody("https://test-store.myshopify.com");
+      const result = validatePixelOriginPreBody("https:
       expect(result.valid).toBe(true);
       expect(result.reason).toBe("https_origin");
     });
@@ -112,19 +112,19 @@ describe("Web Pixel E2E Flow", () => {
       });
 
       const primaryResult = validatePixelOriginForShop(
-        "https://www.teststore.com",
+        "https:
         allowedDomains
       );
       expect(primaryResult.valid).toBe(true);
 
       const subdomainResult = validatePixelOriginForShop(
-        "https://shop.teststore.com",
+        "https:
         allowedDomains
       );
       expect(subdomainResult.valid).toBe(true);
 
       const externalResult = validatePixelOriginForShop(
-        "https://malicious-site.com",
+        "https:
         allowedDomains
       );
       expect(externalResult.valid).toBe(false);
@@ -234,14 +234,14 @@ describe("Web Pixel E2E Flow", () => {
   });
 
   describe("Security: Origin validation edge cases", () => {
-    it("should reject file:// protocol", () => {
-      const result = validatePixelOriginPreBody("file:///etc/passwd");
+    it("should reject file:
+      const result = validatePixelOriginPreBody("file:
       expect(result.valid).toBe(false);
       expect(result.reason).toBe("file_protocol_blocked");
     });
 
-    it("should reject chrome-extension:// protocol", () => {
-      const result = validatePixelOriginPreBody("chrome-extension://abc123");
+    it("should reject chrome-extension:
+      const result = validatePixelOriginPreBody("chrome-extension:
       expect(result.valid).toBe(false);
       expect(result.reason).toBe("chrome_extension_blocked");
     });
@@ -253,7 +253,7 @@ describe("Web Pixel E2E Flow", () => {
     });
 
     it("should reject HTTP in production (non-localhost)", () => {
-      const result = validatePixelOriginPreBody("http://example.com");
+      const result = validatePixelOriginPreBody("http:
       expect(result.valid).toBe(false);
       expect(result.reason).toBe("http_not_allowed");
     });

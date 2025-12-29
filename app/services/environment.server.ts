@@ -1,7 +1,4 @@
-/**
- * 环境切换服务 - Environment Service
- * 对应设计方案 4.3 像素迁移中心 - Test/Live 环境切换
- */
+
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -25,9 +22,6 @@ export interface EnvironmentSwitchResult {
   error?: string;
 }
 
-/**
- * 获取平台的当前环境配置
- */
 export async function getEnvironmentConfig(
   shopId: string,
   platform: string
@@ -54,9 +48,6 @@ export async function getEnvironmentConfig(
   };
 }
 
-/**
- * 切换平台环境 (Test <-> Live)
- */
 export async function switchEnvironment(
   shopId: string,
   platform: string,
@@ -86,7 +77,6 @@ export async function switchEnvironment(
 
   const previousEnvironment = config.environment as PixelEnvironment;
 
-  // 如果环境相同，无需切换
   if (previousEnvironment === targetEnvironment) {
     return {
       success: true,
@@ -97,24 +87,56 @@ export async function switchEnvironment(
     };
   }
 
-  // Bug #6 修复: 环境切换安全检查
-  // 如果切换到test环境，记录警告日志
-  // 如果切换到live环境，验证配置完整性
   if (targetEnvironment === "live") {
-    // 切换到生产环境前，验证必要配置
-    if (!config.credentialsEncrypted && config.serverSideEnabled) {
+    const validationErrors: string[] = [];
+
+    if (config.serverSideEnabled) {
+      if (!config.credentialsEncrypted || config.credentialsEncrypted.trim().length === 0) {
+        validationErrors.push("切换到生产环境需要配置服务端凭证");
+      }
+    }
+
+    if (config.clientConfig) {
+      const clientConfig = config.clientConfig as Record<string, unknown>;
+      if (platform === "google" && !clientConfig.measurementId) {
+        validationErrors.push("Google Analytics 需要配置 Measurement ID");
+      }
+      if (platform === "meta" && !clientConfig.pixelId) {
+        validationErrors.push("Meta Pixel 需要配置 Pixel ID");
+      }
+      if (platform === "tiktok" && !clientConfig.pixelId) {
+        validationErrors.push("TikTok Pixel 需要配置 Pixel ID");
+      }
+    }
+
+    if (validationErrors.length > 0) {
       return {
         success: false,
         previousEnvironment,
         newEnvironment: targetEnvironment,
         configVersion: config.configVersion,
         rollbackAllowed: false,
-        error: "切换到生产环境需要配置服务端凭证",
+        error: validationErrors.join("；"),
       };
     }
+
+    logger.info("Switching to live environment", {
+      shopId,
+      platform,
+      configVersion: config.configVersion,
+      hasServerSide: !!config.serverSideEnabled,
+      hasCredentials: !!config.credentialsEncrypted,
+    });
+  } else if (targetEnvironment === "test") {
+
+    logger.warn("Switching to test environment", {
+      shopId,
+      platform,
+      previousEnvironment,
+      note: "Test mode should only be used for development and testing",
+    });
   }
 
-  // 保存当前配置快照用于回滚
   const previousConfig = {
     environment: previousEnvironment,
     clientConfig: config.clientConfig,
@@ -172,9 +194,6 @@ export async function switchEnvironment(
   }
 }
 
-/**
- * 回滚到上一个环境配置
- */
 export async function rollbackEnvironment(
   shopId: string,
   platform: string
@@ -226,8 +245,8 @@ export async function rollbackEnvironment(
       data: {
         environment: previousConfig.environment,
         configVersion: config.configVersion + 1,
-        previousConfig: null, // 清除回滚数据
-        rollbackAllowed: false, // 不允许连续回滚
+        previousConfig: null,
+        rollbackAllowed: false,
         updatedAt: new Date(),
       },
       select: {
@@ -270,9 +289,6 @@ export async function rollbackEnvironment(
   }
 }
 
-/**
- * 获取所有平台的环境配置
- */
 export async function getAllEnvironmentConfigs(
   shopId: string
 ): Promise<EnvironmentConfig[]> {
@@ -296,9 +312,6 @@ export async function getAllEnvironmentConfigs(
   }));
 }
 
-/**
- * 批量切换所有平台环境
- */
 export async function switchAllEnvironments(
   shopId: string,
   targetEnvironment: PixelEnvironment
@@ -325,38 +338,32 @@ export async function switchAllEnvironments(
   return { success: allSuccess, results };
 }
 
-/**
- * 检查是否处于测试模式
- */
 export async function isTestMode(shopId: string, platform: string): Promise<boolean> {
   const config = await getEnvironmentConfig(shopId, platform);
   return config?.environment === "test";
 }
 
-/**
- * 获取平台的 API 端点（根据环境返回不同端点）
- */
 export function getPlatformEndpoint(
   platform: string,
   environment: PixelEnvironment
 ): { baseUrl: string; testMode: boolean } {
-  // 各平台的测试/生产端点配置
+
   const endpoints: Record<string, { test: string; live: string }> = {
     meta: {
-      test: "https://graph.facebook.com/v21.0",
-      live: "https://graph.facebook.com/v21.0",
+      test: "https:
+      live: "https:
     },
     google: {
-      test: "https://www.google-analytics.com/debug/mp/collect",
-      live: "https://www.google-analytics.com/mp/collect",
+      test: "https:
+      live: "https:
     },
     tiktok: {
-      test: "https://business-api.tiktok.com/open_api/v1.3/event/track",
-      live: "https://business-api.tiktok.com/open_api/v1.3/event/track",
+      test: "https:
+      live: "https:
     },
     pinterest: {
-      test: "https://api.pinterest.com/v5",
-      live: "https://api.pinterest.com/v5",
+      test: "https:
+      live: "https:
     },
   };
 

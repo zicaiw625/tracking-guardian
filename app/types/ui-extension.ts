@@ -1,15 +1,8 @@
-/**
- * UI Extension 类型定义和常量
- * 这些定义可以在客户端和服务端共享使用
- */
+
 
 import type { PlanId } from "../services/billing/plans";
 
-// ============================================================
-// 类型定义
-// ============================================================
-
-export type ModuleKey = 
+export type ModuleKey =
   | "order_tracking"
   | "survey"
   | "reorder"
@@ -73,7 +66,7 @@ export interface UpsellSettings {
   discountPercent?: number;
 }
 
-export type ModuleSettings = 
+export type ModuleSettings =
   | OrderTrackingSettings
   | SurveySettings
   | ReorderSettings
@@ -107,10 +100,6 @@ export interface UiModuleConfig {
   displayRules: DisplayRules;
   localization?: LocalizationSettings;
 }
-
-// ============================================================
-// 模块元数据
-// ============================================================
 
 export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
   survey: {

@@ -22,7 +22,7 @@ describe("Health Check Endpoint", () => {
 
             const { loader } = await import("../../app/routes/api.health");
 
-            const request = new Request("http://localhost/api/health");
+            const request = new Request("http:
             const response = await loader({ request, params: {}, context: {} });
             const data = await response.json();
 
@@ -38,7 +38,7 @@ describe("Health Check Endpoint", () => {
 
             const { loader } = await import("../../app/routes/api.health");
 
-            const request = new Request("http://localhost/api/health");
+            const request = new Request("http:
             const response = await loader({ request, params: {}, context: {} });
             const data = await response.json();
 
@@ -57,7 +57,7 @@ describe("Health Check Endpoint", () => {
 
             const { loader } = await import("../../app/routes/api.health");
 
-            const request = new Request("http://localhost/api/health?detailed=true", {
+            const request = new Request("http:
                 headers: {
                     "Authorization": "Bearer test-secret",
                 },
@@ -80,7 +80,7 @@ describe("Health Check Endpoint", () => {
 
             const { loader } = await import("../../app/routes/api.health");
 
-            const request = new Request("http://localhost/api/health?detailed=true");
+            const request = new Request("http:
             const response = await loader({ request, params: {}, context: {} });
             const data = await response.json();
 
@@ -102,7 +102,7 @@ describe("Readiness Check Endpoint", () => {
 
         const { loader } = await import("../../app/routes/api.ready");
 
-        const request = new Request("http://localhost/api/ready");
+        const request = new Request("http:
         const response = await loader({ request, params: {}, context: {} });
         const data = await response.json();
 
@@ -116,7 +116,7 @@ describe("Readiness Check Endpoint", () => {
 
         const { loader } = await import("../../app/routes/api.ready");
 
-        const request = new Request("http://localhost/api/ready");
+        const request = new Request("http:
         const response = await loader({ request, params: {}, context: {} });
         const data = await response.json();
 

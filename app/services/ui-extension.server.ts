@@ -1,15 +1,9 @@
-/**
- * UI Extension 设置服务
- * 对应设计方案 4.4 Thank you / Order status UI 模块库
- * 
- * 管理 UiExtensionSetting 模型的 CRUD 操作
- */
+
 
 import prisma from "../db.server";
 import { getPlanOrDefault, type PlanId } from "./billing/plans";
 import { logger } from "../utils/logger.server";
 
-// Re-export types and constants from shared module
 export {
   type ModuleKey,
   type ModuleInfo,
@@ -41,10 +35,6 @@ import {
   MODULE_KEYS,
 } from "../types/ui-extension";
 
-// ============================================================
-// 默认设置
-// ============================================================
-
 export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
   switch (moduleKey) {
     case "survey":
@@ -61,7 +51,7 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
         showRating: true,
         ratingLabel: "请为本次购物体验打分",
       } as SurveySettings;
-    
+
     case "helpdesk":
       return {
         title: "订单帮助与售后",
@@ -69,14 +59,14 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
         faqUrl: "/pages/faq",
         continueShoppingUrl: "/",
       } as HelpdeskSettings;
-    
+
     case "order_tracking":
       return {
         provider: "native",
         title: "物流追踪",
         showEstimatedDelivery: true,
       } as OrderTrackingSettings;
-    
+
     case "reorder":
       return {
         title: "📦 再次购买",
@@ -85,7 +75,7 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
         showItems: true,
         maxItemsToShow: 3,
       } as ReorderSettings;
-    
+
     case "upsell":
       return {
         title: "🎁 为您推荐",
@@ -93,7 +83,7 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
         products: [],
         discountPercent: 10,
       } as UpsellSettings;
-    
+
     default:
       return {};
   }
@@ -106,13 +96,6 @@ export function getDefaultDisplayRules(moduleKey: ModuleKey): DisplayRules {
   };
 }
 
-// ============================================================
-// 权限检查
-// ============================================================
-
-/**
- * 检查店铺套餐是否支持该模块
- */
 export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promise<{
   allowed: boolean;
   requiredPlan: PlanId;
@@ -138,7 +121,6 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
   const moduleInfo = UI_MODULES[moduleKey];
   const requiredPlanConfig = getPlanOrDefault(moduleInfo.requiredPlan);
 
-  // 检查套餐等级
   const planOrder: PlanId[] = ["free", "starter", "growth", "agency"];
   const currentIndex = planOrder.indexOf(currentPlan);
   const requiredIndex = planOrder.indexOf(moduleInfo.requiredPlan);
@@ -152,7 +134,6 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
     };
   }
 
-  // 检查模块数量限制
   if (planConfig.uiModules !== -1) {
     const enabledCount = await prisma.uiExtensionSetting.count({
       where: {
@@ -178,22 +159,14 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
   };
 }
 
-// ============================================================
-// CRUD 操作
-// ============================================================
-
-/**
- * 获取店铺的所有 UI 模块配置
- */
 export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig[]> {
   const settings = await prisma.uiExtensionSetting.findMany({
     where: { shopId },
   });
 
-  // 为每个模块生成配置，包括未配置的模块
   return MODULE_KEYS.map((moduleKey) => {
     const existing = settings.find((s) => s.moduleKey === moduleKey);
-    
+
     if (existing) {
       return {
         moduleKey,
@@ -213,9 +186,6 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
   });
 }
 
-/**
- * 获取单个模块配置
- */
 export async function getUiModuleConfig(
   shopId: string,
   moduleKey: ModuleKey
@@ -244,16 +214,13 @@ export async function getUiModuleConfig(
   };
 }
 
-/**
- * 更新模块配置
- */
 export async function updateUiModuleConfig(
   shopId: string,
   moduleKey: ModuleKey,
   config: Partial<UiModuleConfig>
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 如果要启用模块，先检查权限
+
     if (config.isEnabled) {
       const canUse = await canUseModule(shopId, moduleKey);
       if (!canUse.allowed) {
@@ -265,7 +232,7 @@ export async function updateUiModuleConfig(
     }
 
     const data: Parameters<typeof prisma.uiExtensionSetting.upsert>[0]["update"] = {};
-    
+
     if (config.isEnabled !== undefined) {
       data.isEnabled = config.isEnabled;
     }
@@ -306,9 +273,6 @@ export async function updateUiModuleConfig(
   }
 }
 
-/**
- * 批量更新模块启用状态
- */
 export async function batchToggleModules(
   shopId: string,
   updates: Array<{ moduleKey: ModuleKey; isEnabled: boolean }>
@@ -331,9 +295,6 @@ export async function batchToggleModules(
   };
 }
 
-/**
- * 重置模块为默认设置
- */
 export async function resetModuleToDefault(
   shopId: string,
   moduleKey: ModuleKey
@@ -366,9 +327,6 @@ export async function resetModuleToDefault(
   }
 }
 
-/**
- * 获取已启用的模块数量
- */
 export async function getEnabledModulesCount(shopId: string): Promise<number> {
   return prisma.uiExtensionSetting.count({
     where: {
@@ -378,9 +336,6 @@ export async function getEnabledModulesCount(shopId: string): Promise<number> {
   });
 }
 
-/**
- * 获取模块使用统计
- */
 export async function getModuleStats(shopId: string): Promise<{
   total: number;
   enabled: number;

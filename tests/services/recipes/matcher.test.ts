@@ -35,7 +35,7 @@ describe("Recipe Matcher", () => {
       it("should have high confidence for gtag with keywords", () => {
         const content = `
           gtag('config', 'G-XXXXXXXX');
-          // google-analytics integration
+
         `;
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
@@ -51,7 +51,7 @@ describe("Recipe Matcher", () => {
         expect(metaMatch).toBeDefined();
       });
       it("should match Facebook SDK URL with keywords", () => {
-        const content = "https://connect.facebook.net/en_US/fbevents.js fbq facebook-pixel";
+        const content = "https:
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
         const metaMatch = matches.find(m => m.recipe.id === "meta-capi");
@@ -73,7 +73,7 @@ describe("Recipe Matcher", () => {
         expect(matches[0].recipe.id).toBe("tiktok-events");
       });
       it("should match TikTok analytics domain", () => {
-        const content = "https://analytics.tiktok.com/i18n/pixel/events.js";
+        const content = "https:
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
         const tiktokMatch = matches.find(m => m.recipe.id === "tiktok-events");
@@ -179,12 +179,12 @@ describe("Recipe Matcher", () => {
       const scriptTags: ScriptTag[] = [
         {
           id: "1",
-          src: "https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXX",
+          src: "https:
           display_scope: "all",
         },
         {
           id: "2",
-          src: "https://connect.facebook.net/en_US/fbevents.js",
+          src: "https:
           display_scope: "all",
         },
       ];
@@ -195,7 +195,7 @@ describe("Recipe Matcher", () => {
       const scriptTags: ScriptTag[] = [
         {
           id: "1",
-          src: "https://custom-domain.com/unknown-script.js",
+          src: "https:
           display_scope: "all",
         },
       ];

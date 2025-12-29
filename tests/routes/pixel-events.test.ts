@@ -48,28 +48,28 @@ describe("Pixel Events API - Origin Validation", () => {
     });
 
     it("accepts *.myshopify.com origins", () => {
-      expect(isValidShopifyOrigin("https://my-store.myshopify.com")).toBe(true);
-      expect(isValidShopifyOrigin("https://test-shop-123.myshopify.com")).toBe(true);
+      expect(isValidShopifyOrigin("https:
+      expect(isValidShopifyOrigin("https:
     });
 
     it("rejects invalid domains", () => {
-      expect(isValidShopifyOrigin("https://malicious-site.com")).toBe(false);
-      expect(isValidShopifyOrigin("https://fakeshopify.com")).toBe(false);
-      expect(isValidShopifyOrigin("https://myshopify.com.evil.com")).toBe(false);
+      expect(isValidShopifyOrigin("https:
+      expect(isValidShopifyOrigin("https:
+      expect(isValidShopifyOrigin("https:
     });
 
     it("rejects non-HTTPS origins", () => {
-      expect(isValidShopifyOrigin("http://my-store.myshopify.com")).toBe(false);
+      expect(isValidShopifyOrigin("http:
     });
 
     it("accepts checkout domains", () => {
-      expect(isValidShopifyOrigin("https://checkout.shopify.com")).toBe(true);
+      expect(isValidShopifyOrigin("https:
     });
 
     it("rejects fake checkout domains (security fix)", () => {
-      expect(isValidShopifyOrigin("https://checkout.evil.com")).toBe(false);
-      expect(isValidShopifyOrigin("https://checkout.anything.com")).toBe(false);
-      expect(isValidShopifyOrigin("https://checkout.fake-shopify.com")).toBe(false);
+      expect(isValidShopifyOrigin("https:
+      expect(isValidShopifyOrigin("https:
+      expect(isValidShopifyOrigin("https:
     });
   });
 
@@ -82,13 +82,13 @@ describe("Pixel Events API - Origin Validation", () => {
     });
 
     it("accepts localhost origins", () => {
-      expect(isValidDevOrigin("http://localhost:3000")).toBe(true);
-      expect(isValidDevOrigin("https://localhost:8080")).toBe(true);
-      expect(isValidDevOrigin("http://localhost")).toBe(true);
+      expect(isValidDevOrigin("http:
+      expect(isValidDevOrigin("https:
+      expect(isValidDevOrigin("http:
     });
 
     it("accepts 127.0.0.1 origins", () => {
-      expect(isValidDevOrigin("http://127.0.0.1:3000")).toBe(true);
+      expect(isValidDevOrigin("http:
     });
 
     it("rejects null", () => {
@@ -213,7 +213,7 @@ describe("Pixel Events API - Request Validation", () => {
       shopDomain: "test-store.myshopify.com",
       timestamp: Date.now(),
       data: {
-        orderId: "gid://shopify/Order/12345",
+        orderId: "gid:
         value: 99.99,
         currency: "USD",
       },

@@ -1,9 +1,4 @@
-/**
- * Reorder Block - Order Status Page (Customer Account)
- * 对应设计方案 4.4 再购按钮（Reorder）
- * 
- * 功能：生成"再次购买"购物车链接（基于订单 line items）
- */
+
 
 import {
   reactExtension,
@@ -26,25 +21,20 @@ function ReorderOrderStatus() {
   const settings = useSettings();
   const order = useOrder();
 
-  // 设置项
   const title = (settings.reorder_title as string) || "📦 再次购买";
   const subtitle = (settings.reorder_subtitle as string) || "喜欢这次购物？一键再次订购相同商品";
   const buttonText = (settings.reorder_button_text as string) || "再次购买 →";
-  const showItems = settings.reorder_show_items !== "false"; // 默认显示商品列表
+  const showItems = settings.reorder_show_items !== "false";
 
-  // 生成再次购买的购物车 URL
   const generateReorderUrl = (): string => {
     if (!order?.lineItems || order.lineItems.length === 0) {
       return '/cart';
     }
 
-    // 构建购物车 URL 参数
-    // 格式: /cart/variant_id:quantity,variant_id:quantity,...
     const items = order.lineItems
       .filter(item => item.quantity > 0)
       .map(item => {
-        // 从 variant ID 中提取数字部分
-        // 通常格式是 gid://shopify/ProductVariant/12345
+
         const variantId = item.variant?.id || '';
         const numericId = variantId.split('/').pop() || '';
         return `${numericId}:${item.quantity}`;
@@ -59,7 +49,6 @@ function ReorderOrderStatus() {
     return `/cart/${items}`;
   };
 
-  // 如果没有订单数据
   if (!order || !order.lineItems || order.lineItems.length === 0) {
     return null;
   }
@@ -68,7 +57,7 @@ function ReorderOrderStatus() {
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
-      {/* 标题 */}
+      {}
       <BlockStack spacing="extraTight">
         <Text size="medium" emphasis="bold">
           {title}
@@ -80,7 +69,7 @@ function ReorderOrderStatus() {
 
       <Divider />
 
-      {/* 商品列表预览 */}
+      {}
       {showItems && order.lineItems.length > 0 && (
         <BlockStack spacing="tight">
           <Text size="small" appearance="subdued">
@@ -88,11 +77,11 @@ function ReorderOrderStatus() {
           </Text>
           {order.lineItems.slice(0, 3).map((item, index) => (
             <InlineLayout key={index} columns={["auto", "fill", "auto"]} spacing="tight" blockAlignment="center">
-              {/* 商品图片（如果有） */}
+              {}
               {item.image?.url && (
                 <View maxInlineSize={40}>
-                  <Image 
-                    source={item.image.url} 
+                  <Image
+                    source={item.image.url}
                     accessibilityDescription={item.title}
                     aspectRatio={1}
                     cornerRadius="base"
@@ -122,7 +111,7 @@ function ReorderOrderStatus() {
         </BlockStack>
       )}
 
-      {/* 订单总结 */}
+      {}
       <View padding="tight" background="subdued" cornerRadius="base">
         <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
           <BlockStack spacing="none">
@@ -130,7 +119,7 @@ function ReorderOrderStatus() {
               订单金额
             </Text>
             <Text size="medium" emphasis="bold">
-              {order.totalPrice?.amount 
+              {order.totalPrice?.amount
                 ? `${order.totalPrice.currencyCode} ${order.totalPrice.amount}`
                 : '-'
               }
@@ -144,7 +133,7 @@ function ReorderOrderStatus() {
         </InlineLayout>
       </View>
 
-      {/* 提示信息 */}
+      {}
       <BlockStack spacing="extraTight">
         <InlineLayout columns={["auto", "fill"]} spacing="tight" blockAlignment="center">
           <Text size="small">💡</Text>

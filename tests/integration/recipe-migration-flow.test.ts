@@ -64,7 +64,7 @@ describe("Recipe Migration Flow Integration", () => {
     const shopDomain = "test-store.myshopify.com";
     it("should complete full GA4 migration workflow", async () => {
       const scriptContent = `
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABCDEF1234"></script>
+        <script async src="https:
         <script>
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
@@ -257,7 +257,7 @@ describe("Recipe Migration Flow Integration", () => {
           surveyQuestion: "How did you hear about us?",
         },
         "custom-webhook": {
-          endpointUrl: "https://api.example.com/webhook",
+          endpointUrl: "https:
           authType: "bearer",
           authValue: "token123",
         },

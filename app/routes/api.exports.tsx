@@ -249,7 +249,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 break;
             }
             case "scan": {
-                // PDF 格式支持
+
                 if (format === "pdf") {
                     const pdfResult = await generateScanReportPdf(shop.id);
                     if (!pdfResult) {
@@ -282,7 +282,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     take: EXPORT_LIMITS.scan,
                 });
 
-                // 使用可选链安全访问数组第一个元素
                 const latestScan = scans?.[0];
                 const migrationSummary = latestScan ? {
                     shopDomain: shop.shopDomain,
@@ -328,7 +327,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
 
             case "reconciliation": {
-                // PDF 格式支持
+
                 if (format === "pdf") {
                     const pdfResult = await generateReconciliationReportPdf(shop.id);
                     if (!pdfResult) {
@@ -343,7 +342,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     });
                 }
 
-                // JSON/CSV 格式
                 const reports = await prisma.reconciliationReport.findMany({
                     where: {
                         shopId: shop.id,
@@ -373,7 +371,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
 
             case "verification": {
-                // 验收报告需要从 URL 参数获取数据或使用最新的验证运行
+
                 const verificationRuns = await prisma.verificationRun.findMany({
                     where: { shopId: shop.id },
                     orderBy: { createdAt: "desc" },

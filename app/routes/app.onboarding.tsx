@@ -1,12 +1,4 @@
-/**
- * Flow A: 安装后自动体检向导 (Onboarding Wizard)
- * 对应设计方案 5. 关键用户流程 - Flow A
- * 
- * 功能:
- * 1) 安装 -> 授权 -> 自动体检
- * 2) 展示 Dashboard: 升级状态、风险分数、预计迁移时间
- * 3) CTA: 开始 Audit
- */
+
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
@@ -45,28 +37,81 @@ import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, g
 import type { ScriptTag, RiskItem } from "../types";
 import { logger } from "../utils/logger.server";
 
-// 预计迁移时间估算
 function estimateMigrationTime(
   scriptTagCount: number,
   platformCount: number,
-  riskScore: number
+  riskScore: number,
+  riskItems?: RiskItem[]
 ): { hours: number; label: string; description: string } {
-  const baseTime = 0.5; // 基础时间 30 分钟
-  const perScriptTag = 0.25; // 每个 ScriptTag 15 分钟
-  const perPlatform = 0.5; // 每个平台 30 分钟
-  const riskMultiplier = riskScore > 60 ? 1.5 : riskScore > 30 ? 1.2 : 1;
 
-  const totalHours = (baseTime + scriptTagCount * perScriptTag + platformCount * perPlatform) * riskMultiplier;
+  const baseTime = 0.25;
 
-  if (totalHours <= 0.5) {
-    return { hours: totalHours, label: "约 30 分钟", description: "您的配置相对简单，迁移将非常快速" };
-  } else if (totalHours <= 1) {
-    return { hours: totalHours, label: "约 1 小时", description: "标准迁移流程，按步骤操作即可" };
-  } else if (totalHours <= 2) {
-    return { hours: totalHours, label: "约 1-2 小时", description: "需要一些时间处理多个平台或复杂配置" };
-  } else {
-    return { hours: totalHours, label: "2+ 小时", description: "建议分阶段完成迁移，确保每步验证" };
+  const highRiskScriptTags = riskItems?.filter(item => item.severity === "high").length || 0;
+  const mediumRiskScriptTags = riskItems?.filter(item => item.severity === "medium").length || 0;
+  const lowRiskScriptTags = (scriptTagCount - highRiskScriptTags - mediumRiskScriptTags) || 0;
+
+  const perHighRiskScriptTag = 0.4;
+  const perMediumRiskScriptTag = 0.25;
+  const perLowRiskScriptTag = 0.15;
+
+  const scriptTagTime =
+    highRiskScriptTags * perHighRiskScriptTag +
+    mediumRiskScriptTags * perMediumRiskScriptTag +
+    lowRiskScriptTags * perLowRiskScriptTag;
+
+  const complexPlatforms = ["pinterest", "snapchat", "twitter"];
+  const simplePlatforms = ["google", "meta", "tiktok"];
+  const perComplexPlatform = 0.5;
+  const perSimplePlatform = 0.3;
+
+  const platformTime = platformCount * perSimplePlatform;
+
+  let riskMultiplier = 1.0;
+  if (riskScore > 70) {
+    riskMultiplier = 1.6;
+  } else if (riskScore > 50) {
+    riskMultiplier = 1.4;
+  } else if (riskScore > 30) {
+    riskMultiplier = 1.2;
+  } else if (riskScore > 10) {
+    riskMultiplier = 1.1;
   }
+
+  const parallelFactor = platformCount > 1 ? 0.7 : 1.0;
+
+  const sequentialTime = baseTime + scriptTagTime + platformTime;
+  const parallelTime = baseTime + scriptTagTime + (platformTime * parallelFactor);
+  const totalHours = Math.max(sequentialTime, parallelTime) * riskMultiplier;
+
+  let description = "";
+  if (totalHours <= 0.5) {
+    description = "您的配置相对简单，迁移将非常快速。建议一次性完成所有步骤。";
+  } else if (totalHours <= 1) {
+    description = "标准迁移流程，按步骤操作即可。建议预留 1 小时完成迁移和测试。";
+  } else if (totalHours <= 2) {
+    description = "需要一些时间处理多个平台或复杂配置。建议分 2-3 个阶段完成，每阶段完成后进行测试。";
+  } else {
+    description = "配置较为复杂，建议分阶段完成迁移。优先处理高风险项，确保每步验证后再继续。";
+  }
+
+  let label = "";
+  if (totalHours <= 0.5) {
+    label = "约 30 分钟";
+  } else if (totalHours <= 1) {
+    label = "约 1 小时";
+  } else if (totalHours <= 1.5) {
+    label = "约 1-1.5 小时";
+  } else if (totalHours <= 2) {
+    label = "约 1.5-2 小时";
+  } else {
+    label = "2+ 小时";
+  }
+
+  return {
+    hours: Math.round(totalHours * 100) / 100,
+    label,
+    description
+  };
 }
 
 interface OnboardingData {
@@ -109,7 +154,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const autoScan = url.searchParams.get("autoScan") === "true";
   const skipOnboarding = url.searchParams.get("skip") === "true";
 
-  // 查找或创建店铺记录
   let shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -138,15 +182,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // 如果跳过 onboarding，直接重定向到首页
   if (skipOnboarding) {
     return redirect("/app");
   }
 
-  // Bug #1 修复: 如果shop存在但没有扫描记录，自动触发扫描（异步，不阻塞页面加载）
   const latestScan = shop.scanReports?.[0];
   if (!latestScan && admin && !autoScan) {
-    // 异步触发扫描，不阻塞页面加载
+
     scanShopTracking(admin, shop.id).catch((err) => {
       logger.error("Auto-scan failed in onboarding", { shopId: shop.id, error: err });
     });
@@ -173,25 +215,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     migrationEstimate = estimateMigrationTime(
       scriptTags.length,
       platforms.length,
-      latestScan.riskScore
+      latestScan.riskScore,
+      riskItems
     );
 
-    // 计算紧急程度
     const shopTier = (shop.shopTier as ShopTier) || "unknown";
     const migrationUrgency = getMigrationUrgencyStatus(shopTier, scriptTags.length > 0, hasOrderStatusScripts);
     urgency = {
       level: migrationUrgency.urgency,
-      label: migrationUrgency.urgency === "critical" ? "紧急" : 
+      label: migrationUrgency.urgency === "critical" ? "紧急" :
              migrationUrgency.urgency === "high" ? "高优先级" :
              migrationUrgency.urgency === "medium" ? "中等" : "低",
       description: migrationUrgency.primaryMessage,
     };
   }
 
-  // Bug #2 修复: 刷新 TYP/OSP 状态，改进错误处理
   let typOspEnabled = shop.typOspPagesEnabled;
   let typOspReason = shop.typOspStatusReason;
-  
+
   if (admin && typOspEnabled === null) {
     try {
       const typOspResult = await refreshTypOspStatus(admin, shop.id);
@@ -201,7 +242,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     } catch (error) {
       logger.error("Failed to refresh TYP/OSP status", { error });
-      // 设置默认状态，避免显示null
+
       typOspEnabled = false;
       typOspReason = "API错误，请稍后重试";
     }
@@ -252,7 +293,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (actionType === "complete_onboarding") {
-    // 标记 onboarding 完成（可以存储到 shop 配置中）
+
     return redirect("/app/scan");
   }
 
@@ -323,7 +364,6 @@ export default function OnboardingPage() {
   const isScanning = navigation.state === "submitting";
   const autoScan = searchParams.get("autoScan") === "true";
 
-  // 处理 action 响应并显示 Toast
   useEffect(() => {
     if (actionData) {
       if ("success" in actionData && actionData.success) {
@@ -340,7 +380,6 @@ export default function OnboardingPage() {
     }
   }, [actionData, showSuccess, showError]);
 
-  // 自动开始扫描
   useEffect(() => {
     if (autoScan && !data.scanComplete && !isScanning) {
       handleStartScan();
@@ -390,7 +429,7 @@ export default function OnboardingPage() {
       subtitle="10 分钟定位风险，30 分钟完成迁移"
     >
       <BlockStack gap="500">
-        {/* 步骤指示器 */}
+        {}
         <Card>
           <StepIndicator currentStep={data.step} totalSteps={3} />
           <Divider />
@@ -418,7 +457,7 @@ export default function OnboardingPage() {
           </Box>
         </Card>
 
-        {/* Step 1: 店铺状态概览 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -446,7 +485,7 @@ export default function OnboardingPage() {
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" tone="subdued">店铺类型</Text>
                     <Text as="p" fontWeight="semibold">
-                      {data.shop.tier === "plus" ? "Shopify Plus" : 
+                      {data.shop.tier === "plus" ? "Shopify Plus" :
                        data.shop.tier === "non_plus" ? "标准版" : "待检测"}
                     </Text>
                   </BlockStack>
@@ -475,7 +514,7 @@ export default function OnboardingPage() {
           </BlockStack>
         </Card>
 
-        {/* Step 2: 自动扫描 */}
+        {}
         {!data.scanComplete && (
           <Card>
             <BlockStack gap="400">
@@ -542,10 +581,10 @@ export default function OnboardingPage() {
           </Card>
         )}
 
-        {/* Step 3: 扫描结果 */}
+        {}
         {data.scanComplete && data.scanResult && (
           <>
-            {/* 风险评分卡片 */}
+            {}
             <Layout>
               <Layout.Section variant="oneThird">
                 <Card>
@@ -629,7 +668,7 @@ export default function OnboardingPage() {
               </Layout.Section>
             </Layout>
 
-            {/* 检测到的内容 */}
+            {}
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">📊 检测结果摘要</Text>
@@ -677,7 +716,7 @@ export default function OnboardingPage() {
               </BlockStack>
             </Card>
 
-            {/* 风险项列表 */}
+            {}
             {data.scanResult.riskItems.length > 0 && (
               <Card>
                 <BlockStack gap="400">
@@ -736,7 +775,7 @@ export default function OnboardingPage() {
               </Card>
             )}
 
-            {/* 下一步操作 */}
+            {}
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">🎯 下一步操作</Text>
@@ -826,7 +865,7 @@ export default function OnboardingPage() {
           </>
         )}
 
-        {/* 帮助信息 */}
+        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">💡 需要帮助？</Text>
@@ -834,7 +873,7 @@ export default function OnboardingPage() {
               如果您在迁移过程中遇到问题，我们提供以下支持：
             </Text>
             <InlineStack gap="300" wrap>
-              <Button url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status" external>
+              <Button url="https:
                 Shopify 官方文档
               </Button>
               <Button url="/support">

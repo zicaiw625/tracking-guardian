@@ -21,8 +21,10 @@ import {
   ProgressBar,
   List,
 } from "@shopify/polaris";
-import { CheckCircleIcon } from "~/components/icons";
+import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon } from "~/components/icons";
 import { EnhancedEmptyState } from "~/components/ui";
+import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
+import { useNavigate } from "@remix-run/react";
 
 import { authenticate } from "../shopify.server";
 import { getDashboardData } from "../services/dashboard.server";
@@ -215,6 +217,13 @@ function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
     );
   }
 
+  const riskLevel =
+    latestScan.riskScore >= 70
+      ? { level: "高风险", tone: "critical" as const }
+      : latestScan.riskScore >= 40
+        ? { level: "中风险", tone: "warning" as const }
+        : { level: "低风险", tone: "success" as const };
+
   return (
     <Card>
       <BlockStack gap="400">
@@ -222,28 +231,57 @@ function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
           <Text as="h2" variant="headingMd">
             最新扫描
           </Text>
-          <Badge
-            tone={
-              latestScan.riskScore > 60
-                ? "critical"
-                : latestScan.riskScore > 30
-                  ? "warning"
-                  : "success"
-            }
-          >
-            {`风险分 ${latestScan.riskScore}`}
+          <Badge tone={riskLevel.tone} size="large">
+            {riskLevel.level}
           </Badge>
         </InlineStack>
+
+        {}
+        <Box
+          background={
+            latestScan.riskScore >= 70
+              ? "bg-fill-critical"
+              : latestScan.riskScore >= 40
+                ? "bg-fill-warning"
+                : "bg-fill-success"
+          }
+          padding="500"
+          borderRadius="200"
+        >
+          <BlockStack gap="200" align="center">
+            <Text as="p" variant="heading2xl" fontWeight="bold">
+              {latestScan.riskScore}
+            </Text>
+            <Text as="p" variant="bodySm">
+              / 100
+            </Text>
+          </BlockStack>
+        </Box>
+
         <BlockStack gap="200">
           <Text as="p" variant="bodySm" tone="subdued">
             扫描时间: {new Date(latestScan.createdAt).toLocaleDateString("zh-CN")}
           </Text>
-          <Text as="p" variant="bodySm">
-            识别到的平台: {latestScan.identifiedPlatforms.join(", ") || "无"}
-          </Text>
+          {latestScan.identifiedPlatforms.length > 0 ? (
+            <BlockStack gap="100">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                识别到的平台:
+              </Text>
+              <InlineStack gap="100" wrap>
+                {latestScan.identifiedPlatforms.map((platform) => (
+                  <Badge key={platform}>{platform}</Badge>
+                ))}
+              </InlineStack>
+            </BlockStack>
+          ) : (
+            <Text as="p" variant="bodySm" tone="subdued">
+              未识别到追踪平台
+            </Text>
+          )}
         </BlockStack>
+
         <Button url="/app/scan" fullWidth>
-          查看扫描报告
+          查看完整报告
         </Button>
       </BlockStack>
     </Card>
@@ -371,7 +409,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
       tone={scriptTagsCount > 0 ? "warning" : "info"}
       action={{
         content: "了解更多",
-        url: "https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status",
+        url: "https:
         external: true,
       }}
     >
@@ -383,7 +421,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status/plus-upgrade-guide"
+              url="https:
               external
             >
               查看 Plus 商家升级指南
@@ -397,7 +435,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https://shopify.dev/docs/apps/build/online-store/blocking-script-tags"
+              url="https:
               external
             >
               查看 ScriptTags 弃用时间表
@@ -413,13 +451,177 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
   );
 }
 
+function MigrationChecklistPreviewCard({
+  checklist,
+}: {
+  checklist: DashboardData["migrationChecklist"];
+}) {
+  if (!checklist || checklist.totalItems === 0) {
+    return (
+      <Card>
+        <BlockStack gap="400">
+          <Text as="h2" variant="headingMd">
+            迁移清单
+          </Text>
+          <EnhancedEmptyState
+            icon="📋"
+            title="暂无迁移清单"
+            description="完成扫描后，我们将为您生成迁移清单和优先级建议。"
+            primaryAction={{
+              content: "开始扫描",
+              url: "/app/scan",
+            }}
+          />
+        </BlockStack>
+      </Card>
+    );
+  }
+
+  const estimatedHours = Math.floor(checklist.estimatedTotalTime / 60);
+  const estimatedMinutes = checklist.estimatedTotalTime % 60;
+  const timeText =
+    estimatedHours > 0
+      ? `${estimatedHours} 小时 ${estimatedMinutes > 0 ? estimatedMinutes + " 分钟" : ""}`
+      : `${estimatedMinutes} 分钟`;
+
+  return (
+    <Card>
+      <BlockStack gap="400">
+        <InlineStack align="space-between" blockAlign="center">
+          <Text as="h2" variant="headingMd">
+            迁移清单预览
+          </Text>
+          <Badge tone="info">{checklist.totalItems} 项</Badge>
+        </InlineStack>
+
+        {}
+        <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+          <BlockStack gap="200">
+            <InlineStack align="space-between">
+              <Text as="span" variant="bodySm" tone="subdued">
+                高风险项
+              </Text>
+              <Text as="span" fontWeight="semibold" tone="critical">
+                {checklist.highPriorityItems}
+              </Text>
+            </InlineStack>
+            <InlineStack align="space-between">
+              <Text as="span" variant="bodySm" tone="subdued">
+                中风险项
+              </Text>
+              <Text as="span" fontWeight="semibold" tone="warning">
+                {checklist.mediumPriorityItems}
+              </Text>
+            </InlineStack>
+            <InlineStack align="space-between">
+              <Text as="span" variant="bodySm" tone="subdued">
+                预计总时间
+              </Text>
+              <Text as="span" fontWeight="semibold">
+                {timeText}
+              </Text>
+            </InlineStack>
+          </BlockStack>
+        </Box>
+
+        {}
+        {checklist.topItems.length > 0 && (
+          <BlockStack gap="300">
+            <Text as="h3" variant="headingSm">
+              优先级最高的项目
+            </Text>
+            <BlockStack gap="200">
+              {checklist.topItems.map((item) => {
+                const priorityBadgeTone =
+                  item.priority >= 8 ? "critical" :
+                  item.priority >= 5 ? "warning" :
+                  "info";
+
+                const estimatedTimeText = item.estimatedTime
+                  ? item.estimatedTime < 60
+                    ? `${item.estimatedTime} 分钟`
+                    : `${Math.floor(item.estimatedTime / 60)} 小时 ${item.estimatedTime % 60} 分钟`
+                  : "待估算";
+
+                return (
+                  <Box
+                    key={item.id}
+                    background={item.status === "completed" ? "bg-surface-success" : "bg-surface-secondary"}
+                    padding="300"
+                    borderRadius="200"
+                  >
+                    <InlineStack align="space-between" blockAlign="start">
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center" wrap>
+                          <Badge
+                            tone={
+                              item.riskLevel === "high"
+                                ? "critical"
+                                : item.riskLevel === "medium"
+                                  ? "warning"
+                                  : "info"
+                            }
+                          >
+                            {item.riskLevel === "high" ? "高" : item.riskLevel === "medium" ? "中" : "低"}
+                          </Badge>
+                          {item.priority > 0 && (
+                            <Badge tone={priorityBadgeTone}>
+                              优先级 {item.priority}/10
+                            </Badge>
+                          )}
+                          {item.status === "completed" && (
+                            <Icon source={CheckCircleIcon} tone="success" />
+                          )}
+                          {item.status === "in_progress" && (
+                            <Badge tone="info">进行中</Badge>
+                          )}
+                        </InlineStack>
+                        <Text as="span" variant="bodySm" fontWeight="semibold">
+                          {item.title}
+                        </Text>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            <Icon source={ClockIcon} />
+                            {estimatedTimeText}
+                          </Text>
+                        </InlineStack>
+                      </BlockStack>
+                      {item.status === "pending" && (
+                        <Button
+                          size="slim"
+                          url={`/app/migrate?asset=${item.id.replace("checklist-", "")}`}
+                        >
+                          开始迁移
+                        </Button>
+                      )}
+                    </InlineStack>
+                  </Box>
+                );
+              })}
+            </BlockStack>
+            {checklist.totalItems > checklist.topItems.length && (
+              <Text as="p" variant="bodySm" tone="subdued">
+                还有 {checklist.totalItems - checklist.topItems.length} 项待处理
+              </Text>
+            )}
+          </BlockStack>
+        )}
+
+        <Button url="/app/scan" fullWidth icon={ArrowRightIcon}>
+          查看完整清单
+        </Button>
+      </BlockStack>
+    </Card>
+  );
+}
+
 const WELCOME_BANNER_DISMISSED_KEY = "tg-welcome-banner-dismissed";
 
 export default function Index() {
   const loaderData = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
 
-  // 检查用户是否已经关闭过欢迎横幅
   useEffect(() => {
     const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
     if (dismissed === "true") {
@@ -446,6 +648,14 @@ export default function Index() {
   const nextStep = getNextSetupStep(setupSteps);
   const progress = getSetupProgress(setupSteps);
 
+  const handleStartAudit = () => {
+    navigate("/app/scan");
+  };
+
+  const handleViewDashboard = () => {
+
+  };
+
   return (
     <Page
       title="Tracking Guardian"
@@ -467,7 +677,65 @@ export default function Index() {
         )}
 
         {}
+        {}
+        {data.showOnboarding && (
+          <UpgradeHealthCheck
+            typOspPagesEnabled={data.typOspPagesEnabled ?? false}
+            riskScore={data.latestScan?.riskScore ?? 0}
+            estimatedMigrationTimeMinutes={data.estimatedMigrationTimeMinutes ?? 30}
+            scriptTagsCount={data.scriptTagsCount}
+            identifiedPlatforms={data.latestScan?.identifiedPlatforms ?? []}
+            onStartAudit={handleStartAudit}
+            onViewDashboard={handleViewDashboard}
+          />
+        )}
+
+        {}
         {!progress.allComplete && <SetupProgressCard steps={setupSteps} nextStep={nextStep} />}
+
+        {}
+        {}
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h2" variant="headingMd">
+              🚀 快速入口
+            </Text>
+            <Layout>
+              <Layout.Section variant="oneThird">
+                <Button url="/app/scan" fullWidth variant="primary">
+                  🔍 开始扫描
+                </Button>
+              </Layout.Section>
+              <Layout.Section variant="oneThird">
+                <Button url="/app/migrate" fullWidth>
+                  🔄 像素迁移
+                </Button>
+              </Layout.Section>
+              <Layout.Section variant="oneThird">
+                <Button url="/app/verification" fullWidth>
+                  ✅ 验收测试
+                </Button>
+              </Layout.Section>
+            </Layout>
+            <Layout>
+              <Layout.Section variant="oneThird">
+                <Button url="/app/monitor" fullWidth>
+                  📊 监控面板
+                </Button>
+              </Layout.Section>
+              <Layout.Section variant="oneThird">
+                <Button url="/app/settings" fullWidth>
+                  ⚙️ 设置
+                </Button>
+              </Layout.Section>
+              <Layout.Section variant="oneThird">
+                <Button url="/app/billing" fullWidth>
+                  💳 套餐管理
+                </Button>
+              </Layout.Section>
+            </Layout>
+          </BlockStack>
+        </Card>
 
         {}
         <Layout>
@@ -488,6 +756,16 @@ export default function Index() {
             <LatestScanCard latestScan={loaderData.latestScan} />
           </Layout.Section>
         </Layout>
+
+        {}
+        {}
+        {data.migrationChecklist && (
+          <Layout>
+            <Layout.Section>
+              <MigrationChecklistPreviewCard checklist={data.migrationChecklist} />
+            </Layout.Section>
+          </Layout>
+        )}
 
         {}
         <ScriptTagMigrationBanner

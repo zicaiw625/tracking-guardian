@@ -1,7 +1,4 @@
-/**
- * 像素模板管理页面
- * 对应设计方案 4.7 Agency - 批量应用像素模板
- */
+
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -33,6 +30,7 @@ import {
   EditIcon,
   CheckCircleIcon,
 } from "~/components/icons";
+import { BatchApplyProgress } from "~/components/workspace/BatchApplyProgress";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -181,7 +179,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "请选择模板" }, { status: 400 });
       }
 
-      // 获取分组中的店铺
       let targetShopIds: string[];
       if (groupId) {
         const group = await getShopGroupDetails(groupId, shop.id);
@@ -190,7 +187,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         targetShopIds = group.members.map((m) => m.shopId);
       } else {
-        // 只应用到当前店铺
+
         targetShopIds = [shop.id];
       }
 
@@ -249,8 +246,18 @@ export default function WorkspaceTemplatesPage() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [applyGroupId, setApplyGroupId] = useState<string>("");
   const [overwriteExisting, setOverwriteExisting] = useState(false);
+  const [applyResult, setApplyResult] = useState<any>(null);
 
   const isSubmitting = navigation.state === "submitting";
+  const actionData = useActionData<typeof action>();
+
+  useEffect(() => {
+    if (actionData?.success && actionData.actionType === "apply_template" && actionData.result) {
+      setApplyResult(actionData.result);
+      setShowApplyModal(false);
+      revalidator.revalidate();
+    }
+  }, [actionData, revalidator]);
 
   const handleCreateTemplate = useCallback(() => {
     if (!newTemplateName.trim() || selectedPlatforms.length === 0) return;
@@ -345,7 +352,7 @@ export default function WorkspaceTemplatesPage() {
       }}
     >
       <BlockStack gap="500">
-        {/* 预设模板 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -405,7 +412,7 @@ export default function WorkspaceTemplatesPage() {
           </BlockStack>
         </Card>
 
-        {/* 自定义模板 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -474,7 +481,20 @@ export default function WorkspaceTemplatesPage() {
           </BlockStack>
         </Card>
 
-        {/* 使用说明 */}
+        {}
+        {applyResult && (
+          <BatchApplyProgress
+            total={applyResult.totalShops}
+            completed={applyResult.successCount + applyResult.failedCount + applyResult.skippedCount}
+            success={applyResult.successCount}
+            failed={applyResult.failedCount}
+            skipped={applyResult.skippedCount}
+            results={applyResult.results || []}
+            isRunning={false}
+          />
+        )}
+
+        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">
@@ -501,7 +521,7 @@ export default function WorkspaceTemplatesPage() {
         </Card>
       </BlockStack>
 
-      {/* 创建模板模态框 */}
+      {}
       <Modal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -559,7 +579,7 @@ export default function WorkspaceTemplatesPage() {
         </Modal.Section>
       </Modal>
 
-      {/* 应用模板模态框 */}
+      {}
       <Modal
         open={showApplyModal}
         onClose={() => setShowApplyModal(false)}

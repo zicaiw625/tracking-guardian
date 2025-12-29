@@ -1,9 +1,4 @@
-/**
- * UI 模块配置页面
- * 对应设计方案 4.4 Thank you / Order status UI 模块库
- * 
- * 让商家可视化配置 Thank You / Order Status 页面的 UI 模块
- */
+
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -135,7 +130,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const moduleKey = formData.get("moduleKey") as ModuleKey;
       const settingsJson = formData.get("settings") as string;
       const localizationJson = formData.get("localization") as string | null;
-      
+
       try {
         const settings = JSON.parse(settingsJson);
         const localization = localizationJson ? JSON.parse(localizationJson) : undefined;
@@ -152,7 +147,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     case "update_display_rules": {
       const moduleKey = formData.get("moduleKey") as ModuleKey;
       const displayRulesJson = formData.get("displayRules") as string;
-      
+
       try {
         const displayRules = JSON.parse(displayRulesJson);
         const result = await updateUiModuleConfig(shop.id, moduleKey, { displayRules });
@@ -179,7 +174,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 };
 
-// 模块卡片组件
 function ModuleCard({
   module,
   onToggle,
@@ -196,7 +190,7 @@ function ModuleCard({
   upgradeRequired?: PlanId;
 }) {
   const info = UI_MODULES[module.moduleKey];
-  
+
   return (
     <Card>
       <BlockStack gap="400">
@@ -251,7 +245,7 @@ function ModuleCard({
           </InlineStack>
         </InlineStack>
 
-        {/* 显示位置标签 */}
+        {}
         <InlineStack gap="100">
           {info.targets.map((target) => (
             <Tag key={target}>
@@ -261,7 +255,7 @@ function ModuleCard({
           <Tag>{getCategoryLabel(info.category)}</Tag>
         </InlineStack>
 
-        {/* 升级提示 */}
+        {}
         {upgradeRequired && !module.isEnabled && (
           <Banner tone="warning">
             <Text as="p" variant="bodySm">
@@ -290,7 +284,6 @@ function getCategoryLabel(category: string): string {
   }
 }
 
-// 问卷设置表单
 function SurveySettingsForm({
   settings,
   onChange,
@@ -353,7 +346,6 @@ function SurveySettingsForm({
   );
 }
 
-// 帮助中心设置表单
 function HelpdeskSettingsForm({
   settings,
   onChange,
@@ -420,7 +412,6 @@ function HelpdeskSettingsForm({
   );
 }
 
-// 再购设置表单
 function ReorderSettingsForm({
   settings,
   onChange,
@@ -470,7 +461,6 @@ function ReorderSettingsForm({
   );
 }
 
-// 物流追踪设置表单
 function OrderTrackingSettingsForm({
   settings,
   onChange,
@@ -515,7 +505,6 @@ function OrderTrackingSettingsForm({
   );
 }
 
-// 追加销售设置表单
 function UpsellSettingsForm({
   settings,
   onChange,
@@ -562,7 +551,6 @@ function UpsellSettingsForm({
   );
 }
 
-// 常用语言列表
 const COMMON_LOCALES = [
   { value: "en", label: "English" },
   { value: "zh-CN", label: "简体中文" },
@@ -576,7 +564,6 @@ const COMMON_LOCALES = [
   { value: "it", label: "Italiano" },
 ];
 
-// 本地化设置表单
 function LocalizationSettingsForm({
   localization,
   onChange,
@@ -600,7 +587,6 @@ function LocalizationSettingsForm({
     onChange(updated);
   };
 
-  // 根据模块类型显示不同的可翻译字段
   const getEditableFields = () => {
     switch (moduleKey) {
       case "survey":
@@ -698,11 +684,10 @@ export default function UiBlocksPage() {
   const [editingModule, setEditingModule] = useState<ModuleKey | null>(null);
   const [editingSettings, setEditingSettings] = useState<Record<string, unknown> | null>(null);
   const [editingLocalization, setEditingLocalization] = useState<LocalizationSettings | undefined>(undefined);
-  const [modalTab, setModalTab] = useState(0); // 0: 设置, 1: 本地化
+  const [modalTab, setModalTab] = useState(0);
 
   const isSubmitting = navigation.state === "submitting";
 
-  // 处理 action 响应并显示 Toast
   useEffect(() => {
     if (actionData) {
       const data = actionData as { success?: boolean; error?: string; actionType?: string };
@@ -734,7 +719,7 @@ export default function UiBlocksPage() {
       setEditingModule(moduleKey);
       setEditingSettings(module.settings as Record<string, unknown>);
       setEditingLocalization(module.localization);
-      setModalTab(0); // 重置到设置标签
+      setModalTab(0);
     }
   }, [modules]);
 
@@ -745,7 +730,7 @@ export default function UiBlocksPage() {
     formData.append("_action", "update_settings");
     formData.append("moduleKey", editingModule);
     formData.append("settings", JSON.stringify(editingSettings));
-    // 同时保存本地化设置
+
     if (editingLocalization) {
       formData.append("localization", JSON.stringify(editingLocalization));
     }
@@ -816,7 +801,7 @@ export default function UiBlocksPage() {
       }}
     >
       <BlockStack gap="500">
-        {/* 套餐信息卡片 */}
+        {}
         <Card>
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">
@@ -842,7 +827,7 @@ export default function UiBlocksPage() {
           </InlineStack>
         </Card>
 
-        {/* 提示信息 */}
+        {}
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -850,7 +835,7 @@ export default function UiBlocksPage() {
               您可以在 Shopify Admin 的 <strong>Checkout Editor</strong> 中调整模块位置和样式。
             </Text>
             <Button
-              url="https://admin.shopify.com/store/settings/checkout/editor"
+              url="https:
               variant="plain"
               size="slim"
               external
@@ -860,7 +845,7 @@ export default function UiBlocksPage() {
           </BlockStack>
         </Banner>
 
-        {/* 模块列表 */}
+        {}
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           <Box paddingBlockStart="400">
             <BlockStack gap="400">
@@ -888,7 +873,7 @@ export default function UiBlocksPage() {
           </Box>
         </Tabs>
 
-        {/* 快速链接 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -904,7 +889,7 @@ export default function UiBlocksPage() {
         </Card>
       </BlockStack>
 
-      {/* 编辑模块设置模态框 */}
+      {}
       <Modal
         open={editingModule !== null}
         onClose={() => {
@@ -936,7 +921,7 @@ export default function UiBlocksPage() {
         size="large"
       >
         <Modal.Section>
-          {/* 模态框内标签页切换 */}
+          {}
           <Tabs
             tabs={[
               { id: "settings", content: "基础设置" },
@@ -946,7 +931,7 @@ export default function UiBlocksPage() {
             onSelect={setModalTab}
           >
             <Box paddingBlockStart="400">
-              {/* 基础设置标签页 */}
+              {}
               {modalTab === 0 && (
                 <>
                   {editingModule === "survey" && editingSettings && (
@@ -982,7 +967,7 @@ export default function UiBlocksPage() {
                 </>
               )}
 
-              {/* 本地化设置标签页 */}
+              {}
               {modalTab === 1 && editingModule && (
                 <LocalizationSettingsForm
                   localization={editingLocalization}

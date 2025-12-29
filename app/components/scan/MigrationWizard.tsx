@@ -34,8 +34,8 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
       ) || ["无"]),
       "",
       "## 快速链接",
-      "- Pixels 管理: https://admin.shopify.com/store/settings/customer_events",
-      "- Checkout Editor: https://admin.shopify.com/store/settings/checkout/editor",
+      "- Pixels 管理: https:
+      "- Checkout Editor: https:
       "- 应用迁移工具: /app/migrate",
     ].join("\n");
     navigator.clipboard.writeText(checklist);
@@ -85,7 +85,7 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </Text>
           <InlineStack gap="300" wrap>
             <Button
-              url="https://admin.shopify.com/store/settings/customer_events"
+              url="https:
               external
               icon={ShareIcon}
             >
@@ -107,14 +107,14 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </Text>
           <InlineStack gap="300" wrap>
             <Button
-              url="https://admin.shopify.com/store/settings/checkout/editor"
+              url="https:
               external
               icon={ShareIcon}
             >
               打开 Checkout Editor
             </Button>
             <Button
-              url="https://shopify.dev/docs/apps/checkout/thank-you-order-status"
+              url="https:
               external
               icon={InfoIcon}
             >

@@ -130,7 +130,7 @@ export function checkSecurityViolations(): SecurityViolation[] {
         }
 
         const appUrl = process.env.SHOPIFY_APP_URL;
-        if (appUrl && !appUrl.startsWith("https://")) {
+        if (appUrl && !appUrl.startsWith("https:
             violations.push({
                 type: "fatal",
                 code: "INSECURE_APP_URL",

@@ -138,7 +138,7 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         name: "Google Ads",
         supportLevel: "unsupported",
         recommendation: "Google Ads 转化追踪建议使用 Shopify 官方 Google & YouTube 应用，它原生支持 Enhanced Conversions",
-        officialApp: "https://apps.shopify.com/google",
+        officialApp: "https:
     },
     gtm: {
         name: "Google Tag Manager",
@@ -159,7 +159,7 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         name: "Microsoft Advertising (Bing)",
         supportLevel: "unsupported",
         recommendation: "Microsoft Advertising UET 建议使用 Microsoft 官方应用",
-        officialApp: "https://apps.shopify.com/microsoft-channel",
+        officialApp: "https:
     },
     clarity: {
         name: "Microsoft Clarity",
@@ -170,13 +170,13 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         name: "Pinterest",
         supportLevel: "unsupported",
         recommendation: "Pinterest 转化追踪建议使用 Pinterest 官方应用",
-        officialApp: "https://apps.shopify.com/pinterest",
+        officialApp: "https:
     },
     snapchat: {
         name: "Snapchat",
         supportLevel: "unsupported",
         recommendation: "Snapchat 转化追踪建议使用 Snapchat 官方应用",
-        officialApp: "https://apps.shopify.com/snapchat-ads",
+        officialApp: "https:
     },
     twitter: {
         name: "X (Twitter)",
@@ -188,63 +188,63 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         name: "Fairing (Post-purchase Survey)",
         supportLevel: "unsupported",
         recommendation: "Fairing 提供官方 Shopify 应用，支持 Checkout Extensibility。建议迁移到官方应用或使用 Checkout UI Extension",
-        officialApp: "https://apps.shopify.com/enquire-post-purchase-surveys",
+        officialApp: "https:
     },
     kno: {
         name: "KnoCommerce (Survey)",
         supportLevel: "unsupported",
         recommendation: "KnoCommerce 有官方 Shopify 应用。如脚本是官方应用生成的，会自动迁移",
-        officialApp: "https://apps.shopify.com/kno-post-purchase-surveys",
+        officialApp: "https:
     },
     zigpoll: {
         name: "Zigpoll (Survey)",
         supportLevel: "unsupported",
         recommendation: "Zigpoll 提供 Checkout UI Extension 集成。建议使用官方应用",
-        officialApp: "https://apps.shopify.com/zigpoll",
+        officialApp: "https:
     },
 
     carthook: {
         name: "CartHook (Post-purchase Upsell)",
         supportLevel: "unsupported",
         recommendation: "CartHook 需要迁移到 Shopify 的 post-purchase extension。建议使用官方应用",
-        officialApp: "https://apps.shopify.com/carthook",
+        officialApp: "https:
     },
     aftersell: {
         name: "AfterSell (Upsell)",
         supportLevel: "unsupported",
         recommendation: "AfterSell 官方应用支持 Checkout Extensibility，建议迁移",
-        officialApp: "https://apps.shopify.com/aftersell",
+        officialApp: "https:
     },
     reconvert: {
         name: "ReConvert (Upsell & Thank You)",
         supportLevel: "unsupported",
         recommendation: "ReConvert 官方应用支持新版 Thank You 页面。如使用旧版脚本，需更新应用",
-        officialApp: "https://apps.shopify.com/reconvert-upsell-cross-sell",
+        officialApp: "https:
     },
     zipify: {
         name: "Zipify OneClickUpsell",
         supportLevel: "unsupported",
         recommendation: "Zipify OCU 支持 Checkout Extensibility。请确保使用最新版应用",
-        officialApp: "https://apps.shopify.com/zipify-oneclickupsell",
+        officialApp: "https:
     },
 
     refersion: {
         name: "Refersion (Affiliate)",
         supportLevel: "unsupported",
         recommendation: "Refersion 官方应用支持服务端追踪。建议迁移到官方应用",
-        officialApp: "https://apps.shopify.com/refersion",
+        officialApp: "https:
     },
     referralcandy: {
         name: "ReferralCandy",
         supportLevel: "unsupported",
         recommendation: "ReferralCandy 官方应用使用 Webhook 进行追踪，无需客户端脚本",
-        officialApp: "https://apps.shopify.com/referralcandy",
+        officialApp: "https:
     },
     tapfiliate: {
         name: "Tapfiliate (Affiliate)",
         supportLevel: "unsupported",
         recommendation: "Tapfiliate 支持服务端集成。建议迁移到官方应用或 API 集成",
-        officialApp: "https://apps.shopify.com/tapfiliate",
+        officialApp: "https:
     },
     impact: {
         name: "impact.com (Affiliate)",
@@ -255,7 +255,7 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         name: "PartnerStack",
         supportLevel: "unsupported",
         recommendation: "PartnerStack 支持 Webhook 集成，无需客户端脚本",
-        officialApp: "https://apps.shopify.com/partnerstack",
+        officialApp: "https:
     },
 
     hotjar: {
@@ -272,19 +272,19 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         name: "Klaviyo",
         supportLevel: "unsupported",
         recommendation: "Klaviyo 官方 Shopify 应用使用 Webhook 进行订单追踪，客户端脚本主要用于网站追踪。建议确保使用官方应用",
-        officialApp: "https://apps.shopify.com/klaviyo-email-marketing",
+        officialApp: "https:
     },
     attentive: {
         name: "Attentive (SMS)",
         supportLevel: "unsupported",
         recommendation: "Attentive 官方应用支持 Checkout Extensibility。请确保使用最新版应用",
-        officialApp: "https://apps.shopify.com/attentive",
+        officialApp: "https:
     },
     postscript: {
         name: "Postscript (SMS)",
         supportLevel: "unsupported",
         recommendation: "Postscript 官方应用支持新版 Checkout。请确保使用最新版应用",
-        officialApp: "https://apps.shopify.com/postscript-sms-marketing",
+        officialApp: "https:
     },
 
     unknown: {

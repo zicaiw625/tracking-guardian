@@ -1,29 +1,16 @@
-/**
- * 加载指示器组件
- * 支持多种尺寸和样式，符合 Polaris 设计规范
- */
+
 
 import { Spinner, BlockStack, Text, Box } from "@shopify/polaris";
 import React from "react";
 
 interface LoadingSpinnerProps {
-  /**
-   * 尺寸
-   * - small: 小型，用于行内或按钮中
-   * - large: 大型，用于页面加载
-   */
+
   size?: "small" | "large";
-  /**
-   * 加载提示文字
-   */
+
   label?: string;
-  /**
-   * 是否全屏覆盖
-   */
+
   fullScreen?: boolean;
-  /**
-   * 自定义样式
-   */
+
   style?: React.CSSProperties;
 }
 
@@ -82,22 +69,12 @@ export function LoadingSpinner({
   );
 }
 
-/**
- * 骨架屏组件
- * 用于内容加载时的占位符
- */
 interface SkeletonProps {
-  /**
-   * 行数
-   */
+
   lines?: number;
-  /**
-   * 是否显示头像骨架
-   */
+
   showAvatar?: boolean;
-  /**
-   * 是否显示标题骨架
-   */
+
   showTitle?: boolean;
 }
 
@@ -162,9 +139,6 @@ export function Skeleton({
   );
 }
 
-/**
- * 页面加载状态组件
- */
 interface PageLoadingProps {
   title?: string;
 }
@@ -189,9 +163,6 @@ export function PageLoading({ title = "加载中..." }: PageLoadingProps) {
   );
 }
 
-/**
- * 内容懒加载包装器
- */
 interface LazyLoadWrapperProps {
   children: React.ReactNode;
   isLoading: boolean;

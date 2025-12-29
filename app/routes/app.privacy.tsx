@@ -47,7 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return json({
     shop: shop || { piiEnabled: false, pcdAcknowledged: false, consentStrategy: "strict" },
-    appDomain: process.env.APP_URL || "https://your-app-domain.com",
+    appDomain: process.env.APP_URL || "https:
   });
 };
 
@@ -557,12 +557,12 @@ export default function PrivacyPage() {
                 </Link>
               </List.Item>
               <List.Item>
-                <Link url="https://shopify.dev/docs/apps/store/data-protection/protected-customer-data" external>
+                <Link url="https:
                   Shopify 客户数据保护指南
                 </Link>
               </List.Item>
               <List.Item>
-                <Link url="https://shopify.dev/docs/apps/store/data-protection/gdpr" external>
+                <Link url="https:
                   Shopify GDPR 要求
                 </Link>
               </List.Item>
