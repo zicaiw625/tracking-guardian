@@ -15,6 +15,7 @@ import {
     type ShopTier,
 } from "../../utils/deprecation-dates";
 import { isOurWebPixel, needsSettingsUpgrade } from "../migration.server";
+import { logger } from "../../utils/logger.server";
 
 export function generateMigrationActions(result: EnhancedScanResult, shopTier: string): MigrationAction[] {
     const actions: MigrationAction[] = [];
@@ -136,21 +137,25 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
     }
 
     const hasAppPixelConfigured = result.webPixels.some(p => {
-        if (!p.settings) return false;
+        // 类型安全：p.settings 可能是 string | null
+        if (!p.settings || typeof p.settings !== "string") return false;
         try {
-            const settings = typeof p.settings === "string" ? JSON.parse(p.settings) : p.settings;
+            const settings = JSON.parse(p.settings);
             return isOurWebPixel(settings);
-        } catch {
+        } catch (error) {
+            logger.warn(`Failed to parse pixel settings for pixel ${p.id} in hasAppPixelConfigured:`, error instanceof Error ? error.message : String(error));
             return false;
         }
     });
 
     const pixelNeedsUpgrade = result.webPixels.some(p => {
-        if (!p.settings) return false;
+        // 类型安全：p.settings 可能是 string | null
+        if (!p.settings || typeof p.settings !== "string") return false;
         try {
-            const settings = typeof p.settings === "string" ? JSON.parse(p.settings) : p.settings;
+            const settings = JSON.parse(p.settings);
             return isOurWebPixel(settings) && needsSettingsUpgrade(settings);
-        } catch {
+        } catch (error) {
+            logger.warn(`Failed to parse pixel settings for pixel ${p.id} in pixelNeedsUpgrade:`, error instanceof Error ? error.message : String(error));
             return false;
         }
     });
@@ -213,11 +218,10 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
     const configuredPlatforms = new Set<string>();
 
     for (const pixel of result.webPixels) {
-        if (pixel.settings) {
+        // 类型安全：pixel.settings 可能是 string | null
+        if (pixel.settings && typeof pixel.settings === "string") {
             try {
-                const settings = typeof pixel.settings === "string"
-                    ? JSON.parse(pixel.settings)
-                    : pixel.settings;
+                const settings = JSON.parse(pixel.settings);
 
                 if (Array.isArray(settings.platforms_enabled)) {
                     for (const platform of settings.platforms_enabled) {
@@ -254,8 +258,10 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
                         configuredPlatforms.add("tiktok");
                     }
                 }
-            } catch {
-
+            } catch (error) {
+                logger.warn(`Failed to parse pixel settings for pixel ${pixel.id} in getConfiguredPlatforms:`, error instanceof Error ? error.message : String(error));
+                // 继续处理其他像素
+                continue;
             }
         }
     }

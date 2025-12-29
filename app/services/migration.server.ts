@@ -62,8 +62,24 @@ export interface SavePixelConfigOptions {
     serverSideEnabled?: boolean;
 }
 
+/**
+ * 保存像素配置
+ * 
+ * 注意：
+ * - 如果设置 serverSideEnabled: true，必须同时提供 credentialsEncrypted
+ * - 使用 ?? undefined 来跳过未提供的字段，只更新明确提供的字段
+ * - 这样可以避免意外覆盖现有配置
+ */
 export async function savePixelConfig(shopId: string, platform: Platform, platformId: string, options?: SavePixelConfigOptions) {
     const { clientConfig, credentialsEncrypted, serverSideEnabled } = options || {};
+    
+    // 验证：如果启用服务端追踪，必须有加密凭证
+    if (serverSideEnabled === true && !credentialsEncrypted) {
+        throw new Error(
+            `启用服务端追踪时必须提供 credentialsEncrypted。平台: ${platform}, shopId: ${shopId}`
+        );
+    }
+    
     return prisma.pixelConfig.upsert({
         where: {
             shopId_platform: {

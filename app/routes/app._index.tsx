@@ -3,6 +3,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -412,8 +413,24 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
   );
 }
 
+const WELCOME_BANNER_DISMISSED_KEY = "tg-welcome-banner-dismissed";
+
 export default function Index() {
   const loaderData = useLoaderData<typeof loader>();
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
+
+  // 检查用户是否已经关闭过欢迎横幅
+  useEffect(() => {
+    const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
+    if (dismissed === "true") {
+      setShowWelcomeBanner(false);
+    }
+  }, []);
+
+  const handleDismissWelcomeBanner = () => {
+    localStorage.setItem(WELCOME_BANNER_DISMISSED_KEY, "true");
+    setShowWelcomeBanner(false);
+  };
 
   const data: DashboardData = {
     ...loaderData,
@@ -440,12 +457,14 @@ export default function Index() {
     >
       <BlockStack gap="500">
         {}
-        <Banner title="欢迎使用 Tracking Guardian" tone="info" onDismiss={() => {}}>
-          <p>
-            帮助您扫描、迁移和监控 Thank you / Order status 页面的追踪脚本，
-            确保在 Checkout Extensibility 迁移后转化追踪正常工作。
-          </p>
-        </Banner>
+        {showWelcomeBanner && (
+          <Banner title="欢迎使用 Tracking Guardian" tone="info" onDismiss={handleDismissWelcomeBanner}>
+            <p>
+              帮助您扫描、迁移和监控 Thank you / Order status 页面的追踪脚本，
+              确保在 Checkout Extensibility 迁移后转化追踪正常工作。
+            </p>
+          </Banner>
+        )}
 
         {}
         {!progress.allComplete && <SetupProgressCard steps={setupSteps} nextStep={nextStep} />}

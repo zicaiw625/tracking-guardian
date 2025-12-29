@@ -18,6 +18,7 @@ import { ClipboardIcon, ArrowRightIcon, SettingsIcon, AlertCircleIcon, CheckCirc
 import { analyzeScriptContent } from "../../services/scanner/content-analysis";
 import type { ScriptAnalysisResult } from "../../services/scanner.server";
 import { getSeverityBadge, getPlatformName } from "./utils";
+import { AnalysisResultSummary } from "./AnalysisResultSummary";
 
 interface DeprecationInfo {
   badge: { text: string };
@@ -36,15 +37,36 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const handleAnalyzeScript = useCallback(() => {
+    // 输入验证
+    const MAX_CONTENT_LENGTH = 500000; // 500KB 限制
+    const trimmedContent = scriptContent.trim();
+    
+    if (!trimmedContent) {
+      setAnalysisError("请输入脚本内容");
+      return;
+    }
+    
+    if (trimmedContent.length > MAX_CONTENT_LENGTH) {
+      setAnalysisError(`脚本内容过长（最多 ${MAX_CONTENT_LENGTH} 个字符）。请分段分析或联系支持。`);
+      return;
+    }
+    
     setIsAnalyzing(true);
+    setAnalysisError(null);
+    
     try {
-      const result = analyzeScriptContent(scriptContent);
+      const result = analyzeScriptContent(trimmedContent);
       setAnalysisResult(result);
-      setAnalysisError(null);
     } catch (error) {
-      setAnalysisError(
-        error instanceof Error ? error.message : "分析失败，请稍后重试"
-      );
+      const errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
+      setAnalysisError(errorMessage);
+      // 客户端组件使用 console.error 是合理的，但确保错误信息详细
+      const errorDetails = error instanceof Error ? error.stack : String(error);
+      console.error("Script analysis error:", {
+        message: errorMessage,
+        details: errorDetails,
+        contentLength: trimmedContent.length,
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -161,102 +183,7 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
           </BlockStack>
         </Card>
       </Box>
-      {                      }
-      {analysisResult && (
-        <Layout>
-          <Layout.Section variant="oneThird">
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  风险评分
-                </Text>
-                <Box
-                  background={
-                    analysisResult.riskScore > 60
-                      ? "bg-fill-critical"
-                      : analysisResult.riskScore > 30
-                      ? "bg-fill-warning"
-                      : "bg-fill-success"
-                  }
-                  padding="600"
-                  borderRadius="200"
-                >
-                  <BlockStack gap="200" align="center">
-                    <Text as="p" variant="heading3xl" fontWeight="bold">
-                      {analysisResult.riskScore}
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      / 100
-                    </Text>
-                  </BlockStack>
-                </Box>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-          <Layout.Section variant="oneThird">
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  检测到的平台
-                </Text>
-                {analysisResult.identifiedPlatforms.length > 0 ? (
-                  <BlockStack gap="200">
-                    {analysisResult.identifiedPlatforms.map((platform) => (
-                      <InlineStack key={platform} gap="200" align="start">
-                        <Icon source={CheckCircleIcon} tone="success" />
-                        <Text as="span">{getPlatformName(platform)}</Text>
-                      </InlineStack>
-                    ))}
-                  </BlockStack>
-                ) : (
-                  <Text as="p" tone="subdued">
-                    未检测到已知追踪平台
-                  </Text>
-                )}
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-          <Layout.Section variant="oneThird">
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">
-                  检测详情
-                </Text>
-                {analysisResult.platformDetails.length > 0 ? (
-                  <BlockStack gap="200">
-                    {analysisResult.platformDetails.slice(0, 5).map((detail, idx) => (
-                      <Box
-                        key={idx}
-                        background="bg-surface-secondary"
-                        padding="200"
-                        borderRadius="100"
-                      >
-                        <BlockStack gap="100">
-                          <InlineStack gap="200" align="space-between">
-                            <Text as="span" variant="bodySm" fontWeight="semibold">
-                              {detail.type}
-                            </Text>
-                            <Badge tone={detail.confidence === "high" ? "success" : "info"}>
-                              {detail.confidence === "high" ? "高可信度" : "中可信度"}
-                            </Badge>
-                          </InlineStack>
-                          <Text as="span" variant="bodySm" tone="subdued">
-                            {detail.matchedPattern}
-                          </Text>
-                        </BlockStack>
-                      </Box>
-                    ))}
-                  </BlockStack>
-                ) : (
-                  <Text as="p" tone="subdued">
-                    无检测详情
-                  </Text>
-                )}
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-        </Layout>
-      )}
+      {analysisResult && <AnalysisResultSummary analysisResult={analysisResult} />}
       {                  }
       {analysisResult && analysisResult.risks.length > 0 && (
         <Card>

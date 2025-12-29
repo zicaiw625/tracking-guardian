@@ -143,8 +143,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return redirect("/app");
   }
 
-  // 获取最新扫描结果
-  const latestScan = shop.scanReports[0];
+  // 获取最新扫描结果（使用可选链安全访问）
+  const latestScan = shop.scanReports?.[0];
   let scanResult: OnboardingData["scanResult"] = null;
   let migrationEstimate: OnboardingData["migrationEstimate"] = null;
   let urgency: OnboardingData["urgency"] = null;

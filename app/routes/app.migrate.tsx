@@ -174,9 +174,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const formData = await request.formData();
     const actionType = formData.get("_action");
     if (actionType === "enablePixel" || actionType === "upgradePixelSettings") {
-
-        const requiresGrowth = actionType === "enablePixel" || actionType === "upgradePixelSettings";
-        if (requiresGrowth && !isPlanAtLeast(shop.plan, "growth")) {
+        if (!isPlanAtLeast(shop.plan, "growth")) {
             return json({
                 _action: actionType,
                 success: false,
@@ -212,7 +210,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
             logger.info(`[Migration] Generated new ingestionSecret for ${shopDomain}`);
         }
+        // 此时 ingestionSecret 一定已设置
+        const finalIngestionSecret: string = ingestionSecret;
+        
         let ourPixelId = shop.webPixelId;
+        
         if (!ourPixelId) {
             const existingPixels = await getExistingWebPixels(admin);
             const ourPixel = existingPixels.find((p) => {
@@ -229,17 +231,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             ourPixelId = ourPixel?.id ?? null;
         }
 
-        if (actionType === "upgradePixelSettings" && ourPixelId) {
+        if (actionType === "upgradePixelSettings") {
+            if (!ourPixelId) {
+                return json({
+                    _action: "upgradePixelSettings",
+                    success: false,
+                    error: "未找到 Web Pixel，请先安装 Pixel",
+                }, { status: 404 });
+            }
+
+            // 获取 pixel 信息用于升级
             const existingPixels = await getExistingWebPixels(admin);
             const ourPixel = existingPixels.find((p) => p.id === ourPixelId);
-            const currentSettings = ourPixel?.settings ? JSON.parse(ourPixel.settings) : {};
+            if (!ourPixel) {
+                return json({
+                    _action: "upgradePixelSettings",
+                    success: false,
+                    error: "Web Pixel 已不存在",
+                }, { status: 404 });
+            }
 
+            const currentSettings = ourPixel.settings ? JSON.parse(ourPixel.settings) : {};
             const result = await upgradeWebPixelSettings(
                 admin,
                 ourPixelId,
                 currentSettings,
                 shopDomain,
-                ingestionSecret
+                finalIngestionSecret
             );
 
             if (result.success) {
@@ -260,12 +278,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
         }
 
+        // actionType === "enablePixel"
         let result;
         if (ourPixelId) {
-            result = await updateWebPixel(admin, ourPixelId, ingestionSecret, shopDomain);
+            result = await updateWebPixel(admin, ourPixelId, finalIngestionSecret, shopDomain);
         }
         else {
-            result = await createWebPixel(admin, ingestionSecret, shopDomain);
+            result = await createWebPixel(admin, finalIngestionSecret, shopDomain);
         }
         if (result.success) {
             const newPixelId = result.webPixelId || ourPixelId;

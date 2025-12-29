@@ -282,7 +282,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     take: EXPORT_LIMITS.scan,
                 });
 
-                const latestScan = scans[0];
+                // 使用可选链安全访问数组第一个元素
+                const latestScan = scans?.[0];
                 const migrationSummary = latestScan ? {
                     shopDomain: shop.shopDomain,
                     scanDate: latestScan.createdAt.toISOString(),

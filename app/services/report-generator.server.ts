@@ -1188,8 +1188,9 @@ export async function fetchBatchReportData(
   let verifiedCount = 0;
 
   const shopData = shops.map(shop => {
-    const latestScan = shop.scanReports[0];
-    const latestVerification = shop.verificationRuns[0];
+    // 使用可选链安全访问数组第一个元素
+    const latestScan = shop.scanReports?.[0];
+    const latestVerification = shop.verificationRuns?.[0];
     const platforms = shop.pixelConfigs.map(c => c.platform);
 
     const riskScore = latestScan?.riskScore || 0;

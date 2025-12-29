@@ -5,6 +5,11 @@ import type { ScriptAnalysisResult } from "./types";
 import { PLATFORM_PATTERNS, getPatternType } from "./patterns";
 import { calculateRiskScore } from "./risk-assessment";
 
+/**
+ * 脚本内容分析配置常量
+ */
+const MAX_CONTENT_LENGTH = 500000; // 500KB - 最大分析内容长度，超过此长度将截断以避免性能问题
+
 export function analyzeScriptContent(content: string): ScriptAnalysisResult {
     const result: ScriptAnalysisResult = {
         identifiedPlatforms: [],
@@ -18,14 +23,26 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         return result;
     }
 
+    // 性能优化：对于大内容，先进行快速预检查
+    const trimmedContent = content.trim();
+    let contentToAnalyze = trimmedContent;
+    if (trimmedContent.length > MAX_CONTENT_LENGTH) {
+        // 对于超大内容，只分析前 MAX_CONTENT_LENGTH 个字符
+        // 这样可以避免正则匹配性能问题
+        contentToAnalyze = trimmedContent.substring(0, MAX_CONTENT_LENGTH);
+        // 注意：不再递归调用，直接使用截断后的内容进行分析
+    }
+
     const platformMatches: Map<string, {
         type: string;
         pattern: string;
     }[]> = new Map();
 
+    // 性能优化：如果只需要检测平台存在性，可以在找到第一个匹配后停止
+    // 但这里我们需要收集所有匹配以生成详细信息，所以保留完整循环
     for (const [platform, patterns] of Object.entries(PLATFORM_PATTERNS)) {
         for (const pattern of patterns) {
-            const match = content.match(pattern);
+            const match = contentToAnalyze.match(pattern);
             if (match) {
                 if (!platformMatches.has(platform)) {
                     platformMatches.set(platform, []);
@@ -50,7 +67,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         }
     }
 
-    const ga4Match = content.match(/G-[A-Z0-9]{10,}/gi);
+    const ga4Match = contentToAnalyze.match(/G-[A-Z0-9]{10,}/gi);
     if (ga4Match) {
         for (const id of ga4Match) {
             if (!result.platformDetails.some(d => d.matchedPattern.includes(id))) {
@@ -64,7 +81,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         }
     }
 
-    const metaPixelMatch = content.match(/(?:pixel[_-]?id|fbq\('init',)\s*['":]?\s*(\d{15,16})/gi);
+    const metaPixelMatch = contentToAnalyze.match(/(?:pixel[_-]?id|fbq\('init',)\s*['":]?\s*(\d{15,16})/gi);
     if (metaPixelMatch) {
         for (const match of metaPixelMatch) {
             const pixelId = match.match(/\d{15,16}/)?.[0];
@@ -89,7 +106,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             details: `检测到平台: ${result.identifiedPlatforms.join(", ")}`,
         });
 
-        if (result.identifiedPlatforms.includes("google") && content.includes("UA-")) {
+        if (result.identifiedPlatforms.includes("google") && contentToAnalyze.includes("UA-")) {
             result.risks.push({
                 id: "legacy_ua",
                 name: "使用旧版 Universal Analytics",
@@ -99,7 +116,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             });
         }
 
-        if (content.includes("<script") && content.includes("</script>")) {
+        if (contentToAnalyze.includes("<script") && contentToAnalyze.includes("</script>")) {
             result.risks.push({
                 id: "inline_script_tags",
                 name: "内联 Script 标签",
@@ -337,7 +354,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         }
     }
 
-    if (result.identifiedPlatforms.length === 0 && content.length > 100) {
+    if (result.identifiedPlatforms.length === 0 && contentToAnalyze.length > 100) {
         result.recommendations.push(
             "ℹ️ **未检测到已知追踪平台**\n" +
             "  → 可能是自定义脚本、Survey 工具、Post-purchase upsell 等\n" +

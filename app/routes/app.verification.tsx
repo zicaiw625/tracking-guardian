@@ -77,7 +77,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const configuredPlatforms = shop.pixelConfigs.map((c) => c.platform);
   const history = await getVerificationHistory(shop.id, 5);
-  const latestRun = history.length > 0 ? history[0] : null;
+  // 使用可选链安全访问数组第一个元素
+  const latestRun = history?.[0] ?? null;
 
   return json({
     shop: { id: shop.id },

@@ -5,6 +5,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, SettingsIcon, } from "~/components/icons";
 import { CardSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
+import { AnalysisResultSummary } from "~/components/scan";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { scanShopTracking, getScanHistory, type ScriptAnalysisResult } from "../services/scanner.server";
@@ -14,6 +15,7 @@ import { generateMigrationActions } from "../services/scanner/migration-actions"
 import { getExistingWebPixels } from "../services/migration.server";
 import { createAuditAsset } from "../services/audit-asset.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
+import { SCANNER_CONFIG } from "../utils/config";
 import type { ScriptTag, RiskItem } from "../types";
 import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
 import { logger } from "../utils/logger.server";
@@ -50,31 +52,84 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     let migrationActions: MigrationAction[] = [];
     if (latestScanRaw) {
         try {
-
-            const scanData = latestScanRaw as unknown as {
-                scriptTags?: ScriptTag[];
-                identifiedPlatforms?: string[];
-                riskItems?: RiskItem[];
-                riskScore?: number;
-                additionalScriptsPatterns?: Array<{ platform: string; content: string }>;
+            // 类型安全的数据验证
+            const rawData = latestScanRaw;
+            
+            // 验证 scriptTags 数组及其元素
+            const scriptTags = Array.isArray(rawData.scriptTags) 
+                ? rawData.scriptTags.filter((tag: unknown): tag is ScriptTag => {
+                    if (typeof tag !== "object" || tag === null) return false;
+                    const t = tag as Record<string, unknown>;
+                    return (
+                        typeof t.id === "number" &&
+                        (typeof t.gid === "string" || t.gid === null || t.gid === undefined) &&
+                        (typeof t.src === "string" || t.src === null || t.src === undefined) &&
+                        typeof t.display_scope === "string"
+                    );
+                })
+                : [];
+            
+            // 验证 identifiedPlatforms 数组
+            const identifiedPlatforms = Array.isArray(rawData.identifiedPlatforms)
+                ? rawData.identifiedPlatforms.filter((p: unknown): p is string => typeof p === "string")
+                : [];
+            
+            // 验证 riskItems 数组及其元素
+            const riskItems = Array.isArray(rawData.riskItems)
+                ? rawData.riskItems.filter((item: unknown): item is RiskItem => {
+                    if (typeof item !== "object" || item === null) return false;
+                    const r = item as Record<string, unknown>;
+                    return (
+                        typeof r.id === "string" &&
+                        typeof r.name === "string" &&
+                        typeof r.description === "string" &&
+                        (r.severity === "high" || r.severity === "medium" || r.severity === "low")
+                    );
+                })
+                : [];
+            
+            // 验证 riskScore
+            const riskScore = typeof rawData.riskScore === "number" && rawData.riskScore >= 0 && rawData.riskScore <= 100
+                ? rawData.riskScore
+                : 0;
+            
+            // 验证 additionalScriptsPatterns 数组
+            const additionalScriptsPatterns = Array.isArray(rawData.additionalScriptsPatterns)
+                ? rawData.additionalScriptsPatterns.filter((p: unknown): p is { platform: string; content: string } => {
+                    if (typeof p !== "object" || p === null) return false;
+                    const pattern = p as Record<string, unknown>;
+                    return (
+                        typeof pattern.platform === "string" &&
+                        typeof pattern.content === "string"
+                    );
+                })
+                : [];
+            
+            const scanData = {
+                scriptTags,
+                identifiedPlatforms,
+                riskItems,
+                riskScore,
+                additionalScriptsPatterns,
             };
 
             const webPixels = await getExistingWebPixels(admin);
             const enhancedResult: EnhancedScanResult = {
-                scriptTags: (scanData.scriptTags as ScriptTag[]) || [],
+                scriptTags: scanData.scriptTags,
                 checkoutConfig: null,
-                identifiedPlatforms: (scanData.identifiedPlatforms as string[]) || [],
-                riskItems: (scanData.riskItems as RiskItem[]) || [],
-                riskScore: scanData.riskScore || 0,
+                identifiedPlatforms: scanData.identifiedPlatforms,
+                riskItems: scanData.riskItems,
+                riskScore: scanData.riskScore,
                 webPixels: webPixels.map(p => ({ id: p.id, settings: p.settings })),
                 duplicatePixels: [],
                 migrationActions: [],
-                additionalScriptsPatterns: (scanData.additionalScriptsPatterns as Array<{ platform: string; content: string }>) || [],
+                additionalScriptsPatterns: scanData.additionalScriptsPatterns,
             };
             const shopTier = (shop.shopTier as string) || "unknown";
             migrationActions = generateMigrationActions(enhancedResult, shopTier);
         } catch (e) {
-
+            const errorMessage = e instanceof Error ? e.message : "Unknown error";
+            logger.error("Failed to generate migration actions from scan data:", errorMessage, { shopId: shop.id });
             migrationActions = [];
         }
     }
@@ -163,11 +218,72 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             if (!analysisDataStr) {
                 return json({ error: "缺少分析数据" }, { status: 400 });
             }
-            const analysisData = JSON.parse(analysisDataStr) as ScriptAnalysisResult;
+            
+            // 验证和解析分析数据
+            let parsedData: unknown;
+            try {
+                parsedData = JSON.parse(analysisDataStr);
+            } catch (parseError) {
+                logger.warn("Failed to parse analysis data JSON", { shopId: shop.id, error: parseError });
+                return json({ error: "无法解析分析数据：无效的 JSON 格式" }, { status: 400 });
+            }
+            
+            // 验证数据结构
+            if (!parsedData || typeof parsedData !== "object") {
+                return json({ error: "无效的分析数据格式：必须是对象" }, { status: 400 });
+            }
+            
+            const data = parsedData as Record<string, unknown>;
+            
+            // 验证必需字段
+            if (!Array.isArray(data.identifiedPlatforms)) {
+                return json({ error: "无效的分析数据格式：identifiedPlatforms 必须是数组" }, { status: 400 });
+            }
+            
+            if (typeof data.riskScore !== "number" || data.riskScore < 0 || data.riskScore > 100) {
+                return json({ error: "无效的分析数据格式：riskScore 必须是 0-100 之间的数字" }, { status: 400 });
+            }
+            
+            if (!Array.isArray(data.platformDetails)) {
+                return json({ error: "无效的分析数据格式：platformDetails 必须是数组" }, { status: 400 });
+            }
+            
+            if (!Array.isArray(data.risks)) {
+                return json({ error: "无效的分析数据格式：risks 必须是数组" }, { status: 400 });
+            }
+            
+            // 验证 identifiedPlatforms 中的元素都是字符串
+            if (!data.identifiedPlatforms.every((p: unknown) => typeof p === "string")) {
+                return json({ error: "无效的分析数据格式：identifiedPlatforms 中的元素必须是字符串" }, { status: 400 });
+            }
+            
+            // 限制数组长度，防止恶意数据
+            const MAX_PLATFORMS = 50;
+            const MAX_PLATFORM_DETAILS = 200;
+            const MAX_RISKS = 100;
+            
+            if (data.identifiedPlatforms.length > MAX_PLATFORMS) {
+                return json({ error: `identifiedPlatforms 数组过长（最多 ${MAX_PLATFORMS} 个）` }, { status: 400 });
+            }
+            
+            if (data.platformDetails.length > MAX_PLATFORM_DETAILS) {
+                return json({ error: `platformDetails 数组过长（最多 ${MAX_PLATFORM_DETAILS} 个）` }, { status: 400 });
+            }
+            
+            if (data.risks.length > MAX_RISKS) {
+                return json({ error: `risks 数组过长（最多 ${MAX_RISKS} 个）` }, { status: 400 });
+            }
+            
+            const analysisData = data as ScriptAnalysisResult;
 
             const createdAssets = [];
             // 为每个检测到的平台创建 AuditAsset
             for (const platform of analysisData.identifiedPlatforms) {
+                // 验证平台名称
+                if (typeof platform !== "string" || platform.length > 100) {
+                    logger.warn(`Skipping invalid platform name: ${platform}`, { shopId: shop.id });
+                    continue;
+                }
                 const asset = await createAuditAsset(shop.id, {
                     sourceType: "manual_paste",
                     category: "pixel",
@@ -220,7 +336,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     try {
         const scanResult = await scanShopTracking(admin, shop.id);
-        return json({ success: true, actionType: "scan", result: scanResult });
+        return json({ 
+            success: true, 
+            actionType: "scan", 
+            result: scanResult,
+            partialRefresh: scanResult._partialRefresh || false,
+        });
     }
     catch (error) {
         logger.error("Scan error", error);
@@ -249,18 +370,20 @@ export default function ScanPage() {
     const [monthlyOrders, setMonthlyOrders] = useState(500);
     const isScanning = navigation.state === "submitting";
 
-    const additionalScriptsWarning = deprecationStatus ? (
+    const additionalScriptsWarning = (
       <Banner tone="warning" title="Additional Scripts 需手动粘贴">
         <BlockStack gap="200">
           <Text as="p">
             Shopify API 无法读取 checkout.liquid / Additional Scripts。请在下方「脚本内容分析」中粘贴原始脚本，确保迁移报告涵盖 Thank you / Order status 页的自定义逻辑。
           </Text>
-          <Text as="p" tone="subdued">
-            截止提醒：{deprecationStatus.additionalScripts.badge.text} — {deprecationStatus.additionalScripts.description}
-          </Text>
+          {deprecationStatus?.additionalScripts && (
+            <Text as="p" tone="subdued">
+              截止提醒：{deprecationStatus.additionalScripts.badge.text} — {deprecationStatus.additionalScripts.description}
+            </Text>
+          )}
         </BlockStack>
       </Banner>
-    ) : null;
+    );
 
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[] | null) || [];
 
@@ -339,17 +462,34 @@ export default function ScanPage() {
         submit(formData, { method: "post" });
     };
     const handleAnalyzeScript = useCallback(() => {
+        // 输入验证
+        const MAX_CONTENT_LENGTH = 500000; // 500KB 限制
+        const trimmedContent = scriptContent.trim();
+        
+        if (!trimmedContent) {
+            setAnalysisError("请输入脚本内容");
+            setIsAnalyzing(false);
+            return;
+        }
+        
+        if (trimmedContent.length > MAX_CONTENT_LENGTH) {
+            setAnalysisError(`脚本内容过长（最多 ${MAX_CONTENT_LENGTH} 个字符）。请分段分析或联系支持。`);
+            setIsAnalyzing(false);
+            return;
+        }
+        
         setIsAnalyzing(true);
         setAnalysisSaved(false); // 重置保存状态
+        setAnalysisError(null);
+        
         try {
-            const result = analyzeScriptContent(scriptContent);
+            const result = analyzeScriptContent(trimmedContent);
             setAnalysisResult(result);
-            setAnalysisError(null);
-        }
-        catch (error) {
-            setAnalysisError(error instanceof Error ? error.message : "分析失败，请稍后重试");
-        }
-        finally {
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
+            setAnalysisError(errorMessage);
+            logger.error("Script analysis error", { error: errorMessage });
+        } finally {
             setIsAnalyzing(false);
         }
     }, [scriptContent]);
@@ -413,8 +553,8 @@ export default function ScanPage() {
           Shopify API 结果是分页的。本扫描会自动迭代页面，但为了性能会在以下阈值停止并提示：
         </Text>
         <List type="bullet">
-          <List.Item>ScriptTags 最多处理 1000 条记录</List.Item>
-          <List.Item>Web Pixel 最多处理 200 条记录</List.Item>
+          <List.Item>ScriptTags 最多处理 {SCANNER_CONFIG.MAX_SCRIPT_TAGS.toLocaleString()} 条记录</List.Item>
+          <List.Item>Web Pixel 最多处理 {SCANNER_CONFIG.MAX_WEB_PIXELS.toLocaleString()} 条记录</List.Item>
         </List>
         <Text as="p" tone="subdued">
           如果商店超过以上数量，请在「手动分析」中粘贴剩余脚本，或联系支持获取完整导出（当前上限可调整，请联系我们）。
@@ -459,10 +599,25 @@ export default function ScanPage() {
             default: return "info";
         }
     };
+  // 检查是否有部分刷新的警告
+  const partialRefreshWarning = actionData && (actionData as { partialRefresh?: boolean }).partialRefresh ? (
+    <Banner tone="warning" title="部分数据刷新失败">
+      <BlockStack gap="200">
+        <Text as="p" variant="bodySm">
+          扫描使用了缓存数据，但无法刷新 Web Pixels 信息。Web Pixels、重复像素检测和迁移操作建议可能不完整。
+        </Text>
+        <Text as="p" variant="bodySm" tone="subdued">
+          建议：点击「开始扫描」按钮重新执行完整扫描以获取最新数据。
+        </Text>
+      </BlockStack>
+    </Banner>
+  ) : null;
+
   return (<Page title="追踪脚本扫描" subtitle="扫描店铺中的追踪脚本，识别迁移风险">
     <BlockStack gap="500">
       {additionalScriptsWarning}
       {paginationLimitWarning}
+      {partialRefreshWarning}
       {upgradeStatus && (<Banner title={upgradeStatus.title} tone={getUpgradeBannerTone(upgradeStatus.urgency)}>
         <BlockStack gap="200">
           <Text as="p">{upgradeStatus.message}</Text>
@@ -474,7 +629,7 @@ export default function ScanPage() {
               {!upgradeStatus.hasOfficialSignal && (<Text as="p" variant="bodySm" tone="subdued">
                   提示：我们尚未完成一次有效的升级状态检测。请稍后重试、重新授权应用，或等待后台定时任务自动刷新。
                 </Text>)}
-              {upgradeStatus.lastUpdated && (<Text as="p" variant="bodySm" tone="subdued">
+              {upgradeStatus.lastUpdated && !isNaN(new Date(upgradeStatus.lastUpdated).getTime()) && (<Text as="p" variant="bodySm" tone="subdued">
                   状态更新时间: {new Date(upgradeStatus.lastUpdated).toLocaleString("zh-CN")}
                 </Text>)}
             </BlockStack>
@@ -1353,78 +1508,7 @@ export default function ScanPage() {
                 </Card>
               </Box>
 
-              {analysisResult && (<Layout>
-                  <Layout.Section variant="oneThird">
-                    <Card>
-                      <BlockStack gap="400">
-                        <Text as="h2" variant="headingMd">
-                          风险评分
-                        </Text>
-                        <Box background={analysisResult.riskScore > 60
-                    ? "bg-fill-critical"
-                    : analysisResult.riskScore > 30
-                        ? "bg-fill-warning"
-                        : "bg-fill-success"} padding="600" borderRadius="200">
-                          <BlockStack gap="200" align="center">
-                            <Text as="p" variant="heading3xl" fontWeight="bold">
-                              {analysisResult.riskScore}
-                            </Text>
-                            <Text as="p" variant="bodySm">
-                              / 100
-                            </Text>
-                          </BlockStack>
-                        </Box>
-                      </BlockStack>
-                    </Card>
-                  </Layout.Section>
-
-                  <Layout.Section variant="oneThird">
-                    <Card>
-                      <BlockStack gap="400">
-                        <Text as="h2" variant="headingMd">
-                          检测到的平台
-                        </Text>
-                        {analysisResult.identifiedPlatforms.length > 0 ? (<BlockStack gap="200">
-                            {analysisResult.identifiedPlatforms.map((platform) => (<InlineStack key={platform} gap="200" align="start">
-                                <Icon source={CheckCircleIcon} tone="success"/>
-                                <Text as="span">{getPlatformName(platform)}</Text>
-                              </InlineStack>))}
-                          </BlockStack>) : (<Text as="p" tone="subdued">
-                            未检测到已知追踪平台
-                          </Text>)}
-                      </BlockStack>
-                    </Card>
-                  </Layout.Section>
-
-                  <Layout.Section variant="oneThird">
-                    <Card>
-                      <BlockStack gap="400">
-                        <Text as="h2" variant="headingMd">
-                          检测详情
-                        </Text>
-                        {analysisResult.platformDetails.length > 0 ? (<BlockStack gap="200">
-                            {analysisResult.platformDetails.slice(0, 5).map((detail, idx) => (<Box key={idx} background="bg-surface-secondary" padding="200" borderRadius="100">
-                                <BlockStack gap="100">
-                                  <InlineStack gap="200" align="space-between">
-                                    <Text as="span" variant="bodySm" fontWeight="semibold">
-                                      {detail.type}
-                                    </Text>
-                                    <Badge tone={detail.confidence === "high" ? "success" : "info"}>
-                                      {detail.confidence === "high" ? "高可信度" : "中可信度"}
-                                    </Badge>
-                                  </InlineStack>
-                                  <Text as="span" variant="bodySm" tone="subdued">
-                                    {detail.matchedPattern}
-                                  </Text>
-                                </BlockStack>
-                              </Box>))}
-                          </BlockStack>) : (<Text as="p" tone="subdued">
-                            无检测详情
-                          </Text>)}
-                      </BlockStack>
-                    </Card>
-                  </Layout.Section>
-                </Layout>)}
+              {analysisResult && <AnalysisResultSummary analysisResult={analysisResult} />}
 
               {analysisResult && analysisResult.risks.length > 0 && (<Card>
                   <BlockStack gap="400">

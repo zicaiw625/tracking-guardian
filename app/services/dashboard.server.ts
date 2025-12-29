@@ -73,7 +73,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       },
       pixelConfigs: {
         where: { isActive: true },
-        select: { id: true },
+        select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
       },
       reconciliationReports: {
         orderBy: { reportDate: "desc" },
@@ -107,6 +107,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       configuredPlatforms: 0,
       weeklyConversions: 0,
       hasAlertConfig: false,
+      hasServerSideConfig: false,
       plan: "free",
       planId: "free",
       planLabel: getPlanDefinition("free").name,
@@ -117,15 +118,31 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     };
   }
 
+  // 计算已配置的平台数量（包括客户端和服务端配置）
+  // 注意：此值用于 UI 显示，与 hasServerSideConfig 不同
+  // hasServerSideConfig 只检查有效的服务端配置（需要 serverSideEnabled 和有效凭证）
   const configuredPlatforms = shop.pixelConfigs?.length || 0;
+  
+  // 计算服务端配置数量（用于健康度评分，因为只有服务端追踪才产生对账数据）
+  // 注意：必须同时满足 serverSideEnabled === true 和 credentialsEncrypted !== null
+  // 这是因为仅启用服务端追踪但没有凭证的情况下，追踪实际上无法工作
+  // 防御性检查：确保 credentialsEncrypted 是非空字符串（避免空字符串加密值被误判为有效）
+  const serverSideConfigsCount = shop.pixelConfigs?.filter(
+    (config) =>
+      config.serverSideEnabled &&
+      config.credentialsEncrypted &&
+      config.credentialsEncrypted.trim().length > 0
+  ).length || 0;
+  const hasServerSideConfig = serverSideConfigsCount > 0;
   const { score, status } = calculateHealthScore(
     shop.reconciliationReports || [],
-    configuredPlatforms
+    serverSideConfigsCount
   );
   const planId = normalizePlan(shop.plan);
   const planDef = getPlanDefinition(planId);
 
-  const latestScan = shop.scanReports[0];
+  // 使用可选链安全访问数组第一个元素
+  const latestScan = shop.scanReports?.[0];
   const scriptTagAnalysis = latestScan ? analyzeScriptTags(latestScan.scriptTags) : { count: 0, hasOrderStatusScripts: false };
 
   return {
@@ -143,6 +160,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     configuredPlatforms,
     weeklyConversions: shop._count?.conversionLogs || 0,
     hasAlertConfig: (shop.alertConfigs?.length || 0) > 0,
+    hasServerSideConfig,
     plan: shop.plan || "free",
     planId,
     planLabel: planDef.name,

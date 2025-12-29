@@ -17,7 +17,8 @@ import type {
   MetaCredentials,
   GoogleCredentials,
   TikTokCredentials,
-} from "../../types";
+  PinterestCredentials,
+} from "../../types/platform";
 import {
   encryptAlertSettings,
   encryptJson,
@@ -185,36 +186,123 @@ export async function handleSaveServerSide(
   const platform = formData.get("platform") as string;
   const enabled = formData.get("enabled") === "true";
 
-  let credentials: GoogleCredentials | MetaCredentials | TikTokCredentials;
+  let credentials: GoogleCredentials | MetaCredentials | TikTokCredentials | PinterestCredentials;
   let platformId = "";
 
   if (platform === "google") {
+    const measurementId = (formData.get("measurementId") as string) || "";
+    const apiSecret = (formData.get("apiSecret") as string) || "";
+    
+    // 验证：如果启用服务端追踪，必须填写所有凭证字段
+    if (enabled && (!measurementId || !apiSecret)) {
+      return json(
+        { error: "启用服务端追踪时必须填写 Measurement ID 和 API Secret" },
+        { status: 400 }
+      );
+    }
+    
     const googleCreds: GoogleCredentials = {
-      measurementId: (formData.get("measurementId") as string) || "",
-      apiSecret: (formData.get("apiSecret") as string) || "",
+      measurementId,
+      apiSecret,
     };
     credentials = googleCreds;
-    platformId = googleCreds.measurementId;
+    platformId = measurementId;
   } else if (platform === "meta") {
+    const pixelId = (formData.get("pixelId") as string) || "";
+    const accessToken = (formData.get("accessToken") as string) || "";
+    const testEventCode = (formData.get("testEventCode") as string) || undefined;
+    
+    // 验证：如果启用服务端追踪，必须填写所有凭证字段
+    if (enabled && (!pixelId || !accessToken)) {
+      return json(
+        { error: "启用服务端追踪时必须填写 Pixel ID 和 Access Token" },
+        { status: 400 }
+      );
+    }
+    
     const metaCreds: MetaCredentials = {
-      pixelId: (formData.get("pixelId") as string) || "",
-      accessToken: (formData.get("accessToken") as string) || "",
-      testEventCode: (formData.get("testEventCode") as string) || undefined,
+      pixelId,
+      accessToken,
+      testEventCode,
     };
     credentials = metaCreds;
-    platformId = metaCreds.pixelId;
+    platformId = pixelId;
   } else if (platform === "tiktok") {
+    const pixelId = (formData.get("pixelId") as string) || "";
+    const accessToken = (formData.get("accessToken") as string) || "";
+    
+    // 验证：如果启用服务端追踪，必须填写所有凭证字段
+    if (enabled && (!pixelId || !accessToken)) {
+      return json(
+        { error: "启用服务端追踪时必须填写 Pixel ID 和 Access Token" },
+        { status: 400 }
+      );
+    }
+    
     const tiktokCreds: TikTokCredentials = {
-      pixelId: (formData.get("pixelId") as string) || "",
-      accessToken: (formData.get("accessToken") as string) || "",
+      pixelId,
+      accessToken,
     };
     credentials = tiktokCreds;
-    platformId = tiktokCreds.pixelId;
+    platformId = pixelId;
+  } else if (platform === "pinterest") {
+    const adAccountId = (formData.get("adAccountId") as string) || "";
+    const accessToken = (formData.get("accessToken") as string) || "";
+    
+    // 验证：如果启用服务端追踪，必须填写所有凭证字段
+    if (enabled && (!adAccountId || !accessToken)) {
+      return json(
+        { error: "启用服务端追踪时必须填写 Ad Account ID 和 Access Token" },
+        { status: 400 }
+      );
+    }
+    
+    const pinterestCreds: PinterestCredentials = {
+      adAccountId,
+      accessToken,
+    };
+    credentials = pinterestCreds;
+    platformId = adAccountId;
   } else {
     return json({ error: "Unsupported platform" }, { status: 400 });
   }
 
-  const encryptedCredentials = encryptJson(credentials);
+  // 检查凭证是否为空（所有必需字段都为空字符串）
+  const hasNonEmptyCredentials = (() => {
+    if (platform === "google") {
+      const creds = credentials as GoogleCredentials;
+      return !!(creds.measurementId && creds.apiSecret);
+    } else if (platform === "meta") {
+      const creds = credentials as MetaCredentials;
+      return !!(creds.pixelId && creds.accessToken);
+    } else if (platform === "tiktok") {
+      const creds = credentials as TikTokCredentials;
+      return !!(creds.pixelId && creds.accessToken);
+    } else if (platform === "pinterest") {
+      const creds = credentials as PinterestCredentials;
+      return !!(creds.adAccountId && creds.accessToken);
+    }
+    return false;
+  })();
+
+  // 注意：即使禁用服务端追踪，我们仍然保存凭证，以便用户稍后重新启用时无需重新输入
+  // 这样用户可以暂时禁用追踪，而不会丢失已配置的凭证信息
+  // 但是，如果凭证为空（用户清空了所有字段），则不保存空凭证，保留现有凭证
+  const encryptedCredentials = hasNonEmptyCredentials ? encryptJson(credentials) : null;
+
+  // 构建更新数据：如果凭证为空且禁用，则不更新凭证字段（保留现有凭证）
+  const updateData: {
+    credentialsEncrypted?: string | null;
+    serverSideEnabled: boolean;
+  } = {
+    serverSideEnabled: enabled,
+  };
+
+  if (enabled || hasNonEmptyCredentials) {
+    // 启用时或凭证非空时，更新凭证
+    updateData.credentialsEncrypted = encryptedCredentials;
+  }
+  // 如果禁用且凭证为空，不更新 credentialsEncrypted（保留现有凭证）
 
   await prisma.pixelConfig.upsert({
     where: {
@@ -223,10 +311,7 @@ export async function handleSaveServerSide(
         platform,
       },
     },
-    update: {
-      credentialsEncrypted: encryptedCredentials,
-      serverSideEnabled: enabled,
-    },
+    update: updateData,
     create: {
       shopId,
       platform,
@@ -238,6 +323,9 @@ export async function handleSaveServerSide(
 
   await invalidateAllShopCaches(sessionShop, shopId);
 
+  // 处理 platformId 为空字符串的情况
+  const maskedPlatformId = platformId ? platformId.slice(0, 8) + "****" : "未设置";
+
   await createAuditLog({
     shopId,
     action: "pixel_config_updated",
@@ -246,7 +334,7 @@ export async function handleSaveServerSide(
     resourceId: platform,
     metadata: {
       platform,
-      platformId: platformId.slice(0, 8) + "****",
+      platformId: maskedPlatformId,
       serverSideEnabled: enabled,
       actor: sessionShop,
       operationType: "credentials_updated",
@@ -257,7 +345,7 @@ export async function handleSaveServerSide(
     shopId,
     platform,
     enabled,
-    platformIdMasked: platformId.slice(0, 8) + "****",
+    platformIdMasked: maskedPlatformId,
   });
 
   return json({ success: true, message: "服务端追踪配置已保存" });
