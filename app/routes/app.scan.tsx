@@ -16,6 +16,7 @@ import { generateMigrationActions } from "../services/scanner/migration-actions"
 import { getExistingWebPixels } from "../services/migration.server";
 import { createAuditAsset } from "../services/audit-asset.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
+import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
 import { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } from "../utils/config";
 import type { ScriptTag, RiskItem } from "../types";
 import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
@@ -103,6 +104,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             id: true,
             shopDomain: true,
             shopTier: true,
+            plan: true,
             typOspPagesEnabled: true,
             typOspUpdatedAt: true,
             typOspLastCheckedAt: true,
@@ -117,6 +119,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             migrationActions: [] as MigrationAction[],
             deprecationStatus: null,
             upgradeStatus: null,
+            planId: "free" as const,
+            planLabel: "免费版",
+            planTagline: "扫描报告 + 基础建议",
         });
     }
     const latestScanRaw = await prisma.scanReport.findFirst({
@@ -250,6 +255,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         typOspUnknownError,
     };
     const upgradeStatusMessage = getUpgradeStatusMessage(shopUpgradeStatus, hasScriptTags);
+    
+    // 处理套餐信息
+    const planId = normalizePlan(shop.plan);
+    const planDef = getPlanDefinition(planId);
+    
     return json({
         shop: { id: shop.id, domain: shopDomain },
         latestScan,
@@ -272,6 +282,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             lastUpdated: typOspUpdatedAt?.toISOString() || null,
             hasOfficialSignal: typOspUpdatedAt !== null,
         },
+        planId,
+        planLabel: planDef.name,
+        planTagline: planDef.tagline,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -533,7 +546,7 @@ function getUpgradeBannerTone(
 }
 
 export default function ScanPage() {
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions } = useLoaderData<typeof loader>();
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -565,6 +578,13 @@ export default function ScanPage() {
     const abortControllerRef = useRef<AbortController | null>(null);
     const idleCallbackHandlesRef = useRef<Array<number | IdleCallbackHandle>>([]);
     const exportBlobUrlRef = useRef<string | null>(null);
+
+    // 套餐级别判断 - 使用显式检查确保类型安全
+    // normalizePlan 确保 planId 总是有效值，但显式检查提升代码可读性
+    const planIdSafe = planId || "free";
+    const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
+    const isProOrAbove = isPlanAtLeast(planIdSafe, "pro");
+    const isAgency = isPlanAtLeast(planIdSafe, "agency");
 
     const additionalScriptsWarning = (
       <Banner tone="warning" title="Additional Scripts 需手动粘贴">
@@ -1290,6 +1310,49 @@ export default function ScanPage() {
           </Banner>
         );
       })()}
+
+      {/* 订阅计划卡片 */}
+      {planId && planLabel && (
+        <Banner
+          title={`当前套餐：${planLabel}`}
+          tone={isGrowthOrAbove ? "info" : "warning"}
+          action={{
+            content: "查看套餐/升级",
+            url: "/app/settings?tab=subscription",
+          }}
+        >
+          <BlockStack gap="200">
+            {planTagline && (
+              <Text as="p" variant="bodySm">{planTagline}</Text>
+            )}
+            {!isGrowthOrAbove && (
+              <List type="bullet">
+                <List.Item>像素迁移中心（App Pixel + CAPI 向导）在 Growth 及以上开放</List.Item>
+                <List.Item>高级 TY/OS 组件、事件对账与多渠道像素需 Pro 及以上</List.Item>
+                <List.Item>多店铺/白标报告在 Agency 套餐提供</List.Item>
+              </List>
+            )}
+            {isGrowthOrAbove && !isProOrAbove && (
+              <List type="bullet">
+                <List.Item>当前可用：App Pixel + 单/双渠道 CAPI 迁移</List.Item>
+                <List.Item>升级到 Pro 以解锁事件对账、告警与高级 TY/OS 模块</List.Item>
+              </List>
+            )}
+            {isProOrAbove && !isAgency && (
+              <List type="bullet">
+                <List.Item>已解锁多渠道像素 + 事件对账 + TY/OS 高级组件</List.Item>
+                <List.Item>如需多店铺协作/白标报告，可升级至 Agency</List.Item>
+              </List>
+            )}
+            {isAgency && (
+              <List type="bullet">
+                <List.Item>已解锁多店铺、协作与白标报告</List.Item>
+                <List.Item>如需迁移托管，可在支持渠道提交工单</List.Item>
+              </List>
+            )}
+          </BlockStack>
+        </Banner>
+      )}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (<BlockStack gap="500">

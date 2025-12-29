@@ -558,7 +558,7 @@ export default function MigratePage() {
           tone={isGrowthOrAbove ? "success" : "warning"}
           action={{
             content: "查看套餐/升级",
-            url: "/app/settings?tab=billing",
+            url: "/app/settings?tab=subscription",
           }}
         >
           <BlockStack gap="200">
@@ -801,7 +801,7 @@ export default function MigratePage() {
                   {!isGrowthOrAbove && (
                     <Banner
                       tone="warning"
-                      action={{ content: "升级至 Growth", url: "/app/settings?tab=billing" }}
+                      action={{ content: "升级至 Growth", url: "/app/settings?tab=subscription" }}
                     >
                       <Text as="p">
                         App Pixel 启用与 CAPI 迁移在 Growth 及以上套餐开放。请升级后继续。
@@ -866,7 +866,7 @@ export default function MigratePage() {
                       {!isProOrAbove && (
                         <Banner
                           tone="warning"
-                          action={{ content: "升级至 Pro", url: "/app/settings?tab=billing" }}
+                          action={{ content: "升级至 Pro", url: "/app/settings?tab=subscription" }}
                         >
                           <Text as="p">
                             事件对账与多渠道 CAPI 配置在 Pro 及以上开放。请升级以继续配置凭证。

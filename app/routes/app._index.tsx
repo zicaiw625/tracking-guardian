@@ -175,7 +175,7 @@ function QuickStatsCard({
             </List>
           )}
           <Button
-            url="/app/settings?tab=billing"
+            url="/app/settings?tab=subscription"
             size="slim"
           >
             查看套餐/升级

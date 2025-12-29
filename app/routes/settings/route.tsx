@@ -1,7 +1,7 @@
 
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useLoaderData, useSubmit, useActionData, useNavigation } from "@remix-run/react";
+import { useLoaderData, useSubmit, useActionData, useNavigation, useSearchParams } from "@remix-run/react";
 import { Page, BlockStack, Banner, Tabs, ContextualSaveBar } from "@shopify/polaris";
 import { useToastContext } from "~/components/ui";
 
@@ -40,7 +40,28 @@ export default function SettingsPage() {
   const existingAlertConfig = shop?.alertConfigs?.[0];
   const existingPixelConfig = shop?.pixelConfigs?.[0];
 
-  const [selectedTab, setSelectedTab] = useState(0);
+  // 从 URL 参数读取 tab，支持 billing 和 subscription 两种参数名（向后兼容）
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  
+  // 根据 URL 参数计算标签页索引
+  const getTabIndex = (tab: string | null): number => {
+    if (tab === "billing" || tab === "subscription") return 3; // 订阅计划标签页
+    if (tab === "alerts") return 0; // 警报通知标签页
+    if (tab === "server-side" || tab === "server") return 1; // 服务端追踪标签页
+    if (tab === "security") return 2; // 安全与隐私标签页
+    return 0; // 默认显示第一个标签页
+  };
+
+  const [selectedTab, setSelectedTab] = useState(() => getTabIndex(tabParam));
+
+  // 当 URL 参数变化时，同步更新标签页（处理浏览器前进/后退等情况）
+  useEffect(() => {
+    const newTabIndex = getTabIndex(tabParam);
+    if (newTabIndex !== selectedTab) {
+      setSelectedTab(newTabIndex);
+    }
+  }, [tabParam, selectedTab]);
 
   const [alertChannel, setAlertChannel] = useState(() => existingAlertConfig?.channel || "email");
   const [alertEmail, setAlertEmail] = useState("");
