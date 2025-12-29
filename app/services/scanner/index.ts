@@ -574,6 +574,7 @@ export async function getCachedScanResult(
         webPixels: [],
         duplicatePixels: [],
         migrationActions: [],
+        _cachedAt: cached.completedAt, // Bug #4 修复: 记录缓存时间
     };
 }
 
@@ -590,15 +591,31 @@ export async function scanShopTracking(
     });
     const shopTier = shop?.shopTier || "unknown";
 
+    // Bug #4 修复: 改进缓存策略，缩短TTL并添加强制刷新选项
+    // 对于关键操作（如迁移前），应该使用 force=true 强制刷新
     if (!force) {
         const cached = await getCachedScanResult(shopId, cacheTtlMs);
         if (cached) {
+            // 检查缓存是否可能过期（scriptTags可能在缓存期间被修改）
+            // 如果缓存超过5分钟，建议强制刷新（但这里只刷新webPixels）
+            const cacheAge = Date.now() - (cached._cachedAt?.getTime() || 0);
+            const shouldRefreshScriptTags = cacheAge > 5 * 60 * 1000; // 5分钟
+            
             let refreshFailed = false;
             try {
+                // 总是刷新webPixels（变化较快）
                 cached.webPixels = await fetchAllWebPixels(admin);
                 cached.duplicatePixels = detectDuplicatePixels(cached);
                 cached.migrationActions = generateMigrationActions(cached, shopTier);
-                logger.info(`Returning cached scan with fresh web pixels for shop ${shopId}`);
+                
+                // 如果缓存较旧，标记为部分刷新，建议用户手动刷新
+                if (shouldRefreshScriptTags) {
+                    cached._partialRefresh = true;
+                    cached._refreshRecommended = true;
+                    logger.info(`Cached scan is older than 5 minutes, recommend manual refresh for shop ${shopId}`);
+                } else {
+                    logger.info(`Returning cached scan with fresh web pixels for shop ${shopId}`);
+                }
             } catch (error) {
                 refreshFailed = true;
                 const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -612,6 +629,7 @@ export async function scanShopTracking(
                 cached.migrationActions = [];
                 // 标记为部分刷新
                 cached._partialRefresh = true;
+                cached._refreshRecommended = true;
             }
             
             if (refreshFailed) {

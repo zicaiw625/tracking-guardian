@@ -222,36 +222,122 @@ export async function createAuditAsset(
 
 /**
  * 批量创建审计资产（用于扫描结果）
+ * 性能优化: 使用事务和批量操作
  */
 export async function batchCreateAuditAssets(
   shopId: string,
   assets: AuditAssetInput[],
   scanReportId?: string
 ): Promise<{ created: number; updated: number; failed: number }> {
+  if (assets.length === 0) {
+    return { created: 0, updated: 0, failed: 0 };
+  }
+
   let created = 0;
   let updated = 0;
   let failed = 0;
 
-  for (const input of assets) {
-    const result = await createAuditAsset(shopId, {
-      ...input,
-      scanReportId: scanReportId || input.scanReportId,
-    });
-    
-    if (result) {
-      // 简化判断：如果 createdAt 在最近 1 秒内，认为是新创建
-      const isNew = Date.now() - result.createdAt.getTime() < 1000;
-      if (isNew) {
-        created++;
-      } else {
-        updated++;
+  // 性能优化: 对于大量资产，使用事务批量处理
+  if (assets.length > 50) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const input of assets) {
+          try {
+            const fingerprint = generateFingerprint(
+              input.sourceType,
+              input.category,
+              input.platform,
+              input.details
+            );
+
+            // 检查是否已存在
+            const existing = await tx.auditAsset.findUnique({
+              where: { shopId_fingerprint: { shopId, fingerprint } },
+            });
+
+            if (existing) {
+              await tx.auditAsset.update({
+                where: { id: existing.id },
+                data: {
+                  sourceType: input.sourceType,
+                  category: input.category,
+                  platform: input.platform,
+                  displayName: input.displayName,
+                  riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
+                  suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
+                  details: input.details as object,
+                  scanReportId: scanReportId || input.scanReportId,
+                },
+              });
+              updated++;
+            } else {
+              await tx.auditAsset.create({
+                data: {
+                  shopId,
+                  sourceType: input.sourceType,
+                  category: input.category,
+                  platform: input.platform,
+                  displayName: input.displayName,
+                  fingerprint,
+                  riskLevel: input.riskLevel || inferRiskLevel(input.category, input.sourceType, input.platform),
+                  suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
+                  migrationStatus: "pending",
+                  details: input.details as object,
+                  scanReportId: scanReportId || input.scanReportId,
+                },
+              });
+              created++;
+            }
+          } catch (error) {
+            failed++;
+            logger.warn("Failed to create/update AuditAsset in batch", { shopId, error });
+          }
+        }
+      }, {
+        timeout: 30000, // 30秒超时
+      });
+    } catch (error) {
+      logger.error("Batch AuditAssets transaction failed", { shopId, error, count: assets.length });
+      // 回退到逐个处理
+      for (const input of assets) {
+        const result = await createAuditAsset(shopId, {
+          ...input,
+          scanReportId: scanReportId || input.scanReportId,
+        });
+        if (result) {
+          const isNew = Date.now() - result.createdAt.getTime() < 1000;
+          if (isNew) {
+            created++;
+          } else {
+            updated++;
+          }
+        } else {
+          failed++;
+        }
       }
-    } else {
-      failed++;
+    }
+  } else {
+    // 少量资产，逐个处理（保持原有逻辑）
+    for (const input of assets) {
+      const result = await createAuditAsset(shopId, {
+        ...input,
+        scanReportId: scanReportId || input.scanReportId,
+      });
+      
+      if (result) {
+        const isNew = Date.now() - result.createdAt.getTime() < 1000;
+        if (isNew) {
+          created++;
+        } else {
+          updated++;
+        }
+      } else {
+        failed++;
+      }
     }
   }
 
-  logger.info("Batch AuditAssets processed", { shopId, created, updated, failed });
+  logger.info("Batch AuditAssets processed", { shopId, created, updated, failed, total: assets.length });
   return { created, updated, failed };
 }
 

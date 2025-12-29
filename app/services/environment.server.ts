@@ -97,6 +97,23 @@ export async function switchEnvironment(
     };
   }
 
+  // Bug #6 修复: 环境切换安全检查
+  // 如果切换到test环境，记录警告日志
+  // 如果切换到live环境，验证配置完整性
+  if (targetEnvironment === "live") {
+    // 切换到生产环境前，验证必要配置
+    if (!config.credentialsEncrypted && config.serverSideEnabled) {
+      return {
+        success: false,
+        previousEnvironment,
+        newEnvironment: targetEnvironment,
+        configVersion: config.configVersion,
+        rollbackAllowed: false,
+        error: "切换到生产环境需要配置服务端凭证",
+      };
+    }
+  }
+
   // 保存当前配置快照用于回滚
   const previousConfig = {
     environment: previousEnvironment,

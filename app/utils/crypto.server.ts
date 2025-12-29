@@ -200,16 +200,24 @@ export function normalizePhone(phone: string): string {
 export function normalizeEmail(email: string): string {
     return email.toLowerCase().trim();
 }
+/**
+ * 生成确定性 Event ID（统一实现）
+ * 使用 orderId + eventType + shopDomain 组合确保唯一性
+ * 格式: 32字符的SHA256哈希（与 capi-dedup.server.ts 保持一致）
+ * 
+ * 注意: 此函数与 app/services/capi-dedup.server.ts 中的 generateEventId 保持一致
+ * 如果修改此函数，请同步修改 capi-dedup.server.ts
+ */
 export function generateEventId(orderId: string, eventType: string, shopDomain?: string): string {
     const normalizedOrderId = normalizeOrderId(orderId);
     const hashInput = shopDomain
         ? `${shopDomain}:${normalizedOrderId}:${eventType}`
         : `${normalizedOrderId}:${eventType}`;
-    const shortHash = createHash("sha256")
+    // 使用32字符hash，与 capi-dedup.server.ts 保持一致
+    return createHash("sha256")
         .update(hashInput, "utf8")
         .digest("hex")
-        .slice(0, 8);
-    return `${normalizedOrderId}_${eventType}_${shortHash}`;
+        .substring(0, 32);
 }
 export function normalizeOrderId(orderId: string | number): string {
     const orderIdStr = String(orderId);

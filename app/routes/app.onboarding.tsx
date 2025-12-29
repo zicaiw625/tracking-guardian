@@ -143,8 +143,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return redirect("/app");
   }
 
-  // 获取最新扫描结果（使用可选链安全访问）
+  // Bug #1 修复: 如果shop存在但没有扫描记录，自动触发扫描（异步，不阻塞页面加载）
   const latestScan = shop.scanReports?.[0];
+  if (!latestScan && admin && !autoScan) {
+    // 异步触发扫描，不阻塞页面加载
+    scanShopTracking(admin, shop.id).catch((err) => {
+      logger.error("Auto-scan failed in onboarding", { shopId: shop.id, error: err });
+    });
+  }
   let scanResult: OnboardingData["scanResult"] = null;
   let migrationEstimate: OnboardingData["migrationEstimate"] = null;
   let urgency: OnboardingData["urgency"] = null;
@@ -182,7 +188,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
   }
 
-  // 刷新 TYP/OSP 状态
+  // Bug #2 修复: 刷新 TYP/OSP 状态，改进错误处理
   let typOspEnabled = shop.typOspPagesEnabled;
   let typOspReason = shop.typOspStatusReason;
   
@@ -191,10 +197,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const typOspResult = await refreshTypOspStatus(admin, shop.id);
       typOspEnabled = typOspResult.typOspPagesEnabled;
       if (typOspResult.status === "unknown") {
-        typOspReason = typOspResult.unknownReason || null;
+        typOspReason = typOspResult.unknownReason || "检测失败";
       }
     } catch (error) {
       logger.error("Failed to refresh TYP/OSP status", { error });
+      // 设置默认状态，避免显示null
+      typOspEnabled = false;
+      typOspReason = "API错误，请稍后重试";
     }
   }
 

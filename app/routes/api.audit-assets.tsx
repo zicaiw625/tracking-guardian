@@ -100,14 +100,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     switch (actionType) {
       case "create_from_paste": {
-        // 手动粘贴脚本内容并分析
+        // Bug #3 修复: 手动粘贴脚本内容并分析，添加输入验证和长度限制
         const scriptContent = formData.get("scriptContent") as string;
         
         if (!scriptContent) {
           return json({ error: "Missing script content" }, { status: 400 });
         }
 
-        // 分析脚本内容
+        // 添加长度限制（1MB）
+        const MAX_SCRIPT_LENGTH = 1024 * 1024;
+        if (scriptContent.length > MAX_SCRIPT_LENGTH) {
+          return json({ 
+            error: `Script content too large. Maximum size is ${MAX_SCRIPT_LENGTH / 1024}KB` 
+          }, { status: 400 });
+        }
+
+        // 分析脚本内容（内部已有长度限制和敏感信息清理）
         const analysisResult = analyzeScriptContent(scriptContent);
         
         // 为每个检测到的平台创建 AuditAsset

@@ -45,6 +45,14 @@ const DEFAULT_CONFIG: DedupConfig = {
 /**
  * 生成确定性 Event ID
  * 使用 orderId + eventType + shopDomain 组合确保唯一性
+ * 
+ * 注意: 此函数与 app/utils/crypto.server.ts 中的 generateEventId 保持一致
+ * 如果修改此函数，请同步修改 crypto.server.ts
+ * 
+ * @deprecated 请使用 app/utils/crypto.server.ts 中的 generateEventId
+ * 保留此函数仅用于向后兼容，新代码应导入 crypto.server.ts 的版本
+ * 
+ * 如果提供了platform参数，会在hash中包含platform以确保跨平台唯一性
  */
 export function generateEventId(
   orderId: string,
@@ -52,8 +60,14 @@ export function generateEventId(
   shopDomain: string,
   platform?: string
 ): string {
-  const input = `${shopDomain}:${orderId}:${eventType}${platform ? `:${platform}` : ""}`;
-  return createHash("sha256").update(input).digest("hex").substring(0, 32);
+  // 如果提供了platform，在hash中包含platform以确保跨平台唯一性
+  if (platform) {
+    const input = `${shopDomain}:${orderId}:${eventType}:${platform}`;
+    return createHash("sha256").update(input).digest("hex").substring(0, 32);
+  }
+  // 否则使用统一实现（从crypto.server导入）
+  const { generateEventId: generateEventIdUnified } = require("../utils/crypto.server");
+  return generateEventIdUnified(orderId, eventType, shopDomain);
 }
 
 /**
