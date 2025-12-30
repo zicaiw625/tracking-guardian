@@ -57,6 +57,10 @@ export function getDefaultSettings(moduleKey: ModuleKey): ModuleSettings {
         title: "订单帮助与售后",
         description: "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。",
         faqUrl: "/pages/faq",
+        contactEmail: undefined,
+        contactUrl: undefined,
+        whatsappNumber: undefined,
+        messengerUrl: undefined,
         continueShoppingUrl: "/",
       } as HelpdeskSettings;
 
@@ -217,7 +221,8 @@ export async function getUiModuleConfig(
 export async function updateUiModuleConfig(
   shopId: string,
   moduleKey: ModuleKey,
-  config: Partial<UiModuleConfig>
+  config: Partial<UiModuleConfig>,
+  options?: { syncToExtension?: boolean; admin?: any }
 ): Promise<{ success: boolean; error?: string }> {
   try {
 
@@ -262,6 +267,20 @@ export async function updateUiModuleConfig(
     });
 
     logger.info(`UI module config updated`, { shopId, moduleKey, isEnabled: config.isEnabled });
+
+    // 如果启用了同步选项且有 admin context，则同步到扩展
+    if (options?.syncToExtension && options?.admin) {
+      const { syncSingleModule } = await import("./ui-extension-sync.server");
+      const syncResult = await syncSingleModule(shopId, moduleKey, options.admin);
+      if (!syncResult.success) {
+        logger.warn("Failed to sync module to extension", {
+          shopId,
+          moduleKey,
+          error: syncResult.error,
+        });
+        // 不同步失败不影响数据库更新，只记录警告
+      }
+    }
 
     return { success: true };
   } catch (error) {

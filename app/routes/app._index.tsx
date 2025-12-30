@@ -25,6 +25,8 @@ import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon, ClockIcon } from "~/c
 import { EnhancedEmptyState } from "~/components/ui";
 import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
 import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScanProgress";
+import { RiskDistributionChart } from "~/components/dashboard/RiskDistributionChart";
+import { DependencyGraphPreview } from "~/components/dashboard/DependencyGraphPreview";
 import { useNavigate } from "@remix-run/react";
 
 import { authenticate } from "../shopify.server";
@@ -459,8 +461,10 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
 
 function MigrationChecklistPreviewCard({
   checklist,
+  estimatedTimeMinutes,
 }: {
   checklist: DashboardData["migrationChecklist"];
+  estimatedTimeMinutes?: number;
 }) {
   if (!checklist || checklist.totalItems === 0) {
     return (
@@ -489,6 +493,20 @@ function MigrationChecklistPreviewCard({
     estimatedHours > 0
       ? `${estimatedHours} 小时 ${estimatedMinutes > 0 ? estimatedMinutes + " 分钟" : ""}`
       : `${estimatedMinutes} 分钟`;
+
+  // 计算预计完成时间（基于当前进度）
+  const completedItems = checklist.topItems.filter((item) => item.status === "completed").length;
+  const remainingItems = checklist.totalItems - completedItems;
+  const avgTimePerItem = checklist.totalItems > 0 
+    ? checklist.estimatedTotalTime / checklist.totalItems 
+    : 0;
+  const remainingTime = Math.ceil(remainingItems * avgTimePerItem);
+  const remainingHours = Math.floor(remainingTime / 60);
+  const remainingMinutes = remainingTime % 60;
+  const remainingTimeText =
+    remainingHours > 0
+      ? `${remainingHours} 小时 ${remainingMinutes > 0 ? remainingMinutes + " 分钟" : ""}`
+      : `${remainingMinutes} 分钟`;
 
   return (
     <Card>
@@ -521,12 +539,41 @@ function MigrationChecklistPreviewCard({
             </InlineStack>
             <InlineStack align="space-between">
               <Text as="span" variant="bodySm" tone="subdued">
+                低风险项
+              </Text>
+              <Text as="span" fontWeight="semibold" tone="success">
+                {checklist.lowPriorityItems}
+              </Text>
+            </InlineStack>
+            <Divider />
+            <InlineStack align="space-between">
+              <Text as="span" variant="bodySm" tone="subdued">
                 预计总时间
               </Text>
               <Text as="span" fontWeight="semibold">
                 {timeText}
               </Text>
             </InlineStack>
+            {remainingItems > 0 && (
+              <InlineStack align="space-between">
+                <Text as="span" variant="bodySm" tone="subdued">
+                  剩余时间
+                </Text>
+                <Text as="span" fontWeight="semibold">
+                  {remainingTimeText}
+                </Text>
+              </InlineStack>
+            )}
+            {completedItems > 0 && (
+              <InlineStack align="space-between">
+                <Text as="span" variant="bodySm" tone="subdued">
+                  完成进度
+                </Text>
+                <Text as="span" fontWeight="semibold">
+                  {completedItems} / {checklist.totalItems} ({Math.round((completedItems / checklist.totalItems) * 100)}%)
+                </Text>
+              </InlineStack>
+            )}
           </BlockStack>
         </Box>
 
@@ -792,8 +839,27 @@ export default function Index() {
         {data.migrationChecklist && (
           <Layout>
             <Layout.Section>
-              <MigrationChecklistPreviewCard checklist={data.migrationChecklist} />
+              <MigrationChecklistPreviewCard 
+                checklist={data.migrationChecklist} 
+                estimatedTimeMinutes={data.estimatedMigrationTimeMinutes}
+              />
             </Layout.Section>
+          </Layout>
+        )}
+
+        {}
+        {(data.dependencyGraph || data.riskDistribution) && (
+          <Layout>
+            {data.dependencyGraph && (
+              <Layout.Section variant="oneHalf">
+                <DependencyGraphPreview dependencyGraph={data.dependencyGraph} />
+              </Layout.Section>
+            )}
+            {data.riskDistribution && (
+              <Layout.Section variant="oneHalf">
+                <RiskDistributionChart distribution={data.riskDistribution} />
+              </Layout.Section>
+            )}
           </Layout>
         )}
 

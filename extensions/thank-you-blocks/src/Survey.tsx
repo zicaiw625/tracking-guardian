@@ -1,10 +1,10 @@
 import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, } from "@shopify/ui-extensions-react/checkout";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { BACKEND_URL } from "../../shared/config";
 import { createLogger } from "./logger";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Survey />);
-function Survey() {
+const Survey = memo(function Survey() {
     const settings = useSettings();
 
     const backendUrl = BACKEND_URL;
@@ -202,4 +202,4 @@ function Survey() {
         {submitting ? "提交中..." : "提交反馈"}
       </Button>
     </BlockStack>);
-}
+});

@@ -70,6 +70,18 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     logger.info(`Cleaned up ${eventNonceResult.count} expired event nonces`);
   }
 
+  // 清理过期的迁移向导草稿（7天过期）
+  const migrationDraftResult = await prisma.migrationDraft.deleteMany({
+    where: {
+      expiresAt: { lt: new Date() },
+    },
+  });
+
+  if (migrationDraftResult.count > 0) {
+    logger.info(`Cleaned up ${migrationDraftResult.count} expired migration drafts`);
+    totalMigrationDrafts = migrationDraftResult.count;
+  }
+
   const gdprCutoff = new Date();
   gdprCutoff.setUTCDate(gdprCutoff.getUTCDate() - 30);
 
@@ -112,6 +124,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
   let totalWebhookLogs = 0;
   let totalScanReports = 0;
   let totalReconciliationReports = 0;
+  let totalMigrationDrafts = 0;
 
   for (const [retentionDays, shopsInGroup] of shopsByRetention) {
     const shopIds = shopsInGroup.map((s) => s.id);
@@ -296,6 +309,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     reconciliationReportsDeleted: totalReconciliationReports,
     gdprJobsDeleted: gdprJobResult.count,
     eventNoncesDeleted: eventNonceResult.count,
+    migrationDraftsDeleted: totalMigrationDrafts,
   };
 }
 

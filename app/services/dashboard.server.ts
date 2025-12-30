@@ -4,6 +4,8 @@ import prisma from "../db.server";
 import { getPlanDefinition, normalizePlan } from "../utils/plans";
 import { generateMigrationTimeline } from "./migration-priority.server";
 import { getMigrationChecklist } from "./migration-checklist.server";
+import { analyzeDependencies } from "./dependency-analysis.server";
+import { getAuditAssetSummary } from "./audit-asset.server";
 import { logger } from "../utils/logger.server";
 
 export type {
@@ -176,11 +178,35 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   const showOnboarding = isNewInstall && !latestScan;
 
   let migrationChecklist = null;
+  let dependencyGraph = null;
+  let riskDistribution = null;
+  
   if (latestScan) {
     try {
       migrationChecklist = await getMigrationChecklist(shop.id, false);
     } catch (error) {
       logger.error("Failed to get migration checklist", { shopId: shop.id, error });
+    }
+    
+    try {
+      dependencyGraph = await analyzeDependencies(shop.id);
+    } catch (error) {
+      logger.error("Failed to analyze dependencies", { shopId: shop.id, error });
+    }
+    
+    try {
+      const assetSummary = await getAuditAssetSummary(shop.id);
+      riskDistribution = {
+        byRiskLevel: {
+          high: assetSummary.byRiskLevel.high,
+          medium: assetSummary.byRiskLevel.medium,
+          low: assetSummary.byRiskLevel.low,
+        },
+        byCategory: assetSummary.byCategory,
+        byPlatform: assetSummary.byPlatform || {},
+      };
+    } catch (error) {
+      logger.error("Failed to get risk distribution", { shopId: shop.id, error });
     }
   }
 
@@ -220,6 +246,8 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
           topItems: migrationChecklist.items.slice(0, 5),
         }
       : null,
+    dependencyGraph: dependencyGraph,
+    riskDistribution: riskDistribution,
   };
 }
 

@@ -57,7 +57,7 @@ function getComplexityMultiplier(asset: AuditAsset): number {
 
   const details = asset.details as Record<string, unknown> | null;
   if (details) {
-
+    // 配置项数量影响复杂度
     const scriptTagCount = (details.scriptTagCount as number) || 1;
     if (scriptTagCount > 1) {
       multiplier *= 1.2;
@@ -66,6 +66,18 @@ function getComplexityMultiplier(asset: AuditAsset): number {
     if (details.hasCustomConfig) {
       multiplier *= 1.3;
     }
+
+    // 事件映射数量（如果有）
+    const eventMappingsCount = (details.eventMappingsCount as number) || 0;
+    if (eventMappingsCount > 5) {
+      multiplier *= 1.1;
+    }
+  }
+
+  // 考虑依赖关系：有依赖关系的资产可能需要更多时间
+  const dependencies = asset.dependencies as string[] | null;
+  if (dependencies && Array.isArray(dependencies) && dependencies.length > 0) {
+    multiplier *= 1.1; // 每个依赖增加 10% 的时间
   }
 
   return multiplier;
@@ -205,6 +217,7 @@ export async function updateAssetTimeEstimate(
     await prisma.auditAsset.update({
       where: { id: assetId },
       data: {
+        estimatedTimeMinutes: estimate.estimatedMinutes, // 更新 schema 中的字段
         details,
       },
     });

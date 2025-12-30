@@ -9,6 +9,9 @@ import { MissingParamsDetails } from "~/components/monitor/MissingParamsDetails"
 import { EventVolumeChart } from "~/components/monitor/EventVolumeChart";
 import { RealtimeEventMonitor } from "~/components/monitor/RealtimeEventMonitor";
 import { AlertHistoryChart } from "~/components/monitor/AlertHistoryChart";
+import { SuccessRateChart } from "~/components/monitor/SuccessRateChart";
+import { DiagnosticsPanel } from "~/components/monitor/DiagnosticsPanel";
+import { runDiagnostics } from "~/services/monitoring-diagnostics.server";
 import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -16,6 +19,7 @@ import { getDeliveryHealthHistory, getDeliveryHealthSummary, type DeliveryHealth
 import { getAlertHistory, runAlertChecks, type AlertCheckResult } from "../services/alert-dispatcher.server";
 import { isValidPlatform, PLATFORM_NAMES } from "../types";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats, checkMonitoringAlerts, getMissingParamsHistory, reconcileChannels, getMissingParamsRateByEventType, type EventMonitoringStats, type EventVolumeStats, type ChannelReconciliationResult } from "../services/monitoring.server";
+import { getEventSuccessRateHistory } from "../services/monitoring/event-success-rate.server";
 import { analyzeDedupConflicts } from "../services/capi-dedup.server";
 import { getMissingParamsRate } from "../services/event-validation.server";
 interface DeliverySummary {
@@ -111,7 +115,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const last24h = new Date();
     last24h.setHours(last24h.getHours() - 24);
 
-    const [monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis, missingParamsDetailed] = await Promise.all([
+    const [monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis, missingParamsDetailed, successRateHistory, diagnosticsReport] = await Promise.all([
         getEventMonitoringStats(shop.id, 24),
         getMissingParamsStats(shop.id, 24),
         getEventVolumeStats(shop.id),
@@ -121,6 +125,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         reconcileChannels(shop.id, 24).catch(() => []),
         analyzeDedupConflicts(shop.id, last24h, new Date()).catch(() => null),
         getMissingParamsRateByEventType(shop.id, 24).catch(() => null),
+        getEventSuccessRateHistory(shop.id, 24).catch(() => ({ overall: [], byDestination: {}, byEventType: {} })),
+        runDiagnostics(shop.id).catch(() => null),
     ]);
 
     return json({
@@ -146,14 +152,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         channelReconciliation,
         dedupAnalysis,
         missingParamsDetailed,
+        successRateHistory,
+        diagnosticsReport,
         lastUpdated: new Date().toISOString()
     });
 };
 export default function MonitorPage() {
-  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis, missingParamsDetailed, lastUpdated } = useLoaderData<typeof loader>();
+  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis, missingParamsDetailed, successRateHistory, diagnosticsReport, lastUpdated } = useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedChartPlatform, setSelectedChartPlatform] = useState<string>("all");
   const [missingParamsTimeRange, setMissingParamsTimeRange] = useState<string>("24");
+  const [selectedSuccessRateDestination, setSelectedSuccessRateDestination] = useState<string>("all");
+  const [selectedSuccessRateEventType, setSelectedSuccessRateEventType] = useState<string>("all");
 
     const isDevUrl = configHealth.appUrl && (configHealth.appUrl.includes("ngrok") || configHealth.appUrl.includes("trycloudflare"));
 
@@ -387,10 +397,33 @@ export default function MonitorPage() {
         )}
 
         {}
+        {diagnosticsReport && (
+          <DiagnosticsPanel
+            report={diagnosticsReport}
+            onRunDiagnostics={() => {
+              window.location.reload();
+            }}
+          />
+        )}
+
+        {}
         {shop && (
           <RealtimeEventMonitor
             shopId={shop.id}
             autoStart={false}
+          />
+        )}
+
+        {}
+        {successRateHistory && successRateHistory.overall && successRateHistory.overall.length > 0 && (
+          <SuccessRateChart
+            overall={successRateHistory.overall}
+            byDestination={successRateHistory.byDestination}
+            byEventType={successRateHistory.byEventType}
+            selectedDestination={selectedSuccessRateDestination === "all" ? undefined : selectedSuccessRateDestination}
+            onDestinationChange={setSelectedSuccessRateDestination}
+            selectedEventType={selectedSuccessRateEventType === "all" ? undefined : selectedSuccessRateEventType}
+            onEventTypeChange={setSelectedSuccessRateEventType}
           />
         )}
 
@@ -749,6 +782,9 @@ export default function MonitorPage() {
                 {Object.keys(monitoringStats.byPlatform).length > 0 && (
                   <>
                     <Divider />
+                    <Text as="h3" variant="headingSm">
+                      按平台统计
+                    </Text>
                     {Object.entries(monitoringStats.byPlatform).map(([platform, stats]) => (
                       <Box key={platform} background="bg-surface-secondary" padding="300" borderRadius="200">
                         <InlineStack align="space-between" blockAlign="center">
@@ -766,6 +802,45 @@ export default function MonitorPage() {
                         </InlineStack>
                       </Box>
                     ))}
+                  </>
+                )}
+                {Object.keys(monitoringStats.byEventType).length > 0 && (
+                  <>
+                    <Divider />
+                    <Text as="h3" variant="headingSm">
+                      按事件类型统计
+                    </Text>
+                    {Object.entries(monitoringStats.byEventType)
+                      .sort(([, a], [, b]) => b.total - a.total)
+                      .map(([eventType, stats]) => (
+                        <Box key={eventType} background="bg-surface-secondary" padding="300" borderRadius="200">
+                          <BlockStack gap="200">
+                            <InlineStack align="space-between" blockAlign="center">
+                              <Text as="span" fontWeight="semibold">
+                                {eventType}
+                              </Text>
+                              <InlineStack gap="300">
+                                <Badge tone={stats.successRate >= 95 ? "success" : stats.successRate >= 90 ? "warning" : "critical"}>
+                                  成功率: {stats.successRate.toFixed(2)}%
+                                </Badge>
+                                <Text as="span" variant="bodySm" tone="subdued">
+                                  {stats.success}/{stats.total}
+                                </Text>
+                              </InlineStack>
+                            </InlineStack>
+                            <ProgressBar
+                              progress={stats.successRate}
+                              tone={stats.successRate >= 95 ? "success" : stats.successRate >= 90 ? "warning" : "critical"}
+                              size="small"
+                            />
+                            <InlineStack align="space-between">
+                              <Text as="span" variant="bodySm" tone="subdued">
+                                失败: {stats.failed} ({stats.failureRate.toFixed(2)}%)
+                              </Text>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      ))}
                   </>
                 )}
               </BlockStack>

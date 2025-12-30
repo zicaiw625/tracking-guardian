@@ -19,6 +19,8 @@ export interface EventMonitoringStats {
     total: number;
     success: number;
     failed: number;
+    successRate: number;
+    failureRate: number;
   }>;
 }
 
@@ -104,11 +106,14 @@ export async function getEventMonitoringStats(
     const eventLogs = logs.filter((l) => l.eventType === eventType);
     const success = eventLogs.filter((l) => l.status === "sent").length;
     const failed = eventLogs.filter((l) => l.status === "failed" || l.status === "dead_letter").length;
+    const total = eventLogs.length;
 
     stats.byEventType[eventType] = {
-      total: eventLogs.length,
+      total,
       success,
       failed,
+      successRate: total > 0 ? (success / total) * 100 : 0,
+      failureRate: total > 0 ? (failed / total) * 100 : 0,
     };
   });
 

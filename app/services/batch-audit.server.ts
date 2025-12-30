@@ -254,7 +254,7 @@ export async function runBatchAuditSync(
 
   const completedAt = new Date();
 
-  const summary = calculateSummary(results);
+  const summary = await calculateSummary(results);
 
   return {
     groupId,
@@ -530,7 +530,7 @@ async function executeBatchAuditAsync(
   }
 
   const completedAt = new Date();
-  const summary = calculateSummary(results);
+  const summary = await calculateSummary(results);
 
   job.status = "completed";
   job.progress = 100;
@@ -559,7 +559,7 @@ async function executeBatchAuditAsync(
   });
 }
 
-function calculateSummary(results: ShopAuditResult[]): BatchAuditSummary {
+async function calculateSummary(results: ShopAuditResult[]): Promise<BatchAuditSummary> {
   const successResults = results.filter((r) => r.status === "success" && r.riskScore !== undefined);
 
   const avgRiskScore =
@@ -597,6 +597,67 @@ function calculateSummary(results: ShopAuditResult[]): BatchAuditSummary {
 
   // 增强：计算可以开始迁移的店铺数量（高风险或中等风险的店铺）
   const migrationReadyCount = highRiskCount + mediumRiskCount;
+
+  // 增强：统计资产数量和风险分类
+  let totalAssetsFound = 0;
+  const riskCategoryCounts: Record<string, number> = {};
+  const shopIds = successResults.map((r) => r.shopId).filter(Boolean) as string[];
+
+  if (shopIds.length > 0) {
+    // 查询所有成功扫描的店铺的 AuditAsset 记录
+    const assets = await prisma.auditAsset.findMany({
+      where: {
+        shopId: { in: shopIds },
+      },
+      select: {
+        category: true,
+        riskLevel: true,
+        shopId: true,
+      },
+    });
+
+    totalAssetsFound = assets.length;
+    const assetsByShop = new Map<string, number>();
+    for (const asset of assets) {
+      assetsByShop.set(asset.shopId, (assetsByShop.get(asset.shopId) || 0) + 1);
+      const categoryKey = `${asset.category}_${asset.riskLevel}`;
+      riskCategoryCounts[categoryKey] = (riskCategoryCounts[categoryKey] || 0) + 1;
+    }
+
+    const avgAssetsPerShop =
+      assetsByShop.size > 0
+        ? Array.from(assetsByShop.values()).reduce((sum, count) => sum + count, 0) / assetsByShop.size
+        : 0;
+
+    // 统计风险分类
+    const topRiskCategories = Object.entries(riskCategoryCounts)
+      .map(([key, count]) => {
+        const [category, riskLevel] = key.split("_");
+        return { category, riskLevel, count };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .map((item) => ({
+        category: `${item.category} (${item.riskLevel})`,
+        count: item.count,
+      }));
+
+    return {
+      avgRiskScore: Math.round(avgRiskScore * 10) / 10,
+      highRiskCount,
+      mediumRiskCount,
+      lowRiskCount,
+      platformBreakdown,
+      shopsWithHighRisk,
+      shopsWithMediumRisk,
+      shopsWithLowRisk,
+      migrationReadyCount,
+      totalAssetsFound,
+      avgAssetsPerShop: Math.round(avgAssetsPerShop * 10) / 10,
+      topRiskCategories: topRiskCategories.length > 0 ? topRiskCategories : undefined,
+      errorBreakdown: Object.keys(errorBreakdown).length > 0 ? errorBreakdown : undefined,
+    };
+  }
 
   return {
     avgRiskScore: Math.round(avgRiskScore * 10) / 10,

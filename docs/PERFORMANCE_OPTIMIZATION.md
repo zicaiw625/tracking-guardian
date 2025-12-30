@@ -24,10 +24,11 @@
 
 | 指标 | 目标值 | 当前状态 |
 |------|--------|---------|
-| LCP (Largest Contentful Paint) | < 2.5s | 待测试 |
-| CLS (Cumulative Layout Shift) | < 0.1 | 待测试 |
-| INP (Interaction to Next Paint) | < 200ms | 待测试 |
-| FCP (First Contentful Paint) | < 1.8s | 待测试 |
+| LCP (Largest Contentful Paint) | < 2.5s | ✅ 已实现监控 |
+| CLS (Cumulative Layout Shift) | < 0.1 | ✅ 已实现监控 |
+| INP (Interaction to Next Paint) | < 200ms | ✅ 已实现监控 |
+| FCP (First Contentful Paint) | < 1.8s | ✅ 已实现监控 |
+| TTFB (Time to First Byte) | < 800ms | ✅ 已实现监控 |
 
 ### 优化建议
 
@@ -119,8 +120,10 @@
 ### 性能监控工具
 
 1. **Web Vitals**
-   - 集成 Web Vitals 库
-   - 上报性能指标
+   - ✅ 集成 Web Vitals 库 (`web-vitals`)
+   - ✅ 上报性能指标 (`/api/performance`)
+   - ✅ 性能数据存储 (`PerformanceMetric` 模型)
+   - ✅ 性能统计服务 (`performance-monitor.server.ts`)
 
 2. **APM 工具**
    - 使用 APM 工具监控后端性能

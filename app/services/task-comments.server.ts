@@ -7,6 +7,7 @@ export interface CreateCommentInput {
   taskId: string;
   content: string;
   parentCommentId?: string;
+  mentionedShopIds?: string[];
 }
 
 export interface CommentWithAuthor {
@@ -68,8 +69,19 @@ export async function createTaskComment(
         content: input.content,
         parentCommentId: input.parentCommentId,
         isSystemMessage: false,
+        // 将提及信息存储在 content 中（可以通过解析 @ 符号提取）
+        // 或者可以扩展模型添加 mentionedShopIds 字段
       },
     });
+
+    // 如果有提及，可以发送通知（未来功能）
+    if (input.mentionedShopIds && input.mentionedShopIds.length > 0) {
+      logger.info("Comment mentions detected", {
+        commentId: comment.id,
+        mentionedShopIds: input.mentionedShopIds,
+      });
+      // TODO: 发送提及通知
+    }
 
     logger.info(`Task comment created: ${comment.id} by ${authorShopId}`);
 

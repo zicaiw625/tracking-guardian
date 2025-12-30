@@ -31,8 +31,9 @@ import {
 import { useSubmit, useNavigation } from "@remix-run/react";
 import { useToastContext } from "~/components/ui";
 import { EventMappingEditor } from "./EventMappingEditor";
+import { ConfigVersionManager } from "./ConfigVersionManager";
 
-type Platform = "google" | "meta" | "tiktok" | "pinterest";
+type Platform = "google" | "meta" | "tiktok" | "pinterest" | "snapchat";
 
 interface PlatformConfig {
   platform: Platform;
@@ -88,7 +89,7 @@ const PRESET_TEMPLATES: PixelTemplate[] = [
     id: "advanced",
     name: "高级配置",
     description: "包含更多事件类型的完整映射",
-    platforms: ["google", "meta", "tiktok", "pinterest"],
+    platforms: ["google", "meta", "tiktok", "pinterest", "snapchat"],
     eventMappings: {
       google: {
         checkout_completed: "purchase",
@@ -108,6 +109,9 @@ const PRESET_TEMPLATES: PixelTemplate[] = [
       pinterest: {
         checkout_completed: "checkout",
       },
+      snapchat: {
+        checkout_completed: "PURCHASE",
+      },
     },
   },
 ];
@@ -124,6 +128,9 @@ const DEFAULT_EVENT_MAPPINGS: Record<Platform, Record<string, string>> = {
   },
   pinterest: {
     checkout_completed: "checkout",
+  },
+  snapchat: {
+    checkout_completed: "PURCHASE",
   },
 };
 
@@ -233,6 +240,27 @@ const PLATFORM_INFO: Record<
       },
     ],
   },
+  snapchat: {
+    name: "Snapchat Pixel",
+    icon: "👻",
+    description: "使用 Conversions API 发送转化数据",
+    credentialFields: [
+      {
+        key: "pixelId",
+        label: "Pixel ID",
+        placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        type: "text",
+        helpText: "在 Snapchat Ads Manager → Pixels 中查找",
+      },
+      {
+        key: "accessToken",
+        label: "Conversions API Token",
+        placeholder: "输入 Conversions API Token",
+        type: "password",
+        helpText: "在 Snapchat Ads Manager → Pixels → Settings 中生成",
+      },
+    ],
+  },
 };
 
 export interface WizardTemplate {
@@ -243,6 +271,15 @@ export interface WizardTemplate {
   eventMappings: Record<string, Record<string, string>>;
   isPublic: boolean;
   usageCount: number;
+}
+
+export interface PrefillAsset {
+  id: string;
+  platform: string | null;
+  category: string;
+  displayName: string | null;
+  suggestedMigration: string;
+  details?: Record<string, unknown> | null;
 }
 
 export interface PixelMigrationWizardProps {
@@ -266,6 +303,14 @@ export interface PixelMigrationWizardProps {
       environment: "test" | "live";
     }>;
   } | null;
+  prefillAsset?: PrefillAsset | null;
+  pixelConfigs?: Array<{
+    platform: string;
+    environment: string;
+    configVersion: number;
+    previousConfig: unknown;
+    rollbackAllowed: boolean;
+  }>;
 }
 
 type WizardStep = "select" | "credentials" | "mappings" | "review" | "testing";
@@ -278,10 +323,78 @@ export function PixelMigrationWizard({
   shopId,
   templates,
   wizardDraft,
+  prefillAsset,
+  pixelConfigs,
 }: PixelMigrationWizardProps) {
   const submit = useSubmit();
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
+
+  // 从 AuditAsset 提取平台ID等信息
+  const extractPlatformIdFromAsset = useCallback((asset: PrefillAsset, platform: Platform): string => {
+    if (!asset.details) return "";
+    
+    const details = asset.details as Record<string, unknown>;
+    
+    // 尝试从 matchedPatterns 中提取ID
+    const matchedPatterns = details.matchedPatterns as string[] | undefined;
+    if (matchedPatterns && matchedPatterns.length > 0) {
+      for (const pattern of matchedPatterns) {
+        // GA4 Measurement ID
+        if (platform === "google") {
+          const ga4Match = pattern.match(/G-[A-Z0-9]{10,}/i);
+          if (ga4Match) return ga4Match[0];
+        }
+        // Meta Pixel ID
+        if (platform === "meta") {
+          const metaMatch = pattern.match(/\d{15,16}/);
+          if (metaMatch) return metaMatch[0];
+        }
+        // TikTok Pixel
+        if (platform === "tiktok") {
+          const tiktokMatch = pattern.match(/[A-Z0-9]{8,}/i);
+          if (tiktokMatch) return tiktokMatch[0];
+        }
+        // Pinterest Tag
+        if (platform === "pinterest") {
+          const pinterestMatch = pattern.match(/[A-Z0-9]{8,}/i);
+          if (pinterestMatch) return pinterestMatch[0];
+        }
+        // Snapchat Pixel
+        if (platform === "snapchat") {
+          const snapchatMatch = pattern.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+          if (snapchatMatch) return snapchatMatch[0];
+        }
+      }
+    }
+    
+    // 尝试从 content 中提取
+    const content = details.content as string | undefined;
+    if (content) {
+      if (platform === "google") {
+        const ga4Match = content.match(/G-[A-Z0-9]{10,}/i);
+        if (ga4Match) return ga4Match[0];
+      }
+      if (platform === "meta") {
+        const metaMatch = content.match(/(?:fbq\s*\(['"]init['"]\s*,\s*['"]?|pixel[_-]?id['":\s]+)(\d{15,16})/i);
+        if (metaMatch && metaMatch[1]) return metaMatch[1];
+      }
+      if (platform === "tiktok") {
+        const tiktokMatch = content.match(/ttq\s*\.\s*load\s*\(['"]?([A-Z0-9]+)['"]?/i);
+        if (tiktokMatch && tiktokMatch[1]) return tiktokMatch[1];
+      }
+      if (platform === "pinterest") {
+        const pinterestMatch = content.match(/pintrk\s*\(['"]load['"]\s*,\s*['"]?([A-Z0-9]+)['"]?/i);
+        if (pinterestMatch && pinterestMatch[1]) return pinterestMatch[1];
+      }
+      if (platform === "snapchat") {
+        const snapchatMatch = content.match(/snaptr\s*\(['"]init['"]\s*,\s*['"]?([0-9a-f-]{36})['"]?/i);
+        if (snapchatMatch && snapchatMatch[1]) return snapchatMatch[1];
+      }
+    }
+    
+    return "";
+  }, []);
 
   // 从数据库草稿或初始状态初始化
   const initializeFromDraft = useCallback(() => {
@@ -320,6 +433,14 @@ export function PixelMigrationWizard({
           eventMappings: wizardDraft.configs.pinterest?.eventMappings || DEFAULT_EVENT_MAPPINGS.pinterest,
           environment: wizardDraft.configs.pinterest?.environment || "test",
         },
+        snapchat: {
+          platform: "snapchat",
+          enabled: draftPlatforms.has("snapchat"),
+          platformId: wizardDraft.configs.snapchat?.platformId || "",
+          credentials: wizardDraft.configs.snapchat?.credentials || {},
+          eventMappings: wizardDraft.configs.snapchat?.eventMappings || DEFAULT_EVENT_MAPPINGS.snapchat,
+          environment: wizardDraft.configs.snapchat?.environment || "test",
+        },
       };
       return {
         step: wizardDraft.step as WizardStep,
@@ -331,13 +452,71 @@ export function PixelMigrationWizard({
   }, [wizardDraft]);
 
   const draftData = initializeFromDraft();
+  
+  // 从 prefillAsset 初始化平台配置
+  const initializeFromAsset = useCallback(() => {
+    if (!prefillAsset || !prefillAsset.platform) return null;
+    
+    const platform = prefillAsset.platform as Platform;
+    if (!["google", "meta", "tiktok", "pinterest", "snapchat"].includes(platform)) return null;
+    
+    const platformId = extractPlatformIdFromAsset(prefillAsset, platform);
+    
+    return {
+      platforms: new Set<Platform>([platform]),
+      configs: {
+        google: {
+          platform: "google",
+          enabled: platform === "google",
+          platformId: platform === "google" ? platformId : "",
+          credentials: {},
+          eventMappings: DEFAULT_EVENT_MAPPINGS.google,
+          environment: "test",
+        },
+        meta: {
+          platform: "meta",
+          enabled: platform === "meta",
+          platformId: platform === "meta" ? platformId : "",
+          credentials: {},
+          eventMappings: DEFAULT_EVENT_MAPPINGS.meta,
+          environment: "test",
+        },
+        tiktok: {
+          platform: "tiktok",
+          enabled: platform === "tiktok",
+          platformId: platform === "tiktok" ? platformId : "",
+          credentials: {},
+          eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok,
+          environment: "test",
+        },
+        pinterest: {
+          platform: "pinterest",
+          enabled: platform === "pinterest",
+          platformId: platform === "pinterest" ? platformId : "",
+          credentials: {},
+          eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest,
+          environment: "test",
+        },
+        snapchat: {
+          platform: "snapchat",
+          enabled: platform === "snapchat",
+          platformId: platform === "snapchat" ? platformId : "",
+          credentials: {},
+          eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat,
+          environment: "test",
+        },
+      },
+    };
+  }, [prefillAsset, extractPlatformIdFromAsset]);
+  
+  const assetData = initializeFromAsset();
   const [currentStep, setCurrentStep] = useState<WizardStep>(draftData?.step || "select");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<Platform>>(
-    draftData?.platforms || new Set(initialPlatforms)
+    draftData?.platforms || assetData?.platforms || new Set(initialPlatforms)
   );
   const [platformConfigs, setPlatformConfigs] = useState<
     Record<Platform, PlatformConfig>
-  >(draftData?.configs || {
+  >(draftData?.configs || assetData?.configs || {
     google: {
       platform: "google",
       enabled: false,
@@ -368,6 +547,14 @@ export function PixelMigrationWizard({
       platformId: "",
       credentials: {},
       eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest,
+      environment: "test",
+    },
+    snapchat: {
+      platform: "snapchat",
+      enabled: false,
+      platformId: "",
+      credentials: {},
+      eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat,
       environment: "test",
     },
   });
@@ -466,10 +653,25 @@ const allTemplates: WizardTemplate[] = [
     }
   }, [shopId]);
 
-  // 组件加载时，如果数据库有草稿，显示提示
+  // 组件加载时，如果数据库有草稿，显示提示并同步到 localStorage
   useEffect(() => {
     if (wizardDraft && wizardDraft.step !== "select") {
-      showSuccess("检测到未完成的配置，已自动恢复。");
+      // 同步数据库草稿到 localStorage
+      try {
+        const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
+        const draft = {
+          step: wizardDraft.step,
+          selectedPlatforms: wizardDraft.configData.selectedPlatforms || [],
+          platformConfigs: wizardDraft.configData.platformConfigs || {},
+          selectedTemplate: null,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      } catch (error) {
+        console.warn("Failed to sync draft to localStorage:", error);
+      }
+      
+      showSuccess(`检测到未完成的配置（停留在第 ${steps.findIndex(s => s.id === wizardDraft.step) + 1} 步），已自动恢复。您可以继续完成配置。`);
     } else if (initialPlatforms.length > 0 && !wizardDraft) {
       const configs = { ...platformConfigs };
       initialPlatforms.forEach((platform) => {
@@ -490,6 +692,54 @@ const allTemplates: WizardTemplate[] = [
 
     return () => clearTimeout(timeoutId);
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, saveDraft]);
+
+  // 增强：定期自动保存草稿（每 30 秒），防止意外关闭导致数据丢失
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (currentStep !== "select" || selectedPlatforms.size > 0) {
+        saveDraft();
+      }
+    }, 30000); // 每 30 秒自动保存一次
+
+    return () => clearInterval(intervalId);
+  }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, saveDraft]);
+
+  // 增强：页面卸载前保存草稿
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (currentStep !== "select" || selectedPlatforms.size > 0) {
+        // 使用同步方式保存到 localStorage（数据库保存是异步的，可能来不及）
+        try {
+          const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
+          const draft = {
+            step: currentStep,
+            selectedPlatforms: Array.from(selectedPlatforms),
+            platformConfigs: Object.fromEntries(
+              Array.from(selectedPlatforms).map((platform) => [
+                platform,
+                {
+                  platformId: platformConfigs[platform].platformId,
+                  credentials: platformConfigs[platform].credentials,
+                  eventMappings: platformConfigs[platform].eventMappings,
+                  environment: platformConfigs[platform].environment,
+                },
+              ])
+            ),
+            selectedTemplate,
+            timestamp: Date.now(),
+          };
+          localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+        } catch (error) {
+          console.warn("Failed to save draft before unload:", error);
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, shopId]);
 
   const steps: Array<{
     id: WizardStep;
@@ -797,6 +1047,8 @@ const allTemplates: WizardTemplate[] = [
             selectedPlatforms={selectedPlatforms}
             platformConfigs={platformConfigs}
             onValidate={validateConfig}
+            shopId={shopId}
+            onEnvironmentToggle={handleEnvironmentToggle}
           />
         );
       case "testing":
@@ -1171,17 +1423,33 @@ function CredentialsStep({
                     {info.name}
                   </Text>
                 </InlineStack>
-                <Select
-                  label="环境"
-                  options={[
-                    { label: "测试模式", value: "test" },
-                    { label: "生产模式", value: "live" },
-                  ]}
-                  value={config.environment}
-                  onChange={(value) =>
-                    onEnvironmentToggle(platform, value as "test" | "live")
-                  }
-                />
+                <BlockStack gap="200" align="end">
+                  <Box
+                    padding="200"
+                    background={config.environment === "live" ? "bg-fill-critical" : "bg-fill-warning"}
+                    borderRadius="200"
+                  >
+                    <Badge tone={config.environment === "live" ? "critical" : "warning"}>
+                      {config.environment === "live" ? "🔴 生产模式" : "🟡 测试模式"}
+                    </Badge>
+                  </Box>
+                  <Select
+                    label="切换环境"
+                    options={[
+                      { label: "🟡 测试环境 (Test) - 用于验证配置", value: "test" },
+                      { label: "🔴 生产环境 (Live) - 正式发送事件", value: "live" },
+                    ]}
+                    value={config.environment}
+                    onChange={(value) =>
+                      onEnvironmentToggle(platform, value as "test" | "live")
+                    }
+                    helpText={
+                      config.environment === "test"
+                        ? "测试模式：事件发送到测试端点，不会影响实际广告数据"
+                        : "生产模式：事件发送到正式端点，将影响广告归因和优化"
+                    }
+                  />
+                </BlockStack>
               </InlineStack>
 
               <Divider />
@@ -1267,16 +1535,65 @@ function ReviewStep({
   selectedPlatforms,
   platformConfigs,
   onValidate,
+  shopId,
+  onEnvironmentToggle,
 }: {
   selectedPlatforms: Set<Platform>;
   platformConfigs: Record<Platform, PlatformConfig>;
   onValidate: (platform: Platform) => string[];
+  shopId?: string;
+  onEnvironmentToggle?: (platform: Platform, environment: "test" | "live") => void;
 }) {
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateDescription, setTemplateDescription] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const { showSuccess, showError } = useToastContext();
+  const submit = useSubmit();
+
   const allErrors: string[] = [];
   Array.from(selectedPlatforms).forEach((platform) => {
     const errors = onValidate(platform);
     allErrors.push(...errors);
   });
+
+  const handleSaveAsTemplate = useCallback(async () => {
+    if (!shopId || !templateName.trim()) {
+      showError("请输入模板名称");
+      return;
+    }
+
+    setIsSavingTemplate(true);
+    try {
+      const platforms = Array.from(selectedPlatforms);
+      const eventMappings: Record<string, Record<string, string>> = {};
+      
+      platforms.forEach((platform) => {
+        eventMappings[platform] = platformConfigs[platform].eventMappings;
+      });
+
+      const formData = new FormData();
+      formData.append("_action", "saveWizardConfigAsTemplate");
+      formData.append("name", templateName.trim());
+      formData.append("description", templateDescription.trim());
+      formData.append("platforms", JSON.stringify(platforms));
+      formData.append("eventMappings", JSON.stringify(eventMappings));
+      formData.append("isPublic", isPublic ? "true" : "false");
+
+      submit(formData, { method: "post" });
+      setShowSaveTemplateModal(false);
+      setTemplateName("");
+      setTemplateDescription("");
+      setIsPublic(false);
+      showSuccess("模板已保存！");
+    } catch (error) {
+      showError("保存模板失败");
+      console.error("Save template error", error);
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  }, [shopId, templateName, templateDescription, isPublic, selectedPlatforms, platformConfigs, submit, showSuccess, showError]);
 
   return (
     <BlockStack gap="500">
@@ -1284,7 +1601,7 @@ function ReviewStep({
         检查配置
       </Text>
       <Text as="p" tone="subdued">
-        请检查以下配置是否正确。确认无误后点击「保存配置」。
+        请检查以下配置是否正确。确认无误后点击「保存配置」。您也可以将当前配置保存为模板，方便后续使用。
       </Text>
 
       {allErrors.length > 0 && (
@@ -1353,6 +1670,106 @@ function ReviewStep({
           </Card>
         );
       })}
+
+      {/* 配置版本管理 */}
+      {shopId && Array.from(selectedPlatforms).map((platform) => {
+        // 尝试从现有配置中获取版本号（如果已保存）
+        const existingConfig = pixelConfigs?.find(c => c.platform === platform);
+        const currentVersion = existingConfig?.configVersion || 1;
+        
+        return (
+          <ConfigVersionManager
+            key={platform}
+            shopId={shopId}
+            platform={platform}
+            currentVersion={currentVersion}
+            onRollbackComplete={() => {
+              // 回滚后刷新配置
+              if (onEnvironmentToggle) {
+                // 可以触发重新加载配置
+              }
+            }}
+          />
+        );
+      })}
+
+      {/* 保存为模板按钮 */}
+      {shopId && (
+        <Card>
+          <BlockStack gap="300">
+            <Text as="h4" variant="headingSm">
+              保存为模板
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              将当前配置保存为模板，方便后续快速应用到其他店铺或分享给团队成员。
+            </Text>
+            <Button
+              size="slim"
+              onClick={() => setShowSaveTemplateModal(true)}
+            >
+              保存为模板
+            </Button>
+          </BlockStack>
+        </Card>
+      )}
+
+      {/* 保存模板模态框 */}
+      <Modal
+        open={showSaveTemplateModal}
+        onClose={() => setShowSaveTemplateModal(false)}
+        title="保存为模板"
+        primaryAction={{
+          content: "保存",
+          onAction: handleSaveAsTemplate,
+          loading: isSavingTemplate,
+        }}
+        secondaryActions={[
+          {
+            content: "取消",
+            onAction: () => setShowSaveTemplateModal(false),
+            disabled: isSavingTemplate,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <TextField
+              label="模板名称"
+              value={templateName}
+              onChange={setTemplateName}
+              placeholder="例如：标准电商配置"
+              helpText="为模板起一个易于识别的名称"
+              autoComplete="off"
+            />
+            <TextField
+              label="模板描述"
+              value={templateDescription}
+              onChange={setTemplateDescription}
+              placeholder="描述这个模板的用途和适用场景"
+              multiline={3}
+              autoComplete="off"
+            />
+            <Checkbox
+              label="公开模板"
+              checked={isPublic}
+              onChange={setIsPublic}
+              helpText="公开模板可以被其他用户查看和使用，适合分享最佳实践"
+            />
+            <Banner tone="info">
+              <Text as="p" variant="bodySm">
+                模板将保存以下配置：
+              </Text>
+              <List type="bullet">
+                <List.Item>平台：{Array.from(selectedPlatforms).map(p => PLATFORM_INFO[p]?.name || p).join(", ")}</List.Item>
+                <List.Item>事件映射：{Array.from(selectedPlatforms).reduce((acc, p) => acc + Object.keys(platformConfigs[p].eventMappings).length, 0)} 个事件</List.Item>
+              </List>
+              <Text as="p" variant="bodySm" tone="subdued">
+                注意：模板不会保存凭证信息，仅保存事件映射配置。
+              </Text>
+            </Banner>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </BlockStack>
   );
 }
@@ -1718,14 +2135,36 @@ function TestingStep({
       {allInTestMode && Object.keys(validationResults).length > 0 &&
        Object.values(validationResults).every(r => r.valid) && (
         <Card>
-          <BlockStack gap="300">
+          <BlockStack gap="400">
             <Text as="h4" variant="headingSm">
               切换到生产模式
             </Text>
             <Banner tone="info">
-              <Text as="p" variant="bodySm">
-                测试验证通过后，您可以切换到生产模式。切换后，事件将发送到实际广告平台。
-              </Text>
+              <BlockStack gap="300">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  测试验证通过！现在可以切换到生产模式。
+                </Text>
+                <Text as="p" variant="bodySm">
+                  切换后，事件将发送到实际广告平台，并开始追踪真实订单转化。
+                </Text>
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    切换前请确认：
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>所有平台的凭证已正确配置</List.Item>
+                    <List.Item>测试事件已成功发送并可在平台中查看</List.Item>
+                    <List.Item>事件映射配置符合您的业务需求</List.Item>
+                    <List.Item>已了解如何查看和监控生产环境事件</List.Item>
+                  </List>
+                </BlockStack>
+                <Banner tone="warning">
+                  <Text as="p" variant="bodySm">
+                    💡 提示：切换到生产模式后，建议先运行一次验收测试，确保所有事件正常发送。
+                    您可以在「验收向导」页面进行完整的验收测试。
+                  </Text>
+                </Banner>
+              </BlockStack>
             </Banner>
             <Button
               variant="primary"
@@ -1735,6 +2174,9 @@ function TestingStep({
             >
               切换到生产模式并前往验收
             </Button>
+            <Text as="p" variant="bodySm" tone="subdued">
+              切换后，您可以在「设置」页面随时切换回测试模式或回滚配置。
+            </Text>
           </BlockStack>
         </Card>
       )}

@@ -64,7 +64,7 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
       <Card>
         <EmptyState
           heading="暂无版本历史"
-          image="https:
+          image="https://cdn.shopify.com/s/files/1/0757/9955/files/empty-state.svg"
         >
           <p>配置变更历史将显示在这里</p>
         </EmptyState>
@@ -75,24 +75,50 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
   return (
     <Card>
       <BlockStack gap="400">
-        <Text as="h3" variant="headingMd">
-          版本历史
-        </Text>
+        <InlineStack align="space-between" blockAlign="center">
+          <Text as="h3" variant="headingMd">
+            版本历史
+          </Text>
+          <Badge tone="info">{history.length} 条记录</Badge>
+        </InlineStack>
 
         <Divider />
 
         <DataTable
           columnContentTypes={["text", "text", "text", "text"]}
           headings={["版本", "时间", "操作", "变更详情"]}
-          rows={history.map((item) => [
-            <Badge key="version">v{item.version}</Badge>,
-            new Date(item.timestamp).toLocaleString("zh-CN"),
-            formatOperation(item.operation),
+          rows={history.map((item, index) => [
+            <InlineStack key="version" gap="200" blockAlign="center">
+              <Badge tone={index === 0 ? "success" : "subdued"}>
+                v{item.version}
+              </Badge>
+              {index === 0 && (
+                <Badge tone="info">当前版本</Badge>
+              )}
+            </InlineStack>,
+            <Text key="time" as="span" variant="bodySm">
+              {new Date(item.timestamp).toLocaleString("zh-CN", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>,
+            <Badge key="operation" tone={item.operation === "rollback" ? "warning" : "info"}>
+              {formatOperation(item.operation)}
+            </Badge>,
             <Text key="changes" as="span" variant="bodySm" tone="subdued">
               {formatChanges(item.changes)}
             </Text>,
           ])}
         />
+
+        <Banner tone="info">
+          <Text as="p" variant="bodySm">
+            💡 版本历史记录最近 {history.length} 次配置变更。每次环境切换或配置更新都会创建新版本。
+          </Text>
+        </Banner>
       </BlockStack>
     </Card>
   );

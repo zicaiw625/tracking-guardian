@@ -1,297 +1,396 @@
 
-import prisma from "../db.server";
+import type { VerificationSummary, VerificationEventResult } from "./verification.server";
 import { logger } from "../utils/logger.server";
-import type { VerificationSummary } from "./verification.server";
+import prisma from "../db.server";
 import { getVerificationRun } from "./verification.server";
 
-export interface ReportOptions {
-  format: "pdf" | "csv";
-  includeCharts?: boolean;
-  includeDetails?: boolean;
-}
-
-export async function generateVerificationReport(
-  runId: string,
-  options: ReportOptions
-): Promise<{ url: string; filename: string }> {
-  const verification = await getVerificationRun(runId);
-  if (!verification) {
-    throw new Error("Verification run not found");
+/**
+ * 获取验收报告数据（兼容现有接口）
+ */
+export async function generateVerificationReportData(
+  shopId: string,
+  runId?: string
+): Promise<VerificationSummary | null> {
+  if (runId) {
+    return await getVerificationRun(runId);
   }
-
-  if (options.format === "csv") {
-    return generateCSVReport(verification, options);
-  } else {
-    return generatePDFReport(verification, options);
-  }
-}
-
-async function generateCSVReport(
-  verification: VerificationSummary,
-  options: ReportOptions
-): Promise<{ url: string; filename: string }> {
-  const rows: string[][] = [];
-
-  // 表头
-  rows.push([
-    "测试项",
-    "事件类型",
-    "平台",
-    "订单ID",
-    "状态",
-    "触发时间",
-    "订单金额",
-    "货币",
-    "商品数量",
-    "差异",
-    "错误",
-  ]);
-
-  // 数据行
-  verification.results.forEach((result) => {
-    rows.push([
-      result.testItemId || "",
-      result.eventType,
-      result.platform,
-      result.orderId || "",
-      result.status,
-      result.triggeredAt?.toISOString() || "",
-      result.params?.value?.toString() || "",
-      result.params?.currency || "",
-      result.params?.items?.toString() || "",
-      result.discrepancies?.join("; ") || "",
-      result.errors?.join("; ") || "",
-    ]);
-  });
-
-  // 转换为 CSV 格式
-  const csvContent = rows.map(row => 
-    row.map(cell => {
-      // 转义 CSV 特殊字符
-      const cellStr = String(cell || "");
-      if (cellStr.includes(",") || cellStr.includes('"') || cellStr.includes("\n")) {
-        return `"${cellStr.replace(/"/g, '""')}"`;
-      }
-      return cellStr;
-    }).join(",")
-  ).join("\n");
-
-  // 添加摘要信息
-  const summary = [
-    "",
-    "摘要",
-    `总测试数,${verification.totalTests}`,
-    `通过,${verification.passedTests}`,
-    `失败,${verification.failedTests}`,
-    `参数缺失,${verification.missingParamTests}`,
-    `未测试,${verification.notTestedCount}`,
-    `参数完整率,${verification.parameterCompleteness.toFixed(2)}%`,
-    `金额准确率,${verification.valueAccuracy.toFixed(2)}%`,
-  ].join("\n");
-
-  const fullContent = csvContent + "\n" + summary;
-
-  // 保存到数据库（实际应用中应该保存到 S3 或其他存储）
-  const filename = `verification-report-${verification.runId}-${Date.now()}.csv`;
   
-  // 更新 VerificationRun 的 reportUrl
-  await prisma.verificationRun.update({
-    where: { id: verification.runId },
-    data: {
-      reportUrl: `/api/reports/${filename}`,
-    },
+  // 如果没有提供 runId，获取最新的运行
+  const latestRun = await prisma.verificationRun.findFirst({
+    where: { shopId },
+    orderBy: { createdAt: "desc" },
   });
-
-  // 返回数据 URL（实际应用中应该返回文件存储 URL）
-  const blob = new Blob([fullContent], { type: "text/csv;charset=utf-8;" });
-  const dataUrl = URL.createObjectURL(blob);
-
-  return {
-    url: dataUrl,
-    filename,
-  };
-}
-
-async function generatePDFReport(
-  verification: VerificationSummary,
-  options: ReportOptions
-): Promise<{ url: string; filename: string }> {
-  // PDF 生成需要额外的库（如 pdfkit 或 puppeteer）
-  // 这里提供一个基础实现框架
   
-  try {
-    // 动态导入 PDF 库（如果可用）
-    const PDFDocument = await import("pdfkit").catch(() => null);
-    
-    if (!PDFDocument) {
-      // 如果没有 PDF 库，返回 HTML 报告
-      return generateHTMLReport(verification, options);
-    }
-
-    const doc = new PDFDocument.default({
-      size: "A4",
-      margins: { top: 50, bottom: 50, left: 50, right: 50 },
-    });
-
-    const chunks: Buffer[] = [];
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    
-    // 标题
-    doc.fontSize(20).text("迁移验收报告", { align: "center" });
-    doc.moveDown();
-
-    // 基本信息
-    doc.fontSize(12);
-    doc.text(`运行名称: ${verification.runName}`);
-    doc.text(`运行类型: ${verification.runType}`);
-    doc.text(`状态: ${verification.status}`);
-    doc.text(`开始时间: ${verification.startedAt?.toLocaleString() || "N/A"}`);
-    doc.text(`完成时间: ${verification.completedAt?.toLocaleString() || "N/A"}`);
-    doc.moveDown();
-
-    // 摘要
-    doc.fontSize(16).text("摘要", { underline: true });
-    doc.fontSize(12);
-    doc.text(`总测试数: ${verification.totalTests}`);
-    doc.text(`通过: ${verification.passedTests}`);
-    doc.text(`失败: ${verification.failedTests}`);
-    doc.text(`参数缺失: ${verification.missingParamTests}`);
-    doc.text(`参数完整率: ${verification.parameterCompleteness.toFixed(2)}%`);
-    doc.text(`金额准确率: ${verification.valueAccuracy.toFixed(2)}%`);
-    doc.moveDown();
-
-    // 详细结果
-    if (options.includeDetails) {
-      doc.fontSize(16).text("详细结果", { underline: true });
-      doc.fontSize(10);
-      
-      verification.results.forEach((result, index) => {
-        if (index > 0) doc.moveDown(0.5);
-        doc.text(`${index + 1}. ${result.testItemId || result.eventType}`, { continued: false });
-        doc.text(`   平台: ${result.platform}`, { indent: 20 });
-        doc.text(`   状态: ${result.status}`, { indent: 20 });
-        if (result.orderId) {
-          doc.text(`   订单ID: ${result.orderId}`, { indent: 20 });
-        }
-        if (result.errors && result.errors.length > 0) {
-          doc.text(`   错误: ${result.errors.join(", ")}`, { indent: 20 });
-        }
-      });
-    }
-
-    doc.end();
-
-    // 等待 PDF 生成完成
-    await new Promise<void>((resolve) => {
-      doc.on("end", resolve);
-    });
-
-    const pdfBuffer = Buffer.concat(chunks);
-    const filename = `verification-report-${verification.runId}-${Date.now()}.pdf`;
-
-    // 更新数据库
-    await prisma.verificationRun.update({
-      where: { id: verification.runId },
-      data: {
-        reportUrl: `/api/reports/${filename}`,
-      },
-    });
-
-    // 返回数据 URL（实际应用中应该保存到文件存储）
-    const dataUrl = `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
-
-    return {
-      url: dataUrl,
-      filename,
-    };
-  } catch (error) {
-    logger.error("PDF generation failed, falling back to HTML", { error });
-    return generateHTMLReport(verification, options);
+  if (!latestRun) {
+    return null;
   }
+  
+  return await getVerificationRun(latestRun.id);
 }
 
-async function generateHTMLReport(
-  verification: VerificationSummary,
-  options: ReportOptions
-): Promise<{ url: string; filename: string }> {
-  // 生成 HTML 报告（可以作为 PDF 的替代或中间步骤）
-  const html = `
+/**
+ * 生成验收报告 HTML（兼容现有接口）
+ */
+export function generateVerificationReportHtml(summary: VerificationSummary): string {
+  const passRate = summary.totalTests > 0
+    ? Math.round((summary.passedTests / summary.totalTests) * 100)
+    : 0;
+  
+  return `
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>迁移验收报告 - ${verification.runName}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>验收测试报告</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     h1 { color: #333; }
+    h2 { color: #666; margin-top: 30px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
     th { background-color: #f2f2f2; }
-    .summary { background-color: #f9f9f9; padding: 15px; margin: 20px 0; }
     .success { color: green; }
     .failed { color: red; }
     .warning { color: orange; }
   </style>
 </head>
 <body>
-  <h1>迁移验收报告</h1>
-  <div class="summary">
-    <h2>摘要</h2>
-    <p><strong>运行名称:</strong> ${verification.runName}</p>
-    <p><strong>运行类型:</strong> ${verification.runType}</p>
-    <p><strong>状态:</strong> ${verification.status}</p>
-    <p><strong>总测试数:</strong> ${verification.totalTests}</p>
-    <p><strong>通过:</strong> <span class="success">${verification.passedTests}</span></p>
-    <p><strong>失败:</strong> <span class="failed">${verification.failedTests}</span></p>
-    <p><strong>参数完整率:</strong> ${verification.parameterCompleteness.toFixed(2)}%</p>
-    <p><strong>金额准确率:</strong> ${verification.valueAccuracy.toFixed(2)}%</p>
-  </div>
+  <h1>验收测试报告</h1>
+  <h2>基本信息</h2>
+  <p><strong>运行名称:</strong> ${summary.runName}</p>
+  <p><strong>运行类型:</strong> ${summary.runType === "quick" ? "快速" : summary.runType === "full" ? "完整" : "自定义"}</p>
+  <p><strong>状态:</strong> ${summary.status === "completed" ? "已完成" : summary.status === "running" ? "运行中" : "待运行"}</p>
+  ${summary.startedAt ? `<p><strong>开始时间:</strong> ${new Date(summary.startedAt).toLocaleString("zh-CN")}</p>` : ""}
+  ${summary.completedAt ? `<p><strong>完成时间:</strong> ${new Date(summary.completedAt).toLocaleString("zh-CN")}</p>` : ""}
+  
+  <h2>测试摘要</h2>
+  <table>
+    <tr>
+      <th>指标</th>
+      <th>数值</th>
+    </tr>
+    <tr>
+      <td>总测试数</td>
+      <td>${summary.totalTests}</td>
+    </tr>
+    <tr>
+      <td>通过</td>
+      <td class="success">${summary.passedTests}</td>
+    </tr>
+    <tr>
+      <td>失败</td>
+      <td class="failed">${summary.failedTests}</td>
+    </tr>
+    <tr>
+      <td>参数缺失</td>
+      <td class="warning">${summary.missingParamTests}</td>
+    </tr>
+    <tr>
+      <td>通过率</td>
+      <td>${passRate}%</td>
+    </tr>
+    <tr>
+      <td>参数完整率</td>
+      <td>${summary.parameterCompleteness.toFixed(1)}%</td>
+    </tr>
+    <tr>
+      <td>金额准确率</td>
+      <td>${summary.valueAccuracy.toFixed(1)}%</td>
+    </tr>
+  </table>
+  
+  ${summary.results && summary.results.length > 0 ? `
   <h2>详细结果</h2>
   <table>
-    <thead>
-      <tr>
-        <th>测试项</th>
-        <th>事件类型</th>
-        <th>平台</th>
-        <th>订单ID</th>
-        <th>状态</th>
-        <th>订单金额</th>
-        <th>货币</th>
-        <th>错误</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${verification.results.map(result => `
-        <tr>
-          <td>${result.testItemId || ""}</td>
-          <td>${result.eventType}</td>
-          <td>${result.platform}</td>
-          <td>${result.orderId || ""}</td>
-          <td class="${result.status === "success" ? "success" : result.status === "failed" ? "failed" : "warning"}">${result.status}</td>
-          <td>${result.params?.value || ""}</td>
-          <td>${result.params?.currency || ""}</td>
-          <td>${result.errors?.join(", ") || ""}</td>
-        </tr>
-      `).join("")}
-    </tbody>
+    <tr>
+      <th>事件类型</th>
+      <th>平台</th>
+      <th>订单ID</th>
+      <th>状态</th>
+      <th>金额</th>
+      <th>差异</th>
+    </tr>
+    ${summary.results.map(event => `
+    <tr>
+      <td>${event.eventType}</td>
+      <td>${event.platform}</td>
+      <td>${event.orderId || "-"}</td>
+      <td class="${event.status === "success" ? "success" : event.status === "failed" ? "failed" : "warning"}">${event.status}</td>
+      <td>${event.params?.value ? `${event.params.currency || "USD"} ${event.params.value.toFixed(2)}` : "-"}</td>
+      <td>${event.discrepancies?.join("; ") || "-"}</td>
+    </tr>
+    `).join("")}
   </table>
+  ` : ""}
 </body>
 </html>
   `;
-
-  const filename = `verification-report-${verification.runId}-${Date.now()}.html`;
-  const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
-
-  await prisma.verificationRun.update({
-    where: { id: verification.runId },
-    data: {
-      reportUrl: `/api/reports/${filename}`,
-    },
-  });
-
-  return {
-    url: dataUrl,
-    filename,
-  };
 }
 
+/**
+ * 生成验收报告 PDF
+ * 
+ * 注意：需要安装 pdfkit 依赖：
+ * pnpm add pdfkit @types/pdfkit
+ */
+export async function generateVerificationReportPDF(
+  summary: VerificationSummary,
+  shopDomain: string
+): Promise<Buffer> {
+  try {
+    // 动态导入 pdfkit（如果未安装会抛出错误）
+    const PDFDocument = (await import("pdfkit")).default;
+    
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: { top: 50, bottom: 50, left: 50, right: 50 },
+    });
+
+    // 标题
+    doc.fontSize(20).font("Helvetica-Bold").text("验收测试报告", { align: "center" });
+    doc.moveDown(0.5);
+    
+    // 基本信息
+    doc.fontSize(12).font("Helvetica");
+    doc.text(`店铺: ${shopDomain}`);
+    doc.text(`报告生成时间: ${new Date().toISOString().split("T")[0]}`);
+    doc.text(`验收运行 ID: ${summary.runId}`);
+    doc.text(`运行名称: ${summary.runName}`);
+    doc.text(`运行类型: ${summary.runType === "quick" ? "快速" : summary.runType === "full" ? "完整" : "自定义"}`);
+    if (summary.startedAt) {
+      doc.text(`开始时间: ${new Date(summary.startedAt).toLocaleString("zh-CN")}`);
+    }
+    if (summary.completedAt) {
+      doc.text(`完成时间: ${new Date(summary.completedAt).toLocaleString("zh-CN")}`);
+    }
+    doc.moveDown();
+
+    // 测试摘要
+    doc.fontSize(16).font("Helvetica-Bold").text("测试摘要");
+    doc.fontSize(11).font("Helvetica");
+    doc.text(`总测试数: ${summary.totalTests}`);
+    doc.text(`通过: ${summary.passedTests}`);
+    doc.text(`失败: ${summary.failedTests}`);
+    doc.text(`参数缺失: ${summary.missingParamTests}`);
+    doc.text(`未测试: ${summary.notTestedCount || 0}`);
+    
+    const passRate = summary.totalTests > 0
+      ? Math.round((summary.passedTests / summary.totalTests) * 100)
+      : 0;
+    doc.text(`通过率: ${passRate}%`);
+    doc.text(`参数完整率: ${summary.parameterCompleteness.toFixed(1)}%`);
+    doc.text(`金额准确率: ${summary.valueAccuracy.toFixed(1)}%`);
+    doc.moveDown();
+
+    // 平台结果
+    if (summary.platformResults) {
+      doc.fontSize(14).font("Helvetica-Bold").text("平台结果");
+      doc.fontSize(10).font("Helvetica");
+      
+      for (const [platform, result] of Object.entries(summary.platformResults)) {
+        doc.text(`${platform}:`);
+        doc.text(`  发送成功: ${result.sent || 0}`);
+        doc.text(`  发送失败: ${result.failed || 0}`);
+        doc.moveDown(0.3);
+      }
+      doc.moveDown();
+    }
+
+    // 事件详情
+    if (summary.results && summary.results.length > 0) {
+      doc.fontSize(16).font("Helvetica-Bold").text("事件详情", { pageBreak: false });
+      doc.moveDown(0.5);
+
+      summary.results.slice(0, 50).forEach((event, index) => {
+        // 检查是否需要分页
+        if (doc.y > 700) {
+          doc.addPage();
+        }
+
+        doc.fontSize(11).font("Helvetica-Bold");
+        doc.text(`${index + 1}. ${event.eventType} (${event.platform})`);
+        
+        doc.fontSize(10).font("Helvetica");
+        if (event.orderId) {
+          doc.text(`  订单 ID: ${event.orderId}`);
+        }
+        if (event.orderNumber) {
+          doc.text(`  订单号: ${event.orderNumber}`);
+        }
+        const statusText = event.status === "success" ? "成功" 
+          : event.status === "failed" ? "失败" 
+          : event.status === "missing_params" ? "参数缺失"
+          : "未测试";
+        doc.text(`  状态: ${statusText}`);
+        
+        if (event.params) {
+          if (event.params.value !== undefined) {
+            doc.text(`  金额: ${event.params.currency || "USD"} ${event.params.value.toFixed(2)}`);
+          }
+          if (event.params.items !== undefined) {
+            doc.text(`  商品数: ${event.params.items}`);
+          }
+        }
+        
+        if (event.shopifyOrder) {
+          doc.text(`  Shopify 订单金额: ${event.shopifyOrder.currency} ${event.shopifyOrder.value.toFixed(2)}`);
+        }
+        
+        if (event.discrepancies && event.discrepancies.length > 0) {
+          doc.text(`  差异: ${event.discrepancies.join("; ")}`);
+        }
+        
+        if (event.errors && event.errors.length > 0) {
+          doc.text(`  错误: ${event.errors.join("; ")}`);
+        }
+        
+        doc.moveDown(0.5);
+        
+        // 分隔线
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.moveDown(0.3);
+      });
+    }
+
+    // 对账结果
+    if (summary.reconciliation) {
+      doc.addPage();
+      doc.fontSize(16).font("Helvetica-Bold").text("对账结果");
+      doc.fontSize(11).font("Helvetica");
+      doc.text(`订单总数: ${summary.reconciliation.totalOrders || 0}`);
+      doc.text(`匹配成功: ${summary.reconciliation.matchedOrders || 0}`);
+      doc.text(`匹配失败: ${summary.reconciliation.unmatchedOrders || 0}`);
+      
+      const matchRate = summary.reconciliation.totalOrders > 0
+        ? Math.round((summary.reconciliation.matchedOrders / summary.reconciliation.totalOrders) * 100)
+        : 0;
+      doc.text(`匹配率: ${matchRate}%`);
+    }
+
+    // 页脚
+    const totalPages = doc.bufferedPageRange().count;
+    for (let i = 0; i < totalPages; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(8).font("Helvetica").fillColor("#666666");
+      doc.text(
+        `第 ${i + 1} 页 / 共 ${totalPages} 页`,
+        50,
+        doc.page.height - 30,
+        { align: "center", width: doc.page.width - 100 }
+      );
+      doc.fillColor("#000000");
+    }
+
+    // 生成 PDF buffer
+    return new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+      doc.end();
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Cannot find module")) {
+      logger.error("PDFKit not installed. Please run: pnpm add pdfkit @types/pdfkit");
+      throw new Error("PDF 导出功能需要安装 pdfkit 依赖。请运行: pnpm add pdfkit @types/pdfkit");
+    }
+    logger.error("Failed to generate verification PDF", { error });
+    throw error;
+  }
+}
+
+/**
+ * 生成验收报告 CSV
+ */
+export function generateVerificationReportCSV(
+  summary: VerificationSummary,
+  shopDomain: string
+): string {
+  const rows: string[][] = [];
+  
+  // 表头
+  rows.push([
+    "测试项ID",
+    "事件类型",
+    "平台",
+    "订单ID",
+    "订单号",
+    "状态",
+    "金额",
+    "币种",
+    "商品数",
+    "Shopify订单金额",
+    "差异",
+    "错误信息",
+    "触发时间",
+  ]);
+
+  // 事件数据
+  if (summary.results && summary.results.length > 0) {
+    for (const event of summary.results) {
+      const discrepancies = event.discrepancies?.join("; ") || "";
+      const errors = event.errors?.join("; ") || "";
+      const shopifyValue = event.shopifyOrder 
+        ? `${event.shopifyOrder.currency} ${event.shopifyOrder.value.toFixed(2)}`
+        : "";
+      
+      rows.push([
+        event.testItemId || "",
+        event.eventType,
+        event.platform,
+        event.orderId || "",
+        event.orderNumber || "",
+        event.status,
+        event.params?.value?.toFixed(2) || "",
+        event.params?.currency || "",
+        event.params?.items?.toString() || "",
+        shopifyValue,
+        discrepancies,
+        errors,
+        event.triggeredAt ? new Date(event.triggeredAt).toISOString() : "",
+      ]);
+    }
+  }
+
+  // 转换为 CSV 格式
+  return rows.map(row => {
+    return row.map(cell => {
+      // 转义包含逗号、引号或换行符的单元格
+      if (cell.includes(",") || cell.includes('"') || cell.includes("\n")) {
+        return `"${cell.replace(/"/g, '""')}"`;
+      }
+      return cell;
+    }).join(",");
+  }).join("\n");
+}
+
+/**
+ * 保存报告到数据库（可选，用于后续下载）
+ */
+export async function saveVerificationReport(
+  runId: string,
+  reportType: "pdf" | "csv",
+  reportData: Buffer | string,
+  shopDomain: string
+): Promise<string> {
+  try {
+    // 更新 VerificationRun 记录，保存报告 URL 或路径
+    const filename = `verification-report-${shopDomain}-${runId}-${new Date().toISOString().split("T")[0]}.${reportType}`;
+    
+    // 这里可以保存到 S3 或其他存储服务
+    // 暂时只更新数据库记录
+    await prisma.verificationRun.update({
+      where: { id: runId },
+      data: {
+        reportUrl: `/api/reports/verification/${runId}.${reportType}`, // 临时 URL
+      },
+    });
+
+    logger.info("Verification report saved", { runId, reportType, filename });
+    return filename;
+  } catch (error) {
+    logger.error("Failed to save verification report", { runId, error });
+    throw error;
+  }
+}

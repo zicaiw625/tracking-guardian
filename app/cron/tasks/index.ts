@@ -143,6 +143,7 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     reconciliationReportsDeleted: 0,
     gdprJobsDeleted: 0,
     eventNoncesDeleted: 0,
+    migrationDraftsDeleted: 0,
   };
   try {
     cronLogger.info("Cleaning up expired data...");
@@ -159,7 +160,8 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
       cleanupResults.scanReportsDeleted +
       cleanupResults.reconciliationReportsDeleted +
       cleanupResults.gdprJobsDeleted +
-      cleanupResults.eventNoncesDeleted;
+      cleanupResults.eventNoncesDeleted +
+      cleanupResults.migrationDraftsDeleted;
 
     if (totalDeleted > 0) {
       cronLogger.info("[METRIC] retention_cleanup", {

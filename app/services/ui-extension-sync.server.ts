@@ -1,0 +1,258 @@
+
+import prisma from "../db.server";
+import { logger } from "../utils/logger.server";
+import type { AdminApiContext } from "../shopify.server";
+import type { ModuleKey, UiModuleConfig } from "../types/ui-extension";
+import { getUiModuleConfig } from "./ui-extension.server";
+
+/**
+ * 将数据库配置同步到 Shopify UI Extension settings
+ * 通过 webPixelUpdate mutation 更新扩展的 settings
+ */
+export async function syncUiExtensionSettings(
+  shopId: string,
+  admin: AdminApiContext
+): Promise<{ success: boolean; synced: number; errors: string[] }> {
+  try {
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { shopDomain: true, webPixelId: true },
+    });
+
+    if (!shop || !shop.webPixelId) {
+      return {
+        success: false,
+        synced: 0,
+        errors: ["Web Pixel 未安装或未找到"],
+      };
+    }
+
+    // 获取所有启用的模块配置
+    const modules = await prisma.uiExtensionSetting.findMany({
+      where: {
+        shopId,
+        isEnabled: true,
+      },
+    });
+
+    if (modules.length === 0) {
+      return {
+        success: true,
+        synced: 0,
+        errors: [],
+      };
+    }
+
+    // 构建 settings payload
+    const settings: Record<string, unknown> = {};
+
+    for (const module of modules) {
+      const moduleKey = module.moduleKey as ModuleKey;
+      const config = await getUiModuleConfig(shopId, moduleKey);
+
+      // 构建模块特定的 settings key
+      const settingsKey = `ui_module_${moduleKey}`;
+      settings[settingsKey] = {
+        enabled: config.isEnabled,
+        settings: config.settings,
+        displayRules: config.displayRules,
+        localization: config.localization,
+      };
+    }
+
+    // 通过 GraphQL 更新 Web Pixel settings
+    const mutation = `
+      mutation UpdateWebPixelSettings($id: ID!, $settings: JSON!) {
+        webPixelUpdate(id: $id, webPixel: { settings: $settings }) {
+          webPixel {
+            id
+            settings
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const response = await admin.graphql(mutation, {
+      variables: {
+        id: shop.webPixelId,
+        settings: JSON.stringify(settings),
+      },
+    });
+
+    const data = await response.json();
+    const result = data.data?.webPixelUpdate;
+
+    if (result?.userErrors?.length > 0) {
+      const errors = result.userErrors.map((e: { message: string }) => e.message);
+      logger.error("Failed to sync UI extension settings", {
+        shopId,
+        errors,
+      });
+      return {
+        success: false,
+        synced: 0,
+        errors,
+      };
+    }
+
+    logger.info("UI extension settings synced", {
+      shopId,
+      syncedCount: modules.length,
+    });
+
+    return {
+      success: true,
+      synced: modules.length,
+      errors: [],
+    };
+  } catch (error) {
+    logger.error("Failed to sync UI extension settings", {
+      shopId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      success: false,
+      synced: 0,
+      errors: [error instanceof Error ? error.message : "同步失败"],
+    };
+  }
+}
+
+/**
+ * 同步单个模块的配置
+ */
+export async function syncSingleModule(
+  shopId: string,
+  moduleKey: ModuleKey,
+  admin: AdminApiContext
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { shopDomain: true, webPixelId: true },
+    });
+
+    if (!shop || !shop.webPixelId) {
+      return {
+        success: false,
+        error: "Web Pixel 未安装",
+      };
+    }
+
+    const config = await getUiModuleConfig(shopId, moduleKey);
+
+    const settingsKey = `ui_module_${moduleKey}`;
+    const settings = {
+      [settingsKey]: {
+        enabled: config.isEnabled,
+        settings: config.settings,
+        displayRules: config.displayRules,
+        localization: config.localization,
+      },
+    };
+
+    // 获取现有 settings 并合并
+    const getPixelQuery = `
+      query GetWebPixel($id: ID!) {
+        webPixel(id: $id) {
+          id
+          settings
+        }
+      }
+    `;
+
+    const getResponse = await admin.graphql(getPixelQuery, {
+      variables: { id: shop.webPixelId },
+    });
+
+    const getData = await getResponse.json();
+    const existingSettings = getData.data?.webPixel?.settings
+      ? JSON.parse(getData.data.webPixel.settings)
+      : {};
+
+    // 合并设置
+    const mergedSettings = {
+      ...existingSettings,
+      ...settings,
+    };
+
+    // 更新 settings
+    const mutation = `
+      mutation UpdateWebPixelSettings($id: ID!, $settings: JSON!) {
+        webPixelUpdate(id: $id, webPixel: { settings: $settings }) {
+          webPixel {
+            id
+            settings
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const updateResponse = await admin.graphql(mutation, {
+      variables: {
+        id: shop.webPixelId,
+        settings: JSON.stringify(mergedSettings),
+      },
+    });
+
+    const updateData = await updateResponse.json();
+    const result = updateData.data?.webPixelUpdate;
+
+    if (result?.userErrors?.length > 0) {
+      const error = result.userErrors.map((e: { message: string }) => e.message).join(", ");
+      return {
+        success: false,
+        error,
+      };
+    }
+
+    logger.info("Single module synced", { shopId, moduleKey });
+    return { success: true };
+  } catch (error) {
+    logger.error("Failed to sync single module", {
+      shopId,
+      moduleKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "同步失败",
+    };
+  }
+}
+
+/**
+ * 批量同步多个模块
+ */
+export async function syncMultipleModules(
+  shopId: string,
+  moduleKeys: ModuleKey[],
+  admin: AdminApiContext
+): Promise<{ success: boolean; synced: number; errors: string[] }> {
+  const errors: string[] = [];
+  let synced = 0;
+
+  for (const moduleKey of moduleKeys) {
+    const result = await syncSingleModule(shopId, moduleKey, admin);
+    if (result.success) {
+      synced++;
+    } else {
+      errors.push(`${moduleKey}: ${result.error || "未知错误"}`);
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    synced,
+    errors,
+  };
+}
+

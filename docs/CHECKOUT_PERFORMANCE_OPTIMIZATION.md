@@ -59,25 +59,27 @@
 
 ### Survey.tsx
 - [x] 使用 useMemo 缓存 logger
-- [ ] 使用 useCallback 缓存事件处理函数
-- [ ] 延迟获取订单信息（只在需要时）
-- [ ] 使用 React.memo 优化子组件
-- [ ] 优化错误处理，避免不必要的重渲染
+- [x] 使用 useCallback 缓存事件处理函数
+- [x] 延迟获取订单信息（只在需要时）
+- [x] 使用 React.memo 优化组件
+- [x] 优化错误处理，避免不必要的重渲染
 
 ### ShippingTracker.tsx
-- [ ] 使用 useMemo 缓存计算结果
-- [ ] 优化 useOrder() 的使用（避免不必要的订阅）
-- [ ] 使用 React.memo 优化组件
+- [x] 使用 useMemo 缓存计算结果
+- [x] 优化 useOrder() 的使用（避免不必要的订阅）
+- [x] 使用 React.memo 优化组件
 
 ### UpsellOffer.tsx
-- [ ] 使用 useMemo 缓存计算结果
-- [ ] 使用 useCallback 缓存事件处理函数
-- [ ] 优化状态更新逻辑
+- [x] 使用 useMemo 缓存计算结果
+- [x] 使用 useCallback 缓存事件处理函数
+- [x] 优化状态更新逻辑
+- [x] 使用 React.memo 优化组件
 
 ### Reorder.tsx
-- [ ] 延迟加载商品数据
-- [ ] 使用 useMemo 缓存计算结果
-- [ ] 优化网络请求
+- [x] 延迟加载商品数据（通过 useMemo）
+- [x] 使用 useMemo 缓存计算结果
+- [x] 优化网络请求（无网络请求）
+- [x] 使用 React.memo 优化组件
 
 ### Support.tsx
 - [ ] 延迟加载支持内容
@@ -109,9 +111,9 @@
 3. ⚠️ 添加请求取消机制
 
 ### Phase 3: 渲染优化
-1. ⚠️ 使用 React.memo 优化组件
-2. ⚠️ 条件渲染优化
-3. ⚠️ 列表渲染优化
+1. ✅ 使用 React.memo 优化组件（Survey, ShippingTracker, UpsellOffer, Reorder）
+2. ✅ 条件渲染优化
+3. ✅ 列表渲染优化（使用 key 和 useMemo）
 
 ## 注意事项
 

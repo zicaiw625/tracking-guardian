@@ -144,7 +144,7 @@ function splitCodeSnippets(content: string): string[] {
  * 检测容器类型（GTM、标签管理器等）
  */
 function detectContainer(content: string): {
-  type: "gtm" | "tag_manager" | "data_layer" | "none";
+  type: "gtm" | "tag_manager" | "data_layer" | "segment" | "tealium" | "adobe_launch" | "none";
   id?: string;
 } {
   const lowerContent = content.toLowerCase();
@@ -155,6 +155,37 @@ function detectContainer(content: string): {
     return {
       type: "gtm",
       id: gtmMatch?.[0],
+    };
+  }
+  
+  // Segment
+  if (lowerContent.includes("segment.com") || 
+      lowerContent.includes("analytics.js") && lowerContent.includes("segment") ||
+      lowerContent.includes("cdn.segment.com")) {
+    const segmentMatch = content.match(/writeKey['":\s]+['"]?([a-zA-Z0-9]+)['"]?/i);
+    return {
+      type: "segment",
+      id: segmentMatch?.[1],
+    };
+  }
+  
+  // Tealium
+  if (lowerContent.includes("tealium") || 
+      lowerContent.includes("tiqcdn.com") ||
+      lowerContent.includes("utag.js")) {
+    const tealiumMatch = content.match(/utag\.(?:load|view|link)\(['"]?([^'"]+)['"]?/i);
+    return {
+      type: "tealium",
+      id: tealiumMatch?.[1],
+    };
+  }
+  
+  // Adobe Launch (formerly DTM)
+  if (lowerContent.includes("adobe launch") || 
+      lowerContent.includes("assets.adobedtm.com") ||
+      lowerContent.includes("launch") && lowerContent.includes("adobe")) {
+    return {
+      type: "adobe_launch",
     };
   }
   
@@ -232,34 +263,105 @@ function categorizeSnippet(
 }
 
 /**
- * 从内容中检测平台
+ * 从内容中检测平台（增强版）
+ * 支持更多平台和更精确的匹配
  */
 function detectPlatformFromContent(content: string): string | undefined {
-  // 检测 GA4 Measurement ID
+  const lowerContent = content.toLowerCase();
+  
+  // 检测 GA4 Measurement ID (更精确的匹配)
   const ga4Match = content.match(/G-[A-Z0-9]{10,}/i);
   if (ga4Match) return "google";
   
-  // 检测 Meta Pixel ID
-  const metaMatch = content.match(/(?:fbq\s*\(['"]init['"]\s*,\s*['"]?|pixel[_-]?id['":\s]+)(\d{15,16})/i);
-  if (metaMatch) return "meta";
+  // 检测 Universal Analytics (已弃用，但需要识别)
+  const uaMatch = content.match(/UA-\d+-\d+/i);
+  if (uaMatch) return "google";
   
-  // 检测 TikTok Pixel
-  const tiktokMatch = content.match(/ttq\s*\.\s*load\s*\(['"]?([A-Z0-9]+)['"]?/i);
-  if (tiktokMatch) return "tiktok";
+  // 检测 Google Ads Conversion ID
+  const googleAdsMatch = content.match(/AW-\d{9,}/i);
+  if (googleAdsMatch) return "google_ads";
   
-  // 检测 Pinterest Tag
-  const pinterestMatch = content.match(/pintrk\s*\(['"]load['"]\s*,\s*['"]?([A-Z0-9]+)['"]?/i);
-  if (pinterestMatch) return "pinterest";
+  // 检测 Meta Pixel ID (多种格式)
+  const metaPatterns = [
+    /fbq\s*\(['"]init['"]\s*,\s*['"]?(\d{15,16})['"]?/i,
+    /pixel[_-]?id['":\s]+['"]?(\d{15,16})['"]?/i,
+    /facebook[_-]?pixel[_-]?id['":\s]+['"]?(\d{15,16})['"]?/i,
+    /connect\.facebook\.net\/.*\/fbevents\.js[^'"]*id=(\d{15,16})/i,
+  ];
+  for (const pattern of metaPatterns) {
+    const match = content.match(pattern);
+    if (match && match[1]) return "meta";
+  }
+  
+  // 检测 TikTok Pixel (多种格式)
+  const tiktokPatterns = [
+    /ttq\s*\.\s*load\s*\(['"]?([A-Z0-9]+)['"]?/i,
+    /tiktok[_-]?pixel[_-]?id['":\s]+['"]?([A-Z0-9]+)['"]?/i,
+    /analytics\.tiktok\.com\/i18n\/pixel\/events[^'"]*id=([A-Z0-9]+)/i,
+  ];
+  for (const pattern of tiktokPatterns) {
+    const match = content.match(pattern);
+    if (match && match[1]) return "tiktok";
+  }
+  
+  // 检测 Pinterest Tag (多种格式)
+  const pinterestPatterns = [
+    /pintrk\s*\(['"]load['"]\s*,\s*['"]?([A-Z0-9]+)['"]?/i,
+    /pinterest[_-]?tag[_-]?id['":\s]+['"]?([A-Z0-9]+)['"]?/i,
+    /pinimg\.com\/.*\/tag[^'"]*id=([A-Z0-9]+)/i,
+  ];
+  for (const pattern of pinterestPatterns) {
+    const match = content.match(pattern);
+    if (match && match[1]) return "pinterest";
+  }
   
   // 检测 Snapchat Pixel
-  const snapMatch = content.match(/snaptr\s*\(['"]init['"]\s*,\s*['"]?([A-Z0-9-]+)['"]?/i);
-  if (snapMatch) return "snapchat";
+  const snapPatterns = [
+    /snaptr\s*\(['"]init['"]\s*,\s*['"]?([A-Z0-9-]+)['"]?/i,
+    /snapchat[_-]?pixel[_-]?id['":\s]+['"]?([A-Z0-9-]+)['"]?/i,
+    /sc-static\.net\/.*\/scevent[^'"]*id=([A-Z0-9-]+)/i,
+  ];
+  for (const pattern of snapPatterns) {
+    const match = content.match(pattern);
+    if (match && match[1]) return "snapchat";
+  }
+  
+  // 检测 Microsoft Advertising (Bing UET)
+  if (lowerContent.includes("uetq") || lowerContent.includes("bat.bing.com")) {
+    return "bing";
+  }
+  
+  // 检测 Microsoft Clarity
+  if (lowerContent.includes("clarity") || lowerContent.includes("clarity.ms")) {
+    return "clarity";
+  }
+  
+  // 检测 Twitter/X Pixel
+  if (lowerContent.includes("twq") || (lowerContent.includes("twitter") && lowerContent.includes("pixel"))) {
+    return "twitter";
+  }
+  
+  // 检测 LinkedIn Insight Tag
+  if (lowerContent.includes("linkedin") && (lowerContent.includes("insight") || lowerContent.includes("_linkedin_partnerid"))) {
+    return "linkedin";
+  }
+  
+  // 检测 Reddit Pixel
+  if (lowerContent.includes("rdt") || (lowerContent.includes("reddit") && lowerContent.includes("pixel"))) {
+    return "reddit";
+  }
+  
+  // 检测 Criteo
+  if (lowerContent.includes("criteo") || lowerContent.includes("criteo.net")) {
+    return "criteo";
+  }
   
   return undefined;
 }
 
 /**
- * 计算风险等级
+ * 计算风险等级（增强版）
+ * 考虑更多因素：平台重要性、分析结果、容器类型等
  */
 function calculateRiskLevel(
   category: AssetCategory,
@@ -267,31 +369,77 @@ function calculateRiskLevel(
   analysis: ReturnType<typeof analyzeScriptContent>,
   containerInfo: ReturnType<typeof detectContainer>
 ): RiskLevel {
+  let riskScore = analysis.riskScore || 0;
+  
   // 高风险场景
-  if (category === "pixel" && platform && 
-      ["google", "meta", "tiktok"].includes(platform)) {
-    return "high";
+  // 1. 关键广告平台像素
+  if (category === "pixel" && platform) {
+    const criticalPlatforms = ["google", "meta", "tiktok"];
+    if (criticalPlatforms.includes(platform)) {
+      riskScore += 30; // 关键平台加权
+    }
   }
   
-  if (analysis.riskScore >= 70) {
-    return "high";
+  // 2. 检测到 PII 访问或 window/document 使用
+  const hasHighRiskPatterns = analysis.risks.some(
+    r => r.id === "pii_access" || r.id === "window_document_access"
+  );
+  if (hasHighRiskPatterns) {
+    riskScore += 25;
+  }
+  
+  // 3. GTM 容器通常包含多种追踪，风险较高
+  if (containerInfo.type === "gtm") {
+    riskScore += 15;
+  }
+  
+  // 4. 阻塞加载的代码
+  const hasBlockingLoad = analysis.risks.some(r => r.id === "blocking_load");
+  if (hasBlockingLoad) {
+    riskScore += 20;
+  }
+  
+  // 5. 订单状态页脚本（Shopify 废弃的主要目标）
+  if (category === "pixel" && platform) {
+    // 如果是在订单状态页使用的像素，风险更高
+    riskScore += 10;
   }
   
   // 中风险场景
-  if (category === "pixel" || category === "affiliate") {
-    return "medium";
+  // 1. 一般像素追踪
+  if (category === "pixel" && !platform) {
+    riskScore += 15;
   }
   
-  if (analysis.riskScore >= 40) {
-    return "medium";
+  // 2. 联盟追踪
+  if (category === "affiliate") {
+    riskScore += 20;
+  }
+  
+  // 3. 问卷工具（可能影响用户体验）
+  if (category === "survey") {
+    riskScore += 10;
   }
   
   // 低风险场景
-  if (category === "analytics" || category === "support") {
-    return "low";
+  // 1. 分析工具（通常不影响转化）
+  if (category === "analytics") {
+    riskScore -= 10;
   }
   
-  return "medium";
+  // 2. 客服支持（影响较小）
+  if (category === "support") {
+    riskScore -= 5;
+  }
+  
+  // 根据最终风险评分确定等级
+  if (riskScore >= 70) {
+    return "high";
+  } else if (riskScore >= 40) {
+    return "medium";
+  } else {
+    return "low";
+  }
 }
 
 /**
@@ -352,8 +500,21 @@ function generateDisplayName(
   platform: string | undefined,
   containerInfo: ReturnType<typeof detectContainer>
 ): string {
+  // 容器类型优先显示
   if (containerInfo.type === "gtm" && containerInfo.id) {
     return `Google Tag Manager (${containerInfo.id})`;
+  }
+  if (containerInfo.type === "segment" && containerInfo.id) {
+    return `Segment (${containerInfo.id})`;
+  }
+  if (containerInfo.type === "tealium" && containerInfo.id) {
+    return `Tealium (${containerInfo.id})`;
+  }
+  if (containerInfo.type === "adobe_launch") {
+    return "Adobe Launch";
+  }
+  if (containerInfo.type === "tag_manager") {
+    return "标签管理器";
   }
   
   if (platform) {
@@ -403,14 +564,16 @@ function calculateOverallRiskLevel(
 
 /**
  * 增强的风险评分算法
- * 基于平台、依赖、使用频率等因素
+ * 基于平台、依赖、使用频率、迁移难度等因素
  */
 export function calculateEnhancedRiskScore(
   category: AssetCategory,
   platform: string | undefined,
   riskLevel: RiskLevel,
   usageFrequency?: "high" | "medium" | "low",
-  hasDependencies?: boolean
+  hasDependencies?: boolean,
+  migrationDifficulty?: "easy" | "medium" | "hard",
+  confidence?: "high" | "medium" | "low"
 ): number {
   let score = 0;
   
@@ -439,6 +602,11 @@ export function calculateEnhancedRiskScore(
     if (criticalPlatforms.includes(platform)) {
       score *= 1.15;
     }
+    // 广告平台加权更高
+    const adPlatforms = ["google_ads", "meta", "tiktok", "pinterest", "snapchat"];
+    if (adPlatforms.includes(platform)) {
+      score *= 1.1;
+    }
   }
   
   // 使用频率加权
@@ -456,44 +624,225 @@ export function calculateEnhancedRiskScore(
     score *= 1.1;
   }
   
+  // 迁移难度加权（难度越高，风险越高）
+  if (migrationDifficulty) {
+    const difficultyWeights = {
+      easy: 0.9,
+      medium: 1.0,
+      hard: 1.2,
+    };
+    score *= difficultyWeights[migrationDifficulty];
+  }
+  
+  // 置信度加权（置信度越低，风险越高，因为不确定性增加）
+  if (confidence) {
+    const confidenceWeights = {
+      high: 1.0,
+      medium: 1.05,
+      low: 1.15,
+    };
+    score *= confidenceWeights[confidence];
+  }
+  
   return Math.min(100, Math.round(score));
 }
 
 /**
- * 批量处理手动粘贴的资产
+ * 自动分析依赖关系
+ * 基于脚本内容、平台和业务逻辑推断依赖关系
+ */
+export function analyzeDependenciesFromContent(
+  assets: ManualPasteAnalysisResult["assets"],
+  allAssets: Array<{ id: string; category: AssetCategory; platform?: string }>
+): Map<string, string[]> {
+  const dependencyMap = new Map<string, string[]>();
+  
+  for (const asset of assets) {
+    const dependencies: string[] = [];
+    
+    // 基于类别的依赖推断
+    switch (asset.category) {
+      case "affiliate":
+        // 联盟追踪通常依赖像素追踪
+        const pixelAssets = allAssets.filter(
+          (a) => a.category === "pixel" && 
+                 (asset.platform ? a.platform === asset.platform : true)
+        );
+        if (pixelAssets.length > 0) {
+          dependencies.push(pixelAssets[0].id);
+        }
+        break;
+        
+      case "survey":
+        // 问卷可能依赖订单追踪功能
+        const orderTracking = allAssets.find(
+          (a) => a.category === "support" || a.category === "pixel"
+        );
+        if (orderTracking) {
+          dependencies.push(orderTracking.id);
+        }
+        break;
+        
+      case "analytics":
+        // 分析工具可能依赖像素追踪
+        const analyticsPixels = allAssets.filter(
+          (a) => a.category === "pixel"
+        );
+        if (analyticsPixels.length > 0) {
+          dependencies.push(analyticsPixels[0].id);
+        }
+        break;
+    }
+    
+    // 相同平台的依赖关系
+    if (asset.platform) {
+      const samePlatformAssets = allAssets.filter(
+        (a) => a.platform === asset.platform && 
+               a.category === "pixel" &&
+               a.id !== asset.platform
+      );
+      // 如果当前资产不是像素，可能依赖相同平台的像素
+      if (asset.category !== "pixel" && samePlatformAssets.length > 0) {
+        dependencies.push(samePlatformAssets[0].id);
+      }
+    }
+    
+    if (dependencies.length > 0) {
+      dependencyMap.set(asset.platform || asset.category, dependencies);
+    }
+  }
+  
+  return dependencyMap;
+}
+
+/**
+ * 生成内容指纹用于去重
+ * 基于内容的关键特征生成唯一标识
+ */
+function generateContentFingerprint(
+  content: string,
+  category: AssetCategory,
+  platform?: string
+): string {
+  // 提取关键特征
+  const normalizedContent = content
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/['"]/g, "")
+    .trim();
+  
+  // 提取 ID 和关键标识符
+  const ids: string[] = [];
+  
+  // GA4 Measurement ID
+  const ga4Match = normalizedContent.match(/g-[a-z0-9]{10,}/i);
+  if (ga4Match) ids.push(ga4Match[0]);
+  
+  // Meta Pixel ID
+  const metaMatch = normalizedContent.match(/\d{15,16}/);
+  if (metaMatch) ids.push(`meta-${metaMatch[0]}`);
+  
+  // TikTok Pixel
+  const tiktokMatch = normalizedContent.match(/ttq[^)]*['"]?([a-z0-9]+)['"]?/i);
+  if (tiktokMatch && tiktokMatch[1]) ids.push(`tiktok-${tiktokMatch[1]}`);
+  
+  // Pinterest Tag
+  const pinterestMatch = normalizedContent.match(/pintrk[^)]*['"]?([a-z0-9]+)['"]?/i);
+  if (pinterestMatch && pinterestMatch[1]) ids.push(`pinterest-${pinterestMatch[1]}`);
+  
+  // 生成指纹
+  const fingerprintContent = JSON.stringify({
+    category,
+    platform: platform || "",
+    ids: ids.sort(),
+    // 使用内容的前 200 个字符作为特征
+    contentHash: crypto.createHash("sha256").update(normalizedContent.substring(0, 200)).digest("hex").slice(0, 16),
+  });
+  
+  return crypto.createHash("sha256").update(fingerprintContent).digest("hex").slice(0, 32);
+}
+
+/**
+ * 批量处理手动粘贴的资产（增强版，支持去重）
  */
 export async function processManualPasteAssets(
   shopId: string,
   content: string,
   scanReportId?: string
-): Promise<{ created: number; updated: number; failed: number }> {
+): Promise<{ created: number; updated: number; failed: number; duplicates: number }> {
   try {
     const analysis = analyzeManualPaste(content, shopId);
     
-    const assets = analysis.assets.map(asset => ({
-      sourceType: "manual_paste" as AssetSourceType,
-      category: asset.category,
-      platform: asset.platform,
-      displayName: asset.displayName,
-      riskLevel: asset.riskLevel,
-      suggestedMigration: asset.suggestedMigration,
-      details: {
-        content: asset.content,
-        matchedPatterns: asset.matchedPatterns,
-        confidence: asset.confidence,
-        analyzedAt: new Date().toISOString(),
-      },
-      scanReportId,
-    }));
+    // 获取现有资产用于去重检查
+    const { getAuditAssets } = await import("./audit-asset.server");
+    const existingAssets = await getAuditAssets(shopId);
+    const existingFingerprints = new Set(
+      existingAssets
+        .filter(a => a.fingerprint)
+        .map(a => a.fingerprint!)
+    );
+    
+    let duplicates = 0;
+    const assets = analysis.assets
+      .map(asset => {
+        const fingerprint = generateContentFingerprint(
+          asset.content,
+          asset.category,
+          asset.platform
+        );
+        
+        // 检查是否重复
+        if (existingFingerprints.has(fingerprint)) {
+          duplicates++;
+          return null;
+        }
+        
+        existingFingerprints.add(fingerprint);
+        
+        // 计算增强的风险评分
+        const enhancedRiskScore = calculateEnhancedRiskScore(
+          asset.category,
+          asset.platform,
+          asset.riskLevel,
+          undefined, // usageFrequency
+          false, // hasDependencies
+          asset.confidence === "low" ? "hard" : asset.confidence === "medium" ? "medium" : "easy", // migrationDifficulty
+          asset.confidence
+        );
+        
+        return {
+          sourceType: "manual_paste" as AssetSourceType,
+          category: asset.category,
+          platform: asset.platform,
+          displayName: asset.displayName,
+          fingerprint,
+          riskLevel: asset.riskLevel,
+          suggestedMigration: asset.suggestedMigration,
+          details: {
+            content: asset.content,
+            matchedPatterns: asset.matchedPatterns,
+            confidence: asset.confidence,
+            enhancedRiskScore,
+            analyzedAt: new Date().toISOString(),
+          },
+          scanReportId,
+        };
+      })
+      .filter((asset): asset is NonNullable<typeof asset> => asset !== null);
     
     const { batchCreateAuditAssets } = await import("./audit-asset.server");
-    return await batchCreateAuditAssets(shopId, assets, scanReportId);
+    const result = await batchCreateAuditAssets(shopId, assets, scanReportId);
+    
+    return {
+      ...result,
+      duplicates,
+    };
   } catch (error) {
     logger.error("Failed to process manual paste assets", {
       shopId,
       error: error instanceof Error ? error.message : String(error),
     });
-    return { created: 0, updated: 0, failed: 1 };
+    return { created: 0, updated: 0, failed: 1, duplicates: 0 };
   }
 }
 

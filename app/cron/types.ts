@@ -12,6 +12,7 @@ export interface CleanupResult {
   reconciliationReportsDeleted: number;
   gdprJobsDeleted: number;
   eventNoncesDeleted: number;
+  migrationDraftsDeleted: number;
 }
 
 export interface ShopStatusRefreshResult {

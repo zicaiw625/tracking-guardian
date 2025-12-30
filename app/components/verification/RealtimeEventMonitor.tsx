@@ -19,6 +19,7 @@ import {
   TextField,
   Filters,
   ChoiceList,
+  DataTable,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
@@ -28,6 +29,7 @@ import {
   PauseIcon,
 } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
+import { calculateEventStats, checkParamCompleteness } from "~/utils/event-param-completeness";
 
 export interface RealtimeEvent {
   id: string;
@@ -43,6 +45,18 @@ export interface RealtimeEvent {
     items?: number;
     hasEventId?: boolean;
   };
+  paramCompleteness?: {
+    hasValue: boolean;
+    hasCurrency: boolean;
+    hasEventId: boolean;
+    missingParams: string[];
+    completeness: number; // 0-100
+  };
+  trust?: {
+    isTrusted: boolean;
+    trustLevel: string;
+    hasConsent: boolean;
+  };
   errors?: string[];
   shopifyOrder?: {
     value: number;
@@ -50,18 +64,25 @@ export interface RealtimeEvent {
     itemCount: number;
   };
   discrepancies?: string[];
+  platformResponse?: unknown;
 }
 
 export interface RealtimeEventMonitorProps {
   shopId: string;
   platforms?: string[];
   autoStart?: boolean;
+  runId?: string;
+  eventTypes?: string[];
+  useVerificationEndpoint?: boolean; // 是否使用验收专用的 SSE 端点
 }
 
 export function RealtimeEventMonitor({
   shopId,
   platforms = [],
   autoStart = false,
+  runId,
+  eventTypes = [],
+  useVerificationEndpoint = false,
 }: RealtimeEventMonitorProps) {
   const { showError } = useToastContext();
   const [events, setEvents] = useState<RealtimeEvent[]>([]);
@@ -83,11 +104,14 @@ export function RealtimeEventMonitor({
     }
 
     try {
+      const endpoint = useVerificationEndpoint ? "/api/verification-events" : "/api/realtime-events";
       const params = new URLSearchParams({
         shopId,
         ...(platforms.length > 0 && { platforms: platforms.join(",") }),
+        ...(eventTypes.length > 0 && { eventTypes: eventTypes.join(",") }),
+        ...(runId && { runId }),
       });
-      const eventSource = new EventSource(`/api/realtime-events?${params.toString()}`);
+      const eventSource = new EventSource(`${endpoint}?${params.toString()}`);
 
       eventSource.onopen = () => {
         setIsConnected(true);
@@ -98,29 +122,70 @@ export function RealtimeEventMonitor({
         if (isPaused) return;
 
         try {
-          const data = JSON.parse(event.data) as RealtimeEvent;
-
-          if (typeof data.timestamp === "string") {
-            data.timestamp = new Date(data.timestamp);
-          }
-
-          setEvents((prev) => {
-            const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
-            const existingIndex = prev.findIndex(e =>
-              e.id === eventKey ||
-              (e.timestamp === data.timestamp && e.orderId === data.orderId)
-            );
-
-            if (existingIndex >= 0) {
-              const updated = [...prev];
-              updated[existingIndex] = data;
-              // 性能优化：只保留最近200个事件
-              return updated.slice(0, 200);
+          const rawData = JSON.parse(event.data);
+          
+          // 处理验收端点返回的不同消息类型
+          if (useVerificationEndpoint && rawData.type) {
+            if (rawData.type === "connected" || rawData.type === "error" || rawData.type === "verification_run_status") {
+              // 处理系统消息，不添加到事件列表
+              if (rawData.type === "verification_run_status" && rawData.status) {
+                // 可以在这里更新验收运行状态
+                console.log("Verification run status:", rawData);
+              }
+              return;
+            }
+            
+            // 提取实际的事件数据（去掉 type 字段）
+            const { type, ...eventData } = rawData;
+            const data = eventData as RealtimeEvent;
+            
+            if (typeof data.timestamp === "string") {
+              data.timestamp = new Date(data.timestamp);
             }
 
-            // 性能优化：只保留最近200个事件
-            return [data, ...prev].slice(0, 200);
-          });
+            setEvents((prev) => {
+              const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
+              const existingIndex = prev.findIndex(e =>
+                e.id === eventKey ||
+                (e.timestamp === data.timestamp && e.orderId === data.orderId)
+              );
+
+              if (existingIndex >= 0) {
+                const updated = [...prev];
+                updated[existingIndex] = data;
+                // 性能优化：只保留最近200个事件
+                return updated.slice(0, 200);
+              }
+
+              // 性能优化：只保留最近200个事件
+              return [data, ...prev].slice(0, 200);
+            });
+          } else {
+            // 处理标准格式的事件
+            const data = rawData as RealtimeEvent;
+
+            if (typeof data.timestamp === "string") {
+              data.timestamp = new Date(data.timestamp);
+            }
+
+            setEvents((prev) => {
+              const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
+              const existingIndex = prev.findIndex(e =>
+                e.id === eventKey ||
+                (e.timestamp === data.timestamp && e.orderId === data.orderId)
+              );
+
+              if (existingIndex >= 0) {
+                const updated = [...prev];
+                updated[existingIndex] = data;
+                // 性能优化：只保留最近200个事件
+                return updated.slice(0, 200);
+              }
+
+              // 性能优化：只保留最近200个事件
+              return [data, ...prev].slice(0, 200);
+            });
+          }
         } catch (err) {
           console.error("Failed to parse event data:", err);
         }
@@ -138,7 +203,7 @@ export function RealtimeEventMonitor({
       setError("无法建立连接");
       showError("无法建立实时监控连接");
     }
-  }, [shopId, platforms, isPaused, showError]);
+  }, [shopId, platforms, isPaused, showError, runId, eventTypes, useVerificationEndpoint]);
 
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -200,6 +265,76 @@ export function RealtimeEventMonitor({
     });
   }, [events, filterPlatform, filterStatus, filterEventType, searchQuery]);
 
+  // 计算统计信息（基于过滤后的事件）
+  const stats = useMemo(() => {
+    const total = filteredEvents.length;
+    const byStatus = {
+      success: filteredEvents.filter(e => e.status === "success").length,
+      failed: filteredEvents.filter(e => e.status === "failed").length,
+      missing_params: filteredEvents.filter(e => e.status === "missing_params").length,
+      not_tested: filteredEvents.filter(e => e.status === "not_tested").length,
+    };
+    
+    const byPlatform = filteredEvents.reduce((acc, event) => {
+      acc[event.platform] = (acc[event.platform] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const byEventType = filteredEvents.reduce((acc, event) => {
+      acc[event.eventType] = (acc[event.eventType] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // 参数完整率统计
+    const eventsWithParams = filteredEvents.filter(e => e.params);
+    const paramCompleteness = {
+      hasValue: eventsWithParams.filter(e => e.params?.value !== undefined).length,
+      hasCurrency: eventsWithParams.filter(e => e.params?.currency !== undefined).length,
+      hasItems: eventsWithParams.filter(e => e.params?.items !== undefined && e.params?.items > 0).length,
+      hasEventId: eventsWithParams.filter(e => e.params?.hasEventId).length,
+    };
+    
+    const completenessRate = eventsWithParams.length > 0
+      ? {
+          value: (paramCompleteness.hasValue / eventsWithParams.length) * 100,
+          currency: (paramCompleteness.hasCurrency / eventsWithParams.length) * 100,
+          items: (paramCompleteness.hasItems / eventsWithParams.length) * 100,
+          eventId: (paramCompleteness.hasEventId / eventsWithParams.length) * 100,
+        }
+      : { value: 0, currency: 0, items: 0, eventId: 0 };
+    
+    // 金额一致性验证（比较事件 value 与 Shopify 订单金额）
+    const eventsWithOrder = filteredEvents.filter(e => e.shopifyOrder && e.params?.value !== undefined);
+    const valueConsistency = {
+      total: eventsWithOrder.length,
+      consistent: eventsWithOrder.filter(e => {
+        const eventValue = e.params?.value || 0;
+        const orderValue = e.shopifyOrder?.value || 0;
+        return Math.abs(eventValue - orderValue) < 0.01; // 允许 0.01 的误差
+      }).length,
+      inconsistent: eventsWithOrder.filter(e => {
+        const eventValue = e.params?.value || 0;
+        const orderValue = e.shopifyOrder?.value || 0;
+        return Math.abs(eventValue - orderValue) >= 0.01;
+      }).length,
+    };
+    
+    const consistencyRate = valueConsistency.total > 0
+      ? (valueConsistency.consistent / valueConsistency.total) * 100
+      : 0;
+    
+    return {
+      total,
+      byStatus,
+      byPlatform,
+      byEventType,
+      paramCompleteness,
+      completenessRate,
+      valueConsistency,
+      consistencyRate,
+    };
+  }, [filteredEvents]);
+
   // 统计信息基于过滤后的事件
   const stats = useMemo(() => ({
     total: filteredEvents.length,
@@ -211,6 +346,17 @@ export function RealtimeEventMonitor({
   const successRate = stats.total > 0
     ? Math.round((stats.success / stats.total) * 100)
     : 0;
+
+  // 计算触发次数统计和参数完整率
+  const eventStats = useMemo(() => {
+    return calculateEventStats(
+      filteredEvents.map((e) => ({
+        eventType: e.eventType,
+        platform: e.platform,
+        params: e.params,
+      }))
+    );
+  }, [filteredEvents]);
 
   // 获取所有唯一的平台和事件类型（用于过滤选项）
   const uniquePlatforms = useMemo(() => {
@@ -273,22 +419,266 @@ export function RealtimeEventMonitor({
 
         {}
         {stats.total > 0 && (
-          <BlockStack gap="300">
-            <InlineStack gap="400" align="space-between">
-              <Text as="span" variant="bodySm" tone="subdued">
-                总计: {stats.total} 条事件 {events.length !== filteredEvents.length && `(已过滤 ${events.length - filteredEvents.length} 条)`}
-              </Text>
-              <InlineStack gap="200">
-                <Badge tone="success">成功: {stats.success}</Badge>
-                <Badge tone="critical">失败: {stats.failed}</Badge>
-                <Badge tone="info">成功率: {successRate}%</Badge>
+          <BlockStack gap="400">
+            {/* 基本统计 */}
+            <BlockStack gap="300">
+              <InlineStack gap="400" align="space-between">
+                <Text as="span" variant="bodySm" tone="subdued">
+                  总计: {stats.total} 条事件 {events.length !== filteredEvents.length && `(已过滤 ${events.length - filteredEvents.length} 条)`}
+                </Text>
+                <InlineStack gap="200">
+                  <Badge tone="success">成功: {stats.success}</Badge>
+                  <Badge tone="critical">失败: {stats.failed}</Badge>
+                  <Badge tone="info">成功率: {successRate}%</Badge>
+                </InlineStack>
               </InlineStack>
-            </InlineStack>
-            <ProgressBar
-              progress={successRate}
-              tone="success"
-              size="small"
-            />
+              <ProgressBar
+                progress={successRate}
+                tone="success"
+                size="small"
+              />
+            </BlockStack>
+
+            {/* 触发次数统计 */}
+            <Divider />
+            <BlockStack gap="300">
+              <Text as="h3" variant="headingSm">
+                触发次数统计
+              </Text>
+              <BlockStack gap="200">
+                <Card>
+                  <BlockStack gap="300">
+                    <Text as="h4" variant="headingSm">
+                      按事件类型
+                    </Text>
+                    {Object.keys(eventStats.byEventType).length > 0 ? (
+                      <DataTable
+                        columnContentTypes={["text", "numeric"]}
+                        headings={["事件类型", "触发次数"]}
+                        rows={Object.entries(eventStats.byEventType)
+                          .sort(([, a], [, b]) => b - a)
+                          .map(([eventType, count]) => [
+                            eventType,
+                            count.toString(),
+                          ])}
+                        increasedTableDensity
+                      />
+                    ) : (
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        暂无数据
+                      </Text>
+                    )}
+                  </BlockStack>
+                </Card>
+                <Card>
+                  <BlockStack gap="300">
+                    <Text as="h4" variant="headingSm">
+                      按平台
+                    </Text>
+                    {Object.keys(eventStats.byPlatform).length > 0 ? (
+                      <DataTable
+                        columnContentTypes={["text", "numeric"]}
+                        headings={["平台", "触发次数"]}
+                        rows={Object.entries(eventStats.byPlatform)
+                          .sort(([, a], [, b]) => b - a)
+                          .map(([platform, count]) => [
+                            platform,
+                            count.toString(),
+                          ])}
+                        increasedTableDensity
+                      />
+                    ) : (
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        暂无数据
+                      </Text>
+                    )}
+                  </BlockStack>
+                </Card>
+                {Object.keys(eventStats.byPlatformAndEventType).length > 0 && (
+                  <Card>
+                    <BlockStack gap="300">
+                      <Text as="h4" variant="headingSm">
+                        按平台和事件类型
+                      </Text>
+                      <DataTable
+                        columnContentTypes={["text", "text", "numeric"]}
+                        headings={["平台", "事件类型", "触发次数"]}
+                        rows={Object.entries(eventStats.byPlatformAndEventType)
+                          .flatMap(([platform, eventTypes]) =>
+                            Object.entries(eventTypes).map(([eventType, count]) => [
+                              platform,
+                              eventType,
+                              count.toString(),
+                            ])
+                          )
+                          .sort(([, , a], [, , b]) => Number(b) - Number(a))}
+                        increasedTableDensity
+                      />
+                    </BlockStack>
+                  </Card>
+                )}
+              </BlockStack>
+            </BlockStack>
+
+            {/* 参数完整率统计 */}
+            <Divider />
+            <BlockStack gap="300">
+              <Text as="h3" variant="headingSm">
+                参数完整率
+              </Text>
+              <Card>
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h4" variant="headingSm">
+                      总体完整率
+                    </Text>
+                    <Badge
+                      tone={
+                        eventStats.paramCompleteness.overall >= 90
+                          ? "success"
+                          : eventStats.paramCompleteness.overall >= 70
+                          ? "warning"
+                          : "critical"
+                      }
+                    >
+                      {eventStats.paramCompleteness.overall}%
+                    </Badge>
+                  </InlineStack>
+                  <ProgressBar
+                    progress={eventStats.paramCompleteness.overall}
+                    tone={
+                      eventStats.paramCompleteness.overall >= 90
+                        ? "success"
+                        : eventStats.paramCompleteness.overall >= 70
+                        ? "warning"
+                        : "critical"
+                    }
+                  />
+                  <InlineStack gap="400">
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      完整: {eventStats.paramCompleteness.completeCount} 条
+                    </Text>
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      不完整: {eventStats.paramCompleteness.incompleteCount} 条
+                    </Text>
+                  </InlineStack>
+                  
+                  {/* 详细参数完整率 */}
+                  {stats.completenessRate && (
+                    <BlockStack gap="200">
+                      <Divider />
+                      <Text as="h4" variant="headingSm">
+                        参数详细统计
+                      </Text>
+                      <DataTable
+                        columnContentTypes={["text", "numeric", "numeric"]}
+                        headings={["参数", "完整率", "数量"]}
+                        rows={[
+                          ["value", `${Math.round(stats.completenessRate.value)}%`, `${stats.paramCompleteness.hasValue}/${filteredEvents.filter(e => e.params).length}`],
+                          ["currency", `${Math.round(stats.completenessRate.currency)}%`, `${stats.paramCompleteness.hasCurrency}/${filteredEvents.filter(e => e.params).length}`],
+                          ["items", `${Math.round(stats.completenessRate.items)}%`, `${stats.paramCompleteness.hasItems}/${filteredEvents.filter(e => e.params).length}`],
+                          ["event_id", `${Math.round(stats.completenessRate.eventId)}%`, `${stats.paramCompleteness.hasEventId}/${filteredEvents.filter(e => e.params).length}`],
+                        ]}
+                        increasedTableDensity
+                      />
+                    </BlockStack>
+                  )}
+                </BlockStack>
+              </Card>
+              {Object.keys(eventStats.paramCompleteness.byEventType).length > 0 && (
+                <Card>
+                  <BlockStack gap="300">
+                    <Text as="h4" variant="headingSm">
+                      按事件类型
+                    </Text>
+                    <DataTable
+                      columnContentTypes={["text", "numeric"]}
+                      headings={["事件类型", "完整率"]}
+                      rows={Object.entries(eventStats.paramCompleteness.byEventType)
+                        .sort(([, a], [, b]) => a - b)
+                        .map(([eventType, rate]) => [
+                          eventType,
+                          `${rate}%`,
+                        ])}
+                      increasedTableDensity
+                    />
+                  </BlockStack>
+                </Card>
+              )}
+              {Object.keys(eventStats.paramCompleteness.byPlatform).length > 0 && (
+                <Card>
+                  <BlockStack gap="300">
+                    <Text as="h4" variant="headingSm">
+                      按平台
+                    </Text>
+                    <DataTable
+                      columnContentTypes={["text", "numeric"]}
+                      headings={["平台", "完整率"]}
+                      rows={Object.entries(eventStats.paramCompleteness.byPlatform)
+                        .sort(([, a], [, b]) => a - b)
+                        .map(([platform, rate]) => [
+                          platform,
+                          `${rate}%`,
+                        ])}
+                      increasedTableDensity
+                    />
+                  </BlockStack>
+                </Card>
+              )}
+            </BlockStack>
+            
+            {/* 金额一致性验证 */}
+            {stats.valueConsistency.total > 0 && (
+              <>
+                <Divider />
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    金额一致性验证
+                  </Text>
+                  <Card>
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="center">
+                        <Text as="h4" variant="headingSm">
+                          一致性率
+                        </Text>
+                        <Badge
+                          tone={
+                            stats.consistencyRate >= 95
+                              ? "success"
+                              : stats.consistencyRate >= 80
+                              ? "warning"
+                              : "critical"
+                          }
+                        >
+                          {Math.round(stats.consistencyRate)}%
+                        </Badge>
+                      </InlineStack>
+                      <ProgressBar
+                        progress={stats.consistencyRate}
+                        tone={
+                          stats.consistencyRate >= 95
+                            ? "success"
+                            : stats.consistencyRate >= 80
+                            ? "warning"
+                            : "critical"
+                        }
+                      />
+                      <InlineStack gap="400">
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          一致: {stats.valueConsistency.consistent} 条
+                        </Text>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          不一致: {stats.valueConsistency.inconsistent} 条
+                        </Text>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          总计: {stats.valueConsistency.total} 条
+                        </Text>
+                      </InlineStack>
+                    </BlockStack>
+                  </Card>
+                </BlockStack>
+              </>
+            )}
           </BlockStack>
         )}
 
@@ -417,6 +807,11 @@ function EventItem({
   onSelect: () => void;
 }) {
   const timeStr = new Date(event.timestamp).toLocaleTimeString("zh-CN");
+  
+  // 计算参数完整率
+  const completeness = useMemo(() => {
+    return checkParamCompleteness(event.eventType, event.platform, event.params);
+  }, [event.eventType, event.platform, event.params]);
 
   return (
     <Box
@@ -443,15 +838,28 @@ function EventItem({
                   订单 #{event.orderNumber}
                 </Text>
               )}
+              <Badge
+                tone={
+                  completeness.completenessRate >= 90
+                    ? "success"
+                    : completeness.completenessRate >= 70
+                    ? "warning"
+                    : "critical"
+                }
+              >
+                参数: {completeness.completenessRate}%
+              </Badge>
             </InlineStack>
             <Text as="span" variant="bodySm" tone="subdued">
               {timeStr}
             </Text>
           </BlockStack>
         </InlineStack>
-        <Badge tone={event.status === "success" ? "success" : "critical"}>
-          {event.status === "success" ? "成功" : "失败"}
-        </Badge>
+        <InlineStack gap="200" blockAlign="center">
+          <Badge tone={event.status === "success" ? "success" : "critical"}>
+            {event.status === "success" ? "成功" : "失败"}
+          </Badge>
+        </InlineStack>
       </InlineStack>
     </Box>
   );
@@ -462,6 +870,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
     params: true,
+    completeness: true,
     shopify: true,
     errors: true,
   });
@@ -472,6 +881,11 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
       [section]: !prev[section],
     }));
   }, []);
+
+  // 计算参数完整率
+  const completeness = useMemo(() => {
+    return checkParamCompleteness(event.eventType, event.platform, event.params);
+  }, [event.eventType, event.platform, event.params]);
 
   return (
     <BlockStack gap="300">
@@ -611,6 +1025,101 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
               </BlockStack>
             </Card>
           )}
+
+          {/* 参数完整率详情 */}
+          <Card>
+            <BlockStack gap="200">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => toggleSection("completeness")}
+                onKeyDown={(e) => e.key === "Enter" && toggleSection("completeness")}
+                style={{ cursor: "pointer" }}
+              >
+                <InlineStack gap="200" blockAlign="center">
+                  <Text as="span" fontWeight="semibold" variant="headingSm">
+                    参数完整率
+                  </Text>
+                  <Text as="span" tone="subdued">
+                    {expandedSections.completeness ? "▲ 收起" : "▼ 展开"}
+                  </Text>
+                </InlineStack>
+              </div>
+              <Collapsible open={expandedSections.completeness} id="event-details-completeness">
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      完整率
+                    </Text>
+                    <Badge
+                      tone={
+                        completeness.completenessRate >= 90
+                          ? "success"
+                          : completeness.completenessRate >= 70
+                          ? "warning"
+                          : "critical"
+                      }
+                    >
+                      {completeness.completenessRate}%
+                    </Badge>
+                  </InlineStack>
+                  <ProgressBar
+                    progress={completeness.completenessRate}
+                    tone={
+                      completeness.completenessRate >= 90
+                        ? "success"
+                        : completeness.completenessRate >= 70
+                        ? "warning"
+                        : "critical"
+                    }
+                  />
+                  {completeness.requiredParams.length > 0 && (
+                    <BlockStack gap="200">
+                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                        必需参数:
+                      </Text>
+                      <List type="bullet">
+                        {completeness.requiredParams.map((param) => {
+                          const isPresent = completeness.presentParams.includes(param);
+                          const isMissing = completeness.missingParams.includes(param);
+                          return (
+                            <List.Item key={param}>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Text as="span" variant="bodySm">
+                                  {param}
+                                </Text>
+                                {isPresent ? (
+                                  <Badge tone="success">已包含</Badge>
+                                ) : isMissing ? (
+                                  <Badge tone="critical">缺失</Badge>
+                                ) : (
+                                  <Badge tone="warning">未知</Badge>
+                                )}
+                              </InlineStack>
+                            </List.Item>
+                          );
+                        })}
+                      </List>
+                    </BlockStack>
+                  )}
+                  {completeness.missingParams.length > 0 && (
+                    <Banner tone="warning" title="缺失参数">
+                      <Text as="p" variant="bodySm">
+                        以下必需参数缺失: {completeness.missingParams.join(", ")}
+                      </Text>
+                    </Banner>
+                  )}
+                  {completeness.isComplete && (
+                    <Banner tone="success" title="参数完整">
+                      <Text as="p" variant="bodySm">
+                        所有必需参数均已包含。
+                      </Text>
+                    </Banner>
+                  )}
+                </BlockStack>
+              </Collapsible>
+            </BlockStack>
+          </Card>
 
           {/* Shopify 订单对比 */}
           {event.shopifyOrder && (

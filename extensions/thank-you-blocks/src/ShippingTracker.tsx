@@ -11,11 +11,11 @@ import {
     useOrder,
     Divider,
 } from "@shopify/ui-extensions-react/checkout";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 
 export default reactExtension("purchase.thank-you.block.render", () => <ShippingTracker />);
 
-function ShippingTracker() {
+const ShippingTracker = memo(function ShippingTracker() {
     const settings = useSettings();
     const order = useOrder();
 
@@ -103,4 +103,4 @@ function ShippingTracker() {
             </View>
         </BlockStack>
     );
-}
+});

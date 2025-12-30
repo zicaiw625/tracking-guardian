@@ -59,6 +59,7 @@ import { TaskList } from "../components/workspace/TaskList";
 import { CommentSection } from "../components/workspace/CommentSection";
 import { BatchOperationsPanel } from "../components/workspace/BatchOperationsPanel";
 import { BatchTaskBoard } from "../components/workspace/BatchTaskBoard";
+import { TaskAssignmentPanel } from "../components/workspace/TaskAssignmentPanel";
 import prisma from "../db.server";
 import {
   canManageMultipleShops,
@@ -168,6 +169,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     commentCount: number;
   }> = [];
 
+  // 加载审计资产（用于任务分配）
+  const { getAuditAssets } = await import("../services/audit-asset.server");
+  const auditAssets = await getAuditAssets(shop.id, {
+    migrationStatus: "pending",
+    limit: 100,
+  });
+
   if (groupId) {
     selectedGroup = await getShopGroupDetails(groupId, shop.id);
     groupStats = await getGroupAggregatedStats(groupId, shop.id, 7);
@@ -185,7 +193,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }));
   }
 
-  return json<LoaderData>({
+  return json<LoaderData & { auditAssets: typeof auditAssets; availableMembers: Array<{ shopId: string; shopDomain: string; role: string }> }>({
     shop: { id: shop.id, shopDomain: shop.shopDomain, plan: planId },
     canManage,
     maxShops,
@@ -195,6 +203,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     shopBreakdown,
     planInfo: BILLING_PLANS[planId],
     tasks,
+    auditAssets,
+    availableMembers: selectedGroup?.members.map((m) => ({
+      shopId: m.shopId,
+      shopDomain: m.shopDomain || "",
+      role: m.role,
+    })) || [],
   });
 };
 
@@ -283,6 +297,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "更新失败" }, { status: 400 });
       }
       return json({ success: true });
+    }
+
+    case "batch_verification": {
+      const groupId = formData.get("groupId") as string;
+      const runType = (formData.get("runType") as "quick" | "full") || "quick";
+      const platformsParam = formData.get("platforms") as string;
+      const platforms = platformsParam ? platformsParam.split(",") : [];
+
+      if (!groupId) {
+        return json({ error: "请选择分组" }, { status: 400 });
+      }
+
+      const { startBatchVerification } = await import("../services/batch-verification.server");
+      const result = await startBatchVerification({
+        groupId,
+        requesterId: shop.id,
+        runType,
+        platforms,
+        concurrency: 3,
+      });
+
+      if ("error" in result) {
+        return json({ error: result.error }, { status: 400 });
+      }
+
+      return json({ success: true, jobId: result.jobId });
     }
 
     case "batch_audit": {
@@ -446,6 +486,86 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
+    case "create_task": {
+      const groupId = formData.get("groupId") as string;
+      const shopId = formData.get("shopId") as string;
+      const title = formData.get("title") as string;
+
+      if (!title || !shopId) {
+        return json({ error: "缺少必要参数" }, { status: 400 });
+      }
+
+      const taskInput: CreateTaskInput = {
+        shopId,
+        title,
+        description: formData.get("description") as string || undefined,
+        assignedToShopId: formData.get("assignedToShopId") as string || undefined,
+        priority: formData.get("priority") ? parseInt(formData.get("priority") as string) : undefined,
+        dueDate: formData.get("dueDate") ? new Date(formData.get("dueDate") as string) : undefined,
+        groupId: groupId || undefined,
+        assetId: formData.get("assetId") as string || undefined,
+      };
+
+      const result = await createMigrationTask(taskInput, shop.id);
+      if ("error" in result) {
+        return json({ error: result.error }, { status: 400 });
+      }
+
+      return json({ success: true, taskId: result.id, actionType: "create_task" });
+    }
+
+    case "createMigrationTasks": {
+      const assetIdsStr = formData.get("assetIds") as string;
+      const title = formData.get("title") as string;
+      const description = formData.get("description") as string;
+      const assignedToShopId = formData.get("assignedToShopId") as string;
+      const priority = formData.get("priority") ? parseInt(formData.get("priority") as string) : 5;
+      const dueDate = formData.get("dueDate") ? new Date(formData.get("dueDate") as string) : undefined;
+      const groupId = formData.get("groupId") as string;
+
+      if (!assetIdsStr) {
+        return json({ error: "缺少资产 ID" }, { status: 400 });
+      }
+
+      const assetIds = JSON.parse(assetIdsStr) as string[];
+      const taskIds: string[] = [];
+
+      for (const assetId of assetIds) {
+        // 获取资产信息
+        const asset = await prisma.auditAsset.findUnique({
+          where: { id: assetId },
+          select: { shopId: true, displayName: true },
+        });
+
+        if (!asset) {
+          continue;
+        }
+
+        const taskInput: CreateTaskInput = {
+          shopId: asset.shopId,
+          title: title || asset.displayName || "迁移任务",
+          description: description || undefined,
+          assignedToShopId: assignedToShopId || undefined,
+          priority,
+          dueDate,
+          groupId: groupId || undefined,
+          assetId,
+        };
+
+        const result = await createMigrationTask(taskInput, shop.id);
+        if (!("error" in result)) {
+          taskIds.push(result.id);
+        }
+      }
+
+      return json({
+        success: true,
+        taskIds,
+        actionType: "createMigrationTasks",
+        message: `成功创建 ${taskIds.length} 个任务`,
+      });
+    }
+
     default:
       return json({ error: "未知操作" }, { status: 400 });
   }
@@ -515,6 +635,8 @@ export default function WorkspacePage() {
     shopBreakdown,
     planInfo,
     tasks,
+    auditAssets = [],
+    availableMembers = [],
   } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
 
@@ -1249,6 +1371,20 @@ export default function WorkspacePage() {
                     <BlockStack gap="500">
                       {selectedGroup && shop && (
                         <>
+                          <Suspense fallback={<CardSkeleton lines={3} />}>
+                            <TaskAssignmentPanel
+                              shopId={shop.id}
+                              workspaceId={selectedGroup.id}
+                              groupId={selectedGroup.id}
+                              availableAssets={auditAssets}
+                              availableMembers={availableMembers}
+                              onTaskCreated={(taskId) => {
+                                showSuccess(`任务 ${taskId} 创建成功`);
+                                revalidator.revalidate();
+                              }}
+                            />
+                          </Suspense>
+                          <Divider />
                           <TaskList
                             tasks={tasks.map((t) => ({
                               id: t.id,

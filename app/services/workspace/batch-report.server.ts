@@ -5,12 +5,14 @@ import { canManageMultipleShops, getShopGroupDetails } from "../multi-shop.serve
 import { generateWorkspaceMigrationReport, type WorkspaceMigrationReport } from "../workspace-report.server";
 import { getBatchAuditStatus, type BatchAuditResult } from "../batch-audit.server";
 import type { EnhancedBatchApplyResult } from "./batch-template-apply.server";
+import { generateReportFromTemplate, getTemplateById, type ReportTemplate } from "../report-templates.server";
 
 export interface BatchReportOptions {
   groupId: string;
   requesterId: string;
   reportTypes?: Array<"audit" | "migration" | "verification" | "template_apply">;
   includeDetails?: boolean;
+  templateId?: string; // 报告模板 ID
   whiteLabel?: {
     companyName?: string;
     logoUrl?: string;
@@ -263,7 +265,27 @@ export async function generateBatchReportPdf(
   }
 
   try {
-    const html = generateReportHtml(reportData, options);
+    // 如果指定了模板，使用模板生成报告
+    let html: string;
+    if (options.templateId) {
+      const template = getTemplateById(options.templateId);
+      if (template) {
+        // 合并白标配置
+        const mergedTemplate: ReportTemplate = {
+          ...template,
+          whiteLabel: {
+            ...template.whiteLabel,
+            ...options.whiteLabel,
+          },
+        };
+        html = generateReportFromTemplate(reportData, mergedTemplate);
+      } else {
+        // 模板不存在，使用默认生成
+        html = generateReportHtml(reportData, options);
+      }
+    } else {
+      html = generateReportHtml(reportData, options);
+    }
     
     // 使用与workspace-report.server.ts相同的方式生成PDF
     const pdfGenerator = await import("../pdf-generator.server");

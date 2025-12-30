@@ -129,6 +129,10 @@ model Shop {
   migrationTasks        MigrationTask[]
   taskComments          TaskComment[]
   workspaceComments     WorkspaceComment[]
+  // 性能监控
+  performanceMetrics    PerformanceMetric[]
+  // 迁移草稿
+  migrationDrafts       MigrationDraft[]
 }
 
 // Scan report for tracking scripts
@@ -1056,4 +1060,74 @@ model WorkspaceComment {
   @@index([authorShopId])
   @@index([groupId])
   @@index([parentCommentId])
+}
+
+// ============================================================
+// Performance Metrics 模型 - Web Vitals 性能监控
+// ============================================================
+
+// Web Vitals 性能指标
+model PerformanceMetric {
+  id              String   @id @default(cuid())
+  shopId          String
+  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  // 指标信息
+  metricName      String   // CLS, FCP, INP, LCP, TTFB
+  metricValue     Float    // 指标值
+  metricId        String   // 唯一标识符
+  delta           Float    // 变化量
+  rating          String   // good, needs-improvement, poor
+  navigationType  String   // navigate, reload, back_forward, prerender
+  url             String   // 页面 URL
+
+  timestamp       DateTime // 客户端时间戳
+
+  createdAt       DateTime @default(now())
+
+  @@index([shopId])
+  @@index([metricName])
+  @@index([timestamp])
+  @@index([shopId, metricName, timestamp])
+}
+
+// ============================================================
+// 像素迁移向导草稿 - 用于保存向导进度
+// 对应设计方案 2.1 草稿保存功能
+// ============================================================
+
+model MigrationDraft {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  // 当前步骤
+  // select: 选择平台
+  // credentials: 填写凭证
+  // mappings: 事件映射
+  // review: 检查配置
+  step      String   // "select" | "credentials" | "mappings" | "review"
+
+  // 配置数据 (JSON)
+  // 结构: {
+  //   selectedPlatforms: string[],
+  //   platformConfigs: {
+  //     [platform]: {
+  //       credentials: Record<string, string>,
+  //       eventMappings: Record<string, string>,
+  //       environment: "test" | "live"
+  //     }
+  //   }
+  // }
+  configData Json
+
+  // 过期时间（7天后自动清理）
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shopId])
+  @@index([expiresAt])
+  @@index([shopId, updatedAt])
 }

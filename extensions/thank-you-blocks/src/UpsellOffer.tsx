@@ -12,11 +12,11 @@ import {
     Divider,
     Banner,
 } from "@shopify/ui-extensions-react/checkout";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 
 export default reactExtension("purchase.thank-you.block.render", () => <UpsellOffer />);
 
-function UpsellOffer() {
+const UpsellOffer = memo(function UpsellOffer() {
     const settings = useSettings();
     const [dismissed, setDismissed] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -124,4 +124,4 @@ function UpsellOffer() {
             </Link>
         </BlockStack>
     );
-}
+});

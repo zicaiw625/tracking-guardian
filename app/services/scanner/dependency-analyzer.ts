@@ -284,21 +284,11 @@ export async function updateAssetDependencies(
   assetId: string,
   dependencies: string[]
 ): Promise<void> {
-  const asset = await prisma.auditAsset.findUnique({
+  await prisma.auditAsset.update({
     where: { id: assetId },
+    data: {
+      dependencies: dependencies as unknown as object, // Prisma JSON field expects object type
+    },
   });
-
-  if (asset) {
-    const details = (asset.details as Record<string, unknown>) || {};
-    details.dependencies = dependencies;
-    details.dependenciesUpdatedAt = new Date().toISOString();
-
-    await prisma.auditAsset.update({
-      where: { id: assetId },
-      data: {
-        details,
-      },
-    });
-  }
 }
 

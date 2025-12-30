@@ -63,16 +63,47 @@ function exportToCSV(
   lines.push(`状态: ${run.status}`);
   lines.push("");
 
-  // 摘要
-  if (summary && options.includeSummary) {
-    lines.push("摘要");
-    lines.push(`总事件数: ${summary.totalEvents}`);
-    lines.push(`成功事件: ${summary.successfulEvents}`);
-    lines.push(`失败事件: ${summary.failedEvents}`);
-    lines.push(`参数完整率: ${summary.parameterCompleteness}%`);
-    lines.push(`金额准确率: ${summary.valueAccuracy}%`);
-    lines.push("");
-  }
+    // 摘要
+    if (summary && options.includeSummary) {
+      lines.push("摘要");
+      lines.push(`总事件数: ${summary.totalEvents}`);
+      lines.push(`成功事件: ${summary.successfulEvents}`);
+      lines.push(`失败事件: ${summary.failedEvents}`);
+      lines.push(`参数完整率: ${summary.parameterCompleteness}%`);
+      lines.push(`金额准确率: ${summary.valueAccuracy}%`);
+      lines.push("");
+      
+      // 按平台统计
+      if (summary.platformResults) {
+        lines.push("按平台统计");
+        Object.entries(summary.platformResults).forEach(([platform, stats]) => {
+          lines.push(`  ${platform}: 成功 ${stats.sent || 0}, 失败 ${stats.failed || 0}`);
+        });
+        lines.push("");
+      }
+      
+      // 按事件类型统计
+      if (summary.results && summary.results.length > 0) {
+        const eventTypeStats = new Map<string, { success: number; failed: number }>();
+        summary.results.forEach((result) => {
+          const stats = eventTypeStats.get(result.eventType) || { success: 0, failed: 0 };
+          if (result.status === "success") {
+            stats.success++;
+          } else {
+            stats.failed++;
+          }
+          eventTypeStats.set(result.eventType, stats);
+        });
+        
+        if (eventTypeStats.size > 0) {
+          lines.push("按事件类型统计");
+          eventTypeStats.forEach((stats, eventType) => {
+            lines.push(`  ${eventType}: 成功 ${stats.success}, 失败 ${stats.failed}`);
+          });
+          lines.push("");
+        }
+      }
+    }
 
   // 事件详情
   if (options.includeEvents && events.length > 0) {
@@ -171,6 +202,39 @@ async function exportToPDF(
         doc.text(`金额准确率: ${summary.valueAccuracy}%`);
       }
       doc.moveDown();
+      
+      // 按平台统计
+      if (summary.platformResults && Object.keys(summary.platformResults).length > 0) {
+        doc.fontSize(14).text("按平台统计", { underline: true });
+        doc.fontSize(12);
+        Object.entries(summary.platformResults).forEach(([platform, stats]: [string, any]) => {
+          doc.text(`  ${platform}: 成功 ${stats.sent || 0}, 失败 ${stats.failed || 0}`);
+        });
+        doc.moveDown();
+      }
+      
+      // 按事件类型统计
+      if (summary.results && summary.results.length > 0) {
+        const eventTypeStats = new Map<string, { success: number; failed: number }>();
+        summary.results.forEach((result: any) => {
+          const stats = eventTypeStats.get(result.eventType) || { success: 0, failed: 0 };
+          if (result.status === "success") {
+            stats.success++;
+          } else {
+            stats.failed++;
+          }
+          eventTypeStats.set(result.eventType, stats);
+        });
+        
+        if (eventTypeStats.size > 0) {
+          doc.fontSize(14).text("按事件类型统计", { underline: true });
+          doc.fontSize(12);
+          eventTypeStats.forEach((stats, eventType) => {
+            doc.text(`  ${eventType}: 成功 ${stats.success}, 失败 ${stats.failed}`);
+          });
+          doc.moveDown();
+        }
+      }
     }
 
     // 事件详情

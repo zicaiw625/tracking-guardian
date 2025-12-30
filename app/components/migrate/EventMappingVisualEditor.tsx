@@ -227,6 +227,8 @@ export function EventMappingVisualEditor({
 }: EventMappingVisualEditorProps) {
   const [selectedShopifyEvent, setSelectedShopifyEvent] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState<Record<string, boolean>>({});
+  const [draggedShopifyEvent, setDraggedShopifyEvent] = useState<string | null>(null);
+  const [dragOverPlatformEvent, setDragOverPlatformEvent] = useState<string | null>(null);
   const platformEvents = PLATFORM_EVENTS[platform];
 
   const generateEventPreview = useCallback(
@@ -300,16 +302,62 @@ export function EventMappingVisualEditor({
     }));
   }, []);
 
+  // 拖拽处理函数
+  const handleDragStart = useCallback((shopifyEventId: string) => {
+    setDraggedShopifyEvent(shopifyEventId);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedShopifyEvent(null);
+    setDragOverPlatformEvent(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, platformEventId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverPlatformEvent(platformEventId);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverPlatformEvent(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, platformEventId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (draggedShopifyEvent) {
+      onMappingChange(draggedShopifyEvent, platformEventId);
+      setDraggedShopifyEvent(null);
+      setDragOverPlatformEvent(null);
+    }
+  }, [draggedShopifyEvent, onMappingChange]);
+
+  // 一键应用推荐映射
+  const applyRecommendedMappings = useCallback(() => {
+    const recommended = RECOMMENDED_MAPPINGS[platform];
+    Object.entries(recommended).forEach(([shopifyEvent, platformEvent]) => {
+      onMappingChange(shopifyEvent, platformEvent);
+    });
+  }, [platform, onMappingChange]);
+
   return (
     <Card>
       <BlockStack gap="500">
         <BlockStack gap="200">
-          <Text as="h3" variant="headingMd">
-            可视化事件映射编辑器
-          </Text>
-          <Text as="p" tone="subdued">
-            左侧选择 Shopify 事件，右侧选择对应的平台事件。映射关系以连接线显示。
-          </Text>
+          <InlineStack align="space-between" blockAlign="center">
+            <BlockStack gap="100">
+              <Text as="h3" variant="headingMd">
+                可视化事件映射编辑器
+              </Text>
+              <Text as="p" tone="subdued">
+                拖拽左侧的 Shopify 事件到右侧的平台事件，或点击选择后在下拉菜单中选择。映射关系以连接线显示。
+              </Text>
+            </BlockStack>
+            <Button size="slim" variant="primary" onClick={applyRecommendedMappings}>
+              ✨ 一键应用推荐映射
+            </Button>
+          </InlineStack>
         </BlockStack>
 
         <Divider />
@@ -335,12 +383,20 @@ export function EventMappingVisualEditor({
               return (
                 <Card
                   key={shopifyEvent.id}
-                  background={isSelected ? "bg-surface-selected" : undefined}
+                  background={isSelected ? "bg-surface-selected" : draggedShopifyEvent === shopifyEvent.id ? "bg-surface-warning" : undefined}
                   style={{
-                    cursor: "pointer",
-                    border: isSelected ? "2px solid var(--p-color-border-info)" : undefined,
+                    cursor: "grab",
+                    border: isSelected ? "2px solid var(--p-color-border-info)" : draggedShopifyEvent === shopifyEvent.id ? "2px dashed var(--p-color-border-warning)" : undefined,
+                    opacity: draggedShopifyEvent === shopifyEvent.id ? 0.5 : 1,
                   }}
                   onClick={() => setSelectedShopifyEvent(shopifyEvent.id)}
+                  draggable
+                  onDragStart={(e) => {
+                    handleDragStart(shopifyEvent.id);
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", shopifyEvent.id);
+                  }}
+                  onDragEnd={handleDragEnd}
                 >
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
@@ -516,14 +572,38 @@ export function EventMappingVisualEditor({
               </Text>
               {platformEvents.map((event) => {
                 const isMapped = Object.values(mappings).includes(event.id);
+                const isDragOver = dragOverPlatformEvent === event.id;
                 return (
-                  <Card key={event.id} background={isMapped ? "bg-surface-secondary" : undefined}>
+                  <Card
+                    key={event.id}
+                    background={
+                      isMapped
+                        ? "bg-surface-secondary"
+                        : isDragOver
+                          ? "bg-surface-info"
+                          : undefined
+                    }
+                    style={{
+                      cursor: "pointer",
+                      border: isDragOver ? "2px dashed var(--p-color-border-info)" : undefined,
+                      transition: "all 0.2s ease",
+                    }}
+                    onDragOver={(e) => handleDragOver(e, event.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, event.id)}
+                    onClick={() => {
+                      if (selectedShopifyEvent) {
+                        onMappingChange(selectedShopifyEvent, event.id);
+                      }
+                    }}
+                  >
                     <BlockStack gap="100">
                       <InlineStack align="space-between" blockAlign="center">
                         <Text as="span" fontWeight={isMapped ? "semibold" : "regular"}>
                           {event.name}
                         </Text>
                         {isMapped && <Badge tone="success">已映射</Badge>}
+                        {isDragOver && <Badge tone="info">放置这里</Badge>}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
                         {event.description}

@@ -165,6 +165,19 @@ export async function checkFailureRate(
   const last24h = new Date();
   last24h.setHours(last24h.getHours() - 24);
 
+  // 按平台和事件类型统计失败率
+  const logs = await prisma.conversionLog.findMany({
+    where: {
+      shopId,
+      createdAt: { gte: last24h },
+    },
+    select: {
+      platform: true,
+      eventType: true,
+      status: true,
+    },
+  });
+
   const stats = await prisma.conversionLog.groupBy({
     by: ["status"],
     where: {
@@ -175,10 +188,48 @@ export async function checkFailureRate(
   });
 
   const total = stats.reduce((sum, s) => sum + s._count, 0);
-  const failed = stats.find(s => s.status === "failed")?._count || 0;
+  const failed = stats.find(s => s.status === "failed" || s.status === "dead_letter")?._count || 0;
   const failureRate = total > 0 ? failed / total : 0;
 
+  // 按平台统计失败率
+  const failureRateByPlatform: Record<string, number> = {};
+  const platforms = new Set(logs.map(l => l.platform));
+  platforms.forEach(platform => {
+    const platformLogs = logs.filter(l => l.platform === platform);
+    const platformTotal = platformLogs.length;
+    const platformFailed = platformLogs.filter(l => l.status === "failed" || l.status === "dead_letter").length;
+    if (platformTotal > 0) {
+      failureRateByPlatform[platform] = (platformFailed / platformTotal) * 100;
+    }
+  });
+
+  // 按事件类型统计失败率
+  const failureRateByEventType: Record<string, number> = {};
+  const eventTypes = new Set(logs.map(l => l.eventType));
+  eventTypes.forEach(eventType => {
+    const eventLogs = logs.filter(l => l.eventType === eventType);
+    const eventTotal = eventLogs.length;
+    const eventFailed = eventLogs.filter(l => l.status === "failed" || l.status === "dead_letter").length;
+    if (eventTotal > 0) {
+      failureRateByEventType[eventType] = (eventFailed / eventTotal) * 100;
+    }
+  });
+
   const triggered = failureRate > threshold && total >= 10;
+
+  // 找出失败率最高的平台和事件类型
+  const topFailingPlatform = Object.entries(failureRateByPlatform)
+    .sort(([, a], [, b]) => b - a)[0];
+  const topFailingEventType = Object.entries(failureRateByEventType)
+    .sort(([, a], [, b]) => b - a)[0];
+
+  let message = `事件发送失败率 ${(failureRate * 100).toFixed(1)}% 超过阈值 ${(threshold * 100).toFixed(1)}%`;
+  if (topFailingPlatform && topFailingPlatform[1] > threshold * 100) {
+    message += `（${topFailingPlatform[0]} 平台失败率: ${topFailingPlatform[1].toFixed(1)}%）`;
+  }
+  if (topFailingEventType && topFailingEventType[1] > threshold * 100) {
+    message += `（${topFailingEventType[0]} 事件失败率: ${topFailingEventType[1].toFixed(1)}%）`;
+  }
 
   return {
     shopId,
@@ -186,8 +237,17 @@ export async function checkFailureRate(
     triggered,
     alertType: "failure_rate",
     severity: failureRate > 0.1 ? "critical" : failureRate > 0.05 ? "high" : "medium",
-    message: `事件发送失败率 ${(failureRate * 100).toFixed(1)}% 超过阈值 ${(threshold * 100).toFixed(1)}%`,
-    data: { total, failed, failureRate, threshold },
+    message,
+    data: {
+      total,
+      failed,
+      failureRate,
+      threshold,
+      failureRateByPlatform,
+      failureRateByEventType,
+      topFailingPlatform: topFailingPlatform ? { platform: topFailingPlatform[0], rate: topFailingPlatform[1] } : undefined,
+      topFailingEventType: topFailingEventType ? { eventType: topFailingEventType[0], rate: topFailingEventType[1] } : undefined,
+    },
   };
 }
 
@@ -201,6 +261,22 @@ export async function checkMissingParams(
   const last24h = new Date();
   last24h.setHours(last24h.getHours() - 24);
 
+  // 获取所有事件，检查参数缺失
+  const allLogs = await prisma.conversionLog.findMany({
+    where: {
+      shopId,
+      createdAt: { gte: last24h },
+      status: { in: ["sent", "failed"] },
+    },
+    select: {
+      platform: true,
+      eventType: true,
+      orderValue: true,
+      currency: true,
+      eventId: true,
+    },
+  });
+
   const allEvents = await prisma.conversionLog.groupBy({
     by: ["eventType"],
     where: {
@@ -210,33 +286,43 @@ export async function checkMissingParams(
     _count: true,
   });
 
-  const eventsWithMissingParams = await prisma.conversionLog.groupBy({
-    by: ["eventType"],
-    where: {
-      shopId,
-      createdAt: { gte: last24h },
-      OR: [
-        { errorMessage: { contains: "missing" } },
-        { errorMessage: { contains: "required" } },
-        { orderValue: { equals: 0 } },
-        { currency: null },
-        { currency: "" },
-      ],
-    },
-    _count: true,
+  // 检查参数缺失（更精确的检查）
+  const eventsWithMissingParams = allLogs.filter(log => {
+    const hasValue = log.orderValue !== null && log.orderValue !== undefined && Number(log.orderValue) > 0;
+    const hasCurrency = log.currency && log.currency.trim() !== "";
+    const hasEventId = log.eventId && log.eventId.trim() !== "";
+    
+    // 对于 purchase 事件，value 和 currency 是必需的
+    if (log.eventType === "purchase" || log.eventType === "checkout_completed") {
+      return !hasValue || !hasCurrency;
+    }
+    
+    // 对于其他事件，至少需要 value 或 currency
+    return !hasValue && !hasCurrency;
   });
 
   const totalEvents = allEvents.reduce((sum, e) => sum + e._count, 0);
-  const totalMissing = eventsWithMissingParams.reduce((sum, e) => sum + e._count, 0);
+  const totalMissing = eventsWithMissingParams.length;
   const overallMissingRate = totalEvents > 0 ? totalMissing / totalEvents : 0;
 
+  // 按事件类型统计缺参率
   const missingRateByEventType: Record<string, number> = {};
   allEvents.forEach((event) => {
-    const missingCount = eventsWithMissingParams.find(
-      (e) => e.eventType === event.eventType
-    )?._count || 0;
+    const eventLogs = allLogs.filter(l => l.eventType === event.eventType);
+    const eventMissing = eventsWithMissingParams.filter(l => l.eventType === event.eventType).length;
     if (event._count > 0) {
-      missingRateByEventType[event.eventType] = missingCount / event._count;
+      missingRateByEventType[event.eventType] = (eventMissing / event._count) * 100;
+    }
+  });
+
+  // 按平台统计缺参率
+  const missingRateByPlatform: Record<string, number> = {};
+  const platforms = new Set(allLogs.map(l => l.platform));
+  platforms.forEach(platform => {
+    const platformLogs = allLogs.filter(l => l.platform === platform);
+    const platformMissing = eventsWithMissingParams.filter(l => l.platform === platform).length;
+    if (platformLogs.length > 0) {
+      missingRateByPlatform[platform] = (platformMissing / platformLogs.length) * 100;
     }
   });
 
@@ -244,6 +330,16 @@ export async function checkMissingParams(
 
     const topMissingEventType = Object.entries(missingRateByEventType)
       .sort(([, a], [, b]) => b - a)[0];
+    const topMissingPlatform = Object.entries(missingRateByPlatform)
+      .sort(([, a], [, b]) => b - a)[0];
+
+    let message = `事件参数缺失率 ${(overallMissingRate * 100).toFixed(1)}% 超过阈值 ${(threshold * 100).toFixed(1)}%`;
+    if (topMissingEventType) {
+      message += `（${topMissingEventType[0]} 事件缺参率: ${topMissingEventType[1].toFixed(1)}%）`;
+    }
+    if (topMissingPlatform && topMissingPlatform[1] > threshold * 100) {
+      message += `（${topMissingPlatform[0]} 平台缺参率: ${topMissingPlatform[1].toFixed(1)}%）`;
+    }
 
     return {
       shopId,
@@ -251,40 +347,43 @@ export async function checkMissingParams(
       triggered: true,
       alertType: "missing_params",
       severity: overallMissingRate > 0.2 ? "high" : overallMissingRate > 0.1 ? "medium" : "low",
-      message: `事件参数缺失率 ${(overallMissingRate * 100).toFixed(1)}% 超过阈值 ${(threshold * 100).toFixed(1)}%${
-        topMissingEventType
-          ? `（${topMissingEventType[0]} 事件缺参率: ${(topMissingEventType[1] * 100).toFixed(1)}%）`
-          : ""
-      }`,
+      message,
       data: {
         totalEvents,
         totalMissing,
         overallMissingRate,
         missingRateByEventType,
+        missingRateByPlatform,
         threshold,
+        topMissingEventType: topMissingEventType ? { eventType: topMissingEventType[0], rate: topMissingEventType[1] } : undefined,
+        topMissingPlatform: topMissingPlatform ? { platform: topMissingPlatform[0], rate: topMissingPlatform[1] } : undefined,
       },
     };
   }
 
+  // 检查关键事件类型的缺参率
   const criticalEventTypes = ["purchase", "checkout_completed"];
   for (const eventType of criticalEventTypes) {
     const eventMissingRate = missingRateByEventType[eventType];
     if (eventMissingRate && eventMissingRate > threshold * 1.5) {
       const eventTotal = allEvents.find((e) => e.eventType === eventType)?._count || 0;
       if (eventTotal >= 5) {
+        const eventMissing = eventsWithMissingParams.filter(l => l.eventType === eventType).length;
         return {
           shopId,
           shopDomain,
           triggered: true,
           alertType: "missing_params",
-          severity: eventMissingRate > 0.3 ? "high" : "medium",
-          message: `${eventType} 事件参数缺失率 ${(eventMissingRate * 100).toFixed(1)}% 超过阈值 ${(threshold * 1.5 * 100).toFixed(1)}%`,
+          severity: eventMissingRate > 30 ? "high" : "medium",
+          message: `${eventType} 事件参数缺失率 ${eventMissingRate.toFixed(1)}% 超过阈值 ${(threshold * 1.5 * 100).toFixed(1)}%`,
           data: {
             eventType,
             eventTotal,
-            eventMissing: eventsWithMissingParams.find((e) => e.eventType === eventType)?._count || 0,
+            eventMissing,
             eventMissingRate,
             threshold: threshold * 1.5,
+            missingRateByEventType,
+            missingRateByPlatform,
           },
         };
       }
@@ -303,6 +402,7 @@ export async function checkMissingParams(
       totalMissing,
       overallMissingRate,
       missingRateByEventType,
+      missingRateByPlatform,
       threshold,
     },
   };
@@ -351,18 +451,59 @@ export async function checkVolumeDrop(
   const prev48h = new Date(prev24h);
   prev48h.setHours(prev48h.getHours() - 24);
 
-  const currentVolume = await prisma.conversionLog.count({
-    where: {
-      shopId,
-      createdAt: { gte: last24h },
-    },
+  // 获取当前和前一个24小时的事件，按平台和事件类型统计
+  const [currentLogs, previousLogs] = await Promise.all([
+    prisma.conversionLog.findMany({
+      where: {
+        shopId,
+        createdAt: { gte: last24h },
+      },
+      select: {
+        platform: true,
+        eventType: true,
+      },
+    }),
+    prisma.conversionLog.findMany({
+      where: {
+        shopId,
+        createdAt: { gte: prev24h, lt: last24h },
+      },
+      select: {
+        platform: true,
+        eventType: true,
+      },
+    }),
+  ]);
+
+  const currentVolume = currentLogs.length;
+  const previousVolume = previousLogs.length;
+
+  // 按平台统计事件量变化
+  const volumeChangeByPlatform: Record<string, { current: number; previous: number; changePercent: number }> = {};
+  const platforms = new Set([...currentLogs.map(l => l.platform), ...previousLogs.map(l => l.platform)]);
+  platforms.forEach(platform => {
+    const currentCount = currentLogs.filter(l => l.platform === platform).length;
+    const previousCount = previousLogs.filter(l => l.platform === platform).length;
+    const changePercent = previousCount > 0 ? ((previousCount - currentCount) / previousCount) * 100 : 0;
+    volumeChangeByPlatform[platform] = {
+      current: currentCount,
+      previous: previousCount,
+      changePercent,
+    };
   });
 
-  const previousVolume = await prisma.conversionLog.count({
-    where: {
-      shopId,
-      createdAt: { gte: prev24h, lt: last24h },
-    },
+  // 按事件类型统计事件量变化
+  const volumeChangeByEventType: Record<string, { current: number; previous: number; changePercent: number }> = {};
+  const eventTypes = new Set([...currentLogs.map(l => l.eventType), ...previousLogs.map(l => l.eventType)]);
+  eventTypes.forEach(eventType => {
+    const currentCount = currentLogs.filter(l => l.eventType === eventType).length;
+    const previousCount = previousLogs.filter(l => l.eventType === eventType).length;
+    const changePercent = previousCount > 0 ? ((previousCount - currentCount) / previousCount) * 100 : 0;
+    volumeChangeByEventType[eventType] = {
+      current: currentCount,
+      previous: previousCount,
+      changePercent,
+    };
   });
 
   const previous2Volume = await prisma.conversionLog.count({
@@ -433,6 +574,14 @@ export async function checkVolumeDrop(
     severity = "medium";
   }
 
+  // 找出下降最严重的平台和事件类型
+  const topDroppingPlatform = Object.entries(volumeChangeByPlatform)
+    .filter(([, stats]) => stats.changePercent > threshold * 100)
+    .sort(([, a], [, b]) => b.changePercent - a.changePercent)[0];
+  const topDroppingEventType = Object.entries(volumeChangeByEventType)
+    .filter(([, stats]) => stats.changePercent > threshold * 100)
+    .sort(([, a], [, b]) => b.changePercent - a.changePercent)[0];
+
   let message = "";
   if (simpleDrop) {
     message = `事件量骤降 ${(dropRate * 100).toFixed(1)}%（前24h: ${previousVolume}，当前24h: ${currentVolume}）`;
@@ -440,6 +589,13 @@ export async function checkVolumeDrop(
     message = `事件量低于历史平均值 ${(avgDropRate * 100).toFixed(1)}%（当前24h: ${currentVolume}）`;
   } else if (recent3DaysDrop) {
     message = `事件量低于最近3天平均值（当前24h: ${currentVolume}，平均值: ${recent3DaysAvg.toFixed(0)}）`;
+  }
+
+  if (topDroppingPlatform) {
+    message += `（${topDroppingPlatform[0]} 平台下降: ${topDroppingPlatform[1].changePercent.toFixed(1)}%）`;
+  }
+  if (topDroppingEventType) {
+    message += `（${topDroppingEventType[0]} 事件下降: ${topDroppingEventType[1].changePercent.toFixed(1)}%）`;
   }
 
   return {
@@ -457,6 +613,10 @@ export async function checkVolumeDrop(
       avgDropRate,
       recent3DaysAvg,
       threshold,
+      volumeChangeByPlatform,
+      volumeChangeByEventType,
+      topDroppingPlatform: topDroppingPlatform ? { platform: topDroppingPlatform[0], changePercent: topDroppingPlatform[1].changePercent } : undefined,
+      topDroppingEventType: topDroppingEventType ? { eventType: topDroppingEventType[0], changePercent: topDroppingEventType[1].changePercent } : undefined,
       detectionMethods: {
         simple: simpleDrop,
         average: avgDrop,

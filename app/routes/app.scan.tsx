@@ -7,7 +7,13 @@ import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, Clipboard
 import { CardSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { AnalysisResultSummary } from "~/components/scan";
 import { MigrationDependencyGraph } from "~/components/scan/MigrationDependencyGraph";
+import { AuditAssetsByRisk } from "~/components/scan/AuditAssetsByRisk";
 import { analyzeDependencies } from "~/services/dependency-analysis.server";
+import { ManualInputWizard, type ManualInputData } from "~/components/scan/ManualInputWizard";
+import { MigrationChecklistEnhanced } from "~/components/scan/MigrationChecklistEnhanced";
+import { generateMigrationChecklist } from "~/services/migration-checklist.server";
+import { ManualPastePanel } from "~/components/scan/ManualPastePanel";
+import { GuidedSupplement } from "~/components/scan/GuidedSupplement";
 
 const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor").then(module => ({ default: module.ScriptCodeEditor })));
 import { authenticate } from "../shopify.server";
@@ -19,6 +25,7 @@ import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { generateMigrationActions } from "../services/scanner/migration-actions";
 import { getExistingWebPixels } from "../services/migration.server";
 import { createAuditAsset, batchCreateAuditAssets } from "../services/audit-asset.server";
+import { processManualPasteAssets, analyzeManualPaste } from "../services/audit-asset-analysis.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
 import { generateMigrationTimeline, getMigrationProgress } from "../services/migration-priority.server";
@@ -293,10 +300,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const planId = normalizePlan(shop.plan);
     const planDef = getPlanDefinition(planId);
 
-    const [migrationTimeline, migrationProgress, dependencyGraph] = await Promise.all([
+    const [migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist] = await Promise.all([
         generateMigrationTimeline(shop.id).catch(() => null),
         getMigrationProgress(shop.id).catch(() => null),
         analyzeDependencies(shop.id).catch(() => null),
+        (async () => {
+            try {
+                const { getAuditAssets } = await import("../services/audit-asset.server");
+                return await getAuditAssets(shop.id, {
+                    migrationStatus: "pending",
+                });
+            } catch (error) {
+                logger.error("Failed to fetch audit assets", { shopId: shop.id, error });
+                return [];
+            }
+        })(),
+        generateMigrationChecklist(shop.id).catch(() => null),
     ]);
 
     return json({
@@ -327,6 +346,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         migrationTimeline,
         migrationProgress,
         dependencyGraph,
+        auditAssets,
+        migrationChecklist,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -618,6 +639,145 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
+    if (actionType === "analyze_manual_paste") {
+        try {
+            const content = formData.get("content") as string;
+            if (!content || !content.trim()) {
+                return json({ error: "缺少脚本内容" }, { status: 400 });
+            }
+
+            const MAX_CONTENT_LENGTH = 1024 * 1024; // 1MB
+            if (content.length > MAX_CONTENT_LENGTH) {
+                return json({
+                    error: `脚本内容过长（最大 ${MAX_CONTENT_LENGTH / 1024}KB）`
+                }, { status: 400 });
+            }
+
+            // 检查敏感信息
+            if (containsSensitiveInfo(content)) {
+                return json({
+                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再分析。"
+                }, { status: 400 });
+            }
+
+            // 分析脚本内容
+            const { analyzeManualPaste } = await import("../services/audit-asset-analysis.server");
+            const analysis = analyzeManualPaste(content, shop.id);
+
+            return json({
+                success: true,
+                actionType: "analyze_manual_paste",
+                analysis,
+            });
+        } catch (error) {
+            logger.error("Analyze manual paste error", {
+                shopId: shop.id,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return json({ error: "分析失败，请稍后重试" }, { status: 500 });
+        }
+    }
+
+    if (actionType === "process_manual_paste") {
+        try {
+            const content = formData.get("content") as string;
+            if (!content || !content.trim()) {
+                return json({ error: "缺少脚本内容" }, { status: 400 });
+            }
+
+            const MAX_CONTENT_LENGTH = 1024 * 1024; // 1MB
+            if (content.length > MAX_CONTENT_LENGTH) {
+                return json({
+                    error: `脚本内容过长（最大 ${MAX_CONTENT_LENGTH / 1024}KB）`
+                }, { status: 400 });
+            }
+
+            // 检查敏感信息
+            if (containsSensitiveInfo(content)) {
+                return json({
+                    error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再处理。"
+                }, { status: 400 });
+            }
+
+            // 获取最新的扫描报告 ID（如果有）
+            const latestScan = await prisma.scanReport.findFirst({
+                where: { shopId: shop.id },
+                orderBy: { createdAt: "desc" },
+                select: { id: true },
+            });
+
+            // 使用新的分析函数处理手动粘贴
+            const result = await processManualPasteAssets(
+                shop.id,
+                content,
+                latestScan?.id
+            );
+
+            return json({
+                success: true,
+                actionType: "process_manual_paste",
+                processed: {
+                    created: result.created,
+                    updated: result.updated,
+                    failed: result.failed,
+                    duplicates: result.duplicates || 0,
+                },
+                message: `已处理 ${result.created} 个资产${result.updated > 0 ? `，更新 ${result.updated} 个` : ''}${result.failed > 0 ? `，${result.failed} 个失败` : ''}`,
+            });
+        } catch (error) {
+            logger.error("Process manual paste error", {
+                shopId: shop.id,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return json({ error: "处理失败，请稍后重试" }, { status: 500 });
+        }
+    }
+
+    if (actionType === "create_from_wizard") {
+        try {
+            const assetsStr = formData.get("assets") as string;
+            if (!assetsStr) {
+                return json({ error: "缺少资产数据" }, { status: 400 });
+            }
+
+            let assets: Array<{
+                sourceType: string;
+                category: string;
+                platform?: string;
+                displayName: string;
+                riskLevel: string;
+                suggestedMigration: string;
+                details?: Record<string, unknown>;
+            }>;
+            try {
+                assets = JSON.parse(assetsStr);
+            } catch {
+                return json({ error: "无效的资产数据格式" }, { status: 400 });
+            }
+
+            if (!Array.isArray(assets) || assets.length === 0) {
+                return json({ error: "资产数据必须是非空数组" }, { status: 400 });
+            }
+
+            const result = await batchCreateAuditAssets(shop.id, assets);
+
+            return json({
+                success: true,
+                actionType: "create_from_wizard",
+                message: `已创建 ${result.created} 个审计资产记录${result.updated > 0 ? `，更新 ${result.updated} 个` : ''}${result.failed > 0 ? `，${result.failed} 个失败` : ''}`,
+                created: result.created,
+                updated: result.updated,
+                failed: result.failed,
+            });
+        } catch (error) {
+            logger.error("Create from wizard error", {
+                shopId: shop.id,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return json({ error: "创建失败，请稍后重试" }, { status: 500 });
+        }
+    }
+
     if (actionType === "mark_asset_complete") {
         try {
             const assetId = formData.get("assetId") as string;
@@ -696,13 +856,14 @@ function getUpgradeBannerTone(
 }
 
 export default function ScanPage() {
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph } = useLoaderData<typeof loader>();
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
     const deleteFetcher = useFetcher();
     const upgradeFetcher = useFetcher();
     const saveAnalysisFetcher = useFetcher();
+    const processPasteFetcher = useFetcher();
     const { showSuccess, showError } = useToastContext();
     const [selectedTab, setSelectedTab] = useState(0);
     const [analysisSaved, setAnalysisSaved] = useState(false);
@@ -713,12 +874,15 @@ export default function ScanPage() {
     const [analysisProgress, setAnalysisProgress] = useState<{ current: number; total: number } | null>(null);
     const [guidanceModalOpen, setGuidanceModalOpen] = useState(false);
     const [guidanceContent, setGuidanceContent] = useState<{ title: string; platform?: string; scriptTagId?: number } | null>(null);
+    const [manualInputWizardOpen, setManualInputWizardOpen] = useState(false);
+    const [guidedSupplementOpen, setGuidedSupplementOpen] = useState(false);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<{ type: "webPixel"; id: string; gid: string; title: string } | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [monthlyOrders, setMonthlyOrders] = useState(500);
     const [isCopying, setIsCopying] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [pasteProcessed, setPasteProcessed] = useState(false);
     const isScanning = navigation.state === "submitting";
     const analysisSavedRef = useRef(false);
     const isReloadingRef = useRef(false);
@@ -1124,6 +1288,111 @@ export default function ScanPage() {
         saveAnalysisFetcher.submit(formData, { method: "post" });
     }, [analysisResult, saveAnalysisFetcher, isSavingAnalysis]);
 
+    const handleProcessManualPaste = useCallback(() => {
+        if (!scriptContent.trim() || processPasteFetcher.state !== "idle") {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("_action", "process_manual_paste");
+        formData.append("scriptContent", scriptContent);
+        processPasteFetcher.submit(formData, { method: "post" });
+    }, [scriptContent, processPasteFetcher]);
+
+    const handleManualInputComplete = useCallback(async (data: ManualInputData) => {
+        if (!shop) {
+            showError("店铺信息未找到");
+            return;
+        }
+
+        try {
+            // 根据向导数据创建 AuditAsset 记录
+            const assets = [];
+
+            // 为每个平台创建资产
+            for (const platform of data.platforms) {
+                if (platform === "other") continue; // 跳过"其他"选项
+                assets.push({
+                    sourceType: data.fromUpgradeWizard ? "merchant_confirmed" : "manual_paste" as const,
+                    category: "pixel" as const,
+                    platform,
+                    displayName: `手动补充: ${platform}`,
+                    riskLevel: "medium" as const,
+                    suggestedMigration: "web_pixel" as const,
+                    details: {
+                        fromWizard: true,
+                        fromUpgradeWizard: data.fromUpgradeWizard,
+                        additionalInfo: data.additionalInfo,
+                    },
+                });
+            }
+
+            // 为每个功能创建资产
+            for (const feature of data.features) {
+                if (feature === "other") continue;
+                const categoryMap: Record<string, "survey" | "support" | "affiliate" | "other"> = {
+                    survey: "survey",
+                    support: "support",
+                    affiliate: "affiliate",
+                    reorder: "other",
+                    upsell: "other",
+                    tracking: "other",
+                };
+                const migrationMap: Record<string, "ui_extension" | "web_pixel" | "server_side"> = {
+                    survey: "ui_extension",
+                    support: "ui_extension",
+                    affiliate: "server_side",
+                    reorder: "ui_extension",
+                    upsell: "ui_extension",
+                    tracking: "ui_extension",
+                };
+                assets.push({
+                    sourceType: data.fromUpgradeWizard ? "merchant_confirmed" : "manual_paste" as const,
+                    category: categoryMap[feature] || "other",
+                    displayName: `手动补充: ${feature}`,
+                    riskLevel: "medium" as const,
+                    suggestedMigration: migrationMap[feature] || "ui_extension",
+                    details: {
+                        fromWizard: true,
+                        fromUpgradeWizard: data.fromUpgradeWizard,
+                        additionalInfo: data.additionalInfo,
+                    },
+                });
+            }
+
+            if (assets.length > 0) {
+                const formData = new FormData();
+                formData.append("_action", "create_from_wizard");
+                formData.append("assets", JSON.stringify(assets));
+                submit(formData, { method: "post" });
+                showSuccess(`正在创建 ${assets.length} 个审计资产记录...`);
+            } else {
+                showError("请至少选择一个平台或功能");
+            }
+        } catch (error) {
+            logger.error("Failed to process manual input", { error });
+            showError("处理失败，请稍后重试");
+        }
+    }, [shop, showSuccess, showError, submit]);
+
+    const isProcessingPaste = processPasteFetcher.state === "submitting";
+
+    useEffect(() => {
+        const result = isFetcherResult(processPasteFetcher.data) ? processPasteFetcher.data : undefined;
+        if (!result || processPasteFetcher.state !== "idle" || !isMountedRef.current) return;
+
+        if (result.success) {
+            setPasteProcessed(true);
+            showSuccess(result.message || "已成功处理粘贴内容");
+            // 刷新页面以显示新创建的资产
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else if (result.error) {
+            showError(result.error);
+        }
+    }, [processPasteFetcher.data, processPasteFetcher.state, showSuccess, showError]);
+
     useEffect(() => {
 
         const result = isFetcherResult(saveAnalysisFetcher.data) ? saveAnalysisFetcher.data : undefined;
@@ -1490,7 +1759,13 @@ export default function ScanPage() {
                         icon={ExportIcon}
                         onClick={() => window.open("/api/exports?type=scan&format=json&include_meta=true", "_blank")}
                       >
-                        导出报告
+                        导出扫描报告
+                      </Button>
+                      <Button
+                        icon={ExportIcon}
+                        onClick={() => window.open("/api/reports?type=risk", "_blank")}
+                      >
+                        导出风险报告 (PDF)
                       </Button>
                       <Button
                         icon={ShareIcon}
@@ -2083,6 +2358,33 @@ export default function ScanPage() {
 
         {}
         {}
+        {/* 审计资产清单（按风险等级分组） */}
+        {latestScan && auditAssets && auditAssets.length > 0 && !isScanning && (
+          <AuditAssetsByRisk
+            assets={auditAssets}
+            onAssetClick={(assetId) => {
+              window.location.href = `/app/migrate?asset=${assetId}`;
+            }}
+          />
+        )}
+
+        {/* 增强版迁移清单 */}
+        {migrationChecklist && migrationChecklist.items.length > 0 && !isScanning && (
+          <MigrationChecklistEnhanced
+            items={migrationChecklist.items}
+            dependencyGraph={dependencyGraph}
+            onItemClick={(assetId) => {
+              window.location.href = `/app/migrate?asset=${assetId}`;
+            }}
+            onItemComplete={(assetId) => {
+              const formData = new FormData();
+              formData.append("_action", "mark_asset_complete");
+              formData.append("assetId", assetId);
+              submit(formData, { method: "post" });
+            }}
+          />
+        )}
+
         {migrationProgress && migrationTimeline && (
           <Card>
             <BlockStack gap="400">
@@ -2417,7 +2719,40 @@ export default function ScanPage() {
                           }
                         }}
                       >
-                        导出清单
+                        导出文本
+                      </Button>
+                      <Button
+                        icon={ExportIcon}
+                        loading={isExporting}
+                        onClick={async () => {
+                          if (isExporting) return;
+                          setIsExporting(true);
+                          try {
+                            // 调用 PDF 导出 API
+                            const response = await fetch("/api/checklist-pdf");
+                            if (!response.ok) {
+                              const errorData = await response.json().catch(() => ({ error: "导出失败" }));
+                              throw new Error(errorData.error || "导出失败");
+                            }
+                            const blob = await response.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `migration-checklist-${new Date().toISOString().split("T")[0]}.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                            showSuccess("PDF 清单导出成功");
+                          } catch (error) {
+                            console.error("PDF 导出失败:", error);
+                            showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");
+                          } finally {
+                            setIsExporting(false);
+                          }
+                        }}
+                      >
+                        导出 PDF
                       </Button>
                     </InlineStack>
                   </BlockStack>
@@ -2572,19 +2907,49 @@ export default function ScanPage() {
                               <br />4. 粘贴到下方文本框中
                             </Text>
                           </BlockStack>
-                          <Button
-                            onClick={() => {
-                              setGuidanceContent({ title: "从 Shopify 升级向导导入脚本" });
-                              setGuidanceModalOpen(true);
-                            }}
-                            variant="plain"
-                            size="slim"
-                          >
-                            从升级向导导入
-                          </Button>
+                          <InlineStack gap="200">
+                            <Button
+                              onClick={() => {
+                                setGuidedSupplementOpen(true);
+                              }}
+                              variant="primary"
+                              size="slim"
+                            >
+                              从升级向导补充
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setManualInputWizardOpen(true);
+                              }}
+                              size="slim"
+                            >
+                              引导补充信息
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setGuidanceContent({ title: "从 Shopify 升级向导导入脚本" });
+                                setGuidanceModalOpen(true);
+                              }}
+                              variant="plain"
+                              size="slim"
+                            >
+                              从升级向导导入
+                            </Button>
+                          </InlineStack>
                         </InlineStack>
                       </BlockStack>
                     </Banner>
+
+                    <ManualPastePanel
+                      shopId={shop?.id || ""}
+                      onAssetsCreated={(count) => {
+                        showSuccess(`成功创建 ${count} 个迁移资产`);
+                        // 刷新页面数据
+                        window.location.reload();
+                      }}
+                    />
+
+                    <Divider />
 
                     <Suspense fallback={<CardSkeleton lines={5} />}>
                       <ScriptCodeEditor
@@ -2762,7 +3127,30 @@ export default function ScanPage() {
                       </Banner>
                     )}
 
+                    {(processPasteFetcher.data as FetcherResult | undefined)?.error && (
+                      <Banner tone="critical">
+                        <Text as="p">{(processPasteFetcher.data as FetcherResult | undefined)?.error}</Text>
+                      </Banner>
+                    )}
+
+                    {(processPasteFetcher.data as FetcherResult | undefined)?.success && (
+                      <Banner tone="success">
+                        <Text as="p">{(processPasteFetcher.data as FetcherResult | undefined)?.message}</Text>
+                      </Banner>
+                    )}
+
                     <InlineStack gap="200" align="end">
+                      {scriptContent.trim() && (
+                        <Button
+                          onClick={handleProcessManualPaste}
+                          loading={isProcessingPaste}
+                          disabled={pasteProcessed || !scriptContent.trim()}
+                          icon={CheckCircleIcon}
+                          variant="primary"
+                        >
+                          {pasteProcessed ? "已处理" : "直接处理粘贴内容"}
+                        </Button>
+                      )}
                       <Button
                         onClick={handleSaveAnalysis}
                         loading={isSavingAnalysis}
@@ -2947,6 +3335,22 @@ export default function ScanPage() {
             </BlockStack>
           </Modal.Section>
         </Modal>
+
+        {/* 引导补充向导 */}
+        <ManualInputWizard
+          open={manualInputWizardOpen}
+          onClose={() => setManualInputWizardOpen(false)}
+          onComplete={handleManualInputComplete}
+        />
+        <GuidedSupplement
+          open={guidedSupplementOpen}
+          onClose={() => setGuidedSupplementOpen(false)}
+          onComplete={(count) => {
+            showSuccess(`成功创建 ${count} 个迁移资产`);
+            window.location.reload();
+          }}
+          shopId={shop?.id || ""}
+        />
       </BlockStack>
     </Page>);
 }

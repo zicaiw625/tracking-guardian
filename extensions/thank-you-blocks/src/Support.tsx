@@ -20,11 +20,15 @@ function SupportBlock() {
     (settings.support_description as string) ||
     "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。", [settings.support_description]);
   const faqUrl = useMemo(() => (settings.support_faq_url as string) || "/pages/faq", [settings.support_faq_url]);
-  const contactUrl = useMemo(() => {
-    const contactEmail = settings.support_contact_email as string;
-    return (settings.support_contact_url as string) || (contactEmail ? `mailto:${contactEmail}` : "/pages/contact");
-  }, [settings.support_contact_url, settings.support_contact_email]);
+  const contactEmail = useMemo(() => settings.support_contact_email as string | undefined, [settings.support_contact_email]);
+  const contactUrl = useMemo(() => settings.support_contact_url as string | undefined, [settings.support_contact_url]);
+  const whatsappNumber = useMemo(() => settings.support_whatsapp_number as string | undefined, [settings.support_whatsapp_number]);
+  const messengerUrl = useMemo(() => settings.support_messenger_url as string | undefined, [settings.support_messenger_url]);
   const continueShoppingUrl = useMemo(() => (settings.continue_shopping_url as string) || "/", [settings.continue_shopping_url]);
+  
+  // 生成联系链接
+  const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
+  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber.replace(/[^0-9]/g, "")}` : undefined;
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
@@ -62,18 +66,51 @@ function SupportBlock() {
         </BlockStack>
       </View>
 
-      <InlineLayout columns={["fill", "fill"]} spacing="tight" blockAlignment="center">
-        <Link to={contactUrl}>
-          <Button kind="primary" submit={false}>
-            联系客服
-          </Button>
-        </Link>
+      <BlockStack spacing="tight">
+        {/* 客服渠道按钮 */}
+        {(emailUrl || contactUrl || whatsappUrl || messengerUrl) && (
+          <BlockStack spacing="extraTight">
+            <Text size="small" appearance="subdued">联系客服：</Text>
+            <InlineLayout columns={["fill", "fill"]} spacing="tight" blockAlignment="center">
+              {emailUrl && (
+                <Link to={emailUrl}>
+                  <Button kind="primary" submit={false}>
+                    📧 邮件
+                  </Button>
+                </Link>
+              )}
+              {whatsappUrl && (
+                <Link to={whatsappUrl}>
+                  <Button kind="primary" submit={false}>
+                    💬 WhatsApp
+                  </Button>
+                </Link>
+              )}
+              {messengerUrl && (
+                <Link to={messengerUrl}>
+                  <Button kind="primary" submit={false}>
+                    💬 Messenger
+                  </Button>
+                </Link>
+              )}
+              {contactUrl && !emailUrl && !whatsappUrl && !messengerUrl && (
+                <Link to={contactUrl}>
+                  <Button kind="primary" submit={false}>
+                    联系客服
+                  </Button>
+                </Link>
+              )}
+            </InlineLayout>
+          </BlockStack>
+        )}
+        
+        {/* FAQ 按钮 */}
         <Link to={faqUrl}>
           <Button kind="secondary" submit={false}>
-            FAQ / 帮助中心
+            ❓ FAQ / 帮助中心
           </Button>
         </Link>
-      </InlineLayout>
+      </BlockStack>
 
       <Link to={continueShoppingUrl}>
         <Button kind="plain">返回商店首页</Button>

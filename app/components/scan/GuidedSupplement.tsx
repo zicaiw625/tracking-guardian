@@ -1,0 +1,356 @@
+import { useState, useCallback } from "react";
+import {
+  Modal,
+  BlockStack,
+  InlineStack,
+  Text,
+  Button,
+  Checkbox,
+  TextField,
+  Banner,
+  List,
+  Divider,
+  Box,
+  Badge,
+  Card,
+} from "@shopify/polaris";
+import { CheckCircleIcon, ArrowRightIcon, ClipboardIcon } from "~/components/icons";
+import { useFetcher } from "@remix-run/react";
+
+export interface GuidedSupplementProps {
+  open: boolean;
+  onClose: () => void;
+  onComplete?: (count: number) => void;
+  shopId: string;
+}
+
+const UPGRADE_WIZARD_CHECKLIST = [
+  { id: "ga4", label: "Google Analytics 4 (GA4)", category: "pixel", platform: "google" },
+  { id: "meta", label: "Meta Pixel (Facebook)", category: "pixel", platform: "meta" },
+  { id: "tiktok", label: "TikTok Pixel", category: "pixel", platform: "tiktok" },
+  { id: "pinterest", label: "Pinterest Tag", category: "pixel", platform: "pinterest" },
+  { id: "snapchat", label: "Snapchat Pixel", category: "pixel", platform: "snapchat" },
+  { id: "survey", label: "售后问卷 / 评价收集", category: "survey", platform: undefined },
+  { id: "support", label: "客服入口 / 帮助中心", category: "support", platform: undefined },
+  { id: "reorder", label: "再购功能", category: "other", platform: undefined },
+  { id: "affiliate", label: "联盟追踪 / 分佣", category: "affiliate", platform: undefined },
+  { id: "upsell", label: "追加销售 / 推荐商品", category: "other", platform: undefined },
+  { id: "tracking", label: "订单追踪 / 物流查询", category: "support", platform: undefined },
+  { id: "other", label: "其他脚本或功能", category: "other", platform: undefined },
+];
+
+export function GuidedSupplement({
+  open,
+  onClose,
+  onComplete,
+  shopId,
+}: GuidedSupplementProps) {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [additionalNotes, setAdditionalNotes] = useState("");
+  const fetcher = useFetcher();
+
+  const handleItemToggle = useCallback((itemId: string) => {
+    setSelectedItems((prev) =>
+      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
+    );
+  }, []);
+
+  const handleNext = useCallback(() => {
+    if (step === 1) {
+      setStep(2);
+    } else if (step === 2) {
+      setStep(3);
+    }
+  }, [step]);
+
+  const handleBack = useCallback(() => {
+    if (step === 2) {
+      setStep(1);
+    } else if (step === 3) {
+      setStep(2);
+    }
+  }, []);
+
+  const handleComplete = useCallback(() => {
+    if (selectedItems.length === 0) {
+      return;
+    }
+
+    // 将选中的项目转换为 AuditAsset
+    const assets = selectedItems.map((itemId) => {
+      const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
+      if (!item) return null;
+
+      return {
+        sourceType: "merchant_confirmed" as const,
+        category: item.category as
+          | "pixel"
+          | "affiliate"
+          | "survey"
+          | "support"
+          | "analytics"
+          | "other",
+        platform: item.platform,
+        displayName: item.label,
+        riskLevel: item.category === "pixel" ? ("high" as const) : ("medium" as const),
+        suggestedMigration:
+          item.category === "pixel"
+            ? ("web_pixel" as const)
+            : item.category === "survey" || item.category === "support"
+              ? ("ui_extension" as const)
+              : item.category === "affiliate"
+                ? ("server_side" as const)
+                : ("none" as const),
+        details: {
+          fromUpgradeWizard: true,
+          additionalNotes: additionalNotes.trim() || undefined,
+        },
+      };
+    }).filter((asset): asset is NonNullable<typeof asset> => asset !== null);
+
+    // 提交到服务器
+    fetcher.submit(
+      {
+        _action: "create_from_wizard",
+        assets: JSON.stringify(assets),
+      },
+      { method: "post" }
+    );
+  }, [selectedItems, additionalNotes, fetcher]);
+
+  // 处理完成结果
+  if (fetcher.data && (fetcher.data as { success?: boolean }).success) {
+    const result = fetcher.data as { created?: number; updated?: number };
+    const totalCreated = (result.created || 0) + (result.updated || 0);
+    if (onComplete && totalCreated > 0) {
+      setTimeout(() => {
+        onComplete(totalCreated);
+        // 重置状态
+        setStep(1);
+        setSelectedItems([]);
+        setAdditionalNotes("");
+        onClose();
+      }, 1000);
+    }
+  }
+
+  const handleCancel = useCallback(() => {
+    setStep(1);
+    setSelectedItems([]);
+    setAdditionalNotes("");
+    onClose();
+  }, [onClose]);
+
+  const canProceedFromStep1 = selectedItems.length > 0;
+  const canProceedFromStep2 = true;
+  const canComplete = selectedItems.length > 0;
+
+  return (
+    <Modal
+      open={open}
+      onClose={handleCancel}
+      title="从 Shopify 升级向导补充信息"
+      primaryAction={
+        step === 3
+          ? {
+              content: "完成",
+              onAction: handleComplete,
+              disabled: !canComplete || fetcher.state === "submitting",
+              loading: fetcher.state === "submitting",
+            }
+          : {
+              content: "下一步",
+              onAction: handleNext,
+              disabled: step === 1 ? !canProceedFromStep1 : !canProceedFromStep2,
+            }
+      }
+      secondaryActions={[
+        ...(step > 1 ? [{ content: "上一步", onAction: handleBack }] : []),
+        { content: "取消", onAction: handleCancel },
+      ]}
+    >
+      <Modal.Section>
+        <BlockStack gap="400">
+          {/* 步骤指示器 */}
+          <InlineStack gap="200" align="center">
+            <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
+            <Text as="span" tone="subdued">→</Text>
+            <Badge tone={step >= 2 ? "success" : step > 2 ? "info" : "subdued"}>步骤 2</Badge>
+            <Text as="span" tone="subdued">→</Text>
+            <Badge tone={step >= 3 ? "success" : "subdued"}>步骤 3</Badge>
+          </InlineStack>
+
+          {/* 步骤 1: 选择项目 */}
+          {step === 1 && (
+            <BlockStack gap="400">
+              <Text as="h3" variant="headingMd">
+                从升级向导中选择使用的功能
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                请根据 Shopify 升级向导中显示的清单，勾选所有在 Thank you / Order status 页面使用的功能
+              </Text>
+
+              <Banner tone="info">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    如何获取升级向导清单：
+                  </Text>
+                  <List type="number">
+                    <List.Item>
+                      前往 Shopify Admin → 设置 → 结账和订单处理
+                    </List.Item>
+                    <List.Item>
+                      找到「Thank you / Order status 页面升级」部分
+                    </List.Item>
+                    <List.Item>
+                      查看升级向导中列出的脚本和功能清单
+                    </List.Item>
+                    <List.Item>
+                      勾选下方对应的功能（或截图保存后在此处勾选）
+                    </List.Item>
+                  </List>
+                </BlockStack>
+              </Banner>
+
+              <BlockStack gap="300">
+                {UPGRADE_WIZARD_CHECKLIST.map((item) => (
+                  <Box
+                    key={item.id}
+                    background={
+                      selectedItems.includes(item.id) ? "bg-surface-success" : "bg-surface-secondary"
+                    }
+                    padding="300"
+                    borderRadius="200"
+                  >
+                    <Checkbox
+                      label={item.label}
+                      checked={selectedItems.includes(item.id)}
+                      onChange={() => handleItemToggle(item.id)}
+                    />
+                  </Box>
+                ))}
+              </BlockStack>
+
+              {selectedItems.length === 0 && (
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    请至少选择一个功能，以便我们生成准确的迁移建议
+                  </Text>
+                </Banner>
+              )}
+            </BlockStack>
+          )}
+
+          {/* 步骤 2: 截图上传（可选） */}
+          {step === 2 && (
+            <BlockStack gap="400">
+              <Text as="h3" variant="headingMd">
+                上传截图（可选）
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                如果您从升级向导中截图了清单，可以上传以便我们更准确地识别功能
+              </Text>
+
+              <Banner tone="info">
+                <Text as="p" variant="bodySm">
+                  💡 <strong>提示：</strong>截图功能正在开发中。目前请直接勾选上方对应的功能。
+                </Text>
+              </Banner>
+
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    已选择的功能：
+                  </Text>
+                  <InlineStack gap="100" wrap>
+                    {selectedItems.map((itemId) => {
+                      const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
+                      return item ? <Badge key={itemId}>{item.label}</Badge> : null;
+                    })}
+                  </InlineStack>
+                </BlockStack>
+              </Card>
+            </BlockStack>
+          )}
+
+          {/* 步骤 3: 额外信息 */}
+          {step === 3 && (
+            <BlockStack gap="400">
+              <Text as="h3" variant="headingMd">
+                额外信息（可选）
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                如果您有其他需要补充的信息，请在此处填写
+              </Text>
+
+              <TextField
+                label="补充说明"
+                value={additionalNotes}
+                onChange={setAdditionalNotes}
+                multiline={4}
+                placeholder="例如：使用了自定义的订单追踪系统、集成了第三方客服工具等"
+                helpText="这些信息将帮助我们更准确地评估迁移风险"
+              />
+
+              <Divider />
+
+              {/* 摘要 */}
+              <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    信息摘要
+                  </Text>
+                  <BlockStack gap="200">
+                    <InlineStack gap="200" align="start">
+                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                        选择的功能：
+                      </Text>
+                      {selectedItems.length > 0 ? (
+                        <InlineStack gap="100" wrap>
+                          {selectedItems.map((itemId) => {
+                            const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
+                            return item ? (
+                              <Badge key={itemId}>{item.label}</Badge>
+                            ) : null;
+                          })}
+                        </InlineStack>
+                      ) : (
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          无
+                        </Text>
+                      )}
+                    </InlineStack>
+                    <InlineStack gap="200" align="center">
+                      <CheckCircleIcon />
+                      <Text as="span" variant="bodySm">
+                        信息来自 Shopify 升级向导
+                      </Text>
+                    </InlineStack>
+                  </BlockStack>
+                </BlockStack>
+              </Box>
+
+              {fetcher.data && (fetcher.data as { error?: string }).error && (
+                <Banner tone="critical">
+                  <Text as="p" variant="bodySm">
+                    {(fetcher.data as { error: string }).error}
+                  </Text>
+                </Banner>
+              )}
+
+              {fetcher.data && (fetcher.data as { success?: boolean }).success && (
+                <Banner tone="success">
+                  <Text as="p" variant="bodySm">
+                    成功创建迁移资产！
+                  </Text>
+                </Banner>
+              )}
+            </BlockStack>
+          )}
+        </BlockStack>
+      </Modal.Section>
+    </Modal>
+  );
+}
+

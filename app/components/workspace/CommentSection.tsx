@@ -10,8 +10,9 @@ import {
   Divider,
   Banner,
   Badge,
+  Autocomplete,
 } from "@shopify/polaris";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { CommentWithAuthor } from "~/services/task-comments.server";
 import type { WorkspaceCommentWithAuthor } from "~/services/workspace-comments.server";
 
@@ -19,8 +20,12 @@ interface CommentSectionProps {
   comments: CommentWithAuthor[] | WorkspaceCommentWithAuthor[];
   currentShopId: string;
   currentShopDomain: string;
-  onCommentCreate: (content: string, parentCommentId?: string) => Promise<void>;
+  onCommentCreate: (content: string, parentCommentId?: string, mentionedShopIds?: string[]) => Promise<void>;
   onCommentDelete?: (commentId: string) => Promise<void>;
+  availableMembers?: Array<{
+    shopId: string;
+    shopDomain: string;
+  }>;
 }
 
 export function CommentSection({
@@ -29,25 +34,40 @@ export function CommentSection({
   currentShopDomain,
   onCommentCreate,
   onCommentDelete,
+  availableMembers = [],
 }: CommentSectionProps) {
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mentionedShopIds, setMentionedShopIds] = useState<string[]>([]);
+
+  // 提取 @提及的用户
+  const extractMentions = useCallback((text: string): string[] => {
+    const mentionRegex = /@(\w+)/g;
+    const matches = Array.from(text.matchAll(mentionRegex));
+    const mentionedDomains = matches.map((m) => m[1]);
+    
+    return availableMembers
+      .filter((m) => mentionedDomains.some((domain) => m.shopDomain.includes(domain)))
+      .map((m) => m.shopId);
+  }, [availableMembers]);
 
   const handleSubmitComment = useCallback(async () => {
     if (!newComment.trim()) return;
 
     setIsSubmitting(true);
     try {
-      await onCommentCreate(newComment.trim());
+      const mentions = extractMentions(newComment);
+      await onCommentCreate(newComment.trim(), undefined, mentions);
       setNewComment("");
+      setMentionedShopIds([]);
     } catch (error) {
       console.error("Failed to create comment:", error);
     } finally {
       setIsSubmitting(false);
     }
-  }, [newComment, onCommentCreate]);
+  }, [newComment, onCommentCreate, extractMentions]);
 
   const handleSubmitReply = useCallback(
     async (parentCommentId: string) => {
@@ -55,7 +75,8 @@ export function CommentSection({
 
       setIsSubmitting(true);
       try {
-        await onCommentCreate(replyContent.trim(), parentCommentId);
+        const mentions = extractMentions(replyContent);
+        await onCommentCreate(replyContent.trim(), parentCommentId, mentions);
         setReplyContent("");
         setReplyingTo(null);
       } catch (error) {
@@ -64,7 +85,7 @@ export function CommentSection({
         setIsSubmitting(false);
       }
     },
-    [replyContent, onCommentCreate]
+    [replyContent, onCommentCreate, extractMentions]
   );
 
   const renderComment = (comment: CommentWithAuthor | WorkspaceCommentWithAuthor, level = 0) => {
@@ -101,7 +122,20 @@ export function CommentSection({
 
             <Box background="bg-surface-secondary" padding="300" borderRadius="200">
               <Text as="p" variant="bodySm" whiteSpace="pre-wrap">
-                {comment.content}
+                {comment.content.split(/(@\w+)/g).map((part, idx) => {
+                  if (part.startsWith("@")) {
+                    const domain = part.substring(1);
+                    const member = availableMembers.find((m) => m.shopDomain.includes(domain));
+                    if (member) {
+                      return (
+                        <Badge key={idx} tone="info">
+                          {part}
+                        </Badge>
+                      );
+                    }
+                  }
+                  return <span key={idx}>{part}</span>;
+                })}
               </Text>
             </Box>
 

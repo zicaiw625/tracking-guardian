@@ -166,6 +166,193 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         }
     }
 
+    // 检测读取 PII（个人身份信息）- 增强版
+    const piiPatterns = [
+        // 邮箱检测
+        /(?:email|e-mail|mail)\s*[:=]\s*['"]?([^'",\s]+)/gi,
+        /customer\.(?:email|e-mail)/gi,
+        /order\.(?:email|e-mail|contact_email)/gi,
+        /checkout\.(?:email|e-mail|contact_email)/gi,
+        /\.getAttribute\(['"]email['"]/gi,
+        /\.getAttribute\(['"]e-mail['"]/gi,
+        /\.email\s*[:=]/gi,
+        // 电话检测
+        /(?:phone|telephone|mobile|tel)\s*[:=]\s*['"]?([^'",\s]+)/gi,
+        /customer\.(?:phone|telephone|mobile)/gi,
+        /order\.(?:phone|telephone|mobile|billing_phone)/gi,
+        /checkout\.(?:phone|telephone|mobile)/gi,
+        /\.getAttribute\(['"]phone['"]/gi,
+        /\.getAttribute\(['"]telephone['"]/gi,
+        /\.phone\s*[:=]/gi,
+        // 地址检测
+        /(?:address|street|city|zip|postal|postcode)\s*[:=]\s*['"]?([^'",\s]+)/gi,
+        /customer\.(?:address|shipping_address|billing_address)/gi,
+        /order\.(?:address|shipping_address|billing_address)/gi,
+        /checkout\.(?:address|shipping_address|billing_address)/gi,
+        /\.getAttribute\(['"]address['"]/gi,
+        /\.address\s*[:=]/gi,
+        // 姓名检测
+        /(?:first[_-]?name|last[_-]?name|full[_-]?name|name)\s*[:=]\s*['"]?([^'",\s]+)/gi,
+        /customer\.(?:first_name|last_name|name)/gi,
+        /order\.(?:first_name|last_name|name|billing_name)/gi,
+        /checkout\.(?:first_name|last_name|name)/gi,
+        // 其他敏感信息
+        /(?:ssn|social[_-]?security|credit[_-]?card|card[_-]?number)\s*[:=]/gi,
+        /customer\.(?:ssn|credit_card)/gi,
+    ];
+    
+    const piiMatches: string[] = [];
+    piiPatterns.forEach(pattern => {
+        const matches = contentToAnalyze.match(pattern);
+        if (matches) {
+            piiMatches.push(...matches.slice(0, 3)); // 最多记录3个匹配
+        }
+    });
+    
+    if (piiMatches.length > 0) {
+        const uniqueMatches = [...new Set(piiMatches)];
+        const piiTypes: string[] = [];
+        if (uniqueMatches.some(m => /email|mail/i.test(m))) piiTypes.push("邮箱");
+        if (uniqueMatches.some(m => /phone|tel/i.test(m))) piiTypes.push("电话");
+        if (uniqueMatches.some(m => /address|street|city/i.test(m))) piiTypes.push("地址");
+        if (uniqueMatches.some(m => /name/i.test(m))) piiTypes.push("姓名");
+        if (uniqueMatches.some(m => /ssn|credit|card/i.test(m))) piiTypes.push("其他敏感信息");
+        
+        result.risks.push({
+            id: "pii_access",
+            name: "检测到 PII（个人身份信息）访问",
+            description: `脚本可能读取客户${piiTypes.join("、")}等敏感信息，需要确保符合隐私法规（GDPR、CCPA）。Web Pixel 沙箱环境无法直接访问这些信息，需要迁移到服务端 CAPI 或使用 Shopify Customer Events API。`,
+            severity: "high" as RiskSeverity,
+            points: 35,
+            details: `检测到 ${piiMatches.length} 处 PII 访问: ${piiTypes.join("、")}`,
+        });
+    }
+
+    // 检测 window/document 全局对象的使用 - 增强版
+    // Web Pixel 运行在受限沙箱中，不能访问 window/document 等全局对象
+    const globalObjectPatterns = [
+        // window 对象访问
+        /\bwindow\.(location|history|localStorage|sessionStorage|document|cookie|navigator|screen|innerWidth|innerHeight|outerWidth|outerHeight|scrollX|scrollY|pageXOffset|pageYOffset)/gi,
+        /\bwindow\[/gi,
+        /typeof\s+window/gi,
+        /window\s*===/gi,
+        /window\s*!==/gi,
+        /window\s*&&/gi,
+        /window\s*\|\|/gi,
+        // document 对象访问
+        /\bdocument\.(getElementById|getElementsByClassName|getElementsByTagName|querySelector|querySelectorAll|body|head|title|cookie|createElement|write|writeln|addEventListener|removeEventListener|getElementsByName|createTextNode|createDocumentFragment)/gi,
+        /\bdocument\[/gi,
+        /typeof\s+document/gi,
+        /document\s*===/gi,
+        /document\s*!==/gi,
+        /document\s*&&/gi,
+        /document\s*\|\|/gi,
+        // DOM 操作
+        /\.(innerHTML|outerHTML|textContent|innerText)\s*=/gi,
+        /\.(appendChild|removeChild|insertBefore|replaceChild)\s*\(/gi,
+        /\.(setAttribute|getAttribute|removeAttribute)\s*\(/gi,
+        // 事件监听（可能依赖 DOM）
+        /\.(addEventListener|removeEventListener|attachEvent|detachEvent)\s*\(/gi,
+        // jQuery 等库的 DOM 操作（如果存在）
+        /\$\s*\(['"]/gi,
+        /jQuery\s*\(['"]/gi,
+    ];
+    
+    const windowDocumentMatches: string[] = [];
+    const matchTypes = {
+        window: [] as string[],
+        document: [] as string[],
+        dom: [] as string[],
+    };
+    
+    globalObjectPatterns.forEach(pattern => {
+        const matches = contentToAnalyze.match(pattern);
+        if (matches) {
+            windowDocumentMatches.push(...matches.slice(0, 5)); // 最多记录5个匹配
+            // 分类匹配类型
+            matches.forEach(match => {
+                if (/window/i.test(match)) {
+                    matchTypes.window.push(match);
+                } else if (/document/i.test(match)) {
+                    matchTypes.document.push(match);
+                } else {
+                    matchTypes.dom.push(match);
+                }
+            });
+        }
+    });
+    
+    if (windowDocumentMatches.length > 0) {
+        const uniqueMatches = [...new Set(windowDocumentMatches)];
+        const issues: string[] = [];
+        if (matchTypes.window.length > 0) issues.push(`window 对象访问 (${matchTypes.window.length} 处)`);
+        if (matchTypes.document.length > 0) issues.push(`document 对象访问 (${matchTypes.document.length} 处)`);
+        if (matchTypes.dom.length > 0) issues.push(`DOM 操作 (${matchTypes.dom.length} 处)`);
+        
+        result.risks.push({
+            id: "window_document_access",
+            name: "检测到 window/document 全局对象访问",
+            description: "脚本使用了 window、document 或 DOM 操作。Web Pixel 运行在受限沙箱中，无法访问这些对象，需要在迁移时使用 Shopify 提供的受控 API 替代（如 analytics.subscribe、settings 等）",
+            severity: "high" as RiskSeverity,
+            points: 40,
+            details: `检测到 ${uniqueMatches.length} 处访问: ${issues.join("、")}`,
+        });
+    }
+
+    // 检测阻塞加载
+    const blockingPatterns = [
+        /document\.write\s*\(/gi,
+        /<script[^>]*>(?!.*async)(?!.*defer)/gi,
+        /\.innerHTML\s*=\s*['"]<script/gi,
+        /eval\s*\(/gi,
+        /setTimeout\s*\(\s*['"]/gi,
+        /while\s*\([^)]*true[^)]*\)/gi, // 可能的无限循环
+    ];
+    
+    const hasBlockingLoad = blockingPatterns.some(pattern => pattern.test(contentToAnalyze));
+    if (hasBlockingLoad) {
+        result.risks.push({
+            id: "blocking_load",
+            name: "检测到阻塞加载的代码",
+            description: "脚本可能阻塞页面渲染，影响用户体验和页面性能",
+            severity: "high" as RiskSeverity,
+            points: 30,
+            details: "检测到 document.write、同步脚本或可能阻塞的代码",
+        });
+    }
+
+    // 检测重复触发
+    const duplicatePatterns = [
+        /(?:fbq|gtag|ttq|pintrk|snaptr)\s*\([^)]*['"](?:track|event|purchase|pageview)['"]/gi,
+    ];
+    
+    const eventCalls: string[] = [];
+    for (const pattern of duplicatePatterns) {
+        const matches = contentToAnalyze.match(pattern);
+        if (matches) {
+            eventCalls.push(...matches);
+        }
+    }
+    
+    // 检查是否有重复的事件调用
+    const eventCounts = new Map<string, number>();
+    eventCalls.forEach(call => {
+        const normalized = call.toLowerCase().replace(/\s+/g, '');
+        eventCounts.set(normalized, (eventCounts.get(normalized) || 0) + 1);
+    });
+    
+    const hasDuplicateTriggers = Array.from(eventCounts.values()).some(count => count > 1);
+    if (hasDuplicateTriggers) {
+        result.risks.push({
+            id: "duplicate_triggers",
+            name: "检测到重复触发的事件",
+            description: "脚本可能多次触发相同事件，导致重复追踪和数据不准确",
+            severity: "medium" as RiskSeverity,
+            points: 20,
+            details: `检测到 ${Array.from(eventCounts.values()).filter(c => c > 1).length} 个重复的事件调用`,
+        });
+    }
+
     if (result.identifiedPlatforms.length > 0) {
         result.risks.push({
             id: "additional_scripts_detected",

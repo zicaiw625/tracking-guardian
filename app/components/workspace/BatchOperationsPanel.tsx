@@ -132,6 +132,56 @@ export function BatchOperationsPanel({
             </BlockStack>
           </Box>
 
+          {/* 批量验收运行 */}
+          <Box
+            background="bg-surface-secondary"
+            padding="400"
+            borderRadius="200"
+            borderColor="border"
+            borderWidth="025"
+          >
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <BlockStack gap="100">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Icon source={CheckCircleIcon} tone="success" />
+                    <Text as="span" variant="headingSm" fontWeight="semibold">
+                      批量验收运行
+                    </Text>
+                  </InlineStack>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    为所有店铺运行验收测试，验证追踪配置是否正常工作
+                  </Text>
+                </BlockStack>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    const formData = new FormData();
+                    formData.append("_action", "batch_verification");
+                    formData.append("groupId", groupId);
+                    formData.append("runType", "quick");
+                    // 触发批量验收
+                    fetch("/app/workspace", {
+                      method: "POST",
+                      body: formData,
+                    }).then(() => {
+                      // 可以在这里添加成功提示
+                    });
+                  }}
+                  size="large"
+                >
+                  开始验收
+                </Button>
+              </InlineStack>
+              <Banner tone="info">
+                <Text as="p" variant="bodySm">
+                  为分组内所有已配置服务端追踪的店铺运行验收测试。
+                  系统会自动分析最近的事件，验证参数完整性和金额准确性。
+                </Text>
+              </Banner>
+            </BlockStack>
+          </Box>
+
           {/* 批量报告导出 */}
           <Box
             background="bg-surface-secondary"

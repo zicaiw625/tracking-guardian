@@ -117,6 +117,85 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
     postscript: [
         /postscript/i,
     ],
+    // 新增平台识别模式
+    shopify_analytics: [
+        /shopify\.analytics/i,
+        /shopify.*track/i,
+    ],
+    segment: [
+        /segment\.com/i,
+        /analytics\.load/i,
+    ],
+    mixpanel: [
+        /mixpanel/i,
+        /mixpanel\.track/i,
+    ],
+    amplitude: [
+        /amplitude/i,
+        /amplitude\.init/i,
+    ],
+    braze: [
+        /braze/i,
+        /appboy/i,
+    ],
+    customerio: [
+        /customer\.io/i,
+        /customerio/i,
+    ],
+    sendinblue: [
+        /sendinblue/i,
+        /sib-api/i,
+    ],
+    omnisend: [
+        /omnisend/i,
+    ],
+    yotpo: [
+        /yotpo/i,
+        /staticw2\.yotpo\.com/i,
+    ],
+    judge_me: [
+        /judge\.me/i,
+        /judgeme/i,
+    ],
+    loox: [
+        /loox\.io/i,
+        /loox\.app/i,
+    ],
+    stamped: [
+        /stamped\.io/i,
+    ],
+    gorgias: [
+        /gorgias\.io/i,
+        /gorgias-chat/i,
+    ],
+    zendesk: [
+        /zendesk\.com/i,
+        /zendesk.*chat/i,
+    ],
+    intercom: [
+        /intercom\.io/i,
+        /intercom\.chat/i,
+    ],
+    drift: [
+        /drift\.com/i,
+        /drift\.chat/i,
+    ],
+    crisp: [
+        /crisp\.chat/i,
+        /crisp\.io/i,
+    ],
+    aftership: [
+        /aftership\.com/i,
+        /aftership.*track/i,
+    ],
+    seventeen_track: [
+        /17track\.net/i,
+        /17track/i,
+    ],
+    route: [
+        /route\.app/i,
+        /route.*track/i,
+    ],
 };
 
 export type PlatformSupportLevel = "supported" | "partial" | "unsupported";
@@ -286,7 +365,115 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         recommendation: "Postscript 官方应用支持新版 Checkout。请确保使用最新版应用",
         officialApp: "https:
     },
-
+    shopify_analytics: {
+        name: "Shopify Analytics",
+        supportLevel: "supported",
+        recommendation: "Shopify 内置分析工具，无需迁移",
+    },
+    segment: {
+        name: "Segment",
+        supportLevel: "partial",
+        recommendation: "Segment 是数据路由平台，需要检查其配置的最终目的地。建议迁移到 Web Pixel 或服务端集成",
+    },
+    mixpanel: {
+        name: "Mixpanel",
+        supportLevel: "unsupported",
+        recommendation: "Mixpanel 是产品分析工具，建议在 Shopify 主题中集成或使用服务端 API",
+    },
+    amplitude: {
+        name: "Amplitude",
+        supportLevel: "unsupported",
+        recommendation: "Amplitude 是产品分析工具，建议在 Shopify 主题中集成或使用服务端 API",
+    },
+    braze: {
+        name: "Braze",
+        supportLevel: "unsupported",
+        recommendation: "Braze 是营销自动化平台，建议使用服务端 API 集成",
+    },
+    customerio: {
+        name: "Customer.io",
+        supportLevel: "unsupported",
+        recommendation: "Customer.io 是营销自动化平台，建议使用服务端 API 集成",
+    },
+    sendinblue: {
+        name: "Sendinblue (Brevo)",
+        supportLevel: "unsupported",
+        recommendation: "Sendinblue 是邮件营销平台，建议使用服务端 API 集成",
+    },
+    omnisend: {
+        name: "Omnisend",
+        supportLevel: "unsupported",
+        recommendation: "Omnisend 官方应用支持 Webhook 追踪，建议使用官方应用",
+        officialApp: "https://apps.shopify.com/omnisend",
+    },
+    yotpo: {
+        name: "Yotpo",
+        supportLevel: "unsupported",
+        recommendation: "Yotpo 官方应用支持 Checkout Extensibility，建议使用官方应用",
+        officialApp: "https://apps.shopify.com/yotpo-social-reviews",
+    },
+    judge_me: {
+        name: "Judge.me",
+        supportLevel: "unsupported",
+        recommendation: "Judge.me 官方应用支持 Checkout Extensibility，建议使用官方应用",
+        officialApp: "https://apps.shopify.com/judgeme",
+    },
+    loox: {
+        name: "Loox",
+        supportLevel: "unsupported",
+        recommendation: "Loox 官方应用支持 Checkout Extensibility，建议使用官方应用",
+        officialApp: "https://apps.shopify.com/loox",
+    },
+    stamped: {
+        name: "Stamped.io",
+        supportLevel: "unsupported",
+        recommendation: "Stamped.io 官方应用支持 Checkout Extensibility，建议使用官方应用",
+        officialApp: "https://apps.shopify.com/stamped-io-reviews-and-ratings",
+    },
+    gorgias: {
+        name: "Gorgias",
+        supportLevel: "unsupported",
+        recommendation: "Gorgias 官方应用支持 Checkout Extensibility，建议使用官方应用",
+        officialApp: "https://apps.shopify.com/gorgias",
+    },
+    zendesk: {
+        name: "Zendesk",
+        supportLevel: "unsupported",
+        recommendation: "Zendesk 官方应用支持 Checkout Extensibility，建议使用官方应用",
+        officialApp: "https://apps.shopify.com/zendesk",
+    },
+    intercom: {
+        name: "Intercom",
+        supportLevel: "unsupported",
+        recommendation: "Intercom 官方应用支持 Checkout Extensibility，建议使用官方应用",
+        officialApp: "https://apps.shopify.com/intercom",
+    },
+    drift: {
+        name: "Drift",
+        supportLevel: "unsupported",
+        recommendation: "Drift 是对话营销平台，建议在 Shopify 主题中集成或使用服务端 API",
+    },
+    crisp: {
+        name: "Crisp",
+        supportLevel: "unsupported",
+        recommendation: "Crisp 是客服聊天工具，建议在 Shopify 主题中集成或使用官方应用",
+    },
+    aftership: {
+        name: "AfterShip",
+        supportLevel: "unsupported",
+        recommendation: "AfterShip 官方应用支持订单追踪，建议使用官方应用",
+        officialApp: "https://apps.shopify.com/aftership",
+    },
+    seventeen_track: {
+        name: "17Track",
+        supportLevel: "unsupported",
+        recommendation: "17Track 是物流追踪服务，建议使用服务端 API 集成或官方应用",
+    },
+    route: {
+        name: "Route",
+        supportLevel: "unsupported",
+        recommendation: "Route 是包裹保护和追踪服务，建议使用官方应用或服务端 API",
+    },
     unknown: {
         name: "未知平台",
         supportLevel: "unsupported",

@@ -50,6 +50,7 @@ export interface HelpdeskSettings {
   contactEmail?: string;
   contactUrl?: string;
   whatsappNumber?: string;
+  messengerUrl?: string;
   continueShoppingUrl?: string;
 }
 

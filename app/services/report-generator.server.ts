@@ -1,5 +1,3 @@
-
-
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
@@ -189,10 +187,12 @@ export async function generatePDFReport(
     includeScan?: boolean;
     includeMigration?: boolean;
     includeVerification?: boolean;
+    createShareableLink?: boolean;
   } = {}
 ): Promise<{
   success: boolean;
   reportUrl?: string;
+  shareUrl?: string;
   reportData?: ReportData;
   error?: string;
 }> {
@@ -204,12 +204,49 @@ export async function generatePDFReport(
       options.includeVerification ?? true
     );
 
-    logger.info("PDF report generated", { shopId, reportData });
+    let shareUrl: string | undefined;
+    if (options.createShareableLink) {
+      try {
+        const { createShareableReport } = await import("./report-sharing.server");
+        // 确定报告类型和ID
+        let reportType: "verification" | "scan" | "reconciliation" | "migration" = "scan";
+        let reportId = "";
+        
+        if (reportData.verificationResults) {
+          reportType = "verification";
+          reportId = reportData.verificationResults.runId;
+        } else if (reportData.scanResults) {
+          reportType = "scan";
+          // 需要从数据库获取最新的scanReport ID
+          const latestScan = await prisma.scanReport.findFirst({
+            where: { shopId },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+          });
+          reportId = latestScan?.id || "";
+        }
+
+        if (reportId) {
+          const shareResult = await createShareableReport({
+            shopId,
+            reportType,
+            reportId,
+            expiresInDays: 7,
+          });
+          shareUrl = shareResult.shareUrl;
+        }
+      } catch (shareError) {
+        logger.warn("Failed to create shareable link", { error: shareError });
+        // 不阻止报告生成，只是不创建分享链接
+      }
+    }
+
+    logger.info("PDF report generated", { shopId, reportData, shareUrl });
 
     return {
       success: true,
       reportData,
-
+      shareUrl,
     };
   } catch (error) {
     logger.error("Failed to generate PDF report", { shopId, error });
@@ -267,6 +304,11 @@ export interface ScanReportData {
     platform: string | null;
     riskLevel: string;
     migrationStatus: string;
+    priority: number | null;
+    estimatedTimeMinutes: number | null;
+    suggestedMigration: string;
+    displayName: string | null;
+    dependencies?: string[];
   }>;
   createdAt: Date;
 }
@@ -371,7 +413,16 @@ export async function fetchScanReportData(shopId: string, scanId?: string): Prom
         platform: true,
         riskLevel: true,
         migrationStatus: true,
+        priority: true,
+        estimatedTimeMinutes: true,
+        suggestedMigration: true,
+        displayName: true,
+        dependencies: true,
       },
+      orderBy: [
+        { priority: "desc" },
+        { riskLevel: "desc" },
+      ],
     });
 
     return {
@@ -385,6 +436,11 @@ export async function fetchScanReportData(shopId: string, scanId?: string): Prom
         platform: asset.platform,
         riskLevel: asset.riskLevel,
         migrationStatus: asset.migrationStatus,
+        priority: asset.priority,
+        estimatedTimeMinutes: asset.estimatedTimeMinutes,
+        suggestedMigration: asset.suggestedMigration,
+        displayName: asset.displayName,
+        dependencies: asset.dependencies ? (asset.dependencies as string[]) : undefined,
       })),
       createdAt: scanReport.createdAt,
     };
@@ -582,49 +638,247 @@ export async function fetchBatchReportData(groupId: string, requesterId: string,
 
 export function generateScanReportHtml(data: ScanReportData): string {
   const timestamp = new Date(data.createdAt).toLocaleString("zh-CN");
+  
+  // 计算迁移清单统计
+  const totalAssets = data.auditAssets.length;
+  const highPriorityAssets = data.auditAssets.filter(a => a.priority && a.priority >= 8).length;
+  const mediumPriorityAssets = data.auditAssets.filter(a => a.priority && a.priority >= 5 && a.priority < 8).length;
+  const lowPriorityAssets = data.auditAssets.filter(a => !a.priority || a.priority < 5).length;
+  const totalEstimatedTime = data.auditAssets.reduce((sum, a) => sum + (a.estimatedTimeMinutes || 0), 0);
+  const estimatedHours = Math.floor(totalEstimatedTime / 60);
+  const estimatedMinutes = totalEstimatedTime % 60;
+  
+  // 按优先级排序资产
+  const sortedAssets = [...data.auditAssets].sort((a, b) => {
+    const priorityA = a.priority || 0;
+    const priorityB = b.priority || 0;
+    if (priorityB !== priorityA) return priorityB - priorityA;
+    const riskOrder = { high: 3, medium: 2, low: 1 };
+    return (riskOrder[b.riskLevel as keyof typeof riskOrder] || 0) - (riskOrder[a.riskLevel as keyof typeof riskOrder] || 0);
+  });
+  
+  const migrationTypeLabels: Record<string, string> = {
+    web_pixel: "Web Pixel",
+    ui_extension: "UI Extension",
+    server_side: "服务端 CAPI",
+    none: "无需迁移",
+  };
+  
+  const riskLevelLabels: Record<string, string> = {
+    high: "高风险",
+    medium: "中风险",
+    low: "低风险",
+  };
+  
+  const migrationStatusLabels: Record<string, string> = {
+    pending: "待迁移",
+    in_progress: "进行中",
+    completed: "已完成",
+    skipped: "已跳过",
+  };
+  
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    h1 { color: #333; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+      padding: 40px; 
+      max-width: 1200px;
+      margin: 0 auto;
+      color: #333;
+      line-height: 1.6;
+    }
+    h1 { 
+      color: #202223;
+      border-bottom: 3px solid #008060;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+    h2 {
+      color: #202223;
+      margin-top: 30px;
+      margin-bottom: 15px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin: 30px 0;
+    }
+    .summary-card {
+      background: #f6f6f7;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #008060;
+    }
+    .summary-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #6d7175;
+      text-transform: uppercase;
+    }
+    .summary-card .value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #202223;
+      margin: 5px 0;
+    }
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 20px;
+      background: white;
+    }
+    th, td { 
+      border: 1px solid #e1e3e5; 
+      padding: 12px; 
+      text-align: left; 
+    }
+    th { 
+      background-color: #f6f6f7;
+      font-weight: 600;
+      color: #202223;
+    }
+    tr:nth-child(even) {
+      background-color: #fafbfb;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-high {
+      background: #fee;
+      color: #d72c0d;
+    }
+    .badge-medium {
+      background: #fff3cd;
+      color: #b98900;
+    }
+    .badge-low {
+      background: #e3fcef;
+      color: #008060;
+    }
+    .badge-pending {
+      background: #e1e3e5;
+      color: #6d7175;
+    }
+    .badge-in-progress {
+      background: #e3fcef;
+      color: #008060;
+    }
+    .badge-completed {
+      background: #e3fcef;
+      color: #008060;
+    }
+    .priority-high {
+      color: #d72c0d;
+      font-weight: bold;
+    }
+    .priority-medium {
+      color: #b98900;
+      font-weight: bold;
+    }
+    .priority-low {
+      color: #6d7175;
+    }
+    .metadata {
+      background: #f6f6f7;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    .metadata p {
+      margin: 5px 0;
+      color: #6d7175;
+    }
   </style>
 </head>
 <body>
-  <h1>扫描报告 - ${data.shopDomain}</h1>
-  <p>生成时间: ${timestamp}</p>
-  <h2>汇总</h2>
-  <ul>
-    <li>风险分数: ${data.riskScore}</li>
-    <li>识别平台: ${data.identifiedPlatforms.join(", ") || "无"}</li>
-    <li>ScriptTags 数量: ${data.scriptTagsCount}</li>
-  </ul>
-  <h2>审计资产</h2>
+  <h1>📋 扫描报告 - ${data.shopDomain}</h1>
+  
+  <div class="metadata">
+    <p><strong>生成时间:</strong> ${timestamp}</p>
+    <p><strong>风险分数:</strong> <span style="font-size: 24px; font-weight: bold; color: ${data.riskScore >= 70 ? "#d72c0d" : data.riskScore >= 40 ? "#b98900" : "#008060"};">${data.riskScore}</span> / 100</p>
+    <p><strong>识别平台:</strong> ${data.identifiedPlatforms.length > 0 ? data.identifiedPlatforms.join(", ") : "无"}</p>
+    <p><strong>ScriptTags 数量:</strong> ${data.scriptTagsCount}</p>
+  </div>
+
+  <h2>📊 迁移清单统计</h2>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <h3>总资产数</h3>
+      <div class="value">${totalAssets}</div>
+    </div>
+    <div class="summary-card">
+      <h3>高优先级</h3>
+      <div class="value" style="color: #d72c0d;">${highPriorityAssets}</div>
+    </div>
+    <div class="summary-card">
+      <h3>中优先级</h3>
+      <div class="value" style="color: #b98900;">${mediumPriorityAssets}</div>
+    </div>
+    <div class="summary-card">
+      <h3>预计总时间</h3>
+      <div class="value">${estimatedHours > 0 ? `${estimatedHours} 小时 ` : ""}${estimatedMinutes} 分钟</div>
+    </div>
+  </div>
+
+  <h2>📋 迁移清单（按优先级排序）</h2>
   <table>
     <thead>
       <tr>
+        <th>资产名称</th>
         <th>类别</th>
         <th>平台</th>
         <th>风险等级</th>
+        <th>优先级</th>
+        <th>预计时间</th>
+        <th>迁移方式</th>
         <th>迁移状态</th>
+        <th>依赖关系</th>
       </tr>
     </thead>
     <tbody>
-      ${data.auditAssets.map((asset) => `
+      ${sortedAssets.map((asset) => {
+        const priorityClass = asset.priority && asset.priority >= 8 ? "priority-high" : 
+                             asset.priority && asset.priority >= 5 ? "priority-medium" : "priority-low";
+        const priorityDisplay = asset.priority ? `${asset.priority}/10` : "待计算";
+        const timeDisplay = asset.estimatedTimeMinutes 
+          ? asset.estimatedTimeMinutes < 60 
+            ? `${asset.estimatedTimeMinutes} 分钟`
+            : `${Math.floor(asset.estimatedTimeMinutes / 60)} 小时 ${asset.estimatedTimeMinutes % 60} 分钟`
+          : "待估算";
+        const dependenciesDisplay = asset.dependencies && asset.dependencies.length > 0
+          ? `${asset.dependencies.length} 个依赖`
+          : "无";
+        
+        return `
         <tr>
+          <td><strong>${asset.displayName || asset.category}</strong></td>
           <td>${asset.category}</td>
           <td>${asset.platform || "-"}</td>
-          <td>${asset.riskLevel}</td>
-          <td>${asset.migrationStatus}</td>
+          <td><span class="badge badge-${asset.riskLevel}">${riskLevelLabels[asset.riskLevel] || asset.riskLevel}</span></td>
+          <td class="${priorityClass}">${priorityDisplay}</td>
+          <td>${timeDisplay}</td>
+          <td>${migrationTypeLabels[asset.suggestedMigration] || asset.suggestedMigration}</td>
+          <td><span class="badge badge-${asset.migrationStatus}">${migrationStatusLabels[asset.migrationStatus] || asset.migrationStatus}</span></td>
+          <td>${dependenciesDisplay}</td>
         </tr>
-      `).join("")}
+      `;
+      }).join("")}
     </tbody>
   </table>
+  
+  <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e1e3e5; color: #6d7175; font-size: 12px; text-align: center;">
+    <p>报告由 Tracking Guardian 自动生成</p>
+    <p>生成时间: ${new Date().toLocaleString("zh-CN")}</p>
+  </div>
 </body>
 </html>
   `;

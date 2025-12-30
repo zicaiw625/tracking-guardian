@@ -8,7 +8,7 @@ import {
   generateVerificationReportPdf,
 } from "../services/pdf-generator.server";
 
-type ExportType = "conversions" | "audit" | "receipts" | "jobs" | "scan" | "reconciliation" | "verification";
+type ExportType = "conversions" | "audit" | "receipts" | "jobs" | "scan" | "reconciliation" | "verification" | "survey";
 type ExportFormat = "csv" | "json" | "pdf" | "html";
 const EXPORT_LIMITS = {
     conversions: 10000,
@@ -18,6 +18,7 @@ const EXPORT_LIMITS = {
     scan: 50,
     reconciliation: 100,
     verification: 50,
+    survey: 10000,
 };
 const FIELD_DEFINITIONS = {
     conversions: {
@@ -401,6 +402,50 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 });
                 filename = `verification_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
                 fieldDefs = {};
+                break;
+            }
+
+            case "survey": {
+                const responses = await prisma.surveyResponse.findMany({
+                    where: {
+                        shopId: shop.id,
+                        ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {}),
+                    },
+                    select: {
+                        id: true,
+                        orderId: true,
+                        orderNumber: true,
+                        rating: true,
+                        feedback: true,
+                        source: true,
+                        customAnswers: true,
+                        createdAt: true,
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: EXPORT_LIMITS.survey,
+                });
+
+                data = responses.map((response: typeof responses[number]) => ({
+                    id: response.id,
+                    orderId: response.orderId,
+                    orderNumber: response.orderNumber || "",
+                    rating: response.rating || "",
+                    feedback: response.feedback || "",
+                    source: response.source || "",
+                    customAnswers: response.customAnswers ? JSON.stringify(response.customAnswers) : "",
+                    createdAt: response.createdAt.toISOString(),
+                }));
+                filename = `survey_responses_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
+                fieldDefs = {
+                    id: { description: "Unique survey response ID", pii: false },
+                    orderId: { description: "Order ID (normalized)", pii: false },
+                    orderNumber: { description: "Human-readable order number", pii: false },
+                    rating: { description: "Rating (1-5)", pii: false },
+                    feedback: { description: "Text feedback", pii: false },
+                    source: { description: "How customer found us", pii: false },
+                    customAnswers: { description: "Custom survey answers (JSON)", pii: false },
+                    createdAt: { description: "Response timestamp", pii: false },
+                };
                 break;
             }
 

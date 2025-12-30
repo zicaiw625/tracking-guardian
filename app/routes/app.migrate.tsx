@@ -27,6 +27,12 @@ function generateIngestionSecret(): string {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
+    
+    // 检查 URL 参数，支持从 AuditAsset 预填充
+    const url = new URL(request.url);
+    const platformParam = url.searchParams.get("platform");
+    const assetIdParam = url.searchParams.get("assetId");
+    
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: {
@@ -42,6 +48,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shopTier: true,
         },
     });
+    
+    // 如果提供了 assetId，加载对应的 AuditAsset
+    let prefillAsset = null;
+    let prefillPlatform = platformParam;
+    if (assetIdParam && shop) {
+        try {
+            prefillAsset = await prisma.auditAsset.findUnique({
+                where: { id: assetIdParam },
+                select: {
+                    id: true,
+                    platform: true,
+                    category: true,
+                    displayName: true,
+                    suggestedMigration: true,
+                    details: true,
+                },
+            });
+            // 如果从 asset 加载，使用 asset 的 platform
+            if (prefillAsset && prefillAsset.platform) {
+                prefillPlatform = prefillAsset.platform;
+            }
+        } catch (error) {
+            logger.warn("Failed to load AuditAsset for prefill", { assetId: assetIdParam, error });
+        }
+    }
 
     if (!shop) {
         return json({
@@ -181,6 +212,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         templates,
         wizardDraft, // 添加草稿数据
         pixelConfigs, // 添加像素配置数据
+        // 预填充数据（从 AuditAsset 或 URL 参数）
+        prefillPlatform: prefillPlatform || null,
+        prefillAsset: prefillAsset ? {
+            id: prefillAsset.id,
+            platform: prefillAsset.platform || null,
+            category: prefillAsset.category,
+            displayName: prefillAsset.displayName || null,
+            suggestedMigration: prefillAsset.suggestedMigration,
+        } : null,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -470,6 +510,52 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
+    // 获取配置版本历史
+    if (actionType === "getConfigVersionHistory") {
+        try {
+            const platform = formData.get("platform") as string;
+            if (!platform) {
+                return json({ success: false, error: "缺少平台参数" }, { status: 400 });
+            }
+
+            const { getConfigVersionHistory } = await import("../services/pixel-config-version.server");
+            const history = await getConfigVersionHistory(shop.id, platform as any);
+            
+            if (!history) {
+                return json({ success: false, error: "配置不存在" }, { status: 404 });
+            }
+
+            return json({ success: true, history });
+        } catch (error) {
+            logger.error("Failed to get config version history", error);
+            return json({
+                success: false,
+                error: error instanceof Error ? error.message : "获取版本历史失败",
+            }, { status: 500 });
+        }
+    }
+
+    // 回滚配置
+    if (actionType === "rollbackConfig") {
+        try {
+            const platform = formData.get("platform") as string;
+            if (!platform) {
+                return json({ success: false, error: "缺少平台参数" }, { status: 400 });
+            }
+
+            const { rollbackConfig } = await import("../services/pixel-config-version.server");
+            const result = await rollbackConfig(shop.id, platform as any);
+            
+            return json(result);
+        } catch (error) {
+            logger.error("Failed to rollback config", error);
+            return json({
+                success: false,
+                error: error instanceof Error ? error.message : "回滚失败",
+            }, { status: 500 });
+        }
+    }
+
     // 环境切换
     if (actionType === "switchEnvironment") {
         const platform = formData.get("platform") as string;
@@ -557,7 +643,7 @@ interface TimelineItem {
     description: string;
 }
 export default function MigratePage() {
-    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, planId, planLabel, planTagline, templates, wizardDraft, pixelConfigs, } = useLoaderData<typeof loader>();
+    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, planId, planLabel, planTagline, templates, wizardDraft, pixelConfigs, prefillPlatform, prefillAsset, } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -1100,15 +1186,23 @@ export default function MigratePage() {
                 ) : (
                   <Suspense fallback={<CardSkeleton lines={5} />}>
                     <PixelMigrationWizard
+                      pixelConfigs={pixelConfigs}
                       onComplete={handleWizardComplete}
                       onCancel={() => setShowWizard(false)}
                       shopId={shop?.id}
-                      initialPlatforms={identifiedPlatforms.filter((p): p is "google" | "meta" | "tiktok" | "pinterest" =>
-                        ["google", "meta", "tiktok", "pinterest"].includes(p)
-                      )}
+                      initialPlatforms={
+                        prefillPlatform
+                          ? [prefillPlatform as "google" | "meta" | "tiktok" | "pinterest"].filter((p): p is "google" | "meta" | "tiktok" | "pinterest" =>
+                              ["google", "meta", "tiktok", "pinterest"].includes(p)
+                            )
+                          : identifiedPlatforms.filter((p): p is "google" | "meta" | "tiktok" | "pinterest" =>
+                              ["google", "meta", "tiktok", "pinterest"].includes(p)
+                            )
+                      }
                       canManageMultiple={isAgency}
                       templates={templates}
                       wizardDraft={wizardDraft}
+                      prefillAsset={prefillAsset}
                     />
                   </Suspense>
                 )}

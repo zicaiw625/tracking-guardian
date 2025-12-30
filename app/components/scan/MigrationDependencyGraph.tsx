@@ -39,7 +39,8 @@ export function MigrationDependencyGraph({
     });
 
     dependencyGraph.edges.forEach((edge) => {
-      if (edge.type === "depends_on") {
+      // 支持 "dependency" 和 "depends_on" 两种类型（向后兼容）
+      if (edge.type === "dependency" || edge.type === "depends_on") {
         const current = inDegree.get(edge.to) || 0;
         inDegree.set(edge.to, current + 1);
 
@@ -321,7 +322,7 @@ export function MigrationDependencyGraph({
               依赖关系详情
             </Text>
             {dependencyGraph.edges
-              .filter((e) => e.type === "depends_on")
+              .filter((e) => e.type === "dependency" || e.type === "depends_on")
               .map((edge, index) => {
                 const fromNode = dependencyGraph.nodes.find(
                   (n) => n.id === edge.from

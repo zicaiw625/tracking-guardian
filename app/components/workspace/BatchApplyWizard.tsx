@@ -75,7 +75,26 @@ export function BatchApplyWizard({
       message: string;
       platformsApplied?: string[];
       errorType?: string;
+      comparisons?: Array<{
+        platform: string;
+        action: "created" | "updated" | "skipped" | "no_change";
+        differences?: Array<{
+          field: string;
+          before: unknown;
+          after: unknown;
+        }>;
+      }>;
     }>;
+    summary?: {
+      totalPlatformsApplied?: number;
+      platformsBreakdown?: Record<string, number>;
+      changesBreakdown?: {
+        created: number;
+        updated: number;
+        skipped: number;
+        noChange: number;
+      };
+    };
   } | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -536,6 +555,80 @@ export function BatchApplyWizard({
                 </BlockStack>
               </Box>
 
+              {/* 配置变更统计 */}
+              {results.summary?.changesBreakdown && (
+                <>
+                  <Divider />
+                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <BlockStack gap="200">
+                      <Text as="h3" variant="headingSm">
+                        配置变更统计
+                      </Text>
+                      <InlineStack gap="400" wrap>
+                        <Box>
+                          <BlockStack gap="100">
+                            <Text as="span" variant="bodySm" tone="subdued">新建配置</Text>
+                            <Badge tone="success" size="large">
+                              {results.summary.changesBreakdown.created}
+                            </Badge>
+                          </BlockStack>
+                        </Box>
+                        <Box>
+                          <BlockStack gap="100">
+                            <Text as="span" variant="bodySm" tone="subdued">更新配置</Text>
+                            <Badge tone="info" size="large">
+                              {results.summary.changesBreakdown.updated}
+                            </Badge>
+                          </BlockStack>
+                        </Box>
+                        <Box>
+                          <BlockStack gap="100">
+                            <Text as="span" variant="bodySm" tone="subdued">跳过配置</Text>
+                            <Badge tone="warning" size="large">
+                              {results.summary.changesBreakdown.skipped}
+                            </Badge>
+                          </BlockStack>
+                        </Box>
+                        <Box>
+                          <BlockStack gap="100">
+                            <Text as="span" variant="bodySm" tone="subdued">无变更</Text>
+                            <Badge size="large">
+                              {results.summary.changesBreakdown.noChange}
+                            </Badge>
+                          </BlockStack>
+                        </Box>
+                      </InlineStack>
+                    </BlockStack>
+                  </Box>
+                </>
+              )}
+
+              {/* 平台应用统计 */}
+              {results.summary?.platformsBreakdown && Object.keys(results.summary.platformsBreakdown).length > 0 && (
+                <>
+                  <Divider />
+                  <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                    <BlockStack gap="200">
+                      <Text as="h3" variant="headingSm">
+                        平台应用统计
+                      </Text>
+                      <List type="bullet">
+                        {Object.entries(results.summary.platformsBreakdown).map(([platform, count]) => (
+                          <List.Item key={platform}>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Text as="span" variant="bodySm" fontWeight="semibold">
+                                {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                              </Text>
+                              <Badge>{count} 个店铺</Badge>
+                            </InlineStack>
+                          </List.Item>
+                        ))}
+                      </List>
+                    </BlockStack>
+                  </Box>
+                </>
+              )}
+
               {results.details && results.details.length > 0 && (
                 <>
                   <Divider />
@@ -567,6 +660,68 @@ export function BatchApplyWizard({
                       detail.message || "-",
                     ])}
                   />
+                  
+                  {/* 配置对比详情 */}
+                  {results.details.some((d) => d.comparisons && d.comparisons.length > 0) && (
+                    <>
+                      <Divider />
+                      <Text as="h3" variant="headingSm">
+                        配置对比详情
+                      </Text>
+                      {results.details
+                        .filter((d) => d.comparisons && d.comparisons.length > 0)
+                        .map((detail) => (
+                          <Box key={detail.shopId} background="bg-surface-secondary" padding="400" borderRadius="200">
+                            <BlockStack gap="300">
+                              <Text as="h4" variant="headingSm">
+                                {detail.shopDomain || detail.shopId}
+                              </Text>
+                              {detail.comparisons?.map((comparison) => (
+                                <Box key={comparison.platform} paddingBlockStart="200">
+                                  <BlockStack gap="200">
+                                    <InlineStack gap="200" blockAlign="center">
+                                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                                        {comparison.platform.charAt(0).toUpperCase() + comparison.platform.slice(1)}
+                                      </Text>
+                                      <Badge
+                                        tone={
+                                          comparison.action === "created"
+                                            ? "success"
+                                            : comparison.action === "updated"
+                                              ? "info"
+                                              : comparison.action === "skipped"
+                                                ? "warning"
+                                                : undefined
+                                        }
+                                      >
+                                        {comparison.action === "created"
+                                          ? "新建"
+                                          : comparison.action === "updated"
+                                            ? "更新"
+                                            : comparison.action === "skipped"
+                                              ? "跳过"
+                                              : "无变更"}
+                                      </Badge>
+                                    </InlineStack>
+                                    {comparison.differences && comparison.differences.length > 0 && (
+                                      <List type="bullet">
+                                        {comparison.differences.map((diff, idx) => (
+                                          <List.Item key={idx}>
+                                            <Text as="span" variant="bodySm">
+                                              <strong>{diff.field}:</strong> {String(diff.before)} → {String(diff.after)}
+                                            </Text>
+                                          </List.Item>
+                                        ))}
+                                      </List>
+                                    )}
+                                  </BlockStack>
+                                </Box>
+                              ))}
+                            </BlockStack>
+                          </Box>
+                        ))}
+                    </>
+                  )}
                 </>
               )}
             </>

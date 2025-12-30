@@ -14,11 +14,11 @@ import {
   Banner,
   Image,
 } from "@shopify/ui-extensions-react/checkout";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Reorder />);
 
-function Reorder() {
+const Reorder = memo(function Reorder() {
   const settings = useSettings();
   const order = useOrder();
 
@@ -147,5 +147,5 @@ function Reorder() {
       </BlockStack>
     </BlockStack>
   );
-}
+});
 

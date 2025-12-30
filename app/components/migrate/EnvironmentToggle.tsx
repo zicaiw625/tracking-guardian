@@ -179,22 +179,49 @@ export function EnvironmentToggle({
               )}
 
               {configVersion && (
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text as="span" variant="bodySm" tone="subdued">
-                    配置版本: v{configVersion}
-                  </Text>
-                  {canRollback && (
-                    <Button
-                      size="slim"
-                      variant="plain"
-                      onClick={handleRollback}
-                      disabled={isSwitching || isLoading}
-                      loading={isSwitching}
-                    >
-                      回滚到上一版本
-                    </Button>
-                  )}
-                </InlineStack>
+                <Box
+                  background="bg-surface-secondary"
+                  padding="300"
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor="border"
+                >
+                  <BlockStack gap="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="050">
+                        <Text as="span" variant="bodySm" fontWeight="semibold">
+                          配置版本管理
+                        </Text>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          当前版本: v{configVersion}
+                        </Text>
+                      </BlockStack>
+                      {canRollback && (
+                        <Button
+                          size="slim"
+                          variant="primary"
+                          onClick={handleRollback}
+                          disabled={isSwitching || isLoading}
+                          loading={isSwitching}
+                        >
+                          ⏪ 一键回滚
+                        </Button>
+                      )}
+                    </InlineStack>
+                    {canRollback && (
+                      <Banner tone="info">
+                        <Text as="p" variant="bodySm">
+                          💡 您可以回滚到上一个配置版本。回滚后，当前配置将被上一个版本替换，并创建新的版本记录。
+                        </Text>
+                      </Banner>
+                    )}
+                    {!canRollback && (
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        暂无可回滚的版本
+                      </Text>
+                    )}
+                  </BlockStack>
+                </Box>
               )}
             </BlockStack>
           </Box>

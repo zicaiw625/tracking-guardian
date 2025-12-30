@@ -129,14 +129,35 @@ export async function getPixelConfigSummaries(
 
 export async function upsertPixelConfig(
   shopId: string,
-  input: PixelConfigInput
+  input: PixelConfigInput,
+  options?: { saveSnapshot?: boolean }
 ): Promise<PixelConfigFull> {
   const { platform, ...data } = input;
+  const { saveSnapshot = true } = options || {};
 
   if (data.serverSideEnabled === true && !data.credentialsEncrypted) {
     throw new Error(
       "启用服务端追踪时必须提供 credentialsEncrypted。如果只需要客户端追踪，请设置 serverSideEnabled: false。"
     );
+  }
+
+  // 检查是否存在现有配置（用于决定是否需要保存快照）
+  const existingConfig = await prisma.pixelConfig.findUnique({
+    where: {
+      shopId_platform: {
+        shopId,
+        platform,
+      },
+    },
+  });
+
+  // 如果存在现有配置且需要保存快照，先保存快照
+  if (existingConfig && saveSnapshot) {
+    const { saveConfigSnapshot } = await import("../pixel-rollback.server");
+    await saveConfigSnapshot(shopId, platform).catch((error) => {
+      // 快照保存失败不影响主流程，只记录日志
+      console.warn("Failed to save config snapshot", { shopId, platform, error });
+    });
   }
 
   const config = await prisma.pixelConfig.upsert({
@@ -156,6 +177,8 @@ export async function upsertPixelConfig(
       serverSideEnabled: data.serverSideEnabled ?? false,
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? true,
+      configVersion: 1,
+      environment: "test", // 默认测试环境
     },
 
     update: {
@@ -166,6 +189,7 @@ export async function upsertPixelConfig(
       serverSideEnabled: data.serverSideEnabled ?? undefined,
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? undefined,
+      // 如果更新了配置，版本号在 saveConfigSnapshot 中已递增
     },
   });
 

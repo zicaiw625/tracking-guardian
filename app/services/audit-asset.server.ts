@@ -58,6 +58,7 @@ export interface AuditAssetSummary {
   byCategory: Record<AssetCategory, number>;
   byRiskLevel: Record<RiskLevel, number>;
   byMigrationStatus: Record<MigrationStatus, number>;
+  byPlatform?: Record<string, number>;
   pendingMigrations: number;
   completedMigrations: number;
 }
@@ -188,12 +189,18 @@ export async function createAuditAsset(
           suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
           details: input.details as object,
           scanReportId: input.scanReportId,
-          ...(priority !== undefined && { priority }),
-          ...(estimatedTimeMinutes !== undefined && { estimatedTimeMinutes }),
         },
       });
 
-      logger.info("AuditAsset updated", { id: updated.id, shopId, fingerprint, priority, estimatedTimeMinutes });
+      // 异步计算优先级和时间估算（不阻塞返回）
+      calculatePriorityAndTimeEstimate(updated.id, shopId).catch((error) => {
+        logger.error("Failed to calculate priority/time estimate asynchronously", {
+          assetId: updated.id,
+          error,
+        });
+      });
+
+      logger.info("AuditAsset updated", { id: updated.id, shopId, fingerprint });
       return mapToRecord(updated);
     }
 
@@ -210,12 +217,18 @@ export async function createAuditAsset(
         migrationStatus: "pending",
         details: input.details as object,
         scanReportId: input.scanReportId,
-        ...(priority !== undefined && { priority }),
-        ...(estimatedTimeMinutes !== undefined && { estimatedTimeMinutes }),
       },
     });
 
-    logger.info("AuditAsset created", { id: asset.id, shopId, category: input.category, priority, estimatedTimeMinutes });
+    // 异步计算优先级和时间估算（不阻塞返回）
+    calculatePriorityAndTimeEstimate(asset.id, shopId).catch((error) => {
+      logger.error("Failed to calculate priority/time estimate asynchronously", {
+        assetId: asset.id,
+        error,
+      });
+    });
+
+    logger.info("AuditAsset created", { id: asset.id, shopId, category: input.category });
     return mapToRecord(asset);
   } catch (error) {
     logger.error("Failed to create AuditAsset", { shopId, error });
@@ -227,14 +240,15 @@ export async function batchCreateAuditAssets(
   shopId: string,
   assets: AuditAssetInput[],
   scanReportId?: string
-): Promise<{ created: number; updated: number; failed: number }> {
+): Promise<{ created: number; updated: number; failed: number; duplicates?: number }> {
   if (assets.length === 0) {
-    return { created: 0, updated: 0, failed: 0 };
+    return { created: 0, updated: 0, failed: 0, duplicates: 0 };
   }
 
   let created = 0;
   let updated = 0;
   let failed = 0;
+  let duplicates = 0;
 
   if (assets.length > 50) {
     try {
@@ -334,8 +348,8 @@ export async function batchCreateAuditAssets(
     }
   }
 
-  logger.info("Batch AuditAssets processed", { shopId, created, updated, failed, total: assets.length });
-  return { created, updated, failed };
+  logger.info("Batch AuditAssets processed", { shopId, created, updated, failed, duplicates, total: assets.length });
+  return { created, updated, failed, duplicates };
 }
 
 export async function getAuditAssets(
@@ -365,7 +379,7 @@ export async function getAuditAssets(
 }
 
 export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSummary> {
-  const [categoryStats, riskStats, migrationStats] = await Promise.all([
+  const [categoryStats, riskStats, migrationStats, platformStats] = await Promise.all([
     prisma.auditAsset.groupBy({
       by: ["category"],
       where: { shopId },
@@ -379,6 +393,14 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
     prisma.auditAsset.groupBy({
       by: ["migrationStatus"],
       where: { shopId },
+      _count: true,
+    }),
+    prisma.auditAsset.groupBy({
+      by: ["platform"],
+      where: { 
+        shopId,
+        platform: { not: null },
+      },
       _count: true,
     }),
   ]);
@@ -414,6 +436,13 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
     byMigrationStatus[s.migrationStatus as MigrationStatus] = s._count;
   });
 
+  const byPlatform: Record<string, number> = {};
+  platformStats.forEach(s => {
+    if (s.platform) {
+      byPlatform[s.platform] = s._count;
+    }
+  });
+
   const total = Object.values(byCategory).reduce((a, b) => a + b, 0);
   const pendingMigrations = byMigrationStatus.pending + byMigrationStatus.in_progress;
   const completedMigrations = byMigrationStatus.completed;
@@ -423,6 +452,7 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
     byCategory,
     byRiskLevel,
     byMigrationStatus,
+    byPlatform,
     pendingMigrations,
     completedMigrations,
   };

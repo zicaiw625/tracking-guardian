@@ -39,6 +39,7 @@ import { lazy, Suspense } from "react";
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
 const TestOrderGuide = lazy(() => import("~/components/verification/TestOrderGuide").then(module => ({ default: module.TestOrderGuide })));
 const ReportShare = lazy(() => import("~/components/verification/ReportShare").then(module => ({ default: module.ReportShare })));
+const ReportComparison = lazy(() => import("~/components/verification/ReportComparison").then(module => ({ default: module.ReportComparison })));
 const ChannelReconciliationChart = lazy(() => import("~/components/verification/ChannelReconciliationChart").then(module => ({ default: module.ChannelReconciliationChart })));
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -51,6 +52,17 @@ import {
   VERIFICATION_TEST_ITEMS,
   type VerificationSummary,
 } from "../services/verification.server";
+import {
+  generateTestChecklist,
+  generateChecklistMarkdown,
+  generateChecklistCSV,
+  type TestChecklist,
+} from "../services/verification-checklist.server";
+import {
+  checkFeatureAccess,
+} from "../services/billing/feature-gates.server";
+import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -60,6 +72,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     where: { shopDomain },
     select: {
       id: true,
+      plan: true,
       pixelConfigs: {
         where: { isActive: true, serverSideEnabled: true },
         select: { platform: true },
@@ -75,13 +88,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       latestRun: null,
       testGuide: generateTestOrderGuide("quick"),
       testItems: VERIFICATION_TEST_ITEMS,
+      testChecklist: generateTestChecklist("", "quick"),
+      canAccessVerification: false,
+      gateResult: undefined,
+      currentPlan: "free" as PlanId,
     });
   }
+
+  const planId = normalizePlanId(shop.plan || "free") as PlanId;
+  const gateResult = checkFeatureAccess(planId, "verification");
+  const canAccessVerification = gateResult.allowed;
 
   const configuredPlatforms = shop.pixelConfigs.map((c) => c.platform);
   const history = await getVerificationHistory(shop.id, 5);
 
   const latestRun = history?.[0] ?? null;
+
+  const testChecklist = generateTestChecklist(shop.id, "quick");
 
   return json({
     shop: { id: shop.id, domain: shopDomain },
@@ -90,6 +113,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     latestRun,
     testGuide: generateTestOrderGuide("quick"),
     testItems: VERIFICATION_TEST_ITEMS,
+    testChecklist,
+    canAccessVerification,
+    gateResult: gateResult.allowed ? undefined : gateResult,
+    currentPlan: planId,
   });
 };
 
@@ -127,6 +154,94 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await startVerificationRun(runId);
     const result = await analyzeRecentEvents(shop.id, runId);
     return json({ success: true, result, actionType: "run_verification" });
+  }
+
+  if (actionType === "verifyTestItem") {
+    try {
+      const itemId = formData.get("itemId") as string;
+      const eventType = formData.get("eventType") as string;
+      const expectedEventsStr = formData.get("expectedEvents") as string;
+      
+      if (!itemId || !eventType || !expectedEventsStr) {
+        return json({ success: false, error: "缺少必要参数" }, { status: 400 });
+      }
+
+      const expectedEvents = JSON.parse(expectedEventsStr) as string[];
+
+      // 查询最近的事件（过去5分钟内）
+      const fiveMinutesAgo = new Date();
+      fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+
+      const [conversionLogs, pixelReceipts] = await Promise.all([
+        prisma.conversionLog.findMany({
+          where: {
+            shopId: shop.id,
+            eventType,
+            createdAt: { gte: fiveMinutesAgo },
+            status: "sent",
+          },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        }),
+        prisma.pixelEventReceipt.findMany({
+          where: {
+            shopId: shop.id,
+            eventType,
+            createdAt: { gte: fiveMinutesAgo },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        }),
+      ]);
+
+      // 检查预期事件是否都已触发
+      const foundEvents = new Set<string>();
+      const allEvents = [
+        ...conversionLogs.map((log) => log.eventType),
+        ...pixelReceipts.map((receipt) => receipt.eventType),
+      ];
+
+      // 匹配预期事件（支持模糊匹配）
+      for (const expected of expectedEvents) {
+        const found = allEvents.some((actual) => {
+          // 精确匹配
+          if (actual.toLowerCase() === expected.toLowerCase()) {
+            return true;
+          }
+          // 模糊匹配（如 "Purchase" 匹配 "purchase"）
+          if (actual.toLowerCase().includes(expected.toLowerCase()) ||
+              expected.toLowerCase().includes(actual.toLowerCase())) {
+            return true;
+          }
+          return false;
+        });
+        if (found) {
+          foundEvents.add(expected);
+        }
+      }
+
+      const verified = foundEvents.size === expectedEvents.length;
+      const missingEvents = expectedEvents.filter((e) => !foundEvents.has(e));
+
+      return json({
+        success: true,
+        itemId,
+        verified,
+        eventsFound: foundEvents.size,
+        expectedEvents: expectedEvents.length,
+        missingEvents,
+        errors: verified ? undefined : [
+          `未找到以下事件: ${missingEvents.join(", ")}`,
+          "请确保已完成测试订单，并等待几秒钟后重试",
+        ],
+      });
+    } catch (error) {
+      logger.error("Failed to verify test item", { shopId: shop.id, error });
+      return json({
+        success: false,
+        error: error instanceof Error ? error.message : "验证失败",
+      }, { status: 500 });
+    }
   }
 
   return json({ error: "Unknown action" }, { status: 400 });
@@ -202,7 +317,7 @@ function ScoreCard({
 }
 
 export default function VerificationPage() {
-  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems } =
+  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist } =
     useLoaderData<typeof loader>();
   const shopDomain = shop?.domain || "";
   const actionData = useActionData<typeof action>();
@@ -245,117 +360,21 @@ export default function VerificationPage() {
 
   const handleExportPdf = useCallback(() => {
     if (!latestRun) return;
-    window.open(`/api/reports/pdf?type=verification&runId=${latestRun.runId}`, "_blank");
+    // Use the PDF route to generate and download PDF report
+    window.location.href = `/api/reports/pdf?type=verification&runId=${latestRun.runId}&format=pdf`;
   }, [latestRun]);
 
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
-
-    const lines: string[] = [];
-
-    lines.push('验收报告');
-    lines.push(`验收时间,${latestRun.completedAt ? new Date(latestRun.completedAt).toLocaleString("zh-CN") : '-'}`);
-    lines.push(`验收类型,${latestRun.runType === 'full' ? '完整验收' : '快速验收'}`);
-    lines.push(`验收名称,${latestRun.runName || '-'}`);
-    lines.push(`测试平台,${latestRun.platforms.join('; ')}`);
-    lines.push('');
-
-    lines.push('评分摘要');
-    lines.push('指标,数值');
-    const passRate = latestRun.totalTests > 0 ? Math.round((latestRun.passedTests / latestRun.totalTests) * 100) : 0;
-    lines.push(`通过率,${passRate}%`);
-    lines.push(`参数完整率,${latestRun.parameterCompleteness}%`);
-    lines.push(`金额准确率,${latestRun.valueAccuracy}%`);
-    lines.push('');
-
-    lines.push('测试统计');
-    lines.push('类型,数量');
-    lines.push(`通过,${latestRun.passedTests}`);
-    lines.push(`失败,${latestRun.failedTests}`);
-    lines.push(`参数缺失,${latestRun.missingParamTests}`);
-    lines.push(`总计,${latestRun.totalTests}`);
-    lines.push('');
-
-    if (latestRun.reconciliation) {
-      lines.push('渠道对账');
-      lines.push('指标,数值');
-      lines.push(`Pixel 和 CAPI 都有,${latestRun.reconciliation.pixelVsCapi.both}`);
-      lines.push(`仅 Pixel,${latestRun.reconciliation.pixelVsCapi.pixelOnly}`);
-      lines.push(`仅 CAPI,${latestRun.reconciliation.pixelVsCapi.capiOnly}`);
-      lines.push(`因同意阻止,${latestRun.reconciliation.pixelVsCapi.consentBlocked}`);
-      lines.push('');
-
-      if (latestRun.reconciliation.consistencyIssues && latestRun.reconciliation.consistencyIssues.length > 0) {
-        lines.push('一致性问题');
-        lines.push('订单ID,问题类型,问题描述');
-        latestRun.reconciliation.consistencyIssues.forEach((issue: {
-          orderId: string;
-          issue: string;
-          type: string;
-        }) => {
-          lines.push(`${issue.orderId},${issue.type},${issue.issue.replace(/,/g, '；')}`);
-        });
-        lines.push('');
-      }
-
-      if (latestRun.reconciliation.localConsistency) {
-        lines.push('本地一致性检查');
-        lines.push('指标,数值');
-        lines.push(`检查订单数,${latestRun.reconciliation.localConsistency.totalChecked}`);
-        lines.push(`一致性,${latestRun.reconciliation.localConsistency.consistent}`);
-        lines.push(`部分一致,${latestRun.reconciliation.localConsistency.partial}`);
-        lines.push(`不一致,${latestRun.reconciliation.localConsistency.inconsistent}`);
-        if (latestRun.reconciliation.localConsistency.issues.length > 0) {
-          lines.push('');
-          lines.push('本地一致性详情');
-          lines.push('订单ID,状态,问题');
-          latestRun.reconciliation.localConsistency.issues.forEach((issue: {
-            orderId: string;
-            status: string;
-            issues: string[];
-          }) => {
-            lines.push(`${issue.orderId},${issue.status},${issue.issues.join('; ').replace(/,/g, '；')}`);
-          });
-        }
-        lines.push('');
-      }
-    }
-
-    if (latestRun.results && latestRun.results.length > 0) {
-      lines.push('事件详细记录');
-      lines.push('事件类型,平台,订单ID,订单号,金额,币种,状态,问题');
-      latestRun.results.forEach((r: {
-        eventType: string;
-        platform: string;
-        orderId?: string;
-        orderNumber?: string;
-        params?: { value?: number; currency?: string };
-        status: string;
-        discrepancies?: string[];
-        errors?: string[];
-      }) => {
-        const escapedErrors = [...(r.discrepancies || []), ...(r.errors || [])].join('; ').replace(/,/g, '；');
-        lines.push(`${r.eventType},${r.platform},${r.orderId || '-'},${r.orderNumber || '-'},${r.params?.value?.toFixed(2) || '-'},${r.params?.currency || '-'},${
-          r.status === 'success' ? '成功' :
-          r.status === 'missing_params' ? '参数缺失' : '失败'
-        },${escapedErrors || '-'}`);
-      });
-    }
-
-    const csvContent = lines.join('\n');
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `verification-report-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Use the API endpoint to generate CSV
+    window.location.href = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
   }, [latestRun]);
 
   const tabs = [
     { id: "overview", content: "验收概览" },
     { id: "results", content: "详细结果" },
     { id: "realtime", content: "实时监控" },
+    { id: "test-guide", content: "测试订单指引" },
     { id: "history", content: "历史记录" },
   ];
 
@@ -370,6 +389,19 @@ export default function VerificationPage() {
             content: "返回首页",
             url: "/app",
           }}
+        />
+      </Page>
+    );
+  }
+
+  // 显示升级提示（如果无权限）
+  if (!canAccessVerification && gateResult) {
+    return (
+      <Page title="验收向导">
+        <UpgradePrompt
+          feature="verification"
+          currentPlan={currentPlan || "free"}
+          gateResult={gateResult}
         />
       </Page>
     );
@@ -507,6 +539,135 @@ export default function VerificationPage() {
             </Collapsible>
           </BlockStack>
         </Card>
+
+        {/* 测试清单 */}
+        {testChecklist && testChecklist.items.length > 0 && (
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  📝 详细测试清单
+                </Text>
+                <InlineStack gap="200">
+                  <Button
+                    icon={ClipboardIcon}
+                    onClick={() => {
+                      const markdown = generateChecklistMarkdown(testChecklist);
+                      navigator.clipboard.writeText(markdown);
+                      showSuccess("测试清单已复制到剪贴板");
+                    }}
+                    size="slim"
+                  >
+                    复制清单
+                  </Button>
+                  <Button
+                    icon={ExportIcon}
+                    onClick={() => {
+                      const csv = generateChecklistCSV(testChecklist);
+                      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `test-checklist-${new Date().toISOString().split("T")[0]}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      showSuccess("测试清单已导出");
+                    }}
+                    size="slim"
+                  >
+                    导出 CSV
+                  </Button>
+                </InlineStack>
+              </InlineStack>
+
+              <BlockStack gap="200">
+                <InlineStack gap="300" wrap>
+                  <Badge tone="info">
+                    {testChecklist.requiredItemsCount} 项必需
+                  </Badge>
+                  <Badge>
+                    {testChecklist.optionalItemsCount} 项可选
+                  </Badge>
+                  <Badge tone="success">
+                    预计 {Math.floor(testChecklist.totalEstimatedTime / 60)} 小时 {testChecklist.totalEstimatedTime % 60} 分钟
+                  </Badge>
+                </InlineStack>
+              </BlockStack>
+
+              <Divider />
+
+              <BlockStack gap="300">
+                {testChecklist.items.map((item) => (
+                  <Box
+                    key={item.id}
+                    background={item.required ? "bg-fill-warning-secondary" : "bg-surface-secondary"}
+                    padding="400"
+                    borderRadius="200"
+                  >
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="start">
+                        <BlockStack gap="200">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Text as="span" fontWeight="semibold">
+                              {item.required ? "✅" : "⚪"} {item.name}
+                            </Text>
+                            <Badge tone={item.required ? "warning" : "info"}>
+                              {item.required ? "必需" : "可选"}
+                            </Badge>
+                            <Badge>{item.category}</Badge>
+                          </InlineStack>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {item.description}
+                          </Text>
+                          <InlineStack gap="200" blockAlign="center">
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              平台: {item.platforms.join(", ")}
+                            </Text>
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              • 预计 {item.estimatedTime} 分钟
+                            </Text>
+                          </InlineStack>
+                        </BlockStack>
+                      </InlineStack>
+
+                      <Divider />
+
+                      <BlockStack gap="200">
+                        <Text as="h4" variant="headingSm">
+                          操作步骤
+                        </Text>
+                        <List type="number">
+                          {item.steps.map((step, i) => (
+                            <List.Item key={i}>
+                              <Text as="span" variant="bodySm">
+                                {step.replace(/^\d+\.\s*/, "")}
+                              </Text>
+                            </List.Item>
+                          ))}
+                        </List>
+                      </BlockStack>
+
+                      <BlockStack gap="200">
+                        <Text as="h4" variant="headingSm">
+                          预期结果
+                        </Text>
+                        <List>
+                          {item.expectedResults.map((result, i) => (
+                            <List.Item key={i}>
+                              <Text as="span" variant="bodySm">
+                                {result}
+                              </Text>
+                            </List.Item>
+                          ))}
+                        </List>
+                      </BlockStack>
+                    </BlockStack>
+                  </Box>
+                ))}
+              </BlockStack>
+            </BlockStack>
+          </Card>
+        )}
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {}
@@ -991,7 +1152,14 @@ export default function VerificationPage() {
           {selectedTab === 2 && (
             <Box paddingBlockStart="400">
               <Suspense fallback={<CardSkeleton lines={3} />}>
-                <RealtimeEventMonitor shopId={shop.id} />
+                <RealtimeEventMonitor 
+                  shopId={shop.id} 
+                  platforms={configuredPlatforms}
+                  runId={latestRun?.runId}
+                  eventTypes={["purchase", "refund"]}
+                  useVerificationEndpoint={true}
+                  autoStart={false}
+                />
               </Suspense>
             </Box>
           )}
@@ -999,40 +1167,82 @@ export default function VerificationPage() {
           {}
           {selectedTab === 3 && (
             <Box paddingBlockStart="400">
-              <Card>
-                <BlockStack gap="400">
-                  <Text as="h2" variant="headingMd">
-                    验收历史
-                  </Text>
+              <Suspense fallback={<CardSkeleton lines={5} />}>
+                <TestOrderGuide
+                  shopDomain={shopDomain}
+                  shopId={shop?.id || ""}
+                  testItems={testItems.map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    description: item.description,
+                    steps: item.steps,
+                    expectedEvents: item.expectedResults || [],
+                    eventType: item.eventType,
+                    category: item.category,
+                  }))}
+                  onTestComplete={(itemId, verified) => {
+                    if (verified) {
+                      showSuccess(`测试项 "${testItems.find((i) => i.id === itemId)?.name}" 验证通过`);
+                    } else {
+                      showError(`测试项 "${testItems.find((i) => i.id === itemId)?.name}" 验证失败，请检查事件触发情况`);
+                    }
+                  }}
+                />
+              </Suspense>
+            </Box>
+          )}
 
-                  {history.length > 0 ? (
-                    <DataTable
-                      columnContentTypes={["text", "text", "text", "numeric", "numeric", "numeric"]}
-                      headings={["时间", "类型", "状态", "通过", "失败", "参数缺失"]}
-                      rows={history.map((run) => [
-                        run.completedAt
-                          ? new Date(run.completedAt).toLocaleString("zh-CN")
-                          : "-",
-                        run.runType === "full" ? "完整" : "快速",
-                        <StatusBadge key={run.runId} status={run.status} />,
-                        run.passedTests,
-                        run.failedTests,
-                        run.missingParamTests,
-                      ])}
+          {selectedTab === 4 && (
+            <Box paddingBlockStart="400">
+              <BlockStack gap="500">
+                <Card>
+                  <BlockStack gap="400">
+                    <Text as="h2" variant="headingMd">
+                      验收历史
+                    </Text>
+
+                    {history.length > 0 ? (
+                      <DataTable
+                        columnContentTypes={["text", "text", "text", "numeric", "numeric", "numeric"]}
+                        headings={["时间", "类型", "状态", "通过", "失败", "参数缺失"]}
+                        rows={history.map((run) => [
+                          run.completedAt
+                            ? new Date(run.completedAt).toLocaleString("zh-CN")
+                            : "-",
+                          run.runType === "full" ? "完整" : "快速",
+                          <StatusBadge key={run.runId} status={run.status} />,
+                          run.passedTests,
+                          run.failedTests,
+                          run.missingParamTests,
+                        ])}
+                      />
+                    ) : (
+                      <EnhancedEmptyState
+                        icon="📋"
+                        title="暂无验收历史记录"
+                        description="运行验收测试后，历史记录将显示在这里。"
+                        primaryAction={{
+                          content: "运行验收",
+                          onAction: handleRunVerification,
+                        }}
+                      />
+                    )}
+                  </BlockStack>
+                </Card>
+
+                {history.length >= 2 && shop && (
+                  <Suspense fallback={<CardSkeleton lines={3} />}>
+                    <ReportComparison
+                      shopId={shop.id}
+                      availableRuns={history.map((run) => ({
+                        runId: run.runId,
+                        runName: run.runName || `${run.runType === "full" ? "完整" : "快速"}验收`,
+                        completedAt: run.completedAt || undefined,
+                      }))}
                     />
-                  ) : (
-                    <EnhancedEmptyState
-                      icon="📋"
-                      title="暂无验收历史记录"
-                      description="运行验收测试后，历史记录将显示在这里。"
-                      primaryAction={{
-                        content: "运行验收",
-                        onAction: handleRunVerification,
-                      }}
-                    />
-                  )}
-                </BlockStack>
-              </Card>
+                  </Suspense>
+                )}
+              </BlockStack>
             </Box>
           )}
         </Tabs>

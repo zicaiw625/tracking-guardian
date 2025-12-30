@@ -11,6 +11,7 @@ export interface CreateWorkspaceCommentInput {
   content: string;
   parentCommentId?: string;
   groupId?: string;
+  mentionedShopIds?: string[];
 }
 
 export interface WorkspaceCommentWithAuthor {
@@ -103,6 +104,15 @@ export async function createWorkspaceComment(
         groupId: input.groupId,
       },
     });
+
+    // 如果有提及，记录日志（未来可以发送通知）
+    if (input.mentionedShopIds && input.mentionedShopIds.length > 0) {
+      logger.info("Workspace comment mentions detected", {
+        commentId: comment.id,
+        mentionedShopIds: input.mentionedShopIds,
+      });
+      // TODO: 发送提及通知
+    }
 
     logger.info(`Workspace comment created: ${comment.id} by ${authorShopId}`);
 

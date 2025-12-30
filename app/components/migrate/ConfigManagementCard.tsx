@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Card,
   Text,
@@ -11,11 +11,14 @@ import {
   Divider,
   Tabs,
   Modal,
+  Select,
 } from "@shopify/polaris";
 import { SettingsIcon } from "~/components/icons";
 import { ConfigComparison } from "~/components/settings/ConfigComparison";
 import { VersionHistory } from "~/components/settings/VersionHistory";
+import { ConfigVersionManager } from "./ConfigVersionManager";
 import { useFetcher } from "@remix-run/react";
+import type { Platform } from "~/services/migration.server";
 
 interface PixelConfig {
   id: string;
@@ -45,9 +48,13 @@ export function ConfigManagementCard({
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [environmentChanging, setEnvironmentChanging] = useState<string | null>(null);
+  const [showEnvConfirmModal, setShowEnvConfirmModal] = useState(false);
+  const [pendingEnvChange, setPendingEnvChange] = useState<{ platform: string; newEnv: string } | null>(null);
 
   const comparisonFetcher = useFetcher();
   const historyFetcher = useFetcher();
+  const envFetcher = useFetcher();
 
   const handleViewConfig = useCallback(
     (platform: string) => {
@@ -67,6 +74,57 @@ export function ConfigManagementCard({
     },
     [comparisonFetcher, historyFetcher]
   );
+
+  const handleEnvironmentChange = useCallback(
+    (platform: string, newEnvironment: string) => {
+      const config = pixelConfigs.find((c) => c.platform === platform);
+      if (!config) return;
+
+      if (config.environment === newEnvironment) {
+        return; // 已经是目标环境
+      }
+
+      setPendingEnvChange({ platform, newEnv: newEnvironment });
+      setShowEnvConfirmModal(true);
+    },
+    [pixelConfigs]
+  );
+
+  const confirmEnvironmentChange = useCallback(() => {
+    if (!pendingEnvChange) return;
+
+    setEnvironmentChanging(pendingEnvChange.platform);
+    const formData = new FormData();
+    formData.append("_action", "switch_environment");
+    formData.append("platform", pendingEnvChange.platform);
+    formData.append("environment", pendingEnvChange.newEnv);
+    envFetcher.submit(formData, {
+      method: "post",
+      action: "/app/actions/pixel-config",
+    });
+    setShowEnvConfirmModal(false);
+    setPendingEnvChange(null);
+  }, [pendingEnvChange, envFetcher]);
+
+  const cancelEnvironmentChange = useCallback(() => {
+    setShowEnvConfirmModal(false);
+    setPendingEnvChange(null);
+  }, []);
+
+  // 处理环境切换结果
+  useEffect(() => {
+    if (envFetcher.data && envFetcher.state === "idle") {
+      const result = envFetcher.data as { success: boolean; message?: string; error?: string };
+      if (result.success) {
+        setEnvironmentChanging(null);
+        // 刷新页面以显示新环境
+        window.location.reload();
+      } else {
+        setEnvironmentChanging(null);
+        alert(result.error || result.message || "环境切换失败");
+      }
+    }
+  }, [envFetcher.data, envFetcher.state]);
 
   if (pixelConfigs.length === 0) {
     return null;
@@ -116,13 +174,61 @@ export function ConfigManagementCard({
                       </Text>
                     )}
                   </BlockStack>
-                  <Button
-                    size="slim"
-                    icon={SettingsIcon}
-                    onClick={() => handleViewConfig(config.platform)}
-                  >
-                    查看配置
-                  </Button>
+                  <BlockStack gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <Text as="span" variant="bodySm" tone="subdued">
+                        环境:
+                      </Text>
+                      <Box minWidth="120px">
+                        <Select
+                          options={[
+                            { label: "测试 (Test)", value: "test" },
+                            { label: "生产 (Live)", value: "live" },
+                          ]}
+                          value={config.environment}
+                          onChange={(value) =>
+                            handleEnvironmentChange(config.platform, value)
+                          }
+                          disabled={environmentChanging === config.platform}
+                        />
+                      </Box>
+                    </InlineStack>
+                    <InlineStack gap="200">
+                      {config.rollbackAllowed && (
+                        <Button
+                          size="slim"
+                          variant="primary"
+                          onClick={async () => {
+                            // 快速回滚功能
+                            if (confirm(`确定要回滚 ${PLATFORM_LABELS[config.platform] || config.platform} 的配置到上一个版本吗？`)) {
+                              const formData = new FormData();
+                              formData.append("_action", "rollback");
+                              formData.append("platform", config.platform);
+                              const response = await fetch("/app/actions/pixel-config", {
+                                method: "POST",
+                                body: formData,
+                              });
+                              const data = await response.json();
+                              if (data.success) {
+                                window.location.reload();
+                              } else {
+                                alert(data.error || "回滚失败");
+                              }
+                            }
+                          }}
+                        >
+                          ⏪ 快速回滚
+                        </Button>
+                      )}
+                      <Button
+                        size="slim"
+                        icon={SettingsIcon}
+                        onClick={() => handleViewConfig(config.platform)}
+                      >
+                        查看配置
+                      </Button>
+                    </InlineStack>
+                  </BlockStack>
                 </InlineStack>
               </Box>
             ))}
@@ -171,10 +277,18 @@ export function ConfigManagementCard({
                       platform={selectedPlatform}
                     />
                   )}
-                {activeTab === 1 && historyFetcher.data?.history && (
-                  <VersionHistory
-                    history={historyFetcher.data.history}
-                    platform={selectedPlatform}
+                {activeTab === 1 && selectedPlatform && (
+                  <ConfigVersionManager
+                    shopId={shopId}
+                    platform={selectedPlatform as Platform}
+                    currentVersion={
+                      pixelConfigs.find((c) => c.platform === selectedPlatform)
+                        ?.configVersion || 1
+                    }
+                    onRollbackComplete={() => {
+                      // 刷新数据
+                      window.location.reload();
+                    }}
                   />
                 )}
               </Box>
@@ -182,6 +296,76 @@ export function ConfigManagementCard({
           </Modal.Section>
         </Modal>
       )}
+
+      {/* 环境切换确认对话框 */}
+      <Modal
+        open={showEnvConfirmModal}
+        onClose={cancelEnvironmentChange}
+        title="确认切换环境"
+        primaryAction={{
+          content: "确认切换",
+          onAction: confirmEnvironmentChange,
+          loading: environmentChanging !== null,
+        }}
+        secondaryActions={[
+          {
+            content: "取消",
+            onAction: cancelEnvironmentChange,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            {pendingEnvChange && (
+              <>
+                <Text as="p">
+                  确定要将{" "}
+                  <strong>
+                    {PLATFORM_LABELS[pendingEnvChange.platform] ||
+                      pendingEnvChange.platform}
+                  </strong>{" "}
+                  从{" "}
+                  <strong>
+                    {pixelConfigs.find((c) => c.platform === pendingEnvChange.platform)
+                      ?.environment === "live"
+                      ? "生产 (Live)"
+                      : "测试 (Test)"}
+                  </strong>{" "}
+                  切换到{" "}
+                  <strong>
+                    {pendingEnvChange.newEnv === "live"
+                      ? "生产 (Live)"
+                      : "测试 (Test)"}
+                  </strong>{" "}
+                  吗？
+                </Text>
+                <Box
+                  background={
+                    pendingEnvChange.newEnv === "live"
+                      ? "bg-fill-critical"
+                      : "bg-fill-warning"
+                  }
+                  padding="400"
+                  borderRadius="200"
+                >
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      {pendingEnvChange.newEnv === "live"
+                        ? "⚠️ 切换到生产环境"
+                        : "ℹ️ 切换到测试环境"}
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      {pendingEnvChange.newEnv === "live"
+                        ? "切换到生产环境后，事件将发送到正式端点。请确保已充分测试。"
+                        : "切换到测试环境后，事件将发送到沙盒/测试端点，不会影响实际数据。"}
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </>
+            )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </>
   );
 }

@@ -244,6 +244,18 @@ uid = "b2c3d4e5-6789-0123-4567-890123456789reorder"
   type = "single_line_text_field"
 
   [[settings.fields]]
+  key = "support_whatsapp_number"
+  name = "WhatsApp Number"
+  description = "WhatsApp contact number with country code (e.g., +8613800138000)"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
+  key = "support_messenger_url"
+  name = "Facebook Messenger URL"
+  description = "Facebook Messenger contact link (e.g., https://m.me/your-page)"
+  type = "single_line_text_field"
+
+  [[settings.fields]]
   key = "support_faq_url"
   name = "FAQ URL"
   description = "Link to your FAQ/knowledge base"

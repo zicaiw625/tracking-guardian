@@ -43,6 +43,16 @@ export interface DashboardData {
       status: "pending" | "in_progress" | "completed" | "skipped";
     }>;
   } | null;
+  dependencyGraph?: import("../services/dependency-analysis.server").DependencyGraph | null;
+  riskDistribution?: {
+    byRiskLevel: {
+      high: number;
+      medium: number;
+      low: number;
+    };
+    byCategory: Record<string, number>;
+    byPlatform: Record<string, number>;
+  } | null;
 }
 
 export interface SetupStep {

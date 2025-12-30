@@ -19,9 +19,15 @@ function SupportOrderStatus() {
     (settings.support_description as string) ||
     "在这里快速获取物流、售后与常见问题的官方入口。";
   const faqUrl = (settings.support_faq_url as string) || "/pages/faq";
-  const contactEmail = settings.support_contact_email as string;
+  const contactEmail = settings.support_contact_email as string | undefined;
   const contactUrl = (settings.support_contact_url as string) || (contactEmail ? `mailto:${contactEmail}` : "/pages/contact");
+  const whatsappNumber = settings.support_whatsapp_number as string | undefined;
+  const messengerUrl = settings.support_messenger_url as string | undefined;
   const continueShoppingUrl = (settings.continue_shopping_url as string) || "/";
+  
+  // 生成联系链接
+  const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
+  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber.replace(/[^0-9]/g, "")}` : undefined;
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
@@ -59,18 +65,51 @@ function SupportOrderStatus() {
         </BlockStack>
       </View>
 
-      <InlineLayout columns={["fill", "fill"]} spacing="tight" blockAlignment="center">
-        <Link to={contactUrl}>
-          <Button kind="primary" submit={false}>
-            联系客服
-          </Button>
-        </Link>
+      <BlockStack spacing="tight">
+        {/* 客服渠道按钮 */}
+        {(emailUrl || contactUrl || whatsappUrl || messengerUrl) && (
+          <BlockStack spacing="extraTight">
+            <Text size="small" appearance="subdued">联系客服：</Text>
+            <InlineLayout columns={["fill", "fill"]} spacing="tight" blockAlignment="center">
+              {emailUrl && (
+                <Link to={emailUrl}>
+                  <Button kind="primary" submit={false}>
+                    📧 邮件
+                  </Button>
+                </Link>
+              )}
+              {whatsappUrl && (
+                <Link to={whatsappUrl}>
+                  <Button kind="primary" submit={false}>
+                    💬 WhatsApp
+                  </Button>
+                </Link>
+              )}
+              {messengerUrl && (
+                <Link to={messengerUrl}>
+                  <Button kind="primary" submit={false}>
+                    💬 Messenger
+                  </Button>
+                </Link>
+              )}
+              {contactUrl && !emailUrl && !whatsappUrl && !messengerUrl && (
+                <Link to={contactUrl}>
+                  <Button kind="primary" submit={false}>
+                    联系客服
+                  </Button>
+                </Link>
+              )}
+            </InlineLayout>
+          </BlockStack>
+        )}
+        
+        {/* FAQ 按钮 */}
         <Link to={faqUrl}>
           <Button kind="secondary" submit={false}>
-            FAQ / 帮助中心
+            ❓ FAQ / 帮助中心
           </Button>
         </Link>
-      </InlineLayout>
+      </BlockStack>
 
       <Link to={continueShoppingUrl}>
         <Button kind="plain">继续购物</Button>

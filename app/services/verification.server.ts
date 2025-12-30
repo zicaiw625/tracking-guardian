@@ -97,6 +97,8 @@ export interface VerificationSummary {
   parameterCompleteness: number;
   valueAccuracy: number;
   results: VerificationEventResult[];
+  // 平台统计信息（用于报告导出）
+  platformResults?: Record<string, { sent: number; failed: number }>;
 
   reconciliation?: {
     pixelVsCapi: {
@@ -323,6 +325,19 @@ export async function analyzeRecentEvents(
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
 
+  // 计算平台统计信息
+  const platformResults: Record<string, { sent: number; failed: number }> = {};
+  conversionLogs.forEach((log) => {
+    if (!platformResults[log.platform]) {
+      platformResults[log.platform] = { sent: 0, failed: 0 };
+    }
+    if (log.status === "sent") {
+      platformResults[log.platform].sent++;
+    } else if (log.status === "failed" || log.status === "dead_letter") {
+      platformResults[log.platform].failed++;
+    }
+  });
+
   let reconciliation: VerificationSummary["reconciliation"] | undefined;
   try {
     const endDate = new Date();
@@ -359,24 +374,50 @@ export async function analyzeRecentEvents(
       issues: string[];
     }> = [];
 
-    // 对前 10 个订单进行详细的一致性检查
-    const sampleOrderIds = orderIds.slice(0, 10);
-    for (const orderId of sampleOrderIds) {
-      try {
-        const { performChannelReconciliation } = await import("./enhanced-reconciliation.server");
-        const checks = await performChannelReconciliation(shopId, [orderId], admin);
-        if (checks.length > 0) {
-          const check = checks[0];
-          if (check.consistencyStatus !== "consistent" || check.issues.length > 0) {
-            localConsistencyChecks.push({
-              orderId: check.orderId,
-              status: check.consistencyStatus,
-              issues: check.issues,
-            });
-          }
+    try {
+      const { performBulkLocalConsistencyCheck } = await import("./enhanced-reconciliation.server");
+      
+      // 使用批量检查功能，检查更多订单（最多50个，或所有订单如果少于50个）
+      const maxCheckOrders = Math.min(orderIds.length, 50);
+      const sampleOrderIds = orderIds.slice(0, maxCheckOrders);
+      
+      // 执行批量检查
+      const bulkCheckResult = await performBulkLocalConsistencyCheck(
+        shopId,
+        since,
+        new Date(),
+        admin,
+        {
+          maxOrders: maxCheckOrders,
+          maxConcurrent: 5,
+          sampleRate: sampleOrderIds.length > 20 ? 0.8 : 1.0, // 如果订单多，采样80%
         }
-      } catch (error) {
-        logger.warn("Failed to perform local consistency check", { orderId, error });
+      );
+
+      // 将批量检查结果转换为本地一致性检查格式
+      localConsistencyChecks.push(...bulkCheckResult.issues);
+    } catch (error) {
+      logger.warn("Failed to perform bulk local consistency check, falling back to individual checks", { error });
+      
+      // 降级到单个检查（仅检查前10个订单）
+      const sampleOrderIds = orderIds.slice(0, 10);
+      for (const orderId of sampleOrderIds) {
+        try {
+          const { performChannelReconciliation } = await import("./enhanced-reconciliation.server");
+          const checks = await performChannelReconciliation(shopId, [orderId], admin);
+          if (checks.length > 0) {
+            const check = checks[0];
+            if (check.consistencyStatus !== "consistent" || check.issues.length > 0) {
+              localConsistencyChecks.push({
+                orderId: check.orderId,
+                status: check.consistencyStatus,
+                issues: check.issues,
+              });
+            }
+          }
+        } catch (err) {
+          logger.warn("Failed to perform local consistency check", { orderId, error: err });
+        }
       }
     }
 
@@ -389,15 +430,21 @@ export async function analyzeRecentEvents(
       });
     });
 
+    // 计算本地一致性统计
+    const totalChecked = Math.min(orderIds.length, 50);
+    const consistent = totalChecked - localConsistencyChecks.length;
+    const partial = localConsistencyChecks.filter((c) => c.status === "partial").length;
+    const inconsistent = localConsistencyChecks.filter((c) => c.status === "inconsistent").length;
+
     reconciliation = {
       pixelVsCapi,
       consistencyIssues: consistencyIssues.length > 0 ? consistencyIssues : undefined,
-      localConsistency: localConsistencyChecks.length > 0
+      localConsistency: totalChecked > 0
         ? {
-            totalChecked: sampleOrderIds.length,
-            consistent: sampleOrderIds.length - localConsistencyChecks.length,
-            partial: localConsistencyChecks.filter((c) => c.status === "partial").length,
-            inconsistent: localConsistencyChecks.filter((c) => c.status === "inconsistent").length,
+            totalChecked,
+            consistent,
+            partial,
+            inconsistent,
             issues: localConsistencyChecks,
           }
         : undefined,
@@ -443,6 +490,7 @@ export async function analyzeRecentEvents(
     parameterCompleteness,
     valueAccuracy,
     results,
+    platformResults,
     reconciliation,
   };
 }

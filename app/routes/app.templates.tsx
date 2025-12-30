@@ -205,6 +205,69 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  if (actionType === "generateShareLink") {
+    try {
+      const templateId = formData.get("templateId") as string;
+
+      if (!templateId) {
+        return json({ success: false, error: "缺少模板 ID" }, { status: 400 });
+      }
+
+      const { generateTemplateShareLink } = await import("../services/pixel-template.server");
+      const result = await generateTemplateShareLink(templateId, shop.id);
+
+      if (result.success && result.shareLink) {
+        // 构建完整 URL（在实际应用中应该使用环境变量中的域名）
+        const baseUrl = process.env.SHOPIFY_APP_URL || "https://your-app-domain.com";
+        const fullShareLink = `${baseUrl}${result.shareLink}`;
+        return json({ success: true, shareLink: fullShareLink });
+      }
+
+      return json(result);
+    } catch (error) {
+      logger.error("Failed to generate share link", error);
+      return json(
+        { success: false, error: error instanceof Error ? error.message : "生成分享链接失败" },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (actionType === "saveWizardConfigAsTemplate") {
+    try {
+      const name = formData.get("name") as string;
+      const description = formData.get("description") as string;
+      const platformsJson = formData.get("platforms") as string;
+      const eventMappingsJson = formData.get("eventMappings") as string;
+      const isPublic = formData.get("isPublic") === "true";
+
+      if (!name || !platformsJson || !eventMappingsJson) {
+        return json({ success: false, error: "缺少必要参数" }, { status: 400 });
+      }
+
+      const platforms = JSON.parse(platformsJson) as string[];
+      const eventMappings = JSON.parse(eventMappingsJson) as Record<string, Record<string, string>>;
+
+      const { saveWizardConfigAsTemplate } = await import("../services/pixel-template.server");
+      const result = await saveWizardConfigAsTemplate(
+        shop.id,
+        name,
+        description || undefined,
+        platforms,
+        eventMappings,
+        isPublic
+      );
+
+      return json(result);
+    } catch (error) {
+      logger.error("Failed to save wizard config as template", error);
+      return json(
+        { success: false, error: error instanceof Error ? error.message : "保存模板失败" },
+        { status: 500 }
+      );
+    }
+  }
+
   return json({ success: false, error: "Unknown action" }, { status: 400 });
 };
 
@@ -222,6 +285,9 @@ export default function TemplatesPage() {
   const [templateIsPublic, setTemplateIsPublic] = useState(false);
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [previewingTemplate, setPreviewingTemplate] = useState<typeof templates[0] | null>(null);
+  const [sharingTemplate, setSharingTemplate] = useState<typeof templates[0] | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [isGeneratingShareLink, setIsGeneratingShareLink] = useState(false);
 
   const planDef = getPlanDefinition(planId);
 
@@ -275,6 +341,47 @@ export default function TemplatesPage() {
       window.location.href = "/app/migrate?applyTemplate=" + template.id;
     }
   }, []);
+
+  const handleShareTemplate = useCallback(async (template: typeof templates[0]) => {
+    setSharingTemplate(template);
+    setIsGeneratingShareLink(true);
+    setShareLink(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("_action", "generateShareLink");
+      formData.append("templateId", template.id);
+
+      const response = await fetch("/app/templates", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.success && data.shareLink) {
+        setShareLink(data.shareLink);
+      } else {
+        showError(data.error || "生成分享链接失败");
+      }
+    } catch (error) {
+      showError("生成分享链接失败");
+      console.error("Share link generation error", error);
+    } finally {
+      setIsGeneratingShareLink(false);
+    }
+  }, [showError]);
+
+  const handleCopyShareLink = useCallback(async () => {
+    if (!shareLink) return;
+
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      showSuccess("分享链接已复制到剪贴板");
+    } catch (error) {
+      showError("复制失败，请手动复制");
+      console.error("Copy error", error);
+    }
+  }, [shareLink, showSuccess, showError]);
 
   const handleSaveTemplate = useCallback(() => {
     if (!templateName.trim()) {
@@ -415,12 +522,31 @@ export default function TemplatesPage() {
                       >
                         应用到当前店铺
                       </Button>
+                      {isAgency && (
+                        <Button
+                          size="slim"
+                          onClick={() => {
+                            // 跳转到工作区批量应用页面
+                            window.location.href = `/app/workspace/templates?templateId=${template.id}`;
+                          }}
+                        >
+                          批量应用
+                        </Button>
+                      )}
                       <Button
                         size="slim"
                         variant="plain"
                         onClick={() => handlePreviewTemplate(template)}
                       >
                         预览
+                      </Button>
+                      <Button
+                        size="slim"
+                        variant="plain"
+                        icon={ShareIcon}
+                        onClick={() => handleShareTemplate(template)}
+                      >
+                        分享
                       </Button>
                       <Button
                         size="slim"
@@ -554,6 +680,107 @@ export default function TemplatesPage() {
                   每个店铺需要单独配置凭证。
                 </Text>
               </Banner>
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+
+        {/* 分享模板模态框 */}
+        <Modal
+          open={sharingTemplate !== null}
+          onClose={() => {
+            setSharingTemplate(null);
+            setShareLink(null);
+          }}
+          title={sharingTemplate ? `分享模板：${sharingTemplate.name}` : ""}
+          primaryAction={{
+            content: shareLink ? "复制链接" : "生成链接",
+            onAction: shareLink ? handleCopyShareLink : () => handleShareTemplate(sharingTemplate!),
+            loading: isGeneratingShareLink,
+          }}
+          secondaryActions={[
+            {
+              content: "关闭",
+              onAction: () => {
+                setSharingTemplate(null);
+                setShareLink(null);
+              },
+            },
+          ]}
+        >
+          <Modal.Section>
+            <BlockStack gap="400">
+              {sharingTemplate && (
+                <>
+                  <Banner tone="info">
+                    <Text as="p" variant="bodySm">
+                      分享链接可以让其他用户通过链接导入此模板。链接包含模板 ID 和验证 token，确保安全性。
+                    </Text>
+                  </Banner>
+
+                  {shareLink ? (
+                    <BlockStack gap="300">
+                      <TextField
+                        label="分享链接"
+                        value={shareLink}
+                        readOnly
+                        helpText="复制此链接并分享给其他用户，他们可以通过此链接导入模板"
+                      />
+                      <Button
+                        variant="primary"
+                        onClick={handleCopyShareLink}
+                        icon={ShareIcon}
+                      >
+                        复制链接
+                      </Button>
+                      <Banner tone="success">
+                        <Text as="p" variant="bodySm">
+                          ✅ 链接已生成。您可以将此链接分享给团队成员或其他店铺。
+                        </Text>
+                      </Banner>
+                    </BlockStack>
+                  ) : (
+                    <Banner tone="info">
+                      <Text as="p" variant="bodySm">
+                        点击「生成链接」按钮创建分享链接。
+                      </Text>
+                    </Banner>
+                  )}
+
+                  <Divider />
+
+                  <BlockStack gap="200">
+                    <Text as="h4" variant="headingSm">
+                      模板信息
+                    </Text>
+                    <BlockStack gap="100">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          名称：
+                        </Text>
+                        <Text as="span" fontWeight="semibold">
+                          {sharingTemplate.name}
+                        </Text>
+                      </InlineStack>
+                      {sharingTemplate.description && (
+                        <BlockStack gap="050">
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            描述：
+                          </Text>
+                          <Text as="span" variant="bodySm">
+                            {sharingTemplate.description}
+                          </Text>
+                        </BlockStack>
+                      )}
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          使用次数：
+                        </Text>
+                        <Badge>{sharingTemplate.usageCount}</Badge>
+                      </InlineStack>
+                    </BlockStack>
+                  </BlockStack>
+                </>
+              )}
             </BlockStack>
           </Modal.Section>
         </Modal>

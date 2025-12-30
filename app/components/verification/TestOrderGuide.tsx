@@ -12,29 +12,50 @@ import {
   List,
   Icon,
   Collapsible,
+  ProgressBar,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
   AlertCircleIcon,
   ClipboardIcon,
   InfoIcon,
+  RefreshIcon,
 } from "../icons";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useFetcher } from "@remix-run/react";
 
 export interface TestOrderGuideProps {
   shopDomain: string;
+  shopId: string;
   testItems: Array<{
     id: string;
     name: string;
     description: string;
     steps: string[];
     expectedEvents: string[];
+    eventType?: string;
+    category?: string;
   }>;
+  onTestComplete?: (itemId: string, verified: boolean) => void;
 }
 
-export function TestOrderGuide({ shopDomain, testItems }: TestOrderGuideProps) {
+export function TestOrderGuide({
+  shopDomain,
+  shopId,
+  testItems,
+  onTestComplete,
+}: TestOrderGuideProps) {
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [testStatuses, setTestStatuses] = useState<Record<string, "pending" | "verifying" | "verified" | "failed">>({});
+  const [verificationResults, setVerificationResults] = useState<Record<string, {
+    verified: boolean;
+    eventsFound: number;
+    expectedEvents: number;
+    missingEvents: string[];
+    errors?: string[];
+  }>>({});
+  const fetcher = useFetcher();
 
   const handleCopy = useCallback(async (text: string, itemId: string) => {
     try {
@@ -57,6 +78,56 @@ export function TestOrderGuide({ shopDomain, testItems }: TestOrderGuideProps) {
       return next;
     });
   }, []);
+
+  const handleVerifyTest = useCallback((itemId: string) => {
+    const item = testItems.find((i) => i.id === itemId);
+    if (!item) return;
+
+    setTestStatuses((prev) => ({ ...prev, [itemId]: "verifying" }));
+
+    // 提交验证请求
+    const formData = new FormData();
+    formData.append("_action", "verifyTestItem");
+    formData.append("itemId", itemId);
+    formData.append("eventType", item.eventType || "purchase");
+    formData.append("expectedEvents", JSON.stringify(item.expectedEvents));
+
+    fetcher.submit(formData, { method: "post" });
+  }, [testItems, fetcher]);
+
+  // 处理验证结果
+  useEffect(() => {
+    if (fetcher.data && (fetcher.data as { success?: boolean; itemId?: string }).success) {
+      const data = fetcher.data as {
+        itemId: string;
+        verified: boolean;
+        eventsFound: number;
+        expectedEvents: number;
+        missingEvents: string[];
+        errors?: string[];
+      };
+
+      setTestStatuses((prev) => ({
+        ...prev,
+        [data.itemId]: data.verified ? "verified" : "failed",
+      }));
+
+      setVerificationResults((prev) => ({
+        ...prev,
+        [data.itemId]: {
+          verified: data.verified,
+          eventsFound: data.eventsFound,
+          expectedEvents: data.expectedEvents,
+          missingEvents: data.missingEvents,
+          errors: data.errors,
+        },
+      }));
+
+      if (onTestComplete) {
+        onTestComplete(data.itemId, data.verified);
+      }
+    }
+  }, [fetcher.data, onTestComplete]);
 
   const testStoreUrl = `https://${shopDomain}`;
   const testCheckoutUrl = `${testStoreUrl}/checkout/test`;
@@ -168,16 +239,112 @@ export function TestOrderGuide({ shopDomain, testItems }: TestOrderGuideProps) {
                       </BlockStack>
 
                       <BlockStack gap="200">
-                        <Text as="h4" variant="headingSm">
-                          预期事件
-                        </Text>
-                        <InlineStack gap="100" wrap>
-                          {item.expectedEvents.map((event) => (
-                            <Badge key={event} tone="success">
-                              {event}
-                            </Badge>
-                          ))}
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text as="h4" variant="headingSm">
+                            预期事件
+                          </Text>
+                          <Button
+                            size="slim"
+                            variant="secondary"
+                            icon={RefreshIcon}
+                            onClick={() => handleVerifyTest(item.id)}
+                            loading={testStatuses[item.id] === "verifying"}
+                            disabled={testStatuses[item.id] === "verifying"}
+                          >
+                            {testStatuses[item.id] === "verifying"
+                              ? "验证中..."
+                              : testStatuses[item.id] === "verified"
+                                ? "已验证"
+                                : testStatuses[item.id] === "failed"
+                                  ? "验证失败"
+                                  : "自动验证"}
+                          </Button>
                         </InlineStack>
+                        <InlineStack gap="100" wrap>
+                          {item.expectedEvents.map((event) => {
+                            const result = verificationResults[item.id];
+                            const isFound = result?.missingEvents
+                              ? !result.missingEvents.includes(event)
+                              : undefined;
+
+                            return (
+                              <Badge
+                                key={event}
+                                tone={
+                                  isFound === true
+                                    ? "success"
+                                    : isFound === false
+                                      ? "critical"
+                                      : "info"
+                                }
+                              >
+                                {event}
+                                {isFound === true && " ✓"}
+                                {isFound === false && " ✗"}
+                              </Badge>
+                            );
+                          })}
+                        </InlineStack>
+
+                        {/* 验证结果 */}
+                        {verificationResults[item.id] && (
+                          <Box
+                            background={
+                              verificationResults[item.id].verified
+                                ? "bg-surface-success"
+                                : "bg-surface-critical"
+                            }
+                            padding="300"
+                            borderRadius="200"
+                          >
+                            <BlockStack gap="200">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <Text as="span" variant="bodySm" fontWeight="semibold">
+                                  验证结果
+                                </Text>
+                                <Badge
+                                  tone={
+                                    verificationResults[item.id].verified
+                                      ? "success"
+                                      : "critical"
+                                  }
+                                >
+                                  {verificationResults[item.id].verified
+                                    ? "通过"
+                                    : "未通过"}
+                                </Badge>
+                              </InlineStack>
+                              <Text as="span" variant="bodySm">
+                                找到 {verificationResults[item.id].eventsFound} /{" "}
+                                {verificationResults[item.id].expectedEvents} 个预期事件
+                              </Text>
+                              {verificationResults[item.id].missingEvents.length > 0 && (
+                                <BlockStack gap="100">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    缺失事件：
+                                  </Text>
+                                  <List type="bullet">
+                                    {verificationResults[item.id].missingEvents.map(
+                                      (event, idx) => (
+                                        <List.Item key={idx}>{event}</List.Item>
+                                      )
+                                    )}
+                                  </List>
+                                </BlockStack>
+                              )}
+                              {verificationResults[item.id].errors &&
+                                verificationResults[item.id].errors!.length > 0 && (
+                                  <Banner tone="critical">
+                                    <List type="bullet">
+                                      {verificationResults[item.id].errors!.map((err, idx) => (
+                                        <List.Item key={idx}>{err}</List.Item>
+                                      ))}
+                                    </List>
+                                  </Banner>
+                                )}
+                            </BlockStack>
+                          </Box>
+                        )}
                       </BlockStack>
 
                       <Box

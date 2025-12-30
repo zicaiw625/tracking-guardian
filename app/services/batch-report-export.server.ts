@@ -386,18 +386,17 @@ async function generateCombinedPdfReport(
       return undefined;
     }
 
-    // 如果有白标配置，使用 workspace/batch-report.server.ts 的生成函数
+    // 如果有白标配置，需要从 shopIds 生成批量报告数据
+    // 由于 generateBatchReportPdf 需要 groupId，我们使用标准 PDF 生成并应用白标
+    // 白标配置可以在生成HTML时应用
     if (whiteLabel) {
-      const { generateBatchReportPdf } = await import("./workspace/batch-report.server");
-      const result = await generateBatchReportPdf({
-        groupId: "", // 批量导出不需要 groupId
+      // 使用标准批量报告生成，白标将在报告内容中应用
+      const result = await generateBatchReports({
         shopIds,
         reportType,
-        whiteLabel,
       });
 
-      if ("error" in result) {
-        logger.error("Failed to generate white-label PDF report", { error: result.error });
+      if (!result) {
         return undefined;
       }
 

@@ -67,6 +67,24 @@ export async function saveWizardConfigs(
   const errors: string[] = [];
   let savedCount = 0;
 
+  // 检查套餐限制
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { plan: true },
+  });
+
+  if (shop) {
+    const { canCreatePixelConfig } = await import("./billing/feature-gates.server");
+    const gateCheck = await canCreatePixelConfig(shopId, (shop.plan || "free") as any);
+    if (!gateCheck.allowed) {
+      return {
+        success: false,
+        savedCount: 0,
+        errors: [gateCheck.reason || "套餐限制：无法创建像素配置"],
+      };
+    }
+  }
+
   for (const config of configs) {
 
     const validation = validateWizardConfig(config);
@@ -93,6 +111,22 @@ export async function saveWizardConfigs(
 
       const encryptedCredentials = encryptJson(credentials);
 
+      // 在更新前保存快照（如果配置已存在）
+      const existingConfig = await prisma.pixelConfig.findUnique({
+        where: {
+          shopId_platform: {
+            shopId,
+            platform: config.platform as Platform,
+          },
+        },
+      });
+
+      if (existingConfig && existingConfig.isActive) {
+        // 保存当前配置为快照
+        const { saveConfigSnapshot } = await import("./pixel-rollback.server");
+        await saveConfigSnapshot(shopId, config.platform);
+      }
+
       await prisma.pixelConfig.upsert({
         where: {
           shopId_platform: {
@@ -118,6 +152,8 @@ export async function saveWizardConfigs(
           eventMappings: config.eventMappings as object,
           environment: config.environment,
           migrationStatus: "in_progress",
+          configVersion: 1,
+          rollbackAllowed: false,
         },
       });
 
@@ -182,60 +218,31 @@ export async function saveWizardDraft(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 保存草稿状态到 clientConfig 字段
-    const draftData = {
-      wizardDraft: {
-        step: draft.step,
-        selectedPlatforms: draft.selectedPlatforms,
-        platformConfigs: draft.platformConfigs,
-        selectedTemplate: draft.selectedTemplate,
-        savedAt: new Date().toISOString(),
-      },
+    // 使用新的 MigrationDraft 模型
+    const { saveMigrationDraft } = await import("./migration-draft.server");
+    
+    // 转换数据格式
+    const configData = {
+      selectedPlatforms: draft.selectedPlatforms,
+      platformConfigs: Object.fromEntries(
+        Object.entries(draft.platformConfigs).map(([platform, config]) => [
+          platform,
+          {
+            credentials: config.credentials || {},
+            eventMappings: config.eventMappings || {},
+            environment: config.environment || "test",
+          },
+        ])
+      ),
     };
 
-    // 为每个选中的平台保存草稿
-    for (const platform of draft.selectedPlatforms) {
-      const config = draft.platformConfigs[platform];
-      if (!config) continue;
-
-      // 如果已有凭证，加密保存
-      let credentialsEncrypted: string | null = null;
-      if (config.credentials && Object.keys(config.credentials).length > 0) {
-        try {
-          credentialsEncrypted = encryptJson(config.credentials);
-        } catch (error) {
-          logger.warn(`Failed to encrypt credentials for ${platform}`, error);
-        }
-      }
-
-      await prisma.pixelConfig.upsert({
-        where: {
-          shopId_platform: {
-            shopId,
-            platform: platform as Platform,
-          },
-        },
-        update: {
-          platformId: config.platformId || undefined,
-          credentialsEncrypted: credentialsEncrypted || undefined,
-          clientConfig: draftData as object,
-          eventMappings: config.eventMappings as object || undefined,
-          environment: config.environment || "test",
-          migrationStatus: "in_progress",
-          updatedAt: new Date(),
-        },
-        create: {
-          shopId,
-          platform: platform as Platform,
-          platformId: config.platformId || null,
-          credentialsEncrypted: credentialsEncrypted || null,
-          clientConfig: draftData as object,
-          eventMappings: config.eventMappings as object || undefined,
-          environment: config.environment || "test",
-          migrationStatus: "in_progress",
-          serverSideEnabled: false, // 草稿阶段不启用服务端
-        },
-      });
+    // 只保存到 review 步骤之前的草稿（testing 步骤表示已完成）
+    const step = draft.step === "testing" ? "review" : draft.step;
+    
+    const result = await saveMigrationDraft(shopId, step as "select" | "credentials" | "mappings" | "review", configData);
+    
+    if (!result.success) {
+      return { success: false, error: result.error };
     }
 
     return { success: true };
@@ -254,91 +261,63 @@ export async function saveWizardDraft(
  */
 export async function loadWizardDraft(shopId: string): Promise<WizardState | null> {
   try {
-    // 查找所有 in_progress 状态的配置
+    // 使用新的 MigrationDraft 模型
+    const { getMigrationDraft } = await import("./migration-draft.server");
+    const draft = await getMigrationDraft(shopId);
+
+    if (!draft) {
+      return null;
+    }
+
+    // 查找相关的配置以获取 platformId 和已加密的凭证
     const configs = await prisma.pixelConfig.findMany({
       where: {
         shopId,
-        migrationStatus: "in_progress",
+        platform: { in: draft.configData.selectedPlatforms },
         isActive: true,
       },
       select: {
         platform: true,
         platformId: true,
         credentialsEncrypted: true,
-        clientConfig: true,
         eventMappings: true,
         environment: true,
       },
     });
 
-    if (configs.length === 0) {
-      return null;
-    }
-
-    // 从第一个配置中提取草稿状态
-    const firstConfig = configs[0];
-    const clientConfig = firstConfig.clientConfig as { wizardDraft?: any } | null;
-
-    if (!clientConfig?.wizardDraft) {
-      // 如果没有草稿数据，从配置重建
-      const selectedPlatforms = configs.map((c) => c.platform);
-      const configsMap: Record<string, WizardConfig> = {};
-
-      for (const config of configs) {
-        let credentials: Record<string, string> = {};
-        if (config.credentialsEncrypted) {
-          try {
-            const { decryptJson } = await import("../utils/crypto.server");
-            credentials = decryptJson(config.credentialsEncrypted) as Record<string, string>;
-          } catch (error) {
-            logger.warn(`Failed to decrypt credentials for ${config.platform}`, error);
-          }
-        }
-
-        configsMap[config.platform] = {
-          platform: config.platform as Platform | "pinterest",
-          platformId: config.platformId || "",
-          credentials,
-          eventMappings: (config.eventMappings as Record<string, string>) || {},
-          environment: (config.environment as "test" | "live") || "test",
-        };
-      }
-
-      return {
-        step: "credentials", // 默认从凭证步骤开始
-        selectedPlatforms,
-        configs: configsMap,
-      };
-    }
-
-    const draft = clientConfig.wizardDraft;
     const configsMap: Record<string, WizardConfig> = {};
 
     // 重建配置
-    for (const config of configs) {
+    for (const platform of draft.configData.selectedPlatforms) {
+      const existingConfig = configs.find((c) => c.platform === platform);
+      const draftConfig = draft.configData.platformConfigs[platform] || {};
+
       let credentials: Record<string, string> = {};
-      if (config.credentialsEncrypted) {
+      if (existingConfig?.credentialsEncrypted) {
         try {
           const { decryptJson } = await import("../utils/crypto.server");
-          credentials = decryptJson(config.credentialsEncrypted) as Record<string, string>;
+          credentials = decryptJson(existingConfig.credentialsEncrypted) as Record<string, string>;
         } catch (error) {
-          logger.warn(`Failed to decrypt credentials for ${config.platform}`, error);
+          logger.warn(`Failed to decrypt credentials for ${platform}`, error);
+          // 如果解密失败，使用草稿中的凭证
+          credentials = draftConfig.credentials || {};
         }
+      } else {
+        credentials = draftConfig.credentials || {};
       }
 
-      const draftConfig = draft.platformConfigs?.[config.platform] || {};
-      configsMap[config.platform] = {
-        platform: config.platform as Platform | "pinterest",
-        platformId: config.platformId || draftConfig.platformId || "",
-        credentials: credentials || draftConfig.credentials || {},
-        eventMappings: (config.eventMappings as Record<string, string>) || draftConfig.eventMappings || {},
-        environment: (config.environment as "test" | "live") || draftConfig.environment || "test",
+      configsMap[platform] = {
+        platform: platform as Platform | "pinterest",
+        platformId: existingConfig?.platformId || "",
+        credentials,
+        eventMappings: (existingConfig?.eventMappings as Record<string, string>) || draftConfig.eventMappings || {},
+        environment: (existingConfig?.environment as "test" | "live") || draftConfig.environment || "test",
       };
     }
 
     return {
-      step: draft.step || "select",
-      selectedPlatforms: draft.selectedPlatforms || [],
+      step: draft.step,
+      selectedPlatforms: draft.configData.selectedPlatforms,
       configs: configsMap,
     };
   } catch (error) {
@@ -352,7 +331,11 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
  */
 export async function clearWizardDraft(shopId: string): Promise<{ success: boolean }> {
   try {
-    // 将 in_progress 状态的配置标记为 not_started
+    // 使用新的 MigrationDraft 模型
+    const { deleteMigrationDraft } = await import("./migration-draft.server");
+    const result = await deleteMigrationDraft(shopId);
+
+    // 同时清理 in_progress 状态的配置
     await prisma.pixelConfig.updateMany({
       where: {
         shopId,
@@ -364,7 +347,7 @@ export async function clearWizardDraft(shopId: string): Promise<{ success: boole
       },
     });
 
-    return { success: true };
+    return { success: result };
   } catch (error) {
     logger.error("Failed to clear wizard draft", error);
     return { success: false };

@@ -36,6 +36,7 @@ import {
   ExternalIcon,
 } from "~/components/icons";
 import { EnhancedEmptyState, useToastContext } from "~/components/ui";
+import { DisplayRulesEditor } from "~/components/ui-blocks/DisplayRulesEditor";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -44,6 +45,7 @@ import {
   updateUiModuleConfig,
   resetModuleToDefault,
   getEnabledModulesCount,
+  batchToggleModules,
 } from "../services/ui-extension.server";
 import { generateModulePreviewUrl, isDevStore } from "../utils/dev-store.server";
 import {
@@ -56,6 +58,7 @@ import {
   type OrderTrackingSettings,
   type UpsellSettings,
   type LocalizationSettings,
+  type DisplayRules,
 } from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billing/plans";
 
@@ -199,6 +202,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ success: true, actionType: "reset_module", moduleKey });
     }
 
+    case "batch_toggle_modules": {
+      const updatesJson = formData.get("updates") as string;
+      try {
+        const updates = JSON.parse(updatesJson) as Array<{ moduleKey: ModuleKey; isEnabled: boolean }>;
+        const result = await batchToggleModules(shop.id, updates);
+        if (!result.success) {
+          return json({ error: "批量操作失败" }, { status: 400 });
+        }
+        return json({ 
+          success: true, 
+          actionType: "batch_toggle_modules", 
+          results: result.results 
+        });
+      } catch {
+        return json({ error: "无效的批量操作数据" }, { status: 400 });
+      }
+    }
+
     default:
       return json({ error: "未知操作" }, { status: 400 });
   }
@@ -211,6 +232,8 @@ function ModuleCard({
   isSubmitting,
   canEnable,
   upgradeRequired,
+  isSelected,
+  onSelect,
 }: {
   module: UiModuleConfig;
   onToggle: (moduleKey: ModuleKey, enabled: boolean) => void;
@@ -218,6 +241,8 @@ function ModuleCard({
   isSubmitting: boolean;
   canEnable: boolean;
   upgradeRequired?: PlanId;
+  isSelected?: boolean;
+  onSelect?: (moduleKey: ModuleKey, selected: boolean) => void;
 }) {
   const info = UI_MODULES[module.moduleKey];
 
@@ -226,6 +251,13 @@ function ModuleCard({
       <BlockStack gap="400">
         <InlineStack align="space-between" blockAlign="center">
           <InlineStack gap="300" blockAlign="center">
+            {onSelect && (
+              <Checkbox
+                checked={isSelected || false}
+                onChange={(checked) => onSelect(module.moduleKey, checked)}
+                label=""
+              />
+            )}
             <Box
               background={module.isEnabled ? "bg-fill-success-secondary" : "bg-surface-secondary"}
               padding="200"
@@ -553,6 +585,26 @@ function HelpdeskSettingsForm({
             autoComplete="off"
             placeholder="+8613800138000"
             helpText="WhatsApp 联系号码（包含国家代码）"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="Facebook Messenger 链接"
+            value={settings.messengerUrl || ""}
+            onChange={(value) => {
+              onChange({ ...settings, messengerUrl: value });
+              const error = validateUrl(value);
+              setErrors({ ...errors, messengerUrl: error });
+            }}
+            onBlur={() => {
+              const error = validateUrl(settings.messengerUrl || "");
+              setErrors({ ...errors, messengerUrl: error });
+            }}
+            error={errors.messengerUrl}
+            autoComplete="off"
+            placeholder="https://m.me/your-page"
+            helpText="Facebook Messenger 联系链接（可选）"
           />
         </FormLayout.Group>
 
@@ -953,7 +1005,9 @@ export default function UiBlocksPage() {
   const [editingModule, setEditingModule] = useState<ModuleKey | null>(null);
   const [editingSettings, setEditingSettings] = useState<Record<string, unknown> | null>(null);
   const [editingLocalization, setEditingLocalization] = useState<LocalizationSettings | undefined>(undefined);
+  const [editingDisplayRules, setEditingDisplayRules] = useState<DisplayRules | null>(null);
   const [modalTab, setModalTab] = useState(0);
+  const [selectedModules, setSelectedModules] = useState<Set<ModuleKey>>(new Set());
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -988,9 +1042,36 @@ export default function UiBlocksPage() {
       setEditingModule(moduleKey);
       setEditingSettings(module.settings as Record<string, unknown>);
       setEditingLocalization(module.localization);
+      setEditingDisplayRules(module.displayRules);
       setModalTab(0);
     }
   }, [modules]);
+
+  const handleBatchEnable = useCallback(() => {
+    if (selectedModules.size === 0) return;
+    const updates = Array.from(selectedModules).map((moduleKey) => ({
+      moduleKey,
+      isEnabled: true,
+    }));
+    const formData = new FormData();
+    formData.append("_action", "batch_toggle_modules");
+    formData.append("updates", JSON.stringify(updates));
+    submit(formData, { method: "post" });
+    setSelectedModules(new Set());
+  }, [selectedModules, submit]);
+
+  const handleBatchDisable = useCallback(() => {
+    if (selectedModules.size === 0) return;
+    const updates = Array.from(selectedModules).map((moduleKey) => ({
+      moduleKey,
+      isEnabled: false,
+    }));
+    const formData = new FormData();
+    formData.append("_action", "batch_toggle_modules");
+    formData.append("updates", JSON.stringify(updates));
+    submit(formData, { method: "post" });
+    setSelectedModules(new Set());
+  }, [selectedModules, submit]);
 
   const handleSaveSettings = useCallback(() => {
     if (!editingModule || !editingSettings) return;
@@ -1007,7 +1088,18 @@ export default function UiBlocksPage() {
     setEditingModule(null);
     setEditingSettings(null);
     setEditingLocalization(undefined);
+    setEditingDisplayRules(null);
   }, [editingModule, editingSettings, editingLocalization, submit]);
+
+  const handleSaveDisplayRules = useCallback(() => {
+    if (!editingModule || !editingDisplayRules) return;
+
+    const formData = new FormData();
+    formData.append("_action", "update_display_rules");
+    formData.append("moduleKey", editingModule);
+    formData.append("displayRules", JSON.stringify(editingDisplayRules));
+    submit(formData, { method: "post" });
+  }, [editingModule, editingDisplayRules, submit]);
 
   const handleResetModule = useCallback(() => {
     if (!editingModule) return;
@@ -1115,6 +1207,40 @@ export default function UiBlocksPage() {
         </Banner>
 
         {}
+        {selectedModules.size > 0 && (
+          <Card>
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="p" variant="bodyMd">
+                已选择 {selectedModules.size} 个模块
+              </Text>
+              <InlineStack gap="200">
+                <Button
+                  size="slim"
+                  onClick={handleBatchEnable}
+                  loading={isSubmitting}
+                  disabled={!canEnableMore}
+                >
+                  批量启用
+                </Button>
+                <Button
+                  size="slim"
+                  variant="secondary"
+                  onClick={handleBatchDisable}
+                  loading={isSubmitting}
+                >
+                  批量停用
+                </Button>
+                <Button
+                  size="slim"
+                  variant="plain"
+                  onClick={() => setSelectedModules(new Set())}
+                >
+                  取消选择
+                </Button>
+              </InlineStack>
+            </InlineStack>
+          </Card>
+        )}
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           <Box paddingBlockStart="400">
             <BlockStack gap="400">
@@ -1135,6 +1261,16 @@ export default function UiBlocksPage() {
                     isSubmitting={isSubmitting}
                     canEnable={canEnableMore}
                     upgradeRequired={getRequiredPlan(module.moduleKey)}
+                    isSelected={selectedModules.has(module.moduleKey)}
+                    onSelect={(moduleKey, selected) => {
+                      const newSelected = new Set(selectedModules);
+                      if (selected) {
+                        newSelected.add(moduleKey);
+                      } else {
+                        newSelected.delete(moduleKey);
+                      }
+                      setSelectedModules(newSelected);
+                    }}
                   />
                 ))
               )}
@@ -1161,15 +1297,22 @@ export default function UiBlocksPage() {
       {}
       <Modal
         open={editingModule !== null}
-        onClose={() => {
+            onClose={() => {
           setEditingModule(null);
           setEditingSettings(null);
           setEditingLocalization(undefined);
+          setEditingDisplayRules(null);
         }}
         title={`配置 ${editingModule ? UI_MODULES[editingModule].name : ""}`}
         primaryAction={{
           content: "保存",
-          onAction: handleSaveSettings,
+          onAction: () => {
+            if (modalTab === 1 && editingDisplayRules) {
+              handleSaveDisplayRules();
+            } else {
+              handleSaveSettings();
+            }
+          },
           loading: isSubmitting,
         }}
         secondaryActions={[
@@ -1184,6 +1327,7 @@ export default function UiBlocksPage() {
               setEditingModule(null);
               setEditingSettings(null);
               setEditingLocalization(undefined);
+              setEditingDisplayRules(null);
             },
           },
         ]}
@@ -1230,6 +1374,7 @@ export default function UiBlocksPage() {
           <Tabs
             tabs={[
               { id: "settings", content: "基础设置" },
+              { id: "display_rules", content: "显示规则" },
               { id: "localization", content: "🌐 多语言" },
             ]}
             selected={modalTab}
@@ -1273,7 +1418,15 @@ export default function UiBlocksPage() {
               )}
 
               {}
-              {modalTab === 1 && editingModule && (
+              {modalTab === 1 && editingModule && editingDisplayRules && (
+                <DisplayRulesEditor
+                  displayRules={editingDisplayRules}
+                  onChange={setEditingDisplayRules}
+                  moduleKey={editingModule}
+                />
+              )}
+
+              {modalTab === 2 && editingModule && (
                 <LocalizationSettingsForm
                   localization={editingLocalization}
                   onChange={setEditingLocalization}

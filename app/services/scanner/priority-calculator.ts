@@ -250,15 +250,20 @@ export async function calculatePriority(
 
   // 优化后的优先级算法：priority = riskScore * 0.4 + impactScore * 0.3 + (category + migrationStatus) * 0.2 + dependency * 0.1
   // 复杂度作为负向因子（复杂度越高，优先级越低）
-  const priority = Math.round(
+  // 设计方案要求：优先级为 1-10 分
+  const rawPriority = 
     riskLevel * 0.4 +
     impactScope * 0.3 +
     (category + migrationStatus) * 0.2 +
     dependency * 0.1 +
-    (20 - complexity) * 0.1
-  );
+    (20 - complexity) * 0.1;
+  
+  // 将 0-100 的分数映射到 1-10 分
+  // 使用对数映射，使高分更突出
+  const normalizedPriority = Math.round(1 + (rawPriority / 100) * 9);
+  const priority = Math.max(1, Math.min(10, normalizedPriority));
 
-  // 计算预计时间
+  // 计算预计时间（基于历史数据）
   const estimatedTimeMinutes = estimateMigrationTime(asset, complexity);
 
   const reasons: string[] = [];
@@ -275,7 +280,7 @@ export async function calculatePriority(
 
   return {
     assetId: asset.id,
-    priority: Math.max(0, Math.min(100, priority)),
+    priority, // 现在是 1-10 分
     estimatedTimeMinutes,
     factors: {
       riskLevel,
