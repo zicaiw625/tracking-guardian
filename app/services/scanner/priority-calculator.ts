@@ -146,6 +146,79 @@ async function calculateDependencyScore(
   return Math.max(0, Math.min(15, dependencyScore));
 }
 
+function calculateImpactScope(asset: AuditAsset): number {
+  let impactScore = 10; // 基础影响分数
+
+  // 基于资产类别的影响范围
+  const categoryImpact: Record<string, number> = {
+    pixel: 20,      // 像素追踪影响转化归因，非常重要
+    affiliate: 15,  // 联盟追踪影响分佣
+    survey: 8,      // 问卷影响用户体验
+    support: 10,    // 客服支持影响用户满意度
+    analytics: 12,  // 分析工具影响数据收集
+    other: 5,       // 其他脚本影响较小
+  };
+  impactScore = categoryImpact[asset.category] || 10;
+
+  // 基于平台的影响范围
+  if (asset.platform) {
+    const criticalPlatforms = ["google", "meta", "tiktok"];
+    if (criticalPlatforms.includes(asset.platform)) {
+      impactScore += 5; // 关键广告平台加分
+    }
+  }
+
+  // 基于显示范围的影响
+  const details = asset.details as Record<string, unknown> | null;
+  if (details) {
+    const displayScope = details.displayScope as string | undefined;
+    if (displayScope === "order_status") {
+      impactScore += 10; // 订单状态页影响更大
+    }
+  }
+
+  return Math.max(0, Math.min(30, impactScore));
+}
+
+function estimateMigrationTime(asset: AuditAsset, complexity: number): number {
+  // 基础时间（分钟）
+  let baseTime = 15;
+
+  // 基于类别的基础时间
+  const categoryBaseTime: Record<string, number> = {
+    pixel: 15,
+    affiliate: 30,
+    survey: 20,
+    support: 10,
+    analytics: 25,
+    other: 15,
+  };
+  baseTime = categoryBaseTime[asset.category] || 15;
+
+  // 基于迁移类型的时间调整
+  const migrationTypeMultiplier: Record<string, number> = {
+    web_pixel: 1.0,
+    ui_extension: 1.5,
+    server_side: 2.0,
+    none: 0.3,
+  };
+  const multiplier = migrationTypeMultiplier[asset.suggestedMigration] || 1.0;
+  baseTime = Math.round(baseTime * multiplier);
+
+  // 复杂度调整（复杂度越高，时间越长）
+  const complexityMultiplier = 1 + (complexity / 20) * 0.5; // 最多增加 50%
+  baseTime = Math.round(baseTime * complexityMultiplier);
+
+  // 风险等级调整（高风险需要更多测试时间）
+  if (asset.riskLevel === "high") {
+    baseTime = Math.round(baseTime * 1.2);
+  } else if (asset.riskLevel === "low") {
+    baseTime = Math.round(baseTime * 0.9);
+  }
+
+  return Math.max(5, Math.min(120, baseTime)); // 最少 5 分钟，最多 120 分钟
+}
+
 export async function calculatePriority(
   asset: AuditAsset,
   allAssets: AuditAsset[] = []
