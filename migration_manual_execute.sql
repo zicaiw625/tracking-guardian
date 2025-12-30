@@ -34,3 +34,4 @@ WHERE table_name = 'AuditAsset'
 ORDER BY column_name;
 
 
+
