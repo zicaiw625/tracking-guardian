@@ -72,13 +72,71 @@ export function GuidedSupplement({
     }
   }, []);
 
+  // 从文本中智能识别功能
+  const extractFeaturesFromText = useCallback((text: string): string[] => {
+    const lowerText = text.toLowerCase();
+    const detectedItems: string[] = [];
+    
+    // 关键词匹配
+    const keywordMap: Record<string, string[]> = {
+      ga4: ["ga4", "google analytics 4", "g-"],
+      google: ["google analytics", "gtag", "google tag"],
+      meta: ["meta pixel", "facebook pixel", "fbq", "fb pixel"],
+      tiktok: ["tiktok pixel", "ttq", "tiktok"],
+      pinterest: ["pinterest tag", "pintrk", "pinterest"],
+      snapchat: ["snapchat pixel", "snaptr", "snapchat"],
+      survey: ["survey", "问卷", "评价", "feedback", "fairing", "zigpoll"],
+      support: ["support", "客服", "helpdesk", "zendesk", "intercom"],
+      reorder: ["reorder", "再购", "再次购买"],
+      affiliate: ["affiliate", "联盟", "referral", "commission"],
+      upsell: ["upsell", "追加销售", "推荐商品"],
+      tracking: ["tracking", "追踪", "物流", "aftership", "17track"],
+    };
+    
+    Object.entries(keywordMap).forEach(([key, keywords]) => {
+      if (keywords.some(kw => lowerText.includes(kw))) {
+        // 映射到对应的 checklist item ID
+        const itemId = key === "ga4" ? "ga4" : 
+                      key === "google" ? "ga4" :
+                      key === "meta" ? "meta" :
+                      key === "tiktok" ? "tiktok" :
+                      key === "pinterest" ? "pinterest" :
+                      key === "snapchat" ? "snapchat" :
+                      key === "survey" ? "survey" :
+                      key === "support" ? "support" :
+                      key === "reorder" ? "reorder" :
+                      key === "affiliate" ? "affiliate" :
+                      key === "upsell" ? "upsell" :
+                      key === "tracking" ? "tracking" : null;
+        
+        if (itemId && !detectedItems.includes(itemId)) {
+          detectedItems.push(itemId);
+        }
+      }
+    });
+    
+    return detectedItems;
+  }, []);
+
   const handleComplete = useCallback(() => {
     if (selectedItems.length === 0) {
       return;
     }
 
+    // 如果提供了文本，尝试智能识别
+    let finalSelectedItems = [...selectedItems];
+    if (additionalNotes.trim()) {
+      const detectedItems = extractFeaturesFromText(additionalNotes);
+      // 合并检测到的项目（去重）
+      detectedItems.forEach(itemId => {
+        if (!finalSelectedItems.includes(itemId)) {
+          finalSelectedItems.push(itemId);
+        }
+      });
+    }
+
     // 将选中的项目转换为 AuditAsset
-    const assets = selectedItems.map((itemId) => {
+    const assets = finalSelectedItems.map((itemId) => {
       const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
       if (!item) return null;
 
@@ -105,6 +163,7 @@ export function GuidedSupplement({
         details: {
           fromUpgradeWizard: true,
           additionalNotes: additionalNotes.trim() || undefined,
+          autoDetected: !selectedItems.includes(itemId), // 标记是否自动检测
         },
       };
     }).filter((asset): asset is NonNullable<typeof asset> => asset !== null);
@@ -117,7 +176,7 @@ export function GuidedSupplement({
       },
       { method: "post" }
     );
-  }, [selectedItems, additionalNotes, fetcher]);
+  }, [selectedItems, additionalNotes, fetcher, extractFeaturesFromText]);
 
   // 处理完成结果
   if (fetcher.data && (fetcher.data as { success?: boolean }).success) {
@@ -242,19 +301,57 @@ export function GuidedSupplement({
             </BlockStack>
           )}
 
-          {/* 步骤 2: 截图上传（可选） */}
+          {/* 步骤 2: 截图上传或清单复制（可选） */}
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
-                上传截图（可选）
+                补充信息（可选）
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
-                如果您从升级向导中截图了清单，可以上传以便我们更准确地识别功能
+                如果您从升级向导中截图了清单或复制了文本，可以在此处补充
               </Text>
 
               <Banner tone="info">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    两种方式补充信息：
+                  </Text>
+                  <List>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>方式一：</strong>从升级向导中复制清单文本，粘贴到下方文本框
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        <strong>方式二：</strong>上传升级向导的截图（支持 PNG、JPG 格式）
+                      </Text>
+                    </List.Item>
+                  </List>
+                </BlockStack>
+              </Banner>
+
+              {/* 清单文本粘贴 */}
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    粘贴升级向导清单文本：
+                  </Text>
+                  <TextField
+                    label="清单内容"
+                    value={additionalNotes}
+                    onChange={setAdditionalNotes}
+                    multiline={6}
+                    placeholder="从 Shopify 升级向导中复制的清单文本..."
+                    helpText="粘贴后，系统会自动识别并匹配已选择的功能"
+                  />
+                </BlockStack>
+              </Card>
+
+              {/* 截图上传提示 */}
+              <Banner>
                 <Text as="p" variant="bodySm">
-                  💡 <strong>提示：</strong>截图功能正在开发中。目前请直接勾选上方对应的功能。
+                  💡 <strong>提示：</strong>截图上传功能正在开发中。目前请使用文本粘贴方式。
                 </Text>
               </Banner>
 
@@ -304,14 +401,14 @@ export function GuidedSupplement({
                   <BlockStack gap="200">
                     <InlineStack gap="200" align="start">
                       <Text as="span" variant="bodySm" fontWeight="semibold">
-                        选择的功能：
+                        手动选择的功能：
                       </Text>
                       {selectedItems.length > 0 ? (
                         <InlineStack gap="100" wrap>
                           {selectedItems.map((itemId) => {
                             const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
                             return item ? (
-                              <Badge key={itemId}>{item.label}</Badge>
+                              <Badge key={itemId} tone="info">{item.label}</Badge>
                             ) : null;
                           })}
                         </InlineStack>
@@ -321,10 +418,30 @@ export function GuidedSupplement({
                         </Text>
                       )}
                     </InlineStack>
+                    {additionalNotes.trim() && (() => {
+                      const detectedItems = extractFeaturesFromText(additionalNotes);
+                      const autoDetected = detectedItems.filter(id => !selectedItems.includes(id));
+                      return autoDetected.length > 0 ? (
+                        <InlineStack gap="200" align="start">
+                          <Text as="span" variant="bodySm" fontWeight="semibold">
+                            自动检测到的功能：
+                          </Text>
+                          <InlineStack gap="100" wrap>
+                            {autoDetected.map((itemId) => {
+                              const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
+                              return item ? (
+                                <Badge key={itemId} tone="success">{item.label}</Badge>
+                              ) : null;
+                            })}
+                          </InlineStack>
+                        </InlineStack>
+                      ) : null;
+                    })()}
                     <InlineStack gap="200" align="center">
                       <CheckCircleIcon />
                       <Text as="span" variant="bodySm">
                         信息来自 Shopify 升级向导
+                        {additionalNotes.trim() && " + 文本智能识别"}
                       </Text>
                     </InlineStack>
                   </BlockStack>

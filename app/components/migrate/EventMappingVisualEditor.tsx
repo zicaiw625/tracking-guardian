@@ -41,6 +41,7 @@ interface EventMappingVisualEditorProps {
   platform: Platform;
   mappings: Record<string, string>;
   onMappingChange: (shopifyEvent: string, platformEvent: string) => void;
+  showPreview?: boolean; // 是否显示实时预览
 }
 
 const SHOPIFY_EVENTS: ShopifyEvent[] = [

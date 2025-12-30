@@ -11,6 +11,8 @@ export interface DependencyGraph {
     category: string;
     riskLevel: string;
     priority: number | null;
+    estimatedTimeMinutes: number | null;
+    displayName: string | null;
   }>;
   edges: Array<{
     from: string;
@@ -34,8 +36,10 @@ export async function analyzeDependencies(
       category: true,
       riskLevel: true,
       priority: true,
+      estimatedTimeMinutes: true,
       suggestedMigration: true,
       dependencies: true,
+      displayName: true,
     },
   });
 
@@ -46,6 +50,8 @@ export async function analyzeDependencies(
     category: asset.category,
     riskLevel: asset.riskLevel,
     priority: asset.priority,
+    estimatedTimeMinutes: asset.estimatedTimeMinutes,
+    displayName: asset.displayName,
   }));
 
   const edges: DependencyGraph["edges"] = [];

@@ -13,6 +13,15 @@ import {
 import { AlertCircleIcon, CheckCircleIcon } from "~/components/icons";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
 
+function formatTime(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} 分钟`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
+}
+
 interface MigrationDependencyGraphProps {
   dependencyGraph: DependencyGraph | null;
   onAssetClick?: (assetId: string) => void;
@@ -222,9 +231,9 @@ export function MigrationDependencyGraph({
 
                   return (
                     <List.Item key={nodeId}>
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" variant="bodySm">
-                          {node.assetId.substring(0, 8)}...
+                      <InlineStack gap="200" blockAlign="center" wrap>
+                        <Text as="span" variant="bodySm" fontWeight="semibold">
+                          {node.displayName || node.assetId.substring(0, 8) + "..."}
                         </Text>
                         <Badge
                           tone={
@@ -239,6 +248,16 @@ export function MigrationDependencyGraph({
                         </Badge>
                         {node.platform && (
                           <Badge tone="info">{node.platform}</Badge>
+                        )}
+                        {node.priority && (
+                          <Badge tone="success">
+                            优先级: {node.priority}/10
+                          </Badge>
+                        )}
+                        {node.estimatedTimeMinutes && (
+                          <Badge tone="info">
+                            预计: {formatTime(node.estimatedTimeMinutes)}
+                          </Badge>
                         )}
                       </InlineStack>
                     </List.Item>
@@ -290,7 +309,12 @@ export function MigrationDependencyGraph({
                         )}
                         {node.priority && (
                           <Badge tone="success">
-                            优先级: {node.priority}
+                            优先级: {node.priority}/10
+                          </Badge>
+                        )}
+                        {node.estimatedTimeMinutes && (
+                          <Badge tone="info">
+                            预计: {formatTime(node.estimatedTimeMinutes)}
                           </Badge>
                         )}
                       </InlineStack>

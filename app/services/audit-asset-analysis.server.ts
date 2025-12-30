@@ -4,6 +4,7 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { analyzeScriptContent } from "./scanner/content-analysis";
 import { PLATFORM_PATTERNS, PLATFORM_INFO, detectPlatforms } from "./scanner/patterns";
+import { detectRisksInContent } from "./scanner/risk-detector.server";
 import type { AssetCategory, AssetSourceType, RiskLevel, SuggestedMigration } from "./audit-asset.server";
 import crypto from "crypto";
 
@@ -17,6 +18,13 @@ export interface ManualPasteAnalysisResult {
     content: string;
     matchedPatterns: string[];
     confidence: "high" | "medium" | "low";
+    detectedRisks?: {
+      piiAccess: boolean;
+      windowDocumentAccess: boolean;
+      blockingLoad: boolean;
+      duplicateTriggers: boolean;
+      riskScore: number;
+    };
   }>;
   summary: {
     totalSnippets: number;
@@ -71,15 +79,25 @@ export function analyzeManualPaste(
                      detectPlatformFromContent(snippet) ||
                      undefined;
     
-    // 计算风险等级
-    const riskLevel = calculateRiskLevel(category, platform, analysis, containerInfo);
+    // 使用增强的风险检测器
+    const riskDetection = detectRisksInContent(snippet);
+    
+    // 计算风险等级（结合风险检测器结果）
+    const baseRiskLevel = calculateRiskLevel(category, platform, analysis, containerInfo);
+    // 如果检测到高风险项，提升风险等级
+    const riskLevel = riskDetection.detectedIssues.piiAccess || 
+                       riskDetection.detectedIssues.windowDocumentAccess ||
+                       riskDetection.detectedIssues.blockingLoad
+      ? (baseRiskLevel === "low" ? "medium" : baseRiskLevel === "medium" ? "high" : "high")
+      : baseRiskLevel;
     
     // 生成迁移建议
     const suggestedMigration = generateMigrationSuggestion(
       category,
       platform,
       analysis,
-      containerInfo
+      containerInfo,
+      riskDetection
     );
     
     // 确定置信度
@@ -94,6 +112,14 @@ export function analyzeManualPaste(
       content: snippet.substring(0, 500), // 限制长度
       matchedPatterns: analysis.platformDetails.map(d => d.matchedPattern),
       confidence,
+      // 添加风险检测结果
+      detectedRisks: {
+        piiAccess: riskDetection.detectedIssues.piiAccess,
+        windowDocumentAccess: riskDetection.detectedIssues.windowDocumentAccess,
+        blockingLoad: riskDetection.detectedIssues.blockingLoad,
+        duplicateTriggers: riskDetection.detectedIssues.duplicateTriggers,
+        riskScore: riskDetection.riskScore,
+      },
     });
   }
 
@@ -443,14 +469,26 @@ function calculateRiskLevel(
 }
 
 /**
- * 生成迁移建议
+ * 生成迁移建议（增强版，考虑风险检测结果）
  */
 function generateMigrationSuggestion(
   category: AssetCategory,
   platform: string | undefined,
   analysis: ReturnType<typeof analyzeScriptContent>,
-  containerInfo: ReturnType<typeof detectContainer>
+  containerInfo: ReturnType<typeof detectContainer>,
+  riskDetection?: ReturnType<typeof detectRisksInContent>
 ): SuggestedMigration {
+  // 如果检测到 PII 访问或 window/document 访问，建议使用服务端
+  if (riskDetection) {
+    if (riskDetection.detectedIssues.piiAccess) {
+      return "server_side"; // PII 访问需要服务端处理
+    }
+    if (riskDetection.detectedIssues.windowDocumentAccess && category === "pixel") {
+      // window/document 访问的像素需要特殊处理，可能需要 UI Extension
+      return "ui_extension";
+    }
+  }
+  
   // 基于类别
   switch (category) {
     case "pixel":
@@ -824,6 +862,14 @@ export async function processManualPasteAssets(
             confidence: asset.confidence,
             enhancedRiskScore,
             analyzedAt: new Date().toISOString(),
+            // 添加风险检测结果
+            detectedRisks: asset.detectedRisks ? {
+              piiAccess: asset.detectedRisks.piiAccess,
+              windowDocumentAccess: asset.detectedRisks.windowDocumentAccess,
+              blockingLoad: asset.detectedRisks.blockingLoad,
+              duplicateTriggers: asset.detectedRisks.duplicateTriggers,
+              riskScore: asset.detectedRisks.riskScore,
+            } : undefined,
           },
           scanReportId,
         };

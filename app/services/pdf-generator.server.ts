@@ -29,7 +29,7 @@ export interface PDFResult {
   contentType: "application/pdf";
 }
 
-async function htmlToPdf(
+export async function htmlToPdf(
   html: string,
   options: PDFGeneratorOptions = {}
 ): Promise<Buffer> {

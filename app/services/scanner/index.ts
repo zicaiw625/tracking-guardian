@@ -15,6 +15,7 @@ import { detectPlatforms, PLATFORM_PATTERNS } from "./patterns";
 import { assessRisks, calculateRiskScore } from "./risk-assessment";
 import { generateMigrationActions } from "./migration-actions";
 import { analyzeScriptContent } from "./content-analysis";
+import { detectRisksInContent } from "./risk-detector.server";
 import { refreshTypOspStatus } from "../checkout-profile.server";
 import { logger } from "../../utils/logger.server";
 import { SCANNER_CONFIG } from "../../utils/config";
@@ -737,6 +738,34 @@ export async function scanShopTracking(
             const platforms = detectPlatforms(tag.src || "");
             const platform = platforms[0];
 
+            // 使用风险检测器分析 ScriptTag（如果有内容）
+            let riskDetection: ReturnType<typeof detectRisksInContent> | null = null;
+            if (tag.src) {
+                try {
+                    // 尝试从 URL 获取内容（如果可能）或使用 URL 本身进行分析
+                    // 注意：实际脚本内容可能无法直接获取，这里主要分析 URL 模式
+                    riskDetection = detectRisksInContent(tag.src);
+                } catch (error) {
+                    logger.warn("Failed to detect risks in ScriptTag", {
+                        scriptTagId: tag.id,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                }
+            }
+
+            // 确定风险等级（结合风险检测结果）
+            let riskLevel: "high" | "medium" | "low" = tag.display_scope === "order_status" ? "high" : "medium";
+            if (riskDetection) {
+                // 如果检测到高风险项，提升风险等级
+                if (riskDetection.detectedIssues.piiAccess || 
+                    riskDetection.detectedIssues.windowDocumentAccess ||
+                    riskDetection.detectedIssues.blockingLoad) {
+                    riskLevel = "high";
+                } else if (riskDetection.detectedIssues.duplicateTriggers) {
+                    riskLevel = riskLevel === "low" ? "medium" : riskLevel;
+                }
+            }
+
             auditAssets.push({
                 sourceType: "api_scan",
                 category: platform ? "pixel" : "other",
@@ -744,13 +773,21 @@ export async function scanShopTracking(
                 displayName: platform
                     ? `ScriptTag: ${platform}`
                     : `ScriptTag #${tag.id}`,
-                riskLevel: tag.display_scope === "order_status" ? "high" : "medium",
+                riskLevel,
                 suggestedMigration: "web_pixel",
                 details: {
                     scriptTagId: tag.id,
                     scriptTagGid: tag.gid,
                     src: tag.src,
                     displayScope: tag.display_scope,
+                    // 添加风险检测结果（如果有）
+                    detectedRisks: riskDetection ? {
+                        piiAccess: riskDetection.detectedIssues.piiAccess,
+                        windowDocumentAccess: riskDetection.detectedIssues.windowDocumentAccess,
+                        blockingLoad: riskDetection.detectedIssues.blockingLoad,
+                        duplicateTriggers: riskDetection.detectedIssues.duplicateTriggers,
+                        riskScore: riskDetection.riskScore,
+                    } : undefined,
                 },
                 scanReportId,
             });

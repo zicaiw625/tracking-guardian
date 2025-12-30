@@ -8,6 +8,7 @@ import { useToastContext } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { BILLING_PLANS, createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId, } from "../services/billing.server";
+import { getUsageHistory } from "../services/billing/usage-history.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
@@ -38,10 +39,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     const subscriptionStatus = await getSubscriptionStatus(admin, shopDomain);
     const orderUsage = await checkOrderLimit(shop.id, subscriptionStatus.plan);
+    const usageHistory = await getUsageHistory(shop.id, 30).catch(() => null);
     return json({
         shopDomain,
         subscription: subscriptionStatus,
         usage: orderUsage,
+        usageHistory,
         plans: BILLING_PLANS,
         appUrl: process.env.SHOPIFY_APP_URL || "",
     });
@@ -78,7 +81,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 };
 export default function BillingPage() {
-    const { subscription, usage, plans } = useLoaderData<typeof loader>();
+    const { subscription, usage, usageHistory, plans } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();

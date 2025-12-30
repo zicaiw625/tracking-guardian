@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, lazy, Suspense } from "react";
 import {
   Card,
   BlockStack,
@@ -16,6 +16,13 @@ import {
 } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, ClipboardIcon } from "~/components/icons";
 import { useFetcher } from "@remix-run/react";
+import type { ScriptAnalysisResult } from "~/services/scanner/types";
+
+const ScriptCodeEditor = lazy(() => 
+  import("~/components/scan/ScriptCodeEditor").then(module => ({ 
+    default: module.ScriptCodeEditor 
+  }))
+);
 
 export interface ManualPastePanelProps {
   shopId: string;
@@ -44,11 +51,90 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [realtimeAnalysisResult, setRealtimeAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const fetcher = useFetcher();
+
+  // 验证脚本内容
+  const validateScript = useCallback((content: string): string[] => {
+    const errors: string[] = [];
+    
+    if (!content.trim()) {
+      return errors;
+    }
+
+    // 检测危险代码模式
+    const dangerousPatterns = [
+      {
+        pattern: /eval\s*\(/gi,
+        message: "检测到 eval() 函数，可能存在安全风险",
+      },
+      {
+        pattern: /document\.cookie\s*=/gi,
+        message: "检测到直接操作 cookie，可能违反隐私政策",
+      },
+      {
+        pattern: /innerHTML\s*=/gi,
+        message: "检测到 innerHTML 操作，可能存在 XSS 风险",
+      },
+      {
+        pattern: /document\.write\s*\(/gi,
+        message: "检测到 document.write()，可能阻塞页面加载",
+      },
+      {
+        pattern: /<script[^>]*src[^>]*>/gi,
+        message: "检测到外部脚本引用，需要验证来源",
+      },
+    ];
+
+    dangerousPatterns.forEach(({ pattern, message }) => {
+      if (pattern.test(content)) {
+        errors.push(message);
+      }
+    });
+
+    // 检测语法错误（基础检查）
+    const scriptTags = content.match(/<script[^>]*>[\s\S]*?<\/script>/gi);
+    if (scriptTags) {
+      scriptTags.forEach((tag, index) => {
+        // 检查未闭合的标签
+        const openCount = (tag.match(/<script/gi) || []).length;
+        const closeCount = (tag.match(/<\/script>/gi) || []).length;
+        if (openCount !== closeCount) {
+          errors.push(`脚本片段 ${index + 1} 存在未闭合的标签`);
+        }
+      });
+    }
+
+    // 检测未转义的 HTML
+    const unescapedHtml = content.match(/<[^>]+>(?![^<]*<\/script>)/g);
+    if (unescapedHtml && unescapedHtml.length > 0) {
+      errors.push("检测到未转义的 HTML 标签，可能导致解析错误");
+    }
+
+    return errors;
+  }, []);
+
+  // 实时验证
+  useMemo(() => {
+    if (scriptContent.trim()) {
+      const errors = validateScript(scriptContent);
+      setValidationErrors(errors);
+    } else {
+      setValidationErrors([]);
+    }
+  }, [scriptContent, validateScript]);
 
   const handleAnalyze = useCallback(() => {
     if (!scriptContent.trim()) {
       return;
+    }
+
+    // 先验证
+    const errors = validateScript(scriptContent);
+    if (errors.length > 0) {
+      // 显示验证错误，但不阻止分析
+      setValidationErrors(errors);
     }
 
     setIsAnalyzing(true);
@@ -59,7 +145,20 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       },
       { method: "post" }
     );
-  }, [scriptContent, fetcher]);
+  }, [scriptContent, fetcher, validateScript]);
+
+  // 实时分析回调
+  const handleRealtimeAnalysis = useCallback((content: string) => {
+    if (!content.trim()) return;
+    
+    fetcher.submit(
+      {
+        _action: "realtime_analyze_manual_paste",
+        content,
+      },
+      { method: "post" }
+    );
+  }, [fetcher]);
 
   const handleProcess = useCallback(() => {
     if (!analysisResult) {
@@ -78,9 +177,15 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
 
   // 处理分析结果
   useMemo(() => {
-    if (fetcher.data && fetcher.data.analysis) {
-      setAnalysisResult(fetcher.data.analysis);
-      setIsAnalyzing(false);
+    if (fetcher.data) {
+      if (fetcher.data.analysis) {
+        setAnalysisResult(fetcher.data.analysis);
+        setIsAnalyzing(false);
+      }
+      // 处理实时分析结果
+      if (fetcher.data.realtimeAnalysis) {
+        setRealtimeAnalysisResult(fetcher.data.realtimeAnalysis);
+      }
     }
   }, [fetcher.data]);
 
@@ -135,49 +240,70 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               <List.Item>
                 支持粘贴多段脚本，系统会自动识别和分类
               </List.Item>
+              <List.Item>
+                支持代码高亮和实时分析，输入时自动检测平台
+              </List.Item>
             </List>
           </BlockStack>
         </Banner>
 
-        <TextField
-          label="脚本内容"
-          value={scriptContent}
-          onChange={setScriptContent}
-          multiline={10}
-          placeholder="请粘贴您的脚本内容，例如：&#10;&#10;&lt;script&gt;&#10;  gtag('config', 'G-XXXXXXXXXX');&#10;  fbq('track', 'Purchase', {value: 100, currency: 'USD'});&#10;&lt;/script&gt;"
-          helpText={`已输入 ${scriptContent.length} 个字符`}
-          disabled={isAnalyzing || isProcessing}
-        />
+        {/* 验证错误提示 */}
+        {validationErrors.length > 0 && (
+          <Banner tone="warning">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                检测到潜在问题：
+              </Text>
+              <List>
+                {validationErrors.map((error, index) => (
+                  <List.Item key={index}>
+                    <Text as="span" variant="bodySm">
+                      {error}
+                    </Text>
+                  </List.Item>
+                ))}
+              </List>
+            </BlockStack>
+          </Banner>
+        )}
 
-        <InlineStack gap="200">
-          <Button
-            onClick={handleAnalyze}
-            disabled={!canAnalyze}
-            loading={isAnalyzing}
-            primary
-          >
-            {isAnalyzing ? "分析中..." : "分析脚本"}
-          </Button>
-          {analysisResult && (
+        {/* 使用增强的代码编辑器 */}
+        <Suspense fallback={
+          <TextField
+            label="脚本内容"
+            value={scriptContent}
+            onChange={setScriptContent}
+            multiline={10}
+            placeholder="请粘贴您的脚本内容..."
+            helpText={`已输入 ${scriptContent.length} 个字符`}
+            disabled={isAnalyzing || isProcessing}
+          />
+        }>
+          <ScriptCodeEditor
+            value={scriptContent}
+            onChange={setScriptContent}
+            onAnalyze={handleAnalyze}
+            analysisResult={realtimeAnalysisResult}
+            isAnalyzing={isAnalyzing}
+            placeholder="请粘贴您的脚本内容，例如：&#10;&#10;&lt;script&gt;&#10;  gtag('config', 'G-XXXXXXXXXX');&#10;  fbq('track', 'Purchase', {value: 100, currency: 'USD'});&#10;&lt;/script&gt;"
+            enableRealtimeAnalysis={true}
+            onRealtimeAnalysis={handleRealtimeAnalysis}
+            enableBatchPaste={true}
+          />
+        </Suspense>
+
+        {/* 处理按钮 - 在分析结果下方显示 */}
+        {analysisResult && (
+          <InlineStack gap="200">
             <Button
               onClick={handleProcess}
               disabled={!canProcess}
               loading={isProcessing}
+              primary
             >
               {isProcessing ? "处理中..." : "创建迁移资产"}
             </Button>
-          )}
-        </InlineStack>
-
-        {isAnalyzing && (
-          <Box padding="400">
-            <InlineStack gap="300" blockAlign="center">
-              <Spinner size="small" />
-              <Text as="span" variant="bodySm" tone="subdued">
-                正在分析脚本内容，识别平台和风险...
-              </Text>
-            </InlineStack>
-          </Box>
+          </InlineStack>
         )}
 
         {isProcessing && (

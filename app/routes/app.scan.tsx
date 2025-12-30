@@ -639,7 +639,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
-    if (actionType === "analyze_manual_paste") {
+    if (actionType === "analyze_manual_paste" || actionType === "realtime_analyze_manual_paste") {
         try {
             const content = formData.get("content") as string;
             if (!content || !content.trim()) {
@@ -660,7 +660,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 }, { status: 400 });
             }
 
-            // 分析脚本内容
+            // 实时分析使用轻量级分析（仅识别平台）
+            if (actionType === "realtime_analyze_manual_paste") {
+                const { analyzeScriptContent } = await import("../services/scanner/content-analysis");
+                const quickAnalysis = analyzeScriptContent(content);
+                
+                return json({
+                    success: true,
+                    actionType: "realtime_analyze_manual_paste",
+                    realtimeAnalysis: {
+                        identifiedPlatforms: quickAnalysis.identifiedPlatforms,
+                        platformDetails: quickAnalysis.platformDetails,
+                        risks: quickAnalysis.risks.slice(0, 5), // 只返回前5个风险
+                        riskScore: quickAnalysis.riskScore,
+                        recommendations: [],
+                    },
+                });
+            }
+
+            // 完整分析脚本内容
             const { analyzeManualPaste } = await import("../services/audit-asset-analysis.server");
             const analysis = analyzeManualPaste(content, shop.id);
 
