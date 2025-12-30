@@ -5,15 +5,17 @@ import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider,
 import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, AlertCircleIcon, CheckCircleIcon, } from "~/components/icons";
 import { TableSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { MissingParamsChart } from "~/components/monitor/MissingParamsChart";
+import { MissingParamsDetails } from "~/components/monitor/MissingParamsDetails";
 import { EventVolumeChart } from "~/components/monitor/EventVolumeChart";
 import { RealtimeEventMonitor } from "~/components/monitor/RealtimeEventMonitor";
+import { AlertHistoryChart } from "~/components/monitor/AlertHistoryChart";
 import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getDeliveryHealthHistory, getDeliveryHealthSummary, type DeliveryHealthReport, } from "../services/delivery-health.server";
 import { getAlertHistory, runAlertChecks, type AlertCheckResult } from "../services/alert-dispatcher.server";
 import { isValidPlatform, PLATFORM_NAMES } from "../types";
-import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats, checkMonitoringAlerts, getMissingParamsHistory, reconcileChannels, type EventMonitoringStats, type EventVolumeStats, type ChannelReconciliationResult } from "../services/monitoring.server";
+import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats, checkMonitoringAlerts, getMissingParamsHistory, reconcileChannels, getMissingParamsRateByEventType, type EventMonitoringStats, type EventVolumeStats, type ChannelReconciliationResult } from "../services/monitoring.server";
 import { analyzeDedupConflicts } from "../services/capi-dedup.server";
 import { getMissingParamsRate } from "../services/event-validation.server";
 interface DeliverySummary {
@@ -62,6 +64,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             missingParamsStats: [],
             volumeStats: null,
             monitoringAlert: null,
+            missingParamsDetailed: null,
         });
     }
     const summary = await getDeliveryHealthSummary(shop.id);
@@ -108,7 +111,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const last24h = new Date();
     last24h.setHours(last24h.getHours() - 24);
 
-    const [monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis] = await Promise.all([
+    const [monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis, missingParamsDetailed] = await Promise.all([
         getEventMonitoringStats(shop.id, 24),
         getMissingParamsStats(shop.id, 24),
         getEventVolumeStats(shop.id),
@@ -117,6 +120,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         getEventVolumeHistory(shop.id, 7).catch(() => []),
         reconcileChannels(shop.id, 24).catch(() => []),
         analyzeDedupConflicts(shop.id, last24h, new Date()).catch(() => null),
+        getMissingParamsRateByEventType(shop.id, 24).catch(() => null),
     ]);
 
     return json({
@@ -141,13 +145,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         eventVolumeHistory,
         channelReconciliation,
         dedupAnalysis,
+        missingParamsDetailed,
         lastUpdated: new Date().toISOString()
     });
 };
 export default function MonitorPage() {
-  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis, lastUpdated } = useLoaderData<typeof loader>();
+  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis, missingParamsDetailed, lastUpdated } = useLoaderData<typeof loader>();
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedChartPlatform, setSelectedChartPlatform] = useState<string>("all");
+  const [missingParamsTimeRange, setMissingParamsTimeRange] = useState<string>("24");
 
     const isDevUrl = configHealth.appUrl && (configHealth.appUrl.includes("ngrok") || configHealth.appUrl.includes("trycloudflare"));
 
@@ -273,25 +279,100 @@ export default function MonitorPage() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   成功率: {monitoringStats.successRate.toFixed(2)}% |
                   失败率: {monitoringStats.failureRate.toFixed(2)}%
+                  {monitoringAlert.stats?.missingParamsRate !== undefined && (
+                    <> | 缺参率: {monitoringAlert.stats.missingParamsRate.toFixed(2)}%</>
+                  )}
                 </Text>
+              )}
+              {monitoringAlert.stats?.byEventType && (
+                <BlockStack gap="100">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    按事件类型缺参率：
+                  </Text>
+                  {Object.entries(monitoringAlert.stats.byEventType)
+                    .sort(([, a], [, b]) => (b as number) - (a as number))
+                    .slice(0, 3)
+                    .map(([eventType, rate]) => (
+                      <Text key={eventType} as="p" variant="bodySm" tone="subdued">
+                        {eventType}: {(rate as number).toFixed(2)}%
+                      </Text>
+                    ))}
+                </BlockStack>
               )}
             </BlockStack>
           </Banner>
         )}
 
         {}
+        {missingParamsStats && missingParamsStats.length > 0 && monitoringStats && monitoringStats.totalEvents > 0 && (() => {
+          const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+          const missingRate = (totalMissing / monitoringStats.totalEvents) * 100;
+          return missingRate >= 10 ? (
+            <Banner
+              title="缺参率告警"
+              tone="critical"
+            >
+              <BlockStack gap="200">
+                <Text as="p">
+                  总体缺参率 {missingRate.toFixed(2)}% 超过阈值 10%，请检查事件配置。
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  受影响的事件类型：
+                  {Array.from(new Set(missingParamsStats.map(s => s.eventType))).join(", ")}
+                </Text>
+                <Button
+                  size="slim"
+                  url="/app/settings?tab=alerts"
+                >
+                  配置告警通知
+                </Button>
+              </BlockStack>
+            </Banner>
+          ) : missingRate >= 5 ? (
+            <Banner
+              title="缺参率警告"
+              tone="warning"
+            >
+              <BlockStack gap="200">
+                <Text as="p">
+                  总体缺参率 {missingRate.toFixed(2)}% 超过警告阈值 5%，建议检查事件配置。
+                </Text>
+              </BlockStack>
+            </Banner>
+          ) : null;
+        })()}
+
+        {}
         {volumeStats && volumeStats.isDrop && (
           <Banner
             title="事件量下降"
-            tone="warning"
+            tone={volumeStats.confidence && volumeStats.confidence > 80 ? "critical" : "warning"}
           >
             <BlockStack gap="200">
               <Text as="p">
                 最近24小时事件量: {volumeStats.current24h} |
                 前24小时: {volumeStats.previous24h} |
                 变化: {volumeStats.changePercent.toFixed(2)}%
+                {volumeStats.confidence && ` (置信度: ${volumeStats.confidence.toFixed(0)}%)`}
               </Text>
-              {volumeStats.average7Days !== undefined && (
+              {volumeStats.detectedReason && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {volumeStats.detectedReason}
+                </Text>
+              )}
+              {(volumeStats.weekdayBaseline !== undefined || volumeStats.weekendBaseline !== undefined) && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {volumeStats.isWeekend ? "周末" : "工作日"}基准值: {
+                    volumeStats.isWeekend 
+                      ? volumeStats.weekendBaseline?.toFixed(0) || "N/A"
+                      : volumeStats.weekdayBaseline?.toFixed(0) || "N/A"
+                  } |
+                  7天平均值: {volumeStats.average7Days?.toFixed(0) || "N/A"} |
+                  标准差: {volumeStats.stdDev?.toFixed(0) || "N/A"} |
+                  异常阈值: {volumeStats.threshold?.toFixed(0) || "N/A"}
+                </Text>
+              )}
+              {(!volumeStats.weekdayBaseline && !volumeStats.weekendBaseline) && volumeStats.average7Days !== undefined && (
                 <Text as="p" variant="bodySm" tone="subdued">
                   7天平均值: {volumeStats.average7Days.toFixed(0)} |
                   标准差: {volumeStats.stdDev?.toFixed(0) || "N/A"} |
@@ -514,14 +595,119 @@ export default function MonitorPage() {
               )}
 
               {}
+              {missingParamsDetailed && (
+                <>
+                  <Divider />
+                  <MissingParamsDetails stats={missingParamsDetailed} />
+                </>
+              )}
+
+              {}
               {missingParamsHistory && missingParamsHistory.length > 0 && (
                 <>
                   <Divider />
-                  <MissingParamsChart
-                    historyData={missingParamsHistory}
-                    selectedPlatform={selectedChartPlatform}
-                    onPlatformChange={setSelectedChartPlatform}
-                  />
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="h3" variant="headingSm">
+                        缺参率趋势分析
+                      </Text>
+                      <Select
+                        label="时间范围"
+                        labelHidden
+                        options={[
+                          { label: "最近24小时", value: "24" },
+                          { label: "最近7天", value: "7" },
+                          { label: "最近30天", value: "30" },
+                        ]}
+                        value={missingParamsTimeRange}
+                        onChange={(value) => {
+                          setMissingParamsTimeRange(value);
+                          // 重新加载数据
+                          window.location.href = `/app/monitor?timeRange=${value}`;
+                        }}
+                      />
+                    </InlineStack>
+                    <Banner tone="info">
+                      <Text as="p" variant="bodySm">
+                        查看缺参率趋势，识别参数缺失的模式和异常情况。建议关注缺参率超过 10% 的时间段。
+                      </Text>
+                    </Banner>
+                    <MissingParamsChart
+                      historyData={missingParamsHistory}
+                      selectedPlatform={selectedChartPlatform}
+                      onPlatformChange={setSelectedChartPlatform}
+                    />
+                  </BlockStack>
+                </>
+              )}
+              
+              {/* 新增：按事件类型的缺参率图表 */}
+              {missingParamsDetailed && missingParamsDetailed.byEventType && Object.keys(missingParamsDetailed.byEventType).length > 0 && (
+                <>
+                  <Divider />
+                  <BlockStack gap="300">
+                    <Text as="h3" variant="headingSm">
+                      按事件类型缺参率分析
+                    </Text>
+                    <Banner tone="info">
+                      <Text as="p" variant="bodySm">
+                        不同事件类型的缺参率可能存在差异。重点关注 purchase 事件的缺参情况，因为它直接影响转化追踪。
+                      </Text>
+                    </Banner>
+                    <Card>
+                      <BlockStack gap="300">
+                        {Object.entries(missingParamsDetailed.byEventType)
+                          .sort(([, a], [, b]) => b.rate - a.rate)
+                          .slice(0, 5)
+                          .map(([eventType, stats]) => (
+                            <Box
+                              key={eventType}
+                              background="bg-surface-secondary"
+                              padding="300"
+                              borderRadius="200"
+                            >
+                              <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text as="span" fontWeight="semibold">
+                                    {eventType}
+                                  </Text>
+                                  <Badge
+                                    tone={
+                                      stats.rate < 5
+                                        ? "success"
+                                        : stats.rate < 10
+                                          ? "warning"
+                                          : "critical"
+                                    }
+                                  >
+                                    缺参率: {stats.rate.toFixed(2)}%
+                                  </Badge>
+                                </InlineStack>
+                                <Text as="span" variant="bodySm" tone="subdued">
+                                  {stats.missing} / {stats.total} 事件缺失参数
+                                </Text>
+                                {Object.keys(stats.missingParams).length > 0 && (
+                                  <BlockStack gap="100">
+                                    <Text as="span" variant="bodySm" fontWeight="semibold">
+                                      缺失参数分布：
+                                    </Text>
+                                    <InlineStack gap="100" wrap>
+                                      {Object.entries(stats.missingParams)
+                                        .sort(([, a], [, b]) => b - a)
+                                        .map(([param, count]) => (
+                                          <Badge key={param} tone="warning">
+                                            {param}: {count} 次
+                                          </Badge>
+                                        ))}
+                                    </InlineStack>
+                                  </BlockStack>
+                                )}
+                              </BlockStack>
+                            </Box>
+                          ))}
+                      </BlockStack>
+                    </Card>
+                  </BlockStack>
                 </>
               )}
             </BlockStack>
@@ -954,50 +1140,71 @@ export default function MonitorPage() {
               {recentAlerts.length > 0 && (
                 <>
                   <Divider />
-                  <BlockStack gap="300">
-                    <Text as="h3" variant="headingSm">
-                      最近告警历史
-                    </Text>
-                    <DataTable
-                      columnContentTypes={["text", "text", "text", "text"]}
-                      headings={["时间", "类型", "严重程度", "消息"]}
-                      rows={recentAlerts.slice(0, 5).map((alert) => [
-                        new Date(alert.createdAt).toLocaleString("zh-CN"),
-                        alert.alertType === "failure_rate"
-                          ? "失败率"
-                          : alert.alertType === "missing_params"
-                            ? "缺参率"
-                            : alert.alertType === "volume_drop"
-                              ? "量降"
-                              : alert.alertType === "dedup_conflict"
-                                ? "去重冲突"
-                                : alert.alertType === "pixel_heartbeat"
-                                  ? "心跳丢失"
-                                  : alert.alertType,
-                        <Badge
-                          key={alert.id}
-                          tone={
-                            alert.severity === "critical"
-                              ? "critical"
-                              : alert.severity === "high"
-                                ? "warning"
-                                : "info"
-                          }
-                        >
-                          {alert.severity === "critical"
-                            ? "严重"
-                            : alert.severity === "high"
-                              ? "高"
-                              : "中"}
-                        </Badge>,
-                        alert.message,
-                      ])}
-                    />
-                    {recentAlerts.length > 5 && (
+                  <BlockStack gap="400">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="h3" variant="headingSm">
+                        告警历史
+                      </Text>
                       <Button url="/app/settings?tab=alerts" variant="plain" size="slim">
-                        查看全部告警历史
+                        查看全部
                       </Button>
-                    )}
+                    </InlineStack>
+                    
+                    {/* 告警历史趋势图表 */}
+                    <AlertHistoryChart 
+                      alerts={recentAlerts} 
+                      timeRange={alertHistoryTimeRange}
+                      onTimeRangeChange={setAlertHistoryTimeRange}
+                    />
+                    
+                    <Divider />
+                    
+                    {/* 最近告警列表 */}
+                    <BlockStack gap="300">
+                      <Text as="h4" variant="headingSm">
+                        最近告警记录
+                      </Text>
+                      <DataTable
+                        columnContentTypes={["text", "text", "text", "text", "text"]}
+                        headings={["时间", "类型", "严重程度", "消息", "状态"]}
+                        rows={recentAlerts.slice(0, 10).map((alert) => [
+                          new Date(alert.createdAt).toLocaleString("zh-CN"),
+                          alert.alertType === "failure_rate"
+                            ? "失败率"
+                            : alert.alertType === "missing_params"
+                              ? "缺参率"
+                              : alert.alertType === "volume_drop"
+                                ? "量降"
+                                : alert.alertType === "dedup_conflict"
+                                  ? "去重冲突"
+                                  : alert.alertType === "pixel_heartbeat"
+                                    ? "心跳丢失"
+                                    : alert.alertType,
+                          <Badge
+                            key={`severity-${alert.id}`}
+                            tone={
+                              alert.severity === "critical"
+                                ? "critical"
+                                : alert.severity === "high"
+                                  ? "warning"
+                                  : "info"
+                            }
+                          >
+                            {alert.severity === "critical"
+                              ? "严重"
+                              : alert.severity === "high"
+                                ? "高"
+                                : "中"}
+                          </Badge>,
+                          alert.message,
+                          alert.acknowledged ? (
+                            <Badge key={`ack-${alert.id}`} tone="success">已确认</Badge>
+                          ) : (
+                            <Badge key={`ack-${alert.id}`} tone="attention">未确认</Badge>
+                          ),
+                        ])}
+                      />
+                    </BlockStack>
                   </BlockStack>
                 </>
               )}

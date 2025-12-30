@@ -1,6 +1,6 @@
 
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 import {
   Card,
   Text,
@@ -16,6 +16,8 @@ import {
   Select,
   DataTable,
   Scrollable,
+  Modal,
+  List,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
@@ -42,6 +44,15 @@ export interface RealtimeEvent {
     items?: number;
   };
   errorMessage?: string;
+  payload?: Record<string, unknown>;
+  attempts?: number;
+  retryCount?: number;
+  responseTime?: number;
+  details?: {
+    eventId?: string;
+    platformResponse?: unknown;
+    metadata?: Record<string, unknown>;
+  };
 }
 
 export interface RealtimeEventMonitorProps {
@@ -65,6 +76,8 @@ export function RealtimeEventMonitor({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [platformFilter, setPlatformFilter] = useState<string>("all");
+  const [selectedEvent, setSelectedEvent] = useState<RealtimeEvent | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -144,41 +157,45 @@ export function RealtimeEventMonitor({
     };
   }, [autoStart, connect, disconnect]);
 
-  const filteredEvents = events.filter((event) => {
+  const filteredEvents = useMemo(() => {
+    return events.filter((event) => {
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+          event.orderId?.toLowerCase().includes(query) ||
+          event.orderNumber?.toLowerCase().includes(query) ||
+          event.eventType.toLowerCase().includes(query) ||
+          event.platform.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
 
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        event.orderId?.toLowerCase().includes(query) ||
-        event.orderNumber?.toLowerCase().includes(query) ||
-        event.eventType.toLowerCase().includes(query) ||
-        event.platform.toLowerCase().includes(query);
-      if (!matchesSearch) return false;
-    }
+      if (statusFilter !== "all" && event.status !== statusFilter) {
+        return false;
+      }
 
-    if (statusFilter !== "all" && event.status !== statusFilter) {
-      return false;
-    }
+      if (platformFilter !== "all" && event.platform !== platformFilter) {
+        return false;
+      }
 
-    if (platformFilter !== "all" && event.platform !== platformFilter) {
-      return false;
-    }
+      return true;
+    });
+  }, [events, searchQuery, statusFilter, platformFilter]);
 
-    return true;
-  });
+  const platformList = useMemo(() => {
+    return Array.from(new Set(events.map(e => e.platform)));
+  }, [events]);
 
-  const platformList = Array.from(new Set(events.map(e => e.platform)));
-
-  const formatTime = (timestamp: Date | string) => {
+  const formatTime = useCallback((timestamp: Date | string) => {
     const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
     return date.toLocaleTimeString("zh-CN", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
     });
-  };
+  }, []);
 
-  const rows = filteredEvents.map((event) => {
+  const rows = useMemo(() => {
+    return filteredEvents.map((event) => {
     const platformName = isValidPlatform(event.platform)
       ? PLATFORM_NAMES[event.platform]
       : event.platform;
@@ -199,10 +216,22 @@ export function RealtimeEventMonitor({
       ) : (
         <Badge tone="info">处理中</Badge>
       ),
+      <Button
+        key={event.id}
+        size="slim"
+        variant="plain"
+        onClick={() => {
+          setSelectedEvent(event);
+          setShowDetailsModal(true);
+        }}
+      >
+        查看详情
+      </Button>,
     ];
   });
+  }, [filteredEvents, formatTime]);
 
-  const headings = [
+  const headings = useMemo(() => [
     "时间",
     "事件类型",
     "平台",
@@ -210,7 +239,8 @@ export function RealtimeEventMonitor({
     "订单号",
     "金额",
     "状态",
-  ];
+    "操作",
+  ], []);
 
   return (
     <Card>
@@ -367,7 +397,7 @@ export function RealtimeEventMonitor({
         ) : (
           <Scrollable style={{ maxHeight: "600px" }}>
             <DataTable
-              columnContentTypes={["text", "text", "text", "text", "text", "text", "text"]}
+              columnContentTypes={["text", "text", "text", "text", "text", "text", "text", "text"]}
               headings={headings}
               rows={rows}
               increasedDensity
@@ -407,6 +437,206 @@ export function RealtimeEventMonitor({
             </InlineStack>
           </>
         )}
+
+        {/* 事件详情模态框 */}
+        <Modal
+          open={showDetailsModal}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedEvent(null);
+          }}
+          title="事件详情"
+          primaryAction={{
+            content: "关闭",
+            onAction: () => {
+              setShowDetailsModal(false);
+              setSelectedEvent(null);
+            },
+          }}
+        >
+          <Modal.Section>
+            {selectedEvent && (
+              <BlockStack gap="400">
+                <BlockStack gap="300">
+                  <Text as="h3" variant="headingSm">
+                    基本信息
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" fontWeight="semibold">事件类型：</Text>
+                        <Text as="span">{selectedEvent.eventType}</Text>
+                      </InlineStack>
+                    </List.Item>
+                    <List.Item>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" fontWeight="semibold">平台：</Text>
+                        <Text as="span">
+                          {isValidPlatform(selectedEvent.platform)
+                            ? PLATFORM_NAMES[selectedEvent.platform]
+                            : selectedEvent.platform}
+                        </Text>
+                      </InlineStack>
+                    </List.Item>
+                    <List.Item>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" fontWeight="semibold">状态：</Text>
+                        {selectedEvent.status === "success" ? (
+                          <Badge tone="success">成功</Badge>
+                        ) : selectedEvent.status === "failed" ? (
+                          <Badge tone="critical">失败</Badge>
+                        ) : (
+                          <Badge tone="info">处理中</Badge>
+                        )}
+                      </InlineStack>
+                    </List.Item>
+                    <List.Item>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" fontWeight="semibold">时间：</Text>
+                        <Text as="span">
+                          {typeof selectedEvent.timestamp === "string"
+                            ? new Date(selectedEvent.timestamp).toLocaleString("zh-CN")
+                            : selectedEvent.timestamp.toLocaleString("zh-CN")}
+                        </Text>
+                      </InlineStack>
+                    </List.Item>
+                    {selectedEvent.orderId && (
+                      <List.Item>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text as="span" fontWeight="semibold">订单ID：</Text>
+                          <Text as="span">{selectedEvent.orderId}</Text>
+                        </InlineStack>
+                      </List.Item>
+                    )}
+                    {selectedEvent.orderNumber && (
+                      <List.Item>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text as="span" fontWeight="semibold">订单号：</Text>
+                          <Text as="span">{selectedEvent.orderNumber}</Text>
+                        </InlineStack>
+                      </List.Item>
+                    )}
+                    {selectedEvent.attempts !== undefined && (
+                      <List.Item>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text as="span" fontWeight="semibold">重试次数：</Text>
+                          <Badge>{selectedEvent.attempts}</Badge>
+                        </InlineStack>
+                      </List.Item>
+                    )}
+                    {selectedEvent.responseTime !== undefined && (
+                      <List.Item>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text as="span" fontWeight="semibold">响应时间：</Text>
+                          <Text as="span">{selectedEvent.responseTime}ms</Text>
+                        </InlineStack>
+                      </List.Item>
+                    )}
+                  </List>
+                </BlockStack>
+
+                {selectedEvent.params && (
+                  <>
+                    <Divider />
+                    <BlockStack gap="300">
+                      <Text as="h3" variant="headingSm">
+                        事件参数
+                      </Text>
+                      <Box
+                        padding="300"
+                        background="bg-surface-secondary"
+                        borderRadius="200"
+                      >
+                        <Box
+                          as="pre"
+                          style={{
+                            fontSize: "12px",
+                            overflow: "auto",
+                            margin: 0,
+                          }}
+                        >
+                          {JSON.stringify(selectedEvent.params, null, 2)}
+                        </Box>
+                      </Box>
+                    </BlockStack>
+                  </>
+                )}
+
+                {selectedEvent.errorMessage && (
+                  <>
+                    <Divider />
+                    <Banner tone="critical">
+                      <BlockStack gap="200">
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          错误信息
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          {selectedEvent.errorMessage}
+                        </Text>
+                      </BlockStack>
+                    </Banner>
+                  </>
+                )}
+
+                {selectedEvent.payload && (
+                  <>
+                    <Divider />
+                    <BlockStack gap="300">
+                      <Text as="h3" variant="headingSm">
+                        完整 Payload
+                      </Text>
+                      <Box
+                        padding="300"
+                        background="bg-surface-secondary"
+                        borderRadius="200"
+                      >
+                        <Box
+                          as="pre"
+                          style={{
+                            fontSize: "12px",
+                            overflow: "auto",
+                            maxHeight: "300px",
+                            margin: 0,
+                          }}
+                        >
+                          {JSON.stringify(selectedEvent.payload, null, 2)}
+                        </Box>
+                      </Box>
+                    </BlockStack>
+                  </>
+                )}
+
+                {selectedEvent.details && (
+                  <>
+                    <Divider />
+                    <BlockStack gap="300">
+                      <Text as="h3" variant="headingSm">
+                        详细信息
+                      </Text>
+                      <Box
+                        padding="300"
+                        background="bg-surface-secondary"
+                        borderRadius="200"
+                      >
+                        <Box
+                          as="pre"
+                          style={{
+                            fontSize: "12px",
+                            overflow: "auto",
+                            maxHeight: "300px",
+                            margin: 0,
+                          }}
+                        >
+                          {JSON.stringify(selectedEvent.details, null, 2)}
+                        </Box>
+                      </Box>
+                    </BlockStack>
+                  </>
+                )}
+              </BlockStack>
+            )}
+          </Modal.Section>
+        </Modal>
       </BlockStack>
     </Card>
   );

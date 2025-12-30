@@ -6,6 +6,7 @@ import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { checkTokenExpirationIssues } from "../../services/retry.server";
 import { PCD_CONFIG } from "../../utils/config";
+import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "../../services/monitoring.server";
 import type { SettingsLoaderData, AlertConfigDisplay, PixelConfigDisplay } from "./types";
 
 export async function settingsLoader({ request }: LoaderFunctionArgs) {
@@ -91,6 +92,38 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     lastTestedAt: config.updatedAt,
   })) ?? [];
 
+  // 获取当前监控数据用于实时预览
+  let currentMonitoringData: {
+    failureRate: number;
+    missingParamsRate: number;
+    volumeDrop: number;
+  } | null = null;
+
+  if (shop) {
+    try {
+      const [monitoringStats, missingParamsStats, volumeStats] = await Promise.all([
+        getEventMonitoringStats(shop.id, 24),
+        getMissingParamsStats(shop.id, 24),
+        getEventVolumeStats(shop.id),
+      ]);
+
+      const totalWithMissingParams = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
+      const missingParamsRate =
+        monitoringStats.totalEvents > 0
+          ? (totalWithMissingParams / monitoringStats.totalEvents) * 100
+          : 0;
+
+      currentMonitoringData = {
+        failureRate: monitoringStats.failureRate,
+        missingParamsRate,
+        volumeDrop: volumeStats.isDrop ? Math.abs(volumeStats.changePercent) : 0,
+      };
+    } catch (error) {
+      // 如果获取监控数据失败，继续执行，不阻塞页面加载
+      console.error("Failed to fetch monitoring data for preview:", error);
+    }
+  }
+
   const data: SettingsLoaderData = {
     shop: shop
       ? {
@@ -115,6 +148,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     tokenIssues,
     pcdApproved: PCD_CONFIG.APPROVED,
     pcdStatusMessage: PCD_CONFIG.STATUS_MESSAGE,
+    currentMonitoringData,
   };
 
   return json(data);

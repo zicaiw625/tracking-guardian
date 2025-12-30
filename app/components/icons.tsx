@@ -136,3 +136,11 @@ export const TrendingDownIcon: IconSource = createIcon(
 export const HistoryIcon: IconSource = createIcon(
   "M10 2a8 8 0 100 16 8 8 0 000-16zm.75 4.5v3.44l2.72 1.63-.75 1.23L9 11V6.5h1.75z",
 );
+
+export const ChevronDownIcon: IconSource = createIcon(
+  "M5 7l5 5 5-5H5z",
+);
+
+export const ChevronUpIcon: IconSource = createIcon(
+  "M5 13l5-5 5 5H5z",
+);

@@ -1,326 +1,149 @@
 
-
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
-import { billingCache } from "../../utils/cache";
+import type { PlanId } from "./plans";
+import { getPlanLimit } from "./plans";
 
-export interface MonthlyUsageRecord {
-  id: string;
-  sentCount: number;
+export interface UsageStats {
+  currentMonth: {
+    orders: number;
+    events: number;
+    platforms: Record<string, number>;
+  };
+  previousMonth: {
+    orders: number;
+    events: number;
+  };
+  limit: number;
+  usagePercentage: number;
+  isOverLimit: boolean;
+  trend: "up" | "down" | "stable";
 }
 
-export interface IncrementResult {
-  incremented: boolean;
-  current: number;
-}
-
-export interface ReservationResult {
-  success: boolean;
-  current: number;
-  alreadyCounted: boolean;
-}
-
-export function getCurrentYearMonth(): string {
+export async function getMonthlyUsage(
+  shopId: string,
+  planId: PlanId
+): Promise<UsageStats> {
   const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-export function getMonthDateRange(yearMonth: string): { start: Date; end: Date } {
-
-  const start = new Date(`${yearMonth}-01T00:00:00.000Z`);
-  const end = new Date(start);
-  end.setUTCMonth(end.getUTCMonth() + 1);
-  return { start, end };
-}
-
-export async function getOrCreateMonthlyUsage(
-  shopId: string,
-  yearMonth?: string
-): Promise<MonthlyUsageRecord> {
-  const ym = yearMonth || getCurrentYearMonth();
-
-  const usage = await prisma.monthlyUsage.upsert({
-    where: {
-      shopId_yearMonth: { shopId, yearMonth: ym },
-    },
-    create: {
-      shopId,
-      yearMonth: ym,
-      sentCount: 0,
-    },
-    update: {},
-    select: { id: true, sentCount: true },
-  });
-
-  return usage;
-}
-
-export async function getMonthlyUsageCount(
-  shopId: string,
-  yearMonth?: string
-): Promise<number> {
-  const ym = yearMonth || getCurrentYearMonth();
-
-  const usage = await prisma.monthlyUsage.findUnique({
-    where: {
-      shopId_yearMonth: { shopId, yearMonth: ym },
-    },
-    select: { sentCount: true },
-  });
-
-  return usage?.sentCount ?? 0;
-}
-
-export async function isOrderAlreadyCounted(
-  shopId: string,
-  orderId: string,
-  yearMonth?: string
-): Promise<boolean> {
-  const ym = yearMonth || getCurrentYearMonth();
-
-  const existingJob = await prisma.conversionJob.findUnique({
-    where: { shopId_orderId: { shopId, orderId } },
-    select: { status: true },
-  });
-
-  if (existingJob?.status === "completed") {
-    return true;
-  }
-
-  const { start: startOfMonth, end: endOfMonth } = getMonthDateRange(ym);
-
-  const sentLog = await prisma.conversionLog.findFirst({
-    where: {
-      shopId,
-      orderId,
-      serverSideSent: true,
-      sentAt: {
-        gte: startOfMonth,
-        lt: endOfMonth,
-      },
-    },
-    select: { id: true },
-  });
-
-  return !!sentLog;
-}
-
-export async function incrementMonthlyUsage(
-  shopId: string,
-  orderId: string
-): Promise<number> {
-  const yearMonth = getCurrentYearMonth();
-
-  const result = await prisma.$transaction(async (tx) => {
-
-    const existingJob = await tx.conversionJob.findUnique({
-      where: { shopId_orderId: { shopId, orderId } },
-      select: { status: true },
-    });
-
-    if (existingJob?.status === "completed") {
-      const usage = await tx.monthlyUsage.findUnique({
-        where: { shopId_yearMonth: { shopId, yearMonth } },
-        select: { sentCount: true },
-      });
-      return { incremented: false, count: usage?.sentCount || 0 };
-    }
-
-    const { start: startOfMonth, end: endOfMonth } = getMonthDateRange(yearMonth);
-
-    const sentLog = await tx.conversionLog.findFirst({
+  const [currentMonthLogs, previousMonthLogs, currentMonthReceipts] = await Promise.all([
+    // 当前月的转化日志
+    prisma.conversionLog.findMany({
       where: {
         shopId,
-        orderId,
-        serverSideSent: true,
-        sentAt: {
-          gte: startOfMonth,
-          lt: endOfMonth,
+        createdAt: { gte: currentMonthStart },
+        status: "sent",
+      },
+      select: {
+        platform: true,
+        orderId: true,
+      },
+    }),
+    // 上个月的转化日志
+    prisma.conversionLog.findMany({
+      where: {
+        shopId,
+        createdAt: {
+          gte: previousMonthStart,
+          lte: previousMonthEnd,
         },
+        status: "sent",
       },
-      select: { id: true },
-    });
-
-    if (sentLog) {
-      const usage = await tx.monthlyUsage.findUnique({
-        where: { shopId_yearMonth: { shopId, yearMonth } },
-        select: { sentCount: true },
-      });
-      return { incremented: false, count: usage?.sentCount || 0 };
-    }
-
-    const usage = await tx.monthlyUsage.upsert({
-      where: {
-        shopId_yearMonth: { shopId, yearMonth },
+      select: {
+        orderId: true,
       },
-      create: {
-        shopId,
-        yearMonth,
-        sentCount: 1,
-      },
-      update: {
-        sentCount: { increment: 1 },
-      },
-      select: { sentCount: true },
-    });
-
-    return { incremented: true, count: usage.sentCount };
-  });
-
-  if (result.incremented) {
-    logger.debug(`Usage incremented for shop ${shopId}, order ${orderId}: ${result.count}`);
-
-    billingCache.delete(`billing:${shopId}`);
-  }
-
-  return result.count;
-}
-
-export async function incrementMonthlyUsageIdempotent(
-  shopId: string,
-  orderId: string
-): Promise<IncrementResult> {
-  const yearMonth = getCurrentYearMonth();
-
-  const result = await prisma.$transaction(async (tx) => {
-
-    const existingJob = await tx.conversionJob.findUnique({
-      where: { shopId_orderId: { shopId, orderId } },
-      select: { status: true },
-    });
-
-    if (existingJob?.status === "completed") {
-      const usage = await tx.monthlyUsage.findUnique({
-        where: { shopId_yearMonth: { shopId, yearMonth } },
-      });
-      return { incremented: false, current: usage?.sentCount || 0 };
-    }
-
-    const { start: startOfMonth, end: endOfMonth } = getMonthDateRange(yearMonth);
-
-    const sentLog = await tx.conversionLog.findFirst({
+    }),
+    // 当前月的像素事件收据
+    prisma.pixelEventReceipt.findMany({
       where: {
         shopId,
-        orderId,
-        serverSideSent: true,
-        sentAt: { gte: startOfMonth, lt: endOfMonth },
+        createdAt: { gte: currentMonthStart },
       },
-      select: { id: true },
-    });
+      select: {
+        orderId: true,
+      },
+    }),
+  ]);
 
-    if (sentLog) {
-      const usage = await tx.monthlyUsage.findUnique({
-        where: { shopId_yearMonth: { shopId, yearMonth } },
-      });
-      return { incremented: false, current: usage?.sentCount || 0 };
-    }
+  // 统计当前月的订单数（去重）
+  const currentMonthOrderIds = new Set([
+    ...currentMonthLogs.map((log) => log.orderId),
+    ...currentMonthReceipts.map((receipt) => receipt.orderId),
+  ]);
+  const currentMonthOrders = currentMonthOrderIds.size;
 
-    const usage = await tx.monthlyUsage.upsert({
-      where: { shopId_yearMonth: { shopId, yearMonth } },
-      create: { shopId, yearMonth, sentCount: 1 },
-      update: { sentCount: { increment: 1 } },
-    });
-
-    return { incremented: true, current: usage.sentCount };
+  // 统计各平台事件数
+  const platformCounts: Record<string, number> = {};
+  currentMonthLogs.forEach((log) => {
+    platformCounts[log.platform] = (platformCounts[log.platform] || 0) + 1;
   });
 
-  if (result.incremented) {
-    billingCache.delete(`billing:${shopId}`);
+  // 统计上个月的订单数
+  const previousMonthOrderIds = new Set(previousMonthLogs.map((log) => log.orderId));
+  const previousMonthOrders = previousMonthOrderIds.size;
+
+  const limit = getPlanLimit(planId);
+  const usagePercentage = limit > 0 ? (currentMonthOrders / limit) * 100 : 0;
+  const isOverLimit = limit > 0 && currentMonthOrders >= limit;
+
+  // 计算趋势
+  let trend: "up" | "down" | "stable" = "stable";
+  if (previousMonthOrders > 0) {
+    const change = ((currentMonthOrders - previousMonthOrders) / previousMonthOrders) * 100;
+    if (change > 5) {
+      trend = "up";
+    } else if (change < -5) {
+      trend = "down";
+    }
+  } else if (currentMonthOrders > 0) {
+    trend = "up";
   }
 
-  return result;
+  return {
+    currentMonth: {
+      orders: currentMonthOrders,
+      events: currentMonthLogs.length,
+      platforms: platformCounts,
+    },
+    previousMonth: {
+      orders: previousMonthOrders,
+      events: previousMonthLogs.length,
+    },
+    limit,
+    usagePercentage,
+    isOverLimit,
+    trend,
+  };
 }
 
-export async function tryReserveUsageSlot(
+export async function checkUsageLimit(
   shopId: string,
-  orderId: string,
-  limit: number
-): Promise<ReservationResult> {
-  const yearMonth = getCurrentYearMonth();
+  planId: PlanId
+): Promise<{ allowed: boolean; reason?: string; usage?: UsageStats }> {
+  const usage = await getMonthlyUsage(shopId, planId);
 
-  const result = await prisma.$transaction(async (tx) => {
-
-    const existingJob = await tx.conversionJob.findUnique({
-      where: { shopId_orderId: { shopId, orderId } },
-      select: { status: true },
-    });
-
-    if (existingJob?.status === "completed") {
-      const usage = await tx.monthlyUsage.findUnique({
-        where: { shopId_yearMonth: { shopId, yearMonth } },
-      });
-      return { success: true, current: usage?.sentCount || 0, alreadyCounted: true };
-    }
-
-    await tx.monthlyUsage.upsert({
-      where: { shopId_yearMonth: { shopId, yearMonth } },
-      create: { shopId, yearMonth, sentCount: 0 },
-      update: {},
-    });
-
-    const updated = await tx.$executeRaw`
-      UPDATE "MonthlyUsage"
-      SET "sentCount" = "sentCount" + 1, "updatedAt" = NOW()
-      WHERE "shopId" = ${shopId}
-        AND "yearMonth" = ${yearMonth}
-        AND "sentCount" < ${limit}
-    `;
-
-    const finalUsage = await tx.monthlyUsage.findUnique({
-      where: { shopId_yearMonth: { shopId, yearMonth } },
-    });
-
-    if (updated === 0) {
-      return {
-        success: false,
-        current: finalUsage?.sentCount || 0,
-        alreadyCounted: false,
-      };
-    }
-
+  if (usage.isOverLimit) {
     return {
-      success: true,
-      current: finalUsage?.sentCount || 1,
-      alreadyCounted: false,
+      allowed: false,
+      reason: `本月订单数（${usage.currentMonth.orders}）已达到套餐限制（${usage.limit}）。请升级套餐以继续使用。`,
+      usage,
     };
-  });
-
-  if (result.success && !result.alreadyCounted) {
-    billingCache.delete(`billing:${shopId}`);
   }
 
-  return result;
-}
-
-export async function decrementMonthlyUsage(
-  shopId: string,
-  yearMonth?: string
-): Promise<number> {
-  const ym = yearMonth || getCurrentYearMonth();
-
-  const result = await prisma.$transaction(async (tx) => {
-    const updated = await tx.$executeRaw`
-      UPDATE "MonthlyUsage"
-      SET "sentCount" = GREATEST("sentCount" - 1, 0), "updatedAt" = NOW()
-      WHERE "shopId" = ${shopId}
-        AND "yearMonth" = ${ym}
-    `;
-
-    if (updated === 0) {
-      return 0;
-    }
-
-    const usage = await tx.monthlyUsage.findUnique({
-      where: { shopId_yearMonth: { shopId, yearMonth: ym } },
-      select: { sentCount: true },
+  // 80% 时发出警告
+  if (usage.usagePercentage >= 80 && usage.usagePercentage < 100) {
+    logger.warn(`Usage approaching limit for shop ${shopId}`, {
+      usagePercentage: usage.usagePercentage,
+      currentOrders: usage.currentMonth.orders,
+      limit: usage.limit,
     });
+  }
 
-    return usage?.sentCount || 0;
-  });
-
-  billingCache.delete(`billing:${shopId}`);
-  return result;
+  return {
+    allowed: true,
+    usage,
+  };
 }
-

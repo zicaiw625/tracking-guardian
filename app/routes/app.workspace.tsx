@@ -55,6 +55,10 @@ import { CardSkeleton } from "~/components/ui";
 
 const BatchApplyWizard = lazy(() => import("../components/workspace/BatchApplyWizard").then(module => ({ default: module.BatchApplyWizard })));
 export type { PixelTemplate, ShopInfo } from "../components/workspace/BatchApplyWizard";
+import { TaskList } from "../components/workspace/TaskList";
+import { CommentSection } from "../components/workspace/CommentSection";
+import { BatchOperationsPanel } from "../components/workspace/BatchOperationsPanel";
+import { BatchTaskBoard } from "../components/workspace/BatchTaskBoard";
 import prisma from "../db.server";
 import {
   canManageMultipleShops,
@@ -74,6 +78,17 @@ import {
 } from "../services/multi-shop.server";
 import { createInvitation } from "../services/workspace-invitation.server";
 import { BILLING_PLANS, type PlanId } from "../services/billing/plans";
+import {
+  getMigrationTasks,
+  createMigrationTask,
+  updateMigrationTask,
+  deleteMigrationTask,
+  type CreateTaskInput,
+} from "../services/task-assignment.server";
+import {
+  getTaskComments,
+  createTaskComment,
+} from "../services/task-comments.server";
 
 interface LoaderData {
   shop: {
@@ -94,6 +109,14 @@ interface LoaderData {
     matchRate: number;
   }> | null;
   planInfo: typeof BILLING_PLANS[PlanId];
+  tasks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: number;
+    assignedToShopDomain: string | null;
+    commentCount: number;
+  }>;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -136,10 +159,30 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const groupId = url.searchParams.get("groupId") || (groups.length > 0 ? groups[0].id : null);
 
+  let tasks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: number;
+    assignedToShopDomain: string | null;
+    commentCount: number;
+  }> = [];
+
   if (groupId) {
     selectedGroup = await getShopGroupDetails(groupId, shop.id);
     groupStats = await getGroupAggregatedStats(groupId, shop.id, 7);
     shopBreakdown = await getGroupShopBreakdown(groupId, shop.id, 7);
+    
+    // 加载任务
+    const migrationTasks = await getMigrationTasks(shop.id, { groupId });
+    tasks = migrationTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+      assignedToShopDomain: t.assignedToShopDomain,
+      commentCount: t.commentCount,
+    }));
   }
 
   return json<LoaderData>({
@@ -151,6 +194,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     groupStats,
     shopBreakdown,
     planInfo: BILLING_PLANS[planId],
+    tasks,
   });
 };
 
@@ -470,6 +514,7 @@ export default function WorkspacePage() {
     groupStats,
     shopBreakdown,
     planInfo,
+    tasks,
   } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
 
@@ -495,14 +540,19 @@ export default function WorkspacePage() {
   const [showBatchAuditResult, setShowBatchAuditResult] = useState(false);
 
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportReportType, setExportReportType] = useState<"verification" | "scan">("verification");
-  const [exportFormat, setExportFormat] = useState<"csv" | "json">("csv");
+  const [exportReportType, setExportReportType] = useState<"verification" | "scan" | "migration">("verification");
+  const [exportFormat, setExportFormat] = useState<"csv" | "json" | "pdf">("pdf");
   const [exportResult, setExportResult] = useState<any>(null);
 
   const [showBatchApplyModal, setShowBatchApplyModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<PixelTemplate | null>(null);
   const [batchApplyJobId, setBatchApplyJobId] = useState<string | null>(null);
   const [batchApplyStatus, setBatchApplyStatus] = useState<any>(null);
+  const [batchApplyTargetShops, setBatchApplyTargetShops] = useState<ShopInfo[]>([]);
+
+  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [taskComments, setTaskComments] = useState<any[]>([]);
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -550,36 +600,50 @@ export default function WorkspacePage() {
     formData.append("format", exportFormat);
     formData.append("groupId", selectedGroup.id);
 
+    showSuccess("正在生成批量报告，请稍候...");
+
     fetch("/api/batch-reports", {
       method: "POST",
       body: formData,
     })
-      .then((res) => {
-        if (res.headers.get("content-type")?.includes("application/json")) {
+      .then(async (res) => {
+        const contentType = res.headers.get("content-type");
+        
+        if (contentType?.includes("application/json")) {
           return res.json();
+        } else if (contentType?.includes("application/pdf") || contentType?.includes("text/csv") || contentType?.includes("application/json")) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          const disposition = res.headers.get("content-disposition");
+          const filename = disposition?.match(/filename="?(.+)"?/)?.[1] || 
+            `batch-${exportReportType}-report-${Date.now()}.${exportFormat === "pdf" ? "pdf" : exportFormat === "csv" ? "csv" : "json"}`;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          setShowExportModal(false);
+          showSuccess(`批量报告已下载: ${filename}`);
+          return { success: true, downloaded: true };
         } else {
-
-          return res.blob().then((blob) => {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = res.headers.get("content-disposition")?.split("filename=")[1]?.replace(/"/g, "") || `batch-report-${Date.now()}.${exportFormat}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            return { success: true, downloaded: true };
+          const blob = await res.blob();
+          return blob.text().then((text) => {
+            try {
+              return JSON.parse(text);
+            } catch {
+              throw new Error("无法解析服务器响应");
+            }
           });
         }
       })
       .then((data) => {
         if (data.success) {
-          if (data.downloaded) {
-            showSuccess("批量报告已下载");
-          } else {
+          if (!data.downloaded) {
             setExportResult(data);
             setShowExportModal(false);
-            showSuccess("批量导出完成");
+            showSuccess(`批量导出完成：成功 ${data.result?.successCount || 0} 个，失败 ${data.result?.failedCount || 0} 个`);
           }
         } else {
           showError(data.error || "导出失败");
@@ -593,8 +657,10 @@ export default function WorkspacePage() {
   const handleBatchApply = useCallback(async (options: {
     overwriteExisting: boolean;
     skipIfExists: boolean;
-  }) => {
-    if (!selectedTemplate || !selectedGroup) return;
+  }): Promise<{ jobId?: string; result?: any }> => {
+    if (!selectedTemplate || !selectedGroup) {
+      return {};
+    }
 
     const formData = new FormData();
     formData.append("_action", "batch_apply_template");
@@ -611,14 +677,22 @@ export default function WorkspacePage() {
 
       const data = await response.json();
       if (data.success) {
-        setBatchApplyJobId(data.jobId || null);
-        showSuccess("批量应用已启动，正在处理中...");
-
+        if (data.jobId) {
+          setBatchApplyJobId(data.jobId);
+          showSuccess("批量应用已启动，正在处理中...");
+          return { jobId: data.jobId };
+        } else if (data.result) {
+          showSuccess(`批量应用完成：成功 ${data.result.successCount}，失败 ${data.result.failedCount}`);
+          return { result: data.result };
+        }
+        return {};
       } else {
         showError(data.error || "批量应用失败");
+        throw new Error(data.error || "批量应用失败");
       }
     } catch (error) {
       showError("批量应用失败：" + (error instanceof Error ? error.message : "未知错误"));
+      throw error;
     }
   }, [selectedTemplate, selectedGroup, showSuccess, showError]);
 
@@ -677,8 +751,10 @@ export default function WorkspacePage() {
 
   const tabs = [
     { id: "overview", content: "概览" },
+    { id: "batch", content: "批量操作" },
     { id: "shops", content: "店铺管理" },
     { id: "templates", content: "像素模板" },
+    { id: "tasks", content: "任务管理" },
     { id: "reports", content: "汇总报告" },
   ];
 
@@ -896,6 +972,65 @@ export default function WorkspacePage() {
                 {}
                 {selectedTab === 1 && (
                   <Box paddingBlockStart="400">
+                    <BlockStack gap="500">
+                      {selectedGroup && shop && (
+                        <>
+                          <BatchOperationsPanel
+                            groupId={selectedGroup.id}
+                            groupName={selectedGroup.name}
+                            requesterId={shop.id}
+                            memberCount={selectedGroup.memberCount}
+                            onBatchAuditStart={handleBatchAudit}
+                            onBatchTemplateApply={() => {
+                              // 打开模板选择/批量应用界面
+                              setShowBatchApplyModal(true);
+                            }}
+                            onReportGenerate={async (options) => {
+                              // 处理报告生成
+                              const formData = new FormData();
+                              formData.append("_action", "generate_batch_report");
+                              formData.append("groupId", selectedGroup.id);
+                              formData.append("reportTypes", JSON.stringify(options.reportTypes || []));
+                              formData.append("includeDetails", String(options.includeDetails ?? true));
+                              if (options.whiteLabel) {
+                                formData.append("whiteLabel", JSON.stringify(options.whiteLabel));
+                              }
+
+                              const response = await fetch("/app/workspace", {
+                                method: "POST",
+                                body: formData,
+                              });
+
+                              if (response.ok) {
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `batch-report-${selectedGroup.name}-${new Date().toISOString().split("T")[0]}.pdf`;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                                showSuccess("报告已生成并下载");
+                              } else {
+                                const error = await response.json();
+                                showError(error.error || "报告生成失败");
+                              }
+                            }}
+                          />
+                          <BatchTaskBoard
+                            groupId={selectedGroup.id}
+                            requesterId={shop.id}
+                            onRefresh={() => revalidator.revalidate()}
+                          />
+                        </>
+                      )}
+                    </BlockStack>
+                  </Box>
+                )}
+
+                {selectedTab === 3 && (
+                  <Box paddingBlockStart="400">
                     <Card>
                       <BlockStack gap="400">
                         <InlineStack align="space-between" blockAlign="center">
@@ -1109,7 +1244,60 @@ export default function WorkspacePage() {
                 )}
 
                 {}
-                {selectedTab === 3 && (
+                {selectedTab === 4 && (
+                  <Box paddingBlockStart="400">
+                    <BlockStack gap="500">
+                      {selectedGroup && shop && (
+                        <>
+                          <TaskList
+                            tasks={tasks.map((t) => ({
+                              id: t.id,
+                              shopId: shop.id,
+                              shopDomain: shop.shopDomain,
+                              assetId: null,
+                              assetDisplayName: null,
+                              title: t.title,
+                              description: null,
+                              assignedToShopId: null,
+                              assignedToShopDomain: t.assignedToShopDomain,
+                              assignedByShopId: shop.id,
+                              assignedByShopDomain: shop.shopDomain,
+                              status: t.status,
+                              priority: t.priority,
+                              dueDate: null,
+                              startedAt: null,
+                              completedAt: null,
+                              groupId: selectedGroup.id,
+                              groupName: selectedGroup.name,
+                              commentCount: t.commentCount,
+                              createdAt: new Date(),
+                              updatedAt: new Date(),
+                            }))}
+                            groupId={selectedGroup.id}
+                            shopId={shop.id}
+                            onTaskCreate={() => {
+                              setShowCreateTaskModal(true);
+                            }}
+                            onTaskUpdate={(taskId) => {
+                              setSelectedTaskId(taskId);
+                            }}
+                            onTaskDelete={async (taskId) => {
+                              if (!confirm("确定要删除此任务吗？")) return;
+                              const formData = new FormData();
+                              formData.append("_action", "delete_task");
+                              formData.append("taskId", taskId);
+                              submit(formData, { method: "post" });
+                            }}
+                          />
+                        </>
+                      )}
+                    </BlockStack>
+                  </Box>
+                )}
+
+                {}
+
+                {selectedTab === 5 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
                       <Card>
@@ -1316,29 +1504,40 @@ export default function WorkspacePage() {
       >
         <Modal.Section>
           <BlockStack gap="400">
-            <Select
-              label="报告类型"
-              options={[
-                { label: "验收报告", value: "verification" },
-                { label: "扫描报告", value: "scan" },
-              ]}
-              value={exportReportType}
-              onChange={(val) => setExportReportType(val as "verification" | "scan")}
-            />
+              <Select
+                label="报告类型"
+                options={[
+                  { label: "验收报告", value: "verification" },
+                  { label: "扫描报告", value: "scan" },
+                  { label: "迁移报告", value: "migration" },
+                ]}
+                value={exportReportType}
+                onChange={(val) => setExportReportType(val as "verification" | "scan" | "migration")}
+              />
             <Select
               label="导出格式"
               options={[
+                { label: "PDF (推荐，美观格式)", value: "pdf" },
                 { label: "CSV (Excel 兼容)", value: "csv" },
                 { label: "JSON (结构化数据)", value: "json" },
               ]}
               value={exportFormat}
-              onChange={(val) => setExportFormat(val as "csv" | "json")}
+              onChange={(val) => setExportFormat(val as "csv" | "json" | "pdf")}
             />
             <Banner tone="info">
-              <Text as="p" variant="bodySm">
-                将导出「{selectedGroup?.name}」分组内所有 {selectedGroup?.memberCount || 0} 个店铺的报告。
-                导出完成后可下载合并报告文件。
-              </Text>
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm">
+                  将导出「{selectedGroup?.name}」分组内所有 {selectedGroup?.memberCount || 0} 个店铺的报告。
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {exportFormat === "pdf" && "PDF 格式包含完整的报告内容和图表，适合打印和分享。"}
+                  {exportFormat === "csv" && "CSV 格式适合在 Excel 中打开和分析数据。"}
+                  {exportFormat === "json" && "JSON 格式包含结构化数据，适合程序处理。"}
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  导出完成后可下载合并报告文件。
+                </Text>
+              </BlockStack>
             </Banner>
           </BlockStack>
         </Modal.Section>
@@ -1451,12 +1650,52 @@ export default function WorkspacePage() {
                 onCancel={() => {
                   setShowBatchApplyModal(false);
                   setSelectedTemplate(null);
+                  setBatchApplyJobId(null);
                 }}
+                jobId={batchApplyJobId}
               />
             </Suspense>
           </Modal.Section>
         </Modal>
       )}
+
+      {}
+
+      <Modal
+        open={showCreateTaskModal}
+        onClose={() => setShowCreateTaskModal(false)}
+        title="创建迁移任务"
+        primaryAction={{
+          content: "创建",
+          onAction: () => {
+            if (!selectedGroup || !shop) return;
+            const formData = new FormData();
+            formData.append("_action", "create_task");
+            formData.append("groupId", selectedGroup.id);
+            formData.append("shopId", shop.id);
+            formData.append("title", "新迁移任务");
+            submit(formData, { method: "post" });
+            setShowCreateTaskModal(false);
+          },
+          loading: isSubmitting,
+        }}
+        secondaryActions={[
+          {
+            content: "取消",
+            onAction: () => setShowCreateTaskModal(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <Banner tone="info">
+              <Text as="p" variant="bodySm">
+                创建任务后，您可以将任务分配给团队成员，并通过评论进行协作。
+              </Text>
+            </Banner>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

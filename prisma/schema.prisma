@@ -125,6 +125,10 @@ model Shop {
   auditAssets           AuditAsset[]
   verificationRuns      VerificationRun[]
   uiExtensionSettings   UiExtensionSetting[]
+  // Agency 协作功能
+  migrationTasks        MigrationTask[]
+  taskComments          TaskComment[]
+  workspaceComments     WorkspaceComment[]
 }
 
 // Scan report for tracking scripts
@@ -657,12 +661,20 @@ model AuditAsset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
+  migrationTasks MigrationTask[]
+
   @@unique([shopId, fingerprint])
   @@index([shopId])
   @@index([category])
   @@index([riskLevel])
   @@index([platform])
   @@index([migrationStatus])
+  // Performance: Composite indexes for common queries
+  @@index([shopId, migrationStatus])
+  @@index([shopId, riskLevel])
+  @@index([shopId, category, riskLevel])
+  @@index([shopId, createdAt])
 }
 
 // 验收运行记录 - 存储验收测试结果
@@ -719,6 +731,10 @@ model VerificationRun {
   @@index([shopId])
   @@index([status])
   @@index([createdAt])
+  // Performance: Composite indexes for common queries
+  @@index([shopId, status])
+  @@index([shopId, createdAt])
+  @@index([shopId, status, createdAt])
 }
 
 // UI 扩展设置 - 存储 Thank you / Order status 页面模块配置
@@ -900,6 +916,8 @@ model ShopGroup {
 
   // Relations
   members ShopGroupMember[]
+  migrationTasks MigrationTask[]
+  workspaceComments WorkspaceComment[]
 
   @@index([ownerId])
 }
@@ -925,4 +943,117 @@ model ShopGroupMember {
   @@unique([groupId, shopId])
   @@index([groupId])
   @@index([shopId])
+}
+
+// ============================================================
+// 任务分配和协作评论模型
+// 用于 Agency 团队协作
+// ============================================================
+
+// 迁移任务分配
+model MigrationTask {
+  id      String @id @default(cuid())
+  shopId  String
+  shop    Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  // 关联的审计资产
+  assetId String?
+  asset   AuditAsset? @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  // 任务信息
+  title       String
+  description String?
+  
+  // 分配信息
+  assignedToShopId String? // 分配给哪个店铺（ShopGroupMember.shopId）
+  assignedByShopId String   // 由谁分配
+  
+  // 任务状态
+  status String @default("pending") // pending, in_progress, completed, blocked, cancelled
+  
+  // 优先级
+  priority Int @default(5) // 1-10，1 最高
+  
+  // 时间信息
+  dueDate    DateTime?
+  startedAt  DateTime?
+  completedAt DateTime?
+  
+  // 关联的分组（用于权限检查）
+  groupId String?
+  group   ShopGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  comments TaskComment[]
+  
+  @@index([shopId])
+  @@index([assetId])
+  @@index([assignedToShopId])
+  @@index([groupId])
+  @@index([status])
+}
+
+// 任务评论
+model TaskComment {
+  id     String @id @default(cuid())
+  taskId String
+  task   MigrationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  // 评论者
+  authorShopId String // 评论者店铺 ID
+  authorShop   Shop  @relation(fields: [authorShopId], references: [id], onDelete: Cascade)
+  
+  // 评论内容
+  content String
+  
+  // 是否为系统消息（如状态变更）
+  isSystemMessage Boolean @default(false)
+  
+  // 关联的父评论（用于回复）
+  parentCommentId String?
+  parentComment   TaskComment? @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         TaskComment[] @relation("CommentReplies")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([taskId])
+  @@index([authorShopId])
+  @@index([parentCommentId])
+}
+
+// 店铺/报告评论（通用评论系统）
+model WorkspaceComment {
+  id     String @id @default(cuid())
+  
+  // 评论目标类型和 ID
+  targetType String // shop, scan_report, verification_run, migration_task
+  targetId   String
+  
+  // 评论者
+  authorShopId String
+  authorShop   Shop @relation(fields: [authorShopId], references: [id], onDelete: Cascade)
+  
+  // 评论内容
+  content String
+  
+  // 关联的分组（用于权限检查）
+  groupId String?
+  group   ShopGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  // 关联的父评论（用于回复）
+  parentCommentId String?
+  parentComment   WorkspaceComment? @relation("WorkspaceCommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         WorkspaceComment[] @relation("WorkspaceCommentReplies")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([targetType, targetId])
+  @@index([authorShopId])
+  @@index([groupId])
+  @@index([parentCommentId])
 }

@@ -3,9 +3,11 @@ import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData } from "@remix-run/react";
 import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, SettingsIcon, } from "~/components/icons";
+import { AlertCircleIcon, CheckCircleIcon, SearchIcon, ArrowRightIcon, ClipboardIcon, RefreshIcon, InfoIcon, ExportIcon, ShareIcon, SettingsIcon, ClockIcon, } from "~/components/icons";
 import { CardSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { AnalysisResultSummary } from "~/components/scan";
+import { MigrationDependencyGraph } from "~/components/scan/MigrationDependencyGraph";
+import { analyzeDependencies } from "~/services/dependency-analysis.server";
 
 const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor").then(module => ({ default: module.ScriptCodeEditor })));
 import { authenticate } from "../shopify.server";
@@ -158,6 +160,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             planTagline: "扫描报告 + 基础建议",
             migrationTimeline: null,
             migrationProgress: null,
+            dependencyGraph: null,
         });
     }
     const latestScanRaw = await prisma.scanReport.findFirst({
@@ -290,9 +293,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const planId = normalizePlan(shop.plan);
     const planDef = getPlanDefinition(planId);
 
-    const [migrationTimeline, migrationProgress] = await Promise.all([
+    const [migrationTimeline, migrationProgress, dependencyGraph] = await Promise.all([
         generateMigrationTimeline(shop.id).catch(() => null),
         getMigrationProgress(shop.id).catch(() => null),
+        analyzeDependencies(shop.id).catch(() => null),
     ]);
 
     return json({
@@ -322,6 +326,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         planTagline: planDef.tagline,
         migrationTimeline,
         migrationProgress,
+        dependencyGraph,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -613,6 +618,48 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
+    if (actionType === "mark_asset_complete") {
+        try {
+            const assetId = formData.get("assetId") as string;
+            if (!assetId) {
+                return json({ error: "缺少资产 ID" }, { status: 400 });
+            }
+
+            const asset = await prisma.auditAsset.findUnique({
+                where: { id: assetId },
+                select: { shopId: true, migrationStatus: true },
+            });
+
+            if (!asset) {
+                return json({ error: "资产不存在" }, { status: 404 });
+            }
+
+            if (asset.shopId !== shop.id) {
+                return json({ error: "无权访问此资产" }, { status: 403 });
+            }
+
+            await prisma.auditAsset.update({
+                where: { id: assetId },
+                data: {
+                    migrationStatus: "completed",
+                    migratedAt: new Date(),
+                },
+            });
+
+            return json({
+                success: true,
+                actionType: "mark_asset_complete",
+                message: "已标记为已完成",
+            });
+        } catch (error) {
+            logger.error("Mark asset complete error", {
+                shopId: shop.id,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return json({ error: "标记失败，请稍后重试" }, { status: 500 });
+        }
+    }
+
     if (actionType && actionType !== "scan") {
         return json({ error: "不支持的操作类型" }, { status: 400 });
     }
@@ -649,7 +696,7 @@ function getUpgradeBannerTone(
 }
 
 export default function ScanPage() {
-    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress } = useLoaderData<typeof loader>();
+    const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -2064,9 +2111,12 @@ export default function ScanPage() {
                     </Text>
                   </BlockStack>
                   {migrationTimeline.totalEstimatedTime > 0 && (
-                    <Text as="span" variant="bodySm" tone="subdued">
-                      预计剩余时间: {String(Math.round(migrationTimeline.totalEstimatedTime / 60))} 小时 {String(migrationTimeline.totalEstimatedTime % 60)} 分钟
-                    </Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <Icon source={ClockIcon} tone="subdued" />
+                      <Text as="span" variant="bodySm" tone="subdued" fontWeight="semibold">
+                        预计剩余时间: {Math.round(migrationTimeline.totalEstimatedTime / 60)} 小时 {migrationTimeline.totalEstimatedTime % 60} 分钟
+                      </Text>
+                    </InlineStack>
                   )}
                 </InlineStack>
               </BlockStack>
@@ -2079,7 +2129,7 @@ export default function ScanPage() {
                     <Text as="h3" variant="headingSm">
                       下一步建议
                     </Text>
-                    {migrationTimeline.assets
+                      {migrationTimeline.assets
                       .filter((item) => item.canStart && item.asset.migrationStatus === "pending")
                       .slice(0, 3)
                       .map((item) => (
@@ -2090,20 +2140,66 @@ export default function ScanPage() {
                                 <Text as="span" fontWeight="semibold">
                                   {item.asset.displayName || item.asset.platform || "未知资产"}
                                 </Text>
-                                <Badge tone={item.priority.priority >= 8 ? "critical" : item.priority.priority >= 5 ? "warning" : "info"}>
-                                  {`优先级 ${item.priority.priority}/10`}
+                                <Badge tone={(item.asset.priority || item.priority.priority) >= 8 ? "critical" : (item.asset.priority || item.priority.priority) >= 5 ? "warning" : "info"}>
+                                  优先级 {item.asset.priority || item.priority.priority}/10
                                 </Badge>
+                                {(item.asset.priority || item.priority.priority) >= 8 && (
+                                  <Badge tone="attention">高优先级</Badge>
+                                )}
+                                {(item.asset.priority || item.priority.priority) >= 5 && (item.asset.priority || item.priority.priority) < 8 && (
+                                  <Badge tone="warning">中优先级</Badge>
+                                )}
                               </InlineStack>
-                              <Text as="span" variant="bodySm" tone="subdued">
-                                {item.priority.reason} • 预计 {String(item.priority.estimatedTime)} 分钟
-                              </Text>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Text as="span" variant="bodySm" tone="subdued">
+                                  {item.priority.reasoning?.join(" • ") || item.priority.reason}
+                                </Text>
+                                {item.asset.estimatedTimeMinutes && (
+                                  <Badge>
+                                    <Icon source={ClockIcon} />
+                                    预计 {item.asset.estimatedTimeMinutes < 60 
+                                      ? `${item.asset.estimatedTimeMinutes} 分钟`
+                                      : `${Math.floor(item.asset.estimatedTimeMinutes / 60)} 小时 ${item.asset.estimatedTimeMinutes % 60} 分钟`}
+                                  </Badge>
+                                )}
+                                {!item.asset.estimatedTimeMinutes && item.priority.estimatedTime && (
+                                  <Badge>
+                                    <Icon source={ClockIcon} />
+                                    预计 {item.priority.estimatedTime < 60 
+                                      ? `${item.priority.estimatedTime} 分钟`
+                                      : `${Math.floor(item.priority.estimatedTime / 60)} 小时 ${item.priority.estimatedTime % 60} 分钟`}
+                                  </Badge>
+                                )}
+                              </InlineStack>
+                              {item.blockingDependencies.length > 0 && (
+                                <Banner tone="warning">
+                                  <Text as="p" variant="bodySm">
+                                    等待 {item.blockingDependencies.length} 个依赖项完成
+                                  </Text>
+                                </Banner>
+                              )}
                             </BlockStack>
-                            <Button
-                              size="slim"
-                              url={`/app/migrate?asset=${item.asset.id}`}
-                            >
-                              开始迁移
-                            </Button>
+                            <InlineStack gap="200">
+                              <Button
+                                size="slim"
+                                url={`/app/migrate?asset=${item.asset.id}`}
+                                disabled={!item.canStart}
+                              >
+                                开始迁移
+                              </Button>
+                              <Button
+                                size="slim"
+                                variant="plain"
+                                onClick={() => {
+                                  const formData = new FormData();
+                                  formData.append("_action", "mark_asset_complete");
+                                  formData.append("assetId", item.asset.id);
+                                  submit(formData, { method: "post" });
+                                }}
+                              >
+                                标记完成
+                              </Button>
+                            </InlineStack>
                           </InlineStack>
                         </Box>
                       ))}
@@ -2114,6 +2210,13 @@ export default function ScanPage() {
                         </Text>
                       </Banner>
                     )}
+                  </BlockStack>
+                  {dependencyGraph && (
+                    <>
+                      <Divider />
+                      <MigrationDependencyGraph dependencyGraph={dependencyGraph} />
+                    </>
+                  )}
                   </BlockStack>
                 </>
               )}
@@ -2495,6 +2598,8 @@ export default function ScanPage() {
   gtag('event', 'purchase', {...});
   fbq('track', 'Purchase', {...});
 </script>`}
+                        enableRealtimeAnalysis={false} // 可选：启用实时分析
+                        enableBatchPaste={true} // 启用批量粘贴支持
                       />
                     </Suspense>
                     {analysisProgress && (

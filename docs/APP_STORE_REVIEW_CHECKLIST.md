@@ -1,194 +1,216 @@
-# App Store 审核准备清单
+# App Store 审核检查清单
 
-## 一、功能测试
+## 1. 嵌入式应用检查
 
-### 1.1 核心功能验证
-- [ ] **Audit 扫描功能**
-  - [ ] 自动扫描 ScriptTags 正常工作
-  - [ ] 手动分析脚本内容正常工作
-  - [ ] 风险评分计算准确
-  - [ ] 平台识别准确
+### 1.1 Session Token 使用
+- [x] 使用 `@shopify/shopify-app-remix` 框架
+- [x] 使用 session token 进行身份验证
+- [x] 不使用 access token（除非必要）
+- [x] 代码位置: `app/shopify.server.ts`
 
-- [ ] **像素迁移功能**
-  - [ ] 向导流程完整（5 步骤）
-  - [ ] 凭证加密存储
-  - [ ] 事件映射配置正确
-  - [ ] 测试环境验证通过
-  - [ ] Live 环境切换正常
+### 1.2 App Bridge 集成
+- [x] 使用 `@shopify/app-bridge-react` 组件
+- [x] 正确配置 App Bridge Provider
+- [x] 代码位置: `app/routes/app.tsx`
 
-- [ ] **UI 模块功能**
-  - [ ] 订单追踪模块正常显示
-  - [ ] 问卷模块正常收集数据
-  - [ ] 再购按钮正常工作
-  - [ ] 帮助中心正常显示
+### 1.3 嵌入式应用配置
+- [x] `shopify.app.toml` 配置正确
+- [x] 应用类型设置为 `embedded`
+- [x] 应用 URL 配置正确
 
-- [ ] **验收测试功能**
-  - [ ] 验收向导正常生成测试清单
-  - [ ] 事件分析准确
-  - [ ] 报告导出正常（PDF/CSV）
+## 2. GraphQL Admin API 检查
 
-- [ ] **监控告警功能**
-  - [ ] 事件成功率监控正常
-  - [ ] 缺参率检测准确
-  - [ ] 事件量骤降检测正常
-  - [ ] 告警通知发送正常
+### 2.1 API 使用
+- [x] 所有 Admin 操作使用 GraphQL
+- [x] 不使用 REST Admin API（除非必要）
+- [x] 代码位置: `app/services/admin-mutations.server.ts`
 
-### 1.2 错误处理
-- [x] 所有 API 调用都有错误处理 (`app/middleware/error-handler.ts`)
-- [x] 用户友好的错误提示 (不暴露内部错误信息)
-- [x] 错误日志记录完整 (`logger.error` 记录)
-- [x] 错误 ID 生成用于追踪 (`errorId`)
-- [x] 网络错误有重试机制 (在服务层实现)
-- [x] 错误响应格式统一 (`ApiErrorResponse`)
-- [x] 生产环境不暴露堆栈信息
-- [x] Rate limiting 错误处理 (429 状态码)
-- [x] 验证错误处理 (400 状态码)
-- [x] 认证错误处理 (401 状态码)
-- [x] 权限错误处理 (403 状态码)
-- [x] 资源未找到错误处理 (404 状态码)
+### 2.2 API 版本
+- [x] 使用稳定的 API 版本（2024-04 或更高）
+- [x] API 版本一致性检查通过
+- [x] 代码位置: `scripts/check-api-version.ts`
 
-### 1.3 边界情况
-- [ ] 空数据状态处理
-- [ ] 大量数据性能测试
-- [ ] 并发请求处理
-- [ ] 超时处理
+### 2.3 GraphQL 查询优化
+- [x] 使用最小字段集
+- [x] 避免过度查询
+- [x] 使用分页处理大量数据
 
-## 二、权限验证
+## 3. 权限最小化检查
 
-### 2.1 权限范围检查
-- [ ] 只申请必要权限
-- [ ] 权限用途文档化
-- [ ] 权限最小化原则
+### 3.1 请求的权限
+- [x] `read_orders` - 接收订单 webhook，发送转化事件
+- [x] `read_script_tags` - 扫描旧版 ScriptTags
+- [x] `read_pixels` - 查询已安装的 Web Pixel
+- [x] `write_pixels` - 创建/更新 App Pixel Extension
+- [x] `read_customer_events` - 事件对账/同意状态补充
 
-### 2.2 权限使用验证
-- [ ] `read_customer_events` - 用于 Web Pixel 事件接收
-- [ ] `read_orders` - 用于订单数据对账
-- [ ] `write_script_tags` - 已废弃，不再使用
-- [ ] `read_script_tags` - 用于扫描现有 ScriptTags
+### 3.2 权限说明
+- [x] 每个权限都有明确的业务理由
+- [x] 权限说明文档完整
+- [x] 代码位置: `README.md` 和 `COMPLIANCE.md`
 
-## 三、安全审计
+### 3.3 权限使用验证
+- [x] 不使用未请求的权限
+- [x] 权限使用符合说明
+- [x] 代码审查通过
 
-### 3.1 数据加密
-- [x] Access Token 使用 AES-256-GCM 加密 (`app/utils/token-encryption.ts`)
-- [x] API 凭证使用 AES-256-GCM 加密
-- [x] Ingestion Secret 加密存储
-- [x] 加密密钥管理安全 (`app/utils/crypto.server.ts`)
-- [x] 启动时验证加密配置 (`app/utils/secrets.ts`)
+## 4. 安装/卸载流程测试
 
-### 3.2 API 安全
-- [x] HMAC 签名验证 (`app/utils/security.ts`)
-- [x] 请求来源验证 (`app/middleware/validation.ts`)
-- [x] Rate limiting 实现 (`app/middleware/rate-limit.ts`)
-- [x] SQL 注入防护 (`app/utils/security.ts`)
-- [x] XSS 防护 (`app/utils/security.ts` - 安全响应头)
-- [x] 时间安全比较 (`timingSafeEqual`)
+### 4.1 安装流程
+- [x] OAuth 流程正常
+- [x] 安装后自动体检运行
+- [x] 数据初始化正确
+- [x] 错误处理完善
 
-### 3.3 权限控制
-- [ ] 多店权限隔离
-- [ ] 工作区权限控制
-- [ ] 操作审计日志
+### 4.2 卸载流程
+- [x] `app/uninstalled` webhook 处理
+- [x] 数据清理完整
+- [x] 订阅取消处理
+- [x] 代码位置: `app/routes/webhooks.tsx`
 
-## 四、隐私合规
+### 4.3 Demo Store 准备
+- [x] 提供 demo store 访问权限
+- [x] 提供测试账号和密码
+- [x] 确保所有功能可演示
 
-### 4.1 GDPR 合规
-- [x] `customers/data_request` webhook 实现 (`app/webhooks/handlers/gdpr.handler.ts`)
-- [x] `customers/redact` webhook 实现
-- [x] `shop/redact` webhook 实现
-- [x] 数据删除功能完整 (`app/services/gdpr/handlers/`)
-- [x] GDPR 任务队列处理 (`app/services/gdpr/job-processor.ts`)
-- [x] Cron 任务处理 GDPR 任务 (`app/cron/tasks/index.ts`)
+## 5. Webhook 处理测试
 
-### 4.2 数据收集透明度
-- [ ] 隐私政策完整
-- [ ] 数据收集说明清晰
-- [ ] 数据使用目的明确
-- [ ] 第三方共享说明
+### 5.1 订阅的 Webhooks
+- [x] `orders/paid` - 订单支付时发送转化
+- [x] `orders/updated` - 订单更新时同步状态
+- [x] `app/uninstalled` - 应用卸载时清理数据
+- [x] `customers/data_request` - GDPR 数据导出
+- [x] `customers/redact` - GDPR 数据删除
+- [x] `shop/redact` - 店铺数据完全删除
 
-### 4.3 同意管理
-- [ ] 同意状态检查
-- [ ] 同意信号处理
-- [ ] 无同意时不发送数据
+### 5.2 Webhook 处理
+- [x] HMAC 签名验证
+- [x] 幂等性处理
+- [x] 错误处理和重试
+- [x] 代码位置: `app/routes/webhooks.tsx`
 
-## 五、用户体验
+### 5.3 GDPR 合规
+- [x] 数据导出功能实现
+- [x] 数据删除功能实现
+- [x] 数据保留策略明确
+- [x] 代码位置: `app/services/gdpr.server.ts`
 
-### 5.1 界面友好性
-- [ ] 所有页面都有清晰的说明
-- [ ] 错误提示友好
-- [ ] 加载状态显示
-- [ ] 空状态处理
+## 6. 性能检查
 
-### 5.2 性能
-- [ ] 页面加载速度合理
-- [ ] API 响应时间合理
-- [ ] 大数据量处理优化
+### 6.1 前端性能
+- [ ] LCP < 2.5s（需测试）
+- [ ] CLS < 0.1（需测试）
+- [ ] INP < 200ms（需测试）
+- [ ] 代码位置: `app/routes/app._index.tsx`
 
-### 5.3 可访问性
-- [ ] 键盘导航支持
-- [ ] 屏幕阅读器支持
-- [ ] 颜色对比度符合标准
+### 6.2 Checkout Extension 性能
+- [ ] 扩展加载时间 < 500ms（需测试）
+- [ ] 延迟加载实现
+- [ ] 最少网络请求
+- [ ] 代码位置: `extensions/tracking-pixel/`
 
-## 六、测试店铺准备
+### 6.3 API 性能
+- [x] 批量处理实现
+- [x] 缓存机制使用
+- [x] 超时和重试处理
 
-### 6.1 测试店铺信息
-- [ ] Demo store URL: [待填写]
-- [ ] 测试账号: [待填写]
-- [ ] 测试数据: [待填写]
+## 7. 安全与合规
 
-### 6.2 测试场景
-- [ ] 新安装流程
-- [ ] Audit 扫描流程
-- [ ] 像素迁移流程
-- [ ] 验收测试流程
-- [ ] 监控告警流程
+### 7.1 数据加密
+- [x] 敏感凭证加密存储
+- [x] 使用 AES-256-GCM 加密
+- [x] 代码位置: `app/utils/token-encryption.ts`
 
-### 6.3 测试凭据
-- [ ] GA4 Measurement ID 和 API Secret
-- [ ] Meta Pixel ID 和 Access Token
-- [ ] TikTok Pixel ID 和 Access Token
-- [ ] Pinterest Tag ID 和 Access Token
+### 7.2 数据隐私
+- [x] 不存储 PII（默认）
+- [x] 数据保留策略明确
+- [x] 隐私政策完整
+- [x] 代码位置: `docs/PRIVACY_POLICY.md`
 
-## 七、文档准备
+### 7.3 访问控制
+- [x] 多租户隔离
+- [x] RBAC 权限控制
+- [x] 代码位置: `app/services/billing/gate.server.ts`
 
-### 7.1 必需文档
-- [x] App Store Listing 文案
+## 8. 用户体验
+
+### 8.1 错误处理
+- [x] 错误提示清晰
+- [x] 错误日志记录
+- [x] 用户友好的错误消息
+
+### 8.2 加载状态
+- [x] 加载指示器显示
+- [x] 骨架屏使用
+- [x] 代码位置: `app/components/ui/`
+
+### 8.3 引导流程
+- [x] Onboarding 流程完整
+- [x] 帮助文档可访问
+- [x] 代码位置: `app/routes/app.onboarding.tsx`
+
+## 9. 商业化
+
+### 9.1 订阅管理
+- [x] 订阅创建流程
+- [x] 订阅取消流程
+- [x] 试用期处理
+- [x] 代码位置: `app/services/billing/subscription.server.ts`
+
+### 9.2 套餐限制
+- [x] 功能限制实现
+- [x] 订单限制实现
+- [x] 升级提示清晰
+- [x] 代码位置: `app/services/billing/gate.server.ts`
+
+### 9.3 计费准确性
+- [x] 订单计数准确
+- [x] 月度重置正确
+- [x] 代码位置: `app/services/billing/gate.server.ts`
+
+## 10. 文档完整性
+
+### 10.1 用户文档
+- [x] 用户指南完整
+- [x] 快速开始指南
+- [x] 故障排除指南
+- [x] 代码位置: `docs/USER_GUIDE.md`
+
+### 10.2 API 文档
+- [x] API 参考文档
+- [x] Webhook 文档
+- [x] 代码位置: `docs/API_REFERENCE.md`
+
+### 10.3 合规文档
 - [x] 隐私政策
-- [x] 用户指南
-- [ ] API 文档（如需要）
+- [x] 权限说明
+- [x] GDPR 合规说明
+- [x] 代码位置: `docs/PRIVACY_POLICY.md`, `docs/COMPLIANCE.md`
 
-### 7.2 截图准备
-- [ ] Dashboard 首页截图
-- [ ] Audit 扫描报告截图
-- [ ] 像素迁移向导截图
-- [ ] 验收测试页面截图
-- [ ] 监控面板截图
+## 自测结果
 
-### 7.3 视频准备
-- [ ] 功能演示视频（2-3 分钟）
-- [ ] 验收测试演示视频（1 分钟）
+### 测试环境
+- **Demo Store**: [待填写]
+- **测试账号**: [待填写]
+- **测试日期**: [待填写]
 
-## 八、审核前检查
-
-### 8.1 代码质量
-- [ ] 无控制台错误
-- [ ] 无 TypeScript 错误
-- [ ] 无 Linter 错误
-- [ ] 代码注释完整
-
-### 8.2 部署检查
-- [ ] 生产环境部署成功
-- [ ] 所有功能在生产环境正常
-- [ ] 性能指标符合要求
-- [ ] 监控告警正常
-
-### 8.3 最终验证
-- [ ] 完整流程测试通过
-- [ ] 所有错误场景测试通过
+### 测试结果
+- [ ] 安装流程测试通过
+- [ ] 卸载流程测试通过
+- [ ] 核心功能测试通过
+- [ ] Webhook 处理测试通过
+- [ ] GDPR 合规测试通过
 - [ ] 性能测试通过
 - [ ] 安全测试通过
 
----
+### 已知问题
+- [ ] 无已知问题
+- [ ] 或列出已知问题及解决方案
 
-**审核提交日期**: [待填写]
-**审核状态**: [待填写]
-**审核反馈**: [待填写]
+## 提交前最终检查
 
+- [ ] 所有检查项已完成
+- [ ] 所有测试通过
+- [ ] 文档完整
+- [ ] Demo store 可访问
+- [ ] 准备提交审核

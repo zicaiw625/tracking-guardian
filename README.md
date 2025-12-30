@@ -4,24 +4,54 @@
 
 ## 功能特性
 
-### 1. 一键扫描与风险报告
+### 1. 安装后自动体检与 Dashboard
+- **自动体检**：安装后自动扫描店铺，评估迁移风险
+- **Dashboard 概览**：显示升级状态、风险分数、预计迁移时间
+- **迁移清单预览**：优先级排序的迁移清单，显示高风险项和预计时间
+- **快速入口**：一键跳转到 Audit、迁移、验收等页面
+
+### 2. 一键扫描与风险报告
 - **自动扫描**：通过 Shopify API 读取已安装的 ScriptTags 和 Web Pixels
 - **手动分析**：支持手动粘贴 Additional Scripts 内容进行分析
   - ⚠️ **注意**：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts，需要商家手动复制粘贴
-- 识别 Google、Meta、TikTok 等常见追踪平台
-- 生成风险评分和迁移建议
-- 动态显示截止日期状态（根据当前日期和店铺类型）
+- **智能识别**：识别 Google、Meta、TikTok、Pinterest 等常见追踪平台
+- **优先级计算**：基于风险等级、影响范围、迁移难度自动计算优先级（1-10分）
+- **时间估算**：基于历史数据和复杂度估算预计迁移时间
+- **依赖分析**：分析迁移项之间的依赖关系，生成最优迁移顺序
+- **风险评分**：生成风险评分和迁移建议
+- **动态截止日期**：根据当前日期和店铺类型显示截止日期状态
 
-### 2. 一键迁移模板
-- Google Analytics 4 / Google Ads
-- Meta (Facebook) Pixel
-- TikTok Pixel
+### 3. 像素迁移中心（向导式）
+- **分步骤向导**：清晰的 5 步流程（选择平台 → 填写凭证 → 事件映射 → 检查配置 → 测试验证）
+- **草稿保存**：步骤间自动保存草稿，支持断点续传
+- **事件映射可视化编辑器**：
+  - 拖拽式事件映射界面
+  - 实时预览映射结果
+  - 批量编辑功能
+  - 推荐映射一键应用
+- **模板库**：预设模板（标准配置、高级配置）和自定义模板
+- **环境切换**：支持 Test/Live 环境切换
+- **配置版本管理**：支持配置回滚
+- **支持的平台**：
+  - Google Analytics 4 / Google Ads
+  - Meta (Facebook) Pixel
+  - TikTok Pixel
+  - Pinterest Conversions API
 
 > **注意**：Microsoft Ads (Bing) 和 Microsoft Clarity 暂不支持服务端追踪。
 > - Bing: 建议使用 Microsoft 官方 Shopify 应用
 > - Clarity: 客户端会话回放工具，请在主题中直接添加
 
-### 3. 追踪健康监控与送达对账
+### 4. 事件对账与验收
+- **验收向导**：生成测试清单（下单、退款、取消、编辑订单等）
+- **实时事件监控**：使用 Server-Sent Events (SSE) 实时显示事件触发
+- **事件参数完整性检查**：检查 value、currency、items 等必需参数
+- **金额准确性验证**：验证事件金额与订单金额是否一致
+- **渠道对账**：本地一致性检查（我们发送的数据与 Shopify 订单数据对比）
+- **测试订单指引**：详细的测试步骤和预期事件说明
+- **报告导出**：支持 PDF/CSV 格式导出验收报告
+
+### 5. 追踪健康监控与送达对账
 - 每日自动对账：Shopify Webhook 订单 vs 像素回执 vs 平台送达日志
 - 投递成功率监控：检测发送失败、超时、凭证过期等问题
 - 送达缺口分析：识别丢失发生在像素端、服务端还是平台端
@@ -32,7 +62,7 @@
 > 我们保证您能证明事件已发出、能定位丢失发生在哪一环节（像素未触发 / 服务端发送失败 / 平台 API 错误），
 > 但**不包含**平台侧转化报表的回读对比（如 Meta Ads Manager 的转化数、Google Ads 的归因报表等）。
 
-### 4. 服务器端转化补齐
+### 6. 服务器端转化补齐
 - Shopify Webhooks 自动触发
 - Meta Conversions API (CAPI)
 - GA4 Measurement Protocol（⚠️ 仅支持 GA4，非 Google Ads）
@@ -43,20 +73,28 @@
 > - **Google Ads**：当前**不支持** Google Ads 离线转化导入（Enhanced Conversions for Leads / Offline Conversions）。如需 Google Ads 归因，建议配合使用 Google 官方 Shopify 应用或 Google Ads 离线转化导入工具
 > - 本应用专注于 GA4 + Meta CAPI + TikTok Events API 的统一管理
 
-### 5. TY/OS 页面小组件 (Beta)
+### 7. Thank you / Order status UI 模块库
 - Post-purchase Survey（购后问卷）
 - Shipping Tracker（物流追踪）- Beta
 - Upsell Offer（二次购买优惠）- Beta
 - Support & FAQ 模块（客服入口、FAQ、继续购物）
 
-### 套餐与商业化（对齐“上线即可收费”）
+### 8. Agency 多店支持（高阶套餐）
+- **多店工作区**：创建和管理多个店铺分组
+- **批量 Audit 扫描**：批量运行扫描，跟踪进度和结果汇总
+- **批量应用像素模板**：一键将配置应用到多个店铺
+- **迁移验收报告导出**：生成多店铺迁移报告（PDF），包含每个店铺的迁移状态和进度统计
+- **白标报告支持**：支持自定义品牌（Agency 品牌）
+- **团队协作**：成员权限管理（Owner/Admin/Viewer）、任务分配、协作评论
+
+### 套餐与商业化（对齐"上线即可收费"）
 
 | 套餐 | 定价 | 适用场景 | 核心能力 |
 | --- | --- | --- | --- |
-| Free | $0 | 扫描、评估阶段 | 扫描报告、截止期提醒、脚本内容本地分析 |
-| Growth | $29/mo | 单店/单渠道迁移 | App Pixel 启用、GA4/Meta/TikTok（三选二）CAPI 向导、基础 TY/OS 组件 |
-| Pro | $79/mo | 多渠道运营 & 对账 | 多渠道像素、事件送达对账、告警/重试、高级 TY/OS 组件（FAQ/Upsell/Survey） |
-| Agency | $199/mo | 多店代理/协作 | 多店铺 & 协作、白标报告、迁移托管支持 |
+| Free | $0 | 扫描、评估阶段 | Audit 扫描报告、迁移清单与建议、截止期提醒 |
+| Starter | $29/mo | 单店/单渠道迁移 | 1 个目的地像素（test/live）、1 个页面模块、基础验收 |
+| Growth | $79/mo | 多渠道运营 & 对账 | 3 个目的地像素、全部页面模块、事件对账 + 告警 |
+| Agency | $199/mo | 多店代理/协作 | 多店铺 workspace、批量交付 + 报告导出 + 团队协作 |
 
 > 权限/功能 gating 已在前端页面展示：升级 CTA 位于仪表盘与迁移页；默认 plan 为 Free。
 

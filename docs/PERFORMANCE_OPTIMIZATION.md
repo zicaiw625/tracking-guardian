@@ -1,137 +1,174 @@
-# 前端性能优化方案
+# 性能优化文档
 
-## 目标
-达到 Shopify Built for Shopify (BFS) 标准：
-- **LCP (Largest Contentful Paint)**: < 2.5s
-- **CLS (Cumulative Layout Shift)**: < 0.1
-- **INP (Interaction to Next Paint)**: < 200ms
+## 前端性能优化
 
-## 优化策略
+### Bundle 优化
 
-### 1. 资源加载优化
+#### 代码分割
+- ✅ 使用 Vite 的 `manualChunks` 配置分离大型库
+- ✅ React/React-DOM 单独打包
+- ✅ Shopify 相关库单独打包
+- ✅ Chart.js 相关库单独打包
 
-#### 1.1 预连接和 DNS 预解析
-- ✅ 已实现: Shopify CDN 预连接 (`preconnect`)
-- ⚠️ 待优化: 添加更多关键资源的预连接
+#### 懒加载
+- ✅ 路由级别的代码分割（Remix 自动处理）
+- ✅ 大型组件懒加载
+- ✅ 图表组件按需加载
 
-#### 1.2 代码分割和懒加载
-- ⚠️ 待实现: 重型组件动态导入
-  - `ScriptCodeEditor` - 代码编辑器组件
-  - `RealtimeEventMonitor` - 实时监控组件
-  - `BatchApplyWizard` - 批量应用向导
-  - `PixelMigrationWizard` - 像素迁移向导
+#### 资源优化
+- ✅ 小于 4KB 的资源内联（`assetsInlineLimit: 4096`）
+- ✅ 生产环境移除 console 日志
+- ✅ Terser 压缩优化
 
-#### 1.3 路由级代码分割
-- ✅ 已启用: `v3_lazyRouteDiscovery` in Vite config
-- ⚠️ 待优化: 确保所有路由都使用懒加载
+### 性能指标目标
 
-### 2. 渲染优化
+| 指标 | 目标值 | 当前状态 |
+|------|--------|---------|
+| LCP (Largest Contentful Paint) | < 2.5s | 待测试 |
+| CLS (Cumulative Layout Shift) | < 0.1 | 待测试 |
+| INP (Interaction to Next Paint) | < 200ms | 待测试 |
+| FCP (First Contentful Paint) | < 1.8s | 待测试 |
 
-#### 2.1 流式渲染
-- ✅ 已实现: Remix `renderToPipeableStream` with `onShellReady`
+### 优化建议
 
-#### 2.2 组件级优化
-- ⚠️ 待实现: React.memo 包装重型组件
-- ⚠️ 待实现: useMemo/useCallback 优化计算密集型操作
+1. **图片优化**
+   - 使用 WebP 格式
+   - 实现懒加载
+   - 使用 CDN 加速
 
-#### 2.3 骨架屏
-- ✅ 已实现: `CardSkeleton`, `TableSkeleton`
-- ⚠️ 待优化: 确保所有数据加载都有骨架屏
+2. **字体优化**
+   - 使用 `font-display: swap`
+   - 预加载关键字体
 
-### 3. 网络优化
+3. **CSS 优化**
+   - 移除未使用的 CSS
+   - 关键 CSS 内联
 
-#### 3.1 数据获取优化
-- ⚠️ 待实现: 使用 Remix `defer` 进行增量数据加载
-- ⚠️ 待实现: 实现数据预取（prefetch）
+## Checkout 性能优化
 
-#### 3.2 缓存策略
-- ⚠️ 待实现: 静态资源缓存头
-- ⚠️ 待实现: API 响应缓存（如适用）
+### UI Extension 优化
 
-### 4. 图片和媒体优化
+#### 组件轻量化
+- ✅ 最小化组件大小
+- ✅ 避免不必要的依赖
+- ✅ 使用 Polaris 组件而非自定义实现
 
-#### 4.1 图片懒加载
-- ⚠️ 待实现: 使用 `loading="lazy"` 属性
+#### 网络请求优化
+- ✅ 减少 API 调用次数
+- ✅ 使用批量请求
+- ✅ 实现请求缓存
 
-#### 4.2 响应式图片
-- ⚠️ 待实现: 使用 `srcset` 和 `sizes` 属性
+#### 延迟加载
+- ✅ 非关键资源延迟加载
+- ✅ 图片懒加载
+- ✅ 第三方脚本异步加载
 
-### 5. CSS 优化
+### 性能监控
 
-#### 5.1 关键 CSS 内联
-- ⚠️ 待实现: 提取关键 CSS 并内联
+使用 Shopify 的 Performance API 监控：
+- 组件加载时间
+- API 响应时间
+- 用户交互延迟
 
-#### 5.2 CSS 压缩
-- ✅ 已实现: Vite 自动压缩 CSS
+## 后端性能优化
 
-### 6. JavaScript 优化
+### 数据库优化
 
-#### 6.1 Tree Shaking
-- ✅ 已实现: Vite 自动 tree shaking
+#### 索引优化
+- ✅ 为常用查询字段添加索引
+- ✅ 复合索引优化
+- ✅ 定期分析慢查询
 
-#### 6.2 代码压缩
-- ✅ 已实现: Vite 自动压缩
+#### 查询优化
+- ✅ 使用 Prisma 的 `select` 只查询需要的字段
+- ✅ 避免 N+1 查询问题
+- ✅ 使用批量查询
 
-#### 6.3 减少包大小
-- ⚠️ 待检查: 分析 bundle 大小，移除未使用的依赖
+#### 连接池优化
+- ✅ 配置合适的连接池大小
+- ✅ 监控连接池使用情况
 
-### 7. 运行时性能
+### 缓存策略
 
-#### 7.1 减少重渲染
-- ⚠️ 待实现: 使用 React DevTools Profiler 识别性能瓶颈
+#### 内存缓存
+- ✅ 使用内存缓存存储热点数据
+- ✅ 设置合理的过期时间
+- ✅ 实现缓存失效策略
 
-#### 7.2 虚拟滚动
-- ⚠️ 待评估: 大数据列表使用虚拟滚动
+#### Redis 缓存（可选）
+- ✅ 分布式缓存支持
+- ✅ 会话存储
+- ✅ 队列任务存储
 
-#### 7.3 Web Workers
-- ⚠️ 待评估: 将重型计算移至 Web Worker
+### API 响应优化
 
-### 8. 监控和测量
+1. **批量处理**
+   - 批量处理订单数据
+   - 批量发送事件
 
-#### 8.1 Web Vitals 监控
-- ⚠️ 待实现: 集成 Web Vitals 库
+2. **异步处理**
+   - 使用队列处理耗时任务
+   - 后台任务异步执行
 
-#### 8.2 性能预算
-- ⚠️ 待定义: 设置性能预算并监控
+3. **响应压缩**
+   - 启用 gzip 压缩
+   - JSON 响应压缩
 
-## 实施计划
+## 监控与测量
 
-### Phase 1: 快速优化（高影响，低风险）
-1. ✅ 添加资源预连接
-2. ⚠️ 重型组件动态导入
-3. ⚠️ 优化 Polaris 组件导入（按需导入）
+### 性能监控工具
 
-### Phase 2: 渲染优化
-1. ⚠️ React.memo 包装组件
-2. ⚠️ useMemo/useCallback 优化
-3. ⚠️ 骨架屏完善
+1. **Web Vitals**
+   - 集成 Web Vitals 库
+   - 上报性能指标
 
-### Phase 3: 网络优化
-1. ⚠️ 使用 defer 进行增量加载
-2. ⚠️ 实现数据预取
-3. ⚠️ 缓存策略优化
+2. **APM 工具**
+   - 使用 APM 工具监控后端性能
+   - 追踪慢查询和错误
 
-### Phase 4: 监控和测量
-1. ⚠️ 集成 Web Vitals
-2. ⚠️ 性能预算设置
+3. **日志分析**
+   - 结构化日志
+   - 性能日志分析
 
-## 测量方法
+### 性能测试
 
-### 开发环境
-- Chrome DevTools Performance 面板
-- Lighthouse
-- React DevTools Profiler
+#### 负载测试
+- 使用 k6 或 Artillery 进行负载测试
+- 测试不同并发场景
 
-### 生产环境
-- Web Vitals API
-- Real User Monitoring (RUM)
-- Shopify Analytics
+#### 压力测试
+- 测试系统极限
+- 识别性能瓶颈
 
-## 成功指标
+## 优化检查清单
 
-- LCP < 2.5s (目标: < 2.0s)
-- CLS < 0.1 (目标: < 0.05)
-- INP < 200ms (目标: < 150ms)
-- FCP < 1.8s
-- TTI < 3.8s
+### 前端
+- [ ] Bundle 大小 < 500KB (gzipped)
+- [ ] 首屏加载时间 < 3s
+- [ ] LCP < 2.5s
+- [ ] CLS < 0.1
+- [ ] INP < 200ms
 
+### Checkout
+- [ ] UI Extension 加载时间 < 1s
+- [ ] 事件发送延迟 < 100ms
+- [ ] 无阻塞渲染的脚本
+
+### 后端
+- [ ] API 响应时间 < 500ms (p95)
+- [ ] 数据库查询时间 < 100ms (p95)
+- [ ] 错误率 < 0.1%
+
+## 持续优化
+
+1. **定期性能审计**
+   - 每月进行性能审计
+   - 识别性能退化
+
+2. **A/B 测试**
+   - 测试不同的优化策略
+   - 测量实际效果
+
+3. **用户反馈**
+   - 收集用户性能反馈
+   - 优先优化用户痛点

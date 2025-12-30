@@ -1,5 +1,6 @@
 
 
+import { memo } from "react";
 import { Card, BlockStack, Text, Button, InlineStack, Icon, Box } from "@shopify/polaris";
 import { EmptyStateDisplay } from "./ErrorDisplay";
 
@@ -30,7 +31,7 @@ export interface EnhancedEmptyStateProps {
   children?: React.ReactNode;
 }
 
-export function EnhancedEmptyState({
+export const EnhancedEmptyState = memo(function EnhancedEmptyState({
   title = "暂无数据",
   description = "当前没有可显示的内容。",
   primaryAction,
@@ -100,7 +101,7 @@ export function EnhancedEmptyState({
       </BlockStack>
     </Card>
   );
-}
+});
 
 export function EmptyStateNoData({
   primaryAction,

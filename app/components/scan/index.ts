@@ -10,6 +10,8 @@ export { MigrationCountdown } from "./MigrationCountdown";
 export { DeadlineTimeline, CompactDeadlineTimeline } from "./DeadlineTimeline";
 export { MigrationChecklist } from "./MigrationChecklist";
 export { AnalysisResultSummary } from "./AnalysisResultSummary";
+export { PriorityBadge } from "./PriorityBadge";
+export { TimeEstimate } from "./TimeEstimate";
 export { getPlatformName, getSeverityBadge } from "./utils";
 
 export type { MigrationCountdownProps, CountdownMilestone, ShopTier as CountdownShopTier } from "./MigrationCountdown";

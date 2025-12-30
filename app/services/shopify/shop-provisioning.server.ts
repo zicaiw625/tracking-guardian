@@ -129,37 +129,70 @@ async function runPostInstallScan(
   admin: AdminApiContext
 ): Promise<void> {
   const startTime = Date.now();
-  const MAX_SCAN_TIME_MS = 10000;
+  const MAX_SCAN_TIME_MS = 10000; // 10 秒超时
+  const FAST_TRACK_MS = 8000; // 8 秒快速通道（只做基础扫描）
 
   try {
     logger.info(`[PostInstall] Starting automatic health check for ${shopDomain}`);
 
-    const [typOspResult, scanResult] = await Promise.allSettled([
-
+    // 使用 Promise.race 确保在超时前返回
+    const scanPromise = Promise.allSettled([
+      // 快速检查：升级状态（通常 < 2 秒）
       (async () => {
         const { refreshTypOspStatus } = await import("../checkout-profile.server");
         return await refreshTypOspStatus(admin, shopId);
       })(),
 
+      // 基础扫描：ScriptTags 和 Web Pixels（通常 < 5 秒）
       scanShopTracking(admin, shopId, {
         force: false,
-        cacheTtlMs: 0,
+        cacheTtlMs: 0, // 不使用缓存，确保获取最新数据
       }),
     ]);
 
-    if (typOspResult.status === "fulfilled") {
+    // 设置超时保护
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Scan timeout")), MAX_SCAN_TIME_MS);
+    });
+
+    let typOspResult: PromiseSettledResult<any> | null = null;
+    let scanResult: PromiseSettledResult<any> | null = null;
+
+    try {
+      const results = await Promise.race([scanPromise, timeoutPromise]);
+      [typOspResult, scanResult] = results;
+    } catch (timeoutError) {
+      logger.warn(`[PostInstall] Scan timeout for ${shopDomain}, proceeding with partial results`, {
+        elapsedMs: Date.now() - startTime,
+      });
+      // 如果超时，尝试获取已完成的结果
+      try {
+        const partialResults = await Promise.allSettled([
+          Promise.resolve(typOspResult),
+          Promise.resolve(scanResult),
+        ]);
+        if (partialResults[0].status === "fulfilled") typOspResult = partialResults[0];
+        if (partialResults[1].status === "fulfilled") scanResult = partialResults[1];
+      } catch {
+        // 忽略部分结果获取失败
+      }
+    }
+
+    // 处理 TypOsp 状态检查结果
+    if (typOspResult?.status === "fulfilled") {
       logger.info(`[PostInstall] TypOsp status checked for ${shopDomain}`, {
         enabled: typOspResult.value.typOspPagesEnabled,
         status: typOspResult.value.status,
       });
-    } else {
+    } else if (typOspResult?.status === "rejected") {
       logger.warn(`[PostInstall] Failed to check typOsp status for ${shopDomain}`, {
         error: typOspResult.reason instanceof Error ? typOspResult.reason.message : String(typOspResult.reason),
       });
     }
 
+    // 处理扫描结果
     let scanData: Awaited<ReturnType<typeof scanShopTracking>> | null = null;
-    if (scanResult.status === "fulfilled") {
+    if (scanResult?.status === "fulfilled") {
       scanData = scanResult.value;
       logger.info(`[PostInstall] Scan completed for ${shopDomain}`, {
         scriptTagsFound: scanData.scriptTags.length,
@@ -167,14 +200,18 @@ async function runPostInstallScan(
         riskScore: scanData.riskScore,
         elapsedMs: Date.now() - startTime,
       });
-    } else {
+    } else if (scanResult?.status === "rejected") {
       logger.warn(`[PostInstall] Scan failed for ${shopDomain}`, {
         error: scanResult.reason instanceof Error ? scanResult.reason.message : String(scanResult.reason),
       });
     }
 
     const elapsedMs = Date.now() - startTime;
-    if (elapsedMs < MAX_SCAN_TIME_MS && scanData && (scanData.scriptTags.length > 0 || scanData.identifiedPlatforms.length > 0)) {
+    const hasTimeForAssets = elapsedMs < FAST_TRACK_MS;
+    const hasScanData = scanData && (scanData.scriptTags.length > 0 || scanData.identifiedPlatforms.length > 0);
+
+    // 如果有时间且有扫描数据，创建 AuditAssets（同步部分，快速完成）
+    if (hasTimeForAssets && hasScanData) {
       try {
         const { batchCreateAuditAssets } = await import("../audit-asset.server");
         const { generateMigrationActions } = await import("../scanner/migration-actions");
@@ -184,7 +221,8 @@ async function runPostInstallScan(
           select: { shopTier: true },
         });
 
-        const migrationActions = generateMigrationActions(scanData, shop?.shopTier || "unknown");
+        const shopTier = (shop?.shopTier as "plus" | "non_plus" | null) || null;
+        const migrationActions = generateMigrationActions(scanData, shopTier || "unknown");
 
         const auditAssets = migrationActions.map((action) => ({
           displayName: action.title,
@@ -198,48 +236,113 @@ async function runPostInstallScan(
             scriptTagId: action.scriptTagId,
             webPixelGid: action.webPixelGid,
             description: action.description,
+            estimatedTimeMinutes: action.estimatedTimeMinutes,
           },
         }));
 
         if (auditAssets.length > 0) {
-
           const latestScan = await prisma.scanReport.findFirst({
             where: { shopId },
             orderBy: { createdAt: "desc" },
             select: { id: true },
           });
 
-          await batchCreateAuditAssets(shopId, auditAssets, latestScan?.id);
-          logger.info(`[PostInstall] Created ${auditAssets.length} audit assets for ${shopDomain}`, {
+          const result = await batchCreateAuditAssets(shopId, auditAssets, latestScan?.id);
+          logger.info(`[PostInstall] Created ${result.created} audit assets, updated ${result.updated} for ${shopDomain}`, {
             elapsedMs: Date.now() - startTime,
           });
+
+          // 优先级计算和时间线生成移到后台异步执行（不阻塞）
+          if (result.created > 0 || result.updated > 0) {
+            // 异步执行，不等待完成
+            (async () => {
+              try {
+                const { calculateAllAssetPriorities } = await import("../migration-priority.server");
+                await calculateAllAssetPriorities(shopId, shopTier);
+                logger.info(`[PostInstall] Calculated priorities for audit assets in ${shopDomain}`);
+              } catch (priorityError) {
+                logger.warn(`[PostInstall] Failed to calculate priorities for ${shopDomain}`, {
+                  error: priorityError instanceof Error ? priorityError.message : String(priorityError),
+                });
+              }
+            })().catch(() => {
+              // 静默处理错误，不影响主流程
+            });
+
+            // 时间线生成也异步执行
+            (async () => {
+              try {
+                const { generateMigrationTimeline } = await import("../migration-priority.server");
+                const migrationTimeline = await generateMigrationTimeline(shopId);
+                logger.info(`[PostInstall] Migration timeline calculated for ${shopDomain}`, {
+                  totalEstimatedTime: migrationTimeline.totalEstimatedTime,
+                  assetsCount: migrationTimeline.assets.length,
+                  criticalPathLength: migrationTimeline.criticalPath.length,
+                });
+              } catch (error) {
+                logger.warn(`[PostInstall] Failed to calculate migration timeline for ${shopDomain}`, {
+                  error: error instanceof Error ? error.message : String(error),
+                });
+              }
+            })().catch(() => {
+              // 静默处理错误
+            });
+          }
         }
       } catch (error) {
         logger.warn(`[PostInstall] Failed to create audit assets for ${shopDomain}`, {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-    }
-
-    if (elapsedMs < MAX_SCAN_TIME_MS) {
-
+    } else if (hasScanData && !hasTimeForAssets) {
+      // 如果超时但有扫描数据，将 AuditAsset 创建也移到后台
+      logger.info(`[PostInstall] Time limit reached, deferring audit asset creation for ${shopDomain}`);
       (async () => {
         try {
-          const { generateMigrationTimeline } = await import("../migration-priority.server");
-          const migrationTimeline = await generateMigrationTimeline(shopId);
-          logger.info(`[PostInstall] Migration timeline calculated for ${shopDomain}`, {
-            totalEstimatedTime: migrationTimeline.totalEstimatedTime,
-            assetsCount: migrationTimeline.assets.length,
-            criticalPathLength: migrationTimeline.criticalPath.length,
-            elapsedMs: Date.now() - startTime,
+          const { batchCreateAuditAssets } = await import("../audit-asset.server");
+          const { generateMigrationActions } = await import("../scanner/migration-actions");
+
+          const shop = await prisma.shop.findUnique({
+            where: { id: shopId },
+            select: { shopTier: true },
           });
+
+          const shopTier = (shop?.shopTier as "plus" | "non_plus" | null) || null;
+          const migrationActions = generateMigrationActions(scanData!, shopTier || "unknown");
+
+          const auditAssets = migrationActions.map((action) => ({
+            displayName: action.title,
+            category: action.type === "pixel" ? "pixel" : "other",
+            platform: action.platform || null,
+            sourceType: "api_scan" as const,
+            riskLevel: action.priority === "high" ? "high" : action.priority === "medium" ? "medium" : "low",
+            suggestedMigration: action.type === "pixel" ? "web_pixel" : action.type === "ui_extension" ? "ui_extension" : "none",
+            migrationStatus: "pending" as const,
+            details: {
+              scriptTagId: action.scriptTagId,
+              webPixelGid: action.webPixelGid,
+              description: action.description,
+              estimatedTimeMinutes: action.estimatedTimeMinutes,
+            },
+          }));
+
+          if (auditAssets.length > 0) {
+            const latestScan = await prisma.scanReport.findFirst({
+              where: { shopId },
+              orderBy: { createdAt: "desc" },
+              select: { id: true },
+            });
+
+            await batchCreateAuditAssets(shopId, auditAssets, latestScan?.id);
+            logger.info(`[PostInstall] Deferred audit assets created for ${shopDomain}`);
+          }
         } catch (error) {
-          logger.warn(`[PostInstall] Failed to calculate migration timeline for ${shopDomain}`, {
+          logger.warn(`[PostInstall] Failed to create deferred audit assets for ${shopDomain}`, {
             error: error instanceof Error ? error.message : String(error),
           });
         }
       })().catch(() => {
-
+        // 静默处理错误
       });
     }
 
@@ -247,9 +350,9 @@ async function runPostInstallScan(
     logger.info(`[PostInstall] Health check completed for ${shopDomain}`, {
       elapsedMs: totalElapsedMs,
       withinTimeout: totalElapsedMs < MAX_SCAN_TIME_MS,
+      hasScanData: !!scanData,
     });
   } catch (error) {
-
     logger.warn(`[PostInstall] Health check failed for ${shopDomain}`, {
       error: error instanceof Error ? error.message : String(error),
       elapsedMs: Date.now() - startTime,

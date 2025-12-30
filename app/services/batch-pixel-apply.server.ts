@@ -20,6 +20,8 @@ export interface BatchApplyOptions {
   skipIfExists?: boolean;
   maxRetries?: number;
   concurrency?: number;
+  // 模板变量替换：每个店铺使用不同的凭证
+  shopCredentials?: Record<string, Record<string, Record<string, string>>>; // shopId -> platform -> credentialField -> value
 }
 
 export interface BatchApplyResult {
@@ -263,15 +265,17 @@ export async function batchApplyPixelTemplate(
     const batch = targetShopIds.slice(i, i + concurrency);
     
     const batchResults = await Promise.allSettled(
-      batch.map(shopId => 
-        applyTemplateToShopWithRetry(
+      batch.map(shopId => {
+        const shopCreds = options.shopCredentials?.[shopId];
+        return applyTemplateToShopWithRetry(
           shopId,
           template.platforms,
           overwriteExisting,
           skipIfExists,
-          maxRetries
-        )
-      )
+          maxRetries,
+          shopCreds
+        );
+      })
     );
 
     for (const result of batchResults) {
@@ -366,7 +370,8 @@ async function applyTemplateToShop(
   shopId: string,
   platforms: PixelTemplateConfig[],
   overwriteExisting: boolean,
-  skipIfExists: boolean
+  skipIfExists: boolean,
+  shopCredentials?: Record<string, Record<string, string>> // platform -> credentialField -> value
 ): Promise<{
   shopId: string;
   shopDomain: string;
@@ -423,9 +428,21 @@ async function applyTemplateToShop(
     }
 
     const appliedPlatforms: string[] = [];
+    const { encryptJson } = await import("../utils/crypto.server");
 
     for (const platformConfig of platforms) {
       const existingConfig = existingPlatforms.includes(platformConfig.platform);
+      const platformCredentials = shopCredentials?.[platformConfig.platform] || {};
+
+      // 准备凭证数据（如果提供了）
+      let credentialsEncrypted: string | undefined;
+      if (Object.keys(platformCredentials).length > 0) {
+        try {
+          credentialsEncrypted = encryptJson(platformCredentials);
+        } catch (error) {
+          logger.error(`Failed to encrypt credentials for shop ${shopId}, platform ${platformConfig.platform}`, error);
+        }
+      }
 
       if (existingConfig) {
         if (skipIfExists && !overwriteExisting) {
@@ -433,6 +450,18 @@ async function applyTemplateToShop(
         }
 
         if (overwriteExisting) {
+          const updateData: any = {
+            eventMappings: platformConfig.eventMappings as object,
+            clientSideEnabled: platformConfig.clientSideEnabled ?? true,
+            serverSideEnabled: platformConfig.serverSideEnabled ?? false,
+            migrationStatus: "not_started",
+          };
+          
+          // 如果提供了凭证，更新凭证
+          if (credentialsEncrypted) {
+            updateData.credentialsEncrypted = credentialsEncrypted;
+          }
+          
           await prisma.pixelConfig.update({
             where: {
               shopId_platform: {
@@ -440,26 +469,28 @@ async function applyTemplateToShop(
                 platform: platformConfig.platform,
               },
             },
-            data: {
-              eventMappings: platformConfig.eventMappings as object,
-              clientSideEnabled: platformConfig.clientSideEnabled ?? true,
-              serverSideEnabled: platformConfig.serverSideEnabled ?? false,
-              migrationStatus: "not_started",
-            },
+            data: updateData,
           });
           appliedPlatforms.push(platformConfig.platform);
         }
       } else {
+        const createData: any = {
+          shopId,
+          platform: platformConfig.platform,
+          eventMappings: platformConfig.eventMappings as object,
+          clientSideEnabled: platformConfig.clientSideEnabled ?? true,
+          serverSideEnabled: platformConfig.serverSideEnabled ?? false,
+          isActive: false,
+          migrationStatus: "not_started",
+        };
+        
+        // 如果提供了凭证，设置凭证
+        if (credentialsEncrypted) {
+          createData.credentialsEncrypted = credentialsEncrypted;
+        }
+        
         await prisma.pixelConfig.create({
-          data: {
-            shopId,
-            platform: platformConfig.platform,
-            eventMappings: platformConfig.eventMappings as object,
-            clientSideEnabled: platformConfig.clientSideEnabled ?? true,
-            serverSideEnabled: platformConfig.serverSideEnabled ?? false,
-            isActive: false,
-            migrationStatus: "not_started",
-          },
+          data: createData,
         });
         appliedPlatforms.push(platformConfig.platform);
       }
@@ -498,7 +529,8 @@ async function applyTemplateToShopWithRetry(
   platforms: PixelTemplateConfig[],
   overwriteExisting: boolean,
   skipIfExists: boolean,
-  maxRetries: number = 1
+  maxRetries: number = 1,
+  shopCredentials?: Record<string, Record<string, string>>
 ): Promise<{
   shopId: string;
   shopDomain: string;
@@ -511,7 +543,7 @@ async function applyTemplateToShopWithRetry(
   let lastResult: Awaited<ReturnType<typeof applyTemplateToShop>> | null = null;
   
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-    lastResult = await applyTemplateToShop(shopId, platforms, overwriteExisting, skipIfExists);
+    lastResult = await applyTemplateToShop(shopId, platforms, overwriteExisting, skipIfExists, shopCredentials);
     
     if (lastResult.status === "success" || lastResult.status === "skipped") {
       return { ...lastResult, attempts: attempt };

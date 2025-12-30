@@ -65,6 +65,11 @@ export interface SettingsLoaderData {
   tokenIssues: TokenIssues;
   pcdApproved: boolean;
   pcdStatusMessage: string;
+  currentMonitoringData?: {
+    failureRate: number;
+    missingParamsRate: number;
+    volumeDrop: number;
+  } | null;
 }
 
 export interface ActionSuccessResponse {

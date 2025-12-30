@@ -486,3 +486,223 @@ export async function saveReconciliationReport(
   return result.shopId;
 }
 
+export interface LocalConsistencyCheck {
+  orderId: string;
+  orderNumber: string | null;
+  shopifyOrder: {
+    value: number;
+    currency: string;
+    itemCount: number;
+  };
+  pixelReceipt: {
+    hasReceipt: boolean;
+    payloadValid: boolean;
+    valueMatch: boolean;
+    currencyMatch: boolean;
+    payloadErrors?: string[];
+  };
+  capiEvents: Array<{
+    platform: string;
+    value: number | null;
+    currency: string | null;
+    status: string;
+    valueMatch: boolean;
+    currencyMatch: boolean;
+  }>;
+  consistencyStatus: "consistent" | "partial" | "inconsistent";
+  issues: string[];
+}
+
+export async function checkLocalConsistency(
+  shopId: string,
+  orderId: string,
+  admin?: AdminApiContext
+): Promise<LocalConsistencyCheck | null> {
+  // 获取 Shopify 订单信息
+  let shopifyOrder: { value: number; currency: string; itemCount: number } | null = null;
+
+  if (admin) {
+    const orders = await fetchShopifyOrders(
+      admin,
+      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      new Date(),
+      100
+    );
+    const order = orders.find((o) => extractOrderId(o.id) === orderId);
+    if (order) {
+      shopifyOrder = {
+        value: parseFloat(order.totalPriceSet.shopMoney.amount),
+        currency: order.totalPriceSet.shopMoney.currencyCode,
+        itemCount: 0, // 需要在 GraphQL 查询中添加
+      };
+    }
+  }
+
+  // 如果没有 Shopify 订单信息，尝试从 conversionJob 获取
+  if (!shopifyOrder) {
+    const job = await prisma.conversionJob.findFirst({
+      where: {
+        shopId,
+        orderId,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (job) {
+      shopifyOrder = {
+        value: Number(job.orderValue || 0),
+        currency: job.currency || "USD",
+        itemCount: 0,
+      };
+    }
+  }
+
+  if (!shopifyOrder) {
+    return null;
+  }
+
+  // 获取 Pixel 收据
+  const pixelReceipt = await prisma.pixelEventReceipt.findFirst({
+    where: {
+      shopId,
+      orderId,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // 获取 CAPI 事件
+  const capiEvents = await prisma.conversionLog.findMany({
+    where: {
+      shopId,
+      orderId,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const issues: string[] = [];
+  let consistencyStatus: "consistent" | "partial" | "inconsistent" = "consistent";
+
+  // 验证 Pixel Payload
+  let pixelPayloadValid = true;
+  const pixelPayloadErrors: string[] = [];
+
+  if (pixelReceipt) {
+    if (!pixelReceipt.payload) {
+      pixelPayloadValid = false;
+      pixelPayloadErrors.push("Pixel 收据缺少 payload");
+    } else {
+      try {
+        const payload = typeof pixelReceipt.payload === "string"
+          ? JSON.parse(pixelReceipt.payload)
+          : pixelReceipt.payload;
+
+        if (!payload.event_name) {
+          pixelPayloadErrors.push("缺少 event_name");
+        }
+        if (!payload.event_time) {
+          pixelPayloadErrors.push("缺少 event_time");
+        }
+      } catch (error) {
+        pixelPayloadValid = false;
+        pixelPayloadErrors.push("Payload 格式无效");
+      }
+    }
+
+    // 验证金额和币种
+    if (pixelReceipt.orderValue) {
+      const pixelValue = Number(pixelReceipt.orderValue);
+      const valueMatch = Math.abs(pixelValue - shopifyOrder.value) < 0.01;
+      const currencyMatch = pixelReceipt.currency === shopifyOrder.currency;
+
+      if (!valueMatch) {
+        issues.push(`Pixel 金额不匹配: ${pixelValue} vs ${shopifyOrder.value}`);
+      }
+      if (!currencyMatch) {
+        issues.push(`Pixel 币种不匹配: ${pixelReceipt.currency} vs ${shopifyOrder.currency}`);
+      }
+    }
+  } else {
+    issues.push("缺少 Pixel 收据");
+  }
+
+  // 验证 CAPI 事件
+  const capiEventChecks = capiEvents.map((event) => {
+    const value = Number(event.orderValue || 0);
+    const currency = event.currency || "";
+    const valueMatch = Math.abs(value - shopifyOrder!.value) < 0.01;
+    const currencyMatch = currency === shopifyOrder!.currency;
+
+    if (!valueMatch) {
+      issues.push(`${event.platform} CAPI 金额不匹配: ${value} vs ${shopifyOrder!.value}`);
+    }
+    if (!currencyMatch) {
+      issues.push(`${event.platform} CAPI 币种不匹配: ${currency} vs ${shopifyOrder!.currency}`);
+    }
+
+    return {
+      platform: event.platform,
+      value,
+      currency,
+      status: event.status,
+      valueMatch,
+      currencyMatch,
+    };
+  });
+
+  if (capiEventChecks.length === 0) {
+    issues.push("缺少 CAPI 事件");
+    consistencyStatus = "inconsistent";
+  } else {
+    const failedPlatforms = capiEventChecks.filter((c) => c.status !== "sent");
+    if (failedPlatforms.length > 0) {
+      consistencyStatus = "partial";
+      issues.push(`${failedPlatforms.length} 个平台的 CAPI 发送失败`);
+    }
+
+    const valueMismatches = capiEventChecks.filter((c) => !c.valueMatch);
+    const currencyMismatches = capiEventChecks.filter((c) => !c.currencyMatch);
+    if (valueMismatches.length > 0 || currencyMismatches.length > 0) {
+      if (consistencyStatus === "consistent") {
+        consistencyStatus = "partial";
+      }
+    }
+  }
+
+  if (!pixelReceipt || !pixelPayloadValid || capiEventChecks.length === 0) {
+    consistencyStatus = "inconsistent";
+  }
+
+  return {
+    orderId,
+    orderNumber: pixelReceipt?.orderNumber || null,
+    shopifyOrder,
+    pixelReceipt: {
+      hasReceipt: !!pixelReceipt,
+      payloadValid: pixelPayloadValid,
+      valueMatch: pixelReceipt ? Math.abs(Number(pixelReceipt.orderValue || 0) - shopifyOrder.value) < 0.01 : false,
+      currencyMatch: pixelReceipt ? pixelReceipt.currency === shopifyOrder.currency : false,
+      payloadErrors: pixelPayloadErrors.length > 0 ? pixelPayloadErrors : undefined,
+    },
+    capiEvents: capiEventChecks,
+    consistencyStatus,
+    issues,
+  };
+}
+
+export async function performChannelReconciliation(
+  shopId: string,
+  orderIds: string[],
+  admin?: AdminApiContext
+): Promise<LocalConsistencyCheck[]> {
+  const results: LocalConsistencyCheck[] = [];
+
+  for (const orderId of orderIds) {
+    const check = await checkLocalConsistency(shopId, orderId, admin);
+    if (check) {
+      results.push(check);
+    }
+  }
+
+  return results;
+}
+

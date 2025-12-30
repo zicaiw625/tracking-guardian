@@ -24,6 +24,7 @@
     "test:ui": "vitest --ui",
     "check:api-version": "node --experimental-strip-types scripts/check-api-version.ts",
     "lint:graphql-only": "node --experimental-strip-types scripts/check-graphql-only.ts",
+    "security:audit": "node --experimental-strip-types scripts/security-audit.ts",
     "lint:all": "pnpm lint && pnpm typecheck && pnpm check:api-version && pnpm lint:graphql-only",
     "ci:lint": "pnpm lint && pnpm typecheck",
     "ci:test": "pnpm test",

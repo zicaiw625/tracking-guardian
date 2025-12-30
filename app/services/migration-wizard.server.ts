@@ -168,6 +168,209 @@ export async function getConfigPreview(shopId: string): Promise<{
   };
 }
 
+/**
+ * 保存向导草稿到数据库
+ * 在步骤切换时自动保存，支持断点续传
+ */
+export async function saveWizardDraft(
+  shopId: string,
+  draft: {
+    step: "select" | "credentials" | "mappings" | "review" | "testing";
+    selectedPlatforms: string[];
+    platformConfigs: Record<string, Partial<WizardConfig>>;
+    selectedTemplate?: string | null;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 保存草稿状态到 clientConfig 字段
+    const draftData = {
+      wizardDraft: {
+        step: draft.step,
+        selectedPlatforms: draft.selectedPlatforms,
+        platformConfigs: draft.platformConfigs,
+        selectedTemplate: draft.selectedTemplate,
+        savedAt: new Date().toISOString(),
+      },
+    };
+
+    // 为每个选中的平台保存草稿
+    for (const platform of draft.selectedPlatforms) {
+      const config = draft.platformConfigs[platform];
+      if (!config) continue;
+
+      // 如果已有凭证，加密保存
+      let credentialsEncrypted: string | null = null;
+      if (config.credentials && Object.keys(config.credentials).length > 0) {
+        try {
+          credentialsEncrypted = encryptJson(config.credentials);
+        } catch (error) {
+          logger.warn(`Failed to encrypt credentials for ${platform}`, error);
+        }
+      }
+
+      await prisma.pixelConfig.upsert({
+        where: {
+          shopId_platform: {
+            shopId,
+            platform: platform as Platform,
+          },
+        },
+        update: {
+          platformId: config.platformId || undefined,
+          credentialsEncrypted: credentialsEncrypted || undefined,
+          clientConfig: draftData as object,
+          eventMappings: config.eventMappings as object || undefined,
+          environment: config.environment || "test",
+          migrationStatus: "in_progress",
+          updatedAt: new Date(),
+        },
+        create: {
+          shopId,
+          platform: platform as Platform,
+          platformId: config.platformId || null,
+          credentialsEncrypted: credentialsEncrypted || null,
+          clientConfig: draftData as object,
+          eventMappings: config.eventMappings as object || undefined,
+          environment: config.environment || "test",
+          migrationStatus: "in_progress",
+          serverSideEnabled: false, // 草稿阶段不启用服务端
+        },
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    logger.error("Failed to save wizard draft", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "保存草稿失败",
+    };
+  }
+}
+
+/**
+ * 从数据库恢复向导草稿
+ * 用于断点续传功能
+ */
+export async function loadWizardDraft(shopId: string): Promise<WizardState | null> {
+  try {
+    // 查找所有 in_progress 状态的配置
+    const configs = await prisma.pixelConfig.findMany({
+      where: {
+        shopId,
+        migrationStatus: "in_progress",
+        isActive: true,
+      },
+      select: {
+        platform: true,
+        platformId: true,
+        credentialsEncrypted: true,
+        clientConfig: true,
+        eventMappings: true,
+        environment: true,
+      },
+    });
+
+    if (configs.length === 0) {
+      return null;
+    }
+
+    // 从第一个配置中提取草稿状态
+    const firstConfig = configs[0];
+    const clientConfig = firstConfig.clientConfig as { wizardDraft?: any } | null;
+
+    if (!clientConfig?.wizardDraft) {
+      // 如果没有草稿数据，从配置重建
+      const selectedPlatforms = configs.map((c) => c.platform);
+      const configsMap: Record<string, WizardConfig> = {};
+
+      for (const config of configs) {
+        let credentials: Record<string, string> = {};
+        if (config.credentialsEncrypted) {
+          try {
+            const { decryptJson } = await import("../utils/crypto.server");
+            credentials = decryptJson(config.credentialsEncrypted) as Record<string, string>;
+          } catch (error) {
+            logger.warn(`Failed to decrypt credentials for ${config.platform}`, error);
+          }
+        }
+
+        configsMap[config.platform] = {
+          platform: config.platform as Platform | "pinterest",
+          platformId: config.platformId || "",
+          credentials,
+          eventMappings: (config.eventMappings as Record<string, string>) || {},
+          environment: (config.environment as "test" | "live") || "test",
+        };
+      }
+
+      return {
+        step: "credentials", // 默认从凭证步骤开始
+        selectedPlatforms,
+        configs: configsMap,
+      };
+    }
+
+    const draft = clientConfig.wizardDraft;
+    const configsMap: Record<string, WizardConfig> = {};
+
+    // 重建配置
+    for (const config of configs) {
+      let credentials: Record<string, string> = {};
+      if (config.credentialsEncrypted) {
+        try {
+          const { decryptJson } = await import("../utils/crypto.server");
+          credentials = decryptJson(config.credentialsEncrypted) as Record<string, string>;
+        } catch (error) {
+          logger.warn(`Failed to decrypt credentials for ${config.platform}`, error);
+        }
+      }
+
+      const draftConfig = draft.platformConfigs?.[config.platform] || {};
+      configsMap[config.platform] = {
+        platform: config.platform as Platform | "pinterest",
+        platformId: config.platformId || draftConfig.platformId || "",
+        credentials: credentials || draftConfig.credentials || {},
+        eventMappings: (config.eventMappings as Record<string, string>) || draftConfig.eventMappings || {},
+        environment: (config.environment as "test" | "live") || draftConfig.environment || "test",
+      };
+    }
+
+    return {
+      step: draft.step || "select",
+      selectedPlatforms: draft.selectedPlatforms || [],
+      configs: configsMap,
+    };
+  } catch (error) {
+    logger.error("Failed to load wizard draft", error);
+    return null;
+  }
+}
+
+/**
+ * 清除向导草稿
+ */
+export async function clearWizardDraft(shopId: string): Promise<{ success: boolean }> {
+  try {
+    // 将 in_progress 状态的配置标记为 not_started
+    await prisma.pixelConfig.updateMany({
+      where: {
+        shopId,
+        migrationStatus: "in_progress",
+      },
+      data: {
+        migrationStatus: "not_started",
+        clientConfig: null,
+      },
+    });
+
+    return { success: true };
+  } catch (error) {
+    logger.error("Failed to clear wizard draft", error);
+    return { success: false };
+  }
+}
+
 export async function validateTestEnvironment(
   shopId: string,
   platform: Platform | "pinterest"
@@ -178,6 +381,9 @@ export async function validateTestEnvironment(
     eventSent?: boolean;
     responseTime?: number;
     error?: string;
+    testEventCode?: string;
+    debugViewUrl?: string;
+    verificationInstructions?: string;
   };
 }> {
   const config = await prisma.pixelConfig.findUnique({
@@ -214,6 +420,7 @@ export async function validateTestEnvironment(
     const { getValidCredentials } = await import("./credentials.server");
     const { sendConversion } = await import("./platforms/registry");
     const { generateDedupeEventId } = await import("../utils/event-dedup");
+    const { decryptJson } = await import("../utils/crypto.server");
 
     const credentialsResult = getValidCredentials(
       { credentialsEncrypted: config.credentialsEncrypted },
@@ -225,6 +432,45 @@ export async function validateTestEnvironment(
         valid: false,
         message: `凭证验证失败: ${credentialsResult.error.message}`,
       };
+    }
+
+    // 平台特定的验证增强
+    const details: {
+      eventSent?: boolean;
+      responseTime?: number;
+      error?: string;
+      testEventCode?: string;
+      debugViewUrl?: string;
+      verificationInstructions?: string;
+    } = {};
+
+    // Meta: 检查 Test Event Code
+    if (platform === "meta") {
+      const credentials = credentialsResult.value.credentials as {
+        pixelId?: string;
+        accessToken?: string;
+        testEventCode?: string;
+      };
+      
+      if (credentials.testEventCode) {
+        details.testEventCode = credentials.testEventCode;
+        details.verificationInstructions = `测试事件已发送，请在 Meta Events Manager 的「测试事件」页面查看，使用 Test Event Code: ${credentials.testEventCode}`;
+      } else {
+        details.verificationInstructions = "建议在 Meta Events Manager 中设置 Test Event Code，以便在测试模式下验证事件。";
+      }
+    }
+
+    // GA4: 提供 DebugView 链接
+    if (platform === "google") {
+      const credentials = credentialsResult.value.credentials as {
+        measurementId?: string;
+        apiSecret?: string;
+      };
+      
+      if (credentials.measurementId) {
+        details.debugViewUrl = `https://analytics.google.com/analytics/web/#/p${credentials.measurementId.replace("G-", "")}/debugview`;
+        details.verificationInstructions = `测试事件已发送，请在 GA4 DebugView 中查看：${details.debugViewUrl}`;
+      }
     }
 
     const testEventId = generateDedupeEventId(`test-${Date.now()}`);
@@ -251,15 +497,14 @@ export async function validateTestEnvironment(
       testEventId
     );
     const responseTime = Date.now() - startTime;
+    details.responseTime = responseTime;
 
     if (sendResult.ok && sendResult.value.success) {
+      details.eventSent = true;
       return {
         valid: true,
         message: "测试事件发送成功，配置验证通过",
-        details: {
-          eventSent: true,
-          responseTime,
-        },
+        details,
       };
     } else {
       const errorMessage =
@@ -269,14 +514,12 @@ export async function validateTestEnvironment(
             ? "未知错误"
             : sendResult.error.message;
 
+      details.eventSent = false;
+      details.error = errorMessage;
       return {
         valid: false,
         message: `测试事件发送失败: ${errorMessage}`,
-        details: {
-          eventSent: false,
-          responseTime,
-          error: errorMessage,
-        },
+        details,
       };
     }
   } catch (error) {

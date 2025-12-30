@@ -192,6 +192,63 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ success });
       }
 
+      case "create_from_list": {
+        // 从清单创建资产（支持 Shopify 升级向导清单）
+        const body = await request.json();
+        const platforms = (body.platforms as string[]) || [];
+        const items = (body.items as Array<{ name: string; type: string }>) || [];
+
+        const createdAssets = [];
+
+        // 为每个平台创建资产
+        for (const platform of platforms) {
+          const asset = await createAuditAsset(shop.id, {
+            sourceType: "merchant_confirmed",
+            category: "pixel",
+            platform,
+            displayName: `升级向导清单: ${platform}`,
+            riskLevel: "high",
+            suggestedMigration: "web_pixel",
+            details: {
+              source: "upgrade_guide_list",
+              importedAt: new Date().toISOString(),
+            },
+          });
+          if (asset) createdAssets.push(asset);
+        }
+
+        // 为其他项创建资产
+        for (const item of items) {
+          const category = (item.type === "pixel" ? "pixel" : 
+                          item.type === "survey" ? "survey" :
+                          item.type === "support" ? "support" :
+                          item.type === "affiliate" ? "affiliate" : "other") as AssetCategory;
+
+          const asset = await createAuditAsset(shop.id, {
+            sourceType: "merchant_confirmed",
+            category,
+            displayName: `升级向导清单: ${item.name}`,
+            riskLevel: category === "pixel" ? "high" : "medium",
+            suggestedMigration: category === "pixel" ? "web_pixel" :
+                               category === "survey" || category === "support" ? "ui_extension" :
+                               category === "affiliate" ? "server_side" : "none",
+            details: {
+              source: "upgrade_guide_list",
+              itemName: item.name,
+              itemType: item.type,
+              importedAt: new Date().toISOString(),
+            },
+          });
+          if (asset) createdAssets.push(asset);
+        }
+
+        return json({
+          success: true,
+          created: createdAssets.length,
+          assets: createdAssets,
+        });
+      }
+
       default:
         return json({ error: "Unknown action" }, { status: 400 });
     }

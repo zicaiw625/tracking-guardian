@@ -20,6 +20,7 @@ import {
   List,
   DataTable,
   Tooltip,
+  Link,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
@@ -254,6 +255,17 @@ export interface PixelMigrationWizardProps {
     presets: WizardTemplate[];
     custom: WizardTemplate[];
   };
+  wizardDraft?: {
+    step: "select" | "credentials" | "mappings" | "review" | "testing";
+    selectedPlatforms: string[];
+    configs: Record<string, {
+      platform: string;
+      platformId: string;
+      credentials: Record<string, string>;
+      eventMappings: Record<string, string>;
+      environment: "test" | "live";
+    }>;
+  } | null;
 }
 
 type WizardStep = "select" | "credentials" | "mappings" | "review" | "testing";
@@ -265,18 +277,67 @@ export function PixelMigrationWizard({
   canManageMultiple = false,
   shopId,
   templates,
+  wizardDraft,
 }: PixelMigrationWizardProps) {
   const submit = useSubmit();
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
 
-  const [currentStep, setCurrentStep] = useState<WizardStep>("select");
+  // 从数据库草稿或初始状态初始化
+  const initializeFromDraft = useCallback(() => {
+    if (wizardDraft) {
+      const draftPlatforms = new Set<Platform>(wizardDraft.selectedPlatforms as Platform[]);
+      const draftConfigs: Record<Platform, PlatformConfig> = {
+        google: {
+          platform: "google",
+          enabled: draftPlatforms.has("google"),
+          platformId: wizardDraft.configs.google?.platformId || "",
+          credentials: wizardDraft.configs.google?.credentials || {},
+          eventMappings: wizardDraft.configs.google?.eventMappings || DEFAULT_EVENT_MAPPINGS.google,
+          environment: wizardDraft.configs.google?.environment || "test",
+        },
+        meta: {
+          platform: "meta",
+          enabled: draftPlatforms.has("meta"),
+          platformId: wizardDraft.configs.meta?.platformId || "",
+          credentials: wizardDraft.configs.meta?.credentials || {},
+          eventMappings: wizardDraft.configs.meta?.eventMappings || DEFAULT_EVENT_MAPPINGS.meta,
+          environment: wizardDraft.configs.meta?.environment || "test",
+        },
+        tiktok: {
+          platform: "tiktok",
+          enabled: draftPlatforms.has("tiktok"),
+          platformId: wizardDraft.configs.tiktok?.platformId || "",
+          credentials: wizardDraft.configs.tiktok?.credentials || {},
+          eventMappings: wizardDraft.configs.tiktok?.eventMappings || DEFAULT_EVENT_MAPPINGS.tiktok,
+          environment: wizardDraft.configs.tiktok?.environment || "test",
+        },
+        pinterest: {
+          platform: "pinterest",
+          enabled: draftPlatforms.has("pinterest"),
+          platformId: wizardDraft.configs.pinterest?.platformId || "",
+          credentials: wizardDraft.configs.pinterest?.credentials || {},
+          eventMappings: wizardDraft.configs.pinterest?.eventMappings || DEFAULT_EVENT_MAPPINGS.pinterest,
+          environment: wizardDraft.configs.pinterest?.environment || "test",
+        },
+      };
+      return {
+        step: wizardDraft.step as WizardStep,
+        platforms: draftPlatforms,
+        configs: draftConfigs,
+      };
+    }
+    return null;
+  }, [wizardDraft]);
+
+  const draftData = initializeFromDraft();
+  const [currentStep, setCurrentStep] = useState<WizardStep>(draftData?.step || "select");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<Platform>>(
-    new Set(initialPlatforms)
+    draftData?.platforms || new Set(initialPlatforms)
   );
   const [platformConfigs, setPlatformConfigs] = useState<
     Record<Platform, PlatformConfig>
-  >({
+  >(draftData?.configs || {
     google: {
       platform: "google",
       enabled: false,
@@ -313,7 +374,7 @@ export function PixelMigrationWizard({
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
-  const allTemplates: WizardTemplate[] = [
+const allTemplates: WizardTemplate[] = [
     ...(templates?.presets || PRESET_TEMPLATES.map(t => ({
       id: t.id,
       name: t.name,
@@ -328,8 +389,88 @@ export function PixelMigrationWizard({
 
   const isSubmitting = navigation.state === "submitting";
 
+  // 保存草稿到数据库（优先）和 localStorage（备用）
+  const saveDraft = useCallback(async () => {
+    const draft = {
+      step: currentStep,
+      selectedPlatforms: Array.from(selectedPlatforms),
+      platformConfigs: Object.fromEntries(
+        Array.from(selectedPlatforms).map((platform) => [
+          platform,
+          {
+            platformId: platformConfigs[platform].platformId,
+            credentials: platformConfigs[platform].credentials,
+            eventMappings: platformConfigs[platform].eventMappings,
+            environment: platformConfigs[platform].environment,
+          },
+        ])
+      ),
+      selectedTemplate,
+    };
+
+    // 保存到 localStorage（备用）
+    try {
+      const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+        ...draft,
+        timestamp: Date.now(),
+      }));
+    } catch (error) {
+      console.warn("Failed to save draft to localStorage:", error);
+    }
+
+    // 保存到数据库（如果 shopId 存在）
+    if (shopId) {
+      try {
+        const formData = new FormData();
+        formData.append("_action", "saveWizardDraft");
+        formData.append("draft", JSON.stringify(draft));
+        
+        const response = await fetch("/app/migrate", {
+          method: "POST",
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          console.warn("Failed to save draft to database");
+        }
+      } catch (error) {
+        console.warn("Failed to save draft to database:", error);
+      }
+    }
+  }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, shopId]);
+
+  // 清除草稿
+  const clearDraft = useCallback(async () => {
+    // 清除 localStorage
+    try {
+      const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch (error) {
+      console.warn("Failed to clear draft from localStorage:", error);
+    }
+
+    // 清除数据库草稿
+    if (shopId) {
+      try {
+        const formData = new FormData();
+        formData.append("_action", "clearWizardDraft");
+        
+        await fetch("/app/migrate", {
+          method: "POST",
+          body: formData,
+        });
+      } catch (error) {
+        console.warn("Failed to clear draft from database:", error);
+      }
+    }
+  }, [shopId]);
+
+  // 组件加载时，如果数据库有草稿，显示提示
   useEffect(() => {
-    if (initialPlatforms.length > 0) {
+    if (wizardDraft && wizardDraft.step !== "select") {
+      showSuccess("检测到未完成的配置，已自动恢复。");
+    } else if (initialPlatforms.length > 0 && !wizardDraft) {
       const configs = { ...platformConfigs };
       initialPlatforms.forEach((platform) => {
         configs[platform] = {
@@ -340,6 +481,15 @@ export function PixelMigrationWizard({
       setPlatformConfigs(configs);
     }
   }, []);
+
+  // 步骤切换时自动保存草稿（防抖）
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      saveDraft();
+    }, 500); // 500ms 防抖
+
+    return () => clearTimeout(timeoutId);
+  }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, saveDraft]);
 
   const steps: Array<{
     id: WizardStep;
@@ -501,7 +651,63 @@ export function PixelMigrationWizard({
     return errors;
   }, [platformConfigs]);
 
-  const handleSave = useCallback(() => {
+  // 验证当前步骤是否可以前进
+  const canProceedToNextStep = useCallback((): { canProceed: boolean; errors: string[] } => {
+    const errors: string[] = [];
+
+    switch (currentStep) {
+      case "select":
+        if (selectedPlatforms.size === 0) {
+          errors.push("请至少选择一个平台");
+        }
+        break;
+      case "credentials":
+        Array.from(selectedPlatforms).forEach((platform) => {
+          const config = platformConfigs[platform];
+          const info = PLATFORM_INFO[platform];
+          
+          info.credentialFields.forEach((field) => {
+            if (field.key === "testEventCode") return; // 可选字段
+            if (!config.credentials[field.key as keyof typeof config.credentials]) {
+              errors.push(`${info.name}: 缺少 ${field.label}`);
+            }
+          });
+        });
+        break;
+      case "mappings":
+        Array.from(selectedPlatforms).forEach((platform) => {
+          const config = platformConfigs[platform];
+          if (!config.eventMappings || Object.keys(config.eventMappings).length === 0) {
+            errors.push(`${PLATFORM_INFO[platform].name}: 至少需要配置一个事件映射`);
+          }
+        });
+        break;
+      case "review":
+        Array.from(selectedPlatforms).forEach((platform) => {
+          const configErrors = validateConfig(platform);
+          errors.push(...configErrors);
+        });
+        break;
+      case "testing":
+        // 测试步骤不需要验证
+        break;
+    }
+
+    return {
+      canProceed: errors.length === 0,
+      errors,
+    };
+  }, [currentStep, selectedPlatforms, platformConfigs, validateConfig]);
+
+  // 跳过当前步骤
+  const handleSkip = useCallback(() => {
+    const nextStepIndex = currentStepIndex + 1;
+    if (nextStepIndex < steps.length) {
+      setCurrentStep(steps[nextStepIndex].id);
+    }
+  }, [currentStepIndex, steps]);
+
+  const handleSave = useCallback(async () => {
     const enabledPlatforms = Array.from(selectedPlatforms);
     const allErrors: string[] = [];
 
@@ -534,9 +740,25 @@ export function PixelMigrationWizard({
       method: "post",
     });
 
+    // 保存成功后清除草稿
+    await clearDraft();
     showSuccess("配置已保存，正在验证...");
     setCurrentStep("testing");
-  }, [selectedPlatforms, platformConfigs, validateConfig, submit, showSuccess, showError]);
+  }, [selectedPlatforms, platformConfigs, validateConfig, submit, showSuccess, showError, clearDraft]);
+
+  // 处理下一步按钮点击
+  const handleNext = useCallback(() => {
+    const validation = canProceedToNextStep();
+    if (!validation.canProceed) {
+      showError(`请先完成当前步骤：${validation.errors.join("; ")}`);
+      return;
+    }
+
+    const nextStepIndex = currentStepIndex + 1;
+    if (nextStepIndex < steps.length) {
+      setCurrentStep(steps[nextStepIndex].id);
+    }
+  }, [currentStepIndex, steps, canProceedToNextStep, showError]);
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -611,48 +833,107 @@ export function PixelMigrationWizard({
             </InlineStack>
           </InlineStack>
           <ProgressBar progress={progress} tone="primary" size="small" />
-          <InlineStack gap="200" wrap>
-            {steps.map((step, index) => (
-              <InlineStack key={step.id} gap="200" blockAlign="center">
-                <Box
-                  background={
-                    index < currentStepIndex
-                      ? "bg-fill-success"
-                      : index === currentStepIndex
-                        ? "bg-fill-info"
-                        : "bg-surface-secondary"
-                  }
-                  padding="200"
-                  borderRadius="full"
-                  minWidth="32px"
-                  minHeight="32px"
-                >
-                  <Text
-                    as="span"
-                    variant="bodySm"
-                    fontWeight="bold"
-                    alignment="center"
-                  >
-                    {index < currentStepIndex ? "✓" : String(step.number)}
-                  </Text>
-                </Box>
-                <BlockStack gap="050">
-                  <Text
-                    as="span"
-                    fontWeight={index === currentStepIndex ? "bold" : "regular"}
-                    tone={index <= currentStepIndex ? undefined : "subdued"}
-                  >
-                    {step.label}
-                  </Text>
-                  {index === currentStepIndex && (
-                    <Text as="span" variant="bodySm" tone="subdued">
-                      {step.description} · 预计 {step.estimatedTime}
-                    </Text>
-                  )}
-                </BlockStack>
+          {/* 移动端优化的步骤指示器 */}
+          <Box
+            paddingBlockStart="300"
+            paddingBlockEnd="200"
+            style={{
+              overflowX: "auto",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
+            <Box position="relative">
+              <InlineStack gap="0" wrap={false} align="start">
+                {steps.map((step, index) => {
+                  const isCompleted = index < currentStepIndex;
+                  const isCurrent = index === currentStepIndex;
+                  const isUpcoming = index > currentStepIndex;
+                  
+                  return (
+                    <Box
+                      key={step.id}
+                      minWidth="100px"
+                      maxWidth="180px"
+                      padding="200"
+                      style={{
+                        flexShrink: 0,
+                        position: "relative",
+                      }}
+                    >
+                      <BlockStack gap="200" align="center">
+                      <Box
+                        background={
+                          isCompleted
+                            ? "bg-fill-success"
+                            : isCurrent
+                              ? "bg-fill-info"
+                              : "bg-surface-secondary"
+                        }
+                        padding="200"
+                        borderRadius="full"
+                        minWidth="36px"
+                        minHeight="36px"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          position: "relative",
+                          zIndex: 1,
+                        }}
+                      >
+                          <Text
+                            as="span"
+                            variant="bodySm"
+                            fontWeight="bold"
+                            alignment="center"
+                          >
+                            {isCompleted ? "✓" : String(step.number)}
+                          </Text>
+                        </Box>
+                        <BlockStack gap="050" align="center">
+                          <Text
+                            as="span"
+                            variant="bodySm"
+                            fontWeight={isCurrent ? "bold" : "regular"}
+                            tone={isUpcoming ? "subdued" : undefined}
+                            alignment="center"
+                          >
+                            {step.label}
+                          </Text>
+                          {isCurrent && (
+                            <Text 
+                              as="span" 
+                              variant="bodySm" 
+                              tone="subdued"
+                              alignment="center"
+                            >
+                              {step.estimatedTime}
+                            </Text>
+                          )}
+                        </BlockStack>
+                      </BlockStack>
+                      {/* 连接线 */}
+                      {index < steps.length - 1 && (
+                        <Box
+                          position="absolute"
+                          left="calc(50% + 18px)"
+                          top="18px"
+                          style={{
+                            width: "calc(100% - 36px)",
+                            height: "2px",
+                            background: isCompleted 
+                              ? "var(--p-color-bg-success)" 
+                              : "var(--p-color-bg-surface-secondary)",
+                            zIndex: 0,
+                          }}
+                        />
+                      )}
+                    </Box>
+                  );
+                })}
               </InlineStack>
-            ))}
-          </InlineStack>
+            </Box>
+          </Box>
         </BlockStack>
 
         <Divider />
@@ -663,11 +944,11 @@ export function PixelMigrationWizard({
         <Divider />
 
         {}
-        <InlineStack align="space-between">
+        <InlineStack align="space-between" wrap>
           <Button onClick={onCancel} disabled={isSubmitting}>
             取消
           </Button>
-          <InlineStack gap="200">
+          <InlineStack gap="200" wrap>
             {currentStepIndex > 0 && (
               <Button
                 onClick={() => {
@@ -677,6 +958,18 @@ export function PixelMigrationWizard({
                 disabled={isSubmitting}
               >
                 上一步
+              </Button>
+            )}
+            {/* 跳过按钮 - 仅在非必需步骤显示 */}
+            {currentStep !== "select" && 
+             currentStep !== "review" && 
+             currentStep !== "testing" && (
+              <Button
+                variant="plain"
+                onClick={handleSkip}
+                disabled={isSubmitting}
+              >
+                跳过此步
               </Button>
             )}
             {currentStep === "review" ? (
@@ -691,14 +984,8 @@ export function PixelMigrationWizard({
             ) : currentStep !== "testing" ? (
               <Button
                 variant="primary"
-                onClick={() => {
-                  const nextStep = steps[currentStepIndex + 1].id;
-                  setCurrentStep(nextStep);
-                }}
-                disabled={
-                  isSubmitting ||
-                  (currentStep === "select" && selectedPlatforms.size === 0)
-                }
+                onClick={handleNext}
+                disabled={isSubmitting}
                 icon={ArrowRightIcon}
               >
                 下一步
@@ -1085,7 +1372,18 @@ function TestingStep({
 }) {
   const [isValidating, setIsValidating] = useState(false);
   const [isSwitchingToLive, setIsSwitchingToLive] = useState(false);
-  const [validationResults, setValidationResults] = useState<Record<string, { valid: boolean; message: string; details?: { eventSent?: boolean; responseTime?: number; error?: string } }>>({});
+  const [validationResults, setValidationResults] = useState<Record<string, { 
+    valid: boolean; 
+    message: string; 
+    details?: { 
+      eventSent?: boolean; 
+      responseTime?: number; 
+      error?: string;
+      testEventCode?: string;
+      debugViewUrl?: string;
+      verificationInstructions?: string;
+    } 
+  }>>({});
   const { showSuccess, showError } = useToastContext();
   const submit = useSubmit();
 
@@ -1117,7 +1415,7 @@ function TestingStep({
         results[platform] = {
           valid: result.valid || false,
           message: result.message || "验证失败",
-          details: result.details,
+          details: result.details || {},
         };
       });
 
@@ -1193,20 +1491,31 @@ function TestingStep({
     window.location.href = "/app/verification";
   }, []);
 
+  // 自动跳转到验收页面的逻辑
   useEffect(() => {
-    if (currentStep === "testing" &&
-        Object.keys(validationResults).length > 0 &&
-        Object.values(validationResults).every(r => r.valid)) {
+    // 仅在测试步骤、验证通过、且不在切换环境过程中时自动跳转
+    const allValid = Object.keys(validationResults).length > 0 && 
+                     Object.values(validationResults).every(r => r.valid);
+    
+    if (
+      currentStep === "testing" &&
+      allValid &&
+      !isSwitchingToLive
+    ) {
+      // 如果所有平台都在测试模式，不自动跳转（需要手动切换到生产模式）
+      if (allInTestMode) {
+        return;
+      }
+      
+      // 如果至少有一个平台在生产模式，3秒后自动跳转
       const timer = setTimeout(() => {
-
-        if (!isSwitchingToLive) {
-          handleGoToVerification();
-        }
+        showSuccess("配置验证通过！正在跳转到验收页面...");
+        handleGoToVerification();
       }, 3000);
 
       return () => clearTimeout(timer);
     }
-  }, [currentStep, validationResults, isSwitchingToLive, handleGoToVerification]);
+  }, [currentStep, validationResults, isSwitchingToLive, allInTestMode, handleGoToVerification, showSuccess]);
 
   const allInTestMode = Array.from(selectedPlatforms).every(
     (platform) => platformConfigs[platform]?.environment === "test"
@@ -1244,16 +1553,22 @@ function TestingStep({
         <Card>
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
-              <Text as="h4" variant="headingSm">
-                测试环境验证
-              </Text>
+              <BlockStack gap="100">
+                <Text as="h4" variant="headingSm">
+                  测试环境验证
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  发送测试事件到各平台，验证配置是否正确
+                </Text>
+              </BlockStack>
               <Button
                 size="slim"
+                variant="primary"
                 onClick={handleValidateTestEnvironment}
                 loading={isValidating}
                 disabled={isValidating}
               >
-                验证配置
+                {isValidating ? "验证中..." : "发送测试事件"}
               </Button>
             </InlineStack>
 
@@ -1279,17 +1594,113 @@ function TestingStep({
                           </Text>
                         </InlineStack>
                         {result.details && (
-                          <BlockStack gap="100">
+                          <BlockStack gap="300">
+                            {/* 测试事件发送状态 */}
                             {result.details.eventSent && (
-                              <Text as="span" variant="bodySm" tone="subdued">
-                                ✓ 测试事件已发送
-                                {result.details.responseTime && ` (响应时间: ${result.details.responseTime}ms)`}
-                              </Text>
+                              <Box padding="300" background="bg-surface-success" borderRadius="200">
+                                <BlockStack gap="200">
+                                  <InlineStack gap="200" blockAlign="center">
+                                    <Icon source={CheckCircleIcon} tone="success" />
+                                    <Text as="span" variant="bodySm" fontWeight="semibold">
+                                      测试事件已成功发送
+                                    </Text>
+                                  </InlineStack>
+                                  {result.details.responseTime && (
+                                    <Text as="span" variant="bodySm" tone="subdued">
+                                      响应时间: {result.details.responseTime}ms
+                                    </Text>
+                                  )}
+                                </BlockStack>
+                              </Box>
                             )}
+                            
+                            {/* Meta Test Event Code */}
+                            {result.details.testEventCode && (
+                              <Banner tone="info">
+                                <BlockStack gap="200">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    Meta Test Event Code: {result.details.testEventCode}
+                                  </Text>
+                                  <Text as="span" variant="bodySm">
+                                    请在 Meta Events Manager 的「测试事件」页面查看此事件。
+                                    如果看到测试事件，说明配置正确。
+                                  </Text>
+                                  <Link 
+                                    url={`https://business.facebook.com/events_manager2/list/test_events?asset_id=${platformConfigs[platform]?.platformId || ""}`}
+                                    external
+                                  >
+                                    打开 Meta Events Manager
+                                  </Link>
+                                </BlockStack>
+                              </Banner>
+                            )}
+                            
+                            {/* GA4 DebugView */}
+                            {result.details.debugViewUrl && (
+                              <Banner tone="info">
+                                <BlockStack gap="200">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    GA4 DebugView
+                                  </Text>
+                                  <Text as="span" variant="bodySm">
+                                    测试事件已发送，请在 GA4 DebugView 中查看实时事件流。
+                                  </Text>
+                                  <Link url={result.details.debugViewUrl} external>
+                                    打开 GA4 DebugView
+                                  </Link>
+                                </BlockStack>
+                              </Banner>
+                            )}
+                            
+                            {/* 验证说明 */}
+                            {result.details.verificationInstructions && (
+                              <Banner tone="info">
+                                <Text as="span" variant="bodySm">
+                                  💡 {result.details.verificationInstructions}
+                                </Text>
+                              </Banner>
+                            )}
+                            
+                            {/* 错误信息 */}
                             {result.details.error && (
-                              <Text as="span" variant="bodySm" tone="critical">
-                                ✗ 错误: {result.details.error}
-                              </Text>
+                              <Banner tone="critical">
+                                <BlockStack gap="200">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    错误详情
+                                  </Text>
+                                  <Text as="span" variant="bodySm">
+                                    {result.details.error}
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    请检查：
+                                  </Text>
+                                  <List type="bullet">
+                                    <List.Item>平台凭证是否正确</List.Item>
+                                    <List.Item>网络连接是否正常</List.Item>
+                                    <List.Item>平台 API 是否可用</List.Item>
+                                  </List>
+                                </BlockStack>
+                              </Banner>
+                            )}
+                            
+                            {/* 测试事件详情查看 */}
+                            {result.valid && result.details.eventSent && (
+                              <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                                <BlockStack gap="200">
+                                  <Text as="span" variant="bodySm" fontWeight="semibold">
+                                    测试事件详情
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    事件 ID: test-order-{Date.now()}
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    事件类型: {platformConfigs[platform]?.eventMappings?.checkout_completed || "purchase"}
+                                  </Text>
+                                  <Text as="span" variant="bodySm" tone="subdued">
+                                    测试金额: $1.00 USD
+                                  </Text>
+                                </BlockStack>
+                              </Box>
                             )}
                           </BlockStack>
                         )}
@@ -1356,15 +1767,16 @@ function TestingStep({
         </Button>
         {!allInTestMode && (
           <Button
+            variant="primary"
             onClick={() => {
               onComplete();
-
+              // 立即跳转到验收页面
               setTimeout(() => {
                 window.location.href = "/app/verification";
-              }, 500);
+              }, 300);
             }}
           >
-            完成并前往验收
+            ✅ 完成并前往验收
           </Button>
         )}
       </InlineStack>

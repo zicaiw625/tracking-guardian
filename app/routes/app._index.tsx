@@ -3,7 +3,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useMemo } from "react";
 import {
   Page,
   Layout,
@@ -21,9 +21,10 @@ import {
   ProgressBar,
   List,
 } from "@shopify/polaris";
-import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon } from "~/components/icons";
+import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon, ClockIcon } from "~/components/icons";
 import { EnhancedEmptyState } from "~/components/ui";
 import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
+import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScanProgress";
 import { useNavigate } from "@remix-run/react";
 
 import { authenticate } from "../shopify.server";
@@ -42,7 +43,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return json(data);
 };
 
-function HealthBadge({ status }: { status: DashboardData["healthStatus"] }) {
+const HealthBadge = memo(function HealthBadge({ status }: { status: DashboardData["healthStatus"] }) {
   switch (status) {
     case "critical":
       return <Badge tone="critical">需要关注</Badge>;
@@ -53,23 +54,25 @@ function HealthBadge({ status }: { status: DashboardData["healthStatus"] }) {
     default:
       return <Badge tone="info">未初始化</Badge>;
   }
-}
+});
 
-function HealthScoreCard({
+const HealthScoreCard = memo(function HealthScoreCard({
   score,
   status,
 }: {
   score: number | null;
   status: DashboardData["healthStatus"];
 }) {
-  const backgroundColor =
+  const backgroundColor = useMemo(() =>
     score === null
       ? "bg-surface-secondary"
       : score > 80
         ? "bg-fill-success"
         : score > 60
           ? "bg-fill-warning"
-          : "bg-fill-critical";
+          : "bg-fill-critical",
+    [score]
+  );
 
   return (
     <Card>
@@ -111,9 +114,9 @@ function HealthScoreCard({
       </BlockStack>
     </Card>
   );
-}
+});
 
-function QuickStatsCard({
+const QuickStatsCard = memo(function QuickStatsCard({
   configuredPlatforms,
   weeklyConversions,
   plan,
@@ -128,6 +131,9 @@ function QuickStatsCard({
   planTagline?: string;
   planFeatures?: string[];
 }) {
+  const displayFeatures = useMemo(() => planFeatures?.slice(0, 3) || [], [planFeatures]);
+  const hasMoreFeatures = useMemo(() => (planFeatures?.length || 0) > 3, [planFeatures]);
+
   return (
     <Card>
       <BlockStack gap="400">
@@ -160,14 +166,14 @@ function QuickStatsCard({
               {planTagline}
             </Text>
           )}
-          {planFeatures && planFeatures.length > 0 && (
+          {displayFeatures.length > 0 && (
             <List>
-              {planFeatures.slice(0, 3).map((f, i) => (
+              {displayFeatures.map((f, i) => (
                 <List.Item key={i}>
                   <Text as="span" variant="bodySm">{f}</Text>
                 </List.Item>
               ))}
-              {planFeatures.length > 3 && (
+              {hasMoreFeatures && (
                 <List.Item>
                   <Text as="span" variant="bodySm" tone="subdued">
                     ...更多权益，详见套餐页
@@ -186,7 +192,7 @@ function QuickStatsCard({
       </BlockStack>
     </Card>
   );
-}
+});
 
 type SerializedLatestScan = {
   status: string;
@@ -195,7 +201,7 @@ type SerializedLatestScan = {
   identifiedPlatforms: string[];
 } | null;
 
-function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
+const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
   if (!latestScan) {
     return (
       <Card>
@@ -286,16 +292,16 @@ function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
       </BlockStack>
     </Card>
   );
-}
+});
 
-function SetupProgressCard({
+const SetupProgressCard = memo(function SetupProgressCard({
   steps,
   nextStep,
 }: {
   steps: SetupStep[];
   nextStep: SetupStep | undefined;
 }) {
-  const progress = getSetupProgress(steps);
+  const progress = useMemo(() => getSetupProgress(steps), [steps]);
 
   return (
     <Card>
@@ -621,18 +627,8 @@ export default function Index() {
   const loaderData = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
-
-  useEffect(() => {
-    const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
-    if (dismissed === "true") {
-      setShowWelcomeBanner(false);
-    }
-  }, []);
-
-  const handleDismissWelcomeBanner = () => {
-    localStorage.setItem(WELCOME_BANNER_DISMISSED_KEY, "true");
-    setShowWelcomeBanner(false);
-  };
+  const [showScanProgress, setShowScanProgress] = useState(false);
+  const [scanStartedAt] = useState(() => new Date());
 
   const data: DashboardData = {
     ...loaderData,
@@ -642,6 +638,33 @@ export default function Index() {
           createdAt: new Date(loaderData.latestScan.createdAt),
         }
       : null,
+  };
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem(WELCOME_BANNER_DISMISSED_KEY);
+    if (dismissed === "true") {
+      setShowWelcomeBanner(false);
+    }
+
+    // 检查是否是新安装且没有扫描结果
+    const isNewInstall = data.showOnboarding && !data.latestScan;
+    if (isNewInstall) {
+      setShowScanProgress(true);
+      // 10秒后自动隐藏进度条（扫描应该已完成）
+      const timer = setTimeout(() => {
+        setShowScanProgress(false);
+      }, 12000);
+      return () => clearTimeout(timer);
+    }
+  }, [data.showOnboarding, data.latestScan]);
+
+  const handleDismissWelcomeBanner = () => {
+    localStorage.setItem(WELCOME_BANNER_DISMISSED_KEY, "true");
+    setShowWelcomeBanner(false);
+  };
+
+  const handleScanComplete = () => {
+    setShowScanProgress(false);
   };
 
   const setupSteps = getSetupSteps(data);
@@ -678,7 +701,14 @@ export default function Index() {
 
         {}
         {}
-        {data.showOnboarding && (
+        {showScanProgress && data.showOnboarding && !data.latestScan && (
+          <PostInstallScanProgress
+            shopId={data.shopDomain}
+            scanStartedAt={scanStartedAt}
+            onComplete={handleScanComplete}
+          />
+        )}
+        {!showScanProgress && data.showOnboarding && data.latestScan && (
           <UpgradeHealthCheck
             typOspPagesEnabled={data.typOspPagesEnabled ?? false}
             riskScore={data.latestScan?.riskScore ?? 0}

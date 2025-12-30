@@ -37,6 +37,11 @@ export interface EventVolumeStats {
   average7Days?: number;
   stdDev?: number;
   threshold?: number;
+  confidence?: number;
+  weekdayBaseline?: number;
+  weekendBaseline?: number;
+  isWeekend?: boolean;
+  detectedReason?: string;
 }
 
 export interface EventVolumeHistoryData {
@@ -318,10 +323,22 @@ export async function getMissingParamsRateByEventType(
   };
 }
 
+function isWeekend(date: Date): boolean {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
+function calculateMovingAverage(values: number[], windowSize: number): number {
+  if (values.length < windowSize) return 0;
+  const recent = values.slice(-windowSize);
+  return recent.reduce((sum, v) => sum + v, 0) / recent.length;
+}
+
 export async function getEventVolumeStats(
   shopId: string
 ): Promise<EventVolumeStats> {
   const now = new Date();
+  const isCurrentWeekend = isWeekend(now);
 
   const current24hStart = new Date(now);
   current24hStart.setHours(current24hStart.getHours() - 24);
@@ -329,10 +346,10 @@ export async function getEventVolumeStats(
   const previous24hStart = new Date(current24hStart);
   previous24hStart.setHours(previous24hStart.getHours() - 24);
 
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setHours(sevenDaysAgo.getHours() - 7 * 24);
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-  const [current24h, previous24h, recent7DaysLogs] = await Promise.all([
+  const [current24h, previous24h, recent14DaysLogs] = await Promise.all([
     prisma.conversionLog.count({
       where: {
         shopId,
@@ -351,13 +368,13 @@ export async function getEventVolumeStats(
     prisma.conversionLog.findMany({
       where: {
         shopId,
-        createdAt: { gte: sevenDaysAgo },
+        createdAt: { gte: fourteenDaysAgo },
       },
       select: {
         createdAt: true,
       },
       orderBy: {
-        createdAt: "desc",
+        createdAt: "asc",
       },
     }),
   ]);
@@ -370,112 +387,111 @@ export async function getEventVolumeStats(
         : 0;
 
   let isDrop = false;
-
-  if (previous24h > 0) {
-
-    isDrop = changePercent < -50;
-  } else if (recent7DaysLogs.length > 0) {
-
-    const avgDailyCount = recent7DaysLogs.length / 7;
-    const expected24h = avgDailyCount;
-
-    if (expected24h > 0 && current24h < expected24h * 0.5) {
-      isDrop = true;
-    }
-  }
-
-  if (recent7DaysLogs.length >= 24) {
-
-    const hourlyCounts = new Map<number, number>();
-    recent7DaysLogs.forEach((log) => {
-      const hour = log.createdAt.getHours();
-      hourlyCounts.set(hour, (hourlyCounts.get(hour) || 0) + 1);
-    });
-
-    const currentHour = now.getHours();
-    const windowSize = 6;
-    const currentWindowStart = Math.floor(currentHour / windowSize) * windowSize;
-
-    const historicalWindowCounts: number[] = [];
-    for (let day = 1; day <= 7; day++) {
-      const dayStart = new Date(now);
-      dayStart.setDate(dayStart.getDate() - day);
-      dayStart.setHours(currentWindowStart, 0, 0, 0);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setHours(dayStart.getHours() + windowSize);
-
-      const windowCount = await prisma.conversionLog.count({
-        where: {
-          shopId,
-          createdAt: {
-            gte: dayStart,
-            lt: dayEnd,
-          },
-        },
-      });
-      historicalWindowCounts.push(windowCount);
-    }
-
-    if (historicalWindowCounts.length > 0) {
-      const avgHistoricalWindow = historicalWindowCounts.reduce((sum, c) => sum + c, 0) / historicalWindowCounts.length;
-      const variance = historicalWindowCounts.reduce((sum, c) => sum + Math.pow(c - avgHistoricalWindow, 2), 0) / historicalWindowCounts.length;
-      const stdDev = Math.sqrt(variance);
-
-      const currentWindowStartTime = new Date(now);
-      currentWindowStartTime.setHours(currentWindowStart, 0, 0, 0);
-      const currentWindowCount = await prisma.conversionLog.count({
-        where: {
-          shopId,
-          createdAt: { gte: currentWindowStartTime },
-        },
-      });
-
-      const threshold = avgHistoricalWindow - 2 * stdDev;
-      if (currentWindowCount < threshold && threshold > 0 && avgHistoricalWindow > 0) {
-        isDrop = true;
-      }
-    }
-  }
-
-  if (recent7DaysLogs.length >= 24) {
-
-    const dailyCounts = new Map<string, number>();
-    recent7DaysLogs.forEach((log) => {
-      const day = log.createdAt.toISOString().split("T")[0];
-      dailyCounts.set(day, (dailyCounts.get(day) || 0) + 1);
-    });
-
-    const counts = Array.from(dailyCounts.values());
-    if (counts.length > 0) {
-      const mean = counts.reduce((sum, c) => sum + c, 0) / counts.length;
-      const variance = counts.reduce((sum, c) => sum + Math.pow(c - mean, 2), 0) / counts.length;
-      const stdDev = Math.sqrt(variance);
-
-      const threshold = mean - 2 * stdDev;
-      if (current24h < threshold && threshold > 0) {
-        isDrop = true;
-      }
-    }
-  }
-
+  let confidence = 0;
+  let weekdayBaseline: number | undefined;
+  let weekendBaseline: number | undefined;
+  let detectedReason: string | undefined;
   let average7Days: number | undefined;
   let stdDev: number | undefined;
   let threshold: number | undefined;
 
-  if (recent7DaysLogs.length >= 7) {
-
-    const dailyCounts = new Map<string, number>();
-    recent7DaysLogs.forEach((log) => {
+  if (recent14DaysLogs.length >= 7) {
+    const dailyCounts = new Map<string, { count: number; isWeekend: boolean }>();
+    recent14DaysLogs.forEach((log) => {
       const day = log.createdAt.toISOString().split("T")[0];
-      dailyCounts.set(day, (dailyCounts.get(day) || 0) + 1);
+      const existing = dailyCounts.get(day);
+      if (existing) {
+        existing.count++;
+      } else {
+        dailyCounts.set(day, {
+          count: 1,
+          isWeekend: isWeekend(log.createdAt),
+        });
+      }
     });
 
-    const counts = Array.from(dailyCounts.values());
-    if (counts.length > 0) {
-      average7Days = counts.reduce((sum, c) => sum + c, 0) / counts.length;
-      const variance = counts.reduce((sum, c) => sum + Math.pow(c - average7Days, 2), 0) / counts.length;
+    const weekdayCounts: number[] = [];
+    const weekendCounts: number[] = [];
+    const allCounts: number[] = [];
+
+    Array.from(dailyCounts.values()).forEach((dayData) => {
+      allCounts.push(dayData.count);
+      if (dayData.isWeekend) {
+        weekendCounts.push(dayData.count);
+      } else {
+        weekdayCounts.push(dayData.count);
+      }
+    });
+
+    if (allCounts.length >= 7) {
+      average7Days = calculateMovingAverage(allCounts, 7);
+      const variance = allCounts.reduce((sum, c) => sum + Math.pow(c - average7Days!, 2), 0) / allCounts.length;
       stdDev = Math.sqrt(variance);
       threshold = average7Days - 2 * stdDev;
+
+      if (weekdayCounts.length >= 2) {
+        weekdayBaseline = weekdayCounts.reduce((sum, c) => sum + c, 0) / weekdayCounts.length;
+      }
+      if (weekendCounts.length >= 2) {
+        weekendBaseline = weekendCounts.reduce((sum, c) => sum + c, 0) / weekendCounts.length;
+      }
+
+      const baseline = isCurrentWeekend && weekendBaseline !== undefined
+        ? weekendBaseline
+        : !isCurrentWeekend && weekdayBaseline !== undefined
+          ? weekdayBaseline
+          : average7Days;
+
+      const baselineStdDev = stdDev;
+
+      if (baseline > 0) {
+        // 使用更智能的异常检测：Z-score 和移动平均结合
+        const zScore = (current24h - baseline) / (baselineStdDev || 1);
+        const dropThreshold = baseline - 2 * baselineStdDev;
+        
+        // 计算相对下降百分比
+        const relativeDrop = ((baseline - current24h) / baseline) * 100;
+        
+        // 多重条件判断：Z-score < -2 或相对下降 > 30%
+        const isStatisticalAnomaly = zScore < -2;
+        const isSignificantDrop = relativeDrop > 30;
+        
+        if ((isStatisticalAnomaly || isSignificantDrop) && threshold !== undefined && threshold > 0) {
+          isDrop = true;
+          // 置信度计算：基于 Z-score 的绝对值和相对下降百分比
+          const zScoreConfidence = Math.min(95, Math.max(50, 50 + Math.abs(zScore) * 10));
+          const dropPercentConfidence = Math.min(90, Math.max(60, 60 + relativeDrop * 0.5));
+          confidence = Math.max(zScoreConfidence, dropPercentConfidence);
+          
+          if (isCurrentWeekend && weekendBaseline !== undefined) {
+            detectedReason = `当前为周末，基准值: ${weekendBaseline.toFixed(0)}，实际: ${current24h}，下降: ${relativeDrop.toFixed(1)}% (Z-score: ${zScore.toFixed(2)})`;
+          } else if (!isCurrentWeekend && weekdayBaseline !== undefined) {
+            detectedReason = `当前为工作日，基准值: ${weekdayBaseline.toFixed(0)}，实际: ${current24h}，下降: ${relativeDrop.toFixed(1)}% (Z-score: ${zScore.toFixed(2)})`;
+          } else {
+            detectedReason = `7天移动平均值: ${average7Days!.toFixed(0)}，标准差: ${stdDev!.toFixed(0)}，实际: ${current24h}，下降: ${relativeDrop.toFixed(1)}% (Z-score: ${zScore.toFixed(2)})`;
+          }
+        }
+      }
+
+      if (!isDrop && previous24h > 0 && changePercent < -50) {
+        const simpleBaseline = Math.max(previous24h, average7Days || previous24h);
+        const dropAmount = simpleBaseline - current24h;
+        const dropPercent = (dropAmount / simpleBaseline) * 100;
+        
+        if (dropPercent > 50 && previous24h >= 10) {
+          isDrop = true;
+          confidence = Math.min(85, 50 + dropPercent * 0.5);
+          detectedReason = `与前24小时对比，下降 ${dropPercent.toFixed(1)}% (${previous24h} → ${current24h})`;
+        }
+      }
+    }
+  }
+
+  if (!isDrop && previous24h > 0) {
+    isDrop = changePercent < -50 && previous24h >= 10;
+    if (isDrop) {
+      confidence = Math.min(75, 50 + Math.abs(changePercent) * 0.5);
+      detectedReason = `与前24小时对比下降 ${Math.abs(changePercent).toFixed(1)}%`;
     }
   }
 
@@ -487,6 +503,11 @@ export async function getEventVolumeStats(
     average7Days,
     stdDev,
     threshold,
+    confidence: confidence > 0 ? confidence : undefined,
+    weekdayBaseline,
+    weekendBaseline,
+    isWeekend: isCurrentWeekend,
+    detectedReason,
   };
 }
 

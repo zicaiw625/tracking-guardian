@@ -1,5 +1,6 @@
 
 
+import { useState, useCallback } from "react";
 import {
   Layout,
   Card,
@@ -10,9 +11,40 @@ import {
   Banner,
   Badge,
   Box,
+  Button,
+  List,
 } from "@shopify/polaris";
+import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
+import { BILLING_PLANS, type PlanId, getUpgradeOptions, isHigherTier } from "~/services/billing/plans";
+import { useToastContext } from "~/components/ui";
 
-export function SubscriptionTab() {
+interface SubscriptionTabProps {
+  currentPlan: PlanId;
+  subscriptionStatus?: {
+    hasActiveSubscription: boolean;
+    isTrialing?: boolean;
+    trialDays?: number;
+    currentPeriodEnd?: string;
+  };
+}
+
+export function SubscriptionTab({ currentPlan, subscriptionStatus }: SubscriptionTabProps) {
+  const submit = useSubmit();
+  const navigation = useNavigation();
+  const { showSuccess, showError } = useToastContext();
+  const [upgradingPlan, setUpgradingPlan] = useState<PlanId | null>(null);
+
+  const handleUpgrade = useCallback((planId: PlanId) => {
+    setUpgradingPlan(planId);
+    const formData = new FormData();
+    formData.append("_action", "upgrade_subscription");
+    formData.append("planId", planId);
+    submit(formData, { method: "post" });
+  }, [submit]);
+
+  const currentPlanConfig = BILLING_PLANS[currentPlan];
+  const upgradeOptions = getUpgradeOptions(currentPlan);
+
   return (
     <Layout>
       <Layout.Section>
@@ -22,67 +54,129 @@ export function SubscriptionTab() {
               <Text as="h2" variant="headingMd">
                 当前计划
               </Text>
-              <Badge tone="success">免费版</Badge>
+              <Badge tone={currentPlan === "free" ? "info" : "success"}>
+                {currentPlanConfig.name}
+              </Badge>
             </InlineStack>
 
-            <Banner tone="info">
-              <p>
-                感谢使用 Tracking Guardian！目前所有功能完全免费开放。
-                付费套餐即将推出，届时将提供更高的使用限额和高级功能。
-              </p>
-            </Banner>
+            {subscriptionStatus?.isTrialing && (
+              <Banner tone="info">
+                <Text as="p" variant="bodySm">
+                  试用期剩余 {subscriptionStatus.trialDays} 天
+                  {subscriptionStatus.currentPeriodEnd && (
+                    <>，将于 {new Date(subscriptionStatus.currentPeriodEnd).toLocaleDateString()} 结束</>
+                  )}
+                </Text>
+              </Banner>
+            )}
 
             <Divider />
 
-            <BlockStack gap="400">
-              <Box
-                background="bg-surface-selected"
-                padding="400"
-                borderRadius="200"
-              >
-                <BlockStack gap="300">
-                  <InlineStack align="space-between">
+            {/* 当前套餐 */}
+            <Box
+              background="bg-surface-selected"
+              padding="400"
+              borderRadius="200"
+              borderWidth="025"
+              borderColor="border-subdued"
+            >
+              <BlockStack gap="300">
+                <InlineStack align="space-between">
+                  <BlockStack gap="100">
                     <Text as="h3" variant="headingMd">
-                      免费版
+                      {currentPlanConfig.name}
                     </Text>
-                    <Badge tone="success">当前计划</Badge>
-                  </InlineStack>
-                  <Text as="p" tone="subdued">
-                    • 无限扫描报告
-                    <br />• 所有平台集成（Google、Meta、TikTok）
-                    <br />• 服务端转化追踪（CAPI）
-                    <br />• 邮件 + Slack + Telegram 警报
-                    <br />• 每日健康监控
-                  </Text>
-                </BlockStack>
-              </Box>
-
-              <Box
-                background="bg-surface-secondary"
-                padding="400"
-                borderRadius="200"
-              >
-                <BlockStack gap="300">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <InlineStack gap="200" blockAlign="center">
-                      <Text as="h3" variant="headingMd" tone="subdued">
-                        高级套餐
+                    {currentPlanConfig.tagline && (
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {currentPlanConfig.tagline}
                       </Text>
-                      <Badge>即将推出</Badge>
-                    </InlineStack>
-                  </InlineStack>
-                  <Text as="p" tone="subdued">
-                    • 更高的月度订单限额
-                    <br />• 更长的数据保留期
-                    <br />• 优先技术支持
-                    <br />• 高级对账报告
+                    )}
+                  </BlockStack>
+                  <Badge tone="success">当前计划</Badge>
+                </InlineStack>
+                <List type="bullet">
+                  {currentPlanConfig.features.map((feature, idx) => (
+                    <List.Item key={idx}>
+                      <Text as="span" variant="bodySm">{feature}</Text>
+                    </List.Item>
+                  ))}
+                </List>
+                {currentPlanConfig.price > 0 && (
+                  <Text as="p" variant="headingMd" fontWeight="bold">
+                    ${currentPlanConfig.price}/月
                   </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    付费套餐即将推出，敬请期待。当前所有功能免费使用。
-                  </Text>
+                )}
+              </BlockStack>
+            </Box>
+
+            {/* 升级选项 */}
+            {upgradeOptions.length > 0 && (
+              <>
+                <Divider />
+                <Text as="h3" variant="headingMd">
+                  升级套餐
+                </Text>
+                <BlockStack gap="300">
+                  {upgradeOptions.map((planId) => {
+                    const planConfig = BILLING_PLANS[planId];
+                    return (
+                      <Box
+                        key={planId}
+                        background="bg-surface-secondary"
+                        padding="400"
+                        borderRadius="200"
+                        borderWidth="025"
+                        borderColor="border"
+                      >
+                        <BlockStack gap="300">
+                          <InlineStack align="space-between" blockAlign="start">
+                            <BlockStack gap="100">
+                              <Text as="h4" variant="headingSm">
+                                {planConfig.name}
+                              </Text>
+                              {planConfig.tagline && (
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  {planConfig.tagline}
+                                </Text>
+                              )}
+                            </BlockStack>
+                            <Text as="span" variant="headingMd" fontWeight="bold">
+                              ${planConfig.price}/月
+                            </Text>
+                          </InlineStack>
+                          <List type="bullet">
+                            {planConfig.features.slice(0, 5).map((feature, idx) => (
+                              <List.Item key={idx}>
+                                <Text as="span" variant="bodySm">{feature}</Text>
+                              </List.Item>
+                            ))}
+                          </List>
+                          <Button
+                            variant="primary"
+                            onClick={() => handleUpgrade(planId)}
+                            loading={upgradingPlan === planId && navigation.state === "submitting"}
+                            disabled={navigation.state === "submitting"}
+                          >
+                            升级到 {planConfig.name}
+                          </Button>
+                        </BlockStack>
+                      </Box>
+                    );
+                  })}
                 </BlockStack>
-              </Box>
-            </BlockStack>
+              </>
+            )}
+
+            {/* 套餐对比 */}
+            <Divider />
+            <Text as="h3" variant="headingMd">
+              套餐对比
+            </Text>
+            <Banner tone="info">
+              <Text as="p" variant="bodySm">
+                需要帮助选择套餐？<a href="/app/support">联系我们的销售团队</a>获取个性化建议。
+              </Text>
+            </Banner>
           </BlockStack>
         </Card>
       </Layout.Section>

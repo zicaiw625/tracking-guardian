@@ -19,9 +19,7 @@ export default defineConfig({
         "node_modules",
         "build",
         "extensions",
-        "**
-*.test.ts",
-        "**
-types
-schemas
+        "**/*.test.ts",
+        "**/types",
+        "**/schemas",
 

@@ -9,6 +9,10 @@
 3. [平台服务](#平台服务)
 4. [数据库操作](#数据库操作)
 5. [React Hooks](#react-hooks)
+6. [迁移优先级服务](#迁移优先级服务)
+7. [监控服务](#监控服务)
+8. [批量操作服务](#批量操作服务)
+9. [渠道对账服务](#渠道对账服务)
 
 ---
 
@@ -336,6 +340,268 @@ function SaveForm() {
 
 ---
 
+## 迁移优先级服务
+
+### 计算优先级
+
+```typescript
+import {
+  calculatePriority,
+  calculateAssetPriority,
+  type PriorityFactors,
+} from '@/services/migration-priority.server';
+
+// 计算单个资产的优先级
+const factors: PriorityFactors = {
+  riskLevel: 'high',
+  impactScope: 'order_status',
+  migrationDifficulty: 'easy',
+  shopTier: 'plus',
+};
+
+const result = calculatePriority(factors);
+console.log(`优先级: ${result.priority}/10`);
+console.log(`预计时间: ${result.estimatedTimeMinutes} 分钟`);
+console.log(`原因:`, result.reasoning);
+
+// 计算数据库中资产的优先级
+const assetPriority = await calculateAssetPriority(
+  assetId,
+  shopTier,
+  shopId
+);
+```
+
+### 生成迁移时间线
+
+```typescript
+import { generateMigrationTimeline } from '@/services/migration-priority.server';
+
+const timeline = await generateMigrationTimeline(shopId);
+
+// timeline.assets - 按优先级排序的资产列表
+// timeline.totalEstimatedTime - 总预计时间（分钟）
+// timeline.assets[].priority - 优先级结果
+// timeline.assets[].canStart - 是否可以开始（无阻塞依赖）
+// timeline.assets[].blockingDependencies - 阻塞的依赖项
+```
+
+### 获取迁移进度
+
+```typescript
+import { getMigrationProgress } from '@/services/migration-priority.server';
+
+const progress = await getMigrationProgress(shopId);
+
+// progress.total - 总资产数
+// progress.completed - 已完成数
+// progress.inProgress - 进行中数
+// progress.pending - 待处理数
+// progress.completionRate - 完成率（0-100）
+```
+
+---
+
+## 监控服务
+
+### 事件成功率监控
+
+```typescript
+import {
+  calculateSuccessRateByDestination,
+  calculateSuccessRateByEventType,
+  getSuccessRateHistory,
+} from '@/services/monitoring/event-success-rate.server';
+
+// 按平台统计成功率
+const since = new Date(Date.now() - 24 * 60 * 60 * 1000); // 最近24小时
+const stats = await calculateSuccessRateByDestination(shopId, since);
+
+for (const stat of stats) {
+  console.log(`${stat.platform}: ${stat.successRate}%`);
+}
+
+// 按事件类型统计成功率
+const eventStats = await calculateSuccessRateByEventType(shopId, since);
+
+// 获取历史趋势（按小时）
+const history = await getSuccessRateHistory(shopId, 24); // 最近24小时
+```
+
+### 缺参率检测
+
+```typescript
+import {
+  detectMissingParams,
+  getMissingParamsStats,
+  checkMissingParamsAlerts,
+} from '@/services/monitoring/missing-params.server';
+
+// 检测缺失参数
+const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+const result = await detectMissingParams(shopId, since, ['value', 'currency']);
+
+console.log(`缺失 value: ${result.missingValue}`);
+console.log(`缺失 currency: ${result.missingCurrency}`);
+
+// 获取详细统计
+const stats = await getMissingParamsStats(shopId, since, ['value']);
+
+// 检查告警
+const alert = checkMissingParamsAlerts(stats, {
+  overallThreshold: 0.2, // 20%
+  criticalThreshold: 0.5, // 50%
+});
+```
+
+### 事件量异常检测
+
+```typescript
+import {
+  detectVolumeAnomaly,
+  calculateBaseline,
+  checkVolumeDropAlerts,
+} from '@/services/monitoring/volume-anomaly.server';
+
+// 检测事件量异常
+const anomaly = await detectVolumeAnomaly(shopId, 24); // 最近24小时
+
+if (anomaly.hasAnomaly) {
+  console.log(`下降百分比: ${anomaly.dropPercentage}%`);
+  console.log(`Z-Score: ${anomaly.zScore}`);
+}
+
+// 计算基线
+const baseline = await calculateBaseline(shopId, 7); // 7天基线
+
+// 检查告警
+const alert = checkVolumeDropAlerts(anomaly, {
+  dropThreshold: 0.5, // 50%
+  zScoreThreshold: 2.0,
+  minVolume: 10, // 最小事件量
+});
+```
+
+---
+
+## 批量操作服务
+
+### 批量 Audit 扫描
+
+```typescript
+import {
+  startBatchAudit,
+  getBatchAuditStatus,
+  getBatchAuditHistory,
+  getBatchAuditStatistics,
+} from '@/services/batch-audit.server';
+
+// 启动批量扫描
+const result = await startBatchAudit({
+  groupId: 'group-1',
+  requesterId: 'user-1',
+  concurrency: 2,
+  skipRecentHours: 6,
+});
+
+if ('error' in result) {
+  console.error(result.error);
+} else {
+  console.log(`任务ID: ${result.jobId}`);
+}
+
+// 获取任务状态
+const status = getBatchAuditStatus(jobId);
+
+// 获取历史记录
+const history = getBatchAuditHistory(10); // 最近10条
+
+// 获取统计信息
+const stats = getBatchAuditStatistics();
+```
+
+### 批量应用模板
+
+```typescript
+import {
+  batchApplyPixelTemplate,
+  type BatchApplyOptions,
+} from '@/services/workspace/batch-template-apply.server';
+
+const options: BatchApplyOptions = {
+  templateId: 'template-1',
+  shopIds: ['shop-1', 'shop-2', 'shop-3'],
+  overwriteExisting: false,
+  skipIfExists: true,
+};
+
+const result = await batchApplyPixelTemplate(options);
+
+console.log(`成功: ${result.successCount}`);
+console.log(`失败: ${result.failureCount}`);
+console.log(`跳过: ${result.skippedCount}`);
+```
+
+### 批量报告导出
+
+```typescript
+import {
+  generateBatchReport,
+  type BatchReportOptions,
+} from '@/services/workspace/batch-report.server';
+
+const options: BatchReportOptions = {
+  shopIds: ['shop-1', 'shop-2'],
+  reportType: 'audit',
+  includeDetails: true,
+  whiteLabel: {
+    companyName: 'My Agency',
+    logo: 'https://example.com/logo.png',
+    contactEmail: 'contact@example.com',
+  },
+};
+
+const report = await generateBatchReport(options);
+
+if (report) {
+  // report.buffer - PDF buffer
+  // report.filename - 文件名
+  // 可以保存或下载
+}
+```
+
+---
+
+## 渠道对账服务
+
+### 增强渠道对账
+
+```typescript
+import {
+  performEnhancedChannelReconciliation,
+  getOrderCrossPlatformComparison,
+} from '@/services/verification/channel-reconciliation.server';
+
+// 多平台对账
+const result = await performEnhancedChannelReconciliation(shopId, 24); // 最近24小时
+
+// result.platforms - 各平台对账结果
+// result.discrepancies - 差异分析
+//   - missingOrders - 缺失订单数
+//   - valueDiscrepancies - 金额差异
+//   - duplicateOrders - 重复订单数
+// result.crossPlatformConsistency - 跨平台一致性分析
+
+// 订单级跨平台对比
+const comparison = await getOrderCrossPlatformComparison(shopId, orderId);
+
+// comparison.platforms - 各平台状态
+// comparison.consistent - 是否一致
+// comparison.discrepancies - 不一致项
+```
+
+---
+
 ## 最佳实践
 
 ### 1. 类型安全
@@ -392,9 +658,22 @@ await batchCompleteJobs(jobs.map(j => ({
 })));
 ```
 
+### 5. 错误处理
+
+使用 Result 模式处理可能失败的操作：
+
+```typescript
+// ✅ 推荐
+const result = await calculateAssetPriority(assetId, shopTier);
+if (!result) {
+  logger.warn('资产不存在或计算失败');
+  return;
+}
+```
+
 ---
 
 ## 更新日志
 
+- **2025-01-XX**: 添加迁移优先级、监控服务、批量操作、渠道对账服务文档
 - **2024-12-23**: 初始版本，包含重构后的所有公共 API
-

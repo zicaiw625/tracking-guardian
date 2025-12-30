@@ -68,6 +68,39 @@ export async function getWizardTemplates(shopId: string): Promise<{
       isPublic: true,
       usageCount: 0,
     },
+    {
+      id: "ecommerce-optimized",
+      name: "电商优化配置",
+      description: "专为电商店铺优化的完整转化漏斗追踪，包含商品浏览、加购、结账、购买全流程",
+      platforms: ["google", "meta", "tiktok", "pinterest"],
+      eventMappings: {
+        google: {
+          checkout_completed: "purchase",
+          checkout_started: "begin_checkout",
+          add_to_cart: "add_to_cart",
+          view_item: "view_item",
+        },
+        meta: {
+          checkout_completed: "Purchase",
+          checkout_started: "InitiateCheckout",
+          add_to_cart: "AddToCart",
+          view_item: "ViewContent",
+        },
+        tiktok: {
+          checkout_completed: "CompletePayment",
+          checkout_started: "InitiateCheckout",
+          add_to_cart: "AddToCart",
+          view_item: "ViewContent",
+        },
+        pinterest: {
+          checkout_completed: "checkout",
+          add_to_cart: "add_to_cart",
+          view_item: "page_visit",
+        },
+      },
+      isPublic: true,
+      usageCount: 0,
+    },
   ];
 
   let custom: WizardTemplate[] = [];

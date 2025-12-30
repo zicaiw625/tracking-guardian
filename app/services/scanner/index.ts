@@ -22,6 +22,8 @@ import {
     batchCreateAuditAssets,
     type AuditAssetInput
 } from "../audit-asset.server";
+// Priority calculation is now handled by migration-priority.server.ts
+// which calculates 1-10 priority scores and estimated time in minutes
 
 export type {
     WebPixelInfo,
@@ -783,6 +785,28 @@ export async function scanShopTracking(
                 created: auditResult.created,
                 updated: auditResult.updated,
             });
+
+            // 计算优先级和时间估算（异步执行，不阻塞扫描完成）
+            // 使用 priority-calculator.ts 的实现，计算优先级和时间估算
+            try {
+                const { calculatePrioritiesForShop, updateAssetPriority } = await import("./priority-calculator");
+                const priorities = await calculatePrioritiesForShop(shopId);
+                
+                // 更新每个资产的优先级和时间估算
+                for (const priorityScore of priorities) {
+                    await updateAssetPriority(priorityScore.assetId, priorityScore);
+                }
+
+                logger.info(`Priority and time estimates calculated for shop ${shopId}`, {
+                    shopId,
+                    assetCount: priorities.length,
+                });
+            } catch (error) {
+                logger.error("Failed to calculate priority/time estimates", {
+                    shopId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
         }
     } catch (error) {
 

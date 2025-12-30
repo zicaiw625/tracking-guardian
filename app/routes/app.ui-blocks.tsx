@@ -25,12 +25,15 @@ import {
   List,
   Collapsible,
   Tag,
+  FormLayout,
+  InlineError,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
   EditIcon,
   SettingsIcon,
   RefreshIcon,
+  ExternalIcon,
 } from "~/components/icons";
 import { EnhancedEmptyState, useToastContext } from "~/components/ui";
 
@@ -42,6 +45,7 @@ import {
   resetModuleToDefault,
   getEnabledModulesCount,
 } from "../services/ui-extension.server";
+import { generateModulePreviewUrl, isDevStore } from "../utils/dev-store.server";
 import {
   UI_MODULES,
   type ModuleKey,
@@ -60,10 +64,13 @@ interface LoaderData {
     id: string;
     plan: PlanId;
   } | null;
+  shopDomain: string;
   modules: UiModuleConfig[];
   enabledCount: number;
   maxModules: number;
   planInfo: typeof BILLING_PLANS[PlanId];
+  isDevStore: boolean;
+  modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }>;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -78,10 +85,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (!shop) {
     return json<LoaderData>({
       shop: null,
+      shopDomain,
       modules: [],
       enabledCount: 0,
       maxModules: 0,
       planInfo: BILLING_PLANS.free,
+      isDevStore: false,
+      modulePreviewUrls: {},
     });
   }
 
@@ -89,13 +99,33 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planInfo = getPlanOrDefault(planId);
   const modules = await getUiModuleConfigs(shop.id);
   const enabledCount = await getEnabledModulesCount(shop.id);
+  
+  // 生成预览 URL（仅 dev store）
+  const isDev = isDevStore(shopDomain);
+  const modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }> = {};
+  
+  if (isDev) {
+    for (const module of modules) {
+      const urls: { thank_you?: string; order_status?: string } = {};
+      if (UI_MODULES[module.moduleKey].targets.includes("thank_you")) {
+        urls.thank_you = generateModulePreviewUrl(shopDomain, module.moduleKey, "thank_you") || undefined;
+      }
+      if (UI_MODULES[module.moduleKey].targets.includes("order_status")) {
+        urls.order_status = generateModulePreviewUrl(shopDomain, module.moduleKey, "order_status") || undefined;
+      }
+      modulePreviewUrls[module.moduleKey] = urls;
+    }
+  }
 
   return json<LoaderData>({
     shop: { id: shop.id, plan: planId },
+    shopDomain,
     modules,
     enabledCount,
     maxModules: planInfo.uiModules,
     planInfo,
+    isDevStore: isDev,
+    modulePreviewUrls,
   });
 };
 
@@ -291,57 +321,108 @@ function SurveySettingsForm({
   settings: SurveySettings;
   onChange: (settings: SurveySettings) => void;
 }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateField = (field: string, value: string) => {
+    const newErrors = { ...errors };
+    if (field === "title" && !value.trim()) {
+      newErrors.title = "标题不能为空";
+    } else if (field === "question" && !value.trim()) {
+      newErrors.question = "问题不能为空";
+    } else {
+      delete newErrors[field];
+    }
+    setErrors(newErrors);
+  };
+
   return (
     <BlockStack gap="400">
-      <TextField
-        label="标题"
-        value={settings.title || ""}
-        onChange={(value) => onChange({ ...settings, title: value })}
-        autoComplete="off"
-      />
-      <TextField
-        label="问题"
-        value={settings.question || ""}
-        onChange={(value) => onChange({ ...settings, question: value })}
-        autoComplete="off"
-        helpText="例如：您是如何了解到我们的？"
-      />
-      <Checkbox
-        label="显示评分选项"
-        checked={settings.showRating !== false}
-        onChange={(checked) => onChange({ ...settings, showRating: checked })}
-      />
-      {settings.showRating !== false && (
-        <TextField
-          label="评分标签"
-          value={settings.ratingLabel || ""}
-          onChange={(value) => onChange({ ...settings, ratingLabel: value })}
-          autoComplete="off"
-        />
-      )}
-      <Divider />
-      <Text as="h4" variant="headingSm">
-        选项配置
-      </Text>
-      <Text as="p" variant="bodySm" tone="subdued">
-        来源选项（逗号分隔）
-      </Text>
-      <TextField
-        label="选项列表"
-        value={settings.sources?.map((s) => s.label).join(", ") || ""}
-        onChange={(value) => {
-          const labels = value.split(",").map((l) => l.trim()).filter(Boolean);
-          onChange({
-            ...settings,
-            sources: labels.map((label, i) => ({
-              id: `option_${i}`,
-              label,
-            })),
-          });
-        }}
-        autoComplete="off"
-        multiline={2}
-      />
+      <FormLayout>
+        <FormLayout.Group>
+          <TextField
+            label="标题"
+            value={settings.title || ""}
+            onChange={(value) => {
+              onChange({ ...settings, title: value });
+              validateField("title", value);
+            }}
+            onBlur={() => validateField("title", settings.title || "")}
+            error={errors.title}
+            autoComplete="off"
+            helpText="显示在问卷顶部的标题文字"
+            placeholder="我们想听听您的意见"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="问题"
+            value={settings.question || ""}
+            onChange={(value) => {
+              onChange({ ...settings, question: value });
+              validateField("question", value);
+            }}
+            onBlur={() => validateField("question", settings.question || "")}
+            error={errors.question}
+            autoComplete="off"
+            helpText="例如：您是如何了解到我们的？"
+            placeholder="您是如何了解到我们的？"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <Checkbox
+            label="显示评分选项"
+            checked={settings.showRating !== false}
+            onChange={(checked) => onChange({ ...settings, showRating: checked })}
+            helpText="允许客户对购物体验进行评分（1-5 星）"
+          />
+        </FormLayout.Group>
+
+        {settings.showRating !== false && (
+          <FormLayout.Group>
+            <TextField
+              label="评分标签"
+              value={settings.ratingLabel || ""}
+              onChange={(value) => onChange({ ...settings, ratingLabel: value })}
+              autoComplete="off"
+              helpText="评分选项的提示文字"
+              placeholder="请为本次购物体验打分"
+            />
+          </FormLayout.Group>
+        )}
+
+        <Divider />
+
+        <FormLayout.Group>
+          <BlockStack gap="200">
+            <Text as="h4" variant="headingSm">
+              选项配置
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              来源选项（用逗号分隔多个选项）
+            </Text>
+            <TextField
+              label="选项列表"
+              value={settings.sources?.map((s) => s.label).join(", ") || ""}
+              onChange={(value) => {
+                const labels = value.split(",").map((l) => l.trim()).filter(Boolean);
+                onChange({
+                  ...settings,
+                  sources: labels.map((label, i) => ({
+                    id: `option_${i}`,
+                    label,
+                  })),
+                });
+              }}
+              autoComplete="off"
+              multiline={2}
+              helpText="示例：搜索引擎, 社交媒体, 朋友推荐, 广告, 其他"
+              placeholder="搜索引擎, 社交媒体, 朋友推荐"
+            />
+          </BlockStack>
+        </FormLayout.Group>
+      </FormLayout>
     </BlockStack>
   );
 }
@@ -353,61 +434,148 @@ function HelpdeskSettingsForm({
   settings: HelpdeskSettings;
   onChange: (settings: HelpdeskSettings) => void;
 }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateEmail = (email: string) => {
+    if (!email) return undefined;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email) ? undefined : "请输入有效的邮箱地址";
+  };
+
+  const validateUrl = (url: string) => {
+    if (!url) return undefined;
+    if (!url.startsWith("/") && !url.startsWith("http")) {
+      return "链接应以 / 开头（相对路径）或 http/https 开头（绝对路径）";
+    }
+    return undefined;
+  };
+
   return (
     <BlockStack gap="400">
-      <TextField
-        label="标题"
-        value={settings.title || ""}
-        onChange={(value) => onChange({ ...settings, title: value })}
-        autoComplete="off"
-      />
-      <TextField
-        label="描述"
-        value={settings.description || ""}
-        onChange={(value) => onChange({ ...settings, description: value })}
-        autoComplete="off"
-        multiline={2}
-      />
-      <Divider />
-      <Text as="h4" variant="headingSm">
-        链接配置
-      </Text>
-      <TextField
-        label="FAQ 链接"
-        value={settings.faqUrl || ""}
-        onChange={(value) => onChange({ ...settings, faqUrl: value })}
-        autoComplete="off"
-        placeholder="/pages/faq"
-      />
-      <TextField
-        label="联系邮箱"
-        type="email"
-        value={settings.contactEmail || ""}
-        onChange={(value) => onChange({ ...settings, contactEmail: value })}
-        autoComplete="off"
-        placeholder="support@example.com"
-      />
-      <TextField
-        label="联系页面链接"
-        value={settings.contactUrl || ""}
-        onChange={(value) => onChange({ ...settings, contactUrl: value })}
-        autoComplete="off"
-        placeholder="/pages/contact"
-      />
-      <TextField
-        label="WhatsApp 号码"
-        value={settings.whatsappNumber || ""}
-        onChange={(value) => onChange({ ...settings, whatsappNumber: value })}
-        autoComplete="off"
-        placeholder="+8613800138000"
-      />
-      <TextField
-        label="继续购物链接"
-        value={settings.continueShoppingUrl || ""}
-        onChange={(value) => onChange({ ...settings, continueShoppingUrl: value })}
-        autoComplete="off"
-        placeholder="/"
-      />
+      <FormLayout>
+        <FormLayout.Group>
+          <TextField
+            label="标题"
+            value={settings.title || ""}
+            onChange={(value) => onChange({ ...settings, title: value })}
+            autoComplete="off"
+            helpText="帮助中心的标题"
+            placeholder="订单帮助与售后"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="描述"
+            value={settings.description || ""}
+            onChange={(value) => onChange({ ...settings, description: value })}
+            autoComplete="off"
+            multiline={2}
+            helpText="帮助中心的描述文字"
+            placeholder="如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。"
+          />
+        </FormLayout.Group>
+
+        <Divider />
+
+        <FormLayout.Group>
+          <Text as="h4" variant="headingSm">
+            链接配置
+          </Text>
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="FAQ 链接"
+            value={settings.faqUrl || ""}
+            onChange={(value) => {
+              onChange({ ...settings, faqUrl: value });
+              const error = validateUrl(value);
+              setErrors({ ...errors, faqUrl: error });
+            }}
+            onBlur={() => {
+              const error = validateUrl(settings.faqUrl || "");
+              setErrors({ ...errors, faqUrl: error });
+            }}
+            error={errors.faqUrl}
+            autoComplete="off"
+            placeholder="/pages/faq"
+            helpText="常见问题页面链接（相对路径或绝对路径）"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="联系邮箱"
+            type="email"
+            value={settings.contactEmail || ""}
+            onChange={(value) => {
+              onChange({ ...settings, contactEmail: value });
+              const error = validateEmail(value);
+              setErrors({ ...errors, contactEmail: error });
+            }}
+            onBlur={() => {
+              const error = validateEmail(settings.contactEmail || "");
+              setErrors({ ...errors, contactEmail: error });
+            }}
+            error={errors.contactEmail}
+            autoComplete="off"
+            placeholder="support@example.com"
+            helpText="客服邮箱地址"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="联系页面链接"
+            value={settings.contactUrl || ""}
+            onChange={(value) => {
+              onChange({ ...settings, contactUrl: value });
+              const error = validateUrl(value);
+              setErrors({ ...errors, contactUrl: error });
+            }}
+            onBlur={() => {
+              const error = validateUrl(settings.contactUrl || "");
+              setErrors({ ...errors, contactUrl: error });
+            }}
+            error={errors.contactUrl}
+            autoComplete="off"
+            placeholder="/pages/contact"
+            helpText="联系页面链接"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="WhatsApp 号码"
+            value={settings.whatsappNumber || ""}
+            onChange={(value) => onChange({ ...settings, whatsappNumber: value })}
+            autoComplete="off"
+            placeholder="+8613800138000"
+            helpText="WhatsApp 联系号码（包含国家代码）"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="继续购物链接"
+            value={settings.continueShoppingUrl || ""}
+            onChange={(value) => {
+              onChange({ ...settings, continueShoppingUrl: value });
+              const error = validateUrl(value);
+              setErrors({ ...errors, continueShoppingUrl: error });
+            }}
+            onBlur={() => {
+              const error = validateUrl(settings.continueShoppingUrl || "");
+              setErrors({ ...errors, continueShoppingUrl: error });
+            }}
+            error={errors.continueShoppingUrl}
+            autoComplete="off"
+            placeholder="/"
+            helpText="继续购物按钮的链接地址"
+          />
+        </FormLayout.Group>
+      </FormLayout>
     </BlockStack>
   );
 }
@@ -421,42 +589,66 @@ function ReorderSettingsForm({
 }) {
   return (
     <BlockStack gap="400">
-      <TextField
-        label="标题"
-        value={settings.title || ""}
-        onChange={(value) => onChange({ ...settings, title: value })}
-        autoComplete="off"
-      />
-      <TextField
-        label="副标题"
-        value={settings.subtitle || ""}
-        onChange={(value) => onChange({ ...settings, subtitle: value })}
-        autoComplete="off"
-      />
-      <TextField
-        label="按钮文字"
-        value={settings.buttonText || ""}
-        onChange={(value) => onChange({ ...settings, buttonText: value })}
-        autoComplete="off"
-      />
-      <Checkbox
-        label="显示商品列表"
-        checked={settings.showItems !== false}
-        onChange={(checked) => onChange({ ...settings, showItems: checked })}
-      />
-      {settings.showItems !== false && (
-        <Select
-          label="最多显示商品数"
-          options={[
-            { label: "1 件", value: "1" },
-            { label: "2 件", value: "2" },
-            { label: "3 件", value: "3" },
-            { label: "5 件", value: "5" },
-          ]}
-          value={String(settings.maxItemsToShow || 3)}
-          onChange={(value) => onChange({ ...settings, maxItemsToShow: parseInt(value) })}
-        />
-      )}
+      <FormLayout>
+        <FormLayout.Group>
+          <TextField
+            label="标题"
+            value={settings.title || ""}
+            onChange={(value) => onChange({ ...settings, title: value })}
+            autoComplete="off"
+            helpText="再购模块的主标题"
+            placeholder="📦 再次购买"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="副标题"
+            value={settings.subtitle || ""}
+            onChange={(value) => onChange({ ...settings, subtitle: value })}
+            autoComplete="off"
+            helpText="副标题或描述文字"
+            placeholder="喜欢这次购物？一键再次订购相同商品"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="按钮文字"
+            value={settings.buttonText || ""}
+            onChange={(value) => onChange({ ...settings, buttonText: value })}
+            autoComplete="off"
+            helpText="再购按钮上显示的文字"
+            placeholder="再次购买 →"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <Checkbox
+            label="显示商品列表"
+            checked={settings.showItems !== false}
+            onChange={(checked) => onChange({ ...settings, showItems: checked })}
+            helpText="是否在再购模块中显示商品列表"
+          />
+        </FormLayout.Group>
+
+        {settings.showItems !== false && (
+          <FormLayout.Group>
+            <Select
+              label="最多显示商品数"
+              options={[
+                { label: "1 件", value: "1" },
+                { label: "2 件", value: "2" },
+                { label: "3 件", value: "3" },
+                { label: "5 件", value: "5" },
+              ]}
+              value={String(settings.maxItemsToShow || 3)}
+              onChange={(value) => onChange({ ...settings, maxItemsToShow: parseInt(value) })}
+              helpText="当订单包含多个商品时，最多显示的商品数量"
+            />
+          </FormLayout.Group>
+        )}
+      </FormLayout>
     </BlockStack>
   );
 }
@@ -468,39 +660,76 @@ function OrderTrackingSettingsForm({
   settings: OrderTrackingSettings;
   onChange: (settings: OrderTrackingSettings) => void;
 }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   return (
     <BlockStack gap="400">
-      <TextField
-        label="标题"
-        value={settings.title || ""}
-        onChange={(value) => onChange({ ...settings, title: value })}
-        autoComplete="off"
-      />
-      <Select
-        label="物流追踪服务商"
-        options={[
-          { label: "Shopify 原生", value: "native" },
-          { label: "AfterShip", value: "aftership" },
-          { label: "17Track", value: "17track" },
-        ]}
-        value={settings.provider || "native"}
-        onChange={(value) => onChange({ ...settings, provider: value as "native" | "aftership" | "17track" })}
-      />
-      {settings.provider && settings.provider !== "native" && (
-        <TextField
-          label="API Key"
-          type="password"
-          value={settings.apiKey || ""}
-          onChange={(value) => onChange({ ...settings, apiKey: value })}
-          autoComplete="off"
-          helpText="输入服务商提供的 API Key"
-        />
-      )}
-      <Checkbox
-        label="显示预计送达时间"
-        checked={settings.showEstimatedDelivery !== false}
-        onChange={(checked) => onChange({ ...settings, showEstimatedDelivery: checked })}
-      />
+      <FormLayout>
+        <FormLayout.Group>
+          <TextField
+            label="标题"
+            value={settings.title || ""}
+            onChange={(value) => onChange({ ...settings, title: value })}
+            autoComplete="off"
+            helpText="物流追踪模块的标题"
+            placeholder="物流追踪"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <Select
+            label="物流追踪服务商"
+            options={[
+              { label: "Shopify 原生", value: "native" },
+              { label: "AfterShip", value: "aftership" },
+              { label: "17Track", value: "17track" },
+            ]}
+            value={settings.provider || "native"}
+            onChange={(value) => onChange({ ...settings, provider: value as "native" | "aftership" | "17track" })}
+            helpText="选择物流追踪服务提供商。Shopify 原生无需配置，其他服务商需要 API Key"
+          />
+        </FormLayout.Group>
+
+        {settings.provider && settings.provider !== "native" && (
+          <FormLayout.Group>
+            <TextField
+              label="API Key"
+              type="password"
+              value={settings.apiKey || ""}
+              onChange={(value) => {
+                onChange({ ...settings, apiKey: value });
+                if (!value.trim() && settings.provider !== "native") {
+                  setErrors({ ...errors, apiKey: "API Key 不能为空" });
+                } else {
+                  delete errors.apiKey;
+                  setErrors({ ...errors });
+                }
+              }}
+              onBlur={() => {
+                if (!settings.apiKey?.trim() && settings.provider !== "native") {
+                  setErrors({ ...errors, apiKey: "API Key 不能为空" });
+                } else {
+                  delete errors.apiKey;
+                  setErrors({ ...errors });
+                }
+              }}
+              error={errors.apiKey}
+              autoComplete="off"
+              helpText={`输入 ${settings.provider === "aftership" ? "AfterShip" : "17Track"} 服务商提供的 API Key`}
+              placeholder="输入 API Key"
+            />
+          </FormLayout.Group>
+        )}
+
+        <FormLayout.Group>
+          <Checkbox
+            label="显示预计送达时间"
+            checked={settings.showEstimatedDelivery !== false}
+            onChange={(checked) => onChange({ ...settings, showEstimatedDelivery: checked })}
+            helpText="是否在物流追踪中显示预计送达时间"
+          />
+        </FormLayout.Group>
+      </FormLayout>
     </BlockStack>
   );
 }
@@ -512,38 +741,78 @@ function UpsellSettingsForm({
   settings: UpsellSettings;
   onChange: (settings: UpsellSettings) => void;
 }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateDiscountPercent = (value: string) => {
+    const num = parseInt(value);
+    if (value && (isNaN(num) || num < 0 || num > 100)) {
+      return "折扣百分比应在 0-100 之间";
+    }
+    return undefined;
+  };
+
   return (
     <BlockStack gap="400">
-      <TextField
-        label="标题"
-        value={settings.title || ""}
-        onChange={(value) => onChange({ ...settings, title: value })}
-        autoComplete="off"
-      />
-      <TextField
-        label="副标题"
-        value={settings.subtitle || ""}
-        onChange={(value) => onChange({ ...settings, subtitle: value })}
-        autoComplete="off"
-      />
-      <TextField
-        label="折扣码"
-        value={settings.discountCode || ""}
-        onChange={(value) => onChange({ ...settings, discountCode: value })}
-        autoComplete="off"
-        helpText="可选：为推荐商品提供专属折扣码"
-      />
-      <TextField
-        label="折扣百分比"
-        type="number"
-        value={String(settings.discountPercent || "")}
-        onChange={(value) => onChange({ ...settings, discountPercent: parseInt(value) || undefined })}
-        autoComplete="off"
-        suffix="%"
-      />
+      <FormLayout>
+        <FormLayout.Group>
+          <TextField
+            label="标题"
+            value={settings.title || ""}
+            onChange={(value) => onChange({ ...settings, title: value })}
+            autoComplete="off"
+            helpText="追加销售模块的标题"
+            placeholder="🎁 为您推荐"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="副标题"
+            value={settings.subtitle || ""}
+            onChange={(value) => onChange({ ...settings, subtitle: value })}
+            autoComplete="off"
+            helpText="副标题或描述文字"
+            placeholder="您可能还喜欢这些商品"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="折扣码"
+            value={settings.discountCode || ""}
+            onChange={(value) => onChange({ ...settings, discountCode: value })}
+            autoComplete="off"
+            helpText="可选：为推荐商品提供专属折扣码（需要在 Shopify 中创建该折扣码）"
+            placeholder="SUMMER10"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="折扣百分比"
+            type="number"
+            value={String(settings.discountPercent || "")}
+            onChange={(value) => {
+              onChange({ ...settings, discountPercent: parseInt(value) || undefined });
+              const error = validateDiscountPercent(value);
+              setErrors({ ...errors, discountPercent: error });
+            }}
+            onBlur={() => {
+              const error = validateDiscountPercent(String(settings.discountPercent || ""));
+              setErrors({ ...errors, discountPercent: error });
+            }}
+            error={errors.discountPercent}
+            autoComplete="off"
+            suffix="%"
+            helpText="折扣百分比（0-100），例如：10 表示 10% 折扣"
+            placeholder="10"
+          />
+        </FormLayout.Group>
+      </FormLayout>
+
       <Banner tone="info">
         <Text as="p" variant="bodySm">
-          产品配置需要在 Shopify Admin 的 Checkout Editor 中设置。
+          <strong>产品配置说明</strong>：推荐的商品需要在 Shopify Admin 的 Checkout Editor 中设置。
           此处仅控制展示样式和折扣信息。
         </Text>
       </Banner>
@@ -673,7 +942,7 @@ function LocalizationSettingsForm({
 }
 
 export default function UiBlocksPage() {
-  const { shop, modules, enabledCount, maxModules, planInfo } = useLoaderData<typeof loader>();
+  const { shop, shopDomain, modules, enabledCount, maxModules, planInfo, isDevStore, modulePreviewUrls } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -922,6 +1191,42 @@ export default function UiBlocksPage() {
       >
         <Modal.Section>
           {}
+          {editingModule && isDevStore && modulePreviewUrls[editingModule] && (
+            <Box paddingBlockEnd="400">
+              <Banner tone="info">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm">
+                    <strong>开发商店预览</strong>：您可以在以下页面预览此模块的效果
+                  </Text>
+                  <InlineStack gap="200" wrap>
+                    {modulePreviewUrls[editingModule].thank_you && (
+                      <Button
+                        url={modulePreviewUrls[editingModule].thank_you}
+                        external
+                        icon={ExternalIcon}
+                        size="slim"
+                      >
+                        预览 Thank You 页
+                      </Button>
+                    )}
+                    {modulePreviewUrls[editingModule].order_status && (
+                      <Button
+                        url={modulePreviewUrls[editingModule].order_status}
+                        external
+                        icon={ExternalIcon}
+                        size="slim"
+                      >
+                        预览订单状态页
+                      </Button>
+                    )}
+                  </InlineStack>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    💡 提示：Thank You 页面需要通过测试结账流程查看；订单状态页需要先创建测试订单。
+                  </Text>
+                </BlockStack>
+              </Banner>
+            </Box>
+          )}
           <Tabs
             tabs={[
               { id: "settings", content: "基础设置" },

@@ -1,0 +1,418 @@
+
+import prisma from "../../db.server";
+import { logger } from "../../utils/logger.server";
+
+export interface SuccessRateByDestination {
+  destination: string; // 平台名称
+  total: number;
+  successful: number;
+  failed: number;
+  successRate: number;
+  failureRate: number;
+  pending?: number;
+}
+
+export interface SuccessRateByEventType {
+  eventType: string;
+  total: number;
+  successful: number;
+  failed: number;
+  successRate: number;
+  failureRate: number;
+  pending?: number;
+}
+
+export interface SuccessRateByDestinationAndEventType {
+  destination: string;
+  eventType: string;
+  total: number;
+  successful: number;
+  failed: number;
+  successRate: number;
+  failureRate: number;
+}
+
+export interface EventSuccessRateStats {
+  overall: {
+    total: number;
+    successful: number;
+    failed: number;
+    pending?: number;
+    successRate: number;
+    failureRate: number;
+  };
+  byDestination: SuccessRateByDestination[];
+  byEventType: SuccessRateByEventType[];
+  byDestinationAndEventType: SuccessRateByDestinationAndEventType[];
+  period: {
+    start: Date;
+    end: Date;
+    hours: number;
+  };
+}
+
+export interface SuccessRateHistory {
+  date: string;
+  hour: number;
+  total: number;
+  successful: number;
+  failed: number;
+  successRate: number;
+  failureRate: number;
+}
+
+export interface SuccessRateTrend {
+  byDestination: Record<string, SuccessRateHistory[]>;
+  byEventType: Record<string, SuccessRateHistory[]>;
+  overall: SuccessRateHistory[];
+}
+
+/**
+ * 获取事件成功率/失败率统计（按目的地和事件类型）
+ */
+export async function getEventSuccessRateStats(
+  shopId: string,
+  hours: number = 24
+): Promise<EventSuccessRateStats> {
+  const since = new Date();
+  since.setHours(since.getHours() - hours);
+  const now = new Date();
+
+  const logs = await prisma.conversionLog.findMany({
+    where: {
+      shopId,
+      createdAt: { gte: since, lte: now },
+    },
+    select: {
+      platform: true,
+      eventType: true,
+      status: true,
+    },
+  });
+
+  // 总体统计
+  const total = logs.length;
+  const successful = logs.filter((l) => l.status === "sent").length;
+  const failed = logs.filter((l) => l.status === "failed" || l.status === "dead_letter").length;
+  const pending = logs.filter((l) => l.status === "pending" || l.status === "queued").length;
+
+  const overall = {
+    total,
+    successful,
+    failed,
+    pending,
+    successRate: total > 0 ? (successful / total) * 100 : 0,
+    failureRate: total > 0 ? (failed / total) * 100 : 0,
+  };
+
+  // 按目的地统计
+  const destinationMap = new Map<string, { total: number; successful: number; failed: number; pending: number }>();
+  
+  logs.forEach((log) => {
+    const dest = log.platform;
+    if (!destinationMap.has(dest)) {
+      destinationMap.set(dest, { total: 0, successful: 0, failed: 0, pending: 0 });
+    }
+    const stats = destinationMap.get(dest)!;
+    stats.total++;
+    if (log.status === "sent") {
+      stats.successful++;
+    } else if (log.status === "failed" || log.status === "dead_letter") {
+      stats.failed++;
+    } else {
+      stats.pending++;
+    }
+  });
+
+  const byDestination: SuccessRateByDestination[] = Array.from(destinationMap.entries()).map(([destination, stats]) => ({
+    destination,
+    total: stats.total,
+    successful: stats.successful,
+    failed: stats.failed,
+    pending: stats.pending,
+    successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+    failureRate: stats.total > 0 ? (stats.failed / stats.total) * 100 : 0,
+  })).sort((a, b) => b.total - a.total);
+
+  // 按事件类型统计
+  const eventTypeMap = new Map<string, { total: number; successful: number; failed: number; pending: number }>();
+  
+  logs.forEach((log) => {
+    const eventType = log.eventType;
+    if (!eventTypeMap.has(eventType)) {
+      eventTypeMap.set(eventType, { total: 0, successful: 0, failed: 0, pending: 0 });
+    }
+    const stats = eventTypeMap.get(eventType)!;
+    stats.total++;
+    if (log.status === "sent") {
+      stats.successful++;
+    } else if (log.status === "failed" || log.status === "dead_letter") {
+      stats.failed++;
+    } else {
+      stats.pending++;
+    }
+  });
+
+  const byEventType: SuccessRateByEventType[] = Array.from(eventTypeMap.entries()).map(([eventType, stats]) => ({
+    eventType,
+    total: stats.total,
+    successful: stats.successful,
+    failed: stats.failed,
+    pending: stats.pending,
+    successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+    failureRate: stats.total > 0 ? (stats.failed / stats.total) * 100 : 0,
+  })).sort((a, b) => b.total - a.total);
+
+  // 按目的地和事件类型组合统计
+  const destinationEventTypeMap = new Map<string, { total: number; successful: number; failed: number }>();
+  
+  logs.forEach((log) => {
+    const key = `${log.platform}:${log.eventType}`;
+    if (!destinationEventTypeMap.has(key)) {
+      destinationEventTypeMap.set(key, { total: 0, successful: 0, failed: 0 });
+    }
+    const stats = destinationEventTypeMap.get(key)!;
+    stats.total++;
+    if (log.status === "sent") {
+      stats.successful++;
+    } else if (log.status === "failed" || log.status === "dead_letter") {
+      stats.failed++;
+    }
+  });
+
+  const byDestinationAndEventType: SuccessRateByDestinationAndEventType[] = Array.from(destinationEventTypeMap.entries()).map(([key, stats]) => {
+    const [destination, eventType] = key.split(":");
+    return {
+      destination,
+      eventType,
+      total: stats.total,
+      successful: stats.successful,
+      failed: stats.failed,
+      successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+      failureRate: stats.total > 0 ? (stats.failed / stats.total) * 100 : 0,
+    };
+  }).sort((a, b) => b.total - a.total);
+
+  return {
+    overall,
+    byDestination,
+    byEventType,
+    byDestinationAndEventType,
+    period: {
+      start: since,
+      end: now,
+      hours,
+    },
+  };
+}
+
+/**
+ * 获取成功率历史趋势数据（按小时）
+ */
+export async function getEventSuccessRateHistory(
+  shopId: string,
+  hours: number = 24
+): Promise<SuccessRateTrend> {
+  const since = new Date();
+  since.setHours(since.getHours() - hours);
+  const now = new Date();
+
+  const logs = await prisma.conversionLog.findMany({
+    where: {
+      shopId,
+      createdAt: { gte: since, lte: now },
+    },
+    select: {
+      platform: true,
+      eventType: true,
+      status: true,
+      createdAt: true,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  // 按小时分组
+  const hourMap = new Map<string, { total: number; successful: number; failed: number }>();
+  const destinationHourMap = new Map<string, Map<string, { total: number; successful: number; failed: number }>>();
+  const eventTypeHourMap = new Map<string, Map<string, { total: number; successful: number; failed: number }>>();
+
+  logs.forEach((log) => {
+    const date = new Date(log.createdAt);
+    const dateStr = date.toISOString().split("T")[0];
+    const hour = date.getHours();
+    const hourKey = `${dateStr}:${hour}`;
+
+    // 总体统计
+    if (!hourMap.has(hourKey)) {
+      hourMap.set(hourKey, { total: 0, successful: 0, failed: 0 });
+    }
+    const overallStats = hourMap.get(hourKey)!;
+    overallStats.total++;
+    if (log.status === "sent") {
+      overallStats.successful++;
+    } else if (log.status === "failed" || log.status === "dead_letter") {
+      overallStats.failed++;
+    }
+
+    // 按目的地统计
+    const destination = log.platform;
+    if (!destinationHourMap.has(destination)) {
+      destinationHourMap.set(destination, new Map());
+    }
+    const destHourMap = destinationHourMap.get(destination)!;
+    if (!destHourMap.has(hourKey)) {
+      destHourMap.set(hourKey, { total: 0, successful: 0, failed: 0 });
+    }
+    const destStats = destHourMap.get(hourKey)!;
+    destStats.total++;
+    if (log.status === "sent") {
+      destStats.successful++;
+    } else if (log.status === "failed" || log.status === "dead_letter") {
+      destStats.failed++;
+    }
+
+    // 按事件类型统计
+    const eventType = log.eventType;
+    if (!eventTypeHourMap.has(eventType)) {
+      eventTypeHourMap.set(eventType, new Map());
+    }
+    const eventHourMap = eventTypeHourMap.get(eventType)!;
+    if (!eventHourMap.has(hourKey)) {
+      eventHourMap.set(hourKey, { total: 0, successful: 0, failed: 0 });
+    }
+    const eventStats = eventHourMap.get(hourKey)!;
+    eventStats.total++;
+    if (log.status === "sent") {
+      eventStats.successful++;
+    } else if (log.status === "failed" || log.status === "dead_letter") {
+      eventStats.failed++;
+    }
+  });
+
+  // 转换为数组格式
+  const overall: SuccessRateHistory[] = Array.from(hourMap.entries()).map(([key, stats]) => {
+    const [date, hourStr] = key.split(":");
+    return {
+      date,
+      hour: parseInt(hourStr, 10),
+      total: stats.total,
+      successful: stats.successful,
+      failed: stats.failed,
+      successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+      failureRate: stats.total > 0 ? (stats.failed / stats.total) * 100 : 0,
+    };
+  }).sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return a.hour - b.hour;
+  });
+
+  const byDestination: Record<string, SuccessRateHistory[]> = {};
+  destinationHourMap.forEach((hourMap, destination) => {
+    byDestination[destination] = Array.from(hourMap.entries()).map(([key, stats]) => {
+      const [date, hourStr] = key.split(":");
+      return {
+        date,
+        hour: parseInt(hourStr, 10),
+        total: stats.total,
+        successful: stats.successful,
+        failed: stats.failed,
+        successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+        failureRate: stats.total > 0 ? (stats.failed / stats.total) * 100 : 0,
+      };
+    }).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.hour - b.hour;
+    });
+  });
+
+  const byEventType: Record<string, SuccessRateHistory[]> = {};
+  eventTypeHourMap.forEach((hourMap, eventType) => {
+    byEventType[eventType] = Array.from(hourMap.entries()).map(([key, stats]) => {
+      const [date, hourStr] = key.split(":");
+      return {
+        date,
+        hour: parseInt(hourStr, 10),
+        total: stats.total,
+        successful: stats.successful,
+        failed: stats.failed,
+        successRate: stats.total > 0 ? (stats.successful / stats.total) * 100 : 0,
+        failureRate: stats.total > 0 ? (stats.failed / stats.total) * 100 : 0,
+      };
+    }).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.hour - b.hour;
+    });
+  });
+
+  return {
+    overall,
+    byDestination,
+    byEventType,
+  };
+}
+
+/**
+ * 获取成功率对比（不同时间段的对比）
+ */
+export async function compareSuccessRates(
+  shopId: string,
+  currentHours: number = 24,
+  previousHours: number = 24
+): Promise<{
+  current: EventSuccessRateStats;
+  previous: EventSuccessRateStats;
+  changes: {
+    overall: {
+      successRateChange: number;
+      failureRateChange: number;
+    };
+    byDestination: Record<string, { successRateChange: number; failureRateChange: number }>;
+    byEventType: Record<string, { successRateChange: number; failureRateChange: number }>;
+  };
+}> {
+  const [current, previous] = await Promise.all([
+    getEventSuccessRateStats(shopId, currentHours),
+    getEventSuccessRateStats(shopId, previousHours),
+  ]);
+
+  // 计算变化
+  const overallChange = {
+    successRateChange: current.overall.successRate - previous.overall.successRate,
+    failureRateChange: current.overall.failureRate - previous.overall.failureRate,
+  };
+
+  const byDestinationChanges: Record<string, { successRateChange: number; failureRateChange: number }> = {};
+  current.byDestination.forEach((currentStat) => {
+    const previousStat = previous.byDestination.find((p) => p.destination === currentStat.destination);
+    if (previousStat) {
+      byDestinationChanges[currentStat.destination] = {
+        successRateChange: currentStat.successRate - previousStat.successRate,
+        failureRateChange: currentStat.failureRate - previousStat.failureRate,
+      };
+    }
+  });
+
+  const byEventTypeChanges: Record<string, { successRateChange: number; failureRateChange: number }> = {};
+  current.byEventType.forEach((currentStat) => {
+    const previousStat = previous.byEventType.find((p) => p.eventType === currentStat.eventType);
+    if (previousStat) {
+      byEventTypeChanges[currentStat.eventType] = {
+        successRateChange: currentStat.successRate - previousStat.successRate,
+        failureRateChange: currentStat.failureRate - previousStat.failureRate,
+      };
+    }
+  });
+
+  return {
+    current,
+    previous,
+    changes: {
+      overall: overallChange,
+      byDestination: byDestinationChanges,
+      byEventType: byEventTypeChanges,
+    },
+  };
+}
+

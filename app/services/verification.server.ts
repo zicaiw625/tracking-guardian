@@ -110,6 +110,17 @@ export interface VerificationSummary {
       issue: string;
       type: "value_mismatch" | "currency_mismatch" | "missing" | "duplicate";
     }>;
+    localConsistency?: {
+      totalChecked: number;
+      consistent: number;
+      partial: number;
+      inconsistent: number;
+      issues: Array<{
+        orderId: string;
+        status: "consistent" | "partial" | "inconsistent";
+        issues: string[];
+      }>;
+    };
   };
 }
 
@@ -341,9 +352,55 @@ export async function analyzeRecentEvents(
       }
     }
 
+    // 执行本地一致性检查
+    const localConsistencyChecks: Array<{
+      orderId: string;
+      status: "consistent" | "partial" | "inconsistent";
+      issues: string[];
+    }> = [];
+
+    // 对前 10 个订单进行详细的一致性检查
+    const sampleOrderIds = orderIds.slice(0, 10);
+    for (const orderId of sampleOrderIds) {
+      try {
+        const { performChannelReconciliation } = await import("./enhanced-reconciliation.server");
+        const checks = await performChannelReconciliation(shopId, [orderId], admin);
+        if (checks.length > 0) {
+          const check = checks[0];
+          if (check.consistencyStatus !== "consistent" || check.issues.length > 0) {
+            localConsistencyChecks.push({
+              orderId: check.orderId,
+              status: check.consistencyStatus,
+              issues: check.issues,
+            });
+          }
+        }
+      } catch (error) {
+        logger.warn("Failed to perform local consistency check", { orderId, error });
+      }
+    }
+
+    // 将本地一致性检查结果添加到 consistencyIssues
+    localConsistencyChecks.forEach((check) => {
+      consistencyIssues.push({
+        orderId: check.orderId,
+        issue: check.issues.join("; "),
+        type: check.status === "inconsistent" ? "error" : "warning",
+      });
+    });
+
     reconciliation = {
       pixelVsCapi,
       consistencyIssues: consistencyIssues.length > 0 ? consistencyIssues : undefined,
+      localConsistency: localConsistencyChecks.length > 0
+        ? {
+            totalChecked: sampleOrderIds.length,
+            consistent: sampleOrderIds.length - localConsistencyChecks.length,
+            partial: localConsistencyChecks.filter((c) => c.status === "partial").length,
+            inconsistent: localConsistencyChecks.filter((c) => c.status === "inconsistent").length,
+            issues: localConsistencyChecks,
+          }
+        : undefined,
     };
   } catch (error) {
     logger.error("Failed to perform reconciliation during verification", { error, shopId, runId });

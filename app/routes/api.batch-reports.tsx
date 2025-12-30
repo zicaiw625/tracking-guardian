@@ -38,7 +38,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (actionType === "export_batch") {
     const reportType = (formData.get("reportType") as "verification" | "scan") || "verification";
-    const format = (formData.get("format") as "csv" | "json") || "csv";
+    const format = (formData.get("format") as "csv" | "json" | "pdf") || "pdf";
     const groupId = formData.get("groupId") as string;
 
     if (!groupId) {

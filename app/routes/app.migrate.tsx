@@ -7,6 +7,7 @@ import { useToastContext, EnhancedEmptyState, CardSkeleton } from "~/components/
 const PixelMigrationWizard = lazy(() => import("~/components/migrate/PixelMigrationWizard").then(module => ({ default: module.PixelMigrationWizard })));
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, Icon, ProgressBar, Link, List, } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, SettingsIcon, LockIcon, } from "~/components/icons";
+import { ConfigManagementCard } from "~/components/migrate/ConfigManagementCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade, upgradeWebPixelSettings, updateWebPixel } from "../services/migration.server";
@@ -134,6 +135,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const templates = await getWizardTemplates(shop.id);
 
+    // 加载向导草稿（如果存在）
+    const { loadWizardDraft } = await import("../services/migration-wizard.server");
+    const wizardDraft = await loadWizardDraft(shop.id);
+
+    // 加载像素配置（用于环境切换）
+    const pixelConfigs = await prisma.pixelConfig.findMany({
+        where: {
+            shopId: shop.id,
+            isActive: true,
+        },
+        select: {
+            id: true,
+            platform: true,
+            environment: true,
+            configVersion: true,
+            previousConfig: true,
+            rollbackAllowed: true,
+        },
+    });
+
     return json({
         shop: { id: shop.id, domain: shopDomain },
         shopTier,
@@ -158,6 +179,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         upgradeStatus,
         migrationUrgency,
         templates,
+        wizardDraft, // 添加草稿数据
+        pixelConfigs, // 添加像素配置数据
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -414,6 +437,111 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
+    // 保存向导草稿
+    if (actionType === "saveWizardDraft") {
+        const draftJson = formData.get("draft") as string;
+        if (!draftJson) {
+            return json({ success: false, error: "缺少草稿数据" }, { status: 400 });
+        }
+
+        try {
+            const draft = JSON.parse(draftJson);
+            const { saveWizardDraft } = await import("../services/migration-wizard.server");
+            const result = await saveWizardDraft(shop.id, draft);
+            return json(result);
+        } catch (error) {
+            logger.error("Failed to save wizard draft", error);
+            return json({
+                success: false,
+                error: error instanceof Error ? error.message : "保存草稿失败",
+            }, { status: 500 });
+        }
+    }
+
+    // 清除向导草稿
+    if (actionType === "clearWizardDraft") {
+        try {
+            const { clearWizardDraft } = await import("../services/migration-wizard.server");
+            const result = await clearWizardDraft(shop.id);
+            return json(result);
+        } catch (error) {
+            logger.error("Failed to clear wizard draft", error);
+            return json({ success: false }, { status: 500 });
+        }
+    }
+
+    // 环境切换
+    if (actionType === "switchEnvironment") {
+        const platform = formData.get("platform") as string;
+        const environment = formData.get("environment") as "test" | "live";
+
+        if (!platform || !environment) {
+            return json({ success: false, error: "缺少必要参数" }, { status: 400 });
+        }
+
+        try {
+            const { switchEnvironment } = await import("../services/pixel-rollback.server");
+            const result = await switchEnvironment(shop.id, platform, environment);
+
+            if (result.success) {
+                logger.info(`[Migration] Switched environment for ${platform} to ${environment}`, {
+                    shopId: shop.id,
+                    platform,
+                    environment,
+                });
+            }
+
+            return json({
+                success: result.success,
+                message: result.message,
+                previousEnvironment: result.previousEnvironment,
+                newEnvironment: result.newEnvironment,
+            });
+        } catch (error) {
+            logger.error("Failed to switch environment", error);
+            return json({
+                success: false,
+                error: error instanceof Error ? error.message : "环境切换失败",
+            }, { status: 500 });
+        }
+    }
+
+    // 配置回滚
+    if (actionType === "rollbackConfig") {
+        const platform = formData.get("platform") as string;
+
+        if (!platform) {
+            return json({ success: false, error: "缺少平台参数" }, { status: 400 });
+        }
+
+        try {
+            const { rollbackConfig } = await import("../services/pixel-rollback.server");
+            const result = await rollbackConfig(shop.id, platform);
+
+            if (result.success) {
+                logger.info(`[Migration] Rolled back config for ${platform}`, {
+                    shopId: shop.id,
+                    platform,
+                    previousVersion: result.previousVersion,
+                    currentVersion: result.currentVersion,
+                });
+            }
+
+            return json({
+                success: result.success,
+                message: result.message,
+                previousVersion: result.previousVersion,
+                currentVersion: result.currentVersion,
+            });
+        } catch (error) {
+            logger.error("Failed to rollback config", error);
+            return json({
+                success: false,
+                error: error instanceof Error ? error.message : "回滚失败",
+            }, { status: 500 });
+        }
+    }
+
     return json({ error: "Unknown action" }, { status: 400 });
 };
 
@@ -429,7 +557,7 @@ interface TimelineItem {
     description: string;
 }
 export default function MigratePage() {
-    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, planId, planLabel, planTagline, templates, } = useLoaderData<typeof loader>();
+    const { shop, pixelStatus, hasCapiConfig, latestScan, needsSettingsUpgrade, typOspStatus, hasRequiredScopes, deadlines, upgradeStatus, migrationUrgency, shopTier, planId, planLabel, planTagline, templates, wizardDraft, pixelConfigs, } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -517,10 +645,14 @@ export default function MigratePage() {
     };
 
     const handleWizardComplete = () => {
-
         revalidator.revalidate();
         setShowWizard(false);
         setCurrentStep("complete");
+        
+        // 自动跳转到验收页面
+        setTimeout(() => {
+            window.location.href = "/app/verification";
+        }, 1000);
     };
     const steps = [
         { id: "typOsp", label: "升级 Checkout", number: 1 },
@@ -976,6 +1108,7 @@ export default function MigratePage() {
                       )}
                       canManageMultiple={isAgency}
                       templates={templates}
+                      wizardDraft={wizardDraft}
                     />
                   </Suspense>
                 )}
@@ -1045,6 +1178,12 @@ export default function MigratePage() {
           </Layout.Section>
 
           <Layout.Section variant="oneThird">
+            {pixelConfigs && pixelConfigs.length > 0 && (
+              <ConfigManagementCard
+                pixelConfigs={pixelConfigs}
+                shopId={shop?.id || ""}
+              />
+            )}
             <Card>
               <BlockStack gap="400">
                 <InlineStack gap="200" blockAlign="center">

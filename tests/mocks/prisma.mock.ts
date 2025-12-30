@@ -19,6 +19,10 @@ export interface MockPrismaClient {
   session: MockModel;
   surveyResponse: MockModel;
   gDPRJob: MockModel;
+  auditAsset: MockModel;
+  verificationRun: MockModel;
+  shopGroup: MockModel;
+  pixelTemplate: MockModel;
   $transaction: Mock;
   $connect: Mock;
   $disconnect: Mock;
@@ -75,6 +79,10 @@ export function createMockPrismaClient(): MockPrismaClient {
     session: createMockModel(),
     surveyResponse: createMockModel(),
     gDPRJob: createMockModel(),
+    auditAsset: createMockModel(),
+    verificationRun: createMockModel(),
+    shopGroup: createMockModel(),
+    pixelTemplate: createMockModel(),
     $transaction: vi.fn((fn) => fn(createMockPrismaClient())),
     $connect: vi.fn(),
     $disconnect: vi.fn(),

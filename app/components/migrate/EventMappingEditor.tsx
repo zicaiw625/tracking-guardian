@@ -1,6 +1,5 @@
 
-
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import {
   Card,
   Text,
@@ -18,11 +17,16 @@ import {
   Icon,
   Checkbox,
   ButtonGroup,
+  Collapsible,
+  Popover,
+  ActionList,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
   AlertCircleIcon,
   InfoIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
 } from "~/components/icons";
 
 type Platform = "google" | "meta" | "tiktok" | "pinterest";
@@ -243,6 +247,10 @@ export function EventMappingEditor({
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [bulkMappingValue, setBulkMappingValue] = useState<string>("");
   const [showComparison, setShowComparison] = useState<boolean>(false);
+  const [showPreview, setShowPreview] = useState<Record<string, boolean>>({});
+  const [eventOrder, setEventOrder] = useState<string[]>(() => 
+    SHOPIFY_EVENTS.map(e => e.id)
+  );
   const platformEvents = PLATFORM_EVENTS[platform];
 
   const validateMapping = useCallback(
@@ -325,6 +333,71 @@ export function EventMappingEditor({
     [platform, validateMapping]
   );
 
+  // 生成事件预览 JSON
+  const generateEventPreview = useCallback(
+    (shopifyEventId: string, platformEventId: string) => {
+      const shopifyEvent = SHOPIFY_EVENTS.find(e => e.id === shopifyEventId);
+      const platformEvent = platformEvents.find(e => e.id === platformEventId);
+      
+      if (!shopifyEvent || !platformEvent) return null;
+
+      const preview: Record<string, any> = {
+        event_name: platformEventId,
+        event_time: Math.floor(Date.now() / 1000),
+        event_id: "preview_event_id_" + Date.now(),
+      };
+
+      // 添加必需的参数
+      platformEvent.requiredParams.forEach(param => {
+        if (shopifyEvent.availableParams.includes(param)) {
+          preview[param] = param === "value" ? "99.99" : param === "currency" ? "USD" : param === "items" ? [] : "sample_value";
+        }
+      });
+
+      // 添加可选参数
+      platformEvent.optionalParams.forEach(param => {
+        if (shopifyEvent.availableParams.includes(param)) {
+          preview[param] = param === "items" || param === "contents" || param === "line_items" ? [] : "sample_value";
+        }
+      });
+
+      return preview;
+    },
+    [platformEvents]
+  );
+
+  // 事件排序功能
+  const moveEventUp = useCallback((eventId: string) => {
+    const currentIndex = eventOrder.indexOf(eventId);
+    if (currentIndex <= 0) return;
+    
+    const newOrder = [...eventOrder];
+    [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
+    setEventOrder(newOrder);
+  }, [eventOrder]);
+
+  const moveEventDown = useCallback((eventId: string) => {
+    const currentIndex = eventOrder.indexOf(eventId);
+    if (currentIndex >= eventOrder.length - 1) return;
+    
+    const newOrder = [...eventOrder];
+    [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
+    setEventOrder(newOrder);
+  }, [eventOrder]);
+
+  // 按顺序获取事件
+  const orderedEvents = useMemo(() => {
+    const eventMap = new Map(SHOPIFY_EVENTS.map(e => [e.id, e]));
+    return eventOrder.map(id => eventMap.get(id)).filter(Boolean) as ShopifyEvent[];
+  }, [eventOrder]);
+
+  const togglePreview = useCallback((eventId: string) => {
+    setShowPreview(prev => ({
+      ...prev,
+      [eventId]: !prev[eventId],
+    }));
+  }, []);
+
   return (
     <Card>
       <BlockStack gap="400">
@@ -336,8 +409,42 @@ export function EventMappingEditor({
             <Button size="slim" variant="plain" onClick={() => setShowComparison(!showComparison)}>
               {showComparison ? "隐藏对比" : "显示对比视图"}
             </Button>
-            <Button size="slim" onClick={applyRecommended}>
-              应用推荐映射
+            <Popover
+              activator={
+                <Button size="slim" variant="plain">
+                  📋 映射模板
+                </Button>
+              }
+            >
+              <ActionList
+                items={[
+                  {
+                    content: "推荐映射（默认）",
+                    onAction: applyRecommended,
+                  },
+                  {
+                    content: "仅购买事件",
+                    onAction: () => {
+                      const purchaseMapping = RECOMMENDED_MAPPINGS[platform];
+                      if (purchaseMapping.checkout_completed) {
+                        onMappingChange("checkout_completed", purchaseMapping.checkout_completed);
+                      }
+                    },
+                  },
+                  {
+                    content: "完整漏斗映射",
+                    onAction: () => {
+                      const recommended = RECOMMENDED_MAPPINGS[platform];
+                      Object.entries(recommended).forEach(([shopifyEvent, platformEvent]) => {
+                        onMappingChange(shopifyEvent, platformEvent);
+                      });
+                    },
+                  },
+                ]}
+              />
+            </Popover>
+            <Button size="slim" variant="primary" onClick={applyRecommended}>
+              ✨ 一键应用推荐映射
             </Button>
           </InlineStack>
         </InlineStack>
@@ -379,6 +486,28 @@ export function EventMappingEditor({
               将 Shopify 标准事件映射到 {PLATFORM_NAMES[platform]} 的事件名称。
               我们已为您配置了推荐映射，您也可以自定义。
             </Text>
+            <Box paddingBlockStart="200">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                最佳实践提示：
+              </Text>
+              <List type="bullet">
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    <strong>checkout_completed</strong> → <strong>{RECOMMENDED_MAPPINGS[platform].checkout_completed || "purchase"}</strong>：这是最重要的转化事件，确保正确映射
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    建议启用完整漏斗追踪：view_item → add_to_cart → checkout_started → checkout_completed
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    所有事件都会自动包含 value、currency、items 等参数，无需手动配置
+                  </Text>
+                </List.Item>
+              </List>
+            </Box>
           </BlockStack>
         </Banner>
 
@@ -437,13 +566,15 @@ export function EventMappingEditor({
             </InlineStack>
           </InlineStack>
           
-          {SHOPIFY_EVENTS.map((shopifyEvent) => {
+          {orderedEvents.map((shopifyEvent, index) => {
             const currentMapping = mappings[shopifyEvent.id] || "";
             const mappingStatus = currentMapping
               ? getMappingStatus(shopifyEvent.id, currentMapping)
               : null;
             const isSelected = selectedEvents.has(shopifyEvent.id);
             const recommendedMapping = RECOMMENDED_MAPPINGS[platform][shopifyEvent.id] || "";
+            const eventPreview = currentMapping ? generateEventPreview(shopifyEvent.id, currentMapping) : null;
+            const isPreviewOpen = showPreview[shopifyEvent.id];
 
             return (
               <Card key={shopifyEvent.id}>
@@ -455,6 +586,26 @@ export function EventMappingEditor({
                         checked={isSelected}
                         onChange={() => toggleEventSelection(shopifyEvent.id)}
                       />
+                      <InlineStack gap="100" blockAlign="center">
+                        <ButtonGroup segmented>
+                          <Button
+                            size="micro"
+                            variant="plain"
+                            icon={ArrowUpIcon}
+                            onClick={() => moveEventUp(shopifyEvent.id)}
+                            disabled={index === 0}
+                            accessibilityLabel="上移"
+                          />
+                          <Button
+                            size="micro"
+                            variant="plain"
+                            icon={ArrowDownIcon}
+                            onClick={() => moveEventDown(shopifyEvent.id)}
+                            disabled={index === orderedEvents.length - 1}
+                            accessibilityLabel="下移"
+                          />
+                        </ButtonGroup>
+                      </InlineStack>
                       <BlockStack gap="100">
                         <InlineStack gap="200" blockAlign="center">
                           <Text as="span" fontWeight="semibold">
@@ -482,19 +633,98 @@ export function EventMappingEditor({
                   </InlineStack>
 
                   <Box minWidth="100%">
-                    <Select
-                      label="映射到平台事件"
-                      options={[
-                        { label: "请选择事件", value: "" },
-                        ...platformEvents.map((event) => ({
-                          label: `${event.name} - ${event.description}`,
-                          value: event.id,
-                        })),
-                      ]}
-                      value={currentMapping}
-                      onChange={(value) => onMappingChange(shopifyEvent.id, value)}
-                    />
+                    <InlineStack gap="200" blockAlign="end">
+                      <Box minWidth="300">
+                        <Select
+                          label="映射到平台事件"
+                          options={[
+                            { label: "请选择事件", value: "" },
+                            ...platformEvents.map((event) => ({
+                              label: `${event.name} - ${event.description}`,
+                              value: event.id,
+                            })),
+                          ]}
+                          value={currentMapping}
+                          onChange={(value) => onMappingChange(shopifyEvent.id, value)}
+                        />
+                      </Box>
+                      {currentMapping && (
+                        <Button
+                          size="slim"
+                          variant="plain"
+                          onClick={() => togglePreview(shopifyEvent.id)}
+                        >
+                          {isPreviewOpen ? "隐藏预览" : "预览事件 JSON"}
+                        </Button>
+                      )}
+                    </InlineStack>
                   </Box>
+
+                  {currentMapping && isPreviewOpen && eventPreview && (
+                    <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                      <BlockStack gap="200">
+                        <Text as="span" variant="bodySm" fontWeight="semibold">
+                          平台事件预览（{PLATFORM_NAMES[platform]}）：
+                        </Text>
+                        <Box
+                          as="pre"
+                          padding="300"
+                          background="bg-surface"
+                          borderRadius="100"
+                          style={{
+                            fontSize: "12px",
+                            overflow: "auto",
+                            maxHeight: "300px",
+                          }}
+                        >
+                          {JSON.stringify(eventPreview, null, 2)}
+                        </Box>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          这是发送到 {PLATFORM_NAMES[platform]} 的事件格式预览。实际发送时会使用订单的真实数据。
+                        </Text>
+                        {/* 增强：显示事件参数映射详情 */}
+                        <Divider />
+                        <BlockStack gap="200">
+                          <Text as="span" variant="bodySm" fontWeight="semibold">
+                            参数映射详情：
+                          </Text>
+                          <BlockStack gap="100">
+                            {(() => {
+                              const platformEventDef = platformEvents.find((e) => e.id === currentMapping);
+                              if (!platformEventDef) return null;
+                              
+                              const mappedParams = platformEventDef.requiredParams
+                                .concat(platformEventDef.optionalParams)
+                                .filter(param => shopifyEvent.availableParams.includes(param));
+                              const missingParams = platformEventDef.requiredParams
+                                .filter(param => !shopifyEvent.availableParams.includes(param));
+                              
+                              return (
+                                <>
+                                  {mappedParams.length > 0 && (
+                                    <InlineStack gap="100" wrap>
+                                      <Text as="span" variant="bodySm" tone="subdued">已映射参数：</Text>
+                                      {mappedParams.map((param) => (
+                                        <Badge key={param} tone="success">{param}</Badge>
+                                      ))}
+                                    </InlineStack>
+                                  )}
+                                  {missingParams.length > 0 && (
+                                    <InlineStack gap="100" wrap>
+                                      <Text as="span" variant="bodySm" tone="subdued">缺失参数：</Text>
+                                      {missingParams.map((param) => (
+                                        <Badge key={param} tone="warning">{param}</Badge>
+                                      ))}
+                                    </InlineStack>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </BlockStack>
+                        </BlockStack>
+                      </BlockStack>
+                    </Box>
+                  )}
 
                   {mappingStatus?.status === "error" && mappingStatus.errors.length > 0 && (
                     <Banner tone="critical">

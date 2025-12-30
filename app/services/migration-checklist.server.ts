@@ -144,8 +144,10 @@ export async function generateMigrationChecklist(
   });
 
   const items: MigrationChecklistItem[] = assets.map((asset) => {
-    const priority = calculatePriority(asset, asset.category);
-    const estimatedTime = estimateMigrationTime(
+    // 优先使用数据库中的priority和estimatedTimeMinutes字段
+    // 如果没有，则使用fallback计算
+    const priority = asset.priority ?? calculatePriority(asset, asset.category);
+    const estimatedTime = asset.estimatedTimeMinutes ?? estimateMigrationTime(
       asset.category,
       asset.suggestedMigration,
       asset.platform || undefined
@@ -174,7 +176,15 @@ export async function generateMigrationChecklist(
     };
   });
 
-  items.sort((a, b) => b.priority - a.priority);
+  // 按优先级排序（高优先级在前）
+  items.sort((a, b) => {
+    if (b.priority !== a.priority) {
+      return b.priority - a.priority;
+    }
+    // 如果优先级相同，按风险等级排序
+    const riskOrder = { high: 3, medium: 2, low: 1 };
+    return riskOrder[b.riskLevel] - riskOrder[a.riskLevel];
+  });
 
   const highPriorityItems = items.filter((i) => i.riskLevel === "high").length;
   const mediumPriorityItems = items.filter((i) => i.riskLevel === "medium").length;

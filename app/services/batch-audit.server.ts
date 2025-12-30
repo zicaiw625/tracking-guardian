@@ -38,6 +38,15 @@ export interface BatchAuditSummary {
   mediumRiskCount: number;
   lowRiskCount: number;
   platformBreakdown: Record<string, number>;
+  // 增强：更多统计信息
+  totalAssetsFound?: number;
+  avgAssetsPerShop?: number;
+  shopsWithHighRisk?: number;
+  shopsWithMediumRisk?: number;
+  shopsWithLowRisk?: number;
+  migrationReadyCount?: number; // 可以开始迁移的店铺数量
+  topRiskCategories?: Array<{ category: string; count: number }>;
+  errorBreakdown?: Record<string, number>; // errorType -> count
 }
 
 export interface BatchAuditResult {
@@ -62,6 +71,21 @@ export interface BatchAuditJob {
   result?: BatchAuditResult;
   createdAt: Date;
   updatedAt: Date;
+  // 增强：详细进度跟踪
+  progressDetails?: {
+    total: number;
+    completed: number;
+    failed: number;
+    skipped: number;
+    current: string[]; // 正在处理的店铺ID列表
+    completedShops: string[]; // 已完成的店铺ID列表
+    failedShops: string[]; // 失败的店铺ID列表
+  };
+  // 增强：错误统计
+  errorSummary?: {
+    byType: Record<string, number>; // errorType -> count
+    recentErrors: Array<{ shopDomain: string; error: string; errorType: string }>;
+  };
 }
 
 const batchAuditJobs = new Map<string, BatchAuditJob>();
@@ -89,6 +113,19 @@ export async function startBatchAudit(
     progress: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
+    progressDetails: {
+      total: groupDetails.memberCount,
+      completed: 0,
+      failed: 0,
+      skipped: 0,
+      current: [],
+      completedShops: [],
+      failedShops: [],
+    },
+    errorSummary: {
+      byType: {},
+      recentErrors: [],
+    },
   };
   batchAuditJobs.set(jobId, job);
 
@@ -408,8 +445,20 @@ async function executeBatchAuditAsync(
   });
   const recentlyScannedIds = new Set(recentScans.map((s) => s.shopId));
 
+  // 更新进度详情：初始化当前处理的店铺列表
+  if (job.progressDetails) {
+    const firstBatch = groupDetails.members.slice(0, options.concurrency);
+    job.progressDetails.current = firstBatch.map((m) => m.shopId);
+  }
+
   for (let i = 0; i < groupDetails.members.length; i += options.concurrency) {
     const batch = groupDetails.members.slice(i, i + options.concurrency);
+
+    // 更新当前处理的店铺列表
+    if (job.progressDetails) {
+      job.progressDetails.current = batch.map((m) => m.shopId);
+    }
+    job.updatedAt = new Date();
 
     const batchResults = await Promise.allSettled(
       batch.map(async (member) => {
@@ -430,6 +479,35 @@ async function executeBatchAuditAsync(
     for (const result of batchResults) {
       if (result.status === "fulfilled") {
         results.push(result.value);
+        
+        // 更新进度详情
+        if (job.progressDetails) {
+          if (result.value.status === "success") {
+            job.progressDetails.completed++;
+            job.progressDetails.completedShops.push(result.value.shopId);
+          } else if (result.value.status === "failed") {
+            job.progressDetails.failed++;
+            job.progressDetails.failedShops.push(result.value.shopId);
+            
+            // 更新错误统计
+            if (job.errorSummary && result.value.errorType) {
+              job.errorSummary.byType[result.value.errorType] = 
+                (job.errorSummary.byType[result.value.errorType] || 0) + 1;
+              job.errorSummary.recentErrors.push({
+                shopDomain: result.value.shopDomain,
+                error: result.value.error || "未知错误",
+                errorType: result.value.errorType,
+              });
+              // 只保留最近20个错误
+              if (job.errorSummary.recentErrors.length > 20) {
+                job.errorSummary.recentErrors.shift();
+              }
+            }
+          } else if (result.value.status === "skipped") {
+            job.progressDetails.skipped++;
+          }
+        }
+
         if (result.value.status === "failed") {
           logger.error(`Batch audit failed for shop ${result.value.shopDomain} after ${result.value.attempts} attempts:`, {
             error: result.value.error,
@@ -441,7 +519,13 @@ async function executeBatchAuditAsync(
       }
     }
 
+    // 更新总体进度
     job.progress = Math.round((results.length / totalShops) * 100);
+    
+    // 清除当前处理的店铺列表（这批已完成）
+    if (job.progressDetails) {
+      job.progressDetails.current = [];
+    }
     job.updatedAt = new Date();
   }
 
@@ -496,12 +580,35 @@ function calculateSummary(results: ShopAuditResult[]): BatchAuditSummary {
     }
   }
 
+  // 增强：错误统计
+  const errorBreakdown: Record<string, number> = {};
+  for (const result of results) {
+    if (result.status === "failed" && result.errorType) {
+      errorBreakdown[result.errorType] = (errorBreakdown[result.errorType] || 0) + 1;
+    }
+  }
+
+  // 增强：统计店铺风险等级分布
+  const shopsWithHighRisk = successResults.filter((r) => (r.riskScore || 0) > 60).length;
+  const shopsWithMediumRisk = successResults.filter(
+    (r) => (r.riskScore || 0) > 30 && (r.riskScore || 0) <= 60
+  ).length;
+  const shopsWithLowRisk = successResults.filter((r) => (r.riskScore || 0) <= 30).length;
+
+  // 增强：计算可以开始迁移的店铺数量（高风险或中等风险的店铺）
+  const migrationReadyCount = highRiskCount + mediumRiskCount;
+
   return {
     avgRiskScore: Math.round(avgRiskScore * 10) / 10,
     highRiskCount,
     mediumRiskCount,
     lowRiskCount,
     platformBreakdown,
+    shopsWithHighRisk,
+    shopsWithMediumRisk,
+    shopsWithLowRisk,
+    migrationReadyCount,
+    errorBreakdown: Object.keys(errorBreakdown).length > 0 ? errorBreakdown : undefined,
   };
 }
 
@@ -521,5 +628,71 @@ export function cleanupOldJobs(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
   }
 
   return cleaned;
+}
+
+/**
+ * 获取批量Audit任务历史记录
+ */
+export function getBatchAuditHistory(limit: number = 20): BatchAuditJob[] {
+  return Array.from(batchAuditJobs.values())
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit);
+}
+
+/**
+ * 按分组ID获取批量Audit任务历史
+ */
+export function getBatchAuditHistoryByGroup(groupId: string, limit: number = 10): BatchAuditJob[] {
+  return Array.from(batchAuditJobs.values())
+    .filter((job) => job.groupId === groupId)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit);
+}
+
+/**
+ * 获取批量Audit结果统计（汇总所有任务）
+ */
+export function getBatchAuditStatistics(): {
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  runningJobs: number;
+  totalShopsScanned: number;
+  totalSuccess: number;
+  totalFailed: number;
+  totalSkipped: number;
+  avgSuccessRate: number;
+} {
+  const jobs = Array.from(batchAuditJobs.values());
+  const completedJobs = jobs.filter((j) => j.status === "completed" && j.result);
+  
+  let totalShopsScanned = 0;
+  let totalSuccess = 0;
+  let totalFailed = 0;
+  let totalSkipped = 0;
+
+  completedJobs.forEach((job) => {
+    if (job.result) {
+      totalShopsScanned += job.result.totalShops;
+      totalSuccess += job.result.completedShops;
+      totalFailed += job.result.failedShops;
+      totalSkipped += job.result.skippedShops;
+    }
+  });
+
+  const avgSuccessRate =
+    totalShopsScanned > 0 ? (totalSuccess / totalShopsScanned) * 100 : 0;
+
+  return {
+    totalJobs: jobs.length,
+    completedJobs: jobs.filter((j) => j.status === "completed").length,
+    failedJobs: jobs.filter((j) => j.status === "failed").length,
+    runningJobs: jobs.filter((j) => j.status === "running").length,
+    totalShopsScanned,
+    totalSuccess,
+    totalFailed,
+    totalSkipped,
+    avgSuccessRate: Math.round(avgSuccessRate * 100) / 100,
+  };
 }
 

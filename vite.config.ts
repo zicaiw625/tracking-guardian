@@ -57,9 +57,33 @@ export default defineConfig({
     tsconfigPaths(),
   ],
   build: {
-    assetsInlineLimit: 0,
+    assetsInlineLimit: 4096, // 小于 4KB 的资源内联
     rollupOptions: {
       external: ["html-pdf-node", "archiver"],
+      output: {
+        manualChunks: (id) => {
+          // 将 node_modules 中的大型库分离
+          if (id.includes("node_modules")) {
+            if (id.includes("@shopify")) {
+              return "vendor-shopify";
+            }
+            if (id.includes("react") || id.includes("react-dom")) {
+              return "vendor-react";
+            }
+            if (id.includes("chart.js") || id.includes("react-chartjs-2")) {
+              return "vendor-charts";
+            }
+            return "vendor";
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000, // 增加 chunk 大小警告限制
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: process.env.NODE_ENV === "production",
+      },
     },
   },
   ssr: {

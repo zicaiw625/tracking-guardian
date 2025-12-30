@@ -6,12 +6,14 @@ import prisma from "../../db.server";
 export interface PriorityScore {
   assetId: string;
   priority: number;
+  estimatedTimeMinutes: number;
   factors: {
     riskLevel: number;
     category: number;
     migrationStatus: number;
     dependency: number;
     complexity: number;
+    impactScope: number;
   };
   reason: string;
 }
@@ -153,12 +155,14 @@ export async function calculatePriority(
     return {
       assetId: asset.id,
       priority: 0,
+      estimatedTimeMinutes: 0,
       factors: {
         riskLevel: 0,
         category: 0,
         migrationStatus: 0,
         dependency: 0,
         complexity: 0,
+        impactScope: 0,
       },
       reason: "资产已迁移或已跳过",
     };
@@ -169,11 +173,24 @@ export async function calculatePriority(
   const migrationStatus = MIGRATION_STATUS_WEIGHTS[asset.migrationStatus] || 0;
   const complexity = calculateComplexity(asset);
   const dependency = await calculateDependencyScore(asset, allAssets);
+  const impactScope = calculateImpactScope(asset);
 
-  const priority = riskLevel + category + migrationStatus + dependency + (20 - complexity);
+  // 优化后的优先级算法：priority = riskScore * 0.4 + impactScore * 0.3 + (category + migrationStatus) * 0.2 + dependency * 0.1
+  // 复杂度作为负向因子（复杂度越高，优先级越低）
+  const priority = Math.round(
+    riskLevel * 0.4 +
+    impactScope * 0.3 +
+    (category + migrationStatus) * 0.2 +
+    dependency * 0.1 +
+    (20 - complexity) * 0.1
+  );
+
+  // 计算预计时间
+  const estimatedTimeMinutes = estimateMigrationTime(asset, complexity);
 
   const reasons: string[] = [];
   if (riskLevel >= 25) reasons.push("高风险资产");
+  if (impactScope >= 15) reasons.push("影响关键页面");
   if (category >= 15) reasons.push("重要资产类别");
   if (migrationStatus >= 10) reasons.push("待迁移状态");
   if (dependency >= 10) reasons.push("有依赖关系");
@@ -186,12 +203,14 @@ export async function calculatePriority(
   return {
     assetId: asset.id,
     priority: Math.max(0, Math.min(100, priority)),
+    estimatedTimeMinutes,
     factors: {
       riskLevel,
       category,
       migrationStatus,
       dependency,
       complexity,
+      impactScope,
     },
     reason,
   };
@@ -228,16 +247,18 @@ export async function updateAssetPriority(
   });
 
   if (asset) {
-    const details = (asset.details as Record<string, unknown>) || {};
-    details.priority = priority.priority;
-    details.priorityFactors = priority.factors;
-    details.priorityReason = priority.reason;
-    details.priorityCalculatedAt = new Date().toISOString();
-
+    // 更新数据库中的优先级和时间估算字段
     await prisma.auditAsset.update({
       where: { id: assetId },
       data: {
-        details,
+        priority: priority.priority,
+        estimatedTimeMinutes: priority.estimatedTimeMinutes,
+        details: {
+          ...((asset.details as Record<string, unknown>) || {}),
+          priorityFactors: priority.factors,
+          priorityReason: priority.reason,
+          priorityCalculatedAt: new Date().toISOString(),
+        },
       },
     });
   }

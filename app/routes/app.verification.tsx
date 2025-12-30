@@ -37,6 +37,9 @@ import { CardSkeleton, useToastContext, EnhancedEmptyState } from "~/components/
 import { lazy, Suspense } from "react";
 
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
+const TestOrderGuide = lazy(() => import("~/components/verification/TestOrderGuide").then(module => ({ default: module.TestOrderGuide })));
+const ReportShare = lazy(() => import("~/components/verification/ReportShare").then(module => ({ default: module.ReportShare })));
+const ChannelReconciliationChart = lazy(() => import("~/components/verification/ChannelReconciliationChart").then(module => ({ default: module.ChannelReconciliationChart })));
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -81,7 +84,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const latestRun = history?.[0] ?? null;
 
   return json({
-    shop: { id: shop.id },
+    shop: { id: shop.id, domain: shopDomain },
     configuredPlatforms,
     history,
     latestRun,
@@ -201,6 +204,7 @@ function ScoreCard({
 export default function VerificationPage() {
   const { shop, configuredPlatforms, history, latestRun, testGuide, testItems } =
     useLoaderData<typeof loader>();
+  const shopDomain = shop?.domain || "";
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -291,6 +295,28 @@ export default function VerificationPage() {
         }) => {
           lines.push(`${issue.orderId},${issue.type},${issue.issue.replace(/,/g, '；')}`);
         });
+        lines.push('');
+      }
+
+      if (latestRun.reconciliation.localConsistency) {
+        lines.push('本地一致性检查');
+        lines.push('指标,数值');
+        lines.push(`检查订单数,${latestRun.reconciliation.localConsistency.totalChecked}`);
+        lines.push(`一致性,${latestRun.reconciliation.localConsistency.consistent}`);
+        lines.push(`部分一致,${latestRun.reconciliation.localConsistency.partial}`);
+        lines.push(`不一致,${latestRun.reconciliation.localConsistency.inconsistent}`);
+        if (latestRun.reconciliation.localConsistency.issues.length > 0) {
+          lines.push('');
+          lines.push('本地一致性详情');
+          lines.push('订单ID,状态,问题');
+          latestRun.reconciliation.localConsistency.issues.forEach((issue: {
+            orderId: string;
+            status: string;
+            issues: string[];
+          }) => {
+            lines.push(`${issue.orderId},${issue.status},${issue.issues.join('; ').replace(/,/g, '；')}`);
+          });
+        }
         lines.push('');
       }
     }
@@ -653,10 +679,21 @@ export default function VerificationPage() {
                         {latestRun.reconciliation && (
                           <Box paddingBlockStart="400">
                             <Divider />
-                            <BlockStack gap="300" paddingBlockStart="400">
+                            <BlockStack gap="400" paddingBlockStart="400">
                               <Text as="h3" variant="headingSm">
                                 📊 渠道对账
                               </Text>
+                              
+                              {/* 渠道对账可视化图表 */}
+                              <Suspense fallback={<CardSkeleton lines={3} />}>
+                                <ChannelReconciliationChart
+                                  pixelVsCapi={latestRun.reconciliation.pixelVsCapi}
+                                  consistencyIssues={latestRun.reconciliation.consistencyIssues}
+                                  localConsistency={latestRun.reconciliation.localConsistency}
+                                />
+                              </Suspense>
+                              
+                              {/* 统计摘要 */}
                               <Layout>
                                 <Layout.Section variant="oneQuarter">
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
@@ -726,6 +763,153 @@ export default function VerificationPage() {
                                     )}
                                   </List>
                                 </Banner>
+                              )}
+                              {latestRun.reconciliation.localConsistency && (
+                                <Box paddingBlockStart="300">
+                                  <Divider />
+                                  <BlockStack gap="300" paddingBlockStart="300">
+                                    <Text as="h3" variant="headingSm">
+                                      🔍 本地一致性检查
+                                    </Text>
+                                    <Text as="p" variant="bodySm" tone="subdued">
+                                      对订单数据进行深度一致性验证，确保 Pixel 和 CAPI 事件的关键参数匹配
+                                    </Text>
+                                    <Layout>
+                                      <Layout.Section variant="oneQuarter">
+                                        <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                                          <BlockStack gap="100" align="center">
+                                            <Text as="p" variant="headingLg" fontWeight="bold">
+                                              {latestRun.reconciliation.localConsistency.totalChecked}
+                                            </Text>
+                                            <Text as="p" variant="bodySm" tone="subdued">
+                                              检查订单数
+                                            </Text>
+                                          </BlockStack>
+                                        </Box>
+                                      </Layout.Section>
+                                      <Layout.Section variant="oneQuarter">
+                                        <Box background="bg-surface-success-secondary" padding="300" borderRadius="200">
+                                          <BlockStack gap="100" align="center">
+                                            <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
+                                              {latestRun.reconciliation.localConsistency.consistent}
+                                            </Text>
+                                            <Text as="p" variant="bodySm" tone="subdued">
+                                              完全一致
+                                            </Text>
+                                          </BlockStack>
+                                        </Box>
+                                      </Layout.Section>
+                                      <Layout.Section variant="oneQuarter">
+                                        <Box background="bg-surface-warning-secondary" padding="300" borderRadius="200">
+                                          <BlockStack gap="100" align="center">
+                                            <Text as="p" variant="headingLg" fontWeight="bold" tone="warning">
+                                              {latestRun.reconciliation.localConsistency.partial}
+                                            </Text>
+                                            <Text as="p" variant="bodySm" tone="subdued">
+                                              部分一致
+                                            </Text>
+                                          </BlockStack>
+                                        </Box>
+                                      </Layout.Section>
+                                      <Layout.Section variant="oneQuarter">
+                                        <Box background="bg-surface-critical-secondary" padding="300" borderRadius="200">
+                                          <BlockStack gap="100" align="center">
+                                            <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
+                                              {latestRun.reconciliation.localConsistency.inconsistent}
+                                            </Text>
+                                            <Text as="p" variant="bodySm" tone="subdued">
+                                              不一致
+                                            </Text>
+                                          </BlockStack>
+                                        </Box>
+                                      </Layout.Section>
+                                    </Layout>
+                                    {latestRun.reconciliation.localConsistency.issues && latestRun.reconciliation.localConsistency.issues.length > 0 && (
+                                      <Banner
+                                        tone={
+                                          latestRun.reconciliation.localConsistency.inconsistent > 0
+                                            ? "critical"
+                                            : latestRun.reconciliation.localConsistency.partial > 0
+                                              ? "warning"
+                                              : "success"
+                                        }
+                                        title={
+                                          latestRun.reconciliation.localConsistency.inconsistent > 0
+                                            ? "发现不一致订单"
+                                            : latestRun.reconciliation.localConsistency.partial > 0
+                                              ? "发现部分一致订单"
+                                              : "检查完成"
+                                        }
+                                      >
+                                        <BlockStack gap="200">
+                                          <Text as="p" variant="bodySm">
+                                            {latestRun.reconciliation.localConsistency.inconsistent > 0
+                                              ? "以下订单存在关键参数不一致（如金额、币种、事件ID重复等），需要检查配置。"
+                                              : latestRun.reconciliation.localConsistency.partial > 0
+                                                ? "以下订单存在部分参数不一致，可能影响追踪准确性。"
+                                                : "所有检查的订单参数一致。"}
+                                          </Text>
+                                          {latestRun.reconciliation.localConsistency.issues.length > 0 && (
+                                            <BlockStack gap="100">
+                                              {latestRun.reconciliation.localConsistency.issues.slice(0, 5).map((issue, idx) => (
+                                                <Box
+                                                  key={idx}
+                                                  background="bg-surface-secondary"
+                                                  padding="200"
+                                                  borderRadius="100"
+                                                >
+                                                  <InlineStack gap="200" align="space-between" blockAlign="start">
+                                                    <BlockStack gap="050">
+                                                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                                                        订单 {issue.orderId}
+                                                      </Text>
+                                                      <Text as="p" variant="bodySm" tone="subdued">
+                                                        状态: {issue.status === "consistent" ? "一致" : issue.status === "partial" ? "部分一致" : "不一致"}
+                                                      </Text>
+                                                    </BlockStack>
+                                                    <Badge
+                                                      tone={
+                                                        issue.status === "consistent"
+                                                          ? "success"
+                                                          : issue.status === "partial"
+                                                            ? "warning"
+                                                            : "critical"
+                                                      }
+                                                    >
+                                                      {issue.status === "consistent"
+                                                        ? "一致"
+                                                        : issue.status === "partial"
+                                                          ? "部分一致"
+                                                          : "不一致"}
+                                                    </Badge>
+                                                  </InlineStack>
+                                                  {issue.issues && issue.issues.length > 0 && (
+                                                    <Box paddingBlockStart="100">
+                                                      <List type="bullet">
+                                                        {issue.issues.map((i, issueIdx) => (
+                                                          <List.Item key={issueIdx}>
+                                                            <Text as="span" variant="bodySm">
+                                                              {i}
+                                                            </Text>
+                                                          </List.Item>
+                                                        ))}
+                                                      </List>
+                                                    </Box>
+                                                  )}
+                                                </Box>
+                                              ))}
+                                              {latestRun.reconciliation.localConsistency.issues.length > 5 && (
+                                                <Text as="p" variant="bodySm" tone="subdued">
+                                                  还有 {latestRun.reconciliation.localConsistency.issues.length - 5} 个订单详情，请查看详细结果或导出报告
+                                                </Text>
+                                              )}
+                                            </BlockStack>
+                                          )}
+                                        </BlockStack>
+                                      </Banner>
+                                    )}
+                                  </BlockStack>
+                                </Box>
                               )}
                             </BlockStack>
                           </Box>
@@ -856,42 +1040,121 @@ export default function VerificationPage() {
         {}
         <Card>
           <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">
-              📝 验收测试项说明
-            </Text>
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="h2" variant="headingMd">
+                📝 验收测试清单
+              </Text>
+              {latestRun && (
+                <Badge tone={latestRun.status === "completed" ? "success" : latestRun.status === "running" ? "info" : "subdued"}>
+                  {latestRun.status === "completed" ? "已完成" : latestRun.status === "running" ? "运行中" : "待运行"}
+                </Badge>
+              )}
+            </InlineStack>
             <Divider />
 
             <BlockStack gap="300">
-              {testItems.map((item) => (
-                <Box
-                  key={item.id}
-                  background="bg-surface-secondary"
-                  padding="300"
-                  borderRadius="100"
-                >
-                  <InlineStack align="space-between" blockAlign="start">
-                    <BlockStack gap="100">
-                      <InlineStack gap="200">
-                        <Text as="span" fontWeight="semibold">
-                          {item.name}
+              {testItems.map((item) => {
+                // 检查该测试项是否已完成
+                const itemResults = latestRun?.results?.filter(
+                  (r) => r.testItemId === item.id
+                ) || [];
+                const itemStatus = itemResults.length > 0
+                  ? itemResults.every((r) => r.status === "success")
+                    ? "success"
+                    : itemResults.some((r) => r.status === "success")
+                      ? "partial"
+                      : itemResults.some((r) => r.status === "missing_params")
+                        ? "missing_params"
+                        : "failed"
+                  : "not_tested";
+
+                return (
+                  <Box
+                    key={item.id}
+                    background={
+                      itemStatus === "success"
+                        ? "bg-fill-success-secondary"
+                        : itemStatus === "partial"
+                          ? "bg-fill-warning-secondary"
+                          : itemStatus === "failed" || itemStatus === "missing_params"
+                            ? "bg-fill-critical-secondary"
+                            : "bg-surface-secondary"
+                    }
+                    padding="300"
+                    borderRadius="100"
+                  >
+                    <InlineStack align="space-between" blockAlign="start">
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Icon
+                            source={
+                              itemStatus === "success"
+                                ? CheckCircleIcon
+                                : itemStatus === "partial" || itemStatus === "missing_params"
+                                  ? AlertCircleIcon
+                                  : ClipboardIcon
+                            }
+                            tone={
+                              itemStatus === "success"
+                                ? "success"
+                                : itemStatus === "partial" || itemStatus === "missing_params"
+                                  ? "warning"
+                                  : "subdued"
+                            }
+                          />
+                          <Text as="span" fontWeight="semibold">
+                            {item.name}
+                          </Text>
+                          {item.required && <Badge tone="attention">必测</Badge>}
+                          {itemStatus === "success" && (
+                            <Badge tone="success">✓ 通过</Badge>
+                          )}
+                          {itemStatus === "partial" && (
+                            <Badge tone="warning">⚠ 部分通过</Badge>
+                          )}
+                          {itemStatus === "failed" && (
+                            <Badge tone="critical">✗ 失败</Badge>
+                          )}
+                          {itemStatus === "missing_params" && (
+                            <Badge tone="warning">⚠ 参数缺失</Badge>
+                          )}
+                          {itemStatus === "not_tested" && (
+                            <Badge tone="subdued">未测试</Badge>
+                          )}
+                        </InlineStack>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          {item.description}
                         </Text>
-                        {item.required && <Badge tone="attention">必测</Badge>}
+                        {itemResults.length > 0 && (
+                          <BlockStack gap="100">
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              测试结果: {itemResults.filter((r) => r.status === "success").length} / {itemResults.length} 通过
+                            </Text>
+                            {itemResults.some((r) => r.discrepancies && r.discrepancies.length > 0) && (
+                              <Banner tone="warning">
+                                <Text as="p" variant="bodySm">
+                                  发现问题: {itemResults
+                                    .filter((r) => r.discrepancies && r.discrepancies.length > 0)
+                                    .map((r) => r.discrepancies?.join(", "))
+                                    .join("; ")}
+                                </Text>
+                              </Banner>
+                            )}
+                          </BlockStack>
+                        )}
+                      </BlockStack>
+                      <InlineStack gap="100">
+                        {item.platforms.slice(0, 3).map((p) => (
+                          <PlatformBadge key={p} platform={p} />
+                        ))}
+                        {item.platforms.length > 3 && (
+                          <Badge>{`+${item.platforms.length - 3}`}</Badge>
+                        )}
                       </InlineStack>
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        {item.description}
-                      </Text>
-                    </BlockStack>
-                    <InlineStack gap="100">
-                      {item.platforms.slice(0, 3).map((p) => (
-                        <PlatformBadge key={p} platform={p} />
-                      ))}
-                      {item.platforms.length > 3 && (
-                        <Badge>{`+${item.platforms.length - 3}`}</Badge>
-                      )}
                     </InlineStack>
-                  </InlineStack>
-                </Box>
-              ))}
+                  </Box>
+                );
+              })}
             </BlockStack>
           </BlockStack>
         </Card>

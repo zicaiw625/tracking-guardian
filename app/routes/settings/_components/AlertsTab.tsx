@@ -54,6 +54,12 @@ interface AlertsTabProps {
 
   alertFrequency?: string;
   setAlertFrequency?: (value: string) => void;
+
+  currentMonitoringData?: {
+    failureRate: number;
+    missingParamsRate: number;
+    volumeDrop: number;
+  } | null;
 }
 
 export function AlertsTab({
@@ -84,6 +90,7 @@ export function AlertsTab({
   setVolumeDropThreshold = () => {},
   alertFrequency = "daily",
   setAlertFrequency = () => {},
+  currentMonitoringData,
 }: AlertsTabProps) {
   return (
     <Layout>
@@ -160,56 +167,77 @@ export function AlertsTab({
             </Text>
 
             <BlockStack gap="400">
-              <ThresholdSlider
-                label="事件失败率阈值"
-                value={parseFloat(failureRateThreshold) || 2}
+              <ThresholdConfigCard
+                config={{
+                  type: "failure_rate",
+                  label: "事件失败率阈值",
+                  value: parseFloat(failureRateThreshold) || 2,
+                  min: 0,
+                  max: 50,
+                  step: 0.5,
+                  unit: "%",
+                  helpText: "当事件发送失败率超过此百分比时触发警报（推荐: 2-5%）",
+                  recommendedValue: 2,
+                  currentValue: currentMonitoringData?.failureRate,
+                  colorRanges: [
+                    { min: 0, max: 2, tone: "success" },
+                    { min: 2, max: 10, tone: "warning" },
+                    { min: 10, max: 50, tone: "critical" },
+                  ],
+                }}
                 onChange={(val) => setFailureRateThreshold(String(val))}
-                min={0}
-                max={50}
-                step={0.5}
-                helpText="当事件发送失败率超过此百分比时触发警报（推荐: 2-5%）"
-                unit="%"
-                colorRanges={[
-                  { min: 0, max: 2, tone: "success" },
-                  { min: 2, max: 10, tone: "warning" },
-                  { min: 10, max: 50, tone: "critical" },
-                ]}
+                showPreview={true}
+                showRecommendation={true}
               />
 
               <Divider />
 
-              <ThresholdSlider
-                label="缺参率阈值"
-                value={parseFloat(missingParamsThreshold) || 5}
+              <ThresholdConfigCard
+                config={{
+                  type: "missing_params",
+                  label: "缺参率阈值",
+                  value: parseFloat(missingParamsThreshold) || 5,
+                  min: 0,
+                  max: 50,
+                  step: 0.5,
+                  unit: "%",
+                  helpText: "当事件参数缺失率超过此百分比时触发警报（推荐: 5-10%）",
+                  recommendedValue: 5,
+                  currentValue: currentMonitoringData?.missingParamsRate,
+                  colorRanges: [
+                    { min: 0, max: 5, tone: "success" },
+                    { min: 5, max: 10, tone: "warning" },
+                    { min: 10, max: 50, tone: "critical" },
+                  ],
+                }}
                 onChange={(val) => setMissingParamsThreshold(String(val))}
-                min={0}
-                max={50}
-                step={0.5}
-                helpText="当事件参数缺失率超过此百分比时触发警报（推荐: 5-10%）"
-                unit="%"
-                colorRanges={[
-                  { min: 0, max: 5, tone: "success" },
-                  { min: 5, max: 10, tone: "warning" },
-                  { min: 10, max: 50, tone: "critical" },
-                ]}
+                showPreview={true}
+                showRecommendation={true}
               />
 
               <Divider />
 
-              <ThresholdSlider
-                label="事件量骤降阈值"
-                value={parseFloat(volumeDropThreshold) || 50}
+              <ThresholdConfigCard
+                config={{
+                  type: "volume_drop",
+                  label: "事件量骤降阈值",
+                  value: parseFloat(volumeDropThreshold) || 50,
+                  min: 0,
+                  max: 100,
+                  step: 5,
+                  unit: "%",
+                  helpText: "当 24 小时内事件量下降超过此百分比时触发警报（推荐: 50%）",
+                  recommendedValue: 50,
+                  currentValue: currentMonitoringData?.volumeDrop,
+                  colorRanges: [
+                    { min: 0, max: 30, tone: "success" },
+                    { min: 30, max: 70, tone: "warning" },
+                    { min: 70, max: 100, tone: "critical" },
+                  ],
+                }}
                 onChange={(val) => setVolumeDropThreshold(String(val))}
-                min={0}
-                max={100}
-                step={5}
-                helpText="当 24 小时内事件量下降超过此百分比时触发警报（推荐: 50%）"
-                unit="%"
-                colorRanges={[
-                  { min: 0, max: 30, tone: "success" },
-                  { min: 30, max: 70, tone: "warning" },
-                  { min: 70, max: 100, tone: "critical" },
-                ]}
+                showPreview={true}
+                showRecommendation={true}
               />
 
               <Divider />

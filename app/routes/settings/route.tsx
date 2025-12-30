@@ -19,7 +19,7 @@ export const loader = settingsLoader;
 export const action = settingsAction;
 
 export default function SettingsPage() {
-  const { shop, tokenIssues, pcdApproved, pcdStatusMessage } =
+  const { shop, tokenIssues, pcdApproved, pcdStatusMessage, currentMonitoringData } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
@@ -517,6 +517,7 @@ export default function SettingsPage() {
               setVolumeDropThreshold={setVolumeDropThreshold}
               alertFrequency={alertFrequency}
               setAlertFrequency={setAlertFrequency}
+              currentMonitoringData={currentMonitoringData}
             />
           )}
 

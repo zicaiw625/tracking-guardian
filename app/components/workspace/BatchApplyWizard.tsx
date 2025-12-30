@@ -13,8 +13,10 @@ import {
   Badge,
   ProgressBar,
   Checkbox,
+  DataTable,
+  Spinner,
 } from "@shopify/polaris";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { CheckCircleIcon, AlertCircleIcon } from "~/components/icons";
 
 export interface PixelTemplate {
@@ -42,8 +44,9 @@ interface BatchApplyWizardProps {
   onConfirm: (options: {
     overwriteExisting: boolean;
     skipIfExists: boolean;
-  }) => Promise<void>;
+  }) => Promise<{ jobId?: string; result?: any }>;
   onCancel: () => void;
+  jobId?: string | null;
 }
 
 type WizardStep = "preview" | "confirm" | "applying" | "complete";
@@ -53,41 +56,104 @@ export function BatchApplyWizard({
   targetShops,
   onConfirm,
   onCancel,
+  jobId: initialJobId,
 }: BatchApplyWizardProps) {
-  const [currentStep, setCurrentStep] = useState<WizardStep>("preview");
+  const [currentStep, setCurrentStep] = useState<WizardStep>(initialJobId ? "applying" : "preview");
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [skipIfExists, setSkipIfExists] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [jobId, setJobId] = useState<string | null>(initialJobId || null);
+  const [jobStatus, setJobStatus] = useState<any>(null);
   const [results, setResults] = useState<{
     success: number;
     failed: number;
     skipped: number;
+    details?: Array<{
+      shopId: string;
+      shopDomain: string;
+      status: "success" | "failed" | "skipped";
+      message: string;
+      platformsApplied?: string[];
+      errorType?: string;
+    }>;
   } | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const pollJobStatus = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/batch-jobs/${id}`);
+      if (!response.ok) throw new Error("Failed to fetch job status");
+      const status = await response.json();
+      setJobStatus(status);
+      setProgress(status.progress || 0);
+
+      if (status.status === "completed" || status.status === "failed") {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+
+        if (status.status === "completed" && status.result) {
+          const result = status.result;
+          setResults({
+            success: result.successCount || 0,
+            failed: result.failedCount || 0,
+            skipped: result.skippedCount || 0,
+            details: result.results || [],
+          });
+          setCurrentStep("complete");
+        } else if (status.status === "failed") {
+          setResults({
+            success: status.completedItems || 0,
+            failed: status.failedItems || 0,
+            skipped: status.skippedItems || 0,
+          });
+          setCurrentStep("complete");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to poll job status:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (jobId && currentStep === "applying") {
+      pollJobStatus(jobId);
+      pollIntervalRef.current = setInterval(() => {
+        pollJobStatus(jobId);
+      }, 2000);
+
+      return () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
+      };
+    }
+  }, [jobId, currentStep, pollJobStatus]);
 
   const handleApply = useCallback(async () => {
     setCurrentStep("applying");
     setProgress(0);
 
     try {
-
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 500);
-
-      await onConfirm({
+      const response = await onConfirm({
         overwriteExisting,
         skipIfExists,
       });
 
-      clearInterval(progressInterval);
-      setProgress(100);
-      setCurrentStep("complete");
+      if (response.jobId) {
+        setJobId(response.jobId);
+        setProgress(0);
+      } else if (response.result) {
+        setProgress(100);
+        setResults({
+          success: response.result.successCount || 0,
+          failed: response.result.failedCount || 0,
+          skipped: response.result.skippedCount || 0,
+          details: response.result.results || [],
+        });
+        setCurrentStep("complete");
+      }
     } catch (error) {
       setCurrentStep("confirm");
       throw error;
@@ -341,18 +407,73 @@ export function BatchApplyWizard({
   }
 
   if (currentStep === "applying") {
+    const completed = jobStatus?.completedItems || 0;
+    const failed = jobStatus?.failedItems || 0;
+    const skipped = jobStatus?.skippedItems || 0;
+    const total = jobStatus?.totalItems || targetShops.length;
+    const processing = completed + failed + skipped;
+
     return (
       <Card>
         <BlockStack gap="400">
-          <Text as="h2" variant="headingMd">
-            正在批量应用...
-          </Text>
+          <InlineStack align="space-between" blockAlign="center">
+            <Text as="h2" variant="headingMd">
+              正在批量应用...
+            </Text>
+            <Badge tone={jobStatus?.status === "failed" ? "critical" : "info"}>
+              {jobStatus?.status === "running" ? "处理中" : jobStatus?.status === "failed" ? "失败" : "完成"}
+            </Badge>
+          </InlineStack>
 
           <ProgressBar progress={progress} />
 
-          <Text as="p" variant="bodySm" tone="subdued">
-            正在将模板应用到 {targetShops.length} 个店铺，请稍候...
-          </Text>
+          <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+            <BlockStack gap="200">
+              <InlineStack align="space-between">
+                <Text as="span" variant="bodySm" tone="subdued">总店铺数</Text>
+                <Text as="span" variant="bodySm" fontWeight="semibold">{total}</Text>
+              </InlineStack>
+              <InlineStack align="space-between">
+                <Text as="span" variant="bodySm" tone="subdued">已完成</Text>
+                <Badge tone="success">{completed}</Badge>
+              </InlineStack>
+              <InlineStack align="space-between">
+                <Text as="span" variant="bodySm" tone="subdued">失败</Text>
+                <Badge tone={failed > 0 ? "critical" : "success"}>{failed}</Badge>
+              </InlineStack>
+              <InlineStack align="space-between">
+                <Text as="span" variant="bodySm" tone="subdued">跳过</Text>
+                <Badge tone="info">{skipped}</Badge>
+              </InlineStack>
+              <InlineStack align="space-between">
+                <Text as="span" variant="bodySm" tone="subdued">处理进度</Text>
+                <Text as="span" variant="bodySm" fontWeight="semibold">
+                  {processing} / {total} ({progress}%)
+                </Text>
+              </InlineStack>
+            </BlockStack>
+          </Box>
+
+          {jobStatus?.status === "running" && (
+            <Banner tone="info">
+              <BlockStack gap="100">
+                <InlineStack gap="200" blockAlign="center">
+                  <Spinner size="small" />
+                  <Text as="p" variant="bodySm">
+                    正在将模板应用到 {total} 个店铺，已处理 {processing} 个...
+                  </Text>
+                </InlineStack>
+              </BlockStack>
+            </Banner>
+          )}
+
+          {jobStatus?.error && (
+            <Banner tone="critical">
+              <Text as="p" variant="bodySm">
+                错误: {jobStatus.error}
+              </Text>
+            </Banner>
+          )}
         </BlockStack>
       </Card>
     );
@@ -366,38 +487,110 @@ export function BatchApplyWizard({
             <Text as="h2" variant="headingMd">
               批量应用完成
             </Text>
-            <Badge tone="success">完成</Badge>
+            <Badge tone={results && results.failed === 0 ? "success" : "warning"}>
+              {results && results.failed === 0 ? "全部成功" : "部分完成"}
+            </Badge>
           </InlineStack>
 
           {results && (
-            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-              <BlockStack gap="200">
-                <Text as="h3" variant="headingSm">
-                  应用结果
-                </Text>
-                <InlineStack align="space-between">
-                  <Text as="span" variant="bodySm">成功</Text>
-                  <Badge tone="success">{results.success}</Badge>
-                </InlineStack>
-                <InlineStack align="space-between">
-                  <Text as="span" variant="bodySm">失败</Text>
-                  <Badge tone={results.failed > 0 ? "critical" : "success"}>
-                    {results.failed}
-                  </Badge>
-                </InlineStack>
-                <InlineStack align="space-between">
-                  <Text as="span" variant="bodySm">跳过</Text>
-                  <Badge tone="info">{results.skipped}</Badge>
-                </InlineStack>
-              </BlockStack>
-            </Box>
+            <>
+              <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                <BlockStack gap="200">
+                  <Text as="h3" variant="headingSm">
+                    应用结果汇总
+                  </Text>
+                  <InlineStack gap="400" wrap>
+                    <Box>
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodySm" tone="subdued">成功</Text>
+                        <Badge tone="success" size="large">
+                          {results.success}
+                        </Badge>
+                      </BlockStack>
+                    </Box>
+                    <Box>
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodySm" tone="subdued">失败</Text>
+                        <Badge tone={results.failed > 0 ? "critical" : "success"} size="large">
+                          {results.failed}
+                        </Badge>
+                      </BlockStack>
+                    </Box>
+                    <Box>
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodySm" tone="subdued">跳过</Text>
+                        <Badge tone="info" size="large">
+                          {results.skipped}
+                        </Badge>
+                      </BlockStack>
+                    </Box>
+                    <Box>
+                      <BlockStack gap="100">
+                        <Text as="span" variant="bodySm" tone="subdued">总计</Text>
+                        <Text as="span" variant="headingLg" fontWeight="semibold">
+                          {results.success + results.failed + results.skipped}
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  </InlineStack>
+                </BlockStack>
+              </Box>
+
+              {results.details && results.details.length > 0 && (
+                <>
+                  <Divider />
+                  <Text as="h3" variant="headingSm">
+                    详细结果
+                  </Text>
+                  <DataTable
+                    columnContentTypes={["text", "text", "text", "text"]}
+                    headings={["店铺域名", "状态", "应用平台", "消息"]}
+                    rows={results.details.map((detail) => [
+                      detail.shopDomain || detail.shopId,
+                      <Badge
+                        key={detail.shopId}
+                        tone={
+                          detail.status === "success"
+                            ? "success"
+                            : detail.status === "failed"
+                              ? "critical"
+                              : "info"
+                        }
+                      >
+                        {detail.status === "success"
+                          ? "成功"
+                          : detail.status === "failed"
+                            ? "失败"
+                            : "跳过"}
+                      </Badge>,
+                      detail.platformsApplied?.join(", ") || "-",
+                      detail.message || "-",
+                    ])}
+                  />
+                </>
+              )}
+            </>
           )}
 
-          <Banner tone="success">
-            <Text as="p" variant="bodySm">
-              批量应用已完成。请在各店铺中单独配置 API 凭证以启用追踪功能。
-            </Text>
-          </Banner>
+          {results && results.failed === 0 ? (
+            <Banner tone="success">
+              <Text as="p" variant="bodySm">
+                批量应用已成功完成！所有 {results.success} 个店铺已应用模板配置。请在各店铺中单独配置 API 凭证以启用追踪功能。
+              </Text>
+            </Banner>
+          ) : results && results.failed > 0 ? (
+            <Banner tone="warning">
+              <Text as="p" variant="bodySm">
+                批量应用已完成，但有 {results.failed} 个店铺应用失败。请查看上方详细结果，检查失败原因后重试。
+              </Text>
+            </Banner>
+          ) : (
+            <Banner tone="success">
+              <Text as="p" variant="bodySm">
+                批量应用已完成。请在各店铺中单独配置 API 凭证以启用追踪功能。
+              </Text>
+            </Banner>
+          )}
 
           <InlineStack align="end">
             <Button variant="primary" onClick={onCancel}>

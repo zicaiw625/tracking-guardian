@@ -19,6 +19,9 @@ interface ThresholdSliderProps {
   helpText?: string;
   unit?: string;
   colorRanges?: Array<{ min: number; max: number; tone: "success" | "warning" | "critical" }>;
+  currentValue?: number;
+  recommendedValue?: number;
+  onApplyRecommendation?: () => void;
 }
 
 export function ThresholdSlider({
@@ -35,6 +38,9 @@ export function ThresholdSlider({
     { min: 2, max: 10, tone: "warning" },
     { min: 10, max: 100, tone: "critical" },
   ],
+  currentValue,
+  recommendedValue,
+  onApplyRecommendation,
 }: ThresholdSliderProps) {
   const getTone = (val: number): "success" | "warning" | "critical" => {
     const range = colorRanges.find((r) => val >= r.min && val < r.max);
@@ -42,6 +48,8 @@ export function ThresholdSlider({
   };
 
   const percentage = ((value - min) / (max - min)) * 100;
+  const wouldTrigger = currentValue !== undefined && currentValue > value;
+  const diffFromCurrent = currentValue !== undefined ? (currentValue - value) : undefined;
 
   return (
     <BlockStack gap="300">
@@ -56,11 +64,55 @@ export function ThresholdSlider({
             </Text>
           )}
         </BlockStack>
-        <Badge tone={getTone(value)}>
-          {value}
-          {unit}
-        </Badge>
+        <InlineStack gap="200" blockAlign="center">
+          {currentValue !== undefined && (
+            <Badge tone={wouldTrigger ? "critical" : "success"}>
+              当前: {currentValue.toFixed(1)}{unit}
+            </Badge>
+          )}
+          <Badge tone={getTone(value)}>
+            阈值: {value}{unit}
+          </Badge>
+        </InlineStack>
       </InlineStack>
+
+      {currentValue !== undefined && (
+        <Box background="bg-surface-secondary" padding="200" borderRadius="100">
+          <InlineStack align="space-between" blockAlign="center">
+            <Text as="span" variant="bodySm">
+              {wouldTrigger ? (
+                <Text as="span" tone="critical" fontWeight="semibold">
+                  ⚠️ 当前值超过阈值 {diffFromCurrent!.toFixed(1)}{unit}，将触发告警
+                </Text>
+              ) : (
+                <Text as="span" tone="success">
+                  ✓ 当前值低于阈值，不会触发告警
+                </Text>
+              )}
+            </Text>
+            {diffFromCurrent !== undefined && (
+              <Text as="span" variant="bodySm" tone="subdued">
+                差值: {diffFromCurrent > 0 ? "+" : ""}{diffFromCurrent.toFixed(1)}{unit}
+              </Text>
+            )}
+          </InlineStack>
+        </Box>
+      )}
+
+      {recommendedValue !== undefined && Math.abs(recommendedValue - value) > 0.1 && (
+        <Box background="bg-fill-info-secondary" padding="200" borderRadius="100">
+          <InlineStack align="space-between" blockAlign="center">
+            <Text as="span" variant="bodySm">
+              💡 推荐阈值: {recommendedValue.toFixed(1)}{unit}（基于历史数据）
+            </Text>
+            {onApplyRecommendation && (
+              <Button size="micro" onClick={onApplyRecommendation}>
+                应用推荐值
+              </Button>
+            )}
+          </InlineStack>
+        </Box>
+      )}
 
       <Box position="relative">
         <input

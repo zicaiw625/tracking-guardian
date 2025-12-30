@@ -13,6 +13,11 @@ export interface BatchReportExportOptions {
     start: Date;
     end: Date;
   };
+  whiteLabel?: {
+    companyName?: string;
+    logoUrl?: string;
+    contactEmail?: string;
+  };
 }
 
 export interface BatchReportExportResult {
@@ -118,11 +123,10 @@ export async function batchExportVerificationReports(
   }
 
   let combinedReport: BatchReportExportResult["combinedReport"] | undefined;
-  if (format === "csv" || format === "json") {
+  if (format === "pdf") {
+    combinedReport = await generateCombinedPdfReport(reports, "verification", options.whiteLabel);
+  } else if (format === "csv" || format === "json") {
     combinedReport = generateCombinedReport(reports, format);
-  } else if (format === "pdf") {
-
-    combinedReport = await generateCombinedPdfReport(reports, "verification");
   }
 
   return {
@@ -287,8 +291,7 @@ export async function batchExportScanReports(
   if (format === "csv" || format === "json") {
     combinedReport = generateCombinedScanReport(reports, format);
   } else if (format === "pdf") {
-
-    combinedReport = await generateCombinedPdfReport(reports, "scan");
+    combinedReport = await generateCombinedPdfReport(reports, "scan", options.whiteLabel);
   }
 
   return {
@@ -369,7 +372,8 @@ function generateCombinedScanReport(
 
 async function generateCombinedPdfReport(
   reports: BatchReportExportResult["reports"],
-  reportType: "verification" | "scan" | "reconciliation"
+  reportType: "verification" | "scan" | "reconciliation",
+  whiteLabel?: BatchReportExportOptions["whiteLabel"]
 ): Promise<BatchReportExportResult["combinedReport"] | undefined> {
   try {
     const { generateBatchReports } = await import("./pdf-generator.server");
@@ -382,6 +386,29 @@ async function generateCombinedPdfReport(
       return undefined;
     }
 
+    // 如果有白标配置，使用 workspace/batch-report.server.ts 的生成函数
+    if (whiteLabel) {
+      const { generateBatchReportPdf } = await import("./workspace/batch-report.server");
+      const result = await generateBatchReportPdf({
+        groupId: "", // 批量导出不需要 groupId
+        shopIds,
+        reportType,
+        whiteLabel,
+      });
+
+      if ("error" in result) {
+        logger.error("Failed to generate white-label PDF report", { error: result.error });
+        return undefined;
+      }
+
+      return {
+        content: result.buffer.toString("base64"),
+        filename: result.filename,
+        mimeType: "application/pdf",
+      };
+    }
+
+    // 默认使用标准 PDF 生成
     const result = await generateBatchReports({
       shopIds,
       reportType,

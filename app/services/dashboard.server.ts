@@ -60,45 +60,9 @@ function analyzeScriptTags(
 }
 
 export async function getDashboardData(shopDomain: string): Promise<DashboardData> {
+  // 优化：移除重复的 include，只使用 select
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    include: {
-      scanReports: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: {
-          status: true,
-          riskScore: true,
-          createdAt: true,
-          identifiedPlatforms: true,
-          scriptTags: true,
-        },
-      },
-      pixelConfigs: {
-        where: { isActive: true },
-        select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
-      },
-      reconciliationReports: {
-        orderBy: { reportDate: "desc" },
-        take: 7,
-        select: { orderDiscrepancy: true },
-      },
-      alertConfigs: {
-        where: { isEnabled: true },
-        select: { id: true },
-      },
-      _count: {
-        select: {
-          conversionLogs: {
-            where: {
-              createdAt: {
-                gte: new Date(Date.now() - SEVEN_DAYS_MS),
-              },
-            },
-          },
-        },
-      },
-    },
     select: {
       id: true,
       shopDomain: true,

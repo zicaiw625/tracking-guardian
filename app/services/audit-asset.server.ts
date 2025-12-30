@@ -102,6 +102,40 @@ function inferSuggestedMigration(
   }
 }
 
+// 异步计算优先级和时间估算的辅助函数
+async function calculatePriorityAndTimeEstimate(
+  assetId: string,
+  shopId: string
+): Promise<void> {
+  try {
+    const { calculatePriority, updateAssetPriority } = await import("./scanner/priority-calculator");
+    const asset = await prisma.auditAsset.findUnique({
+      where: { id: assetId },
+    });
+    
+    if (!asset) {
+      logger.warn("Asset not found for priority calculation", { assetId });
+      return;
+    }
+
+    const allAssets = await prisma.auditAsset.findMany({
+      where: { shopId },
+    });
+
+    const priorityResult = await calculatePriority(asset, allAssets);
+    await updateAssetPriority(assetId, priorityResult);
+    
+    logger.info("Priority and time estimate calculated", {
+      assetId,
+      priority: priorityResult.priority,
+      estimatedTimeMinutes: priorityResult.estimatedTimeMinutes,
+    });
+  } catch (error) {
+    logger.error("Failed to calculate priority/time estimate", { assetId, error });
+    throw error;
+  }
+}
+
 function inferRiskLevel(
   category: AssetCategory,
   sourceType: AssetSourceType,
@@ -139,8 +173,10 @@ export async function createAuditAsset(
       where: { shopId_fingerprint: { shopId, fingerprint } },
     });
 
-    if (existing) {
+    // 计算优先级和时间估算（在创建/更新后异步计算，避免阻塞）
+    // 注意：优先级计算需要完整的资产数据，所以我们在创建/更新后再计算
 
+    if (existing) {
       const updated = await prisma.auditAsset.update({
         where: { id: existing.id },
         data: {
@@ -152,10 +188,12 @@ export async function createAuditAsset(
           suggestedMigration: input.suggestedMigration || inferSuggestedMigration(input.category, input.platform),
           details: input.details as object,
           scanReportId: input.scanReportId,
+          ...(priority !== undefined && { priority }),
+          ...(estimatedTimeMinutes !== undefined && { estimatedTimeMinutes }),
         },
       });
 
-      logger.info("AuditAsset updated", { id: updated.id, shopId, fingerprint });
+      logger.info("AuditAsset updated", { id: updated.id, shopId, fingerprint, priority, estimatedTimeMinutes });
       return mapToRecord(updated);
     }
 
@@ -172,10 +210,12 @@ export async function createAuditAsset(
         migrationStatus: "pending",
         details: input.details as object,
         scanReportId: input.scanReportId,
+        ...(priority !== undefined && { priority }),
+        ...(estimatedTimeMinutes !== undefined && { estimatedTimeMinutes }),
       },
     });
 
-    logger.info("AuditAsset created", { id: asset.id, shopId, category: input.category });
+    logger.info("AuditAsset created", { id: asset.id, shopId, category: input.category, priority, estimatedTimeMinutes });
     return mapToRecord(asset);
   } catch (error) {
     logger.error("Failed to create AuditAsset", { shopId, error });

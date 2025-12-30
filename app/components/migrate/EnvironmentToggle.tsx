@@ -1,0 +1,264 @@
+
+import { useState, useCallback } from "react";
+import {
+  Card,
+  Text,
+  BlockStack,
+  InlineStack,
+  Button,
+  ButtonGroup,
+  Badge,
+  Box,
+  Banner,
+  Modal,
+} from "@shopify/polaris";
+import { AlertCircleIcon } from "~/components/icons";
+
+type PixelEnvironment = "test" | "live";
+
+interface EnvironmentToggleProps {
+  platform: string;
+  currentEnvironment: PixelEnvironment;
+  configVersion?: number | null;
+  canRollback?: boolean;
+  onSwitch: (environment: PixelEnvironment) => Promise<void>;
+  onRollback?: () => Promise<void>;
+  isLoading?: boolean;
+}
+
+export function EnvironmentToggle({
+  platform,
+  currentEnvironment,
+  configVersion,
+  canRollback = false,
+  onSwitch,
+  onRollback,
+  isLoading = false,
+}: EnvironmentToggleProps) {
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingEnvironment, setPendingEnvironment] = useState<PixelEnvironment | null>(null);
+  const [isSwitching, setIsSwitching] = useState(false);
+
+  const handleEnvironmentChange = useCallback(
+    async (newEnvironment: PixelEnvironment) => {
+      if (newEnvironment === currentEnvironment) {
+        return;
+      }
+
+      // 如果从 test 切换到 live，需要确认
+      if (currentEnvironment === "test" && newEnvironment === "live") {
+        setPendingEnvironment(newEnvironment);
+        setShowConfirmModal(true);
+      } else {
+        // 从 live 切换到 test，直接切换
+        setIsSwitching(true);
+        try {
+          await onSwitch(newEnvironment);
+        } finally {
+          setIsSwitching(false);
+        }
+      }
+    },
+    [currentEnvironment, onSwitch]
+  );
+
+  const handleConfirmSwitch = useCallback(async () => {
+    if (!pendingEnvironment) return;
+
+    setShowConfirmModal(false);
+    setIsSwitching(true);
+    try {
+      await onSwitch(pendingEnvironment);
+    } finally {
+      setIsSwitching(false);
+      setPendingEnvironment(null);
+    }
+  }, [pendingEnvironment, onSwitch]);
+
+  const handleRollback = useCallback(async () => {
+    if (!onRollback) return;
+
+    if (
+      confirm(
+        "确定要回滚到上一个配置版本吗？当前配置将被上一个版本替换。"
+      )
+    ) {
+      setIsSwitching(true);
+      try {
+        await onRollback();
+      } finally {
+        setIsSwitching(false);
+      }
+    }
+  }, [onRollback]);
+
+  const platformNames: Record<string, string> = {
+    google: "Google Analytics 4",
+    meta: "Meta (Facebook)",
+    tiktok: "TikTok",
+    pinterest: "Pinterest",
+  };
+
+  return (
+    <>
+      <Card>
+        <BlockStack gap="400">
+          <InlineStack align="space-between" blockAlign="center">
+            <BlockStack gap="100">
+              <Text as="h3" variant="headingMd">
+                运行环境
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                {platformNames[platform] || platform} 像素配置
+              </Text>
+            </BlockStack>
+            <Badge
+              tone={currentEnvironment === "live" ? "success" : "warning"}
+            >
+              {currentEnvironment === "live" ? "生产环境" : "测试环境"}
+            </Badge>
+          </InlineStack>
+
+          <Box
+            background="bg-surface-secondary"
+            padding="400"
+            borderRadius="200"
+            borderWidth="025"
+            borderColor="border"
+          >
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <BlockStack gap="100">
+                  <Text as="span" fontWeight="semibold">
+                    当前环境
+                  </Text>
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    {currentEnvironment === "test"
+                      ? "测试模式：事件发送到测试端点，不影响正式数据"
+                      : "生产模式：事件发送到正式端点，影响实际追踪数据"}
+                  </Text>
+                </BlockStack>
+                <ButtonGroup variant="segmented">
+                  <Button
+                    pressed={currentEnvironment === "test"}
+                    onClick={() => handleEnvironmentChange("test")}
+                    disabled={isSwitching || isLoading}
+                    loading={isSwitching && pendingEnvironment === "test"}
+                    size="slim"
+                  >
+                    🧪 测试
+                  </Button>
+                  <Button
+                    pressed={currentEnvironment === "live"}
+                    onClick={() => handleEnvironmentChange("live")}
+                    disabled={isSwitching || isLoading}
+                    loading={isSwitching && pendingEnvironment === "live"}
+                    size="slim"
+                  >
+                    🚀 生产
+                  </Button>
+                </ButtonGroup>
+              </InlineStack>
+
+              {currentEnvironment === "test" && (
+                <Banner tone="warning">
+                  <Text as="p" variant="bodySm">
+                    ⚠️ 测试模式：事件将发送到平台的测试端点，不会影响正式数据。
+                    验证完成后请切换到生产环境。
+                  </Text>
+                </Banner>
+              )}
+
+              {currentEnvironment === "live" && (
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    ✅ 生产模式：事件将发送到正式端点，影响实际追踪数据。
+                    请确保配置正确后再切换到生产环境。
+                  </Text>
+                </Banner>
+              )}
+
+              {configVersion && (
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="span" variant="bodySm" tone="subdued">
+                    配置版本: v{configVersion}
+                  </Text>
+                  {canRollback && (
+                    <Button
+                      size="slim"
+                      variant="plain"
+                      onClick={handleRollback}
+                      disabled={isSwitching || isLoading}
+                      loading={isSwitching}
+                    >
+                      回滚到上一版本
+                    </Button>
+                  )}
+                </InlineStack>
+              )}
+            </BlockStack>
+          </Box>
+        </BlockStack>
+      </Card>
+
+      <Modal
+        open={showConfirmModal}
+        onClose={() => {
+          setShowConfirmModal(false);
+          setPendingEnvironment(null);
+        }}
+        title="确认切换到生产环境"
+        primaryAction={{
+          content: "确认切换",
+          onAction: handleConfirmSwitch,
+          loading: isSwitching,
+        }}
+        secondaryActions={[
+          {
+            content: "取消",
+            onAction: () => {
+              setShowConfirmModal(false);
+              setPendingEnvironment(null);
+            },
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            <Text as="p" variant="bodyMd">
+              您即将从<strong>测试环境</strong>切换到<strong>生产环境</strong>。
+            </Text>
+            <Banner tone="critical">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  重要提示：
+                </Text>
+                <ul style={{ paddingLeft: "1.5rem", margin: 0 }}>
+                  <li>
+                    <Text as="span" variant="bodySm">
+                      生产环境的事件将影响实际的广告归因和转化数据
+                    </Text>
+                  </li>
+                  <li>
+                    <Text as="span" variant="bodySm">
+                      请确保已在测试环境中验证配置正确
+                    </Text>
+                  </li>
+                  <li>
+                    <Text as="span" variant="bodySm">
+                      切换后，当前配置版本将自动保存
+                    </Text>
+                  </li>
+                </ul>
+              </BlockStack>
+            </Banner>
+            <Text as="p" variant="bodySm" tone="subdued">
+              确定要继续吗？
+            </Text>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+    </>
+  );
+}
+

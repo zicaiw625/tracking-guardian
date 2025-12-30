@@ -282,6 +282,33 @@ export interface VerificationReportData {
     failedEvents: number;
     missingParams: Record<string, string[]>;
   };
+  reconciliation?: {
+    pixelVsCapi: {
+      both: number;
+      pixelOnly: number;
+      capiOnly: number;
+      consentBlocked: number;
+    };
+    consistencyIssues?: Array<{
+      orderId: string;
+      issue: string;
+      type: string;
+    }>;
+    localConsistency?: {
+      totalChecked: number;
+      consistent: number;
+      partial: number;
+      inconsistent: number;
+    };
+  };
+  testResults?: {
+    totalTests: number;
+    passedTests: number;
+    failedTests: number;
+    missingParamTests: number;
+    parameterCompleteness: number;
+    valueAccuracy: number;
+  };
 }
 
 export interface ReconciliationReportData {
@@ -392,6 +419,31 @@ export async function fetchVerificationReportData(shopId: string, runId?: string
       successfulEvents?: number;
       failedEvents?: number;
       missingParams?: Record<string, string[]>;
+      totalTests?: number;
+      passedTests?: number;
+      failedTests?: number;
+      missingParamTests?: number;
+      parameterCompleteness?: number;
+      valueAccuracy?: number;
+      reconciliation?: {
+        pixelVsCapi: {
+          both: number;
+          pixelOnly: number;
+          capiOnly: number;
+          consentBlocked: number;
+        };
+        consistencyIssues?: Array<{
+          orderId: string;
+          issue: string;
+          type: string;
+        }>;
+        localConsistency?: {
+          totalChecked: number;
+          consistent: number;
+          partial: number;
+          inconsistent: number;
+        };
+      };
     } | null;
 
     return {
@@ -405,6 +457,15 @@ export async function fetchVerificationReportData(shopId: string, runId?: string
         failedEvents: summary?.failedEvents || 0,
         missingParams: summary?.missingParams || {},
       },
+      reconciliation: summary?.reconciliation,
+      testResults: summary?.totalTests ? {
+        totalTests: summary.totalTests,
+        passedTests: summary.passedTests || 0,
+        failedTests: summary.failedTests || 0,
+        missingParamTests: summary.missingParamTests || 0,
+        parameterCompleteness: summary.parameterCompleteness || 0,
+        valueAccuracy: summary.valueAccuracy || 0,
+      } : undefined,
     };
   } catch (error) {
     logger.error("Failed to fetch verification report data:", error);
@@ -570,28 +631,332 @@ export function generateScanReportHtml(data: ScanReportData): string {
 }
 
 export function generateVerificationReportHtml(data: VerificationReportData): string {
+  const successRate = data.summary.totalEvents > 0
+    ? ((data.summary.successfulEvents / data.summary.totalEvents) * 100).toFixed(2)
+    : "0.00";
+  const failureRate = data.summary.totalEvents > 0
+    ? ((data.summary.failedEvents / data.summary.totalEvents) * 100).toFixed(2)
+    : "0.00";
+
+  // 计算成功率可视化条形图宽度
+  const successBarWidth = successRate;
+  const failureBarWidth = failureRate;
+
+  const missingParamsRows = Object.entries(data.summary.missingParams || {}).length > 0
+    ? Object.entries(data.summary.missingParams).map(([platform, params]) => `
+        <tr>
+          <td>${platform}</td>
+          <td>${Array.isArray(params) ? params.join(", ") : params}</td>
+        </tr>
+      `).join("")
+    : "<tr><td colspan='2'>无缺失参数</td></tr>";
+
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    h1 { color: #333; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+      padding: 40px; 
+      max-width: 1200px;
+      margin: 0 auto;
+      color: #333;
+      line-height: 1.6;
+    }
+    h1 { 
+      color: #202223;
+      border-bottom: 3px solid #008060;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+    h2 {
+      color: #202223;
+      margin-top: 30px;
+      margin-bottom: 15px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 30px 0;
+    }
+    .summary-card {
+      background: #f6f6f7;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #008060;
+    }
+    .summary-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #6d7175;
+      text-transform: uppercase;
+    }
+    .summary-card .value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #202223;
+      margin: 5px 0;
+    }
+    .chart-container {
+      margin: 30px 0;
+      padding: 20px;
+      background: #ffffff;
+      border: 1px solid #e1e3e5;
+      border-radius: 8px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #e1e3e5;
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 10px 0;
+      position: relative;
+    }
+    .progress-fill {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 12px;
+      transition: width 0.3s ease;
+    }
+    .progress-success {
+      background: #008060;
+    }
+    .progress-warning {
+      background: #ffc453;
+    }
+    .progress-error {
+      background: #d72c0d;
+    }
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 20px;
+      background: white;
+    }
+    th, td { 
+      border: 1px solid #e1e3e5; 
+      padding: 12px; 
+      text-align: left; 
+    }
+    th { 
+      background-color: #f6f6f7;
+      font-weight: 600;
+      color: #202223;
+    }
+    tr:nth-child(even) {
+      background-color: #fafbfb;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-success {
+      background: #e3fcef;
+      color: #008060;
+    }
+    .badge-warning {
+      background: #fff3cd;
+      color: #b98900;
+    }
+    .badge-error {
+      background: #fee;
+      color: #d72c0d;
+    }
+    .metadata {
+      background: #f6f6f7;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    .metadata p {
+      margin: 5px 0;
+      color: #6d7175;
+    }
   </style>
 </head>
 <body>
-  <h1>验收报告 - ${data.shopDomain}</h1>
-  <p>运行名称: ${data.runName}</p>
-  <h2>汇总</h2>
-  <ul>
-    <li>总事件数: ${data.summary.totalEvents}</li>
-    <li>成功事件: ${data.summary.successfulEvents}</li>
-    <li>失败事件: ${data.summary.failedEvents}</li>
-  </ul>
+  <h1>📋 验收报告 - ${data.shopDomain}</h1>
+  
+  <div class="metadata">
+    <p><strong>运行名称:</strong> ${data.runName || "未命名"}</p>
+    <p><strong>报告生成时间:</strong> ${new Date().toLocaleString("zh-CN")}</p>
+    <p><strong>状态:</strong> <span class="badge ${data.status === "completed" ? "badge-success" : data.status === "failed" ? "badge-error" : "badge-warning"}">${data.status === "completed" ? "已完成" : data.status === "failed" ? "失败" : "进行中"}</span></p>
+  </div>
+
+  <h2>📊 验收汇总</h2>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <h3>总事件数</h3>
+      <div class="value">${data.summary.totalEvents}</div>
+    </div>
+    <div class="summary-card">
+      <h3>成功事件</h3>
+      <div class="value" style="color: #008060;">${data.summary.successfulEvents}</div>
+    </div>
+    <div class="summary-card">
+      <h3>失败事件</h3>
+      <div class="value" style="color: #d72c0d;">${data.summary.failedEvents}</div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <h3>成功率可视化</h3>
+    <div style="margin-bottom: 15px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <span>成功率</span>
+        <span><strong>${successRate}%</strong></span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill progress-success" style="width: ${successRate}%;">
+          ${parseFloat(successRate) > 5 ? successRate + "%" : ""}
+        </div>
+      </div>
+    </div>
+    <div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <span>失败率</span>
+        <span><strong>${failureRate}%</strong></span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill progress-error" style="width: ${failureRate}%;">
+          ${parseFloat(failureRate) > 5 ? failureRate + "%" : ""}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>🔍 参数缺失详情</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>平台</th>
+        <th>缺失参数</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${missingParamsRows}
+    </tbody>
+  </table>
+
+  ${data.testResults ? `
+  <h2>📊 测试结果统计</h2>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <h3>通过率</h3>
+      <div class="value" style="color: ${data.testResults.parameterCompleteness >= 80 ? "#008060" : data.testResults.parameterCompleteness >= 50 ? "#ffc453" : "#d72c0d"};">
+        ${data.testResults.totalTests > 0 ? Math.round((data.testResults.passedTests / data.testResults.totalTests) * 100) : 0}%
+      </div>
+      <p style="margin: 5px 0; font-size: 12px; color: #6d7175;">
+        ${data.testResults.passedTests}/${data.testResults.totalTests} 项通过
+      </p>
+    </div>
+    <div class="summary-card">
+      <h3>参数完整率</h3>
+      <div class="value" style="color: ${data.testResults.parameterCompleteness >= 80 ? "#008060" : data.testResults.parameterCompleteness >= 50 ? "#ffc453" : "#d72c0d"};">
+        ${data.testResults.parameterCompleteness}%
+      </div>
+    </div>
+    <div class="summary-card">
+      <h3>金额准确率</h3>
+      <div class="value" style="color: ${data.testResults.valueAccuracy >= 95 ? "#008060" : data.testResults.valueAccuracy >= 80 ? "#ffc453" : "#d72c0d"};">
+        ${data.testResults.valueAccuracy}%
+      </div>
+    </div>
+  </div>
+  ` : ""}
+
+  ${data.reconciliation ? `
+  <h2>🔄 渠道对账分析</h2>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <h3>两者都有</h3>
+      <div class="value" style="color: #008060;">${data.reconciliation.pixelVsCapi.both}</div>
+    </div>
+    <div class="summary-card">
+      <h3>仅 Pixel</h3>
+      <div class="value" style="color: #008060;">${data.reconciliation.pixelVsCapi.pixelOnly}</div>
+    </div>
+    <div class="summary-card">
+      <h3>仅 CAPI</h3>
+      <div class="value" style="color: #ffc453;">${data.reconciliation.pixelVsCapi.capiOnly}</div>
+    </div>
+  </div>
+  ${data.reconciliation.pixelVsCapi.consentBlocked > 0 ? `
+  <div class="summary-card" style="margin-top: 20px;">
+    <h3>因同意阻止</h3>
+    <div class="value" style="color: #6d7175;">${data.reconciliation.pixelVsCapi.consentBlocked}</div>
+  </div>
+  ` : ""}
+  ${data.reconciliation.localConsistency ? `
+  <div style="margin-top: 30px;">
+    <h3>本地一致性检查</h3>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <h3>检查订单数</h3>
+        <div class="value">${data.reconciliation.localConsistency.totalChecked}</div>
+      </div>
+      <div class="summary-card">
+        <h3>一致</h3>
+        <div class="value" style="color: #008060;">${data.reconciliation.localConsistency.consistent}</div>
+      </div>
+      <div class="summary-card">
+        <h3>部分一致</h3>
+        <div class="value" style="color: #ffc453;">${data.reconciliation.localConsistency.partial}</div>
+      </div>
+      <div class="summary-card">
+        <h3>不一致</h3>
+        <div class="value" style="color: #d72c0d;">${data.reconciliation.localConsistency.inconsistent}</div>
+      </div>
+    </div>
+  </div>
+  ` : ""}
+  ${data.reconciliation.consistencyIssues && data.reconciliation.consistencyIssues.length > 0 ? `
+  <div style="margin-top: 30px;">
+    <h3>一致性问题</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>订单 ID</th>
+          <th>问题类型</th>
+          <th>问题描述</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.reconciliation.consistencyIssues.slice(0, 10).map((issue) => `
+          <tr>
+            <td>${issue.orderId}</td>
+            <td><span class="badge ${issue.type === "error" ? "badge-error" : "badge-warning"}">${issue.type === "value_mismatch" ? "金额不匹配" : issue.type === "currency_mismatch" ? "币种不匹配" : issue.type === "missing" ? "缺失" : issue.type === "duplicate" ? "重复" : issue.type === "error" ? "错误" : "警告"}</span></td>
+            <td>${issue.issue}</td>
+          </tr>
+        `).join("")}
+        ${data.reconciliation.consistencyIssues.length > 10 ? `
+          <tr>
+            <td colspan="3" style="text-align: center; color: #6d7175;">
+              还有 ${data.reconciliation.consistencyIssues.length - 10} 个问题未显示
+            </td>
+          </tr>
+        ` : ""}
+      </tbody>
+    </table>
+  </div>
+  ` : ""}
+  ` : ""}
+
+  <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e1e3e5; color: #6d7175; font-size: 12px; text-align: center;">
+    <p>报告由 Tracking Guardian 自动生成</p>
+    <p>生成时间: ${new Date().toLocaleString("zh-CN")}</p>
+  </div>
 </body>
 </html>
   `;
