@@ -43,7 +43,6 @@ import {
     safeFormatDate,
 } from "../utils/scan-data-validation";
 import { containsSensitiveInfo, sanitizeSensitiveInfo } from "../utils/security";
-import crypto from "crypto";
 
 const TIMEOUTS = {
     IDLE_CALLBACK: 100,
@@ -635,7 +634,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             });
         } catch (error) {
 
-            const errorId = crypto.randomBytes(4).toString('hex');
+            const randomBytes = new Uint8Array(4);
+            globalThis.crypto.getRandomValues(randomBytes);
+            const errorId = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('');
             logger.error("Save analysis error", {
                 errorId,
                 shopId: shop.id,

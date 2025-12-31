@@ -1,7 +1,6 @@
 
 
 import { z } from "zod";
-import crypto from "crypto";
 
 export const MAX_BODY_SIZE = {
   PIXEL_EVENT: 10 * 1024,
@@ -88,40 +87,6 @@ export function sanitizeUrl(url: string): string | null {
   }
 }
 
-export function computeHmac(
-  message: string | Buffer,
-  secret: string,
-  encoding: "hex" | "base64" = "hex"
-): string {
-  const hmac = crypto.createHmac("sha256", secret);
-  hmac.update(message);
-  return hmac.digest(encoding);
-}
-
-export function verifyHmac(
-  message: string | Buffer,
-  signature: string,
-  secret: string,
-  encoding: "hex" | "base64" = "hex"
-): boolean {
-  const computed = computeHmac(message, secret, encoding);
-  return timingSafeEqual(computed, signature);
-}
-
-export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-
-    const buffer = Buffer.from(a);
-    crypto.timingSafeEqual(buffer, buffer);
-    return false;
-  }
-
-  try {
-    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
-  } catch {
-    return false;
-  }
-}
 
 export function validateBodySize(
   contentLength: string | null,
@@ -350,25 +315,6 @@ export function isPublicUrl(urlStr: string): boolean {
   }
 }
 
-export function generateSecureToken(length: number = 32): string {
-  return crypto.randomBytes(length).toString("hex");
-}
-
-export function generateUrlSafeToken(length: number = 32): string {
-  return crypto.randomBytes(length).toString("base64url");
-}
-
-export function sha256(value: string): string {
-  return crypto.createHash("sha256").update(value).digest("hex");
-}
-
-export function hashForStorage(value: string, salt?: string): string {
-  if (process.env.NODE_ENV === "production" && !process.env.HASH_SALT && !salt) {
-    throw new Error("Security Error: HASH_SALT is not defined in production environment. This is a critical security misconfiguration.");
-  }
-  const actualSalt = salt || process.env.HASH_SALT || "default_salt";
-  return sha256(`${actualSalt}:${value}`);
-}
 
 export function containsSensitiveInfo(text: string): boolean {
   if (typeof text !== "string" || text.length === 0) {
