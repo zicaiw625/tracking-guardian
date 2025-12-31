@@ -123,12 +123,14 @@ export function validateOrderId(
 ): Result<string, AppError> {
   const trimmed = orderId.trim();
 
+  // 支持纯数字格式
   if (/^\d+$/.test(trimmed)) {
     return ok(trimmed);
   }
 
-  if (trimmed.startsWith("gid://shopify/WebPixel/")) {
-    const id = trimmed.replace("gid://shopify/WebPixel/", "");
+  // 支持 gid://shopify/Order/ 格式
+  if (trimmed.startsWith("gid://shopify/Order/")) {
+    const id = trimmed.replace("gid://shopify/Order/", "");
     if (/^\d+$/.test(id)) {
       return ok(trimmed);
     }
@@ -139,7 +141,7 @@ export function validateOrderId(
       ErrorCode.VALIDATION_INVALID_FORMAT,
       "Invalid order ID format",
       false,
-      { field: "orderId", expected: "numeric or GID format" }
+      { field: "orderId", expected: "numeric or gid://shopify/Order/ format" }
     )
   );
 }

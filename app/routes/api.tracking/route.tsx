@@ -18,8 +18,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const orderId = url.searchParams.get("orderId");
     const trackingNumber = url.searchParams.get("trackingNumber");
 
-    if (!orderId || !trackingNumber) {
-      return json({ error: "Missing orderId or trackingNumber" }, { status: 400 });
+    if (!orderId) {
+      return json({ error: "Missing orderId" }, { status: 400 });
     }
 
     const shop = await prisma.shop.findUnique({
@@ -80,7 +80,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    if (!trackingInfo && trackingSettings?.provider && trackingSettings.provider !== "native") {
+    // 如果从 Shopify 订单中获取到了物流信息，直接返回
+    // 否则，如果有第三方物流提供商配置，尝试从第三方获取
+    if (!trackingInfo && trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumber) {
       const config: TrackingProviderConfig = {
         provider: trackingSettings.provider,
         apiKey: trackingSettings.apiKey,

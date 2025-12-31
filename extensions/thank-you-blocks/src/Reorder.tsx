@@ -8,58 +8,83 @@ import {
   InlineLayout,
   View,
   useSettings,
-  useOrder,
+  useApi,
   Link,
   Divider,
   Banner,
   Image,
 } from "@shopify/ui-extensions-react/checkout";
-import { useMemo, memo } from "react";
+import { useMemo, memo, useState, useEffect } from "react";
+import { BACKEND_URL } from "../../shared/config";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Reorder />);
 
 const Reorder = memo(function Reorder() {
   const settings = useSettings();
-  const order = useOrder();
+  const api = useApi();
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [reorderUrl, setReorderUrl] = useState<string>('/cart');
 
   const title = useMemo(() => (settings.reorder_title as string) || "📦 再次购买", [settings.reorder_title]);
   const subtitle = useMemo(() => (settings.reorder_subtitle as string) || "喜欢这次购物？一键再次订购相同商品", [settings.reorder_subtitle]);
   const buttonText = useMemo(() => (settings.reorder_button_text as string) || "再次购买 →", [settings.reorder_button_text]);
   const showItems = useMemo(() => settings.reorder_show_items !== "false", [settings.reorder_show_items]);
 
-  const reorderUrl = useMemo((): string => {
-    if (!order?.lineItems || order.lineItems.length === 0) {
-      return '/cart';
+  // 使用 orderConfirmation API 获取订单 ID
+  useEffect(() => {
+    async function fetchOrderInfo() {
+      try {
+        if (api.orderConfirmation) {
+          const orderData = api.orderConfirmation instanceof Promise
+            ? await api.orderConfirmation
+            : api.orderConfirmation;
+          if (orderData) {
+            setOrderId(orderData.id || null);
+            setOrderNumber(orderData.number !== undefined && orderData.number !== null
+              ? String(orderData.number)
+              : null);
+            
+            // 如果有订单 ID，尝试通过后端获取重新购买 URL
+            if (orderData.id && api.sessionToken && BACKEND_URL) {
+              try {
+                const token = await api.sessionToken.get();
+                const shopDomain = api.shop?.myshopifyDomain || "";
+                
+                if (token && shopDomain) {
+                  const response = await fetch(`${BACKEND_URL}/api/reorder?orderId=${encodeURIComponent(orderData.id)}`, {
+                    headers: {
+                      "Content-Type": "application/json",
+                      "X-Shopify-Shop-Domain": shopDomain,
+                      "Authorization": `Bearer ${token}`,
+                    },
+                  });
+                  
+                  if (response.ok) {
+                    const data = await response.json();
+                    if (data.reorderUrl) {
+                      setReorderUrl(data.reorderUrl);
+                    }
+                  }
+                }
+              } catch (error) {
+                // 如果后端请求失败，使用默认的购物车 URL
+                console.warn("Failed to get reorder URL from backend:", error);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to get order info:", err);
+      }
     }
+    fetchOrderInfo();
+  }, [api]);
 
-    const items = order.lineItems
-      .filter(item => item.quantity > 0)
-      .map(item => {
-
-        const variantId = item.variant?.id || '';
-        const numericId = variantId.split('/').pop() || '';
-        return `${numericId}:${item.quantity}`;
-      })
-      .filter(item => item && !item.startsWith(':'))
-      .join(',');
-
-    if (!items) {
-      return '/cart';
-    }
-
-    return `/cart/${items}`;
-  }, [order?.lineItems]);
-
-  const orderTotalDisplay = useMemo(() => {
-    if (!order?.totalPrice?.amount) return '-';
-    return `${order.totalPrice.currencyCode} ${order.totalPrice.amount}`;
-  }, [order?.totalPrice]);
-
-  if (!order || !order.lineItems || order.lineItems.length === 0) {
+  // 如果没有订单信息，不显示组件
+  if (!orderId && !orderNumber) {
     return null;
   }
-
-  const displayedItems = useMemo(() => order.lineItems.slice(0, 3), [order.lineItems]);
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
@@ -76,44 +101,11 @@ const Reorder = memo(function Reorder() {
       <Divider />
 
       {}
-      {showItems && order.lineItems.length > 0 && (
+      {orderNumber && (
         <BlockStack spacing="tight">
           <Text size="small" appearance="subdued">
-            本次订购了 {order.lineItems.length} 件商品:
+            订单编号: {orderNumber}
           </Text>
-          {displayedItems.map((item, index) => (
-            <InlineLayout key={index} columns={["auto", "fill", "auto"]} spacing="tight" blockAlignment="center">
-              {}
-              {item.image?.url && (
-                <View maxInlineSize={40}>
-                  <Image
-                    source={item.image.url}
-                    accessibilityDescription={item.title}
-                    aspectRatio={1}
-                    cornerRadius="base"
-                  />
-                </View>
-              )}
-              <BlockStack spacing="none">
-                <Text size="small" emphasis="bold">
-                  {item.title}
-                </Text>
-                {item.variant?.title && item.variant.title !== 'Default Title' && (
-                  <Text size="extraSmall" appearance="subdued">
-                    {item.variant.title}
-                  </Text>
-                )}
-              </BlockStack>
-              <Text size="small">
-                x{item.quantity}
-              </Text>
-            </InlineLayout>
-          ))}
-          {order.lineItems.length > 3 && (
-            <Text size="extraSmall" appearance="subdued">
-              +{order.lineItems.length - 3} 件其他商品
-            </Text>
-          )}
         </BlockStack>
       )}
 
@@ -122,10 +114,10 @@ const Reorder = memo(function Reorder() {
         <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
           <BlockStack spacing="none">
             <Text size="small" appearance="subdued">
-              订单金额
+              快速再次购买
             </Text>
-            <Text size="medium" emphasis="bold">
-              {orderTotalDisplay}
+            <Text size="small" appearance="subdued">
+              点击按钮将跳转到购物车
             </Text>
           </BlockStack>
           <Link to={reorderUrl}>

@@ -166,7 +166,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             logger.error("Failed to get Shopify API secret", error);
             return jsonWithCors({ error: "Server configuration error" }, { status: 500 });
         }
-        const jwtResult = verifyShopifyJwt(authToken, apiSecret, shopHeader);
+        const jwtResult = await verifyShopifyJwt(authToken, apiSecret, shopHeader);
         if (!jwtResult.valid) {
             logger.warn(`JWT verification failed for shop ${shopHeader}: ${jwtResult.error}`);
             return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401 });

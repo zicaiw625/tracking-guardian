@@ -44,6 +44,9 @@ importers:
       isbot:
         specifier: ^5.1.2
         version: 5.1.32
+      jose:
+        specifier: ^6.1.3
+        version: 6.1.3
       pdfkit:
         specifier: ^0.17.2
         version: 0.17.2
@@ -3306,6 +3309,9 @@ packages:
 
   jose@5.10.0:
     resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
+
+  jose@6.1.3:
+    resolution: {integrity: sha512-0TpaTfihd4QMNwrz/ob2Bp7X04yuxJkjRGi4aKmOqwhov54i6u79oCv7T+C7lo70MKH6BesI3vscD1yb/yzKXQ==}
 
   jpeg-exif@1.1.4:
     resolution: {integrity: sha512-a+bKEcCjtuW5WTdgeXFzswSrdqi0jk4XlEtZlx5A94wCoBpFjfFTbo/Tra5SpNCl/YFZPvcV1dJc+TAYeg6ROQ==}
@@ -8953,6 +8959,8 @@ snapshots:
   jiti@2.6.1: {}
 
   jose@5.10.0: {}
+
+  jose@6.1.3: {}
 
   jpeg-exif@1.1.4: {}
 

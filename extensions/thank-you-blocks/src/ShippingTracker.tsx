@@ -20,8 +20,9 @@ export default reactExtension("purchase.thank-you.block.render", () => <Shipping
 
 const ShippingTracker = memo(function ShippingTracker() {
     const settings = useSettings();
-    const order = useOrder();
     const api = useApi();
+    const [orderId, setOrderId] = useState<string | null>(null);
+    const [orderNumber, setOrderNumber] = useState<string | null>(null);
     const [trackingInfo, setTrackingInfo] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -31,42 +32,56 @@ const ShippingTracker = memo(function ShippingTracker() {
 
     const provider = useMemo(() => (settings.tracking_provider as string) || "native", [settings.tracking_provider]);
 
+    // 使用 orderConfirmation API 获取订单 ID
+    useEffect(() => {
+        async function fetchOrderInfo() {
+            try {
+                if (api.orderConfirmation) {
+                    const orderData = api.orderConfirmation instanceof Promise
+                        ? await api.orderConfirmation
+                        : api.orderConfirmation;
+                    if (orderData) {
+                        setOrderId(orderData.id || null);
+                        setOrderNumber(orderData.number !== undefined && orderData.number !== null
+                            ? String(orderData.number)
+                            : null);
+                    }
+                }
+            } catch (err) {
+                console.warn("Failed to get order info:", err);
+            }
+        }
+        fetchOrderInfo();
+    }, [api]);
+
     useEffect(() => {
         async function fetchTrackingInfo() {
-            if (provider !== "native" && order?.id && BACKEND_URL) {
+            if (provider !== "native" && orderId && BACKEND_URL) {
                 setIsLoading(true);
                 try {
                     const token = await api.sessionToken.get();
                     const shopDomain = api.shop?.myshopifyDomain || "";
 
-                    if (shopDomain) {
+                    if (shopDomain && token) {
+                        // 通过后端 API 获取物流信息（后端会从 Shopify Admin API 获取）
+                        const response = await fetch(`${BACKEND_URL}/api/tracking?orderId=${encodeURIComponent(orderId)}&trackingNumber=`, {
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Shopify-Shop-Domain": shopDomain,
+                                "Authorization": `Bearer ${token}`,
+                            },
+                        });
 
-                        let trackingNumber: string | undefined;
-                        if (order.fulfillments && order.fulfillments.length > 0) {
-                            const fulfillment = order.fulfillments[0];
-                            trackingNumber = fulfillment.trackingInfo?.number;
-                        }
-
-                        if (trackingNumber) {
-                            const response = await fetch(`${BACKEND_URL}/api/tracking.route?orderId=${order.id}&trackingNumber=${trackingNumber}`, {
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "X-Shopify-Shop-Domain": shopDomain,
-                                    "Authorization": `Bearer ${token}`,
-                                },
-                            });
-
-                            if (response.ok) {
-                                const data = await response.json();
-                                if (data.tracking) {
-                                    setTrackingInfo({
-                                        trackingNumber: data.tracking.trackingNumber,
-                                        carrier: data.tracking.carrier,
-                                        status: data.tracking.status,
-                                        estimatedDelivery: data.tracking.estimatedDelivery ? new Date(data.tracking.estimatedDelivery) : undefined,
-                                        events: data.tracking.events || [],
-                                    });
-                                }
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.tracking) {
+                                setTrackingInfo({
+                                    trackingNumber: data.tracking.trackingNumber,
+                                    carrier: data.tracking.carrier,
+                                    status: data.tracking.status,
+                                    estimatedDelivery: data.tracking.estimatedDelivery ? new Date(data.tracking.estimatedDelivery) : undefined,
+                                    events: data.tracking.events || [],
+                                });
                             }
                         }
                     }
@@ -78,7 +93,7 @@ const ShippingTracker = memo(function ShippingTracker() {
             }
         }
         fetchTrackingInfo();
-    }, [provider, order?.id, order?.fulfillments, api]);
+    }, [provider, orderId, api, BACKEND_URL]);
 
     const shippingSteps = useMemo(() => {
         if (trackingInfo) {
@@ -100,7 +115,7 @@ const ShippingTracker = memo(function ShippingTracker() {
         ];
     }, [trackingInfo]);
 
-    const confirmationNumber = useMemo(() => order?.confirmationNumber || "处理中...", [order?.confirmationNumber]);
+    const confirmationNumber = useMemo(() => orderNumber || "处理中...", [orderNumber]);
     const trackingNumber = useMemo(() => trackingInfo?.trackingNumber || "", [trackingInfo]);
 
     return (
@@ -158,16 +173,16 @@ const ShippingTracker = memo(function ShippingTracker() {
                         {confirmationNumber}
                     </Text>
                 </InlineLayout>
-                {trackingNumber && (
-                    <InlineLayout columns={["fill", "auto"]} spacing="base">
-                        <Text size="small" appearance="subdued">
-                            物流单号
-                        </Text>
-                        <Text size="small" emphasis="bold">
-                            {trackingNumber}
-                        </Text>
-                    </InlineLayout>
-                )}
+                        {trackingInfo?.trackingNumber && (
+                            <InlineLayout columns={["fill", "auto"]} spacing="base">
+                                <Text size="small" appearance="subdued">
+                                    物流单号
+                                </Text>
+                                <Text size="small" emphasis="bold">
+                                    {trackingInfo.trackingNumber}
+                                </Text>
+                            </InlineLayout>
+                        )}
                 {trackingInfo?.estimatedDelivery && (
                     <InlineLayout columns={["fill", "auto"]} spacing="base">
                         <Text size="small" appearance="subdued">

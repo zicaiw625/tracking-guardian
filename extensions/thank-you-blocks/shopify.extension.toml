@@ -45,7 +45,7 @@ handle = "shipping-tracker"
 uid = "bef2635d-b17d-f9e5-c450-4597976fddffea5be910"
 
   [extensions.capabilities]
-  network_access = false
+  network_access = true
 
   [[extensions.targeting]]
   module = "./src/ShippingTracker.tsx"
@@ -141,7 +141,7 @@ handle = "reorder-button"
 uid = "a1b2c3d4-5678-9012-3456-789012345678reorder"
 
   [extensions.capabilities]
-  network_access = false
+  network_access = true
 
   [[extensions.targeting]]
   module = "./src/Reorder.tsx"

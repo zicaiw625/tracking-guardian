@@ -80,7 +80,10 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
     const parsed = JSON.parse(configStr);
 
     if (parsed.schema_version !== "1") {
-      console.warn("[PixelConfig] Unknown schema version, using defaults:", parsed.schema_version);
+      // 只在开发模式下输出警告
+      if (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") {
+        console.warn("[PixelConfig] Unknown schema version, using defaults:", parsed.schema_version);
+      }
       return DEFAULT_PIXEL_CONFIG;
     }
 
@@ -97,7 +100,10 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
       strictness,
     };
   } catch (e) {
-    console.warn("[PixelConfig] Failed to parse config, using defaults:", e);
+    // 只在开发模式下输出警告
+    if (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") {
+      console.warn("[PixelConfig] Failed to parse config, using defaults:", e);
+    }
     return DEFAULT_PIXEL_CONFIG;
   }
 }

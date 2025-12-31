@@ -61,7 +61,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 ...whereClause,
                 ...(platforms.length > 0 && { platform: { in: platforms } }),
               },
-              orderBy: { createdAt: "desc" },
+              orderBy: { createdAt: "asc" }, // 改为 asc，从旧到新处理
               take: 10,
               select: {
                 id: true,
@@ -77,6 +77,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               },
             });
 
+            // 处理日志，更新 lastEventId 为最新的一条
+            let latestLogId: string | null = null;
             for (const log of recentLogs) {
               const event = {
                 id: log.id,
@@ -94,19 +96,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               };
 
               sendMessage(event);
-              lastEventId = log.id;
+              latestLogId = log.id; // 记录最新的一条
+            }
+            
+            // 更新 lastEventId 为最新的一条，下次查询时使用 createdAt > 这条的时间
+            if (latestLogId) {
+              lastEventId = latestLogId;
             }
 
+            // 对于 pixelEventReceipt，使用时间窗口而不是 lastEventId
+            // 因为它是独立的表，使用最近 60 秒的数据
             const recentReceipts = await prisma.pixelEventReceipt.findMany({
               where: {
                 shopId: shop.id,
-                ...(lastEventId && {
-                  createdAt: {
-                    gt: new Date(Date.now() - 60000),
-                  },
-                }),
+                createdAt: {
+                  gt: new Date(Date.now() - 60000),
+                },
               },
-              orderBy: { createdAt: "desc" },
+              orderBy: { createdAt: "asc" },
               take: 10,
               select: {
                 id: true,

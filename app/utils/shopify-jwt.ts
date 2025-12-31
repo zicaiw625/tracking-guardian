@@ -1,6 +1,7 @@
-import { createHmac } from "crypto";
+import { jwtVerify, type JWTPayload } from "jose";
 import { logger } from "./logger.server";
-interface ShopifyJwtPayload {
+
+interface ShopifyJwtPayload extends JWTPayload {
     iss: string;
     dest: string;
     aud: string;
@@ -11,30 +12,14 @@ interface ShopifyJwtPayload {
     jti: string;
     sid?: string;
 }
+
 interface VerificationResult {
     valid: boolean;
     payload?: ShopifyJwtPayload;
     error?: string;
     shopDomain?: string;
 }
-function base64UrlDecode(str: string): string {
-    const padded = str + "=".repeat((4 - (str.length % 4)) % 4);
-    const base64 = padded.replace(/-/g, "+").replace(/_/g, "/");
-    return Buffer.from(base64, "base64").toString("utf8");
-}
-function verifySignature(headerAndPayload: string, signature: string, secret: string): boolean {
-    const expectedSignature = createHmac("sha256", secret)
-        .update(headerAndPayload)
-        .digest("base64url");
-    if (signature.length !== expectedSignature.length) {
-        return false;
-    }
-    let result = 0;
-    for (let i = 0; i < signature.length; i++) {
-        result |= signature.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
-    }
-    return result === 0;
-}
+
 function extractShopDomain(dest: string): string | null {
     try {
         const url = new URL(dest);
@@ -44,64 +29,86 @@ function extractShopDomain(dest: string): string | null {
         return null;
     }
 }
-export function verifyShopifyJwt(token: string, apiSecret: string, expectedShopDomain?: string): VerificationResult {
+
+export async function verifyShopifyJwt(
+    token: string,
+    apiSecret: string,
+    expectedShopDomain?: string,
+    expectedAud?: string
+): Promise<VerificationResult> {
     const cleanToken = token.startsWith("Bearer ")
         ? token.slice(7)
         : token;
-    const parts = cleanToken.split(".");
-    if (parts.length !== 3) {
-        return { valid: false, error: "Invalid token format" };
-    }
-    const [headerB64, payloadB64, signatureB64] = parts;
-    const headerAndPayload = `${headerB64}.${payloadB64}`;
-    if (!verifySignature(headerAndPayload, signatureB64, apiSecret)) {
-        return { valid: false, error: "Invalid signature" };
-    }
-    let header: {
-        alg: string;
-        typ: string;
-    };
+
     try {
-        header = JSON.parse(base64UrlDecode(headerB64));
-    }
-    catch {
-        return { valid: false, error: "Invalid header" };
-    }
-    if (header.alg !== "HS256") {
-        return { valid: false, error: `Unsupported algorithm: ${header.alg}` };
-    }
-    let payload: ShopifyJwtPayload;
-    try {
-        payload = JSON.parse(base64UrlDecode(payloadB64));
-    }
-    catch {
-        return { valid: false, error: "Invalid payload" };
-    }
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now - 5) {
-        return { valid: false, error: "Token expired" };
-    }
-    if (payload.nbf > now + 5) {
-        return { valid: false, error: "Token not yet valid" };
-    }
-    if (!payload.iss || !payload.iss.includes("shopify.com")) {
-        return { valid: false, error: "Invalid issuer" };
-    }
-    const shopDomain = extractShopDomain(payload.dest);
-    if (!shopDomain) {
-        return { valid: false, error: "Invalid destination" };
-    }
-    if (expectedShopDomain && shopDomain !== expectedShopDomain) {
+        // 使用 jose 库进行严格的 JWT 验证
+        const secret = new TextEncoder().encode(apiSecret);
+        
+        const { payload } = await jwtVerify(cleanToken, secret, {
+            algorithms: ["HS256"],
+            // 严格校验 issuer - 必须是 shopify.com 域名
+            issuer: (iss) => {
+                if (!iss) return false;
+                // 严格匹配 shopify.com 域名格式
+                return /^https:\/\/[a-zA-Z0-9-]+\.shopify\.com\/?$/.test(iss) ||
+                       iss === "https://shopify.com" ||
+                       iss === "https://admin.shopify.com";
+            },
+            // 如果提供了 expectedAud，则严格校验
+            audience: expectedAud || undefined,
+        });
+
+        const shopifyPayload = payload as ShopifyJwtPayload;
+
+        // 验证必要的字段
+        if (!shopifyPayload.iss || !shopifyPayload.dest || !shopifyPayload.aud) {
+            return { valid: false, error: "Missing required JWT claims" };
+        }
+
+        // 提取 shop domain
+        const shopDomain = extractShopDomain(shopifyPayload.dest);
+        if (!shopDomain) {
+            return { valid: false, error: "Invalid destination format" };
+        }
+
+        // 验证 shop domain 匹配
+        if (expectedShopDomain && shopDomain !== expectedShopDomain) {
+            return {
+                valid: false,
+                error: `Shop domain mismatch: expected ${expectedShopDomain}, got ${shopDomain}`,
+            };
+        }
+
+        // 验证 aud（audience）- 应该是你的 API key
+        if (expectedAud && shopifyPayload.aud !== expectedAud) {
+            return {
+                valid: false,
+                error: `Audience mismatch: expected ${expectedAud}, got ${shopifyPayload.aud}`,
+            };
+        }
+
         return {
-            valid: false,
-            error: `Shop domain mismatch: expected ${expectedShopDomain}, got ${shopDomain}`,
+            valid: true,
+            payload: shopifyPayload,
+            shopDomain,
         };
     }
-    return {
-        valid: true,
-        payload,
-        shopDomain,
-    };
+    catch (error) {
+        if (error instanceof Error) {
+            // jose 库会抛出详细的错误信息
+            if (error.name === "JWTExpired") {
+                return { valid: false, error: "Token expired" };
+            }
+            if (error.name === "JWTClaimValidationFailed") {
+                return { valid: false, error: `Claim validation failed: ${error.message}` };
+            }
+            if (error.name === "JWTInvalid") {
+                return { valid: false, error: `Invalid JWT: ${error.message}` };
+            }
+            return { valid: false, error: `JWT verification failed: ${error.message}` };
+        }
+        return { valid: false, error: "Unknown JWT verification error" };
+    }
 }
 export function extractAuthToken(request: Request): string | null {
     const authHeader = request.headers.get("Authorization");
