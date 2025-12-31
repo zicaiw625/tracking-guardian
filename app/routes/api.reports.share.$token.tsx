@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import prisma from "../../db.server";
-import { getShareableReport, recordShareAccess } from "../../services/report-sharing.server";
+import prisma from "~/db.server";
+import { getShareableReport, recordShareAccess } from "~/services/report-sharing.server";
 import {
   fetchScanReportData,
   fetchVerificationReportData,
@@ -9,8 +9,8 @@ import {
   generateScanReportHtml,
   generateVerificationReportHtml,
   generateReconciliationReportHtml,
-} from "../../services/report-generator.server";
-import { logger } from "../../utils/logger.server";
+} from "~/services/report-generator.server";
+import { logger } from "~/utils/logger.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { token } = params;
