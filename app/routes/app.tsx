@@ -6,7 +6,7 @@ import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
 import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
-import translations from "@shopify/polaris/locales/en.json" assert { type: "json" };
+import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { authenticate } from "../shopify.server";
 import { ToastProvider } from "../components/ui/ToastProvider";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];

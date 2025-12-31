@@ -12,7 +12,7 @@ import {
   Link,
 } from "@shopify/polaris";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
-import translations from "@shopify/polaris/locales/en.json" assert { type: "json" };
+import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
