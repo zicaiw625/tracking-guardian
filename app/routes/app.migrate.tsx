@@ -1033,7 +1033,7 @@ export default function MigratePage() {
                   </Box>
 
                   <InlineStack gap="200">
-                    <Button variant="primary" url={`https:
+                    <Button variant="primary" url="https://help.shopify.com" external>
                       前往 Shopify 后台升级
                     </Button>
                     <Button onClick={() => window.location.reload()}>

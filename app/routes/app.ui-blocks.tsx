@@ -1199,7 +1199,6 @@ export default function UiBlocksPage() {
               variant="plain"
               size="slim"
               external
-              external
             >
               打开 Checkout Editor
             </Button>
