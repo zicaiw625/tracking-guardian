@@ -24,27 +24,77 @@ import type { DashboardData, HealthStatus } from "../types/dashboard";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-function calculateHealthScore(
+async function calculateHealthScore(
+  shopId: string,
   recentReports: Array<{ orderDiscrepancy: number }>,
   configuredPlatforms: number
-): { score: number | null; status: HealthStatus } {
+): Promise<{ score: number | null; status: HealthStatus; factors: { label: string; value: number; weight: number }[] }> {
   if (recentReports.length === 0 || configuredPlatforms === 0) {
-    return { score: null, status: "uninitialized" };
+    return { score: null, status: "uninitialized", factors: [] };
   }
 
+  const factors: { label: string; value: number; weight: number }[] = [];
+
+  // 1. 对账差异率 (权重: 40%)
   const avgDiscrepancy =
     recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length;
+  const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500)); // 0.2 = 0分, 0 = 100分
+  factors.push({ label: "对账一致性", value: discrepancyScore, weight: 0.4 });
 
-  if (avgDiscrepancy > 0.2) {
-    return { score: 40, status: "critical" };
+  // 2. 事件成功率 (权重: 30%)
+  try {
+    const { getEventMonitoringStats } = await import("./monitoring.server");
+    const stats = await getEventMonitoringStats(shopId, 24 * 7); // 最近7天
+    const successRateScore = stats.successRate || 0;
+    factors.push({ label: "事件成功率", value: successRateScore, weight: 0.3 });
+  } catch (error) {
+    logger.warn("Failed to get event monitoring stats for health score", { shopId, error });
+    factors.push({ label: "事件成功率", value: 100, weight: 0.3 }); // 默认满分
   }
-  if (avgDiscrepancy > 0.1) {
-    return { score: 70, status: "warning" };
+
+  // 3. 参数完整率 (权重: 20%)
+  try {
+    const { getMissingParamsRate } = await import("./event-validation.server");
+    const missingParamsRate = await getMissingParamsRate(shopId, 24 * 7);
+    const completenessScore = 100 - (missingParamsRate || 0);
+    factors.push({ label: "参数完整性", value: Math.max(0, completenessScore), weight: 0.2 });
+  } catch (error) {
+    logger.warn("Failed to get missing params rate for health score", { shopId, error });
+    factors.push({ label: "参数完整性", value: 100, weight: 0.2 }); // 默认满分
   }
-  if (avgDiscrepancy > 0.05) {
-    return { score: 85, status: "success" };
+
+  // 4. 事件量稳定性 (权重: 10%)
+  try {
+    const { getEventVolumeStats } = await import("./monitoring.server");
+    const volumeStats = await getEventVolumeStats(shopId);
+    let volumeScore = 100;
+    if (volumeStats.isDrop && Math.abs(volumeStats.changePercent || 0) > 50) {
+      volumeScore = 50; // 事件量大幅下降
+    } else if (volumeStats.isDrop && Math.abs(volumeStats.changePercent || 0) > 30) {
+      volumeScore = 75; // 事件量中度下降
+    }
+    factors.push({ label: "事件量稳定性", value: volumeScore, weight: 0.1 });
+  } catch (error) {
+    logger.warn("Failed to get event volume stats for health score", { shopId, error });
+    factors.push({ label: "事件量稳定性", value: 100, weight: 0.1 }); // 默认满分
   }
-  return { score: 95, status: "success" };
+
+  // 计算加权总分
+  const totalScore = factors.reduce((sum, factor) => sum + (factor.value * factor.weight), 0);
+  const roundedScore = Math.round(totalScore);
+
+  let status: HealthStatus;
+  if (roundedScore >= 90) {
+    status = "success";
+  } else if (roundedScore >= 70) {
+    status = "warning";
+  } else if (roundedScore >= 50) {
+    status = "warning";
+  } else {
+    status = "critical";
+  }
+
+  return { score: roundedScore, status, factors };
 }
 
 function analyzeScriptTags(
@@ -138,7 +188,8 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       config.credentialsEncrypted.trim().length > 0
   ).length || 0;
   const hasServerSideConfig = serverSideConfigsCount > 0;
-  const { score, status } = calculateHealthScore(
+  const { score, status, factors } = await calculateHealthScore(
+    shop.id,
     shop.reconciliationReports || [],
     serverSideConfigsCount
   );
@@ -219,6 +270,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     shopDomain,
     healthScore: score,
     healthStatus: status,
+    healthScoreFactors: factors,
     latestScan: latestScan
       ? {
           status: latestScan.status,

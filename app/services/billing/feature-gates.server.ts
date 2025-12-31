@@ -82,8 +82,26 @@ export async function checkUiModulesLimit(
 
 export function checkFeatureAccess(
   shopPlan: PlanId,
-  feature: "verification" | "alerts" | "reconciliation" | "agency"
+  feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit"
 ): FeatureGateResult {
+  // Audit 功能对所有套餐免费
+  if (feature === "audit") {
+    return { allowed: true };
+  }
+
+  // Pixel migration 和 UI modules 需要 Starter+
+  if (feature === "pixel_migration" || feature === "ui_modules") {
+    const hasAccess = isPlanAtLeast(shopPlan, "starter");
+    if (!hasAccess) {
+      const planConfig = getPlanOrDefault(shopPlan);
+      return {
+        allowed: false,
+        reason: `${feature === "pixel_migration" ? "像素迁移" : "UI 模块"}功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+      };
+    }
+    return { allowed: true };
+  }
+
   const hasAccess = planSupportsFeature(shopPlan, feature);
 
   if (!hasAccess) {
@@ -93,6 +111,9 @@ export function checkFeatureAccess(
       alerts: "告警功能",
       reconciliation: "事件对账",
       agency: "Agency 多店功能",
+      pixel_migration: "像素迁移",
+      ui_modules: "UI 模块",
+      audit: "Audit 扫描",
     };
 
     return {
@@ -104,8 +125,12 @@ export function checkFeatureAccess(
   return { allowed: true };
 }
 
-function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency"): string {
+function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit"): string {
   switch (feature) {
+    case "audit":
+      return "Free"; // 免费功能
+    case "pixel_migration":
+    case "ui_modules":
     case "verification":
       return "Starter";
     case "alerts":
@@ -114,6 +139,16 @@ function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliatio
     case "agency":
       return "Agency";
   }
+}
+
+function isPlanAtLeast(current: PlanId, target: PlanId): boolean {
+  const tierOrder: Record<PlanId, number> = {
+    free: 0,
+    starter: 1,
+    growth: 2,
+    agency: 3,
+  };
+  return tierOrder[current] >= tierOrder[target];
 }
 
 export async function canCreatePixelConfig(

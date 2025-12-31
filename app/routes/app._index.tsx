@@ -203,6 +203,128 @@ type SerializedLatestScan = {
   identifiedPlatforms: string[];
 } | null;
 
+const MigrationStatusCard = memo(function MigrationStatusCard({
+  typOspPagesEnabled,
+  riskScore,
+  estimatedMigrationTimeMinutes,
+  scriptTagsCount,
+  identifiedPlatforms,
+}: {
+  typOspPagesEnabled: boolean;
+  riskScore: number | null;
+  estimatedMigrationTimeMinutes: number | null;
+  scriptTagsCount: number;
+  identifiedPlatforms: string[];
+}) {
+  const upgradeStatusBadge = typOspPagesEnabled
+    ? { tone: "success" as const, label: "已升级" }
+    : { tone: "warning" as const, label: "未升级" };
+
+  const riskBadge =
+    riskScore === null
+      ? { tone: "info" as const, label: "待评估" }
+      : riskScore >= 70
+        ? { tone: "critical" as const, label: "高风险" }
+        : riskScore >= 40
+          ? { tone: "warning" as const, label: "中风险" }
+          : { tone: "success" as const, label: "低风险" };
+
+  const formatEstimatedTime = (minutes: number | null): string => {
+    if (minutes === null) return "待计算";
+    if (minutes < 60) return `${minutes} 分钟`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
+  };
+
+  return (
+    <Card>
+      <BlockStack gap="400">
+        <InlineStack align="space-between" blockAlign="center">
+          <Text as="h2" variant="headingMd">
+            升级状态概览
+          </Text>
+        </InlineStack>
+
+        <BlockStack gap="300">
+          <InlineStack align="space-between" blockAlign="center">
+            <Text as="span" variant="bodyMd" fontWeight="semibold">
+              Checkout 升级状态
+            </Text>
+            <Badge tone={upgradeStatusBadge.tone}>{upgradeStatusBadge.label}</Badge>
+          </InlineStack>
+
+          <Divider />
+
+          <InlineStack align="space-between" blockAlign="center">
+            <Text as="span" variant="bodyMd" fontWeight="semibold">
+              风险评分
+            </Text>
+            <InlineStack gap="200" blockAlign="center">
+              {riskScore !== null && (
+                <Text as="span" variant="bodyMd" fontWeight="bold">
+                  {riskScore} / 100
+                </Text>
+              )}
+              <Badge tone={riskBadge.tone}>{riskBadge.label}</Badge>
+            </InlineStack>
+          </InlineStack>
+
+          <Divider />
+
+          <InlineStack align="space-between" blockAlign="center">
+            <Text as="span" variant="bodyMd" fontWeight="semibold">
+              预计迁移时间
+            </Text>
+            <Text as="span" variant="bodyMd">
+              {formatEstimatedTime(estimatedMigrationTimeMinutes)}
+            </Text>
+          </InlineStack>
+
+          {scriptTagsCount > 0 && (
+            <>
+              <Divider />
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="span" variant="bodyMd" fontWeight="semibold">
+                  待迁移 ScriptTags
+                </Text>
+                <Badge tone="warning">{scriptTagsCount} 个</Badge>
+              </InlineStack>
+            </>
+          )}
+
+          {identifiedPlatforms.length > 0 && (
+            <>
+              <Divider />
+              <BlockStack gap="200">
+                <Text as="span" variant="bodyMd" fontWeight="semibold">
+                  识别到的平台
+                </Text>
+                <InlineStack gap="100" wrap>
+                  {identifiedPlatforms.map((platform) => (
+                    <Badge key={platform}>{platform}</Badge>
+                  ))}
+                </InlineStack>
+              </BlockStack>
+            </>
+          )}
+
+          {!typOspPagesEnabled && (
+            <>
+              <Divider />
+              <Banner tone="warning">
+                <Text as="p" variant="bodySm">
+                  您的店铺尚未升级到新的 Checkout 系统。建议尽快升级以避免追踪脚本失效。
+                </Text>
+              </Banner>
+            </>
+          )}
+        </BlockStack>
+      </BlockStack>
+    </Card>
+  );
+});
+
 const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
   if (!latestScan) {
     return (
@@ -770,6 +892,7 @@ export default function Index() {
 
         {}
         {}
+        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">
@@ -812,6 +935,15 @@ export default function Index() {
           </BlockStack>
         </Card>
 
+        {}
+        {}
+        <MigrationStatusCard
+          typOspPagesEnabled={data.typOspPagesEnabled ?? false}
+          riskScore={data.latestScan?.riskScore ?? null}
+          estimatedMigrationTimeMinutes={data.estimatedMigrationTimeMinutes ?? null}
+          scriptTagsCount={data.scriptTagsCount}
+          identifiedPlatforms={data.latestScan?.identifiedPlatforms ?? []}
+        />
         {}
         <Layout>
           <Layout.Section variant="oneThird">

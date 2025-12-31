@@ -1,0 +1,174 @@
+/**
+ * 验收向导组件 - 生成测试清单、实时事件查看
+ */
+
+import { useState, useCallback } from "react";
+import {
+  Card,
+  BlockStack,
+  InlineStack,
+  Text,
+  Button,
+  List,
+  Badge,
+  Box,
+  Divider,
+  Banner,
+  ProgressBar,
+} from "@shopify/polaris";
+import { CheckCircleIcon, AlertCircleIcon, PlayIcon, ClipboardIcon } from "~/components/icons";
+import type { TestChecklist } from "~/services/verification-checklist.server";
+
+export interface VerificationWizardProps {
+  shopId: string;
+  testChecklist: TestChecklist;
+  onStartTest?: () => void;
+  onComplete?: () => void;
+}
+
+export function VerificationWizard({
+  shopId,
+  testChecklist,
+  onStartTest,
+  onComplete,
+}: VerificationWizardProps) {
+  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  const [currentStep, setCurrentStep] = useState<number>(0);
+
+  const handleItemComplete = useCallback((itemId: string) => {
+    setCompletedItems((prev) => {
+      const next = new Set(prev);
+      next.add(itemId);
+      return next;
+    });
+  }, []);
+
+  const progress = testChecklist.items.length > 0
+    ? (completedItems.size / testChecklist.items.length) * 100
+    : 0;
+
+  const allCompleted = completedItems.size === testChecklist.items.length;
+
+  return (
+    <BlockStack gap="400">
+      <Card>
+        <BlockStack gap="400">
+          <InlineStack align="space-between">
+            <Text variant="headingMd" as="h2">
+              验收测试向导
+            </Text>
+            <Badge tone={allCompleted ? "success" : "info"}>
+              {completedItems.size} / {testChecklist.items.length}
+            </Badge>
+          </InlineStack>
+
+          <Box>
+            <BlockStack gap="200">
+              <InlineStack align="space-between">
+                <Text variant="bodyMd" as="span">
+                  完成进度
+                </Text>
+                <Text variant="headingSm" as="span">
+                  {Math.round(progress)}%
+                </Text>
+              </InlineStack>
+              <ProgressBar progress={progress} size="small" />
+            </BlockStack>
+          </Box>
+
+          <Divider />
+
+          <BlockStack gap="300">
+            <Text variant="headingSm" as="h3">
+              测试清单
+            </Text>
+            <List>
+              {testChecklist.items.map((item, index) => {
+                const isCompleted = completedItems.has(item.id);
+                return (
+                  <List.Item key={item.id}>
+                    <BlockStack gap="200">
+                      <InlineStack align="space-between">
+                        <InlineStack gap="200" blockAlignment="center">
+                          {isCompleted ? (
+                            <CheckCircleIcon />
+                          ) : (
+                            <Box minWidth="20px" />
+                          )}
+                          <Text
+                            variant="bodyMd"
+                            as="span"
+                            fontWeight={isCompleted ? "normal" : "semibold"}
+                          >
+                            {index + 1}. {item.title}
+                          </Text>
+                        </InlineStack>
+                        {isCompleted && <Badge tone="success">已完成</Badge>}
+                      </InlineStack>
+                      {item.description && (
+                        <Text variant="bodySm" as="span" tone="subdued">
+                          {item.description}
+                        </Text>
+                      )}
+                      {item.expectedEvents && item.expectedEvents.length > 0 && (
+                        <Box>
+                          <Text variant="bodySm" as="span" fontWeight="semibold">
+                            预期事件:
+                          </Text>
+                          <InlineStack gap="100">
+                            {item.expectedEvents.map((event) => (
+                              <Badge key={event} tone="info">
+                                {event}
+                              </Badge>
+                            ))}
+                          </InlineStack>
+                        </Box>
+                      )}
+                      {!isCompleted && (
+                        <Button
+                          size="small"
+                          onClick={() => handleItemComplete(item.id)}
+                        >
+                          标记为已完成
+                        </Button>
+                      )}
+                    </BlockStack>
+                  </List.Item>
+                );
+              })}
+            </List>
+          </BlockStack>
+
+          {allCompleted && (
+            <Banner tone="success">
+              <BlockStack gap="200">
+                <Text variant="bodyMd" as="span" fontWeight="semibold">
+                  所有测试项已完成！
+                </Text>
+                <Text variant="bodySm" as="span">
+                  您可以继续查看事件详情或生成验收报告。
+                </Text>
+              </BlockStack>
+            </Banner>
+          )}
+
+          <Divider />
+
+          <InlineStack align="end">
+            {onStartTest && (
+              <Button onClick={onStartTest} icon={PlayIcon}>
+                开始测试
+              </Button>
+            )}
+            {allCompleted && onComplete && (
+              <Button onClick={onComplete} variant="primary">
+                完成验收
+              </Button>
+            )}
+          </InlineStack>
+        </BlockStack>
+      </Card>
+    </BlockStack>
+  );
+}
+

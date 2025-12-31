@@ -119,18 +119,38 @@ const PRESET_TEMPLATES: PixelTemplate[] = [
 const DEFAULT_EVENT_MAPPINGS: Record<Platform, Record<string, string>> = {
   google: {
     checkout_completed: "purchase",
+    checkout_started: "begin_checkout",
+    add_to_cart: "add_to_cart",
+    view_item: "view_item",
+    search: "search",
   },
   meta: {
     checkout_completed: "Purchase",
+    checkout_started: "InitiateCheckout",
+    add_to_cart: "AddToCart",
+    view_content: "ViewContent",
+    search: "Search",
   },
   tiktok: {
     checkout_completed: "CompletePayment",
+    checkout_started: "InitiateCheckout",
+    add_to_cart: "AddToCart",
+    view_content: "ViewContent",
+    search: "Search",
   },
   pinterest: {
     checkout_completed: "checkout",
+    checkout_started: "checkout",
+    add_to_cart: "addtocart",
+    view_content: "pagevisit",
+    search: "search",
   },
   snapchat: {
     checkout_completed: "PURCHASE",
+    checkout_started: "START_CHECKOUT",
+    add_to_cart: "ADD_CART",
+    view_content: "VIEW_CONTENT",
+    search: "SEARCH",
   },
 };
 

@@ -6,6 +6,7 @@ export interface DashboardData {
   shopDomain: string;
   healthScore: number | null;
   healthStatus: HealthStatus;
+  healthScoreFactors?: Array<{ label: string; value: number; weight: number }>;
   latestScan: {
     status: string;
     riskScore: number;

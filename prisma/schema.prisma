@@ -94,6 +94,8 @@ model Shop {
   performanceMetrics    PerformanceMetric[]
 
   migrationDrafts       MigrationDraft[]
+  eventLogs              EventLog[]
+  monitoringAlerts       MonitoringAlert[]
 }
 
 model ScanReport {
@@ -140,6 +142,7 @@ model PixelConfig {
   environment String @default("live")
 
   configVersion   Int       @default(1)
+  mappingVersion  Int       @default(1)
   previousConfig  Json?
   rollbackAllowed Boolean   @default(true)
 
@@ -487,6 +490,8 @@ model AuditAsset {
 
   details Json?
 
+  rawSnippetEncrypted String?
+
   scanReportId String?
 
   createdAt DateTime @default(now())
@@ -807,4 +812,91 @@ model MigrationDraft {
   @@unique([shopId])
   @@index([expiresAt])
   @@index([shopId, updatedAt])
+}
+
+model EventLog {
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  eventName String
+  eventId   String?
+
+  payloadJson Json?
+
+  destinationType String?
+
+  status String @default("ok")
+
+  errorCode   String?
+  errorDetail String?
+
+  eventTimestamp DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([shopId])
+  @@index([eventName])
+  @@index([eventId])
+  @@index([destinationType])
+  @@index([status])
+  @@index([createdAt])
+
+  @@index([shopId, eventName])
+  @@index([shopId, destinationType])
+  @@index([shopId, status, createdAt])
+  @@index([shopId, eventTimestamp])
+  @@index([eventId, destinationType])
+}
+
+model MonitoringAlert {
+  id     String @id @default(cuid())
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  alertType String
+
+  threshold Float?
+
+  condition Json?
+
+  isEnabled Boolean @default(true)
+
+  lastTriggeredAt DateTime?
+  triggerCount    Int       @default(0)
+
+  notificationChannels Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  alertHistory MonitoringAlertHistory[]
+
+  @@index([shopId])
+  @@index([alertType])
+  @@index([isEnabled])
+  @@index([shopId, alertType])
+  @@index([shopId, isEnabled])
+}
+
+model MonitoringAlertHistory {
+  id        String   @id @default(cuid())
+  alertId   String
+  alert     MonitoringAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  triggeredAt DateTime @default(now())
+
+  metricValue Float?
+  threshold   Float?
+
+  details Json?
+
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([alertId])
+  @@index([triggeredAt])
+  @@index([alertId, triggeredAt])
+  @@index([resolvedAt])
 }

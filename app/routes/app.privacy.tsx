@@ -535,6 +535,99 @@ export default function PrivacyPage() {
         </CollapsibleSection>
 
         {}
+        <CollapsibleSection title="数据导出与删除">
+          <BlockStack gap="400">
+            <Banner tone="info">
+              <Text variant="bodySm" as="span">
+                根据 GDPR 和 CCPA 法规，您有权导出或删除您的数据。我们提供以下工具：
+              </Text>
+            </Banner>
+
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingSm" as="h3">
+                  数据导出
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  导出您店铺的所有数据，包括转化记录、事件日志、问卷响应等。
+                </Text>
+                <InlineStack gap="200">
+                  <Button
+                    url="/api/exports?type=conversions&format=json"
+                    external
+                    variant="primary"
+                  >
+                    导出转化数据 (JSON)
+                  </Button>
+                  <Button
+                    url="/api/exports?type=conversions&format=csv"
+                    external
+                  >
+                    导出转化数据 (CSV)
+                  </Button>
+                  <Button
+                    url="/api/exports?type=events&format=json"
+                    external
+                  >
+                    导出事件日志 (JSON)
+                  </Button>
+                </InlineStack>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  导出文件将在浏览器中下载。大型数据集可能需要几分钟时间。
+                </Text>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingSm" as="h3">
+                  数据删除
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  删除您店铺的所有数据。此操作不可撤销，请谨慎操作。
+                </Text>
+                <Banner tone="critical">
+                  <Text variant="bodySm" as="span" fontWeight="semibold">
+                    警告：删除操作将永久删除所有数据，包括：
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>所有转化记录</List.Item>
+                    <List.Item>所有事件日志</List.Item>
+                    <List.Item>所有问卷响应</List.Item>
+                    <List.Item>所有配置和设置</List.Item>
+                  </List>
+                </Banner>
+                <Button
+                  tone="critical"
+                  onClick={() => {
+                    // TODO: 实现删除确认对话框
+                    if (confirm("确定要删除所有数据吗？此操作不可撤销！")) {
+                      // 触发删除操作
+                    }
+                  }}
+                >
+                  删除所有数据
+                </Button>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="300">
+                <Text variant="headingSm" as="h3">
+                  GDPR 请求状态
+                </Text>
+                <Text variant="bodySm" as="p" tone="subdued">
+                  查看最近的 GDPR 数据请求和删除请求状态。
+                </Text>
+                <Button url="/app/privacy?tab=gdpr" variant="secondary">
+                  查看 GDPR 请求历史
+                </Button>
+              </BlockStack>
+            </Card>
+          </BlockStack>
+        </CollapsibleSection>
+
+        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h2" variant="headingMd">
