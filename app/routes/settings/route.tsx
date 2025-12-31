@@ -113,7 +113,6 @@ export default function SettingsPage() {
   const [alertFormDirty, setAlertFormDirty] = useState(false);
   const [serverFormDirty, setServerFormDirty] = useState(false);
 
-  const settings = existingAlertConfig?.settings as { thresholds?: { failureRate?: number; missingParams?: number; volumeDrop?: number } } | undefined;
   const initialAlertValues = useRef({
     channel: existingAlertConfig?.channel || "email",
     email: "",
