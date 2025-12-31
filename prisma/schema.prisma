@@ -1,5 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 
 generator client {
   provider = "prisma-client-js"
@@ -10,7 +9,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Shopify Session storage for OAuth
 model Session {
   id            String    @id
   shop          String
@@ -28,89 +26,52 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 
-  // Performance: Index for shop lookups (common in webhook/auth flows)
   @@index([shop])
 }
 
-// Shop information and subscription status
 model Shop {
   id                String    @id @default(cuid())
   shopDomain        String    @unique
   accessToken       String?
   email             String?
   name              String?
-  plan              String    @default("free") // free, starter, pro, enterprise
+  plan              String    @default("free")
   monthlyOrderLimit Int       @default(100)
   installedAt       DateTime  @default(now())
   uninstalledAt     DateTime?
   isActive          Boolean   @default(true)
 
-  // Privacy settings
-  // When false, PII (email/phone/address) is NOT sent to ad platforms
-  // This provides an extra layer of privacy compliance
-  // Note: Server-side tracking always hashes PII before sending
   piiEnabled Boolean @default(false)
 
-  // P0: PCD (Protected Customer Data) acknowledgement
-  // Tracks whether merchant has acknowledged PCD review requirements
-  // Required when piiEnabled=true to ensure merchant understands compliance requirements
   pcdAcknowledged   Boolean   @default(false)
   pcdAcknowledgedAt DateTime?
 
-  // P1-3: Weak consent mode (DEPRECATED - use consentStrategy instead)
-  // Kept for backwards compatibility
   weakConsentMode Boolean @default(false)
 
-  // P0-04: Consent strategy for CAPI sending (UPDATED DEFAULT)
-  // - strict: Must have PixelEventReceipt with consent allowed (RECOMMENDED)
-  // - balanced: Use receipt if available; without receipt: allow analytics, block marketing
-  // - weak: Allow sending without consent (for regions with implied consent)
-  // DEFAULT CHANGED TO "strict" FOR PRIVACY COMPLIANCE
   consentStrategy String @default("strict")
 
-  // Data retention settings (in days)
-  // 0 means no auto-deletion (manual deletion required)
   dataRetentionDays Int @default(90)
 
-  // P0-2: Ingestion secret for pixel event signature verification
-  // Used to sign requests from the web pixel to prevent forgery/abuse
-  // Generated on shop installation, can be regenerated in settings
-  // SECURITY: This field is stored encrypted using AES-256-GCM
-  // Made optional to support existing shops without secrets; afterAuth hook will populate
   ingestionSecret String?
-  
-  // P0-2: Previous ingestion secret for grace window during rotation
-  // Allows old signatures to work for a brief period after rotation
-  // Stored encrypted; cleared after grace window expires
+
   previousIngestionSecret String?
   previousSecretExpiry    DateTime?
 
-  // P0-2: Storefront domain allowlist for origin validation
-  // Includes myshopify domain + primary domain + custom domains
   primaryDomain      String?
   storefrontDomains  String[]
 
-  // P1: Web Pixel ID for reliable pixel identification
-  // Stored after webPixelCreate succeeds; used for webPixelUpdate
-  // Avoids relying on settings key guessing to identify "our" pixel
   webPixelId String?
 
-  // P0-1: Shop tier and checkout upgrade status
-  // Used to determine accurate deprecation messaging
-  // - shopTier: "plus" | "non_plus" | null (detected from Shopify plan)
-  // - typOspPagesEnabled: Whether shop has upgraded to new Thank you / Order status pages
-  //   Populated via checkoutProfiles + typOspPagesActive (Shopify Admin API), refreshed by cron/scan
-  shopTier             String?   // "plus" or "non_plus"
-  typOspPagesEnabled   Boolean?  // true = upgraded to new TYP/OSP pages
-  typOspUpdatedAt      DateTime? // Last time the status was updated (legacy naming, keep for compatibility)
-  typOspLastCheckedAt  DateTime? // Last time checkoutProfiles/typOspPagesActive was queried
-  typOspDetectedAt     DateTime? // First time we saw typOspPagesEnabled === true
-  typOspStatusReason   String?   // Unknown/disabled reasons (NOT_PLUS/NO_EDITOR_ACCESS/API_ERROR/etc.)
+  shopTier             String?
+  typOspPagesEnabled   Boolean?
+  typOspUpdatedAt      DateTime?
+  typOspLastCheckedAt  DateTime?
+  typOspDetectedAt     DateTime?
+  typOspStatusReason   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   scanReports           ScanReport[]
   pixelConfigs          PixelConfig[]
   alertConfigs          AlertConfig[]
@@ -121,40 +82,34 @@ model Shop {
   monthlyUsages         MonthlyUsage[]
   pixelEventReceipts    PixelEventReceipt[]
   conversionJobs        ConversionJob[]
-  // v1.0 新增关联
+
   auditAssets           AuditAsset[]
   verificationRuns      VerificationRun[]
   uiExtensionSettings   UiExtensionSetting[]
-  // Agency 协作功能
+
   migrationTasks        MigrationTask[]
   taskComments          TaskComment[]
   workspaceComments     WorkspaceComment[]
-  // 性能监控
+
   performanceMetrics    PerformanceMetric[]
-  // 迁移草稿
+
   migrationDrafts       MigrationDraft[]
 }
 
-// Scan report for tracking scripts
 model ScanReport {
   id     String @id @default(cuid())
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // Scan results
-  // P0-02: additionalScripts field REMOVED - raw scripts may contain PII
-  // Platform detection results are stored in identifiedPlatforms + riskItems
-  scriptTags        Json? // ScriptTag API results (src URLs only, no inline content)
-  checkoutConfig    Json? // Checkout configuration
+  scriptTags        Json?
+  checkoutConfig    Json?
 
-  // Risk analysis
-  riskItems Json? // Array of identified risks
-  riskScore Int   @default(0) // 0-100 risk score
+  riskItems Json?
+  riskScore Int   @default(0)
 
-  // Identified platforms
-  identifiedPlatforms Json? // e.g., ["google", "meta", "tiktok"]
+  identifiedPlatforms Json?
 
-  status       String  @default("pending") // pending, scanning, completed, completed_with_errors, failed
+  status       String  @default("pending")
   errorMessage String?
 
   createdAt   DateTime  @default(now())
@@ -164,42 +119,31 @@ model ScanReport {
   @@index([status])
 }
 
-// Pixel configuration for each platform
 model PixelConfig {
   id     String @id @default(cuid())
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  platform   String // google, meta, tiktok, pinterest (P0-4: bing/clarity removed - no CAPI support)
-  platformId String? // e.g., GA4 Measurement ID, Meta Pixel ID
+  platform   String
+  platformId String?
 
-  // Platform-specific credentials (separated for security)
-  // credentialsEncrypted: stores AES-256-GCM encrypted sensitive data (access tokens, API secrets)
-  credentialsEncrypted String? // Encrypted string for server-side API credentials
-  // clientConfig: stores non-sensitive configuration (conversion labels, event mappings)
-  clientConfig         Json? // Non-sensitive client configuration
+  credentialsEncrypted String?
 
-  // Legacy field - deprecated, use credentialsEncrypted instead
-  // Kept for backwards compatibility during migration
+  clientConfig         Json?
+
   credentials Json? @map("credentials_legacy")
 
-  // Configuration
   clientSideEnabled Boolean @default(true)
   serverSideEnabled Boolean @default(false)
-  eventMappings     Json? // Custom event mappings
+  eventMappings     Json?
 
-  // v1.0: 环境切换 (Test/Live)
-  // test: 测试模式，仅发送到沙盒/测试端点
-  // live: 生产模式，发送到正式端点
   environment String @default("live")
 
-  // v1.0: 配置版本号，用于回滚
   configVersion   Int       @default(1)
-  previousConfig  Json?     // 上一个版本的配置快照
+  previousConfig  Json?
   rollbackAllowed Boolean   @default(true)
 
-  // Migration status
-  migrationStatus String    @default("not_started") // not_started, in_progress, completed
+  migrationStatus String    @default("not_started")
   migratedAt      DateTime?
 
   isActive  Boolean  @default(true)
@@ -212,33 +156,21 @@ model PixelConfig {
   @@index([environment])
 }
 
-// Alert configuration for monitoring
 model AlertConfig {
   id     String @id @default(cuid())
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  channel  String // email, slack, telegram
-  
-  // P0-2: Deprecated - use settingsEncrypted instead
-  // Kept for backwards compatibility during migration
-  // Contains non-sensitive settings only (thresholds, channel type, etc.)
+  channel  String
+
   settings Json?
-  
-  // P0-2: Encrypted storage for sensitive settings (webhook URLs, tokens, etc.)
-  // Uses AES-256-GCM encryption via token-encryption.ts
-  // Structure depends on channel:
-  // - email: { email: string }
-  // - slack: { webhookUrl: string (encrypted) }
-  // - telegram: { botToken: string (encrypted), chatId: string }
+
   settingsEncrypted String?
 
-  // Alert thresholds
-  discrepancyThreshold Float @default(0.1) // 10% default threshold
-  minOrdersForAlert    Int   @default(10) // Minimum orders before alerting
+  discrepancyThreshold Float @default(0.1)
+  minOrdersForAlert    Int   @default(10)
 
-  // Alert frequency
-  frequency String @default("daily") // daily, weekly, instant
+  frequency String @default("daily")
 
   isEnabled   Boolean   @default(true)
   lastAlertAt DateTime?
@@ -249,50 +181,35 @@ model AlertConfig {
   @@index([channel])
 }
 
-// Conversion tracking log
 model ConversionLog {
   id     String @id @default(cuid())
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // Order info
-  orderId     String // Real order ID (numeric or GID format)
+  orderId     String
   orderNumber String?
   orderValue  Decimal @db.Decimal(10, 2)
   currency    String  @default("USD")
 
-  // Deduplication - deterministic event ID for platform CAPI dedup
-  // Generated using generateEventId(orderId, eventType, shopDomain)
-  // Used as event_id for Meta/TikTok and transaction_id for GA4
   eventId String?
 
-  // Platform info
-  platform  String // google, meta, tiktok
-  eventType String // purchase, add_to_cart, etc.
+  platform  String
+  eventType String
 
-  // Sending status
-  // pending: initial state
-  // sent: successfully sent to platform
-  // failed: failed but may retry
-  // retrying: currently in retry queue
-  // dead_letter: permanently failed after max retries (manual intervention needed)
   status        String    @default("pending")
   attempts      Int       @default(0)
-  maxAttempts   Int       @default(5) // Max retry attempts before dead letter
+  maxAttempts   Int       @default(5)
   lastAttemptAt DateTime?
-  nextRetryAt   DateTime? // Scheduled next retry time (for exponential backoff)
+  nextRetryAt   DateTime?
   errorMessage  String?
 
-  // Response from platform
   platformResponse Json?
 
-  // Metadata
   clientSideSent Boolean @default(false)
   serverSideSent Boolean @default(false)
 
-  // Dead letter handling
-  deadLetteredAt  DateTime? // When moved to dead letter
-  manuallyRetried Boolean   @default(false) // If manually retried from dead letter
+  deadLetteredAt  DateTime?
+  manuallyRetried Boolean   @default(false)
 
   createdAt DateTime  @default(now())
   sentAt    DateTime?
@@ -303,39 +220,34 @@ model ConversionLog {
   @@index([platform])
   @@index([status])
   @@index([createdAt])
-  // Performance optimization: composite indexes for common queries
+
   @@index([shopId, createdAt])
   @@index([shopId, status])
   @@index([shopId, platform, createdAt])
   @@index([shopId, createdAt, status])
-  // New indexes for retry processing
-  @@index([status, nextRetryAt]) // For finding retryable logs
-  @@index([status, deadLetteredAt]) // For dead letter management
+
+  @@index([status, nextRetryAt])
+  @@index([status, deadLetteredAt])
 }
 
-// Daily reconciliation reports
 model ReconciliationReport {
   id     String @id @default(cuid())
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  platform   String // google, meta, tiktok
+  platform   String
   reportDate DateTime @db.Date
 
-  // Shopify data
   shopifyOrders  Int     @default(0)
   shopifyRevenue Decimal @default(0) @db.Decimal(12, 2)
 
-  // Platform reported data
   platformConversions Int     @default(0)
   platformRevenue     Decimal @default(0) @db.Decimal(12, 2)
 
-  // Calculated metrics
-  orderDiscrepancy   Float @default(0) // Percentage difference
+  orderDiscrepancy   Float @default(0)
   revenueDiscrepancy Float @default(0)
 
-  // Status
-  status    String  @default("pending") // pending, completed, failed
+  status    String  @default("pending")
   alertSent Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -344,11 +256,10 @@ model ReconciliationReport {
   @@index([shopId])
   @@index([platform])
   @@index([reportDate])
-  // Performance: Composite index for date range queries by shop
+
   @@index([shopId, reportDate])
 }
 
-// Post-purchase survey responses
 model SurveyResponse {
   id     String @id @default(cuid())
   shopId String
@@ -357,43 +268,37 @@ model SurveyResponse {
   orderId     String
   orderNumber String?
 
-  // Survey data
-  rating        Int? // 1-5 star rating
-  feedback      String? // Open text feedback
-  source        String? // How did you hear about us?
-  customAnswers Json? // Custom survey question answers
+  rating        Int?
+  feedback      String?
+  source        String?
+  customAnswers Json?
 
   createdAt DateTime @default(now())
 
   @@index([shopId])
   @@index([orderId])
-  // Performance: Composite index for checking existing response by shop+order
+
   @@index([shopId, orderId])
-  // Analytics: Index for date-based analytics queries
+
   @@index([shopId, createdAt])
 }
 
-// Audit log for security-sensitive operations
 model AuditLog {
   id     String @id @default(cuid())
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // Who performed the action
-  actorType String // "user", "webhook", "cron", "api"
-  actorId   String? // User email, webhook ID, etc.
+  actorType String
+  actorId   String?
 
-  // What action was performed
-  action       String // "token_updated", "pixel_config_changed", "threshold_changed", etc.
-  resourceType String // "pixel_config", "alert_config", "shop", etc.
-  resourceId   String? // ID of the affected resource
+  action       String
+  resourceType String
+  resourceId   String?
 
-  // Action details
-  previousValue Json? // Previous state (sensitive fields should be redacted)
-  newValue      Json? // New state (sensitive fields should be redacted)
-  metadata      Json? // Additional context
+  previousValue Json?
+  newValue      Json?
+  metadata      Json?
 
-  // Request context
   ipAddress String?
   userAgent String?
 
@@ -403,19 +308,17 @@ model AuditLog {
   @@index([action])
   @@index([resourceType])
   @@index([createdAt])
-  // Query by shop and time range
+
   @@index([shopId, createdAt])
 }
 
-// P0-1: Monthly usage tracking for accurate billing
-// Tracks successfully sent orders per month per shop
 model MonthlyUsage {
   id        String   @id @default(cuid())
   shopId    String
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  yearMonth String   // Format: "2024-12"
-  sentCount Int      @default(0) // Number of successfully sent orders this month
+  yearMonth String
+  sentCount Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -425,41 +328,31 @@ model MonthlyUsage {
   @@index([yearMonth])
 }
 
-// P0-3: Pixel event receipts - separate from ConversionLog
-// Records pixel-side events for consent verification and diagnostics
 model PixelEventReceipt {
   id        String   @id @default(cuid())
   shopId    String
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  orderId   String   // Normalized order ID (from checkout.order.id)
-  eventType String   // checkout_completed, etc.
-  eventId   String?  // Server-generated dedup ID
-  
-  // P0-03: Checkout token for fallback matching
-  // When orderId is from checkoutToken (not order.id), webhook can match by this field
+  orderId   String
+  eventType String
+  eventId   String?
+
   checkoutToken String?
 
-  // Pixel event metadata
-  pixelTimestamp DateTime // When the pixel fired (client time)
-  
-  // P0-5: Consent state from pixel
-  consentState   Json?    // {marketing: boolean, analytics: boolean}
-  
-  // Trust level
-  isTrusted      Boolean  @default(false) // True if signature was valid
-  signatureStatus String  @default("unsigned") // signed, unsigned, invalid
-  
-  // P0-1: Enhanced trust tracking
-  trustLevel      String  @default("unknown") // trusted, partial, untrusted, unknown
-  untrustedReason String? // Reason if not trusted
-  originHost      String? // Origin host for audit trail
-  
-  // P0-03: Flag indicating orderId was derived from checkoutToken (fallback)
+  pixelTimestamp DateTime
+
+  consentState   Json?
+
+  isTrusted      Boolean  @default(false)
+  signatureStatus String  @default("unsigned")
+
+  trustLevel      String  @default("unknown")
+  untrustedReason String?
+  originHost      String?
+
   usedCheckoutTokenFallback Boolean @default(false)
-  
-  // Diagnostics
-  metadata       Json?    // Additional debug info
+
+  metadata       Json?
 
   createdAt DateTime @default(now())
 
@@ -467,87 +360,59 @@ model PixelEventReceipt {
   @@index([shopId])
   @@index([orderId])
   @@index([shopId, orderId])
-  // P0-03: Index for checkoutToken lookup
+
   @@index([shopId, checkoutToken])
-  // P1-1: Additional index for checkoutToken-only lookups
+
   @@index([checkoutToken])
 }
 
-// P0-5: Webhook processing log for idempotency
-// Stores fingerprints of processed webhooks to prevent duplicate processing
 model WebhookLog {
   id        String   @id @default(cuid())
-  
-  // Webhook identification (composite key for deduplication)
-  shopDomain   String    // Shop that sent the webhook
-  webhookId    String    // Shopify's X-Shopify-Webhook-Id header
-  topic        String    // Webhook topic (e.g., ORDERS_PAID)
-  
-  // Processing status:
-  // - "processing": Currently being processed (set on initial lock acquisition)
-  // - "processed": Successfully processed
-  // - "failed": Processing failed
+
+  shopDomain   String
+  webhookId    String
+  topic        String
+
   status       String    @default("processing")
-  
-  // Order details (for reference)
-  orderId      String?   // Order ID from payload (if applicable)
-  
-  // Timestamps
+
+  orderId      String?
+
   receivedAt   DateTime  @default(now())
   processedAt  DateTime?
-  
-  // Prevent duplicate processing - unique on shop + webhookId + topic
+
   @@unique([shopDomain, webhookId, topic])
-  
-  // Performance indexes
+
   @@index([shopDomain])
   @@index([receivedAt])
-  // Cleanup index - for periodic deletion of old entries
+
   @@index([receivedAt, status])
 }
 
-// P0-2: Conversion job queue for async webhook processing
-// Webhook writes here, worker processes asynchronously
 model ConversionJob {
   id        String   @id @default(cuid())
   shopId    String
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // Order data (serialized webhook payload)
   orderId      String
   orderNumber  String?
   orderValue   Decimal  @db.Decimal(10, 2)
   currency     String   @default("USD")
-  
-  // P0-05: Minimal CAPI input - only stores data needed for platform API calls
-  // Contains: {value, currency, orderId, items?, hashedIdentifiers?, consentEvidence?}
-  // NO raw PII (email/phone/address) - only hashed versions if needed
-  capiInput    Json?    // Minimal fields for CAPI sending
 
-  // P0-4: Consent and trust audit trail
-  consentEvidence Json? // {strategy, usedConsent, hasReceipt, receiptTrusted, reason}
-  trustMetadata   Json? // {trustLevel, reason, verifiedAt}
+  capiInput    Json?
 
-  // Job status
-  // queued: waiting to be processed
-  // processing: currently being processed
-  // completed: successfully sent to all platforms
-  // failed: failed but may retry
-  // limit_exceeded: blocked due to billing limit
-  // dead_letter: permanently failed
+  consentEvidence Json?
+  trustMetadata   Json?
+
   status       String   @default("queued")
-  
-  // Processing metadata
+
   attempts     Int      @default(0)
   maxAttempts  Int      @default(5)
   lastAttemptAt DateTime?
   nextRetryAt  DateTime?
   errorMessage String?
 
-  // Platform results (which platforms succeeded/failed)
-  platformResults Json?  // {google: "sent", meta: "failed", tiktok: "pending"}
+  platformResults Json?
 
-  // Timestamps
   createdAt    DateTime @default(now())
   processedAt  DateTime?
   completedAt  DateTime?
@@ -559,36 +424,32 @@ model ConversionJob {
   @@index([createdAt])
 }
 
-// P0-3: Event nonce for replay prevention
-// Short-lived records to prevent same event from being processed multiple times
 model EventNonce {
   id        String   @id @default(cuid())
   shopId    String
-  nonce     String   // Unique nonce value (orderId + eventType hash)
-  eventType String   // checkout_completed, etc.
+  nonce     String
+  eventType String
   createdAt DateTime @default(now())
-  expiresAt DateTime // When this nonce expires (typically 1 hour)
+  expiresAt DateTime
 
   @@unique([shopId, nonce, eventType])
-  @@index([expiresAt]) // For cleanup job
+  @@index([expiresAt])
 }
 
-// P0-07 & P0-08: GDPR Job Queue for async processing
-// Webhook handler quickly queues jobs, worker processes them
 model GDPRJob {
   id           String   @id @default(cuid())
   shopDomain   String
-  // Job type: "data_request" | "customer_redact" | "shop_redact"
+
   jobType      String
-  // Original webhook payload
+
   payload      Json
-  // Status: "queued" | "processing" | "completed" | "failed"
+
   status       String   @default("queued")
-  // Result data (for data_request: customer data, for redact: deletion counts)
+
   result       Json?
-  // Error message if failed
+
   errorMessage String?
-  // Timestamps
+
   createdAt    DateTime @default(now())
   processedAt  DateTime?
   completedAt  DateTime?
@@ -598,74 +459,39 @@ model GDPRJob {
   @@index([createdAt])
 }
 
-// ============================================================
-// 设计方案 v1.0 新增模型
-// ============================================================
-
-// 审计资产 - 存储识别到的脚本/像素资产
-// 对应设计方案 4.2 Audit 功能
 model AuditAsset {
   id     String @id @default(cuid())
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // 来源类型
-  // api_scan: 通过 Admin API 扫描获取
-  // manual_paste: 商家手动粘贴
-  // merchant_confirmed: 商家从升级向导确认
   sourceType String @default("api_scan")
 
-  // 资产分类
-  // pixel: 渠道像素 (GA4/Meta/TikTok/Pinterest 等)
-  // affiliate: 联盟/分佣
-  // survey: 售后问卷
-  // support: 客服入口
-  // analytics: 站内分析 (热力图/A/B测试)
-  // other: 其他
   category String @default("other")
 
-  // 识别信息
-  platform    String?  // 平台标识: google, meta, tiktok, pinterest, etc.
-  fingerprint String?  // 内容哈希，用于去重
-  displayName String?  // 显示名称
+  platform    String?
+  fingerprint String?
+  displayName String?
 
-  // 风险评估
-  // high: 会失效/受限
-  // medium: 可直接替换
-  // low: 无需迁移
   riskLevel String @default("medium")
 
-  // 建议的迁移方式
-  // web_pixel: 迁移到 Web Pixel
-  // ui_extension: 迁移到 Checkout UI Extension
-  // server_side: 迁移到服务端 CAPI
-  // none: 无需迁移/保留
   suggestedMigration String @default("web_pixel")
 
-  // 迁移状态
-  migrationStatus String    @default("pending") // pending, in_progress, completed, skipped
+  migrationStatus String    @default("pending")
   migratedAt      DateTime?
 
-  // v1.0: 智能优先级和时间估算
-  // priority: 1-10 分，基于风险等级、影响范围、迁移难度计算
-  priority Int? // 优先级分数（1-10）
-  // estimatedTimeMinutes: 预计迁移时间（分钟），基于历史数据和复杂度
-  estimatedTimeMinutes Int? // 预计时间（分钟）
-  // dependencies: 依赖关系数组，存储依赖的其他 AuditAsset ID
-  dependencies Json? // 依赖关系数组
+  priority Int?
 
-  // 资产详情 (JSON 存储灵活数据)
-  // 可包含: scriptTagId, src, detectedPatterns, etc.
-  // 注意: 不存储原始脚本内容 (隐私考虑)
+  estimatedTimeMinutes Int?
+
+  dependencies Json?
+
   details Json?
 
-  // 关联的扫描报告
   scanReportId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   migrationTasks MigrationTask[]
 
   @@unique([shopId, fingerprint])
@@ -674,60 +500,32 @@ model AuditAsset {
   @@index([riskLevel])
   @@index([platform])
   @@index([migrationStatus])
-  // Performance: Composite indexes for common queries
+
   @@index([shopId, migrationStatus])
   @@index([shopId, riskLevel])
   @@index([shopId, category, riskLevel])
   @@index([shopId, createdAt])
 }
 
-// 验收运行记录 - 存储验收测试结果
-// 对应设计方案 4.5 Verification 功能
 model VerificationRun {
   id     String @id @default(cuid())
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // 运行名称 (可自定义)
   runName String @default("验收测试")
 
-  // 测试类型
-  // full: 完整验收 (所有事件类型)
-  // quick: 快速验收 (仅 purchase)
-  // custom: 自定义验收
   runType String @default("quick")
 
-  // 运行状态
-  status String @default("pending") // pending, running, completed, failed
+  status String @default("pending")
 
-  // 测试的平台
-  platforms String[] // ["google", "meta", "tiktok"]
+  platforms String[]
 
-  // 测试结果摘要
-  // 结构: {
-  //   totalEvents: number,
-  //   successfulEvents: number,
-  //   failedEvents: number,
-  //   missingParams: { [eventType]: string[] },
-  //   platformResults: { [platform]: { sent: number, failed: number } }
-  // }
   summaryJson Json?
 
-  // 详细事件记录
-  // 结构: [{
-  //   eventType: string,
-  //   orderId: string,
-  //   platform: string,
-  //   status: "success" | "failed" | "missing_params",
-  //   params: { value, currency, items, ... },
-  //   errors: string[]
-  // }]
   eventsJson Json?
 
-  // 导出的报告 URL (可选，如果生成了 PDF/CSV)
   reportUrl String?
 
-  // 时间戳
   startedAt   DateTime?
   completedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -735,49 +533,25 @@ model VerificationRun {
   @@index([shopId])
   @@index([status])
   @@index([createdAt])
-  // Performance: Composite indexes for common queries
+
   @@index([shopId, status])
   @@index([shopId, createdAt])
   @@index([shopId, status, createdAt])
 }
 
-// UI 扩展设置 - 存储 Thank you / Order status 页面模块配置
-// 对应设计方案 4.4 UI 模块库
 model UiExtensionSetting {
   id     String @id @default(cuid())
   shopId String
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // 模块标识
-  // order_tracking: 订单追踪
-  // survey: 售后问卷
-  // reorder: 再购按钮
-  // helpdesk: 帮助中心
-  // upsell: 追加销售
   moduleKey String
 
-  // 模块配置 (JSON)
-  // 结构因模块而异:
-  // order_tracking: { provider: "aftership" | "17track", apiKey?: string }
-  // survey: { title, question, sources: [{id, label}], showRating: boolean }
-  // reorder: { buttonText, cartUrl }
-  // helpdesk: { title, links: [{label, url, icon}], contactEmail, whatsapp? }
-  // upsell: { products: [{id, title, price}], discountCode? }
   settingsJson Json?
 
-  // 显示规则
-  // 结构: {
-  //   enabled: boolean,
-  //   targets: ["thank_you", "order_status"],
-  //   conditions: { minOrderValue?, customerTags?, countries? }
-  // }
   displayRules Json?
 
-  // 本地化设置
-  // 结构: { [locale]: { title, buttonText, ... } }
   localization Json?
 
-  // 是否启用
   isEnabled Boolean @default(true)
 
   createdAt DateTime @default(now())
@@ -789,28 +563,18 @@ model UiExtensionSetting {
   @@index([isEnabled])
 }
 
-// ============================================================
-// Agency 多店支持模型
-// 对应设计方案 4.7 Agency 功能
-// ============================================================
-
-// 工作区 - Agency 多店管理 (设计方案命名)
 model Workspace {
   id   String @id @default(cuid())
   name String
 
-  // 所有者 (Partner ID 或 User ID)
   ownerPartnerId String?
   ownerEmail     String?
 
-  // 工作区设置
-  // 结构: { defaultPlan, billingEmail, ... }
   settingsJson Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   members WorkspaceMember[]
   shops   WorkspaceShop[]
 
@@ -818,20 +582,16 @@ model Workspace {
   @@index([ownerEmail])
 }
 
-// 工作区成员
 model WorkspaceMember {
   id          String    @id @default(cuid())
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  // 用户标识
   userId String
   email  String
 
-  // 角色: owner, admin, viewer
   role String @default("viewer")
 
-  // 邀请状态: pending, accepted, declined
   inviteStatus String    @default("pending")
   invitedAt    DateTime  @default(now())
   acceptedAt   DateTime?
@@ -846,22 +606,17 @@ model WorkspaceMember {
   @@index([email])
 }
 
-// 工作区关联的店铺
 model WorkspaceShop {
   id          String    @id @default(cuid())
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   shopId String
-  // 注意: 不使用外键约束，因为 Shop 可能被独立删除
-  // 查询时需要 LEFT JOIN 或单独验证
 
-  // 店铺在工作区中的别名 (可选)
   alias String?
 
-  // 添加时间
   addedAt   DateTime @default(now())
-  addedBy   String? // 添加者的 userId
+  addedBy   String?
   createdAt DateTime @default(now())
 
   @@unique([workspaceId, shopId])
@@ -869,32 +624,17 @@ model WorkspaceShop {
   @@index([shopId])
 }
 
-// ============================================================
-// PixelTemplate 模型 - 像素配置模板
-// 用于 Agency 批量应用像素配置
-// ============================================================
-
 model PixelTemplate {
   id      String @id @default(cuid())
-  ownerId String // 创建者店铺 ID
-  name    String // 模板名称
+  ownerId String
+  name    String
 
-  // 平台配置结构（不含凭证，仅包含事件映射等配置）
-  // 结构: [{
-  //   platform: "google" | "meta" | "tiktok" | "pinterest",
-  //   eventMappings?: Record<string, string>,
-  //   clientSideEnabled?: boolean,
-  //   serverSideEnabled?: boolean,
-  // }]
   platforms Json
 
-  // 模板描述
   description String?
 
-  // 是否为公开模板（可被其他 Agency 用户复制）
   isPublic Boolean @default(false)
 
-  // 使用次数统计
   usageCount Int @default(0)
 
   createdAt DateTime @default(now())
@@ -904,21 +644,14 @@ model PixelTemplate {
   @@index([isPublic])
 }
 
-// ============================================================
-// ShopGroup 模型 - 与迁移文件同步
-// 用于 multi-shop.server.ts 服务
-// ============================================================
-
-// 店铺分组 - 用于 Agency 多店管理
 model ShopGroup {
   id      String @id @default(cuid())
   name    String
-  ownerId String // 所有者店铺 ID
+  ownerId String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   members ShopGroupMember[]
   migrationTasks MigrationTask[]
   workspaceComments WorkspaceComment[]
@@ -926,7 +659,6 @@ model ShopGroup {
   @@index([ownerId])
 }
 
-// 店铺分组成员
 model ShopGroupMember {
   id      String    @id @default(cuid())
   groupId String
@@ -934,10 +666,8 @@ model ShopGroupMember {
 
   shopId String
 
-  // 角色: owner, admin, member
   role String @default("member")
 
-  // 权限
   canEditSettings  Boolean @default(false)
   canViewReports   Boolean @default(true)
   canManageBilling Boolean @default(false)
@@ -949,50 +679,36 @@ model ShopGroupMember {
   @@index([shopId])
 }
 
-// ============================================================
-// 任务分配和协作评论模型
-// 用于 Agency 团队协作
-// ============================================================
-
-// 迁移任务分配
 model MigrationTask {
   id      String @id @default(cuid())
   shopId  String
   shop    Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  // 关联的审计资产
+
   assetId String?
   asset   AuditAsset? @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  
-  // 任务信息
+
   title       String
   description String?
-  
-  // 分配信息
-  assignedToShopId String? // 分配给哪个店铺（ShopGroupMember.shopId）
-  assignedByShopId String   // 由谁分配
-  
-  // 任务状态
-  status String @default("pending") // pending, in_progress, completed, blocked, cancelled
-  
-  // 优先级
-  priority Int @default(5) // 1-10，1 最高
-  
-  // 时间信息
+
+  assignedToShopId String?
+  assignedByShopId String
+
+  status String @default("pending")
+
+  priority Int @default(5)
+
   dueDate    DateTime?
   startedAt  DateTime?
   completedAt DateTime?
-  
-  // 关联的分组（用于权限检查）
+
   groupId String?
   group   ShopGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relations
+
   comments TaskComment[]
-  
+
   @@index([shopId])
   @@index([assetId])
   @@index([assignedToShopId])
@@ -1000,88 +716,71 @@ model MigrationTask {
   @@index([status])
 }
 
-// 任务评论
 model TaskComment {
   id     String @id @default(cuid())
   taskId String
   task   MigrationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  
-  // 评论者
-  authorShopId String // 评论者店铺 ID
+
+  authorShopId String
   authorShop   Shop  @relation(fields: [authorShopId], references: [id], onDelete: Cascade)
-  
-  // 评论内容
+
   content String
-  
-  // 是否为系统消息（如状态变更）
+
   isSystemMessage Boolean @default(false)
-  
-  // 关联的父评论（用于回复）
+
   parentCommentId String?
   parentComment   TaskComment? @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
   replies         TaskComment[] @relation("CommentReplies")
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([taskId])
   @@index([authorShopId])
   @@index([parentCommentId])
 }
 
-// 店铺/报告评论（通用评论系统）
 model WorkspaceComment {
   id     String @id @default(cuid())
-  
-  // 评论目标类型和 ID
-  targetType String // shop, scan_report, verification_run, migration_task
+
+  targetType String
   targetId   String
-  
-  // 评论者
+
   authorShopId String
   authorShop   Shop @relation(fields: [authorShopId], references: [id], onDelete: Cascade)
-  
-  // 评论内容
+
   content String
-  
-  // 关联的分组（用于权限检查）
+
   groupId String?
   group   ShopGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  
-  // 关联的父评论（用于回复）
+
   parentCommentId String?
   parentComment   WorkspaceComment? @relation("WorkspaceCommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
   replies         WorkspaceComment[] @relation("WorkspaceCommentReplies")
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([targetType, targetId])
   @@index([authorShopId])
   @@index([groupId])
   @@index([parentCommentId])
 }
 
-// ============================================================
-// Performance Metrics 模型 - Web Vitals 性能监控
-// ============================================================
-
-// Web Vitals 性能指标
 model PerformanceMetric {
   id              String   @id @default(cuid())
   shopId          String
   shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // 指标信息
-  metricName      String   // CLS, FCP, INP, LCP, TTFB
-  metricValue     Float    // 指标值
-  metricId        String   // 唯一标识符
-  delta           Float    // 变化量
-  rating          String   // good, needs-improvement, poor
-  navigationType  String   // navigate, reload, back_forward, prerender
-  url             String   // 页面 URL
+  metricName      String
+  metricValue     Float
+  metricId        String
+  delta           Float
+  rating          String
+  navigationType  String
+  url             String
 
-  timestamp       DateTime // 客户端时间戳
+  timestamp       DateTime
 
   createdAt       DateTime @default(now())
 
@@ -1091,37 +790,15 @@ model PerformanceMetric {
   @@index([shopId, metricName, timestamp])
 }
 
-// ============================================================
-// 像素迁移向导草稿 - 用于保存向导进度
-// 对应设计方案 2.1 草稿保存功能
-// ============================================================
-
 model MigrationDraft {
   id        String   @id @default(cuid())
   shopId    String
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // 当前步骤
-  // select: 选择平台
-  // credentials: 填写凭证
-  // mappings: 事件映射
-  // review: 检查配置
-  step      String   // "select" | "credentials" | "mappings" | "review"
+  step      String
 
-  // 配置数据 (JSON)
-  // 结构: {
-  //   selectedPlatforms: string[],
-  //   platformConfigs: {
-  //     [platform]: {
-  //       credentials: Record<string, string>,
-  //       eventMappings: Record<string, string>,
-  //       environment: "test" | "live"
-  //     }
-  //   }
-  // }
   configData Json
 
-  // 过期时间（7天后自动清理）
   expiresAt DateTime
 
   createdAt DateTime @default(now())

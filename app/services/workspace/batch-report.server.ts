@@ -12,7 +12,7 @@ export interface BatchReportOptions {
   requesterId: string;
   reportTypes?: Array<"audit" | "migration" | "verification" | "template_apply">;
   includeDetails?: boolean;
-  templateId?: string; // 报告模板 ID
+  templateId?: string;
   whiteLabel?: {
     companyName?: string;
     logoUrl?: string;
@@ -74,9 +74,6 @@ export interface BatchReportData {
   };
 }
 
-/**
- * 生成多店铺迁移验收聚合报告数据
- */
 export async function generateBatchReportData(
   options: BatchReportOptions
 ): Promise<BatchReportData | { error: string }> {
@@ -108,7 +105,6 @@ export async function generateBatchReportData(
       shopDomain,
     };
 
-    // 获取 Audit 报告数据
     if (reportTypes.includes("audit")) {
       const latestScan = await prisma.scanReport.findFirst({
         where: { shopId },
@@ -137,7 +133,6 @@ export async function generateBatchReportData(
       }
     }
 
-    // 获取迁移状态数据
     if (reportTypes.includes("migration")) {
       const { getMigrationChecklist } = await import("../migration-checklist.server");
       const { getMigrationProgress } = await import("../migration-priority.server");
@@ -165,7 +160,6 @@ export async function generateBatchReportData(
       }
     }
 
-    // 获取验证状态数据
     if (reportTypes.includes("verification")) {
       const latestVerification = await prisma.verificationRun.findFirst({
         where: { shopId },
@@ -198,7 +192,6 @@ export async function generateBatchReportData(
     shopReports.push(shopData);
   }
 
-  // 计算汇总数据
   const shopsWithAudit = shopReports.filter((s) => s.auditReport).length;
   const shopsWithMigration = shopReports.filter((s) => s.migrationStatus).length;
   const shopsWithVerification = shopReports.filter((s) => s.verificationStatus).length;
@@ -252,9 +245,6 @@ export async function generateBatchReportData(
   };
 }
 
-/**
- * 生成PDF格式的聚合报告
- */
 export async function generateBatchReportPdf(
   options: BatchReportOptions
 ): Promise<{ buffer: Buffer; filename: string; contentType: string } | { error: string }> {
@@ -265,12 +255,12 @@ export async function generateBatchReportPdf(
   }
 
   try {
-    // 如果指定了模板，使用模板生成报告
+
     let html: string;
     if (options.templateId) {
       const template = getTemplateById(options.templateId);
       if (template) {
-        // 合并白标配置
+
         const mergedTemplate: ReportTemplate = {
           ...template,
           whiteLabel: {
@@ -280,14 +270,13 @@ export async function generateBatchReportPdf(
         };
         html = generateReportFromTemplate(reportData, mergedTemplate);
       } else {
-        // 模板不存在，使用默认生成
+
         html = generateReportHtml(reportData, options);
       }
     } else {
       html = generateReportHtml(reportData, options);
     }
-    
-    // 使用与workspace-report.server.ts相同的方式生成PDF
+
     const pdfGenerator = await import("../pdf-generator.server");
     const pdfBuffer = await pdfGenerator.htmlToPdf(html, {
       format: "A4",
@@ -312,9 +301,6 @@ export async function generateBatchReportPdf(
   }
 }
 
-/**
- * 生成报告HTML内容
- */
 function generateReportHtml(
   reportData: BatchReportData,
   options: BatchReportOptions
@@ -497,7 +483,7 @@ function generateReportHtml(
             <td>${shop.auditReport?.riskScore?.toFixed(1) || "N/A"}</td>
             <td>${shop.migrationStatus?.highPriorityItems || 0}</td>
             <td>${shop.migrationStatus ? `${Math.ceil(shop.migrationStatus.estimatedTimeMinutes / 60)} 小时` : "N/A"}</td>
-            ${includeDetails 
+            ${includeDetails
               ? `<td>${shop.auditReport?.scanDate ? shop.auditReport.scanDate.toLocaleString("zh-CN") : "从未"}</td>
                  <td>${shop.verificationStatus?.lastRunAt ? shop.verificationStatus.lastRunAt.toLocaleString("zh-CN") : "从未"}</td>`
               : ""}

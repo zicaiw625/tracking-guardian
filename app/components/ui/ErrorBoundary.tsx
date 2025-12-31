@@ -48,12 +48,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorInfo,
     });
 
-    // 调用错误回调
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
 
-    // 记录错误到日志服务（如果有）
     if (typeof window !== "undefined" && window.console) {
       console.error("ErrorBoundary caught an error:", error, errorInfo);
     }

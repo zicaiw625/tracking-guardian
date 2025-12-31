@@ -165,7 +165,6 @@ export async function checkFailureRate(
   const last24h = new Date();
   last24h.setHours(last24h.getHours() - 24);
 
-  // 按平台和事件类型统计失败率
   const logs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -191,7 +190,6 @@ export async function checkFailureRate(
   const failed = stats.find(s => s.status === "failed" || s.status === "dead_letter")?._count || 0;
   const failureRate = total > 0 ? failed / total : 0;
 
-  // 按平台统计失败率
   const failureRateByPlatform: Record<string, number> = {};
   const platforms = new Set(logs.map(l => l.platform));
   platforms.forEach(platform => {
@@ -203,7 +201,6 @@ export async function checkFailureRate(
     }
   });
 
-  // 按事件类型统计失败率
   const failureRateByEventType: Record<string, number> = {};
   const eventTypes = new Set(logs.map(l => l.eventType));
   eventTypes.forEach(eventType => {
@@ -217,7 +214,6 @@ export async function checkFailureRate(
 
   const triggered = failureRate > threshold && total >= 10;
 
-  // 找出失败率最高的平台和事件类型
   const topFailingPlatform = Object.entries(failureRateByPlatform)
     .sort(([, a], [, b]) => b - a)[0];
   const topFailingEventType = Object.entries(failureRateByEventType)
@@ -261,7 +257,6 @@ export async function checkMissingParams(
   const last24h = new Date();
   last24h.setHours(last24h.getHours() - 24);
 
-  // 获取所有事件，检查参数缺失
   const allLogs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -286,18 +281,15 @@ export async function checkMissingParams(
     _count: true,
   });
 
-  // 检查参数缺失（更精确的检查）
   const eventsWithMissingParams = allLogs.filter(log => {
     const hasValue = log.orderValue !== null && log.orderValue !== undefined && Number(log.orderValue) > 0;
     const hasCurrency = log.currency && log.currency.trim() !== "";
     const hasEventId = log.eventId && log.eventId.trim() !== "";
-    
-    // 对于 purchase 事件，value 和 currency 是必需的
+
     if (log.eventType === "purchase" || log.eventType === "checkout_completed") {
       return !hasValue || !hasCurrency;
     }
-    
-    // 对于其他事件，至少需要 value 或 currency
+
     return !hasValue && !hasCurrency;
   });
 
@@ -305,7 +297,6 @@ export async function checkMissingParams(
   const totalMissing = eventsWithMissingParams.length;
   const overallMissingRate = totalEvents > 0 ? totalMissing / totalEvents : 0;
 
-  // 按事件类型统计缺参率
   const missingRateByEventType: Record<string, number> = {};
   allEvents.forEach((event) => {
     const eventLogs = allLogs.filter(l => l.eventType === event.eventType);
@@ -315,7 +306,6 @@ export async function checkMissingParams(
     }
   });
 
-  // 按平台统计缺参率
   const missingRateByPlatform: Record<string, number> = {};
   const platforms = new Set(allLogs.map(l => l.platform));
   platforms.forEach(platform => {
@@ -361,7 +351,6 @@ export async function checkMissingParams(
     };
   }
 
-  // 检查关键事件类型的缺参率
   const criticalEventTypes = ["purchase", "checkout_completed"];
   for (const eventType of criticalEventTypes) {
     const eventMissingRate = missingRateByEventType[eventType];
@@ -451,7 +440,6 @@ export async function checkVolumeDrop(
   const prev48h = new Date(prev24h);
   prev48h.setHours(prev48h.getHours() - 24);
 
-  // 获取当前和前一个24小时的事件，按平台和事件类型统计
   const [currentLogs, previousLogs] = await Promise.all([
     prisma.conversionLog.findMany({
       where: {
@@ -478,7 +466,6 @@ export async function checkVolumeDrop(
   const currentVolume = currentLogs.length;
   const previousVolume = previousLogs.length;
 
-  // 按平台统计事件量变化
   const volumeChangeByPlatform: Record<string, { current: number; previous: number; changePercent: number }> = {};
   const platforms = new Set([...currentLogs.map(l => l.platform), ...previousLogs.map(l => l.platform)]);
   platforms.forEach(platform => {
@@ -492,7 +479,6 @@ export async function checkVolumeDrop(
     };
   });
 
-  // 按事件类型统计事件量变化
   const volumeChangeByEventType: Record<string, { current: number; previous: number; changePercent: number }> = {};
   const eventTypes = new Set([...currentLogs.map(l => l.eventType), ...previousLogs.map(l => l.eventType)]);
   eventTypes.forEach(eventType => {
@@ -574,7 +560,6 @@ export async function checkVolumeDrop(
     severity = "medium";
   }
 
-  // 找出下降最严重的平台和事件类型
   const topDroppingPlatform = Object.entries(volumeChangeByPlatform)
     .filter(([, stats]) => stats.changePercent > threshold * 100)
     .sort(([, a], [, b]) => b.changePercent - a.changePercent)[0];

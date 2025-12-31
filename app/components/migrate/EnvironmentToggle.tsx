@@ -45,12 +45,11 @@ export function EnvironmentToggle({
         return;
       }
 
-      // 如果从 test 切换到 live，需要确认
       if (currentEnvironment === "test" && newEnvironment === "live") {
         setPendingEnvironment(newEnvironment);
         setShowConfirmModal(true);
       } else {
-        // 从 live 切换到 test，直接切换
+
         setIsSwitching(true);
         try {
           await onSwitch(newEnvironment);

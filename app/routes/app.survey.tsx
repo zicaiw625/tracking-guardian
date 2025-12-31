@@ -79,7 +79,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const canAccess = checkFeatureAccess(planId, "verification");
 
-  // 获取统计数据
   const allResponses = await prisma.surveyResponse.findMany({
     where: { shopId: shop.id },
     select: {
@@ -99,7 +98,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           .reduce((sum, r) => sum + (r.rating || 0), 0) / withRating
       : 0;
 
-  // 来源统计
   const sourceMap = new Map<string, number>();
   allResponses.forEach((r) => {
     if (r.source) {
@@ -110,7 +108,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     .map(([source, count]) => ({ source, count }))
     .sort((a, b) => b.count - a.count);
 
-  // 评分统计
   const ratingMap = new Map<number, number>();
   allResponses.forEach((r) => {
     if (r.rating !== null) {
@@ -121,7 +118,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     .map(([rating, count]) => ({ rating, count }))
     .sort((a, b) => b.rating - a.rating);
 
-  // 获取最近的回复
   const recentResponses = await prisma.surveyResponse.findMany({
     where: { shopId: shop.id },
     select: {
@@ -168,15 +164,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (actionType === "export_csv") {
-    // 重定向到导出 API
+
     const dateFrom = formData.get("dateFrom") as string | null;
     const dateTo = formData.get("dateTo") as string | null;
-    
+
     const params = new URLSearchParams();
     params.set("type", "survey");
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
-    
+
     return Response.redirect(`/api/exports?${params.toString()}`);
   }
 
@@ -229,7 +225,7 @@ export default function SurveyPage() {
       }}
     >
       <BlockStack gap="500">
-        {/* 统计卡片 */}
+        {}
         <Layout>
           <Layout.Section variant="oneThird">
             <Card>
@@ -287,7 +283,7 @@ export default function SurveyPage() {
           </Layout.Section>
         </Layout>
 
-        {/* 评分分布 */}
+        {}
         {stats.ratingBreakdown.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -320,7 +316,7 @@ export default function SurveyPage() {
           </Card>
         )}
 
-        {/* 最近回复 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">

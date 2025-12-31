@@ -66,7 +66,6 @@ describe("Event Volume Anomaly Detection", () => {
       const shopId = "shop-1";
       const hours = 24;
 
-      // Mock baseline: 100 events/day
       vi.mocked(prisma.conversionLog.groupBy).mockResolvedValueOnce([
         {
           day: new Date(),
@@ -74,7 +73,6 @@ describe("Event Volume Anomaly Detection", () => {
         },
       ] as any);
 
-      // Mock current: 30 events (70% drop)
       vi.mocked(prisma.conversionLog.count).mockResolvedValue(30);
 
       const result = await detectVolumeAnomaly(shopId, hours);

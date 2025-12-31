@@ -147,33 +147,30 @@ async function calculateDependencyScore(
 }
 
 function calculateImpactScope(asset: AuditAsset): number {
-  let impactScore = 10; // 基础影响分数
+  let impactScore = 10;
 
-  // 基于资产类别的影响范围
   const categoryImpact: Record<string, number> = {
-    pixel: 20,      // 像素追踪影响转化归因，非常重要
-    affiliate: 15,  // 联盟追踪影响分佣
-    survey: 8,      // 问卷影响用户体验
-    support: 10,    // 客服支持影响用户满意度
-    analytics: 12,  // 分析工具影响数据收集
-    other: 5,       // 其他脚本影响较小
+    pixel: 20,
+    affiliate: 15,
+    survey: 8,
+    support: 10,
+    analytics: 12,
+    other: 5,
   };
   impactScore = categoryImpact[asset.category] || 10;
 
-  // 基于平台的影响范围
   if (asset.platform) {
     const criticalPlatforms = ["google", "meta", "tiktok"];
     if (criticalPlatforms.includes(asset.platform)) {
-      impactScore += 5; // 关键广告平台加分
+      impactScore += 5;
     }
   }
 
-  // 基于显示范围的影响
   const details = asset.details as Record<string, unknown> | null;
   if (details) {
     const displayScope = details.displayScope as string | undefined;
     if (displayScope === "order_status") {
-      impactScore += 10; // 订单状态页影响更大
+      impactScore += 10;
     }
   }
 
@@ -181,10 +178,9 @@ function calculateImpactScope(asset: AuditAsset): number {
 }
 
 function estimateMigrationTime(asset: AuditAsset, complexity: number): number {
-  // 基础时间（分钟）
+
   let baseTime = 15;
 
-  // 基于类别的基础时间
   const categoryBaseTime: Record<string, number> = {
     pixel: 15,
     affiliate: 30,
@@ -195,7 +191,6 @@ function estimateMigrationTime(asset: AuditAsset, complexity: number): number {
   };
   baseTime = categoryBaseTime[asset.category] || 15;
 
-  // 基于迁移类型的时间调整
   const migrationTypeMultiplier: Record<string, number> = {
     web_pixel: 1.0,
     ui_extension: 1.5,
@@ -205,18 +200,16 @@ function estimateMigrationTime(asset: AuditAsset, complexity: number): number {
   const multiplier = migrationTypeMultiplier[asset.suggestedMigration] || 1.0;
   baseTime = Math.round(baseTime * multiplier);
 
-  // 复杂度调整（复杂度越高，时间越长）
-  const complexityMultiplier = 1 + (complexity / 20) * 0.5; // 最多增加 50%
+  const complexityMultiplier = 1 + (complexity / 20) * 0.5;
   baseTime = Math.round(baseTime * complexityMultiplier);
 
-  // 风险等级调整（高风险需要更多测试时间）
   if (asset.riskLevel === "high") {
     baseTime = Math.round(baseTime * 1.2);
   } else if (asset.riskLevel === "low") {
     baseTime = Math.round(baseTime * 0.9);
   }
 
-  return Math.max(5, Math.min(120, baseTime)); // 最少 5 分钟，最多 120 分钟
+  return Math.max(5, Math.min(120, baseTime));
 }
 
 export async function calculatePriority(
@@ -248,22 +241,16 @@ export async function calculatePriority(
   const dependency = await calculateDependencyScore(asset, allAssets);
   const impactScope = calculateImpactScope(asset);
 
-  // 优化后的优先级算法：priority = riskScore * 0.4 + impactScore * 0.3 + (category + migrationStatus) * 0.2 + dependency * 0.1
-  // 复杂度作为负向因子（复杂度越高，优先级越低）
-  // 设计方案要求：优先级为 1-10 分
-  const rawPriority = 
+  const rawPriority =
     riskLevel * 0.4 +
     impactScope * 0.3 +
     (category + migrationStatus) * 0.2 +
     dependency * 0.1 +
     (20 - complexity) * 0.1;
-  
-  // 将 0-100 的分数映射到 1-10 分
-  // 使用对数映射，使高分更突出
+
   const normalizedPriority = Math.round(1 + (rawPriority / 100) * 9);
   const priority = Math.max(1, Math.min(10, normalizedPriority));
 
-  // 计算预计时间（基于历史数据）
   const estimatedTimeMinutes = estimateMigrationTime(asset, complexity);
 
   const reasons: string[] = [];
@@ -280,7 +267,7 @@ export async function calculatePriority(
 
   return {
     assetId: asset.id,
-    priority, // 现在是 1-10 分
+    priority,
     estimatedTimeMinutes,
     factors: {
       riskLevel,
@@ -325,7 +312,7 @@ export async function updateAssetPriority(
   });
 
   if (asset) {
-    // 更新数据库中的优先级和时间估算字段
+
     await prisma.auditAsset.update({
       where: { id: assetId },
       data: {

@@ -41,8 +41,8 @@ describe("Event Success Rate Monitoring", () => {
       ] as any);
 
       vi.mocked(prisma.conversionLog.count)
-        .mockResolvedValueOnce(120) // google sent
-        .mockResolvedValueOnce(100); // meta sent
+        .mockResolvedValueOnce(120)
+        .mockResolvedValueOnce(100);
 
       const result = await calculateSuccessRateByDestination(shopId, since);
 
@@ -82,8 +82,8 @@ describe("Event Success Rate Monitoring", () => {
       ] as any);
 
       vi.mocked(prisma.conversionLog.count)
-        .mockResolvedValueOnce(120) // purchase sent
-        .mockResolvedValueOnce(60); // add_to_cart sent
+        .mockResolvedValueOnce(120)
+        .mockResolvedValueOnce(60);
 
       const result = await calculateSuccessRateByEventType(shopId, since);
 

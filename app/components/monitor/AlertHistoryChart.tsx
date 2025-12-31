@@ -57,7 +57,6 @@ export function AlertHistoryChart({
       return alertDate >= startDate;
     });
 
-    // 按日期分组
     const dailyCounts = new Map<string, {
       total: number;
       byType: Record<string, number>;
@@ -79,7 +78,6 @@ export function AlertHistoryChart({
       dailyCounts.set(date, existing);
     });
 
-    // 生成日期序列
     const dateLabels: string[] = [];
     const totalCounts: number[] = [];
     const typeCounts: Record<string, number[]> = {};
@@ -101,7 +99,6 @@ export function AlertHistoryChart({
       });
     }
 
-    // 趋势数据
     const datasets = [
       {
         label: "总告警数",
@@ -133,7 +130,6 @@ export function AlertHistoryChart({
       datasets,
     };
 
-    // 统计数据
     const totalAlerts = filteredAlerts.length;
     const acknowledgedCount = filteredAlerts.filter((a) => a.acknowledged).length;
     const byType: Record<string, number> = {};
@@ -152,7 +148,6 @@ export function AlertHistoryChart({
       bySeverity,
     };
 
-    // 严重程度分布
     const severityDistribution = {
       labels: Object.keys(bySeverity).map(getSeverityLabel),
       datasets: [

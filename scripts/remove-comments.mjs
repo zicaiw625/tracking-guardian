@@ -5,7 +5,7 @@ const PROJECT_ROOT = process.cwd();
 
 const TARGET_DIRS = [PROJECT_ROOT];
 
-const VALID_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+const VALID_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".sql", ".prisma"]);
 
 const IGNORE_DIR_NAMES = new Set([
   "node_modules",
@@ -47,7 +47,130 @@ function detectNewline(text) {
   return text[i - 1] === "\r" ? "\r\n" : "\n";
 }
 
+function removeCommentsFromSQL(text) {
+  const newline = detectNewline(text);
+  let result = "";
+  let i = 0;
+  const len = text.length;
+
+  while (i < len) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === "-" && next === "-") {
+      while (i < len && text[i] !== "\n" && text[i] !== "\r") {
+        i++;
+      }
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      i += 2;
+      while (i < len - 1) {
+        if (text[i] === "*" && text[i + 1] === "/") {
+          i += 2;
+          break;
+        }
+        if (text[i] === "\n" || text[i] === "\r") {
+          result += text[i];
+        }
+        i++;
+      }
+      continue;
+    }
+
+    if (char === "'") {
+      result += char;
+      i++;
+      while (i < len) {
+        if (text[i] === "\\") {
+          result += text[i];
+          i++;
+          if (i < len) {
+            result += text[i];
+            i++;
+          }
+          continue;
+        }
+        if (text[i] === "'") {
+          result += text[i];
+          i++;
+          break;
+        }
+        result += text[i];
+        i++;
+      }
+      continue;
+    }
+
+    result += char;
+    i++;
+  }
+
+  let cleaned = result.split(newline).map(line => line.trimEnd()).join(newline);
+  cleaned = cleaned.replace(new RegExp(`(${newline}){3,}`, "g"), newline + newline);
+  return cleaned.endsWith(newline) ? cleaned : cleaned + newline;
+}
+
+function removeCommentsFromPrisma(text) {
+  const newline = detectNewline(text);
+  let result = "";
+  let i = 0;
+  const len = text.length;
+
+  while (i < len) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === "/" && next === "/") {
+      while (i < len && text[i] !== "\n" && text[i] !== "\r") {
+        i++;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      result += char;
+      i++;
+      while (i < len) {
+        if (text[i] === "\\") {
+          result += text[i];
+          i++;
+          if (i < len) {
+            result += text[i];
+            i++;
+          }
+          continue;
+        }
+        if (text[i] === '"') {
+          result += text[i];
+          i++;
+          break;
+        }
+        result += text[i];
+        i++;
+      }
+      continue;
+    }
+
+    result += char;
+    i++;
+  }
+
+  let cleaned = result.split(newline).map(line => line.trimEnd()).join(newline);
+  cleaned = cleaned.replace(new RegExp(`(${newline}){3,}`, "g"), newline + newline);
+  return cleaned.endsWith(newline) ? cleaned : cleaned + newline;
+}
+
 function removeCommentsFromSourceText(absPath, text) {
+  const ext = path.extname(absPath);
+  if (ext === ".sql") {
+    return removeCommentsFromSQL(text);
+  }
+  if (ext === ".prisma") {
+    return removeCommentsFromPrisma(text);
+  }
+
   const newline = detectNewline(text);
   const { shebang, rest } = splitShebang(text);
 
@@ -291,12 +414,25 @@ async function main() {
     if (next !== original) changed++;
     if (!dryRun && !verify && next !== original) await fs.writeFile(file, next, "utf8");
     if (verify) {
-      const { rest } = splitShebang(next);
-      const singleLineRegex = new RegExp("\\/\\/[^\\n\\r]*", "g");
-      const multiLineRegex = new RegExp("\\/\\*[\\s\\S]*?\\*\\/", "g");
-      const singleLineMatches = (rest.match(singleLineRegex) || []).filter(m => !m.startsWith("://"));
-      const multiLineMatches = rest.match(multiLineRegex) || [];
-      commentTokens += singleLineMatches.length + multiLineMatches.length;
+      const ext = path.extname(file);
+      if (ext === ".sql") {
+        const singleLineRegex = new RegExp("--[^\\n\\r]*", "g");
+        const multiLineRegex = new RegExp("\\/\\*[\\s\\S]*?\\*\\/", "g");
+        const singleLineMatches = next.match(singleLineRegex) || [];
+        const multiLineMatches = next.match(multiLineRegex) || [];
+        commentTokens += singleLineMatches.length + multiLineMatches.length;
+      } else if (ext === ".prisma") {
+        const singleLineRegex = new RegExp("\\/\\/[^\\n\\r]*", "g");
+        const singleLineMatches = next.match(singleLineRegex) || [];
+        commentTokens += singleLineMatches.length;
+      } else {
+        const { rest } = splitShebang(next);
+        const singleLineRegex = new RegExp("\\/\\/[^\\n\\r]*", "g");
+        const multiLineRegex = new RegExp("\\/\\*[\\s\\S]*?\\*\\/", "g");
+        const singleLineMatches = (rest.match(singleLineRegex) || []).filter(m => !m.startsWith("://"));
+        const multiLineMatches = rest.match(multiLineRegex) || [];
+        commentTokens += singleLineMatches.length + multiLineMatches.length;
+      }
     }
   }
   const mode = verify ? "VERIFY" : dryRun ? "DRY-RUN" : "WRITE";

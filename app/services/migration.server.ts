@@ -97,7 +97,6 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         }
     }
 
-    // 如果是更新现有配置，先保存快照
     if (existingConfig) {
         const { saveConfigSnapshot } = await import("./pixel-rollback.server");
         await saveConfigSnapshot(shopId, platform);

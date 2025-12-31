@@ -129,28 +129,25 @@ async function runPostInstallScan(
   admin: AdminApiContext
 ): Promise<void> {
   const startTime = Date.now();
-  const MAX_SCAN_TIME_MS = 10000; // 10 秒超时
-  const FAST_TRACK_MS = 8000; // 8 秒快速通道（只做基础扫描）
+  const MAX_SCAN_TIME_MS = 10000;
+  const FAST_TRACK_MS = 8000;
 
   try {
     logger.info(`[PostInstall] Starting automatic health check for ${shopDomain}`);
 
-    // 使用 Promise.race 确保在超时前返回
     const scanPromise = Promise.allSettled([
-      // 快速检查：升级状态（通常 < 2 秒）
+
       (async () => {
         const { refreshTypOspStatus } = await import("../checkout-profile.server");
         return await refreshTypOspStatus(admin, shopId);
       })(),
 
-      // 基础扫描：ScriptTags 和 Web Pixels（通常 < 5 秒）
       scanShopTracking(admin, shopId, {
         force: false,
-        cacheTtlMs: 0, // 不使用缓存，确保获取最新数据
+        cacheTtlMs: 0,
       }),
     ]);
 
-    // 设置超时保护
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error("Scan timeout")), MAX_SCAN_TIME_MS);
     });
@@ -165,7 +162,7 @@ async function runPostInstallScan(
       logger.warn(`[PostInstall] Scan timeout for ${shopDomain}, proceeding with partial results`, {
         elapsedMs: Date.now() - startTime,
       });
-      // 如果超时，尝试获取已完成的结果
+
       try {
         const partialResults = await Promise.allSettled([
           Promise.resolve(typOspResult),
@@ -174,11 +171,10 @@ async function runPostInstallScan(
         if (partialResults[0].status === "fulfilled") typOspResult = partialResults[0];
         if (partialResults[1].status === "fulfilled") scanResult = partialResults[1];
       } catch {
-        // 忽略部分结果获取失败
+
       }
     }
 
-    // 处理 TypOsp 状态检查结果
     if (typOspResult?.status === "fulfilled") {
       logger.info(`[PostInstall] TypOsp status checked for ${shopDomain}`, {
         enabled: typOspResult.value.typOspPagesEnabled,
@@ -190,7 +186,6 @@ async function runPostInstallScan(
       });
     }
 
-    // 处理扫描结果
     let scanData: Awaited<ReturnType<typeof scanShopTracking>> | null = null;
     if (scanResult?.status === "fulfilled") {
       scanData = scanResult.value;
@@ -210,7 +205,6 @@ async function runPostInstallScan(
     const hasTimeForAssets = elapsedMs < FAST_TRACK_MS;
     const hasScanData = scanData && (scanData.scriptTags.length > 0 || scanData.identifiedPlatforms.length > 0);
 
-    // 如果有时间且有扫描数据，创建 AuditAssets（同步部分，快速完成）
     if (hasTimeForAssets && hasScanData) {
       try {
         const { batchCreateAuditAssets } = await import("../audit-asset.server");
@@ -252,9 +246,8 @@ async function runPostInstallScan(
             elapsedMs: Date.now() - startTime,
           });
 
-          // 优先级计算和时间线生成移到后台异步执行（不阻塞）
           if (result.created > 0 || result.updated > 0) {
-            // 异步执行，不等待完成
+
             (async () => {
               try {
                 const { calculateAllAssetPriorities } = await import("../migration-priority.server");
@@ -266,10 +259,9 @@ async function runPostInstallScan(
                 });
               }
             })().catch(() => {
-              // 静默处理错误，不影响主流程
+
             });
 
-            // 时间线生成也异步执行
             (async () => {
               try {
                 const { generateMigrationTimeline } = await import("../migration-priority.server");
@@ -285,7 +277,7 @@ async function runPostInstallScan(
                 });
               }
             })().catch(() => {
-              // 静默处理错误
+
             });
           }
         }
@@ -295,7 +287,7 @@ async function runPostInstallScan(
         });
       }
     } else if (hasScanData && !hasTimeForAssets) {
-      // 如果超时但有扫描数据，将 AuditAsset 创建也移到后台
+
       logger.info(`[PostInstall] Time limit reached, deferring audit asset creation for ${shopDomain}`);
       (async () => {
         try {
@@ -342,7 +334,7 @@ async function runPostInstallScan(
           });
         }
       })().catch(() => {
-        // 静默处理错误
+
       });
     }
 

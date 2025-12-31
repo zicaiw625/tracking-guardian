@@ -61,7 +61,6 @@ export function TaskAssignmentPanel({
       return;
     }
 
-    // 为每个选中的资产创建任务
     const formData = new FormData();
     formData.append("_action", "createMigrationTasks");
     formData.append("assetIds", JSON.stringify(selectedAssets));
@@ -86,7 +85,6 @@ export function TaskAssignmentPanel({
     fetcher,
   ]);
 
-  // 处理创建结果
   useMemo(() => {
     if (fetcher.data && (fetcher.data as { success?: boolean }).success) {
       const result = fetcher.data as { taskIds?: string[] };
@@ -280,7 +278,7 @@ export function TaskAssignmentPanel({
               year={dueDate ? dueDate.getFullYear() : new Date().getFullYear()}
               selected={dueDate}
               onMonthChange={(month, year) => {
-                // 处理月份变更
+
               }}
               onChange={setDueDate}
             />

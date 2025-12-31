@@ -22,15 +22,12 @@ export interface TrackingInfo {
   }>;
 }
 
-/**
- * 从 AfterShip API 获取物流追踪信息
- */
 export async function fetchTrackingFromAfterShip(
   trackingNumber: string,
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-    const response = await fetch(`https://api.aftership.com/v4/trackings/${trackingNumber}`, {
+    const response = await fetch(`https:
       headers: {
         "aftership-api-key": apiKey,
         "Content-Type": "application/json",
@@ -76,15 +73,12 @@ export async function fetchTrackingFromAfterShip(
   }
 }
 
-/**
- * 从 17Track API 获取物流追踪信息
- */
 export async function fetchTrackingFrom17Track(
   trackingNumber: string,
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-    const response = await fetch(`https://api.17track.net/track/v2.2/gettrackinfo`, {
+    const response = await fetch(`https:
       method: "POST",
       headers: {
         "17token": apiKey,
@@ -134,16 +128,12 @@ export async function fetchTrackingFrom17Track(
   }
 }
 
-/**
- * 从 Shopify Fulfillment 获取物流追踪信息（原生方式）
- */
 export async function getTrackingFromShopify(
   shopId: string,
   orderId: string
 ): Promise<TrackingInfo | null> {
   try {
-    // 从数据库获取订单的 fulfillment 信息
-    // 注意：这需要从 Shopify Admin API 获取，这里简化处理
+
     const order = await prisma.conversionJob.findFirst({
       where: {
         shopId,
@@ -158,7 +148,6 @@ export async function getTrackingFromShopify(
       return null;
     }
 
-    // 返回基础追踪信息（需要从 Shopify API 获取实际数据）
     return {
       trackingNumber: order.orderNumber || "",
       carrier: "shopify",
@@ -175,16 +164,13 @@ export async function getTrackingFromShopify(
   }
 }
 
-/**
- * 获取订单追踪信息（统一接口）
- */
 export async function getOrderTracking(
   shopId: string,
   orderId: string,
   trackingNumber?: string
 ): Promise<TrackingInfo | null> {
   try {
-    // 获取店铺的订单追踪配置
+
     const setting = await prisma.uiExtensionSetting.findUnique({
       where: {
         shopId_moduleKey: {
@@ -205,7 +191,6 @@ export async function getOrderTracking(
 
     const provider = config?.provider || "native";
 
-    // 如果没有追踪号，尝试从订单获取
     if (!trackingNumber) {
       const tracking = await getTrackingFromShopify(shopId, orderId);
       if (tracking?.trackingNumber) {
@@ -217,7 +202,6 @@ export async function getOrderTracking(
       return null;
     }
 
-    // 根据提供商获取追踪信息
     switch (provider) {
       case "aftership":
         if (config?.apiKey) {
@@ -247,9 +231,6 @@ export async function getOrderTracking(
   }
 }
 
-/**
- * 映射 AfterShip 状态到统一状态
- */
 function mapAfterShipStatus(tag: string): TrackingInfo["status"] {
   switch (tag?.toLowerCase()) {
     case "pending":
@@ -269,9 +250,6 @@ function mapAfterShipStatus(tag: string): TrackingInfo["status"] {
   }
 }
 
-/**
- * 映射 17Track 状态到统一状态
- */
 function map17TrackStatus(status: string): TrackingInfo["status"] {
   switch (status?.toLowerCase()) {
     case "pending":

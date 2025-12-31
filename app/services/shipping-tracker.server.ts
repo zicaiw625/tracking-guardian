@@ -25,13 +25,9 @@ export interface TrackingProviderConfig {
   apiSecret?: string;
 }
 
-/**
- * AfterShip API 对接
- * API 文档: https://www.aftership.com/docs/api/4
- */
 export class AfterShipTracker {
   private apiKey: string;
-  private baseUrl = "https://api.aftership.com/v4";
+  private baseUrl = "https:
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -117,13 +113,9 @@ export class AfterShipTracker {
   }
 }
 
-/**
- * 17Track API 对接
- * API 文档: https://documentation.17track.net/
- */
 export class SeventeenTrackTracker {
   private apiKey: string;
-  private baseUrl = "https://api.17track.net/track/v2.2";
+  private baseUrl = "https:
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -199,9 +191,6 @@ export class SeventeenTrackTracker {
   }
 }
 
-/**
- * 统一的追踪服务
- */
 export async function getTrackingInfo(
   config: TrackingProviderConfig,
   trackingNumber: string,
@@ -221,14 +210,11 @@ export async function getTrackingInfo(
       return seventeenTrack.getTracking(trackingNumber, carrier);
     case "native":
     default:
-      // 使用 Shopify 原生追踪（通过订单信息）
+
       return null;
   }
 }
 
-/**
- * 从 Shopify 订单获取追踪信息
- */
 export async function getTrackingFromShopifyOrder(
   orderData: {
     fulfillmentTrackingInfo?: Array<{
@@ -246,7 +232,7 @@ export async function getTrackingFromShopifyOrder(
   return {
     trackingNumber: tracking.number,
     carrier: tracking.company || "unknown",
-    status: "InTransit", // Shopify 不提供详细状态
+    status: "InTransit",
     events: [],
   };
 }

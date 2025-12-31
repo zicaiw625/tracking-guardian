@@ -18,9 +18,9 @@ import { CheckCircleIcon, AlertCircleIcon, ClipboardIcon } from "~/components/ic
 import { useFetcher } from "@remix-run/react";
 import type { ScriptAnalysisResult } from "~/services/scanner/types";
 
-const ScriptCodeEditor = lazy(() => 
-  import("~/components/scan/ScriptCodeEditor").then(module => ({ 
-    default: module.ScriptCodeEditor 
+const ScriptCodeEditor = lazy(() =>
+  import("~/components/scan/ScriptCodeEditor").then(module => ({
+    default: module.ScriptCodeEditor
   }))
 );
 
@@ -55,15 +55,13 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const fetcher = useFetcher();
 
-  // 验证脚本内容
   const validateScript = useCallback((content: string): string[] => {
     const errors: string[] = [];
-    
+
     if (!content.trim()) {
       return errors;
     }
 
-    // 检测危险代码模式
     const dangerousPatterns = [
       {
         pattern: /eval\s*\(/gi,
@@ -93,11 +91,10 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       }
     });
 
-    // 检测语法错误（基础检查）
     const scriptTags = content.match(/<script[^>]*>[\s\S]*?<\/script>/gi);
     if (scriptTags) {
       scriptTags.forEach((tag, index) => {
-        // 检查未闭合的标签
+
         const openCount = (tag.match(/<script/gi) || []).length;
         const closeCount = (tag.match(/<\/script>/gi) || []).length;
         if (openCount !== closeCount) {
@@ -106,7 +103,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       });
     }
 
-    // 检测未转义的 HTML
     const unescapedHtml = content.match(/<[^>]+>(?![^<]*<\/script>)/g);
     if (unescapedHtml && unescapedHtml.length > 0) {
       errors.push("检测到未转义的 HTML 标签，可能导致解析错误");
@@ -115,7 +111,6 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
     return errors;
   }, []);
 
-  // 实时验证
   useMemo(() => {
     if (scriptContent.trim()) {
       const errors = validateScript(scriptContent);
@@ -130,10 +125,9 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
       return;
     }
 
-    // 先验证
     const errors = validateScript(scriptContent);
     if (errors.length > 0) {
-      // 显示验证错误，但不阻止分析
+
       setValidationErrors(errors);
     }
 
@@ -147,10 +141,9 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
     );
   }, [scriptContent, fetcher, validateScript]);
 
-  // 实时分析回调
   const handleRealtimeAnalysis = useCallback((content: string) => {
     if (!content.trim()) return;
-    
+
     fetcher.submit(
       {
         _action: "realtime_analyze_manual_paste",
@@ -175,21 +168,19 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
     );
   }, [scriptContent, analysisResult, fetcher]);
 
-  // 处理分析结果
   useMemo(() => {
     if (fetcher.data) {
       if (fetcher.data.analysis) {
         setAnalysisResult(fetcher.data.analysis);
         setIsAnalyzing(false);
       }
-      // 处理实时分析结果
+
       if (fetcher.data.realtimeAnalysis) {
         setRealtimeAnalysisResult(fetcher.data.realtimeAnalysis);
       }
     }
   }, [fetcher.data]);
 
-  // 处理创建结果
   useMemo(() => {
     if (fetcher.data && fetcher.data.processed) {
       const result = fetcher.data.processed;
@@ -247,7 +238,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
           </BlockStack>
         </Banner>
 
-        {/* 验证错误提示 */}
+        {}
         {validationErrors.length > 0 && (
           <Banner tone="warning">
             <BlockStack gap="200">
@@ -267,7 +258,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
           </Banner>
         )}
 
-        {/* 使用增强的代码编辑器 */}
+        {}
         <Suspense fallback={
           <TextField
             label="脚本内容"
@@ -292,7 +283,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
           />
         </Suspense>
 
-        {/* 处理按钮 - 在分析结果下方显示 */}
+        {}
         {analysisResult && (
           <InlineStack gap="200">
             <Button
@@ -324,7 +315,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               分析结果
             </Text>
 
-            {/* 摘要 */}
+            {}
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between">
@@ -360,7 +351,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               </BlockStack>
             </Box>
 
-            {/* 识别的资产列表 */}
+            {}
             {analysisResult.assets.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
@@ -413,7 +404,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               </BlockStack>
             )}
 
-            {/* 处理结果提示 */}
+            {}
             {fetcher.data?.processed && (
               <Banner tone="success">
                 <Text as="p" variant="bodySm">

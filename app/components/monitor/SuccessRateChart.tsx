@@ -50,7 +50,6 @@ export function SuccessRateChart({
   const destinations = Object.keys(byDestination);
   const eventTypes = Object.keys(byEventType);
 
-  // 总体成功率趋势
   const overallTrendData = useMemo(() => {
     const labels = overall.map((d) => {
       const date = new Date(`${d.date}T${String(d.hour).padStart(2, "0")}:00:00`);
@@ -80,10 +79,9 @@ export function SuccessRateChart({
     };
   }, [overall]);
 
-  // 按平台的成功率对比
   const platformComparisonData = useMemo(() => {
     const platformStats: Record<string, { success: number; total: number }> = {};
-    
+
     Object.entries(byDestination).forEach(([platform, history]) => {
       const total = history.reduce((sum, h) => sum + h.total, 0);
       const success = history.reduce((sum, h) => sum + h.successful, 0);
@@ -117,10 +115,9 @@ export function SuccessRateChart({
     };
   }, [byDestination]);
 
-  // 按事件类型的成功率对比
   const eventTypeComparisonData = useMemo(() => {
     const eventTypeStats: Record<string, { success: number; total: number }> = {};
-    
+
     Object.entries(byEventType).forEach(([eventType, history]) => {
       const total = history.reduce((sum, h) => sum + h.total, 0);
       const success = history.reduce((sum, h) => sum + h.successful, 0);
@@ -154,7 +151,6 @@ export function SuccessRateChart({
     };
   }, [byEventType]);
 
-  // 选中平台/事件类型的趋势
   const selectedTrendData = useMemo(() => {
     let selectedHistory: SuccessRateHistory[] = [];
     let label = "";
@@ -257,7 +253,7 @@ export function SuccessRateChart({
 
   return (
     <BlockStack gap="400">
-      {/* 总体趋势 */}
+      {}
       <Card>
         <BlockStack gap="400">
           <Text as="h3" variant="headingSm">
@@ -269,7 +265,7 @@ export function SuccessRateChart({
         </BlockStack>
       </Card>
 
-      {/* 按平台对比 */}
+      {}
       {destinations.length > 0 && (
         <Card>
           <BlockStack gap="400">
@@ -299,7 +295,7 @@ export function SuccessRateChart({
         </Card>
       )}
 
-      {/* 按事件类型对比 */}
+      {}
       {eventTypes.length > 0 && (
         <Card>
           <BlockStack gap="400">
@@ -329,7 +325,7 @@ export function SuccessRateChart({
         </Card>
       )}
 
-      {/* 选中项的趋势 */}
+      {}
       {selectedTrendData && (
         <Card>
           <BlockStack gap="400">

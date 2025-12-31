@@ -373,7 +373,7 @@ export default function MonitorPage() {
               {(volumeStats.weekdayBaseline !== undefined || volumeStats.weekendBaseline !== undefined) && (
                 <Text as="p" variant="bodySm" tone="subdued">
                   {volumeStats.isWeekend ? "周末" : "工作日"}基准值: {
-                    volumeStats.isWeekend 
+                    volumeStats.isWeekend
                       ? volumeStats.weekendBaseline?.toFixed(0) || "N/A"
                       : volumeStats.weekdayBaseline?.toFixed(0) || "N/A"
                   } |
@@ -655,7 +655,7 @@ export default function MonitorPage() {
                         value={missingParamsTimeRange}
                         onChange={(value) => {
                           setMissingParamsTimeRange(value);
-                          // 重新加载数据
+
                           window.location.href = `/app/monitor?timeRange=${value}`;
                         }}
                       />
@@ -673,8 +673,8 @@ export default function MonitorPage() {
                   </BlockStack>
                 </>
               )}
-              
-              {/* 新增：按事件类型的缺参率图表 */}
+
+              {}
               {missingParamsDetailed && missingParamsDetailed.byEventType && Object.keys(missingParamsDetailed.byEventType).length > 0 && (
                 <>
                   <Divider />
@@ -1224,17 +1224,17 @@ export default function MonitorPage() {
                         查看全部
                       </Button>
                     </InlineStack>
-                    
-                    {/* 告警历史趋势图表 */}
-                    <AlertHistoryChart 
-                      alerts={recentAlerts} 
+
+                    {}
+                    <AlertHistoryChart
+                      alerts={recentAlerts}
                       timeRange={alertHistoryTimeRange}
                       onTimeRangeChange={setAlertHistoryTimeRange}
                     />
-                    
+
                     <Divider />
-                    
-                    {/* 最近告警列表 */}
+
+                    {}
                     <BlockStack gap="300">
                       <Text as="h4" variant="headingSm">
                         最近告警记录

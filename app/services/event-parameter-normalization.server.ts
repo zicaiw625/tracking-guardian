@@ -56,10 +56,6 @@ export interface ShopifyEventData {
   [key: string]: unknown;
 }
 
-/**
- * 规范化 Shopify 事件参数
- * 将 Shopify 标准事件数据转换为平台所需格式
- */
 export function normalizeEventParameters(
   shopifyEvent: ShopifyEventData,
   mapping: EventMapping,
@@ -71,7 +67,6 @@ export function normalizeEventParameters(
     currency: "USD",
   };
 
-  // 规范化金额和币种
   if (shopifyEvent.value !== undefined && shopifyEvent.value !== null) {
     normalized.value = typeof shopifyEvent.value === "number"
       ? shopifyEvent.value
@@ -82,16 +77,14 @@ export function normalizeEventParameters(
     normalized.currency = String(shopifyEvent.currency).toUpperCase();
   }
 
-  // 规范化商品数据（items）
   if (shopifyEvent.items && Array.isArray(shopifyEvent.items)) {
     normalized.items = normalizeItems(shopifyEvent.items);
-    
-    // 根据平台转换 items 格式
+
     if (platform === "meta" || platform === "tiktok") {
       normalized.contents = convertToContentsFormat(shopifyEvent.items);
       normalized.content_ids = normalized.contents.map(c => c.id);
     }
-    
+
     if (platform === "pinterest") {
       normalized.line_items = convertToLineItemsFormat(shopifyEvent.items);
       normalized.order_quantity = normalized.line_items.reduce(
@@ -99,8 +92,7 @@ export function normalizeEventParameters(
         0
       );
     }
-    
-    // Meta 需要 num_items
+
     if (platform === "meta") {
       normalized.num_items = normalized.contents.reduce(
         (sum, item) => sum + item.quantity,
@@ -109,7 +101,6 @@ export function normalizeEventParameters(
     }
   }
 
-  // 规范化事件 ID（用于去重）
   if (shopifyEvent.event_id) {
     normalized.event_id = String(shopifyEvent.event_id);
     if (platform === "google") {
@@ -117,12 +108,10 @@ export function normalizeEventParameters(
     }
   }
 
-  // 规范化订单 ID
   if (shopifyEvent.order_id) {
     normalized.order_id = String(shopifyEvent.order_id);
   }
 
-  // 应用参数转换规则
   if (mapping.paramTransformations) {
     for (const [sourceKey, targetKey] of Object.entries(mapping.paramTransformations)) {
       if (sourceKey in normalized && !(targetKey in normalized)) {
@@ -131,15 +120,11 @@ export function normalizeEventParameters(
     }
   }
 
-  // 验证必需参数
   validateRequiredParams(normalized, mapping.requiredParams, platform);
 
   return normalized;
 }
 
-/**
- * 规范化商品数组
- */
 function normalizeItems(
   items: ShopifyEventData["items"]
 ): NormalizedEventParams["items"] {
@@ -156,9 +141,6 @@ function normalizeItems(
     .filter(item => item.item_id && item.item_name);
 }
 
-/**
- * 转换为 Meta/TikTok 的 contents 格式
- */
 function convertToContentsFormat(
   items: ShopifyEventData["items"]
 ): Array<{ id: string; quantity: number; item_price: number }> {
@@ -174,9 +156,6 @@ function convertToContentsFormat(
     .filter(item => item.id);
 }
 
-/**
- * 转换为 Pinterest 的 line_items 格式
- */
 function convertToLineItemsFormat(
   items: ShopifyEventData["items"]
 ): Array<{ product_id: string; product_name: string; product_price: number; quantity: number }> {
@@ -193,9 +172,6 @@ function convertToLineItemsFormat(
     .filter(item => item.product_id);
 }
 
-/**
- * 获取商品 ID（支持多种字段名）
- */
 function getItemId(item: NonNullable<ShopifyEventData["items"]>[0]): string {
   return (
     item.id ||
@@ -207,9 +183,6 @@ function getItemId(item: NonNullable<ShopifyEventData["items"]>[0]): string {
   );
 }
 
-/**
- * 获取商品名称（支持多种字段名）
- */
 function getItemName(item: NonNullable<ShopifyEventData["items"]>[0]): string {
   return (
     item.name ||
@@ -220,9 +193,6 @@ function getItemName(item: NonNullable<ShopifyEventData["items"]>[0]): string {
   );
 }
 
-/**
- * 获取商品价格
- */
 function getItemPrice(item: NonNullable<ShopifyEventData["items"]>[0]): number {
   if (item.price !== undefined && item.price !== null) {
     return typeof item.price === "number"
@@ -232,9 +202,6 @@ function getItemPrice(item: NonNullable<ShopifyEventData["items"]>[0]): number {
   return 0;
 }
 
-/**
- * 获取商品数量
- */
 function getItemQuantity(item: NonNullable<ShopifyEventData["items"]>[0]): number {
   if (item.quantity !== undefined && item.quantity !== null) {
     return typeof item.quantity === "number"
@@ -244,9 +211,6 @@ function getItemQuantity(item: NonNullable<ShopifyEventData["items"]>[0]): numbe
   return 1;
 }
 
-/**
- * 验证必需参数
- */
 function validateRequiredParams(
   params: NormalizedEventParams,
   requiredParams: string[],
@@ -269,41 +233,33 @@ function validateRequiredParams(
   }
 }
 
-/**
- * 清洗和规范化货币代码
- */
 export function normalizeCurrency(currency: string | undefined): string {
   if (!currency) return "USD";
-  
+
   const upper = currency.toUpperCase();
-  
-  // 验证是否为有效的 ISO 4217 货币代码（简化版）
+
   const validCurrencies = [
     "USD", "EUR", "GBP", "JPY", "CNY", "CAD", "AUD", "CHF", "HKD", "SGD",
     "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "RUB", "INR", "BRL", "MXN",
   ];
-  
+
   if (validCurrencies.includes(upper)) {
     return upper;
   }
-  
-  // 如果不匹配，返回大写版本（让平台API验证）
+
   return upper;
 }
 
-/**
- * 清洗金额值
- */
 export function normalizeValue(value: unknown): number {
   if (typeof value === "number") {
     return Math.max(0, value);
   }
-  
+
   if (typeof value === "string") {
     const parsed = parseFloat(value);
     return isNaN(parsed) ? 0 : Math.max(0, parsed);
   }
-  
+
   return 0;
 }
 

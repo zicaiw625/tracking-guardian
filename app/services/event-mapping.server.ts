@@ -3,9 +3,6 @@
 import { logger } from "../utils/logger.server";
 import type { PixelConfig } from "@prisma/client";
 
-/**
- * Shopify 标准事件到各平台事件的映射配置
- */
 export interface EventMapping {
   shopifyEvent: string;
   platformEvent: string;
@@ -19,9 +16,6 @@ export interface PlatformEventMapping {
   mappings: Record<string, EventMapping>;
 }
 
-/**
- * 标准事件映射配置
- */
 export const STANDARD_EVENT_MAPPINGS: Record<string, PlatformEventMapping> = {
   google: {
     platform: "google",
@@ -180,32 +174,23 @@ export const STANDARD_EVENT_MAPPINGS: Record<string, PlatformEventMapping> = {
   },
 };
 
-/**
- * 获取平台的事件映射配置
- */
 export function getPlatformEventMapping(platform: string): PlatformEventMapping | null {
   return STANDARD_EVENT_MAPPINGS[platform] || null;
 }
 
-/**
- * 获取 Shopify 事件到平台事件的映射
- */
 export function getEventMapping(
   platform: string,
   shopifyEvent: string
 ): EventMapping | null {
   const platformMapping = getPlatformEventMapping(platform);
   if (!platformMapping) return null;
-  
+
   return platformMapping.mappings[shopifyEvent] || null;
 }
 
-/**
- * 从 PixelConfig 获取自定义事件映射
- */
 export function getCustomEventMappings(pixelConfig: PixelConfig): Record<string, string> {
   if (!pixelConfig.eventMappings) return {};
-  
+
   try {
     if (typeof pixelConfig.eventMappings === "object") {
       return pixelConfig.eventMappings as Record<string, string>;
@@ -216,23 +201,19 @@ export function getCustomEventMappings(pixelConfig: PixelConfig): Record<string,
       error: error instanceof Error ? error.message : String(error),
     });
   }
-  
+
   return {};
 }
 
-/**
- * 合并标准映射和自定义映射
- */
 export function mergeEventMappings(
   platform: string,
   customMappings: Record<string, string>
 ): Record<string, EventMapping> {
   const platformMapping = getPlatformEventMapping(platform);
   if (!platformMapping) return {};
-  
+
   const merged: Record<string, EventMapping> = { ...platformMapping.mappings };
-  
-  // 应用自定义映射（如果自定义映射指定了事件名，更新平台事件名）
+
   for (const [shopifyEvent, customPlatformEvent] of Object.entries(customMappings)) {
     if (merged[shopifyEvent]) {
       merged[shopifyEvent] = {
@@ -241,13 +222,10 @@ export function mergeEventMappings(
       };
     }
   }
-  
+
   return merged;
 }
 
-/**
- * 验证事件映射配置
- */
 export function validateEventMapping(
   platform: string,
   shopifyEvent: string,
@@ -260,7 +238,7 @@ export function validateEventMapping(
       error: `不支持的平台: ${platform}`,
     };
   }
-  
+
   const standardMapping = platformMapping.mappings[shopifyEvent];
   if (!standardMapping) {
     return {
@@ -268,27 +246,23 @@ export function validateEventMapping(
       error: `不支持的 Shopify 事件: ${shopifyEvent}`,
     };
   }
-  
-  // 允许自定义平台事件名，只验证 Shopify 事件存在
+
   return { valid: true };
 }
 
-/**
- * 获取推荐的事件映射配置（用于向导默认值）
- */
 export function getRecommendedMappings(platforms: string[]): Record<string, Record<string, string>> {
   const result: Record<string, Record<string, string>> = {};
-  
+
   for (const platform of platforms) {
     const platformMapping = getPlatformEventMapping(platform);
     if (!platformMapping) continue;
-    
+
     result[platform] = {};
     for (const [shopifyEvent, mapping] of Object.entries(platformMapping.mappings)) {
       result[platform][shopifyEvent] = mapping.platformEvent;
     }
   }
-  
+
   return result;
 }
 

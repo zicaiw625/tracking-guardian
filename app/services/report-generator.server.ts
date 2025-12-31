@@ -208,16 +208,16 @@ export async function generatePDFReport(
     if (options.createShareableLink) {
       try {
         const { createShareableReport } = await import("./report-sharing.server");
-        // 确定报告类型和ID
+
         let reportType: "verification" | "scan" | "reconciliation" | "migration" = "scan";
         let reportId = "";
-        
+
         if (reportData.verificationResults) {
           reportType = "verification";
           reportId = reportData.verificationResults.runId;
         } else if (reportData.scanResults) {
           reportType = "scan";
-          // 需要从数据库获取最新的scanReport ID
+
           const latestScan = await prisma.scanReport.findFirst({
             where: { shopId },
             orderBy: { createdAt: "desc" },
@@ -237,7 +237,7 @@ export async function generatePDFReport(
         }
       } catch (shareError) {
         logger.warn("Failed to create shareable link", { error: shareError });
-        // 不阻止报告生成，只是不创建分享链接
+
       }
     }
 
@@ -638,8 +638,7 @@ export async function fetchBatchReportData(groupId: string, requesterId: string,
 
 export function generateScanReportHtml(data: ScanReportData): string {
   const timestamp = new Date(data.createdAt).toLocaleString("zh-CN");
-  
-  // 计算迁移清单统计
+
   const totalAssets = data.auditAssets.length;
   const highPriorityAssets = data.auditAssets.filter(a => a.priority && a.priority >= 8).length;
   const mediumPriorityAssets = data.auditAssets.filter(a => a.priority && a.priority >= 5 && a.priority < 8).length;
@@ -647,8 +646,7 @@ export function generateScanReportHtml(data: ScanReportData): string {
   const totalEstimatedTime = data.auditAssets.reduce((sum, a) => sum + (a.estimatedTimeMinutes || 0), 0);
   const estimatedHours = Math.floor(totalEstimatedTime / 60);
   const estimatedMinutes = totalEstimatedTime % 60;
-  
-  // 按优先级排序资产
+
   const sortedAssets = [...data.auditAssets].sort((a, b) => {
     const priorityA = a.priority || 0;
     const priorityB = b.priority || 0;
@@ -656,42 +654,42 @@ export function generateScanReportHtml(data: ScanReportData): string {
     const riskOrder = { high: 3, medium: 2, low: 1 };
     return (riskOrder[b.riskLevel as keyof typeof riskOrder] || 0) - (riskOrder[a.riskLevel as keyof typeof riskOrder] || 0);
   });
-  
+
   const migrationTypeLabels: Record<string, string> = {
     web_pixel: "Web Pixel",
     ui_extension: "UI Extension",
     server_side: "服务端 CAPI",
     none: "无需迁移",
   };
-  
+
   const riskLevelLabels: Record<string, string> = {
     high: "高风险",
     medium: "中风险",
     low: "低风险",
   };
-  
+
   const migrationStatusLabels: Record<string, string> = {
     pending: "待迁移",
     in_progress: "进行中",
     completed: "已完成",
     skipped: "已跳过",
   };
-  
+
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
-      padding: 40px; 
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      padding: 40px;
       max-width: 1200px;
       margin: 0 auto;
       color: #333;
       line-height: 1.6;
     }
-    h1 { 
+    h1 {
       color: #202223;
       border-bottom: 3px solid #008060;
       padding-bottom: 10px;
@@ -726,18 +724,18 @@ export function generateScanReportHtml(data: ScanReportData): string {
       color: #202223;
       margin: 5px 0;
     }
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
+    table {
+      width: 100%;
+      border-collapse: collapse;
       margin-top: 20px;
       background: white;
     }
-    th, td { 
-      border: 1px solid #e1e3e5; 
-      padding: 12px; 
-      text-align: left; 
+    th, td {
+      border: 1px solid #e1e3e5;
+      padding: 12px;
+      text-align: left;
     }
-    th { 
+    th {
       background-color: #f6f6f7;
       font-weight: 600;
       color: #202223;
@@ -801,7 +799,7 @@ export function generateScanReportHtml(data: ScanReportData): string {
 </head>
 <body>
   <h1>📋 扫描报告 - ${data.shopDomain}</h1>
-  
+
   <div class="metadata">
     <p><strong>生成时间:</strong> ${timestamp}</p>
     <p><strong>风险分数:</strong> <span style="font-size: 24px; font-weight: bold; color: ${data.riskScore >= 70 ? "#d72c0d" : data.riskScore >= 40 ? "#b98900" : "#008060"};">${data.riskScore}</span> / 100</p>
@@ -846,18 +844,18 @@ export function generateScanReportHtml(data: ScanReportData): string {
     </thead>
     <tbody>
       ${sortedAssets.map((asset) => {
-        const priorityClass = asset.priority && asset.priority >= 8 ? "priority-high" : 
+        const priorityClass = asset.priority && asset.priority >= 8 ? "priority-high" :
                              asset.priority && asset.priority >= 5 ? "priority-medium" : "priority-low";
         const priorityDisplay = asset.priority ? `${asset.priority}/10` : "待计算";
-        const timeDisplay = asset.estimatedTimeMinutes 
-          ? asset.estimatedTimeMinutes < 60 
+        const timeDisplay = asset.estimatedTimeMinutes
+          ? asset.estimatedTimeMinutes < 60
             ? `${asset.estimatedTimeMinutes} 分钟`
             : `${Math.floor(asset.estimatedTimeMinutes / 60)} 小时 ${asset.estimatedTimeMinutes % 60} 分钟`
           : "待估算";
         const dependenciesDisplay = asset.dependencies && asset.dependencies.length > 0
           ? `${asset.dependencies.length} 个依赖`
           : "无";
-        
+
         return `
         <tr>
           <td><strong>${asset.displayName || asset.category}</strong></td>
@@ -874,7 +872,7 @@ export function generateScanReportHtml(data: ScanReportData): string {
       }).join("")}
     </tbody>
   </table>
-  
+
   <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e1e3e5; color: #6d7175; font-size: 12px; text-align: center;">
     <p>报告由 Tracking Guardian 自动生成</p>
     <p>生成时间: ${new Date().toLocaleString("zh-CN")}</p>
@@ -892,7 +890,6 @@ export function generateVerificationReportHtml(data: VerificationReportData): st
     ? ((data.summary.failedEvents / data.summary.totalEvents) * 100).toFixed(2)
     : "0.00";
 
-  // 计算成功率可视化条形图宽度
   const successBarWidth = successRate;
   const failureBarWidth = failureRate;
 
@@ -911,15 +908,15 @@ export function generateVerificationReportHtml(data: VerificationReportData): st
 <head>
   <meta charset="UTF-8">
   <style>
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
-      padding: 40px; 
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      padding: 40px;
       max-width: 1200px;
       margin: 0 auto;
       color: #333;
       line-height: 1.6;
     }
-    h1 { 
+    h1 {
       color: #202223;
       border-bottom: 3px solid #008060;
       padding-bottom: 10px;
@@ -989,18 +986,18 @@ export function generateVerificationReportHtml(data: VerificationReportData): st
     .progress-error {
       background: #d72c0d;
     }
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
+    table {
+      width: 100%;
+      border-collapse: collapse;
       margin-top: 20px;
       background: white;
     }
-    th, td { 
-      border: 1px solid #e1e3e5; 
-      padding: 12px; 
-      text-align: left; 
+    th, td {
+      border: 1px solid #e1e3e5;
+      padding: 12px;
+      text-align: left;
     }
-    th { 
+    th {
       background-color: #f6f6f7;
       font-weight: 600;
       color: #202223;
@@ -1041,7 +1038,7 @@ export function generateVerificationReportHtml(data: VerificationReportData): st
 </head>
 <body>
   <h1>📋 验收报告 - ${data.shopDomain}</h1>
-  
+
   <div class="metadata">
     <p><strong>运行名称:</strong> ${data.runName || "未命名"}</p>
     <p><strong>报告生成时间:</strong> ${new Date().toLocaleString("zh-CN")}</p>

@@ -21,9 +21,6 @@ export interface ConfigVersionHistory {
   canRollback: boolean;
 }
 
-/**
- * 保存配置快照（在更新前自动调用）
- */
 export async function saveConfigSnapshot(
   shopId: string,
   platform: Platform
@@ -42,8 +39,6 @@ export async function saveConfigSnapshot(
       return { success: false, error: "配置不存在" };
     }
 
-    // 如果当前版本有 previousConfig，说明已经有快照
-    // 否则，将当前配置保存为快照
     const currentConfig = {
       platformId: config.platformId,
       credentialsEncrypted: config.credentialsEncrypted,
@@ -53,7 +48,6 @@ export async function saveConfigSnapshot(
       serverSideEnabled: config.serverSideEnabled,
     };
 
-    // 更新配置，将当前配置保存到 previousConfig，版本号+1
     const newVersion = config.configVersion + 1;
 
     await prisma.pixelConfig.update({
@@ -81,9 +75,6 @@ export async function saveConfigSnapshot(
   }
 }
 
-/**
- * 获取配置版本历史
- */
 export async function getConfigVersionHistory(
   shopId: string,
   platform: Platform
@@ -104,7 +95,6 @@ export async function getConfigVersionHistory(
 
     const versions: ConfigVersion[] = [];
 
-    // 当前版本
     versions.push({
       version: config.configVersion,
       config: {
@@ -118,7 +108,6 @@ export async function getConfigVersionHistory(
       savedAt: config.updatedAt,
     });
 
-    // 上一个版本（如果有）
     if (config.previousConfig) {
       const previous = config.previousConfig as {
         platformId?: string | null;
@@ -139,7 +128,7 @@ export async function getConfigVersionHistory(
           clientSideEnabled: previous.clientSideEnabled ?? true,
           serverSideEnabled: previous.serverSideEnabled ?? false,
         },
-        savedAt: config.updatedAt, // 使用当前更新时间作为参考
+        savedAt: config.updatedAt,
       });
     }
 
@@ -154,9 +143,6 @@ export async function getConfigVersionHistory(
   }
 }
 
-/**
- * 回滚到上一个版本
- */
 export async function rollbackConfig(
   shopId: string,
   platform: Platform
@@ -188,7 +174,6 @@ export async function rollbackConfig(
       serverSideEnabled?: boolean;
     };
 
-    // 保存当前配置为新的 previousConfig（以便可以再次回滚）
     const currentConfig = {
       platformId: config.platformId,
       credentialsEncrypted: config.credentialsEncrypted,
@@ -198,7 +183,6 @@ export async function rollbackConfig(
       serverSideEnabled: config.serverSideEnabled,
     };
 
-    // 回滚到上一个版本
     await prisma.pixelConfig.update({
       where: {
         shopId_platform: {
@@ -214,7 +198,7 @@ export async function rollbackConfig(
         clientSideEnabled: previous.clientSideEnabled ?? true,
         serverSideEnabled: previous.serverSideEnabled ?? false,
         previousConfig: currentConfig as object,
-        configVersion: config.configVersion + 1, // 版本号递增
+        configVersion: config.configVersion + 1,
         rollbackAllowed: true,
       },
     });

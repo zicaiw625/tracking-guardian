@@ -30,7 +30,7 @@ import type {
 export interface AlertRulesConfigData {
   successRate?: {
     enabled: boolean;
-    threshold: number; // 失败率阈值（百分比）
+    threshold: number;
     criticalThreshold?: number;
   };
   missingParams?: MissingParamsAlertConfig;
@@ -58,7 +58,7 @@ export function AlertRulesConfig({
   onTest,
   isLoading = false,
 }: AlertRulesConfigProps) {
-  // 成功率/失败率告警配置
+
   const [successRateEnabled, setSuccessRateEnabled] = useState(
     initialConfig?.successRate?.enabled ?? true
   );
@@ -69,7 +69,6 @@ export function AlertRulesConfig({
     String(initialConfig?.successRate?.criticalThreshold ?? 10)
   );
 
-  // 缺参率告警配置
   const [missingParamsEnabled, setMissingParamsEnabled] = useState(
     initialConfig?.missingParams?.enabled ?? true
   );
@@ -83,7 +82,6 @@ export function AlertRulesConfig({
     initialConfig?.missingParams?.params ?? ["value", "currency"]
   );
 
-  // 事件量骤降告警配置
   const [volumeAnomalyEnabled, setVolumeAnomalyEnabled] = useState(
     initialConfig?.volumeAnomaly?.enabled ?? true
   );
@@ -232,7 +230,7 @@ export function AlertRulesConfig({
 
         <Divider />
 
-        {/* 成功率/失败率告警 */}
+        {}
         <BlockStack gap="300">
           <div
             role="button"
@@ -325,7 +323,7 @@ export function AlertRulesConfig({
 
         <Divider />
 
-        {/* 缺参率告警 */}
+        {}
         <BlockStack gap="300">
           <div
             role="button"
@@ -464,7 +462,7 @@ export function AlertRulesConfig({
 
         <Divider />
 
-        {/* 事件量骤降告警 */}
+        {}
         <BlockStack gap="300">
           <div
             role="button"

@@ -21,7 +21,7 @@ export interface MissingParamsStats {
     total: number;
     withMissingParams: number;
     missingRate: number;
-    byParam: Record<string, number>; // paramName -> count
+    byParam: Record<string, number>;
   };
   byPlatform: Record<string, {
     total: number;
@@ -35,7 +35,7 @@ export interface MissingParamsStats {
     missingRate: number;
     byParam: Record<string, number>;
   }>;
-  byPlatformAndEventType: Record<string, { // "platform:eventType"
+  byPlatformAndEventType: Record<string, {
     total: number;
     withMissingParams: number;
     missingRate: number;
@@ -50,11 +50,11 @@ export interface MissingParamsStats {
 
 export interface MissingParamsAlertConfig {
   enabled: boolean;
-  threshold: number; // 百分比，如 5 表示 5%
-  criticalThreshold?: number; // 严重告警阈值
-  byEventType?: Record<string, number>; // 特定事件类型的阈值
-  byPlatform?: Record<string, number>; // 特定平台的阈值
-  params: string[]; // 要检测的参数列表 ["value", "currency", "items"]
+  threshold: number;
+  criticalThreshold?: number;
+  byEventType?: Record<string, number>;
+  byPlatform?: Record<string, number>;
+  params: string[];
 }
 
 export interface MissingParamsAlertResult {
@@ -70,7 +70,6 @@ export interface MissingParamsAlertResult {
   };
 }
 
-// 参数定义
 const PARAM_DEFINITIONS: MissingParamDefinition[] = [
   {
     name: "value",
@@ -91,11 +90,10 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
   {
     name: "items",
     label: "商品信息 (items)",
-    required: false, // items 通常是可选的，但某些平台可能需要
+    required: false,
     checkFunction: (log) => {
-      // 检查是否有 items 相关数据（这里简化处理，实际可能需要检查更复杂的结构）
-      // 如果 eventData 包含 items 字段，可以检查
-      return false; // 暂时不检测 items，因为需要更复杂的逻辑
+
+      return false;
     },
   },
   {
@@ -108,9 +106,6 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
   },
 ];
 
-/**
- * 检测单个事件的缺失参数
- */
 export function detectMissingParams(log: {
   orderValue: any;
   currency: string | null;
@@ -140,9 +135,6 @@ export function detectMissingParams(log: {
   return results;
 }
 
-/**
- * 获取缺参率统计
- */
 export async function getMissingParamsStats(
   shopId: string,
   hours: number = 24,
@@ -199,7 +191,6 @@ export async function getMissingParamsStats(
       });
     }
 
-    // 按平台统计
     const platform = log.platform;
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, withMissingParams: 0, byParam: {} };
@@ -213,7 +204,6 @@ export async function getMissingParamsStats(
       });
     }
 
-    // 按事件类型统计
     const eventType = log.eventType;
     if (!byEventType[eventType]) {
       byEventType[eventType] = { total: 0, withMissingParams: 0, byParam: {} };
@@ -227,7 +217,6 @@ export async function getMissingParamsStats(
       });
     }
 
-    // 按平台和事件类型组合统计
     const key = `${platform}:${eventType}`;
     if (!byPlatformAndEventType[key]) {
       byPlatformAndEventType[key] = { total: 0, withMissingParams: 0, byParam: {} };
@@ -242,10 +231,8 @@ export async function getMissingParamsStats(
     }
   });
 
-  // 计算缺失率
   const overallMissingRate = total > 0 ? (withMissingParams / total) * 100 : 0;
 
-  // 计算各维度的缺失率
   Object.keys(byPlatform).forEach((platform) => {
     const stats = byPlatform[platform];
     stats.missingRate = stats.total > 0 ? (stats.withMissingParams / stats.total) * 100 : 0;
@@ -279,9 +266,6 @@ export async function getMissingParamsStats(
   };
 }
 
-/**
- * 检查缺参率告警
- */
 export async function checkMissingParamsAlert(
   shopId: string,
   config: MissingParamsAlertConfig,
@@ -302,17 +286,15 @@ export async function checkMissingParamsAlert(
   const stats = await getMissingParamsStats(shopId, hours, config.params);
   const overallRate = stats.overall.missingRate;
 
-  // 检查总体阈值
   const threshold = config.threshold;
   const criticalThreshold = config.criticalThreshold || threshold * 2;
 
   if (overallRate >= criticalThreshold) {
-    // 严重告警
+
     const affectedPlatforms: string[] = [];
     const affectedEventTypes: string[] = [];
     const topMissingParams: Array<{ param: string; count: number; rate: number }> = [];
 
-    // 找出受影响最大的平台和事件类型
     Object.entries(stats.byPlatform).forEach(([platform, platformStats]) => {
       if (platformStats.missingRate >= criticalThreshold) {
         affectedPlatforms.push(platform);
@@ -325,7 +307,6 @@ export async function checkMissingParamsAlert(
       }
     });
 
-    // 找出缺失最多的参数
     Object.entries(stats.overall.byParam)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
@@ -349,7 +330,7 @@ export async function checkMissingParamsAlert(
   }
 
   if (overallRate >= threshold) {
-    // 警告告警
+
     const affectedPlatforms: string[] = [];
     const affectedEventTypes: string[] = [];
     const topMissingParams: Array<{ param: string; count: number; rate: number }> = [];
@@ -388,7 +369,6 @@ export async function checkMissingParamsAlert(
     };
   }
 
-  // 检查特定平台或事件类型的阈值
   if (config.byPlatform) {
     for (const [platform, platformThreshold] of Object.entries(config.byPlatform)) {
       const platformStats = stats.byPlatform[platform];
@@ -436,9 +416,6 @@ export async function checkMissingParamsAlert(
   };
 }
 
-/**
- * 获取缺参率历史趋势
- */
 export async function getMissingParamsHistory(
   shopId: string,
   days: number = 7,

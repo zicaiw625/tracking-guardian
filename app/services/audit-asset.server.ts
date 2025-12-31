@@ -103,7 +103,6 @@ function inferSuggestedMigration(
   }
 }
 
-// 异步计算优先级和时间估算的辅助函数
 async function calculatePriorityAndTimeEstimate(
   assetId: string,
   shopId: string
@@ -113,7 +112,7 @@ async function calculatePriorityAndTimeEstimate(
     const asset = await prisma.auditAsset.findUnique({
       where: { id: assetId },
     });
-    
+
     if (!asset) {
       logger.warn("Asset not found for priority calculation", { assetId });
       return;
@@ -125,7 +124,7 @@ async function calculatePriorityAndTimeEstimate(
 
     const priorityResult = await calculatePriority(asset, allAssets);
     await updateAssetPriority(assetId, priorityResult);
-    
+
     logger.info("Priority and time estimate calculated", {
       assetId,
       priority: priorityResult.priority,
@@ -174,9 +173,6 @@ export async function createAuditAsset(
       where: { shopId_fingerprint: { shopId, fingerprint } },
     });
 
-    // 计算优先级和时间估算（在创建/更新后异步计算，避免阻塞）
-    // 注意：优先级计算需要完整的资产数据，所以我们在创建/更新后再计算
-
     if (existing) {
       const updated = await prisma.auditAsset.update({
         where: { id: existing.id },
@@ -192,7 +188,6 @@ export async function createAuditAsset(
         },
       });
 
-      // 异步计算优先级和时间估算（不阻塞返回）
       calculatePriorityAndTimeEstimate(updated.id, shopId).catch((error) => {
         logger.error("Failed to calculate priority/time estimate asynchronously", {
           assetId: updated.id,
@@ -220,7 +215,6 @@ export async function createAuditAsset(
       },
     });
 
-    // 异步计算优先级和时间估算（不阻塞返回）
     calculatePriorityAndTimeEstimate(asset.id, shopId).catch((error) => {
       logger.error("Failed to calculate priority/time estimate asynchronously", {
         assetId: asset.id,
@@ -397,7 +391,7 @@ export async function getAuditAssetSummary(shopId: string): Promise<AuditAssetSu
     }),
     prisma.auditAsset.groupBy({
       by: ["platform"],
-      where: { 
+      where: {
         shopId,
         platform: { not: null },
       },

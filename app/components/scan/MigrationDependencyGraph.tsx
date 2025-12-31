@@ -36,7 +36,6 @@ export function MigrationDependencyGraph({
       return { sortedNodes: [], cycles: [], criticalPath: [] };
     }
 
-    // 拓扑排序：找出执行顺序
     const inDegree = new Map<string, number>();
     const dependents = new Map<string, string[]>();
     const nodeMap = new Map<string, typeof dependencyGraph.nodes[0]>();
@@ -48,7 +47,7 @@ export function MigrationDependencyGraph({
     });
 
     dependencyGraph.edges.forEach((edge) => {
-      // 支持 "dependency" 和 "depends_on" 两种类型（向后兼容）
+
       if (edge.type === "dependency" || edge.type === "depends_on") {
         const current = inDegree.get(edge.to) || 0;
         inDegree.set(edge.to, current + 1);
@@ -59,7 +58,6 @@ export function MigrationDependencyGraph({
       }
     });
 
-    // 拓扑排序
     const sorted: typeof dependencyGraph.nodes = [];
     const queue: string[] = [];
 
@@ -87,17 +85,15 @@ export function MigrationDependencyGraph({
       });
     }
 
-    // 检测循环依赖
     const cycles: string[][] = [];
     const remaining = dependencyGraph.nodes.filter(
       (n) => !sorted.find((s) => s.id === n.id)
     );
     if (remaining.length > 0) {
-      // 简化：将所有剩余节点视为一个循环
+
       cycles.push(remaining.map((n) => n.id));
     }
 
-    // 计算关键路径（最长依赖链）
     const criticalPath: string[] = [];
     const pathLengths = new Map<string, number>();
 
@@ -136,7 +132,7 @@ export function MigrationDependencyGraph({
     )?.[0];
 
     if (criticalNode) {
-      // 回溯关键路径
+
       let current = criticalNode;
       while (current) {
         criticalPath.unshift(current);
@@ -183,7 +179,7 @@ export function MigrationDependencyGraph({
           </Badge>
         </InlineStack>
 
-        {/* 循环依赖警告 */}
+        {}
         {cycles.length > 0 && (
           <Banner tone="critical">
             <BlockStack gap="200">
@@ -206,7 +202,7 @@ export function MigrationDependencyGraph({
           </Banner>
         )}
 
-        {/* 关键路径 */}
+        {}
         {criticalPath.length > 0 && (
           <Box
             background="bg-surface-secondary"
@@ -268,7 +264,7 @@ export function MigrationDependencyGraph({
           </Box>
         )}
 
-        {/* 推荐迁移顺序 */}
+        {}
         <Box
           background="bg-surface-secondary"
           padding="400"
@@ -333,7 +329,7 @@ export function MigrationDependencyGraph({
           </BlockStack>
         </Box>
 
-        {/* 依赖关系图（简化版） */}
+        {}
         <Box
           background="bg-surface-secondary"
           padding="400"

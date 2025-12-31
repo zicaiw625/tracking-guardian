@@ -27,12 +27,11 @@ function generateIngestionSecret(): string {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
-    
-    // 检查 URL 参数，支持从 AuditAsset 预填充
+
     const url = new URL(request.url);
     const platformParam = url.searchParams.get("platform");
     const assetIdParam = url.searchParams.get("assetId");
-    
+
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: {
@@ -48,8 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             shopTier: true,
         },
     });
-    
-    // 如果提供了 assetId，加载对应的 AuditAsset
+
     let prefillAsset = null;
     let prefillPlatform = platformParam;
     if (assetIdParam && shop) {
@@ -65,7 +63,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     details: true,
                 },
             });
-            // 如果从 asset 加载，使用 asset 的 platform
+
             if (prefillAsset && prefillAsset.platform) {
                 prefillPlatform = prefillAsset.platform;
             }
@@ -166,11 +164,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const templates = await getWizardTemplates(shop.id);
 
-    // 加载向导草稿（如果存在）
     const { loadWizardDraft } = await import("../services/migration-wizard.server");
     const wizardDraft = await loadWizardDraft(shop.id);
 
-    // 加载像素配置（用于环境切换）
     const pixelConfigs = await prisma.pixelConfig.findMany({
         where: {
             shopId: shop.id,
@@ -210,9 +206,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         upgradeStatus,
         migrationUrgency,
         templates,
-        wizardDraft, // 添加草稿数据
-        pixelConfigs, // 添加像素配置数据
-        // 预填充数据（从 AuditAsset 或 URL 参数）
+        wizardDraft,
+        pixelConfigs,
+
         prefillPlatform: prefillPlatform || null,
         prefillAsset: prefillAsset ? {
             id: prefillAsset.id,
@@ -477,7 +473,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
-    // 保存向导草稿
     if (actionType === "saveWizardDraft") {
         const draftJson = formData.get("draft") as string;
         if (!draftJson) {
@@ -498,7 +493,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
-    // 清除向导草稿
     if (actionType === "clearWizardDraft") {
         try {
             const { clearWizardDraft } = await import("../services/migration-wizard.server");
@@ -510,7 +504,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
-    // 获取配置版本历史
     if (actionType === "getConfigVersionHistory") {
         try {
             const platform = formData.get("platform") as string;
@@ -520,7 +513,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
             const { getConfigVersionHistory } = await import("../services/pixel-config-version.server");
             const history = await getConfigVersionHistory(shop.id, platform as any);
-            
+
             if (!history) {
                 return json({ success: false, error: "配置不存在" }, { status: 404 });
             }
@@ -535,7 +528,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
-    // 回滚配置
     if (actionType === "rollbackConfig") {
         try {
             const platform = formData.get("platform") as string;
@@ -545,7 +537,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
             const { rollbackConfig } = await import("../services/pixel-config-version.server");
             const result = await rollbackConfig(shop.id, platform as any);
-            
+
             return json(result);
         } catch (error) {
             logger.error("Failed to rollback config", error);
@@ -556,7 +548,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
-    // 环境切换
     if (actionType === "switchEnvironment") {
         const platform = formData.get("platform") as string;
         const environment = formData.get("environment") as "test" | "live";
@@ -592,7 +583,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
     }
 
-    // 配置回滚
     if (actionType === "rollbackConfig") {
         const platform = formData.get("platform") as string;
 
@@ -734,8 +724,7 @@ export default function MigratePage() {
         revalidator.revalidate();
         setShowWizard(false);
         setCurrentStep("complete");
-        
-        // 自动跳转到验收页面
+
         setTimeout(() => {
             window.location.href = "/app/verification";
         }, 1000);

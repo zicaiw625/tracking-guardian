@@ -12,9 +12,6 @@ export interface PlanLimitResult {
   unlimited?: boolean;
 }
 
-/**
- * 检查像素目的地数量限制
- */
 export async function checkPixelDestinationsLimit(
   shopId: string,
   shopPlan: PlanId
@@ -51,9 +48,6 @@ export async function checkPixelDestinationsLimit(
   };
 }
 
-/**
- * 检查 UI 模块数量限制
- */
 export async function checkUiModulesLimit(
   shopId: string,
   shopPlan: PlanId
@@ -89,9 +83,6 @@ export async function checkUiModulesLimit(
   };
 }
 
-/**
- * 检查多店数量限制
- */
 export async function checkMultiShopLimit(
   shopId: string,
   shopPlan: PlanId
@@ -102,7 +93,6 @@ export async function checkMultiShopLimit(
     return { allowed: true, unlimited: true };
   }
 
-  // 获取当前工作区中的店铺数量
   const { canManageMultipleShops } = await import("../multi-shop.server");
   const canManage = await canManageMultipleShops(shopId);
 
@@ -116,7 +106,6 @@ export async function checkMultiShopLimit(
     };
   }
 
-  // 获取实际店铺数量
   const shopGroups = await prisma.shopGroup.findMany({
     where: { ownerId: shopId },
     include: {
@@ -153,9 +142,6 @@ export async function checkMultiShopLimit(
   };
 }
 
-/**
- * 获取所有限制的摘要
- */
 export async function getAllLimitsSummary(
   shopId: string,
   shopPlan: PlanId

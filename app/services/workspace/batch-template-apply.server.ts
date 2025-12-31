@@ -60,23 +60,20 @@ export interface EnhancedBatchApplyResult {
   results: ShopApplyResult[];
   summary: {
     totalPlatformsApplied: number;
-    platformsBreakdown: Record<string, number>; // platform -> count
+    platformsBreakdown: Record<string, number>;
     changesBreakdown: {
       created: number;
       updated: number;
       skipped: number;
       noChange: number;
     };
-    errorBreakdown: Record<string, number>; // errorType -> count
+    errorBreakdown: Record<string, number>;
   };
   startedAt: Date;
   completedAt: Date;
   duration: number;
 }
 
-/**
- * 对比两个配置的差异
- */
 function compareConfigs(
   platform: string,
   beforeConfig: {
@@ -203,9 +200,6 @@ function compareConfigs(
   };
 }
 
-/**
- * 获取店铺应用模板前的配置
- */
 async function getShopConfigsBefore(
   shopId: string,
   platforms: PixelTemplateConfig[]
@@ -235,9 +229,6 @@ async function getShopConfigsBefore(
   return configMap;
 }
 
-/**
- * 获取店铺应用模板后的配置
- */
 async function getShopConfigsAfter(
   shopId: string,
   platforms: PixelTemplateConfig[]
@@ -267,9 +258,6 @@ async function getShopConfigsAfter(
   return configMap;
 }
 
-/**
- * 增强的批量应用模板功能，包含配置对比和详细报告
- */
 export async function batchApplyTemplateWithComparison(
   options: BatchTemplateApplyOptions
 ): Promise<EnhancedBatchApplyResult | { error: string }> {
@@ -296,7 +284,6 @@ export async function batchApplyTemplateWithComparison(
     return { error: "分组不存在或无权访问" };
   }
 
-  // 获取模板信息
   const template = await prisma.pixelTemplate.findUnique({
     where: { id: templateId },
     select: {
@@ -312,7 +299,6 @@ export async function batchApplyTemplateWithComparison(
 
   const templatePlatforms = template.platforms as unknown as PixelTemplateConfig[];
 
-  // 确定目标店铺
   let targetShops = groupDetails.members;
   if (targetShopIds && targetShopIds.length > 0) {
     const targetSet = new Set(targetShopIds);
@@ -326,14 +312,12 @@ export async function batchApplyTemplateWithComparison(
   const results: ShopApplyResult[] = [];
   const shopIds = targetShops.map((m) => m.shopId);
 
-  // 先获取所有店铺的应用前配置
   const beforeConfigsMap = new Map<string, Map<string, { clientSideEnabled: boolean; serverSideEnabled: boolean; eventMappings: Record<string, string> | null }>>();
   for (const shopId of shopIds) {
     const configs = await getShopConfigsBefore(shopId, templatePlatforms);
     beforeConfigsMap.set(shopId, configs);
   }
 
-  // 执行批量应用
   const batchApplyResult = await batchApplyPixelTemplate({
     templateId,
     targetShopIds: shopIds,
@@ -343,10 +327,6 @@ export async function batchApplyTemplateWithComparison(
     concurrency,
   });
 
-  // batchApplyPixelTemplate 返回 BatchApplyResult & { jobId?: string }，不会有 error 字段
-  // 如果失败，success 字段会是 false
-
-  // 获取所有店铺的应用后配置并生成对比
   for (const shopResult of batchApplyResult.results) {
     if (shopResult.status === "success") {
       const afterConfigs = await getShopConfigsAfter(shopResult.shopId, templatePlatforms);
@@ -357,12 +337,11 @@ export async function batchApplyTemplateWithComparison(
         const before = beforeConfigs.get(platformConfig.platform) || null;
         const after = afterConfigs.get(platformConfig.platform) || null;
         const comparison = compareConfigs(platformConfig.platform, before, after);
-        
-        // 如果配置已存在但被跳过，标记为skipped
+
         if (before && !overwriteExisting && skipIfExists && !shopResult.platformsApplied?.includes(platformConfig.platform)) {
           comparison.action = "skipped";
         }
-        
+
         comparisons.push(comparison);
       }
 
@@ -385,7 +364,6 @@ export async function batchApplyTemplateWithComparison(
     }
   }
 
-  // 生成汇总统计
   const platformsBreakdown: Record<string, number> = {};
   const changesBreakdown = {
     created: 0,
@@ -451,9 +429,6 @@ export async function batchApplyTemplateWithComparison(
   };
 }
 
-/**
- * 对比多个店铺的配置一致性
- */
 export async function compareShopConfigs(
   shopIds: string[],
   platform?: string
@@ -541,7 +516,6 @@ export async function compareShopConfigs(
       };
     });
 
-    // 检查配置一致性（简化版：只检查第一个配置作为基准）
     let consistent = true;
     const differences: Array<{ shopId: string; shopDomain: string; differences: string[] }> = [];
 

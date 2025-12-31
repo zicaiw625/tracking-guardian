@@ -57,7 +57,7 @@ export function BatchReportGenerator({
       if (onGenerate) {
         await onGenerate(options);
       } else {
-        // 默认行为：下载PDF报告
+
         const formData = new FormData();
         formData.append("groupId", groupId);
         formData.append("reportTypes", JSON.stringify(reportTypes));
@@ -180,7 +180,7 @@ export function BatchReportGenerator({
             onChange={(value) =>
               setWhiteLabel((prev) => ({ ...prev, logoUrl: value || undefined }))
             }
-            placeholder="https://example.com/logo.png"
+            placeholder="https:
             helpText="Logo 图片 URL（将显示在报告头部）"
           />
           <TextField

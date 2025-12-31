@@ -20,43 +20,35 @@ interface AuditAssetsByRiskProps {
   onMigrateClick?: (asset: AuditAssetRecord) => void;
 }
 
-/**
- * 确定风险分类（按设计方案 4.2）
- */
 function determineRiskCategory(
   asset: AuditAssetRecord,
   riskLevel: "high" | "medium" | "low"
 ): "will_fail" | "can_replace" | "no_migration_needed" {
-  // 高风险项通常是"会失效/受限"
+
   if (riskLevel === "high") {
     return "will_fail";
   }
 
-  // 检查是否在订单状态页
   if (asset.details && typeof asset.details === "object") {
     const details = asset.details as Record<string, unknown>;
     const displayScope = details.display_scope as string | undefined;
     if (displayScope === "order_status") {
-      return "will_fail"; // 订单状态页脚本会失效
+      return "will_fail";
     }
   }
 
-  // 中风险项通常是"可直接替换"
   if (riskLevel === "medium") {
     return "can_replace";
   }
 
-  // 低风险项或建议迁移为"none"的通常是"无需迁移"
   if (riskLevel === "low" || asset.suggestedMigration === "none") {
     return "no_migration_needed";
   }
 
-  // 分析工具通常无需迁移
   if (asset.category === "analytics") {
     return "no_migration_needed";
   }
 
-  // 默认归类为"可直接替换"
   return "can_replace";
 }
 
@@ -104,7 +96,7 @@ const RISK_CATEGORY_INFO: Record<string, { label: string; tone: "critical" | "wa
 };
 
 export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: AuditAssetsByRiskProps) {
-  // 按风险分类分组（按设计方案 4.2）
+
   const assetsByCategory = {
     will_fail: assets.filter((a) => {
       const category = determineRiskCategory(a, a.riskLevel as "high" | "medium" | "low");
@@ -127,7 +119,7 @@ export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: Audi
     if (onMigrateClick) {
       onMigrateClick(asset);
     } else if (asset.suggestedMigration === "web_pixel" && asset.platform) {
-      // 默认跳转到迁移页面，并预填充平台
+
       window.location.href = `/app/migrate?platform=${asset.platform}&assetId=${asset.id}`;
     } else if (asset.suggestedMigration === "ui_extension") {
       window.location.href = `/app/ui-blocks?assetId=${asset.id}`;
@@ -163,7 +155,7 @@ export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: Audi
           <Badge tone="info">{totalAssets} 项</Badge>
         </InlineStack>
 
-        {/* 会失效/受限项 */}
+        {}
         {assetsByCategory.will_fail.length > 0 && (
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
@@ -272,7 +264,7 @@ export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: Audi
           </BlockStack>
         )}
 
-        {/* 可直接替换项 */}
+        {}
         {assetsByCategory.can_replace.length > 0 && (
           <>
             {assetsByCategory.will_fail.length > 0 && <Divider />}
@@ -384,7 +376,7 @@ export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: Audi
           </>
         )}
 
-        {/* 无需迁移项 */}
+        {}
         {assetsByCategory.no_migration_needed.length > 0 && (
           <>
             {(assetsByCategory.will_fail.length > 0 || assetsByCategory.can_replace.length > 0) && <Divider />}

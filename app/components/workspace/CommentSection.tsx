@@ -42,12 +42,11 @@ export function CommentSection({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mentionedShopIds, setMentionedShopIds] = useState<string[]>([]);
 
-  // 提取 @提及的用户
   const extractMentions = useCallback((text: string): string[] => {
     const mentionRegex = /@(\w+)/g;
     const matches = Array.from(text.matchAll(mentionRegex));
     const mentionedDomains = matches.map((m) => m[1]);
-    
+
     return availableMembers
       .filter((m) => mentionedDomains.some((domain) => m.shopDomain.includes(domain)))
       .map((m) => m.shopId);

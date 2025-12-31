@@ -92,7 +92,6 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     lastTestedAt: config.updatedAt,
   })) ?? [];
 
-  // 获取当前监控数据用于实时预览
   let currentMonitoringData: {
     failureRate: number;
     missingParamsRate: number;
@@ -119,7 +118,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         volumeDrop: volumeStats.isDrop ? Math.abs(volumeStats.changePercent) : 0,
       };
     } catch (error) {
-      // 如果获取监控数据失败，继续执行，不阻塞页面加载
+
       console.error("Failed to fetch monitoring data for preview:", error);
     }
   }

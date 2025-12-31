@@ -62,7 +62,7 @@ function analyzeScriptTags(
 }
 
 export async function getDashboardData(shopDomain: string): Promise<DashboardData> {
-  // 优化：移除重复的 include，只使用 select
+
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
@@ -175,25 +175,30 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
 
   const isNewInstall = shop.installedAt &&
     (Date.now() - shop.installedAt.getTime()) < 24 * 60 * 60 * 1000;
-  const showOnboarding = isNewInstall && !latestScan;
+
+  const showOnboarding = isNewInstall && (
+    !latestScan ||
+    latestScan.status === "pending" ||
+    latestScan.status === "scanning"
+  );
 
   let migrationChecklist = null;
   let dependencyGraph = null;
   let riskDistribution = null;
-  
+
   if (latestScan) {
     try {
       migrationChecklist = await getMigrationChecklist(shop.id, false);
     } catch (error) {
       logger.error("Failed to get migration checklist", { shopId: shop.id, error });
     }
-    
+
     try {
       dependencyGraph = await analyzeDependencies(shop.id);
     } catch (error) {
       logger.error("Failed to analyze dependencies", { shopId: shop.id, error });
     }
-    
+
     try {
       const assetSummary = await getAuditAssetSummary(shop.id);
       riskDistribution = {

@@ -79,7 +79,7 @@ export function ChannelReconciliationPanel({
 
   return (
     <BlockStack gap="500">
-      {/* 摘要卡片 */}
+      {}
       <Card>
         <BlockStack gap="400">
           <InlineStack align="space-between" blockAlign="center">
@@ -148,7 +148,7 @@ export function ChannelReconciliationPanel({
         </BlockStack>
       </Card>
 
-      {/* 跨平台分析 */}
+      {}
       {data.crossPlatformAnalysis.platformsWithDiscrepancies.length > 0 && (
         <Card>
           <BlockStack gap="300">
@@ -189,7 +189,7 @@ export function ChannelReconciliationPanel({
         </Card>
       )}
 
-      {/* 平台过滤 */}
+      {}
       <Card>
         <BlockStack gap="300">
           <InlineStack align="space-between" blockAlign="center">
@@ -215,7 +215,7 @@ export function ChannelReconciliationPanel({
         </BlockStack>
       </Card>
 
-      {/* 平台对比表格 */}
+      {}
       <Card>
         <BlockStack gap="400">
           <DataTable
@@ -285,7 +285,7 @@ export function ChannelReconciliationPanel({
         </BlockStack>
       </Card>
 
-      {/* 各平台详情 */}
+      {}
       {filteredPlatforms.map((comparison) => (
         <PlatformComparisonCard
           key={comparison.platform}
@@ -294,7 +294,7 @@ export function ChannelReconciliationPanel({
         />
       ))}
 
-      {/* 订单详情模态框 */}
+      {}
       {showOrderDetails && selectedOrderId && (
         <Modal
           open={showOrderDetails}
@@ -371,7 +371,7 @@ function PlatformComparisonCard({
           <BlockStack gap="400">
             <Divider />
 
-            {/* 统计信息 */}
+            {}
             <BlockStack gap="300">
               <Text as="h4" variant="headingSm">
                 统计信息
@@ -440,7 +440,7 @@ function PlatformComparisonCard({
               </Box>
             </BlockStack>
 
-            {/* 问题列表 */}
+            {}
             {comparison.issues.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">
@@ -462,7 +462,7 @@ function PlatformComparisonCard({
               </BlockStack>
             )}
 
-            {/* 缺失订单列表 */}
+            {}
             {comparison.stats.missingOrders.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">
@@ -492,7 +492,7 @@ function PlatformComparisonCard({
               </BlockStack>
             )}
 
-            {/* 重复订单列表 */}
+            {}
             {comparison.stats.duplicateOrders.length > 0 && (
               <BlockStack gap="300">
                 <Text as="h4" variant="headingSm">

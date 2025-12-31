@@ -24,59 +24,56 @@ interface ScriptCodeEditorProps {
   analysisResult: ScriptAnalysisResult | null;
   isAnalyzing: boolean;
   placeholder?: string;
-  enableRealtimeAnalysis?: boolean; // 启用实时分析
-  onRealtimeAnalysis?: (content: string) => void; // 实时分析回调
-  enableBatchPaste?: boolean; // 启用批量粘贴
+  enableRealtimeAnalysis?: boolean;
+  onRealtimeAnalysis?: (content: string) => void;
+  enableBatchPaste?: boolean;
 }
 
-// 增强的代码高亮函数
 function highlightCode(content: string): string {
   if (!content) return "";
 
-  // 先转义 HTML
   let highlighted = content
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  // 高亮模式（按优先级顺序）
   const patterns = [
-    // HTML 标签
+
     {
       regex: /(&lt;\/?[\w\s="'-]+&gt;)/g,
       replacement: '<span style="color: #800000; font-weight: 500">$1</span>',
     },
-    // 追踪函数调用（gtag, fbq, ttq 等）
+
     {
       regex: /\b(gtag|fbq|ttq|pintrk|snap|twq|dataLayer\.push)\b/gi,
       replacement: '<span style="color: #0451A5; font-weight: 600">$1</span>',
     },
-    // 事件名称
+
     {
       regex: /['"](purchase|Purchase|CompletePayment|PageView|ViewContent|AddToCart|InitiateCheckout|BeginCheckout|Search|ViewItem)['"]/gi,
       replacement: '<span style="color: #811F3F; font-weight: 600">$&</span>',
     },
-    // 平台 ID（GA4, Meta Pixel ID, TikTok Pixel ID）
+
     {
       regex: /\b(G-[A-Z0-9]+|AW-\d+|\d{15,16}|[A-Z0-9]{20,30})\b/g,
       replacement: '<span style="color: #098658; font-weight: 500">$1</span>',
     },
-    // 字符串
+
     {
       regex: /(['"])(?:(?=(\\?))\2.)*?\1/g,
       replacement: '<span style="color: #A31515">$&</span>',
     },
-    // 数字
+
     {
       regex: /\b\d+\.?\d*\b/g,
       replacement: '<span style="color: #098658">$&</span>',
     },
-    // 函数名
+
     {
       regex: /(\w+)\s*\(/g,
       replacement: '<span style="color: #795E26; font-weight: 600">$1</span>(',
     },
-    // 注释
+
     {
       regex: /(&lt;!--[\s\S]*?--&gt;|\/\/.*|\/\*[\s\S]*?\*\/)/g,
       replacement: '<span style="color: #6A9955; font-style: italic">$1</span>',
@@ -90,20 +87,17 @@ function highlightCode(content: string): string {
   return highlighted;
 }
 
-// 检测脚本片段分隔符
 function detectScriptFragments(content: string): string[] {
   if (!content.trim()) return [];
-  
-  // 按常见分隔符分割（script 标签、注释、空行等）
+
   const fragments: string[] = [];
   const lines = content.split('\n');
   let currentFragment = '';
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmedLine = line.trim();
-    
-    // 检测 script 标签开始
+
     if (trimmedLine.includes('<script') || trimmedLine.includes('&lt;script')) {
       if (currentFragment.trim()) {
         fragments.push(currentFragment.trim());
@@ -111,7 +105,7 @@ function detectScriptFragments(content: string): string[] {
       }
       currentFragment += line + '\n';
     }
-    // 检测 script 标签结束
+
     else if (trimmedLine.includes('</script>') || trimmedLine.includes('&lt;/script&gt;')) {
       currentFragment += line + '\n';
       if (currentFragment.trim()) {
@@ -119,7 +113,7 @@ function detectScriptFragments(content: string): string[] {
         currentFragment = '';
       }
     }
-    // 检测空行分隔（连续两个空行）
+
     else if (trimmedLine === '' && lines[i + 1]?.trim() === '') {
       if (currentFragment.trim()) {
         fragments.push(currentFragment.trim());
@@ -130,17 +124,15 @@ function detectScriptFragments(content: string): string[] {
       currentFragment += line + '\n';
     }
   }
-  
-  // 添加最后一个片段
+
   if (currentFragment.trim()) {
     fragments.push(currentFragment.trim());
   }
-  
-  // 如果没有检测到分隔符，返回整个内容作为一个片段
+
   if (fragments.length === 0 && content.trim()) {
     return [content.trim()];
   }
-  
+
   return fragments.filter(f => f.length > 0);
 }
 
@@ -258,25 +250,21 @@ export function ScriptCodeEditor({
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const highlightedCode = useMemo(() => highlightCode(value), [value]);
-  
-  // 检测脚本片段
+
   const detectedFragments = useMemo(() => {
     if (!enableBatchPaste || !value.trim()) return [];
     return detectScriptFragments(value);
   }, [value, enableBatchPaste]);
 
-  // 实时分析（防抖）
   useEffect(() => {
     if (!enableRealtimeAnalysis || !onRealtimeAnalysis || !value.trim()) {
       return;
     }
 
-    // 清除之前的定时器
     if (analysisTimeoutRef.current) {
       clearTimeout(analysisTimeoutRef.current);
     }
 
-    // 设置新的定时器（500ms 防抖）
     analysisTimeoutRef.current = setTimeout(() => {
       onRealtimeAnalysis(value);
     }, 500);
@@ -288,7 +276,6 @@ export function ScriptCodeEditor({
     };
   }, [value, enableRealtimeAnalysis, onRealtimeAnalysis]);
 
-  // 更新片段列表
   useEffect(() => {
     if (enableBatchPaste && detectedFragments.length > 0) {
       setFragments(detectedFragments);
@@ -342,7 +329,7 @@ export function ScriptCodeEditor({
             </InlineStack>
           </InlineStack>
 
-          {/* 批量粘贴提示 */}
+          {}
           {enableBatchPaste && fragments.length > 1 && (
             <Banner tone="info">
               <BlockStack gap="200">
@@ -363,7 +350,7 @@ export function ScriptCodeEditor({
             </Banner>
           )}
 
-          {/* 实时分析提示 */}
+          {}
           {enableRealtimeAnalysis && value.trim() && (
             <Banner tone="info">
               <Text as="p" variant="bodySm">
@@ -372,7 +359,7 @@ export function ScriptCodeEditor({
             </Banner>
           )}
 
-          {/* Shopify Admin 复制指引 */}
+          {}
           <Banner>
             <BlockStack gap="200">
               <Text as="p" variant="bodySm" fontWeight="semibold">

@@ -53,8 +53,7 @@ export async function subscribeToEvents(
   shopId: string,
   callback: (event: RealtimeEvent) => void
 ): Promise<() => void> {
-  // 这里应该使用 WebSocket 或 SSE 实现实时推送
-  // 目前先实现轮询方式
+
   let isActive = true;
   let lastEventId: string | null = null;
 
@@ -76,7 +75,7 @@ export async function subscribeToEvents(
     }
 
     if (isActive) {
-      setTimeout(poll, 2000); // 每2秒轮询一次
+      setTimeout(poll, 2000);
     }
   };
 

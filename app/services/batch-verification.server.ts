@@ -88,7 +88,6 @@ export async function startBatchVerification(
 
   activeJobs.set(jobId, job);
 
-  // 异步执行批量验收
   executeBatchVerificationAsync(jobId, targetShops.map(m => m.shopId), {
     runType,
     platforms,
@@ -145,7 +144,6 @@ async function executeBatchVerificationAsync(
         throw new Error(`Shop not found: ${shopId}`);
       }
 
-      // 检查是否有配置的平台
       const configs = await prisma.pixelConfig.findMany({
         where: {
           shopId,
@@ -167,7 +165,6 @@ async function executeBatchVerificationAsync(
         return;
       }
 
-      // 确定要测试的平台
       const targetPlatforms = platforms.length > 0
         ? platforms.filter(p => configs.some(c => c.platform === p))
         : configs.map(c => c.platform);
@@ -184,16 +181,13 @@ async function executeBatchVerificationAsync(
         return;
       }
 
-      // 创建验收运行
       const runId = await createVerificationRun(shopId, {
         runType,
         platforms: targetPlatforms,
       });
 
-      // 启动验收运行
       await startVerificationRun(runId);
 
-      // 分析最近事件
       await analyzeRecentEvents(shopId, runId);
 
       job.results.push({
@@ -225,17 +219,15 @@ async function executeBatchVerificationAsync(
     }
   }
 
-  // 并发处理
   for (let i = 0; i < shopIds.length; i += concurrency) {
     const batch = shopIds.slice(i, i + concurrency);
     await Promise.all(batch.map(processShop));
   }
 
-  // 更新状态
   if (job.progress.failed === 0) {
     job.status = "completed";
   } else if (job.progress.completed > 0) {
-    job.status = "completed"; // 部分成功也算完成
+    job.status = "completed";
   } else {
     job.status = "failed";
   }

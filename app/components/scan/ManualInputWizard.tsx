@@ -91,7 +91,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
       additionalInfo: additionalInfo.trim() || undefined,
       fromUpgradeWizard,
     });
-    // 重置状态
+
     setStep(1);
     setSelectedPlatforms([]);
     setSelectedFeatures([]);
@@ -110,7 +110,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
   }, [onClose]);
 
   const canProceedFromStep1 = selectedPlatforms.length > 0 || selectedFeatures.length > 0;
-  const canProceedFromStep2 = true; // 步骤2总是可以继续
+  const canProceedFromStep2 = true;
   const canComplete = selectedPlatforms.length > 0 || selectedFeatures.length > 0;
 
   return (
@@ -138,7 +138,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
     >
       <Modal.Section>
         <BlockStack gap="400">
-          {/* 步骤指示器 */}
+          {}
           <InlineStack gap="200" align="center">
             <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
             <Text as="span" tone="subdued">→</Text>
@@ -147,7 +147,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
             <Badge tone={step >= 3 ? "success" : "subdued"}>步骤 3</Badge>
           </InlineStack>
 
-          {/* 步骤 1: 选择平台和功能 */}
+          {}
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -196,7 +196,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
             </BlockStack>
           )}
 
-          {/* 步骤 2: 来源确认 */}
+          {}
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -249,7 +249,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
             </BlockStack>
           )}
 
-          {/* 步骤 3: 额外信息 */}
+          {}
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -270,7 +270,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
 
               <Divider />
 
-              {/* 摘要 */}
+              {}
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">

@@ -1,8 +1,5 @@
 import type { EnhancedRiskReport } from "./risk-report.server";
 
-/**
- * 生成风险报告的 HTML
- */
 export function generateRiskReportHtml(report: EnhancedRiskReport): string {
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
@@ -205,8 +202,8 @@ export function generateRiskReportHtml(report: EnhancedRiskReport): string {
             <div class="item-title">${item.displayName}</div>
             <div class="item-meta">
               ${item.platform ? `平台: ${item.platform} • ` : ""}
-              类别: ${item.category} • 
-              优先级: ${item.priority}/10 • 
+              类别: ${item.category} •
+              优先级: ${item.priority}/10 •
               预计时间: ${formatTime(item.estimatedTimeMinutes)}
               ${getRiskLevelBadge(item.riskLevel)}
             </div>
@@ -233,8 +230,8 @@ export function generateRiskReportHtml(report: EnhancedRiskReport): string {
             <div class="item-title">${item.displayName}</div>
             <div class="item-meta">
               ${item.platform ? `平台: ${item.platform} • ` : ""}
-              类别: ${item.category} • 
-              优先级: ${item.priority}/10 • 
+              类别: ${item.category} •
+              优先级: ${item.priority}/10 •
               预计时间: ${formatTime(item.estimatedTimeMinutes)}
               ${getRiskLevelBadge(item.riskLevel)}
             </div>

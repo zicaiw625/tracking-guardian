@@ -494,11 +494,10 @@ function MigrationChecklistPreviewCard({
       ? `${estimatedHours} 小时 ${estimatedMinutes > 0 ? estimatedMinutes + " 分钟" : ""}`
       : `${estimatedMinutes} 分钟`;
 
-  // 计算预计完成时间（基于当前进度）
   const completedItems = checklist.topItems.filter((item) => item.status === "completed").length;
   const remainingItems = checklist.totalItems - completedItems;
-  const avgTimePerItem = checklist.totalItems > 0 
-    ? checklist.estimatedTotalTime / checklist.totalItems 
+  const avgTimePerItem = checklist.totalItems > 0
+    ? checklist.estimatedTotalTime / checklist.totalItems
     : 0;
   const remainingTime = Math.ceil(remainingItems * avgTimePerItem);
   const remainingHours = Math.floor(remainingTime / 60);
@@ -693,11 +692,10 @@ export default function Index() {
       setShowWelcomeBanner(false);
     }
 
-    // 检查是否是新安装且没有扫描结果
     const isNewInstall = data.showOnboarding && !data.latestScan;
     if (isNewInstall) {
       setShowScanProgress(true);
-      // 10秒后自动隐藏进度条（扫描应该已完成）
+
       const timer = setTimeout(() => {
         setShowScanProgress(false);
       }, 12000);
@@ -839,8 +837,8 @@ export default function Index() {
         {data.migrationChecklist && (
           <Layout>
             <Layout.Section>
-              <MigrationChecklistPreviewCard 
-                checklist={data.migrationChecklist} 
+              <MigrationChecklistPreviewCard
+                checklist={data.migrationChecklist}
                 estimatedTimeMinutes={data.estimatedMigrationTimeMinutes}
               />
             </Layout.Section>

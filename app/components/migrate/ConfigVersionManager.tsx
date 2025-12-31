@@ -83,7 +83,6 @@ export function ConfigVersionManager({
     fetcher.submit(formData, { method: "post" });
   }, [platform, fetcher]);
 
-  // 处理回滚结果
   useEffect(() => {
     if (fetcher.data && (fetcher.data as { success?: boolean }).success) {
       setRollbackModalOpen(false);

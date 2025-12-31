@@ -39,49 +39,38 @@ export interface EnhancedRiskReport {
   };
 }
 
-/**
- * 确定风险分类
- */
 function determineRiskCategory(
   asset: AuditAsset,
   riskLevel: "high" | "medium" | "low"
 ): "will_fail" | "can_replace" | "no_migration_needed" {
-  // 高风险项通常是"会失效/受限"
+
   if (riskLevel === "high") {
     return "will_fail";
   }
 
-  // 检查是否在订单状态页
   if (asset.details && typeof asset.details === "object") {
     const details = asset.details as Record<string, unknown>;
     const displayScope = details.display_scope as string | undefined;
     if (displayScope === "order_status") {
-      return "will_fail"; // 订单状态页脚本会失效
+      return "will_fail";
     }
   }
 
-  // 中风险项通常是"可直接替换"
   if (riskLevel === "medium") {
     return "can_replace";
   }
 
-  // 低风险项或建议迁移为"none"的通常是"无需迁移"
   if (riskLevel === "low" || asset.suggestedMigration === "none") {
     return "no_migration_needed";
   }
 
-  // 分析工具通常无需迁移
   if (asset.category === "analytics") {
     return "no_migration_needed";
   }
 
-  // 默认归类为"可直接替换"
   return "can_replace";
 }
 
-/**
- * 生成迁移步骤
- */
 function generateMigrationSteps(
   asset: AuditAsset,
   suggestedMigration: string
@@ -115,9 +104,6 @@ function generateMigrationSteps(
   return steps;
 }
 
-/**
- * 生成增强版风险报告
- */
 export async function generateEnhancedRiskReport(
   shopId: string
 ): Promise<EnhancedRiskReport | null> {
@@ -131,14 +117,12 @@ export async function generateEnhancedRiskReport(
       return null;
     }
 
-    // 获取最新的扫描报告
     const latestScan = await prisma.scanReport.findFirst({
       where: { shopId },
       orderBy: { createdAt: "desc" },
       select: { riskScore: true },
     });
 
-    // 获取所有审计资产
     const assets = await prisma.auditAsset.findMany({
       where: { shopId },
       orderBy: [
@@ -148,7 +132,6 @@ export async function generateEnhancedRiskReport(
       ],
     });
 
-    // 转换资产为报告项
     const items: RiskReportItem[] = assets.map((asset) => {
       const riskLevel = asset.riskLevel as "high" | "medium" | "low";
       const riskCategory = determineRiskCategory(asset, riskLevel);
@@ -173,7 +156,6 @@ export async function generateEnhancedRiskReport(
       };
     });
 
-    // 按风险分类分组
     const categories = {
       willFail: items.filter((item) => item.riskCategory === "will_fail"),
       canReplace: items.filter((item) => item.riskCategory === "can_replace"),
@@ -182,7 +164,6 @@ export async function generateEnhancedRiskReport(
       ),
     };
 
-    // 计算摘要
     const summary = {
       totalItems: items.length,
       willFailCount: categories.willFail.length,
@@ -215,9 +196,6 @@ export async function generateEnhancedRiskReport(
   }
 }
 
-/**
- * 获取迁移描述
- */
 function getMigrationDescription(asset: AuditAsset): string {
   const categoryNames: Record<string, string> = {
     pixel: "追踪像素",
@@ -253,13 +231,9 @@ function getMigrationDescription(asset: AuditAsset): string {
   return `${categoryName} - ${migrationName}`;
 }
 
-/**
- * 生成风险报告的 CSV 格式
- */
 export function generateRiskReportCSV(report: EnhancedRiskReport): string {
   const lines: string[] = [];
-  
-  // CSV 转义：处理包含逗号、引号或换行符的值
+
   const escapeCSV = (value: string | number | undefined): string => {
     if (value === undefined || value === null) return "";
     const str = String(value);
@@ -269,14 +243,12 @@ export function generateRiskReportCSV(report: EnhancedRiskReport): string {
     return str;
   };
 
-  // 报告头部
   lines.push("风险报告");
   lines.push(`店铺: ${escapeCSV(report.shopDomain)}`);
   lines.push(`生成时间: ${escapeCSV(report.generatedAt.toLocaleString("zh-CN"))}`);
   lines.push(`总体风险分数: ${escapeCSV(report.overallRiskScore)}`);
   lines.push("");
 
-  // 摘要
   lines.push("摘要");
   lines.push(`总项目数,${report.summary.totalItems}`);
   lines.push(`会失效/受限,${report.summary.willFailCount}`);
@@ -288,7 +260,6 @@ export function generateRiskReportCSV(report: EnhancedRiskReport): string {
   lines.push(`预计总时间(分钟),${report.summary.totalEstimatedTime}`);
   lines.push("");
 
-  // 详细项目
   lines.push("详细项目");
   const headers = [
     "ID",
@@ -325,11 +296,6 @@ export function generateRiskReportCSV(report: EnhancedRiskReport): string {
   return lines.join("\n");
 }
 
-/**
- * 生成 PDF 报告（基础版本，返回 JSON 数据供前端处理）
- * 注意：实际 PDF 生成需要额外的库（如 puppeteer 或 pdfkit）
- * 这里先返回结构化数据，PDF 生成可以在前端或使用专门的 PDF 服务
- */
 export async function generateRiskReportPDF(
   shopId: string
 ): Promise<{ data: EnhancedRiskReport; format: "json" }> {

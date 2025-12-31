@@ -1,8 +1,5 @@
--- CreateEnum
 
--- This migration was generated via `prisma migrate diff --from-empty --to-schema-datamodel=./prisma/schema.prisma --script`
 
--- CreateTable
 CREATE TABLE "Session" (
     "id" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
@@ -23,7 +20,6 @@ CREATE TABLE "Session" (
     CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Shop" (
     "id" TEXT NOT NULL,
     "shopDomain" TEXT NOT NULL,
@@ -59,7 +55,6 @@ CREATE TABLE "Shop" (
     CONSTRAINT "Shop_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "ScanReport" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -76,7 +71,6 @@ CREATE TABLE "ScanReport" (
     CONSTRAINT "ScanReport_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "PixelConfig" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -97,7 +91,6 @@ CREATE TABLE "PixelConfig" (
     CONSTRAINT "PixelConfig_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "AlertConfig" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -115,7 +108,6 @@ CREATE TABLE "AlertConfig" (
     CONSTRAINT "AlertConfig_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "ConversionLog" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -143,7 +135,6 @@ CREATE TABLE "ConversionLog" (
     CONSTRAINT "ConversionLog_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "ReconciliationReport" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -162,7 +153,6 @@ CREATE TABLE "ReconciliationReport" (
     CONSTRAINT "ReconciliationReport_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "SurveyResponse" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -177,7 +167,6 @@ CREATE TABLE "SurveyResponse" (
     CONSTRAINT "SurveyResponse_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "AuditLog" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -196,7 +185,6 @@ CREATE TABLE "AuditLog" (
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "MonthlyUsage" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -208,7 +196,6 @@ CREATE TABLE "MonthlyUsage" (
     CONSTRAINT "MonthlyUsage_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "PixelEventReceipt" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -230,7 +217,6 @@ CREATE TABLE "PixelEventReceipt" (
     CONSTRAINT "PixelEventReceipt_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "WebhookLog" (
     "id" TEXT NOT NULL,
     "shopDomain" TEXT NOT NULL,
@@ -244,7 +230,6 @@ CREATE TABLE "WebhookLog" (
     CONSTRAINT "WebhookLog_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "ConversionJob" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -269,7 +254,6 @@ CREATE TABLE "ConversionJob" (
     CONSTRAINT "ConversionJob_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "EventNonce" (
     "id" TEXT NOT NULL,
     "shopId" TEXT NOT NULL,
@@ -281,7 +265,6 @@ CREATE TABLE "EventNonce" (
     CONSTRAINT "EventNonce_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "GDPRJob" (
     "id" TEXT NOT NULL,
     "shopDomain" TEXT NOT NULL,
@@ -297,206 +280,138 @@ CREATE TABLE "GDPRJob" (
     CONSTRAINT "GDPRJob_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
 CREATE INDEX "Session_shop_idx" ON "Session"("shop");
 
--- CreateIndex
 CREATE UNIQUE INDEX "Shop_shopDomain_key" ON "Shop"("shopDomain");
 
--- CreateIndex
 CREATE INDEX "ScanReport_shopId_idx" ON "ScanReport"("shopId");
 
--- CreateIndex
 CREATE INDEX "ScanReport_status_idx" ON "ScanReport"("status");
 
--- CreateIndex
 CREATE UNIQUE INDEX "PixelConfig_shopId_platform_key" ON "PixelConfig"("shopId", "platform");
 
--- CreateIndex
 CREATE INDEX "PixelConfig_shopId_idx" ON "PixelConfig"("shopId");
 
--- CreateIndex
 CREATE INDEX "PixelConfig_platform_idx" ON "PixelConfig"("platform");
 
--- CreateIndex
 CREATE INDEX "AlertConfig_shopId_idx" ON "AlertConfig"("shopId");
 
--- CreateIndex
 CREATE INDEX "AlertConfig_channel_idx" ON "AlertConfig"("channel");
 
--- CreateIndex
 CREATE UNIQUE INDEX "ConversionLog_shopId_orderId_platform_eventType_key" ON "ConversionLog"("shopId", "orderId", "platform", "eventType");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_shopId_idx" ON "ConversionLog"("shopId");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_orderId_idx" ON "ConversionLog"("orderId");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_platform_idx" ON "ConversionLog"("platform");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_status_idx" ON "ConversionLog"("status");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_createdAt_idx" ON "ConversionLog"("createdAt");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_shopId_createdAt_idx" ON "ConversionLog"("shopId", "createdAt");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_shopId_status_idx" ON "ConversionLog"("shopId", "status");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_shopId_platform_createdAt_idx" ON "ConversionLog"("shopId", "platform", "createdAt");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_shopId_createdAt_status_idx" ON "ConversionLog"("shopId", "createdAt", "status");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_status_nextRetryAt_idx" ON "ConversionLog"("status", "nextRetryAt");
 
--- CreateIndex
 CREATE INDEX "ConversionLog_status_deadLetteredAt_idx" ON "ConversionLog"("status", "deadLetteredAt");
 
--- CreateIndex
 CREATE UNIQUE INDEX "ReconciliationReport_shopId_platform_reportDate_key" ON "ReconciliationReport"("shopId", "platform", "reportDate");
 
--- CreateIndex
 CREATE INDEX "ReconciliationReport_shopId_idx" ON "ReconciliationReport"("shopId");
 
--- CreateIndex
 CREATE INDEX "ReconciliationReport_platform_idx" ON "ReconciliationReport"("platform");
 
--- CreateIndex
 CREATE INDEX "ReconciliationReport_reportDate_idx" ON "ReconciliationReport"("reportDate");
 
--- CreateIndex
 CREATE INDEX "ReconciliationReport_shopId_reportDate_idx" ON "ReconciliationReport"("shopId", "reportDate");
 
--- CreateIndex
 CREATE INDEX "SurveyResponse_shopId_idx" ON "SurveyResponse"("shopId");
 
--- CreateIndex
 CREATE INDEX "SurveyResponse_orderId_idx" ON "SurveyResponse"("orderId");
 
--- CreateIndex
 CREATE INDEX "SurveyResponse_shopId_orderId_idx" ON "SurveyResponse"("shopId", "orderId");
 
--- CreateIndex
 CREATE INDEX "SurveyResponse_shopId_createdAt_idx" ON "SurveyResponse"("shopId", "createdAt");
 
--- CreateIndex
 CREATE INDEX "AuditLog_shopId_idx" ON "AuditLog"("shopId");
 
--- CreateIndex
 CREATE INDEX "AuditLog_action_idx" ON "AuditLog"("action");
 
--- CreateIndex
 CREATE INDEX "AuditLog_resourceType_idx" ON "AuditLog"("resourceType");
 
--- CreateIndex
 CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
 
--- CreateIndex
 CREATE INDEX "AuditLog_shopId_createdAt_idx" ON "AuditLog"("shopId", "createdAt");
 
--- CreateIndex
 CREATE UNIQUE INDEX "MonthlyUsage_shopId_yearMonth_key" ON "MonthlyUsage"("shopId", "yearMonth");
 
--- CreateIndex
 CREATE INDEX "MonthlyUsage_shopId_idx" ON "MonthlyUsage"("shopId");
 
--- CreateIndex
 CREATE INDEX "MonthlyUsage_yearMonth_idx" ON "MonthlyUsage"("yearMonth");
 
--- CreateIndex
 CREATE UNIQUE INDEX "PixelEventReceipt_shopId_orderId_eventType_key" ON "PixelEventReceipt"("shopId", "orderId", "eventType");
 
--- CreateIndex
 CREATE INDEX "PixelEventReceipt_shopId_idx" ON "PixelEventReceipt"("shopId");
 
--- CreateIndex
 CREATE INDEX "PixelEventReceipt_orderId_idx" ON "PixelEventReceipt"("orderId");
 
--- CreateIndex
 CREATE INDEX "PixelEventReceipt_shopId_orderId_idx" ON "PixelEventReceipt"("shopId", "orderId");
 
--- CreateIndex
 CREATE INDEX "PixelEventReceipt_shopId_checkoutToken_idx" ON "PixelEventReceipt"("shopId", "checkoutToken");
 
--- CreateIndex
 CREATE INDEX "PixelEventReceipt_checkoutToken_idx" ON "PixelEventReceipt"("checkoutToken");
 
--- CreateIndex
 CREATE UNIQUE INDEX "WebhookLog_shopDomain_webhookId_topic_key" ON "WebhookLog"("shopDomain", "webhookId", "topic");
 
--- CreateIndex
 CREATE INDEX "WebhookLog_shopDomain_idx" ON "WebhookLog"("shopDomain");
 
--- CreateIndex
 CREATE INDEX "WebhookLog_receivedAt_idx" ON "WebhookLog"("receivedAt");
 
--- CreateIndex
 CREATE INDEX "WebhookLog_receivedAt_status_idx" ON "WebhookLog"("receivedAt", "status");
 
--- CreateIndex
 CREATE UNIQUE INDEX "ConversionJob_shopId_orderId_key" ON "ConversionJob"("shopId", "orderId");
 
--- CreateIndex
 CREATE INDEX "ConversionJob_shopId_idx" ON "ConversionJob"("shopId");
 
--- CreateIndex
 CREATE INDEX "ConversionJob_status_idx" ON "ConversionJob"("status");
 
--- CreateIndex
 CREATE INDEX "ConversionJob_status_nextRetryAt_idx" ON "ConversionJob"("status", "nextRetryAt");
 
--- CreateIndex
 CREATE INDEX "ConversionJob_createdAt_idx" ON "ConversionJob"("createdAt");
 
--- CreateIndex
 CREATE UNIQUE INDEX "EventNonce_shopId_nonce_eventType_key" ON "EventNonce"("shopId", "nonce", "eventType");
 
--- CreateIndex
 CREATE INDEX "EventNonce_expiresAt_idx" ON "EventNonce"("expiresAt");
 
--- CreateIndex
 CREATE INDEX "GDPRJob_status_idx" ON "GDPRJob"("status");
 
--- CreateIndex
 CREATE INDEX "GDPRJob_shopDomain_idx" ON "GDPRJob"("shopDomain");
 
--- CreateIndex
 CREATE INDEX "GDPRJob_createdAt_idx" ON "GDPRJob"("createdAt");
 
--- AddForeignKey
 ALTER TABLE "ScanReport" ADD CONSTRAINT "ScanReport_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "PixelConfig" ADD CONSTRAINT "PixelConfig_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "AlertConfig" ADD CONSTRAINT "AlertConfig_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "ConversionLog" ADD CONSTRAINT "ConversionLog_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "ReconciliationReport" ADD CONSTRAINT "ReconciliationReport_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "SurveyResponse" ADD CONSTRAINT "SurveyResponse_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "MonthlyUsage" ADD CONSTRAINT "MonthlyUsage_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "PixelEventReceipt" ADD CONSTRAINT "PixelEventReceipt_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "ConversionJob" ADD CONSTRAINT "ConversionJob_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE;

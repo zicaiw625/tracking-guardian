@@ -287,10 +287,6 @@ export async function incrementTemplateUsage(templateId: string): Promise<void> 
   }
 }
 
-/**
- * 生成模板分享链接
- * 分享链接格式：/app/templates/import?templateId=xxx&shareToken=yyy
- */
 export async function generateTemplateShareLink(
   templateId: string,
   ownerId: string
@@ -304,14 +300,12 @@ export async function generateTemplateShareLink(
       return { success: false, error: "模板不存在或无权限" };
     }
 
-    // 生成分享 token（使用模板 ID + 时间戳的简单哈希）
     const { createHash } = await import("crypto");
     const shareToken = createHash("sha256")
       .update(`${templateId}-${template.updatedAt.getTime()}`)
       .digest("hex")
       .substring(0, 16);
 
-    // 分享链接（在实际应用中，应该使用环境变量中的域名）
     const shareLink = `/app/templates/import?templateId=${templateId}&token=${shareToken}`;
 
     return { success: true, shareLink };
@@ -321,9 +315,6 @@ export async function generateTemplateShareLink(
   }
 }
 
-/**
- * 通过分享链接导入模板
- */
 export async function importTemplateFromShare(
   templateId: string,
   token: string,
@@ -338,7 +329,6 @@ export async function importTemplateFromShare(
       return { success: false, error: "模板不存在" };
     }
 
-    // 验证 token（简化验证，实际应该更严格）
     const { createHash } = await import("crypto");
     const expectedToken = createHash("sha256")
       .update(`${templateId}-${template.updatedAt.getTime()}`)
@@ -349,15 +339,12 @@ export async function importTemplateFromShare(
       return { success: false, error: "无效的分享链接" };
     }
 
-    // 如果模板是公开的，或者目标店铺是模板所有者，可以直接使用
-    // 否则创建副本
     if (template.isPublic || template.ownerId === targetShopId) {
-      // 直接使用原模板，增加使用次数
+
       await incrementTemplateUsage(templateId);
       return { success: true, templateId };
     }
 
-    // 创建模板副本
     const { createPixelTemplate } = await import("./batch-pixel-apply.server");
     const platforms = template.platforms as unknown as Array<{
       platform: string;
@@ -375,7 +362,7 @@ export async function importTemplateFromShare(
     });
 
     if (result.success) {
-      // 增加原模板的使用次数
+
       await incrementTemplateUsage(templateId);
     }
 

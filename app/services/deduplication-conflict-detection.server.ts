@@ -3,11 +3,6 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
-/**
- * 去重冲突检测服务
- * 检测同一 event_id 被多次发送的情况
- */
-
 export interface DeduplicationConflict {
   eventId: string;
   orderId: string;
@@ -35,10 +30,6 @@ export interface DeduplicationConflictStats {
   recentConflicts: DeduplicationConflict[];
 }
 
-/**
- * 检测去重冲突
- * 查找同一 event_id 在同一平台被多次发送的情况
- */
 export async function detectDeduplicationConflicts(
   shopId: string,
   hours: number = 24
@@ -67,7 +58,6 @@ export async function detectDeduplicationConflicts(
     },
   });
 
-  // 按 eventId + platform 分组
   const conflictMap = new Map<string, DeduplicationConflict>();
 
   for (const log of logs) {
@@ -97,29 +87,27 @@ export async function detectDeduplicationConflicts(
             status: log.status,
           },
         ],
-        severity: "low", // 初始值，后续计算
+        severity: "low",
         recommendation: "",
       });
     }
   }
 
-  // 只保留有冲突的（count > 1）
   const conflicts: DeduplicationConflict[] = [];
 
   for (const conflict of conflictMap.values()) {
     if (conflict.count > 1) {
-      // 计算严重程度
+
       conflict.severity = calculateSeverity(conflict);
       conflict.recommendation = generateRecommendation(conflict);
       conflicts.push(conflict);
 
-      // 按时间排序 occurrences
       conflict.occurrences.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     }
   }
 
   return conflicts.sort((a, b) => {
-    // 按严重程度和时间排序
+
     const severityOrder = { high: 3, medium: 2, low: 1 };
     if (severityOrder[a.severity] !== severityOrder[b.severity]) {
       return severityOrder[b.severity] - severityOrder[a.severity];
@@ -128,40 +116,32 @@ export async function detectDeduplicationConflicts(
   });
 }
 
-/**
- * 计算冲突严重程度
- */
 function calculateSeverity(conflict: DeduplicationConflict): "high" | "medium" | "low" {
-  // 高严重程度：Purchase 事件、多次发送、短时间内重复
+
   if (conflict.eventType === "purchase" || conflict.eventType === "checkout_completed") {
     if (conflict.count >= 3) {
       return "high";
     }
     if (conflict.count === 2) {
-      // 检查时间间隔
+
       const timeDiff = Math.abs(
         conflict.occurrences[0].timestamp.getTime() -
         conflict.occurrences[1].timestamp.getTime()
       );
-      if (timeDiff < 60000) { // 1 分钟内
+      if (timeDiff < 60000) {
         return "high";
       }
       return "medium";
     }
   }
 
-  // 中严重程度：非 Purchase 事件但多次发送
   if (conflict.count >= 3) {
     return "medium";
   }
 
-  // 低严重程度：其他情况
   return "low";
 }
 
-/**
- * 生成修复建议
- */
 function generateRecommendation(conflict: DeduplicationConflict): string {
   const sources = conflict.occurrences.map((o) => o.source);
   const hasBothSources = sources.includes("client") && sources.includes("server");
@@ -181,9 +161,6 @@ function generateRecommendation(conflict: DeduplicationConflict): string {
   return "检测到事件重复发送。建议：检查事件发送逻辑和去重机制";
 }
 
-/**
- * 获取去重冲突统计
- */
 export async function getDeduplicationConflictStats(
   shopId: string,
   hours: number = 24
@@ -209,13 +186,10 @@ export async function getDeduplicationConflictStats(
     byPlatform,
     byEventType,
     bySeverity,
-    recentConflicts: conflicts.slice(0, 20), // 最近 20 个冲突
+    recentConflicts: conflicts.slice(0, 20),
   };
 }
 
-/**
- * 检查去重冲突告警
- */
 export interface DeduplicationAlertResult {
   shouldAlert: boolean;
   reason: string;
@@ -229,7 +203,7 @@ export interface DeduplicationAlertResult {
 
 export async function checkDeduplicationAlerts(
   shopId: string,
-  threshold: number = 5 // 冲突数量阈值
+  threshold: number = 5
 ): Promise<DeduplicationAlertResult> {
   const stats = await getDeduplicationConflictStats(shopId, 24);
 
@@ -241,7 +215,6 @@ export async function checkDeduplicationAlerts(
     (c) => c.eventType === "purchase" || c.eventType === "checkout_completed"
   ).length;
 
-  // 高严重程度冲突告警
   if (highSeverityConflicts >= 3) {
     return {
       shouldAlert: true,
@@ -255,7 +228,6 @@ export async function checkDeduplicationAlerts(
     };
   }
 
-  // Purchase 事件冲突告警
   if (purchaseConflicts >= threshold) {
     return {
       shouldAlert: true,
@@ -269,7 +241,6 @@ export async function checkDeduplicationAlerts(
     };
   }
 
-  // 总冲突数告警
   if (stats.totalConflicts >= threshold * 2) {
     return {
       shouldAlert: true,

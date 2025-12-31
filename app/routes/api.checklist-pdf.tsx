@@ -20,13 +20,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return new Response("Shop not found", { status: 404 });
     }
 
-    // 生成迁移清单
     const checklist = await generateMigrationChecklist(shop.id);
 
-    // 生成 PDF
     const pdfBuffer = await generateMigrationChecklistPDF(checklist, shop.shopDomain);
 
-    // 返回 PDF
     const filename = `migration-checklist-${shop.shopDomain}-${new Date().toISOString().split("T")[0]}.pdf`;
 
     return new Response(pdfBuffer, {

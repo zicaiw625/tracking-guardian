@@ -555,7 +555,7 @@ export function BatchApplyWizard({
                 </BlockStack>
               </Box>
 
-              {/* 配置变更统计 */}
+              {}
               {results.summary?.changesBreakdown && (
                 <>
                   <Divider />
@@ -603,7 +603,7 @@ export function BatchApplyWizard({
                 </>
               )}
 
-              {/* 平台应用统计 */}
+              {}
               {results.summary?.platformsBreakdown && Object.keys(results.summary.platformsBreakdown).length > 0 && (
                 <>
                   <Divider />
@@ -660,8 +660,8 @@ export function BatchApplyWizard({
                       detail.message || "-",
                     ])}
                   />
-                  
-                  {/* 配置对比详情 */}
+
+                  {}
                   {results.details.some((d) => d.comparisons && d.comparisons.length > 0) && (
                     <>
                       <Divider />

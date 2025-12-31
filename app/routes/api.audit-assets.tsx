@@ -193,14 +193,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       case "create_from_list": {
-        // 从清单创建资产（支持 Shopify 升级向导清单）
+
         const body = await request.json();
         const platforms = (body.platforms as string[]) || [];
         const items = (body.items as Array<{ name: string; type: string }>) || [];
 
         const createdAssets = [];
 
-        // 为每个平台创建资产
         for (const platform of platforms) {
           const asset = await createAuditAsset(shop.id, {
             sourceType: "merchant_confirmed",
@@ -217,9 +216,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           if (asset) createdAssets.push(asset);
         }
 
-        // 为其他项创建资产
         for (const item of items) {
-          const category = (item.type === "pixel" ? "pixel" : 
+          const category = (item.type === "pixel" ? "pixel" :
                           item.type === "survey" ? "survey" :
                           item.type === "support" ? "support" :
                           item.type === "affiliate" ? "affiliate" : "other") as AssetCategory;

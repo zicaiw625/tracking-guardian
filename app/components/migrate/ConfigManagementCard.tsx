@@ -62,12 +62,10 @@ export function ConfigManagementCard({
       setShowModal(true);
       setActiveTab(0);
 
-      // 加载配置对比
       comparisonFetcher.load(
         `/api/pixel-config-history?platform=${platform}&type=comparison`
       );
 
-      // 加载版本历史
       historyFetcher.load(
         `/api/pixel-config-history?platform=${platform}&type=history&limit=10`
       );
@@ -81,7 +79,7 @@ export function ConfigManagementCard({
       if (!config) return;
 
       if (config.environment === newEnvironment) {
-        return; // 已经是目标环境
+        return;
       }
 
       setPendingEnvChange({ platform, newEnv: newEnvironment });
@@ -111,13 +109,12 @@ export function ConfigManagementCard({
     setPendingEnvChange(null);
   }, []);
 
-  // 处理环境切换结果
   useEffect(() => {
     if (envFetcher.data && envFetcher.state === "idle") {
       const result = envFetcher.data as { success: boolean; message?: string; error?: string };
       if (result.success) {
         setEnvironmentChanging(null);
-        // 刷新页面以显示新环境
+
         window.location.reload();
       } else {
         setEnvironmentChanging(null);
@@ -199,7 +196,7 @@ export function ConfigManagementCard({
                           size="slim"
                           variant="primary"
                           onClick={async () => {
-                            // 快速回滚功能
+
                             if (confirm(`确定要回滚 ${PLATFORM_LABELS[config.platform] || config.platform} 的配置到上一个版本吗？`)) {
                               const formData = new FormData();
                               formData.append("_action", "rollback");
@@ -286,7 +283,7 @@ export function ConfigManagementCard({
                         ?.configVersion || 1
                     }
                     onRollbackComplete={() => {
-                      // 刷新数据
+
                       window.location.reload();
                     }}
                   />
@@ -297,7 +294,7 @@ export function ConfigManagementCard({
         </Modal>
       )}
 
-      {/* 环境切换确认对话框 */}
+      {}
       <Modal
         open={showEnvConfirmModal}
         onClose={cancelEnvironmentChange}

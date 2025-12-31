@@ -57,12 +57,12 @@ export default defineConfig({
     tsconfigPaths(),
   ],
   build: {
-    assetsInlineLimit: 4096, // 小于 4KB 的资源内联
+    assetsInlineLimit: 4096,
     rollupOptions: {
       external: ["html-pdf-node", "archiver"],
       output: {
         manualChunks: (id) => {
-          // 将 node_modules 中的大型库分离
+
           if (id.includes("node_modules")) {
             if (id.includes("@shopify")) {
               return "vendor-shopify";
@@ -78,7 +78,7 @@ export default defineConfig({
         },
       },
     },
-    chunkSizeWarningLimit: 1000, // 增加 chunk 大小警告限制
+    chunkSizeWarningLimit: 1000,
     minify: "terser",
     terserOptions: {
       compress: {

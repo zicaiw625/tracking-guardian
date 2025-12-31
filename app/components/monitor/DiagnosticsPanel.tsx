@@ -66,7 +66,7 @@ export function DiagnosticsPanel({ report, onRunDiagnostics }: DiagnosticsPanelP
 
   return (
     <BlockStack gap="400">
-      {/* 总体健康状态 */}
+      {}
       <Card>
         <BlockStack gap="400">
           <InlineStack align="space-between" blockAlign="center">
@@ -109,7 +109,7 @@ export function DiagnosticsPanel({ report, onRunDiagnostics }: DiagnosticsPanelP
             </BlockStack>
           </Box>
 
-          {/* 问题统计 */}
+          {}
           <BlockStack gap="200">
             <Text as="h3" variant="headingSm">
               问题统计
@@ -162,7 +162,7 @@ export function DiagnosticsPanel({ report, onRunDiagnostics }: DiagnosticsPanelP
         </BlockStack>
       </Card>
 
-      {/* 问题列表 */}
+      {}
       {report.issues.length === 0 ? (
         <Card>
           <Banner tone="success">
@@ -335,7 +335,7 @@ export function DiagnosticsPanel({ report, onRunDiagnostics }: DiagnosticsPanelP
         </BlockStack>
       )}
 
-      {/* 优先建议 */}
+      {}
       {report.recommendations.length > 0 && (
         <Card>
           <BlockStack gap="400">

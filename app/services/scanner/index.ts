@@ -23,8 +23,6 @@ import {
     batchCreateAuditAssets,
     type AuditAssetInput
 } from "../audit-asset.server";
-// Priority calculation is now handled by migration-priority.server.ts
-// which calculates 1-10 priority scores and estimated time in minutes
 
 export type {
     WebPixelInfo,
@@ -738,12 +736,10 @@ export async function scanShopTracking(
             const platforms = detectPlatforms(tag.src || "");
             const platform = platforms[0];
 
-            // 使用风险检测器分析 ScriptTag（如果有内容）
             let riskDetection: ReturnType<typeof detectRisksInContent> | null = null;
             if (tag.src) {
                 try {
-                    // 尝试从 URL 获取内容（如果可能）或使用 URL 本身进行分析
-                    // 注意：实际脚本内容可能无法直接获取，这里主要分析 URL 模式
+
                     riskDetection = detectRisksInContent(tag.src);
                 } catch (error) {
                     logger.warn("Failed to detect risks in ScriptTag", {
@@ -753,11 +749,10 @@ export async function scanShopTracking(
                 }
             }
 
-            // 确定风险等级（结合风险检测结果）
             let riskLevel: "high" | "medium" | "low" = tag.display_scope === "order_status" ? "high" : "medium";
             if (riskDetection) {
-                // 如果检测到高风险项，提升风险等级
-                if (riskDetection.detectedIssues.piiAccess || 
+
+                if (riskDetection.detectedIssues.piiAccess ||
                     riskDetection.detectedIssues.windowDocumentAccess ||
                     riskDetection.detectedIssues.blockingLoad) {
                     riskLevel = "high";
@@ -780,7 +775,7 @@ export async function scanShopTracking(
                     scriptTagGid: tag.gid,
                     src: tag.src,
                     displayScope: tag.display_scope,
-                    // 添加风险检测结果（如果有）
+
                     detectedRisks: riskDetection ? {
                         piiAccess: riskDetection.detectedIssues.piiAccess,
                         windowDocumentAccess: riskDetection.detectedIssues.windowDocumentAccess,
@@ -823,13 +818,10 @@ export async function scanShopTracking(
                 updated: auditResult.updated,
             });
 
-            // 计算优先级和时间估算（异步执行，不阻塞扫描完成）
-            // 使用 priority-calculator.ts 的实现，计算优先级和时间估算
             try {
                 const { calculatePrioritiesForShop, updateAssetPriority } = await import("./priority-calculator");
                 const priorities = await calculatePrioritiesForShop(shopId);
-                
-                // 更新每个资产的优先级和时间估算
+
                 for (const priorityScore of priorities) {
                     await updateAssetPriority(priorityScore.assetId, priorityScore);
                 }

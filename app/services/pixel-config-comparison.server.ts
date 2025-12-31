@@ -18,9 +18,6 @@ export interface ConfigComparisonResult {
   };
 }
 
-/**
- * 对比当前配置和上一个版本的配置
- */
 export async function compareConfigVersions(
   shopId: string,
   platform: string
@@ -67,7 +64,6 @@ export async function compareConfigVersions(
 
     const differences: ConfigComparisonResult["differences"] = [];
 
-    // 对比各个字段
     const fieldsToCompare: Array<keyof typeof current> = [
       "platformId",
       "clientSideEnabled",
@@ -123,10 +119,6 @@ export async function compareConfigVersions(
   }
 }
 
-/**
- * 获取配置版本历史（当前仅支持上一个版本）
- * 未来可以扩展为支持多个版本历史
- */
 export async function getConfigVersionHistory(
   shopId: string,
   platform: string
@@ -169,7 +161,7 @@ export async function getConfigVersionHistory(
     if (config.previousConfig) {
       history.push({
         version: config.configVersion - 1,
-        timestamp: config.createdAt, // 使用创建时间作为上一个版本的近似时间
+        timestamp: config.createdAt,
         hasSnapshot: true,
         environment: (config.previousConfig as { environment?: string }).environment || "unknown",
       });

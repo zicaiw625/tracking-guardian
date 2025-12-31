@@ -70,7 +70,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     logger.info(`Cleaned up ${eventNonceResult.count} expired event nonces`);
   }
 
-  // 清理过期的迁移向导草稿（7天过期）
   const migrationDraftResult = await prisma.migrationDraft.deleteMany({
     where: {
       expiresAt: { lt: new Date() },

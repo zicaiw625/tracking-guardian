@@ -7,7 +7,7 @@ export interface ShareableReport {
   id: string;
   shopId: string;
   reportType: "verification" | "scan" | "reconciliation" | "migration";
-  reportId: string; // runId, scanReportId, etc.
+  reportId: string;
   shareToken: string;
   expiresAt: Date;
   createdAt: Date;
@@ -20,7 +20,7 @@ export interface CreateShareableReportOptions {
   shopId: string;
   reportType: "verification" | "scan" | "reconciliation" | "migration";
   reportId: string;
-  expiresInDays?: number; // 默认 7 天
+  expiresInDays?: number;
   metadata?: Record<string, unknown>;
 }
 
@@ -30,24 +30,18 @@ export interface ShareableReportResult {
   expiresAt: Date;
 }
 
-/**
- * 创建可分享的报告链接
- * 使用 Shop 表的 JSON 字段存储分享信息（如果 ShareableReport 表不存在）
- */
 export async function createShareableReport(
   options: CreateShareableReportOptions
 ): Promise<ShareableReportResult> {
   const { shopId, reportType, reportId, expiresInDays = 7, metadata } = options;
 
-  // 生成唯一的分享 token
   const shareToken = randomBytes(32).toString("hex");
 
-  // 计算过期时间
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
   try {
-    // 从 Shop 表获取或创建分享链接存储（使用 settings JSON 字段）
+
     const shop = await prisma.shop.findUnique({
       where: { id: shopId },
       select: { id: true, settings: true },
@@ -57,11 +51,9 @@ export async function createShareableReport(
       throw new Error("Shop not found");
     }
 
-    // 获取现有的分享链接（存储在 settings JSON 字段中）
     const shopSettings = (shop.settings as Record<string, unknown> | null) || {};
     const existingReports = (shopSettings.shareableReports as Array<ShareableReport> | null) || [];
-    
-    // 检查是否已存在未过期的分享链接
+
     const existing = existingReports.find(
       (r) =>
         r.reportType === reportType &&
@@ -70,7 +62,7 @@ export async function createShareableReport(
     );
 
     if (existing) {
-      // 如果已存在，更新过期时间
+
       const updatedReports = existingReports.map((r) =>
         r.id === existing.id
           ? { ...r, expiresAt, metadata: metadata || r.metadata }
@@ -92,7 +84,6 @@ export async function createShareableReport(
       };
     }
 
-    // 创建新的分享链接
     const newReport: ShareableReport = {
       id: randomBytes(16).toString("hex"),
       shopId,
@@ -134,14 +125,11 @@ export async function createShareableReport(
   }
 }
 
-/**
- * 获取分享的报告信息
- */
 export async function getShareableReport(
   shareToken: string
 ): Promise<ShareableReport | null> {
   try {
-    // 在所有 Shop 中查找分享链接
+
     const shops = await prisma.shop.findMany({
       select: { id: true, settings: true },
     });
@@ -152,12 +140,11 @@ export async function getShareableReport(
       const report = reports.find((r) => r.shareToken === shareToken);
 
       if (report) {
-        // 检查是否过期
+
         if (new Date(report.expiresAt) < new Date()) {
-          return null; // 已过期
+          return null;
         }
 
-        // 更新访问时间和访问次数
         const updatedReports = reports.map((r) =>
           r.shareToken === shareToken
             ? {
@@ -188,9 +175,6 @@ export async function getShareableReport(
   }
 }
 
-/**
- * 记录分享链接的访问
- */
 export async function recordShareAccess(shareToken: string): Promise<void> {
   try {
     const report = await getShareableReport(shareToken);
@@ -202,9 +186,6 @@ export async function recordShareAccess(shareToken: string): Promise<void> {
   }
 }
 
-/**
- * 删除过期的分享链接
- */
 export async function cleanupExpiredShares(): Promise<number> {
   try {
     const shops = await prisma.shop.findMany({
@@ -237,9 +218,6 @@ export async function cleanupExpiredShares(): Promise<number> {
   }
 }
 
-/**
- * 获取店铺的所有分享链接
- */
 export async function getShopShareableReports(
   shopId: string
 ): Promise<ShareableReport[]> {
@@ -255,7 +233,7 @@ export async function getShopShareableReports(
 
     const shopSettings = (shop.settings as Record<string, unknown> | null) || {};
     const reports = (shopSettings.shareableReports as Array<ShareableReport> | null) || [];
-    // 只返回未过期的链接
+
     return reports.filter((r) => new Date(r.expiresAt) > new Date());
   } catch (error) {
     logger.error("Failed to get shop shareable reports", { error, shopId });
@@ -263,9 +241,6 @@ export async function getShopShareableReports(
   }
 }
 
-/**
- * 删除分享链接
- */
 export async function deleteShareableReport(
   shopId: string,
   shareToken: string

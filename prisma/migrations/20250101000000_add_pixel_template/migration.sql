@@ -1,5 +1,4 @@
--- CreateTable: PixelTemplate
--- 用于 Agency 批量应用像素配置
+
 
 CREATE TABLE "PixelTemplate" (
     "id" TEXT NOT NULL,
@@ -15,9 +14,7 @@ CREATE TABLE "PixelTemplate" (
     CONSTRAINT "PixelTemplate_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
 CREATE INDEX "PixelTemplate_ownerId_idx" ON "PixelTemplate"("ownerId");
 
--- CreateIndex
 CREATE INDEX "PixelTemplate_isPublic_idx" ON "PixelTemplate"("isPublic");
 

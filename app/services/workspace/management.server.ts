@@ -3,11 +3,6 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
-/**
- * Workspace 管理服务
- * 对应设计方案 4.7 Agency 多店支持
- */
-
 export interface CreateWorkspaceInput {
   ownerPartnerId?: string;
   ownerEmail?: string;
@@ -28,9 +23,6 @@ export interface AddShopToWorkspaceInput {
   addedBy?: string;
 }
 
-/**
- * 创建 Workspace
- */
 export async function createWorkspace(
   input: CreateWorkspaceInput
 ): Promise<{ success: boolean; workspaceId?: string; error?: string }> {
@@ -59,9 +51,6 @@ export async function createWorkspace(
   }
 }
 
-/**
- * 获取 Workspace 详情
- */
 export async function getWorkspace(
   workspaceId: string
 ): Promise<{
@@ -118,9 +107,6 @@ export async function getWorkspace(
   };
 }
 
-/**
- * 添加成员到 Workspace
- */
 export async function addWorkspaceMember(
   workspaceId: string,
   member: WorkspaceMemberInput
@@ -164,9 +150,6 @@ export async function addWorkspaceMember(
   }
 }
 
-/**
- * 更新成员角色
- */
 export async function updateWorkspaceMemberRole(
   workspaceId: string,
   userId: string,
@@ -197,9 +180,6 @@ export async function updateWorkspaceMemberRole(
   }
 }
 
-/**
- * 移除成员
- */
 export async function removeWorkspaceMember(
   workspaceId: string,
   userId: string
@@ -226,9 +206,6 @@ export async function removeWorkspaceMember(
   }
 }
 
-/**
- * 添加店铺到 Workspace
- */
 export async function addShopToWorkspace(
   input: AddShopToWorkspaceInput
 ): Promise<{ success: boolean; error?: string }> {
@@ -273,9 +250,6 @@ export async function addShopToWorkspace(
   }
 }
 
-/**
- * 从 Workspace 移除店铺
- */
 export async function removeShopFromWorkspace(
   workspaceId: string,
   shopId: string
@@ -302,9 +276,6 @@ export async function removeShopFromWorkspace(
   }
 }
 
-/**
- * 获取用户的所有 Workspaces
- */
 export async function getUserWorkspaces(
   userId: string
 ): Promise<Array<{
@@ -335,9 +306,6 @@ export async function getUserWorkspaces(
   }));
 }
 
-/**
- * 检查用户对 Workspace 的权限
- */
 export async function checkWorkspacePermission(
   workspaceId: string,
   userId: string,
@@ -366,9 +334,6 @@ export async function checkWorkspacePermission(
   };
 }
 
-/**
- * 获取 Workspace 中的店铺列表
- */
 export async function getWorkspaceShops(
   workspaceId: string
 ): Promise<Array<{
@@ -383,7 +348,6 @@ export async function getWorkspaceShops(
     orderBy: { addedAt: "desc" },
   });
 
-  // 获取店铺详情
   const shopIds = workspaceShops.map((ws) => ws.shopId);
   const shops = await prisma.shop.findMany({
     where: {

@@ -72,7 +72,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
 
             <Divider />
 
-            {/* 当前套餐 */}
+            {}
             <Box
               background="bg-surface-selected"
               padding="400"
@@ -109,7 +109,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               </BlockStack>
             </Box>
 
-            {/* 升级选项 */}
+            {}
             {upgradeOptions.length > 0 && (
               <>
                 <Divider />
@@ -167,7 +167,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               </>
             )}
 
-            {/* 套餐对比 */}
+            {}
             <Divider />
             <Text as="h3" variant="headingMd">
               套餐对比

@@ -60,9 +60,6 @@ export interface DiagnosticReport {
   recommendations: DiagnosticRecommendation[];
 }
 
-/**
- * 运行完整的诊断检查
- */
 export async function runDiagnostics(
   shopId: string
 ): Promise<DiagnosticReport> {
@@ -84,49 +81,40 @@ export async function runDiagnostics(
 
   const issues: DiagnosticIssue[] = [];
 
-  // 1. 检查事件发送失败率
   const failureRateIssue = await diagnoseFailureRate(shopId, shop.shopDomain);
   if (failureRateIssue) {
     issues.push(failureRateIssue);
   }
 
-  // 2. 检查参数缺失
   const missingParamsIssue = await diagnoseMissingParams(shopId, shop.shopDomain);
   if (missingParamsIssue) {
     issues.push(missingParamsIssue);
   }
 
-  // 3. 检查事件量骤降
   const volumeDropIssue = await diagnoseVolumeDrop(shopId, shop.shopDomain);
   if (volumeDropIssue) {
     issues.push(volumeDropIssue);
   }
 
-  // 4. 检查去重冲突
   const dedupIssue = await diagnoseDedupConflicts(shopId, shop.shopDomain);
   if (dedupIssue) {
     issues.push(dedupIssue);
   }
 
-  // 5. 检查像素心跳
   const heartbeatIssue = await diagnosePixelHeartbeat(shopId, shop.shopDomain);
   if (heartbeatIssue) {
     issues.push(heartbeatIssue);
   }
 
-  // 6. 检查渠道对账
   const channelIssues = await diagnoseChannelMismatch(shopId);
   issues.push(...channelIssues);
 
-  // 7. 检查配置错误
   const configIssues = await diagnoseConfigErrors(shopId, shop.pixelConfigs);
   issues.push(...configIssues);
 
-  // 计算健康分数
   const healthScore = calculateHealthScore(issues);
   const overallHealth = healthScore >= 80 ? "healthy" : healthScore >= 60 ? "warning" : "critical";
 
-  // 汇总所有建议
   const allRecommendations = issues
     .flatMap((issue) => issue.recommendations)
     .sort((a, b) => {
@@ -151,15 +139,12 @@ export async function runDiagnostics(
   };
 }
 
-/**
- * 诊断事件发送失败率问题
- */
 async function diagnoseFailureRate(
   shopId: string,
   shopDomain: string
 ): Promise<DiagnosticIssue | null> {
   const alertResult = await checkFailureRate(shopId, shopDomain);
-  
+
   if (!alertResult.triggered) {
     return null;
   }
@@ -167,7 +152,6 @@ async function diagnoseFailureRate(
   const monitoringStats = await getEventMonitoringStats(shopId, 24);
   const failureRate = monitoringStats.failureRate;
 
-  // 分析失败原因
   const failedLogs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -198,7 +182,6 @@ async function diagnoseFailureRate(
 
   const recommendations: DiagnosticRecommendation[] = [];
 
-  // 根据错误模式提供建议
   if (topErrorPattern && topErrorPattern[0].includes("network") || topErrorPattern[0].includes("timeout")) {
     recommendations.push({
       priority: "high",
@@ -274,28 +257,24 @@ async function diagnoseFailureRate(
   };
 }
 
-/**
- * 诊断参数缺失问题
- */
 async function diagnoseMissingParams(
   shopId: string,
   shopDomain: string
 ): Promise<DiagnosticIssue | null> {
   const alertResult = await checkMissingParams(shopId, shopDomain);
-  
+
   if (!alertResult.triggered) {
     return null;
   }
 
   const missingParamsStats = await getMissingParamsStats(shopId, 24);
   const monitoringStats = await getEventMonitoringStats(shopId, 24);
-  
+
   const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
   const missingRate = monitoringStats.totalEvents > 0
     ? (totalMissing / monitoringStats.totalEvents) * 100
     : 0;
 
-  // 找出最常缺失的参数
   const paramCounts = new Map<string, number>();
   missingParamsStats.forEach((stat) => {
     stat.missingParams.forEach((param) => {
@@ -392,15 +371,12 @@ async function diagnoseMissingParams(
   };
 }
 
-/**
- * 诊断事件量骤降问题
- */
 async function diagnoseVolumeDrop(
   shopId: string,
   shopDomain: string
 ): Promise<DiagnosticIssue | null> {
   const alertResult = await checkVolumeDrop(shopId, shopDomain);
-  
+
   if (!alertResult.triggered) {
     return null;
   }
@@ -442,15 +418,12 @@ async function diagnoseVolumeDrop(
   };
 }
 
-/**
- * 诊断去重冲突问题
- */
 async function diagnoseDedupConflicts(
   shopId: string,
   shopDomain: string
 ): Promise<DiagnosticIssue | null> {
   const alertResult = await checkDedupConflicts(shopId, shopDomain);
-  
+
   if (!alertResult.triggered) {
     return null;
   }
@@ -491,15 +464,12 @@ async function diagnoseDedupConflicts(
   };
 }
 
-/**
- * 诊断像素心跳丢失问题
- */
 async function diagnosePixelHeartbeat(
   shopId: string,
   shopDomain: string
 ): Promise<DiagnosticIssue | null> {
   const alertResult = await checkPixelHeartbeat(shopId, shopDomain);
-  
+
   if (!alertResult.triggered) {
     return null;
   }
@@ -533,17 +503,14 @@ async function diagnosePixelHeartbeat(
   };
 }
 
-/**
- * 诊断渠道对账不一致问题
- */
 async function diagnoseChannelMismatch(
   shopId: string
 ): Promise<DiagnosticIssue[]> {
   const issues: DiagnosticIssue[] = [];
-  
+
   try {
     const reconciliation = await reconcileChannels(shopId, 24);
-    
+
     reconciliation.forEach((recon) => {
       if (recon.discrepancyRate > 10) {
         const platformName = isValidPlatform(recon.platform)
@@ -589,16 +556,12 @@ async function diagnoseChannelMismatch(
   return issues;
 }
 
-/**
- * 诊断配置错误
- */
 async function diagnoseConfigErrors(
   shopId: string,
   pixelConfigs: Array<{ platform: string; isActive: boolean }>
 ): Promise<DiagnosticIssue[]> {
   const issues: DiagnosticIssue[] = [];
 
-  // 检查是否有配置但无活动像素
   if (pixelConfigs.length === 0) {
     issues.push({
       id: `no_pixel_config_${shopId}`,
@@ -629,12 +592,9 @@ async function diagnoseConfigErrors(
   return issues;
 }
 
-/**
- * 提取错误模式
- */
 function extractErrorPattern(errorMessage: string): string {
   const lower = errorMessage.toLowerCase();
-  
+
   if (lower.includes("network") || lower.includes("timeout") || lower.includes("connection")) {
     return "network_error";
   }
@@ -650,20 +610,17 @@ function extractErrorPattern(errorMessage: string): string {
   if (lower.includes("server") || lower.includes("500") || lower.includes("503")) {
     return "server_error";
   }
-  
+
   return "unknown_error";
 }
 
-/**
- * 计算健康分数
- */
 function calculateHealthScore(issues: DiagnosticIssue[]): number {
   if (issues.length === 0) {
     return 100;
   }
 
   let score = 100;
-  
+
   issues.forEach((issue) => {
     switch (issue.severity) {
       case "critical":

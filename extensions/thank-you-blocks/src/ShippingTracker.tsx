@@ -9,16 +9,19 @@ import {
     Icon,
     useSettings,
     useOrder,
+    useApi,
     Divider,
     Button,
 } from "@shopify/ui-extensions-react/checkout";
 import { useMemo, memo, useState, useEffect } from "react";
+import { BACKEND_URL } from "../../shared/config";
 
 export default reactExtension("purchase.thank-you.block.render", () => <ShippingTracker />);
 
 const ShippingTracker = memo(function ShippingTracker() {
     const settings = useSettings();
     const order = useOrder();
+    const api = useApi();
     const [trackingInfo, setTrackingInfo] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -28,21 +31,58 @@ const ShippingTracker = memo(function ShippingTracker() {
 
     const provider = useMemo(() => (settings.tracking_provider as string) || "native", [settings.tracking_provider]);
 
-    // 获取追踪信息
     useEffect(() => {
-        if (provider !== "native" && order?.id) {
-            setIsLoading(true);
-            // 从后端 API 获取追踪信息
-            // 注意：在 UI Extension 中，我们需要通过后端 API 获取追踪信息
-            // 这里简化处理，实际应该调用后端 API
-            setIsLoading(false);
-        }
-    }, [provider, order?.id]);
+        async function fetchTrackingInfo() {
+            if (provider !== "native" && order?.id && BACKEND_URL) {
+                setIsLoading(true);
+                try {
+                    const token = await api.sessionToken.get();
+                    const shopDomain = api.shop?.myshopifyDomain || "";
 
-    // 根据订单状态和追踪信息生成步骤
+                    if (shopDomain) {
+
+                        let trackingNumber: string | undefined;
+                        if (order.fulfillments && order.fulfillments.length > 0) {
+                            const fulfillment = order.fulfillments[0];
+                            trackingNumber = fulfillment.trackingInfo?.number;
+                        }
+
+                        if (trackingNumber) {
+                            const response = await fetch(`${BACKEND_URL}/api/tracking.route?orderId=${order.id}&trackingNumber=${trackingNumber}`, {
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "X-Shopify-Shop-Domain": shopDomain,
+                                    "Authorization": `Bearer ${token}`,
+                                },
+                            });
+
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.tracking) {
+                                    setTrackingInfo({
+                                        trackingNumber: data.tracking.trackingNumber,
+                                        carrier: data.tracking.carrier,
+                                        status: data.tracking.status,
+                                        estimatedDelivery: data.tracking.estimatedDelivery ? new Date(data.tracking.estimatedDelivery) : undefined,
+                                        events: data.tracking.events || [],
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn("Failed to fetch tracking info:", error);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        }
+        fetchTrackingInfo();
+    }, [provider, order?.id, order?.fulfillments, api]);
+
     const shippingSteps = useMemo(() => {
         if (trackingInfo) {
-            // 如果有追踪信息，使用追踪信息生成步骤
+
             const status = trackingInfo.status;
             return [
                 { id: "ordered", label: "订单已确认", completed: true, date: "已完成" },
@@ -52,7 +92,6 @@ const ShippingTracker = memo(function ShippingTracker() {
             ];
         }
 
-        // 默认步骤（基于订单状态）
         return [
             { id: "ordered", label: "订单已确认", completed: true, date: "已完成" },
             { id: "processing", label: "处理中", completed: true, date: "进行中" },

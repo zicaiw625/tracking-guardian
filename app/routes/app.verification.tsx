@@ -161,14 +161,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const itemId = formData.get("itemId") as string;
       const eventType = formData.get("eventType") as string;
       const expectedEventsStr = formData.get("expectedEvents") as string;
-      
+
       if (!itemId || !eventType || !expectedEventsStr) {
         return json({ success: false, error: "缺少必要参数" }, { status: 400 });
       }
 
       const expectedEvents = JSON.parse(expectedEventsStr) as string[];
 
-      // 查询最近的事件（过去5分钟内）
       const fiveMinutesAgo = new Date();
       fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
 
@@ -194,21 +193,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }),
       ]);
 
-      // 检查预期事件是否都已触发
       const foundEvents = new Set<string>();
       const allEvents = [
         ...conversionLogs.map((log) => log.eventType),
         ...pixelReceipts.map((receipt) => receipt.eventType),
       ];
 
-      // 匹配预期事件（支持模糊匹配）
       for (const expected of expectedEvents) {
         const found = allEvents.some((actual) => {
-          // 精确匹配
+
           if (actual.toLowerCase() === expected.toLowerCase()) {
             return true;
           }
-          // 模糊匹配（如 "Purchase" 匹配 "purchase"）
+
           if (actual.toLowerCase().includes(expected.toLowerCase()) ||
               expected.toLowerCase().includes(actual.toLowerCase())) {
             return true;
@@ -360,13 +357,13 @@ export default function VerificationPage() {
 
   const handleExportPdf = useCallback(() => {
     if (!latestRun) return;
-    // Use the PDF route to generate and download PDF report
+
     window.location.href = `/api/reports/pdf?type=verification&runId=${latestRun.runId}&format=pdf`;
   }, [latestRun]);
 
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
-    // Use the API endpoint to generate CSV
+
     window.location.href = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
   }, [latestRun]);
 
@@ -394,7 +391,6 @@ export default function VerificationPage() {
     );
   }
 
-  // 显示升级提示（如果无权限）
   if (!canAccessVerification && gateResult) {
     return (
       <Page title="验收向导">
@@ -540,7 +536,7 @@ export default function VerificationPage() {
           </BlockStack>
         </Card>
 
-        {/* 测试清单 */}
+        {}
         {testChecklist && testChecklist.items.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -844,8 +840,8 @@ export default function VerificationPage() {
                               <Text as="h3" variant="headingSm">
                                 📊 渠道对账
                               </Text>
-                              
-                              {/* 渠道对账可视化图表 */}
+
+                              {}
                               <Suspense fallback={<CardSkeleton lines={3} />}>
                                 <ChannelReconciliationChart
                                   pixelVsCapi={latestRun.reconciliation.pixelVsCapi}
@@ -853,8 +849,8 @@ export default function VerificationPage() {
                                   localConsistency={latestRun.reconciliation.localConsistency}
                                 />
                               </Suspense>
-                              
-                              {/* 统计摘要 */}
+
+                              {}
                               <Layout>
                                 <Layout.Section variant="oneQuarter">
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
@@ -1152,8 +1148,8 @@ export default function VerificationPage() {
           {selectedTab === 2 && (
             <Box paddingBlockStart="400">
               <Suspense fallback={<CardSkeleton lines={3} />}>
-                <RealtimeEventMonitor 
-                  shopId={shop.id} 
+                <RealtimeEventMonitor
+                  shopId={shop.id}
                   platforms={configuredPlatforms}
                   runId={latestRun?.runId}
                   eventTypes={["purchase", "refund"]}
@@ -1264,7 +1260,7 @@ export default function VerificationPage() {
 
             <BlockStack gap="300">
               {testItems.map((item) => {
-                // 检查该测试项是否已完成
+
                 const itemResults = latestRun?.results?.filter(
                   (r) => r.testItemId === item.id
                 ) || [];

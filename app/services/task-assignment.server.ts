@@ -52,20 +52,18 @@ export async function createMigrationTask(
   assignedByShopId: string
 ): Promise<{ id: string } | { error: string }> {
   try {
-    // 验证权限
+
     if (input.groupId) {
       const group = await getShopGroupDetails(input.groupId, assignedByShopId);
       if (!group) {
         return { error: "分组不存在或无权访问" };
       }
 
-      // 检查是否在分组中
       const isMember = group.members.some((m) => m.shopId === assignedByShopId);
       if (!isMember && group.ownerId !== assignedByShopId) {
         return { error: "无权在此分组中创建任务" };
       }
 
-      // 如果指定了分配对象，检查是否在分组中
       if (input.assignedToShopId) {
         const canAssign = group.members.some((m) => m.shopId === input.assignedToShopId);
         if (!canAssign) {
@@ -74,7 +72,6 @@ export async function createMigrationTask(
       }
     }
 
-    // 验证资产是否存在
     if (input.assetId) {
       const asset = await prisma.auditAsset.findUnique({
         where: { id: input.assetId },
@@ -128,7 +125,6 @@ export async function updateMigrationTask(
       return { error: "任务不存在" };
     }
 
-    // 权限检查
     const isOwner = task.shopId === updatedByShopId;
     const isAssignedTo = task.assignedToShopId === updatedByShopId;
     const isGroupAdmin = task.group?.members.some(
@@ -221,7 +217,6 @@ export async function getMigrationTasks(
     ],
   });
 
-  // 获取店铺域名
   const shopIds = new Set<string>();
   tasks.forEach((t) => {
     shopIds.add(t.shopId);
@@ -299,7 +294,6 @@ export async function getMigrationTask(
     return null;
   }
 
-  // 权限检查
   const isOwner = task.shopId === requesterShopId;
   const isAssignedTo = task.assignedToShopId === requesterShopId;
   const isGroupMember = task.group?.members.some((m) => m.shopId === requesterShopId);
@@ -362,7 +356,6 @@ export async function deleteMigrationTask(
       return { error: "任务不存在" };
     }
 
-    // 权限检查：只有创建者、分组所有者或管理员可以删除
     const isCreator = task.assignedByShopId === deletedByShopId;
     const isGroupOwner = task.group?.ownerId === deletedByShopId;
     const isGroupAdmin = task.group?.members.some(

@@ -438,7 +438,7 @@ export function RealtimeEventMonitor({
           </>
         )}
 
-        {/* 事件详情模态框 */}
+        {}
         <Modal
           open={showDetailsModal}
           onClose={() => {

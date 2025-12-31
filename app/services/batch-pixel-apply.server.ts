@@ -20,8 +20,8 @@ export interface BatchApplyOptions {
   skipIfExists?: boolean;
   maxRetries?: number;
   concurrency?: number;
-  // 模板变量替换：每个店铺使用不同的凭证
-  shopCredentials?: Record<string, Record<string, Record<string, string>>>; // shopId -> platform -> credentialField -> value
+
+  shopCredentials?: Record<string, Record<string, Record<string, string>>>;
 }
 
 export interface BatchApplyResult {
@@ -190,19 +190,19 @@ export async function deletePixelTemplate(
 export async function batchApplyPixelTemplate(
   options: BatchApplyOptions & { jobId?: string }
 ): Promise<BatchApplyResult & { jobId?: string }> {
-  const { 
-    templateId, 
-    targetShopIds, 
-    overwriteExisting = false, 
-    skipIfExists = true, 
+  const {
+    templateId,
+    targetShopIds,
+    overwriteExisting = false,
+    skipIfExists = true,
     jobId,
     maxRetries = 1,
     concurrency = 3,
   } = options;
 
-  logger.info("Starting batch apply", { 
-    templateId, 
-    shopCount: targetShopIds.length, 
+  logger.info("Starting batch apply", {
+    templateId,
+    shopCount: targetShopIds.length,
     jobId,
     maxRetries,
     concurrency,
@@ -263,7 +263,7 @@ export async function batchApplyPixelTemplate(
 
   for (let i = 0; i < targetShopIds.length; i += concurrency) {
     const batch = targetShopIds.slice(i, i + concurrency);
-    
+
     const batchResults = await Promise.allSettled(
       batch.map(shopId => {
         const shopCreds = options.shopCredentials?.[shopId];
@@ -352,7 +352,7 @@ export function getBatchApplyJobStatus(jobId: string) {
 
 function classifyApplyError(error: unknown): "validation" | "database" | "permission" | "unknown" {
   if (!(error instanceof Error)) return "unknown";
-  
+
   const message = error.message.toLowerCase();
   if (message.includes("prisma") || message.includes("database") || message.includes("unique constraint") || message.includes("foreign key")) {
     return "database";
@@ -371,7 +371,7 @@ async function applyTemplateToShop(
   platforms: PixelTemplateConfig[],
   overwriteExisting: boolean,
   skipIfExists: boolean,
-  shopCredentials?: Record<string, Record<string, string>> // platform -> credentialField -> value
+  shopCredentials?: Record<string, Record<string, string>>
 ): Promise<{
   shopId: string;
   shopDomain: string;
@@ -434,7 +434,6 @@ async function applyTemplateToShop(
       const existingConfig = existingPlatforms.includes(platformConfig.platform);
       const platformCredentials = shopCredentials?.[platformConfig.platform] || {};
 
-      // 准备凭证数据（如果提供了）
       let credentialsEncrypted: string | undefined;
       if (Object.keys(platformCredentials).length > 0) {
         try {
@@ -456,12 +455,11 @@ async function applyTemplateToShop(
             serverSideEnabled: platformConfig.serverSideEnabled ?? false,
             migrationStatus: "not_started",
           };
-          
-          // 如果提供了凭证，更新凭证
+
           if (credentialsEncrypted) {
             updateData.credentialsEncrypted = credentialsEncrypted;
           }
-          
+
           await prisma.pixelConfig.update({
             where: {
               shopId_platform: {
@@ -483,12 +481,11 @@ async function applyTemplateToShop(
           isActive: false,
           migrationStatus: "not_started",
         };
-        
-        // 如果提供了凭证，设置凭证
+
         if (credentialsEncrypted) {
           createData.credentialsEncrypted = credentialsEncrypted;
         }
-        
+
         await prisma.pixelConfig.create({
           data: createData,
         });
@@ -541,25 +538,25 @@ async function applyTemplateToShopWithRetry(
   errorType?: "validation" | "database" | "permission" | "unknown";
 }> {
   let lastResult: Awaited<ReturnType<typeof applyTemplateToShop>> | null = null;
-  
+
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     lastResult = await applyTemplateToShop(shopId, platforms, overwriteExisting, skipIfExists, shopCredentials);
-    
+
     if (lastResult.status === "success" || lastResult.status === "skipped") {
       return { ...lastResult, attempts: attempt };
     }
-    
+
     if (lastResult.errorType === "validation" || lastResult.errorType === "permission") {
       return { ...lastResult, attempts: attempt };
     }
-    
+
     if (attempt <= maxRetries) {
       const delay = 500 * attempt;
       await new Promise(resolve => setTimeout(resolve, delay));
       logger.warn(`Retrying template apply for shop ${shopId}, attempt ${attempt + 1}/${maxRetries + 1}`);
     }
   }
-  
+
   return { ...lastResult!, attempts: maxRetries + 1 };
 }
 

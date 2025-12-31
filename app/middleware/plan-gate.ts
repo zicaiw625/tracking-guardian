@@ -11,15 +11,10 @@ export interface PlanGateConfig {
   showUpgradePrompt?: boolean;
 }
 
-/**
- * 套餐权限中间件
- * 在路由级别检查用户是否有权限访问特定功能
- */
 export function withPlanGate(config: PlanGateConfig): Middleware {
   return async (context, next) => {
     const { request } = context;
 
-    // 从 session 中获取 shop 信息
     try {
       const { authenticate } = await import("../shopify.server");
       const { session } = await authenticate.admin(request);
@@ -38,12 +33,11 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
       const gateResult = checkFeatureAccess(planId, config.feature);
 
       if (!gateResult.allowed) {
-        // 如果需要重定向
+
         if (config.redirectTo) {
           return Response.redirect(new URL(config.redirectTo, request.url));
         }
 
-        // 如果需要显示升级提示，返回特殊响应
         if (config.showUpgradePrompt) {
           return json(
             {
@@ -56,7 +50,6 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
           );
         }
 
-        // 默认返回 403
         return json(
           {
             error: gateResult.reason || "Feature not available in current plan",
@@ -66,18 +59,14 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
         );
       }
 
-      // 权限通过，继续执行
       return next(context);
     } catch (error) {
-      // 认证失败等错误，继续执行（由其他中间件处理）
+
       return next(context);
     }
   };
 }
 
-/**
- * 检查功能访问权限（用于在 loader/action 中使用）
- */
 export async function checkPlanGate(
   shopId: string,
   feature: "verification" | "alerts" | "reconciliation" | "agency"

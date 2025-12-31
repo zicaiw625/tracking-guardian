@@ -10,7 +10,7 @@ export interface TestChecklistItem {
   platforms: string[];
   steps: string[];
   expectedResults: string[];
-  estimatedTime: number; // 分钟
+  estimatedTime: number;
   category: "purchase" | "refund" | "cart" | "subscription" | "order_edit";
 }
 
@@ -24,26 +24,23 @@ export interface TestChecklist {
   optionalItemsCount: number;
 }
 
-/**
- * 生成测试清单
- */
 export function generateTestChecklist(
   shopId: string,
   testType: "quick" | "full" | "custom" = "quick",
   customTestItems?: string[]
 ): TestChecklist {
   const allItems = getAllTestItems();
-  
+
   let selectedItems: TestChecklistItem[];
-  
+
   if (testType === "quick") {
-    // 快速测试：只包含必需的测试项
+
     selectedItems = allItems.filter((item) => item.required);
   } else if (testType === "custom" && customTestItems) {
-    // 自定义测试：选择指定的测试项
+
     selectedItems = allItems.filter((item) => customTestItems.includes(item.id));
   } else {
-    // 完整测试：包含所有测试项
+
     selectedItems = allItems;
   }
 
@@ -62,9 +59,6 @@ export function generateTestChecklist(
   };
 }
 
-/**
- * 获取所有可用的测试项
- */
 function getAllTestItems(): TestChecklistItem[] {
   return [
     {
@@ -488,17 +482,11 @@ function getAllTestItems(): TestChecklistItem[] {
   ];
 }
 
-/**
- * 获取测试项的详细说明
- */
 export function getTestItemDetails(itemId: string): TestChecklistItem | null {
   const allItems = getAllTestItems();
   return allItems.find((item) => item.id === itemId) || null;
 }
 
-/**
- * 生成测试清单的 Markdown 格式
- */
 export function generateChecklistMarkdown(checklist: TestChecklist): string {
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
@@ -516,7 +504,6 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
   markdown += `**必需项**: ${checklist.requiredItemsCount} | **可选项**: ${checklist.optionalItemsCount}\n\n`;
   markdown += `---\n\n`;
 
-  // 按类别分组
   const categories: Record<string, TestChecklistItem[]> = {
     purchase: [],
     refund: [],
@@ -575,9 +562,6 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
   return markdown;
 }
 
-/**
- * 生成测试清单的 CSV 格式
- */
 export function generateChecklistCSV(checklist: TestChecklist): string {
   const headers = [
     "ID",

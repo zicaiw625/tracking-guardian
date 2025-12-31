@@ -2,20 +2,14 @@
 import { logger } from "../utils/logger.server";
 import type { BatchReportData } from "./workspace/batch-report.server";
 
-/**
- * 报告模板类型
- */
 export type ReportTemplateType = "executive" | "technical" | "comprehensive" | "custom";
 
-/**
- * 报告模板配置
- */
 export interface ReportTemplate {
   id: string;
   name: string;
   type: ReportTemplateType;
   description: string;
-  sections: string[]; // 包含的报告部分
+  sections: string[];
   includeCharts: boolean;
   includeDetails: boolean;
   whiteLabel?: {
@@ -26,9 +20,6 @@ export interface ReportTemplate {
   };
 }
 
-/**
- * 预定义报告模板
- */
 export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
   executive: {
     id: "executive",
@@ -59,9 +50,6 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
   },
 };
 
-/**
- * 根据模板生成报告 HTML
- */
 export function generateReportFromTemplate(
   reportData: BatchReportData,
   template: ReportTemplate
@@ -204,7 +192,6 @@ export function generateReportFromTemplate(
   </div>
   `;
 
-  // 摘要部分
   if (template.sections.includes("summary")) {
     html += `
   <div class="summary">
@@ -236,7 +223,6 @@ export function generateReportFromTemplate(
     `;
   }
 
-  // 关键指标部分（执行摘要模板）
   if (template.sections.includes("key_metrics") && template.type === "executive") {
     html += `
   <div class="section">
@@ -267,7 +253,6 @@ export function generateReportFromTemplate(
     `;
   }
 
-  // 状态概览部分
   if (template.sections.includes("status_overview")) {
     html += `
   <div class="section">
@@ -306,7 +291,7 @@ export function generateReportFromTemplate(
             <td>${shop.auditReport?.riskScore?.toFixed(1) || "N/A"}</td>
             <td>${shop.migrationStatus?.highPriorityItems || 0}</td>
             <td>${shop.migrationStatus ? `${Math.ceil(shop.migrationStatus.estimatedTimeMinutes / 60)} 小时` : "N/A"}</td>
-            ${includeDetails 
+            ${includeDetails
               ? `<td>${shop.auditReport?.scanDate ? shop.auditReport.scanDate.toLocaleString("zh-CN") : "从未"}</td>
                  <td>${shop.verificationStatus?.lastRunAt ? shop.verificationStatus.lastRunAt.toLocaleString("zh-CN") : "从未"}</td>`
               : ""}
@@ -319,7 +304,6 @@ export function generateReportFromTemplate(
     `;
   }
 
-  // 店铺详情部分
   if (template.sections.includes("shop_details") && includeDetails) {
     html += `
   <div class="section">
@@ -350,18 +334,17 @@ export function generateReportFromTemplate(
     `;
   }
 
-  // 建议部分
   if (template.sections.includes("recommendations")) {
     const recommendations: string[] = [];
-    
+
     if (reportData.summary.totalHighPriorityItems > 0) {
       recommendations.push(`发现 ${reportData.summary.totalHighPriorityItems} 个高风险项，建议优先处理`);
     }
-    
+
     if (reportData.summary.notStartedShops > 0) {
       recommendations.push(`${reportData.summary.notStartedShops} 个店铺尚未开始迁移，建议尽快启动`);
     }
-    
+
     if (reportData.summary.avgRiskScore > 60) {
       recommendations.push(`平均风险分数较高（${reportData.summary.avgRiskScore.toFixed(1)}），建议加强监控和迁移进度`);
     }
@@ -381,8 +364,8 @@ export function generateReportFromTemplate(
   html += `
   <div class="footer">
     <p>本报告由 ${companyName} 自动生成</p>
-    ${template.whiteLabel?.contactEmail || reportData.whiteLabel?.contactEmail 
-      ? `<p>联系方式: ${template.whiteLabel?.contactEmail || reportData.whiteLabel?.contactEmail}</p>` 
+    ${template.whiteLabel?.contactEmail || reportData.whiteLabel?.contactEmail
+      ? `<p>联系方式: ${template.whiteLabel?.contactEmail || reportData.whiteLabel?.contactEmail}</p>`
       : ""}
     <p>报告时间: ${reportData.generatedAt.toLocaleString("zh-CN")}</p>
   </div>
@@ -393,23 +376,14 @@ export function generateReportFromTemplate(
   return html.trim();
 }
 
-/**
- * 获取可用的报告模板列表
- */
 export function getAvailableTemplates(): ReportTemplate[] {
   return Object.values(REPORT_TEMPLATES);
 }
 
-/**
- * 根据 ID 获取报告模板
- */
 export function getTemplateById(templateId: string): ReportTemplate | null {
   return REPORT_TEMPLATES[templateId] || null;
 }
 
-/**
- * 创建自定义报告模板
- */
 export function createCustomTemplate(
   name: string,
   options: {

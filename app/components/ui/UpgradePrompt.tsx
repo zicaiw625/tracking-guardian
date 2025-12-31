@@ -111,14 +111,12 @@ export function UpgradePrompt({
   const currentPlanDef = getPlanDefinition(currentPlan);
   const isUpgradeNeeded = currentPlan !== "free" && !isPlanAtLeast(currentPlan, info.requiredPlan);
 
-  // 判断是否需要升级
   const needsUpgrade = isUpgradeNeeded || (gateResult && !gateResult.allowed);
 
   if (!needsUpgrade && !gateResult) {
     return null;
   }
 
-  // 如果已达到限制，显示限制信息
   const showLimitInfo = limit !== undefined && current !== undefined && current >= limit;
 
   const handleUpgrade = () => {
@@ -205,5 +203,4 @@ export function UpgradePrompt({
     </Card>
   );
 }
-
 

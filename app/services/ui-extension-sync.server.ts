@@ -5,10 +5,6 @@ import type { AdminApiContext } from "../shopify.server";
 import type { ModuleKey, UiModuleConfig } from "../types/ui-extension";
 import { getUiModuleConfig } from "./ui-extension.server";
 
-/**
- * 将数据库配置同步到 Shopify UI Extension settings
- * 通过 webPixelUpdate mutation 更新扩展的 settings
- */
 export async function syncUiExtensionSettings(
   shopId: string,
   admin: AdminApiContext
@@ -27,7 +23,6 @@ export async function syncUiExtensionSettings(
       };
     }
 
-    // 获取所有启用的模块配置
     const modules = await prisma.uiExtensionSetting.findMany({
       where: {
         shopId,
@@ -43,14 +38,12 @@ export async function syncUiExtensionSettings(
       };
     }
 
-    // 构建 settings payload
     const settings: Record<string, unknown> = {};
 
     for (const module of modules) {
       const moduleKey = module.moduleKey as ModuleKey;
       const config = await getUiModuleConfig(shopId, moduleKey);
 
-      // 构建模块特定的 settings key
       const settingsKey = `ui_module_${moduleKey}`;
       settings[settingsKey] = {
         enabled: config.isEnabled,
@@ -60,7 +53,6 @@ export async function syncUiExtensionSettings(
       };
     }
 
-    // 通过 GraphQL 更新 Web Pixel settings
     const mutation = `
       mutation UpdateWebPixelSettings($id: ID!, $settings: JSON!) {
         webPixelUpdate(id: $id, webPixel: { settings: $settings }) {
@@ -122,9 +114,6 @@ export async function syncUiExtensionSettings(
   }
 }
 
-/**
- * 同步单个模块的配置
- */
 export async function syncSingleModule(
   shopId: string,
   moduleKey: ModuleKey,
@@ -155,7 +144,6 @@ export async function syncSingleModule(
       },
     };
 
-    // 获取现有 settings 并合并
     const getPixelQuery = `
       query GetWebPixel($id: ID!) {
         webPixel(id: $id) {
@@ -174,13 +162,11 @@ export async function syncSingleModule(
       ? JSON.parse(getData.data.webPixel.settings)
       : {};
 
-    // 合并设置
     const mergedSettings = {
       ...existingSettings,
       ...settings,
     };
 
-    // 更新 settings
     const mutation = `
       mutation UpdateWebPixelSettings($id: ID!, $settings: JSON!) {
         webPixelUpdate(id: $id, webPixel: { settings: $settings }) {
@@ -229,9 +215,6 @@ export async function syncSingleModule(
   }
 }
 
-/**
- * 批量同步多个模块
- */
 export async function syncMultipleModules(
   shopId: string,
   moduleKeys: ModuleKey[],

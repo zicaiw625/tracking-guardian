@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-/**
- * 安全审计脚本
- * 检查应用的安全合规性
- */
+
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
@@ -15,12 +12,10 @@ interface SecurityCheck {
 
 const checks: SecurityCheck[] = [];
 
-// 1. 检查 GraphQL Admin API 使用
 function checkGraphQLOnly() {
   const routesDir = join(process.cwd(), "app/routes");
   const servicesDir = join(process.cwd(), "app/services");
-  
-  // 检查是否有 REST API 调用
+
   const files = [
     ...getFilesInDir(routesDir, ".tsx"),
     ...getFilesInDir(routesDir, ".ts"),
@@ -49,10 +44,9 @@ function checkGraphQLOnly() {
   }
 }
 
-// 2. 检查敏感数据加密
 function checkDataEncryption() {
   const cryptoDir = join(process.cwd(), "app/infrastructure/crypto");
-  
+
   if (existsSync(cryptoDir)) {
     checks.push({
       name: "Data Encryption Check",
@@ -68,10 +62,9 @@ function checkDataEncryption() {
   }
 }
 
-// 3. 检查 HMAC 签名验证
 function checkHMACValidation() {
   const middlewareFile = join(process.cwd(), "app/middleware/validation.ts");
-  
+
   if (existsSync(middlewareFile)) {
     const content = readFileSync(middlewareFile, "utf-8");
     if (content.includes("HMAC") || content.includes("hmac") || content.includes("signature")) {
@@ -96,10 +89,9 @@ function checkHMACValidation() {
   }
 }
 
-// 4. 检查 GDPR Webhook 处理
 function checkGDPRWebhooks() {
   const webhookFile = join(process.cwd(), "app/webhooks/gdpr.ts");
-  
+
   if (existsSync(webhookFile)) {
     checks.push({
       name: "GDPR Webhook Check",
@@ -115,11 +107,10 @@ function checkGDPRWebhooks() {
   }
 }
 
-// 5. 检查权限最小化
 function checkScopes() {
   const envExample = join(process.cwd(), ".env.example");
   const complianceDoc = join(process.cwd(), "COMPLIANCE.md");
-  
+
   if (existsSync(complianceDoc)) {
     const content = readFileSync(complianceDoc, "utf-8");
     if (content.includes("Scopes Justification") || content.includes("权限说明")) {
@@ -144,10 +135,9 @@ function checkScopes() {
   }
 }
 
-// 6. 检查 SQL 注入防护
 function checkSQLInjection() {
   const prismaSchema = join(process.cwd(), "prisma/schema.prisma");
-  
+
   if (existsSync(prismaSchema)) {
     checks.push({
       name: "SQL Injection Protection Check",
@@ -163,10 +153,9 @@ function checkSQLInjection() {
   }
 }
 
-// 7. 检查隐私政策
 function checkPrivacyPolicy() {
   const privacyPolicy = join(process.cwd(), "docs/PRIVACY_POLICY.md");
-  
+
   if (existsSync(privacyPolicy)) {
     checks.push({
       name: "Privacy Policy Check",
@@ -182,7 +171,6 @@ function checkPrivacyPolicy() {
   }
 }
 
-// 辅助函数
 function getFilesInDir(dir: string, ext: string): string[] {
   const files: string[] = [];
   try {
@@ -196,12 +184,11 @@ function getFilesInDir(dir: string, ext: string): string[] {
       }
     });
   } catch (error) {
-    // 目录不存在或无法读取
+
   }
   return files;
 }
 
-// 运行所有检查
 function runAudit() {
   console.log("🔍 开始安全审计...\n");
 
@@ -213,9 +200,8 @@ function runAudit() {
   checkSQLInjection();
   checkPrivacyPolicy();
 
-  // 输出结果
   console.log("审计结果:\n");
-  
+
   let passCount = 0;
   let failCount = 0;
   let warningCount = 0;
@@ -223,7 +209,7 @@ function runAudit() {
   checks.forEach(check => {
     const icon = check.status === "pass" ? "✅" : check.status === "fail" ? "❌" : "⚠️";
     console.log(`${icon} ${check.name}: ${check.message}`);
-    
+
     if (check.status === "pass") passCount++;
     else if (check.status === "fail") failCount++;
     else warningCount++;

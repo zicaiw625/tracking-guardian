@@ -57,8 +57,7 @@ export function BatchTaskBoard({
   const fetchTasks = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 这里应该调用API获取批量任务列表
-      // 暂时使用模拟数据，实际应该从后端获取
+
       const formData = new FormData();
       formData.append("_action", "get_batch_tasks");
       formData.append("groupId", groupId);
@@ -85,7 +84,7 @@ export function BatchTaskBoard({
     if (autoRefresh) {
       const interval = setInterval(() => {
         fetchTasks();
-      }, 5000); // 每5秒刷新一次
+      }, 5000);
 
       return () => clearInterval(interval);
     }
@@ -171,7 +170,7 @@ export function BatchTaskBoard({
         {tasks.length === 0 ? (
           <EmptyState
             heading="暂无批量任务"
-            image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+            image="https:
           >
             <Text as="p" tone="subdued">
               当您启动批量操作时，任务将显示在这里
@@ -229,7 +228,7 @@ export function BatchTaskBoard({
               ])}
             />
 
-            {/* 任务详情 */}
+            {}
             {tasks.map((task) => (
               <Box key={task.id}>
                 <Card>

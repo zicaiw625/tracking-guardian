@@ -450,24 +450,22 @@ export async function getEventVolumeStats(
       const baselineStdDev = stdDev;
 
       if (baseline > 0) {
-        // 使用更智能的异常检测：Z-score 和移动平均结合
+
         const zScore = (current24h - baseline) / (baselineStdDev || 1);
         const dropThreshold = baseline - 2 * baselineStdDev;
-        
-        // 计算相对下降百分比
+
         const relativeDrop = ((baseline - current24h) / baseline) * 100;
-        
-        // 多重条件判断：Z-score < -2 或相对下降 > 30%
+
         const isStatisticalAnomaly = zScore < -2;
         const isSignificantDrop = relativeDrop > 30;
-        
+
         if ((isStatisticalAnomaly || isSignificantDrop) && threshold !== undefined && threshold > 0) {
           isDrop = true;
-          // 置信度计算：基于 Z-score 的绝对值和相对下降百分比
+
           const zScoreConfidence = Math.min(95, Math.max(50, 50 + Math.abs(zScore) * 10));
           const dropPercentConfidence = Math.min(90, Math.max(60, 60 + relativeDrop * 0.5));
           confidence = Math.max(zScoreConfidence, dropPercentConfidence);
-          
+
           if (isCurrentWeekend && weekendBaseline !== undefined) {
             detectedReason = `当前为周末，基准值: ${weekendBaseline.toFixed(0)}，实际: ${current24h}，下降: ${relativeDrop.toFixed(1)}% (Z-score: ${zScore.toFixed(2)})`;
           } else if (!isCurrentWeekend && weekdayBaseline !== undefined) {
@@ -482,7 +480,7 @@ export async function getEventVolumeStats(
         const simpleBaseline = Math.max(previous24h, average7Days || previous24h);
         const dropAmount = simpleBaseline - current24h;
         const dropPercent = (dropAmount / simpleBaseline) * 100;
-        
+
         if (dropPercent > 50 && previous24h >= 10) {
           isDrop = true;
           confidence = Math.min(85, 50 + dropPercent * 0.5);

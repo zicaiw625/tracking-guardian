@@ -254,7 +254,7 @@ export default function AlertsPage() {
       }}
     >
       <BlockStack gap="500">
-        {/* 告警配置概览 */}
+        {}
         <Layout>
           <Layout.Section variant="oneThird">
             <Card>
@@ -318,7 +318,7 @@ export default function AlertsPage() {
           </Layout.Section>
         </Layout>
 
-        {/* 告警配置列表 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -374,7 +374,7 @@ export default function AlertsPage() {
           </BlockStack>
         </Card>
 
-        {/* 告警历史 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">

@@ -97,7 +97,7 @@ export interface VerificationSummary {
   parameterCompleteness: number;
   valueAccuracy: number;
   results: VerificationEventResult[];
-  // 平台统计信息（用于报告导出）
+
   platformResults?: Record<string, { sent: number; failed: number }>;
 
   reconciliation?: {
@@ -325,7 +325,6 @@ export async function analyzeRecentEvents(
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
 
-  // 计算平台统计信息
   const platformResults: Record<string, { sent: number; failed: number }> = {};
   conversionLogs.forEach((log) => {
     if (!platformResults[log.platform]) {
@@ -367,7 +366,6 @@ export async function analyzeRecentEvents(
       }
     }
 
-    // 执行本地一致性检查
     const localConsistencyChecks: Array<{
       orderId: string;
       status: "consistent" | "partial" | "inconsistent";
@@ -376,12 +374,10 @@ export async function analyzeRecentEvents(
 
     try {
       const { performBulkLocalConsistencyCheck } = await import("./enhanced-reconciliation.server");
-      
-      // 使用批量检查功能，检查更多订单（最多50个，或所有订单如果少于50个）
+
       const maxCheckOrders = Math.min(orderIds.length, 50);
       const sampleOrderIds = orderIds.slice(0, maxCheckOrders);
-      
-      // 执行批量检查
+
       const bulkCheckResult = await performBulkLocalConsistencyCheck(
         shopId,
         since,
@@ -390,16 +386,14 @@ export async function analyzeRecentEvents(
         {
           maxOrders: maxCheckOrders,
           maxConcurrent: 5,
-          sampleRate: sampleOrderIds.length > 20 ? 0.8 : 1.0, // 如果订单多，采样80%
+          sampleRate: sampleOrderIds.length > 20 ? 0.8 : 1.0,
         }
       );
 
-      // 将批量检查结果转换为本地一致性检查格式
       localConsistencyChecks.push(...bulkCheckResult.issues);
     } catch (error) {
       logger.warn("Failed to perform bulk local consistency check, falling back to individual checks", { error });
-      
-      // 降级到单个检查（仅检查前10个订单）
+
       const sampleOrderIds = orderIds.slice(0, 10);
       for (const orderId of sampleOrderIds) {
         try {
@@ -421,7 +415,6 @@ export async function analyzeRecentEvents(
       }
     }
 
-    // 将本地一致性检查结果添加到 consistencyIssues
     localConsistencyChecks.forEach((check) => {
       consistencyIssues.push({
         orderId: check.orderId,
@@ -430,7 +423,6 @@ export async function analyzeRecentEvents(
       });
     });
 
-    // 计算本地一致性统计
     const totalChecked = Math.min(orderIds.length, 50);
     const consistent = totalChecked - localConsistencyChecks.length;
     const partial = localConsistencyChecks.filter((c) => c.status === "partial").length;

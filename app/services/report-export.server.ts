@@ -11,6 +11,12 @@ export interface ExportOptions {
     start: Date;
     end: Date;
   };
+  whiteLabel?: {
+    companyName?: string;
+    logoUrl?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+  };
 }
 
 export async function exportVerificationReport(
@@ -55,7 +61,6 @@ function exportToCSV(
 ): string {
   const lines: string[] = [];
 
-  // 报告头部
   lines.push("验收报告");
   lines.push(`店铺: ${run.shop.shopDomain}`);
   lines.push(`运行名称: ${run.runName}`);
@@ -63,7 +68,6 @@ function exportToCSV(
   lines.push(`状态: ${run.status}`);
   lines.push("");
 
-    // 摘要
     if (summary && options.includeSummary) {
       lines.push("摘要");
       lines.push(`总事件数: ${summary.totalEvents}`);
@@ -72,8 +76,7 @@ function exportToCSV(
       lines.push(`参数完整率: ${summary.parameterCompleteness}%`);
       lines.push(`金额准确率: ${summary.valueAccuracy}%`);
       lines.push("");
-      
-      // 按平台统计
+
       if (summary.platformResults) {
         lines.push("按平台统计");
         Object.entries(summary.platformResults).forEach(([platform, stats]) => {
@@ -81,8 +84,7 @@ function exportToCSV(
         });
         lines.push("");
       }
-      
-      // 按事件类型统计
+
       if (summary.results && summary.results.length > 0) {
         const eventTypeStats = new Map<string, { success: number; failed: number }>();
         summary.results.forEach((result) => {
@@ -94,7 +96,7 @@ function exportToCSV(
           }
           eventTypeStats.set(result.eventType, stats);
         });
-        
+
         if (eventTypeStats.size > 0) {
           lines.push("按事件类型统计");
           eventTypeStats.forEach((stats, eventType) => {
@@ -105,7 +107,6 @@ function exportToCSV(
       }
     }
 
-  // 事件详情
   if (options.includeEvents && events.length > 0) {
     lines.push("事件详情");
     lines.push("事件类型,平台,订单ID,状态,金额,币种,错误信息");
@@ -156,12 +157,9 @@ async function exportToPDF(
   events: Array<any>,
   options: ExportOptions
 ): Promise<string> {
-  // PDF 导出实现
-  // 注意: 实际部署时需要安装 pdfkit: pnpm add pdfkit @types/pdfkit
-  // 这里提供一个基础实现框架
-  
+
   try {
-    // 动态导入 pdfkit (如果可用)
+
     let PDFDocument: any;
     try {
       PDFDocument = (await import("pdfkit")).default;
@@ -176,11 +174,16 @@ async function exportToPDF(
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => {});
 
-    // 报告标题
+    const companyName = options.whiteLabel?.companyName || "Tracking Guardian";
+    const logoUrl = options.whiteLabel?.logoUrl;
+
     doc.fontSize(20).text("验收报告", { align: "center" });
+    if (logoUrl) {
+
+      doc.fontSize(12).text(companyName, { align: "center" });
+    }
     doc.moveDown();
 
-    // 店铺信息
     doc.fontSize(12);
     doc.text(`店铺: ${run.shop.shopDomain}`);
     doc.text(`运行名称: ${run.runName}`);
@@ -188,7 +191,6 @@ async function exportToPDF(
     doc.text(`状态: ${run.status}`);
     doc.moveDown();
 
-    // 摘要部分
     if (summary && options.includeSummary) {
       doc.fontSize(16).text("摘要", { underline: true });
       doc.fontSize(12);
@@ -202,8 +204,7 @@ async function exportToPDF(
         doc.text(`金额准确率: ${summary.valueAccuracy}%`);
       }
       doc.moveDown();
-      
-      // 按平台统计
+
       if (summary.platformResults && Object.keys(summary.platformResults).length > 0) {
         doc.fontSize(14).text("按平台统计", { underline: true });
         doc.fontSize(12);
@@ -212,8 +213,7 @@ async function exportToPDF(
         });
         doc.moveDown();
       }
-      
-      // 按事件类型统计
+
       if (summary.results && summary.results.length > 0) {
         const eventTypeStats = new Map<string, { success: number; failed: number }>();
         summary.results.forEach((result: any) => {
@@ -225,7 +225,7 @@ async function exportToPDF(
           }
           eventTypeStats.set(result.eventType, stats);
         });
-        
+
         if (eventTypeStats.size > 0) {
           doc.fontSize(14).text("按事件类型统计", { underline: true });
           doc.fontSize(12);
@@ -237,11 +237,10 @@ async function exportToPDF(
       }
     }
 
-    // 事件详情
     if (options.includeEvents && events.length > 0) {
       doc.fontSize(16).text("事件详情", { underline: true });
       doc.moveDown(0.5);
-      
+
       events.forEach((event, index) => {
         if (index > 0) doc.moveDown(0.5);
         doc.fontSize(10);
@@ -259,9 +258,20 @@ async function exportToPDF(
       });
     }
 
+    doc.moveDown(2);
+    doc.fontSize(10).text("—", { align: "center" });
+    doc.moveDown(0.5);
+    doc.fontSize(10).text(`本报告由 ${companyName} 自动生成`, { align: "center" });
+    if (options.whiteLabel?.contactEmail) {
+      doc.fontSize(10).text(`联系方式: ${options.whiteLabel.contactEmail}`, { align: "center" });
+    }
+    if (options.whiteLabel?.contactPhone) {
+      doc.fontSize(10).text(`电话: ${options.whiteLabel.contactPhone}`, { align: "center" });
+    }
+    doc.fontSize(10).text(`生成时间: ${new Date().toLocaleString("zh-CN")}`, { align: "center" });
+
     doc.end();
 
-    // 等待PDF生成完成
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error("PDF generation timeout"));
@@ -282,7 +292,7 @@ async function exportToPDF(
     });
   } catch (error) {
     logger.error("PDF export failed", error);
-    // 降级到JSON导出
+
     return exportToJSON(run, summary, events, options);
   }
 }
@@ -338,18 +348,21 @@ async function exportChecklistToPDF(shopDomain: string, assets: Array<any>): Pro
 
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
-    // 报告标题
+    const companyName = "Tracking Guardian";
+    const logoUrl = undefined;
+
     doc.fontSize(20).text("迁移清单", { align: "center" });
+    if (logoUrl) {
+      doc.fontSize(12).text(companyName, { align: "center" });
+    }
     doc.moveDown();
 
-    // 店铺信息
     doc.fontSize(12);
     doc.text(`店铺: ${shopDomain}`);
     doc.text(`生成时间: ${new Date().toLocaleString("zh-CN")}`);
     doc.text(`待迁移项: ${assets.length}`);
     doc.moveDown();
 
-    // 清单表格
     doc.fontSize(16).text("迁移项列表", { underline: true });
     doc.moveDown(0.5);
 
@@ -363,6 +376,12 @@ async function exportChecklistToPDF(shopDomain: string, assets: Array<any>): Pro
       doc.text(`   预计时间: ${asset.estimatedTimeMinutes || "N/A"} 分钟`);
       doc.text(`   状态: ${asset.migrationStatus || "pending"}`);
     });
+
+    doc.moveDown(2);
+    doc.fontSize(10).text("—", { align: "center" });
+    doc.moveDown(0.5);
+    doc.fontSize(10).text(`本报告由 ${companyName} 自动生成`, { align: "center" });
+    doc.fontSize(10).text(`生成时间: ${new Date().toLocaleString("zh-CN")}`, { align: "center" });
 
     doc.end();
 
@@ -513,7 +532,7 @@ function exportMultiShopToCSV(
     lines.push(`店铺: ${shop.shopDomain} (${shop.plan})`);
     lines.push(`待迁移项: ${assets.length}`);
     lines.push("优先级,风险等级,资产名称,平台,分类,建议迁移方式,预计时间(分钟),状态");
-    
+
     assets.forEach((asset) => {
       const row = [
         asset.priority || "",
@@ -586,14 +605,12 @@ async function exportMultiShopToPDF(
 
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
-    // 报告标题
     doc.fontSize(20).text("多店铺迁移报告", { align: "center" });
     if (options.agencyBranding?.name) {
       doc.fontSize(12).text(`生成机构: ${options.agencyBranding.name}`, { align: "center" });
     }
     doc.moveDown();
 
-    // 报告信息
     doc.fontSize(12);
     if (options.workspaceName) {
       doc.text(`工作区: ${options.workspaceName}`);
@@ -602,14 +619,13 @@ async function exportMultiShopToPDF(
     doc.text(`店铺数量: ${shops.length}`);
     doc.moveDown();
 
-    // 每个店铺的详情
     shops.forEach((shop, shopIndex) => {
       if (shopIndex > 0) {
         doc.addPage();
       }
 
       const assets = shopAssets.get(shop.id) || [];
-      
+
       doc.fontSize(16).text(`店铺 ${shopIndex + 1}: ${shop.shopDomain}`, { underline: true });
       doc.fontSize(12);
       doc.text(`套餐: ${shop.plan}`);

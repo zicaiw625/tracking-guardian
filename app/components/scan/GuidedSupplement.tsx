@@ -72,12 +72,10 @@ export function GuidedSupplement({
     }
   }, []);
 
-  // 从文本中智能识别功能
   const extractFeaturesFromText = useCallback((text: string): string[] => {
     const lowerText = text.toLowerCase();
     const detectedItems: string[] = [];
-    
-    // 关键词匹配
+
     const keywordMap: Record<string, string[]> = {
       ga4: ["ga4", "google analytics 4", "g-"],
       google: ["google analytics", "gtag", "google tag"],
@@ -92,11 +90,11 @@ export function GuidedSupplement({
       upsell: ["upsell", "追加销售", "推荐商品"],
       tracking: ["tracking", "追踪", "物流", "aftership", "17track"],
     };
-    
+
     Object.entries(keywordMap).forEach(([key, keywords]) => {
       if (keywords.some(kw => lowerText.includes(kw))) {
-        // 映射到对应的 checklist item ID
-        const itemId = key === "ga4" ? "ga4" : 
+
+        const itemId = key === "ga4" ? "ga4" :
                       key === "google" ? "ga4" :
                       key === "meta" ? "meta" :
                       key === "tiktok" ? "tiktok" :
@@ -108,13 +106,13 @@ export function GuidedSupplement({
                       key === "affiliate" ? "affiliate" :
                       key === "upsell" ? "upsell" :
                       key === "tracking" ? "tracking" : null;
-        
+
         if (itemId && !detectedItems.includes(itemId)) {
           detectedItems.push(itemId);
         }
       }
     });
-    
+
     return detectedItems;
   }, []);
 
@@ -123,11 +121,10 @@ export function GuidedSupplement({
       return;
     }
 
-    // 如果提供了文本，尝试智能识别
     let finalSelectedItems = [...selectedItems];
     if (additionalNotes.trim()) {
       const detectedItems = extractFeaturesFromText(additionalNotes);
-      // 合并检测到的项目（去重）
+
       detectedItems.forEach(itemId => {
         if (!finalSelectedItems.includes(itemId)) {
           finalSelectedItems.push(itemId);
@@ -135,7 +132,6 @@ export function GuidedSupplement({
       });
     }
 
-    // 将选中的项目转换为 AuditAsset
     const assets = finalSelectedItems.map((itemId) => {
       const item = UPGRADE_WIZARD_CHECKLIST.find((i) => i.id === itemId);
       if (!item) return null;
@@ -163,12 +159,11 @@ export function GuidedSupplement({
         details: {
           fromUpgradeWizard: true,
           additionalNotes: additionalNotes.trim() || undefined,
-          autoDetected: !selectedItems.includes(itemId), // 标记是否自动检测
+          autoDetected: !selectedItems.includes(itemId),
         },
       };
     }).filter((asset): asset is NonNullable<typeof asset> => asset !== null);
 
-    // 提交到服务器
     fetcher.submit(
       {
         _action: "create_from_wizard",
@@ -178,14 +173,13 @@ export function GuidedSupplement({
     );
   }, [selectedItems, additionalNotes, fetcher, extractFeaturesFromText]);
 
-  // 处理完成结果
   if (fetcher.data && (fetcher.data as { success?: boolean }).success) {
     const result = fetcher.data as { created?: number; updated?: number };
     const totalCreated = (result.created || 0) + (result.updated || 0);
     if (onComplete && totalCreated > 0) {
       setTimeout(() => {
         onComplete(totalCreated);
-        // 重置状态
+
         setStep(1);
         setSelectedItems([]);
         setAdditionalNotes("");
@@ -231,7 +225,7 @@ export function GuidedSupplement({
     >
       <Modal.Section>
         <BlockStack gap="400">
-          {/* 步骤指示器 */}
+          {}
           <InlineStack gap="200" align="center">
             <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
             <Text as="span" tone="subdued">→</Text>
@@ -240,7 +234,7 @@ export function GuidedSupplement({
             <Badge tone={step >= 3 ? "success" : "subdued"}>步骤 3</Badge>
           </InlineStack>
 
-          {/* 步骤 1: 选择项目 */}
+          {}
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -301,7 +295,7 @@ export function GuidedSupplement({
             </BlockStack>
           )}
 
-          {/* 步骤 2: 截图上传或清单复制（可选） */}
+          {}
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -331,7 +325,7 @@ export function GuidedSupplement({
                 </BlockStack>
               </Banner>
 
-              {/* 清单文本粘贴 */}
+              {}
               <Card>
                 <BlockStack gap="300">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -348,7 +342,7 @@ export function GuidedSupplement({
                 </BlockStack>
               </Card>
 
-              {/* 截图上传提示 */}
+              {}
               <Banner>
                 <Text as="p" variant="bodySm">
                   💡 <strong>提示：</strong>截图上传功能正在开发中。目前请使用文本粘贴方式。
@@ -371,7 +365,7 @@ export function GuidedSupplement({
             </BlockStack>
           )}
 
-          {/* 步骤 3: 额外信息 */}
+          {}
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -392,7 +386,7 @@ export function GuidedSupplement({
 
               <Divider />
 
-              {/* 摘要 */}
+              {}
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">

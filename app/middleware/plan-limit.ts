@@ -11,10 +11,6 @@ export interface PlanLimitConfig {
   showUpgradePrompt?: boolean;
 }
 
-/**
- * 套餐限制检查中间件
- * 在路由级别检查用户是否超出套餐限制
- */
 export function withPlanLimit(config: PlanLimitConfig): Middleware {
   return async (context, next) => {
     const { request } = context;
@@ -34,7 +30,7 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
       }
 
       const planId = normalizePlanId(shop.plan || "free") as PlanId;
-      
+
       let limitResult;
       switch (config.limitType) {
         case "pixel_destinations":
@@ -51,12 +47,11 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
       }
 
       if (!limitResult.allowed) {
-        // 如果需要重定向
+
         if (config.redirectTo) {
           return Response.redirect(new URL(config.redirectTo, request.url));
         }
 
-        // 如果需要显示升级提示，返回特殊响应
         if (config.showUpgradePrompt) {
           return json(
             {
@@ -69,7 +64,6 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
           );
         }
 
-        // 默认返回 403
         return json(
           {
             error: limitResult.reason || "Plan limit exceeded",
@@ -79,10 +73,9 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
         );
       }
 
-      // 限制检查通过，继续执行
       return next(context);
     } catch (error) {
-      // 认证失败等错误，继续执行（由其他中间件处理）
+
       return next(context);
     }
   };

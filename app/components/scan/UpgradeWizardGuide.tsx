@@ -100,7 +100,7 @@ export function UpgradeWizardGuide({
     >
       <Modal.Section>
         <BlockStack gap="400">
-          {/* 步骤指示器 */}
+          {}
           <InlineStack gap="200" align="center">
             <Text
               as="span"
@@ -130,7 +130,7 @@ export function UpgradeWizardGuide({
             </Text>
           </InlineStack>
 
-          {/* 步骤 1: 如何访问升级向导 */}
+          {}
           {step === 1 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -197,7 +197,7 @@ export function UpgradeWizardGuide({
 
               <Box paddingBlockStart="400">
                 <Link
-                  url="https://help.shopify.com/en/manual/checkout/checkout-extensibility"
+                  url="https:
                   external
                 >
                   <InlineStack gap="200" align="center">
@@ -211,7 +211,7 @@ export function UpgradeWizardGuide({
             </BlockStack>
           )}
 
-          {/* 步骤 2: 选择导入方式 */}
+          {}
           {step === 2 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -222,7 +222,7 @@ export function UpgradeWizardGuide({
               </Text>
 
               <BlockStack gap="300">
-                {/* 方式 1: 直接导入（如果 Shopify 提供 API） */}
+                {}
                 {onImportFromWizard && (
                   <Card>
                     <BlockStack gap="300">
@@ -250,7 +250,7 @@ export function UpgradeWizardGuide({
                   </Card>
                 )}
 
-                {/* 方式 2: 粘贴内容 */}
+                {}
                 <Card>
                   <BlockStack gap="300">
                     <InlineStack gap="200" align="start">
@@ -273,7 +273,7 @@ export function UpgradeWizardGuide({
                   </BlockStack>
                 </Card>
 
-                {/* 方式 3: 上传截图 */}
+                {}
                 {onUploadScreenshot && (
                   <Card>
                     <BlockStack gap="300">
@@ -289,39 +289,9 @@ export function UpgradeWizardGuide({
                           <Box>
                             <input
                               type="file"
-                              accept="image/*"
-                              onChange={handleFileUpload}
-                              style={{ display: "none" }}
-                              id="screenshot-upload"
-                            />
-                            <label htmlFor="screenshot-upload">
-                              <Button
-                                variant="secondary"
-                                component="span"
-                                onClick={() => {
-                                  document
-                                    .getElementById("screenshot-upload")
-                                    ?.click();
-                                }}
-                              >
-                                选择截图
-                              </Button>
-                            </label>
-                          </Box>
-                          <Text as="p" variant="bodySm" tone="subdued">
-                            <strong>注意：</strong>
-                            截图识别功能仍在开发中，建议优先使用复制粘贴方式
-                          </Text>
-                        </BlockStack>
-                      </InlineStack>
-                    </BlockStack>
-                  </Card>
-                )}
-              </BlockStack>
-            </BlockStack>
-          )}
+                              accept="image
 
-          {/* 步骤 3: 粘贴内容 */}
+}
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">
@@ -346,7 +316,7 @@ export function UpgradeWizardGuide({
                     粘贴内容示例：
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    • 脚本 URL 列表（如：https://www.googletagmanager.com/gtag/js）
+                    • 脚本 URL 列表（如：https:
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     • 代码片段（如：fbq('init', '1234567890')）

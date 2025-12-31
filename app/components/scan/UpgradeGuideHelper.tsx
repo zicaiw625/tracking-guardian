@@ -27,14 +27,12 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
   const handleFileUpload = useCallback(async (file: File) => {
     if (!file) return;
 
-    // 验证文件类型
     const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "text/plain"];
     if (!validTypes.includes(file.type)) {
       showError("不支持的文件类型。请上传 PNG、JPEG 或文本文件。");
       return;
     }
 
-    // 验证文件大小（最大 5MB）
     const MAX_SIZE = 5 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       showError("文件过大。请上传小于 5MB 的文件。");
@@ -45,12 +43,12 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
     setUploading(true);
 
     try {
-      // 如果是文本文件，直接解析
+
       if (file.type === "text/plain") {
         const text = await file.text();
         await parseTextList(text);
       } else {
-        // 图片文件，需要 OCR（这里先提示用户手动输入）
+
         showError("图片 OCR 功能开发中。请将清单内容复制为文本文件上传，或手动粘贴到脚本编辑器。");
         setUploading(false);
         return;
@@ -64,17 +62,11 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
 
   const parseTextList = async (text: string) => {
     try {
-      // 解析 Shopify 升级向导报告格式
-      // 常见格式：
-      // 1. 平台列表（每行一个）
-      // 2. JSON 格式
-      // 3. 标记列表（- 或 * 开头）
 
       const lines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
       const platforms: string[] = [];
       const items: Array<{ name: string; type: string }> = [];
 
-      // 尝试解析 JSON
       try {
         const json = JSON.parse(text);
         if (Array.isArray(json)) {
@@ -93,12 +85,11 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
           });
         }
       } catch {
-        // 不是 JSON，尝试解析文本列表
+
         lines.forEach(line => {
-          // 移除列表标记
+
           const cleaned = line.replace(/^[-*•]\s*/, "").trim();
-          
-          // 检测平台名称
+
           const platformPatterns = [
             { pattern: /google|ga4|analytics/i, name: "google" },
             { pattern: /meta|facebook|fb/i, name: "meta" },
@@ -126,7 +117,6 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
         });
       }
 
-      // 发送到后端创建 AuditAsset
       if (platforms.length > 0 || items.length > 0) {
         const response = await fetch("/api/audit-assets", {
           method: "POST",

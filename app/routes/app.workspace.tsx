@@ -169,7 +169,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     commentCount: number;
   }> = [];
 
-  // 加载审计资产（用于任务分配）
   const { getAuditAssets } = await import("../services/audit-asset.server");
   const auditAssets = await getAuditAssets(shop.id, {
     migrationStatus: "pending",
@@ -180,8 +179,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     selectedGroup = await getShopGroupDetails(groupId, shop.id);
     groupStats = await getGroupAggregatedStats(groupId, shop.id, 7);
     shopBreakdown = await getGroupShopBreakdown(groupId, shop.id, 7);
-    
-    // 加载任务
+
     const migrationTasks = await getMigrationTasks(shop.id, { groupId });
     tasks = migrationTasks.map((t) => ({
       id: t.id,
@@ -531,7 +529,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const taskIds: string[] = [];
 
       for (const assetId of assetIds) {
-        // 获取资产信息
+
         const asset = await prisma.auditAsset.findUnique({
           where: { id: assetId },
           select: { shopId: true, displayName: true },
@@ -730,7 +728,7 @@ export default function WorkspacePage() {
     })
       .then(async (res) => {
         const contentType = res.headers.get("content-type");
-        
+
         if (contentType?.includes("application/json")) {
           return res.json();
         } else if (contentType?.includes("application/pdf") || contentType?.includes("text/csv") || contentType?.includes("application/json")) {
@@ -739,7 +737,7 @@ export default function WorkspacePage() {
           const a = document.createElement("a");
           a.href = url;
           const disposition = res.headers.get("content-disposition");
-          const filename = disposition?.match(/filename="?(.+)"?/)?.[1] || 
+          const filename = disposition?.match(/filename="?(.+)"?/)?.[1] ||
             `batch-${exportReportType}-report-${Date.now()}.${exportFormat === "pdf" ? "pdf" : exportFormat === "csv" ? "csv" : "json"}`;
           a.download = filename;
           document.body.appendChild(a);
@@ -1104,11 +1102,11 @@ export default function WorkspacePage() {
                             memberCount={selectedGroup.memberCount}
                             onBatchAuditStart={handleBatchAudit}
                             onBatchTemplateApply={() => {
-                              // 打开模板选择/批量应用界面
+
                               setShowBatchApplyModal(true);
                             }}
                             onReportGenerate={async (options) => {
-                              // 处理报告生成
+
                               const formData = new FormData();
                               formData.append("_action", "generate_batch_report");
                               formData.append("groupId", selectedGroup.id);

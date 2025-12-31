@@ -30,12 +30,10 @@ function detectDependencies(
 ): string[] {
   const dependencies: string[] = [];
 
-  // 首先从数据库的 dependencies 字段读取（这是主要来源）
   if (asset.dependencies && Array.isArray(asset.dependencies)) {
     dependencies.push(...(asset.dependencies as string[]));
   }
 
-  // 兼容旧数据：从 details 字段读取
   const details = asset.details as Record<string, unknown> | null;
   if (details) {
     const explicitDeps = details.dependencies as string[] | undefined;
@@ -44,45 +42,56 @@ function detectDependencies(
     }
   }
 
-  // 基于业务逻辑的自动依赖检测（增强版）
   switch (asset.category) {
     case "survey":
-      // 问卷可能依赖订单追踪功能
+
       const orderTracking = allAssets.find(
         (a) => a.category === "support" && a.platform === "order_tracking"
       );
       if (orderTracking) {
         dependencies.push(orderTracking.id);
       }
-      // 问卷也可能依赖像素追踪（用于数据关联）
+
       const surveyPixels = allAssets.filter(
         (a) => a.category === "pixel" && a.migrationStatus !== "completed"
       );
       if (surveyPixels.length > 0) {
-        // 优先选择相同平台的像素
+
         const samePlatformPixel = surveyPixels.find(
           p => p.platform === asset.platform
         );
         if (samePlatformPixel) {
           dependencies.push(samePlatformPixel.id);
         } else if (surveyPixels.length > 0) {
-          // 如果没有相同平台，选择第一个像素
+
           dependencies.push(surveyPixels[0].id);
+        }
+      }
+
+      if (asset.details && typeof asset.details === "object") {
+        const details = asset.details as Record<string, unknown>;
+        const requiresPixel = details.requiresPixel as boolean | undefined;
+        const requiresOrderData = details.requiresOrderData as boolean | undefined;
+        if (requiresPixel && surveyPixels.length > 0 && !dependencies.some(d => surveyPixels.some(p => p.id === d))) {
+          dependencies.push(surveyPixels[0].id);
+        }
+        if (requiresOrderData && orderTracking && !dependencies.includes(orderTracking.id)) {
+          dependencies.push(orderTracking.id);
         }
       }
       break;
 
     case "affiliate":
-      // 联盟追踪通常依赖像素追踪（用于归因）
+
       const pixelAssets = allAssets.filter(
-        (a) => a.category === "pixel" && 
+        (a) => a.category === "pixel" &&
                a.platform === asset.platform &&
                a.migrationStatus !== "completed"
       );
       if (pixelAssets.length > 0) {
         dependencies.push(pixelAssets[0].id);
       } else {
-        // 如果没有相同平台的像素，查找任何像素
+
         const anyPixel = allAssets.find(
           (a) => a.category === "pixel" && a.migrationStatus !== "completed"
         );
@@ -93,12 +102,12 @@ function detectDependencies(
       break;
 
     case "analytics":
-      // 分析工具可能依赖像素追踪（用于数据关联）
+
       const analyticsPixels = allAssets.filter(
         (a) => a.category === "pixel" && a.migrationStatus !== "completed"
       );
       if (analyticsPixels.length > 0) {
-        // 优先选择关键平台的像素
+
         const criticalPlatforms = ["google", "meta", "tiktok"];
         const criticalPixel = analyticsPixels.find(
           p => p.platform && criticalPlatforms.includes(p.platform)
@@ -112,9 +121,9 @@ function detectDependencies(
       break;
 
     case "support":
-      // 客服支持可能依赖订单追踪（用于显示订单信息）
+
       const supportOrderTracking = allAssets.find(
-        (a) => a.category === "support" && 
+        (a) => a.category === "support" &&
                a.platform === "order_tracking" &&
                a.id !== asset.id
       );
@@ -124,12 +133,11 @@ function detectDependencies(
       break;
   }
 
-  // 相同平台的依赖关系（增强版）
   if (asset.platform) {
-    // 如果当前资产不是像素，查找相同平台的像素作为依赖
+
     if (asset.category !== "pixel") {
       const samePlatformPixels = allAssets.filter(
-        (a) => a.platform === asset.platform && 
+        (a) => a.platform === asset.platform &&
                a.category === "pixel" &&
                a.id !== asset.id &&
                a.migrationStatus !== "completed"
@@ -138,9 +146,42 @@ function detectDependencies(
         dependencies.push(samePlatformPixels[0].id);
       }
     }
+
+    if (asset.details && typeof asset.details === "object") {
+      const details = asset.details as Record<string, unknown>;
+      const containerType = details.containerType as string | undefined;
+      if (containerType === "gtm" || containerType === "tag_manager") {
+
+        const criticalPlatforms = ["google", "meta", "tiktok"];
+        for (const platform of criticalPlatforms) {
+          const platformPixel = allAssets.find(
+            (a) => a.platform === platform &&
+                   a.category === "pixel" &&
+                   a.id !== asset.id &&
+                   a.migrationStatus !== "completed"
+          );
+          if (platformPixel && !dependencies.includes(platformPixel.id)) {
+            dependencies.push(platformPixel.id);
+            break;
+          }
+        }
+      }
+    }
   }
 
-  // 过滤掉无效的依赖（依赖项不存在或已完成）
+  if (asset.suggestedMigration === "server_side") {
+    const relatedWebPixel = allAssets.find(
+      (a) => a.platform === asset.platform &&
+             a.category === asset.category &&
+             a.suggestedMigration === "web_pixel" &&
+             a.id !== asset.id &&
+             a.migrationStatus !== "completed"
+    );
+    if (relatedWebPixel && !dependencies.includes(relatedWebPixel.id)) {
+      dependencies.push(relatedWebPixel.id);
+    }
+  }
+
   const validDependencies = dependencies.filter(depId => {
     const depAsset = allAssets.find(a => a.id === depId);
     return depAsset && depAsset.migrationStatus !== "completed";
@@ -158,14 +199,14 @@ function topologicalSort(nodes: DependencyNode[]): {
   const visited = new Set<string>();
   const visiting = new Set<string>();
   const nodeMap = new Map<string, DependencyNode>();
-  
+
   nodes.forEach(node => {
     nodeMap.set(node.assetId, node);
   });
 
   function visit(nodeId: string, path: string[]): void {
     if (visiting.has(nodeId)) {
-      // 检测到循环
+
       const cycleStart = path.indexOf(nodeId);
       if (cycleStart >= 0) {
         const cycle = path.slice(cycleStart).concat(nodeId);
@@ -224,7 +265,6 @@ export async function analyzeDependencies(
     };
   });
 
-  // 构建反向依赖关系
   nodes.forEach((node) => {
     node.dependencies.forEach((depId) => {
       const depNode = nodes.find((n) => n.assetId === depId);
@@ -237,7 +277,7 @@ export async function analyzeDependencies(
   const edges: DependencyGraph["edges"] = [];
   nodes.forEach((node) => {
     node.dependencies.forEach((depId) => {
-      // 检查依赖项是否存在
+
       const depNode = nodes.find(n => n.assetId === depId);
       if (depNode) {
         edges.push({
@@ -251,7 +291,6 @@ export async function analyzeDependencies(
 
   const { order, cycles } = topologicalSort(nodes);
 
-  // 添加建议顺序的边
   for (let i = 0; i < order.length - 1; i++) {
     edges.push({
       from: order[i],

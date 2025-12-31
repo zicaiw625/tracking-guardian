@@ -67,7 +67,6 @@ export async function saveWizardConfigs(
   const errors: string[] = [];
   let savedCount = 0;
 
-  // 检查套餐限制
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     select: { plan: true },
@@ -111,7 +110,6 @@ export async function saveWizardConfigs(
 
       const encryptedCredentials = encryptJson(credentials);
 
-      // 在更新前保存快照（如果配置已存在）
       const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
           shopId_platform: {
@@ -122,7 +120,7 @@ export async function saveWizardConfigs(
       });
 
       if (existingConfig && existingConfig.isActive) {
-        // 保存当前配置为快照
+
         const { saveConfigSnapshot } = await import("./pixel-rollback.server");
         await saveConfigSnapshot(shopId, config.platform);
       }
@@ -204,10 +202,6 @@ export async function getConfigPreview(shopId: string): Promise<{
   };
 }
 
-/**
- * 保存向导草稿到数据库
- * 在步骤切换时自动保存，支持断点续传
- */
 export async function saveWizardDraft(
   shopId: string,
   draft: {
@@ -218,10 +212,9 @@ export async function saveWizardDraft(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 使用新的 MigrationDraft 模型
+
     const { saveMigrationDraft } = await import("./migration-draft.server");
-    
-    // 转换数据格式
+
     const configData = {
       selectedPlatforms: draft.selectedPlatforms,
       platformConfigs: Object.fromEntries(
@@ -236,11 +229,10 @@ export async function saveWizardDraft(
       ),
     };
 
-    // 只保存到 review 步骤之前的草稿（testing 步骤表示已完成）
     const step = draft.step === "testing" ? "review" : draft.step;
-    
+
     const result = await saveMigrationDraft(shopId, step as "select" | "credentials" | "mappings" | "review", configData);
-    
+
     if (!result.success) {
       return { success: false, error: result.error };
     }
@@ -255,13 +247,9 @@ export async function saveWizardDraft(
   }
 }
 
-/**
- * 从数据库恢复向导草稿
- * 用于断点续传功能
- */
 export async function loadWizardDraft(shopId: string): Promise<WizardState | null> {
   try {
-    // 使用新的 MigrationDraft 模型
+
     const { getMigrationDraft } = await import("./migration-draft.server");
     const draft = await getMigrationDraft(shopId);
 
@@ -269,7 +257,6 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
       return null;
     }
 
-    // 查找相关的配置以获取 platformId 和已加密的凭证
     const configs = await prisma.pixelConfig.findMany({
       where: {
         shopId,
@@ -287,7 +274,6 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
 
     const configsMap: Record<string, WizardConfig> = {};
 
-    // 重建配置
     for (const platform of draft.configData.selectedPlatforms) {
       const existingConfig = configs.find((c) => c.platform === platform);
       const draftConfig = draft.configData.platformConfigs[platform] || {};
@@ -299,7 +285,7 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
           credentials = decryptJson(existingConfig.credentialsEncrypted) as Record<string, string>;
         } catch (error) {
           logger.warn(`Failed to decrypt credentials for ${platform}`, error);
-          // 如果解密失败，使用草稿中的凭证
+
           credentials = draftConfig.credentials || {};
         }
       } else {
@@ -326,16 +312,12 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
   }
 }
 
-/**
- * 清除向导草稿
- */
 export async function clearWizardDraft(shopId: string): Promise<{ success: boolean }> {
   try {
-    // 使用新的 MigrationDraft 模型
+
     const { deleteMigrationDraft } = await import("./migration-draft.server");
     const result = await deleteMigrationDraft(shopId);
 
-    // 同时清理 in_progress 状态的配置
     await prisma.pixelConfig.updateMany({
       where: {
         shopId,
@@ -417,7 +399,6 @@ export async function validateTestEnvironment(
       };
     }
 
-    // 平台特定的验证增强
     const details: {
       eventSent?: boolean;
       responseTime?: number;
@@ -427,14 +408,13 @@ export async function validateTestEnvironment(
       verificationInstructions?: string;
     } = {};
 
-    // Meta: 检查 Test Event Code
     if (platform === "meta") {
       const credentials = credentialsResult.value.credentials as {
         pixelId?: string;
         accessToken?: string;
         testEventCode?: string;
       };
-      
+
       if (credentials.testEventCode) {
         details.testEventCode = credentials.testEventCode;
         details.verificationInstructions = `测试事件已发送，请在 Meta Events Manager 的「测试事件」页面查看，使用 Test Event Code: ${credentials.testEventCode}`;
@@ -443,15 +423,14 @@ export async function validateTestEnvironment(
       }
     }
 
-    // GA4: 提供 DebugView 链接
     if (platform === "google") {
       const credentials = credentialsResult.value.credentials as {
         measurementId?: string;
         apiSecret?: string;
       };
-      
+
       if (credentials.measurementId) {
-        details.debugViewUrl = `https://analytics.google.com/analytics/web/#/p${credentials.measurementId.replace("G-", "")}/debugview`;
+        details.debugViewUrl = `https:
         details.verificationInstructions = `测试事件已发送，请在 GA4 DebugView 中查看：${details.debugViewUrl}`;
       }
     }

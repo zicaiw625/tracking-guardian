@@ -55,7 +55,7 @@ export function BatchOperationsPanel({
         <Divider />
 
         <BlockStack gap="400">
-          {/* 批量 Audit 扫描 */}
+          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -94,7 +94,7 @@ export function BatchOperationsPanel({
             </BlockStack>
           </Box>
 
-          {/* 批量应用模板 */}
+          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -132,7 +132,7 @@ export function BatchOperationsPanel({
             </BlockStack>
           </Box>
 
-          {/* 批量验收运行 */}
+          {}
           <Box
             background="bg-surface-secondary"
             padding="400"
@@ -160,12 +160,12 @@ export function BatchOperationsPanel({
                     formData.append("_action", "batch_verification");
                     formData.append("groupId", groupId);
                     formData.append("runType", "quick");
-                    // 触发批量验收
+
                     fetch("/app/workspace", {
                       method: "POST",
                       body: formData,
                     }).then(() => {
-                      // 可以在这里添加成功提示
+
                     });
                   }}
                   size="large"
@@ -182,7 +182,7 @@ export function BatchOperationsPanel({
             </BlockStack>
           </Box>
 
-          {/* 批量报告导出 */}
+          {}
           <Box
             background="bg-surface-secondary"
             padding="400"

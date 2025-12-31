@@ -16,7 +16,8 @@ import {
   Collapsible,
   Link,
 } from "@shopify/polaris";
-import { CheckCircleIcon, ClockIcon, SearchIcon, FilterIcon, AlertCircleIcon } from "~/components/icons";
+import { CheckCircleIcon, ClockIcon, SearchIcon, FilterIcon, AlertCircleIcon, ExportIcon } from "~/components/icons";
+import { useSubmit } from "@remix-run/react";
 import type { MigrationChecklistItem } from "~/services/migration-checklist.server";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
 
@@ -42,18 +43,22 @@ export function MigrationChecklistEnhanced({
   const [sortBy, setSortBy] = useState<SortType>("priority");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const submit = useSubmit();
 
-  // 获取所有类别
+  const handleExportCSV = () => {
+    const formData = new FormData();
+    formData.append("_action", "export_checklist_csv");
+    submit(formData, { method: "post" });
+  };
+
   const categories = useMemo(() => {
     const cats = new Set(items.map((item) => item.category));
     return Array.from(cats);
   }, [items]);
 
-  // 筛选和排序
   const filteredAndSortedItems = useMemo(() => {
     let filtered = items;
 
-    // 搜索筛选
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -65,22 +70,18 @@ export function MigrationChecklistEnhanced({
       );
     }
 
-    // 风险等级筛选
     if (filterRisk !== "all") {
       filtered = filtered.filter((item) => item.riskLevel === filterRisk);
     }
 
-    // 类别筛选
     if (filterCategory !== "all") {
       filtered = filtered.filter((item) => item.category === filterCategory);
     }
 
-    // 状态筛选
     if (filterStatus !== "all") {
       filtered = filtered.filter((item) => item.status === filterStatus);
     }
 
-    // 排序
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case "priority":
@@ -100,7 +101,6 @@ export function MigrationChecklistEnhanced({
     return sorted;
   }, [items, searchQuery, filterRisk, filterCategory, filterStatus, sortBy]);
 
-  // 统计信息
   const stats = useMemo(() => {
     const total = items.length;
     const high = items.filter((i) => i.riskLevel === "high").length;
@@ -175,10 +175,9 @@ export function MigrationChecklistEnhanced({
     }
   };
 
-  // 获取资产的依赖关系
   const getItemDependencies = (assetId: string) => {
     if (!dependencyGraph) return { dependencies: [], dependents: [] };
-    
+
     const nodeId = `asset-${assetId}`;
     const dependencies = dependencyGraph.edges
       .filter(e => e.to === nodeId && e.type === "depends_on")
@@ -187,7 +186,7 @@ export function MigrationChecklistEnhanced({
         return depNode ? { assetId: depNode.assetId, name: depNode.assetId.substring(0, 8) + "..." } : null;
       })
       .filter((d): d is NonNullable<typeof d> => d !== null);
-    
+
     const dependents = dependencyGraph.edges
       .filter(e => e.from === nodeId && e.type === "depends_on")
       .map(e => {
@@ -195,7 +194,7 @@ export function MigrationChecklistEnhanced({
         return depNode ? { assetId: depNode.assetId, name: depNode.assetId.substring(0, 8) + "..." } : null;
       })
       .filter((d): d is NonNullable<typeof d> => d !== null);
-    
+
     return { dependencies, dependents };
   };
 
@@ -214,15 +213,24 @@ export function MigrationChecklistEnhanced({
   return (
     <Card>
       <BlockStack gap="400">
-        {/* 标题和统计 */}
+        {}
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h2" variant="headingMd">
             迁移清单
           </Text>
-          <Badge tone="info">{filteredAndSortedItems.length} / {stats.total} 项</Badge>
+          <InlineStack gap="200">
+            <Button
+              size="slim"
+              icon={ExportIcon}
+              onClick={handleExportCSV}
+            >
+              导出 CSV
+            </Button>
+            <Badge tone="info">{filteredAndSortedItems.length} / {stats.total} 项</Badge>
+          </InlineStack>
         </InlineStack>
 
-        {/* 统计卡片 */}
+        {}
         <Box background="bg-surface-secondary" padding="400" borderRadius="200">
           <BlockStack gap="300">
             <InlineStack gap="400" wrap>
@@ -262,7 +270,7 @@ export function MigrationChecklistEnhanced({
           </BlockStack>
         </Box>
 
-        {/* 筛选和搜索 */}
+        {}
         <BlockStack gap="300">
           <InlineStack gap="200" wrap>
             <Box minWidth="200px">
@@ -335,7 +343,7 @@ export function MigrationChecklistEnhanced({
 
         <Divider />
 
-        {/* 清单列表 */}
+        {}
         {filteredAndSortedItems.length === 0 ? (
           <Banner tone="info">
             <Text as="p" variant="bodySm">
@@ -390,12 +398,12 @@ export function MigrationChecklistEnhanced({
                           • {item.category}
                         </Text>
                       </InlineStack>
-                      
-                      {/* 依赖关系信息 */}
+
+                      {}
                       {dependencyGraph && (() => {
                         const { dependencies, dependents } = getItemDependencies(item.assetId);
                         if (dependencies.length === 0 && dependents.length === 0) return null;
-                        
+
                         return (
                           <Button
                             size="micro"
@@ -409,12 +417,12 @@ export function MigrationChecklistEnhanced({
                         );
                       })()}
                     </BlockStack>
-                    
-                    {/* 展开的依赖关系详情 */}
+
+                    {}
                     {expandedItems.has(item.id) && dependencyGraph && (() => {
                       const { dependencies, dependents } = getItemDependencies(item.assetId);
                       if (dependencies.length === 0 && dependents.length === 0) return null;
-                      
+
                       return (
                         <Box paddingBlockStart="300">
                           <Collapsible

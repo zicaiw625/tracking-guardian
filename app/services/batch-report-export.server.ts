@@ -386,11 +386,8 @@ async function generateCombinedPdfReport(
       return undefined;
     }
 
-    // 如果有白标配置，需要从 shopIds 生成批量报告数据
-    // 由于 generateBatchReportPdf 需要 groupId，我们使用标准 PDF 生成并应用白标
-    // 白标配置可以在生成HTML时应用
     if (whiteLabel) {
-      // 使用标准批量报告生成，白标将在报告内容中应用
+
       const result = await generateBatchReports({
         shopIds,
         reportType,
@@ -407,7 +404,6 @@ async function generateCombinedPdfReport(
       };
     }
 
-    // 默认使用标准 PDF 生成
     const result = await generateBatchReports({
       shopIds,
       reportType,

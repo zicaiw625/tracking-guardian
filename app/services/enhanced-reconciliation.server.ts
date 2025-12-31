@@ -518,7 +518,7 @@ export async function checkLocalConsistency(
   orderId: string,
   admin?: AdminApiContext
 ): Promise<LocalConsistencyCheck | null> {
-  // 获取 Shopify 订单信息
+
   let shopifyOrder: { value: number; currency: string; itemCount: number } | null = null;
 
   if (admin) {
@@ -533,12 +533,11 @@ export async function checkLocalConsistency(
       shopifyOrder = {
         value: parseFloat(order.totalPriceSet.shopMoney.amount),
         currency: order.totalPriceSet.shopMoney.currencyCode,
-        itemCount: 0, // 需要在 GraphQL 查询中添加
+        itemCount: 0,
       };
     }
   }
 
-  // 如果没有 Shopify 订单信息，尝试从 conversionJob 获取
   if (!shopifyOrder) {
     const job = await prisma.conversionJob.findFirst({
       where: {
@@ -561,7 +560,6 @@ export async function checkLocalConsistency(
     return null;
   }
 
-  // 尝试从 conversionJob 获取商品数量
   const job = await prisma.conversionJob.findFirst({
     where: {
       shopId,
@@ -574,8 +572,8 @@ export async function checkLocalConsistency(
 
   if (job?.eventData) {
     try {
-      const eventData = typeof job.eventData === "string" 
-        ? JSON.parse(job.eventData) 
+      const eventData = typeof job.eventData === "string"
+        ? JSON.parse(job.eventData)
         : job.eventData;
       if (eventData.items && Array.isArray(eventData.items)) {
         shopifyOrder.itemCount = eventData.items.reduce(
@@ -584,11 +582,10 @@ export async function checkLocalConsistency(
         );
       }
     } catch (error) {
-      // 忽略解析错误
+
     }
   }
 
-  // 获取 Pixel 收据
   const pixelReceipt = await prisma.pixelEventReceipt.findFirst({
     where: {
       shopId,
@@ -597,7 +594,6 @@ export async function checkLocalConsistency(
     orderBy: { createdAt: "desc" },
   });
 
-  // 获取 CAPI 事件
   const capiEvents = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -609,7 +605,6 @@ export async function checkLocalConsistency(
   const issues: string[] = [];
   let consistencyStatus: "consistent" | "partial" | "inconsistent" = "consistent";
 
-  // 验证 Pixel Payload
   let pixelPayloadValid = true;
   const pixelPayloadErrors: string[] = [];
 
@@ -635,7 +630,6 @@ export async function checkLocalConsistency(
       }
     }
 
-    // 验证金额和币种
     if (pixelReceipt.orderValue) {
       const pixelValue = Number(pixelReceipt.orderValue);
       const valueMatch = Math.abs(pixelValue - shopifyOrder.value) < 0.01;
@@ -652,7 +646,6 @@ export async function checkLocalConsistency(
     issues.push("缺少 Pixel 收据");
   }
 
-  // 验证 CAPI 事件
   const capiEventChecks = capiEvents.map((event) => {
     const value = Number(event.orderValue || 0);
     const currency = event.currency || "";
@@ -666,12 +659,10 @@ export async function checkLocalConsistency(
       issues.push(`${event.platform} CAPI 币种不匹配: ${currency} vs ${shopifyOrder!.currency}`);
     }
 
-    // 检查 event_id 是否存在（用于去重）
     if (!event.eventId) {
       issues.push(`${event.platform} CAPI 缺少 event_id（可能影响去重）`);
     }
 
-    // 检查时间戳是否合理（事件应该在订单创建后1小时内）
     if (event.sentAt) {
       const eventTime = new Date(event.sentAt).getTime();
       const orderTime = new Date(event.createdAt).getTime();
@@ -692,7 +683,6 @@ export async function checkLocalConsistency(
     };
   });
 
-  // 检查是否有重复的 CAPI 事件（同一订单同一平台）
   const platformCounts = new Map<string, number>();
   capiEvents.forEach((event) => {
     const count = platformCounts.get(event.platform) || 0;
@@ -744,33 +734,24 @@ export async function checkLocalConsistency(
   };
 }
 
-/**
- * 批量执行本地一致性检查
- * @param shopId 店铺 ID
- * @param orderIds 订单 ID 列表
- * @param admin Shopify Admin API 上下文（可选）
- * @param options 选项
- * @returns 一致性检查结果列表
- */
 export async function performChannelReconciliation(
   shopId: string,
   orderIds: string[],
   admin?: AdminApiContext,
   options?: {
-    maxConcurrent?: number; // 最大并发数，默认 5
-    timeout?: number; // 单个检查超时时间（毫秒），默认 10 秒
+    maxConcurrent?: number;
+    timeout?: number;
   }
 ): Promise<LocalConsistencyCheck[]> {
   const results: LocalConsistencyCheck[] = [];
   const maxConcurrent = options?.maxConcurrent || 5;
   const timeout = options?.timeout || 10000;
 
-  // 分批处理，避免并发过多
   for (let i = 0; i < orderIds.length; i += maxConcurrent) {
     const batch = orderIds.slice(i, i + maxConcurrent);
     const batchPromises = batch.map(async (orderId) => {
       try {
-        // 使用 Promise.race 实现超时
+
         const checkPromise = checkLocalConsistency(shopId, orderId, admin);
         const timeoutPromise = new Promise<null>((resolve) =>
           setTimeout(() => resolve(null), timeout)
@@ -790,24 +771,15 @@ export async function performChannelReconciliation(
   return results;
 }
 
-/**
- * 批量执行本地一致性检查（针对时间范围内的所有订单）
- * @param shopId 店铺 ID
- * @param startDate 开始时间
- * @param endDate 结束时间
- * @param admin Shopify Admin API 上下文（可选）
- * @param options 选项
- * @returns 一致性检查摘要
- */
 export async function performBulkLocalConsistencyCheck(
   shopId: string,
   startDate: Date,
   endDate: Date,
   admin?: AdminApiContext,
   options?: {
-    maxOrders?: number; // 最大检查订单数，默认 100
-    maxConcurrent?: number; // 最大并发数，默认 5
-    sampleRate?: number; // 采样率（0-1），默认 1.0（全部检查）
+    maxOrders?: number;
+    maxConcurrent?: number;
+    sampleRate?: number;
   }
 ): Promise<{
   totalChecked: number;
@@ -820,7 +792,7 @@ export async function performBulkLocalConsistencyCheck(
     issues: string[];
   }>;
 }> {
-  // 获取时间范围内的订单 ID
+
   const jobs = await prisma.conversionJob.findMany({
     where: {
       shopId,
@@ -835,18 +807,15 @@ export async function performBulkLocalConsistencyCheck(
 
   let orderIds = jobs.map((j) => j.orderId);
 
-  // 应用采样率
   if (options?.sampleRate && options.sampleRate < 1.0) {
     const sampleSize = Math.floor(orderIds.length * options.sampleRate);
     orderIds = orderIds.slice(0, sampleSize);
   }
 
-  // 执行批量检查
   const checks = await performChannelReconciliation(shopId, orderIds, admin, {
     maxConcurrent: options?.maxConcurrent || 5,
   });
 
-  // 统计结果
   const consistent = checks.filter((c) => c.consistencyStatus === "consistent").length;
   const partial = checks.filter((c) => c.consistencyStatus === "partial").length;
   const inconsistent = checks.filter((c) => c.consistencyStatus === "inconsistent").length;

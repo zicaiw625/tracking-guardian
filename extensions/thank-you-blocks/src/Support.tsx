@@ -25,10 +25,9 @@ function SupportBlock() {
   const whatsappNumber = useMemo(() => settings.support_whatsapp_number as string | undefined, [settings.support_whatsapp_number]);
   const messengerUrl = useMemo(() => settings.support_messenger_url as string | undefined, [settings.support_messenger_url]);
   const continueShoppingUrl = useMemo(() => (settings.continue_shopping_url as string) || "/", [settings.continue_shopping_url]);
-  
-  // 生成联系链接
+
   const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
-  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber.replace(/[^0-9]/g, "")}` : undefined;
+  const whatsappUrl = whatsappNumber ? `https:
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
@@ -67,7 +66,7 @@ function SupportBlock() {
       </View>
 
       <BlockStack spacing="tight">
-        {/* 客服渠道按钮 */}
+        {}
         {(emailUrl || contactUrl || whatsappUrl || messengerUrl) && (
           <BlockStack spacing="extraTight">
             <Text size="small" appearance="subdued">联系客服：</Text>
@@ -103,8 +102,8 @@ function SupportBlock() {
             </InlineLayout>
           </BlockStack>
         )}
-        
-        {/* FAQ 按钮 */}
+
+        {}
         <Link to={faqUrl}>
           <Button kind="secondary" submit={false}>
             ❓ FAQ / 帮助中心

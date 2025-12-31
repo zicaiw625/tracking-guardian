@@ -119,7 +119,7 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                 对比结果
               </Text>
 
-              {/* 关键指标对比 */}
+              {}
               <Card>
                 <BlockStack gap="300">
                   <Text as="h5" variant="headingSm">
@@ -149,7 +149,7 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                 </BlockStack>
               </Card>
 
-              {/* 平台对比 */}
+              {}
               {comparisonData.platforms.length > 0 && (
                 <Card>
                   <BlockStack gap="300">
@@ -181,7 +181,7 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                 </Card>
               )}
 
-              {/* 改进建议 */}
+              {}
               {comparisonData.improvements.length > 0 && (
                 <Banner tone="info">
                   <BlockStack gap="200">
@@ -255,7 +255,6 @@ function generateComparisonData(
     },
   ];
 
-  // 计算平台级别的通过率
   const platformStats1 = calculatePlatformStats(report1);
   const platformStats2 = calculatePlatformStats(report2);
   const allPlatforms = new Set([
@@ -276,7 +275,6 @@ function generateComparisonData(
     };
   });
 
-  // 生成改进建议
   const improvements: string[] = [];
   if (report2.passRate < report1.passRate) {
     improvements.push("通过率有所下降，建议检查最近的配置更改");

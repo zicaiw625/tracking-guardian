@@ -1,17 +1,13 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Note: This test file provides a basic structure for batch audit service testing.
-// The actual implementation may vary, and these tests should be updated to match
-// the real service implementation.
-
 describe("Batch Audit Service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should have tests for batch audit functionality", () => {
-    // TODO: Add actual tests based on the implementation in batch-audit.server.ts
+
     expect(true).toBe(true);
   });
 });
@@ -116,7 +112,7 @@ describe("Batch Audit Service", () => {
 
   describe("getBatchAuditHistory", () => {
     it("should return empty array when no jobs exist", () => {
-      cleanupOldJobs(0); // Clear all jobs
+      cleanupOldJobs(0);
 
       const history = getBatchAuditHistory(10);
 
@@ -130,7 +126,7 @@ describe("Batch Audit Service", () => {
       };
 
       await startBatchAudit(options);
-      await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
+      await new Promise((resolve) => setTimeout(resolve, 10));
       await startBatchAudit(options);
 
       const history = getBatchAuditHistory(10);
@@ -167,7 +163,7 @@ describe("Batch Audit Service", () => {
 
       await startBatchAudit(options);
 
-      const cleaned = cleanupOldJobs(0); // Clean up everything
+      const cleaned = cleanupOldJobs(0);
 
       expect(cleaned).toBeGreaterThan(0);
     });
@@ -180,7 +176,7 @@ describe("Batch Audit Service", () => {
 
       await startBatchAudit(options);
 
-      const cleaned = cleanupOldJobs(24 * 60 * 60 * 1000); // 24 hours
+      const cleaned = cleanupOldJobs(24 * 60 * 60 * 1000);
 
       expect(cleaned).toBe(0);
     });

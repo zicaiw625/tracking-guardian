@@ -24,10 +24,9 @@ function SupportOrderStatus() {
   const whatsappNumber = settings.support_whatsapp_number as string | undefined;
   const messengerUrl = settings.support_messenger_url as string | undefined;
   const continueShoppingUrl = (settings.continue_shopping_url as string) || "/";
-  
-  // 生成联系链接
+
   const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
-  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber.replace(/[^0-9]/g, "")}` : undefined;
+  const whatsappUrl = whatsappNumber ? `https:
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
@@ -66,7 +65,7 @@ function SupportOrderStatus() {
       </View>
 
       <BlockStack spacing="tight">
-        {/* 客服渠道按钮 */}
+        {}
         {(emailUrl || contactUrl || whatsappUrl || messengerUrl) && (
           <BlockStack spacing="extraTight">
             <Text size="small" appearance="subdued">联系客服：</Text>
@@ -102,8 +101,8 @@ function SupportOrderStatus() {
             </InlineLayout>
           </BlockStack>
         )}
-        
-        {/* FAQ 按钮 */}
+
+        {}
         <Link to={faqUrl}>
           <Button kind="secondary" submit={false}>
             ❓ FAQ / 帮助中心

@@ -38,15 +38,15 @@ export interface BatchAuditSummary {
   mediumRiskCount: number;
   lowRiskCount: number;
   platformBreakdown: Record<string, number>;
-  // 增强：更多统计信息
+
   totalAssetsFound?: number;
   avgAssetsPerShop?: number;
   shopsWithHighRisk?: number;
   shopsWithMediumRisk?: number;
   shopsWithLowRisk?: number;
-  migrationReadyCount?: number; // 可以开始迁移的店铺数量
+  migrationReadyCount?: number;
   topRiskCategories?: Array<{ category: string; count: number }>;
-  errorBreakdown?: Record<string, number>; // errorType -> count
+  errorBreakdown?: Record<string, number>;
 }
 
 export interface BatchAuditResult {
@@ -71,19 +71,19 @@ export interface BatchAuditJob {
   result?: BatchAuditResult;
   createdAt: Date;
   updatedAt: Date;
-  // 增强：详细进度跟踪
+
   progressDetails?: {
     total: number;
     completed: number;
     failed: number;
     skipped: number;
-    current: string[]; // 正在处理的店铺ID列表
-    completedShops: string[]; // 已完成的店铺ID列表
-    failedShops: string[]; // 失败的店铺ID列表
+    current: string[];
+    completedShops: string[];
+    failedShops: string[];
   };
-  // 增强：错误统计
+
   errorSummary?: {
-    byType: Record<string, number>; // errorType -> count
+    byType: Record<string, number>;
     recentErrors: Array<{ shopDomain: string; error: string; errorType: string }>;
   };
 }
@@ -333,7 +333,7 @@ async function createAdminClientForShop(shopDomain: string): Promise<{
 
 function classifyError(error: unknown): "permission" | "network" | "timeout" | "unknown" {
   if (!(error instanceof Error)) return "unknown";
-  
+
   const message = error.message.toLowerCase();
   if (message.includes("permission") || message.includes("access") || message.includes("unauthorized") || message.includes("401") || message.includes("403")) {
     return "permission";
@@ -389,7 +389,7 @@ async function scanShopWithRetry(
     } catch (err) {
       lastError = err;
       errorType = classifyError(err);
-      
+
       logger.warn(`Batch audit attempt ${attempt}/${maxRetries + 1} failed for shop ${member.shopDomain}:`, {
         error: err instanceof Error ? err.message : "Unknown error",
         errorType,
@@ -445,7 +445,6 @@ async function executeBatchAuditAsync(
   });
   const recentlyScannedIds = new Set(recentScans.map((s) => s.shopId));
 
-  // 更新进度详情：初始化当前处理的店铺列表
   if (job.progressDetails) {
     const firstBatch = groupDetails.members.slice(0, options.concurrency);
     job.progressDetails.current = firstBatch.map((m) => m.shopId);
@@ -454,7 +453,6 @@ async function executeBatchAuditAsync(
   for (let i = 0; i < groupDetails.members.length; i += options.concurrency) {
     const batch = groupDetails.members.slice(i, i + options.concurrency);
 
-    // 更新当前处理的店铺列表
     if (job.progressDetails) {
       job.progressDetails.current = batch.map((m) => m.shopId);
     }
@@ -479,8 +477,7 @@ async function executeBatchAuditAsync(
     for (const result of batchResults) {
       if (result.status === "fulfilled") {
         results.push(result.value);
-        
-        // 更新进度详情
+
         if (job.progressDetails) {
           if (result.value.status === "success") {
             job.progressDetails.completed++;
@@ -488,17 +485,16 @@ async function executeBatchAuditAsync(
           } else if (result.value.status === "failed") {
             job.progressDetails.failed++;
             job.progressDetails.failedShops.push(result.value.shopId);
-            
-            // 更新错误统计
+
             if (job.errorSummary && result.value.errorType) {
-              job.errorSummary.byType[result.value.errorType] = 
+              job.errorSummary.byType[result.value.errorType] =
                 (job.errorSummary.byType[result.value.errorType] || 0) + 1;
               job.errorSummary.recentErrors.push({
                 shopDomain: result.value.shopDomain,
                 error: result.value.error || "未知错误",
                 errorType: result.value.errorType,
               });
-              // 只保留最近20个错误
+
               if (job.errorSummary.recentErrors.length > 20) {
                 job.errorSummary.recentErrors.shift();
               }
@@ -519,10 +515,8 @@ async function executeBatchAuditAsync(
       }
     }
 
-    // 更新总体进度
     job.progress = Math.round((results.length / totalShops) * 100);
-    
-    // 清除当前处理的店铺列表（这批已完成）
+
     if (job.progressDetails) {
       job.progressDetails.current = [];
     }
@@ -580,7 +574,6 @@ async function calculateSummary(results: ShopAuditResult[]): Promise<BatchAuditS
     }
   }
 
-  // 增强：错误统计
   const errorBreakdown: Record<string, number> = {};
   for (const result of results) {
     if (result.status === "failed" && result.errorType) {
@@ -588,23 +581,20 @@ async function calculateSummary(results: ShopAuditResult[]): Promise<BatchAuditS
     }
   }
 
-  // 增强：统计店铺风险等级分布
   const shopsWithHighRisk = successResults.filter((r) => (r.riskScore || 0) > 60).length;
   const shopsWithMediumRisk = successResults.filter(
     (r) => (r.riskScore || 0) > 30 && (r.riskScore || 0) <= 60
   ).length;
   const shopsWithLowRisk = successResults.filter((r) => (r.riskScore || 0) <= 30).length;
 
-  // 增强：计算可以开始迁移的店铺数量（高风险或中等风险的店铺）
   const migrationReadyCount = highRiskCount + mediumRiskCount;
 
-  // 增强：统计资产数量和风险分类
   let totalAssetsFound = 0;
   const riskCategoryCounts: Record<string, number> = {};
   const shopIds = successResults.map((r) => r.shopId).filter(Boolean) as string[];
 
   if (shopIds.length > 0) {
-    // 查询所有成功扫描的店铺的 AuditAsset 记录
+
     const assets = await prisma.auditAsset.findMany({
       where: {
         shopId: { in: shopIds },
@@ -629,7 +619,6 @@ async function calculateSummary(results: ShopAuditResult[]): Promise<BatchAuditS
         ? Array.from(assetsByShop.values()).reduce((sum, count) => sum + count, 0) / assetsByShop.size
         : 0;
 
-    // 统计风险分类
     const topRiskCategories = Object.entries(riskCategoryCounts)
       .map(([key, count]) => {
         const [category, riskLevel] = key.split("_");
@@ -691,18 +680,12 @@ export function cleanupOldJobs(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
   return cleaned;
 }
 
-/**
- * 获取批量Audit任务历史记录
- */
 export function getBatchAuditHistory(limit: number = 20): BatchAuditJob[] {
   return Array.from(batchAuditJobs.values())
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, limit);
 }
 
-/**
- * 按分组ID获取批量Audit任务历史
- */
 export function getBatchAuditHistoryByGroup(groupId: string, limit: number = 10): BatchAuditJob[] {
   return Array.from(batchAuditJobs.values())
     .filter((job) => job.groupId === groupId)
@@ -710,9 +693,6 @@ export function getBatchAuditHistoryByGroup(groupId: string, limit: number = 10)
     .slice(0, limit);
 }
 
-/**
- * 获取批量Audit结果统计（汇总所有任务）
- */
 export function getBatchAuditStatistics(): {
   totalJobs: number;
   completedJobs: number;
@@ -726,7 +706,7 @@ export function getBatchAuditStatistics(): {
 } {
   const jobs = Array.from(batchAuditJobs.values());
   const completedJobs = jobs.filter((j) => j.status === "completed" && j.result);
-  
+
   let totalShopsScanned = 0;
   let totalSuccess = 0;
   let totalFailed = 0;

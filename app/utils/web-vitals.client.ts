@@ -30,7 +30,7 @@ function getRating(metric: Metric): "good" | "needs-improvement" | "poor" {
 
 function sendToAnalytics(metric: WebVitalsMetric) {
   const body = JSON.stringify(metric);
-  
+
   if (navigator.sendBeacon) {
     navigator.sendBeacon("/api/performance", body);
   } else {

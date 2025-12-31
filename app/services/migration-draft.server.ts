@@ -17,9 +17,6 @@ export interface MigrationDraftData {
 
 const DRAFT_EXPIRY_DAYS = 7;
 
-/**
- * 保存迁移向导草稿
- */
 export async function saveMigrationDraft(
   shopId: string,
   step: WizardStep,
@@ -56,9 +53,6 @@ export async function saveMigrationDraft(
   }
 }
 
-/**
- * 获取迁移向导草稿
- */
 export async function getMigrationDraft(
   shopId: string
 ): Promise<{ step: WizardStep; configData: MigrationDraftData } | null> {
@@ -71,9 +65,8 @@ export async function getMigrationDraft(
       return null;
     }
 
-    // 检查是否过期
     if (draft.expiresAt < new Date()) {
-      // 删除过期草稿
+
       await prisma.migrationDraft.delete({
         where: { id: draft.id },
       });
@@ -91,9 +84,6 @@ export async function getMigrationDraft(
   }
 }
 
-/**
- * 删除迁移向导草稿
- */
 export async function deleteMigrationDraft(shopId: string): Promise<boolean> {
   try {
     await prisma.migrationDraft.deleteMany({
@@ -107,9 +97,6 @@ export async function deleteMigrationDraft(shopId: string): Promise<boolean> {
   }
 }
 
-/**
- * 清理过期的草稿（用于 cron 任务）
- */
 export async function cleanupExpiredDrafts(): Promise<number> {
   try {
     const result = await prisma.migrationDraft.deleteMany({

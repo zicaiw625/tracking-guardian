@@ -4,9 +4,6 @@ import { logger } from "../utils/logger.server";
 import type { VerificationSummary } from "./verification.server";
 import { generateChecklistMarkdown, generateChecklistCSV } from "./verification-checklist.server";
 
-/**
- * 生成详细的验收报告（PDF/CSV 格式）
- */
 export interface VerificationReportData {
   runId: string;
   shopId: string;
@@ -42,9 +39,6 @@ export interface VerificationReportData {
   }>;
 }
 
-/**
- * 生成验收报告数据
- */
 export async function generateVerificationReportData(
   shopId: string,
   runId: string
@@ -98,9 +92,6 @@ export async function generateVerificationReportData(
   };
 }
 
-/**
- * 生成验收报告 CSV
- */
 export function generateVerificationReportCSV(data: VerificationReportData): string {
   const headers = [
     "测试项",
@@ -130,7 +121,6 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
     event.errors?.join("; ") || "",
   ]);
 
-  // 添加摘要行
   const summaryRow = [
     "摘要",
     "",
@@ -159,18 +149,14 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
   return csv;
 }
 
-/**
- * 生成验收报告 PDF（使用 HTML 转 PDF）
- */
 export async function generateVerificationReportPDF(
   data: VerificationReportData
 ): Promise<{ buffer: Buffer; filename: string } | null> {
   try {
     const html = generateVerificationReportHTML(data);
-    
-    // 使用现有的 PDF 生成器
+
     const htmlToPdfModule = await import("./pdf-generator.server");
-    // htmlToPdf 是导出的函数
+
     const buffer = await htmlToPdfModule.htmlToPdf(html, {
       format: "A4",
       landscape: false,
@@ -195,9 +181,6 @@ export async function generateVerificationReportPDF(
   }
 }
 
-/**
- * 生成验收报告 HTML（用于 PDF 生成）
- */
 function generateVerificationReportHTML(data: VerificationReportData): string {
   const formatDate = (date?: Date) => {
     if (!date) return "未开始";
@@ -249,7 +232,7 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
 </head>
 <body>
   <h1>验收报告</h1>
-  
+
   <div class="summary-box">
     <h2>报告信息</h2>
     <p><strong>报告名称:</strong> ${data.runName}</p>
@@ -341,12 +324,11 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
   </table>
   `;
 
-  // 添加渠道对账部分
   if (data.reconciliation) {
     html += `
   <div class="reconciliation-section">
     <h2>渠道对账结果</h2>
-    
+
     ${data.reconciliation.pixelVsCapi ? `
     <h3>Pixel vs CAPI</h3>
     <ul>
@@ -356,7 +338,7 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
       <li>被同意策略阻止: ${data.reconciliation.pixelVsCapi.consentBlocked}</li>
     </ul>
     ` : ""}
-    
+
     ${data.reconciliation.localConsistency ? `
     <h3>本地一致性检查</h3>
     <p>检查订单数: ${data.reconciliation.localConsistency.totalChecked}</p>
@@ -365,7 +347,7 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
       <li>部分一致: ${data.reconciliation.localConsistency.partial}</li>
       <li>不一致: ${data.reconciliation.localConsistency.inconsistent}</li>
     </ul>
-    
+
     ${data.reconciliation.localConsistency.issues.length > 0 ? `
     <h4>问题订单</h4>
     ${data.reconciliation.localConsistency.issues.map((issue) => `
@@ -378,7 +360,7 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
     `).join("")}
     ` : ""}
     ` : ""}
-    
+
     ${data.reconciliation.consistencyIssues && data.reconciliation.consistencyIssues.length > 0 ? `
     <h3>一致性问题</h3>
     <ul>

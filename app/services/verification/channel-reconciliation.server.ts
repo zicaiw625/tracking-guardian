@@ -50,9 +50,6 @@ export interface MultiPlatformReconciliationResult {
   };
 }
 
-/**
- * 增强的渠道对账服务 - 提供多平台对比和详细的差异分析
- */
 export async function performEnhancedChannelReconciliation(
   shopId: string,
   hours: number = 24
@@ -91,7 +88,6 @@ export async function performEnhancedChannelReconciliation(
     };
   }
 
-  // 获取 Shopify 订单数据
   const shopifyOrders = await prisma.conversionJob.findMany({
     where: {
       shopId,
@@ -116,7 +112,6 @@ export async function performEnhancedChannelReconciliation(
     0
   );
 
-  // 按平台分析
   const platformComparisons: PlatformComparison[] = [];
   const platformOrderMaps: Record<string, Set<string>> = {};
   const platformValueMaps: Record<string, Map<string, number>> = {};
@@ -124,7 +119,6 @@ export async function performEnhancedChannelReconciliation(
   for (const config of shop.pixelConfigs) {
     const platform = config.platform;
 
-    // 获取平台事件日志
     const platformLogs = await prisma.conversionLog.findMany({
       where: {
         shopId,
@@ -156,7 +150,6 @@ export async function performEnhancedChannelReconciliation(
       platformLogs.map((l) => [l.orderId, Number(l.orderValue || 0)])
     );
 
-    // 找出缺失的订单
     const missingOrders: string[] = [];
     for (const orderId of shopifyOrderIds) {
       if (!platformOrderIds.has(orderId)) {
@@ -164,7 +157,6 @@ export async function performEnhancedChannelReconciliation(
       }
     }
 
-    // 找出重复的订单（同一订单ID出现多次）
     const orderIdCounts = new Map<string, number>();
     platformLogs.forEach((log) => {
       orderIdCounts.set(
@@ -176,7 +168,6 @@ export async function performEnhancedChannelReconciliation(
       .filter(([, count]) => count > 1)
       .map(([orderId]) => orderId);
 
-    // 计算匹配率和差异
     const matchRate =
       shopifyOrderIds.size > 0
         ? (platformOrderIds.size / shopifyOrderIds.size) * 100
@@ -190,10 +181,8 @@ export async function performEnhancedChannelReconciliation(
     const valueDiscrepancyRate =
       shopifyTotalValue > 0 ? (valueDiscrepancy / shopifyTotalValue) * 100 : 0;
 
-    // 识别问题
     const issues: ReconciliationIssue[] = [];
 
-    // 缺失订单问题
     if (missingOrders.length > 0) {
       const missingRate = (missingOrders.length / shopifyOrderIds.size) * 100;
       issues.push({
@@ -207,7 +196,6 @@ export async function performEnhancedChannelReconciliation(
       });
     }
 
-    // 金额差异问题
     if (valueDiscrepancyRate > 5) {
       issues.push({
         type: "value_mismatch",
@@ -222,7 +210,6 @@ export async function performEnhancedChannelReconciliation(
       });
     }
 
-    // 重复订单问题
     if (duplicateOrders.length > 0) {
       issues.push({
         type: "duplicate_order",
@@ -247,7 +234,7 @@ export async function performEnhancedChannelReconciliation(
         valueDiscrepancyRate: Math.round(valueDiscrepancyRate * 100) / 100,
         shopifyTotalValue: Math.round(shopifyTotalValue * 100) / 100,
         platformTotalValue: Math.round(platformTotalValue * 100) / 100,
-        missingOrders: missingOrders.slice(0, 50), // 限制返回数量
+        missingOrders: missingOrders.slice(0, 50),
         duplicateOrders: duplicateOrders.slice(0, 50),
         lastCheckedAt: now,
       },
@@ -255,14 +242,12 @@ export async function performEnhancedChannelReconciliation(
     });
   }
 
-  // 跨平台分析
   const allPlatforms = Object.keys(platformOrderMaps);
   const commonMissingOrders: string[] = [];
   const platformsWithDiscrepancies: string[] = [];
   const platformsInAgreement: string[] = [];
   const valueVarianceByPlatform: Record<string, number> = {};
 
-  // 找出所有平台都缺失的订单
   if (allPlatforms.length > 1) {
     for (const orderId of shopifyOrderIds) {
       const missingInAllPlatforms = allPlatforms.every(
@@ -274,7 +259,6 @@ export async function performEnhancedChannelReconciliation(
     }
   }
 
-  // 找出有差异的平台
   platformComparisons.forEach((comparison) => {
     if (comparison.stats.discrepancyRate > 5 || comparison.issues.length > 0) {
       platformsWithDiscrepancies.push(comparison.platform);
@@ -282,18 +266,16 @@ export async function performEnhancedChannelReconciliation(
       platformsInAgreement.push(comparison.platform);
     }
 
-    // 计算金额方差
     const platformValues = Array.from(platformValueMaps[comparison.platform].values());
     if (platformValues.length > 0) {
       const mean = platformValues.reduce((sum, v) => sum + v, 0) / platformValues.length;
       const variance =
         platformValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) /
         platformValues.length;
-      valueVarianceByPlatform[comparison.platform] = Math.sqrt(variance); // 标准差
+      valueVarianceByPlatform[comparison.platform] = Math.sqrt(variance);
     }
   });
 
-  // 计算总体匹配率（使用所有平台的平均值）
   const overallMatchRate =
     platformComparisons.length > 0
       ? platformComparisons.reduce((sum, p) => sum + p.stats.matchRate, 0) /
@@ -316,15 +298,12 @@ export async function performEnhancedChannelReconciliation(
     crossPlatformAnalysis: {
       platformsInAgreement,
       platformsWithDiscrepancies,
-      commonMissingOrders: commonMissingOrders.slice(0, 100), // 限制返回数量
+      commonMissingOrders: commonMissingOrders.slice(0, 100),
       valueVarianceByPlatform,
     },
   };
 }
 
-/**
- * 获取特定订单的跨平台对比详情
- */
 export async function getOrderCrossPlatformComparison(
   shopId: string,
   orderId: string
@@ -351,7 +330,7 @@ export async function getOrderCrossPlatformComparison(
     message: string;
   }>;
 }> {
-  // 获取 Shopify 订单
+
   const shopifyOrder = await prisma.conversionJob.findFirst({
     where: {
       shopId,
@@ -366,7 +345,6 @@ export async function getOrderCrossPlatformComparison(
     },
   });
 
-  // 获取所有平台的事件
   const platformEvents = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -383,7 +361,6 @@ export async function getOrderCrossPlatformComparison(
     },
   });
 
-  // 获取已配置的平台
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     include: {
@@ -398,7 +375,6 @@ export async function getOrderCrossPlatformComparison(
     shop?.pixelConfigs.map((c) => c.platform) || [];
   const platformsWithEvents = new Set(platformEvents.map((e) => e.platform));
 
-  // 识别差异
   const discrepancies: Array<{
     platform: string;
     type: "missing" | "value_mismatch" | "timing_delay";
@@ -430,7 +406,6 @@ export async function getOrderCrossPlatformComparison(
           });
         }
 
-        // 检查时间延迟（超过5分钟）
         const timeDiff = platformEvent.createdAt.getTime() - shopifyOrder.createdAt.getTime();
         if (timeDiff > 5 * 60 * 1000) {
           discrepancies.push({

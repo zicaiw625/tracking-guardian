@@ -34,7 +34,7 @@ export async function createWorkspaceComment(
   authorShopId: string
 ): Promise<{ id: string } | { error: string }> {
   try {
-    // 如果指定了分组，验证权限
+
     if (input.groupId) {
       const group = await getShopGroupDetails(input.groupId, authorShopId);
       if (!group) {
@@ -47,7 +47,6 @@ export async function createWorkspaceComment(
       }
     }
 
-    // 验证目标存在
     let targetExists = false;
     switch (input.targetType) {
       case "shop":
@@ -80,7 +79,6 @@ export async function createWorkspaceComment(
       return { error: "目标不存在" };
     }
 
-    // 如果是对评论的回复，验证父评论存在
     if (input.parentCommentId) {
       const parentComment = await prisma.workspaceComment.findUnique({
         where: { id: input.parentCommentId },
@@ -105,13 +103,12 @@ export async function createWorkspaceComment(
       },
     });
 
-    // 如果有提及，记录日志（未来可以发送通知）
     if (input.mentionedShopIds && input.mentionedShopIds.length > 0) {
       logger.info("Workspace comment mentions detected", {
         commentId: comment.id,
         mentionedShopIds: input.mentionedShopIds,
       });
-      // TODO: 发送提及通知
+
     }
 
     logger.info(`Workspace comment created: ${comment.id} by ${authorShopId}`);
@@ -132,7 +129,7 @@ export async function getWorkspaceComments(
     where: {
       targetType,
       targetId,
-      parentCommentId: null, // 只获取顶级评论
+      parentCommentId: null,
     },
     include: {
       group: {
@@ -154,7 +151,6 @@ export async function getWorkspaceComments(
     orderBy: { createdAt: "asc" },
   });
 
-  // 获取所有作者店铺信息
   const authorShopIds = new Set<string>();
   comments.forEach((c) => {
     authorShopIds.add(c.authorShopId);
@@ -199,7 +195,6 @@ export async function deleteWorkspaceComment(
       return { error: "评论不存在" };
     }
 
-    // 只有作者可以删除自己的评论
     if (comment.authorShopId !== deletedByShopId) {
       return { error: "无权删除此评论" };
     }

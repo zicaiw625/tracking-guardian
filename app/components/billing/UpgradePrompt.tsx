@@ -33,7 +33,7 @@ export function UpgradePrompt({
   const recommendedPlan = upgradeOptions[0];
 
   if (!recommendedPlan) {
-    return null; // 已经是最高套餐
+    return null;
   }
 
   const recommendedPlanConfig = getPlanConfig(recommendedPlan);

@@ -3,7 +3,7 @@ import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 
 export interface SuccessRateByDestination {
-  destination: string; // 平台名称
+  destination: string;
   total: number;
   successful: number;
   failed: number;
@@ -67,9 +67,6 @@ export interface SuccessRateTrend {
   overall: SuccessRateHistory[];
 }
 
-/**
- * 获取事件成功率/失败率统计（按目的地和事件类型）
- */
 export async function getEventSuccessRateStats(
   shopId: string,
   hours: number = 24
@@ -90,7 +87,6 @@ export async function getEventSuccessRateStats(
     },
   });
 
-  // 总体统计
   const total = logs.length;
   const successful = logs.filter((l) => l.status === "sent").length;
   const failed = logs.filter((l) => l.status === "failed" || l.status === "dead_letter").length;
@@ -105,9 +101,8 @@ export async function getEventSuccessRateStats(
     failureRate: total > 0 ? (failed / total) * 100 : 0,
   };
 
-  // 按目的地统计
   const destinationMap = new Map<string, { total: number; successful: number; failed: number; pending: number }>();
-  
+
   logs.forEach((log) => {
     const dest = log.platform;
     if (!destinationMap.has(dest)) {
@@ -134,9 +129,8 @@ export async function getEventSuccessRateStats(
     failureRate: stats.total > 0 ? (stats.failed / stats.total) * 100 : 0,
   })).sort((a, b) => b.total - a.total);
 
-  // 按事件类型统计
   const eventTypeMap = new Map<string, { total: number; successful: number; failed: number; pending: number }>();
-  
+
   logs.forEach((log) => {
     const eventType = log.eventType;
     if (!eventTypeMap.has(eventType)) {
@@ -163,9 +157,8 @@ export async function getEventSuccessRateStats(
     failureRate: stats.total > 0 ? (stats.failed / stats.total) * 100 : 0,
   })).sort((a, b) => b.total - a.total);
 
-  // 按目的地和事件类型组合统计
   const destinationEventTypeMap = new Map<string, { total: number; successful: number; failed: number }>();
-  
+
   logs.forEach((log) => {
     const key = `${log.platform}:${log.eventType}`;
     if (!destinationEventTypeMap.has(key)) {
@@ -206,9 +199,6 @@ export async function getEventSuccessRateStats(
   };
 }
 
-/**
- * 获取成功率历史趋势数据（按小时）
- */
 export async function getEventSuccessRateHistory(
   shopId: string,
   hours: number = 24
@@ -233,7 +223,6 @@ export async function getEventSuccessRateHistory(
     },
   });
 
-  // 按小时分组
   const hourMap = new Map<string, { total: number; successful: number; failed: number }>();
   const destinationHourMap = new Map<string, Map<string, { total: number; successful: number; failed: number }>>();
   const eventTypeHourMap = new Map<string, Map<string, { total: number; successful: number; failed: number }>>();
@@ -244,7 +233,6 @@ export async function getEventSuccessRateHistory(
     const hour = date.getHours();
     const hourKey = `${dateStr}:${hour}`;
 
-    // 总体统计
     if (!hourMap.has(hourKey)) {
       hourMap.set(hourKey, { total: 0, successful: 0, failed: 0 });
     }
@@ -256,7 +244,6 @@ export async function getEventSuccessRateHistory(
       overallStats.failed++;
     }
 
-    // 按目的地统计
     const destination = log.platform;
     if (!destinationHourMap.has(destination)) {
       destinationHourMap.set(destination, new Map());
@@ -273,7 +260,6 @@ export async function getEventSuccessRateHistory(
       destStats.failed++;
     }
 
-    // 按事件类型统计
     const eventType = log.eventType;
     if (!eventTypeHourMap.has(eventType)) {
       eventTypeHourMap.set(eventType, new Map());
@@ -291,7 +277,6 @@ export async function getEventSuccessRateHistory(
     }
   });
 
-  // 转换为数组格式
   const overall: SuccessRateHistory[] = Array.from(hourMap.entries()).map(([key, stats]) => {
     const [date, hourStr] = key.split(":");
     return {
@@ -353,9 +338,6 @@ export async function getEventSuccessRateHistory(
   };
 }
 
-/**
- * 获取成功率对比（不同时间段的对比）
- */
 export async function compareSuccessRates(
   shopId: string,
   currentHours: number = 24,
@@ -377,7 +359,6 @@ export async function compareSuccessRates(
     getEventSuccessRateStats(shopId, previousHours),
   ]);
 
-  // 计算变化
   const overallChange = {
     successRateChange: current.overall.successRate - previous.overall.successRate,
     failureRateChange: current.overall.failureRate - previous.overall.failureRate,

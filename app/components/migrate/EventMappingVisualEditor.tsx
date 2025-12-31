@@ -41,7 +41,7 @@ interface EventMappingVisualEditorProps {
   platform: Platform;
   mappings: Record<string, string>;
   onMappingChange: (shopifyEvent: string, platformEvent: string) => void;
-  showPreview?: boolean; // 是否显示实时预览
+  showPreview?: boolean;
 }
 
 const SHOPIFY_EVENTS: ShopifyEvent[] = [
@@ -303,7 +303,6 @@ export function EventMappingVisualEditor({
     }));
   }, []);
 
-  // 拖拽处理函数
   const handleDragStart = useCallback((shopifyEventId: string) => {
     setDraggedShopifyEvent(shopifyEventId);
   }, []);
@@ -326,7 +325,7 @@ export function EventMappingVisualEditor({
   const handleDrop = useCallback((e: React.DragEvent, platformEventId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (draggedShopifyEvent) {
       onMappingChange(draggedShopifyEvent, platformEventId);
       setDraggedShopifyEvent(null);
@@ -334,7 +333,6 @@ export function EventMappingVisualEditor({
     }
   }, [draggedShopifyEvent, onMappingChange]);
 
-  // 一键应用推荐映射
   const applyRecommendedMappings = useCallback(() => {
     const recommended = RECOMMENDED_MAPPINGS[platform];
     Object.entries(recommended).forEach(([shopifyEvent, platformEvent]) => {
@@ -371,7 +369,7 @@ export function EventMappingVisualEditor({
             alignItems: "start",
           }}
         >
-          {/* 左侧：Shopify 事件列表 */}
+          {}
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm" fontWeight="semibold">
               Shopify 标准事件
@@ -428,7 +426,7 @@ export function EventMappingVisualEditor({
             })}
           </BlockStack>
 
-          {/* 中间：连接区域 */}
+          {}
           <Box
             style={{
               display: "flex",
@@ -444,7 +442,7 @@ export function EventMappingVisualEditor({
             </Text>
           </Box>
 
-          {/* 右侧：平台事件列表 */}
+          {}
           <BlockStack gap="300">
             <Text as="h4" variant="headingSm" fontWeight="semibold">
               {PLATFORM_NAMES[platform]} 事件
@@ -565,7 +563,7 @@ export function EventMappingVisualEditor({
               </Banner>
             )}
 
-            {/* 显示所有平台事件 */}
+            {}
             <Divider />
             <BlockStack gap="200">
               <Text as="span" variant="bodySm" fontWeight="semibold" tone="subdued">
@@ -617,7 +615,7 @@ export function EventMappingVisualEditor({
           </BlockStack>
         </Box>
 
-        {/* 映射关系总览 */}
+        {}
         <Divider />
         <BlockStack gap="300">
           <Text as="h4" variant="headingSm">

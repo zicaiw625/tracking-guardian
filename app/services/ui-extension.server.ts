@@ -268,7 +268,6 @@ export async function updateUiModuleConfig(
 
     logger.info(`UI module config updated`, { shopId, moduleKey, isEnabled: config.isEnabled });
 
-    // 如果启用了同步选项且有 admin context，则同步到扩展
     if (options?.syncToExtension && options?.admin) {
       const { syncSingleModule } = await import("./ui-extension-sync.server");
       const syncResult = await syncSingleModule(shopId, moduleKey, options.admin);
@@ -278,7 +277,7 @@ export async function updateUiModuleConfig(
           moduleKey,
           error: syncResult.error,
         });
-        // 不同步失败不影响数据库更新，只记录警告
+
       }
     }
 

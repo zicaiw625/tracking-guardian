@@ -64,7 +64,7 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
       <Card>
         <EmptyState
           heading="暂无版本历史"
-          image="https://cdn.shopify.com/s/files/1/0757/9955/files/empty-state.svg"
+          image="https:
         >
           <p>配置变更历史将显示在这里</p>
         </EmptyState>

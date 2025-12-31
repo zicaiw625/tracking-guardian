@@ -248,7 +248,7 @@ export function EventMappingEditor({
   const [bulkMappingValue, setBulkMappingValue] = useState<string>("");
   const [showComparison, setShowComparison] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<Record<string, boolean>>({});
-  const [eventOrder, setEventOrder] = useState<string[]>(() => 
+  const [eventOrder, setEventOrder] = useState<string[]>(() =>
     SHOPIFY_EVENTS.map(e => e.id)
   );
   const platformEvents = PLATFORM_EVENTS[platform];
@@ -333,12 +333,11 @@ export function EventMappingEditor({
     [platform, validateMapping]
   );
 
-  // 生成事件预览 JSON
   const generateEventPreview = useCallback(
     (shopifyEventId: string, platformEventId: string) => {
       const shopifyEvent = SHOPIFY_EVENTS.find(e => e.id === shopifyEventId);
       const platformEvent = platformEvents.find(e => e.id === platformEventId);
-      
+
       if (!shopifyEvent || !platformEvent) return null;
 
       const preview: Record<string, any> = {
@@ -347,14 +346,12 @@ export function EventMappingEditor({
         event_id: "preview_event_id_" + Date.now(),
       };
 
-      // 添加必需的参数
       platformEvent.requiredParams.forEach(param => {
         if (shopifyEvent.availableParams.includes(param)) {
           preview[param] = param === "value" ? "99.99" : param === "currency" ? "USD" : param === "items" ? [] : "sample_value";
         }
       });
 
-      // 添加可选参数
       platformEvent.optionalParams.forEach(param => {
         if (shopifyEvent.availableParams.includes(param)) {
           preview[param] = param === "items" || param === "contents" || param === "line_items" ? [] : "sample_value";
@@ -366,11 +363,10 @@ export function EventMappingEditor({
     [platformEvents]
   );
 
-  // 事件排序功能
   const moveEventUp = useCallback((eventId: string) => {
     const currentIndex = eventOrder.indexOf(eventId);
     if (currentIndex <= 0) return;
-    
+
     const newOrder = [...eventOrder];
     [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
     setEventOrder(newOrder);
@@ -379,13 +375,12 @@ export function EventMappingEditor({
   const moveEventDown = useCallback((eventId: string) => {
     const currentIndex = eventOrder.indexOf(eventId);
     if (currentIndex >= eventOrder.length - 1) return;
-    
+
     const newOrder = [...eventOrder];
     [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
     setEventOrder(newOrder);
   }, [eventOrder]);
 
-  // 按顺序获取事件
   const orderedEvents = useMemo(() => {
     const eventMap = new Map(SHOPIFY_EVENTS.map(e => [e.id, e]));
     return eventOrder.map(id => eventMap.get(id)).filter(Boolean) as ShopifyEvent[];
@@ -529,7 +524,7 @@ export function EventMappingEditor({
                     const isRecommended = currentMapping === recommendedMapping;
                     const platformEvent = platformEvents.find(e => e.id === currentMapping);
                     const recommendedPlatformEvent = platformEvents.find(e => e.id === recommendedMapping);
-                    
+
                     return [
                       shopifyEvent.name,
                       currentMapping ? `${platformEvent?.name || currentMapping}` : "未映射",
@@ -565,7 +560,7 @@ export function EventMappingEditor({
               )}
             </InlineStack>
           </InlineStack>
-          
+
           {orderedEvents.map((shopifyEvent, index) => {
             const currentMapping = mappings[shopifyEvent.id] || "";
             const mappingStatus = currentMapping
@@ -682,7 +677,7 @@ export function EventMappingEditor({
                         <Text as="span" variant="bodySm" tone="subdued">
                           这是发送到 {PLATFORM_NAMES[platform]} 的事件格式预览。实际发送时会使用订单的真实数据。
                         </Text>
-                        {/* 增强：显示事件参数映射详情 */}
+                        {}
                         <Divider />
                         <BlockStack gap="200">
                           <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -692,13 +687,13 @@ export function EventMappingEditor({
                             {(() => {
                               const platformEventDef = platformEvents.find((e) => e.id === currentMapping);
                               if (!platformEventDef) return null;
-                              
+
                               const mappedParams = platformEventDef.requiredParams
                                 .concat(platformEventDef.optionalParams)
                                 .filter(param => shopifyEvent.availableParams.includes(param));
                               const missingParams = platformEventDef.requiredParams
                                 .filter(param => !shopifyEvent.availableParams.includes(param));
-                              
+
                               return (
                                 <>
                                   {mappedParams.length > 0 && (

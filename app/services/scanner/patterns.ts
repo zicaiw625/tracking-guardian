@@ -117,7 +117,7 @@ export const PLATFORM_PATTERNS: Record<string, RegExp[]> = {
     postscript: [
         /postscript/i,
     ],
-    // 新增平台识别模式
+
     shopify_analytics: [
         /shopify\.analytics/i,
         /shopify.*track/i,
@@ -404,49 +404,49 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         name: "Omnisend",
         supportLevel: "unsupported",
         recommendation: "Omnisend 官方应用支持 Webhook 追踪，建议使用官方应用",
-        officialApp: "https://apps.shopify.com/omnisend",
+        officialApp: "https:
     },
     yotpo: {
         name: "Yotpo",
         supportLevel: "unsupported",
         recommendation: "Yotpo 官方应用支持 Checkout Extensibility，建议使用官方应用",
-        officialApp: "https://apps.shopify.com/yotpo-social-reviews",
+        officialApp: "https:
     },
     judge_me: {
         name: "Judge.me",
         supportLevel: "unsupported",
         recommendation: "Judge.me 官方应用支持 Checkout Extensibility，建议使用官方应用",
-        officialApp: "https://apps.shopify.com/judgeme",
+        officialApp: "https:
     },
     loox: {
         name: "Loox",
         supportLevel: "unsupported",
         recommendation: "Loox 官方应用支持 Checkout Extensibility，建议使用官方应用",
-        officialApp: "https://apps.shopify.com/loox",
+        officialApp: "https:
     },
     stamped: {
         name: "Stamped.io",
         supportLevel: "unsupported",
         recommendation: "Stamped.io 官方应用支持 Checkout Extensibility，建议使用官方应用",
-        officialApp: "https://apps.shopify.com/stamped-io-reviews-and-ratings",
+        officialApp: "https:
     },
     gorgias: {
         name: "Gorgias",
         supportLevel: "unsupported",
         recommendation: "Gorgias 官方应用支持 Checkout Extensibility，建议使用官方应用",
-        officialApp: "https://apps.shopify.com/gorgias",
+        officialApp: "https:
     },
     zendesk: {
         name: "Zendesk",
         supportLevel: "unsupported",
         recommendation: "Zendesk 官方应用支持 Checkout Extensibility，建议使用官方应用",
-        officialApp: "https://apps.shopify.com/zendesk",
+        officialApp: "https:
     },
     intercom: {
         name: "Intercom",
         supportLevel: "unsupported",
         recommendation: "Intercom 官方应用支持 Checkout Extensibility，建议使用官方应用",
-        officialApp: "https://apps.shopify.com/intercom",
+        officialApp: "https:
     },
     drift: {
         name: "Drift",
@@ -462,7 +462,7 @@ export const PLATFORM_INFO: Record<string, PlatformInfo> = {
         name: "AfterShip",
         supportLevel: "unsupported",
         recommendation: "AfterShip 官方应用支持订单追踪，建议使用官方应用",
-        officialApp: "https://apps.shopify.com/aftership",
+        officialApp: "https:
     },
     seventeen_track: {
         name: "17Track",

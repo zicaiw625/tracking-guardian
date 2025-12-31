@@ -30,7 +30,7 @@ export async function getMonthlyUsage(
   const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
   const [currentMonthLogs, previousMonthLogs, currentMonthReceipts] = await Promise.all([
-    // 当前月的转化日志
+
     prisma.conversionLog.findMany({
       where: {
         shopId,
@@ -42,7 +42,7 @@ export async function getMonthlyUsage(
         orderId: true,
       },
     }),
-    // 上个月的转化日志
+
     prisma.conversionLog.findMany({
       where: {
         shopId,
@@ -56,7 +56,7 @@ export async function getMonthlyUsage(
         orderId: true,
       },
     }),
-    // 当前月的像素事件收据
+
     prisma.pixelEventReceipt.findMany({
       where: {
         shopId,
@@ -68,20 +68,17 @@ export async function getMonthlyUsage(
     }),
   ]);
 
-  // 统计当前月的订单数（去重）
   const currentMonthOrderIds = new Set([
     ...currentMonthLogs.map((log) => log.orderId),
     ...currentMonthReceipts.map((receipt) => receipt.orderId),
   ]);
   const currentMonthOrders = currentMonthOrderIds.size;
 
-  // 统计各平台事件数
   const platformCounts: Record<string, number> = {};
   currentMonthLogs.forEach((log) => {
     platformCounts[log.platform] = (platformCounts[log.platform] || 0) + 1;
   });
 
-  // 统计上个月的订单数
   const previousMonthOrderIds = new Set(previousMonthLogs.map((log) => log.orderId));
   const previousMonthOrders = previousMonthOrderIds.size;
 
@@ -89,7 +86,6 @@ export async function getMonthlyUsage(
   const usagePercentage = limit > 0 ? (currentMonthOrders / limit) * 100 : 0;
   const isOverLimit = limit > 0 && currentMonthOrders >= limit;
 
-  // 计算趋势
   let trend: "up" | "down" | "stable" = "stable";
   if (previousMonthOrders > 0) {
     const change = ((currentMonthOrders - previousMonthOrders) / previousMonthOrders) * 100;
@@ -133,7 +129,6 @@ export async function checkUsageLimit(
     };
   }
 
-  // 80% 时发出警告
   if (usage.usagePercentage >= 80 && usage.usagePercentage < 100) {
     logger.warn(`Usage approaching limit for shop ${shopId}`, {
       usagePercentage: usage.usagePercentage,

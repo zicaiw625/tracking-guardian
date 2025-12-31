@@ -65,7 +65,6 @@ export async function generateComprehensiveReport(
 
     const comprehensiveData: ComprehensiveReportData = reportData;
 
-    // 添加风险分析
     if (options.includeRiskAnalysis ?? true) {
       const auditAssets = await prisma.auditAsset.findMany({
         where: { shopId },
@@ -96,7 +95,6 @@ export async function generateComprehensiveReport(
       };
     }
 
-    // 添加事件统计
     if (options.includeEventStats ?? true) {
       const dateFilter = options.dateRange
         ? {
@@ -127,7 +125,7 @@ export async function generateComprehensiveReport(
       const byEventType: Record<string, number> = {};
 
       conversionLogs.forEach(log => {
-        // 按平台统计
+
         if (!byPlatform[log.platform]) {
           byPlatform[log.platform] = { total: 0, success: 0, failed: 0 };
         }
@@ -138,7 +136,6 @@ export async function generateComprehensiveReport(
           byPlatform[log.platform].failed++;
         }
 
-        // 按事件类型统计
         byEventType[log.eventType] = (byEventType[log.eventType] || 0) + 1;
       });
 
@@ -198,13 +195,11 @@ function exportComprehensiveReportCSV(
 ): { content: string; filename: string; mimeType: string } {
   const lines: string[] = [];
 
-  // 报告头部
   lines.push("综合迁移报告");
   lines.push(`店铺: ${data.shopDomain}`);
   lines.push(`生成时间: ${new Date().toLocaleString("zh-CN")}`);
   lines.push("");
 
-  // 扫描结果
   if (data.scanResults) {
     lines.push("=== 扫描结果 ===");
     lines.push(`风险分数: ${data.scanResults.riskScore}`);
@@ -213,7 +208,6 @@ function exportComprehensiveReportCSV(
     lines.push("");
   }
 
-  // 迁移进度
   if (data.migrationProgress) {
     lines.push("=== 迁移进度 ===");
     lines.push(`总计: ${data.migrationProgress.total}`);
@@ -224,7 +218,6 @@ function exportComprehensiveReportCSV(
     lines.push("");
   }
 
-  // 迁移清单
   if (data.scanResults?.auditAssets && data.scanResults.auditAssets.length > 0) {
     lines.push("=== 迁移清单 ===");
     lines.push("优先级,风险等级,资产名称,平台,分类,建议迁移方式,预计时间(分钟),状态");
@@ -235,7 +228,7 @@ function exportComprehensiveReportCSV(
         asset.id || "",
         asset.platform || "",
         asset.category || "",
-        "web_pixel", // 默认建议
+        "web_pixel",
         asset.estimatedTimeMinutes?.toString() || "",
         asset.migrationStatus || "",
       ];
@@ -244,7 +237,6 @@ function exportComprehensiveReportCSV(
     lines.push("");
   }
 
-  // 风险分析
   if (data.riskAnalysis) {
     lines.push("=== 风险分析 ===");
     lines.push(`高风险: ${data.riskAnalysis.highRiskCount}`);
@@ -259,7 +251,6 @@ function exportComprehensiveReportCSV(
     lines.push("");
   }
 
-  // 验收结果
   if (data.verificationResults) {
     lines.push("=== 验收结果 ===");
     lines.push(`运行名称: ${data.verificationResults.runName}`);
@@ -270,7 +261,6 @@ function exportComprehensiveReportCSV(
     lines.push("");
   }
 
-  // 事件统计
   if (data.eventStats) {
     lines.push("=== 事件统计 ===");
     lines.push(`总事件数: ${data.eventStats.totalEvents}`);
@@ -328,17 +318,14 @@ async function exportComprehensiveReportPDF(
 
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
-    // 报告标题
     doc.fontSize(20).text("综合迁移报告", { align: "center" });
     doc.moveDown();
 
-    // 店铺信息
     doc.fontSize(12);
     doc.text(`店铺: ${data.shopDomain}`);
     doc.text(`生成时间: ${new Date().toLocaleString("zh-CN")}`);
     doc.moveDown();
 
-    // 扫描结果
     if (data.scanResults) {
       doc.fontSize(16).text("1. 扫描结果", { underline: true });
       doc.fontSize(12);
@@ -348,7 +335,6 @@ async function exportComprehensiveReportPDF(
       doc.moveDown();
     }
 
-    // 迁移进度
     if (data.migrationProgress) {
       doc.fontSize(16).text("2. 迁移进度", { underline: true });
       doc.fontSize(12);
@@ -357,7 +343,6 @@ async function exportComprehensiveReportPDF(
       doc.moveDown();
     }
 
-    // 迁移清单
     if (data.scanResults?.auditAssets && data.scanResults.auditAssets.length > 0) {
       doc.fontSize(16).text("3. 迁移清单", { underline: true });
       doc.moveDown(0.5);
@@ -377,7 +362,6 @@ async function exportComprehensiveReportPDF(
       doc.moveDown();
     }
 
-    // 风险分析
     if (data.riskAnalysis) {
       doc.fontSize(16).text("4. 风险分析", { underline: true });
       doc.fontSize(12);
@@ -385,7 +369,6 @@ async function exportComprehensiveReportPDF(
       doc.moveDown();
     }
 
-    // 验收结果
     if (data.verificationResults) {
       doc.fontSize(16).text("5. 验收结果", { underline: true });
       doc.fontSize(12);
@@ -397,7 +380,6 @@ async function exportComprehensiveReportPDF(
       doc.moveDown();
     }
 
-    // 事件统计
     if (data.eventStats) {
       doc.fontSize(16).text("6. 事件统计", { underline: true });
       doc.fontSize(12);

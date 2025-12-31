@@ -31,12 +31,10 @@ function detectDependencies(
 ): string[] {
   const dependencies: string[] = [];
 
-  // 首先从数据库的 dependencies 字段读取（这是主要来源）
   if (asset.dependencies && Array.isArray(asset.dependencies)) {
     dependencies.push(...(asset.dependencies as string[]));
   }
 
-  // 兼容旧数据：从 details 字段读取
   const details = asset.details as Record<string, unknown> | null;
   if (details) {
     const explicitDeps = details.dependencies as string[] | undefined;
@@ -287,7 +285,7 @@ export async function updateAssetDependencies(
   await prisma.auditAsset.update({
     where: { id: assetId },
     data: {
-      dependencies: dependencies as unknown as object, // Prisma JSON field expects object type
+      dependencies: dependencies as unknown as object,
     },
   });
 }

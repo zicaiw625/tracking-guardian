@@ -38,7 +38,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   const url = new URL(request.url);
   const reportType = (url.searchParams.get("type") || "scan") as ReportType;
-  const format = url.searchParams.get("format") || "html"; // html, csv, pdf
+  const format = url.searchParams.get("format") || "html";
   const days = parseInt(url.searchParams.get("days") || "7", 10);
   const runId = url.searchParams.get("runId") || undefined;
   logger.info(`Report generation requested: ${reportType} (${format}) for ${shop.shopDomain}`);
@@ -145,7 +145,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           includeRiskAnalysis: true,
           includeEventStats: true,
         });
-        
+
         if (format === "pdf") {
           pdf = result.content as Buffer;
         } else if (format === "csv") {
@@ -159,7 +159,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         return new Response(`Invalid report type: ${reportType}`, { status: 400 });
     }
 
-    // Return PDF if requested
     if (format === "pdf" && pdf) {
       const filename = reportType === "verification"
         ? `verification_report_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}.pdf`
@@ -176,7 +175,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
 
-    // Return CSV if requested
     if (format === "csv" && csv) {
       const filename = reportType === "risk"
         ? `risk_report_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}.csv`
@@ -193,11 +191,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
 
-    // Return HTML (default)
     if (!html) {
       return new Response("Report generation failed: no content", { status: 500 });
     }
-    
+
     return new Response(html, {
       status: 200,
       headers: {

@@ -85,7 +85,6 @@ export function TestOrderGuide({
 
     setTestStatuses((prev) => ({ ...prev, [itemId]: "verifying" }));
 
-    // 提交验证请求
     const formData = new FormData();
     formData.append("_action", "verifyTestItem");
     formData.append("itemId", itemId);
@@ -95,7 +94,6 @@ export function TestOrderGuide({
     fetcher.submit(formData, { method: "post" });
   }, [testItems, fetcher]);
 
-  // 处理验证结果
   useEffect(() => {
     if (fetcher.data && (fetcher.data as { success?: boolean; itemId?: string }).success) {
       const data = fetcher.data as {
@@ -129,7 +127,7 @@ export function TestOrderGuide({
     }
   }, [fetcher.data, onTestComplete]);
 
-  const testStoreUrl = `https://${shopDomain}`;
+  const testStoreUrl = `https:
   const testCheckoutUrl = `${testStoreUrl}/checkout/test`;
 
   return (
@@ -201,7 +199,7 @@ export function TestOrderGuide({
                   >
                     <BlockStack gap="300">
                       <Divider />
-                      
+
                       <BlockStack gap="200">
                         <InlineStack align="space-between" blockAlign="center">
                           <Text as="h4" variant="headingSm">
@@ -286,7 +284,7 @@ export function TestOrderGuide({
                           })}
                         </InlineStack>
 
-                        {/* 验证结果 */}
+                        {}
                         {verificationResults[item.id] && (
                           <Box
                             background={

@@ -1,16 +1,19 @@
 
-import { Card, BlockStack, Text, Box } from "@shopify/polaris";
-import { useMemo } from "react";
-import { Bar, Doughnut } from "react-chartjs-2";
+import { Card, BlockStack, Text, Box, InlineStack, Badge, Button } from "@shopify/polaris";
+import { useMemo, useState } from "react";
+import { Bar, Doughnut, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
   ArcElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from "chart.js";
 
 ChartJS.register(
@@ -18,9 +21,12 @@ ChartJS.register(
   LinearScale,
   BarElement,
   ArcElement,
+  LineElement,
+  PointElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 interface RiskDistributionChartProps {
@@ -36,6 +42,8 @@ interface RiskDistributionChartProps {
 }
 
 export function RiskDistributionChart({ distribution }: RiskDistributionChartProps) {
+  const [viewMode, setViewMode] = useState<"risk" | "category" | "platform">("risk");
+
   const riskLevelData = useMemo(() => {
     return {
       labels: ["高风险", "中风险", "低风险"],
@@ -109,7 +117,7 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
     const platforms = Object.entries(distribution.byPlatform)
       .filter(([_, count]) => count > 0)
       .sort(([_, a], [__, b]) => b - a)
-      .slice(0, 8); // 只显示前 8 个平台
+      .slice(0, 8);
 
     if (platforms.length === 0) {
       return null;
@@ -170,16 +178,9 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
     },
   };
 
-  const totalAssets = distribution.byRiskLevel.high + 
-    distribution.byRiskLevel.medium + 
+  const totalAssets = distribution.byRiskLevel.high +
+    distribution.byRiskLevel.medium +
     distribution.byRiskLevel.low;
-
-  return (
-    <Card>
-      <BlockStack gap="400">
-        <Text as="h2" variant="headingMd">
-          风险分布分析
-        </Text>
 
         {totalAssets === 0 ? (
           <Box padding="400">
@@ -188,57 +189,115 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
             </Text>
           </Box>
         ) : (
-          <BlockStack gap="500">
-            {/* 风险等级分布 */}
-            <BlockStack gap="300">
-              <Text as="h3" variant="headingSm">
-                按风险等级
-              </Text>
-              <Box minHeight="200px">
-                <Doughnut data={riskLevelData} options={doughnutOptions} />
-              </Box>
-              <BlockStack gap="200">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  总计: {totalAssets} 个资产
-                </Text>
-                <BlockStack gap="100">
-                  <Text as="p" variant="bodySm">
-                    <strong>高风险:</strong> {distribution.byRiskLevel.high} 个
-                    ({totalAssets > 0 ? ((distribution.byRiskLevel.high / totalAssets) * 100).toFixed(1) : 0}%)
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    <strong>中风险:</strong> {distribution.byRiskLevel.medium} 个
-                    ({totalAssets > 0 ? ((distribution.byRiskLevel.medium / totalAssets) * 100).toFixed(1) : 0}%)
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    <strong>低风险:</strong> {distribution.byRiskLevel.low} 个
-                    ({totalAssets > 0 ? ((distribution.byRiskLevel.low / totalAssets) * 100).toFixed(1) : 0}%)
-                  </Text>
-                </BlockStack>
-              </BlockStack>
-            </BlockStack>
-
-            {/* 类别分布 */}
-            {Object.values(distribution.byCategory).some(count => count > 0) && (
+          <BlockStack gap="400">
+            {}
+            {viewMode === "risk" && (
               <BlockStack gap="300">
-                <Text as="h3" variant="headingSm">
-                  按资产类别
-                </Text>
-                <Box minHeight="200px">
-                  <Bar data={categoryData} options={chartOptions} />
+                <Box minHeight="250px">
+                  <Doughnut data={riskLevelData} options={doughnutOptions} />
                 </Box>
+                <BlockStack gap="200">
+                  <InlineStack align="space-between">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      总计: {totalAssets} 个资产
+                    </Text>
+                    <Badge tone="info">{totalAssets} 项</Badge>
+                  </InlineStack>
+                  <BlockStack gap="100">
+                    <InlineStack align="space-between">
+                      <Text as="p" variant="bodySm">
+                        <strong>高风险:</strong>
+                      </Text>
+                      <InlineStack gap="200">
+                        <Badge tone="critical">
+                          {distribution.byRiskLevel.high} 个
+                        </Badge>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          ({totalAssets > 0 ? ((distribution.byRiskLevel.high / totalAssets) * 100).toFixed(1) : 0}%)
+                        </Text>
+                      </InlineStack>
+                    </InlineStack>
+                    <InlineStack align="space-between">
+                      <Text as="p" variant="bodySm">
+                        <strong>中风险:</strong>
+                      </Text>
+                      <InlineStack gap="200">
+                        <Badge tone="warning">
+                          {distribution.byRiskLevel.medium} 个
+                        </Badge>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          ({totalAssets > 0 ? ((distribution.byRiskLevel.medium / totalAssets) * 100).toFixed(1) : 0}%)
+                        </Text>
+                      </InlineStack>
+                    </InlineStack>
+                    <InlineStack align="space-between">
+                      <Text as="p" variant="bodySm">
+                        <strong>低风险:</strong>
+                      </Text>
+                      <InlineStack gap="200">
+                        <Badge tone="success">
+                          {distribution.byRiskLevel.low} 个
+                        </Badge>
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          ({totalAssets > 0 ? ((distribution.byRiskLevel.low / totalAssets) * 100).toFixed(1) : 0}%)
+                        </Text>
+                      </InlineStack>
+                    </InlineStack>
+                  </BlockStack>
+                </BlockStack>
               </BlockStack>
             )}
 
-            {/* 平台分布 */}
-            {platformData && (
+            {viewMode === "category" && Object.values(distribution.byCategory).some(count => count > 0) && (
               <BlockStack gap="300">
-                <Text as="h3" variant="headingSm">
-                  按平台分布
-                </Text>
-                <Box minHeight="200px">
+                <Box minHeight="250px">
+                  <Bar data={categoryData} options={chartOptions} />
+                </Box>
+                <BlockStack gap="200">
+                  {Object.entries(distribution.byCategory)
+                    .filter(([_, count]) => count > 0)
+                    .sort(([_, a], [__, b]) => b - a)
+                    .map(([category, count]) => {
+                      const categoryLabels: Record<string, string> = {
+                        pixel: "像素追踪",
+                        affiliate: "联盟营销",
+                        survey: "问卷调研",
+                        support: "客服支持",
+                        analytics: "分析工具",
+                        other: "其他",
+                      };
+                      return (
+                        <InlineStack key={category} align="space-between">
+                          <Text as="p" variant="bodySm">
+                            {categoryLabels[category] || category}:
+                          </Text>
+                          <Badge>{count} 个</Badge>
+                        </InlineStack>
+                      );
+                    })}
+                </BlockStack>
+              </BlockStack>
+            )}
+
+            {viewMode === "platform" && platformData && (
+              <BlockStack gap="300">
+                <Box minHeight="250px">
                   <Bar data={platformData} options={chartOptions} />
                 </Box>
+                <BlockStack gap="200">
+                  {Object.entries(distribution.byPlatform)
+                    .filter(([_, count]) => count > 0)
+                    .sort(([_, a], [__, b]) => b - a)
+                    .slice(0, 8)
+                    .map(([platform, count]) => (
+                      <InlineStack key={platform} align="space-between">
+                        <Text as="p" variant="bodySm">
+                          {platform}:
+                        </Text>
+                        <Badge>{count} 个</Badge>
+                      </InlineStack>
+                    ))}
+                </BlockStack>
               </BlockStack>
             )}
           </BlockStack>

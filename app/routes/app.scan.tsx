@@ -646,39 +646,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ error: "缺少脚本内容" }, { status: 400 });
             }
 
-            const MAX_CONTENT_LENGTH = 1024 * 1024; // 1MB
+            const MAX_CONTENT_LENGTH = 1024 * 1024;
             if (content.length > MAX_CONTENT_LENGTH) {
                 return json({
                     error: `脚本内容过长（最大 ${MAX_CONTENT_LENGTH / 1024}KB）`
                 }, { status: 400 });
             }
 
-            // 检查敏感信息
             if (containsSensitiveInfo(content)) {
                 return json({
                     error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再分析。"
                 }, { status: 400 });
             }
 
-            // 实时分析使用轻量级分析（仅识别平台）
             if (actionType === "realtime_analyze_manual_paste") {
                 const { analyzeScriptContent } = await import("../services/scanner/content-analysis");
                 const quickAnalysis = analyzeScriptContent(content);
-                
+
                 return json({
                     success: true,
                     actionType: "realtime_analyze_manual_paste",
                     realtimeAnalysis: {
                         identifiedPlatforms: quickAnalysis.identifiedPlatforms,
                         platformDetails: quickAnalysis.platformDetails,
-                        risks: quickAnalysis.risks.slice(0, 5), // 只返回前5个风险
+                        risks: quickAnalysis.risks.slice(0, 5),
                         riskScore: quickAnalysis.riskScore,
                         recommendations: [],
                     },
                 });
             }
 
-            // 完整分析脚本内容
             const { analyzeManualPaste } = await import("../services/audit-asset-analysis.server");
             const analysis = analyzeManualPaste(content, shop.id);
 
@@ -703,28 +700,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ error: "缺少脚本内容" }, { status: 400 });
             }
 
-            const MAX_CONTENT_LENGTH = 1024 * 1024; // 1MB
+            const MAX_CONTENT_LENGTH = 1024 * 1024;
             if (content.length > MAX_CONTENT_LENGTH) {
                 return json({
                     error: `脚本内容过长（最大 ${MAX_CONTENT_LENGTH / 1024}KB）`
                 }, { status: 400 });
             }
 
-            // 检查敏感信息
             if (containsSensitiveInfo(content)) {
                 return json({
                     error: "检测到可能包含敏感信息的内容（如 API keys、tokens、客户信息等）。请先脱敏后再处理。"
                 }, { status: 400 });
             }
 
-            // 获取最新的扫描报告 ID（如果有）
             const latestScan = await prisma.scanReport.findFirst({
                 where: { shopId: shop.id },
                 orderBy: { createdAt: "desc" },
                 select: { id: true },
             });
 
-            // 使用新的分析函数处理手动粘贴
             const result = await processManualPasteAssets(
                 shop.id,
                 content,
@@ -835,6 +829,57 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 error: error instanceof Error ? error.message : String(error),
             });
             return json({ error: "标记失败，请稍后重试" }, { status: 500 });
+        }
+    }
+
+    if (actionType === "export_checklist_csv") {
+        try {
+            const { generateMigrationChecklist } = await import("../services/migration-checklist.server");
+            const checklist = await generateMigrationChecklist(shop.id);
+
+            const csvLines: string[] = [];
+            csvLines.push("迁移清单");
+            csvLines.push(`店铺: ${shopDomain}`);
+            csvLines.push(`生成时间: ${new Date().toLocaleString("zh-CN")}`);
+            csvLines.push(`待迁移项: ${checklist.totalItems}`);
+            csvLines.push(`高风险项: ${checklist.highPriorityItems}`);
+            csvLines.push(`中风险项: ${checklist.mediumPriorityItems}`);
+            csvLines.push(`低风险项: ${checklist.lowPriorityItems}`);
+            csvLines.push(`预计总时间: ${Math.floor(checklist.estimatedTotalTime / 60)} 小时 ${checklist.estimatedTotalTime % 60} 分钟`);
+            csvLines.push("");
+            csvLines.push("优先级,风险等级,资产名称,平台,分类,建议迁移方式,预计时间(分钟),状态,描述");
+
+            checklist.items.forEach((item) => {
+                const row = [
+                    item.priority.toString(),
+                    item.riskLevel,
+                    `"${(item.title || "").replace(/"/g, '""')}"`,
+                    item.platform || "",
+                    item.category,
+                    item.suggestedMigration,
+                    item.estimatedTime.toString(),
+                    item.status,
+                    `"${(item.description || "").replace(/"/g, '""')}"`,
+                ];
+                csvLines.push(row.join(","));
+            });
+
+            const csvContent = csvLines.join("\n");
+            const filename = `migration_checklist_${shopDomain}_${new Date().toISOString().split("T")[0]}.csv`;
+
+            return new Response(csvContent, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/csv; charset=utf-8",
+                    "Content-Disposition": `attachment; filename="${filename}"`,
+                },
+            });
+        } catch (error) {
+            logger.error("Export checklist CSV error", {
+                shopId: shop.id,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return json({ error: "导出失败，请稍后重试" }, { status: 500 });
         }
     }
 
@@ -1324,12 +1369,11 @@ export default function ScanPage() {
         }
 
         try {
-            // 根据向导数据创建 AuditAsset 记录
+
             const assets = [];
 
-            // 为每个平台创建资产
             for (const platform of data.platforms) {
-                if (platform === "other") continue; // 跳过"其他"选项
+                if (platform === "other") continue;
                 assets.push({
                     sourceType: data.fromUpgradeWizard ? "merchant_confirmed" : "manual_paste" as const,
                     category: "pixel" as const,
@@ -1345,7 +1389,6 @@ export default function ScanPage() {
                 });
             }
 
-            // 为每个功能创建资产
             for (const feature of data.features) {
                 if (feature === "other") continue;
                 const categoryMap: Record<string, "survey" | "support" | "affiliate" | "other"> = {
@@ -1402,7 +1445,7 @@ export default function ScanPage() {
         if (result.success) {
             setPasteProcessed(true);
             showSuccess(result.message || "已成功处理粘贴内容");
-            // 刷新页面以显示新创建的资产
+
             setTimeout(() => {
                 window.location.reload();
             }, 1500);
@@ -2376,7 +2419,7 @@ export default function ScanPage() {
 
         {}
         {}
-        {/* 审计资产清单（按风险等级分组） */}
+        {}
         {latestScan && auditAssets && auditAssets.length > 0 && !isScanning && (
           <AuditAssetsByRisk
             assets={auditAssets}
@@ -2386,7 +2429,7 @@ export default function ScanPage() {
           />
         )}
 
-        {/* 增强版迁移清单 */}
+        {}
         {migrationChecklist && migrationChecklist.items.length > 0 && !isScanning && (
           <MigrationChecklistEnhanced
             items={migrationChecklist.items}
@@ -2477,7 +2520,7 @@ export default function ScanPage() {
                                 {item.asset.estimatedTimeMinutes && (
                                   <Badge>
                                     <Icon source={ClockIcon} />
-                                    预计 {item.asset.estimatedTimeMinutes < 60 
+                                    预计 {item.asset.estimatedTimeMinutes < 60
                                       ? `${item.asset.estimatedTimeMinutes} 分钟`
                                       : `${Math.floor(item.asset.estimatedTimeMinutes / 60)} 小时 ${item.asset.estimatedTimeMinutes % 60} 分钟`}
                                   </Badge>
@@ -2485,7 +2528,7 @@ export default function ScanPage() {
                                 {!item.asset.estimatedTimeMinutes && item.priority.estimatedTime && (
                                   <Badge>
                                     <Icon source={ClockIcon} />
-                                    预计 {item.priority.estimatedTime < 60 
+                                    预计 {item.priority.estimatedTime < 60
                                       ? `${item.priority.estimatedTime} 分钟`
                                       : `${Math.floor(item.priority.estimatedTime / 60)} 小时 ${item.priority.estimatedTime % 60} 分钟`}
                                   </Badge>
@@ -2746,7 +2789,7 @@ export default function ScanPage() {
                           if (isExporting) return;
                           setIsExporting(true);
                           try {
-                            // 调用 PDF 导出 API
+
                             const response = await fetch("/api/checklist-pdf");
                             if (!response.ok) {
                               const errorData = await response.json().catch(() => ({ error: "导出失败" }));
@@ -2962,7 +3005,7 @@ export default function ScanPage() {
                       shopId={shop?.id || ""}
                       onAssetsCreated={(count) => {
                         showSuccess(`成功创建 ${count} 个迁移资产`);
-                        // 刷新页面数据
+
                         window.location.reload();
                       }}
                     />
@@ -2981,8 +3024,8 @@ export default function ScanPage() {
   gtag('event', 'purchase', {...});
   fbq('track', 'Purchase', {...});
 </script>`}
-                        enableRealtimeAnalysis={false} // 可选：启用实时分析
-                        enableBatchPaste={true} // 启用批量粘贴支持
+                        enableRealtimeAnalysis={false}
+                        enableBatchPaste={true}
                       />
                     </Suspense>
                     {analysisProgress && (
@@ -3354,7 +3397,7 @@ export default function ScanPage() {
           </Modal.Section>
         </Modal>
 
-        {/* 引导补充向导 */}
+        {}
         <ManualInputWizard
           open={manualInputWizardOpen}
           onClose={() => setManualInputWizardOpen(false)}

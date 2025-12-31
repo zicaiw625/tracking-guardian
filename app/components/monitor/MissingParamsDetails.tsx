@@ -217,8 +217,8 @@ export function MissingParamsDetails({ stats }: MissingParamsDetailsProps) {
               columnContentTypes={["text", "text", "text", "text"]}
               headings={["时间", "平台", "事件类型", "缺失参数"]}
               rows={stats.recent.slice(0, 50).map((event) => {
-                const timestamp = typeof event.timestamp === "string" 
-                  ? new Date(event.timestamp) 
+                const timestamp = typeof event.timestamp === "string"
+                  ? new Date(event.timestamp)
                   : event.timestamp;
                 return [
                   timestamp.toLocaleString("zh-CN"),

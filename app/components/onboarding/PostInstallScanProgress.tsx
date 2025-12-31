@@ -24,6 +24,7 @@ export function PostInstallScanProgress({
 }: PostInstallScanProgressProps) {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
+  const [scanStatus, setScanStatus] = useState<"scanning" | "completed" | "error">("scanning");
   const revalidator = useRevalidator();
 
   const steps = [
@@ -43,7 +44,6 @@ export function PostInstallScanProgress({
       const newProgress = Math.min((accumulatedTime / totalDuration) * 100, 95);
       setProgress(newProgress);
 
-      // 更新当前步骤
       let stepAccumulated = 0;
       for (let i = 0; i < steps.length; i++) {
         stepAccumulated += steps[i].duration;
@@ -55,14 +55,19 @@ export function PostInstallScanProgress({
 
       if (accumulatedTime >= totalDuration) {
         clearInterval(interval);
-        // 等待实际扫描完成
-        setTimeout(() => {
-          setProgress(100);
+
+        const checkInterval = setInterval(() => {
           revalidator.revalidate();
+        }, 2000);
+
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          setProgress(100);
+          setScanStatus("completed");
           if (onComplete) {
             onComplete();
           }
-        }, 1000);
+        }, 15000);
       }
     }, 100);
 

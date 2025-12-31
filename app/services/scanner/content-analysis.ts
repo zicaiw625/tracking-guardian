@@ -166,49 +166,61 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         }
     }
 
-    // 检测读取 PII（个人身份信息）- 增强版
     const piiPatterns = [
-        // 邮箱检测
-        /(?:email|e-mail|mail)\s*[:=]\s*['"]?([^'",\s]+)/gi,
-        /customer\.(?:email|e-mail)/gi,
-        /order\.(?:email|e-mail|contact_email)/gi,
-        /checkout\.(?:email|e-mail|contact_email)/gi,
+
+        /(?:email|e-mail|mail)\s*[:=]\s*['"]?([^'",\s@]+@[^'",\s]+)/gi,
+        /customer\.(?:email|e-mail|contact_email)/gi,
+        /order\.(?:email|e-mail|contact_email|customer_email)/gi,
+        /checkout\.(?:email|e-mail|contact_email|customer\.email)/gi,
         /\.getAttribute\(['"]email['"]/gi,
         /\.getAttribute\(['"]e-mail['"]/gi,
         /\.email\s*[:=]/gi,
-        // 电话检测
-        /(?:phone|telephone|mobile|tel)\s*[:=]\s*['"]?([^'",\s]+)/gi,
-        /customer\.(?:phone|telephone|mobile)/gi,
-        /order\.(?:phone|telephone|mobile|billing_phone)/gi,
-        /checkout\.(?:phone|telephone|mobile)/gi,
+        /emailAddress/gi,
+        /contactEmail/gi,
+
+        /(?:phone|telephone|mobile|tel|phoneNumber)\s*[:=]\s*['"]?([^'",\s]+)/gi,
+        /customer\.(?:phone|telephone|mobile|phone_number)/gi,
+        /order\.(?:phone|telephone|mobile|billing_phone|shipping_phone)/gi,
+        /checkout\.(?:phone|telephone|mobile|customer\.phone)/gi,
         /\.getAttribute\(['"]phone['"]/gi,
         /\.getAttribute\(['"]telephone['"]/gi,
         /\.phone\s*[:=]/gi,
-        // 地址检测
-        /(?:address|street|city|zip|postal|postcode)\s*[:=]\s*['"]?([^'",\s]+)/gi,
-        /customer\.(?:address|shipping_address|billing_address)/gi,
-        /order\.(?:address|shipping_address|billing_address)/gi,
-        /checkout\.(?:address|shipping_address|billing_address)/gi,
+        /phoneNumber/gi,
+
+        /(?:address|street|city|zip|postal|postcode|addressLine1|addressLine2)\s*[:=]\s*['"]?([^'",\s]+)/gi,
+        /customer\.(?:address|shipping_address|billing_address|address1|address2)/gi,
+        /order\.(?:address|shipping_address|billing_address|shipping_address1|billing_address1)/gi,
+        /checkout\.(?:address|shipping_address|billing_address|customer\.address)/gi,
         /\.getAttribute\(['"]address['"]/gi,
         /\.address\s*[:=]/gi,
-        // 姓名检测
-        /(?:first[_-]?name|last[_-]?name|full[_-]?name|name)\s*[:=]\s*['"]?([^'",\s]+)/gi,
-        /customer\.(?:first_name|last_name|name)/gi,
-        /order\.(?:first_name|last_name|name|billing_name)/gi,
-        /checkout\.(?:first_name|last_name|name)/gi,
-        // 其他敏感信息
-        /(?:ssn|social[_-]?security|credit[_-]?card|card[_-]?number)\s*[:=]/gi,
-        /customer\.(?:ssn|credit_card)/gi,
+        /shippingAddress/gi,
+        /billingAddress/gi,
+
+        /(?:first[_-]?name|last[_-]?name|full[_-]?name|name|firstName|lastName|fullName)\s*[:=]\s*['"]?([^'",\s]+)/gi,
+        /customer\.(?:first_name|last_name|name|firstName|lastName)/gi,
+        /order\.(?:first_name|last_name|name|billing_name|shipping_name|customer_name)/gi,
+        /checkout\.(?:first_name|last_name|name|customer\.name)/gi,
+        /customerName/gi,
+        /billingName/gi,
+        /shippingName/gi,
+
+        /(?:ssn|social[_-]?security|credit[_-]?card|card[_-]?number|cardNumber|card_number)\s*[:=]/gi,
+        /customer\.(?:ssn|credit_card|card_number)/gi,
+        /order\.(?:credit_card|payment_method)/gi,
+
+        /(?:ip[_-]?address|ipAddress|clientIp|userIp)\s*[:=]/gi,
+
+        /(?:device[_-]?id|deviceId|device_id|fingerprint)\s*[:=]/gi,
     ];
-    
+
     const piiMatches: string[] = [];
     piiPatterns.forEach(pattern => {
         const matches = contentToAnalyze.match(pattern);
         if (matches) {
-            piiMatches.push(...matches.slice(0, 3)); // 最多记录3个匹配
+            piiMatches.push(...matches.slice(0, 3));
         }
     });
-    
+
     if (piiMatches.length > 0) {
         const uniqueMatches = [...new Set(piiMatches)];
         const piiTypes: string[] = [];
@@ -217,7 +229,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         if (uniqueMatches.some(m => /address|street|city/i.test(m))) piiTypes.push("地址");
         if (uniqueMatches.some(m => /name/i.test(m))) piiTypes.push("姓名");
         if (uniqueMatches.some(m => /ssn|credit|card/i.test(m))) piiTypes.push("其他敏感信息");
-        
+
         result.risks.push({
             id: "pii_access",
             name: "检测到 PII（个人身份信息）访问",
@@ -228,10 +240,8 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         });
     }
 
-    // 检测 window/document 全局对象的使用 - 增强版
-    // Web Pixel 运行在受限沙箱中，不能访问 window/document 等全局对象
     const globalObjectPatterns = [
-        // window 对象访问
+
         /\bwindow\.(location|history|localStorage|sessionStorage|document|cookie|navigator|screen|innerWidth|innerHeight|outerWidth|outerHeight|scrollX|scrollY|pageXOffset|pageYOffset)/gi,
         /\bwindow\[/gi,
         /typeof\s+window/gi,
@@ -239,7 +249,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /window\s*!==/gi,
         /window\s*&&/gi,
         /window\s*\|\|/gi,
-        // document 对象访问
+
         /\bdocument\.(getElementById|getElementsByClassName|getElementsByTagName|querySelector|querySelectorAll|body|head|title|cookie|createElement|write|writeln|addEventListener|removeEventListener|getElementsByName|createTextNode|createDocumentFragment)/gi,
         /\bdocument\[/gi,
         /typeof\s+document/gi,
@@ -247,29 +257,29 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         /document\s*!==/gi,
         /document\s*&&/gi,
         /document\s*\|\|/gi,
-        // DOM 操作
+
         /\.(innerHTML|outerHTML|textContent|innerText)\s*=/gi,
         /\.(appendChild|removeChild|insertBefore|replaceChild)\s*\(/gi,
         /\.(setAttribute|getAttribute|removeAttribute)\s*\(/gi,
-        // 事件监听（可能依赖 DOM）
+
         /\.(addEventListener|removeEventListener|attachEvent|detachEvent)\s*\(/gi,
-        // jQuery 等库的 DOM 操作（如果存在）
+
         /\$\s*\(['"]/gi,
         /jQuery\s*\(['"]/gi,
     ];
-    
+
     const windowDocumentMatches: string[] = [];
     const matchTypes = {
         window: [] as string[],
         document: [] as string[],
         dom: [] as string[],
     };
-    
+
     globalObjectPatterns.forEach(pattern => {
         const matches = contentToAnalyze.match(pattern);
         if (matches) {
-            windowDocumentMatches.push(...matches.slice(0, 5)); // 最多记录5个匹配
-            // 分类匹配类型
+            windowDocumentMatches.push(...matches.slice(0, 5));
+
             matches.forEach(match => {
                 if (/window/i.test(match)) {
                     matchTypes.window.push(match);
@@ -281,14 +291,14 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             });
         }
     });
-    
+
     if (windowDocumentMatches.length > 0) {
         const uniqueMatches = [...new Set(windowDocumentMatches)];
         const issues: string[] = [];
         if (matchTypes.window.length > 0) issues.push(`window 对象访问 (${matchTypes.window.length} 处)`);
         if (matchTypes.document.length > 0) issues.push(`document 对象访问 (${matchTypes.document.length} 处)`);
         if (matchTypes.dom.length > 0) issues.push(`DOM 操作 (${matchTypes.dom.length} 处)`);
-        
+
         result.risks.push({
             id: "window_document_access",
             name: "检测到 window/document 全局对象访问",
@@ -299,33 +309,76 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
         });
     }
 
-    // 检测阻塞加载
     const blockingPatterns = [
+
         /document\.write\s*\(/gi,
-        /<script[^>]*>(?!.*async)(?!.*defer)/gi,
+        /document\.writeln\s*\(/gi,
+
+        /<script[^>]*(?!.*async)(?!.*defer)[^>]*>/gi,
+
         /\.innerHTML\s*=\s*['"]<script/gi,
+        /\.outerHTML\s*=\s*['"]<script/gi,
+
         /eval\s*\(/gi,
-        /setTimeout\s*\(\s*['"]/gi,
-        /while\s*\([^)]*true[^)]*\)/gi, // 可能的无限循环
+        /new\s+Function\s*\(/gi,
+
+        /new\s+XMLHttpRequest\s*\(\s*\)[^}]*\.open\s*\([^,]*,\s*[^,]*,\s*false/gi,
+
+        /fetch\s*\([^)]*\)\s*\.then\s*\([^)]*\)\s*\.then\s*\([^)]*\)\s*\.catch/gi,
+
+        /while\s*\([^)]*true[^)]*\)/gi,
+        /for\s*\([^)]*\)\s*\{[^}]*while\s*\([^)]*true/gi,
+
+        /localStorage\.(?:getItem|setItem)\s*\([^)]*\)\s*[^;]*[^a]/gi,
+        /sessionStorage\.(?:getItem|setItem)\s*\([^)]*\)\s*[^;]*[^a]/gi,
+
+        /document\.cookie\s*=\s*[^;]+/gi,
+
+        /JSON\.parse\s*\([^)]*\)/gi,
     ];
-    
-    const hasBlockingLoad = blockingPatterns.some(pattern => pattern.test(contentToAnalyze));
-    if (hasBlockingLoad) {
+
+    const blockingMatches: string[] = [];
+    blockingPatterns.forEach(pattern => {
+        const matches = contentToAnalyze.match(pattern);
+        if (matches) {
+            blockingMatches.push(...matches.slice(0, 3));
+        }
+    });
+
+    if (blockingMatches.length > 0) {
+        const uniqueMatches = [...new Set(blockingMatches)];
+        const blockingTypes: string[] = [];
+
+        if (uniqueMatches.some(m => /document\.write/i.test(m))) {
+            blockingTypes.push("document.write");
+        }
+        if (uniqueMatches.some(m => /<script[^>]*(?!.*async)(?!.*defer)/i.test(m))) {
+            blockingTypes.push("同步脚本标签");
+        }
+        if (uniqueMatches.some(m => /eval|Function/i.test(m))) {
+            blockingTypes.push("eval/Function");
+        }
+        if (uniqueMatches.some(m => /XMLHttpRequest.*false/i.test(m))) {
+            blockingTypes.push("同步 XHR");
+        }
+        if (uniqueMatches.some(m => /while.*true/i.test(m))) {
+            blockingTypes.push("可能的无限循环");
+        }
+
         result.risks.push({
             id: "blocking_load",
             name: "检测到阻塞加载的代码",
-            description: "脚本可能阻塞页面渲染，影响用户体验和页面性能",
+            description: `脚本可能阻塞页面渲染，影响用户体验和页面性能。检测到：${blockingTypes.join("、")}`,
             severity: "high" as RiskSeverity,
             points: 30,
-            details: "检测到 document.write、同步脚本或可能阻塞的代码",
+            details: `检测到 ${uniqueMatches.length} 处阻塞代码：${blockingTypes.join("、")}`,
         });
     }
 
-    // 检测重复触发
     const duplicatePatterns = [
         /(?:fbq|gtag|ttq|pintrk|snaptr)\s*\([^)]*['"](?:track|event|purchase|pageview)['"]/gi,
     ];
-    
+
     const eventCalls: string[] = [];
     for (const pattern of duplicatePatterns) {
         const matches = contentToAnalyze.match(pattern);
@@ -333,14 +386,13 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
             eventCalls.push(...matches);
         }
     }
-    
-    // 检查是否有重复的事件调用
+
     const eventCounts = new Map<string, number>();
     eventCalls.forEach(call => {
         const normalized = call.toLowerCase().replace(/\s+/g, '');
         eventCounts.set(normalized, (eventCounts.get(normalized) || 0) + 1);
     });
-    
+
     const hasDuplicateTriggers = Array.from(eventCounts.values()).some(count => count > 1);
     if (hasDuplicateTriggers) {
         result.risks.push({

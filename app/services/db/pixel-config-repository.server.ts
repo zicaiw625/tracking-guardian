@@ -141,7 +141,6 @@ export async function upsertPixelConfig(
     );
   }
 
-  // 检查是否存在现有配置（用于决定是否需要保存快照）
   const existingConfig = await prisma.pixelConfig.findUnique({
     where: {
       shopId_platform: {
@@ -151,11 +150,10 @@ export async function upsertPixelConfig(
     },
   });
 
-  // 如果存在现有配置且需要保存快照，先保存快照
   if (existingConfig && saveSnapshot) {
     const { saveConfigSnapshot } = await import("../pixel-rollback.server");
     await saveConfigSnapshot(shopId, platform).catch((error) => {
-      // 快照保存失败不影响主流程，只记录日志
+
       console.warn("Failed to save config snapshot", { shopId, platform, error });
     });
   }
@@ -178,7 +176,7 @@ export async function upsertPixelConfig(
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? true,
       configVersion: 1,
-      environment: "test", // 默认测试环境
+      environment: "test",
     },
 
     update: {
@@ -189,7 +187,7 @@ export async function upsertPixelConfig(
       serverSideEnabled: data.serverSideEnabled ?? undefined,
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? undefined,
-      // 如果更新了配置，版本号在 saveConfigSnapshot 中已递增
+
     },
   });
 

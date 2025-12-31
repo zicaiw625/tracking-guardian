@@ -102,11 +102,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planInfo = getPlanOrDefault(planId);
   const modules = await getUiModuleConfigs(shop.id);
   const enabledCount = await getEnabledModulesCount(shop.id);
-  
-  // 生成预览 URL（仅 dev store）
+
   const isDev = isDevStore(shopDomain);
   const modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }> = {};
-  
+
   if (isDev) {
     for (const module of modules) {
       const urls: { thank_you?: string; order_status?: string } = {};
@@ -210,10 +209,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!result.success) {
           return json({ error: "批量操作失败" }, { status: 400 });
         }
-        return json({ 
-          success: true, 
-          actionType: "batch_toggle_modules", 
-          results: result.results 
+        return json({
+          success: true,
+          actionType: "batch_toggle_modules",
+          results: result.results
         });
       } catch {
         return json({ error: "无效的批量操作数据" }, { status: 400 });
@@ -603,7 +602,7 @@ function HelpdeskSettingsForm({
             }}
             error={errors.messengerUrl}
             autoComplete="off"
-            placeholder="https://m.me/your-page"
+            placeholder="https:
             helpText="Facebook Messenger 联系链接（可选）"
           />
         </FormLayout.Group>

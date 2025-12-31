@@ -50,7 +50,7 @@ export interface RealtimeEvent {
     hasCurrency: boolean;
     hasEventId: boolean;
     missingParams: string[];
-    completeness: number; // 0-100
+    completeness: number;
   };
   trust?: {
     isTrusted: boolean;
@@ -73,7 +73,7 @@ export interface RealtimeEventMonitorProps {
   autoStart?: boolean;
   runId?: string;
   eventTypes?: string[];
-  useVerificationEndpoint?: boolean; // 是否使用验收专用的 SSE 端点
+  useVerificationEndpoint?: boolean;
 }
 
 export function RealtimeEventMonitor({
@@ -91,8 +91,7 @@ export function RealtimeEventMonitor({
   const [error, setError] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<RealtimeEvent | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  
-  // 过滤状态
+
   const [filterPlatform, setFilterPlatform] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterEventType, setFilterEventType] = useState<string>("");
@@ -123,22 +122,20 @@ export function RealtimeEventMonitor({
 
         try {
           const rawData = JSON.parse(event.data);
-          
-          // 处理验收端点返回的不同消息类型
+
           if (useVerificationEndpoint && rawData.type) {
             if (rawData.type === "connected" || rawData.type === "error" || rawData.type === "verification_run_status") {
-              // 处理系统消息，不添加到事件列表
+
               if (rawData.type === "verification_run_status" && rawData.status) {
-                // 可以在这里更新验收运行状态
+
                 console.log("Verification run status:", rawData);
               }
               return;
             }
-            
-            // 提取实际的事件数据（去掉 type 字段）
+
             const { type, ...eventData } = rawData;
             const data = eventData as RealtimeEvent;
-            
+
             if (typeof data.timestamp === "string") {
               data.timestamp = new Date(data.timestamp);
             }
@@ -153,15 +150,14 @@ export function RealtimeEventMonitor({
               if (existingIndex >= 0) {
                 const updated = [...prev];
                 updated[existingIndex] = data;
-                // 性能优化：只保留最近200个事件
+
                 return updated.slice(0, 200);
               }
 
-              // 性能优化：只保留最近200个事件
               return [data, ...prev].slice(0, 200);
             });
           } else {
-            // 处理标准格式的事件
+
             const data = rawData as RealtimeEvent;
 
             if (typeof data.timestamp === "string") {
@@ -178,11 +174,10 @@ export function RealtimeEventMonitor({
               if (existingIndex >= 0) {
                 const updated = [...prev];
                 updated[existingIndex] = data;
-                // 性能优化：只保留最近200个事件
+
                 return updated.slice(0, 200);
               }
 
-              // 性能优化：只保留最近200个事件
               return [data, ...prev].slice(0, 200);
             });
           }
@@ -231,25 +226,21 @@ export function RealtimeEventMonitor({
     setEvents([]);
   }, []);
 
-  // 性能优化：使用useMemo缓存过滤后的事件
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
-      // 平台过滤
+
       if (filterPlatform !== "all" && event.platform !== filterPlatform) {
         return false;
       }
 
-      // 状态过滤
       if (filterStatus.length > 0 && !filterStatus.includes(event.status)) {
         return false;
       }
 
-      // 事件类型过滤
       if (filterEventType && event.eventType !== filterEventType) {
         return false;
       }
 
-      // 搜索过滤
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesType = event.eventType.toLowerCase().includes(query);
@@ -265,7 +256,6 @@ export function RealtimeEventMonitor({
     });
   }, [events, filterPlatform, filterStatus, filterEventType, searchQuery]);
 
-  // 计算统计信息（基于过滤后的事件）
   const stats = useMemo(() => {
     const total = filteredEvents.length;
     const byStatus = {
@@ -274,18 +264,17 @@ export function RealtimeEventMonitor({
       missing_params: filteredEvents.filter(e => e.status === "missing_params").length,
       not_tested: filteredEvents.filter(e => e.status === "not_tested").length,
     };
-    
+
     const byPlatform = filteredEvents.reduce((acc, event) => {
       acc[event.platform] = (acc[event.platform] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
+
     const byEventType = filteredEvents.reduce((acc, event) => {
       acc[event.eventType] = (acc[event.eventType] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
-    // 参数完整率统计
+
     const eventsWithParams = filteredEvents.filter(e => e.params);
     const paramCompleteness = {
       hasValue: eventsWithParams.filter(e => e.params?.value !== undefined).length,
@@ -293,7 +282,7 @@ export function RealtimeEventMonitor({
       hasItems: eventsWithParams.filter(e => e.params?.items !== undefined && e.params?.items > 0).length,
       hasEventId: eventsWithParams.filter(e => e.params?.hasEventId).length,
     };
-    
+
     const completenessRate = eventsWithParams.length > 0
       ? {
           value: (paramCompleteness.hasValue / eventsWithParams.length) * 100,
@@ -302,15 +291,14 @@ export function RealtimeEventMonitor({
           eventId: (paramCompleteness.hasEventId / eventsWithParams.length) * 100,
         }
       : { value: 0, currency: 0, items: 0, eventId: 0 };
-    
-    // 金额一致性验证（比较事件 value 与 Shopify 订单金额）
+
     const eventsWithOrder = filteredEvents.filter(e => e.shopifyOrder && e.params?.value !== undefined);
     const valueConsistency = {
       total: eventsWithOrder.length,
       consistent: eventsWithOrder.filter(e => {
         const eventValue = e.params?.value || 0;
         const orderValue = e.shopifyOrder?.value || 0;
-        return Math.abs(eventValue - orderValue) < 0.01; // 允许 0.01 的误差
+        return Math.abs(eventValue - orderValue) < 0.01;
       }).length,
       inconsistent: eventsWithOrder.filter(e => {
         const eventValue = e.params?.value || 0;
@@ -318,11 +306,11 @@ export function RealtimeEventMonitor({
         return Math.abs(eventValue - orderValue) >= 0.01;
       }).length,
     };
-    
+
     const consistencyRate = valueConsistency.total > 0
       ? (valueConsistency.consistent / valueConsistency.total) * 100
       : 0;
-    
+
     return {
       total,
       byStatus,
@@ -335,7 +323,6 @@ export function RealtimeEventMonitor({
     };
   }, [filteredEvents]);
 
-  // 统计信息基于过滤后的事件
   const stats = useMemo(() => ({
     total: filteredEvents.length,
     success: filteredEvents.filter((e) => e.status === "success").length,
@@ -347,7 +334,6 @@ export function RealtimeEventMonitor({
     ? Math.round((stats.success / stats.total) * 100)
     : 0;
 
-  // 计算触发次数统计和参数完整率
   const eventStats = useMemo(() => {
     return calculateEventStats(
       filteredEvents.map((e) => ({
@@ -358,7 +344,6 @@ export function RealtimeEventMonitor({
     );
   }, [filteredEvents]);
 
-  // 获取所有唯一的平台和事件类型（用于过滤选项）
   const uniquePlatforms = useMemo(() => {
     const platformsSet = new Set(events.map(e => e.platform));
     return Array.from(platformsSet).sort();
@@ -420,7 +405,7 @@ export function RealtimeEventMonitor({
         {}
         {stats.total > 0 && (
           <BlockStack gap="400">
-            {/* 基本统计 */}
+            {}
             <BlockStack gap="300">
               <InlineStack gap="400" align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">
@@ -439,7 +424,7 @@ export function RealtimeEventMonitor({
               />
             </BlockStack>
 
-            {/* 触发次数统计 */}
+            {}
             <Divider />
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
@@ -520,7 +505,7 @@ export function RealtimeEventMonitor({
               </BlockStack>
             </BlockStack>
 
-            {/* 参数完整率统计 */}
+            {}
             <Divider />
             <BlockStack gap="300">
               <Text as="h3" variant="headingSm">
@@ -562,8 +547,8 @@ export function RealtimeEventMonitor({
                       不完整: {eventStats.paramCompleteness.incompleteCount} 条
                     </Text>
                   </InlineStack>
-                  
-                  {/* 详细参数完整率 */}
+
+                  {}
                   {stats.completenessRate && (
                     <BlockStack gap="200">
                       <Divider />
@@ -626,8 +611,8 @@ export function RealtimeEventMonitor({
                 </Card>
               )}
             </BlockStack>
-            
-            {/* 金额一致性验证 */}
+
+            {}
             {stats.valueConsistency.total > 0 && (
               <>
                 <Divider />
@@ -682,7 +667,7 @@ export function RealtimeEventMonitor({
           </BlockStack>
         )}
 
-        {/* 过滤控件 */}
+        {}
         {events.length > 0 && (
           <>
             <Divider />
@@ -807,8 +792,7 @@ function EventItem({
   onSelect: () => void;
 }) {
   const timeStr = new Date(event.timestamp).toLocaleTimeString("zh-CN");
-  
-  // 计算参数完整率
+
   const completeness = useMemo(() => {
     return checkParamCompleteness(event.eventType, event.platform, event.params);
   }, [event.eventType, event.platform, event.params]);
@@ -882,7 +866,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     }));
   }, []);
 
-  // 计算参数完整率
   const completeness = useMemo(() => {
     return checkParamCompleteness(event.eventType, event.platform, event.params);
   }, [event.eventType, event.platform, event.params]);
@@ -908,7 +891,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
 
       <Collapsible open={expanded} id="event-details">
         <BlockStack gap="300">
-          {/* 基本信息 */}
+          {}
           <Card>
             <BlockStack gap="200">
               <div
@@ -972,7 +955,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </BlockStack>
           </Card>
 
-          {/* 事件参数 */}
+          {}
           {event.params && (
             <Card>
               <BlockStack gap="200">
@@ -1026,7 +1009,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </Card>
           )}
 
-          {/* 参数完整率详情 */}
+          {}
           <Card>
             <BlockStack gap="200">
               <div
@@ -1121,7 +1104,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </BlockStack>
           </Card>
 
-          {/* Shopify 订单对比 */}
+          {}
           {event.shopifyOrder && (
             <Card>
               <BlockStack gap="200">
@@ -1163,7 +1146,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </Card>
           )}
 
-          {/* 差异和错误 */}
+          {}
           {((event.discrepancies && event.discrepancies.length > 0) || (event.errors && event.errors.length > 0)) && (
             <Card>
               <BlockStack gap="200">

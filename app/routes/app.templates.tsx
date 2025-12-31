@@ -59,10 +59,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planId = normalizePlan(shop.plan);
   const canManageTemplates = isPlanAtLeast(planId, "agency");
 
-  // 获取所有模板（包括公开模板）
   const templates = await getPixelTemplates(shop.id, true);
 
-  // 检查用户是否有 workspace（Agency 功能）
   const workspace = await prisma.workspace.findFirst({
     where: {
       members: {
@@ -217,8 +215,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const result = await generateTemplateShareLink(templateId, shop.id);
 
       if (result.success && result.shareLink) {
-        // 构建完整 URL（在实际应用中应该使用环境变量中的域名）
-        const baseUrl = process.env.SHOPIFY_APP_URL || "https://your-app-domain.com";
+
+        const baseUrl = process.env.SHOPIFY_APP_URL || "https:
         const fullShareLink = `${baseUrl}${result.shareLink}`;
         return json({ success: true, shareLink: fullShareLink });
       }
@@ -291,7 +289,6 @@ export default function TemplatesPage() {
 
   const planDef = getPlanDefinition(planId);
 
-  // 处理 action 结果
   if (actionData) {
     if (actionData.success) {
       showSuccess(actionData.message || "操作成功");
@@ -308,7 +305,7 @@ export default function TemplatesPage() {
   }
 
   const handleCreateTemplate = useCallback(() => {
-    // 从当前配置创建模板（需要从迁移页面获取配置）
+
     setShowCreateModal(true);
   }, []);
 
@@ -334,8 +331,7 @@ export default function TemplatesPage() {
   }, []);
 
   const handleApplyTemplate = useCallback((template: typeof templates[0]) => {
-    // 将模板ID保存到sessionStorage，然后跳转到迁移向导
-    // 迁移向导会检查sessionStorage并自动应用模板
+
     if (typeof window !== "undefined") {
       sessionStorage.setItem("applyTemplateId", template.id);
       window.location.href = "/app/migrate?applyTemplate=" + template.id;
@@ -389,9 +385,6 @@ export default function TemplatesPage() {
       return;
     }
 
-    // 这里需要从当前配置获取 platforms
-    // 为了简化，我们使用一个示例配置
-    // 实际实现中，应该从迁移向导的当前配置获取
     const platforms: PixelTemplateConfig[] = [
       {
         platform: "google",
@@ -473,7 +466,7 @@ export default function TemplatesPage() {
           </BlockStack>
         </Banner>
 
-        {/* 我的模板 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -490,7 +483,7 @@ export default function TemplatesPage() {
                   content: "创建第一个模板",
                   onAction: handleCreateTemplate,
                 }}
-                image="https://cdn.shopify.com/s/files/1/0757/9955/files/empty-state.svg"
+                image="https:
               >
                 <Text as="p" variant="bodySm" tone="subdued">
                   创建模板后，您可以快速应用到多个店铺。
@@ -526,7 +519,7 @@ export default function TemplatesPage() {
                         <Button
                           size="slim"
                           onClick={() => {
-                            // 跳转到工作区批量应用页面
+
                             window.location.href = `/app/workspace/templates?templateId=${template.id}`;
                           }}
                         >
@@ -573,7 +566,7 @@ export default function TemplatesPage() {
           </BlockStack>
         </Card>
 
-        {/* 公开模板 */}
+        {}
         {publicTemplates.length > 0 && (
           <Card>
             <BlockStack gap="400">
@@ -622,7 +615,7 @@ export default function TemplatesPage() {
           </Card>
         )}
 
-        {/* 创建/编辑模板模态框 */}
+        {}
         <Modal
           open={showCreateModal || editingTemplate !== null}
           onClose={() => {
@@ -684,7 +677,7 @@ export default function TemplatesPage() {
           </Modal.Section>
         </Modal>
 
-        {/* 分享模板模态框 */}
+        {}
         <Modal
           open={sharingTemplate !== null}
           onClose={() => {
@@ -785,7 +778,7 @@ export default function TemplatesPage() {
           </Modal.Section>
         </Modal>
 
-        {/* 模板预览模态框 */}
+        {}
         <Modal
           open={previewingTemplate !== null}
           onClose={() => setPreviewingTemplate(null)}

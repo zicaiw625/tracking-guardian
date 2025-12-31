@@ -41,13 +41,13 @@ export interface VolumeAnomalyStats {
 
 export interface VolumeAnomalyAlertConfig {
   enabled: boolean;
-  threshold: number; // 下降百分比阈值，如 50 表示 50%
-  criticalThreshold?: number; // 严重告警阈值
-  minVolume?: number; // 最小事件量（低于此值不触发告警，避免低流量误报）
-  useZScore?: boolean; // 是否使用 Z-Score 统计方法
-  zScoreThreshold?: number; // Z-Score 阈值，默认 -2
-  byPlatform?: Record<string, number>; // 特定平台的阈值
-  byEventType?: Record<string, number>; // 特定事件类型的阈值
+  threshold: number;
+  criticalThreshold?: number;
+  minVolume?: number;
+  useZScore?: boolean;
+  zScoreThreshold?: number;
+  byPlatform?: Record<string, number>;
+  byEventType?: Record<string, number>;
 }
 
 export interface VolumeAnomalyAlertResult {
@@ -66,9 +66,6 @@ export interface VolumeAnomalyAlertResult {
   };
 }
 
-/**
- * 检测事件量骤降异常
- */
 export async function detectVolumeAnomaly(
   shopId: string,
   hours: number = 24
@@ -86,7 +83,6 @@ export async function detectVolumeAnomaly(
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  // 获取当前24小时的事件量
   const current24h = await prisma.conversionLog.count({
     where: {
       shopId,
@@ -94,7 +90,6 @@ export async function detectVolumeAnomaly(
     },
   });
 
-  // 获取前24小时的事件量
   const previous24h = await prisma.conversionLog.count({
     where: {
       shopId,
@@ -105,7 +100,6 @@ export async function detectVolumeAnomaly(
     },
   });
 
-  // 获取过去7天和30天的历史数据
   const [recent7DaysLogs, recent30DaysLogs] = await Promise.all([
     prisma.conversionLog.findMany({
       where: {
@@ -127,7 +121,6 @@ export async function detectVolumeAnomaly(
     }),
   ]);
 
-  // 计算7天平均
   const dailyCounts7Days = new Map<string, number>();
   recent7DaysLogs.forEach((log) => {
     const dateStr = log.createdAt.toISOString().split("T")[0];
@@ -139,7 +132,6 @@ export async function detectVolumeAnomaly(
       ? dailyValues7Days.reduce((sum, count) => sum + count, 0) / dailyValues7Days.length
       : 0;
 
-  // 计算30天平均（如果有足够数据）
   let average30Days: number | undefined;
   if (recent30DaysLogs.length > 0) {
     const dailyCounts30Days = new Map<string, number>();
@@ -154,7 +146,6 @@ export async function detectVolumeAnomaly(
         : undefined;
   }
 
-  // 计算标准差
   const variance7Days =
     dailyValues7Days.length > 0
       ? dailyValues7Days.reduce(
@@ -164,7 +155,6 @@ export async function detectVolumeAnomaly(
       : 0;
   const stdDev = Math.sqrt(variance7Days);
 
-  // 计算中位数
   const sorted7Days = [...dailyValues7Days].sort((a, b) => a - b);
   const median7Days =
     sorted7Days.length > 0
@@ -173,7 +163,6 @@ export async function detectVolumeAnomaly(
         : sorted7Days[Math.floor(sorted7Days.length / 2)]
       : 0;
 
-  // 计算变化百分比
   const changePercentVsPrevious =
     previous24h > 0 ? ((current24h - previous24h) / previous24h) * 100 : 0;
   const changePercentVs7DayAvg =
@@ -183,16 +172,13 @@ export async function detectVolumeAnomaly(
       ? ((current24h - average30Days) / average30Days) * 100
       : undefined;
 
-  // 计算 Z-Score
   const zScore = stdDev > 0 ? (current24h - average7Days) / stdDev : 0;
 
-  // 判断是否为异常
   let isAnomaly = false;
   let severity: "critical" | "warning" | "info" = "info";
   let detectedReason: string | undefined;
   let confidence = 0;
 
-  // 与前24小时对比
   if (previous24h > 0 && changePercentVsPrevious < -50) {
     isAnomaly = true;
     const dropPercent = Math.abs(changePercentVsPrevious);
@@ -206,7 +192,6 @@ export async function detectVolumeAnomaly(
     detectedReason = `与前24小时对比下降 ${dropPercent.toFixed(1)}% (${previous24h} → ${current24h})`;
   }
 
-  // 与7天平均对比
   if (average7Days > 0 && changePercentVs7DayAvg < -50) {
     isAnomaly = true;
     const dropPercent = Math.abs(changePercentVs7DayAvg);
@@ -223,7 +208,6 @@ export async function detectVolumeAnomaly(
     }
   }
 
-  // 使用 Z-Score 检测（如果标准差足够大）
   if (stdDev > 0 && zScore < -2) {
     isAnomaly = true;
     if (zScore < -3) {
@@ -279,9 +263,6 @@ export async function detectVolumeAnomaly(
   };
 }
 
-/**
- * 按平台检测事件量异常
- */
 export async function detectVolumeAnomalyByPlatform(
   shopId: string,
   hours: number = 24
@@ -299,7 +280,6 @@ export async function detectVolumeAnomalyByPlatform(
 
   const results: Record<string, VolumeAnomalyStats> = {};
 
-  // 为每个平台单独检测
   for (const config of platforms) {
     const platform = config.platform;
     const now = new Date();
@@ -417,9 +397,6 @@ export async function detectVolumeAnomalyByPlatform(
   return results;
 }
 
-/**
- * 检查事件量骤降告警
- */
 export async function checkVolumeAnomalyAlert(
   shopId: string,
   config: VolumeAnomalyAlertConfig,
@@ -441,7 +418,6 @@ export async function checkVolumeAnomalyAlert(
 
   const stats = await detectVolumeAnomaly(shopId, hours);
 
-  // 检查最小事件量要求（避免低流量误报）
   if (config.minVolume && stats.previous24h < config.minVolume) {
     return {
       triggered: false,
@@ -460,7 +436,6 @@ export async function checkVolumeAnomalyAlert(
   const criticalThreshold = config.criticalThreshold || threshold * 1.5;
   const absChangePercent = Math.abs(stats.changePercent);
 
-  // 使用 Z-Score 检测（如果启用）
   if (config.useZScore && stats.comparison.zScore !== undefined) {
     const zScoreThreshold = config.zScoreThreshold || -2;
     if (stats.comparison.zScore < zScoreThreshold) {
@@ -482,7 +457,6 @@ export async function checkVolumeAnomalyAlert(
     }
   }
 
-  // 检查总体阈值
   if (absChangePercent >= criticalThreshold && stats.changePercent < 0) {
     const affectedPlatforms: string[] = [];
     const platformStats = await detectVolumeAnomalyByPlatform(shopId, hours);
@@ -535,9 +509,6 @@ export async function checkVolumeAnomalyAlert(
   };
 }
 
-/**
- * 获取事件量历史趋势（按小时）
- */
 export async function getVolumeHistoryByHour(
   shopId: string,
   hours: number = 48

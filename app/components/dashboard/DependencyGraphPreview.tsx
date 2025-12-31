@@ -87,7 +87,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
 
         {summary && (
           <BlockStack gap="400">
-            {/* 统计信息 */}
+            {}
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between">
@@ -117,7 +117,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               </BlockStack>
             </Box>
 
-            {/* 风险分布 */}
+            {}
             <BlockStack gap="200">
               <Text as="h3" variant="headingSm">
                 风险分布
@@ -141,7 +141,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               </InlineStack>
             </BlockStack>
 
-            {/* 类别分布 */}
+            {}
             {Object.keys(summary.nodesByCategory).length > 0 && (
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm">
@@ -160,40 +160,68 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               </BlockStack>
             )}
 
-            {/* 依赖关系示例 */}
+            {}
             {dependencyGraph.edges.length > 0 && (
               <BlockStack gap="200">
-                <Text as="h3" variant="headingSm">
-                  依赖示例
-                </Text>
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h3" variant="headingSm">
+                    依赖关系
+                  </Text>
+                  <Badge tone="info">
+                    {dependencyGraph.edges.filter((e) => e.type === "dependency").length} 条
+                  </Badge>
+                </InlineStack>
                 <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                   <BlockStack gap="200">
                     {dependencyGraph.edges
-                      .filter((e) => e.type === "depends_on")
-                      .slice(0, 3)
+                      .filter((e) => e.type === "dependency")
+                      .slice(0, 5)
                       .map((edge, index) => {
-                        const fromNode = dependencyGraph.nodes.find((n) => n.id === edge.from);
-                        const toNode = dependencyGraph.nodes.find((n) => n.id === edge.to);
+                        const fromNode = dependencyGraph.nodes.find((n) => n.assetId === edge.from);
+                        const toNode = dependencyGraph.nodes.find((n) => n.assetId === edge.to);
                         if (!fromNode || !toNode) return null;
 
+                        const fromRiskBadge = fromNode.riskLevel === "high" ? "critical" :
+                                            fromNode.riskLevel === "medium" ? "warning" : "info";
+                        const toRiskBadge = toNode.riskLevel === "high" ? "critical" :
+                                           toNode.riskLevel === "medium" ? "warning" : "info";
+
                         return (
-                          <Text key={index} as="p" variant="bodySm">
-                            <strong>{toNode.platform || toNode.category}</strong> 依赖于{" "}
-                            <strong>{fromNode.platform || fromNode.category}</strong>
-                            {edge.reason && (
-                              <Text as="span" tone="subdued"> ({edge.reason})</Text>
-                            )}
-                          </Text>
+                          <Box key={index} padding="200">
+                            <InlineStack gap="200" blockAlign="center" wrap>
+                              <Badge tone={toRiskBadge}>
+                                {toNode.platform || toNode.category || toNode.assetName}
+                              </Badge>
+                              <Text as="span" variant="bodySm" tone="subdued">依赖于</Text>
+                              <Badge tone={fromRiskBadge}>
+                                {fromNode.platform || fromNode.category || fromNode.assetName}
+                              </Badge>
+                            </InlineStack>
+                          </Box>
                         );
                       })}
-                    {dependencyGraph.edges.filter((e) => e.type === "depends_on").length > 3 && (
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        还有 {dependencyGraph.edges.filter((e) => e.type === "depends_on").length - 3} 条依赖关系...
+                    {dependencyGraph.edges.filter((e) => e.type === "dependency").length > 5 && (
+                      <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                        还有 {dependencyGraph.edges.filter((e) => e.type === "dependency").length - 5} 条依赖关系...
                       </Text>
                     )}
                   </BlockStack>
                 </Box>
               </BlockStack>
+            )}
+
+            {}
+            {dependencyGraph.cycles && dependencyGraph.cycles.length > 0 && (
+              <Banner tone="warning">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    检测到 {dependencyGraph.cycles.length} 个循环依赖
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    循环依赖可能导致迁移顺序问题，建议手动调整迁移顺序
+                  </Text>
+                </BlockStack>
+              </Banner>
             )}
 
             <Button url="/app/scan" fullWidth icon={ArrowRightIcon}>

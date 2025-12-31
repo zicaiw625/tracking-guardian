@@ -19,16 +19,14 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   }
 
   try {
-    // 获取分享的报告信息
+
     const shareableReport = await getShareableReport(token);
     if (!shareableReport) {
       return new Response("Report not found or expired", { status: 404 });
     }
 
-    // 记录访问
     await recordShareAccess(token);
 
-    // 根据报告类型生成相应的报告
     let html: string;
     switch (shareableReport.reportType) {
       case "scan": {
@@ -56,19 +54,18 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         break;
       }
       case "migration": {
-        // TODO: 实现迁移报告生成
+
         return new Response("Migration report not yet implemented", { status: 501 });
       }
       default:
         return new Response(`Invalid report type: ${shareableReport.reportType}`, { status: 400 });
     }
 
-    // 返回HTML报告
     return new Response(html, {
       status: 200,
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "public, max-age=3600", // 缓存1小时
+        "Cache-Control": "public, max-age=3600",
       },
     });
   } catch (error) {

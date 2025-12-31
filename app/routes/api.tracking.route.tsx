@@ -46,7 +46,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       | OrderTrackingSettings
       | undefined;
 
-    // 首先尝试从 Shopify 订单获取追踪信息
     let trackingInfo = null;
     if (admin) {
       try {
@@ -81,7 +80,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // 如果 Shopify 订单没有追踪信息，使用配置的追踪服务
     if (!trackingInfo && trackingSettings?.provider && trackingSettings.provider !== "native") {
       const config: TrackingProviderConfig = {
         provider: trackingSettings.provider,
