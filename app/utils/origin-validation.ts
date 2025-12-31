@@ -29,17 +29,17 @@ const ALLOWED_ORIGIN_PATTERNS: Array<{
     {
         pattern: /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/,
         description: "Shopify store domains",
-        example: "https:
+        example: "https://yourstore.myshopify.com",
     },
     {
         pattern: /^https:\/\/checkout\.shopify\.com$/,
         description: "Shopify checkout domain",
-        example: "https:
+        example: "https://checkout.shopify.com",
     },
     {
         pattern: /^https:\/\/[a-zA-Z0-9-]+\.shopify\.com$/,
         description: "Shopify internal domains",
-        example: "https:
+        example: "https://admin.shopify.com",
     },
 ];
 const DEV_ORIGIN_PATTERNS: Array<{

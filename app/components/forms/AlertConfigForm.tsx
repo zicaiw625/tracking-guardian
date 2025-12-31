@@ -71,7 +71,7 @@ export function AlertConfigForm({
           value={values.webhookUrl || ""}
           onChange={(v) => onChange({ ...values, webhookUrl: v })}
           autoComplete="off"
-          placeholder="https:
+          placeholder="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
           helpText="在 Slack 中创建 Incoming Webhook 获取此 URL"
           error={errors?.webhookUrl}
           disabled={disabled}

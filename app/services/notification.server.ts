@@ -6,7 +6,7 @@ const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
 const getAppUrl = (): string => {
-    return process.env.SHOPIFY_APP_URL || "https:
+    return process.env.SHOPIFY_APP_URL || "https://example.com";
 };
 const getEmailSender = (): string => {
     return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";

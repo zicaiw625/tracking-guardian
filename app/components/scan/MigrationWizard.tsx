@@ -85,7 +85,7 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </Text>
           <InlineStack gap="300" wrap>
             <Button
-              url="https:
+              url="https://help.shopify.com"
               external
               icon={ShareIcon}
             >
@@ -107,14 +107,14 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </Text>
           <InlineStack gap="300" wrap>
             <Button
-              url="https:
+              url="https://help.shopify.com"
               external
               icon={ShareIcon}
             >
               打开 Checkout Editor
             </Button>
             <Button
-              url="https:
+              url="https://help.shopify.com"
               external
               icon={InfoIcon}
             >

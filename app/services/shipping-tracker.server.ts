@@ -27,7 +27,7 @@ export interface TrackingProviderConfig {
 
 export class AfterShipTracker {
   private apiKey: string;
-  private baseUrl = "https:
+  private baseUrl = "https://api.aftership.com";
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -115,7 +115,7 @@ export class AfterShipTracker {
 
 export class SeventeenTrackTracker {
   private apiKey: string;
-  private baseUrl = "https:
+  private baseUrl = "https://api.17track.net";
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;

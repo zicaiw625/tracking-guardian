@@ -457,7 +457,7 @@ export interface ScriptTagDeletionGuidance {
 export function getScriptTagDeletionGuidance(scriptTagId: number, shopDomain?: string, platform?: string): ScriptTagDeletionGuidance {
     const storeHandle = shopDomain?.replace(".myshopify.com", "");
     const adminUrl = storeHandle
-        ? `https:
+        ? `https://${storeHandle}.myshopify.com/admin`
         : undefined;
     return {
         title: `删除 ScriptTag #${scriptTagId}`,

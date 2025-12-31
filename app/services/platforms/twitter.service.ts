@@ -22,7 +22,7 @@ import {
   hashUserData,
 } from "./base-platform.service";
 
-const TWITTER_API_BASE_URL = "https:
+const TWITTER_API_BASE_URL = "https://ads-api.twitter.com";
 
 export interface TwitterCredentials {
   pixelId: string;

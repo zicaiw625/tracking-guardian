@@ -430,7 +430,7 @@ export async function validateTestEnvironment(
       };
 
       if (credentials.measurementId) {
-        details.debugViewUrl = `https:
+        details.debugViewUrl = `https://analytics.google.com/debugview/report-home/${credentials.measurementId}`;
         details.verificationInstructions = `测试事件已发送，请在 GA4 DebugView 中查看：${details.debugViewUrl}`;
       }
     }

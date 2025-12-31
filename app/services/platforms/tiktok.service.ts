@@ -25,7 +25,7 @@ import {
   type TikTokUserData,
 } from "./base-platform.service";
 
-const TIKTOK_API_URL = "https:
+const TIKTOK_API_URL = "https://business-api.tiktok.com";
 const PIXEL_ID_PATTERN = /^[A-Z0-9]{20,}$/i;
 
 export class TikTokPlatformService implements IPlatformService {

@@ -197,7 +197,7 @@ export function UpgradeWizardGuide({
 
               <Box paddingBlockStart="400">
                 <Link
-                  url="https:
+                  url="https://help.shopify.com"
                   external
                 >
                   <InlineStack gap="200" align="center">

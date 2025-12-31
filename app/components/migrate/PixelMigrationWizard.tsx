@@ -2043,7 +2043,7 @@ function TestingStep({
                                     如果看到测试事件，说明配置正确。
                                   </Text>
                                   <Link
-                                    url={`https:
+                                    url="https://business.facebook.com/events_manager"
                                     external
                                   >
                                     打开 Meta Events Manager

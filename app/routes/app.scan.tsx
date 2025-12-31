@@ -1692,8 +1692,8 @@ export default function ScanPage() {
                 ...items,
                 "",
                 "## 快速链接",
-                "- Pixels 管理: https:
-                "- Checkout Editor: https:
+                "- Pixels 管理: https://help.shopify.com",
+                "- Checkout Editor: https://help.shopify.com",
                 "- 应用迁移工具: /app/migrate",
             ].join("\n");
         } else {

@@ -73,7 +73,7 @@ export class AfterShipProvider implements ITrackingProvider {
 
   private apiKey: string = "";
   private webhookSecret: string = "";
-  private baseUrl = "https:
+  private baseUrl = "https://api.aftership.com";
 
   async initialize(credentials: TrackingProviderCredentials): Promise<void> {
     this.apiKey = credentials.apiKey;

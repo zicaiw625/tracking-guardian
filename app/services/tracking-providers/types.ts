@@ -117,26 +117,26 @@ export interface CarrierInfo {
 
 export const COMMON_CARRIERS: CarrierInfo[] = [
 
-  { code: "sf-express", name: "顺丰速运", country: "CN", website: "https:
-  { code: "yto", name: "圆通速递", country: "CN", website: "https:
-  { code: "zto", name: "中通快递", country: "CN", website: "https:
-  { code: "yunda", name: "韵达快递", country: "CN", website: "https:
-  { code: "sto", name: "申通快递", country: "CN", website: "https:
-  { code: "ems", name: "中国邮政EMS", country: "CN", website: "https:
-  { code: "jd", name: "京东物流", country: "CN", website: "https:
-  { code: "cainiao", name: "菜鸟物流", country: "CN", website: "https:
+  { code: "sf-express", name: "顺丰速运", country: "CN", website: "https://www.sf-express.com" },
+  { code: "yto", name: "圆通速递", country: "CN", website: "https://www.yto.net.cn" },
+  { code: "zto", name: "中通快递", country: "CN", website: "https://www.zto.com" },
+  { code: "yunda", name: "韵达快递", country: "CN", website: "https://www.yundaex.com" },
+  { code: "sto", name: "申通快递", country: "CN", website: "https://www.sto.cn" },
+  { code: "ems", name: "中国邮政EMS", country: "CN", website: "https://www.ems.com.cn" },
+  { code: "jd", name: "京东物流", country: "CN", website: "https://www.jd.com" },
+  { code: "cainiao", name: "菜鸟物流", country: "CN", website: "https://www.cainiao.com" },
 
-  { code: "dhl", name: "DHL", country: "DE", website: "https:
-  { code: "fedex", name: "FedEx", country: "US", website: "https:
-  { code: "ups", name: "UPS", country: "US", website: "https:
-  { code: "usps", name: "USPS", country: "US", website: "https:
-  { code: "royal-mail", name: "Royal Mail", country: "GB", website: "https:
-  { code: "canada-post", name: "Canada Post", country: "CA", website: "https:
-  { code: "australia-post", name: "Australia Post", country: "AU", website: "https:
-  { code: "japan-post", name: "Japan Post", country: "JP", website: "https:
+  { code: "dhl", name: "DHL", country: "DE", website: "https://www.dhl.com" },
+  { code: "fedex", name: "FedEx", country: "US", website: "https://www.fedex.com" },
+  { code: "ups", name: "UPS", country: "US", website: "https://www.ups.com" },
+  { code: "usps", name: "USPS", country: "US", website: "https://www.usps.com" },
+  { code: "royal-mail", name: "Royal Mail", country: "GB", website: "https://www.royalmail.com" },
+  { code: "canada-post", name: "Canada Post", country: "CA", website: "https://www.canadapost.ca" },
+  { code: "australia-post", name: "Australia Post", country: "AU", website: "https://www.auspost.com.au" },
+  { code: "japan-post", name: "Japan Post", country: "JP", website: "https://www.post.japanpost.jp" },
 
-  { code: "yanwen", name: "燕文物流", country: "CN", website: "https:
-  { code: "4px", name: "递四方", country: "CN", website: "https:
-  { code: "cne", name: "CNE", country: "CN", website: "https:
+  { code: "yanwen", name: "燕文物流", country: "CN", website: "https://www.yanwen.com" },
+  { code: "4px", name: "递四方", country: "CN", website: "https://www.4px.com" },
+  { code: "cne", name: "CNE", country: "CN", website: "https://www.cne.com" },
 ];
 
