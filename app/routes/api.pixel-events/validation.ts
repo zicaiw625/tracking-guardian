@@ -15,7 +15,7 @@ import {
   SHOP_DOMAIN_PATTERN,
   MIN_REASONABLE_TIMESTAMP,
   MAX_FUTURE_TIMESTAMP_MS,
-} from '../../../schemas/pixel-event';
+} from '~/schemas/pixel-event';
 
 function validateBodyStructure(
   body: unknown
