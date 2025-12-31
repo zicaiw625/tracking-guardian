@@ -2581,7 +2581,6 @@ export default function ScanPage() {
                       <MigrationDependencyGraph dependencyGraph={dependencyGraph} />
                     </>
                   )}
-                  </BlockStack>
                 </>
               )}
             </BlockStack>
