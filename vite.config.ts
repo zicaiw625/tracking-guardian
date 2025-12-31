@@ -88,12 +88,7 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 1000,
-    minify: "terser",
-    terserOptions: {
-      compress: {
-        drop_console: process.env.NODE_ENV === "production",
-      },
-    },
+    minify: "esbuild",
   },
   ssr: {
     noExternal: [],
