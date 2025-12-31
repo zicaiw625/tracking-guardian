@@ -396,3 +396,5 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
 
   return html;
 }
+
+export const generateVerificationReportHtml = generateVerificationReportHTML;
