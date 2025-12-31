@@ -334,15 +334,8 @@ export function RealtimeEventMonitor({
     };
   }, [filteredEvents]);
 
-  const stats = useMemo(() => ({
-    total: filteredEvents.length,
-    success: filteredEvents.filter((e) => e.status === "success").length,
-    failed: filteredEvents.filter((e) => e.status === "failed").length,
-    pending: filteredEvents.filter((e) => e.status === "pending").length,
-  }), [filteredEvents]);
-
   const successRate = stats.total > 0
-    ? Math.round((stats.success / stats.total) * 100)
+    ? Math.round((stats.byStatus.success / stats.total) * 100)
     : 0;
 
   const eventStats = useMemo(() => {
@@ -423,8 +416,8 @@ export function RealtimeEventMonitor({
                   总计: {stats.total} 条事件 {events.length !== filteredEvents.length && `(已过滤 ${events.length - filteredEvents.length} 条)`}
                 </Text>
                 <InlineStack gap="200">
-                  <Badge tone="success">成功: {stats.success}</Badge>
-                  <Badge tone="critical">失败: {stats.failed}</Badge>
+                  <Badge tone="success">成功: {stats.byStatus.success}</Badge>
+                  <Badge tone="critical">失败: {stats.byStatus.failed}</Badge>
                   <Badge tone="info">成功率: {successRate}%</Badge>
                 </InlineStack>
               </InlineStack>
