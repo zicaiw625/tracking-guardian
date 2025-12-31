@@ -7,9 +7,11 @@ import type {
   PlatformError,
   PlatformErrorType,
 } from "../../types";
-import type { PlatformType } from "../../types/enums";
-import { logger } from "../../utils/logger.server";
-import { hashValue, normalizePhone, normalizeEmail } from "../../utils/crypto.server";
+import type { PlatformType } from "~/types/enums";
+import { logger } from "~/utils/logger.server";
+import { hashValue, normalizePhone, normalizeEmail } from "~/utils/crypto.server";
+
+export const hashSHA256 = hashValue;
 import {
   type IPlatformService,
   type PlatformSendResult,
