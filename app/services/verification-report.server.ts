@@ -2,7 +2,6 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import type { VerificationSummary } from "./verification.server";
-import { generateChecklistMarkdown, generateChecklistCSV } from "./verification-checklist.server";
 
 export interface VerificationReportData {
   runId: string;

@@ -43,6 +43,7 @@ const ReportComparison = lazy(() => import("~/components/verification/ReportComp
 const ChannelReconciliationChart = lazy(() => import("~/components/verification/ChannelReconciliationChart").then(module => ({ default: module.ChannelReconciliationChart })));
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { logger } from "../utils/logger.server";
 import {
   createVerificationRun,
   startVerificationRun,
@@ -54,10 +55,12 @@ import {
 } from "../services/verification.server";
 import {
   generateTestChecklist,
-  generateChecklistMarkdown,
-  generateChecklistCSV,
   type TestChecklist,
 } from "../services/verification-checklist.server";
+import {
+  generateChecklistMarkdown,
+  generateChecklistCSV,
+} from "../utils/verification-checklist";
 import {
   checkFeatureAccess,
 } from "../services/billing/feature-gates.server";
@@ -314,7 +317,7 @@ function ScoreCard({
 }
 
 export default function VerificationPage() {
-  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist } =
+  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist, canAccessVerification, gateResult, currentPlan } =
     useLoaderData<typeof loader>();
   const shopDomain = shop?.domain || "";
   const actionData = useActionData<typeof action>();
