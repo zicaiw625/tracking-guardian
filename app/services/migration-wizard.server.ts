@@ -6,6 +6,10 @@ import { encryptJson, decryptJson } from "../utils/crypto.server";
 import { saveConfigSnapshot } from "./pixel-rollback.server";
 import type { Platform } from "./migration.server";
 import type { PlanId } from "./billing/plans";
+import { canCreatePixelConfig } from "./billing/feature-gates.server";
+import { getValidCredentials } from "./credentials.server";
+import { sendConversion } from "./platforms/registry";
+import { generateDedupeEventId } from "./platforms/interface";
 
 export interface WizardConfig {
   platform: Platform | "pinterest";
@@ -75,7 +79,6 @@ export async function saveWizardConfigs(
   });
 
   if (shop) {
-    const { canCreatePixelConfig } = await import("./billing/feature-gates.server");
     const gateCheck = await canCreatePixelConfig(shopId, (shop.plan || "free") as PlanId);
     if (!gateCheck.allowed) {
       return {
@@ -381,10 +384,6 @@ export async function validateTestEnvironment(
   }
 
   try {
-    const { getValidCredentials } = await import("./credentials.server");
-    const { sendConversion } = await import("./platforms/registry");
-    const { generateDedupeEventId } = await import("./platforms/interface");
-
     const credentialsResult = getValidCredentials(
       { credentialsEncrypted: config.credentialsEncrypted },
       platform as Platform

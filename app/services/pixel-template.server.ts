@@ -344,7 +344,6 @@ export async function importTemplateFromShare(
       return { success: true, templateId };
     }
 
-    const { createPixelTemplate } = await import("./batch-pixel-apply.server");
     const platforms = template.platforms as unknown as Array<{
       platform: string;
       eventMappings?: Record<string, string>;
