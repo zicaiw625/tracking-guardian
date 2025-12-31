@@ -485,7 +485,7 @@ const SetupProgressCard = memo(function SetupProgressCard({
       </BlockStack>
     </Card>
   );
-}
+});
 
 function ScriptTagMigrationBanner({
   scriptTagsCount,
