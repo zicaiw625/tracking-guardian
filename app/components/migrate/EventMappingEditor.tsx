@@ -626,6 +626,7 @@ export function EventMappingEditor({
                       </Text>
                     </BlockStack>
                   </InlineStack>
+                </InlineStack>
 
                   <Box minWidth="100%">
                     <InlineStack gap="200" blockAlign="end">
