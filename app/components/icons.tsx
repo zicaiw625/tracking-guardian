@@ -57,6 +57,10 @@ export const ArrowRightIcon: IconSource = createIcon(
   "M5 10a1 1 0 011-1h5.59L10.3 7.7a1 1 0 111.4-1.4l4 4-4 4a1 1 0 01-1.4-1.4l1.29-1.3H6a1 1 0 01-1-1z",
 );
 
+export const ArrowLeftIcon: IconSource = createIcon(
+  "M15 10a1 1 0 01-1-1H8.41l1.29-1.3a1 1 0 10-1.4-1.4l-4 4 4 4a1 1 0 001.4-1.4l-1.29-1.3H14a1 1 0 001-1z",
+);
+
 export const ClipboardIcon: IconSource = createIcon(
   "M8.5 3h3a1 1 0 011 1H15a1 1 0 011 1v11a1 1 0 01-1 1H6a1 1 0 01-1-1V5a1 1 0 011-1h2.5a1 1 0 011-1zm-.5 4v1h4V7H8zm0 3v1h4v-1H8zm0 3v1h4v-1H8z",
 );
@@ -143,4 +147,28 @@ export const ChevronDownIcon: IconSource = createIcon(
 
 export const ChevronUpIcon: IconSource = createIcon(
   "M5 13l5-5 5 5H5z",
+);
+
+export const ImageIcon: IconSource = createIcon(
+  "M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6zm2 2h4v2H8V6zm0 4h4v2H8v-2zm0 4h4v2H8v-2z",
+);
+
+export const UploadIcon: IconSource = createIcon(
+  "M10 2l3 3h-2v5H9V5H7l3-3zm-5 8h2v6h6v-6h2v6a2 2 0 01-2 2H7a2 2 0 01-2-2v-6z",
+);
+
+export const DownloadIcon: IconSource = createIcon(
+  "M10 18l-3-3h2v-5h2v5h2l-3 3zm5-8h2v6h-2v-6zm-5-8l3 3h-2v5H9V5H7l3-3z",
+);
+
+export const CopyIcon: IconSource = createIcon(
+  "M8 2h8a2 2 0 012 2v8H8V2zm2 2v6h6V4h-6zm-4 4h8a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8a2 2 0 012-2zm2 2v6h6v-6H6z",
+);
+
+export const FilterIcon: IconSource = createIcon(
+  "M3 4h14v2H3V4zm2 4h10v2H5V8zm3 4h4v2H8v-2z",
+);
+
+export const WarningIcon: IconSource = createIcon(
+  "M10 2l9 16H1L10 2zm0 4.5a1 1 0 00-1 1v3a1 1 0 002 0v-3a1 1 0 00-1-1zm0 6a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z",
 );

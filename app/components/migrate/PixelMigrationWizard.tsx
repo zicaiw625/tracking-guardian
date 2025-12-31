@@ -1951,6 +1951,10 @@ function TestingStep({
     window.location.href = "/app/verification";
   }, []);
 
+  const allInTestMode = Array.from(selectedPlatforms).every(
+    (platform) => platformConfigs[platform]?.environment === "test"
+  );
+
   useEffect(() => {
 
     const allValid = Object.keys(validationResults).length > 0 &&
@@ -1974,10 +1978,6 @@ function TestingStep({
       return () => clearTimeout(timer);
     }
   }, [currentStep, validationResults, isSwitchingToLive, allInTestMode, handleGoToVerification, showSuccess]);
-
-  const allInTestMode = Array.from(selectedPlatforms).every(
-    (platform) => platformConfigs[platform]?.environment === "test"
-  );
 
   return (
     <BlockStack gap="400">
