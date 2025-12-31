@@ -348,7 +348,7 @@ function evictOldestEntries(count: number): void {
 function sanitizeOriginForLogging(origin: string): string {
     try {
         const url = new URL(origin);
-        return `${url.protocol}
+        return `${url.protocol}//${url.hostname}`;
     }
     catch {
         return origin.substring(0, 50);

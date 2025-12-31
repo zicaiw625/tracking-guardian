@@ -289,9 +289,25 @@ export function UpgradeWizardGuide({
                           <Box>
                             <input
                               type="file"
-                              accept="image
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file && onUploadScreenshot) {
+                                  onUploadScreenshot(file);
+                                  onClose();
+                                }
+                              }}
+                            />
+                          </Box>
+                        </BlockStack>
+                      </InlineStack>
+                    </BlockStack>
+                  </Card>
+                )}
+              </BlockStack>
+            </BlockStack>
+          )}
 
-}
           {step === 3 && (
             <BlockStack gap="400">
               <Text as="h3" variant="headingMd">

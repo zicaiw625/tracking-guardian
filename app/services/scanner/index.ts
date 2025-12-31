@@ -456,7 +456,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             if (hasTiktokContext) {
                 const pixelCode = tiktokMatch[0];
 
-                if (pixelCode.length >= 20 && pixelCode.length <= 30 && !pixelCode.includes(":
+                if (pixelCode.length >= 20 && pixelCode.length <= 30 && !pixelCode.includes(":")) {
                     const key = `tiktok:${pixelCode}`;
                     if (!platformIdentifiers[key]) {
                         platformIdentifiers[key] = { sources: [], platform: "tiktok" };
@@ -508,7 +508,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
                 }
 
                 else if (/^[A-Z0-9]{20,30}$/i.test(value) &&
-                        !value.includes(":
+                        !value.includes(":") &&
                         (settingKey.toLowerCase().includes("pixel") ||
                          settingKey.toLowerCase().includes("tiktok"))) {
                     const key = `tiktok:${value}`;

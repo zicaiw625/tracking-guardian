@@ -341,7 +341,7 @@ class RedisClientFactory {
       this.connectionInfo = {
         connected: true,
         mode: "redis",
-        url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "
+        url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "//***@"),
         reconnectAttempts: 0,
       };
 

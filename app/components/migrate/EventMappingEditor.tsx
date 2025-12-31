@@ -293,7 +293,7 @@ export function EventMappingEditor({
 
   const applyBulkMapping = useCallback(() => {
     if (!bulkMappingValue || selectedEvents.size === 0) return;
-    selectedEvents.forEach((shopifyEvent) => {
+    selectedEvents.forEach((shopifyEvent: string) => {
       onMappingChange(shopifyEvent, bulkMappingValue);
     });
     setSelectedEvents(new Set());
@@ -383,11 +383,11 @@ export function EventMappingEditor({
 
   const orderedEvents = useMemo(() => {
     const eventMap = new Map(SHOPIFY_EVENTS.map(e => [e.id, e]));
-    return eventOrder.map(id => eventMap.get(id)).filter(Boolean) as ShopifyEvent[];
+    return eventOrder.map((id: string) => eventMap.get(id)).filter(Boolean) as ShopifyEvent[];
   }, [eventOrder]);
 
   const togglePreview = useCallback((eventId: string) => {
-    setShowPreview(prev => ({
+    setShowPreview((prev: Record<string, boolean>) => ({
       ...prev,
       [eventId]: !prev[eventId],
     }));
@@ -561,7 +561,7 @@ export function EventMappingEditor({
             </InlineStack>
           </InlineStack>
 
-          {orderedEvents.map((shopifyEvent, index) => {
+          {orderedEvents.map((shopifyEvent: ShopifyEvent, index: number) => {
             const currentMapping = mappings[shopifyEvent.id] || "";
             const mappingStatus = currentMapping
               ? getMappingStatus(shopifyEvent.id, currentMapping)
@@ -628,7 +628,7 @@ export function EventMappingEditor({
                   </InlineStack>
                 </InlineStack>
 
-                  <Box minWidth="100%">
+                <Box minWidth="100%">
                     <InlineStack gap="200" blockAlign="end">
                       <Box minWidth="300">
                         <Select
@@ -641,7 +641,7 @@ export function EventMappingEditor({
                             })),
                           ]}
                           value={currentMapping}
-                          onChange={(value) => onMappingChange(shopifyEvent.id, value)}
+                          onChange={(value: string) => onMappingChange(shopifyEvent.id, value)}
                         />
                       </Box>
                       {currentMapping && (
@@ -678,7 +678,6 @@ export function EventMappingEditor({
                         <Text as="span" variant="bodySm" tone="subdued">
                           这是发送到 {PLATFORM_NAMES[platform]} 的事件格式预览。实际发送时会使用订单的真实数据。
                         </Text>
-                        {}
                         <Divider />
                         <BlockStack gap="200">
                           <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -725,7 +724,7 @@ export function EventMappingEditor({
                   {mappingStatus?.status === "error" && mappingStatus.errors.length > 0 && (
                     <Banner tone="critical">
                       <List type="bullet">
-                        {mappingStatus.errors.map((error, idx) => (
+                        {mappingStatus.errors.map((error: string, idx: number) => (
                           <List.Item key={idx}>{error}</List.Item>
                         ))}
                       </List>
@@ -744,7 +743,7 @@ export function EventMappingEditor({
                               Shopify 事件参数：
                             </Text>
                             <InlineStack gap="100" wrap>
-                              {shopifyEvent.availableParams.map((param) => (
+                              {shopifyEvent.availableParams.map((param: string) => (
                                 <Badge key={param} tone="info">
                                   {param}
                                 </Badge>

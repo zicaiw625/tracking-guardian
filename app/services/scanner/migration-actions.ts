@@ -324,7 +324,9 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
                 for (const [key, value] of Object.entries(settings as Record<string, unknown>)) {
                     if (typeof value !== "string") continue;
 
-                    if (value.includes(":
+                    if (value.includes(":")) {
+                        continue;
+                    }
 
                     if (/^G-[A-Z0-9]{7,12}$/.test(value)) {
                         configuredPlatforms.add("google");
