@@ -235,7 +235,3 @@ export async function generateBatchReports(
   }
 }
 
-export {
-  htmlToPdf,
-};
-
