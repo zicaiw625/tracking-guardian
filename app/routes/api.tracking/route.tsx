@@ -1,16 +1,16 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import prisma from "../db.server";
+import prisma from "../../db.server";
 import {
   getTrackingInfo,
   getTrackingFromShopifyOrder,
   type TrackingProviderConfig,
-} from "../services/shipping-tracker.server";
-import { logger } from "../utils/logger.server";
-import type { OrderTrackingSettings } from "../types/ui-extension";
+} from "../../services/shipping-tracker.server";
+import { logger } from "../../utils/logger.server";
+import type { OrderTrackingSettings } from "../../types/ui-extension";
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
-import { authenticate } from "../shopify.server";
+import { authenticate } from "../../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
