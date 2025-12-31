@@ -16,7 +16,7 @@ if (
   process.env.SHOPIFY_APP_URL = process.env.HOST;
 }
 
-const host = new URL(process.env.SHOPIFY_APP_URL || "http:
+const host = new URL(process.env.SHOPIFY_APP_URL || "http://localhost:3000")
   .hostname;
 
 let hmrConfig;
