@@ -1,9 +1,9 @@
 
 
-import { billingCache } from "../../utils/cache";
+import { billingCache } from "~/utils/cache";
 import { BILLING_PLANS, type PlanId, getPlanOrDefault } from "./plans";
 import { getOrCreateMonthlyUsage } from "./usage.server";
-import { ok, err, type Result, type AsyncResult, fromPromise } from "../../types/result";
+import { ok, err, type Result, type AsyncResult, fromPromise } from "~/types/result";
 
 export type BillingErrorType =
   | "LIMIT_EXCEEDED"
@@ -241,7 +241,7 @@ export async function isApproachingLimit(
   return percentage >= thresholdPercent;
 }
 
-import prisma from "../../db.server";
+import prisma from "~/db.server";
 import { getCurrentYearMonth } from "./usage.server";
 
 export interface AtomicReservationResult {
