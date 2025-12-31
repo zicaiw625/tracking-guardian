@@ -264,9 +264,10 @@ export abstract class BaseRepository<
       }
 
       if (errorCode?.startsWith("P2")) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return new AppError(
           ErrorCode.DB_QUERY_ERROR,
-          `Database error in ${this.modelName}: ${error.message}`,
+          `Database error in ${this.modelName}: ${errorMessage}`,
           false,
           { model: this.modelName, prismaCode: errorCode }
         );

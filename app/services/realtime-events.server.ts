@@ -89,9 +89,14 @@ export async function subscribeToEvents(
       logger.error("Error polling events", { shopId, error });
     }
 
-    if (isActive) {
-      timeoutId = setTimeout(poll, 2000);
+    // 在设置新的定时器之前，再次检查 isActive 状态
+    // 并清理之前的定时器（如果存在）
+    if (!isActive) return;
+    
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
     }
+    timeoutId = setTimeout(poll, 2000);
   };
 
   poll();

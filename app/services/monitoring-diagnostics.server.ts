@@ -182,7 +182,7 @@ async function diagnoseFailureRate(
 
   const recommendations: DiagnosticRecommendation[] = [];
 
-  if (topErrorPattern && topErrorPattern[0].includes("network") || topErrorPattern[0].includes("timeout")) {
+  if (topErrorPattern && (topErrorPattern[0].includes("network") || topErrorPattern[0].includes("timeout"))) {
     recommendations.push({
       priority: "high",
       action: "检查网络连接和 API 端点",
@@ -196,7 +196,7 @@ async function diagnoseFailureRate(
       relatedUrl: "/app/migrate#pixel",
       estimatedTime: "10-15 分钟",
     });
-  } else if (topErrorPattern && topErrorPattern[0].includes("authentication") || topErrorPattern[0].includes("token")) {
+  } else if (topErrorPattern && (topErrorPattern[0].includes("authentication") || topErrorPattern[0].includes("token"))) {
     recommendations.push({
       priority: "critical",
       action: "更新 API 凭证",

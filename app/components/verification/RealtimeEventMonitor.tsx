@@ -234,7 +234,8 @@ export function RealtimeEventMonitor({
     return () => {
       disconnect();
     };
-  }, [autoStart, connect, disconnect]); // 当这些值改变时重新连接
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, shopId, platforms, runId, eventTypes, useVerificationEndpoint]); // 当这些值改变时重新连接 // connect和disconnect是稳定的，不需要作为依赖项
 
   const handlePauseToggle = useCallback(() => {
     setIsPaused((prev) => !prev);

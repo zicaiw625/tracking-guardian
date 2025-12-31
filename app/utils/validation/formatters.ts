@@ -10,7 +10,7 @@ export interface ValidationErrorDetail {
 }
 
 export function getZodIssues(error: ZodError<unknown>): ZodIssue[] {
-  return (error as unknown as { issues: ZodIssue[] }).issues ?? [];
+  return error.issues ?? [];
 }
 
 export function formatZodErrorsToRecord(

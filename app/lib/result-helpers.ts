@@ -60,9 +60,10 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
     }
 
     if (errorCode?.startsWith("P2")) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return new AppError(
         ErrorCode.DB_QUERY_ERROR,
-        `Database error: ${error.message}`,
+        `Database error: ${errorMessage}`,
         false,
         { resourceName, prismaCode: errorCode }
       );

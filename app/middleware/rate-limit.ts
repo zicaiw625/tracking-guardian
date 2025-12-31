@@ -237,38 +237,9 @@ class DistributedRateLimitStore {
   }
 
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
-    const now = Date.now();
-    const fullKey = `${RATE_LIMIT_PREFIX}${key}`;
-    const windowSeconds = Math.ceil(windowMs / 1000);
-
-    if (!this.shouldRetryRedis()) {
-      return memoryRateLimitStore.check(key, maxRequests, windowMs);
-    }
-
-    try {
-      const client = getRedisClientSync();
-
-      client.incr(fullKey).then((count) => {
-        if (count === 1) {
-          client.expire(fullKey, windowSeconds).catch((error) => {
-            // Log error when setting expiration fails, but don't block the request
-            logger.warn("Failed to set expiration on rate limit key", { key: fullKey, error });
-          });
-        }
-        this.markRedisHealthy();
-      }).catch((error) => {
-        this.markRedisUnhealthy();
-        logger.debug("[Rate Limit] Sync Redis incr failed", { error: String(error) });
-      });
-
-      const memoryResult = memoryRateLimitStore.check(key, maxRequests, windowMs);
-
-      return memoryResult;
-    } catch {
-
-      this.markRedisUnhealthy();
-      return memoryRateLimitStore.check(key, maxRequests, windowMs);
-    }
+    // Synchronous method can only use in-memory store since Redis operations are async
+    // Use checkAsync() if Redis-based rate limiting is needed
+    return memoryRateLimitStore.check(key, maxRequests, windowMs);
   }
 
   async getSize(): Promise<number> {

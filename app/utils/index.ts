@@ -378,7 +378,6 @@ export {
   getJson,
   postJson,
   isRetryableStatus,
-  classifyHttpResponse,
   extractRetryAfter,
   DEFAULT_TIMEOUT_MS,
   DEFAULT_RETRY_ATTEMPTS,

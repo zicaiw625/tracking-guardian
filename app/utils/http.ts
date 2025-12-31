@@ -66,13 +66,6 @@ export function calculateBackoffDelay(
   return Math.floor(exponentialDelay + jitter);
 }
 
-export function classifyHttpResponse(status: number): HttpError["type"] {
-  if (status >= 200 && status < 300) return "http";
-  if (status === 429) return "http";
-  if (status >= 500) return "http";
-  return "http";
-}
-
 export function isRetryableStatus(
   status: number,
   retryOn: HttpRequestOptions["retryOn"] = ["timeout", "network", "5xx", "429"]
