@@ -81,7 +81,7 @@ function buildDefaultPayload(data: ConversionData, eventId: string): Record<stri
 }
 function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
 
-  if (!url.startsWith('https:
+  if (!url.startsWith('https://')) {
     return { valid: false, error: 'Endpoint URL must use HTTPS' };
   }
 

@@ -18,7 +18,7 @@ export async function deleteWebPixel(
     webPixelGid: string
 ): Promise<MutationResult> {
 
-    if (!webPixelGid.startsWith("gid:
+    if (!webPixelGid.startsWith("gid://shopify/WebPixel/")) {
         return {
             success: false,
             error: `Invalid WebPixel GID format: ${webPixelGid}`,

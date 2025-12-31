@@ -143,7 +143,7 @@ export function isAlertConfigValid(config: AlertConfig): boolean {
       return Boolean(config.email && config.email.includes("@"));
     case "slack":
       return Boolean(
-        config.webhookUrl?.startsWith("https:
+        config.webhookUrl?.startsWith("https://")
       );
     case "telegram":
       return Boolean(config.botToken && config.chatId);

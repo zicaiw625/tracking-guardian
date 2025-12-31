@@ -1079,7 +1079,7 @@ export default function ScanPage() {
             return;
         }
 
-        if (!pendingDelete.gid.startsWith("gid:
+        if (!pendingDelete.gid.startsWith("gid://shopify/WebPixel/")) {
             setDeleteError("WebPixel ID 格式不正确");
             return;
         }
