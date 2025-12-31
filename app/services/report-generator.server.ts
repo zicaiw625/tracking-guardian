@@ -353,6 +353,36 @@ export interface VerificationReportData {
   };
 }
 
+export interface MigrationReportData {
+  shopDomain: string;
+  generatedAt: string;
+  reportType: "migration";
+  migrationActions: Array<{
+    title: string;
+    platform: string;
+    priority: number;
+    status: "pending" | "in_progress" | "completed" | "skipped";
+    description: string;
+  }>;
+  completedCount: number;
+  totalCount: number;
+}
+
+export interface MigrationReportData {
+  shopDomain: string;
+  generatedAt: string;
+  reportType: "migration";
+  migrationActions: Array<{
+    title: string;
+    platform: string;
+    priority: number;
+    status: "pending" | "in_progress" | "completed" | "skipped";
+    description: string;
+  }>;
+  completedCount: number;
+  totalCount: number;
+}
+
 export interface ReconciliationReportData {
   shopDomain: string;
   reportDate: Date;
@@ -1203,6 +1233,222 @@ export function generateVerificationReportHtml(data: VerificationReportData): st
   </div>
   ` : ""}
   ` : ""}
+
+  <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e1e3e5; color: #6d7175; font-size: 12px; text-align: center;">
+    <p>报告由 Tracking Guardian 自动生成</p>
+    <p>生成时间: ${new Date().toLocaleString("zh-CN")}</p>
+  </div>
+</body>
+</html>
+  `;
+}
+
+export function generateMigrationReportHtml(data: MigrationReportData): string {
+  const timestamp = new Date(data.generatedAt).toLocaleString("zh-CN");
+  const progressPercent = data.totalCount > 0 ? Math.round((data.completedCount / data.totalCount) * 100) : 0;
+
+  const sortedActions = [...data.migrationActions].sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority;
+    const statusOrder = { completed: 0, in_progress: 1, pending: 2, skipped: 3 };
+    return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
+  });
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      padding: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+      color: #333;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #202223;
+      border-bottom: 3px solid #008060;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+    h2 {
+      color: #202223;
+      margin-top: 30px;
+      margin-bottom: 15px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin: 30px 0;
+    }
+    .summary-card {
+      background: #f6f6f7;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #008060;
+    }
+    .summary-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #6d7175;
+      text-transform: uppercase;
+    }
+    .summary-card .value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #202223;
+      margin: 5px 0;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #e1e3e5;
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #008060 0%, #00a082 100%);
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #e1e3e5;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #f6f6f7;
+      font-weight: 600;
+      color: #202223;
+    }
+    tr:nth-child(even) {
+      background-color: #fafbfb;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-pending {
+      background: #e1e3e5;
+      color: #6d7175;
+    }
+    .badge-in-progress {
+      background: #fff3cd;
+      color: #b98900;
+    }
+    .badge-completed {
+      background: #e3fcef;
+      color: #008060;
+    }
+    .badge-skipped {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .priority-high {
+      color: #d72c0d;
+      font-weight: bold;
+    }
+    .priority-medium {
+      color: #b98900;
+      font-weight: bold;
+    }
+    .priority-low {
+      color: #6d7175;
+    }
+    .metadata {
+      background: #f6f6f7;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    .metadata p {
+      margin: 5px 0;
+      color: #6d7175;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 迁移报告 - ${data.shopDomain}</h1>
+  
+  <div class="metadata">
+    <p><strong>生成时间:</strong> ${timestamp}</p>
+    <p><strong>报告类型:</strong> ${data.reportType}</p>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <h3>总任务数</h3>
+      <div class="value">${data.totalCount}</div>
+    </div>
+    <div class="summary-card">
+      <h3>已完成</h3>
+      <div class="value" style="color: #008060;">${data.completedCount}</div>
+    </div>
+    <div class="summary-card">
+      <h3>进行中</h3>
+      <div class="value" style="color: #b98900;">${data.migrationActions.filter(a => a.status === "in_progress").length}</div>
+    </div>
+    <div class="summary-card">
+      <h3>待处理</h3>
+      <div class="value" style="color: #6d7175;">${data.migrationActions.filter(a => a.status === "pending").length}</div>
+    </div>
+  </div>
+
+  <h2>📊 迁移进度</h2>
+  <div class="progress-bar">
+    <div class="progress-fill" style="width: ${progressPercent}%;">
+      ${progressPercent}%
+    </div>
+  </div>
+
+  <h2>📋 迁移任务列表</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>任务标题</th>
+        <th>平台</th>
+        <th>优先级</th>
+        <th>状态</th>
+        <th>描述</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${sortedActions.map((action) => `
+        <tr>
+          <td><strong>${action.title}</strong></td>
+          <td>${action.platform || "N/A"}</td>
+          <td class="${action.priority >= 8 ? "priority-high" : action.priority >= 5 ? "priority-medium" : "priority-low"}">
+            ${action.priority}/10
+          </td>
+          <td>
+            <span class="badge badge-${action.status}">
+              ${action.status === "pending" ? "待处理" : action.status === "in_progress" ? "进行中" : action.status === "completed" ? "已完成" : "已跳过"}
+            </span>
+          </td>
+          <td>${action.description || "无描述"}</td>
+        </tr>
+      `).join("")}
+    </tbody>
+  </table>
 
   <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e1e3e5; color: #6d7175; font-size: 12px; text-align: center;">
     <p>报告由 Tracking Guardian 自动生成</p>
