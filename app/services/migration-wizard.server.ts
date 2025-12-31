@@ -385,7 +385,7 @@ export async function validateTestEnvironment(
   try {
     const { getValidCredentials } = await import("./credentials.server");
     const { sendConversion } = await import("./platforms/registry");
-    const { generateDedupeEventId } = await import("../utils/event-dedup");
+    const { generateDedupeEventId } = await import("./platforms/interface");
     const { decryptJson } = await import("../utils/crypto.server");
 
     const credentialsResult = getValidCredentials(
