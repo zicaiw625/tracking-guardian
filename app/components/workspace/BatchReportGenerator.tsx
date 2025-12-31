@@ -7,7 +7,8 @@ import {
   Checkbox,
   TextField,
   Banner,
-  Stack,
+  BlockStack,
+  InlineStack,
   Text,
   Divider,
 } from "@shopify/polaris";
@@ -101,7 +102,7 @@ export function BatchReportGenerator({
 
   return (
     <Card>
-      <Stack vertical spacing="loose">
+      <BlockStack gap="400">
         <Text variant="headingMd" as="h2">
           批量报告生成器
         </Text>
@@ -117,11 +118,11 @@ export function BatchReportGenerator({
 
         <Divider />
 
-        <Stack vertical spacing="base">
+        <BlockStack gap="300">
           <Text variant="headingSm" as="h3">
             报告类型
           </Text>
-          <Stack vertical spacing="tight">
+          <BlockStack gap="200">
             <Checkbox
               label="Audit 扫描报告"
               checked={reportTypes.includes("audit")}
@@ -142,12 +143,12 @@ export function BatchReportGenerator({
               checked={reportTypes.includes("template_apply")}
               onChange={() => toggleReportType("template_apply")}
             />
-          </Stack>
-        </Stack>
+          </BlockStack>
+        </BlockStack>
 
         <Divider />
 
-        <Stack vertical spacing="base">
+        <BlockStack gap="300">
           <Text variant="headingSm" as="h3">
             报告选项
           </Text>
@@ -157,11 +158,11 @@ export function BatchReportGenerator({
             onChange={setIncludeDetails}
             helpText="包含每个店铺的详细扫描和验收信息"
           />
-        </Stack>
+        </BlockStack>
 
         <Divider />
 
-        <Stack vertical spacing="base">
+        <BlockStack gap="300">
           <Text variant="headingSm" as="h3">
             白标配置（可选）
           </Text>
@@ -201,11 +202,11 @@ export function BatchReportGenerator({
             placeholder="+86 123 4567 8900"
             helpText="将显示在报告页脚"
           />
-        </Stack>
+        </BlockStack>
 
         <Divider />
 
-        <Stack>
+        <InlineStack>
           <Button
             primary
             loading={isGenerating}
@@ -214,8 +215,8 @@ export function BatchReportGenerator({
           >
             生成 PDF 报告
           </Button>
-        </Stack>
-      </Stack>
+        </InlineStack>
+      </BlockStack>
     </Card>
   );
 }
