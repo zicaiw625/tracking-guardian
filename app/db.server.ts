@@ -17,14 +17,19 @@ function getDatabaseUrl(): string {
   if (!baseUrl) {
     return baseUrl;
   }
-  const url = new URL(baseUrl);
-  if (!url.searchParams.has("connection_limit")) {
-    url.searchParams.set("connection_limit", String(DB_CONFIG.connectionLimit));
+  try {
+    const url = new URL(baseUrl);
+    if (!url.searchParams.has("connection_limit")) {
+      url.searchParams.set("connection_limit", String(DB_CONFIG.connectionLimit));
+    }
+    if (!url.searchParams.has("pool_timeout")) {
+      url.searchParams.set("pool_timeout", String(DB_CONFIG.poolTimeout));
+    }
+    return url.toString();
+  } catch (error) {
+    console.error("[DB] Invalid DATABASE_URL format:", error instanceof Error ? error.message : String(error));
+    return baseUrl;
   }
-  if (!url.searchParams.has("pool_timeout")) {
-    url.searchParams.set("pool_timeout", String(DB_CONFIG.poolTimeout));
-  }
-  return url.toString();
 }
 
 function createPrismaClient(): PrismaClient {

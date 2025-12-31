@@ -16,8 +16,17 @@ if (
   process.env.SHOPIFY_APP_URL = process.env.HOST;
 }
 
-const host = new URL(process.env.SHOPIFY_APP_URL || "http://localhost:3000")
-  .hostname;
+function getHostname(): string {
+  const appUrl = process.env.SHOPIFY_APP_URL || "http://localhost:3000";
+  try {
+    return new URL(appUrl).hostname;
+  } catch (error) {
+    console.warn(`[Vite] Invalid SHOPIFY_APP_URL: ${appUrl}, using localhost`);
+    return "localhost";
+  }
+}
+
+const host = getHostname();
 
 let hmrConfig;
 if (host === "localhost") {
