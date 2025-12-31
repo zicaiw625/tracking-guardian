@@ -111,6 +111,16 @@ async function calculatePriorityAndTimeEstimate(
     const { calculatePriority, updateAssetPriority } = await import("./scanner/priority-calculator");
     const asset = await prisma.auditAsset.findUnique({
       where: { id: assetId },
+      select: {
+        id: true,
+        category: true,
+        riskLevel: true,
+        migrationStatus: true,
+        suggestedMigration: true,
+        platform: true,
+        dependencies: true,
+        details: true,
+      },
     });
 
     if (!asset) {
@@ -120,6 +130,16 @@ async function calculatePriorityAndTimeEstimate(
 
     const allAssets = await prisma.auditAsset.findMany({
       where: { shopId },
+      select: {
+        id: true,
+        category: true,
+        riskLevel: true,
+        migrationStatus: true,
+        suggestedMigration: true,
+        platform: true,
+        dependencies: true,
+        details: true,
+      },
     });
 
     const priorityResult = await calculatePriority(asset, allAssets);

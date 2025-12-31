@@ -166,7 +166,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         configHealth: {
             appUrl,
             lastPixelOrigin: latestReceipt?.originHost || null,
-            lastPixelTime: latestReceipt?.createdAt || null
+            lastPixelTime: latestReceipt?.createdAt ? latestReceipt.createdAt.toISOString() : null
         },
         alertConfigs: alertConfigs.length > 0,
         alertCount: alertConfigs.length,
@@ -196,7 +196,14 @@ export default function MonitorPage() {
 
     const isDevUrl = configHealth.appUrl && (configHealth.appUrl.includes("ngrok") || configHealth.appUrl.includes("trycloudflare"));
 
-  const lastHeartbeat = configHealth.lastPixelTime ? new Date(configHealth.lastPixelTime) : null;
+  const lastHeartbeat = configHealth.lastPixelTime ? (() => {
+    try {
+      const date = new Date(configHealth.lastPixelTime);
+      return isNaN(date.getTime()) ? null : date;
+    } catch {
+      return null;
+    }
+  })() : null;
   const isHeartbeatStale = lastHeartbeat ? (new Date(lastUpdated).getTime() - lastHeartbeat.getTime() > 24 * 60 * 60 * 1000) : true;
 
   const heartbeatTone: "success" | "warning" | "critical" = (() => {
@@ -1553,7 +1560,14 @@ export default function MonitorPage() {
                    </InlineStack>
                    <Text as="span" fontWeight={configHealth.lastPixelTime ? "semibold" : "regular"}>
                      {configHealth.lastPixelTime
-                       ? new Date(configHealth.lastPixelTime).toLocaleString("zh-CN")
+                       ? (() => {
+                           try {
+                             const date = new Date(configHealth.lastPixelTime);
+                             return isNaN(date.getTime()) ? "尚未收到事件" : date.toLocaleString("zh-CN");
+                           } catch {
+                             return "尚未收到事件";
+                           }
+                         })()
                        : "尚未收到事件"}
                    </Text>
                 </InlineStack>

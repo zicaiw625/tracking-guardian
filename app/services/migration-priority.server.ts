@@ -307,6 +307,16 @@ export async function calculateAllAssetPriorities(
       shopId,
       migrationStatus: { not: "completed" },
     },
+    select: {
+      id: true,
+      category: true,
+      riskLevel: true,
+      migrationStatus: true,
+      suggestedMigration: true,
+      platform: true,
+      dependencies: true,
+      details: true,
+    },
     orderBy: [
       { riskLevel: "desc" },
       { createdAt: "asc" },
