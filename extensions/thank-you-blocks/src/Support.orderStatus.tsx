@@ -26,7 +26,7 @@ function SupportOrderStatus() {
   const continueShoppingUrl = (settings.continue_shopping_url as string) || "/";
 
   const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
-  const whatsappUrl = whatsappNumber ? `https:
+  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : undefined;
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
