@@ -1,7 +1,7 @@
 
 
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
+import prisma from "~/db.server";
+import { logger } from "~/utils/logger.server";
 
 export interface DependencyGraph {
   nodes: Array<{
