@@ -11,6 +11,10 @@ import type { ShopQueryResponse, ShopTierValue } from "../../types/shopify";
 import type { WebhookRegisterResults } from "../../types/shopify";
 import { cleanupDeprecatedWebhookSubscriptions } from "./webhook-cleanup.server";
 import { scanShopTracking } from "../scanner.server";
+import { batchCreateAuditAssets } from "../audit-asset.server";
+import { generateMigrationActions } from "../scanner/migration-actions";
+import { refreshTypOspStatus } from "../checkout-profile.server";
+import { generateMigrationTimeline, calculateAllAssetPriorities } from "../migration-priority.server";
 
 interface AfterAuthParams {
   session: {
@@ -138,7 +142,6 @@ async function runPostInstallScan(
     const scanPromise = Promise.allSettled([
 
       (async () => {
-        const { refreshTypOspStatus } = await import("../checkout-profile.server");
         return await refreshTypOspStatus(admin, shopId);
       })(),
 
@@ -207,8 +210,6 @@ async function runPostInstallScan(
 
     if (hasTimeForAssets && hasScanData) {
       try {
-        const { batchCreateAuditAssets } = await import("../audit-asset.server");
-        const { generateMigrationActions } = await import("../scanner/migration-actions");
 
         const shop = await prisma.shop.findUnique({
           where: { id: shopId },
@@ -250,7 +251,6 @@ async function runPostInstallScan(
 
             (async () => {
               try {
-                const { calculateAllAssetPriorities } = await import("../migration-priority.server");
                 await calculateAllAssetPriorities(shopId, shopTier);
                 logger.info(`[PostInstall] Calculated priorities for audit assets in ${shopDomain}`);
               } catch (priorityError) {
@@ -264,7 +264,6 @@ async function runPostInstallScan(
 
             (async () => {
               try {
-                const { generateMigrationTimeline } = await import("../migration-priority.server");
                 const migrationTimeline = await generateMigrationTimeline(shopId);
                 logger.info(`[PostInstall] Migration timeline calculated for ${shopDomain}`, {
                   totalEstimatedTime: migrationTimeline.totalEstimatedTime,
@@ -291,8 +290,6 @@ async function runPostInstallScan(
       logger.info(`[PostInstall] Time limit reached, deferring audit asset creation for ${shopDomain}`);
       (async () => {
         try {
-          const { batchCreateAuditAssets } = await import("../audit-asset.server");
-          const { generateMigrationActions } = await import("../scanner/migration-actions");
 
           const shop = await prisma.shop.findUnique({
             where: { id: shopId },

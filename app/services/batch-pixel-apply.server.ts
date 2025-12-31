@@ -2,6 +2,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { encryptJson } from "../utils/crypto.server";
 import type { PlanId } from "./billing/plans";
 import { getPixelDestinationsLimit } from "./billing/plans";
 import { createBatchJob, updateBatchJobProgress, getBatchJobStatus } from "./batch-job-queue.server";
@@ -463,7 +464,6 @@ async function applyTemplateToShop(
     }
 
     const appliedPlatforms: string[] = [];
-    const { encryptJson } = await import("../utils/crypto.server");
 
     for (const platformConfig of platforms) {
       const existingConfig = existingPlatforms.includes(platformConfig.platform);

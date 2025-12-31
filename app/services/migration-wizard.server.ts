@@ -2,7 +2,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { encryptJson } from "../utils/crypto.server";
+import { encryptJson, decryptJson } from "../utils/crypto.server";
 import type { Platform } from "./migration.server";
 import type { PlanId } from "./billing/plans";
 
@@ -282,7 +282,6 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
       let credentials: Record<string, string> = {};
       if (existingConfig?.credentialsEncrypted) {
         try {
-          const { decryptJson } = await import("../utils/crypto.server");
           credentials = decryptJson(existingConfig.credentialsEncrypted) as Record<string, string>;
         } catch (error) {
           logger.warn(`Failed to decrypt credentials for ${platform}`, error);
@@ -386,7 +385,6 @@ export async function validateTestEnvironment(
     const { getValidCredentials } = await import("./credentials.server");
     const { sendConversion } = await import("./platforms/registry");
     const { generateDedupeEventId } = await import("./platforms/interface");
-    const { decryptJson } = await import("../utils/crypto.server");
 
     const credentialsResult = getValidCredentials(
       { credentialsEncrypted: config.credentialsEncrypted },

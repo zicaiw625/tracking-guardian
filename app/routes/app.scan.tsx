@@ -673,7 +673,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
 
             if (actionType === "realtime_analyze_manual_paste") {
-                const { analyzeScriptContent } = await import("../services/scanner/content-analysis");
                 const quickAnalysis = analyzeScriptContent(content);
 
                 return json({

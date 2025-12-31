@@ -8,6 +8,7 @@ import {
   getConfigVersionHistory,
 } from "../services/pixel-rollback.server";
 import { logger } from "../utils/logger.server";
+import prisma from "../db.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -21,7 +22,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ error: "缺少 platform 参数" }, { status: 400 });
   }
 
-  const shop = await (await import("../db.server")).default.shop.findUnique({
+  const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: { id: true },
   });
