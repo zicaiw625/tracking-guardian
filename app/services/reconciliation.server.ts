@@ -4,6 +4,7 @@ import { logger } from "../utils/logger.server";
 import { getShopByIdWithDecryptedFields } from "../utils/shop-access";
 import { apiVersion } from "../shopify.server";
 import type { AlertChannel, AlertSettings } from "../types";
+import { validateAlertSettings } from "../schemas/settings";
 export interface ReconciliationResult {
     shopId: string;
     platform: string;
@@ -253,10 +254,27 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
         if (matchingAlerts.length > 0) {
             for (const alertConfig of matchingAlerts) {
                 try {
+                    // 验证 alert settings
+                    const channel = alertConfig.channel as AlertChannel;
+                    const settingsValidation = validateAlertSettings(
+                        channel,
+                        typeof alertConfig.settings === "object" && alertConfig.settings !== null
+                            ? alertConfig.settings as Record<string, unknown>
+                            : {}
+                    );
+
+                    if (!settingsValidation.success) {
+                        logger.warn(`Invalid alert settings for config ${alertConfig.id}`, {
+                            channel,
+                            errors: settingsValidation.error.issues,
+                        });
+                        continue;
+                    }
+
                     await sendAlert({
                         id: alertConfig.id,
-                        channel: alertConfig.channel as AlertChannel,
-                        settings: alertConfig.settings as unknown as AlertSettings,
+                        channel,
+                        settings: settingsValidation.data as AlertSettings,
                         discrepancyThreshold: alertConfig.discrepancyThreshold,
                         minOrdersForAlert: alertConfig.minOrdersForAlert,
                         isEnabled: true,

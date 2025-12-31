@@ -80,35 +80,34 @@ export async function wrapApiCall<T>(
   serviceName: string,
   timeoutMs: number = 30000
 ): AsyncResult<T, AppError> {
+  let timeoutId: NodeJS.Timeout | null = null;
+  let timeoutRejected = false;
+
   try {
-    const controller = new AbortController();
-    let timeoutId: NodeJS.Timeout | null = null;
+    // 创建超时 promise，确保事件监听器可以被清理
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        timeoutRejected = true;
+        reject(new Error(`Request timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
 
-    try {
-      // 创建超时 promise，确保事件监听器可以被清理
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => {
-          controller.abort();
-          reject(new Error(`Request timed out after ${timeoutMs}ms`));
-        }, timeoutMs);
-      });
-
-      const result = await Promise.race([operation(), timeoutPromise]);
-      
-      // 如果操作成功完成，清理 timeout
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-      }
-      
-      return ok(result);
-    } catch (error) {
-      // 确保清理 timeout
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-      }
-      throw error;
+    const result = await Promise.race([operation(), timeoutPromise]);
+    
+    // 如果操作成功完成，清理 timeout
+    if (timeoutId !== null && !timeoutRejected) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
     }
+    
+    return ok(result);
   } catch (error) {
+    // 确保清理 timeout（如果还没有被清理）
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    
     const appError = handleApiError(error, serviceName);
     return err(appError);
   }

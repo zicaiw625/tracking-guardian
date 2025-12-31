@@ -327,16 +327,31 @@ export async function parallelLimit<T, R>(
   return parallelLimitWithIndex(items, limit, (item, _index) => fn(item));
 }
 
+// retry 函数在 helpers.ts 中有更完整的实现，但为了保持向后兼容性，保留此处的实现
+// 注意：common.ts 中的 retry 使用 baseDelayMs，helpers.ts 中的 retry 使用 initialDelayMs
+// 两者功能相同，只是参数名不同
+
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
   delayMs: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout>;
+): ((...args: Parameters<T>) => void) & { cancel: () => void } {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
+  const debouncedFn = (...args: Parameters<T>) => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
     timeoutId = setTimeout(() => fn(...args), delayMs);
   };
+
+  debouncedFn.cancel = () => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+      timeoutId = undefined;
+    }
+  };
+
+  return debouncedFn;
 }
 
 export function throttle<T extends (...args: unknown[]) => unknown>(

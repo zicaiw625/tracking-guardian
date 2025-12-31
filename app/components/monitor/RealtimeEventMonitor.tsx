@@ -143,13 +143,14 @@ export function RealtimeEventMonitor({
       eventSourceRef.current = eventSource;
     } catch (err) {
       setError("无法建立连接");
+      showError("无法建立实时监控连接");
       // Log error in development only
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
         console.error("SSE connection error:", err);
       }
     }
-  }, [shopId, platforms, isPaused]);
+  }, [shopId, platforms, isPaused, showError]);
 
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -167,7 +168,8 @@ export function RealtimeEventMonitor({
     return () => {
       disconnect();
     };
-  }, [autoStart, connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]); // connect和disconnect是稳定的，不需要作为依赖项
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {

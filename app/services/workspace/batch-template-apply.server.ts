@@ -4,6 +4,7 @@ import { logger } from "../../utils/logger.server";
 import { canManageMultipleShops, getShopGroupDetails } from "../multi-shop.server";
 import { batchApplyPixelTemplate, type BatchApplyOptions, type BatchApplyResult } from "../batch-pixel-apply.server";
 import type { PixelTemplateConfig } from "../batch-pixel-apply.server";
+import { isPixelTemplateConfigArray, type PixelTemplateConfig as TypeGuardPixelTemplateConfig } from "../../utils/type-guards";
 
 export interface BatchTemplateApplyOptions {
   templateId: string;
@@ -297,7 +298,10 @@ export async function batchApplyTemplateWithComparison(
     return { error: "模板不存在" };
   }
 
-  const templatePlatforms = template.platforms as unknown as PixelTemplateConfig[];
+  // 验证并转换 platforms 数据
+  const templatePlatforms: PixelTemplateConfig[] = Array.isArray(template.platforms) && isPixelTemplateConfigArray(template.platforms)
+    ? (template.platforms as PixelTemplateConfig[])
+    : [];
 
   let targetShops = groupDetails.members;
   if (targetShopIds && targetShopIds.length > 0) {

@@ -14,6 +14,7 @@ import {
   Tooltip,
   Legend,
   Filler,
+  type TooltipItem,
 } from "chart.js";
 
 ChartJS.register(
@@ -146,7 +147,7 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
       },
       tooltip: {
         callbacks: {
-          label: (context: any) => `${context.parsed.y || context.parsed} 个资产`,
+          label: (context: TooltipItem<"bar">) => `${context.parsed.y || context.parsed} 个资产`,
         },
       },
     },
@@ -168,8 +169,8 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
       },
       tooltip: {
         callbacks: {
-          label: (context: any) => {
-            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+          label: (context: TooltipItem<"doughnut">) => {
+            const total = (context.dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
             const percentage = ((context.parsed / total) * 100).toFixed(1);
             return `${context.label}: ${context.parsed} 个 (${percentage}%)`;
           },
@@ -203,7 +204,7 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
                     <Text as="p" variant="bodySm" tone="subdued">
                       总计: {totalAssets} 个资产
                     </Text>
-                    <Badge tone="info">{totalAssets} 项</Badge>
+                    <Badge tone="info">{String(totalAssets)} 项</Badge>
                   </InlineStack>
                   <BlockStack gap="100">
                     <InlineStack align="space-between">
@@ -212,7 +213,7 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
                       </Text>
                       <InlineStack gap="200">
                         <Badge tone="critical">
-                          {distribution.byRiskLevel.high} 个
+                          {String(distribution.byRiskLevel.high)} 个
                         </Badge>
                         <Text as="span" variant="bodySm" tone="subdued">
                           ({totalAssets > 0 ? ((distribution.byRiskLevel.high / totalAssets) * 100).toFixed(1) : 0}%)
@@ -225,7 +226,7 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
                       </Text>
                       <InlineStack gap="200">
                         <Badge tone="warning">
-                          {distribution.byRiskLevel.medium} 个
+                          {String(distribution.byRiskLevel.medium)} 个
                         </Badge>
                         <Text as="span" variant="bodySm" tone="subdued">
                           ({totalAssets > 0 ? ((distribution.byRiskLevel.medium / totalAssets) * 100).toFixed(1) : 0}%)
@@ -238,7 +239,7 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
                       </Text>
                       <InlineStack gap="200">
                         <Badge tone="success">
-                          {distribution.byRiskLevel.low} 个
+                          {String(distribution.byRiskLevel.low)} 个
                         </Badge>
                         <Text as="span" variant="bodySm" tone="subdued">
                           ({totalAssets > 0 ? ((distribution.byRiskLevel.low / totalAssets) * 100).toFixed(1) : 0}%)
@@ -273,7 +274,7 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
                           <Text as="p" variant="bodySm">
                             {categoryLabels[category] || category}:
                           </Text>
-                          <Badge>{count} 个</Badge>
+                          <Badge>{String(count)} 个</Badge>
                         </InlineStack>
                       );
                     })}

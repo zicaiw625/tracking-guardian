@@ -2,6 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import type { Prisma } from "@prisma/client";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -64,7 +65,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const pollEvents = async () => {
         try {
 
-          const whereClause: any = {
+          const whereClause: Prisma.ConversionLogWhereInput = {
             shopId: shop.id,
             ...(platforms.length > 0 && { platform: { in: platforms } }),
             ...(eventTypes.length > 0 && { eventType: { in: eventTypes } }),

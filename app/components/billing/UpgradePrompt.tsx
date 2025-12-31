@@ -123,9 +123,9 @@ export function UpgradePrompt({
                 <Text as="p" variant="headingLg" fontWeight="bold">
                   ${recommendedPlanConfig.price}/月
                 </Text>
-                {recommendedPlanConfig.trialDays && (
+                {"trialDays" in recommendedPlanConfig && recommendedPlanConfig.trialDays && (
                   <Badge tone="info">
-                    {recommendedPlanConfig.trialDays} 天免费试用
+                    {String(recommendedPlanConfig.trialDays)} 天免费试用
                   </Badge>
                 )}
               </BlockStack>
@@ -164,7 +164,7 @@ export function UpgradePrompt({
                         }
                       }}
                     >
-                      {plan.name} (${plan.price}/月)
+                      {plan.name} (${String(plan.price)}/月)
                     </Button>
                   );
                 })}

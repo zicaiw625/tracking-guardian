@@ -5,6 +5,7 @@ import { logger } from "../utils/logger.server";
 import type { PlanId } from "./billing/plans";
 import { getPixelDestinationsLimit } from "./billing/plans";
 import { createBatchJob, updateBatchJobProgress, getBatchJobStatus } from "./batch-job-queue.server";
+import { isPixelTemplateConfigArray } from "../utils/type-guards";
 
 export interface PixelTemplateConfig {
   platform: string;
@@ -53,12 +54,21 @@ export async function createPixelTemplate(
   options: TemplateCreateOptions
 ): Promise<{ success: boolean; templateId?: string; error?: string }> {
   try {
+    // 验证 platforms 数据
+    if (!isPixelTemplateConfigArray(options.platforms)) {
+      logger.error("Invalid platforms data for pixel template", {
+        platforms: options.platforms,
+      });
+      return { success: false, error: "无效的平台配置数据" };
+    }
+
     const template = await prisma.pixelTemplate.create({
       data: {
         ownerId: options.ownerId,
         name: options.name,
         description: options.description,
-        platforms: options.platforms as unknown as Parameters<typeof prisma.pixelTemplate.create>[0]["data"]["platforms"],
+        // Prisma 需要 JSON 类型，但我们已经验证了数据结构
+        platforms: options.platforms as Parameters<typeof prisma.pixelTemplate.create>[0]["data"]["platforms"],
         isPublic: options.isPublic ?? false,
       },
     });
@@ -95,15 +105,22 @@ export async function getPixelTemplates(
     orderBy: { createdAt: "desc" },
   });
 
-  return templates.map(t => ({
-    id: t.id,
-    name: t.name,
-    description: t.description,
-    platforms: (t.platforms as unknown) as PixelTemplateConfig[],
-    isPublic: t.isPublic,
-    usageCount: t.usageCount,
-    createdAt: t.createdAt,
-  }));
+  return templates.map(t => {
+    // 验证并转换 platforms 数据
+    const platforms = Array.isArray(t.platforms) && isPixelTemplateConfigArray(t.platforms)
+      ? t.platforms
+      : [];
+
+    return {
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      platforms,
+      isPublic: t.isPublic,
+      usageCount: t.usageCount,
+      createdAt: t.createdAt,
+    };
+  });
 }
 
 export async function getPixelTemplate(
@@ -122,11 +139,16 @@ export async function getPixelTemplate(
 
   if (!template) return null;
 
+  // 验证并转换 platforms 数据
+  const platforms = Array.isArray(template.platforms) && isPixelTemplateConfigArray(template.platforms)
+    ? template.platforms
+    : [];
+
   return {
     id: template.id,
     name: template.name,
     description: template.description,
-    platforms: (template.platforms as unknown) as PixelTemplateConfig[],
+    platforms,
     isPublic: template.isPublic,
     usageCount: template.usageCount,
   };
@@ -146,12 +168,25 @@ export async function updatePixelTemplate(
       return { success: false, error: "模板不存在或无权限" };
     }
 
+    // 如果更新 platforms，验证数据
+    if (updates.platforms !== undefined) {
+      if (!isPixelTemplateConfigArray(updates.platforms)) {
+        logger.error("Invalid platforms data for pixel template update", {
+          templateId,
+          platforms: updates.platforms,
+        });
+        return { success: false, error: "无效的平台配置数据" };
+      }
+    }
+
     await prisma.pixelTemplate.update({
       where: { id: templateId },
       data: {
         name: updates.name,
         description: updates.description,
-        platforms: updates.platforms as unknown as Parameters<typeof prisma.pixelTemplate.update>[0]["data"]["platforms"],
+        platforms: updates.platforms !== undefined
+          ? (updates.platforms as Parameters<typeof prisma.pixelTemplate.update>[0]["data"]["platforms"])
+          : undefined,
         isPublic: updates.isPublic,
       },
     });

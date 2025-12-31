@@ -1,6 +1,6 @@
 
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Card,
   Text,
@@ -32,11 +32,10 @@ import { useSubmit, useNavigation } from "@remix-run/react";
 import { useToastContext } from "~/components/ui";
 import { EventMappingEditor } from "./EventMappingEditor";
 import { ConfigVersionManager } from "./ConfigVersionManager";
-
-type Platform = "google" | "meta" | "tiktok" | "pinterest" | "snapchat";
+import type { PlatformType } from "~/types/enums";
 
 interface PlatformConfig {
-  platform: Platform;
+  platform: PlatformType;
   enabled: boolean;
   platformId: string;
   credentials: {
@@ -63,7 +62,7 @@ interface PixelTemplate {
   id: string;
   name: string;
   description: string;
-  platforms: Platform[];
+  platforms: PlatformType[];
   eventMappings: Record<string, Record<string, string>>;
 }
 
@@ -116,7 +115,7 @@ const PRESET_TEMPLATES: PixelTemplate[] = [
   },
 ];
 
-const DEFAULT_EVENT_MAPPINGS: Record<Platform, Record<string, string>> = {
+const DEFAULT_EVENT_MAPPINGS: Partial<Record<PlatformType, Record<string, string>>> = {
   google: {
     checkout_completed: "purchase",
     checkout_started: "begin_checkout",
@@ -154,21 +153,18 @@ const DEFAULT_EVENT_MAPPINGS: Record<Platform, Record<string, string>> = {
   },
 };
 
-const PLATFORM_INFO: Record<
-  Platform,
-  {
-    name: string;
-    icon: string;
-    description: string;
-    credentialFields: Array<{
-      key: string;
-      label: string;
-      placeholder: string;
-      type: "text" | "password";
-      helpText?: string;
-    }>;
-  }
-> = {
+const PLATFORM_INFO: Partial<Record<PlatformType, {
+  name: string;
+  icon: string;
+  description: string;
+  credentialFields: Array<{
+    key: string;
+    label: string;
+    placeholder: string;
+    type: "text" | "password";
+    helpText?: string;
+  }>;
+}>> = {
   google: {
     name: "Google Analytics 4",
     icon: "🔵",
@@ -305,7 +301,7 @@ export interface PrefillAsset {
 export interface PixelMigrationWizardProps {
   onComplete: () => void;
   onCancel: () => void;
-  initialPlatforms?: Platform[];
+  initialPlatforms?: PlatformType[];
   canManageMultiple?: boolean;
   shopId?: string;
   templates?: {
@@ -350,7 +346,7 @@ export function PixelMigrationWizard({
   const navigation = useNavigation();
   const { showSuccess, showError } = useToastContext();
 
-  const extractPlatformIdFromAsset = useCallback((asset: PrefillAsset, platform: Platform): string => {
+  const extractPlatformIdFromAsset = useCallback((asset: PrefillAsset, platform: PlatformType): string => {
     if (!asset.details) return "";
 
     const details = asset.details as Record<string, unknown>;
@@ -415,8 +411,8 @@ export function PixelMigrationWizard({
 
   const initializeFromDraft = useCallback(() => {
     if (wizardDraft) {
-      const draftPlatforms = new Set<Platform>(wizardDraft.selectedPlatforms as Platform[]);
-      const draftConfigs: Record<Platform, PlatformConfig> = {
+      const draftPlatforms = new Set<PlatformType>(wizardDraft.selectedPlatforms as PlatformType[]);
+      const draftConfigs: Partial<Record<PlatformType, PlatformConfig>> = {
         google: {
           platform: "google",
           enabled: draftPlatforms.has("google"),
@@ -472,13 +468,13 @@ export function PixelMigrationWizard({
   const initializeFromAsset = useCallback(() => {
     if (!prefillAsset || !prefillAsset.platform) return null;
 
-    const platform = prefillAsset.platform as Platform;
+    const platform = prefillAsset.platform as PlatformType;
     if (!["google", "meta", "tiktok", "pinterest", "snapchat"].includes(platform)) return null;
 
     const platformId = extractPlatformIdFromAsset(prefillAsset, platform);
 
     return {
-      platforms: new Set<Platform>([platform]),
+      platforms: new Set<PlatformType>([platform]),
       configs: {
         google: {
           platform: "google",
@@ -525,12 +521,13 @@ export function PixelMigrationWizard({
   }, [prefillAsset, extractPlatformIdFromAsset]);
 
   const assetData = initializeFromAsset();
+  const timeoutRefs = useRef<Array<NodeJS.Timeout>>([]);
   const [currentStep, setCurrentStep] = useState<WizardStep>(draftData?.step || "select");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<Platform>>(
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<PlatformType>>(
     draftData?.platforms || assetData?.platforms || new Set(initialPlatforms)
   );
   const [platformConfigs, setPlatformConfigs] = useState<
-    Record<Platform, PlatformConfig>
+    Partial<Record<PlatformType, PlatformConfig>>
   >(draftData?.configs || assetData?.configs || {
     google: {
       platform: "google",
@@ -690,8 +687,8 @@ const allTemplates: WizardTemplate[] = [
         const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
         const draft = {
           step: wizardDraft.step,
-          selectedPlatforms: wizardDraft.configData.selectedPlatforms || [],
-          platformConfigs: wizardDraft.configData.platformConfigs || {},
+          selectedPlatforms: wizardDraft.selectedPlatforms || [],
+          configs: wizardDraft.configs || {},
           selectedTemplate: null,
           timestamp: Date.now(),
         };
@@ -715,7 +712,8 @@ const allTemplates: WizardTemplate[] = [
       });
       setPlatformConfigs(configs);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在组件挂载时运行一次
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -733,7 +731,7 @@ const allTemplates: WizardTemplate[] = [
     }, 30000);
 
     return () => clearInterval(intervalId);
-  }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, saveDraft]);
+  }, [currentStep, selectedPlatforms, saveDraft]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -823,7 +821,7 @@ const allTemplates: WizardTemplate[] = [
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
 
   const handlePlatformToggle = useCallback(
-    (platform: Platform, enabled: boolean) => {
+    (platform: PlatformType, enabled: boolean) => {
       setSelectedPlatforms((prev) => {
         const next = new Set(prev);
         if (enabled) {
@@ -848,10 +846,10 @@ const allTemplates: WizardTemplate[] = [
   const handleApplyTemplate = useCallback(
     (template: WizardTemplate) => {
       const configs = { ...platformConfigs };
-      const platforms = new Set<Platform>();
+      const platforms = new Set<PlatformType>();
 
       template.platforms.forEach((platform) => {
-        const platformKey = platform as Platform;
+        const platformKey = platform as PlatformType;
         platforms.add(platformKey);
         configs[platformKey] = {
           ...configs[platformKey],
@@ -870,7 +868,7 @@ const allTemplates: WizardTemplate[] = [
   );
 
   const handleCredentialUpdate = useCallback(
-    (platform: Platform, field: string, value: string) => {
+    (platform: PlatformType, field: string, value: string) => {
       setPlatformConfigs((prev) => ({
         ...prev,
         [platform]: {
@@ -890,7 +888,7 @@ const allTemplates: WizardTemplate[] = [
   );
 
   const handleEventMappingUpdate = useCallback(
-    (platform: Platform, shopifyEvent: string, platformEvent: string) => {
+    (platform: PlatformType, shopifyEvent: string, platformEvent: string) => {
       setPlatformConfigs((prev) => ({
         ...prev,
         [platform]: {
@@ -906,7 +904,7 @@ const allTemplates: WizardTemplate[] = [
   );
 
   const handleEnvironmentToggle = useCallback(
-    (platform: Platform, environment: "test" | "live") => {
+    (platform: PlatformType, environment: "test" | "live") => {
       setPlatformConfigs((prev) => ({
         ...prev,
         [platform]: {
@@ -918,7 +916,7 @@ const allTemplates: WizardTemplate[] = [
     []
   );
 
-  const validateConfig = useCallback((platform: Platform): string[] => {
+  const validateConfig = useCallback((platform: PlatformType): string[] => {
     const config = platformConfigs[platform];
     const errors: string[] = [];
     const info = PLATFORM_INFO[platform];
@@ -1109,8 +1107,8 @@ const allTemplates: WizardTemplate[] = [
               <Badge tone="info">
                 {`步骤 ${currentStepIndex + 1} / ${steps.length}`}
               </Badge>
-              <Badge tone="subdued">
-                {Math.round(progress)}% 完成
+              <Badge>
+                {String(Math.round(progress))}% 完成
               </Badge>
             </InlineStack>
           </InlineStack>
@@ -1289,9 +1287,9 @@ function SelectPlatformStep({
   onShowTemplateModal,
   templates,
 }: {
-  selectedPlatforms: Set<Platform>;
-  platformConfigs: Record<Platform, PlatformConfig>;
-  onPlatformToggle: (platform: Platform, enabled: boolean) => void;
+  selectedPlatforms: Set<PlatformType>;
+  platformConfigs: Partial<Record<PlatformType, PlatformConfig>>;
+  onPlatformToggle: (platform: PlatformType, enabled: boolean) => void;
   onApplyTemplate: (template: WizardTemplate) => void;
   showTemplateModal: boolean;
   onShowTemplateModal: (show: boolean) => void;
@@ -1322,7 +1320,7 @@ function SelectPlatformStep({
       </Banner>
 
       <BlockStack gap="300">
-        {(Object.keys(PLATFORM_INFO) as Platform[]).map((platform) => {
+        {(Object.keys(PLATFORM_INFO) as PlatformType[]).map((platform) => {
           const info = PLATFORM_INFO[platform];
           const isSelected = selectedPlatforms.has(platform);
 
@@ -1399,7 +1397,7 @@ function SelectPlatformStep({
                   </InlineStack>
                   <InlineStack gap="100">
                     {template.platforms.map((p) => {
-                      const platformKey = p as Platform;
+                      const platformKey = p as PlatformType;
                       return (
                         <Badge key={p}>
                           {PLATFORM_INFO[platformKey]?.name || p}
@@ -1423,10 +1421,10 @@ function CredentialsStep({
   onCredentialUpdate,
   onEnvironmentToggle,
 }: {
-  selectedPlatforms: Set<Platform>;
-  platformConfigs: Record<Platform, PlatformConfig>;
-  onCredentialUpdate: (platform: Platform, field: string, value: string) => void;
-  onEnvironmentToggle: (platform: Platform, environment: "test" | "live") => void;
+  selectedPlatforms: Set<PlatformType>;
+  platformConfigs: Partial<Record<PlatformType, PlatformConfig>>;
+  onCredentialUpdate: (platform: PlatformType, field: string, value: string) => void;
+  onEnvironmentToggle: (platform: PlatformType, environment: "test" | "live") => void;
 }) {
   return (
     <BlockStack gap="500">
@@ -1527,10 +1525,10 @@ function EventMappingsStep({
   platformConfigs,
   onEventMappingUpdate,
 }: {
-  selectedPlatforms: Set<Platform>;
-  platformConfigs: Record<Platform, PlatformConfig>;
+  selectedPlatforms: Set<PlatformType>;
+  platformConfigs: Partial<Record<PlatformType, PlatformConfig>>;
   onEventMappingUpdate: (
-    platform: Platform,
+    platform: PlatformType,
     shopifyEvent: string,
     platformEvent: string
   ) => void;
@@ -1569,11 +1567,11 @@ function ReviewStep({
   shopId,
   onEnvironmentToggle,
 }: {
-  selectedPlatforms: Set<Platform>;
-  platformConfigs: Record<Platform, PlatformConfig>;
-  onValidate: (platform: Platform) => string[];
+  selectedPlatforms: Set<PlatformType>;
+  platformConfigs: Partial<Record<PlatformType, PlatformConfig>>;
+  onValidate: (platform: PlatformType) => string[];
   shopId?: string;
-  onEnvironmentToggle?: (platform: Platform, environment: "test" | "live") => void;
+  onEnvironmentToggle?: (platform: PlatformType, environment: "test" | "live") => void;
 }) {
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -1816,11 +1814,11 @@ function TestingStep({
   shopId,
   onEnvironmentToggle,
 }: {
-  selectedPlatforms: Set<Platform>;
-  platformConfigs: Record<Platform, PlatformConfig>;
+  selectedPlatforms: Set<PlatformType>;
+  platformConfigs: Partial<Record<PlatformType, PlatformConfig>>;
   onComplete: () => void;
   shopId?: string;
-  onEnvironmentToggle?: (platform: Platform, environment: "test" | "live") => void;
+  onEnvironmentToggle?: (platform: PlatformType, environment: "test" | "live") => void;
 }) {
   const [isValidating, setIsValidating] = useState(false);
   const [isSwitchingToLive, setIsSwitchingToLive] = useState(false);
@@ -1879,7 +1877,7 @@ function TestingStep({
       } else {
         const failedPlatforms = Object.entries(results)
           .filter(([_, r]) => !r.valid)
-          .map(([p]) => PLATFORM_INFO[p as Platform]?.name || p)
+          .map(([p]) => PLATFORM_INFO[p as PlatformType]?.name || p)
           .join(", ");
         showError(`部分平台配置验证失败: ${failedPlatforms}。请检查配置和凭证。`);
       }
@@ -1925,13 +1923,14 @@ function TestingStep({
       if (allSuccess) {
         showSuccess("所有平台已切换到生产模式！");
 
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
           window.location.href = "/app/verification";
         }, 1500);
+        timeoutRefs.current.push(timeout);
       } else {
         const failedPlatforms = results
           .filter((r) => !r.success)
-          .map((r) => PLATFORM_INFO[r.platform as Platform]?.name || r.platform)
+          .map((r) => PLATFORM_INFO[r.platform as PlatformType]?.name || r.platform)
           .join(", ");
         showError(`部分平台切换失败: ${failedPlatforms}。请稍后重试。`);
       }
@@ -2254,9 +2253,10 @@ function TestingStep({
             onClick={() => {
               onComplete();
 
-              setTimeout(() => {
+              const timeout = setTimeout(() => {
                 window.location.href = "/app/verification";
               }, 300);
+              timeoutRefs.current.push(timeout);
             }}
           >
             ✅ 完成并前往验收

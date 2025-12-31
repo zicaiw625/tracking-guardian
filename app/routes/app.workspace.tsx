@@ -662,12 +662,34 @@ export default function WorkspacePage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportReportType, setExportReportType] = useState<"verification" | "scan" | "migration">("verification");
   const [exportFormat, setExportFormat] = useState<"csv" | "json" | "pdf">("pdf");
-  const [exportResult, setExportResult] = useState<any>(null);
+  const [exportResult, setExportResult] = useState<{
+    success: boolean;
+    totalShops?: number;
+    successCount?: number;
+    failedCount?: number;
+    reports?: Array<{
+      shopId: string;
+      shopDomain: string;
+      status: "success" | "failed";
+      error?: string;
+    }>;
+    downloadUrl?: string;
+    error?: string;
+  } | null>(null);
 
   const [showBatchApplyModal, setShowBatchApplyModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<PixelTemplate | null>(null);
   const [batchApplyJobId, setBatchApplyJobId] = useState<string | null>(null);
-  const [batchApplyStatus, setBatchApplyStatus] = useState<any>(null);
+  const [batchApplyStatus, setBatchApplyStatus] = useState<{
+    status: "pending" | "running" | "completed" | "failed";
+    progress: number;
+    totalItems?: number;
+    completedItems?: number;
+    failedItems?: number;
+    skippedItems?: number;
+    result?: unknown;
+    error?: string;
+  } | null>(null);
   const [batchApplyTargetShops, setBatchApplyTargetShops] = useState<ShopInfo[]>([]);
 
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);

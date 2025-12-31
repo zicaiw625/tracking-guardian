@@ -2,6 +2,11 @@ import { Resend } from "resend";
 import type { AlertData, AlertConfig, EmailAlertSettings, SlackAlertSettings, TelegramAlertSettings, } from "../types";
 import { decryptJson } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
+import {
+  asEmailAlertSettings,
+  asSlackAlertSettings,
+  asTelegramAlertSettings,
+} from "../utils/type-guards";
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
@@ -25,7 +30,10 @@ function getDecryptedSettings(config: AlertConfigWithEncryption): Record<string,
     }
     if (config.settings && typeof config.settings === "object") {
         logger.warn(`[P0-2] Using legacy plain settings for alert config - migration needed`);
-        return config.settings as unknown as Record<string, unknown>;
+        // 对于遗留设置，我们仍然需要返回对象，但确保它是有效的对象类型
+        if (typeof config.settings === "object" && config.settings !== null && !Array.isArray(config.settings)) {
+            return config.settings as Record<string, unknown>;
+        }
     }
     return null;
 }
@@ -37,12 +45,30 @@ export async function sendAlert(config: AlertConfigWithEncryption, data: AlertDa
             return false;
         }
         switch (config.channel) {
-            case "email":
-                return await sendEmailAlert(settings as unknown as EmailAlertSettings, data);
-            case "slack":
-                return await sendSlackAlert(settings as unknown as SlackAlertSettings, data);
-            case "telegram":
-                return await sendTelegramAlert(settings as unknown as TelegramAlertSettings, data);
+            case "email": {
+                const emailSettings = asEmailAlertSettings(settings);
+                if (!emailSettings) {
+                    logger.error(`Invalid email settings for alert config ${config.id}`);
+                    return false;
+                }
+                return await sendEmailAlert(emailSettings, data);
+            }
+            case "slack": {
+                const slackSettings = asSlackAlertSettings(settings);
+                if (!slackSettings) {
+                    logger.error(`Invalid slack settings for alert config ${config.id}`);
+                    return false;
+                }
+                return await sendSlackAlert(slackSettings, data);
+            }
+            case "telegram": {
+                const telegramSettings = asTelegramAlertSettings(settings);
+                if (!telegramSettings) {
+                    logger.error(`Invalid telegram settings for alert config ${config.id}`);
+                    return false;
+                }
+                return await sendTelegramAlert(telegramSettings, data);
+            }
             default:
                 logger.warn(`Unknown alert channel: ${config.channel}`);
                 return false;

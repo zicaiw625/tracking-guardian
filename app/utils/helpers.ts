@@ -253,14 +253,22 @@ export async function parallelLimit<T, R>(
       // 等待至少一个 promise 完成
       await Promise.race(executing.map((e) => e.promise));
 
-      // 移除已完成的 promise
+      // 移除已完成的 promise（使用allSettled确保所有promise状态都已确定）
       const settled = await Promise.allSettled(
         executing.map((e) => e.promise)
       );
-      for (let j = executing.length - 1; j >= 0; j--) {
+      
+      // 从后往前移除已完成的promise，避免索引问题
+      const toRemove: number[] = [];
+      for (let j = settled.length - 1; j >= 0; j--) {
         if (settled[j].status === "fulfilled") {
-          executing.splice(j, 1);
+          toRemove.push(j);
         }
+      }
+      
+      // 按降序移除，确保索引正确
+      for (const idx of toRemove.sort((a, b) => b - a)) {
+        executing.splice(idx, 1);
       }
     }
   }

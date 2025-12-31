@@ -17,7 +17,21 @@ import {
   Badge,
 } from "@shopify/polaris";
 import { SettingsIcon, AlertCircleIcon } from "~/components/icons";
-import type { MonitoringAlert } from "@prisma/client";
+
+// MonitoringAlert type definition (from Prisma schema)
+interface MonitoringAlert {
+  id: string;
+  shopId: string;
+  alertType: string;
+  threshold: number | null;
+  condition: Record<string, unknown> | null;
+  isEnabled: boolean;
+  lastTriggeredAt: Date | null;
+  triggerCount: number;
+  notificationChannels: Record<string, unknown> | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface AlertConfigPanelProps {
   shopId: string;

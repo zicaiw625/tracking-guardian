@@ -14,11 +14,11 @@ import {
 } from "@shopify/polaris";
 import { ClockIcon, ArrowLeftIcon, CheckCircleIcon } from "~/components/icons";
 import { useFetcher } from "@remix-run/react";
-import type { Platform } from "~/services/migration.server";
+import type { PlatformType } from "~/types/enums";
 
 export interface ConfigVersionManagerProps {
   shopId: string;
-  platform: Platform;
+  platform: PlatformType;
   currentVersion: number;
   onRollbackComplete?: () => void;
 }
@@ -127,7 +127,7 @@ export function ConfigVersionManager({
     );
   }
 
-  const platformNames: Record<Platform, string> = {
+  const platformNames: Partial<Record<PlatformType, string>> = {
     google: "Google Analytics 4",
     meta: "Meta Pixel",
     tiktok: "TikTok Pixel",
@@ -210,7 +210,7 @@ export function ConfigVersionManager({
                           {version.config.clientSideEnabled ? (
                             <Badge tone="success">启用</Badge>
                           ) : (
-                            <Badge tone="subdued">禁用</Badge>
+                            <Badge>禁用</Badge>
                           )}
                         </Text>
                         <Text as="span" variant="bodySm">
@@ -218,7 +218,7 @@ export function ConfigVersionManager({
                           {version.config.serverSideEnabled ? (
                             <Badge tone="success">启用</Badge>
                           ) : (
-                            <Badge tone="subdued">禁用</Badge>
+                            <Badge>禁用</Badge>
                           )}
                         </Text>
                       </InlineStack>

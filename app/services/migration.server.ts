@@ -6,6 +6,7 @@ import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
 import { canCreatePixelConfig } from "./billing/feature-gates.server";
 import { normalizePlan } from "../utils/plans";
+import { validateCredentials } from "../types/platform";
 
 export type Platform = "google" | "meta" | "tiktok";
 
@@ -567,7 +568,13 @@ export async function migrateCredentialsToEncrypted(): Promise<{
                 logger.warn(`P0-09: Skipping ${config.id} - invalid credentials format`);
                 continue;
             }
-            const encrypted = encryptJson(legacyCreds as unknown as PlatformCredentials);
+            // 验证 credentials 类型
+            const credsValidation = validateCredentials(legacyCreds);
+            if (!credsValidation.success) {
+                logger.warn(`P0-09: Skipping ${config.id} - invalid credentials: ${credsValidation.errors.join(", ")}`);
+                continue;
+            }
+            const encrypted = encryptJson(credsValidation.data);
             await prisma.pixelConfig.update({
                 where: { id: config.id },
                 data: {

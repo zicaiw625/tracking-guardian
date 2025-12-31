@@ -301,9 +301,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const planDef = getPlanDefinition(planId);
 
     const [migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist] = await Promise.all([
-        generateMigrationTimeline(shop.id).catch(() => null),
-        getMigrationProgress(shop.id).catch(() => null),
-        analyzeDependencies(shop.id).catch(() => null),
+        generateMigrationTimeline(shop.id).catch((error) => {
+            logger.warn("Failed to generate migration timeline", { shopId: shop.id, error });
+            return null;
+        }),
+        getMigrationProgress(shop.id).catch((error) => {
+            logger.warn("Failed to get migration progress", { shopId: shop.id, error });
+            return null;
+        }),
+        analyzeDependencies(shop.id).catch((error) => {
+            logger.warn("Failed to analyze dependencies", { shopId: shop.id, error });
+            return null;
+        }),
         (async () => {
             try {
                 const { getAuditAssets } = await import("../services/audit-asset.server");
@@ -315,7 +324,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 return [];
             }
         })(),
-        generateMigrationChecklist(shop.id).catch(() => null),
+        generateMigrationChecklist(shop.id).catch((error) => {
+            logger.warn("Failed to generate migration checklist", { shopId: shop.id, error });
+            return null;
+        }),
     ]);
 
     return json({
@@ -1458,7 +1470,10 @@ export default function ScanPage() {
             setPasteProcessed(true);
             showSuccess(result.message || "已成功处理粘贴内容");
 
-            setTimeout(() => {
+            if (reloadTimeoutRef.current) {
+                clearTimeout(reloadTimeoutRef.current);
+            }
+            reloadTimeoutRef.current = setTimeout(() => {
                 window.location.reload();
             }, 1500);
         } else if (result.error) {

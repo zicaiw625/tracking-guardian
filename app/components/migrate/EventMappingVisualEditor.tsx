@@ -533,17 +533,20 @@ export function EventMappingVisualEditor({
                                     事件 JSON 预览：
                                   </Text>
                                   <Box
-                                    as="pre"
                                     padding="300"
                                     background="bg-surface"
                                     borderRadius="100"
-                                    style={{
+                                  >
+                                    <pre style={{
                                       fontSize: "12px",
                                       overflow: "auto",
                                       maxHeight: "300px",
-                                    }}
-                                  >
-                                    {JSON.stringify(preview, null, 2)}
+                                      margin: 0,
+                                      whiteSpace: "pre-wrap",
+                                      wordBreak: "break-word",
+                                    }}>
+                                      {JSON.stringify(preview, null, 2)}
+                                    </pre>
                                   </Box>
                                 </BlockStack>
                               </Box>

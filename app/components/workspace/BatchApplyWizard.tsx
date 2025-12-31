@@ -44,7 +44,7 @@ interface BatchApplyWizardProps {
   onConfirm: (options: {
     overwriteExisting: boolean;
     skipIfExists: boolean;
-  }) => Promise<{ jobId?: string; result?: any }>;
+  }) => Promise<{ jobId?: string; result?: unknown }>;
   onCancel: () => void;
   jobId?: string | null;
 }
@@ -63,7 +63,16 @@ export function BatchApplyWizard({
   const [skipIfExists, setSkipIfExists] = useState(true);
   const [progress, setProgress] = useState(0);
   const [jobId, setJobId] = useState<string | null>(initialJobId || null);
-  const [jobStatus, setJobStatus] = useState<any>(null);
+  const [jobStatus, setJobStatus] = useState<{
+    status: "pending" | "running" | "completed" | "failed";
+    progress: number;
+    totalItems?: number;
+    completedItems?: number;
+    failedItems?: number;
+    skippedItems?: number;
+    result?: unknown;
+    error?: string;
+  } | null>(null);
   const [results, setResults] = useState<{
     success: number;
     failed: number;

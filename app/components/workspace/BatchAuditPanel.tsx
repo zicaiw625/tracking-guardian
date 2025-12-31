@@ -108,32 +108,34 @@ export function BatchAuditPanel({
     return () => clearInterval(interval);
   }, [jobId, isRunning, statusFetcher]);
 
+  type BatchAuditResult = {
+    results: Array<{
+      shopId: string;
+      shopDomain: string;
+      status: "success" | "failed" | "skipped";
+      riskScore?: number;
+      error?: string;
+    }>;
+    summary: {
+      avgRiskScore: number;
+      highRiskCount: number;
+      mediumRiskCount: number;
+      lowRiskCount: number;
+    };
+    totalShops: number;
+    completedShops: number;
+    failedShops: number;
+    skippedShops: number;
+  };
+
   useEffect(() => {
-    const data = statusFetcher.data as { success?: boolean; job?: { progress: number; status: string; result?: any } } | undefined;
+    const data = statusFetcher.data as { success?: boolean; job?: { progress: number; status: string; result?: BatchAuditResult } } | undefined;
     if (data?.success && data.job) {
       setProgress(data.job.progress);
 
       if (data.job.status === "completed" && data.job.result) {
         setIsRunning(false);
-        const result = data.job.result as {
-          results: Array<{
-            shopId: string;
-            shopDomain: string;
-            status: "success" | "failed" | "skipped";
-            riskScore?: number;
-            error?: string;
-          }>;
-          summary: {
-            avgRiskScore: number;
-            highRiskCount: number;
-            mediumRiskCount: number;
-            lowRiskCount: number;
-          };
-          totalShops: number;
-          completedShops: number;
-          failedShops: number;
-          skippedShops: number;
-        };
+        const result = data.job.result;
         setResults(result.results);
         setSummary({
           totalShops: result.totalShops,

@@ -99,7 +99,7 @@ export async function executeCronTasks(cronLogger: CronLogger): Promise<CronResu
     cronLogger.debug("Skipping legacy retries (LEGACY_LOG_SENDER not enabled)");
   }
 
-  let healthCheckResults: any[] = [];
+  let healthCheckResults: DeliveryHealthJobResult[] = [];
   let successful = 0;
   let failed = 0;
   try {

@@ -15,6 +15,7 @@ import { runDiagnostics } from "~/services/monitoring-diagnostics.server";
 import { useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { logger } from "../utils/logger.server";
 import { getDeliveryHealthHistory, getDeliveryHealthSummary, type DeliveryHealthReport, } from "../services/delivery-health.server";
 import { getAlertHistory, runAlertChecks, type AlertCheckResult } from "../services/alert-dispatcher.server";
 import { isValidPlatform, PLATFORM_NAMES } from "../types";
@@ -123,14 +124,38 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         getEventMonitoringStats(shop.id, 24),
         getMissingParamsStats(shop.id, 24),
         getEventVolumeStats(shop.id),
-        checkMonitoringAlerts(shop.id).catch(() => null),
-        getMissingParamsHistory(shop.id, 7).catch(() => []),
-        getEventVolumeHistory(shop.id, 7).catch(() => []),
-        reconcileChannels(shop.id, 24).catch(() => []),
-        analyzeDedupConflicts(shop.id, last24h, new Date()).catch(() => null),
-        getMissingParamsRateByEventType(shop.id, 24).catch(() => null),
-        getEventSuccessRateHistory(shop.id, 24).catch(() => ({ overall: [], byDestination: {}, byEventType: {} })),
-        runDiagnostics(shop.id).catch(() => null),
+        checkMonitoringAlerts(shop.id).catch((error) => {
+            logger.warn("Failed to check monitoring alerts", { shopId: shop.id, error });
+            return null;
+        }),
+        getMissingParamsHistory(shop.id, 7).catch((error) => {
+            logger.warn("Failed to get missing params history", { shopId: shop.id, error });
+            return [];
+        }),
+        getEventVolumeHistory(shop.id, 7).catch((error) => {
+            logger.warn("Failed to get event volume history", { shopId: shop.id, error });
+            return [];
+        }),
+        reconcileChannels(shop.id, 24).catch((error) => {
+            logger.warn("Failed to reconcile channels", { shopId: shop.id, error });
+            return [];
+        }),
+        analyzeDedupConflicts(shop.id, last24h, new Date()).catch((error) => {
+            logger.warn("Failed to analyze dedup conflicts", { shopId: shop.id, error });
+            return null;
+        }),
+        getMissingParamsRateByEventType(shop.id, 24).catch((error) => {
+            logger.warn("Failed to get missing params rate by event type", { shopId: shop.id, error });
+            return null;
+        }),
+        getEventSuccessRateHistory(shop.id, 24).catch((error) => {
+            logger.warn("Failed to get event success rate history", { shopId: shop.id, error });
+            return { overall: [], byDestination: {}, byEventType: {} };
+        }),
+        runDiagnostics(shop.id).catch((error) => {
+            logger.warn("Failed to run diagnostics", { shopId: shop.id, error });
+            return null;
+        }),
     ]);
 
     return json({

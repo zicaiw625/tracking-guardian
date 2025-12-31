@@ -253,8 +253,7 @@ export function useQuery<T>(
     if (enabled) {
       fetch_();
     }
-
-  }, [enabled]);
+  }, [enabled, fetch_]);
 
   useEffect(() => {
     if (refetchInterval && enabled) {

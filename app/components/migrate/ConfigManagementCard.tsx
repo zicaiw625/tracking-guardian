@@ -135,7 +135,7 @@ export function ConfigManagementCard({
             <Text as="h3" variant="headingMd">
               已配置的平台
             </Text>
-            <Badge tone="success">{pixelConfigs.length} 个</Badge>
+            <Badge tone="success">{String(pixelConfigs.length)} 个</Badge>
           </InlineStack>
 
           <Divider />
@@ -162,7 +162,7 @@ export function ConfigManagementCard({
                         {config.environment === "live" ? "生产" : "测试"}
                       </Badge>
                       {config.configVersion && (
-                        <Badge>v{config.configVersion}</Badge>
+                        <Badge>v{String(config.configVersion)}</Badge>
                       )}
                     </InlineStack>
                     {config.rollbackAllowed && (
@@ -178,6 +178,7 @@ export function ConfigManagementCard({
                       </Text>
                       <Box minWidth="120px">
                         <Select
+                          label="环境"
                           options={[
                             { label: "测试 (Test)", value: "test" },
                             { label: "生产 (Live)", value: "live" },
@@ -264,12 +265,14 @@ export function ConfigManagementCard({
             >
               <Box paddingBlockStart="400">
                 {activeTab === 0 &&
-                  comparisonFetcher.data?.comparison && (
+                  comparisonFetcher.data &&
+                  "comparison" in comparisonFetcher.data &&
+                  comparisonFetcher.data.comparison && (
                     <ConfigComparison
-                      current={comparisonFetcher.data.comparison.current}
-                      previous={comparisonFetcher.data.comparison.previous}
+                      current={(comparisonFetcher.data as { comparison: { current: unknown; previous: unknown; differences: unknown } }).comparison.current}
+                      previous={(comparisonFetcher.data as { comparison: { current: unknown; previous: unknown; differences: unknown } }).comparison.previous}
                       differences={
-                        comparisonFetcher.data.comparison.differences
+                        (comparisonFetcher.data as { comparison: { current: unknown; previous: unknown; differences: unknown } }).comparison.differences
                       }
                       platform={selectedPlatform}
                     />

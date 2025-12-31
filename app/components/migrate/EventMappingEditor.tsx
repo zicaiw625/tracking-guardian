@@ -248,6 +248,7 @@ export function EventMappingEditor({
   const [bulkMappingValue, setBulkMappingValue] = useState<string>("");
   const [showComparison, setShowComparison] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<Record<string, boolean>>({});
+  const [popoverActive, setPopoverActive] = useState<boolean>(false);
   const [eventOrder, setEventOrder] = useState<string[]>(() =>
     SHOPIFY_EVENTS.map(e => e.id)
   );
@@ -261,6 +262,7 @@ export function EventMappingEditor({
 
       if (!shopifyEventDef) {
         errors.push(`未知的 Shopify 事件: ${shopifyEvent}`);
+        return { valid: false, errors };
       }
 
       if (!platformEventDef) {
@@ -269,7 +271,7 @@ export function EventMappingEditor({
       }
 
       const missingParams = platformEventDef.requiredParams.filter(
-        (param) => !shopifyEventDef?.availableParams.includes(param)
+        (param) => !shopifyEventDef.availableParams.includes(param)
       );
 
       if (missingParams.length > 0) {
@@ -405,11 +407,13 @@ export function EventMappingEditor({
               {showComparison ? "隐藏对比" : "显示对比视图"}
             </Button>
             <Popover
+              active={popoverActive}
               activator={
-                <Button size="slim" variant="plain">
+                <Button size="slim" variant="plain" onClick={() => setPopoverActive(!popoverActive)}>
                   📋 映射模板
                 </Button>
               }
+              onClose={() => setPopoverActive(false)}
             >
               <ActionList
                 items={[
@@ -582,7 +586,7 @@ export function EventMappingEditor({
                         onChange={() => toggleEventSelection(shopifyEvent.id)}
                       />
                       <InlineStack gap="100" blockAlign="center">
-                        <ButtonGroup segmented>
+                        <ButtonGroup>
                           <Button
                             size="micro"
                             variant="plain"
@@ -617,7 +621,7 @@ export function EventMappingEditor({
                         )}
                         {showComparison && recommendedMapping && currentMapping !== recommendedMapping && (
                           <Badge tone="warning">
-                            推荐: {platformEvents.find(e => e.id === recommendedMapping)?.name || recommendedMapping}
+                            {`推荐: ${platformEvents.find(e => e.id === recommendedMapping)?.name || recommendedMapping}`}
                           </Badge>
                         )}
                       </InlineStack>
@@ -663,17 +667,20 @@ export function EventMappingEditor({
                           平台事件预览（{PLATFORM_NAMES[platform]}）：
                         </Text>
                         <Box
-                          as="pre"
                           padding="300"
                           background="bg-surface"
                           borderRadius="100"
-                          style={{
+                        >
+                          <pre style={{
                             fontSize: "12px",
                             overflow: "auto",
                             maxHeight: "300px",
-                          }}
-                        >
-                          {JSON.stringify(eventPreview, null, 2)}
+                            margin: 0,
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}>
+                            {JSON.stringify(eventPreview, null, 2)}
+                          </pre>
                         </Box>
                         <Text as="span" variant="bodySm" tone="subdued">
                           这是发送到 {PLATFORM_NAMES[platform]} 的事件格式预览。实际发送时会使用订单的真实数据。
