@@ -45,14 +45,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               shopId: shop.id,
             };
 
+            // 使用游标机制避免重复推送
+            // 如果 lastEventId 存在，查询 createdAt > lastEvent.createdAt 的记录
+            // 使用 asc 排序确保按时间顺序处理，最后一条作为下次查询的游标
             if (lastEventId) {
-
               const lastEvent = await prisma.conversionLog.findUnique({
                 where: { id: lastEventId },
                 select: { createdAt: true },
               });
               if (lastEvent) {
                 whereClause.createdAt = { gt: lastEvent.createdAt };
+              } else {
+                // 如果 lastEventId 对应的记录不存在，重置游标
+                lastEventId = null;
               }
             }
 
@@ -61,7 +66,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 ...whereClause,
                 ...(platforms.length > 0 && { platform: { in: platforms } }),
               },
-              orderBy: { createdAt: "asc" }, // 改为 asc，从旧到新处理
+              orderBy: { createdAt: "asc" }, // 按时间升序，从旧到新处理
               take: 10,
               select: {
                 id: true,
@@ -77,31 +82,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               },
             });
 
-            // 处理日志，更新 lastEventId 为最新的一条
-            let latestLogId: string | null = null;
-            for (const log of recentLogs) {
-              const event = {
-                id: log.id,
-                eventType: log.eventType,
-                orderId: log.orderId,
-                orderNumber: log.orderNumber,
-                platform: log.platform,
-                timestamp: log.createdAt.toISOString(),
-                status: log.status === "sent" ? "success" : log.status === "failed" ? "failed" : "pending",
-                params: {
-                  value: Number(log.orderValue),
-                  currency: log.currency,
-                },
-                ...(log.errorMessage && { errors: [log.errorMessage] }),
-              };
+            // 处理日志，更新 lastEventId 为最新的一条（最后处理的记录）
+            // 这样下次查询时使用 createdAt > 这条的时间，避免重复
+            if (recentLogs.length > 0) {
+              for (const log of recentLogs) {
+                const event = {
+                  id: log.id,
+                  eventType: log.eventType,
+                  orderId: log.orderId,
+                  orderNumber: log.orderNumber,
+                  platform: log.platform,
+                  timestamp: log.createdAt.toISOString(),
+                  status: log.status === "sent" ? "success" : log.status === "failed" ? "failed" : "pending",
+                  params: {
+                    value: Number(log.orderValue),
+                    currency: log.currency,
+                  },
+                  ...(log.errorMessage && { errors: [log.errorMessage] }),
+                };
 
-              sendMessage(event);
-              latestLogId = log.id; // 记录最新的一条
-            }
-            
-            // 更新 lastEventId 为最新的一条，下次查询时使用 createdAt > 这条的时间
-            if (latestLogId) {
-              lastEventId = latestLogId;
+                sendMessage(event);
+              }
+              // 更新游标为最后一条记录的 id（最新的那条）
+              lastEventId = recentLogs[recentLogs.length - 1].id;
             }
 
             // 对于 pixelEventReceipt，使用时间窗口而不是 lastEventId

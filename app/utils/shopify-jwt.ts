@@ -50,19 +50,33 @@ export async function verifyShopifyJwt(
             issuer: (iss) => {
                 if (!iss) return false;
                 // 严格匹配 shopify.com 域名格式
+                // 允许的格式：https://*.shopify.com 或 https://shopify.com 或 https://admin.shopify.com
                 return /^https:\/\/[a-zA-Z0-9-]+\.shopify\.com\/?$/.test(iss) ||
                        iss === "https://shopify.com" ||
                        iss === "https://admin.shopify.com";
             },
-            // 如果提供了 expectedAud，则严格校验
+            // 严格校验 audience - 如果提供了 expectedAud，则必须匹配
+            // Shopify session token 的 aud 通常是你的 API key
             audience: expectedAud || undefined,
+            // 校验 exp（过期时间）和 nbf（生效时间）
+            // jose 库会自动校验这些字段
         });
 
         const shopifyPayload = payload as ShopifyJwtPayload;
 
-        // 验证必要的字段
+        // 验证必要的字段（iss, dest, aud, exp, nbf, iat, jti）
         if (!shopifyPayload.iss || !shopifyPayload.dest || !shopifyPayload.aud) {
-            return { valid: false, error: "Missing required JWT claims" };
+            return { valid: false, error: "Missing required JWT claims (iss, dest, aud)" };
+        }
+        
+        // 验证时间相关字段
+        if (shopifyPayload.exp === undefined || shopifyPayload.nbf === undefined || shopifyPayload.iat === undefined) {
+            return { valid: false, error: "Missing required JWT time claims (exp, nbf, iat)" };
+        }
+        
+        // 验证 jti（JWT ID）存在
+        if (!shopifyPayload.jti) {
+            return { valid: false, error: "Missing required JWT claim (jti)" };
         }
 
         // 提取 shop domain

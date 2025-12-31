@@ -66,13 +66,16 @@ export type ValidationResult =
   | { valid: true; payload: PixelEventPayload }
   | { valid: false; error: string; code: ValidationError };
 
-export const CHECKOUT_TOKEN_MIN_LENGTH = 8;
-export const CHECKOUT_TOKEN_MAX_LENGTH = 128;
-export const CHECKOUT_TOKEN_PATTERN = /^[a-zA-Z0-9_-]+$/;
-export const ORDER_ID_PATTERN = /^(gid:\/\/shopify\/Order\/)?(\d+)$/;
-export const SHOP_DOMAIN_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
-export const MIN_REASONABLE_TIMESTAMP = 1577836800000;
-export const MAX_FUTURE_TIMESTAMP_MS = 86400000;
+// 从统一的 schema 定义中导入常量，避免重复定义
+import {
+  CHECKOUT_TOKEN_PATTERN,
+  CHECKOUT_TOKEN_MIN_LENGTH,
+  CHECKOUT_TOKEN_MAX_LENGTH,
+  ORDER_ID_PATTERN,
+  SHOP_DOMAIN_PATTERN,
+  MIN_REASONABLE_TIMESTAMP,
+  MAX_FUTURE_TIMESTAMP_MS,
+} from '../schemas/pixel-event';
 
 export const PRIMARY_EVENTS = ['checkout_completed'] as const;
 

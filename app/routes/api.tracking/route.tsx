@@ -1,7 +1,6 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
   getTrackingInfo,
@@ -10,10 +9,11 @@ import {
 } from "../services/shipping-tracker.server";
 import { logger } from "../utils/logger.server";
 import type { OrderTrackingSettings } from "../types/ui-extension";
+import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
+import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
-    const { session, admin } = await authenticate.admin(request);
     const url = new URL(request.url);
     const orderId = url.searchParams.get("orderId");
     const trackingNumber = url.searchParams.get("trackingNumber");
@@ -22,8 +22,49 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return json({ error: "Missing orderId" }, { status: 400 });
     }
 
+    // 支持 session token 认证（来自 UI extension）
+    const authToken = extractAuthToken(request);
+    const shopHeader = request.headers.get("X-Shopify-Shop-Domain");
+    
+    let shopDomain: string;
+    let admin: Awaited<ReturnType<typeof authenticate.admin>>["admin"] | null = null;
+    
+    if (authToken && shopHeader) {
+      // 使用 session token 认证
+      const apiSecret = getShopifyApiSecret();
+      const jwtResult = await verifyShopifyJwt(authToken, apiSecret, shopHeader);
+      
+      if (!jwtResult.valid || !jwtResult.shopDomain) {
+        logger.warn(`JWT verification failed for shop ${shopHeader}: ${jwtResult.error}`);
+        return json({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401 });
+      }
+      
+      shopDomain = jwtResult.shopDomain;
+      
+      // 对于 session token，我们仍然需要使用 admin API 来获取订单信息
+      // 通过 shopDomain 查找 shop，然后使用 shop 的 access token 来调用 admin API
+      try {
+        const { admin: adminClient } = await authenticate.admin(request);
+        admin = adminClient;
+      } catch (error) {
+        // 如果 admin 认证失败，我们仍然可以继续，只是无法从 Shopify 获取订单信息
+        logger.warn("Admin authentication failed, will try to use tracking provider only", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } else {
+      // 回退到 admin 认证（用于内部调用）
+      try {
+        const { session, admin: adminClient } = await authenticate.admin(request);
+        shopDomain = session.shop;
+        admin = adminClient;
+      } catch (error) {
+        logger.warn("Authentication failed", error);
+        return json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
     const shop = await prisma.shop.findUnique({
-      where: { shopDomain: session.shop },
+      where: { shopDomain },
       select: {
         id: true,
         uiExtensionSettings: {

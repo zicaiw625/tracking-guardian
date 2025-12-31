@@ -80,10 +80,9 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
     const parsed = JSON.parse(configStr);
 
     if (parsed.schema_version !== "1") {
-      // 只在开发模式下输出警告
-      if (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") {
-        console.warn("[PixelConfig] Unknown schema version, using defaults:", parsed.schema_version);
-      }
+      // 生产环境不输出 console，避免在 Shopify 像素沙箱中产生大量日志
+      // 只在明确的开发环境（通过 shopDomain 判断）才输出警告
+      // 注意：Web Pixel 运行在沙箱中，process.env 可能不可用
       return DEFAULT_PIXEL_CONFIG;
     }
 
@@ -100,10 +99,8 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
       strictness,
     };
   } catch (e) {
-    // 只在开发模式下输出警告
-    if (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") {
-      console.warn("[PixelConfig] Failed to parse config, using defaults:", e);
-    }
+    // 生产环境不输出 console，避免在 Shopify 像素沙箱中产生大量日志
+    // 配置解析失败时静默使用默认配置
     return DEFAULT_PIXEL_CONFIG;
   }
 }

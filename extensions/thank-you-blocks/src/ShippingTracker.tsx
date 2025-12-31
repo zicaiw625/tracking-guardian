@@ -8,7 +8,6 @@ import {
     View,
     Icon,
     useSettings,
-    useOrder,
     useApi,
     Divider,
     Button,

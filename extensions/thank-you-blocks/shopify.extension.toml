@@ -61,7 +61,7 @@ handle = "order-status-shipping-tracker"
 uid = "42c378fa-d787-9bb3-9f2d-ee152e6cf2f01a2bf2ea"
 
   [extensions.capabilities]
-  network_access = false
+  network_access = true
 
   [[extensions.targeting]]
   module = "./src/ShippingTracker.orderStatus.tsx"
