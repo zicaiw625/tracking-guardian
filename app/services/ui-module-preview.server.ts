@@ -150,9 +150,11 @@ export interface TestOrderPreview {
   orderStatusUrl: string;
 }
 
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
+
 export async function createTestOrderForPreview(
   shopDomain: string,
-  admin: any
+  admin: AdminApiContext
 ): Promise<TestOrderPreview | null> {
   try {
 

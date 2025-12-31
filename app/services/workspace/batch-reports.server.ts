@@ -75,8 +75,12 @@ export async function generateBatchReports(
         return;
       }
 
-      // TODO: 根据 format 生成报告文件并上传到存储
-      // 这里简化实现，实际应该生成文件并返回 URL
+      // Note: 报告文件生成和存储
+      // 当前实现返回 API URL，实际应该：
+      // 1. 使用 report-export.server.ts 中的 exportVerificationReport 生成文件
+      // 2. 上传到对象存储（S3/Cloudflare R2）或文件系统
+      // 3. 返回永久下载链接
+      // 4. 支持批量打包下载（ZIP）
       const reportUrl = `/api/reports/${shopId}?format=${options.format}`;
 
       results.push({

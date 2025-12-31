@@ -127,7 +127,28 @@ async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> 
                 }
             `, { variables: { cursor } });
 
-            let data: any;
+            let data: {
+                data?: {
+                    scriptTags?: {
+                        edges?: Array<{
+                            node: {
+                                id: string;
+                                src: string;
+                                displayScope: string;
+                                cache: boolean;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                            cursor: string;
+                        }>;
+                        pageInfo?: {
+                            hasNextPage: boolean;
+                            endCursor: string | null;
+                        };
+                    };
+                };
+                errors?: Array<{ message: string }>;
+            };
             try {
                 data = await response.json();
             } catch (error) {
@@ -260,7 +281,21 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
                 }
             `, { variables: { cursor } });
 
-            let data: any;
+            let data: {
+                data?: {
+                    webPixels?: {
+                        edges?: Array<{
+                            node: WebPixelInfo;
+                            cursor: string;
+                        }>;
+                        pageInfo?: {
+                            hasNextPage: boolean;
+                            endCursor: string | null;
+                        };
+                    };
+                };
+                errors?: Array<{ message: string }>;
+            };
             try {
                 data = await response.json();
             } catch (error) {

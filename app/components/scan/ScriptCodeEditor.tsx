@@ -290,7 +290,11 @@ export function ScriptCodeEditor({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error("Failed to copy:", err);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Failed to copy:", err);
+      }
     }
   };
 

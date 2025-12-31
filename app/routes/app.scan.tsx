@@ -1052,11 +1052,14 @@ export default function ScanPage() {
             analysisSavedRef.current = false;
         }
 
-        console.error("Script analysis error", {
-            error: errorMessage,
-            errorType: error instanceof Error ? error.constructor.name : "Unknown",
-            contentLength,
-            hasContent: contentLength > 0,
+        // Log error details for debugging
+        if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
+            console.error("Script analysis error", {
+                error: errorMessage,
+                errorType: error instanceof Error ? error.constructor.name : "Unknown",
+                contentLength,
+                hasContent: contentLength > 0,
         });
     }, []);
 
@@ -1211,7 +1214,11 @@ export default function ScanPage() {
                                     chunkResult = analyzeScriptContent(chunk);
                                 } catch (syncError) {
 
-                                    console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
+                                    // Log warning in development only
+                                    if (process.env.NODE_ENV === "development") {
+                                        // eslint-disable-next-line no-console
+                                        console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
+                                    }
                                     resolve();
                                     return;
                                 }
@@ -1241,7 +1248,11 @@ export default function ScanPage() {
                                 resolve();
                             } catch (error) {
 
-                                console.warn(`Chunk ${i} analysis failed:`, error);
+                                // Log warning in development only
+                                if (process.env.NODE_ENV === "development") {
+                                    // eslint-disable-next-line no-console
+                                    console.warn(`Chunk ${i} analysis failed:`, error);
+                                }
                                 resolve();
                             }
                         };
@@ -1848,14 +1859,22 @@ export default function ScanPage() {
                             } catch (error) {
 
                               if (error instanceof Error && error.name !== 'AbortError') {
-                                console.error("分享失败:", error);
+                                // Log error in development only
+                                if (process.env.NODE_ENV === "development") {
+                                    // eslint-disable-next-line no-console
+                                    console.error("分享失败:", error);
+                                }
 
                                 if (navigator.clipboard && navigator.clipboard.writeText) {
                                   try {
                                     await navigator.clipboard.writeText(shareData.text);
                                     showSuccess("报告摘要已复制到剪贴板");
                                   } catch (clipboardError) {
-                                    console.error("复制失败:", clipboardError);
+                                    // Log error in development only
+                                    if (process.env.NODE_ENV === "development") {
+                                        // eslint-disable-next-line no-console
+                                        console.error("复制失败:", clipboardError);
+                                    }
                                     showError("无法分享或复制，请手动复制");
                                   }
                                 } else {
@@ -1868,7 +1887,11 @@ export default function ScanPage() {
                               await navigator.clipboard.writeText(shareData.text);
                               showSuccess("报告摘要已复制到剪贴板");
                             } catch (error) {
-                              console.error("复制失败:", error);
+                              // Log error in development only
+                              if (process.env.NODE_ENV === "development") {
+                                  // eslint-disable-next-line no-console
+                                  console.error("复制失败:", error);
+                              }
                               showError("复制失败，请手动复制");
                             }
                           } else {
@@ -2745,7 +2768,11 @@ export default function ScanPage() {
                                     document.body.removeChild(a);
                                   }
                                 } catch (removeError) {
-                                  console.warn("Failed to remove download link:", removeError);
+                                  // Log warning in development only
+                                  if (process.env.NODE_ENV === "development") {
+                                      // eslint-disable-next-line no-console
+                                      console.warn("Failed to remove download link:", removeError);
+                                  }
                                 }
 
                                 if (exportBlobUrlRef.current) {
@@ -2755,7 +2782,11 @@ export default function ScanPage() {
                                 exportTimeoutRef.current = null;
                               }, TIMEOUTS.EXPORT_CLEANUP);
                             } catch (domError) {
-                              console.error("Failed to trigger download:", domError);
+                              // Log error in development only
+                              if (process.env.NODE_ENV === "development") {
+                                  // eslint-disable-next-line no-console
+                                  console.error("Failed to trigger download:", domError);
+                              }
 
                               if (exportBlobUrlRef.current) {
                                 URL.revokeObjectURL(exportBlobUrlRef.current);
@@ -2769,7 +2800,11 @@ export default function ScanPage() {
                             showSuccess("清单导出成功");
                             setIsExporting(false);
                           } catch (error) {
-                            console.error("导出失败:", error);
+                            // Log error in development only
+                            if (process.env.NODE_ENV === "development") {
+                                // eslint-disable-next-line no-console
+                                console.error("导出失败:", error);
+                            }
 
                             if (exportBlobUrlRef.current) {
                               URL.revokeObjectURL(exportBlobUrlRef.current);

@@ -56,7 +56,20 @@ export async function generateVerificationReportData(
   }
 
   const summary = run.summaryJson as Record<string, unknown> | null;
-  const events = (run.eventsJson as Array<any>) || [];
+  const events = (run.eventsJson as Array<{
+    testItemId?: string;
+    eventType?: string;
+    platform?: string;
+    orderId?: string;
+    status?: string;
+    params?: {
+      value?: number;
+      currency?: string;
+      items?: number;
+    };
+    discrepancies?: string[];
+    errors?: string[];
+  }>) || [];
   const reconciliation = summary?.reconciliation as VerificationSummary["reconciliation"] | undefined;
 
   return {

@@ -63,7 +63,11 @@ export function TestOrderGuide({
       setCopiedItem(itemId);
       setTimeout(() => setCopiedItem(null), 2000);
     } catch (error) {
-      console.error("Failed to copy:", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Failed to copy:", error);
+      }
     }
   }, []);
 

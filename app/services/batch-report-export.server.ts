@@ -29,7 +29,7 @@ export interface BatchReportExportResult {
     shopId: string;
     shopDomain: string;
     status: "success" | "failed";
-    reportData?: any;
+    reportData?: VerificationSummary | Record<string, unknown>;
     error?: string;
   }>;
   combinedReport?: {

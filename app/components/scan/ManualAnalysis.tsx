@@ -73,12 +73,17 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
 
       setAnalysisResult(null);
 
-      const errorDetails = error instanceof Error ? error.stack : String(error);
-      console.error("Script analysis error:", {
-        message: errorMessage,
-        details: errorDetails,
-        contentLength: trimmedContent.length,
-      });
+      // Log error details for debugging
+      // In production, this should be sent to error reporting service
+      if (process.env.NODE_ENV === "development") {
+        const errorDetails = error instanceof Error ? error.stack : String(error);
+        // eslint-disable-next-line no-console
+        console.error("Script analysis error:", {
+          message: errorMessage,
+          details: errorDetails,
+          contentLength: trimmedContent.length,
+        });
+      }
     } finally {
       setIsAnalyzing(false);
     }

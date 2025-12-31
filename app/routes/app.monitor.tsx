@@ -109,6 +109,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const checkResult = await runAlertChecks(shop.id);
         currentAlertStatus = checkResult.results.filter(r => r.triggered);
     } catch (error) {
+        logger.error("Failed to run alert checks", {
+            shopId: shop.id,
+            error: error instanceof Error ? error.message : String(error),
+        });
 
     }
 

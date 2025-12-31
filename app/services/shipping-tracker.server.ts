@@ -65,7 +65,12 @@ export class AfterShipTracker {
         estimatedDelivery: tracking.expected_delivery
           ? new Date(tracking.expected_delivery)
           : undefined,
-        events: tracking.checkpoints?.map((cp: any) => ({
+        events: tracking.checkpoints?.map((cp: {
+          checkpoint_time: string;
+          location?: string;
+          message?: string;
+          tag?: string;
+        }) => ({
           timestamp: new Date(cp.checkpoint_time),
           location: cp.location,
           description: cp.message,
@@ -163,7 +168,12 @@ export class SeventeenTrackTracker {
           ? new Date(trackInfo.latest_status.sub_status_time * 1000)
           : undefined,
         events:
-          trackInfo.track_detail?.map((event: any) => ({
+          trackInfo.track_detail?.map((event: {
+            track_time: number;
+            location?: string;
+            track_detail?: string;
+            status?: string;
+          }) => ({
             timestamp: new Date(event.track_time * 1000),
             location: event.location,
             description: event.track_detail,

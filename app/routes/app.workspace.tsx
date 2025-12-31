@@ -672,7 +672,26 @@ export default function WorkspacePage() {
 
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [taskComments, setTaskComments] = useState<any[]>([]);
+  const [taskComments, setTaskComments] = useState<Array<{
+    id: string;
+    taskId: string;
+    authorShopId: string;
+    authorShopDomain: string;
+    content: string;
+    isSystemMessage: boolean;
+    parentCommentId: string | null;
+    replies: Array<{
+      id: string;
+      authorShopId: string;
+      content: string;
+      isSystemMessage: boolean;
+      parentCommentId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+    createdAt: Date;
+    updatedAt: Date;
+  }>>([]);
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -777,7 +796,7 @@ export default function WorkspacePage() {
   const handleBatchApply = useCallback(async (options: {
     overwriteExisting: boolean;
     skipIfExists: boolean;
-  }): Promise<{ jobId?: string; result?: any }> => {
+  }): Promise<{ jobId?: string; result?: { success: boolean; totalShops: number; successCount: number; failedCount: number } }> => {
     if (!selectedTemplate || !selectedGroup) {
       return {};
     }

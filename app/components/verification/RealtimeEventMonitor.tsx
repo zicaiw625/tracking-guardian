@@ -182,12 +182,20 @@ export function RealtimeEventMonitor({
             });
           }
         } catch (err) {
-          console.error("Failed to parse event data:", err);
+          // Log error in development only
+          if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
+            console.error("Failed to parse event data:", err);
+          }
         }
       };
 
       eventSource.onerror = (err) => {
-        console.error("SSE error:", err);
+        // Log error in development only
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.error("SSE error:", err);
+        }
         setIsConnected(false);
         setError("连接中断，请刷新页面重试");
         eventSource.close();

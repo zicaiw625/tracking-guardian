@@ -4,6 +4,7 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { encryptJson } from "../utils/crypto.server";
 import type { Platform } from "./migration.server";
+import type { PlanId } from "./billing/plans";
 
 export interface WizardConfig {
   platform: Platform | "pinterest";
@@ -74,7 +75,7 @@ export async function saveWizardConfigs(
 
   if (shop) {
     const { canCreatePixelConfig } = await import("./billing/feature-gates.server");
-    const gateCheck = await canCreatePixelConfig(shopId, (shop.plan || "free") as any);
+    const gateCheck = await canCreatePixelConfig(shopId, (shop.plan || "free") as PlanId);
     if (!gateCheck.allowed) {
       return {
         success: false,

@@ -28,6 +28,7 @@ import {
   CheckCircleIcon,
 } from "~/components/icons";
 import { useState } from "react";
+import { Modal } from "@shopify/polaris";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -600,14 +601,52 @@ export default function PrivacyPage() {
                 <Button
                   tone="critical"
                   onClick={() => {
-                    // TODO: 实现删除确认对话框
-                    if (confirm("确定要删除所有数据吗？此操作不可撤销！")) {
-                      // 触发删除操作
-                    }
+                    setShowDeleteModal(true);
                   }}
                 >
                   删除所有数据
                 </Button>
+                <Modal
+                  open={showDeleteModal}
+                  onClose={() => setShowDeleteModal(false)}
+                  title="确认删除所有数据"
+                  primaryAction={{
+                    content: "确认删除",
+                    destructive: true,
+                    onAction: () => {
+                      // 触发删除操作 - 需要实现 action
+                      setShowDeleteModal(false);
+                      // Note: 数据删除功能
+                      // 当前实现显示提示，完整实现应该：
+                      // 1. 调用 action 处理删除请求
+                      // 2. 创建 GDPR 删除任务
+                      // 3. 异步处理数据删除（可能需要时间）
+                      // 4. 显示进度和确认
+                      alert("删除功能需要后端支持，请联系管理员或通过 GDPR webhook 处理");
+                    },
+                  }}
+                  secondaryActions={[
+                    {
+                      content: "取消",
+                      onAction: () => setShowDeleteModal(false),
+                    },
+                  ]}
+                >
+                  <Modal.Section>
+                    <Text variant="bodyMd" as="p">
+                      您确定要删除所有数据吗？此操作将永久删除：
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>所有转化记录</List.Item>
+                      <List.Item>所有事件日志</List.Item>
+                      <List.Item>所有问卷响应</List.Item>
+                      <List.Item>所有配置和设置</List.Item>
+                    </List>
+                    <Text variant="bodyMd" as="p" tone="critical" fontWeight="semibold">
+                      此操作不可撤销！
+                    </Text>
+                  </Modal.Section>
+                </Modal>
               </BlockStack>
             </Card>
 

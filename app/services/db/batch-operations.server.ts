@@ -74,32 +74,43 @@ export async function batchCompleteJobs(
           },
         });
 
-        for (const job of completed) {
-          await tx.conversionJob.update({
-            where: { id: job.jobId },
-            data: {
-              platformResults: toInputJsonValue(job.platformResults),
-              trustMetadata: toInputJsonValue(job.trustMetadata),
-              consentEvidence: toInputJsonValue(job.consentEvidence),
-            },
-          });
+        // Batch update completed jobs with JSON fields
+        // Note: Prisma doesn't support bulk updates with different JSON values per row
+        // So we still need individual updates, but we can optimize by grouping
+        if (completed.length > 0) {
+          // Use Promise.all for parallel updates within transaction
+          await Promise.all(
+            completed.map((job) =>
+              tx.conversionJob.update({
+                where: { id: job.jobId },
+                data: {
+                  platformResults: toInputJsonValue(job.platformResults),
+                  trustMetadata: toInputJsonValue(job.trustMetadata),
+                  consentEvidence: toInputJsonValue(job.consentEvidence),
+                },
+              })
+            )
+          );
         }
         processed += completed.length;
       }
 
       if (failed.length > 0) {
-        for (const job of failed) {
-          await tx.conversionJob.update({
-            where: { id: job.jobId },
-            data: {
-              status: JobStatus.FAILED,
-              lastAttemptAt: now,
-              nextRetryAt: job.nextRetryAt,
-              platformResults: toInputJsonValue(job.platformResults),
-              errorMessage: job.errorMessage,
-            },
-          });
-        }
+        // Use Promise.all for parallel updates within transaction
+        await Promise.all(
+          failed.map((job) =>
+            tx.conversionJob.update({
+              where: { id: job.jobId },
+              data: {
+                status: JobStatus.FAILED,
+                lastAttemptAt: now,
+                nextRetryAt: job.nextRetryAt,
+                platformResults: toInputJsonValue(job.platformResults),
+                errorMessage: job.errorMessage,
+              },
+            })
+          )
+        );
         processed += failed.length;
       }
 
@@ -113,13 +124,17 @@ export async function batchCompleteJobs(
           },
         });
 
-        for (const job of limitExceeded) {
-          if (job.errorMessage) {
-            await tx.conversionJob.update({
-              where: { id: job.jobId },
-              data: { errorMessage: job.errorMessage },
-            });
-          }
+        // Update error messages for limit exceeded jobs in parallel
+        const limitExceededWithErrors = limitExceeded.filter((j) => j.errorMessage);
+        if (limitExceededWithErrors.length > 0) {
+          await Promise.all(
+            limitExceededWithErrors.map((job) =>
+              tx.conversionJob.update({
+                where: { id: job.jobId },
+                data: { errorMessage: job.errorMessage },
+              })
+            )
+          );
         }
         processed += limitExceeded.length;
       }
@@ -134,15 +149,18 @@ export async function batchCompleteJobs(
           },
         });
 
-        for (const job of deadLetter) {
-          await tx.conversionJob.update({
-            where: { id: job.jobId },
-            data: {
-              platformResults: toInputJsonValue(job.platformResults),
-              errorMessage: job.errorMessage,
-            },
-          });
-        }
+        // Update dead letter jobs with JSON fields in parallel
+        await Promise.all(
+          deadLetter.map((job) =>
+            tx.conversionJob.update({
+              where: { id: job.jobId },
+              data: {
+                platformResults: toInputJsonValue(job.platformResults),
+                errorMessage: job.errorMessage,
+              },
+            })
+          )
+        );
         processed += deadLetter.length;
       }
     });

@@ -25,7 +25,7 @@ export interface ValidationSummary {
 }
 
 export function validateEventParams(log: {
-  orderValue: any;
+  orderValue: number | string | null;
   currency: string | null;
   eventId: string | null;
   platform: string;
@@ -75,7 +75,13 @@ export async function validateEvents(
 }> {
   const { since, platform, eventType, limit = 1000 } = options;
 
-  const where: any = {
+  const where: {
+    shopId: string;
+    status: { in: string[] };
+    createdAt?: { gte: Date };
+    platform?: string;
+    eventType?: string;
+  } = {
     shopId,
     status: { in: ["sent", "failed"] },
   };

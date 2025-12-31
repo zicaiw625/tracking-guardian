@@ -616,7 +616,11 @@ const allTemplates: WizardTemplate[] = [
         timestamp: Date.now(),
       }));
     } catch (error) {
-      console.warn("Failed to save draft to localStorage:", error);
+      // Log warning in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to save draft to localStorage:", error);
+      }
     }
 
     if (shopId) {
@@ -631,10 +635,18 @@ const allTemplates: WizardTemplate[] = [
         });
 
         if (!response.ok) {
-          console.warn("Failed to save draft to database");
+          // Log warning in development only
+          if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
+            console.warn("Failed to save draft to database");
+          }
         }
       } catch (error) {
-        console.warn("Failed to save draft to database:", error);
+        // Log warning in development only
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.warn("Failed to save draft to database:", error);
+        }
       }
     }
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, shopId]);
@@ -645,7 +657,11 @@ const allTemplates: WizardTemplate[] = [
       const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
       localStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch (error) {
-      console.warn("Failed to clear draft from localStorage:", error);
+      // Log warning in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to clear draft from localStorage:", error);
+      }
     }
 
     if (shopId) {
@@ -658,7 +674,11 @@ const allTemplates: WizardTemplate[] = [
           body: formData,
         });
       } catch (error) {
-        console.warn("Failed to clear draft from database:", error);
+        // Log warning in development only
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.warn("Failed to clear draft from database:", error);
+        }
       }
     }
   }, [shopId]);
@@ -677,7 +697,11 @@ const allTemplates: WizardTemplate[] = [
         };
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
       } catch (error) {
-        console.warn("Failed to sync draft to localStorage:", error);
+        // Log warning in development only
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.warn("Failed to sync draft to localStorage:", error);
+        }
       }
 
       showSuccess(`检测到未完成的配置（停留在第 ${steps.findIndex(s => s.id === wizardDraft.step) + 1} 步），已自动恢复。您可以继续完成配置。`);
@@ -736,7 +760,11 @@ const allTemplates: WizardTemplate[] = [
           };
           localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
         } catch (error) {
-          console.warn("Failed to save draft before unload:", error);
+          // Log warning in development only
+          if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
+            console.warn("Failed to save draft before unload:", error);
+          }
         }
       }
     };
@@ -1591,7 +1619,11 @@ function ReviewStep({
       showSuccess("模板已保存！");
     } catch (error) {
       showError("保存模板失败");
-      console.error("Save template error", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Save template error", error);
+      }
     } finally {
       setIsSavingTemplate(false);
     }
@@ -1852,7 +1884,11 @@ function TestingStep({
       }
     } catch (error) {
       showError("验证过程中发生错误");
-      console.error("Test environment validation error", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Test environment validation error", error);
+      }
     } finally {
       setIsValidating(false);
     }
@@ -1900,7 +1936,11 @@ function TestingStep({
       }
     } catch (error) {
       showError("切换环境时发生错误");
-      console.error("Switch to live error", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Switch to live error", error);
+      }
     } finally {
       setIsSwitchingToLive(false);
     }

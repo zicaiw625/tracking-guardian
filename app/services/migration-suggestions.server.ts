@@ -108,7 +108,7 @@ export async function generateMigrationSuggestions(
       steps: generateMigrationSteps(
         {
           id: item.assetId,
-          category: item.category as any,
+          category: item.category,
           suggestedMigration: item.suggestedMigration,
           platform: item.platform || null,
         } as AuditAsset,
@@ -182,7 +182,7 @@ export async function getMigrationSuggestionForAsset(
     priority: asset.priority || 5,
     estimatedTimeMinutes: asset.estimatedTimeMinutes || 15,
     steps: generateMigrationSteps(asset, asset.suggestedMigration, asset.platform),
-    migrationType: asset.suggestedMigration as any,
+    migrationType: asset.suggestedMigration,
     platform: asset.platform || undefined,
     dependencies,
     canStart,

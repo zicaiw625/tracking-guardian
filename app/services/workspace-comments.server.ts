@@ -164,7 +164,27 @@ export async function getWorkspaceComments(
 
   const shopMap = new Map(shops.map((s) => [s.id, s.shopDomain]));
 
-  const mapComment = (c: any): WorkspaceCommentWithAuthor => ({
+  const mapComment = (c: {
+    id: string;
+    targetType: string;
+    targetId: string;
+    authorShopId: string;
+    content: string;
+    groupId: string | null;
+    group: { name: string } | null;
+    parentCommentId: string | null;
+    replies: Array<{
+      id: string;
+      authorShopId: string;
+      content: string;
+      groupId: string | null;
+      group: { name: string } | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+    createdAt: Date;
+    updatedAt: Date;
+  }): WorkspaceCommentWithAuthor => ({
     id: c.id,
     targetType: c.targetType,
     targetId: c.targetId,

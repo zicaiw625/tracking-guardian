@@ -6,7 +6,14 @@ export interface MissingParamDefinition {
   name: string;
   label: string;
   required: boolean;
-  checkFunction: (log: any) => boolean;
+  checkFunction: (log: {
+    orderValue: number | string | null;
+    currency: string | null;
+    eventId: string | null;
+    platform?: string;
+    eventType?: string;
+    eventData?: Record<string, unknown>;
+  }) => boolean;
 }
 
 export interface MissingParamsDetectionResult {
@@ -107,12 +114,12 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
 ];
 
 export function detectMissingParams(log: {
-  orderValue: any;
+  orderValue: number | string | null;
   currency: string | null;
   eventId: string | null;
   platform?: string;
   eventType?: string;
-  eventData?: any;
+  eventData?: Record<string, unknown>;
 }, paramsToCheck: string[] = ["value", "currency"]): MissingParamsDetectionResult[] {
   const results: MissingParamsDetectionResult[] = [];
 

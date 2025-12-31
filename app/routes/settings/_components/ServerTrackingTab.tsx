@@ -122,8 +122,27 @@ export function ServerTrackingTab({
 
   const [showHistory, setShowHistory] = useState(false);
   const [historyTab, setHistoryTab] = useState(0);
-  const comparisonFetcher = useFetcher<{ comparison?: any }>();
-  const historyFetcher = useFetcher<{ history?: any[] }>();
+  const comparisonFetcher = useFetcher<{ 
+    comparison?: {
+      current?: Record<string, unknown>;
+      previous?: Record<string, unknown>;
+      differences?: string[];
+    } 
+  }>();
+  const historyFetcher = useFetcher<{ 
+    history?: Array<{
+      version: number;
+      config: {
+        platformId: string | null;
+        credentialsEncrypted: string | null;
+        eventMappings: Record<string, string> | null;
+        environment: string;
+        clientSideEnabled: boolean;
+        serverSideEnabled: boolean;
+      };
+      savedAt: string;
+    }> 
+  }>();
 
   const loadComparison = useCallback(() => {
     comparisonFetcher.load(`/api/pixel-config-history?platform=${serverPlatform}&type=comparison`);

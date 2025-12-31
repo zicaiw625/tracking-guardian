@@ -3,6 +3,7 @@
 import prisma from "../db.server";
 import { getPlanOrDefault, type PlanId } from "./billing/plans";
 import { logger } from "../utils/logger.server";
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 export {
   type ModuleKey,
@@ -222,7 +223,7 @@ export async function updateUiModuleConfig(
   shopId: string,
   moduleKey: ModuleKey,
   config: Partial<UiModuleConfig>,
-  options?: { syncToExtension?: boolean; admin?: any }
+  options?: { syncToExtension?: boolean; admin?: AdminApiContext }
 ): Promise<{ success: boolean; error?: string }> {
   try {
 

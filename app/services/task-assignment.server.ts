@@ -136,7 +136,16 @@ export async function updateMigrationTask(
       return { error: "无权修改此任务" };
     }
 
-    const updateData: any = {};
+    const updateData: {
+      title?: string;
+      description?: string;
+      assignedToShopId?: string;
+      status?: string;
+      priority?: number;
+      dueDate?: Date | null;
+      startedAt?: Date;
+      completedAt?: Date;
+    } = {};
     if (input.title !== undefined) updateData.title = input.title;
     if (input.description !== undefined) updateData.description = input.description;
     if (input.assignedToShopId !== undefined) updateData.assignedToShopId = input.assignedToShopId;
@@ -174,7 +183,12 @@ export async function getMigrationTasks(
     includeCompleted?: boolean;
   }
 ): Promise<TaskWithDetails[]> {
-  const where: any = {
+  const where: {
+    shopId: string;
+    groupId?: string;
+    assignedToShopId?: string;
+    status?: string | { not: string };
+  } = {
     shopId,
   };
 

@@ -61,7 +61,9 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
 
       return next(context);
     } catch (error) {
-
+      // Authentication failed - let the next middleware handle it
+      // Don't silently fail, but also don't block if auth is handled elsewhere
+      logger.warn("Plan gate authentication check failed", error);
       return next(context);
     }
   };

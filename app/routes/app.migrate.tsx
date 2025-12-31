@@ -512,7 +512,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
 
             const { getConfigVersionHistory } = await import("../services/pixel-config-version.server");
-            const history = await getConfigVersionHistory(shop.id, platform as any);
+            const history = await getConfigVersionHistory(shop.id, platform as "google" | "meta" | "tiktok");
 
             if (!history) {
                 return json({ success: false, error: "配置不存在" }, { status: 404 });
@@ -536,7 +536,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
 
             const { rollbackConfig } = await import("../services/pixel-config-version.server");
-            const result = await rollbackConfig(shop.id, platform as any);
+            const result = await rollbackConfig(shop.id, platform as "google" | "meta" | "tiktok");
 
             return json(result);
         } catch (error) {
@@ -738,7 +738,11 @@ export default function MigratePage() {
 
     const stepIndex = steps.findIndex((s) => s.id === currentStep);
     if (stepIndex === -1) {
-        console.error(`[MigratePage] Invalid currentStep: ${currentStep}. Available steps:`, steps.map(s => s.id));
+        // Log invalid step in development only
+        if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
+            console.error(`[MigratePage] Invalid currentStep: ${currentStep}. Available steps:`, steps.map(s => s.id));
+        }
     }
     const currentStepIndex = Math.max(0, stepIndex);
     const identifiedPlatforms = (latestScan?.identifiedPlatforms as string[]) || [];

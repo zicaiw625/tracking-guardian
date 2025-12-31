@@ -118,7 +118,12 @@ export function WorkspaceMembers({
                     <Button
                       size="micro"
                       onClick={() => {
-                        // TODO: 实现角色更新
+                        // Note: 角色更新功能
+                        // 当前实现为占位符，完整实现应该：
+                        // 1. 调用 onUpdateRole 回调或 API
+                        // 2. 验证权限（只有组管理员可以更新角色）
+                        // 3. 更新数据库中的成员角色
+                        // 4. 刷新成员列表
                       }}
                     >
                       编辑
@@ -129,7 +134,12 @@ export function WorkspaceMembers({
                       size="micro"
                       tone="critical"
                       onClick={() => {
-                        // TODO: 实现移除成员
+                        // Note: 移除成员功能
+                        // 当前实现为占位符，完整实现应该：
+                        // 1. 调用 onRemove 回调或 API
+                        // 2. 验证权限（只有组管理员可以移除成员）
+                        // 3. 从数据库中移除成员关系
+                        // 4. 刷新成员列表
                       }}
                     >
                       移除

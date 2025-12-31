@@ -82,8 +82,7 @@ export default async function handleRequest(request: Request, responseStatusCode
             },
             onError(error) {
                 responseStatusCode = 500;
-
-                console.error(error);
+                logger.error("React render error", error);
             },
         });
         setTimeout(abort, ABORT_DELAY);

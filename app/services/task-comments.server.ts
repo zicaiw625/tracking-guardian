@@ -138,7 +138,25 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
 
   const shopMap = new Map(shops.map((s) => [s.id, s.shopDomain]));
 
-  const mapComment = (c: any): CommentWithAuthor => ({
+  const mapComment = (c: {
+    id: string;
+    taskId: string;
+    authorShopId: string;
+    content: string;
+    isSystemMessage: boolean;
+    parentCommentId: string | null;
+    replies: Array<{
+      id: string;
+      authorShopId: string;
+      content: string;
+      isSystemMessage: boolean;
+      parentCommentId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+    createdAt: Date;
+    updatedAt: Date;
+  }): CommentWithAuthor => ({
     id: c.id,
     taskId: c.taskId,
     authorShopId: c.authorShopId,

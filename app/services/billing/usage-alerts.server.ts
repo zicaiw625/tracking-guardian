@@ -77,10 +77,14 @@ export async function sendUsageAlertNotification(
   alerts: UsageAlert[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // TODO: 实现通知发送逻辑
-    // 1. 检查是否已发送过（避免重复通知）
-    // 2. 发送邮件通知
-    // 3. 在应用内显示通知
+    // Note: 使用量告警通知实现
+    // 当前实现仅记录日志，完整实现应该：
+    // 1. 检查 AlertConfig 中的通知渠道配置
+    // 2. 检查是否已发送过（避免重复通知）- 使用 lastAlertAt 字段
+    // 3. 发送邮件通知 - 使用 notification.server.ts
+    // 4. 发送 Slack/Telegram 通知 - 使用 alerts 模块
+    // 5. 在应用内显示通知 - 创建 Notification 记录
+    // 6. 更新 lastAlertAt 时间戳
 
     logger.info("Usage alerts generated", {
       shopId,

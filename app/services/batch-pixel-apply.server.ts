@@ -449,7 +449,13 @@ async function applyTemplateToShop(
         }
 
         if (overwriteExisting) {
-          const updateData: any = {
+          const updateData: {
+            eventMappings: object;
+            clientSideEnabled: boolean;
+            serverSideEnabled: boolean;
+            migrationStatus: string;
+            credentialsEncrypted?: string;
+          } = {
             eventMappings: platformConfig.eventMappings as object,
             clientSideEnabled: platformConfig.clientSideEnabled ?? true,
             serverSideEnabled: platformConfig.serverSideEnabled ?? false,
@@ -472,7 +478,16 @@ async function applyTemplateToShop(
           appliedPlatforms.push(platformConfig.platform);
         }
       } else {
-        const createData: any = {
+        const createData: {
+          shopId: string;
+          platform: string;
+          eventMappings: object;
+          clientSideEnabled: boolean;
+          serverSideEnabled: boolean;
+          isActive: boolean;
+          migrationStatus: string;
+          credentialsEncrypted?: string;
+        } = {
           shopId,
           platform: platformConfig.platform,
           eventMappings: platformConfig.eventMappings as object,

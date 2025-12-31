@@ -57,7 +57,12 @@ export async function fetchTrackingFromAfterShip(
         ? new Date(tracking.expected_delivery)
         : undefined,
       currentLocation: tracking.location || undefined,
-      events: (tracking.checkpoints || []).map((checkpoint: any) => ({
+      events: (tracking.checkpoints || []).map((checkpoint: {
+        checkpoint_time: string;
+        location?: string;
+        message?: string;
+        tag?: string;
+      }) => ({
         timestamp: new Date(checkpoint.checkpoint_time),
         location: checkpoint.location || undefined,
         description: checkpoint.message || "",
@@ -112,7 +117,12 @@ export async function fetchTrackingFrom17Track(
         ? new Date(track.latest_checkpoint_time)
         : undefined,
       currentLocation: track.latest_checkpoint_location || undefined,
-      events: (track.trackings || []).map((event: any) => ({
+      events: (track.trackings || []).map((event: {
+        checkpoint_time: string;
+        location?: string;
+        checkpoint_status?: string;
+        tag?: string;
+      }) => ({
         timestamp: new Date(event.checkpoint_time),
         location: event.location || undefined,
         description: event.checkpoint_status || "",

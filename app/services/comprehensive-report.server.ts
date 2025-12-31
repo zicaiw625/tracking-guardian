@@ -305,6 +305,8 @@ async function exportComprehensiveReportPDF(
   options: ComprehensiveReportOptions
 ): Promise<{ content: Buffer; filename: string; mimeType: string }> {
   try {
+    // PDFDocument is dynamically imported from pdfkit, so we need to use any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let PDFDocument: any;
     try {
       PDFDocument = (await import("pdfkit")).default;

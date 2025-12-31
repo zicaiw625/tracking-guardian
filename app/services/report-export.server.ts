@@ -39,7 +39,20 @@ export async function exportVerificationReport(
   }
 
   const summary = run.summaryJson as VerificationSummary | null;
-  const events = (run.eventsJson as Array<any>) || [];
+  const events = (run.eventsJson as Array<{
+    testItemId?: string;
+    eventType?: string;
+    platform?: string;
+    orderId?: string;
+    status?: string;
+    params?: {
+      value?: number;
+      currency?: string;
+      items?: number;
+    };
+    discrepancies?: string[];
+    errors?: string[];
+  }>) || [];
 
   switch (options.format) {
     case "csv":
@@ -54,9 +67,27 @@ export async function exportVerificationReport(
 }
 
 function exportToCSV(
-  run: any,
+  run: {
+    shop: { shopDomain: string };
+    runName: string;
+    startedAt: Date | null;
+    status: string;
+  },
   summary: VerificationSummary | null,
-  events: Array<any>,
+  events: Array<{
+    testItemId?: string;
+    eventType?: string;
+    platform?: string;
+    orderId?: string;
+    status?: string;
+    params?: {
+      value?: number;
+      currency?: string;
+      items?: number;
+    };
+    discrepancies?: string[];
+    errors?: string[];
+  }>,
   options: ExportOptions
 ): string {
   const lines: string[] = [];
@@ -128,9 +159,31 @@ function exportToCSV(
 }
 
 function exportToJSON(
-  run: any,
+  run: {
+    id: string;
+    shop: { shopDomain: string };
+    runName: string;
+    runType: string;
+    status: string;
+    startedAt: Date | null;
+    completedAt: Date | null;
+    platforms: string[];
+  },
   summary: VerificationSummary | null,
-  events: Array<any>,
+  events: Array<{
+    testItemId?: string;
+    eventType?: string;
+    platform?: string;
+    orderId?: string;
+    status?: string;
+    params?: {
+      value?: number;
+      currency?: string;
+      items?: number;
+    };
+    discrepancies?: string[];
+    errors?: string[];
+  }>,
   options: ExportOptions
 ): string {
   const data = {
@@ -152,14 +205,37 @@ function exportToJSON(
 }
 
 async function exportToPDF(
-  run: any,
+  run: {
+    id: string;
+    shop: { shopDomain: string };
+    runName: string;
+    runType: string;
+    status: string;
+    startedAt: Date | null;
+    completedAt: Date | null;
+    platforms: string[];
+  },
   summary: VerificationSummary | null,
-  events: Array<any>,
+  events: Array<{
+    testItemId?: string;
+    eventType?: string;
+    platform?: string;
+    orderId?: string;
+    status?: string;
+    params?: {
+      value?: number;
+      currency?: string;
+      items?: number;
+    };
+    discrepancies?: string[];
+    errors?: string[];
+  }>,
   options: ExportOptions
 ): Promise<string> {
 
   try {
-
+    // PDFDocument is dynamically imported from pdfkit, so we need to use any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let PDFDocument: any;
     try {
       PDFDocument = (await import("pdfkit")).default;
@@ -208,7 +284,7 @@ async function exportToPDF(
       if (summary.platformResults && Object.keys(summary.platformResults).length > 0) {
         doc.fontSize(14).text("按平台统计", { underline: true });
         doc.fontSize(12);
-        Object.entries(summary.platformResults).forEach(([platform, stats]: [string, any]) => {
+        Object.entries(summary.platformResults).forEach(([platform, stats]: [string, { sent?: number; failed?: number }]) => {
           doc.text(`  ${platform}: 成功 ${stats.sent || 0}, 失败 ${stats.failed || 0}`);
         });
         doc.moveDown();
@@ -216,7 +292,10 @@ async function exportToPDF(
 
       if (summary.results && summary.results.length > 0) {
         const eventTypeStats = new Map<string, { success: number; failed: number }>();
-        summary.results.forEach((result: any) => {
+        summary.results.forEach((result: {
+          eventType: string;
+          status: string;
+        }) => {
           const stats = eventTypeStats.get(result.eventType) || { success: 0, failed: 0 };
           if (result.status === "success") {
             stats.success++;
