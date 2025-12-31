@@ -127,7 +127,7 @@ export function TestOrderGuide({
     }
   }, [fetcher.data, onTestComplete]);
 
-  const testStoreUrl = `https:
+  const testStoreUrl = `https://${shopDomain}`;
   const testCheckoutUrl = `${testStoreUrl}/checkout/test`;
 
   return (
