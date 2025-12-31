@@ -750,15 +750,25 @@ export async function performChannelReconciliation(
   for (let i = 0; i < orderIds.length; i += maxConcurrent) {
     const batch = orderIds.slice(i, i + maxConcurrent);
     const batchPromises = batch.map(async (orderId) => {
+      let timeoutId: NodeJS.Timeout | null = null;
       try {
-
         const checkPromise = checkLocalConsistency(shopId, orderId, admin);
-        const timeoutPromise = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), timeout)
-        );
+        const timeoutPromise = new Promise<null>((resolve) => {
+          timeoutId = setTimeout(() => resolve(null), timeout);
+        });
         const check = await Promise.race([checkPromise, timeoutPromise]);
+        
+        // 清理 timeout，避免内存泄漏
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+        }
+        
         return check;
       } catch (error) {
+        // 确保清理 timeout
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+        }
         logger.warn("Failed to check local consistency", { orderId, error });
         return null;
       }

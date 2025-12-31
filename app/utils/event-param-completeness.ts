@@ -56,19 +56,24 @@ export function checkParamCompleteness(
   const requiredParams = mapping.requiredParams || [];
   const presentParams = params ? Object.keys(params) : [];
   const missingParams = requiredParams.filter((param) => {
-
     const paramValue = params?.[param];
+    
+    // 参数未定义或为 null，视为缺失
     if (paramValue === undefined || paramValue === null) {
       return true;
     }
 
+    // 字符串类型且为空，视为缺失
     if (typeof paramValue === "string" && paramValue.trim() === "") {
       return true;
     }
 
+    // 数组类型且为空，视为缺失（因为这是必需参数）
     if (Array.isArray(paramValue) && paramValue.length === 0) {
-      return false;
+      return true;
     }
+
+    // 其他情况视为存在
     return false;
   });
 

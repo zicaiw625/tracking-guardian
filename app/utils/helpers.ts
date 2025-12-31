@@ -226,35 +226,40 @@ export async function parallelLimit<T, R>(
   fn: (item: T, index: number) => Promise<R>
 ): Promise<R[]> {
   const results: R[] = [];
-  const executing: Promise<void>[] = [];
+  const executing: Array<{ promise: Promise<void>; index: number }> = [];
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
 
-    const promise = fn(item, i).then((result) => {
-      results[i] = result;
-    });
+    const promise = fn(item, i)
+      .then((result) => {
+        results[i] = result;
+      })
+      .catch((error) => {
+        // 确保错误不会导致未处理的 rejection
+        throw error;
+      });
 
-    executing.push(promise as unknown as Promise<void>);
+    executing.push({ promise: promise as unknown as Promise<void>, index: i });
 
     if (executing.length >= concurrency) {
-      await Promise.race(executing);
+      // 等待至少一个 promise 完成
+      await Promise.race(executing.map((e) => e.promise));
 
+      // 移除已完成的 promise
+      const settled = await Promise.allSettled(
+        executing.map((e) => e.promise)
+      );
       for (let j = executing.length - 1; j >= 0; j--) {
-        const p = executing[j];
-
-        const settled = await Promise.race([
-          p.then(() => true),
-          Promise.resolve(false),
-        ]);
-        if (settled) {
+        if (settled[j].status === "fulfilled") {
           executing.splice(j, 1);
         }
       }
     }
   }
 
-  await Promise.all(executing);
+  // 等待所有剩余的 promise 完成
+  await Promise.all(executing.map((e) => e.promise));
   return results;
 }
 

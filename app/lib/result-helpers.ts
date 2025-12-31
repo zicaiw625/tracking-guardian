@@ -82,20 +82,31 @@ export async function wrapApiCall<T>(
 ): AsyncResult<T, AppError> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let timeoutId: NodeJS.Timeout | null = null;
 
     try {
-      const result = await Promise.race([
-        operation(),
-        new Promise<never>((_, reject) => {
-          controller.signal.addEventListener("abort", () => {
-            reject(new Error(`Request timed out after ${timeoutMs}ms`));
-          });
-        }),
-      ]);
+      // 创建超时 promise，确保事件监听器可以被清理
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          reject(new Error(`Request timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+
+      const result = await Promise.race([operation(), timeoutPromise]);
+      
+      // 如果操作成功完成，清理 timeout
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      
       return ok(result);
-    } finally {
-      clearTimeout(timeoutId);
+    } catch (error) {
+      // 确保清理 timeout
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      throw error;
     }
   } catch (error) {
     const appError = handleApiError(error, serviceName);
