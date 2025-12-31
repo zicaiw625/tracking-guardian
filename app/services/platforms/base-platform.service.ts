@@ -12,6 +12,7 @@ import { logger } from "~/utils/logger.server";
 import { hashValue, normalizePhone, normalizeEmail } from "~/utils/crypto.server";
 
 export const hashSHA256 = hashValue;
+export const hashUserData = hashValue;
 import {
   type IPlatformService,
   type PlatformSendResult,
