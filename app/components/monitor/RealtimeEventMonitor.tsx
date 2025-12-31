@@ -79,9 +79,16 @@ export function RealtimeEventMonitor({
   const [selectedEvent, setSelectedEvent] = useState<RealtimeEvent | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
+  const isPausedRef = useRef(isPaused);
+  
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
+
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
 
     try {
@@ -97,7 +104,7 @@ export function RealtimeEventMonitor({
       };
 
       eventSource.onmessage = (event) => {
-        if (isPaused) return;
+        if (isPausedRef.current) return;
 
         try {
           const data = JSON.parse(event.data) as RealtimeEvent;
@@ -150,7 +157,7 @@ export function RealtimeEventMonitor({
         console.error("SSE connection error:", err);
       }
     }
-  }, [shopId, platforms, isPaused, showError]);
+  }, [shopId, platforms, showError]);
 
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -169,7 +176,7 @@ export function RealtimeEventMonitor({
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart]); // connect和disconnect是稳定的，不需要作为依赖项
+  }, [autoStart, shopId, platforms]); // 当这些值改变时重新连接 // connect和disconnect是稳定的，不需要作为依赖项
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {

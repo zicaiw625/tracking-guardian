@@ -91,15 +91,22 @@ export function RealtimeEventMonitor({
   const [error, setError] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<RealtimeEvent | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const isPausedRef = useRef(isPaused);
 
   const [filterPlatform, setFilterPlatform] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   const [filterEventType, setFilterEventType] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
+  // 更新isPausedRef
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
+
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
 
     try {
@@ -118,7 +125,7 @@ export function RealtimeEventMonitor({
       };
 
       eventSource.onmessage = (event) => {
-        if (isPaused) return;
+        if (isPausedRef.current) return;
 
         try {
           const rawData = JSON.parse(event.data);
@@ -209,7 +216,7 @@ export function RealtimeEventMonitor({
       setError("无法建立连接");
       showError("无法建立实时监控连接");
     }
-  }, [shopId, platforms, isPaused, showError, runId, eventTypes, useVerificationEndpoint]);
+  }, [shopId, platforms, showError, runId, eventTypes, useVerificationEndpoint]);
 
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -227,8 +234,7 @@ export function RealtimeEventMonitor({
     return () => {
       disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart]); // connect和disconnect是稳定的，不需要作为依赖项
+  }, [autoStart, connect, disconnect]); // 当这些值改变时重新连接
 
   const handlePauseToggle = useCallback(() => {
     setIsPaused((prev) => !prev);

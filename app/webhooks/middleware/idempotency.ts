@@ -4,6 +4,7 @@ import prisma from "../../db.server";
 import { WebhookStatus } from "../../types";
 import { logger } from "../../utils/logger.server";
 import type { WebhookLockResult } from "../types";
+import { isPrismaError, getPrismaErrorCode } from "../../utils/type-guards";
 
 export async function tryAcquireWebhookLock(
   shopDomain: string,
@@ -32,8 +33,7 @@ export async function tryAcquireWebhookLock(
     });
     return { acquired: true };
   } catch (error) {
-
-    if ((error as { code?: string })?.code === "P2002") {
+    if (isPrismaError(error) && getPrismaErrorCode(error) === "P2002") {
 
       const existing = await prisma.webhookLog.findUnique({
         where: {

@@ -152,9 +152,9 @@ export async function getWorkspaceComments(
   });
 
   const authorShopIds = new Set<string>();
-  comments.forEach((c) => {
+  comments.forEach((c: { authorShopId: string; replies: Array<{ authorShopId: string }> }) => {
     authorShopIds.add(c.authorShopId);
-    c.replies.forEach((r) => authorShopIds.add(r.authorShopId));
+    c.replies.forEach((r: { authorShopId: string }) => authorShopIds.add(r.authorShopId));
   });
 
   const shops = await prisma.shop.findMany({
@@ -162,7 +162,7 @@ export async function getWorkspaceComments(
     select: { id: true, shopDomain: true },
   });
 
-  const shopMap = new Map(shops.map((s) => [s.id, s.shopDomain]));
+  const shopMap = new Map(shops.map((s: { id: string; shopDomain: string }) => [s.id, s.shopDomain]));
 
   const mapComment = (c: {
     id: string;

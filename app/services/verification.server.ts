@@ -183,7 +183,7 @@ export async function createVerificationRun(
       where: { shopId, isActive: true, serverSideEnabled: true },
       select: { platform: true },
     });
-    targetPlatforms = configs.map((c) => c.platform);
+    targetPlatforms = configs.map((c: { platform: string }) => c.platform);
   }
 
   const run = await prisma.verificationRun.create({
@@ -301,11 +301,11 @@ export async function analyzeRecentEvents(
   let totalValueAccuracy = 0;
   let valueChecks = 0;
 
-  const orderIds = [...new Set(conversionLogs.map((l) => l.orderId))];
+  const orderIds = [...new Set(conversionLogs.map((l: { orderId: string }) => l.orderId))];
 
   for (const orderId of orderIds) {
-    const orderLogs = conversionLogs.filter((l) => l.orderId === orderId);
-    const receipt = pixelReceipts.find((r) => r.orderId === orderId);
+    const orderLogs = conversionLogs.filter((l: { orderId: string }) => l.orderId === orderId);
+    const receipt = pixelReceipts.find((r: { orderId: string }) => r.orderId === orderId);
 
     for (const log of orderLogs) {
       const discrepancies: string[] = [];
@@ -366,7 +366,7 @@ export async function analyzeRecentEvents(
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
 
   const platformResults: Record<string, { sent: number; failed: number }> = {};
-  conversionLogs.forEach((log) => {
+  conversionLogs.forEach((log: { platform: string; status: string }) => {
     if (!platformResults[log.platform]) {
       platformResults[log.platform] = { sent: 0, failed: 0 };
     }
@@ -382,7 +382,11 @@ export async function analyzeRecentEvents(
     const endDate = new Date();
     const pixelVsCapi = await reconcilePixelVsCapi(shopId, since, endDate);
 
-    const consistencyIssues: VerificationSummary["reconciliation"]["consistencyIssues"] = [];
+    const consistencyIssues: Array<{
+      orderId: string;
+      issue: string;
+      type: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch";
+    }> = [];
 
     const orderPlatformMap = new Map<string, Map<string, number>>();
     for (const log of conversionLogs) {
@@ -537,7 +541,7 @@ export async function getVerificationHistory(
     take: limit,
   });
 
-  return runs.map((run) => {
+  return runs.map((run: { id: string; shopId: string; runName: string; summaryJson: unknown; createdAt: Date }) => {
     const summary = run.summaryJson as Record<string, unknown> | null;
     return {
       runId: run.id,

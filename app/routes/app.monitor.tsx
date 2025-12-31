@@ -231,14 +231,70 @@ export default function MonitorPage() {
     ? "像素来自开发隧道域名，而应用 URL 指向生产。请确认 Pixel 使用的 backend_url 是否为生产域名。"
     : null;
 
-    const summaryData: Record<string, DeliverySummary> = (summary ?? {}) as Record<string, DeliverySummary>;
-    const historyData = ((history ?? []) as unknown as Array<Omit<DeliveryHealthReport, 'reportDate'> & {
-        reportDate: string;
-    }>).map((h) => ({
-        ...h,
-        reportDate: new Date(h.reportDate),
-    }));
-    const statsData: ConversionStat[] | null = conversionStats as ConversionStat[] | null;
+    // 安全地验证和转换summary数据
+    function isDeliverySummary(value: unknown): value is DeliverySummary {
+      if (typeof value !== "object" || value === null) return false;
+      const v = value as Record<string, unknown>;
+      return (
+        typeof v.platform === "string" &&
+        typeof v.last7DaysAttempted === "number" &&
+        typeof v.last7DaysSent === "number" &&
+        typeof v.avgSuccessRate === "number" &&
+        Array.isArray(v.topFailureReasons) &&
+        v.topFailureReasons.every((item: unknown) => {
+          if (typeof item !== "object" || item === null) return false;
+          const i = item as Record<string, unknown>;
+          return typeof i.reason === "string" && typeof i.count === "number";
+        })
+      );
+    }
+
+    function isDeliverySummaryRecord(value: unknown): value is Record<string, DeliverySummary> {
+      if (typeof value !== "object" || value === null) return false;
+      return Object.values(value).every(isDeliverySummary);
+    }
+
+    const summaryData: Record<string, DeliverySummary> = isDeliverySummaryRecord(summary) ? summary : {};
+    
+    // 安全地转换history数据，处理可能的JSON序列化日期
+    const historyData: DeliveryHealthReport[] = (history ?? []).map((h) => {
+      const reportDate = h.reportDate instanceof Date 
+        ? h.reportDate 
+        : typeof h.reportDate === 'string' 
+          ? new Date(h.reportDate) 
+          : new Date();
+      
+      return {
+        id: h.id,
+        platform: h.platform,
+        reportDate,
+        shopifyOrders: h.shopifyOrders,
+        platformConversions: h.platformConversions,
+        orderDiscrepancy: h.orderDiscrepancy,
+        alertSent: h.alertSent,
+      };
+    });
+
+    // 安全地验证conversionStats数据
+    function isConversionStat(value: unknown): value is ConversionStat {
+      if (typeof value !== "object" || value === null) return false;
+      const v = value as Record<string, unknown>;
+      return (
+        typeof v.platform === "string" &&
+        typeof v.status === "string" &&
+        typeof v._count === "number" &&
+        typeof v._sum === "object" &&
+        v._sum !== null &&
+        (typeof (v._sum as Record<string, unknown>).orderValue === "number" ||
+         (v._sum as Record<string, unknown>).orderValue === null)
+      );
+    }
+
+    function isConversionStatArray(value: unknown): value is ConversionStat[] {
+      return Array.isArray(value) && value.every(isConversionStat);
+    }
+
+    const statsData: ConversionStat[] | null = isConversionStatArray(conversionStats) ? conversionStats : null;
     const calculateHealthScore = (): number | null => {
         const platforms = Object.keys(summaryData);
         if (platforms.length === 0)

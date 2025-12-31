@@ -71,7 +71,7 @@ export async function reconcileOrder(
     });
 
     const platformEvents = events
-      .map((event) => {
+      .map((event: { payloadJson: unknown; destinationType: string | null; eventId: string | null; status: string }) => {
         const payload = (event.payloadJson as Record<string, unknown>) || {};
         const data = (payload.data as Record<string, unknown>) || {};
         return {
@@ -82,7 +82,7 @@ export async function reconcileOrder(
           status: event.status,
         };
       })
-      .filter((e) => e.platform !== "unknown");
+      .filter((e: { platform: string }) => e.platform !== "unknown");
 
     const discrepancies: ReconciliationResult["discrepancies"] = [];
 

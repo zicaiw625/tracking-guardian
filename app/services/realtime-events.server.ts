@@ -34,7 +34,17 @@ export async function getRecentEvents(
     },
   });
 
-  return logs.map((log) => ({
+  return logs.map((log: {
+    id: string;
+    eventType: string;
+    platform: string;
+    orderId: string;
+    status: string;
+    createdAt: Date;
+    orderValue: number | string | null;
+    currency: string | null;
+    errorMessage: string | null;
+  }) => ({
     id: log.id,
     eventType: log.eventType,
     platform: log.platform,
@@ -56,6 +66,7 @@ export async function subscribeToEvents(
 
   let isActive = true;
   let lastEventId: string | null = null;
+  let timeoutId: NodeJS.Timeout | null = null;
 
   const poll = async () => {
     if (!isActive) return;
@@ -68,14 +79,18 @@ export async function subscribeToEvents(
 
       if (newEvents.length > 0) {
         newEvents.forEach((event) => callback(event));
-        lastEventId = newEvents[0].id;
+        // 安全访问：确保数组不为空
+        const latestEvent = newEvents[0];
+        if (latestEvent) {
+          lastEventId = latestEvent.id;
+        }
       }
     } catch (error) {
       logger.error("Error polling events", { shopId, error });
     }
 
     if (isActive) {
-      setTimeout(poll, 2000);
+      timeoutId = setTimeout(poll, 2000);
     }
   };
 
@@ -83,6 +98,10 @@ export async function subscribeToEvents(
 
   return () => {
     isActive = false;
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
   };
 }
 

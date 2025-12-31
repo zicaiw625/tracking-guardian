@@ -250,7 +250,10 @@ class DistributedRateLimitStore {
 
       client.incr(fullKey).then((count) => {
         if (count === 1) {
-          client.expire(fullKey, windowSeconds).catch(() => {});
+          client.expire(fullKey, windowSeconds).catch((error) => {
+            // Log error when setting expiration fails, but don't block the request
+            logger.warn("Failed to set expiration on rate limit key", { key: fullKey, error });
+          });
         }
         this.markRedisHealthy();
       }).catch((error) => {

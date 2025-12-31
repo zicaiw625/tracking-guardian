@@ -54,16 +54,19 @@ function validateGraphQLEdges<T>(edges: unknown): edges is GraphQLEdge<T>[] {
     });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function isValidScriptTag(tag: unknown): tag is ScriptTag {
-    if (typeof tag !== "object" || tag === null) {
+    if (!isRecord(tag)) {
         return false;
     }
-    const t = tag as Record<string, unknown>;
     return (
-        typeof t.id === "number" &&
-        (typeof t.gid === "string" || t.gid === null || t.gid === undefined) &&
-        (typeof t.src === "string" || t.src === null || t.src === undefined) &&
-        typeof t.display_scope === "string"
+        typeof tag.id === "number" &&
+        (typeof tag.gid === "string" || tag.gid === null || tag.gid === undefined) &&
+        (typeof tag.src === "string" || tag.src === null || tag.src === undefined) &&
+        typeof tag.display_scope === "string"
     );
 }
 
@@ -75,15 +78,18 @@ function validateScriptTagsArray(tags: unknown): ScriptTag[] {
 }
 
 function isValidRiskItem(item: unknown): item is import("../../types").RiskItem {
-    if (typeof item !== "object" || item === null) {
+    if (!isRecord(item)) {
         return false;
     }
-    const r = item as Record<string, unknown>;
+    // Use type guard instead of unsafe type assertion
+    if (!("id" in item) || !("name" in item) || !("description" in item) || !("severity" in item)) {
+        return false;
+    }
     return (
-        typeof r.id === "string" &&
-        typeof r.name === "string" &&
-        typeof r.description === "string" &&
-        (r.severity === "high" || r.severity === "medium" || r.severity === "low")
+        typeof item.id === "string" &&
+        typeof item.name === "string" &&
+        typeof item.description === "string" &&
+        (item.severity === "high" || item.severity === "medium" || item.severity === "low")
     );
 }
 
@@ -92,6 +98,25 @@ function validateRiskItemsArray(items: unknown): import("../../types").RiskItem[
         return [];
     }
     return items.filter(isValidRiskItem);
+}
+
+function isStringArray(value: unknown): value is string[] {
+    return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isScriptTagArray(value: unknown): value is ScriptTag[] {
+    return Array.isArray(value) && value.every((item) => isValidScriptTag(item));
+}
+
+function isCheckoutConfig(value: unknown): value is CheckoutConfig {
+    if (!isRecord(value)) {
+        return false;
+    }
+    // CheckoutConfig 的基本结构检查
+    return (
+        typeof value.checkoutApiSupported === "boolean" ||
+        (value.features !== undefined && isRecord(value.features))
+    );
 }
 
 async function fetchAllScriptTags(admin: AdminApiContext): Promise<ScriptTag[]> {
@@ -471,13 +496,20 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
 
         if (!pixel.settings) continue;
 
-        let settings: Record<string, unknown>;
+        let settings: Record<string, unknown> | null = null;
         try {
-            settings = typeof pixel.settings === "string"
-                ? JSON.parse(pixel.settings)
-                : (pixel.settings as Record<string, unknown>);
+            if (typeof pixel.settings === "string") {
+                const parsed = JSON.parse(pixel.settings);
+                if (isRecord(parsed)) {
+                    settings = parsed;
+                }
+            } else if (isRecord(pixel.settings)) {
+                settings = pixel.settings;
+            }
 
-            for (const [settingKey, value] of Object.entries(settings as Record<string, unknown>)) {
+            if (!settings) continue;
+
+            for (const [settingKey, value] of Object.entries(settings)) {
                 if (typeof value !== "string") continue;
 
                 if (/^G-[A-Z0-9]+$/.test(value)) {
@@ -567,12 +599,18 @@ export async function getCachedScanResult(
 
     logger.debug(`Using cached scan result for shop ${shopId}, age: ${Date.now() - cached.completedAt.getTime()}ms`);
 
+    // 安全地验证和转换缓存的数据
+    const scriptTags = isScriptTagArray(cached.scriptTags) ? cached.scriptTags : [];
+    const checkoutConfig = isCheckoutConfig(cached.checkoutConfig) ? cached.checkoutConfig : null;
+    const identifiedPlatforms = isStringArray(cached.identifiedPlatforms) ? cached.identifiedPlatforms : [];
+    const riskItems = validateRiskItemsArray(cached.riskItems);
+
     return {
-        scriptTags: (cached.scriptTags as ScriptTag[] | null) || [],
-        checkoutConfig: (cached.checkoutConfig as CheckoutConfig | null) || null,
-        identifiedPlatforms: (cached.identifiedPlatforms as string[]) || [],
+        scriptTags,
+        checkoutConfig,
+        identifiedPlatforms,
         additionalScriptsPatterns: [],
-        riskItems: (cached.riskItems as ScanResult["riskItems"] | null) || [],
+        riskItems,
         riskScore: cached.riskScore || 0,
         webPixels: [],
         duplicatePixels: [],

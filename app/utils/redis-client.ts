@@ -501,7 +501,10 @@ class RedisClientFactory {
 
   static reset(): void {
     if (RedisClientFactory.instance) {
-      RedisClientFactory.instance.close().catch(() => {});
+      RedisClientFactory.instance.close().catch((error) => {
+        // Log error when closing Redis connection fails
+        console.error("[REDIS] Error closing connection during reset:", error);
+      });
       RedisClientFactory.instance = null;
     }
   }

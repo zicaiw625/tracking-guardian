@@ -82,7 +82,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
           <Text as="h2" variant="headingMd">
             依赖关系概览
           </Text>
-          <Badge tone="info">{String(summary?.totalNodes || 0)} 个资产</Badge>
+          <Badge tone="info">{`${String(summary?.totalNodes || 0)} 个资产`}</Badge>
         </InlineStack>
 
         {summary && (
@@ -125,23 +125,22 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               <InlineStack gap="200" wrap>
                 {summary.nodesByRisk.high > 0 && (
                   <Badge tone="critical">
-                    高风险: {String(summary.nodesByRisk.high)}
+                    {`高风险: ${String(summary.nodesByRisk.high)}`}
                   </Badge>
                 )}
                 {summary.nodesByRisk.medium > 0 && (
                   <Badge tone="warning">
-                    中风险: {String(summary.nodesByRisk.medium)}
+                    {`中风险: ${String(summary.nodesByRisk.medium)}`}
                   </Badge>
                 )}
                 {summary.nodesByRisk.low > 0 && (
                   <Badge tone="success">
-                    低风险: {String(summary.nodesByRisk.low)}
+                    {`低风险: ${String(summary.nodesByRisk.low)}`}
                   </Badge>
                 )}
               </InlineStack>
             </BlockStack>
 
-            {}
             {Object.keys(summary.nodesByCategory).length > 0 && (
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm">
@@ -153,14 +152,13 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                     .slice(0, 5)
                       .map(([category, count]) => (
                       <Badge key={category}>
-                        {categoryLabels[category] || category}: {String(count)}
+                        {`${categoryLabels[category] || category}: ${String(count)}`}
                       </Badge>
                     ))}
                 </InlineStack>
               </BlockStack>
             )}
 
-            {}
             {dependencyGraph.edges.length > 0 && (
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="center">
@@ -168,13 +166,13 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                     依赖关系
                   </Text>
                   <Badge tone="info">
-                    {String(dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "dependency").length)} 条
+                    {`${String(dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length)} 条`}
                   </Badge>
                 </InlineStack>
                 <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                   <BlockStack gap="200">
                     {dependencyGraph.edges
-                      .filter((e) => e.type === "depends_on" || e.type === "dependency")
+                      .filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after")
                       .slice(0, 5)
                       .map((edge, index) => {
                         const fromNode = dependencyGraph.nodes.find((n) => n.assetId === edge.from);
@@ -190,19 +188,19 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                           <Box key={index} padding="200">
                             <InlineStack gap="200" blockAlign="center" wrap>
                               <Badge tone={toRiskBadge}>
-                                {toNode.platform || toNode.category || toNode.displayName || toNode.id}
+                                {String(toNode.platform || toNode.category || toNode.displayName || toNode.id)}
                               </Badge>
                               <Text as="span" variant="bodySm" tone="subdued">依赖于</Text>
                               <Badge tone={fromRiskBadge}>
-                                {fromNode.platform || fromNode.category || fromNode.displayName || fromNode.id}
+                                {String(fromNode.platform || fromNode.category || fromNode.displayName || fromNode.id)}
                               </Badge>
                             </InlineStack>
                           </Box>
                         );
                       })}
-                    {dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "dependency").length > 5 && (
+                    {dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length > 5 && (
                       <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                        还有 {String(dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "dependency").length - 5)} 条依赖关系...
+                        还有 {String(dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length - 5)} 条依赖关系...
                       </Text>
                     )}
                   </BlockStack>
@@ -210,8 +208,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               </BlockStack>
             )}
 
-            {}
-            {"cycles" in dependencyGraph && dependencyGraph.cycles && dependencyGraph.cycles.length > 0 && (
+            {("cycles" in dependencyGraph && dependencyGraph.cycles && Array.isArray(dependencyGraph.cycles) && dependencyGraph.cycles.length > 0) && (
               <Banner tone="warning">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">

@@ -170,7 +170,7 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
   });
 
   return MODULE_KEYS.map((moduleKey) => {
-    const existing = settings.find((s) => s.moduleKey === moduleKey);
+    const existing = settings.find((s: { moduleKey: string }) => s.moduleKey === moduleKey);
 
     if (existing) {
       return {
@@ -364,12 +364,12 @@ export async function getModuleStats(shopId: string): Promise<{
     where: { shopId },
   });
 
-  const enabled = settings.filter((s) => s.isEnabled).length;
+  const enabled = settings.filter((s: { isEnabled: boolean }) => s.isEnabled).length;
   const byCategory: Record<string, number> = {};
 
   settings
-    .filter((s) => s.isEnabled)
-    .forEach((s) => {
+    .filter((s: { isEnabled: boolean }) => s.isEnabled)
+    .forEach((s: { moduleKey: string }) => {
       const module = UI_MODULES[s.moduleKey as ModuleKey];
       if (module) {
         byCategory[module.category] = (byCategory[module.category] || 0) + 1;

@@ -1,7 +1,7 @@
 
 
-import prisma from "../db.server";
-import { logger } from "../utils/logger.server";
+import prisma from "~/db.server";
+import { logger } from "~/utils/logger.server";
 
 export interface CreateWorkspaceInput {
   ownerPartnerId?: string;
@@ -90,14 +90,14 @@ export async function getWorkspace(
     ownerPartnerId: workspace.ownerPartnerId,
     ownerEmail: workspace.ownerEmail,
     settings: (workspace.settingsJson as Record<string, unknown>) || {},
-    members: workspace.members.map((m) => ({
+    members: workspace.members.map((m: { id: string; userId: string; email: string; role: string; inviteStatus: string }) => ({
       id: m.id,
       userId: m.userId,
       email: m.email,
       role: m.role,
       inviteStatus: m.inviteStatus,
     })),
-    shops: workspace.shops.map((s) => ({
+    shops: workspace.shops.map((s: { id: string; shopId: string; alias: string | null; addedAt: Date }) => ({
       id: s.id,
       shopId: s.shopId,
       alias: s.alias,
@@ -298,7 +298,7 @@ export async function getUserWorkspaces(
     },
   });
 
-  return memberships.map((m) => ({
+  return memberships.map((m: { role: string; workspace: { id: string; name: string; shops: unknown[] } }) => ({
     workspaceId: m.workspace.id,
     name: m.workspace.name,
     role: m.role,
@@ -348,7 +348,7 @@ export async function getWorkspaceShops(
     orderBy: { addedAt: "desc" },
   });
 
-  const shopIds = workspaceShops.map((ws) => ws.shopId);
+  const shopIds = workspaceShops.map((ws: { shopId: string }) => ws.shopId);
   const shops = await prisma.shop.findMany({
     where: {
       id: { in: shopIds },
@@ -360,9 +360,9 @@ export async function getWorkspaceShops(
     },
   });
 
-  const shopMap = new Map(shops.map((s) => [s.id, s]));
+  const shopMap = new Map(shops.map((s: { id: string }) => [s.id, s]));
 
-  return workspaceShops.map((ws) => {
+  return workspaceShops.map((ws: { shopId: string }) => {
     const shop = shopMap.get(ws.shopId);
     return {
       shopId: ws.shopId,

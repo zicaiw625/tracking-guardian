@@ -15,10 +15,22 @@ import {
 } from "@shopify/polaris";
 import { SettingsIcon } from "~/components/icons";
 import { ConfigComparison } from "~/components/settings/ConfigComparison";
+import type { PixelConfigSnapshot } from "~/services/pixel-rollback.server";
 import { VersionHistory } from "~/components/settings/VersionHistory";
 import { ConfigVersionManager } from "./ConfigVersionManager";
 import { useFetcher } from "@remix-run/react";
 import type { Platform } from "~/services/migration.server";
+
+type ConfigComparisonData = {
+  current: PixelConfigSnapshot & { version: number; updatedAt: Date };
+  previous: PixelConfigSnapshot | null;
+  differences: Array<{
+    field: string;
+    current: unknown;
+    previous: unknown;
+    changed: boolean;
+  }>;
+};
 
 interface PixelConfig {
   id: string;
@@ -135,7 +147,7 @@ export function ConfigManagementCard({
             <Text as="h3" variant="headingMd">
               已配置的平台
             </Text>
-            <Badge tone="success">{String(pixelConfigs.length)} 个</Badge>
+            <Badge tone="success">{`${String(pixelConfigs.length)} 个`}</Badge>
           </InlineStack>
 
           <Divider />
@@ -162,7 +174,7 @@ export function ConfigManagementCard({
                         {config.environment === "live" ? "生产" : "测试"}
                       </Badge>
                       {config.configVersion && (
-                        <Badge>v{String(config.configVersion)}</Badge>
+                        <Badge>{`v${String(config.configVersion)}`}</Badge>
                       )}
                     </InlineStack>
                     {config.rollbackAllowed && (
@@ -266,14 +278,20 @@ export function ConfigManagementCard({
               <Box paddingBlockStart="400">
                 {activeTab === 0 &&
                   comparisonFetcher.data &&
+                  typeof comparisonFetcher.data === "object" &&
+                  comparisonFetcher.data !== null &&
                   "comparison" in comparisonFetcher.data &&
-                  comparisonFetcher.data.comparison && (
+                  comparisonFetcher.data.comparison &&
+                  typeof comparisonFetcher.data.comparison === "object" &&
+                  comparisonFetcher.data.comparison !== null &&
+                  "current" in comparisonFetcher.data.comparison &&
+                  "previous" in comparisonFetcher.data.comparison &&
+                  "differences" in comparisonFetcher.data.comparison &&
+                  Array.isArray(comparisonFetcher.data.comparison.differences) && (
                     <ConfigComparison
-                      current={(comparisonFetcher.data as { comparison: { current: unknown; previous: unknown; differences: unknown } }).comparison.current}
-                      previous={(comparisonFetcher.data as { comparison: { current: unknown; previous: unknown; differences: unknown } }).comparison.previous}
-                      differences={
-                        (comparisonFetcher.data as { comparison: { current: unknown; previous: unknown; differences: unknown } }).comparison.differences
-                      }
+                      current={comparisonFetcher.data.comparison.current as ConfigComparisonData["current"]}
+                      previous={comparisonFetcher.data.comparison.previous as ConfigComparisonData["previous"]}
+                      differences={comparisonFetcher.data.comparison.differences as ConfigComparisonData["differences"]}
                       platform={selectedPlatform}
                     />
                   )}

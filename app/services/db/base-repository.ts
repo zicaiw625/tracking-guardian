@@ -5,6 +5,7 @@ import { getDb } from "../../container";
 import { AppError, ErrorCode, Errors } from "../../utils/errors";
 import { logger } from "../../utils/logger.server";
 import { ok, err, type Result, type AsyncResult } from "../../types/result";
+import { isPrismaError, getPrismaErrorCode, getPrismaErrorTarget } from "../../utils/type-guards";
 
 export interface BaseModel {
   id: string;
@@ -245,11 +246,11 @@ export abstract class BaseRepository<
   protected handleError(error: unknown, operation: string): AppError {
     logger.error(`${this.modelName}.${operation} failed`, error);
 
-    if (error instanceof Error) {
-      const prismaError = error as { code?: string; meta?: { target?: string[] } };
+    if (isPrismaError(error)) {
+      const errorCode = getPrismaErrorCode(error);
 
-      if (prismaError.code === "P2002") {
-        const target = prismaError.meta?.target?.join(", ") || "field";
+      if (errorCode === "P2002") {
+        const target = getPrismaErrorTarget(error)?.join(", ") || "field";
         return new AppError(
           ErrorCode.DB_UNIQUE_CONSTRAINT,
           `${this.modelName} with this ${target} already exists`,
@@ -258,16 +259,16 @@ export abstract class BaseRepository<
         );
       }
 
-      if (prismaError.code === "P2025") {
+      if (errorCode === "P2025") {
         return AppError.notFound(this.modelName);
       }
 
-      if (prismaError.code?.startsWith("P2")) {
+      if (errorCode?.startsWith("P2")) {
         return new AppError(
           ErrorCode.DB_QUERY_ERROR,
           `Database error in ${this.modelName}: ${error.message}`,
           false,
-          { model: this.modelName, prismaCode: prismaError.code }
+          { model: this.modelName, prismaCode: errorCode }
         );
       }
     }

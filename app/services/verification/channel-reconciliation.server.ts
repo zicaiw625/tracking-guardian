@@ -103,12 +103,12 @@ export async function performEnhancedChannelReconciliation(
     },
   });
 
-  const shopifyOrderIds = new Set(shopifyOrders.map((o) => o.orderId));
+  const shopifyOrderIds = new Set(shopifyOrders.map((o: { orderId: string }) => o.orderId));
   const shopifyOrderMap = new Map(
-    shopifyOrders.map((o) => [o.orderId, o])
+    shopifyOrders.map((o: { orderId: string }) => [o.orderId, o])
   );
   const shopifyTotalValue = shopifyOrders.reduce(
-    (sum, o) => sum + Number(o.orderValue || 0),
+    (sum: number, o: { orderValue: string | number | null }) => sum + Number(o.orderValue || 0),
     0
   );
 
@@ -136,18 +136,18 @@ export async function performEnhancedChannelReconciliation(
       },
     });
 
-    const platformOrderIds = new Set(platformLogs.map((l) => l.orderId));
+    const platformOrderIds = new Set(platformLogs.map((l: { orderId: string }) => l.orderId));
     const platformOrderMap = new Map(
-      platformLogs.map((l) => [l.orderId, l])
+      platformLogs.map((l: { orderId: string }) => [l.orderId, l])
     );
     const platformTotalValue = platformLogs.reduce(
-      (sum, l) => sum + Number(l.orderValue || 0),
+      (sum: number, l: { orderValue: string | number | null }) => sum + Number(l.orderValue || 0),
       0
     );
 
     platformOrderMaps[platform] = platformOrderIds;
     platformValueMaps[platform] = new Map(
-      platformLogs.map((l) => [l.orderId, Number(l.orderValue || 0)])
+      platformLogs.map((l: { orderId: string; orderValue: string | number | null }) => [l.orderId, Number(l.orderValue || 0)])
     );
 
     const missingOrders: string[] = [];
@@ -158,7 +158,7 @@ export async function performEnhancedChannelReconciliation(
     }
 
     const orderIdCounts = new Map<string, number>();
-    platformLogs.forEach((log) => {
+    platformLogs.forEach((log: { orderId: string }) => {
       orderIdCounts.set(
         log.orderId,
         (orderIdCounts.get(log.orderId) || 0) + 1
@@ -372,8 +372,8 @@ export async function getOrderCrossPlatformComparison(
   });
 
   const configuredPlatforms =
-    shop?.pixelConfigs.map((c) => c.platform) || [];
-  const platformsWithEvents = new Set(platformEvents.map((e) => e.platform));
+    shop?.pixelConfigs.map((c: { platform: string }) => c.platform) || [];
+  const platformsWithEvents = new Set(platformEvents.map((e: { platform: string }) => e.platform));
 
   const discrepancies: Array<{
     platform: string;
@@ -385,7 +385,7 @@ export async function getOrderCrossPlatformComparison(
     const shopifyValue = Number(shopifyOrder.orderValue || 0);
 
     for (const platform of configuredPlatforms) {
-      const platformEvent = platformEvents.find((e) => e.platform === platform);
+      const platformEvent = platformEvents.find((e: { platform: string }) => e.platform === platform);
 
       if (!platformEvent) {
         discrepancies.push({
@@ -429,7 +429,7 @@ export async function getOrderCrossPlatformComparison(
           createdAt: shopifyOrder.createdAt,
         }
       : null,
-    platformEvents: platformEvents.map((e) => ({
+    platformEvents: platformEvents.map((e: { platform: string; orderId: string }) => ({
       platform: e.platform,
       orderId: e.orderId,
       orderValue: Number(e.orderValue || 0),

@@ -9,7 +9,7 @@ import {
   forbiddenResponse,
 } from "../utils/responses";
 import { validateCronAuth, executeCronTasks, type CronResult } from "../cron";
-import { checkRateLimit, createRateLimitResponse } from "../utils/rate-limiter";
+import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limiter";
 import { createRequestLogger, logger } from "../utils/logger.server";
 import { withCronLock } from "../utils/cron-lock";
 
@@ -68,7 +68,7 @@ async function handleCronRequest(
 
   cronLogger.info(`Cron execution started${methodSuffix}`);
 
-  const rateLimit = checkRateLimit(request, "cron");
+  const rateLimit = await checkRateLimitAsync(request, "cron");
   if (rateLimit.isLimited) {
     cronLogger.warn(`Cron endpoint rate limited${methodSuffix}`);
     return createRateLimitResponse(rateLimit.retryAfter);

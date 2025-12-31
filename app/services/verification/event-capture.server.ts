@@ -57,7 +57,7 @@ export async function captureRecentEvents(
       take: 100,
     });
 
-    const capturedEvents: CapturedEvent[] = events.map((event) => {
+    const capturedEvents: CapturedEvent[] = events.map((event: { payloadJson: unknown; eventId: string | null; destinationType: string | null }) => {
       const payload = (event.payloadJson as Record<string, unknown>) || {};
       const data = (payload.data as Record<string, unknown>) || {};
 

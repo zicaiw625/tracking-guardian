@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useMemo, memo } from "react";
 import {
   Card,
@@ -342,7 +341,7 @@ export function EventMappingEditor({
 
       if (!shopifyEvent || !platformEvent) return null;
 
-      const preview: Record<string, any> = {
+      const preview: Record<string, string | number | unknown[]> = {
         event_name: platformEventId,
         event_time: Math.floor(Date.now() / 1000),
         event_id: "preview_event_id_" + Date.now(),
@@ -385,7 +384,9 @@ export function EventMappingEditor({
 
   const orderedEvents = useMemo(() => {
     const eventMap = new Map(SHOPIFY_EVENTS.map(e => [e.id, e]));
-    return eventOrder.map((id: string) => eventMap.get(id)).filter(Boolean) as ShopifyEvent[];
+    return eventOrder
+      .map((id: string) => eventMap.get(id))
+      .filter((event: ShopifyEvent | undefined): event is ShopifyEvent => event !== undefined);
   }, [eventOrder]);
 
   const togglePreview = useCallback((eventId: string) => {
@@ -774,12 +775,12 @@ export function EventMappingEditor({
                                   <>
                                     {platformEventDef.requiredParams.map((param) => (
                                       <Badge key={param} tone="critical">
-                                        必需: {param}
+                                        {`必需: ${param}`}
                                       </Badge>
                                     ))}
                                     {platformEventDef.optionalParams.map((param) => (
                                       <Badge key={param} tone="info">
-                                        可选: {param}
+                                        {`可选: ${param}`}
                                       </Badge>
                                     ))}
                                   </>

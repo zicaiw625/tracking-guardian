@@ -355,16 +355,12 @@ export function checkRateLimit(
   const key = getRateLimitKey(request, endpoint);
   const now = Date.now();
 
-  const client = getRedisClientSync();
-
-  client.incr(key).then((count) => {
-    if (count === 1) {
-      const windowSeconds = Math.ceil(config.windowMs / 1000);
-      client.expire(key, windowSeconds).catch(() => {});
-    }
-  }).catch((err) => {
-    logger.error("Rate limit increment error", err);
-  });
+  // 注意：此函数存在竞态条件问题，应使用 checkRateLimitAsync 代替
+  // 保留此函数仅用于向后兼容，但会返回默认值（不限制）
+  // 实际速率限制检查应使用异步版本
+  logger.warn(
+    "checkRateLimit called (sync version). This function has race conditions. Use checkRateLimitAsync instead."
+  );
 
   return {
     isLimited: false,

@@ -38,6 +38,8 @@ export function PostInstallScanProgress({
     let stepIndex = 0;
     let accumulatedTime = 0;
     const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
+    let checkInterval: ReturnType<typeof setInterval> | null = null;
+    let completionTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const interval = setInterval(() => {
       accumulatedTime += 100;
@@ -56,12 +58,14 @@ export function PostInstallScanProgress({
       if (accumulatedTime >= totalDuration) {
         clearInterval(interval);
 
-        const checkInterval = setInterval(() => {
+        checkInterval = setInterval(() => {
           revalidator.revalidate();
         }, 2000);
 
-        setTimeout(() => {
-          clearInterval(checkInterval);
+        completionTimeout = setTimeout(() => {
+          if (checkInterval) {
+            clearInterval(checkInterval);
+          }
           setProgress(100);
           setScanStatus("completed");
           if (onComplete) {
@@ -71,7 +75,15 @@ export function PostInstallScanProgress({
       }
     }, 100);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (checkInterval) {
+        clearInterval(checkInterval);
+      }
+      if (completionTimeout) {
+        clearTimeout(completionTimeout);
+      }
+    };
   }, [onComplete, revalidator]);
 
   return (

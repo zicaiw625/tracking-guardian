@@ -5,7 +5,8 @@
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { scanShopTracking } from "../scanner.server";
-import type { AdminApiContext } from "../shopify.server";
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
+import { getRedisClient } from "~/utils/redis-client";
 
 export interface BatchAuditOptions {
   shopIds: string[];
@@ -26,6 +27,13 @@ export interface BatchAuditResult {
     error?: string;
   }>;
 }
+
+// 内存存储，用于快速访问
+const batchAuditJobs = new Map<string, BatchAuditResult>();
+
+// Redis缓存键前缀
+const CACHE_PREFIX = "batch-audit:";
+const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24小时
 
 /**
  * 启动批量 Audit
@@ -104,13 +112,37 @@ export async function startBatchAudit(
   // 等待所有扫描完成
   await Promise.allSettled(processPromises);
 
-  return {
+  const result: BatchAuditResult = {
     jobId,
     totalShops: options.shopIds.length,
     startedAt: new Date(),
     status: "completed",
     results,
   };
+
+  // 存储到内存
+  batchAuditJobs.set(jobId, result);
+
+  // 存储到Redis缓存
+  try {
+    const redisClient = await getRedisClient();
+    const cacheKey = `${CACHE_PREFIX}${jobId}`;
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify({
+        ...result,
+        startedAt: result.startedAt.toISOString(),
+      }),
+      { EX: CACHE_TTL_SECONDS }
+    );
+  } catch (error) {
+    logger.warn("Failed to cache batch audit result to Redis", {
+      jobId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return result;
 }
 
 /**
@@ -119,8 +151,38 @@ export async function startBatchAudit(
 export async function getBatchAuditStatus(
   jobId: string
 ): Promise<BatchAuditResult | null> {
-  // TODO: 实现从数据库或缓存中获取状态
-  // 这里简化实现，实际应该存储到数据库
+  // 首先从内存缓存获取
+  const memoryResult = batchAuditJobs.get(jobId);
+  if (memoryResult) {
+    return memoryResult;
+  }
+
+  // 从Redis缓存获取
+  try {
+    const redisClient = await getRedisClient();
+    const cacheKey = `${CACHE_PREFIX}${jobId}`;
+    const cachedValue = await redisClient.get(cacheKey);
+
+    if (cachedValue) {
+      const parsed = JSON.parse(cachedValue) as Omit<BatchAuditResult, "startedAt"> & {
+        startedAt: string;
+      };
+      const result: BatchAuditResult = {
+        ...parsed,
+        startedAt: new Date(parsed.startedAt),
+      };
+
+      // 回填到内存缓存
+      batchAuditJobs.set(jobId, result);
+      return result;
+    }
+  } catch (error) {
+    logger.warn("Failed to get batch audit status from Redis", {
+      jobId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   return null;
 }
 

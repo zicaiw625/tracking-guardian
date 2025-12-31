@@ -9,9 +9,9 @@ import type {
   BatchTrackingRequest,
   BatchTrackingResult,
   TrackingEvent,
-  TrackingStatus,
   TrackingWebhookEvent,
 } from "./types";
+import { TrackingStatus } from "./types";
 
 interface AfterShipTracking {
   id: string;
@@ -263,6 +263,23 @@ export class AfterShipProvider implements ITrackingProvider {
   }
 
   private transformTracking(tracking: AfterShipTracking): TrackingResult {
+    // 安全地将tracking对象转换为Record<string, unknown>
+    const rawData: Record<string, unknown> = {
+      id: tracking.id,
+      tracking_number: tracking.tracking_number,
+      slug: tracking.slug,
+      title: tracking.title,
+      tag: tracking.tag,
+      subtag: tracking.subtag,
+      subtag_message: tracking.subtag_message,
+      expected_delivery: tracking.expected_delivery,
+      origin_country_iso3: tracking.origin_country_iso3,
+      destination_country_iso3: tracking.destination_country_iso3,
+      shipment_delivery_date: tracking.shipment_delivery_date,
+      checkpoints: tracking.checkpoints,
+      updated_at: tracking.updated_at,
+    };
+
     return {
       trackingNumber: tracking.tracking_number,
       carrier: tracking.title,
@@ -275,7 +292,7 @@ export class AfterShipProvider implements ITrackingProvider {
       destinationCountry: tracking.destination_country_iso3 || undefined,
       events: tracking.checkpoints.map((cp) => this.transformCheckpoint(cp)),
       lastUpdate: new Date(tracking.updated_at),
-      rawData: tracking as unknown as Record<string, unknown>,
+      rawData,
     };
   }
 

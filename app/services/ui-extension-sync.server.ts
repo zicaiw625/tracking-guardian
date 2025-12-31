@@ -1,7 +1,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import type { AdminApiContext } from "../shopify.server";
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import type { ModuleKey, UiModuleConfig } from "../types/ui-extension";
 import { getUiModuleConfig } from "./ui-extension.server";
 

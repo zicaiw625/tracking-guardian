@@ -163,3 +163,52 @@ export function asPixelTemplateConfigArray(
   return [];
 }
 
+/**
+ * Prisma错误类型定义
+ */
+export interface PrismaError {
+  code?: string;
+  meta?: {
+    target?: string[];
+    [key: string]: unknown;
+  };
+  message?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 检查是否为Prisma错误
+ */
+export function isPrismaError(error: unknown): error is Error & PrismaError {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  
+  // 检查是否有code属性（Prisma错误的特征）
+  const err = error as Record<string, unknown>;
+  return (
+    typeof err.code === "string" &&
+    (err.meta === undefined || typeof err.meta === "object")
+  );
+}
+
+/**
+ * 安全地获取Prisma错误代码
+ */
+export function getPrismaErrorCode(error: unknown): string | undefined {
+  if (isPrismaError(error)) {
+    return error.code;
+  }
+  return undefined;
+}
+
+/**
+ * 安全地获取Prisma错误的目标字段
+ */
+export function getPrismaErrorTarget(error: unknown): string[] | undefined {
+  if (isPrismaError(error) && error.meta?.target) {
+    return error.meta.target;
+  }
+  return undefined;
+}
+

@@ -97,12 +97,13 @@ export function getNestedValue<T>(
     if (current === null || current === undefined) {
       return fallback;
     }
-    if (typeof current !== "object") {
+    if (!isObject(current)) {
       return fallback;
     }
-    current = (current as Record<string, unknown>)[key];
+    current = current[key];
   }
 
+  // 类型断言在这里是安全的，因为我们已经验证了路径的每一步
   return (current as T) ?? fallback;
 }
 
@@ -113,9 +114,11 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 export function removeNullish<T extends Record<string, unknown>>(
   obj: T
 ): Partial<T> {
-  return Object.fromEntries(
+  const filtered = Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined && v !== null)
-  ) as Partial<T>;
+  );
+  // 类型断言在这里是安全的，因为我们只是移除了nullish值，保持了相同的键结构
+  return filtered as Partial<T>;
 }
 
 export function deepClone<T>(obj: T): T {
@@ -138,17 +141,18 @@ export function groupBy<T, K extends string | number>(
   array: T[],
   keyFn: (item: T) => K
 ): Record<K, T[]> {
-  return array.reduce(
-    (groups, item) => {
-      const key = keyFn(item);
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(item);
-      return groups;
-    },
-    {} as Record<K, T[]>
-  );
+  const groups: Partial<Record<K, T[]>> = {};
+  
+  for (const item of array) {
+    const key = keyFn(item);
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key]!.push(item);
+  }
+  
+  // 类型断言在这里是安全的，因为我们已经初始化了所有键
+  return groups as Record<K, T[]>;
 }
 
 export function isWithinTimeWindow(date: Date, windowMs: number): boolean {
@@ -226,67 +230,52 @@ export async function parallelLimit<T, R>(
   fn: (item: T, index: number) => Promise<R>
 ): Promise<R[]> {
   const results: (R | undefined)[] = new Array(items.length);
-  const executing: Array<{ promise: Promise<void>; index: number }> = [];
   const errors: Array<{ index: number; error: unknown }> = [];
+  // 使用Map来跟踪正在执行的promise，提高查找效率
+  const executing = new Map<number, Promise<{ index: number; result?: R; error?: unknown }>>();
+  let nextIndex = 0;
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const index = i;
+  // 启动初始批次
+  while (nextIndex < items.length && executing.size < concurrency) {
+    const index = nextIndex++;
+    const item = items[index];
 
-    // 创建包装的 promise，捕获结果或错误
+    // 创建promise，包装结果和索引以便追踪
     const promise = fn(item, index)
-      .then((result) => {
-        results[index] = result;
-      })
-      .catch((error) => {
-        // 收集错误而不是抛出，以便继续处理其他项
-        errors.push({ index, error });
-        results[index] = undefined;
-      })
-      .then(() => {
-        // 返回 void 以匹配 Promise<void> 类型
-      });
+      .then((result) => ({ index, result }))
+      .catch((error) => ({ index, error }));
 
-    executing.push({ promise, index });
-
-    if (executing.length >= concurrency) {
-      // 等待至少一个 promise 完成
-      await Promise.race(executing.map((e) => e.promise));
-
-      // 移除已完成的 promise（使用allSettled确保所有promise状态都已确定）
-      const settled = await Promise.allSettled(
-        executing.map((e) => e.promise)
-      );
-      
-      // 从后往前移除已完成的promise，避免索引问题
-      const toRemove: number[] = [];
-      for (let j = settled.length - 1; j >= 0; j--) {
-        if (settled[j].status === "fulfilled") {
-          toRemove.push(j);
-        }
-      }
-      
-      // 按降序移除，确保索引正确
-      for (const idx of toRemove.sort((a, b) => b - a)) {
-        executing.splice(idx, 1);
-      }
-    }
+    executing.set(index, promise);
   }
 
-  // 等待所有剩余的 promise 完成
-  const finalSettled = await Promise.allSettled(
-    executing.map((e) => e.promise)
-  );
-  
-  // 检查是否有未处理的错误（注意：finalSettled 和 executing 的索引是对应的）
-  for (let j = 0; j < finalSettled.length; j++) {
-    if (finalSettled[j].status === "rejected") {
-      const executingItem = executing[j];
-      if (executingItem) {
-        errors.push({ index: executingItem.index, error: finalSettled[j].reason });
-        // 确保结果数组中也标记为 undefined（虽然 catch 中已经处理了，但为了安全起见）
-        results[executingItem.index] = undefined;
-      }
+  // 处理所有任务
+  while (executing.size > 0) {
+    // 等待至少一个promise完成
+    const settled = await Promise.race(
+      Array.from(executing.values())
+    );
+
+    // 处理完成的结果
+    if (settled.error !== undefined) {
+      errors.push({ index: settled.index, error: settled.error });
+      results[settled.index] = undefined;
+    } else {
+      results[settled.index] = settled.result;
+    }
+
+    // 移除已完成的promise
+    executing.delete(settled.index);
+
+    // 如果有更多任务，启动新的promise
+    if (nextIndex < items.length) {
+      const index = nextIndex++;
+      const item = items[index];
+
+      const promise = fn(item, index)
+        .then((result) => ({ index, result }))
+        .catch((error) => ({ index, error }));
+
+      executing.set(index, promise);
     }
   }
 
@@ -300,8 +289,16 @@ export async function parallelLimit<T, R>(
     );
   }
 
-  // 确保所有结果都已设置（类型断言是安全的，因为我们已经检查了错误）
-  return results as R[];
+  // 验证所有结果都已设置
+  const validResults = results.filter((r): r is R => r !== undefined);
+  
+  if (validResults.length !== items.length) {
+    throw new Error(
+      `parallelLimit: Expected ${items.length} results but got ${validResults.length}. This indicates an internal error.`
+    );
+  }
+
+  return validResults;
 }
 
 export function isValidEmail(email: string): boolean {

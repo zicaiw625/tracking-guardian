@@ -46,6 +46,11 @@ export function RealtimeSuccessRateMonitor({
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    // 如果已有连接，先关闭
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
 
     const eventSource = new EventSource(
       `/app/api/monitoring/realtime?shopId=${shopId}`

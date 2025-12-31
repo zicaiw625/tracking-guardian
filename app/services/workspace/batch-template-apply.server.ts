@@ -387,11 +387,12 @@ export async function batchApplyTemplateWithComparison(
       }
     }
 
-    if (result.comparisons) {
-      for (const comparison of result.comparisons) {
-        changesBreakdown[comparison.action]++;
+      if (result.comparisons) {
+        for (const comparison of result.comparisons) {
+          const actionKey = comparison.action === "no_change" ? "noChange" : comparison.action;
+          changesBreakdown[actionKey as keyof typeof changesBreakdown]++;
+        }
       }
-    }
 
     if (result.errorType) {
       errorBreakdown[result.errorType] = (errorBreakdown[result.errorType] || 0) + 1;
@@ -473,10 +474,10 @@ export async function compareShopConfigs(
     },
   });
 
-  const shopData = shops.map((shop) => ({
+  const shopData = shops.map((shop: { id: string; shopDomain: string; pixelConfigs: Array<{ platform: string }> }) => ({
     shopId: shop.id,
     shopDomain: shop.shopDomain,
-    platforms: shop.pixelConfigs.map((c) => c.platform),
+    platforms: shop.pixelConfigs.map((c: { platform: string }) => c.platform),
     configs: shop.pixelConfigs,
   }));
 
@@ -502,11 +503,11 @@ export async function compareShopConfigs(
   > = {};
 
   for (const platformName of allPlatforms) {
-    const shopsWithPlatform = shopData.filter((s) => s.platforms.includes(platformName));
-    const shopsWithoutPlatform = shopData.filter((s) => !s.platforms.includes(platformName));
+    const shopsWithPlatform = shopData.filter((s: { platforms: string[] }) => s.platforms.includes(platformName));
+    const shopsWithoutPlatform = shopData.filter((s: { platforms: string[] }) => !s.platforms.includes(platformName));
 
-    const configs = shopsWithPlatform.map((s) => {
-      const config = s.configs.find((c) => c.platform === platformName);
+    const configs = shopsWithPlatform.map((s: { configs: Array<{ platform: string }> }) => {
+      const config = s.configs.find((c: { platform: string }) => c.platform === platformName);
       return {
         shopId: s.shopId,
         shopDomain: s.shopDomain,
@@ -576,7 +577,7 @@ export async function compareShopConfigs(
   }
 
   return {
-    shops: shopData.map((s) => ({
+    shops: shopData.map((s: { shopId: string; shopDomain: string; platforms: string[] }) => ({
       shopId: s.shopId,
       shopDomain: s.shopDomain,
       platforms: s.platforms,

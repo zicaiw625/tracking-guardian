@@ -412,7 +412,7 @@ export async function exportMigrationChecklist(
   }
 }
 
-async function exportChecklistToPDF(shopDomain: string, assets: Array<any>): Promise<string> {
+async function exportChecklistToPDF(shopDomain: string, assets: Array<Record<string, unknown>>): Promise<string> {
   try {
     let PDFDocument: any;
     try {
@@ -488,7 +488,7 @@ async function exportChecklistToPDF(shopDomain: string, assets: Array<any>): Pro
   }
 }
 
-function exportChecklistToCSV(shopDomain: string, assets: Array<any>): string {
+function exportChecklistToCSV(shopDomain: string, assets: Array<Record<string, unknown>>): string {
   const lines: string[] = [];
 
   lines.push("迁移清单");
@@ -515,7 +515,7 @@ function exportChecklistToCSV(shopDomain: string, assets: Array<any>): string {
   return lines.join("\n");
 }
 
-function exportChecklistToJSON(shopDomain: string, assets: Array<any>): string {
+function exportChecklistToJSON(shopDomain: string, assets: Array<Record<string, unknown>>): string {
   const data = {
     shopDomain,
     generatedAt: new Date().toISOString(),
@@ -590,7 +590,7 @@ export async function exportMultiShopReport(
 
 function exportMultiShopToCSV(
   shops: Array<{ id: string; shopDomain: string; plan: string }>,
-  shopAssets: Map<string, Array<any>>,
+  shopAssets: Map<string, Array<Record<string, unknown>>>,
   options: ExportOptions & { workspaceName?: string; agencyBranding?: { name?: string } }
 ): string {
   const lines: string[] = [];
@@ -633,7 +633,7 @@ function exportMultiShopToCSV(
 
 function exportMultiShopToJSON(
   shops: Array<{ id: string; shopDomain: string; plan: string }>,
-  shopAssets: Map<string, Array<any>>,
+  shopAssets: Map<string, Array<Record<string, unknown>>>,
   options: ExportOptions & { workspaceName?: string; agencyBranding?: { name?: string } }
 ): string {
   const data = {
@@ -667,7 +667,7 @@ function exportMultiShopToJSON(
 
 async function exportMultiShopToPDF(
   shops: Array<{ id: string; shopDomain: string; plan: string }>,
-  shopAssets: Map<string, Array<any>>,
+  shopAssets: Map<string, Array<Record<string, unknown>>>,
   options: ExportOptions & { workspaceName?: string; agencyBranding?: { name?: string; logo?: string } }
 ): Promise<string> {
   try {

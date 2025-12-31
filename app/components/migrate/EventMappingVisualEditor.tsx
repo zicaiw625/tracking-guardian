@@ -361,7 +361,7 @@ export function EventMappingVisualEditor({
 
         <Divider />
 
-        <Box
+        <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr auto 1fr",
@@ -380,9 +380,7 @@ export function EventMappingVisualEditor({
               const isMapped = !!currentMapping;
 
               return (
-                <Card
-                  key={shopifyEvent.id}
-                  background={isSelected ? "bg-surface-selected" : draggedShopifyEvent === shopifyEvent.id ? "bg-surface-warning" : undefined}
+                <div
                   style={{
                     cursor: "grab",
                     border: isSelected ? "2px solid var(--p-color-border-info)" : draggedShopifyEvent === shopifyEvent.id ? "2px dashed var(--p-color-border-warning)" : undefined,
@@ -390,13 +388,16 @@ export function EventMappingVisualEditor({
                   }}
                   onClick={() => setSelectedShopifyEvent(shopifyEvent.id)}
                   draggable
-                  onDragStart={(e) => {
+                  onDragStart={(e: React.DragEvent<HTMLDivElement>) => {
                     handleDragStart(shopifyEvent.id);
                     e.dataTransfer.effectAllowed = "move";
                     e.dataTransfer.setData("text/plain", shopifyEvent.id);
                   }}
                   onDragEnd={handleDragEnd}
                 >
+                  <Card
+                    background={isSelected ? "bg-surface-selected" : draggedShopifyEvent === shopifyEvent.id ? "bg-surface-warning" : undefined}
+                  >
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="050">
@@ -421,13 +422,14 @@ export function EventMappingVisualEditor({
                       ))}
                     </InlineStack>
                   </BlockStack>
-                </Card>
+                  </Card>
+                </div>
               );
             })}
           </BlockStack>
 
           {}
-          <Box
+          <div
             style={{
               display: "flex",
               flexDirection: "column",
@@ -440,7 +442,7 @@ export function EventMappingVisualEditor({
             <Text as="span" variant="bodySm" tone="subdued" alignment="center">
               映射到
             </Text>
-          </Box>
+          </div>
 
           {}
           <BlockStack gap="300">
@@ -510,12 +512,12 @@ export function EventMappingVisualEditor({
                                 <InlineStack gap="100" wrap>
                                   {platformEvent.requiredParams.map((param) => (
                                     <Badge key={param} tone="critical">
-                                      必需: {param}
+                                      {`必需: ${param}`}
                                     </Badge>
                                   ))}
                                   {platformEvent.optionalParams.map((param) => (
                                     <Badge key={param} tone="info">
-                                      可选: {param}
+                                      {`可选: ${param}`}
                                     </Badge>
                                   ))}
                                 </InlineStack>
@@ -576,29 +578,31 @@ export function EventMappingVisualEditor({
                 const isMapped = Object.values(mappings).includes(event.id);
                 const isDragOver = dragOverPlatformEvent === event.id;
                 return (
-                  <Card
+                  <div
                     key={event.id}
-                    background={
-                      isMapped
-                        ? "bg-surface-secondary"
-                        : isDragOver
-                          ? "bg-surface-info"
-                          : undefined
-                    }
                     style={{
                       cursor: "pointer",
                       border: isDragOver ? "2px dashed var(--p-color-border-info)" : undefined,
                       transition: "all 0.2s ease",
                     }}
-                    onDragOver={(e) => handleDragOver(e, event.id)}
+                    onDragOver={(e: React.DragEvent<HTMLDivElement>) => handleDragOver(e, event.id)}
                     onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, event.id)}
+                    onDrop={(e: React.DragEvent<HTMLDivElement>) => handleDrop(e, event.id)}
                     onClick={() => {
                       if (selectedShopifyEvent) {
                         onMappingChange(selectedShopifyEvent, event.id);
                       }
                     }}
                   >
+                    <Card
+                      background={
+                        isMapped
+                          ? "bg-surface-secondary"
+                          : isDragOver
+                            ? "bg-surface-info"
+                            : undefined
+                      }
+                    >
                     <BlockStack gap="100">
                       <InlineStack align="space-between" blockAlign="center">
                         <Text as="span" fontWeight={isMapped ? "semibold" : "regular"}>
@@ -611,12 +615,13 @@ export function EventMappingVisualEditor({
                         {event.description}
                       </Text>
                     </BlockStack>
-                  </Card>
+                    </Card>
+                  </div>
                 );
               })}
             </BlockStack>
           </BlockStack>
-        </Box>
+        </div>
 
         {}
         <Divider />

@@ -3,6 +3,7 @@
 import { AppError, ErrorCode, ensureAppError } from "../utils/errors";
 import { ok, err, type Result, type AsyncResult, isOk, isErr } from "../types/result";
 import { logger } from "../utils/logger.server";
+import { isPrismaError, getPrismaErrorCode, getPrismaErrorTarget } from "../utils/type-guards";
 
 export async function wrapDbOperation<T>(
   operation: () => Promise<T>,
@@ -36,13 +37,11 @@ export async function wrapDbFindRequired<T>(
 }
 
 function handleDatabaseError(error: unknown, resourceName: string): AppError {
-  if (error instanceof Error) {
+  if (isPrismaError(error)) {
+    const errorCode = getPrismaErrorCode(error);
 
-    const prismaError = error as { code?: string; meta?: { target?: string[] } };
-
-    if (prismaError.code === "P2002") {
-
-      const target = prismaError.meta?.target?.join(", ") || "field";
+    if (errorCode === "P2002") {
+      const target = getPrismaErrorTarget(error)?.join(", ") || "field";
       return new AppError(
         ErrorCode.DB_UNIQUE_CONSTRAINT,
         `${resourceName} with this ${target} already exists`,
@@ -51,8 +50,7 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
       );
     }
 
-    if (prismaError.code === "P2025") {
-
+    if (errorCode === "P2025") {
       return new AppError(
         ErrorCode.NOT_FOUND_RESOURCE,
         `${resourceName} not found`,
@@ -61,13 +59,12 @@ function handleDatabaseError(error: unknown, resourceName: string): AppError {
       );
     }
 
-    if (prismaError.code?.startsWith("P2")) {
-
+    if (errorCode?.startsWith("P2")) {
       return new AppError(
         ErrorCode.DB_QUERY_ERROR,
         `Database error: ${error.message}`,
         false,
-        { resourceName, prismaCode: prismaError.code }
+        { resourceName, prismaCode: errorCode }
       );
     }
   }

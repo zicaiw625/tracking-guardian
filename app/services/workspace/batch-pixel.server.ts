@@ -4,7 +4,7 @@
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
-import type { AdminApiContext } from "../shopify.server";
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 export interface BatchPixelOptions {
   shopIds: string[];

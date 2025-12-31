@@ -125,7 +125,7 @@ export function UpgradePrompt({
                 </Text>
                 {"trialDays" in recommendedPlanConfig && recommendedPlanConfig.trialDays && (
                   <Badge tone="info">
-                    {String(recommendedPlanConfig.trialDays)} 天免费试用
+                    {`${String(recommendedPlanConfig.trialDays)} 天免费试用`}
                   </Badge>
                 )}
               </BlockStack>

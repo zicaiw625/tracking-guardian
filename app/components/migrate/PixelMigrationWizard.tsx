@@ -528,7 +528,10 @@ export function PixelMigrationWizard({
   );
   const [platformConfigs, setPlatformConfigs] = useState<
     Partial<Record<PlatformType, PlatformConfig>>
-  >(draftData?.configs || assetData?.configs || {
+  >(() => {
+    const initial = draftData?.configs || assetData?.configs;
+    if (initial) return initial;
+    return {
     google: {
       platform: "google",
       enabled: false,
@@ -569,6 +572,7 @@ export function PixelMigrationWizard({
       eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat,
       environment: "test",
     },
+    };
   });
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -593,15 +597,17 @@ const allTemplates: WizardTemplate[] = [
       step: currentStep,
       selectedPlatforms: Array.from(selectedPlatforms),
       platformConfigs: Object.fromEntries(
-        Array.from(selectedPlatforms).map((platform) => [
-          platform,
-          {
-            platformId: platformConfigs[platform].platformId,
-            credentials: platformConfigs[platform].credentials,
-            eventMappings: platformConfigs[platform].eventMappings,
-            environment: platformConfigs[platform].environment,
-          },
-        ])
+        Array.from(selectedPlatforms)
+          .filter((platform) => platformConfigs[platform] !== undefined)
+          .map((platform) => [
+            platform,
+            {
+              platformId: platformConfigs[platform]!.platformId,
+              credentials: platformConfigs[platform]!.credentials,
+              eventMappings: platformConfigs[platform]!.eventMappings,
+              environment: platformConfigs[platform]!.environment,
+            },
+          ])
       ),
       selectedTemplate,
     };
@@ -705,10 +711,14 @@ const allTemplates: WizardTemplate[] = [
     } else if (initialPlatforms.length > 0 && !wizardDraft) {
       const configs = { ...platformConfigs };
       initialPlatforms.forEach((platform) => {
-        configs[platform] = {
-          ...configs[platform],
-          enabled: true,
-        };
+        const existingConfig = configs[platform];
+        if (existingConfig) {
+          configs[platform] = {
+            ...existingConfig,
+            enabled: true,
+            platform: existingConfig.platform || platform,
+          };
+        }
       });
       setPlatformConfigs(configs);
     }
@@ -743,15 +753,17 @@ const allTemplates: WizardTemplate[] = [
             step: currentStep,
             selectedPlatforms: Array.from(selectedPlatforms),
             platformConfigs: Object.fromEntries(
-              Array.from(selectedPlatforms).map((platform) => [
-                platform,
-                {
-                  platformId: platformConfigs[platform].platformId,
-                  credentials: platformConfigs[platform].credentials,
-                  eventMappings: platformConfigs[platform].eventMappings,
-                  environment: platformConfigs[platform].environment,
-                },
-              ])
+              Array.from(selectedPlatforms)
+                .filter((platform) => platformConfigs[platform] !== undefined)
+                .map((platform) => [
+                  platform,
+                  {
+                    platformId: platformConfigs[platform]!.platformId,
+                    credentials: platformConfigs[platform]!.credentials,
+                    eventMappings: platformConfigs[platform]!.eventMappings,
+                    environment: platformConfigs[platform]!.environment,
+                  },
+                ])
             ),
             selectedTemplate,
             timestamp: Date.now(),
@@ -851,11 +863,24 @@ const allTemplates: WizardTemplate[] = [
       template.platforms.forEach((platform) => {
         const platformKey = platform as PlatformType;
         platforms.add(platformKey);
-        configs[platformKey] = {
-          ...configs[platformKey],
-          enabled: true,
-          eventMappings: template.eventMappings[platform] || configs[platformKey].eventMappings,
-        };
+        const existingConfig = configs[platformKey];
+        if (existingConfig) {
+          configs[platformKey] = {
+            ...existingConfig,
+            enabled: true,
+            eventMappings: template.eventMappings[platform] || existingConfig.eventMappings,
+          };
+        } else {
+          // Create default config if it doesn't exist
+          configs[platformKey] = {
+            platform: platformKey,
+            enabled: true,
+            platformId: "",
+            credentials: {},
+            eventMappings: template.eventMappings[platform] || {},
+            environment: "test",
+          };
+        }
       });
 
       setSelectedPlatforms(platforms);
@@ -869,36 +894,44 @@ const allTemplates: WizardTemplate[] = [
 
   const handleCredentialUpdate = useCallback(
     (platform: PlatformType, field: string, value: string) => {
-      setPlatformConfigs((prev) => ({
-        ...prev,
-        [platform]: {
-          ...prev[platform],
-          credentials: {
-            ...prev[platform].credentials,
-            [field]: value,
+      setPlatformConfigs((prev) => {
+        const currentConfig = prev[platform];
+        if (!currentConfig) return prev;
+        return {
+          ...prev,
+          [platform]: {
+            ...currentConfig,
+            credentials: {
+              ...currentConfig.credentials,
+              [field]: value,
+            },
+            platformId:
+              field === "measurementId" || field === "pixelId"
+                ? value
+                : currentConfig.platformId,
           },
-          platformId:
-            field === "measurementId" || field === "pixelId"
-              ? value
-              : prev[platform].platformId,
-        },
-      }));
+        };
+      });
     },
     []
   );
 
   const handleEventMappingUpdate = useCallback(
     (platform: PlatformType, shopifyEvent: string, platformEvent: string) => {
-      setPlatformConfigs((prev) => ({
-        ...prev,
-        [platform]: {
-          ...prev[platform],
-          eventMappings: {
-            ...prev[platform].eventMappings,
-            [shopifyEvent]: platformEvent,
+      setPlatformConfigs((prev) => {
+        const currentConfig = prev[platform];
+        if (!currentConfig) return prev;
+        return {
+          ...prev,
+          [platform]: {
+            ...currentConfig,
+            eventMappings: {
+              ...currentConfig.eventMappings,
+              [shopifyEvent]: platformEvent,
+            },
           },
-        },
-      }));
+        };
+      });
     },
     []
   );
@@ -921,6 +954,7 @@ const allTemplates: WizardTemplate[] = [
     const errors: string[] = [];
     const info = PLATFORM_INFO[platform];
 
+    if (!config || !info) return errors;
     if (!config.enabled) return errors;
 
     info.credentialFields.forEach((field) => {
@@ -946,6 +980,8 @@ const allTemplates: WizardTemplate[] = [
         Array.from(selectedPlatforms).forEach((platform) => {
           const config = platformConfigs[platform];
           const info = PLATFORM_INFO[platform];
+
+          if (!config || !info) return;
 
           info.credentialFields.forEach((field) => {
             if (field.key === "testEventCode") return;
@@ -1108,7 +1144,7 @@ const allTemplates: WizardTemplate[] = [
                 {`步骤 ${currentStepIndex + 1} / ${steps.length}`}
               </Badge>
               <Badge>
-                {String(Math.round(progress))}% 完成
+                {`${String(Math.round(progress))}% 完成`}
               </Badge>
             </InlineStack>
           </InlineStack>
@@ -1599,7 +1635,10 @@ function ReviewStep({
       const eventMappings: Record<string, Record<string, string>> = {};
 
       platforms.forEach((platform) => {
-        eventMappings[platform] = platformConfigs[platform].eventMappings;
+        const config = platformConfigs[platform];
+        if (config) {
+          eventMappings[platform] = config.eventMappings || {};
+        }
       });
 
       const formData = new FormData();

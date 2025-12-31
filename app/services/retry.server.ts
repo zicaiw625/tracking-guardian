@@ -12,6 +12,7 @@ import { decryptCredentials } from "./credentials.server";
 import { sendConversionToPlatform } from "./platforms";
 import { generateEventId } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
+import { toJsonInput } from "../utils/prisma-json";
 import type {
   ConversionData,
   PlatformCredentials,
@@ -350,7 +351,7 @@ export async function processPendingConversions(): Promise<{
           status: "sent",
           serverSideSent: true,
           sentAt: new Date(),
-          platformResponse: result.response ? (result.response as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+          platformResponse: result.response ? toJsonInput(result.response) : Prisma.DbNull,
           errorMessage: null,
           attempts: 1,
           lastAttemptAt: new Date(),
@@ -467,7 +468,7 @@ export async function processRetries(): Promise<{
           status: "sent",
           serverSideSent: true,
           sentAt: new Date(),
-          platformResponse: result.response ? (result.response as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+          platformResponse: result.response ? toJsonInput(result.response) : Prisma.DbNull,
           errorMessage: null,
           nextRetryAt: null,
           attempts: { increment: 1 },
