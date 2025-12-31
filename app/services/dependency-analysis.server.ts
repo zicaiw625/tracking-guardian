@@ -211,7 +211,7 @@ export async function generateMigrationOrder(
     });
   }
 
-  graph.nodes.forEach((node) => {
+  for (const node of graph.nodes) {
     if (!processed.has(node.id)) {
       const asset = await prisma.auditAsset.findUnique({
         where: { id: node.assetId },
@@ -229,7 +229,7 @@ export async function generateMigrationOrder(
         dependencies,
       });
     }
-  });
+  }
 
   return ordered;
 }
