@@ -3,7 +3,7 @@ import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { AppProvider, Card, Page, Text, Banner, BlockStack, } from "@shopify/polaris";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
-import polarisTranslationsEn from "@shopify/polaris/locales/en.json";
+import polarisTranslationsEn from "@shopify/polaris/locales/en.json" assert { type: "json" };
 import { login } from "../../shopify.server";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
