@@ -72,7 +72,11 @@ export function BatchTaskBoard({
         setTasks(data.tasks);
       }
     } catch (error) {
-      console.error("Failed to fetch batch tasks:", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Failed to fetch batch tasks:", error);
+      }
     } finally {
       setIsLoading(false);
     }

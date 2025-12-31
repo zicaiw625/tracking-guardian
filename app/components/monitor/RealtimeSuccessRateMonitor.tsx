@@ -63,13 +63,21 @@ export function RealtimeSuccessRateMonitor({
         const data = JSON.parse(event.data) as RealtimeStats;
         setStats(data);
       } catch (err) {
-        console.error("Failed to parse SSE data:", err);
+        // Log error in development only
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.error("Failed to parse SSE data:", err);
+        }
         setError("数据解析失败");
       }
     };
 
     eventSource.onerror = (err) => {
-      console.error("SSE connection error:", err);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("SSE connection error:", err);
+      }
       setIsConnected(false);
       setError("连接中断，正在重连...");
     };

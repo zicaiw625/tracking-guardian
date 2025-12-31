@@ -7,6 +7,7 @@ import prisma from "../../db.server";
 import { checkTokenExpirationIssues } from "../../services/retry.server";
 import { PCD_CONFIG } from "../../utils/config";
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "../../services/monitoring.server";
+import { logger } from "../../utils/logger.server";
 import type { SettingsLoaderData, AlertConfigDisplay, PixelConfigDisplay } from "./types";
 
 export async function settingsLoader({ request }: LoaderFunctionArgs) {
@@ -118,8 +119,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
         volumeDrop: volumeStats.isDrop ? Math.abs(volumeStats.changePercent) : 0,
       };
     } catch (error) {
-
-      console.error("Failed to fetch monitoring data for preview:", error);
+      logger.error("Failed to fetch monitoring data for preview", { error });
     }
   }
 

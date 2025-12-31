@@ -7,6 +7,7 @@ import {
   getConfigComparison,
   getConfigVersionHistory,
 } from "../services/pixel-rollback.server";
+import { logger } from "../utils/logger.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -41,7 +42,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return json({ error: "无效的 type 参数" }, { status: 400 });
     }
   } catch (error) {
-    console.error("Failed to fetch config history", error);
+    logger.error("Failed to fetch config history", { error });
     return json(
       { error: "获取配置历史失败" },
       { status: 500 }

@@ -54,7 +54,11 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
         return;
       }
     } catch (error) {
-      console.error("File upload error:", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("File upload error:", error);
+      }
       showError("文件处理失败，请稍后重试。");
       setUploading(false);
     }
@@ -141,7 +145,11 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
         showError("未能识别到有效的平台或脚本项。请检查文件格式。");
       }
     } catch (error) {
-      console.error("Parse error:", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Parse error:", error);
+      }
       showError("解析文件失败，请稍后重试。");
     } finally {
       setUploading(false);

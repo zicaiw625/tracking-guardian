@@ -1060,7 +1060,8 @@ export default function ScanPage() {
                 errorType: error instanceof Error ? error.constructor.name : "Unknown",
                 contentLength,
                 hasContent: contentLength > 0,
-        });
+            });
+        }
     }, []);
 
     const handleDeleteWebPixel = useCallback((webPixelGid: string, platform?: string) => {
@@ -2727,7 +2728,11 @@ export default function ScanPage() {
                               showError("浏览器不支持复制功能");
                             }
                           } catch (error) {
-                            console.error("复制失败:", error);
+                            // Log error in development only
+                            if (process.env.NODE_ENV === "development") {
+                                // eslint-disable-next-line no-console
+                                console.error("复制失败:", error);
+                            }
                             showError("复制失败，请手动复制");
                           } finally {
                             setIsCopying(false);
@@ -2841,7 +2846,11 @@ export default function ScanPage() {
                             URL.revokeObjectURL(url);
                             showSuccess("PDF 清单导出成功");
                           } catch (error) {
-                            console.error("PDF 导出失败:", error);
+                            // Log error in development only
+                            if (process.env.NODE_ENV === "development") {
+                                // eslint-disable-next-line no-console
+                                console.error("PDF 导出失败:", error);
+                            }
                             showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");
                           } finally {
                             setIsExporting(false);

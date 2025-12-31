@@ -62,7 +62,11 @@ export function CommentSection({
       setNewComment("");
       setMentionedShopIds([]);
     } catch (error) {
-      console.error("Failed to create comment:", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Failed to create comment:", error);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -79,7 +83,11 @@ export function CommentSection({
         setReplyContent("");
         setReplyingTo(null);
       } catch (error) {
-        console.error("Failed to create reply:", error);
+        // Log error in development only
+        if (process.env.NODE_ENV === "development") {
+          // eslint-disable-next-line no-console
+          console.error("Failed to create reply:", error);
+        }
       } finally {
         setIsSubmitting(false);
       }

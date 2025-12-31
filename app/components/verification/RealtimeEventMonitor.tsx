@@ -127,8 +127,11 @@ export function RealtimeEventMonitor({
             if (rawData.type === "connected" || rawData.type === "error" || rawData.type === "verification_run_status") {
 
               if (rawData.type === "verification_run_status" && rawData.status) {
-
-                console.log("Verification run status:", rawData);
+                // Log in development only
+                if (process.env.NODE_ENV === "development") {
+                  // eslint-disable-next-line no-console
+                  console.log("Verification run status:", rawData);
+                }
               }
               return;
             }

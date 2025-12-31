@@ -131,7 +131,11 @@ export function BatchApplyWizard({
         }
       }
     } catch (error) {
-      console.error("Failed to poll job status:", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Failed to poll job status:", error);
+      }
     }
   }, []);
 

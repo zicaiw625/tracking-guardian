@@ -360,7 +360,11 @@ export default function TemplatesPage() {
       }
     } catch (error) {
       showError("生成分享链接失败");
-      console.error("Share link generation error", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Share link generation error", error);
+      }
     } finally {
       setIsGeneratingShareLink(false);
     }
@@ -374,7 +378,11 @@ export default function TemplatesPage() {
       showSuccess("分享链接已复制到剪贴板");
     } catch (error) {
       showError("复制失败，请手动复制");
-      console.error("Copy error", error);
+      // Log error in development only
+      if (process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.error("Copy error", error);
+      }
     }
   }, [shareLink, showSuccess, showError]);
 
