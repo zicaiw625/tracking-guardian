@@ -225,22 +225,29 @@ export async function parallelLimit<T, R>(
   concurrency: number,
   fn: (item: T, index: number) => Promise<R>
 ): Promise<R[]> {
-  const results: R[] = [];
+  const results: (R | undefined)[] = new Array(items.length);
   const executing: Array<{ promise: Promise<void>; index: number }> = [];
+  const errors: Array<{ index: number; error: unknown }> = [];
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
+    const index = i;
 
-    const promise = fn(item, i)
+    // 创建包装的 promise，捕获结果或错误
+    const promise = fn(item, index)
       .then((result) => {
-        results[i] = result;
+        results[index] = result;
       })
       .catch((error) => {
-        // 确保错误不会导致未处理的 rejection
-        throw error;
+        // 收集错误而不是抛出，以便继续处理其他项
+        errors.push({ index, error });
+        results[index] = undefined;
+      })
+      .then(() => {
+        // 返回 void 以匹配 Promise<void> 类型
       });
 
-    executing.push({ promise: promise as unknown as Promise<void>, index: i });
+    executing.push({ promise, index });
 
     if (executing.length >= concurrency) {
       // 等待至少一个 promise 完成
@@ -259,8 +266,34 @@ export async function parallelLimit<T, R>(
   }
 
   // 等待所有剩余的 promise 完成
-  await Promise.all(executing.map((e) => e.promise));
-  return results;
+  const finalSettled = await Promise.allSettled(
+    executing.map((e) => e.promise)
+  );
+  
+  // 检查是否有未处理的错误（注意：finalSettled 和 executing 的索引是对应的）
+  for (let j = 0; j < finalSettled.length; j++) {
+    if (finalSettled[j].status === "rejected") {
+      const executingItem = executing[j];
+      if (executingItem) {
+        errors.push({ index: executingItem.index, error: finalSettled[j].reason });
+        // 确保结果数组中也标记为 undefined（虽然 catch 中已经处理了，但为了安全起见）
+        results[executingItem.index] = undefined;
+      }
+    }
+  }
+
+  // 如果有错误，抛出聚合错误
+  if (errors.length > 0) {
+    const errorMessages = errors.map(
+      (e) => `Item ${e.index}: ${e.error instanceof Error ? e.error.message : String(e.error)}`
+    );
+    throw new Error(
+      `parallelLimit failed for ${errors.length} item(s):\n${errorMessages.join("\n")}`
+    );
+  }
+
+  // 确保所有结果都已设置（类型断言是安全的，因为我们已经检查了错误）
+  return results as R[];
 }
 
 export function isValidEmail(email: string): boolean {
