@@ -182,7 +182,9 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
     distribution.byRiskLevel.medium +
     distribution.byRiskLevel.low;
 
-        {totalAssets === 0 ? (
+  return (
+    <Card>
+      {totalAssets === 0 ? (
           <Box padding="400">
             <Text as="p" tone="subdued" alignment="center">
               暂无资产数据
@@ -302,7 +304,6 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
             )}
           </BlockStack>
         )}
-      </BlockStack>
     </Card>
   );
 }
