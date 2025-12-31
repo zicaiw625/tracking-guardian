@@ -1,4 +1,4 @@
-import { STANDARD_EVENT_MAPPINGS, type EventMapping } from "../services/event-mapping.server";
+import { STANDARD_EVENT_MAPPINGS, type EventMapping } from "../services/event-mapping";
 
 export interface ParamCompletenessResult {
   isComplete: boolean;

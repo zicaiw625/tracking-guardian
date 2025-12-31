@@ -1,7 +1,7 @@
 
 
 import { logger } from "../utils/logger.server";
-import type { EventMapping } from "./event-mapping.server";
+import type { EventMapping } from "./event-mapping";
 
 export interface NormalizedEventParams {
   event_name: string;
