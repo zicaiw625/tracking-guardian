@@ -6,6 +6,9 @@ import { generateWorkspaceMigrationReport, type WorkspaceMigrationReport } from 
 import { getBatchAuditStatus, type BatchAuditResult } from "../batch-audit.server";
 import type { EnhancedBatchApplyResult } from "./batch-template-apply.server";
 import { generateReportFromTemplate, getTemplateById, type ReportTemplate } from "../report-templates.server";
+import { getMigrationChecklist } from "../migration-checklist.server";
+import { getMigrationProgress } from "../migration-priority.server";
+import { htmlToPdf } from "../pdf-generator.server";
 
 export interface BatchReportOptions {
   groupId: string;
@@ -134,9 +137,6 @@ export async function generateBatchReportData(
     }
 
     if (reportTypes.includes("migration")) {
-      const { getMigrationChecklist } = await import("../migration-checklist.server");
-      const { getMigrationProgress } = await import("../migration-priority.server");
-
       try {
         const checklist = await getMigrationChecklist(shopId, false);
         const progress = await getMigrationProgress(shopId);
@@ -277,8 +277,7 @@ export async function generateBatchReportPdf(
       html = generateReportHtml(reportData, options);
     }
 
-    const pdfGenerator = await import("../pdf-generator.server");
-    const pdfBuffer = await pdfGenerator.htmlToPdf(html, {
+    const pdfBuffer = await htmlToPdf(html, {
       format: "A4",
       margin: { top: 20, right: 20, bottom: 20, left: 20 },
     });

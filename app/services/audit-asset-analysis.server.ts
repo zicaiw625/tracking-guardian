@@ -5,6 +5,7 @@ import { logger } from "../utils/logger.server";
 import { analyzeScriptContent } from "./scanner/content-analysis";
 import { PLATFORM_PATTERNS, PLATFORM_INFO, detectPlatforms } from "./scanner/patterns";
 import { detectRisksInContent } from "./scanner/risk-detector.server";
+import { getAuditAssets, batchCreateAuditAssets } from "./audit-asset.server";
 import type { AssetCategory, AssetSourceType, RiskLevel, SuggestedMigration } from "./audit-asset.server";
 import crypto from "crypto";
 
@@ -803,7 +804,6 @@ export async function processManualPasteAssets(
   try {
     const analysis = analyzeManualPaste(content, shopId);
 
-    const { getAuditAssets } = await import("./audit-asset.server");
     const existingAssets = await getAuditAssets(shopId);
     const existingFingerprints = new Set(
       existingAssets
@@ -865,7 +865,6 @@ export async function processManualPasteAssets(
       })
       .filter((asset): asset is NonNullable<typeof asset> => asset !== null);
 
-    const { batchCreateAuditAssets } = await import("./audit-asset.server");
     const result = await batchCreateAuditAssets(shopId, assets, scanReportId);
 
     return {

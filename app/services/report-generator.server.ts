@@ -1,5 +1,7 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { createShareableReport } from "./report-sharing.server";
+import { getShopGroupDetails } from "./multi-shop.server";
 
 export interface ReportData {
   shopId: string;
@@ -207,8 +209,6 @@ export async function generatePDFReport(
     let shareUrl: string | undefined;
     if (options.createShareableLink) {
       try {
-        const { createShareableReport } = await import("./report-sharing.server");
-
         let reportType: "verification" | "scan" | "reconciliation" | "migration" = "scan";
         let reportId = "";
 
@@ -618,7 +618,6 @@ export async function fetchReconciliationReportData(shopId: string, days: number
 
 export async function fetchBatchReportData(groupId: string, requesterId: string, days: number = 7): Promise<BatchReportData | null> {
   try {
-    const { getShopGroupDetails } = await import("./multi-shop.server");
     const groupDetails = await getShopGroupDetails(groupId, requesterId);
 
     if (!groupDetails) return null;

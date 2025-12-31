@@ -2,7 +2,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { getPixelTemplates } from "./batch-pixel-apply.server";
+import { getPixelTemplates, createPixelTemplate } from "./batch-pixel-apply.server";
 import type { PixelTemplateConfig } from "./batch-pixel-apply.server";
 
 export interface WizardTemplate {
@@ -252,7 +252,6 @@ export async function saveWizardConfigAsTemplate(
       serverSideEnabled: false,
     }));
 
-    const { createPixelTemplate } = await import("./batch-pixel-apply.server");
     const result = await createPixelTemplate({
       ownerId: shopId,
       name,

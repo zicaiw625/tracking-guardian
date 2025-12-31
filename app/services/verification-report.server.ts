@@ -1,6 +1,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { htmlToPdf } from "./pdf-generator.server";
 import type { VerificationSummary } from "./verification.server";
 
 export interface VerificationReportData {
@@ -167,9 +168,7 @@ export async function generateVerificationReportPDF(
   try {
     const html = generateVerificationReportHTML(data);
 
-    const htmlToPdfModule = await import("./pdf-generator.server");
-
-    const buffer = await htmlToPdfModule.htmlToPdf(html, {
+    const buffer = await htmlToPdf(html, {
       format: "A4",
       landscape: false,
       margin: {

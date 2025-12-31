@@ -22,6 +22,7 @@ import {
 } from "../services/verification-report.server";
 import { generateRiskReportCSV } from "../services/risk-report.server";
 import { generateVerificationReportPdf } from "../services/pdf-generator.server";
+import { exportComprehensiveReport } from "../services/comprehensive-report.server";
 
 type ReportType = "scan" | "migration" | "reconciliation" | "risk" | "verification" | "comprehensive";
 
@@ -136,7 +137,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         break;
       }
       case "comprehensive": {
-        const { exportComprehensiveReport } = await import("../services/comprehensive-report.server");
         const result = await exportComprehensiveReport(shop.id, {
           format: format as "pdf" | "csv" | "json",
           includeScan: true,

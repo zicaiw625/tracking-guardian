@@ -77,6 +77,8 @@ import {
   type ShopGroupDetails,
   type AggregatedStats,
 } from "../services/multi-shop.server";
+import { getAuditAssets } from "../services/audit-asset.server";
+import { startBatchVerification } from "../services/batch-verification.server";
 import { createInvitation } from "../services/workspace-invitation.server";
 import { BILLING_PLANS, type PlanId } from "../services/billing/plans";
 import {
@@ -169,7 +171,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     commentCount: number;
   }> = [];
 
-  const { getAuditAssets } = await import("../services/audit-asset.server");
   const auditAssets = await getAuditAssets(shop.id, {
     migrationStatus: "pending",
     limit: 100,
@@ -307,7 +308,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "请选择分组" }, { status: 400 });
       }
 
-      const { startBatchVerification } = await import("../services/batch-verification.server");
       const result = await startBatchVerification({
         groupId,
         requesterId: shop.id,

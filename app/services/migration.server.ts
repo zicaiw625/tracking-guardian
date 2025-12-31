@@ -7,6 +7,7 @@ import prisma from "../db.server";
 import { canCreatePixelConfig } from "./billing/feature-gates.server";
 import { normalizePlan } from "../utils/plans";
 import { validateCredentials } from "../types/platform";
+import { saveConfigSnapshot } from "./pixel-rollback.server";
 
 export type Platform = "google" | "meta" | "tiktok";
 
@@ -99,7 +100,6 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
     }
 
     if (existingConfig) {
-        const { saveConfigSnapshot } = await import("./pixel-rollback.server");
         await saveConfigSnapshot(shopId, platform);
     }
 

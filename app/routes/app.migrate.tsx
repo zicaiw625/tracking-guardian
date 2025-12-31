@@ -19,6 +19,9 @@ import { logger } from "../utils/logger.server";
 import { formatDeadlineForUI, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getScriptTagDeprecationStatus, getUpgradeStatusMessage, DEPRECATION_DATES, getDateDisplayLabel, type ShopTier, } from "../utils/deprecation-dates";
 import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
 import { getWizardTemplates } from "../services/pixel-template.server";
+import { switchEnvironment, rollbackConfig } from "../services/pixel-rollback.server";
+import { getConfigVersionHistory, rollbackConfig as rollbackConfigVersion } from "../services/pixel-config-version.server";
+import { loadWizardDraft, saveWizardDraft, clearWizardDraft, validateTestEnvironment } from "../services/migration-wizard.server";
 
 function generateIngestionSecret(): string {
     return randomBytes(32).toString("hex");
@@ -164,7 +167,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const templates = await getWizardTemplates(shop.id);
 
-    const { loadWizardDraft } = await import("../services/migration-wizard.server");
     const wizardDraft = await loadWizardDraft(shop.id);
 
     const pixelConfigs = await prisma.pixelConfig.findMany({
@@ -461,7 +463,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         try {
-            const { validateTestEnvironment } = await import("../services/migration-wizard.server");
             const result = await validateTestEnvironment(shopIdParam, platform as "google" | "meta" | "tiktok" | "pinterest");
             return json(result);
         } catch (error) {
@@ -481,7 +482,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         try {
             const draft = JSON.parse(draftJson);
-            const { saveWizardDraft } = await import("../services/migration-wizard.server");
             const result = await saveWizardDraft(shop.id, draft);
             return json(result);
         } catch (error) {
@@ -495,7 +495,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     if (actionType === "clearWizardDraft") {
         try {
-            const { clearWizardDraft } = await import("../services/migration-wizard.server");
             const result = await clearWizardDraft(shop.id);
             return json(result);
         } catch (error) {
@@ -511,7 +510,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ success: false, error: "缺少平台参数" }, { status: 400 });
             }
 
-            const { getConfigVersionHistory } = await import("../services/pixel-config-version.server");
             const history = await getConfigVersionHistory(shop.id, platform as "google" | "meta" | "tiktok");
 
             if (!history) {
@@ -535,8 +533,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ success: false, error: "缺少平台参数" }, { status: 400 });
             }
 
-            const { rollbackConfig } = await import("../services/pixel-config-version.server");
-            const result = await rollbackConfig(shop.id, platform as "google" | "meta" | "tiktok");
+            const result = await rollbackConfigVersion(shop.id, platform as "google" | "meta" | "tiktok");
 
             return json(result);
         } catch (error) {
@@ -557,7 +554,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         try {
-            const { switchEnvironment } = await import("../services/pixel-rollback.server");
             const result = await switchEnvironment(shop.id, platform, environment);
 
             if (result.success) {
@@ -591,7 +587,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         try {
-            const { rollbackConfig } = await import("../services/pixel-rollback.server");
             const result = await rollbackConfig(shop.id, platform);
 
             if (result.success) {

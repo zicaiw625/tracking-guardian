@@ -24,7 +24,7 @@ import { calculateRiskScore } from "../services/scanner/risk-assessment";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { generateMigrationActions } from "../services/scanner/migration-actions";
 import { getExistingWebPixels } from "../services/migration.server";
-import { createAuditAsset, batchCreateAuditAssets } from "../services/audit-asset.server";
+import { createAuditAsset, batchCreateAuditAssets, getAuditAssets } from "../services/audit-asset.server";
 import { processManualPasteAssets, analyzeManualPaste } from "../services/audit-asset-analysis.server";
 import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
@@ -312,17 +312,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             logger.warn("Failed to analyze dependencies", { shopId: shop.id, error });
             return null;
         }),
-        (async () => {
-            try {
-                const { getAuditAssets } = await import("../services/audit-asset.server");
-                return await getAuditAssets(shop.id, {
-                    migrationStatus: "pending",
-                });
-            } catch (error) {
-                logger.error("Failed to fetch audit assets", { shopId: shop.id, error });
-                return [];
-            }
-        })(),
+        getAuditAssets(shop.id, {
+            migrationStatus: "pending",
+        }).catch((error) => {
+            logger.error("Failed to fetch audit assets", { shopId: shop.id, error });
+            return [];
+        }),
         generateMigrationChecklist(shop.id).catch((error) => {
             logger.warn("Failed to generate migration checklist", { shopId: shop.id, error });
             return null;
@@ -688,7 +683,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 });
             }
 
-            const { analyzeManualPaste } = await import("../services/audit-asset-analysis.server");
             const analysis = analyzeManualPaste(content, shop.id);
 
             return json({
@@ -846,7 +840,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     if (actionType === "export_checklist_csv") {
         try {
-            const { generateMigrationChecklist } = await import("../services/migration-checklist.server");
             const checklist = await generateMigrationChecklist(shop.id);
 
             const csvLines: string[] = [];

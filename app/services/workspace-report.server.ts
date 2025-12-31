@@ -1,7 +1,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { generateVerificationReportPdf } from "./pdf-generator.server";
+import { generateVerificationReportPdf, htmlToPdf } from "./pdf-generator.server";
 import { getMigrationChecklist } from "./migration-checklist.server";
 import { getMigrationProgress } from "./migration-priority.server";
 
@@ -170,8 +170,7 @@ export async function exportWorkspaceReportAsPdf(
 
   try {
     const html = generateReportHtml(report, options);
-    const pdfGenerator = await import("./pdf-generator.server");
-    const pdfResult = await pdfGenerator.htmlToPdf(html, {
+    const pdfResult = await htmlToPdf(html, {
       format: "A4",
       margin: { top: 20, right: 20, bottom: 20, left: 20 },
     });

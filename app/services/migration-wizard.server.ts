@@ -3,6 +3,7 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { encryptJson, decryptJson } from "../utils/crypto.server";
+import { saveConfigSnapshot } from "./pixel-rollback.server";
 import type { Platform } from "./migration.server";
 import type { PlanId } from "./billing/plans";
 
@@ -121,8 +122,6 @@ export async function saveWizardConfigs(
       });
 
       if (existingConfig && existingConfig.isActive) {
-
-        const { saveConfigSnapshot } = await import("./pixel-rollback.server");
         await saveConfigSnapshot(shopId, config.platform);
       }
 

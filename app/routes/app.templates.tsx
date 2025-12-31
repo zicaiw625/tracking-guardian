@@ -31,7 +31,7 @@ import {
   deletePixelTemplate,
   type PixelTemplateConfig,
 } from "../services/batch-pixel-apply.server";
-import { getWizardTemplates } from "../services/pixel-template.server";
+import { getWizardTemplates, generateTemplateShareLink, saveWizardConfigAsTemplate } from "../services/pixel-template.server";
 import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { logger } from "../utils/logger.server";
 import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
@@ -211,7 +211,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ success: false, error: "缺少模板 ID" }, { status: 400 });
       }
 
-      const { generateTemplateShareLink } = await import("../services/pixel-template.server");
       const result = await generateTemplateShareLink(templateId, shop.id);
 
       if (result.success && result.shareLink) {
@@ -245,7 +244,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const platforms = JSON.parse(platformsJson) as string[];
       const eventMappings = JSON.parse(eventMappingsJson) as Record<string, Record<string, string>>;
 
-      const { saveWizardConfigAsTemplate } = await import("../services/pixel-template.server");
       const result = await saveWizardConfigAsTemplate(
         shop.id,
         name,

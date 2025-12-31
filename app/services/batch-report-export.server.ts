@@ -3,6 +3,7 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getVerificationRun } from "./verification.server";
+import { generateBatchReports } from "./pdf-generator.server";
 import type { VerificationSummary } from "./verification.server";
 
 export interface BatchReportExportOptions {
@@ -376,8 +377,6 @@ async function generateCombinedPdfReport(
   whiteLabel?: BatchReportExportOptions["whiteLabel"]
 ): Promise<BatchReportExportResult["combinedReport"] | undefined> {
   try {
-    const { generateBatchReports } = await import("./pdf-generator.server");
-
     const shopIds = reports
       .filter((r) => r.status === "success")
       .map((r) => r.shopId);

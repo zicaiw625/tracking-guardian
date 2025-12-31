@@ -6,6 +6,8 @@ import { generateMigrationTimeline } from "./migration-priority.server";
 import { getMigrationChecklist } from "./migration-checklist.server";
 import { analyzeDependencies } from "./dependency-analysis.server";
 import { getAuditAssetSummary } from "./audit-asset.server";
+import { getEventMonitoringStats, getEventVolumeStats } from "./monitoring.server";
+import { getMissingParamsRate } from "./event-validation.server";
 import { logger } from "../utils/logger.server";
 
 export type {
@@ -43,7 +45,6 @@ async function calculateHealthScore(
 
   // 2. 事件成功率 (权重: 30%)
   try {
-    const { getEventMonitoringStats } = await import("./monitoring.server");
     const stats = await getEventMonitoringStats(shopId, 24 * 7); // 最近7天
     const successRateScore = stats.successRate || 0;
     factors.push({ label: "事件成功率", value: successRateScore, weight: 0.3 });
@@ -54,7 +55,6 @@ async function calculateHealthScore(
 
   // 3. 参数完整率 (权重: 20%)
   try {
-    const { getMissingParamsRate } = await import("./event-validation.server");
     const missingParamsRate = await getMissingParamsRate(shopId, 24 * 7);
     const completenessScore = 100 - (missingParamsRate || 0);
     factors.push({ label: "参数完整性", value: Math.max(0, completenessScore), weight: 0.2 });
@@ -65,7 +65,6 @@ async function calculateHealthScore(
 
   // 4. 事件量稳定性 (权重: 10%)
   try {
-    const { getEventVolumeStats } = await import("./monitoring.server");
     const volumeStats = await getEventVolumeStats(shopId);
     let volumeScore = 100;
     if (volumeStats.isDrop && Math.abs(volumeStats.changePercent || 0) > 50) {

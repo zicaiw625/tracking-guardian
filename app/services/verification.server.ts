@@ -2,7 +2,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import { reconcilePixelVsCapi, type ReconciliationResult } from "./enhanced-reconciliation.server";
+import { reconcilePixelVsCapi, performBulkLocalConsistencyCheck, performChannelReconciliation, type ReconciliationResult } from "./enhanced-reconciliation.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 export interface VerificationTestItem {
@@ -417,8 +417,6 @@ export async function analyzeRecentEvents(
     }> = [];
 
     try {
-      const { performBulkLocalConsistencyCheck } = await import("./enhanced-reconciliation.server");
-
       const maxCheckOrders = Math.min(orderIds.length, 50);
       const sampleOrderIds = orderIds.slice(0, maxCheckOrders);
 
@@ -441,7 +439,6 @@ export async function analyzeRecentEvents(
       const sampleOrderIds = orderIds.slice(0, 10);
       for (const orderId of sampleOrderIds) {
         try {
-          const { performChannelReconciliation } = await import("./enhanced-reconciliation.server");
           const checks = await performChannelReconciliation(shopId, [orderId], admin);
           if (checks.length > 0) {
             const check = checks[0];

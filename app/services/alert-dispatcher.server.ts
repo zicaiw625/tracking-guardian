@@ -2,6 +2,7 @@
 
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
+import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "./monitoring.server";
 import { logger } from "../utils/logger.server";
 import type { AlertData } from "../types";
 
@@ -49,8 +50,6 @@ export interface ThresholdRecommendation {
 export async function getThresholdRecommendations(
   shopId: string
 ): Promise<ThresholdRecommendation> {
-  const { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } = await import("./monitoring.server");
-
   const [monitoringStats, missingParamsStats, volumeStats] = await Promise.all([
     getEventMonitoringStats(shopId, 24 * 7),
     getMissingParamsStats(shopId, 24 * 7),
@@ -117,8 +116,6 @@ export async function testThresholds(
     volumeDrop?: number;
   }
 ): Promise<ThresholdTestResult> {
-  const { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } = await import("./monitoring.server");
-
   const [monitoringStats, missingParamsStats, volumeStats] = await Promise.all([
     getEventMonitoringStats(shopId, 24),
     getMissingParamsStats(shopId, 24),

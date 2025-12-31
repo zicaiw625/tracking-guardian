@@ -3,6 +3,7 @@ import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { BILLING_PLANS, type PlanId, getPlanOrDefault, getPixelDestinationsLimit, getUiModulesLimit } from "./plans";
 import { getMaxShops } from "./plans";
+import { canManageMultipleShops } from "../multi-shop.server";
 
 export interface PlanLimitResult {
   allowed: boolean;
@@ -93,7 +94,6 @@ export async function checkMultiShopLimit(
     return { allowed: true, unlimited: true };
   }
 
-  const { canManageMultipleShops } = await import("../multi-shop.server");
   const canManage = await canManageMultipleShops(shopId);
 
   if (!canManage) {
