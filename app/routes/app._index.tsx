@@ -539,7 +539,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
       tone={scriptTagsCount > 0 ? "warning" : "info"}
       action={{
         content: "了解更多",
-        url: "https:
+        url: "https://help.shopify.com",
         external: true,
       }}
     >
@@ -551,7 +551,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https:
+              url="https://help.shopify.com"
               external
             >
               查看 Plus 商家升级指南
@@ -565,7 +565,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https:
+              url="https://help.shopify.com"
               external
             >
               查看 ScriptTags 弃用时间表

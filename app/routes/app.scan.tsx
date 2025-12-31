@@ -1911,7 +1911,8 @@ export default function ScanPage() {
                   }}
                   secondaryAction={{
                     content: "了解更多",
-                    url: "https:
+                    url: "https://help.shopify.com",
+                    external: true,
                   }}
                 />
               )}
@@ -2614,7 +2615,7 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url="https:
+                    url="https://help.shopify.com"
                     external
                     icon={ShareIcon}
                   >
@@ -2641,14 +2642,14 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url="https:
+                    url="https://help.shopify.com"
                     external
                     icon={ShareIcon}
                   >
                     打开 Checkout Editor
                   </Button>
                   <Button
-                    url="https:
+                    url="https://help.shopify.com"
                     external
                     icon={InfoIcon}
                   >
@@ -3282,7 +3283,7 @@ export default function ScanPage() {
                     </Text>
                   </Banner>
                   <Button
-                    url="https:
+                    url="https://help.shopify.com"
                     external
                     variant="primary"
                   >

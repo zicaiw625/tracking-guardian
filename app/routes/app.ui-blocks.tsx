@@ -602,7 +602,7 @@ function HelpdeskSettingsForm({
             }}
             error={errors.messengerUrl}
             autoComplete="off"
-            placeholder="https:
+            placeholder="https://m.me/your-page"
             helpText="Facebook Messenger 联系链接（可选）"
           />
         </FormLayout.Group>
@@ -1195,9 +1195,10 @@ export default function UiBlocksPage() {
               您可以在 Shopify Admin 的 <strong>Checkout Editor</strong> 中调整模块位置和样式。
             </Text>
             <Button
-              url="https:
+              url="https://help.shopify.com"
               variant="plain"
               size="slim"
+              external
               external
             >
               打开 Checkout Editor

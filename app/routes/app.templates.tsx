@@ -215,8 +215,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const result = await generateTemplateShareLink(templateId, shop.id);
 
       if (result.success && result.shareLink) {
-
-        const baseUrl = process.env.SHOPIFY_APP_URL || "https:
+        const baseUrl = process.env.SHOPIFY_APP_URL || "https://example.com";
         const fullShareLink = `${baseUrl}${result.shareLink}`;
         return json({ success: true, shareLink: fullShareLink });
       }
@@ -483,7 +482,6 @@ export default function TemplatesPage() {
                   content: "创建第一个模板",
                   onAction: handleCreateTemplate,
                 }}
-                image="https:
               >
                 <Text as="p" variant="bodySm" tone="subdued">
                   创建模板后，您可以快速应用到多个店铺。

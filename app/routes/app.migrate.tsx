@@ -808,7 +808,7 @@ export default function MigratePage() {
 
         <Banner title="服务端转化追踪 (Server-side CAPI)" tone="info" action={{
             content: "了解更多",
-            url: "https:
+            url: "https://help.shopify.com",
             external: true,
         }}>
           <BlockStack gap="200">

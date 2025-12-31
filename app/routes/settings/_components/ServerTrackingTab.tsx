@@ -174,7 +174,7 @@ export function ServerTrackingTab({
               tone="warning"
               action={{
                 content: "了解更多",
-                url: "https:
+                url: "https://help.shopify.com",
                 external: true,
               }}
             >
@@ -396,7 +396,7 @@ export function ServerTrackingTab({
                 />
                 <Text as="p" variant="bodySm" tone="subdued">
                   💡 提示：确保您的 Pinterest 应用已获得 Conversion API 访问权限。
-                  访问 <a href="https:
+                  访问 <a href="https://developers.pinterest.com" target="_blank" rel="noopener noreferrer">Pinterest 开发者文档</a>
                 </Text>
               </>
             )}
