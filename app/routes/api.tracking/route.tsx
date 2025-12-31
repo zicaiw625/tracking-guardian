@@ -1,6 +1,5 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import prisma from "../../db.server";
 import {
   getTrackingInfo,
@@ -10,7 +9,15 @@ import {
 import { logger } from "../../utils/logger.server";
 import type { OrderTrackingSettings } from "../../types/ui-extension";
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
-import { authenticate } from "../../shopify.server";
+import { createAdminClientForShop } from "../../shopify.server";
+import { optionsResponse, jsonWithCors } from "../../utils/cors";
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  if (request.method === "OPTIONS") {
+    return optionsResponse(request, true); // 使用 staticCors=true 以支持 GET 方法
+  }
+  return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
+};
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -19,49 +26,48 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const trackingNumber = url.searchParams.get("trackingNumber");
 
     if (!orderId) {
-      return json({ error: "Missing orderId" }, { status: 400 });
+      return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
 
     // 支持 session token 认证（来自 UI extension）
     const authToken = extractAuthToken(request);
-    const shopHeader = request.headers.get("X-Shopify-Shop-Domain");
     
     let shopDomain: string;
-    let admin: Awaited<ReturnType<typeof authenticate.admin>>["admin"] | null = null;
+    let admin: Awaited<ReturnType<typeof createAdminClientForShop>> | null = null;
     
-    if (authToken && shopHeader) {
-      // 使用 session token 认证
+    if (authToken) {
+      // 使用 session token 认证（Checkout UI Extension 场景）
       const apiSecret = getShopifyApiSecret();
-      const jwtResult = await verifyShopifyJwt(authToken, apiSecret, shopHeader);
+      const expectedAud = process.env.SHOPIFY_API_KEY;
+      
+      if (!expectedAud) {
+        logger.error("SHOPIFY_API_KEY not configured");
+        return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
+      }
+
+      // 验证 JWT token（从 token 的 dest 提取 shop domain，不依赖 header）
+      const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
       
       if (!jwtResult.valid || !jwtResult.shopDomain) {
-        logger.warn(`JWT verification failed for shop ${shopHeader}: ${jwtResult.error}`);
-        return json({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401 });
+        logger.warn(`JWT verification failed: ${jwtResult.error}`);
+        return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401, request, staticCors: true });
       }
       
       shopDomain = jwtResult.shopDomain;
       
-      // 对于 session token，我们仍然需要使用 admin API 来获取订单信息
-      // 通过 shopDomain 查找 shop，然后使用 shop 的 access token 来调用 admin API
-      try {
-        const { admin: adminClient } = await authenticate.admin(request);
-        admin = adminClient;
-      } catch (error) {
+      // 使用离线 token 创建 Admin Client（不依赖 authenticate.admin）
+      admin = await createAdminClientForShop(shopDomain);
+      
+      if (!admin) {
         // 如果 admin 认证失败，我们仍然可以继续，只是无法从 Shopify 获取订单信息
-        logger.warn("Admin authentication failed, will try to use tracking provider only", {
-          error: error instanceof Error ? error.message : String(error),
+        logger.warn("Failed to create admin client, will try to use tracking provider only", {
+          shopDomain,
         });
       }
     } else {
-      // 回退到 admin 认证（用于内部调用）
-      try {
-        const { session, admin: adminClient } = await authenticate.admin(request);
-        shopDomain = session.shop;
-        admin = adminClient;
-      } catch (error) {
-        logger.warn("Authentication failed", error);
-        return json({ error: "Unauthorized" }, { status: 401 });
-      }
+      // 如果没有 session token，返回未授权（不再支持 admin 认证回退，因为这是给 Checkout UI Extension 用的）
+      logger.warn("Missing authentication token");
+      return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401, request, staticCors: true });
     }
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
@@ -80,7 +86,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 
     if (!shop) {
-      return json({ error: "Shop not found" }, { status: 404 });
+      return jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true });
     }
 
     const trackingSettings = shop.uiExtensionSettings[0]?.settingsJson as
@@ -137,17 +143,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     if (!trackingInfo) {
-      return json(
+      return jsonWithCors(
         {
           trackingNumber,
           status: "Unknown",
           message: "追踪信息不可用",
         },
-        { status: 404 }
+        { status: 404, request, staticCors: true }
       );
     }
 
-    return json({
+    return jsonWithCors({
       success: true,
       tracking: {
         trackingNumber: trackingInfo.trackingNumber,
@@ -162,12 +168,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           status: event.status,
         })),
       },
-    });
+    }, { request, staticCors: true });
   } catch (error) {
     logger.error("Failed to fetch tracking info", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return json({ error: "Failed to fetch tracking info" }, { status: 500 });
+    return jsonWithCors({ error: "Failed to fetch tracking info" }, { status: 500, request, staticCors: true });
   }
 };
 

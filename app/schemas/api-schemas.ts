@@ -1,6 +1,8 @@
 
 
 import { z } from "zod";
+// 统一从 pixel-event.ts 导入 OrderIdSchema，消除分叉风险
+import { OrderIdSchema } from "./pixel-event";
 
 export const ShopDomainSchema = z
   .string()
@@ -11,11 +13,8 @@ export const ShopDomainSchema = z
     "Invalid Shopify domain format"
   );
 
-export const OrderIdSchema = z
-  .string()
-  .min(1, "Order ID is required")
-  .max(100, "Order ID too long")
-  .regex(/^[a-zA-Z0-9-_:]+$/, "Invalid order ID format");
+// Re-export OrderIdSchema from pixel-event.ts to ensure consistency
+export { OrderIdSchema };
 
 export const CheckoutTokenSchema = z
   .string()

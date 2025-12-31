@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { Platform, type PlatformType } from "./enums";
+import { OrderIdSchema } from "../schemas/pixel-event";
 
 export type { PlatformType as Platform };
 
@@ -410,7 +411,7 @@ export interface ConversionData {
 }
 
 export const ConversionDataSchema = z.object({
-  orderId: z.string().min(1),
+  orderId: OrderIdSchema,
   orderNumber: z.string().nullable(),
   value: z.number().nonnegative(),
   currency: z.string().length(3),

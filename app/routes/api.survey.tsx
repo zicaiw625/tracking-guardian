@@ -3,17 +3,9 @@ import prisma from "../db.server";
 import type { SurveyResponseData } from "../types";
 import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limiter";
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret, } from "../utils/shopify-jwt";
-import { STATIC_CORS_HEADERS, jsonWithCors as jsonWithCorsBase } from "../utils/cors";
+import { optionsResponse, jsonWithCors } from "../utils/cors";
 import { logger } from "../utils/logger.server";
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
-const CORS_HEADERS = STATIC_CORS_HEADERS;
-function jsonWithCors<T>(data: T, init?: ResponseInit): Response {
-    return jsonWithCorsBase(data, {
-        ...init,
-        staticCors: true,
-        headers: init?.headers as HeadersInit | undefined,
-    });
-}
 const MAX_ORDER_ID_LENGTH = 64;
 const MAX_ORDER_NUMBER_LENGTH = 32;
 const MAX_FEEDBACK_LENGTH = 2000;
@@ -113,50 +105,37 @@ function validateSurveyInput(body: unknown): SurveyResponseData {
         customAnswers,
     };
 }
-function isValidShopDomain(domain: string): boolean {
-    return /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/.test(domain);
-}
 export const action = async ({ request }: ActionFunctionArgs) => {
     if (request.method === "OPTIONS") {
-        return new Response(null, {
-            status: 204,
-            headers: CORS_HEADERS,
-        });
+        return optionsResponse(request, true); // 使用统一的 OPTIONS 处理，staticCors=true 支持 GET/POST
     }
     const rateLimit = await checkRateLimitAsync(request, "survey");
     if (rateLimit.isLimited) {
         logger.warn(`Rate limit exceeded for survey API`);
         const response = createRateLimitResponse(rateLimit.retryAfter);
-        Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+        // 添加 CORS headers
+        Object.entries(optionsResponse(request, true).headers).forEach(([key, value]) => {
             response.headers.set(key, value);
         });
         return response;
     }
     if (request.method !== "POST") {
-        return jsonWithCors({ error: "Method not allowed" }, { status: 405 });
+        return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
     }
     const contentType = request.headers.get("Content-Type");
     if (!contentType || !contentType.includes("application/json")) {
-        return jsonWithCors({ error: "Content-Type must be application/json" }, { status: 415 });
+        return jsonWithCors({ error: "Content-Type must be application/json" }, { status: 415, request, staticCors: true });
     }
     const MAX_SURVEY_BODY_SIZE = 16 * 1024;
     const contentLength = parseInt(request.headers.get("Content-Length") || "0", 10);
     if (contentLength > MAX_SURVEY_BODY_SIZE) {
-        return jsonWithCors({ error: "Request body too large", maxSize: MAX_SURVEY_BODY_SIZE }, { status: 413 });
+        return jsonWithCors({ error: "Request body too large", maxSize: MAX_SURVEY_BODY_SIZE }, { status: 413, request, staticCors: true });
     }
     try {
-        const shopHeader = request.headers.get("X-Shopify-Shop-Domain");
-        if (!shopHeader) {
-            return jsonWithCors({ error: "Missing shop domain header" }, { status: 400 });
-        }
-        if (!isValidShopDomain(shopHeader)) {
-            logger.warn(`Invalid shop domain format: ${shopHeader?.substring(0, 50)}`);
-            return jsonWithCors({ error: "Invalid shop domain format" }, { status: 400 });
-        }
         const authToken = extractAuthToken(request);
         if (!authToken) {
-            logger.warn(`Missing Authorization header for shop ${shopHeader}`);
-            return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
+            logger.warn("Missing Authorization header");
+            return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401, request, staticCors: true });
         }
         let apiSecret: string;
         try {
@@ -164,26 +143,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         catch (error) {
             logger.error("Failed to get Shopify API secret", error);
-            return jsonWithCors({ error: "Server configuration error" }, { status: 500 });
+            return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
         }
-        const jwtResult = await verifyShopifyJwt(authToken, apiSecret, shopHeader);
-        if (!jwtResult.valid) {
-            logger.warn(`JWT verification failed for shop ${shopHeader}: ${jwtResult.error}`);
-            return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401 });
+        const expectedAud = process.env.SHOPIFY_API_KEY;
+        if (!expectedAud) {
+            logger.error("SHOPIFY_API_KEY not configured");
+            return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
         }
-        if (jwtResult.shopDomain !== shopHeader) {
-            logger.warn(`Shop domain mismatch`, {
-                headerShop: shopHeader,
-                tokenShop: jwtResult.shopDomain
-            });
-            return jsonWithCors({ error: "Unauthorized: Shop domain mismatch" }, { status: 401 });
+        // 验证 JWT token（从 token 的 dest 提取 shop domain，不依赖 header）
+        const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
+        if (!jwtResult.valid || !jwtResult.shopDomain) {
+            logger.warn(`JWT verification failed: ${jwtResult.error}`);
+            return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401, request, staticCors: true });
         }
+        const shopDomain = jwtResult.shopDomain;
         let rawBody: unknown;
         try {
             rawBody = await request.json();
         }
         catch {
-            return jsonWithCors({ error: "Invalid JSON body" }, { status: 400 });
+            return jsonWithCors({ error: "Invalid JSON body" }, { status: 400, request, staticCors: true });
         }
         let validatedData: SurveyResponseData;
         try {
@@ -191,23 +170,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         catch (validationError) {
             const message = validationError instanceof Error ? validationError.message : "Validation failed";
-            return jsonWithCors({ error: message }, { status: 400 });
+            return jsonWithCors({ error: message }, { status: 400, request, staticCors: true });
         }
         const shop = await prisma.shop.findUnique({
-            where: { shopDomain: shopHeader },
+            where: { shopDomain },
             select: { id: true, isActive: true },
         });
         if (!shop) {
-            return jsonWithCors({ error: "Shop not found" }, { status: 404 });
+            return jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true });
         }
         if (!shop.isActive) {
-            return jsonWithCors({ error: "Shop is not active" }, { status: 403 });
+            return jsonWithCors({ error: "Shop is not active" }, { status: 403, request, staticCors: true });
         }
         const surveyKey = validatedData.orderId
             || (validatedData.orderNumber ? `order_num:${validatedData.orderNumber}` : null)
             || (validatedData.checkoutToken ? `checkout:${validatedData.checkoutToken}` : null);
         if (!surveyKey) {
-            return jsonWithCors({ error: "No valid order identifier" }, { status: 400 });
+            return jsonWithCors({ error: "No valid order identifier" }, { status: 400, request, staticCors: true });
         }
         const existingOrderEvidence = validatedData.orderId
             ? await prisma.conversionLog.findFirst({
@@ -221,7 +200,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!existingOrderEvidence && validatedData.orderId) {
             logger.info(`Survey for untracked order`, {
                 orderIdPrefix: validatedData.orderId.slice(0, 8),
-                shop: shopHeader,
+                shop: shopDomain,
                 jwtValidated: true,
             });
         }
@@ -250,7 +229,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 success: true,
                 message: "Survey response updated",
                 id: updated.id,
-            });
+            }, { request, staticCors: true });
         }
         const surveyResponse = await prisma.surveyResponse.create({
             data: {
@@ -266,7 +245,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             },
         });
         logger.info(`Survey response saved`, {
-            shop: shopHeader,
+            shop: shopDomain,
             hasOrderId: !!validatedData.orderId,
             hasOrderNumber: !!validatedData.orderNumber,
             hasRating: validatedData.rating !== undefined,
@@ -276,22 +255,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             success: true,
             message: "Survey response saved",
             id: surveyResponse.id,
-        });
+        }, { request, staticCors: true });
     }
     catch (error) {
         logger.error("Survey API error", error);
         return jsonWithCors({
             success: false,
             error: "An error occurred processing your request",
-        }, { status: 500 });
+        }, { status: 500, request, staticCors: true });
     }
 };
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (request.method === "OPTIONS") {
-        return new Response(null, {
-            status: 204,
-            headers: CORS_HEADERS,
-        });
+        return optionsResponse(request, true); // 使用统一的 OPTIONS 处理
     }
-    return jsonWithCors({ error: "Use admin routes for survey analytics" }, { status: 405 });
+    return jsonWithCors({ error: "Use admin routes for survey analytics" }, { status: 405, request, staticCors: true });
 };

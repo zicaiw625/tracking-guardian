@@ -7,7 +7,7 @@ export const SECURITY_HEADERS = {
 } as const;
 export const STATIC_CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Shopify-Shop-Domain",
     "Access-Control-Max-Age": "86400",
     ...SECURITY_HEADERS,
@@ -202,6 +202,13 @@ export function handleCorsPreFlight(request?: Request, staticCors = false): Resp
         status: 204,
         headers,
     });
+}
+
+/**
+ * 处理 OPTIONS 预检请求（用于 Checkout UI Extension 等场景）
+ */
+export function optionsResponse(request: Request, staticCors = true): Response {
+    return handleCorsPreFlight(request, staticCors);
 }
 export function addCorsHeaders(response: Response, request?: Request, staticCors = false): Response {
     const headers = staticCors

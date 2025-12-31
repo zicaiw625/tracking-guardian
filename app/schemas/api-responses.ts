@@ -96,7 +96,7 @@ export type PlatformConfigResponse = z.infer<typeof PlatformConfigResponseSchema
 
 export const ConversionLogResponseSchema = z.object({
   id: z.string(),
-  orderId: z.string(),
+  orderId: OrderIdSchema,
   orderNumber: z.string().nullable(),
   orderValue: z.number(),
   currency: z.string(),

@@ -1,6 +1,8 @@
 
 
 import { z } from "zod";
+// 统一从 pixel-event.ts 导入 OrderIdSchema，消除分叉风险
+import { OrderIdSchema } from "./pixel-event";
 
 export const ConsentStateSchema = z.enum([
   "granted",
@@ -26,7 +28,7 @@ export const PixelEventSchema = z.object({
 
   event: z.string().min(1).max(100),
   shopDomain: z.string().min(1).max(255),
-  orderId: z.string().min(1).max(100),
+  orderId: OrderIdSchema,
   timestamp: z.number().int().positive(),
 
   ingestionKey: z.string().max(100).optional(),
@@ -50,7 +52,7 @@ export type PixelEvent = z.infer<typeof PixelEventSchema>;
 export const TrackingRequestSchema = z.object({
   event: z.string().min(1).max(50),
   shop: z.string().min(1).max(255),
-  orderId: z.string().max(100).optional(),
+  orderId: OrderIdSchema.optional(),
   timestamp: z.number().int().positive().optional(),
   data: z.record(z.string(), z.unknown()).optional(),
 });
@@ -111,11 +113,8 @@ export const ShopifyGidSchema = z
   .string()
   .regex(/^gid:\/\/shopify\/\w+\/\d+$/, "Invalid Shopify GID format");
 
-export const OrderIdSchema = z.union([
-  z.string().regex(/^\d+$/),
-  ShopifyGidSchema,
-  z.string().regex(/^#?\d+$/),
-]);
+// Re-export OrderIdSchema from pixel-event.ts to ensure consistency
+export { OrderIdSchema };
 
 export const RateLimitInfoSchema = z.object({
   limit: z.number().int().positive(),
