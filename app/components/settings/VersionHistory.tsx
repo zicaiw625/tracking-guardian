@@ -64,7 +64,6 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
       <Card>
         <EmptyState
           heading="暂无版本历史"
-          image="https:
         >
           <p>配置变更历史将显示在这里</p>
         </EmptyState>

@@ -174,7 +174,6 @@ export function BatchTaskBoard({
         {tasks.length === 0 ? (
           <EmptyState
             heading="暂无批量任务"
-            image="https:
           >
             <Text as="p" tone="subdued">
               当您启动批量操作时，任务将显示在这里
