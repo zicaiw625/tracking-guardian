@@ -169,6 +169,3 @@ export function calculateRiskScore(riskItems: RiskItem[]): number {
     return normalizedScore;
 }
 
-    return Math.min(100, Math.round(weightedPoints));
-}
-
