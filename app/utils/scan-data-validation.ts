@@ -1,7 +1,6 @@
 
 
 import type { ScriptTag, RiskItem } from "../types";
-import { logger } from "./logger.server";
 
 export function isValidScriptTag(tag: unknown): tag is ScriptTag {
     if (typeof tag !== "object" || tag === null) {
@@ -87,11 +86,9 @@ export function validateAdditionalScriptsPatterns(
 
 export function safeParseDate(dateValue: unknown): Date {
     if (dateValue instanceof Date) {
-
         if (!isNaN(dateValue.getTime())) {
             return dateValue;
         }
-        logger.warn("Invalid Date object, using current date");
         return new Date();
     }
 
@@ -100,7 +97,6 @@ export function safeParseDate(dateValue: unknown): Date {
         if (!isNaN(date.getTime())) {
             return date;
         }
-        logger.warn("Invalid date string, using current date", { dateValue });
         return new Date();
     }
 
@@ -109,14 +105,9 @@ export function safeParseDate(dateValue: unknown): Date {
         if (!isNaN(date.getTime())) {
             return date;
         }
-        logger.warn("Invalid date number, using current date", { dateValue });
         return new Date();
     }
 
-    logger.warn("Unexpected date type, using current date", { 
-        dateType: typeof dateValue, 
-        dateValue 
-    });
     return new Date();
 }
 
