@@ -44,7 +44,19 @@ export async function saveMigrationDraft(
 
     logger.info("Migration draft saved", { shopId, step, draftId: draft.id });
     return { success: true, id: draft.id };
-  } catch (error) {
+  } catch (error: unknown) {
+    // Handle table not found error (P2022) or other Prisma errors
+    if (error && typeof error === "object" && "code" in error) {
+      const prismaError = error as { code: string; meta?: { table?: string } };
+      if (prismaError.code === "P2022" || prismaError.code === "P2021") {
+        // Table or column doesn't exist - migration may not have run yet
+        logger.warn("MigrationDraft table not found, migration may be pending", { shopId, step, code: prismaError.code });
+        return {
+          success: false,
+          error: "Migration draft table not available. Please run database migrations.",
+        };
+      }
+    }
     logger.error("Failed to save migration draft", { shopId, step, error });
     return {
       success: false,
@@ -78,7 +90,16 @@ export async function getMigrationDraft(
       step: draft.step as WizardStep,
       configData: draft.configData as unknown as MigrationDraftData,
     };
-  } catch (error) {
+  } catch (error: unknown) {
+    // Handle table not found error (P2022) or other Prisma errors
+    if (error && typeof error === "object" && "code" in error) {
+      const prismaError = error as { code: string; meta?: { table?: string } };
+      if (prismaError.code === "P2022" || prismaError.code === "P2021") {
+        // Table or column doesn't exist - migration may not have run yet
+        logger.warn("MigrationDraft table not found, migration may be pending", { shopId, code: prismaError.code });
+        return null;
+      }
+    }
     logger.error("Failed to get migration draft", { shopId, error });
     return null;
   }

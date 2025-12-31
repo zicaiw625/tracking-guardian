@@ -130,6 +130,7 @@ function CollapsibleSection({
 
 export default function PrivacyPage() {
   const { shop, appDomain } = useLoaderData<typeof loader>();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   return (
     <Page

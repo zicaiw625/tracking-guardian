@@ -407,6 +407,17 @@ export async function generateMigrationTimeline(
       shopId,
       migrationStatus: { not: "completed" },
     },
+    select: {
+      id: true,
+      displayName: true,
+      platform: true,
+      category: true,
+      riskLevel: true,
+      migrationStatus: true,
+      priority: true,
+      estimatedTimeMinutes: true,
+      dependencies: true,
+    },
     orderBy: [
       { priority: "desc" },
       { riskLevel: "desc" },
