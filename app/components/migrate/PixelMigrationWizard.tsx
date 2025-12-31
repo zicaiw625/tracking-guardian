@@ -1503,6 +1503,7 @@ function CredentialsStep({
                     helpText={field.helpText}
                     autoComplete="off"
                   />
+                </BlockStack>
                 ))}
               </BlockStack>
 
