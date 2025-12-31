@@ -2,7 +2,7 @@
 import { Banner, Button, BlockStack, InlineStack, Text } from "@shopify/polaris";
 import { LockIcon } from "~/components/icons";
 import type { PlanId } from "~/services/billing/plans";
-import { getPlanDefinition } from "~/services/billing/plans";
+import { getPlanDefinition } from "~/utils/plans";
 
 interface PaidFeaturePromptProps {
   feature: "pixel_migration" | "batch_audit" | "export_report" | "verification";

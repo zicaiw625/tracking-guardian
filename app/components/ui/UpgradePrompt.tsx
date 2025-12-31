@@ -9,8 +9,8 @@ import {
   Card,
 } from "@shopify/polaris";
 import { LockIcon } from "~/components/icons";
-import { BILLING_PLANS, type PlanId, getPlanDefinition } from "~/services/billing/plans";
-import { isPlanAtLeast } from "~/utils/plans";
+import { BILLING_PLANS, type PlanId } from "~/services/billing/plans";
+import { isPlanAtLeast, getPlanDefinition } from "~/utils/plans";
 import type { FeatureGateResult } from "~/services/billing/feature-gates.server";
 
 export interface UpgradePromptProps {
@@ -192,7 +192,7 @@ export function UpgradePrompt({
             当前套餐：<strong>{currentPlanDef.name}</strong>
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
-            需要套餐：<strong>{requiredPlan.name}</strong>（${requiredPlan.price}/月）
+            需要套餐：<strong>{requiredPlan.name}</strong>（{requiredPlan.priceLabel}/月）
           </Text>
         </BlockStack>
 
