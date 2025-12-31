@@ -34,8 +34,8 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
       ) || ["无"]),
       "",
       "## 快速链接",
-      "- Pixels 管理: https:
-      "- Checkout Editor: https:
+      `- Pixels 管理: https://admin.shopify.com/store/${shopDomain || ""}/settings/customer_events`,
+      `- Checkout Editor: https://admin.shopify.com/store/${shopDomain || ""}/themes/editor/checkout`,
       "- 应用迁移工具: /app/migrate",
     ].join("\n");
     navigator.clipboard.writeText(checklist);

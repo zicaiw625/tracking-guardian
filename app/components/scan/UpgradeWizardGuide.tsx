@@ -316,7 +316,7 @@ export function UpgradeWizardGuide({
                     粘贴内容示例：
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    • 脚本 URL 列表（如：https:
+                    • 脚本 URL 列表（如：https://example.com/pixel.js）
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     • 代码片段（如：fbq('init', '1234567890')）
