@@ -1,17 +1,16 @@
-
 import { vi } from "vitest";
 
 process.env.NODE_ENV = "test";
 process.env.ENCRYPTION_SECRET = "test-encryption-secret-key-for-testing";
+process.env.DEV_ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET;
+process.env.ALLOW_INSECURE_TEST_SECRET = "true";
 process.env.CRON_SECRET = "test-cron-secret";
-process.env.SHOPIFY_APP_URL = "https:
+process.env.SHOPIFY_APP_URL = "https://example.test";
 
 if (typeof globalThis.crypto === "undefined") {
-
   globalThis.crypto = {
     subtle: {
       digest: async (_algorithm: string, data: Uint8Array) => {
-
         const { createHash } = await import("crypto");
         const hash = createHash("sha256");
         hash.update(Buffer.from(data));
@@ -32,7 +31,7 @@ if (typeof globalThis.crypto === "undefined") {
 
 export function createMockRequest(
   url: string,
-  options: RequestInit & { headers?: Record<string, string> } = {}
+  options: RequestInit & { headers?: Record<string, string> } = {},
 ): Request {
   const headers = new Headers(options.headers || {});
   return new Request(url, {

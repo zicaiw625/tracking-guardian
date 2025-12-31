@@ -6,20 +6,23 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["***.test.tsx"],
+    setupFiles: ["./tests/setup.ts"],
+    include: [
+      "tests/**/*.test.{ts,tsx}",
+      "app/**/*.{spec,test}.{ts,tsx}",
+    ],
     exclude: ["node_modules", "build", "extensions"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
-      include: [
-        "app*.ts",
-        "app*.tsx",
-      ],
+      include: ["app/**/*.{ts,tsx}"],
       exclude: [
-        "node_modules",
-        "build",
-        "extensions",
-        "**
-types",
-        "**/schemas",
-
+        "node_modules/**",
+        "build/**",
+        "extensions/**",
+        "**/*.d.ts",
+        "**/schemas/**",
+      ],
+    },
+  },
+});
