@@ -73,10 +73,13 @@ try {
   finalAppUrl = "http://localhost:3000";
 }
 
-// 确保 apiKey 和 apiSecretKey 有值（即使是空字符串，也要确保不是 undefined）
+// 确保 apiKey 和 apiSecretKey 有值
+// 在生产环境中，这些值必须存在（已在上面验证）
+// 在开发环境中，如果不存在则使用空字符串作为后备值
 const finalApiKey = apiKey || "";
 const finalApiSecretKey = apiSecretKey || "";
 
+// 构建 shopifyApp 配置对象
 const shopify = shopifyApp({
   apiKey: finalApiKey,
   apiSecretKey: finalApiSecretKey,
