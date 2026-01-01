@@ -823,6 +823,26 @@ export default function MigratePage() {
           </BlockStack>
         </Banner>
 
+        {/* v1.0: 硬约束清单 - ScriptTags 关停说明 */}
+        <Banner
+          title="重要约束：ScriptTags 已弃用"
+          tone="warning"
+          action={{
+            content: "查看 Shopify 文档",
+            url: "https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility",
+            external: true,
+          }}
+        >
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              <strong>Order status 页 ScriptTags 已弃用</strong>，并会在上述截止节点关闭。功能应迁到 UI extensions / web pixels。
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              请确保在截止日期前完成迁移，避免追踪功能中断。
+            </Text>
+          </BlockStack>
+        </Banner>
+
         <Banner
           title={`当前套餐：${planLabel || planId}`}
           tone={isGrowthOrAbove ? "success" : "warning"}

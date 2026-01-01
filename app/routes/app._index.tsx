@@ -1191,79 +1191,6 @@ export default function Index() {
         )}
 
         {}
-        {!progress.allComplete && <SetupProgressCard steps={setupSteps} nextStep={nextStep} />}
-
-        {}
-        {}
-        {}
-        <Card>
-          <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">
-              🚀 快速入口
-            </Text>
-            <Layout>
-              <Layout.Section variant="oneThird">
-                <Button url="/app/scan" fullWidth variant="primary">
-                  🔍 开始扫描
-                </Button>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
-                <Button url="/app/migrate" fullWidth>
-                  🔄 像素迁移
-                </Button>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
-                <Button url="/app/verification" fullWidth>
-                  ✅ 验收测试
-                </Button>
-              </Layout.Section>
-            </Layout>
-            <Layout>
-              <Layout.Section variant="oneThird">
-                <Button url="/app/monitor" fullWidth>
-                  📊 监控面板
-                </Button>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
-                <Button url="/app/settings" fullWidth>
-                  ⚙️ 设置
-                </Button>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
-                <Button url="/app/billing" fullWidth>
-                  💳 套餐管理
-                </Button>
-              </Layout.Section>
-            </Layout>
-          </BlockStack>
-        </Card>
-
-        {}
-        {/* v1.0: 主CTA - 开始体检/继续上次体检 */}
-        <Card>
-          <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">
-              快速开始
-            </Text>
-            <Button
-              url="/app/scan"
-              variant="primary"
-              size="large"
-              fullWidth
-              icon={ArrowRightIcon}
-            >
-              {data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
-                ? "开始体检"
-                : "继续上次体检"}
-            </Button>
-            <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-              {data.latestScan
-                ? "完成体检后将获得详细的迁移清单和推荐方案"
-                : "开始扫描现有的追踪脚本和像素，生成迁移清单"}
-            </Text>
-          </BlockStack>
-        </Card>
-
         {/* v1.0: 三核心卡片布局 - 升级状态、风险分数、迁移进度 */}
         <Layout>
           <Layout.Section variant="oneThird">
@@ -1280,6 +1207,37 @@ export default function Index() {
             <MigrationProgressCard migrationProgress={data.migrationProgress} />
           </Layout.Section>
         </Layout>
+
+        {}
+        {/* v1.0: 主CTA - 开始体检/继续上次体检 */}
+        <Card>
+          <BlockStack gap="400">
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="200">
+                <Text as="h2" variant="headingMd">
+                  {data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
+                    ? "开始体检"
+                    : "继续上次体检"}
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {data.latestScan
+                    ? "完成体检后将获得详细的迁移清单和推荐方案"
+                    : "开始扫描现有的追踪脚本和像素，生成迁移清单"}
+                </Text>
+              </BlockStack>
+              <Button
+                url="/app/scan"
+                variant="primary"
+                size="large"
+                icon={ArrowRightIcon}
+              >
+                {data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
+                  ? "开始体检"
+                  : "继续上次体检"}
+              </Button>
+            </InlineStack>
+          </BlockStack>
+        </Card>
         {}
         <Layout>
           <Layout.Section variant="oneThird">
