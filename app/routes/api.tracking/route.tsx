@@ -37,10 +37,18 @@ const cachedLoader = withConditionalCache(
   }),
   {
     key: (args) => {
-      const url = new URL(args.request.url);
-      const orderId = url.searchParams.get("orderId");
-      const shop = url.searchParams.get("shop") || "unknown";
-      return orderId ? `tracking:${shop}:${orderId}` : null;
+      if (!args?.request || typeof args.request.url !== "string") {
+        return null;
+      }
+      try {
+        const url = new URL(args.request.url);
+        const orderId = url.searchParams.get("orderId");
+        const shop = url.searchParams.get("shop") || "unknown";
+        return orderId ? `tracking:${shop}:${orderId}` : null;
+      } catch (error) {
+        logger.warn("[api.tracking] Failed to generate cache key", { error });
+        return null;
+      }
     },
     ttl: TTL.MEDIUM, // 60 秒
     shouldCache: (result) => {

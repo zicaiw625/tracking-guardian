@@ -289,6 +289,10 @@ class DistributedRateLimitStore {
 const rateLimitStore = new DistributedRateLimitStore();
 
 export function ipKeyExtractor(request: Request): string {
+  if (!request || typeof request.headers?.get !== "function") {
+    logger.warn("[rate-limit] ipKeyExtractor called with invalid request");
+    return "unknown";
+  }
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
     return forwardedFor.split(",")[0]?.trim() ?? "unknown";
@@ -303,26 +307,66 @@ export function ipKeyExtractor(request: Request): string {
 }
 
 export function shopKeyExtractor(request: Request): string {
-  const url = new URL(request.url);
-  return url.searchParams.get("shop") ?? "unknown";
+  if (!request || typeof request.url !== "string") {
+    logger.warn("[rate-limit] shopKeyExtractor called with invalid request");
+    return "unknown";
+  }
+  try {
+    const url = new URL(request.url);
+    return url.searchParams.get("shop") ?? "unknown";
+  } catch (error) {
+    logger.warn("[rate-limit] shopKeyExtractor failed to parse URL", { error });
+    return "unknown";
+  }
 }
 
 export function pathIpKeyExtractor(request: Request): string {
-  const url = new URL(request.url);
-  const ip = ipKeyExtractor(request);
-  return `${url.pathname}:${ip}`;
+  if (!request || typeof request.url !== "string") {
+    logger.warn("[rate-limit] pathIpKeyExtractor called with invalid request");
+    return "unknown:unknown";
+  }
+  try {
+    const url = new URL(request.url);
+    const ip = ipKeyExtractor(request);
+    return `${url.pathname}:${ip}`;
+  } catch (error) {
+    logger.warn("[rate-limit] pathIpKeyExtractor failed to parse URL", { error });
+    return "unknown:unknown";
+  }
 }
 
 export function pathShopKeyExtractor(request: Request): string {
-  const url = new URL(request.url);
-  const shop = shopKeyExtractor(request);
-  return `${url.pathname}:${shop}`;
+  if (!request || typeof request.url !== "string") {
+    logger.warn("[rate-limit] pathShopKeyExtractor called with invalid request");
+    return "unknown:unknown";
+  }
+  try {
+    const url = new URL(request.url);
+    const shop = shopKeyExtractor(request);
+    return `${url.pathname}:${shop}`;
+  } catch (error) {
+    logger.warn("[rate-limit] pathShopKeyExtractor failed to parse URL", { error });
+    return "unknown:unknown";
+  }
 }
 
+// 防呆函数：从各种可能的参数形式中提取 Request 对象
+function resolveRequest(args: any): Request | undefined {
+  if (!args) return undefined;
+  // 兼容直接传入 Request 的情况（虽然不应该这样用）
+  if (args instanceof Request) return args;
+  // 正常的 Remix args 格式：{ request, params, context, ... }
+  if (args.request instanceof Request) return args.request;
+  return undefined;
+}
+
+// 支持两种调用方式：
+// 1. withRateLimit(config, handler) - 直接返回包装后的 handler
+// 2. withRateLimit(config) - 返回一个函数，可以后续传入 handler（currying）
 export function withRateLimit<T>(
   config: RateLimitConfig,
-  handler: RateLimitedHandler<T>
-): RateLimitedHandler<T | Response> {
+  handler?: RateLimitedHandler<T>
+): RateLimitedHandler<T | Response> | ((handler: RateLimitedHandler<T>) => RateLimitedHandler<T | Response>) {
   const {
     maxRequests,
     windowMs,
@@ -331,61 +375,104 @@ export function withRateLimit<T>(
     message = "Too many requests",
   } = config;
 
-  return async (args) => {
-    const { request } = args;
+  const createWrappedHandler = (handler: RateLimitedHandler<T>): RateLimitedHandler<T | Response> => {
+    return async (args) => {
+      const request = resolveRequest(args);
 
-    if (skip?.(request)) {
-      return handler(args);
-    }
-
-    const key = keyExtractor(request);
-
-    const result = await rateLimitStore.checkAsync(key, maxRequests, windowMs);
-
-    const headers = new Headers();
-    headers.set("X-RateLimit-Limit", String(maxRequests));
-    headers.set("X-RateLimit-Remaining", String(result.remaining));
-    headers.set("X-RateLimit-Reset", String(Math.ceil(result.resetAt / 1000)));
-
-    if (process.env.NODE_ENV !== "production") {
-      const connInfo = rateLimitStore.getConnectionInfo();
-      headers.set("X-RateLimit-Backend", connInfo.mode);
-    }
-
-    if (!result.allowed) {
-      headers.set("Retry-After", String(result.retryAfter));
-
-      logger.warn("Rate limit exceeded", {
-        key,
-        maxRequests,
-        windowMs,
-        retryAfter: result.retryAfter,
-        backend: rateLimitStore.getConnectionInfo().mode,
-      });
-
-      return json(
-        {
-          success: false,
-          error: {
-            code: "RATE_LIMITED",
-            message,
-            retryAfter: result.retryAfter,
+      // 防呆：避免直接把整个服务打死（至少打印清楚）
+      if (!request || typeof request.url !== "string") {
+        const errorMsg = `[rate-limit] Invalid args: expected Remix args { request }, got: ${args ? Object.keys(args).join(", ") : "undefined"}`;
+        logger.error(errorMsg, {
+          argsType: typeof args,
+          argsKeys: args ? Object.keys(args) : [],
+          hasRequest: !!args?.request,
+          requestType: args?.request ? typeof args.request : "undefined",
+        });
+        // 直接返回错误响应，而不是让服务崩溃
+        return json(
+          {
+            success: false,
+            error: {
+              code: "INTERNAL_ERROR",
+              message: "Rate limit middleware configuration error",
+            },
           },
-        },
-        { status: 429, headers }
-      );
-    }
-
-    const response = await handler(args);
-
-    if (response instanceof Response) {
-      for (const [key, value] of headers) {
-        response.headers.set(key, value);
+          { status: 500 }
+        );
       }
-    }
 
-    return response;
+      if (skip?.(request)) {
+        return handler(args);
+      }
+
+      // 安全调用 keyExtractor，防止崩溃
+      let key: string;
+      try {
+        key = keyExtractor(request);
+      } catch (error) {
+        logger.error("[rate-limit] keyExtractor failed", {
+          error: error instanceof Error ? error.message : String(error),
+          requestUrl: request.url,
+        });
+        // 使用 fallback key，避免服务崩溃
+        key = `fallback:${request.url || "unknown"}`;
+      }
+
+      const result = await rateLimitStore.checkAsync(key, maxRequests, windowMs);
+
+      const headers = new Headers();
+      headers.set("X-RateLimit-Limit", String(maxRequests));
+      headers.set("X-RateLimit-Remaining", String(result.remaining));
+      headers.set("X-RateLimit-Reset", String(Math.ceil(result.resetAt / 1000)));
+
+      if (process.env.NODE_ENV !== "production") {
+        const connInfo = rateLimitStore.getConnectionInfo();
+        headers.set("X-RateLimit-Backend", connInfo.mode);
+      }
+
+      if (!result.allowed) {
+        headers.set("Retry-After", String(result.retryAfter));
+
+        logger.warn("Rate limit exceeded", {
+          key,
+          maxRequests,
+          windowMs,
+          retryAfter: result.retryAfter,
+          backend: rateLimitStore.getConnectionInfo().mode,
+        });
+
+        return json(
+          {
+            success: false,
+            error: {
+              code: "RATE_LIMITED",
+              message,
+              retryAfter: result.retryAfter,
+            },
+          },
+          { status: 429, headers }
+        );
+      }
+
+      const response = await handler(args);
+
+      if (response instanceof Response) {
+        for (const [key, value] of headers) {
+          response.headers.set(key, value);
+        }
+      }
+
+      return response;
+    };
   };
+
+  // 如果提供了 handler，直接返回包装后的 handler
+  if (handler) {
+    return createWrappedHandler(handler);
+  }
+
+  // 如果没有提供 handler，返回一个函数，可以后续传入 handler（currying）
+  return (handler: RateLimitedHandler<T>) => createWrappedHandler(handler);
 }
 
 export const standardRateLimit: RateLimitConfig = {
