@@ -372,6 +372,8 @@ export default function VerificationPage() {
 
   const tabs = [
     { id: "overview", content: "验收概览" },
+    { id: "pixel-layer", content: "像素层验收（Web Pixels 标准事件）" },
+    { id: "order-layer", content: "订单层验收（退款/取消/编辑）" },
     { id: "results", content: "详细结果" },
     { id: "realtime", content: "实时监控" },
     { id: "test-guide", content: "测试订单指引" },
@@ -453,6 +455,59 @@ export default function VerificationPage() {
             <p>请先在设置页面配置至少一个平台的 CAPI 凭证，然后再进行验收测试。</p>
           </Banner>
         )}
+
+        {/* v1.0: checkout_completed 触发位置不稳定提示 */}
+        <Banner
+          title="重要提示：checkout_completed 事件触发位置"
+          tone="info"
+        >
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              <strong>checkout_completed</strong> 事件通常在 Thank you 页面触发，但存在以下特殊情况：
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <strong>存在 upsell/post-purchase：</strong>事件会在第一个 upsell 页面触发，且不会在 Thank you 页面再次触发
+              </List.Item>
+              <List.Item>
+                <strong>页面加载失败：</strong>如果应触发事件的页面加载失败，则事件不会触发
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              这会影响"保证不断"的承诺边界与验收设计。验收测试时请考虑这些场景。
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              <strong>注意：</strong>标准事件列表来自 Shopify Web Pixels 文档，避免使用旧脚本时代的事件来对比。
+            </Text>
+          </BlockStack>
+        </Banner>
+
+        {/* v1.0: 验收分层说明 */}
+        <Banner
+          title="验收分层说明"
+          tone="info"
+        >
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              验收分为两层，避免"Web Pixel 不可能覆盖退款/取消"等问题：
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>像素层验收（Web Pixels 标准事件）：</strong>围绕 checkout 链路事件（started/contact/shipping/payment/completed 等）做触发与缺参检查。
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>订单层验收（Growth/Agency 必选）：</strong>用 webhooks/Admin API 覆盖退款/取消/编辑订单（否则测试清单会落不下来）。
+                </Text>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              <strong>注意：</strong>标准事件列表来自 Shopify Web Pixels 文档，避免使用旧脚本时代的事件来对比。
+            </Text>
+          </BlockStack>
+        </Banner>
 
         {}
         <Card>
@@ -1191,7 +1246,7 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {selectedTab === 4 && (
+          {selectedTab === 6 && (
             <Box paddingBlockStart="400">
               <BlockStack gap="500">
                 <Card>

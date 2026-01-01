@@ -370,6 +370,30 @@ export default function MonitorPage() {
         )}
 
         {}
+        {/* v1.0: 同意/隐私导致的差异说明 */}
+        <Banner tone="info" title="关于同意与隐私导致的差异">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              告警说明里必须考虑"同意/隐私"导致的差异：
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>Pixel Helper 测试：</strong>可能出现 <strong>"Pixel is awaiting consent"</strong>（不是发送失败，而是等待用户同意）
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>隐私设置差异：</strong>不同地区的隐私政策和用户同意设置可能导致事件发送率差异，这是正常现象，不是故障
+                </Text>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              提示：如果 Pixel Helper 显示 "Pixel is awaiting consent"，这表示像素正在等待用户同意，不是追踪失败。请区分因同意阻止导致的差异和真正的发送故障。
+            </Text>
+          </BlockStack>
+        </Banner>
+
         {monitoringAlert && monitoringAlert.shouldAlert && (
           <Banner
             title="监控告警"
@@ -1459,9 +1483,16 @@ export default function MonitorPage() {
                     </InlineStack>
                     {data.topFailureReasons.length > 0 && (<>
                         <Divider />
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          主要失败原因：{data.topFailureReasons[0]?.reason || "未知"}
-                        </Text>
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            主要失败原因：{data.topFailureReasons[0]?.reason || "未知"}
+                          </Text>
+                          {data.topFailureReasons[0]?.reason?.includes("consent") || data.topFailureReasons[0]?.reason?.includes("同意") ? (
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              💡 提示：如果是因用户同意导致的事件未发送，这是正常现象，不是故障。
+                            </Text>
+                          ) : null}
+                        </BlockStack>
                       </>)}
                   </BlockStack>
                 </Card>

@@ -1605,7 +1605,8 @@ export default function ScanPage() {
     }, []);
   const tabs = [
     { id: "auto-scan", content: "自动扫描" },
-    { id: "manual-analyze", content: "手动分析" },
+    { id: "manual-supplement", content: "手动补充" },
+    { id: "migration-checklist", content: "迁移清单" },
   ];
   const paginationLimitWarning = (
     <Banner tone="info" title="扫描分页说明">
@@ -2462,23 +2463,6 @@ export default function ScanPage() {
           />
         )}
 
-        {}
-        {migrationChecklist && migrationChecklist.items.length > 0 && !isScanning && (
-          <MigrationChecklistEnhanced
-            items={migrationChecklist.items}
-            dependencyGraph={dependencyGraph}
-            onItemClick={(assetId) => {
-              window.location.href = `/app/migrate?asset=${assetId}`;
-            }}
-            onItemComplete={(assetId) => {
-              const formData = new FormData();
-              formData.append("_action", "mark_asset_complete");
-              formData.append("assetId", assetId);
-              submit(formData, { method: "post" });
-            }}
-          />
-        )}
-
         {migrationProgress && migrationTimeline && (
           <Card>
             <BlockStack gap="400">
@@ -3277,6 +3261,52 @@ export default function ScanPage() {
                 </Card>
               )}
             </BlockStack>)}
+
+          {selectedTab === 2 && (
+            <BlockStack gap="500">
+              <Box paddingBlockStart="400">
+                {!latestScan ? (
+                  <Card>
+                    <BlockStack gap="400">
+                      <EnhancedEmptyState
+                        icon="📋"
+                        title="暂无迁移清单"
+                        description="完成自动扫描后，我们将为您生成迁移清单和优先级建议。"
+                        primaryAction={{
+                          content: "开始扫描",
+                          onAction: handleScan,
+                        }}
+                      />
+                    </BlockStack>
+                  </Card>
+                ) : migrationChecklist && migrationChecklist.items.length > 0 ? (
+                  <MigrationChecklistEnhanced
+                    items={migrationChecklist.items}
+                    dependencyGraph={dependencyGraph}
+                    onItemClick={(assetId) => {
+                      window.location.href = `/app/migrate?asset=${assetId}`;
+                    }}
+                    onItemComplete={(assetId) => {
+                      const formData = new FormData();
+                      formData.append("_action", "mark_asset_complete");
+                      formData.append("assetId", assetId);
+                      submit(formData, { method: "post" });
+                    }}
+                  />
+                ) : (
+                  <Card>
+                    <BlockStack gap="400">
+                      <EnhancedEmptyState
+                        icon="📋"
+                        title="暂无迁移清单"
+                        description="扫描结果中没有需要迁移的项目。"
+                      />
+                    </BlockStack>
+                  </Card>
+                )}
+              </Box>
+            </BlockStack>
+          )}
         </Tabs>
 
         {}

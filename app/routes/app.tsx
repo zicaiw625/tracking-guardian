@@ -24,16 +24,14 @@ export default function App() {
     const { apiKey } = useLoaderData<typeof loader>();
     return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={i18n}>
       <NavMenu>
-        <a href="/app" rel="home">首页</a>
-        <a href="/app/scan">扫描报告</a>
-        <a href="/app/migrate">迁移工具</a>
-        <a href="/app/ui-blocks">UI 模块</a>
-        <a href="/app/verification">验收向导</a>
-        <a href="/app/monitor">监控面板</a>
-        <a href="/app/reconciliation">送达健康度</a>
-        <a href="/app/workspace">多店管理</a>
-        <a href="/app/privacy">隐私与数据</a>
+        <a href="/app" rel="home">概览</a>
+        <a href="/app/scan">体检&清单</a>
+        <a href="/app/migrate">像素</a>
+        <a href="/app/ui-blocks">页面模块</a>
+        <a href="/app/verification">验收</a>
+        <a href="/app/monitor">监控</a>
         <a href="/app/settings">设置</a>
+        <a href="/app/billing">套餐管理</a>
       </NavMenu>
       <ToastProvider>
         <Outlet />

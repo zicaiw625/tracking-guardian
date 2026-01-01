@@ -9,11 +9,16 @@ import { getAuditAssetSummary } from "./audit-asset.server";
 import { getEventMonitoringStats, getEventVolumeStats } from "./monitoring.server";
 import { getMissingParamsRate } from "./event-validation.server";
 import { logger } from "../utils/logger.server";
+import { calculateMigrationProgress } from "../utils/migration-progress.server";
+import { getTierDisplayInfo } from "./shop-tier.server";
+import { DEPRECATION_DATES } from "../utils/deprecation-dates";
 
 export type {
   DashboardData,
   SetupStep,
   HealthStatus,
+  UpgradeStatus,
+  MigrationProgress,
 } from "../types/dashboard";
 
 export {
@@ -22,7 +27,7 @@ export {
   getSetupProgress,
 } from "../types/dashboard";
 
-import type { DashboardData, HealthStatus } from "../types/dashboard";
+import type { DashboardData, HealthStatus, UpgradeStatus } from "../types/dashboard";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -118,6 +123,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       id: true,
       shopDomain: true,
       plan: true,
+      shopTier: true,
       typOspPagesEnabled: true,
       installedAt: true,
       scanReports: {
@@ -265,6 +271,57 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     }
   }
 
+  // 计算升级状态
+  const shopTier = (shop.shopTier as "plus" | "non_plus" | "unknown") || "unknown";
+  const tierInfo = getTierDisplayInfo(shopTier);
+  const deadlineDate = new Date(tierInfo.deadlineDate);
+  const now = new Date();
+  const daysRemaining = Math.max(0, Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  
+  let urgency: UpgradeStatus["urgency"] = "low";
+  if (daysRemaining <= 0) {
+    urgency = "critical";
+  } else if (daysRemaining <= 30) {
+    urgency = "high";
+  } else if (daysRemaining <= 90) {
+    urgency = "medium";
+  } else if (shop.typOspPagesEnabled) {
+    urgency = "resolved";
+  }
+
+  // Plus商家自动升级开始日期（月份格式：YYYY-MM）
+  const autoUpgradeStartDate = shopTier === "plus" ? "2026-01" : undefined;
+
+  const upgradeStatus: UpgradeStatus = {
+    isUpgraded: shop.typOspPagesEnabled ?? false,
+    shopTier,
+    deadlineDate: tierInfo.deadlineDate,
+    autoUpgradeStartDate,
+    daysRemaining,
+    urgency,
+  };
+
+  // 计算迁移进度
+  let migrationProgress;
+  try {
+    migrationProgress = await calculateMigrationProgress(shop.id);
+  } catch (error) {
+    logger.error("Failed to calculate migration progress", { shopId: shop.id, error });
+  }
+
+  // 获取风险分数和风险等级
+  const riskScore = latestScan?.riskScore ?? null;
+  let riskLevel: "high" | "medium" | "low" | null = null;
+  if (riskScore !== null) {
+    if (riskScore >= 70) {
+      riskLevel = "high";
+    } else if (riskScore >= 40) {
+      riskLevel = "medium";
+    } else {
+      riskLevel = "low";
+    }
+  }
+
   return {
     shopDomain,
     healthScore: score,
@@ -292,6 +349,11 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     typOspPagesEnabled: shop.typOspPagesEnabled ?? false,
     estimatedMigrationTimeMinutes,
     showOnboarding,
+    // v1.0 新增字段
+    upgradeStatus,
+    migrationProgress,
+    riskScore,
+    riskLevel,
     migrationChecklist: migrationChecklist
       ? {
           totalItems: migrationChecklist.totalItems,

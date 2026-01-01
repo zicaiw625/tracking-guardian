@@ -2,6 +2,28 @@
 
 export type HealthStatus = "success" | "warning" | "critical" | "uninitialized";
 
+export type MigrationStage = "audit" | "pixel_test" | "verification" | "live" | "monitoring";
+
+export interface UpgradeStatus {
+  isUpgraded: boolean;
+  shopTier: "plus" | "non_plus" | "unknown";
+  deadlineDate: string; // YYYY-MM-DD
+  autoUpgradeStartDate?: string; // YYYY-MM 格式（仅Plus商家，如 "2026-01"）
+  daysRemaining: number;
+  urgency: "critical" | "high" | "medium" | "low" | "resolved";
+}
+
+export interface MigrationProgress {
+  currentStage: MigrationStage;
+  stages: Array<{
+    stage: MigrationStage;
+    label: string;
+    completed: boolean;
+    inProgress: boolean;
+  }>;
+  progressPercentage: number;
+}
+
 export interface DashboardData {
   shopDomain: string;
   healthScore: number | null;
@@ -28,6 +50,12 @@ export interface DashboardData {
   typOspPagesEnabled?: boolean;
   estimatedMigrationTimeMinutes?: number;
   showOnboarding?: boolean;
+
+  // v1.0 新增字段
+  upgradeStatus?: UpgradeStatus;
+  migrationProgress?: MigrationProgress;
+  riskScore?: number | null; // 风险分数
+  riskLevel?: "high" | "medium" | "low" | null; // 风险等级
 
   migrationChecklist?: {
     totalItems: number;

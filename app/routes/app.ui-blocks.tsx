@@ -1194,6 +1194,23 @@ export default function UiBlocksPage() {
               配置完成后，模块将自动显示在 Thank You 和 Order Status 页面。
               您可以在 Shopify Admin 的 <strong>Checkout Editor</strong> 中调整模块位置和样式。
             </Text>
+            <BlockStack gap="100">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                Target 说明：
+              </Text>
+              <List type="bullet">
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    <strong>Thank you block：</strong>使用 <code>purchase.thank-you.block.render</code> target
+                  </Text>
+                </List.Item>
+                <List.Item>
+                  <Text as="span" variant="bodySm">
+                    <strong>Order status block：</strong>使用 <code>customer-account.order-status.block.render</code> target
+                  </Text>
+                </List.Item>
+              </List>
+            </BlockStack>
             <Button
               url="https://help.shopify.com"
               variant="plain"

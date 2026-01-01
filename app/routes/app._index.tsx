@@ -325,6 +325,311 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
   );
 });
 
+// v1.0: 卡片1 - 升级状态卡片（升级状态 + 截止提醒）
+const UpgradeStatusCard = memo(function UpgradeStatusCard({
+  upgradeStatus,
+}: {
+  upgradeStatus?: import("../types/dashboard").UpgradeStatus;
+}) {
+  if (!upgradeStatus) {
+    return (
+      <Card>
+        <BlockStack gap="400">
+          <Text as="h2" variant="headingMd">升级状态</Text>
+          <EnhancedEmptyState
+            icon="📊"
+            title="状态待确认"
+            description="正在加载升级状态信息..."
+          />
+        </BlockStack>
+      </Card>
+    );
+  }
+
+  const statusBadge = upgradeStatus.isUpgraded
+    ? { tone: "success" as const, label: "已升级（新版本）" }
+    : { tone: "warning" as const, label: "未升级（旧版本）" };
+
+  const urgencyBadge = {
+    critical: { tone: "critical" as const, label: "紧急" },
+    high: { tone: "critical" as const, label: "高" },
+    medium: { tone: "warning" as const, label: "中" },
+    low: { tone: "info" as const, label: "低" },
+    resolved: { tone: "success" as const, label: "已完成" },
+  }[upgradeStatus.urgency];
+
+  const deadlineLabel = upgradeStatus.deadlineDate;
+  const autoUpgradeLabel = upgradeStatus.autoUpgradeStartDate || "";
+
+  return (
+    <Card>
+      <BlockStack gap="400">
+        <InlineStack align="space-between" blockAlign="center">
+          <Text as="h2" variant="headingMd">升级状态</Text>
+          <Badge tone={statusBadge.tone}>{statusBadge.label}</Badge>
+        </InlineStack>
+
+        <BlockStack gap="300">
+          {/* 升级状态 */}
+          <InlineStack align="space-between" blockAlign="center">
+            <Text as="span" variant="bodyMd" fontWeight="semibold">
+              当前状态
+            </Text>
+            <Badge tone={statusBadge.tone}>
+              {upgradeStatus.isUpgraded ? "新版本" : "旧版本"}
+            </Badge>
+          </InlineStack>
+
+          <Divider />
+
+          {/* Plus 商家：截止提醒 + 自动升级提醒 */}
+          {upgradeStatus.shopTier === "plus" && (
+            <BlockStack gap="200">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="span" variant="bodyMd" fontWeight="semibold">
+                  截止日期
+                </Text>
+                <InlineStack gap="200" blockAlign="center">
+                  <Text as="span" variant="bodyMd" fontWeight="bold">{deadlineLabel}</Text>
+                  <Badge tone={urgencyBadge.tone}>{urgencyBadge.label}</Badge>
+                </InlineStack>
+              </InlineStack>
+              {upgradeStatus.daysRemaining > 0 && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  剩余 {upgradeStatus.daysRemaining} 天
+                </Text>
+              )}
+              {autoUpgradeLabel && (
+                <>
+                  <Divider />
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                      自动升级开始
+                    </Text>
+                    <Text as="span" variant="bodyMd" fontWeight="bold">{autoUpgradeLabel}</Text>
+                  </InlineStack>
+                  <Banner tone="warning">
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodySm">
+                        <strong>{autoUpgradeLabel}</strong> 起，Shopify 开始自动升级 Plus 商家到新版 TYP/OSP 页面，legacy 定制会丢失。
+                      </Text>
+                      <Link
+                        url="https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility"
+                        external
+                      >
+                        查看 Plus 商家升级指南
+                      </Link>
+                    </BlockStack>
+                  </Banner>
+                </>
+              )}
+            </BlockStack>
+          )}
+
+          {/* 非 Plus 商家：截止提醒 */}
+          {upgradeStatus.shopTier === "non_plus" && (
+            <BlockStack gap="200">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="span" variant="bodyMd" fontWeight="semibold">
+                  截止日期
+                </Text>
+                <InlineStack gap="200" blockAlign="center">
+                  <Text as="span" variant="bodyMd" fontWeight="bold">{deadlineLabel}</Text>
+                  <Badge tone={urgencyBadge.tone}>{urgencyBadge.label}</Badge>
+                </InlineStack>
+              </InlineStack>
+              {upgradeStatus.daysRemaining > 0 && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  剩余 {upgradeStatus.daysRemaining} 天
+                </Text>
+              )}
+            </BlockStack>
+          )}
+
+          {upgradeStatus.daysRemaining <= 0 && (
+            <>
+              <Divider />
+              <Banner tone="critical">
+                <Text as="p" variant="bodySm">
+                  截止日期已过，请立即完成迁移以避免追踪中断。
+                </Text>
+              </Banner>
+            </>
+          )}
+        </BlockStack>
+      </BlockStack>
+    </Card>
+  );
+});
+
+// v1.0: 卡片2 - 风险分数卡片
+const RiskScoreCard = memo(function RiskScoreCard({
+  riskScore,
+  riskLevel,
+  estimatedMigrationTimeMinutes,
+}: {
+  riskScore?: number | null;
+  riskLevel?: "high" | "medium" | "low" | null;
+  estimatedMigrationTimeMinutes?: number | null;
+}) {
+  const riskBadge =
+    riskLevel === "high"
+      ? { tone: "critical" as const, label: "高风险" }
+      : riskLevel === "medium"
+        ? { tone: "warning" as const, label: "中风险" }
+        : riskLevel === "low"
+          ? { tone: "success" as const, label: "低风险" }
+          : { tone: "info" as const, label: "待评估" };
+
+  const formatEstimatedTime = (minutes: number | null): string => {
+    if (minutes === null) return "待计算";
+    if (minutes < 60) return `${minutes} 分钟`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
+  };
+
+  const riskColor = riskLevel === "high" 
+    ? "bg-fill-critical" 
+    : riskLevel === "medium"
+      ? "bg-fill-caution"
+      : riskLevel === "low"
+        ? "bg-fill-success"
+        : "bg-surface-secondary";
+
+  return (
+    <Card>
+      <BlockStack gap="400">
+        <Text as="h2" variant="headingMd">
+          风险分数
+        </Text>
+
+        <Box background={riskColor} padding="600" borderRadius="200">
+          <BlockStack gap="200" align="center">
+            {riskScore !== null ? (
+              <>
+                <Text as="p" variant="heading3xl" fontWeight="bold">
+                  {riskScore}
+                </Text>
+                <Text as="p" variant="bodySm">/ 100</Text>
+              </>
+            ) : (
+              <>
+                <Text as="p" variant="headingLg" fontWeight="semibold">
+                  待评估
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  完成体检后显示
+                </Text>
+              </>
+            )}
+          </BlockStack>
+        </Box>
+
+        <InlineStack align="space-between" blockAlign="center">
+          <Text as="span" variant="bodyMd" fontWeight="semibold">
+            风险等级
+          </Text>
+          <Badge tone={riskBadge.tone}>{riskBadge.label}</Badge>
+        </InlineStack>
+
+        <Divider />
+
+        <InlineStack align="space-between" blockAlign="center">
+          <Text as="span" variant="bodyMd" fontWeight="semibold">
+            预计迁移时长
+          </Text>
+          <Text as="span" variant="bodyMd">
+            {formatEstimatedTime(estimatedMigrationTimeMinutes ?? null)}
+          </Text>
+        </InlineStack>
+      </BlockStack>
+    </Card>
+  );
+});
+
+// v1.0: 卡片3 - 迁移进度条卡片
+const MigrationProgressCard = memo(function MigrationProgressCard({
+  migrationProgress,
+}: {
+  migrationProgress?: import("../types/dashboard").MigrationProgress;
+}) {
+  if (!migrationProgress) {
+    return (
+      <Card>
+        <BlockStack gap="400">
+          <Text as="h2" variant="headingMd">
+            迁移进度
+          </Text>
+          <EnhancedEmptyState
+            icon="📊"
+            title="暂无迁移进度"
+            description="开始迁移后，进度将在这里显示。"
+            primaryAction={{
+              content: "开始体检",
+              url: "/app/scan",
+            }}
+          />
+        </BlockStack>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <BlockStack gap="400">
+        <InlineStack align="space-between" blockAlign="center">
+          <Text as="h2" variant="headingMd">
+            迁移进度
+          </Text>
+          <Text as="span" variant="bodyMd" tone="subdued">
+            {migrationProgress.progressPercentage}%
+          </Text>
+        </InlineStack>
+
+        <ProgressBar progress={migrationProgress.progressPercentage} />
+
+        <BlockStack gap="200">
+          {migrationProgress.stages.map((stage, index) => {
+            const isCompleted = stage.completed;
+            const isCurrent = stage.stage === migrationProgress.currentStage;
+            const isPending = !isCompleted && !isCurrent && !stage.inProgress;
+
+            return (
+              <InlineStack key={stage.stage} gap="300" blockAlign="center">
+                {isCompleted ? (
+                  <Icon source={CheckCircleIcon} tone="success" />
+                ) : isCurrent || stage.inProgress ? (
+                  <Icon source={ClockIcon} tone="info" />
+                ) : (
+                  <Box minWidth="20px" />
+                )}
+                <Text
+                  as="span"
+                  variant="bodyMd"
+                  tone={isCompleted ? "success" : isCurrent ? "info" : isPending ? "subdued" : "base"}
+                  fontWeight={isCurrent ? "semibold" : "regular"}
+                >
+                  {stage.label}
+                </Text>
+                {isCurrent && (
+                  <Badge tone="info">进行中</Badge>
+                )}
+              </InlineStack>
+            );
+          })}
+        </BlockStack>
+
+        {migrationProgress.progressPercentage < 100 && (
+          <Button url="/app/scan" variant="primary">
+            {migrationProgress.currentStage === "audit" ? "开始体检" : "继续迁移"}
+          </Button>
+        )}
+      </BlockStack>
+    </Card>
+  );
+});
+
 const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan: SerializedLatestScan }) {
   if (!latestScan) {
     return (
@@ -539,19 +844,18 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
       tone={scriptTagsCount > 0 ? "warning" : "info"}
       action={{
         content: "了解更多",
-        url: "https://help.shopify.com",
+        url: "https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility",
         external: true,
       }}
     >
       <BlockStack gap="300">
         <BlockStack gap="100">
           <Text as="p">
-            <strong>所有商家:</strong> 附加脚本（Additional Scripts）自{" "}
-            <strong>2025-08-28</strong> 起在 Checkout 设置中只读（不可再编辑）
+            <strong>Plus 商家:</strong> 截止 <strong>2025-08-28</strong>，且 <strong>2026-01</strong> 自动升级开始（legacy 定制会丢失）
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https://help.shopify.com"
+              url="https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility"
               external
             >
               查看 Plus 商家升级指南
@@ -560,12 +864,11 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
         </BlockStack>
         <BlockStack gap="100">
           <Text as="p">
-            <strong>非 Plus 商家:</strong> Order status 页 ScriptTags 将于{" "}
-            <strong>2026-08-26</strong> 关闭
+            <strong>非 Plus 商家:</strong> 截止 <strong>2026-08-26</strong>
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https://help.shopify.com"
+              url="https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility"
               external
             >
               查看 ScriptTags 弃用时间表
@@ -936,14 +1239,47 @@ export default function Index() {
         </Card>
 
         {}
-        {}
-        <MigrationStatusCard
-          typOspPagesEnabled={data.typOspPagesEnabled ?? false}
-          riskScore={data.latestScan?.riskScore ?? null}
-          estimatedMigrationTimeMinutes={data.estimatedMigrationTimeMinutes ?? null}
-          scriptTagsCount={data.scriptTagsCount}
-          identifiedPlatforms={data.latestScan?.identifiedPlatforms ?? []}
-        />
+        {/* v1.0: 主CTA - 开始体检/继续上次体检 */}
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h2" variant="headingMd">
+              快速开始
+            </Text>
+            <Button
+              url="/app/scan"
+              variant="primary"
+              size="large"
+              fullWidth
+              icon={ArrowRightIcon}
+            >
+              {data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
+                ? "开始体检"
+                : "继续上次体检"}
+            </Button>
+            <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+              {data.latestScan
+                ? "完成体检后将获得详细的迁移清单和推荐方案"
+                : "开始扫描现有的追踪脚本和像素，生成迁移清单"}
+            </Text>
+          </BlockStack>
+        </Card>
+
+        {/* v1.0: 三核心卡片布局 - 升级状态、风险分数、迁移进度 */}
+        <Layout>
+          <Layout.Section variant="oneThird">
+            <UpgradeStatusCard upgradeStatus={data.upgradeStatus} />
+          </Layout.Section>
+          <Layout.Section variant="oneThird">
+            <RiskScoreCard
+              riskScore={data.riskScore}
+              riskLevel={data.riskLevel}
+              estimatedMigrationTimeMinutes={data.estimatedMigrationTimeMinutes}
+            />
+          </Layout.Section>
+          <Layout.Section variant="oneThird">
+            <MigrationProgressCard migrationProgress={data.migrationProgress} />
+          </Layout.Section>
+        </Layout>
         {}
         <Layout>
           <Layout.Section variant="oneThird">

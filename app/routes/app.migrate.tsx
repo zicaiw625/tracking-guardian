@@ -1260,6 +1260,34 @@ export default function MigratePage() {
           </Layout.Section>
 
           <Layout.Section variant="oneThird">
+            {/* v1.0: checkout_completed 触发位置重要提示 */}
+            {pixelConfigs && pixelConfigs.length > 0 && (
+              <Banner
+                title="重要提示：checkout_completed 事件触发位置"
+                tone="warning"
+              >
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm">
+                    <strong>checkout_completed</strong> 通常在 Thank you 页面触发，但存在以下特殊情况：
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        若存在 upsell/post-purchase，事件会在第一个 upsell 页面触发，且不会在 Thank you 页面再次触发
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        若应触发事件的页面加载失败，则事件不会触发
+                      </Text>
+                    </List.Item>
+                  </List>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    这会影响"保证不断"的承诺边界与验收设计。验收测试时请考虑这些场景。
+                  </Text>
+                </BlockStack>
+              </Banner>
+            )}
             {pixelConfigs && pixelConfigs.length > 0 && (
               <ConfigManagementCard
                 pixelConfigs={pixelConfigs}
@@ -1282,6 +1310,28 @@ export default function MigratePage() {
                       <Text as="span" variant="bodySm" tone="subdued">
                         App Pixel 检测到 checkout_completed 事件
                       </Text>
+                      <Banner tone="info">
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodySm">
+                            <strong>重要提示：</strong>checkout_completed 通常在 Thank you 页面触发，但存在以下特殊情况：
+                          </Text>
+                          <List type="bullet">
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                若存在 upsell/post-purchase，事件会在第一个 upsell 页面触发，且不会在 Thank you 页面再次触发
+                              </Text>
+                            </List.Item>
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                若应触发事件的页面加载失败，则事件不会触发
+                              </Text>
+                            </List.Item>
+                          </List>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            这会影响"保证不断"的承诺边界与验收设计，验收测试时请考虑这些场景。
+                          </Text>
+                        </BlockStack>
+                      </Banner>
                     </BlockStack>
                   </Box>
 
