@@ -31,12 +31,26 @@ try {
 const baseSessionStorage = new PrismaSessionStorage(prisma);
 const encryptedSessionStorage = createEncryptedSessionStorage(baseSessionStorage);
 
+// 验证并获取 appUrl
+const appUrl = process.env.SHOPIFY_APP_URL;
+if (!appUrl) {
+  const error = new Error(
+    "SHOPIFY_APP_URL environment variable is required. Please set it in your environment variables."
+  );
+  logger.error("[Shopify App Config] Missing required environment variable", error);
+  if (process.env.NODE_ENV === "production") {
+    throw error;
+  }
+  // 在开发环境中，使用一个默认值以避免立即崩溃
+  logger.warn("[Shopify App Config] Using fallback URL in development mode");
+}
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: ApiVersion.July25,
   scopes: process.env.SCOPES?.split(","),
-  appUrl: process.env.SHOPIFY_APP_URL || "",
+  appUrl: appUrl || "http://localhost:3000",
   authPathPrefix: "/auth",
   sessionStorage: encryptedSessionStorage,
   distribution: AppDistribution.AppStore,
