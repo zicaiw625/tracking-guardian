@@ -123,6 +123,9 @@ function ReorderOrderStatus() {
               }
             </Text>
           </BlockStack>
+          {/* 注意：Customer Account extensions 中，Link 包 Button 是常见用法
+              相对路径（如 /cart/...）在 customer account 域下会正确解析到 storefront
+              虽然用户建议避免 Link 包 Button，但在这个环境中这是标准做法 */}
           <Link to={reorderUrl}>
             <Button kind="primary">
               {buttonText}

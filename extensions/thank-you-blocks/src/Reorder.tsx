@@ -124,11 +124,15 @@ const Reorder = memo(function Reorder() {
 
           if (response.ok) {
             const data = await response.json();
-            // 后端返回的是相对路径，需要拼接成绝对 URL
-            const relativeUrl = data.reorderUrl || "/cart";
-            const absoluteUrl = storefrontUrl 
-              ? `${storefrontUrl}${relativeUrl.startsWith("/") ? relativeUrl : `/${relativeUrl}`}`
-              : relativeUrl;
+            // 后端可能返回绝对 URL 或相对路径
+            const reorderUrlFromBackend = data.reorderUrl || "/cart";
+            // 如果已经是绝对 URL（以 http:// 或 https:// 开头），直接使用
+            // 否则使用 storefrontUrl 拼接成绝对 URL
+            const absoluteUrl = reorderUrlFromBackend.startsWith("http://") || reorderUrlFromBackend.startsWith("https://")
+              ? reorderUrlFromBackend
+              : (storefrontUrl 
+                  ? `${storefrontUrl}${reorderUrlFromBackend.startsWith("/") ? reorderUrlFromBackend : `/${reorderUrlFromBackend}`}`
+                  : reorderUrlFromBackend);
             setReorderUrl(absoluteUrl);
             setError(null);
             break; // 成功，退出重试循环

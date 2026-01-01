@@ -25,6 +25,42 @@ export interface TrackingProviderConfig {
   apiSecret?: string;
 }
 
+/**
+ * 将第三方提供商的状态映射到前端期望的标准格式
+ * 前端期望：pending/pending_fulfillment, in_transit, delivered
+ */
+function normalizeTrackingStatus(status: string): string {
+  const normalized = status.toLowerCase().trim();
+  
+  // AfterShip 状态映射（如 "Pending", "InTransit", "Delivered"）
+  if (normalized === "pending" || normalized === "inforeceived") {
+    return "pending";
+  }
+  if (normalized === "intransit" || normalized === "outfordelivery") {
+    return "in_transit";
+  }
+  if (normalized === "delivered") {
+    return "delivered";
+  }
+  if (normalized === "exception" || normalized === "expired" || normalized === "attemptfail" || normalized === "undelivered") {
+    return "exception";
+  }
+  
+  // 17Track 状态映射（如 "InTransit", "Delivered", "Expired"）
+  if (normalized === "intransit") {
+    return "in_transit";
+  }
+  if (normalized === "delivered") {
+    return "delivered";
+  }
+  if (normalized === "expired" || normalized === "exception" || normalized === "undelivered") {
+    return "exception";
+  }
+  
+  // 如果无法识别，默认返回 pending
+  return "pending";
+}
+
 export class AfterShipTracker {
   private apiKey: string;
   private baseUrl = "https://api.aftership.com";
@@ -60,7 +96,7 @@ export class AfterShipTracker {
       return {
         trackingNumber: tracking.tracking_number,
         carrier: tracking.slug,
-        status: tracking.tag || "Unknown",
+        status: normalizeTrackingStatus(tracking.tag || "Unknown"),
         statusDescription: tracking.subtag_message,
         estimatedDelivery: tracking.expected_delivery
           ? new Date(tracking.expected_delivery)
@@ -159,10 +195,11 @@ export class SeventeenTrackTracker {
         return null;
       }
 
+      const rawStatus = this.mapStatus(trackInfo.latest_status?.status || "Unknown");
       return {
         trackingNumber: track.number,
         carrier: track.carrier || "unknown",
-        status: this.mapStatus(trackInfo.latest_status?.status || "Unknown"),
+        status: normalizeTrackingStatus(rawStatus),
         statusDescription: trackInfo.latest_status?.status_description,
         estimatedDelivery: trackInfo.latest_status?.sub_status_time
           ? new Date(trackInfo.latest_status.sub_status_time * 1000)
@@ -173,6 +210,7 @@ export class SeventeenTrackTracker {
             location?: string;
             track_detail?: string;
             status?: string;
+            sub_status?: string;
           }) => ({
             timestamp: new Date(event.track_time * 1000),
             location: event.location,
@@ -242,7 +280,7 @@ export async function getTrackingFromShopifyOrder(
   return {
     trackingNumber: tracking.number,
     carrier: tracking.company || "unknown",
-    status: "InTransit",
+    status: "in_transit", // 使用标准格式，而不是 "InTransit"
     events: [],
   };
 }

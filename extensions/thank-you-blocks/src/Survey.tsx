@@ -1,4 +1,4 @@
-import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, } from "@shopify/ui-extensions-react/checkout";
+import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, Banner, } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
 import { createLogger } from "./logger";
@@ -23,6 +23,7 @@ const Survey = memo(function Survey() {
     const isBackendConfigured = useMemo(() => !!backendUrl, [backendUrl]);
     const shopDomain = useMemo(() => api.shop?.myshopifyDomain || "", [api.shop?.myshopifyDomain]);
     const logger = useMemo(() => createLogger(shopDomain, "[Survey]"), [shopDomain]);
+    const [backendUrlError, setBackendUrlError] = useState(false);
 
     useEffect(() => {
         async function fetchOrderAndCheckoutInfo() {
@@ -82,9 +83,11 @@ const Survey = memo(function Survey() {
         // 安全检查：确保 backendUrl 是允许的域名，防止 token 外泄
         if (!backendUrl || !isAllowedBackendUrl(backendUrl)) {
             logger.warn("Backend URL not configured or not allowed, cannot submit survey");
+            setBackendUrlError(true);
             setError("服务暂时不可用，请稍后再试");
             return;
         }
+        setBackendUrlError(false);
         setSubmitting(true);
         setError(null);
         try {
@@ -157,6 +160,20 @@ const Survey = memo(function Survey() {
         </Text>
       </BlockStack>);
     }
+
+    // 如果后端 URL 配置错误，显示错误提示
+    if (backendUrlError) {
+        return (
+            <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
+                <Banner status="critical">
+                    <Text size="small">
+                        ⚠️ 反馈服务配置错误，请联系商家
+                    </Text>
+                </Banner>
+            </BlockStack>
+        );
+    }
+
     return (<BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
       <Text size="medium" emphasis="bold">
         {title}

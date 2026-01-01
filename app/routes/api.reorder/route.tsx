@@ -7,6 +7,7 @@ import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor } from "../../middleware/rate-limit";
 import { withConditionalCache, createUrlCacheKey } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
+import prisma from "../../db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -169,27 +170,54 @@ async function loaderImpl(request: Request) {
 
     const lineItems = orderData.data.order.lineItems.edges || [];
     
-    if (lineItems.length === 0) {
-      return jsonWithCors({ reorderUrl: "/cart" }, { request, staticCors: true });
-    }
+    // 构建相对路径
+    const relativeUrl = (() => {
+      if (lineItems.length === 0) {
+        return "/cart";
+      }
+      
+      const items = lineItems
+        .map((edge: { node: { variant: { id: string }; quantity: number } }) => {
+          const variantId = edge.node.variant?.id || "";
+          const numericId = variantId.split("/").pop() || "";
+          return `${numericId}:${edge.node.quantity}`;
+        })
+        .filter((item: string) => item && !item.startsWith(":"))
+        .join(",");
 
-    // 构建重新购买 URL
-    const items = lineItems
-      .map((edge: { node: { variant: { id: string }; quantity: number } }) => {
-        const variantId = edge.node.variant?.id || "";
-        const numericId = variantId.split("/").pop() || "";
-        return `${numericId}:${edge.node.quantity}`;
-      })
-      .filter((item: string) => item && !item.startsWith(":"))
-      .join(",");
-
-    const relativeUrl = items ? `/cart/${items}` : "/cart";
+      return items ? `/cart/${items}` : "/cart";
+    })();
     
-    // 返回绝对 URL：基于 shop 域名拼接（避免相对路径在不同域下不一致的问题）
-    // 注意：这里我们无法直接获取 storefront URL，所以返回相对路径
-    // 客户端（扩展）应该使用 storefrontUrl 拼接成绝对 URL
-    // 但为了兼容性，我们也返回相对路径，让客户端处理
-    const reorderUrl = relativeUrl;
+    // 尝试获取 shop 的 primaryDomain 或 storefrontDomains，用于构建绝对 URL
+    // 优先使用 primaryDomain，如果没有则回退到相对路径（客户端会使用 storefrontUrl 拼接）
+    let reorderUrl = relativeUrl;
+    try {
+      const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: { primaryDomain: true, storefrontDomains: true },
+      });
+      
+      if (shop?.primaryDomain) {
+        // 使用 primaryDomain 构建绝对 URL
+        const baseUrl = shop.primaryDomain.startsWith("http") 
+          ? shop.primaryDomain 
+          : `https://${shop.primaryDomain}`;
+        reorderUrl = `${baseUrl}${relativeUrl}`;
+      } else if (shop?.storefrontDomains && shop.storefrontDomains.length > 0) {
+        // 如果没有 primaryDomain，使用第一个 storefrontDomain
+        const baseUrl = shop.storefrontDomains[0].startsWith("http")
+          ? shop.storefrontDomains[0]
+          : `https://${shop.storefrontDomains[0]}`;
+        reorderUrl = `${baseUrl}${relativeUrl}`;
+      }
+      // 如果都没有，保持相对路径，让客户端使用 storefrontUrl 拼接
+    } catch (error) {
+      // 查询 shop 失败时，回退到相对路径
+      logger.warn("Failed to fetch shop domain for reorder URL, using relative path", {
+        shopDomain,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     return jsonWithCors({ reorderUrl }, { request, staticCors: true });
   } catch (error) {
