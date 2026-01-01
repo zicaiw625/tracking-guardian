@@ -67,7 +67,8 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 4096,
-    sourcemap: true, // 启用 source maps 用于定位问题
+    // 只在开发环境启用 source maps，生产环境禁用以保护源码
+    sourcemap: process.env.NODE_ENV !== "production",
     rollupOptions: {
       external: ["html-pdf-node", "archiver"],
       output: {

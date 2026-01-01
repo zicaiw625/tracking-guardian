@@ -44,7 +44,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_OPTIONS
-        value: "--enable-source-maps --trace-uncaught"
+        value: "--trace-uncaught"  # 生产环境禁用 source maps，移除 --enable-source-maps
       - key: DATABASE_URL
         fromDatabase:
           name: tracking-guardian-db
