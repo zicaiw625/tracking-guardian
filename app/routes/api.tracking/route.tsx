@@ -70,6 +70,7 @@ async function loaderImpl(request: Request) {
     
     let shopDomain: string;
     let admin: Awaited<ReturnType<typeof createAdminClientForShop>> | null = null;
+    let customerGidFromToken: string | null = null;
     
     if (authToken) {
       // 使用 session token 认证（Checkout UI Extension 场景）
@@ -92,7 +93,7 @@ async function loaderImpl(request: Request) {
       shopDomain = jwtResult.shopDomain;
       
       // 获取 JWT payload 中的 sub claim（customer gid），用于后续订单归属验证
-      const customerGidFromToken = jwtResult.payload?.sub || null;
+      customerGidFromToken = jwtResult.payload?.sub || null;
       
       // 使用离线 token 创建 Admin Client（不依赖 authenticate.admin）
       admin = await createAdminClientForShop(shopDomain);
@@ -145,11 +146,13 @@ async function loaderImpl(request: Request) {
               customer {
                 id
               }
-              fulfillments {
-                trackingInfo {
-                  number
-                  company
-                  url
+              fulfillments(first: 10) {
+                nodes {
+                  trackingInfo {
+                    number
+                    company
+                    url
+                  }
                 }
               }
             }
@@ -200,9 +203,9 @@ async function loaderImpl(request: Request) {
           }
           
           // 转换 GraphQL 返回的 fulfillments 格式为 getTrackingFromShopifyOrder 期望的格式
-          // GraphQL 返回: fulfillments: [{ trackingInfo: {...} }]
+          // GraphQL 返回: fulfillments: { nodes: [{ trackingInfo: {...} }] }
           // 函数期望: fulfillmentTrackingInfo: [{ number, company, url }]
-          const fulfillments = orderData.data.order.fulfillments || [];
+          const fulfillments = orderData.data.order.fulfillments?.nodes || [];
           const fulfillmentTrackingInfo = fulfillments
             .map((f: { trackingInfo?: { number: string; company: string; url?: string } }) => f.trackingInfo)
             .filter((ti: { number: string; company: string; url?: string } | undefined): ti is { number: string; company: string; url?: string } => !!ti);

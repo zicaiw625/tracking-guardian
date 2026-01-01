@@ -27,6 +27,14 @@ export interface TrackingProviderConfig {
 
 /**
  * 将第三方提供商的状态映射到前端期望的标准格式
+ * 
+ * 标准状态格式（统一规范）：
+ * - pending: 待处理/信息已接收
+ * - pending_fulfillment: 暂未生成物流信息（仅在API响应中使用）
+ * - in_transit: 运输中/派送中
+ * - delivered: 已送达
+ * - exception: 异常/失败/过期
+ * 
  * 前端期望：pending/pending_fulfillment, in_transit, delivered
  */
 function normalizeTrackingStatus(status: string): string {
@@ -63,7 +71,7 @@ function normalizeTrackingStatus(status: string): string {
 
 export class AfterShipTracker {
   private apiKey: string;
-  private baseUrl = "https://api.aftership.com";
+  private baseUrl = "https://api.aftership.com/tracking/2025-07";
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -71,14 +79,18 @@ export class AfterShipTracker {
 
   async getTracking(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
     try {
-      const url = carrier
-        ? `${this.baseUrl}/trackings/${carrier}/${trackingNumber}`
-        : `${this.baseUrl}/trackings/${trackingNumber}`;
+      // 使用新版 API：GET /trackings 通过查询参数过滤
+      // 支持按 tracking_numbers 查询，一次可以查询多个
+      const url = new URL(`${this.baseUrl}/trackings`);
+      url.searchParams.append("tracking_numbers", trackingNumber);
+      if (carrier) {
+        url.searchParams.append("slug", carrier);
+      }
 
-      const response = await fetch(url, {
+      const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
-          "aftership-api-key": this.apiKey,
+          "as-api-key": this.apiKey,
           "Content-Type": "application/json",
         },
       });
@@ -91,7 +103,12 @@ export class AfterShipTracker {
       }
 
       const data = await response.json();
-      const tracking = data.data.tracking;
+      // 新版 API 返回格式：{ data: { trackings: [...] } }
+      const trackings = data.data?.trackings || [];
+      if (trackings.length === 0) {
+        return null;
+      }
+      const tracking = trackings[0];
 
       return {
         trackingNumber: tracking.tracking_number,
@@ -131,7 +148,7 @@ export class AfterShipTracker {
       const response = await fetch(`${this.baseUrl}/trackings`, {
         method: "POST",
         headers: {
-          "aftership-api-key": this.apiKey,
+          "as-api-key": this.apiKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -156,7 +173,7 @@ export class AfterShipTracker {
 
 export class SeventeenTrackTracker {
   private apiKey: string;
-  private baseUrl = "https://api.17track.net";
+  private baseUrl = "https://api.17track.net/track/v2.2";
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -164,16 +181,19 @@ export class SeventeenTrackTracker {
 
   async getTracking(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
     try {
+      // 17TRACK v2.2 API：body 是数组格式，一次最多 40 个
       const response = await fetch(`${this.baseUrl}/gettrackinfo`, {
         method: "POST",
         headers: {
           "17token": this.apiKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          number: trackingNumber,
-          carrier: carrier || "",
-        }),
+        body: JSON.stringify([
+          {
+            number: trackingNumber,
+            carrier: carrier || "",
+          },
+        ]),
       });
 
       if (!response.ok) {
@@ -184,7 +204,8 @@ export class SeventeenTrackTracker {
       }
 
       const data = await response.json();
-      if (data.code !== 200 || !data.data?.accepted || data.data.accepted.length === 0) {
+      // 17TRACK v2.2 成功时 code 通常是 0，不是 200
+      if (data.code !== 0 || !data.data?.accepted || data.data.accepted.length === 0) {
         return null;
       }
 
@@ -280,7 +301,8 @@ export async function getTrackingFromShopifyOrder(
   return {
     trackingNumber: tracking.number,
     carrier: tracking.company || "unknown",
-    status: "in_transit", // 使用标准格式，而不是 "InTransit"
+    // 如果有 fulfillment tracking info，说明已发货，使用标准状态格式
+    status: "in_transit", // 标准格式：pending | in_transit | delivered | exception
     events: [],
   };
 }

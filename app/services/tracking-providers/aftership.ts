@@ -73,7 +73,8 @@ export class AfterShipProvider implements ITrackingProvider {
 
   private apiKey: string = "";
   private webhookSecret: string = "";
-  private baseUrl = "https://api.aftership.com";
+  // 使用新版 AfterShip Tracking API (2025-07 version)
+  private baseUrl = "https://api.aftership.com/tracking/2025-07";
 
   async initialize(credentials: TrackingProviderCredentials): Promise<void> {
     this.apiKey = credentials.apiKey;
@@ -88,7 +89,8 @@ export class AfterShipProvider implements ITrackingProvider {
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
-      "aftership-api-key": this.apiKey,
+      // 使用新版 API header: as-api-key (不是 aftership-api-key)
+      "as-api-key": this.apiKey,
       "Content-Type": "application/json",
     };
 
@@ -112,13 +114,43 @@ export class AfterShipProvider implements ITrackingProvider {
     carrier?: string
   ): Promise<TrackingResult | TrackingError> {
     try {
-      let path = `/trackings/${trackingNumber}`;
+      // 使用新版 API：GET /trackings 通过查询参数过滤
+      // 支持按 tracking_numbers 查询，一次可以查询多个
+      const url = new URL(`${this.baseUrl}/trackings`);
+      url.searchParams.append("tracking_numbers", trackingNumber);
       if (carrier) {
-        path = `/trackings/${carrier}/${trackingNumber}`;
+        url.searchParams.append("slug", carrier);
       }
 
-      const data = await this.request<{ tracking: AfterShipTracking }>("GET", path);
-      return this.transformTracking(data.tracking);
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          "as-api-key": this.apiKey,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`AfterShip API error: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as AfterShipApiResponse<{ trackings: AfterShipTracking[] }>;
+      
+      // 新版 API 返回格式：{ data: { trackings: [...] } }
+      if (data.meta.code !== 200 && data.meta.code !== 201) {
+        throw new Error(`AfterShip API error: ${data.meta.message}`);
+      }
+
+      const trackings = data.data?.trackings || [];
+      if (trackings.length === 0) {
+        return {
+          trackingNumber,
+          error: "Tracking not found",
+          errorCode: "AFTERSHIP_NOT_FOUND",
+        };
+      }
+
+      return this.transformTracking(trackings[0]);
     } catch (error) {
       logger.error(`AfterShip getTracking failed for ${trackingNumber}:`, error);
       return {

@@ -27,9 +27,15 @@ export async function fetchTrackingFromAfterShip(
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-    const response = await fetch(`https://api.aftership.com/v4/trackings/${trackingNumber}`, {
+    // 使用新版 AfterShip Tracking API (2025-07 version)
+    // 使用 GET /trackings 通过查询参数过滤，而不是直接访问 /trackings/{number}
+    const url = new URL("https://api.aftership.com/tracking/2025-07/trackings");
+    url.searchParams.append("tracking_numbers", trackingNumber);
+    
+    const response = await fetch(url.toString(), {
       headers: {
-        "aftership-api-key": apiKey,
+        // 使用新版 API header: as-api-key (不是 aftership-api-key)
+        "as-api-key": apiKey,
         "Content-Type": "application/json",
       },
     });
@@ -43,20 +49,21 @@ export async function fetchTrackingFromAfterShip(
     }
 
     const data = await response.json();
-    const tracking = data.data?.tracking;
-
-    if (!tracking) {
+    // 新版 API 返回格式：{ data: { trackings: [...] } }
+    const trackings = data.data?.trackings || [];
+    if (trackings.length === 0) {
       return null;
     }
+    const tracking = trackings[0];
 
     return {
       trackingNumber: tracking.tracking_number || trackingNumber,
-      carrier: tracking.slug || tracking.courier || "unknown",
+      carrier: tracking.slug || "unknown",
       status: mapAfterShipStatus(tracking.tag),
       estimatedDelivery: tracking.expected_delivery
         ? new Date(tracking.expected_delivery)
         : undefined,
-      currentLocation: tracking.location || undefined,
+      currentLocation: undefined, // 新版 API 中 location 在 checkpoints 中
       events: (tracking.checkpoints || []).map((checkpoint: {
         checkpoint_time: string;
         location?: string;
@@ -83,15 +90,19 @@ export async function fetchTrackingFrom17Track(
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
+    // 17TRACK v2.2 API：body 是数组格式，一次最多 40 个
     const response = await fetch(`https://api.17track.net/track/v2.2/gettrackinfo`, {
       method: "POST",
       headers: {
         "17token": apiKey,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        numbers: [trackingNumber],
-      }),
+      body: JSON.stringify([
+        {
+          number: trackingNumber,
+          carrier: "",
+        },
+      ]),
     });
 
     if (!response.ok) {
@@ -103,30 +114,37 @@ export async function fetchTrackingFrom17Track(
     }
 
     const data = await response.json();
-    const track = data.data?.accepted?.[0];
+    // 17TRACK v2.2 成功时 code 通常是 0，不是 200
+    if (data.code !== 0 || !data.data?.accepted || data.data.accepted.length === 0) {
+      return null;
+    }
 
-    if (!track) {
+    const track = data.data.accepted[0];
+    const trackInfo = data.data.track?.[track.number];
+
+    if (!trackInfo) {
       return null;
     }
 
     return {
       trackingNumber: track.number || trackingNumber,
       carrier: track.carrier || "unknown",
-      status: map17TrackStatus(track.latest_status),
-      estimatedDelivery: track.latest_checkpoint_time
-        ? new Date(track.latest_checkpoint_time)
+      status: map17TrackStatus(trackInfo.latest_status?.status || "Unknown"),
+      estimatedDelivery: trackInfo.latest_status?.sub_status_time
+        ? new Date(trackInfo.latest_status.sub_status_time * 1000)
         : undefined,
-      currentLocation: track.latest_checkpoint_location || undefined,
-      events: (track.trackings || []).map((event: {
-        checkpoint_time: string;
+      currentLocation: undefined, // 17track API 中 location 在 track_detail 中
+      events: (trackInfo.track_detail || []).map((event: {
+        track_time: number;
         location?: string;
-        checkpoint_status?: string;
-        tag?: string;
+        track_detail?: string;
+        status?: string;
+        sub_status?: string;
       }) => ({
-        timestamp: new Date(event.checkpoint_time),
+        timestamp: new Date(event.track_time * 1000),
         location: event.location || undefined,
-        description: event.checkpoint_status || "",
-        status: event.tag || "unknown",
+        description: event.track_detail || "",
+        status: event.sub_status || "unknown",
       })),
     };
   } catch (error) {
