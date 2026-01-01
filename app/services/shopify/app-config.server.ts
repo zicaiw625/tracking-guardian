@@ -31,24 +31,35 @@ try {
 const baseSessionStorage = new PrismaSessionStorage(prisma);
 const encryptedSessionStorage = createEncryptedSessionStorage(baseSessionStorage);
 
-// 验证并获取 appUrl
+// 验证并获取必需的环境变量
+const apiKey = process.env.SHOPIFY_API_KEY;
+const apiSecretKey = process.env.SHOPIFY_API_SECRET;
 const appUrl = process.env.SHOPIFY_APP_URL?.trim();
-if (!appUrl || appUrl === "") {
-  const error = new Error(
-    "SHOPIFY_APP_URL environment variable is required. Please set it in your environment variables."
-  );
-  logger.error("[Shopify App Config] Missing required environment variable", error);
-  if (process.env.NODE_ENV === "production") {
-    throw error;
+
+// 在生产环境中，所有必需的环境变量都必须存在
+if (process.env.NODE_ENV === "production") {
+  if (!apiKey) {
+    throw new Error("SHOPIFY_API_KEY environment variable is required in production");
   }
-  // 在开发环境中，使用一个默认值以避免立即崩溃
-  logger.warn("[Shopify App Config] Using fallback URL in development mode");
+  if (!apiSecretKey) {
+    throw new Error("SHOPIFY_API_SECRET environment variable is required in production");
+  }
+  if (!appUrl || appUrl === "") {
+    throw new Error("SHOPIFY_APP_URL environment variable is required in production");
+  }
+}
+
+// 验证并获取 appUrl
+let finalAppUrl: string;
+if (!appUrl || appUrl === "") {
+  logger.warn("[Shopify App Config] SHOPIFY_APP_URL not set, using fallback URL");
+  finalAppUrl = "http://localhost:3000";
+} else {
+  finalAppUrl = appUrl;
 }
 
 // 确保 appUrl 是有效的 URL
-const finalAppUrl = (appUrl && appUrl !== "") ? appUrl : "http://localhost:3000";
 try {
-  // 验证 URL 格式
   new URL(finalAppUrl);
 } catch (urlError) {
   const error = new Error(
@@ -58,11 +69,17 @@ try {
   if (process.env.NODE_ENV === "production") {
     throw error;
   }
+  // 在开发环境中，使用默认值
+  finalAppUrl = "http://localhost:3000";
 }
 
+// 确保 apiKey 和 apiSecretKey 有值（即使是空字符串，也要确保不是 undefined）
+const finalApiKey = apiKey || "";
+const finalApiSecretKey = apiSecretKey || "";
+
 const shopify = shopifyApp({
-  apiKey: process.env.SHOPIFY_API_KEY,
-  apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
+  apiKey: finalApiKey,
+  apiSecretKey: finalApiSecretKey,
   apiVersion: ApiVersion.July25,
   scopes: process.env.SCOPES?.split(","),
   appUrl: finalAppUrl,
