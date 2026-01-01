@@ -32,8 +32,8 @@ const baseSessionStorage = new PrismaSessionStorage(prisma);
 const encryptedSessionStorage = createEncryptedSessionStorage(baseSessionStorage);
 
 // 验证并获取 appUrl
-const appUrl = process.env.SHOPIFY_APP_URL;
-if (!appUrl) {
+const appUrl = process.env.SHOPIFY_APP_URL?.trim();
+if (!appUrl || appUrl === "") {
   const error = new Error(
     "SHOPIFY_APP_URL environment variable is required. Please set it in your environment variables."
   );
@@ -45,12 +45,27 @@ if (!appUrl) {
   logger.warn("[Shopify App Config] Using fallback URL in development mode");
 }
 
+// 确保 appUrl 是有效的 URL
+const finalAppUrl = (appUrl && appUrl !== "") ? appUrl : "http://localhost:3000";
+try {
+  // 验证 URL 格式
+  new URL(finalAppUrl);
+} catch (urlError) {
+  const error = new Error(
+    `SHOPIFY_APP_URL is not a valid URL: ${finalAppUrl}. Please set a valid URL in your environment variables.`
+  );
+  logger.error("[Shopify App Config] Invalid URL", error);
+  if (process.env.NODE_ENV === "production") {
+    throw error;
+  }
+}
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: ApiVersion.July25,
   scopes: process.env.SCOPES?.split(","),
-  appUrl: appUrl || "http://localhost:3000",
+  appUrl: finalAppUrl,
   authPathPrefix: "/auth",
   sessionStorage: encryptedSessionStorage,
   distribution: AppDistribution.AppStore,
