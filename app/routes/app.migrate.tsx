@@ -1028,6 +1028,12 @@ export default function MigratePage() {
                         检测到您的店铺尚未完全启用 Checkout Extensibility（Thank You / Order Status 页面）。
                         Shopify 将于 2025 年 8 月 28 日起停止支持旧版脚本。
                       </Text>
+                      <Text as="p" tone="subdued" variant="bodySm">
+                        <strong>重要提示：</strong>旧版脚本（script tags、additional scripts、checkout.liquid）在 Thank you / Order status 页面将被替换/弃用，且有明确的关停日期。升级后，这些脚本将无法正常工作。
+                      </Text>
+                      <Text as="p" tone="subdued" variant="bodySm">
+                        <strong>checkout_completed 触发边界：</strong>该事件不一定在 Thank you 页触发。当存在 upsell/post-purchase 时，可能在第一个 upsell 页触发，且 Thank you 页不再触发。若触发页加载失败则完全不触发。建议使用 server-side webhook（orders/paid）作为兜底。
+                      </Text>
                     </BlockStack>
                   </Banner>
 

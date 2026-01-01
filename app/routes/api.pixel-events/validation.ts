@@ -213,7 +213,22 @@ export function validateRequest(body: unknown): ValidationResult {
   };
 }
 
-export function isPrimaryEvent(eventName: string): boolean {
+export function isPrimaryEvent(eventName: string, mode: "purchase_only" | "full_funnel" = "purchase_only"): boolean {
+  if (mode === "full_funnel") {
+    // In full_funnel mode, accept all standard events
+    const fullFunnelEvents = [
+      "checkout_completed",
+      "checkout_started",
+      "checkout_contact_info_submitted",
+      "checkout_shipping_info_submitted",
+      "payment_info_submitted",
+      "page_viewed",
+      "product_added_to_cart",
+      "product_viewed",
+    ];
+    return fullFunnelEvents.includes(eventName);
+  }
+  // In purchase_only mode, only accept checkout_completed
   return eventName === "checkout_completed";
 }
 

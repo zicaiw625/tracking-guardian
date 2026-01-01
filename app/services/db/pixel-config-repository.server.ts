@@ -142,11 +142,16 @@ export async function upsertPixelConfig(
     );
   }
 
+  // P0-04: Support test/live environments - need to specify environment
+  // Default to 'test' for backward compatibility, but should be passed explicitly
+  const environment = input.environment || "test";
+  
   const existingConfig = await prisma.pixelConfig.findUnique({
     where: {
-      shopId_platform: {
+      shopId_platform_environment: {
         shopId,
         platform,
+        environment,
       },
     },
   });
@@ -160,9 +165,10 @@ export async function upsertPixelConfig(
 
   const config = await prisma.pixelConfig.upsert({
     where: {
-      shopId_platform: {
+      shopId_platform_environment: {
         shopId,
         platform,
+        environment,
       },
     },
     create: {
@@ -176,7 +182,7 @@ export async function upsertPixelConfig(
       eventMappings: data.eventMappings ?? undefined,
       isActive: data.isActive ?? true,
       configVersion: 1,
-      environment: "test",
+      environment,
     },
 
     update: {

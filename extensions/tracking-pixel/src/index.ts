@@ -3,7 +3,8 @@
 import { register } from "@shopify/web-pixels-extension";
 import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
 import { createConsentManager, subscribeToConsentChanges } from "./consent";
-import { createEventSender, subscribeToCheckoutCompleted } from "./events";
+import { createEventSender, subscribeToAnalyticsEvents } from "./events";
+import { parsePixelConfig } from "./types";
 import type { PixelSettings, PixelInit, CustomerPrivacyState } from "./types";
 
 register(({ analytics, settings, init, customerPrivacy }: {
@@ -56,5 +57,9 @@ register(({ analytics, settings, init, customerPrivacy }: {
     logger: log,
   });
 
-  subscribeToCheckoutCompleted(analytics, sendToBackend, log);
+  // Parse pixel config to determine mode (purchase_only or full_funnel)
+  const pixelConfig = parsePixelConfig(settings.pixel_config);
+  const mode = pixelConfig.mode || "purchase_only";
+
+  subscribeToAnalyticsEvents(analytics, sendToBackend, log, mode);
 });

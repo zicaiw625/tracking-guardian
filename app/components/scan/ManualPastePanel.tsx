@@ -46,6 +46,14 @@ interface AnalysisResult {
   };
 }
 
+/**
+ * P1-03: 手动粘贴面板 - 支持 Additional Scripts 片段分析
+ * 
+ * 功能：
+ * - 自动检测和分类脚本片段
+ * - 基于 fingerprint 去重（避免重复分析相同脚本）
+ * - 输出分类、风险等级、推荐迁移方式
+ */
 export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelProps) {
   const [scriptContent, setScriptContent] = useState("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -233,6 +241,13 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               </List.Item>
               <List.Item>
                 支持代码高亮和实时分析，输入时自动检测平台
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm" fontWeight="semibold">
+                  P1-03: 智能去重
+                </Text>
+                {" - "}
+                系统会基于脚本内容的 fingerprint 自动去重，避免重复分析相同的脚本片段
               </List.Item>
             </List>
           </BlockStack>

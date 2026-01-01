@@ -95,10 +95,12 @@ export async function createEventNonce(
   shopId: string,
   orderId: string,
   timestamp: number,
-  clientNonce?: string
+  clientNonce?: string,
+  eventType: string = "purchase"
 ): Promise<{ success: boolean; isReplay: boolean }> {
-
-  const nonceValue = clientNonce || `${orderId}:${timestamp}`;
+  // P0-03: Generate unique nonce with event type to prevent replay across different event types
+  // Use client-provided nonce if available, otherwise generate from orderId + timestamp + eventType
+  const nonceValue = clientNonce || `${orderId}:${eventType}:${timestamp}`;
   const nonceExpiresAt = new Date(Date.now() + RETENTION_CONFIG.NONCE_EXPIRY_MS);
 
   try {
@@ -106,14 +108,14 @@ export async function createEventNonce(
       data: {
         shopId,
         nonce: nonceValue,
-        eventType: "purchase",
+        eventType,
         expiresAt: nonceExpiresAt,
       },
     });
     return { success: true, isReplay: false };
   } catch (nonceError) {
     if ((nonceError as { code?: string })?.code === "P2002") {
-      logger.debug(`Replay detected for order ${orderId}, dropping duplicate`);
+      logger.debug(`Replay detected for order ${orderId}, event ${eventType}, dropping duplicate`);
       return { success: false, isReplay: true };
     }
     logger.warn(`Nonce check failed: ${String(nonceError)}`);
@@ -129,7 +131,8 @@ export async function upsertPixelEventReceipt(
   keyValidation: KeyValidationResult,
   trustResult: TrustEvaluationResult,
   usedCheckoutTokenAsFallback: boolean,
-  origin: string | null
+  origin: string | null,
+  eventType: string = "purchase"
 ): Promise<ReceiptCreateResult> {
   const originHost = extractOriginHost(origin);
   const checkoutToken = payload.data.checkoutToken;
@@ -140,13 +143,13 @@ export async function upsertPixelEventReceipt(
         shopId_orderId_eventType: {
           shopId,
           orderId,
-          eventType: "purchase",
+          eventType,
         },
       },
       create: {
         shopId,
         orderId,
-        eventType: "purchase",
+        eventType,
         eventId,
         checkoutToken: checkoutToken || null,
         pixelTimestamp: new Date(payload.timestamp),
@@ -173,7 +176,7 @@ export async function upsertPixelEventReceipt(
     });
     return { success: true, eventId };
   } catch (error) {
-    logger.warn(`Failed to write PixelEventReceipt for order ${orderId}`, {
+    logger.warn(`Failed to write PixelEventReceipt for order ${orderId}, event ${eventType}`, {
       error: String(error),
     });
     return { success: false, eventId };
@@ -295,5 +298,66 @@ export function generatePurchaseEventId(
   shopDomain: string
 ): string {
   return generateEventId(orderId, "purchase", shopDomain);
+}
+
+/**
+ * P1-01: Generate event ID for any event type using unified EventNormalizer
+ * Rule: checkout_token/order_id + event_name + line_hash
+ */
+export function generateEventIdForType(
+  identifier: string,
+  eventType: string,
+  shopDomain: string,
+  checkoutToken?: string | null,
+  items?: Array<{ id: string; quantity: number }>
+): string {
+  // Use new EventNormalizer for unified event ID generation
+  const { generateCanonicalEventId } = require("../../services/event-normalizer.server");
+  return generateCanonicalEventId(
+    identifier,
+    checkoutToken,
+    eventType,
+    shopDomain,
+    items
+  );
+}
+
+/**
+ * P1-01: Generate deduplication key using canonical event format
+ * Rule: checkout_token/order_id + event_name + line_hash
+ */
+export function generateDeduplicationKeyForEvent(
+  orderId: string | null,
+  checkoutToken: string | null,
+  eventName: string,
+  items: Array<{ id: string; quantity: number }>,
+  shopDomain: string
+): string {
+  const { createHash } = require("crypto");
+  
+  // Use order identifier (prefer orderId, fallback to checkoutToken)
+  const identifier = orderId || checkoutToken || "";
+  
+  // Generate items hash (to detect item changes)
+  const itemsHash = items.length > 0
+    ? createHash("sha256")
+        .update(
+          items
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map(item => `${item.id}:${item.quantity}`)
+            .join(","),
+          "utf8"
+        )
+        .digest("hex")
+        .substring(0, 16)
+    : "empty";
+  
+  // Combine: identifier + eventName + itemsHash
+  const keyInput = `${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
+  
+  return createHash("sha256")
+    .update(keyInput, "utf8")
+    .digest("hex")
+    .substring(0, 32);
 }
 

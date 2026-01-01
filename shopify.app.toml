@@ -23,6 +23,16 @@ api_version = "2025-07"
 topics = ["orders/paid"]
 uri = "/webhooks"
 
+# P1-02: Order lifecycle webhooks for verification (refunds, cancellations, updates)
+[[webhooks.subscriptions]]
+topics = ["orders/cancelled", "orders/updated", "refunds/create"]
+uri = "/webhooks"
+
+# P0-01: App lifecycle webhook (required for data cleanup on uninstall)
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/webhooks"
+
 # GDPR compliance webhooks (mandatory)
 [[webhooks.subscriptions]]
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]

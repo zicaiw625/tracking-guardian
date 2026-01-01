@@ -41,6 +41,7 @@ const TestOrderGuide = lazy(() => import("~/components/verification/TestOrderGui
 const ReportShare = lazy(() => import("~/components/verification/ReportShare").then(module => ({ default: module.ReportShare })));
 const ReportComparison = lazy(() => import("~/components/verification/ReportComparison").then(module => ({ default: module.ReportComparison })));
 const ChannelReconciliationChart = lazy(() => import("~/components/verification/ChannelReconciliationChart").then(module => ({ default: module.ChannelReconciliationChart })));
+import { CheckoutExtensibilityWarning } from "~/components/verification/CheckoutExtensibilityWarning";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -445,7 +446,9 @@ export default function VerificationPage() {
       ]}
     >
       <BlockStack gap="500">
-        {}
+        {/* P0-05: Checkout Extensibility 风险提示 */}
+        <CheckoutExtensibilityWarning />
+        
         {configuredPlatforms.length === 0 && (
           <Banner
             title="未配置服务端追踪"

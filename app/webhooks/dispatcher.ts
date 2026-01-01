@@ -8,9 +8,17 @@ import {
   handleCustomersDataRequest,
   handleCustomersRedact,
   handleShopRedact,
+  handleOrdersCancelled,
+  handleOrdersUpdated,
+  handleRefundsCreate,
 } from "./handlers";
 import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
+
+// Convert Shopify webhook topic format (e.g., "orders/paid") to handler key (e.g., "ORDERS_PAID")
+function normalizeTopic(topic: string): string {
+  return topic.toUpperCase().replace(/\//g, "_");
+}
 
 const WEBHOOK_HANDLERS: Record<
   string,
@@ -24,6 +32,10 @@ const WEBHOOK_HANDLERS: Record<
   CUSTOMERS_DATA_REQUEST: (ctx) => handleCustomersDataRequest(ctx),
   CUSTOMERS_REDACT: (ctx) => handleCustomersRedact(ctx),
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
+  // P1-02: Order lifecycle webhooks for verification
+  ORDERS_CANCELLED: handleOrdersCancelled,
+  ORDERS_UPDATED: handleOrdersUpdated,
+  REFUNDS_CREATE: handleRefundsCreate,
 };
 
 const GDPR_TOPICS = new Set([
@@ -47,12 +59,13 @@ export async function dispatchWebhook(
     }
   }
 
-  if (!context.admin && !GDPR_TOPICS.has(topic)) {
+  if (!context.admin && !GDPR_TOPICS.has(normalizeTopic(topic))) {
     logger.info(`Webhook ${topic} received for uninstalled shop ${shop}`);
     return new Response("OK", { status: 200 });
   }
 
-  const handler = WEBHOOK_HANDLERS[topic];
+  const normalizedTopic = normalizeTopic(topic);
+  const handler = WEBHOOK_HANDLERS[normalizedTopic];
 
   if (!handler) {
     logger.warn(

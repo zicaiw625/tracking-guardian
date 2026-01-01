@@ -226,6 +226,44 @@ export async function updateUiModuleConfig(
   options?: { syncToExtension?: boolean; admin?: AdminApiContext }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // P1-04: 使用统一的 schema 验证
+    const { validateModuleSettings, validateDisplayRules, validateLocalizationSettings } = await import("../schemas/ui-module-settings");
+
+    // 验证设置
+    if (config.settings) {
+      const settingsValidation = validateModuleSettings(moduleKey, config.settings);
+      if (!settingsValidation.valid) {
+        return {
+          success: false,
+          error: `设置验证失败: ${settingsValidation.errors.join(", ")}`,
+        };
+      }
+      config.settings = settingsValidation.normalized;
+    }
+
+    // 验证显示规则
+    if (config.displayRules) {
+      const displayRulesValidation = validateDisplayRules(config.displayRules);
+      if (!displayRulesValidation.valid) {
+        return {
+          success: false,
+          error: `显示规则验证失败: ${displayRulesValidation.errors.join(", ")}`,
+        };
+      }
+      config.displayRules = displayRulesValidation.normalized;
+    }
+
+    // 验证本地化设置
+    if (config.localization) {
+      const localizationValidation = validateLocalizationSettings(config.localization);
+      if (!localizationValidation.valid) {
+        return {
+          success: false,
+          error: `本地化设置验证失败: ${localizationValidation.errors.join(", ")}`,
+        };
+      }
+      config.localization = localizationValidation.normalized;
+    }
 
     if (config.isEnabled) {
       const canUse = await canUseModule(shopId, moduleKey);

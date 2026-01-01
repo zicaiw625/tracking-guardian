@@ -836,6 +836,18 @@ export function generateScanReportHtml(data: ScanReportData): string {
     <p><strong>ScriptTags 数量:</strong> ${data.scriptTagsCount}</p>
   </div>
 
+  <!-- P0-05: Checkout Extensibility 风险提示 -->
+  <div style="background: #fff4e6; border-left: 4px solid #ff9800; padding: 20px; margin: 20px 0; border-radius: 4px;">
+    <h2 style="color: #e65100; margin-top: 0;">⚠️ 重要提示：Checkout Extensibility 迁移边界情况</h2>
+    <p style="margin: 10px 0;"><strong>为确保数据不断档，请注意以下边界情况：</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+      <li style="margin: 8px 0;"><strong>旧脚本弃用时间线：</strong> Thank you / Order status 页面的旧方式（script tags / additional scripts / checkout.liquid）已被 Checkout Extensibility 替换，且有明确的关停日期。请确保在关停前完成迁移。</li>
+      <li style="margin: 8px 0;"><strong>checkout_completed 触发位置：</strong> 该事件不一定在 Thank you 页触发。当存在 upsell / post-purchase 时，可能在第一个 upsell 页触发，且 Thank you 页不再触发。若触发页加载失败则完全不触发。建议使用 server-side webhook（orders/paid）作为兜底。</li>
+      <li style="margin: 8px 0;"><strong>Web Pixel 隐私与 consent：</strong> 在需要 consent 的地区，回调会在 consent 后执行，之前注册的事件会 replay。请确保您的迁移方案能正确处理 consent 状态变化。</li>
+    </ul>
+    <p style="margin: 10px 0; font-style: italic; color: #666;">💡 <strong>建议：</strong> 在验收测试中，请特别关注 upsell 场景和 consent 变化场景，并验证 server-side webhook 兜底机制是否正常工作。</p>
+  </div>
+
   <h2>📊 迁移清单统计</h2>
   <div class="summary-grid">
     <div class="summary-card">

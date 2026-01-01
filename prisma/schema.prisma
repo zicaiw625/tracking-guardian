@@ -153,10 +153,14 @@ model PixelConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([shopId, platform])
+  // P0-04: Support test/live environments for same platform
+  // Changed from @@unique([shopId, platform]) to allow test/live coexistence
+  @@unique([shopId, platform, environment])
   @@index([shopId])
   @@index([platform])
   @@index([environment])
+  @@index([shopId, environment])
+  @@index([shopId, platform, environment])
 }
 
 model AlertConfig {

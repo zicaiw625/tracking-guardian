@@ -38,9 +38,10 @@ import {
   evaluateTrustLevel,
   createEventNonce,
   upsertPixelEventReceipt,
-
   generatePurchaseEventId,
+  generateEventIdForType,
 } from "./receipt-handler";
+import { validatePixelEventHMAC } from "./hmac-validation";
 
 const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -59,6 +60,7 @@ function isAcceptableContentType(contentType: string | null): boolean {
 async function parseBodyAsJson(request: Request): Promise<{
   success: true;
   data: unknown;
+  bodyText: string;
   bodyLength: number;
 } | {
   success: false;
@@ -72,7 +74,7 @@ async function parseBodyAsJson(request: Request): Promise<{
     }
 
     const data = JSON.parse(bodyText);
-    return { success: true, data, bodyLength: bodyText.length };
+    return { success: true, data, bodyText, bodyLength: bodyText.length };
   } catch {
     return { success: false, error: "invalid_json" };
   }
@@ -182,6 +184,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     const rawBody = parseResult.data;
+    const bodyText = parseResult.bodyText;
 
     const validation = validateRequest(rawBody);
     if (!validation.valid) {
@@ -224,17 +227,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    if (!isPrimaryEvent(payload.eventName)) {
-      logger.debug(`Funnel event received: ${payload.eventName} for ${payload.shopDomain}`);
-      return emptyResponseWithCors(request);
-    }
-
-    const consentResult = checkInitialConsent(payload.consent);
-    if (!consentResult.hasAnyConsent) {
-      logNoConsentDrop(payload.shopDomain, payload.consent);
-      return emptyResponseWithCors(request);
-    }
-
     const shop = await getShopForPixelVerificationWithConfigs(payload.shopDomain);
     if (!shop || !shop.isActive) {
       return jsonWithCors(
@@ -243,7 +235,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
+    // Determine mode from pixel configs (default to purchase_only)
+    // Check if any config has full_funnel mode enabled
     const pixelConfigs = shop.pixelConfigs;
+    const mode = pixelConfigs.some(
+      config => config.clientConfig && 
+      typeof config.clientConfig === 'object' && 
+      'mode' in config.clientConfig && 
+      config.clientConfig.mode === 'full_funnel'
+    ) ? "full_funnel" : "purchase_only";
+
+    // P0-02: Check if event is primary based on mode
+    // In full_funnel mode, accept all standard events; in purchase_only mode, only accept checkout_completed
+    if (!isPrimaryEvent(payload.eventName, mode)) {
+      logger.debug(`Event ${payload.eventName} not accepted for ${payload.shopDomain} (mode: ${mode})`);
+      return emptyResponseWithCors(request);
+    }
+
+    const consentResult = checkInitialConsent(payload.consent);
+    if (!consentResult.hasAnyConsent) {
+      logNoConsentDrop(payload.shopDomain, payload.consent);
+      return emptyResponseWithCors(request);
+    }
 
     const shopAllowedDomains = buildShopAllowedDomains({
       shopDomain: shop.shopDomain,
@@ -291,24 +304,104 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const keyValidation = keyValidationOutcome.result;
 
-    const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
-
-    let matchKeyResult;
-    try {
-      matchKeyResult = generateOrderMatchKey(
-        payload.data.orderId,
-        payload.data.checkoutToken,
-        shop.shopDomain
+    // P0-03: HMAC signature verification (if key matched and secret available)
+    if (keyValidation.matched && shop.ingestionSecret) {
+      const hmacResult = await validatePixelEventHMAC(
+        request,
+        bodyText,
+        shop.ingestionSecret,
+        payload.timestamp,
+        TIMESTAMP_WINDOW_MS
       );
-    } catch (error) {
-      logger.debug(`Match key generation failed for shop ${shop.shopDomain}: ${String(error)}`);
-      return jsonWithCors({ error: "Invalid request" }, { status: 400, request, shopAllowedDomains });
+
+      if (!hmacResult.valid) {
+        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_signature");
+        if (anomalyCheck.shouldBlock) {
+          logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+        }
+        metrics.pixelRejection({
+          shopDomain: shop.shopDomain,
+          reason: "hmac_verification_failed",
+          originType: hmacResult.errorCode || "unknown",
+        });
+        logger.warn(
+          `HMAC verification failed for ${shop.shopDomain}: ${hmacResult.reason}`
+        );
+        return jsonWithCors(
+          { error: "Invalid signature", errorCode: hmacResult.errorCode },
+          { status: 403, request, shopAllowedDomains }
+        );
+      }
+    } else if (!isDevMode() && shop.ingestionSecret) {
+      // In production, require HMAC signature if secret is configured
+      // In dev mode, allow requests without HMAC for testing
+      const signature = request.headers.get("X-Tracking-Guardian-Signature");
+      if (!signature) {
+        logger.warn(`Missing HMAC signature for ${shop.shopDomain} in production`);
+        return jsonWithCors(
+          { error: "Missing signature" },
+          { status: 403, request, shopAllowedDomains }
+        );
+      }
     }
 
-    const { orderId, usedCheckoutTokenAsFallback } = matchKeyResult;
-    const eventId = generatePurchaseEventId(orderId, shop.shopDomain);
+    const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
 
-    const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, "purchase");
+    // P0-02: For full funnel events, handle different event types appropriately
+    const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
+    const isPurchaseEvent = eventType === "purchase";
+
+    // For purchase events, use orderId/checkoutToken matching logic
+    // For other events, use checkoutToken or generate a session-based identifier
+    let matchKeyResult;
+    let orderId: string;
+    let usedCheckoutTokenAsFallback = false;
+    let eventIdentifier: string;
+
+    if (isPurchaseEvent) {
+      try {
+        matchKeyResult = generateOrderMatchKey(
+          payload.data.orderId,
+          payload.data.checkoutToken,
+          shop.shopDomain
+        );
+        orderId = matchKeyResult.orderId;
+        usedCheckoutTokenAsFallback = matchKeyResult.usedCheckoutTokenAsFallback;
+        eventIdentifier = orderId;
+      } catch (error) {
+        logger.debug(`Match key generation failed for shop ${shop.shopDomain}: ${String(error)}`);
+        return jsonWithCors({ error: "Invalid request" }, { status: 400, request, shopAllowedDomains });
+      }
+    } else {
+      // For non-purchase events, use checkoutToken if available, otherwise generate a session identifier
+      const checkoutToken = payload.data.checkoutToken;
+      if (checkoutToken) {
+        orderId = checkoutToken; // Use checkoutToken as the identifier for non-purchase events
+        eventIdentifier = checkoutToken;
+      } else {
+        // Fallback: generate a session-based identifier from timestamp and shop domain
+        orderId = `session_${payload.timestamp}_${shop.shopDomain.replace(/\./g, "_")}`;
+        eventIdentifier = orderId;
+      }
+    }
+
+    // P1-01: Generate event ID using unified EventNormalizer rules
+    // Include items hash for deduplication across client/server
+    const items = payload.data.items as Array<{ id?: string; quantity?: number }> | undefined;
+    const normalizedItems = items?.map(item => ({
+      id: String(item.id || ""),
+      quantity: item.quantity || 1,
+    })).filter(item => item.id);
+    
+    const eventId = generateEventIdForType(
+      eventIdentifier,
+      eventType,
+      shop.shopDomain,
+      payload.data.checkoutToken,
+      normalizedItems
+    );
+
+    const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);
     if (alreadyRecorded) {
       return jsonWithCors(
         {
@@ -332,12 +425,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
+    // P0-03: Create nonce with event type to prevent replay across different event types
     const nonceFromBody = payload.nonce;
     const nonceResult = await createEventNonce(
       shop.id,
       orderId,
       payload.timestamp,
-      nonceFromBody
+      nonceFromBody,
+      eventType
     );
     if (nonceResult.isReplay) {
       metrics.pixelRejection({
@@ -348,6 +443,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request, shopAllowedDomains);
     }
 
+    // P0-02: Store receipt with correct event type
     await upsertPixelEventReceipt(
       shop.id,
       orderId,
@@ -356,7 +452,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       keyValidation,
       trustResult,
       usedCheckoutTokenAsFallback,
-      origin
+      origin,
+      eventType
     );
 
     const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(

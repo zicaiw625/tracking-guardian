@@ -78,6 +78,21 @@ export function VerificationWizard({
 
           <Divider />
 
+          {/* P0-05: Checkout Extensibility 边界情况说明 */}
+          <Banner tone="info" title="重要提示：事件触发边界情况">
+            <BlockStack gap="200">
+              <Text variant="bodySm" as="p">
+                <strong>checkout_completed 事件触发位置：</strong>在有 upsell/post-purchase 时，该事件可能在第一个 upsell 页触发，而不是在 Thank you 页。如果触发页加载失败，则可能完全不触发。
+              </Text>
+              <Text variant="bodySm" as="p">
+                <strong>建议：</strong>我们已配置 server-side webhook（orders/paid）作为兜底策略，确保即使 pixel 事件未触发，转化数据仍能正常发送。
+              </Text>
+              <Text variant="bodySm" as="p">
+                <strong>Web Pixel 隐私与 consent：</strong>在需要 consent 的地区，回调会在 consent 后执行，之前注册的事件会 replay。
+              </Text>
+            </BlockStack>
+          </Banner>
+
           <BlockStack gap="300">
             <Text variant="headingSm" as="h3">
               测试清单

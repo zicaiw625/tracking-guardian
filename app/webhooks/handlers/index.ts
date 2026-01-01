@@ -7,4 +7,9 @@ export {
   handleCustomersRedact,
   handleShopRedact,
 } from "./gdpr.handler";
+export {
+  handleOrdersCancelled,
+  handleOrdersUpdated,
+  handleRefundsCreate,
+} from "./orders-lifecycle.handler";
 

@@ -869,6 +869,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     completeness: true,
     shopify: true,
     errors: true,
+    mapping: false, // P1-01: 事件映射可视化默认收起
   });
 
   const toggleSection = useCallback((section: string) => {
