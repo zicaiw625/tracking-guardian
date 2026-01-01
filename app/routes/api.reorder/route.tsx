@@ -78,8 +78,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const orderData = await orderResponse.json();
     
     if (!orderData.data?.order) {
+      // 安全说明：
+      // 1. Shopify Admin API 会自动限制只能查询该 shop 的订单
+      // 2. 如果订单不存在或不属于该 shop，Admin API 会返回 null
+      // 3. 这提供了基础的订单归属保护，防止跨 shop 访问订单
+      // 4. 如果需要更严格的验证，可以考虑使用 JWT payload 中的 sub claim（customer gid）来验证订单归属
+      // 5. 当前实现只返回 cart URL，不返回订单细节，进一步降低了信息泄露风险
+      logger.info(`Order not found or access denied for orderId: ${orderId}, shop: ${shopDomain}`);
       return jsonWithCors({ error: "Order not found" }, { status: 404, request, staticCors: true });
     }
+    
+    // 记录订单访问日志（用于安全审计）
+    logger.info(`Reorder URL requested for orderId: ${orderId}, shop: ${shopDomain}`);
 
     const lineItems = orderData.data.order.lineItems.edges || [];
     

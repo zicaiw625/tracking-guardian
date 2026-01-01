@@ -94,6 +94,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       | undefined;
 
     let trackingInfo = null;
+    let trackingNumberFromShopify: string | null = null;
+    
+    // 先尝试从 Shopify 订单中获取物流信息
     if (admin) {
       try {
         const orderResponse = await admin.graphql(`
@@ -118,6 +121,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const orderData = await orderResponse.json();
         if (orderData.data?.order) {
           trackingInfo = await getTrackingFromShopifyOrder(orderData.data.order);
+          // 保存从 Shopify 获取到的 trackingNumber，用于后续调用第三方
+          trackingNumberFromShopify = trackingInfo?.trackingNumber || null;
+          // 记录订单访问日志（用于安全审计）
+          logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`);
+        } else {
+          // 安全说明：
+          // 1. Shopify Admin API 会自动限制只能查询该 shop 的订单
+          // 2. 如果订单不存在或不属于该 shop，Admin API 会返回 null
+          // 3. 这提供了基础的订单归属保护，防止跨 shop 访问订单
+          // 4. Checkout UI Extension 运行在订单确认页面，用户已能查看自己的订单，风险相对较低
+          // 5. 如果需要更严格的验证，可以考虑使用 JWT payload 中的 sub claim（customer gid）来验证订单归属
+          logger.info(`Order not found or access denied for orderId: ${orderId}, shop: ${shopDomain}`);
         }
       } catch (error) {
         logger.warn("Failed to fetch order from Shopify", {
@@ -127,19 +142,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // 如果从 Shopify 订单中获取到了物流信息，直接返回
-    // 否则，如果有第三方物流提供商配置，尝试从第三方获取
-    if (!trackingInfo && trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumber) {
+    // 如果从 Shopify 获取到了 trackingInfo，且配置了第三方 provider，尝试从第三方获取更详细的信息
+    // 如果没获取到，且有传入的 trackingNumber 或从 Shopify 获取到的 trackingNumber，尝试从第三方获取
+    const trackingNumberToUse = trackingNumberFromShopify || trackingNumber || null;
+    if (trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumberToUse) {
       const config: TrackingProviderConfig = {
         provider: trackingSettings.provider,
         apiKey: trackingSettings.apiKey,
       };
 
-      trackingInfo = await getTrackingInfo(
+      const thirdPartyTracking = await getTrackingInfo(
         config,
-        trackingNumber,
+        trackingNumberToUse,
         trackingSettings.carrier
       );
+      
+      // 如果从第三方获取到了更详细的信息，使用第三方的结果；否则使用 Shopify 的结果
+      if (thirdPartyTracking) {
+        trackingInfo = thirdPartyTracking;
+      }
     }
 
     if (!trackingInfo) {

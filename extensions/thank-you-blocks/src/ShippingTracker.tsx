@@ -29,8 +29,6 @@ const ShippingTracker = memo(function ShippingTracker() {
     const tipText = useMemo(() => (settings.shipping_tip_text as string) ||
         "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。", [settings.shipping_tip_text]);
 
-    const provider = useMemo(() => (settings.tracking_provider as string) || "native", [settings.tracking_provider]);
-
     // 使用 orderConfirmation API 获取订单 ID
     useEffect(() => {
         async function fetchOrderInfo() {
@@ -55,15 +53,17 @@ const ShippingTracker = memo(function ShippingTracker() {
 
     useEffect(() => {
         async function fetchTrackingInfo() {
-            if (provider !== "native" && orderId && BACKEND_URL) {
+            // 始终请求后端，后端会从 Shopify 获取物流信息，并根据配置决定是否调用第三方
+            if (orderId && BACKEND_URL) {
                 setIsLoading(true);
                 try {
                     const token = await api.sessionToken.get();
                     const shopDomain = api.shop?.myshopifyDomain || "";
 
                     if (shopDomain && token) {
-                        // 通过后端 API 获取物流信息（后端会从 Shopify Admin API 获取）
-                        const response = await fetch(`${BACKEND_URL}/api/tracking?orderId=${encodeURIComponent(orderId)}&trackingNumber=`, {
+                        // 通过后端 API 获取物流信息（后端会从 Shopify Admin API 获取，并根据配置调用第三方）
+                        // 只传 orderId，后端会从 Shopify fulfillments 中获取 trackingNumber
+                        const response = await fetch(`${BACKEND_URL}/api/tracking?orderId=${encodeURIComponent(orderId)}`, {
                             headers: {
                                 "Content-Type": "application/json",
                                 "X-Shopify-Shop-Domain": shopDomain,
@@ -92,7 +92,7 @@ const ShippingTracker = memo(function ShippingTracker() {
             }
         }
         fetchTrackingInfo();
-    }, [provider, orderId, api, BACKEND_URL]);
+    }, [orderId, api, BACKEND_URL]);
 
     const shippingSteps = useMemo(() => {
         if (trackingInfo) {
