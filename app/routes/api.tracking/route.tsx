@@ -199,12 +199,28 @@ async function loaderImpl(request: Request) {
             }
           }
           
-          trackingInfo = await getTrackingFromShopifyOrder(orderData.data.order);
-          // 保存从 Shopify 获取到的 trackingNumber，用于后续调用第三方
-          trackingNumberFromShopify = trackingInfo?.trackingNumber || null;
+          // 转换 GraphQL 返回的 fulfillments 格式为 getTrackingFromShopifyOrder 期望的格式
+          // GraphQL 返回: fulfillments: [{ trackingInfo: {...} }]
+          // 函数期望: fulfillmentTrackingInfo: [{ number, company, url }]
+          const fulfillments = orderData.data.order.fulfillments || [];
+          const fulfillmentTrackingInfo = fulfillments
+            .map((f: { trackingInfo?: { number: string; company: string; url?: string } }) => f.trackingInfo)
+            .filter((ti: { number: string; company: string; url?: string } | undefined): ti is { number: string; company: string; url?: string } => !!ti);
+          
+          // 从第一个 fulfillment 的 trackingInfo 中提取 trackingNumber（用于后续第三方 enrich）
+          if (fulfillmentTrackingInfo.length > 0) {
+            trackingNumberFromShopify = fulfillmentTrackingInfo[0].number;
+          }
+          
+          // 调用 getTrackingFromShopifyOrder 获取基础 trackingInfo（可能 events 为空）
+          trackingInfo = await getTrackingFromShopifyOrder({
+            fulfillmentTrackingInfo,
+          });
+          
           // 记录订单访问日志（用于安全审计）
           logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`, {
             hasCustomerVerification: !!customerGidFromToken,
+            hasTrackingNumber: !!trackingNumberFromShopify,
           });
         } else {
           // Shopify 官方明确提到：Thank you 页渲染时订单可能尚未创建，但 order id 已可用
@@ -246,19 +262,37 @@ async function loaderImpl(request: Request) {
         apiKey: trackingSettings.apiKey,
       };
 
-      const thirdPartyTracking = await getTrackingInfo(
-        config,
-        trackingNumberToUse,
-        trackingSettings.carrier
-      );
-      
-      // 如果从第三方获取到了更详细的信息，使用第三方的结果（包含完整 events）
-      // 如果第三方查询失败，回退到 Shopify 的简版信息（至少保证有 tracking number 和基础状态）
-      if (thirdPartyTracking) {
-        trackingInfo = thirdPartyTracking;
+      try {
+        const thirdPartyTracking = await getTrackingInfo(
+          config,
+          trackingNumberToUse,
+          trackingSettings.carrier
+        );
+        
+        // 如果从第三方获取到了更详细的信息，使用第三方的结果（包含完整 events）
+        // 如果第三方查询失败，回退到 Shopify 的简版信息（至少保证有 tracking number 和基础状态）
+        if (thirdPartyTracking) {
+          // 合并 Shopify 和第三方的信息：优先使用第三方的 events 和 status，但保留 Shopify 的 carrier（如果第三方没有）
+          trackingInfo = {
+            ...thirdPartyTracking,
+            // 如果第三方没有 carrier，使用 Shopify 的
+            carrier: thirdPartyTracking.carrier || trackingInfo?.carrier || "unknown",
+            // 如果第三方没有 trackingNumber，使用 Shopify 的（理论上不会发生，但保险起见）
+            trackingNumber: thirdPartyTracking.trackingNumber || trackingInfo?.trackingNumber || trackingNumberToUse,
+          };
+          logger.info(`Third-party tracking enrich successful for orderId: ${orderId}, provider: ${trackingSettings.provider}`);
+        } else {
+          // 第三方查询失败，但至少保留 Shopify 的 trackingInfo（如果有）
+          logger.warn(`Third-party tracking enrich failed for orderId: ${orderId}, provider: ${trackingSettings.provider}, falling back to Shopify data`);
+        }
+      } catch (error) {
+        // 第三方查询异常，回退到 Shopify 数据
+        logger.error(`Third-party tracking enrich error for orderId: ${orderId}`, {
+          error: error instanceof Error ? error.message : String(error),
+          provider: trackingSettings.provider,
+        });
+        // trackingInfo 保持为 Shopify 的简版信息
       }
-      // 注意：如果 thirdPartyTracking 为 null，我们仍然使用之前从 Shopify 获取的 trackingInfo
-      // 这样即使第三方查询失败，用户至少能看到 tracking number 和基础状态
     }
 
     if (!trackingInfo) {

@@ -11,7 +11,6 @@ import {
   useApi,
   Divider,
   Banner,
-  Link,
 } from "@shopify/ui-extensions-react/checkout";
 import { useMemo, memo, useState, useEffect } from "react";
 import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
@@ -217,25 +216,31 @@ const Reorder = memo(function Reorder() {
               点击按钮将跳转到购物车
             </Text>
           </BlockStack>
-          {reorderUrl ? (
-            <Link to={reorderUrl}>
-              <Button 
-                kind="primary" 
-                loading={isLoading}
-                disabled={isLoading}
-              >
-                {buttonText}
-              </Button>
-            </Link>
-          ) : (
-            <Button 
-              kind="primary" 
-              loading={isLoading}
-              disabled={true}
-            >
-              {buttonText}
-            </Button>
-          )}
+          <Button 
+            kind="primary" 
+            loading={isLoading}
+            disabled={isLoading || !reorderUrl}
+            onPress={() => {
+              // 使用 window.location 进行导航（更兼容，避免 Link 包 Button 的兼容性问题）
+              // 如果 window 不可用，尝试使用其他方式
+              if (reorderUrl) {
+                try {
+                  if (typeof window !== "undefined" && window.location) {
+                    window.location.href = reorderUrl;
+                  } else {
+                    // 回退方案：尝试使用 document.location（在某些环境中可用）
+                    if (typeof document !== "undefined" && document.location) {
+                      document.location.href = reorderUrl;
+                    }
+                  }
+                } catch (error) {
+                  console.warn("Failed to navigate to reorder URL:", error);
+                }
+              }
+            }}
+          >
+            {buttonText}
+          </Button>
         </InlineLayout>
       </View>
 

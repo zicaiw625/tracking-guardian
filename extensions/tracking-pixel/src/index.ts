@@ -1,7 +1,7 @@
 
 
 import { register } from "@shopify/web-pixels-extension";
-import { BACKEND_URL } from "../../shared/config";
+import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
 import { createConsentManager, subscribeToConsentChanges } from "./consent";
 import { createEventSender, subscribeToCheckoutCompleted } from "./events";
 import type { PixelSettings, PixelInit, CustomerPrivacyState } from "./types";
@@ -16,7 +16,8 @@ register(({ analytics, settings, init, customerPrivacy }: {
   const ingestionKey = settings.ingestion_key;
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
 
-  const backendUrl = BACKEND_URL;
+  // 安全检查：确保 BACKEND_URL 是允许的域名，防止误配或 token 外泄
+  const backendUrl = BACKEND_URL && isAllowedBackendUrl(BACKEND_URL) ? BACKEND_URL : null;
 
   const isDevMode = (() => {
     if (shopDomain.includes(".myshopify.dev") || /-(dev|staging|test)\./i.test(shopDomain)) {
