@@ -79,30 +79,66 @@ try {
 const finalApiKey = apiKey || "";
 const finalApiSecretKey = apiSecretKey || "";
 
+// 验证所有必需的配置都存在
+if (!finalApiKey || !finalApiSecretKey || !finalAppUrl) {
+  const missing = [];
+  if (!finalApiKey) missing.push("SHOPIFY_API_KEY");
+  if (!finalApiSecretKey) missing.push("SHOPIFY_API_SECRET");
+  if (!finalAppUrl) missing.push("SHOPIFY_APP_URL");
+  
+  const error = new Error(
+    `Missing required Shopify configuration: ${missing.join(", ")}`
+  );
+  logger.error("[Shopify App Config] Missing required configuration", error);
+  
+  if (process.env.NODE_ENV === "production") {
+    throw error;
+  }
+}
+
 // 构建 shopifyApp 配置对象
-const shopify = shopifyApp({
-  apiKey: finalApiKey,
-  apiSecretKey: finalApiSecretKey,
-  apiVersion: ApiVersion.July25,
-  scopes: process.env.SCOPES?.split(","),
-  appUrl: finalAppUrl,
-  authPathPrefix: "/auth",
-  sessionStorage: encryptedSessionStorage,
-  distribution: AppDistribution.AppStore,
-  hooks: {
-    afterAuth: async ({ session, admin }) => {
-      await handleAfterAuth(
-        { session, admin }
-      );
+// 使用 try-catch 来捕获初始化错误
+let shopify;
+try {
+  const config = {
+    apiKey: finalApiKey,
+    apiSecretKey: finalApiSecretKey,
+    apiVersion: ApiVersion.July25,
+    scopes: process.env.SCOPES?.split(",").filter(Boolean),
+    appUrl: finalAppUrl,
+    authPathPrefix: "/auth",
+    sessionStorage: encryptedSessionStorage,
+    distribution: AppDistribution.AppStore,
+    hooks: {
+      afterAuth: async ({ session, admin }: { session: { shop: string; accessToken?: string }; admin?: any }) => {
+        await handleAfterAuth(
+          { session, admin }
+        );
+      },
     },
-  },
-  future: {
-    unstable_newEmbeddedAuthStrategy: true,
-  },
-  ...(process.env.SHOP_CUSTOM_DOMAIN
-    ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
-    : {}),
-});
+    future: {
+      unstable_newEmbeddedAuthStrategy: true,
+    },
+  };
+
+  // 只有在 SHOP_CUSTOM_DOMAIN 存在时才添加
+  if (process.env.SHOP_CUSTOM_DOMAIN) {
+    (config as typeof config & { customShopDomains: string[] }).customShopDomains = [
+      process.env.SHOP_CUSTOM_DOMAIN,
+    ];
+  }
+
+  shopify = shopifyApp(config);
+} catch (error) {
+  logger.error("[Shopify App Config] Failed to initialize shopifyApp", error);
+  if (process.env.NODE_ENV === "production") {
+    throw error;
+  }
+  // 在开发环境中，抛出一个更友好的错误
+  throw new Error(
+    `Failed to initialize Shopify app: ${error instanceof Error ? error.message : String(error)}`
+  );
+}
 
 export default shopify;
 export const apiVersion = ApiVersion.July25;
