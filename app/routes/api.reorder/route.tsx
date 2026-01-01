@@ -43,6 +43,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     const shopDomain = jwtResult.shopDomain;
+    
+    // 获取 JWT payload 中的 sub claim（customer gid），用于后续订单归属验证
+    const customerGidFromToken = jwtResult.payload?.sub || null;
 
     // 使用离线 token 创建 Admin Client（不依赖 authenticate.admin）
     const admin = await createAdminClientForShop(shopDomain);
@@ -52,11 +55,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return jsonWithCors({ error: "Failed to authenticate admin" }, { status: 401, request, staticCors: true });
     }
 
-    // 查询订单的 line items
+    // 查询订单的 line items 和 customer 信息（用于安全验证）
     const orderResponse = await admin.graphql(`
       query GetOrderLineItems($id: ID!) {
         order(id: $id) {
           id
+          customer {
+            id
+          }
           lineItems(first: 250) {
             edges {
               node {
@@ -82,10 +88,30 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // 1. Shopify Admin API 会自动限制只能查询该 shop 的订单
       // 2. 如果订单不存在或不属于该 shop，Admin API 会返回 null
       // 3. 这提供了基础的订单归属保护，防止跨 shop 访问订单
-      // 4. 如果需要更严格的验证，可以考虑使用 JWT payload 中的 sub claim（customer gid）来验证订单归属
-      // 5. 当前实现只返回 cart URL，不返回订单细节，进一步降低了信息泄露风险
       logger.info(`Order not found or access denied for orderId: ${orderId}, shop: ${shopDomain}`);
       return jsonWithCors({ error: "Order not found" }, { status: 404, request, staticCors: true });
+    }
+    
+    // 安全验证：如果 JWT 中有 customer gid（sub claim），验证订单是否属于该 customer
+    // 这提供了更严格的订单归属保护，防止越权访问
+    const orderCustomerId = orderData.data.order.customer?.id || null;
+    if (customerGidFromToken && orderCustomerId) {
+      // 将 customer gid 从 "gid://shopify/Customer/123456" 格式转换为可比较的格式
+      const tokenCustomerId = customerGidFromToken.includes("/") 
+        ? customerGidFromToken.split("/").pop() 
+        : customerGidFromToken;
+      const orderCustomerIdNum = orderCustomerId.includes("/") 
+        ? orderCustomerId.split("/").pop() 
+        : orderCustomerId;
+      
+      // 如果 customer ID 不匹配，拒绝访问
+      if (tokenCustomerId !== orderCustomerIdNum) {
+        logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
+          tokenCustomerId: tokenCustomerId,
+          orderCustomerId: orderCustomerIdNum,
+        });
+        return jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true });
+      }
     }
     
     // 记录订单访问日志（用于安全审计）

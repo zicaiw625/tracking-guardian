@@ -5,6 +5,14 @@ export const SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "X-XSS-Protection": "1; mode=block",
 } as const;
+/**
+ * 静态 CORS headers，用于 Checkout UI Extension 等场景
+ * 
+ * 修复说明（P0-2）：
+ * - Access-Control-Allow-Methods 必须包含 GET, OPTIONS（因为扩展使用 GET 请求）
+ * - Access-Control-Allow-Headers 必须包含 Authorization, Content-Type, X-Shopify-Shop-Domain
+ *   因为扩展的 fetch 请求会带这些自定义 headers，触发 CORS 预检
+ */
 export const STATIC_CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",

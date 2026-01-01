@@ -8,6 +8,7 @@ import {
     InlineLayout,
     View,
     useSettings,
+    useApi,
     Link,
     Divider,
     Banner,
@@ -18,8 +19,14 @@ export default reactExtension("purchase.thank-you.block.render", () => <UpsellOf
 
 const UpsellOffer = memo(function UpsellOffer() {
     const settings = useSettings();
+    const api = useApi();
     const [dismissed, setDismissed] = useState(false);
     const [copied, setCopied] = useState(false);
+
+    const storefrontUrl = useMemo(() => {
+        // 使用 useShop().storefrontUrl 获取商店的完整 URL，避免相对路径在 checkout 域下解析错误
+        return api.shop?.storefrontUrl || "";
+    }, [api.shop?.storefrontUrl]);
 
     const discountCode = useMemo(() => (settings.upsell_discount_code as string) || "THANKYOU10", [settings.upsell_discount_code]);
     const discountPercent = useMemo(() => {
@@ -30,7 +37,15 @@ const UpsellOffer = memo(function UpsellOffer() {
         const expiryHoursStr = settings.upsell_expiry_hours as string;
         return expiryHoursStr ? parseInt(expiryHoursStr, 10) : 24;
     }, [settings.upsell_expiry_hours]);
-    const continueShoppingUrl = useMemo(() => (settings.continue_shopping_url as string) || "/", [settings.continue_shopping_url]);
+    
+    // 构建完整 URL：如果配置的是相对路径，拼接 storefrontUrl；如果是绝对 URL，直接使用
+    const continueShoppingUrl = useMemo(() => {
+        const url = (settings.continue_shopping_url as string) || "/";
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url;
+        }
+        return storefrontUrl ? `${storefrontUrl}${url.startsWith("/") ? url : `/${url}`}` : url;
+    }, [settings.continue_shopping_url, storefrontUrl]);
 
     const handleCopyCode = useCallback(async () => {
         try {

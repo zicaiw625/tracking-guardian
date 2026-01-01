@@ -31,7 +31,19 @@ function UpsellOfferOrderStatus() {
     const discountPercent = discountPercentStr ? parseInt(discountPercentStr, 10) : 10;
     const expiryHoursStr = settings.upsell_expiry_hours as string;
     const expiryHours = expiryHoursStr ? parseInt(expiryHoursStr, 10) : 24;
-    const continueShoppingUrl = (settings.continue_shopping_url as string) || "/";
+    
+    // 注意：Customer Account extensions 运行在 customer account 域下
+    // 相对路径（如 /）会正确解析到 storefront，所以可以直接使用相对路径
+    // 如果需要绝对 URL，可以通过配置项提供 storefrontUrl，但通常相对路径就足够了
+    const continueShoppingUrl = (() => {
+      const url = (settings.continue_shopping_url as string) || "/";
+      // 如果是绝对 URL，直接使用
+      if (url.startsWith("http://") || url.startsWith("https://")) {
+        return url;
+      }
+      // 相对路径在 Customer Account 域下应该能正确解析到 storefront
+      return url;
+    })();
 
     const handleCopyCode = () => {
 

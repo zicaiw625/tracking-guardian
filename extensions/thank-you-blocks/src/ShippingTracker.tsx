@@ -13,7 +13,7 @@ import {
     Button,
 } from "@shopify/ui-extensions-react/checkout";
 import { useMemo, memo, useState, useEffect } from "react";
-import { BACKEND_URL } from "../../shared/config";
+import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
 
 export default reactExtension("purchase.thank-you.block.render", () => <ShippingTracker />);
 
@@ -54,13 +54,18 @@ const ShippingTracker = memo(function ShippingTracker() {
     useEffect(() => {
         async function fetchTrackingInfo() {
             // 始终请求后端，后端会从 Shopify 获取物流信息，并根据配置决定是否调用第三方
-            if (orderId && BACKEND_URL) {
-                setIsLoading(true);
-                try {
-                    const token = await api.sessionToken.get();
-                    const shopDomain = api.shop?.myshopifyDomain || "";
+            // 安全检查：确保 BACKEND_URL 是允许的域名，防止 token 外泄
+            if (!orderId || !BACKEND_URL || !isAllowedBackendUrl(BACKEND_URL)) {
+                console.warn("ShippingTracker: Backend URL not configured or not allowed");
+                return;
+            }
+            
+            setIsLoading(true);
+            try {
+                const token = await api.sessionToken.get();
+                const shopDomain = api.shop?.myshopifyDomain || "";
 
-                    if (shopDomain && token) {
+                if (shopDomain && token) {
                         // 通过后端 API 获取物流信息（后端会从 Shopify Admin API 获取，并根据配置调用第三方）
                         // 只传 orderId，后端会从 Shopify fulfillments 中获取 trackingNumber
                         const response = await fetch(`${BACKEND_URL}/api/tracking?orderId=${encodeURIComponent(orderId)}`, {
@@ -73,11 +78,13 @@ const ShippingTracker = memo(function ShippingTracker() {
 
                         if (response.ok) {
                             const data = await response.json();
+                            // 处理 pending_fulfillment 状态（暂未生成物流信息）
                             if (data.tracking) {
                                 setTrackingInfo({
                                     trackingNumber: data.tracking.trackingNumber,
                                     carrier: data.tracking.carrier,
                                     status: data.tracking.status,
+                                    statusDescription: data.tracking.statusDescription,
                                     estimatedDelivery: data.tracking.estimatedDelivery ? new Date(data.tracking.estimatedDelivery) : undefined,
                                     events: data.tracking.events || [],
                                 });
@@ -96,11 +103,12 @@ const ShippingTracker = memo(function ShippingTracker() {
 
     const shippingSteps = useMemo(() => {
         if (trackingInfo) {
-
             const status = trackingInfo.status;
+            // 处理 pending_fulfillment 状态（暂未生成物流信息）
+            const isPending = status === "pending" || status === "pending_fulfillment";
             return [
                 { id: "ordered", label: "订单已确认", completed: true, date: "已完成" },
-                { id: "processing", label: "处理中", completed: status !== "pending", date: status !== "pending" ? "进行中" : "待处理" },
+                { id: "processing", label: "处理中", completed: !isPending, date: !isPending ? "进行中" : "待处理" },
                 { id: "shipped", label: "已发货", completed: status === "in_transit" || status === "delivered", date: status === "in_transit" || status === "delivered" ? "已发货" : "待发货" },
                 { id: "delivered", label: "已送达", completed: status === "delivered", date: status === "delivered" ? "已送达" : "待送达" },
             ];
@@ -192,9 +200,17 @@ const ShippingTracker = memo(function ShippingTracker() {
                         </Text>
                     </InlineLayout>
                 )}
+                {trackingInfo?.status === "pending_fulfillment" && trackingInfo?.statusDescription && (
+                    <InlineLayout columns={["fill", "auto"]} spacing="base">
+                        <Text size="small" appearance="subdued">
+                            状态说明
+                        </Text>
+                        <Text size="small" emphasis="bold">
+                            {trackingInfo.statusDescription}
+                        </Text>
+                    </InlineLayout>
+                )}
             </BlockStack>
-
-            {}
 
             <View padding="tight" background="subdued" cornerRadius="base">
                 <BlockStack spacing="extraTight">

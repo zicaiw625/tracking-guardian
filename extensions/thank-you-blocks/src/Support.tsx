@@ -7,6 +7,7 @@ import {
   Link,
   View,
   useSettings,
+  useApi,
 } from "@shopify/ui-extensions-react/checkout";
 import { useMemo } from "react";
 
@@ -14,17 +15,39 @@ export default reactExtension("purchase.thank-you.block.render", () => <SupportB
 
 function SupportBlock() {
   const settings = useSettings();
+  const api = useApi();
+
+  const storefrontUrl = useMemo(() => {
+    // 使用 useShop().storefrontUrl 获取商店的完整 URL，避免相对路径在 checkout 域下解析错误
+    return api.shop?.storefrontUrl || "";
+  }, [api.shop?.storefrontUrl]);
 
   const title = useMemo(() => (settings.support_title as string) || "订单帮助与售后", [settings.support_title]);
   const description = useMemo(() =>
     (settings.support_description as string) ||
     "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。", [settings.support_description]);
-  const faqUrl = useMemo(() => (settings.support_faq_url as string) || "/pages/faq", [settings.support_faq_url]);
+  
+  // 构建完整 URL：如果配置的是相对路径，拼接 storefrontUrl；如果是绝对 URL，直接使用
+  const faqUrl = useMemo(() => {
+    const url = (settings.support_faq_url as string) || "/pages/faq";
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    return storefrontUrl ? `${storefrontUrl}${url.startsWith("/") ? url : `/${url}`}` : url;
+  }, [settings.support_faq_url, storefrontUrl]);
+  
   const contactEmail = useMemo(() => settings.support_contact_email as string | undefined, [settings.support_contact_email]);
   const contactUrl = useMemo(() => settings.support_contact_url as string | undefined, [settings.support_contact_url]);
   const whatsappNumber = useMemo(() => settings.support_whatsapp_number as string | undefined, [settings.support_whatsapp_number]);
   const messengerUrl = useMemo(() => settings.support_messenger_url as string | undefined, [settings.support_messenger_url]);
-  const continueShoppingUrl = useMemo(() => (settings.continue_shopping_url as string) || "/", [settings.continue_shopping_url]);
+  
+  const continueShoppingUrl = useMemo(() => {
+    const url = (settings.continue_shopping_url as string) || "/";
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    return storefrontUrl ? `${storefrontUrl}${url.startsWith("/") ? url : `/${url}`}` : url;
+  }, [settings.continue_shopping_url, storefrontUrl]);
 
   const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
   const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : undefined;
@@ -66,7 +89,6 @@ function SupportBlock() {
       </View>
 
       <BlockStack spacing="tight">
-        {}
         {(emailUrl || contactUrl || whatsappUrl || messengerUrl) && (
           <BlockStack spacing="extraTight">
             <Text size="small" appearance="subdued">联系客服：</Text>
@@ -103,7 +125,6 @@ function SupportBlock() {
           </BlockStack>
         )}
 
-        {}
         <Link to={faqUrl}>
           <Button kind="secondary" submit={false}>
             ❓ FAQ / 帮助中心

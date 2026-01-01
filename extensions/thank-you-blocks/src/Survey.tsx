@@ -1,6 +1,6 @@
 import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
-import { BACKEND_URL } from "../../shared/config";
+import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
 import { createLogger } from "./logger";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Survey />);
@@ -79,8 +79,9 @@ const Survey = memo(function Survey() {
             return;
         }
 
-        if (!backendUrl) {
-            logger.warn("Backend URL not configured, cannot submit survey");
+        // 安全检查：确保 backendUrl 是允许的域名，防止 token 外泄
+        if (!backendUrl || !isAllowedBackendUrl(backendUrl)) {
+            logger.warn("Backend URL not configured or not allowed, cannot submit survey");
             setError("服务暂时不可用，请稍后再试");
             return;
         }

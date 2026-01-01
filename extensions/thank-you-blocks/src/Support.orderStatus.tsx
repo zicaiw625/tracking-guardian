@@ -8,6 +8,7 @@ import {
   View,
   useSettings,
 } from "@shopify/ui-extensions-react/customer-account";
+import { useMemo } from "react";
 
 export default reactExtension("customer-account.order-status.block.render", () => <SupportOrderStatus />);
 
@@ -18,12 +19,47 @@ function SupportOrderStatus() {
   const description =
     (settings.support_description as string) ||
     "在这里快速获取物流、售后与常见问题的官方入口。";
-  const faqUrl = (settings.support_faq_url as string) || "/pages/faq";
+  
+  // 构建完整 URL：如果配置的是相对路径，在 Customer Account 域下相对路径应该能正确解析
+  // 但为了安全起见，如果配置的是绝对 URL，直接使用；如果是相对路径，保持原样
+  // 注意：Customer Account extensions 运行在 customer account 域下，相对路径会解析到 storefront
+  const faqUrl = useMemo(() => {
+    const url = (settings.support_faq_url as string) || "/pages/faq";
+    // 如果是绝对 URL（http:// 或 https://），直接使用
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    // 相对路径在 Customer Account 域下应该能正确解析到 storefront
+    return url;
+  }, [settings.support_faq_url]);
+  
   const contactEmail = settings.support_contact_email as string | undefined;
-  const contactUrl = (settings.support_contact_url as string) || (contactEmail ? `mailto:${contactEmail}` : "/pages/contact");
+  const contactUrl = useMemo(() => {
+    const url = (settings.support_contact_url as string) || (contactEmail ? `mailto:${contactEmail}` : "/pages/contact");
+    // mailto: 链接直接使用
+    if (url.startsWith("mailto:")) {
+      return url;
+    }
+    // 如果是绝对 URL，直接使用
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    // 相对路径在 Customer Account 域下应该能正确解析到 storefront
+    return url;
+  }, [settings.support_contact_url, contactEmail]);
+  
   const whatsappNumber = settings.support_whatsapp_number as string | undefined;
   const messengerUrl = settings.support_messenger_url as string | undefined;
-  const continueShoppingUrl = (settings.continue_shopping_url as string) || "/";
+  
+  const continueShoppingUrl = useMemo(() => {
+    const url = (settings.continue_shopping_url as string) || "/";
+    // 如果是绝对 URL，直接使用
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    // 相对路径在 Customer Account 域下应该能正确解析到 storefront
+    return url;
+  }, [settings.continue_shopping_url]);
 
   const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
   const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : undefined;
@@ -65,7 +101,6 @@ function SupportOrderStatus() {
       </View>
 
       <BlockStack spacing="tight">
-        {}
         {(emailUrl || contactUrl || whatsappUrl || messengerUrl) && (
           <BlockStack spacing="extraTight">
             <Text size="small" appearance="subdued">联系客服：</Text>
@@ -102,7 +137,6 @@ function SupportOrderStatus() {
           </BlockStack>
         )}
 
-        {}
         <Link to={faqUrl}>
           <Button kind="secondary" submit={false}>
             ❓ FAQ / 帮助中心

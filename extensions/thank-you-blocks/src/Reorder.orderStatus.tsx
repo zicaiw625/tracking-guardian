@@ -26,6 +26,9 @@ function ReorderOrderStatus() {
   const buttonText = (settings.reorder_button_text as string) || "再次购买 →";
   const showItems = settings.reorder_show_items !== "false";
 
+  // 注意：Customer Account extensions 运行在 customer account 域下
+  // 相对路径（如 /cart）会正确解析到 storefront，所以可以直接使用相对路径
+  // 如果需要绝对 URL，可以通过配置项提供 storefrontUrl，但通常相对路径就足够了
   const generateReorderUrl = (): string => {
     if (!order?.lineItems || order.lineItems.length === 0) {
       return '/cart';
@@ -34,7 +37,6 @@ function ReorderOrderStatus() {
     const items = order.lineItems
       .filter(item => item.quantity > 0)
       .map(item => {
-
         const variantId = item.variant?.id || '';
         const numericId = variantId.split('/').pop() || '';
         return `${numericId}:${item.quantity}`;
@@ -57,7 +59,6 @@ function ReorderOrderStatus() {
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
-      {}
       <BlockStack spacing="extraTight">
         <Text size="medium" emphasis="bold">
           {title}
@@ -69,7 +70,6 @@ function ReorderOrderStatus() {
 
       <Divider />
 
-      {}
       {showItems && order.lineItems.length > 0 && (
         <BlockStack spacing="tight">
           <Text size="small" appearance="subdued">
@@ -77,7 +77,6 @@ function ReorderOrderStatus() {
           </Text>
           {order.lineItems.slice(0, 3).map((item, index) => (
             <InlineLayout key={index} columns={["auto", "fill", "auto"]} spacing="tight" blockAlignment="center">
-              {}
               {item.image?.url && (
                 <View maxInlineSize={40}>
                   <Image
@@ -111,7 +110,6 @@ function ReorderOrderStatus() {
         </BlockStack>
       )}
 
-      {}
       <View padding="tight" background="subdued" cornerRadius="base">
         <InlineLayout columns={["fill", "auto"]} spacing="base" blockAlignment="center">
           <BlockStack spacing="none">
@@ -133,7 +131,6 @@ function ReorderOrderStatus() {
         </InlineLayout>
       </View>
 
-      {}
       <BlockStack spacing="extraTight">
         <InlineLayout columns={["auto", "fill"]} spacing="tight" blockAlignment="center">
           <Text size="small">💡</Text>
