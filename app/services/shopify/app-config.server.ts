@@ -128,16 +128,51 @@ try {
     ];
   }
 
+  // 在调用 shopifyApp 之前，确保所有配置都是有效的
+  logger.info("[Shopify App Config] Initializing shopifyApp", {
+    hasApiKey: !!finalApiKey,
+    hasApiSecretKey: !!finalApiSecretKey,
+    appUrl: finalAppUrl,
+    hasSessionStorage: !!encryptedSessionStorage,
+  });
+
   shopify = shopifyApp(config);
+  
+  // 验证 shopify 对象是否存在
+  if (!shopify) {
+    throw new Error("shopifyApp returned undefined");
+  }
+  
+  logger.info("[Shopify App Config] shopifyApp initialized successfully");
 } catch (error) {
-  logger.error("[Shopify App Config] Failed to initialize shopifyApp", error);
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorStack = error instanceof Error ? error.stack : undefined;
+  
+  logger.error("[Shopify App Config] Failed to initialize shopifyApp", {
+    error: errorMessage,
+    stack: errorStack,
+    config: {
+      hasApiKey: !!finalApiKey,
+      hasApiSecretKey: !!finalApiSecretKey,
+      appUrl: finalAppUrl,
+      hasSessionStorage: !!encryptedSessionStorage,
+    },
+  });
+  
   if (process.env.NODE_ENV === "production") {
     throw error;
   }
   // 在开发环境中，抛出一个更友好的错误
   throw new Error(
-    `Failed to initialize Shopify app: ${error instanceof Error ? error.message : String(error)}`
+    `Failed to initialize Shopify app: ${errorMessage}`
   );
+}
+
+// 确保 shopify 对象存在后再导出
+if (!shopify) {
+  const error = new Error("Shopify app not initialized");
+  logger.error("[Shopify App Config] Shopify app is undefined", error);
+  throw error;
 }
 
 export default shopify;
