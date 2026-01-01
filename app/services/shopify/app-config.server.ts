@@ -181,9 +181,13 @@ export const apiVersion = ApiVersion.July25;
 // 延迟访问 shopify 对象的属性，避免在模块加载时立即访问
 // 使用函数包装来确保在运行时才访问这些属性
 export function addDocumentResponseHeaders(request: Request, headers: Headers): void {
+  if (!shopify?.addDocumentResponseHeaders) {
+    throw new Error("addDocumentResponseHeaders is not available");
+  }
   return shopify.addDocumentResponseHeaders(request, headers);
 }
 
+// 直接导出，但确保它们存在
 export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
