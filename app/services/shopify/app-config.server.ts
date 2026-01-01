@@ -98,7 +98,7 @@ if (!finalApiKey || !finalApiSecretKey || !finalAppUrl) {
 
 // 构建 shopifyApp 配置对象
 // 使用 try-catch 来捕获初始化错误
-let shopify;
+let shopify: ReturnType<typeof shopifyApp>;
 try {
   const config = {
     apiKey: finalApiKey,
@@ -177,7 +177,13 @@ if (!shopify) {
 
 export default shopify;
 export const apiVersion = ApiVersion.July25;
-export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;
+
+// 延迟访问 shopify 对象的属性，避免在模块加载时立即访问
+// 使用函数包装来确保在运行时才访问这些属性
+export function addDocumentResponseHeaders(request: Request, headers: Headers): void {
+  return shopify.addDocumentResponseHeaders(request, headers);
+}
+
 export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
