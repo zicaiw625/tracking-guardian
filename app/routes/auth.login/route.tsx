@@ -5,6 +5,10 @@ import { AppProvider, Card, Page, Text, Banner, BlockStack, } from "@shopify/pol
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import polarisTranslationsEn from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { login } from "../../shopify.server";
+
+// 处理 JSON 导入可能的 default 包装
+const i18nEn = (polarisTranslationsEn as any).default ?? polarisTranslationsEn;
+
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
@@ -17,13 +21,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         return json({
             hasShopParam: true,
             errors: loginResponse,
-            polarisTranslations: polarisTranslationsEn,
+            polarisTranslations: i18nEn,
         });
     }
     return json({
         hasShopParam: false,
         errors: null,
-        polarisTranslations: polarisTranslationsEn,
+        polarisTranslations: i18nEn,
     });
 };
 export default function Auth() {

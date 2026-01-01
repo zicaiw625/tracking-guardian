@@ -9,6 +9,10 @@ import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { authenticate } from "../shopify.server";
 import { ToastProvider } from "../components/ui/ToastProvider";
+
+// 处理 JSON 导入可能的 default 包装
+const i18n = (translations as any).default ?? translations;
+
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     await authenticate.admin(request);
@@ -18,7 +22,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 export default function App() {
     const { apiKey } = useLoaderData<typeof loader>();
-    return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={translations}>
+    return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={i18n}>
       <NavMenu>
         <a href="/app" rel="home">首页</a>
         <a href="/app/scan">扫描报告</a>
@@ -41,7 +45,7 @@ export const headers: HeadersFunction = (headersArgs) => {
 };
 export function ErrorBoundary() {
     return (
-        <PolarisAppProvider i18n={translations}>
+        <PolarisAppProvider i18n={i18n}>
             {boundary.error(useRouteError())}
         </PolarisAppProvider>
     );

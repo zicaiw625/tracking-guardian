@@ -15,6 +15,9 @@ import {
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 
+// 处理 JSON 导入可能的 default 包装
+const i18n = (translations as any).default ?? translations;
+
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -30,7 +33,7 @@ export default function PublicSupportPage() {
   const { contactEmail } = useLoaderData<typeof loader>();
 
   return (
-    <AppProvider i18n={translations}>
+    <AppProvider i18n={i18n}>
       <Page title="Support & FAQ" subtitle="Tracking Guardian Help Center">
         <Layout>
           <Layout.Section>

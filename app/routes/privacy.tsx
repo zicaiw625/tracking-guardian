@@ -14,6 +14,9 @@ import {
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 
+// 处理 JSON 导入可能的 default 包装
+const i18n = (translations as any).default ?? translations;
+
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -27,7 +30,7 @@ export default function PublicPrivacyPolicy() {
   const { lastUpdated, contactEmail } = useLoaderData<typeof loader>();
 
   return (
-    <AppProvider i18n={translations}>
+    <AppProvider i18n={i18n}>
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "2rem" }}>
         <BlockStack gap="500">
           <BlockStack gap="200">

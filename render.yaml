@@ -37,12 +37,14 @@ services:
     plan: free  # 可升级为 starter/standard
     buildCommand: pnpm install --frozen-lockfile && pnpm generate && pnpm db:deploy && pnpm build
     startCommand: pnpm start
-    healthCheckPath: /
+    healthCheckPath: /healthz
     envVars:
       - key: NODE_VERSION
         value: 20
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: "--enable-source-maps --trace-uncaught"
       - key: DATABASE_URL
         fromDatabase:
           name: tracking-guardian-db

@@ -67,6 +67,7 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 4096,
+    sourcemap: true, // 启用 source maps 用于定位问题
     rollupOptions: {
       external: ["html-pdf-node", "archiver"],
       output: {
@@ -91,7 +92,12 @@ export default defineConfig({
     minify: "esbuild",
   },
   ssr: {
-    noExternal: [],
+    // 让这些依赖参与 SSR 打包而不是保持 external，避免 ESM/JSON 导入不一致导致的 undefined
+    noExternal: [
+      "@shopify/polaris",
+      "@shopify/shopify-app-remix",
+      "@shopify/app-bridge-react",
+    ],
     external: ["html-pdf-node", "archiver"],
   },
 }) satisfies UserConfig;
