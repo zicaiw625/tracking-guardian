@@ -4,6 +4,9 @@ import { createAdminClientForShop } from "../../shopify.server";
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
 import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
+import { withRateLimit, pathShopKeyExtractor } from "../../middleware/rate-limit";
+import { withConditionalCache, createUrlCacheKey } from "../../lib/with-cache";
+import { TTL } from "../../utils/cache";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -12,7 +15,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
 };
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+// Rate limit 配置：每个 shop 每分钟最多 60 次请求（避免重复渲染导致暴击）
+const reorderRateLimit = withRateLimit({
+  maxRequests: 60,
+  windowMs: 60 * 1000, // 1 分钟
+  keyExtractor: pathShopKeyExtractor,
+  message: "Too many reorder requests",
+});
+
+// 缓存配置：per shop + per orderId，30 秒 TTL（避免重复查询 Admin API）
+const cachedLoader = withConditionalCache(
+  reorderRateLimit(async ({ request }: LoaderFunctionArgs) => {
+    return await loaderImpl(request);
+  }),
+  {
+    key: (args) => {
+      const url = new URL(args.request.url);
+      const orderId = url.searchParams.get("orderId");
+      const shop = url.searchParams.get("shop") || "unknown";
+      return orderId ? `reorder:${shop}:${orderId}` : null;
+    },
+    ttl: TTL.SHORT, // 30 秒
+    shouldCache: (result) => {
+      // 只缓存成功响应（200），不缓存 202（订单正在生成）或错误响应
+      if (result instanceof Response) {
+        return result.status === 200;
+      }
+      return false;
+    },
+  }
+);
+
+export const loader = cachedLoader;
+
+async function loaderImpl(request: Request) {
   try {
     const url = new URL(request.url);
     const orderId = url.searchParams.get("orderId");
@@ -84,12 +120,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const orderData = await orderResponse.json();
     
     if (!orderData.data?.order) {
-      // 安全说明：
-      // 1. Shopify Admin API 会自动限制只能查询该 shop 的订单
-      // 2. 如果订单不存在或不属于该 shop，Admin API 会返回 null
-      // 3. 这提供了基础的订单归属保护，防止跨 shop 访问订单
-      logger.info(`Order not found or access denied for orderId: ${orderId}, shop: ${shopDomain}`);
-      return jsonWithCors({ error: "Order not found" }, { status: 404, request, staticCors: true });
+      // Shopify 官方明确提到：Thank you 页渲染时订单可能尚未创建，但 order id 已可用
+      // 需要等订单创建完成后再去查 Admin GraphQL，通常要等 1-2 秒再查才稳定
+      // 返回 202 Accepted + Retry-After，让客户端按指示重试
+      logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
+      return jsonWithCors(
+        {
+          success: false,
+          error: "Order not found",
+          message: "订单正在生成，请稍后重试",
+          retryAfter: 2, // 建议 2 秒后重试
+        },
+        {
+          status: 202,
+          request,
+          staticCors: true,
+          headers: {
+            "Retry-After": "2",
+          },
+        }
+      );
     }
     
     // 安全验证：如果 JWT 中有 customer gid（sub claim），验证订单是否属于该 customer
@@ -133,7 +183,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       .filter((item: string) => item && !item.startsWith(":"))
       .join(",");
 
-    const reorderUrl = items ? `/cart/${items}` : "/cart";
+    const relativeUrl = items ? `/cart/${items}` : "/cart";
+    
+    // 返回绝对 URL：基于 shop 域名拼接（避免相对路径在不同域下不一致的问题）
+    // 注意：这里我们无法直接获取 storefront URL，所以返回相对路径
+    // 客户端（扩展）应该使用 storefrontUrl 拼接成绝对 URL
+    // 但为了兼容性，我们也返回相对路径，让客户端处理
+    const reorderUrl = relativeUrl;
 
     return jsonWithCors({ reorderUrl }, { request, staticCors: true });
   } catch (error) {
@@ -142,5 +198,5 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
     return jsonWithCors({ error: "Failed to get reorder URL" }, { status: 500, request, staticCors: true });
   }
-};
+}
 

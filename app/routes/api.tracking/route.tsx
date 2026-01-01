@@ -11,6 +11,9 @@ import type { OrderTrackingSettings } from "../../types/ui-extension";
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
 import { createAdminClientForShop } from "../../shopify.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
+import { withRateLimit, pathShopKeyExtractor } from "../../middleware/rate-limit";
+import { withConditionalCache } from "../../lib/with-cache";
+import { TTL } from "../../utils/cache";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -19,7 +22,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
 };
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+// Rate limit 配置：每个 shop 每分钟最多 60 次请求（避免重复渲染导致暴击）
+const trackingRateLimit = withRateLimit({
+  maxRequests: 60,
+  windowMs: 60 * 1000, // 1 分钟
+  keyExtractor: pathShopKeyExtractor,
+  message: "Too many tracking requests",
+});
+
+// 缓存配置：per shop + per orderId，60 秒 TTL（物流信息变化不频繁）
+const cachedLoader = withConditionalCache(
+  trackingRateLimit(async ({ request }: LoaderFunctionArgs) => {
+    return await loaderImpl(request);
+  }),
+  {
+    key: (args) => {
+      const url = new URL(args.request.url);
+      const orderId = url.searchParams.get("orderId");
+      const shop = url.searchParams.get("shop") || "unknown";
+      return orderId ? `tracking:${shop}:${orderId}` : null;
+    },
+    ttl: TTL.MEDIUM, // 60 秒
+    shouldCache: (result) => {
+      // 只缓存成功响应（200），不缓存 202（订单正在生成）或错误响应
+      if (result instanceof Response) {
+        return result.status === 200;
+      }
+      return false;
+    },
+  }
+);
+
+export const loader = cachedLoader;
+
+async function loaderImpl(request: Request) {
   try {
     const url = new URL(request.url);
     const orderId = url.searchParams.get("orderId");
@@ -171,12 +207,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             hasCustomerVerification: !!customerGidFromToken,
           });
         } else {
-          // 安全说明：
-          // 1. Shopify Admin API 会自动限制只能查询该 shop 的订单
-          // 2. 如果订单不存在或不属于该 shop，Admin API 会返回 null
-          // 3. 这提供了基础的订单归属保护，防止跨 shop 访问订单
-          // 4. 如果 JWT 中有 customer gid，我们会在上面进行更严格的验证
-          logger.info(`Order not found or access denied for orderId: ${orderId}, shop: ${shopDomain}`);
+          // Shopify 官方明确提到：Thank you 页渲染时订单可能尚未创建，但 order id 已可用
+          // 需要等订单创建完成后再去查 Admin GraphQL，通常要等 1-2 秒再查才稳定
+          // 返回 202 Accepted + Retry-After，让客户端按指示重试
+          logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
+          return jsonWithCors(
+            {
+              success: false,
+              error: "Order not found",
+              message: "订单正在生成，请稍后重试",
+              retryAfter: 2, // 建议 2 秒后重试
+            },
+            {
+              status: 202,
+              request,
+              staticCors: true,
+              headers: {
+                "Retry-After": "2",
+              },
+            }
+          );
         }
       } catch (error) {
         logger.warn("Failed to fetch order from Shopify", {
@@ -186,8 +236,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // 如果从 Shopify 获取到了 trackingInfo，且配置了第三方 provider，尝试从第三方获取更详细的信息
-    // 如果没获取到，且有传入的 trackingNumber 或从 Shopify 获取到的 trackingNumber，尝试从第三方获取
+    // 核心逻辑：如果配置了第三方 provider（且不是 native），并且有 tracking number，
+    // 应该用该 tracking number 去第三方 enrich（把 events/status 补全）
+    // 这样即使从 Shopify 获取到了简版 trackingInfo，也能拿到完整的物流节点事件
     const trackingNumberToUse = trackingNumberFromShopify || trackingNumber || null;
     if (trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumberToUse) {
       const config: TrackingProviderConfig = {
@@ -201,10 +252,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         trackingSettings.carrier
       );
       
-      // 如果从第三方获取到了更详细的信息，使用第三方的结果；否则使用 Shopify 的结果
+      // 如果从第三方获取到了更详细的信息，使用第三方的结果（包含完整 events）
+      // 如果第三方查询失败，回退到 Shopify 的简版信息（至少保证有 tracking number 和基础状态）
       if (thirdPartyTracking) {
         trackingInfo = thirdPartyTracking;
       }
+      // 注意：如果 thirdPartyTracking 为 null，我们仍然使用之前从 Shopify 获取的 trackingInfo
+      // 这样即使第三方查询失败，用户至少能看到 tracking number 和基础状态
     }
 
     if (!trackingInfo) {
@@ -248,5 +302,5 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
     return jsonWithCors({ error: "Failed to fetch tracking info" }, { status: 500, request, staticCors: true });
   }
-};
+}
 
