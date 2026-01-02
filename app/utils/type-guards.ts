@@ -5,39 +5,37 @@ import type {
   SlackAlertSettings,
   TelegramAlertSettings,
 } from "~/types";
+import { isObject } from "~/utils/helpers";
 
 export function isEmailAlertSettings(
   value: unknown
 ): value is EmailAlertSettings {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "email" in value &&
-    typeof (value as Record<string, unknown>).email === "string"
-  );
+  if (!isObject(value)) {
+    return false;
+  }
+  return "email" in value && typeof value.email === "string";
 }
 
 export function isSlackAlertSettings(
   value: unknown
 ): value is SlackAlertSettings {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "webhookUrl" in value &&
-    typeof (value as Record<string, unknown>).webhookUrl === "string"
-  );
+  if (!isObject(value)) {
+    return false;
+  }
+  return "webhookUrl" in value && typeof value.webhookUrl === "string";
 }
 
 export function isTelegramAlertSettings(
   value: unknown
 ): value is TelegramAlertSettings {
+  if (!isObject(value)) {
+    return false;
+  }
   return (
-    typeof value === "object" &&
-    value !== null &&
     "botToken" in value &&
     "chatId" in value &&
-    typeof (value as Record<string, unknown>).botToken === "string" &&
-    typeof (value as Record<string, unknown>).chatId === "string"
+    typeof value.botToken === "string" &&
+    typeof value.chatId === "string"
   );
 }
 
@@ -69,38 +67,36 @@ export interface PixelTemplateConfig {
 export function isPixelTemplateConfig(
   value: unknown
 ): value is PixelTemplateConfig {
-  if (typeof value !== "object" || value === null) {
+  if (!isObject(value)) {
     return false;
   }
 
-  const obj = value as Record<string, unknown>;
-
-  if (typeof obj.platform !== "string") {
+  if (typeof value.platform !== "string") {
     return false;
   }
 
   if (
-    "eventMappings" in obj &&
-    obj.eventMappings !== undefined &&
-    (typeof obj.eventMappings !== "object" ||
-      obj.eventMappings === null ||
-      Array.isArray(obj.eventMappings))
+    "eventMappings" in value &&
+    value.eventMappings !== undefined &&
+    (typeof value.eventMappings !== "object" ||
+      value.eventMappings === null ||
+      Array.isArray(value.eventMappings))
   ) {
     return false;
   }
 
   if (
-    "clientSideEnabled" in obj &&
-    obj.clientSideEnabled !== undefined &&
-    typeof obj.clientSideEnabled !== "boolean"
+    "clientSideEnabled" in value &&
+    value.clientSideEnabled !== undefined &&
+    typeof value.clientSideEnabled !== "boolean"
   ) {
     return false;
   }
 
   if (
-    "serverSideEnabled" in obj &&
-    obj.serverSideEnabled !== undefined &&
-    typeof obj.serverSideEnabled !== "boolean"
+    "serverSideEnabled" in value &&
+    value.serverSideEnabled !== undefined &&
+    typeof value.serverSideEnabled !== "boolean"
   ) {
     return false;
   }
@@ -141,7 +137,8 @@ export function isPrismaError(error: unknown): error is Error & PrismaError {
     return false;
   }
 
-  const err = error as Record<string, unknown>;
+  // Error对象本身不是Record类型，但我们可以检查其属性
+  const err = error as Error & { code?: unknown; meta?: unknown };
   return (
     typeof err.code === "string" &&
     (err.meta === undefined || typeof err.meta === "object")

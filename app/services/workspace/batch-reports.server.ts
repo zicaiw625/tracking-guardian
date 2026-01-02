@@ -30,7 +30,6 @@ export async function generateBatchReports(
   options: BatchReportOptions
 ): Promise<BatchReportResult> {
   const jobId = `batch-report-${Date.now()}`;
-  const results: BatchReportResult["results"] = [];
 
   logger.info("Starting batch report generation", {
     jobId,
@@ -39,7 +38,7 @@ export async function generateBatchReports(
     format: options.format,
   });
 
-  const processPromises = options.shopIds.map(async (shopId) => {
+  const processPromises = options.shopIds.map(async (shopId): Promise<BatchReportResult["results"][number]> => {
     try {
       const shop = await prisma.shop.findUnique({
         where: { id: shopId },
@@ -47,35 +46,33 @@ export async function generateBatchReports(
       });
 
       if (!shop) {
-        results.push({
+        return {
           shopId,
           shopDomain: "unknown",
           status: "skipped",
           error: "Shop not found",
-        });
-        return;
+        };
       }
 
       const reportData = await generateVerificationReportData(shopId);
 
       if (!reportData) {
-        results.push({
+        return {
           shopId,
           shopDomain: shop.shopDomain,
           status: "skipped",
           error: "No verification data available",
-        });
-        return;
+        };
       }
 
       const reportUrl = `/api/reports/${shopId}?format=${options.format}`;
 
-      results.push({
+      return {
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
         reportUrl,
-      });
+      };
     } catch (error) {
       logger.error("Failed to generate report in batch", {
         shopId,
@@ -87,16 +84,28 @@ export async function generateBatchReports(
         select: { shopDomain: true },
       });
 
-      results.push({
+      return {
         shopId,
         shopDomain: shop?.shopDomain || "unknown",
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
-      });
+      };
     }
   });
 
-  await Promise.allSettled(processPromises);
+  const settledResults = await Promise.allSettled(processPromises);
+  const results: BatchReportResult["results"] = settledResults.map((result) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    } else {
+      return {
+        shopId: "unknown",
+        shopDomain: "unknown",
+        status: "failed" as const,
+        error: result.reason instanceof Error ? result.reason.message : "Unknown error",
+      };
+    }
+  });
 
   return {
     jobId,

@@ -339,16 +339,35 @@ export function mapEventToPlatform(
 }
 
 function getNestedValue(obj: unknown, path: string): unknown {
-  if (!obj || typeof obj !== "object") {
+  if (!obj || typeof obj !== "object" || obj === null) {
     return undefined;
   }
 
-  const keys = path.split(".");
+  const keys = path.split(".").filter(key => key.length > 0);
+  if (keys.length === 0) {
+    return undefined;
+  }
+
   let current: unknown = obj;
 
   for (const key of keys) {
-    if (current && typeof current === "object" && key in current) {
-      current = (current as Record<string, unknown>)[key];
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    
+    if (typeof current !== "object") {
+      return undefined;
+    }
+
+    // 检查是否是数组，如果是数组则不支持嵌套访问
+    if (Array.isArray(current)) {
+      return undefined;
+    }
+
+    // 使用更安全的类型检查
+    const record = current as Record<string, unknown>;
+    if (key in record) {
+      current = record[key];
     } else {
       return undefined;
     }

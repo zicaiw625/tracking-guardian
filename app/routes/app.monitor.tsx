@@ -125,35 +125,83 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         getMissingParamsStats(shop.id, 24),
         getEventVolumeStats(shop.id),
         checkMonitoringAlerts(shop.id).catch((error) => {
-            logger.warn("Failed to check monitoring alerts", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to check monitoring alerts", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return null;
         }),
         getMissingParamsHistory(shop.id, 7).catch((error) => {
-            logger.warn("Failed to get missing params history", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to get missing params history", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return [];
         }),
         getEventVolumeHistory(shop.id, 7).catch((error) => {
-            logger.warn("Failed to get event volume history", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to get event volume history", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return [];
         }),
         reconcileChannels(shop.id, 24).catch((error) => {
-            logger.warn("Failed to reconcile channels", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to reconcile channels", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return [];
         }),
         analyzeDedupConflicts(shop.id, last24h, new Date()).catch((error) => {
-            logger.warn("Failed to analyze dedup conflicts", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to analyze dedup conflicts", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return null;
         }),
         getMissingParamsRateByEventType(shop.id, 24).catch((error) => {
-            logger.warn("Failed to get missing params rate by event type", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to get missing params rate by event type", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return null;
         }),
         getEventSuccessRateHistory(shop.id, 24).catch((error) => {
-            logger.warn("Failed to get event success rate history", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to get event success rate history", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return { overall: [], byDestination: {}, byEventType: {} };
         }),
         runDiagnostics(shop.id).catch((error) => {
-            logger.warn("Failed to run diagnostics", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to run diagnostics", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return null;
         }),
     ]);

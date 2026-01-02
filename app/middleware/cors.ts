@@ -109,11 +109,11 @@ export function withPixelCors(customHeaders: string[] = []): Middleware {
     origin: (origin) => {
 
       if (!origin) return null;
-      if (origin.startsWith("https:
+      if (origin.startsWith("https://")) {
         return origin;
       }
 
-      if (origin.startsWith("http:
+      if (origin.startsWith("http://")) {
         return null;
       }
       return null;

@@ -93,7 +93,14 @@ export async function startBatchVerification(
     platforms,
     concurrency,
   }).catch((err) => {
-    logger.error(`Batch verification job ${jobId} failed:`, err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    logger.error("Batch verification job failed", err instanceof Error ? err : new Error(String(err)), {
+      jobId,
+      errorMessage,
+      targetShopsCount: targetShops.length,
+      runType,
+      platforms,
+    });
     const failedJob = activeJobs.get(jobId);
     if (failedJob) {
       failedJob.status = "failed";

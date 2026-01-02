@@ -3,12 +3,56 @@
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { canManageMultipleShops, getShopGroupDetails } from "./multi-shop.server";
+import { toInputJsonValue } from "../utils/prisma-json";
 
 export interface PlatformConfig {
   platform: "google" | "meta" | "tiktok" | "pinterest" | "snapchat" | "twitter";
   eventMappings?: Record<string, string>;
   clientSideEnabled?: boolean;
   serverSideEnabled?: boolean;
+}
+
+/**
+ * 安全地将未知类型转换为 PlatformConfig 数组
+ */
+function parsePlatformConfigs(value: unknown): PlatformConfig[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item): PlatformConfig | null => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        return null;
+      }
+
+      const obj = item as Record<string, unknown>;
+      const platform = obj.platform;
+      
+      if (typeof platform !== "string" || 
+          !["google", "meta", "tiktok", "pinterest", "snapchat", "twitter"].includes(platform)) {
+        return null;
+      }
+
+      const config: PlatformConfig = {
+        platform: platform as PlatformConfig["platform"],
+      };
+
+      if (obj.eventMappings && typeof obj.eventMappings === "object" && !Array.isArray(obj.eventMappings)) {
+        config.eventMappings = obj.eventMappings as Record<string, string>;
+      }
+
+      if (typeof obj.clientSideEnabled === "boolean") {
+        config.clientSideEnabled = obj.clientSideEnabled;
+      }
+
+      if (typeof obj.serverSideEnabled === "boolean") {
+        config.serverSideEnabled = obj.serverSideEnabled;
+      }
+
+      return config;
+    })
+    .filter((config): config is PlatformConfig => config !== null);
 }
 
 export interface PixelTemplate {
@@ -80,7 +124,7 @@ export async function createPixelTemplate(
         ownerId,
         name: input.name,
         description: input.description,
-        platforms: input.platforms as unknown as object,
+        platforms: toInputJsonValue(input.platforms),
         isPublic: input.isPublic ?? false,
       },
     });
@@ -92,7 +136,7 @@ export async function createPixelTemplate(
       ownerId: template.ownerId,
       name: template.name,
       description: template.description ?? undefined,
-      platforms: template.platforms as unknown as PlatformConfig[],
+      platforms: parsePlatformConfigs(template.platforms),
       isPublic: template.isPublic,
       usageCount: template.usageCount,
       createdAt: template.createdAt,
@@ -120,7 +164,7 @@ export async function listPixelTemplates(ownerId: string): Promise<PixelTemplate
     ownerId: t.ownerId,
     name: t.name,
     description: t.description ?? undefined,
-    platforms: t.platforms as unknown as PlatformConfig[],
+    platforms: parsePlatformConfigs(t.platforms),
     isPublic: t.isPublic,
     usageCount: t.usageCount,
     createdAt: t.createdAt,
@@ -147,7 +191,7 @@ export async function getPixelTemplate(
     ownerId: template.ownerId,
     name: template.name,
     description: template.description ?? undefined,
-    platforms: template.platforms as unknown as PlatformConfig[],
+    platforms: parsePlatformConfigs(template.platforms),
     isPublic: template.isPublic,
     usageCount: template.usageCount,
     createdAt: template.createdAt,
@@ -174,7 +218,7 @@ export async function updatePixelTemplate(
       data: {
         name: input.name,
         description: input.description,
-        platforms: input.platforms as unknown as object,
+        platforms: toInputJsonValue(input.platforms),
         isPublic: input.isPublic,
       },
     });
@@ -184,7 +228,7 @@ export async function updatePixelTemplate(
       ownerId: updated.ownerId,
       name: updated.name,
       description: updated.description ?? undefined,
-      platforms: updated.platforms as unknown as PlatformConfig[],
+      platforms: parsePlatformConfigs(updated.platforms),
       isPublic: updated.isPublic,
       usageCount: updated.usageCount,
       createdAt: updated.createdAt,

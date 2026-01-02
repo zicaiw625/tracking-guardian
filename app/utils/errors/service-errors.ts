@@ -198,7 +198,14 @@ export class DatabaseError extends ServiceError {
       { query: query.substring(0, 100) }
     );
     if (cause) {
-      return AppError.wrap(cause, ErrorCode.DB_QUERY_ERROR, error.message, error.metadata) as unknown as DatabaseError;
+      const wrapped = AppError.wrap(cause, ErrorCode.DB_QUERY_ERROR, error.message, error.metadata);
+      // 创建一个新的DatabaseError实例，保持类型一致性
+      return new DatabaseError(
+        ErrorCode.DB_QUERY_ERROR,
+        wrapped.message,
+        wrapped.isRetryable,
+        { ...wrapped.metadata, query: query.substring(0, 100) }
+      );
     }
     return error;
   }

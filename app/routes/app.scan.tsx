@@ -102,13 +102,15 @@ function cancelIdleCallbackOrTimeout(handle: number | IdleCallbackHandle | null)
     if (handle === null) return;
 
     if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-
+        // 如果 handle 是 number 类型，说明是 setTimeout 返回的，应该用 clearTimeout
         if (typeof handle === 'number') {
-            cancelIdleCallback(handle as IdleCallbackHandle);
+            clearTimeout(handle);
         } else {
+            // 如果是 IdleCallbackHandle 类型，使用 cancelIdleCallback
             cancelIdleCallback(handle);
         }
     } else {
+        // 不支持 cancelIdleCallback 的环境，统一使用 clearTimeout
         clearTimeout(handle as number);
     }
 }
@@ -194,26 +196,51 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
             let webPixels: Array<{ id: string; settings: string | null }> = [];
             try {
-                webPixels = await getExistingWebPixels(admin);
+                const pixels = await getExistingWebPixels(admin);
+                if (Array.isArray(pixels)) {
+                    webPixels = pixels
+                        .filter((p): p is { id: string; settings: string | null } => {
+                            if (p === null || p === undefined) {
+                                return false;
+                            }
+                            if (typeof p !== "object" || Array.isArray(p)) {
+                                return false;
+                            }
+                            if (!("id" in p)) {
+                                return false;
+                            }
+                            const id = p.id;
+                            if (typeof id !== "string" || id.trim() === "") {
+                                return false;
+                            }
+                            return true;
+                        })
+                        .map(p => ({ 
+                            id: p.id, 
+                            settings: (p.settings !== undefined && typeof p.settings === "string") 
+                                ? p.settings 
+                                : null 
+                        }));
+                }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Unknown error";
                 logger.warn("Failed to fetch web pixels during scan data processing", {
                     shopId: shop.id,
                     error: errorMessage
                 });
-
+                webPixels = [];
             }
 
             const enhancedResult: EnhancedScanResult = {
-                scriptTags,
+                scriptTags: Array.isArray(scriptTags) ? scriptTags : [],
                 checkoutConfig: null,
-                identifiedPlatforms,
-                riskItems,
-                riskScore,
-                webPixels: webPixels.map(p => ({ id: p.id, settings: p.settings })),
+                identifiedPlatforms: Array.isArray(identifiedPlatforms) ? identifiedPlatforms : [],
+                riskItems: Array.isArray(riskItems) ? riskItems : [],
+                riskScore: typeof riskScore === "number" && !isNaN(riskScore) ? riskScore : 0,
+                webPixels,
                 duplicatePixels: [],
                 migrationActions: [],
-                additionalScriptsPatterns,
+                additionalScriptsPatterns: Array.isArray(additionalScriptsPatterns) ? additionalScriptsPatterns : [],
             };
 
             migrationActions = generateMigrationActions(enhancedResult, shopTier);
@@ -266,7 +293,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const sixHoursMs = 6 * 60 * 60 * 1000;
     const lastTypOspCheck = shop.typOspLastCheckedAt || shop.typOspUpdatedAt;
     const isTypOspStale = !lastTypOspCheck ||
-        (Date.now() - lastTypOspCheck.getTime()) > sixHoursMs ||
+        (lastTypOspCheck && (Date.now() - lastTypOspCheck.getTime()) > sixHoursMs) ||
         shop.typOspPagesEnabled === null;
     let typOspPagesEnabled = shop.typOspPagesEnabled;
     let typOspUpdatedAt = lastTypOspCheck;
@@ -301,25 +328,55 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const [migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist] = await Promise.all([
         generateMigrationTimeline(shop.id).catch((error) => {
-            logger.warn("Failed to generate migration timeline", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to generate migration timeline", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return null;
         }),
         getMigrationProgress(shop.id).catch((error) => {
-            logger.warn("Failed to get migration progress", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to get migration progress", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return null;
         }),
         analyzeDependencies(shop.id).catch((error) => {
-            logger.warn("Failed to analyze dependencies", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to analyze dependencies", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return null;
         }),
         getAuditAssets(shop.id, {
             migrationStatus: "pending",
         }).catch((error) => {
-            logger.error("Failed to fetch audit assets", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.error("Failed to fetch audit assets", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return [];
         }),
         generateMigrationChecklist(shop.id).catch((error) => {
-            logger.warn("Failed to generate migration checklist", { shopId: shop.id, error });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            logger.warn("Failed to generate migration checklist", error instanceof Error ? error : new Error(String(error)), {
+                shopId: shop.id,
+                errorMessage,
+                errorStack,
+            });
             return null;
         }),
     ]);
@@ -916,7 +973,7 @@ function getUpgradeBannerTone(
         case "resolved": return "success";
         case "low": return "info";
         default: {
-
+            // Exhaustive check: all cases are handled above
             const _exhaustive: never = urgency;
             return "info";
         }
@@ -1058,7 +1115,8 @@ export default function ScanPage() {
         }
 
         if (process.env.NODE_ENV === "development") {
-
+            // 客户端调试输出：脚本分析错误
+            // eslint-disable-next-line no-console
             console.error("Script analysis error", {
                 error: errorMessage,
                 errorType: error instanceof Error ? error.constructor.name : "Unknown",
@@ -1087,7 +1145,7 @@ export default function ScanPage() {
             return;
         }
 
-        if (!pendingDelete.gid.startsWith("gid:
+        if (!pendingDelete.gid.startsWith("gid://")) {
             setDeleteError("WebPixel ID 格式不正确");
             return;
         }
@@ -1220,7 +1278,8 @@ export default function ScanPage() {
                                 } catch (syncError) {
 
                                     if (process.env.NODE_ENV === "development") {
-
+                                        // 客户端调试输出：同步分析失败
+                                        // eslint-disable-next-line no-console
                                         console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
                                     }
                                     resolve();
@@ -1253,7 +1312,8 @@ export default function ScanPage() {
                             } catch (error) {
 
                                 if (process.env.NODE_ENV === "development") {
-
+                                    // 客户端调试输出：分块分析失败
+                                    // eslint-disable-next-line no-console
                                     console.warn(`Chunk ${i} analysis failed:`, error);
                                 }
                                 resolve();
@@ -1265,7 +1325,8 @@ export default function ScanPage() {
                             handle = requestIdleCallback(processChunk, { timeout: TIMEOUTS.IDLE_CALLBACK });
                             idleCallbackHandlesRef.current.push(handle);
                         } else {
-                            handle = setTimeout(processChunk, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number;
+                            // 在浏览器环境中，setTimeout 返回 number 类型
+                            handle = window.setTimeout(processChunk, TIMEOUTS.SET_TIMEOUT_FALLBACK);
                             idleCallbackHandlesRef.current.push(handle);
                         }
                     });
@@ -1318,7 +1379,8 @@ export default function ScanPage() {
                         handle = requestIdleCallback(processContent, { timeout: TIMEOUTS.IDLE_CALLBACK });
                         idleCallbackHandlesRef.current.push(handle);
                     } else {
-                        handle = setTimeout(processContent, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number;
+                        // 在浏览器环境中，setTimeout 返回 number 类型
+                        handle = window.setTimeout(processContent, TIMEOUTS.SET_TIMEOUT_FALLBACK);
                         idleCallbackHandlesRef.current.push(handle);
                     }
                 });
@@ -1445,7 +1507,7 @@ export default function ScanPage() {
                 showError("请至少选择一个平台或功能");
             }
         } catch (error) {
-            console.error("Failed to process manual input", error);
+            logger.error("Failed to process manual input", error);
             showError("处理失败，请稍后重试");
         }
     }, [shop, showSuccess, showError, submit]);
@@ -1710,8 +1772,8 @@ export default function ScanPage() {
                 ...items,
                 "",
                 "## 快速链接",
-                "- Pixels 管理: https:
-                "- Checkout Editor: https:
+                `- Pixels 管理: https://admin.shopify.com/store/${shopDomain}/settings/notifications`,
+                `- Checkout Editor: https://admin.shopify.com/store/${shopDomain}/themes/current/editor`,
                 "- 应用迁移工具: /app/migrate",
             ].join("\n");
         } else {
@@ -1868,7 +1930,8 @@ export default function ScanPage() {
                               if (error instanceof Error && error.name !== 'AbortError') {
 
                                 if (process.env.NODE_ENV === "development") {
-
+                                    // 客户端调试输出：分享功能失败
+                                    // eslint-disable-next-line no-console
                                     console.error("分享失败:", error);
                                 }
 
@@ -1879,7 +1942,8 @@ export default function ScanPage() {
                                   } catch (clipboardError) {
 
                                     if (process.env.NODE_ENV === "development") {
-
+                                        // 客户端调试输出：剪贴板复制失败
+                                        // eslint-disable-next-line no-console
                                         console.error("复制失败:", clipboardError);
                                     }
                                     showError("无法分享或复制，请手动复制");
@@ -1896,7 +1960,8 @@ export default function ScanPage() {
                             } catch (error) {
 
                               if (process.env.NODE_ENV === "development") {
-
+                                  // 客户端调试输出：剪贴板复制失败
+                                  // eslint-disable-next-line no-console
                                   console.error("复制失败:", error);
                               }
                               showError("复制失败，请手动复制");
@@ -1941,7 +2006,7 @@ export default function ScanPage() {
                   }}
                   secondaryAction={{
                     content: "了解更多",
-                    url: "https:
+                    url: "https://help.shopify.com/en/manual/pixels/customer-events",
                     external: true,
                   }}
                 />
@@ -2627,7 +2692,7 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url="https:
+                    url={`https://admin.shopify.com/store/${shopDomain}/settings/notifications`}
                     external
                     icon={ShareIcon}
                   >
@@ -2644,7 +2709,6 @@ export default function ScanPage() {
 
               <Divider />
 
-              {}
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
                   🛒 Checkout Editor（Plus 专属）
@@ -2654,14 +2718,14 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url="https:
+                    url={`https://admin.shopify.com/store/${shopDomain}/themes/current/editor`}
                     external
                     icon={ShareIcon}
                   >
                     打开 Checkout Editor
                   </Button>
                   <Button
-                    url="https:
+                    url="https://help.shopify.com/en/manual/checkout-settings"
                     external
                     icon={InfoIcon}
                   >
@@ -2719,7 +2783,8 @@ export default function ScanPage() {
                           } catch (error) {
 
                             if (process.env.NODE_ENV === "development") {
-
+                                // 客户端调试输出：剪贴板复制失败
+                                // eslint-disable-next-line no-console
                                 console.error("复制失败:", error);
                             }
                             showError("复制失败，请手动复制");
@@ -2764,7 +2829,8 @@ export default function ScanPage() {
                                 } catch (removeError) {
 
                                   if (process.env.NODE_ENV === "development") {
-
+                                      // 客户端调试输出：清理下载链接失败
+                                      // eslint-disable-next-line no-console
                                       console.warn("Failed to remove download link:", removeError);
                                   }
                                 }
@@ -2778,7 +2844,8 @@ export default function ScanPage() {
                             } catch (domError) {
 
                               if (process.env.NODE_ENV === "development") {
-
+                                  // 客户端调试输出：触发下载失败
+                                  // eslint-disable-next-line no-console
                                   console.error("Failed to trigger download:", domError);
                               }
 
@@ -2796,7 +2863,8 @@ export default function ScanPage() {
                           } catch (error) {
 
                             if (process.env.NODE_ENV === "development") {
-
+                                // 客户端调试输出：导出失败
+                                // eslint-disable-next-line no-console
                                 console.error("导出失败:", error);
                             }
 
@@ -2837,7 +2905,8 @@ export default function ScanPage() {
                           } catch (error) {
 
                             if (process.env.NODE_ENV === "development") {
-
+                                // 客户端调试输出：PDF导出失败
+                                // eslint-disable-next-line no-console
                                 console.error("PDF 导出失败:", error);
                             }
                             showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");
@@ -3126,11 +3195,11 @@ export default function ScanPage() {
                     <BlockStack gap="300">
                       {analysisResult.recommendations.map((rec, index) => {
 
-                        const lines = rec.split('\n');
-                        const titleLine = lines[0] || "";
+                        const lines = typeof rec === 'string' ? rec.split('\n') : [];
+                        const titleLine = lines.length > 0 ? (lines[0] || "") : "";
                         const titleMatch = titleLine.match(/\*\*(.*?)\*\*/);
                         const title = titleMatch ? titleMatch[1] : titleLine.replace(/^[^\w\u4e00-\u9fa5]+/, '');
-                        const details = lines.slice(1).map(l => l.trim()).filter(l => l.length > 0);
+                        const details = lines.length > 1 ? lines.slice(1).map(l => l.trim()).filter(l => l.length > 0) : [];
 
                         const linkLine = details.find(l => l.includes("http"));
                         const urlMatch = linkLine?.match(/(https?:\/\/[^\s]+)/);
@@ -3361,7 +3430,7 @@ export default function ScanPage() {
                     </Text>
                   </Banner>
                   <Button
-                    url="https:
+                    url="https://help.shopify.com/en/manual/pixels/customer-events"
                     external
                     variant="primary"
                   >

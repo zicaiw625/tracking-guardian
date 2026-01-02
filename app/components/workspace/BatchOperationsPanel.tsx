@@ -24,7 +24,7 @@ interface BatchOperationsPanelProps {
   memberCount: number;
   onBatchAuditStart?: () => void;
   onBatchTemplateApply?: () => void;
-  onReportGenerate?: (options: any) => Promise<void>;
+  onReportGenerate?: (options: Record<string, unknown>) => Promise<void>;
 }
 
 export function BatchOperationsPanel({
@@ -164,8 +164,12 @@ export function BatchOperationsPanel({
                     fetch("/app/workspace", {
                       method: "POST",
                       body: formData,
-                    }).then(() => {
-
+                    }).catch((error) => {
+                      if (process.env.NODE_ENV === "development") {
+                        // 客户端调试输出：批量验证启动失败
+                        // eslint-disable-next-line no-console
+                        console.error("Failed to start batch verification:", error);
+                      }
                     });
                   }}
                   size="large"

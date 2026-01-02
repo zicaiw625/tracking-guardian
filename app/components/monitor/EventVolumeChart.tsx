@@ -78,11 +78,11 @@ export function EventVolumeChart({
           borderColor: "rgb(99, 102, 241)",
           backgroundColor: "rgba(99, 102, 241, 0.1)",
           tension: 0.4,
-          pointRadius: (ctx: any) => {
+          pointRadius: (ctx: { dataIndex: number }) => {
             const index = ctx.dataIndex;
             return historyData[index]?.isDrop ? 6 : 3;
           },
-          pointBackgroundColor: (ctx: any) => {
+          pointBackgroundColor: (ctx: { dataIndex: number }) => {
             const index = ctx.dataIndex;
             return historyData[index]?.isDrop ? "rgb(239, 68, 68)" : "rgb(99, 102, 241)";
           },

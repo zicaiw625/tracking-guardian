@@ -70,7 +70,8 @@ export function RealtimeSuccessRateMonitor({
       } catch (err) {
 
         if (process.env.NODE_ENV === "development") {
-
+          // 客户端调试输出：解析SSE数据失败
+          // eslint-disable-next-line no-console
           console.error("Failed to parse SSE data:", err);
         }
         setError("数据解析失败");
@@ -80,7 +81,8 @@ export function RealtimeSuccessRateMonitor({
     eventSource.onerror = (err) => {
 
       if (process.env.NODE_ENV === "development") {
-
+        // 客户端调试输出：SSE连接错误
+        // eslint-disable-next-line no-console
         console.error("SSE connection error:", err);
       }
       setIsConnected(false);

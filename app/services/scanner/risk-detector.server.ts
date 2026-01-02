@@ -108,7 +108,7 @@ export function detectRisksInScripts(scripts: Array<{ content: string; id?: stri
   const allRisks: RiskItem[] = [];
 
   for (const script of scripts) {
-    const scriptId = script.id || `script_${Math.random().toString(36).substr(2, 9)}`;
+    const scriptId = script.id || `script_${Math.random().toString(36).slice(2, 11)}`;
     const result = detectRisksInContent(script.content);
     byScript.set(scriptId, result);
     allRisks.push(...result.risks);

@@ -344,12 +344,46 @@ export async function importTemplateFromShare(
       return { success: true, templateId };
     }
 
-    const platforms = template.platforms as unknown as Array<{
+    // 安全地解析平台配置
+    let platforms: Array<{
       platform: string;
       eventMappings?: Record<string, string>;
       clientSideEnabled?: boolean;
       serverSideEnabled?: boolean;
-    }>;
+    }> = [];
+    
+    if (Array.isArray(template.platforms)) {
+      platforms = template.platforms
+        .map((item: unknown) => {
+          if (!item || typeof item !== "object" || Array.isArray(item)) {
+            return null;
+          }
+          const obj = item as Record<string, unknown>;
+          const result: {
+            platform: string;
+            eventMappings?: Record<string, string>;
+            clientSideEnabled?: boolean;
+            serverSideEnabled?: boolean;
+          } = {
+            platform: typeof obj.platform === "string" ? obj.platform : "",
+          };
+          
+          if (obj.eventMappings && typeof obj.eventMappings === "object" && !Array.isArray(obj.eventMappings)) {
+            result.eventMappings = obj.eventMappings as Record<string, string>;
+          }
+          
+          if (typeof obj.clientSideEnabled === "boolean") {
+            result.clientSideEnabled = obj.clientSideEnabled;
+          }
+          
+          if (typeof obj.serverSideEnabled === "boolean") {
+            result.serverSideEnabled = obj.serverSideEnabled;
+          }
+          
+          return result.platform ? result : null;
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null);
+    }
 
     const result = await createPixelTemplate({
       ownerId: targetShopId,

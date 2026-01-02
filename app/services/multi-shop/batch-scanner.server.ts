@@ -34,7 +34,7 @@ export async function createBatchScanJob(
   workspaceId?: string
 ): Promise<BatchScanJob> {
   const job: BatchScanJob = {
-    id: `batch-scan-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `batch-scan-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     workspaceId,
     shopIds,
     status: "pending",
@@ -83,7 +83,7 @@ export async function executeBatchScan(
   const concurrency = 3;
   const shopIds = [...job.shopIds];
 
-  async function processShop(shopId: string): Promise<void> {
+  async function processShop(shopId: string): Promise<BatchScanJob["results"][number]> {
     try {
       const admin = adminContexts.get(shopId);
       if (!admin) {
@@ -101,14 +101,12 @@ export async function executeBatchScan(
 
       const scanResult = await scanShopTracking(admin, shopId);
 
-      job.results.push({
+      return {
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
         scanReportId: scanResult.id,
-      });
-
-      job.progress.completed++;
+      };
     } catch (error) {
       logger.error(`Batch scan failed for shop ${shopId}`, error);
 
@@ -117,20 +115,27 @@ export async function executeBatchScan(
         select: { shopDomain: true },
       });
 
-      job.results.push({
+      return {
         shopId,
         shopDomain: shop?.shopDomain || "unknown",
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
-      });
-
-      job.progress.failed++;
+      };
     }
   }
 
   for (let i = 0; i < shopIds.length; i += concurrency) {
     const batch = shopIds.slice(i, i + concurrency);
-    await Promise.all(batch.map(processShop));
+    const batchResults = await Promise.all(batch.map(processShop));
+    
+    for (const result of batchResults) {
+      job.results.push(result);
+      if (result.status === "success") {
+        job.progress.completed++;
+      } else {
+        job.progress.failed++;
+      }
+    }
   }
 
   if (job.progress.failed === 0) {
@@ -163,14 +168,14 @@ export async function getBatchScanHistory(
   return jobs;
 }
 
-export function getBatchScanSummary(job: BatchScanJob): {
+export async function getBatchScanSummary(job: BatchScanJob): Promise<{
   total: number;
   success: number;
   failed: number;
   successRate: number;
   averageRiskScore?: number;
   platforms: Record<string, number>;
-} {
+}> {
   const summary = {
     total: job.progress.total,
     success: job.progress.completed,
@@ -181,9 +186,10 @@ export function getBatchScanSummary(job: BatchScanJob): {
     platforms: {} as Record<string, number>,
   };
 
-  job.results
-    .filter((r) => r.status === "success" && r.scanReportId)
-    .forEach(async (result) => {
+  const successResults = job.results.filter((r) => r.status === "success" && r.scanReportId);
+  
+  await Promise.all(
+    successResults.map(async (result) => {
       try {
         const scanReport = await prisma.scanReport.findUnique({
           where: { id: result.scanReportId! },
@@ -191,7 +197,9 @@ export function getBatchScanSummary(job: BatchScanJob): {
         });
 
         if (scanReport?.identifiedPlatforms) {
-          const platforms = scanReport.identifiedPlatforms as string[];
+          const platforms = Array.isArray(scanReport.identifiedPlatforms)
+            ? scanReport.identifiedPlatforms
+            : [];
           platforms.forEach((platform) => {
             summary.platforms[platform] = (summary.platforms[platform] || 0) + 1;
           });
@@ -199,7 +207,8 @@ export function getBatchScanSummary(job: BatchScanJob): {
       } catch (error) {
         logger.error(`Failed to get scan report ${result.scanReportId}`, error);
       }
-    });
+    })
+  );
 
   return summary;
 }

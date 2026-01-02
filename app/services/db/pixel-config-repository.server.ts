@@ -5,6 +5,7 @@ import { SimpleCache } from "../../utils/cache";
 import { type PlatformType } from "../../types/enums";
 import type { PixelConfig, Prisma } from "@prisma/client";
 import { saveConfigSnapshot } from "../pixel-rollback.server";
+import { logger } from "../../utils/logger.server";
 
 export interface PixelConfigCredentials {
   id: string;
@@ -156,8 +157,12 @@ export async function upsertPixelConfig(
 
   if (existingConfig && saveSnapshot) {
     await saveConfigSnapshot(shopId, platform).catch((error) => {
-
-      console.warn("Failed to save config snapshot", { shopId, platform, error });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn("Failed to save config snapshot", error instanceof Error ? error : new Error(String(error)), {
+        shopId,
+        platform,
+        errorMessage,
+      });
     });
   }
 

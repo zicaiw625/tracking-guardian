@@ -16,7 +16,7 @@ import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
 
 function normalizeTopic(topic: string): string {
-  return topic.toUpperCase().replace(/\
+  return topic.toUpperCase().replace(/\//g, "_");
 }
 
 const WEBHOOK_HANDLERS: Record<

@@ -74,7 +74,8 @@ export function BatchTaskBoard({
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-
+        // 客户端调试输出：获取批量任务失败
+        // eslint-disable-next-line no-console
         console.error("Failed to fetch batch tasks:", error);
       }
     } finally {

@@ -22,7 +22,61 @@ export function safeJsonStringify(value: unknown): string | null {
 }
 
 export function deepClone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value));
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return new Date(value.getTime()) as T;
+  }
+
+  if (value instanceof RegExp) {
+    return new RegExp(value.source, value.flags) as T;
+  }
+
+  if (value instanceof Map) {
+    const clonedMap = new Map();
+    value.forEach((val, key) => {
+      clonedMap.set(deepClone(key), deepClone(val));
+    });
+    return clonedMap as T;
+  }
+
+  if (value instanceof Set) {
+    const clonedSet = new Set();
+    value.forEach((val) => {
+      clonedSet.add(deepClone(val));
+    });
+    return clonedSet as T;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => deepClone(item)) as T;
+  }
+
+  if (value instanceof ArrayBuffer) {
+    return value.slice(0) as T;
+  }
+
+  if (value instanceof Error) {
+    const clonedError = new (value.constructor as new (message: string) => Error)(value.message);
+    clonedError.name = value.name;
+    clonedError.stack = value.stack;
+    return clonedError as T;
+  }
+
+  const cloned = {} as T;
+  for (const key in value) {
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      try {
+        (cloned as Record<string, unknown>)[key] = deepClone((value as Record<string, unknown>)[key]);
+      } catch {
+        (cloned as Record<string, unknown>)[key] = (value as Record<string, unknown>)[key];
+      }
+    }
+  }
+
+  return cloned;
 }
 
 export function truncate(str: string, maxLength: number): string {
@@ -96,6 +150,9 @@ export function formatDate(
   locale: string = "zh-CN"
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) {
+    return "Invalid Date";
+  }
   return d.toLocaleDateString(locale, options);
 }
 
@@ -104,6 +161,9 @@ export function formatDateTime(
   locale: string = "zh-CN"
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) {
+    return "Invalid Date";
+  }
   return d.toLocaleString(locale, {
     year: "numeric",
     month: "short",
@@ -115,6 +175,9 @@ export function formatDateTime(
 
 export function getRelativeTime(date: Date | string, locale: string = "zh-CN"): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) {
+    return "Invalid Date";
+  }
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffSeconds = Math.floor(diffMs / 1000);
@@ -294,24 +357,31 @@ export async function retry<T>(
     shouldRetry = () => true,
   } = options;
 
+  // 确保至少执行一次
+  const safeMaxAttempts = Math.max(1, maxAttempts);
+
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  for (let attempt = 1; attempt <= safeMaxAttempts; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
 
-      if (attempt === maxAttempts || !shouldRetry(error)) {
+      // 如果是最后一次尝试或不应该重试，直接抛出错误
+      if (attempt === safeMaxAttempts || !shouldRetry(error)) {
         throw error;
       }
 
+      // 计算延迟时间（指数退避）
       const delay = Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
       await sleep(delay);
     }
   }
 
-  throw lastError;
+  // 理论上不应该到达这里，因为循环中已经处理了所有情况
+  // 但为了类型安全，如果到达这里，抛出最后一个错误
+  throw lastError ?? new Error("Retry function failed without capturing an error");
 }
 
 import { parallelLimit as parallelLimitWithIndex } from "./helpers";

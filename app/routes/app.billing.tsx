@@ -39,7 +39,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     const subscriptionStatus = await getSubscriptionStatus(admin, shopDomain);
     const orderUsage = await checkOrderLimit(shop.id, subscriptionStatus.plan);
-    const usageHistory = await getUsageHistory(shop.id, 30).catch(() => null);
+    const usageHistory = await getUsageHistory(shop.id, 30).catch((err) => {
+      logger.warn("Failed to get usage history", err instanceof Error ? err : new Error(String(err)), {
+        shopId: shop.id,
+        shopDomain,
+      });
+      return null;
+    });
     return json({
         shopDomain,
         subscription: subscriptionStatus,

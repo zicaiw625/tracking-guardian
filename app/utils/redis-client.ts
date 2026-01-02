@@ -1,6 +1,7 @@
 
 
 import type { RedisClientType } from "redis";
+import { logger } from "./logger.server";
 
 export interface RedisClientWrapper {
 
@@ -291,11 +292,9 @@ class RedisClientFactory {
     const redisUrl = process.env.REDIS_URL;
 
     if (!redisUrl) {
-
-      console.log("[REDIS] No REDIS_URL configured, using in-memory store");
+      logger.info("[REDIS] No REDIS_URL configured, using in-memory store");
       if (process.env.NODE_ENV === "production") {
-
-        console.warn(
+        logger.warn(
           "[REDIS] ⚠️ In-memory store in production - rate limiting will not be shared across instances"
         );
       }
@@ -313,16 +312,14 @@ class RedisClientFactory {
       const client = createClient({ url: redisUrl });
 
       client.on("error", (err) => {
-
-        console.error("[REDIS] Client error:", err.message);
+        logger.error("[REDIS] Client error", { error: err.message });
         this.connectionInfo.lastError = err.message;
         this.connectionInfo.connected = false;
       });
 
       client.on("reconnecting", () => {
         this.connectionInfo.reconnectAttempts++;
-
-        console.log(
+        logger.info(
           `[REDIS] Reconnecting (attempt ${this.connectionInfo.reconnectAttempts})...`
         );
       });
@@ -330,8 +327,7 @@ class RedisClientFactory {
       client.on("connect", () => {
         this.connectionInfo.connected = true;
         this.connectionInfo.lastError = undefined;
-
-        console.log("[REDIS] Connected");
+        logger.info("[REDIS] Connected");
       });
 
       await client.connect();
@@ -341,19 +337,17 @@ class RedisClientFactory {
       this.connectionInfo = {
         connected: true,
         mode: "redis",
-        url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "
+        url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "//***:***@"),
         reconnectAttempts: 0,
       };
 
-      console.log("[REDIS] ✅ Redis client connected and ready");
+      logger.info("[REDIS] ✅ Redis client connected and ready");
 
       return this.client;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-
-      console.error("[REDIS] Failed to connect:", errorMsg);
-
-      console.warn("[REDIS] ⚠️ Falling back to in-memory store");
+      logger.error("[REDIS] Failed to connect", { error: errorMsg });
+      logger.warn("[REDIS] ⚠️ Falling back to in-memory store");
 
       this.connectionInfo = {
         connected: true,
@@ -488,10 +482,9 @@ class RedisClientFactory {
       try {
         await this.rawClient.quit();
 
-        console.log("[REDIS] Connection closed");
+        logger.info("[REDIS] Connection closed");
       } catch (error) {
-
-        console.error("[REDIS] Error closing connection:", error);
+        logger.error("[REDIS] Error closing connection", { error });
       }
       this.rawClient = null;
       this.client = null;
@@ -499,13 +492,38 @@ class RedisClientFactory {
     this.initPromise = null;
   }
 
+  /**
+   * 重置Redis客户端工厂实例
+   * 注意：这是一个fire-and-forget操作，不会等待连接关闭完成
+   * 如果需要确保连接已关闭，请使用异步版本的resetAsync
+   */
   static reset(): void {
     if (RedisClientFactory.instance) {
-      RedisClientFactory.instance.close().catch((error) => {
-
-        console.error("[REDIS] Error closing connection during reset:", error);
-      });
+      const instance = RedisClientFactory.instance;
       RedisClientFactory.instance = null;
+      
+      // 异步关闭连接，但不阻塞调用者
+      instance.close().catch((error) => {
+        logger.error("[REDIS] Error closing connection during reset", { error });
+      });
+    }
+  }
+
+  /**
+   * 异步重置Redis客户端工厂实例
+   * 等待连接关闭完成后再返回
+   */
+  static async resetAsync(): Promise<void> {
+    if (RedisClientFactory.instance) {
+      const instance = RedisClientFactory.instance;
+      RedisClientFactory.instance = null;
+      
+      try {
+        await instance.close();
+      } catch (error) {
+        logger.error("[REDIS] Error closing connection during resetAsync", { error });
+        throw error;
+      }
     }
   }
 }

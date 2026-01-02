@@ -4,8 +4,8 @@ import "@shopify/shopify-app-remix/adapters/node";
 import {
   ApiVersion,
   AppDistribution,
-  DeliveryMethod,
   shopifyApp,
+  type AdminApiContext,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "../../db.server";
@@ -50,7 +50,7 @@ if (process.env.NODE_ENV === "production") {
 let finalAppUrl: string;
 if (!appUrl || appUrl === "") {
   logger.warn("[Shopify App Config] SHOPIFY_APP_URL not set, using fallback URL");
-  finalAppUrl = "http:
+  finalAppUrl = "http://localhost:3000";
 } else {
   finalAppUrl = appUrl;
 }
@@ -66,7 +66,7 @@ try {
     throw error;
   }
 
-  finalAppUrl = "http:
+  finalAppUrl = "http://localhost:3000";
 }
 
 const finalApiKey = apiKey || "";
@@ -100,7 +100,7 @@ try {
     sessionStorage: encryptedSessionStorage,
     distribution: AppDistribution.AppStore,
     hooks: {
-      afterAuth: async ({ session, admin }: { session: { shop: string; accessToken?: string }; admin?: any }) => {
+      afterAuth: async ({ session, admin }: { session: { shop: string; accessToken?: string }; admin?: AdminApiContext }) => {
         await handleAfterAuth(
           { session, admin }
         );

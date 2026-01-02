@@ -20,7 +20,7 @@ import {
 import { classifyHttpError, classifyJsError, hashSHA256 } from "./base-platform.service";
 
 const PINTEREST_API_VERSION = "v5";
-const PINTEREST_API_BASE_URL = "https:
+const PINTEREST_API_BASE_URL = "https://api.pinterest.com";
 
 export interface PinterestCredentials extends PlatformCredentials {
   adAccountId: string;

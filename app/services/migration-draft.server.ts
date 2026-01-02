@@ -15,6 +15,37 @@ export interface MigrationDraftData {
   >;
 }
 
+function isMigrationDraftData(value: unknown): value is MigrationDraftData {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const obj = value as Record<string, unknown>;
+  return (
+    Array.isArray(obj.selectedPlatforms) &&
+    obj.selectedPlatforms.every((p) => typeof p === "string") &&
+    typeof obj.platformConfigs === "object" &&
+    obj.platformConfigs !== null &&
+    Object.values(obj.platformConfigs).every((config) => {
+      if (!config || typeof config !== "object") return false;
+      const c = config as Record<string, unknown>;
+      return (
+        typeof c.credentials === "object" &&
+        c.credentials !== null &&
+        typeof c.eventMappings === "object" &&
+        c.eventMappings !== null &&
+        (c.environment === "test" || c.environment === "live")
+      );
+    })
+  );
+}
+
+function isValidWizardStep(value: unknown): value is WizardStep {
+  return (
+    typeof value === "string" &&
+    (value === "select" || value === "credentials" || value === "mappings" || value === "review")
+  );
+}
+
 const DRAFT_EXPIRY_DAYS = 7;
 
 export async function saveMigrationDraft(
@@ -86,9 +117,21 @@ export async function getMigrationDraft(
       return null;
     }
 
+    // 验证步骤类型
+    if (!isValidWizardStep(draft.step)) {
+      logger.warn("Invalid wizard step in draft", { shopId, step: draft.step });
+      return null;
+    }
+
+    // 验证配置数据类型
+    if (!isMigrationDraftData(draft.configData)) {
+      logger.warn("Invalid config data in draft", { shopId });
+      return null;
+    }
+
     return {
-      step: draft.step as WizardStep,
-      configData: draft.configData as unknown as MigrationDraftData,
+      step: draft.step,
+      configData: draft.configData,
     };
   } catch (error: unknown) {
 

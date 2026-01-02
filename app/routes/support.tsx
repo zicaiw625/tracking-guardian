@@ -14,8 +14,9 @@ import {
 } from "@shopify/polaris";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
+import { getPolarisTranslations } from "../utils/polaris-i18n";
 
-const i18n = (translations as any).default ?? translations;
+const i18n = getPolarisTranslations(translations);
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
@@ -24,7 +25,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return json({
     host: url.host,
     contactEmail: "support@tracking-guardian.app",
-    faqUrl: "https:
+    faqUrl: "https://help.tracking-guardian.app",
   });
 };
 
@@ -63,7 +64,7 @@ export default function PublicSupportPage() {
                     </List.Item>
                     <List.Item>
                       Status page:{" "}
-                      <Link url="https:
+                      <Link url="https://status.tracking-guardian.app">
                         status.tracking-guardian.app
                       </Link>
                     </List.Item>

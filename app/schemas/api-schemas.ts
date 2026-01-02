@@ -192,7 +192,7 @@ export const EmailAlertSettingsSchema = z.object({
 
 export const SlackAlertSettingsSchema = z.object({
   type: z.literal("slack"),
-  webhookUrl: z.string().url().startsWith("https:
+  webhookUrl: z.string().url().startsWith("https://"),
 });
 
 export const TelegramAlertSettingsSchema = z.object({

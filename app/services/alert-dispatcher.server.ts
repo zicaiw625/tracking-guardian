@@ -692,8 +692,11 @@ export async function runAlertChecks(shopId: string): Promise<{
         where: { isEnabled: true },
         select: {
           id: true,
+          channel: true,
           settings: true,
+          settingsEncrypted: true,
           discrepancyThreshold: true,
+          minOrdersForAlert: true,
           frequency: true,
         },
       },
@@ -749,7 +752,17 @@ export async function runAlertChecks(shopId: string): Promise<{
       } as AlertData;
 
       try {
-        const success = await sendAlert(config as unknown as Parameters<typeof sendAlert>[0], alertData);
+        // 构建符合 AlertConfigWithEncryption 类型的配置对象
+        const alertConfig = {
+          id: config.id,
+          channel: config.channel as "email" | "slack" | "telegram",
+          settings: (config.settings as Record<string, unknown>) || {},
+          settingsEncrypted: config.settingsEncrypted,
+          discrepancyThreshold: config.discrepancyThreshold,
+          minOrdersForAlert: config.minOrdersForAlert,
+          isEnabled: true,
+        };
+        const success = await sendAlert(alertConfig, alertData);
         if (success) {
           sent++;
           await prisma.alertConfig.update({

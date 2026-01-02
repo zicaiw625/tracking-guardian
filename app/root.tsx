@@ -19,12 +19,10 @@ export default function App() {
       <head>
         <meta charSet="utf-8"/>
         <meta name="viewport" content="width=device-width,initial-scale=1"/>
-        {}
-        <link rel="dns-prefetch" href="https:
-        <link rel="preconnect" href="https:
-        <link rel="preconnect" href="https:
-        {}
-        <link rel="stylesheet" href="https:
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+        <link rel="preconnect" href="https://fonts.googleapis.com"/>
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/>
         <Meta />
         <Links />
       </head>
@@ -42,18 +40,54 @@ export function ErrorBoundary() {
   let title = "发生未知错误";
   let message = "系统遇到了一个意外问题。请稍后再试。";
   let code = "UNKNOWN_ERROR";
+  let status = 500;
 
   if (isRouteErrorResponse(error)) {
-    title = `${error.status} ${error.statusText}`;
-    message = typeof error.data === 'string' ? error.data : "页面未找到或发生错误。";
+    status = error.status;
+    title = error.status === 404 
+      ? "页面未找到" 
+      : `${error.status} ${error.statusText || "错误"}`;
+    message = typeof error.data === 'string' 
+      ? error.data 
+      : error.status === 404
+        ? "您访问的页面不存在。"
+        : "页面加载时发生错误。";
     code = `HTTP_${error.status}`;
   } else if (error instanceof Error) {
-    message = error.message;
-    code = error.name;
+    message = error.message || "发生了一个错误。";
+    code = error.name || "Error";
+    // 尝试从错误中提取更多信息
+    if (error.stack && process.env.NODE_ENV === "development") {
+      // 客户端调试输出：错误堆栈（错误边界）
+      // eslint-disable-next-line no-console
+      console.error("Error stack:", error.stack);
+    }
+  } else if (typeof error === "object" && error !== null) {
+    // 处理非标准错误对象
+    const errObj = error as Record<string, unknown>;
+    message = typeof errObj.message === "string" 
+      ? errObj.message 
+      : typeof errObj.error === "string"
+        ? errObj.error
+        : "发生未知错误。";
+    code = typeof errObj.code === "string" 
+      ? errObj.code 
+      : typeof errObj.name === "string"
+        ? errObj.name
+        : "UNKNOWN";
+    if (process.env.NODE_ENV === "development") {
+      // 客户端调试输出：非标准错误（错误边界）
+      // eslint-disable-next-line no-console
+      console.error("Non-standard error caught in root ErrorBoundary:", error);
+    }
   } else {
     message = "发生未知错误。";
     code = "UNKNOWN";
-    console.error("Unknown error caught in root ErrorBoundary:", error);
+    if (process.env.NODE_ENV === "development") {
+      // 客户端调试输出：未知错误类型（错误边界）
+      // eslint-disable-next-line no-console
+      console.error("Unknown error type caught in root ErrorBoundary:", error);
+    }
   }
 
   return (

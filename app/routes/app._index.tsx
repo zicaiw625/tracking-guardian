@@ -413,7 +413,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
                         <strong>{autoUpgradeLabel}</strong> 起，Shopify 开始自动升级 Plus 商家到新版 TYP/OSP 页面，legacy 定制会丢失。
                       </Text>
                       <Link
-                        url="https:
+                        url="https://help.shopify.com/en/manual/checkout-settings/upgrade-guide"
                         external
                       >
                         查看 Plus 商家升级指南
@@ -841,7 +841,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
       tone={scriptTagsCount > 0 ? "warning" : "info"}
       action={{
         content: "了解更多",
-        url: "https:
+        url: "https://help.shopify.com/en/manual/checkout-settings/upgrade-guide",
         external: true,
       }}
     >
@@ -852,7 +852,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https:
+              url="https://help.shopify.com/en/manual/checkout-settings/upgrade-guide"
               external
             >
               查看 Plus 商家升级指南
@@ -865,7 +865,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https:
+              url="https://help.shopify.com/en/manual/checkout-settings/upgrade-guide"
               external
             >
               查看 ScriptTags 弃用时间表

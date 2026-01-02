@@ -28,7 +28,7 @@ export async function fetchTrackingFromAfterShip(
 ): Promise<TrackingInfo | null> {
   try {
 
-    const url = new URL("https:
+    const url = new URL("https://api.aftership.com/v4/trackings");
     url.searchParams.append("tracking_numbers", trackingNumber);
 
     const response = await fetch(url.toString(), {
@@ -90,7 +90,7 @@ export async function fetchTrackingFrom17Track(
 ): Promise<TrackingInfo | null> {
   try {
 
-    const response = await fetch(`https:
+    const response = await fetch(`https://api.17track.net/track/v2.2/register`, {
       method: "POST",
       headers: {
         "17token": apiKey,

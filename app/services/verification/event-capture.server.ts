@@ -58,8 +58,7 @@ export async function captureRecentEvents(
 
       const hasValue = data.value !== undefined && data.value !== null;
       const hasCurrency = Boolean(data.currency);
-      const hasItems =
-        Array.isArray(data.items) && (data.items as unknown[]).length > 0;
+      const hasItems = Array.isArray(data.items) && data.items.length > 0;
 
       const completenessRate =
         ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
@@ -124,8 +123,7 @@ export function checkParameterCompleteness(
 
   const hasValue = data.value !== undefined && data.value !== null;
   const hasCurrency = Boolean(data.currency);
-  const hasItems =
-    Array.isArray(data.items) && (data.items as unknown[]).length > 0;
+  const hasItems = Array.isArray(data.items) && data.items.length > 0;
 
   const missingParameters: string[] = [];
   if (!hasValue) missingParameters.push("value");

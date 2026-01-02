@@ -130,9 +130,11 @@ export async function httpRequest<T = unknown>(
       let data: T;
       const contentType = response.headers.get("content-type");
       if (contentType?.includes("application/json")) {
-        data = await response.json();
+        data = await response.json() as T;
       } else {
-        data = (await response.text()) as unknown as T;
+        const text = await response.text();
+        // 对于非JSON响应，如果T是string类型则返回文本，否则返回错误对象
+        data = (typeof text === "string" ? text : { type: "text", content: text }) as T;
       }
 
       return {
@@ -177,23 +179,24 @@ export async function httpRequest<T = unknown>(
         status: isTimeout ? 408 : 0,
         statusText: httpError.type,
         headers: new Headers(),
-        data: httpError as unknown as T,
+        data: httpError as T,
         duration,
       };
     }
   }
 
   const duration = Date.now() - startTime;
+  const errorData: HttpError = {
+    type: "unknown",
+    message: lastError?.message || "Unknown error",
+    retryable: false,
+  };
   return {
     ok: false,
     status: 0,
     statusText: "unknown",
     headers: new Headers(),
-    data: {
-      type: "unknown",
-      message: lastError?.message || "Unknown error",
-      retryable: false,
-    } as unknown as T,
+    data: errorData as T,
     duration,
   };
 }

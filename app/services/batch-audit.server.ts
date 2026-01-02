@@ -131,7 +131,15 @@ export async function startBatchAudit(
 
   executeBatchAuditAsync(jobId, groupDetails, { concurrency, skipRecentHours, maxRetries }).catch(
     (err) => {
-      logger.error(`Batch audit job ${jobId} failed:`, err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error("Batch audit job failed", err instanceof Error ? err : new Error(String(err)), {
+        jobId,
+        errorMessage,
+        groupDetails: {
+          shopCount: groupDetails.memberCount,
+          shopIds: groupDetails.members.map(m => m.shopId),
+        },
+      });
       const failedJob = batchAuditJobs.get(jobId);
       if (failedJob) {
         failedJob.status = "failed";
@@ -311,7 +319,7 @@ async function createAdminClientForShop(shopDomain: string): Promise<{
   }
 
   const apiVersion = process.env.SHOPIFY_API_VERSION || "2025-01";
-  const shopifyApiUrl = `https:
+  const shopifyApiUrl = `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`;
 
   return {
     graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {

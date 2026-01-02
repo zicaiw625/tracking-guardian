@@ -118,6 +118,10 @@ export async function checkEventDeduplication(
   }
 }
 
+function isObject(value: unknown): value is object {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 export async function logEvent(
   shopId: string,
   eventName: string,
@@ -129,12 +133,18 @@ export async function logEvent(
   errorDetail?: string
 ): Promise<void> {
   try {
+    // 验证 payload 是有效的对象
+    if (!isObject(payload)) {
+      logger.error("Invalid payload type", { shopId, eventName, payloadType: typeof payload });
+      throw new Error("Payload must be an object");
+    }
+
     await prisma.eventLog.create({
       data: {
         shopId,
         eventName,
         eventId: eventId || null,
-        payloadJson: payload as unknown as object,
+        payloadJson: payload,
         destinationType: destinationType || null,
         status,
         errorCode: errorCode || null,

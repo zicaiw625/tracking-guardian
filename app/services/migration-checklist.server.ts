@@ -334,12 +334,16 @@ export async function generateMigrationChecklist(
   });
 
   while (queue.length > 0) {
-    const assetId = queue.shift()!;
+    const assetId = queue.shift();
+    // 更安全的空值检查：shift() 在数组为空时返回 undefined
+    if (assetId === undefined) {
+      break;
+    }
     topologicalOrder.push(assetId);
 
     const dependents = dependentsMap.get(assetId) || [];
     dependents.forEach(depId => {
-      const current = inDegree.get(depId) || 0;
+      const current = inDegree.get(depId) ?? 0;
       inDegree.set(depId, Math.max(0, current - 1));
       if (inDegree.get(depId) === 0) {
         queue.push(depId);

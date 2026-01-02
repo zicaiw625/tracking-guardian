@@ -25,6 +25,55 @@ export interface ErrorHandlerOptions {
   buildResponse?: (error: AppError) => Response;
 }
 
+/**
+ * 处理错误并构建响应
+ * 这是内部辅助函数，用于统一错误处理逻辑
+ */
+function processError(
+  error: unknown,
+  options: ErrorHandlerOptions,
+  request?: Request
+): Response {
+  // Response 对象应该直接传递，不进行错误处理
+  if (error instanceof Response) {
+    throw error;
+  }
+
+  // 处理 null 或 undefined 错误
+  let appError: AppError;
+  if (error === null || error === undefined) {
+    const nullError = new Error("Unknown error: null or undefined");
+    appError = ensureAppError(nullError);
+  } else {
+    appError = ensureAppError(error);
+  }
+
+  // 应用错误转换
+  if (options.transformError) {
+    appError = options.transformError(appError);
+  }
+
+  // 记录错误
+  const shouldLog = options.logErrors !== false;
+  if (shouldLog) {
+    if (request) {
+      logError(appError, request);
+    } else {
+      logger.error("Unhandled error", appError, {
+        code: appError.code,
+        isRetryable: appError.isRetryable,
+      });
+    }
+  }
+
+  // 构建响应
+  if (options.buildResponse) {
+    return options.buildResponse(appError);
+  }
+
+  return buildErrorResponse(appError, options.includeStackInDev);
+}
+
 export function withErrorHandling<T>(
   handler: RouteHandler<T>,
   options?: ErrorHandlerOptions
@@ -39,26 +88,7 @@ export function withErrorHandling<T>(
     try {
       return await handler(args);
     } catch (error) {
-
-      if (error instanceof Response) {
-        throw error;
-      }
-
-      let appError = ensureAppError(error);
-
-      if (opts.transformError) {
-        appError = opts.transformError(appError);
-      }
-
-      if (opts.logErrors) {
-        logError(appError, args.request);
-      }
-
-      if (opts.buildResponse) {
-        return opts.buildResponse(appError);
-      }
-
-      return buildErrorResponse(appError, opts.includeStackInDev);
+      return processError(error, opts, args.request);
     }
   };
 }
@@ -70,24 +100,12 @@ export async function handleErrors<T>(
   try {
     return await fn();
   } catch (error) {
-    if (error instanceof Response) {
-      throw error;
-    }
-
-    let appError = ensureAppError(error);
-
-    if (options?.transformError) {
-      appError = options.transformError(appError);
-    }
-
-    if (options?.logErrors !== false) {
-      logger.error("Unhandled error", appError, {
-        code: appError.code,
-        isRetryable: appError.isRetryable,
-      });
-    }
-
-    return buildErrorResponse(appError, options?.includeStackInDev);
+    const opts = {
+      logErrors: true,
+      includeStackInDev: true,
+      ...options,
+    };
+    return processError(error, opts);
   }
 }
 
@@ -137,10 +155,15 @@ export function buildErrorResponse(
 
 function logError(error: AppError, request: Request): void {
   const url = new URL(request.url);
+  const method = request.method;
+  const pathname = url.pathname;
 
   if (error.isInternalError()) {
-
+    // 内部错误需要详细记录
     logger.error(`[${error.code}] ${error.message}`, error, {
+      method,
+      pathname,
+      searchParams: Object.fromEntries(url.searchParams),
       path: url.pathname,
       method: request.method,
       metadata: error.metadata,

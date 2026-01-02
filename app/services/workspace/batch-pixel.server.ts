@@ -38,7 +38,6 @@ export async function batchApplyPixelTemplate(
   adminApis: Map<string, AdminApiContext>
 ): Promise<BatchPixelResult> {
   const jobId = `batch-pixel-${Date.now()}`;
-  const results: BatchPixelResult["results"] = [];
 
   logger.info("Starting batch pixel apply", {
     jobId,
@@ -47,7 +46,7 @@ export async function batchApplyPixelTemplate(
     templateId: options.templateId,
   });
 
-  const processPromises = options.shopIds.map(async (shopId) => {
+  const processPromises = options.shopIds.map(async (shopId): Promise<BatchPixelResult["results"][number]> => {
     try {
       const shop = await prisma.shop.findUnique({
         where: { id: shopId },
@@ -55,13 +54,12 @@ export async function batchApplyPixelTemplate(
       });
 
       if (!shop) {
-        results.push({
+        return {
           shopId,
           shopDomain: "unknown",
           status: "skipped",
           error: "Shop not found",
-        });
-        return;
+        };
       }
 
       const configIds: string[] = [];
@@ -77,12 +75,15 @@ export async function batchApplyPixelTemplate(
         });
 
         if (existing) {
+          const eventMappings = platformConfig.eventMappings && typeof platformConfig.eventMappings === "object"
+            ? platformConfig.eventMappings
+            : existing.eventMappings;
 
           const updated = await prisma.pixelConfig.update({
             where: { id: existing.id },
             data: {
               platformId: platformConfig.platformId || existing.platformId,
-              eventMappings: (platformConfig.eventMappings as object) || existing.eventMappings,
+              eventMappings: eventMappings,
               configVersion: existing.configVersion + 1,
               previousConfig: existing.clientConfig,
               updatedAt: new Date(),
@@ -90,13 +91,16 @@ export async function batchApplyPixelTemplate(
           });
           configIds.push(updated.id);
         } else {
+          const eventMappings = platformConfig.eventMappings && typeof platformConfig.eventMappings === "object"
+            ? platformConfig.eventMappings
+            : null;
 
           const created = await prisma.pixelConfig.create({
             data: {
               shopId,
               platform: platformConfig.platform,
               platformId: platformConfig.platformId || null,
-              eventMappings: (platformConfig.eventMappings as object) || null,
+              eventMappings: eventMappings,
               clientSideEnabled: true,
               serverSideEnabled: false,
               environment: "test",
@@ -107,12 +111,12 @@ export async function batchApplyPixelTemplate(
         }
       }
 
-      results.push({
+      return {
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
-        pixelConfigId: configIds[0],
-      });
+        pixelConfigId: configIds.length > 0 ? configIds[0] : undefined,
+      };
     } catch (error) {
       logger.error("Failed to apply pixel template in batch", {
         shopId,
@@ -124,16 +128,28 @@ export async function batchApplyPixelTemplate(
         select: { shopDomain: true },
       });
 
-      results.push({
+      return {
         shopId,
         shopDomain: shop?.shopDomain || "unknown",
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
-      });
+      };
     }
   });
 
-  await Promise.allSettled(processPromises);
+  const settledResults = await Promise.allSettled(processPromises);
+  const results: BatchPixelResult["results"] = settledResults.map((result) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    } else {
+      return {
+        shopId: "unknown",
+        shopDomain: "unknown",
+        status: "failed" as const,
+        error: result.reason instanceof Error ? result.reason.message : "Unknown error",
+      };
+    }
+  });
 
   return {
     jobId,

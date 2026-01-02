@@ -43,6 +43,7 @@ export function useAutoSave<T>({
 
   const dataRef = useRef<T | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const statusResetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const performSave = useCallback(async (data: T) => {
     if (!enabled || !isDirty) return;
@@ -56,8 +57,15 @@ export function useAutoSave<T>({
       setSaveStatus("saved");
       onSaveSuccess?.();
 
-      setTimeout(() => {
+      // 清理之前的状态重置定时器
+      if (statusResetTimeoutRef.current) {
+        clearTimeout(statusResetTimeoutRef.current);
+      }
+
+      // 存储新的状态重置定时器以便清理
+      statusResetTimeoutRef.current = setTimeout(() => {
         setSaveStatus("idle");
+        statusResetTimeoutRef.current = null;
       }, 3000);
     } catch (error) {
       setSaveStatus("error");
@@ -71,6 +79,9 @@ export function useAutoSave<T>({
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+      }
+      if (statusResetTimeoutRef.current) {
+        clearTimeout(statusResetTimeoutRef.current);
       }
     };
   }, []);
@@ -100,8 +111,7 @@ export function useAutoSave<T>({
     lastSavedAt,
     save,
     saveStatus,
-
-    setData: setData as unknown as (data: T) => void,
+    setData,
   } as AutoSaveResult & { setData: (data: T) => void };
 }
 

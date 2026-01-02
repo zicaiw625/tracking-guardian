@@ -68,7 +68,8 @@ export function MigrationDependencyGraph({
     });
 
     while (queue.length > 0) {
-      const nodeId = queue.shift()!;
+      const nodeId = queue.shift();
+      if (!nodeId) break;
       const node = nodeMap.get(nodeId);
       if (node) {
         sorted.push(node);

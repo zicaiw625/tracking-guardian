@@ -68,7 +68,8 @@ export function ConfigVersionManager({
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-
+        // 客户端调试输出：加载版本历史失败
+        // eslint-disable-next-line no-console
         console.error("Failed to load version history", error);
       }
     } finally {

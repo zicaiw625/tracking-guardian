@@ -174,8 +174,8 @@ export function getCurrentYearMonth(): string {
 
 export function getMonthDateRange(yearMonth: string): { start: Date; end: Date } {
   const [year, month] = yearMonth.split("-").map(Number);
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 1);
+  const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
   return { start, end };
 }
 
@@ -259,6 +259,7 @@ export async function incrementMonthlyUsage(
 ): Promise<number> {
   const yearMonth = getCurrentYearMonth();
 
+  let actuallyIncremented = false;
   const result = await prisma.$transaction(async (tx) => {
     const job = await tx.conversionJob.findUnique({
       where: {
@@ -329,6 +330,8 @@ export async function incrementMonthlyUsage(
       },
     });
 
+    actuallyIncremented = true;
+
     const updated = await tx.monthlyUsage.findUnique({
       where: {
         shopId_yearMonth: {
@@ -344,7 +347,9 @@ export async function incrementMonthlyUsage(
     return updated?.sentCount || 0;
   });
 
-  billingCache.delete(`billing:${shopId}`);
+  if (actuallyIncremented) {
+    billingCache.delete(`billing:${shopId}`);
+  }
   return result;
 }
 

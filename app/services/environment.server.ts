@@ -423,20 +423,20 @@ export function getPlatformEndpoint(
 
   const endpoints: Record<string, { test: string; live: string }> = {
     meta: {
-      test: "https:
-      live: "https:
+      test: "https://graph.facebook.com/v18.0",
+      live: "https://graph.facebook.com/v18.0",
     },
     google: {
-      test: "https:
-      live: "https:
+      test: "https://www.google-analytics.com/mp/collect",
+      live: "https://www.google-analytics.com/mp/collect",
     },
     tiktok: {
-      test: "https:
-      live: "https:
+      test: "https://business-api.tiktok.com/open_api/v1.3/event/track/",
+      live: "https://business-api.tiktok.com/open_api/v1.3/event/track/",
     },
     pinterest: {
-      test: "https:
-      live: "https:
+      test: "https://ct.pinterest.com/v3",
+      live: "https://ct.pinterest.com/v3",
     },
   };
 

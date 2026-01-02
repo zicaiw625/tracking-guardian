@@ -193,7 +193,7 @@ export function ServerTrackingTab({
               tone="warning"
               action={{
                 content: "了解更多",
-                url: "https:
+                url: "https://help.shopify.com/en/manual/pixels/web-pixels",
                 external: true,
               }}
             >
@@ -415,13 +415,17 @@ export function ServerTrackingTab({
                 />
                 <Text as="p" variant="bodySm" tone="subdued">
                   💡 提示：确保您的 Pinterest 应用已获得 Conversion API 访问权限。
-                  访问 <a href="https:
+                  访问{" "}
+                  <a href="https://developers.pinterest.com/docs/api/v5/#tag/Conversions" target="_blank" rel="noopener noreferrer">
+                    Pinterest Developer Portal
+                  </a>
+                  {" "}了解更多信息。
                 </Text>
               </>
             )}
 
             <Checkbox
-              label="启用服务端追踪"
+              label={"启用服务端追踪"}
               checked={serverEnabled}
               onChange={setServerEnabled}
             />
@@ -464,7 +468,6 @@ export function ServerTrackingTab({
               )}
             </InlineStack>
 
-            {}
             {showHistory && currentConfig && (
               <Box paddingBlockStart="400">
                 <Tabs

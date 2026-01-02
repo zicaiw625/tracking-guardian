@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import {
   Card,
   BlockStack,
@@ -111,7 +111,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
     return errors;
   }, []);
 
-  useMemo(() => {
+  useEffect(() => {
     if (scriptContent.trim()) {
       const errors = validateScript(scriptContent);
       setValidationErrors(errors);
@@ -168,7 +168,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
     );
   }, [scriptContent, analysisResult, fetcher]);
 
-  useMemo(() => {
+  useEffect(() => {
     if (fetcher.data) {
       if (fetcher.data.analysis) {
         setAnalysisResult(fetcher.data.analysis);
@@ -181,7 +181,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
     }
   }, [fetcher.data]);
 
-  useMemo(() => {
+  useEffect(() => {
     if (fetcher.data && fetcher.data.processed) {
       const result = fetcher.data.processed;
       const totalCreated = result.created + result.updated;

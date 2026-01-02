@@ -22,13 +22,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const eventTypes = url.searchParams.get("eventTypes")?.split(",") || [];
   const runId = url.searchParams.get("runId") || null;
 
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+  let isClosed = false;
+
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
 
+      const cleanup = () => {
+        if (intervalId !== null) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+        if (!isClosed) {
+          isClosed = true;
+          try {
+            controller.close();
+          } catch (error) {
+            // Stream may already be closed
+          }
+        }
+      };
+
       const sendMessage = (type: string, data: unknown) => {
-        const message = JSON.stringify({ type, ...(typeof data === "object" ? data : { data }) });
-        controller.enqueue(encoder.encode(`data: ${message}\n\n`));
+        if (isClosed) return;
+        try {
+          const message = JSON.stringify({ type, ...(typeof data === "object" ? data : { data }) });
+          controller.enqueue(encoder.encode(`data: ${message}\n\n`));
+        } catch (error) {
+          logger.warn("Failed to send SSE message, closing stream", error);
+          cleanup();
+        }
       };
 
       sendMessage("connected", {
@@ -237,16 +261,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           sendMessage("error", {
             message: error instanceof Error ? error.message : "Failed to fetch events",
           });
+          // Don't close on single error, but cleanup if stream is broken
+          if (isClosed) {
+            cleanup();
+          }
         }
       };
 
-      const intervalId = setInterval(pollEvents, pollInterval);
+      intervalId = setInterval(pollEvents, pollInterval);
       pollEvents();
 
       request.signal.addEventListener("abort", () => {
-        clearInterval(intervalId);
-        controller.close();
+        cleanup();
       });
+    },
+    cancel() {
+      // Ensure cleanup when stream is cancelled
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
     },
   });
 

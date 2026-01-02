@@ -1,6 +1,6 @@
 
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "@remix-run/react";
 
 export interface ApiState<T> {
@@ -213,6 +213,19 @@ export function useQuery<T>(
 
   const navigate = useNavigate();
 
+  // 使用ref存储回调函数，避免依赖项变化导致无限循环
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+
+  // 更新ref当回调函数变化时
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
   const fetch_ = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
@@ -232,22 +245,22 @@ export function useQuery<T>(
           code: json.code,
         };
         setState({ data: null, loading: false, error });
-        onError?.(error);
+        onErrorRef.current?.(error);
         return;
       }
 
       const data = json.data as T;
       setState({ data, loading: false, error: null });
-      onSuccess?.(data);
+      onSuccessRef.current?.(data);
     } catch (err) {
       const error: ApiError = {
         message: err instanceof Error ? err.message : "网络错误",
         code: "NETWORK_ERROR",
       };
       setState({ data: null, loading: false, error });
-      onError?.(error);
+      onErrorRef.current?.(error);
     }
-  }, [url, navigate, onSuccess, onError]);
+  }, [url, navigate]);
 
   useEffect(() => {
     if (enabled) {

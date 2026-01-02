@@ -3,6 +3,7 @@
 import { getDb } from "../../container";
 import { shopConfigCache, SimpleCache } from "../../utils/cache";
 import type { PixelConfig } from "@prisma/client";
+import { logger } from "../../utils/logger.server";
 
 export interface ShopBasic {
   id: string;
@@ -240,7 +241,7 @@ function logSlowQuery(query: string, durationMs: number, params?: unknown): void
       slowQueryLogs.shift();
     }
 
-    console.warn(`[SLOW QUERY] ${query} took ${durationMs}ms`, { params });
+    logger.warn(`[SLOW QUERY] ${query} took ${durationMs}ms`, { params });
   }
 }
 

@@ -25,8 +25,20 @@ import {
   type TikTokUserData,
 } from "./base-platform.service";
 
-const TIKTOK_API_URL = "https:
+const TIKTOK_API_URL = "https://business-api.tiktok.com";
 const PIXEL_ID_PATTERN = /^[A-Z0-9]{20,}$/i;
+
+function isTikTokCredentials(credentials: unknown): credentials is TikTokCredentials {
+  if (!credentials || typeof credentials !== "object") {
+    return false;
+  }
+  const creds = credentials as Record<string, unknown>;
+  return (
+    typeof creds.pixelId === "string" &&
+    typeof creds.accessToken === "string" &&
+    (creds.testEventCode === undefined || typeof creds.testEventCode === "string")
+  );
+}
 
 export class TikTokPlatformService implements IPlatformService {
   readonly platform = Platform.TIKTOK;
@@ -37,7 +49,17 @@ export class TikTokPlatformService implements IPlatformService {
     data: ConversionData,
     eventId: string
   ): Promise<PlatformSendResult> {
-    const tiktokCreds = credentials as TikTokCredentials;
+    if (!isTikTokCredentials(credentials)) {
+      return {
+        success: false,
+        error: {
+          type: "invalid_config",
+          message: "Invalid TikTok credentials format",
+          isRetryable: false,
+        },
+      };
+    }
+    const tiktokCreds = credentials;
     const validation = this.validateCredentials(tiktokCreds);
 
     if (!validation.valid) {
@@ -88,11 +110,11 @@ export class TikTokPlatformService implements IPlatformService {
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
 
-    if (!credentials || typeof credentials !== "object") {
-      return { valid: false, errors: ["Credentials must be an object"] };
+    if (!isTikTokCredentials(credentials)) {
+      return { valid: false, errors: ["Credentials must be a valid TikTokCredentials object"] };
     }
 
-    const creds = credentials as Record<string, unknown>;
+    const creds = credentials;
 
     if (!creds.pixelId || typeof creds.pixelId !== "string") {
       errors.push("pixelId is required");

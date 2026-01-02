@@ -1,6 +1,7 @@
 
 
 import { z } from "zod";
+import { logger } from "../utils/logger.server";
 
 export const AlertEmailSchema = z.object({
   email: z.string().email("请输入有效的邮箱地址"),
@@ -10,7 +11,7 @@ export const AlertSlackSchema = z.object({
   webhookUrl: z
     .string()
     .url("请输入有效的 URL")
-    .startsWith("https:
+    .startsWith("https://"),
 });
 
 export const AlertTelegramSchema = z.object({
@@ -189,14 +190,13 @@ export function parseAndValidatePixelConfig(configStr?: string): PixelConfigV1 {
     const result = PixelConfigSchemaV1.safeParse(parsed);
 
     if (!result.success) {
-
-      console.warn("[PixelConfig] Validation failed, using defaults:", result.error.issues);
+      logger.warn("[PixelConfig] Validation failed, using defaults", { issues: result.error.issues });
       return DEFAULT_PIXEL_CONFIG;
     }
 
     return result.data;
   } catch (e) {
-    console.warn("[PixelConfig] JSON parse failed, using defaults:", e);
+    logger.warn("[PixelConfig] JSON parse failed, using defaults", { error: e });
     return DEFAULT_PIXEL_CONFIG;
   }
 }
@@ -251,8 +251,7 @@ export function extractZodErrors(
   error: z.ZodError<unknown>
 ): Record<string, string> {
   const errors: Record<string, string> = {};
-  const zodError = error as unknown as ZodErrorWithIssues;
-  const issues = zodError.issues ?? [];
+  const issues = error.issues;
 
   for (const issue of issues) {
     const path = issue.path.join(".");

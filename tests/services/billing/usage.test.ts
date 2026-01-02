@@ -191,6 +191,7 @@ describe("Usage Tracking Service", () => {
           conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue({ sentCount: 101 }),
+            findUnique: vi.fn().mockResolvedValue({ sentCount: 101 }),
           },
         } as any);
       });
@@ -222,6 +223,7 @@ describe("Usage Tracking Service", () => {
           conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue({ sentCount: 51 }),
+            findUnique: vi.fn().mockResolvedValue({ sentCount: 51 }),
           },
         } as any);
       });
@@ -259,8 +261,10 @@ describe("Usage Tracking Service", () => {
         } as any);
       });
       const result = await tryReserveUsageSlot("shop-123", "order-100", 1000);
-      expect(result.success).toBe(true);
-      expect(result.alreadyCounted).toBe(false);
+      expect(result.reserved).toBe(true);
+      expect(result.current).toBe(51);
+      expect(result.limit).toBe(1000);
+      expect(result.remaining).toBe(949);
     });
     it("should fail when at limit", async () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
@@ -274,10 +278,11 @@ describe("Usage Tracking Service", () => {
         } as any);
       });
       const result = await tryReserveUsageSlot("shop-123", "order-100", 1000);
-      expect(result.success).toBe(false);
+      expect(result.reserved).toBe(false);
       expect(result.current).toBe(1000);
+      expect(result.remaining).toBe(0);
     });
-    it("should return success=true and alreadyCounted=true for duplicate", async () => {
+    it("should return reserved=false for duplicate order", async () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
         return fn({
           conversionJob: {
@@ -289,9 +294,9 @@ describe("Usage Tracking Service", () => {
         } as any);
       });
       const result = await tryReserveUsageSlot("shop-123", "order-100", 1000);
-      expect(result.success).toBe(true);
-      expect(result.alreadyCounted).toBe(true);
+      expect(result.reserved).toBe(false);
       expect(result.current).toBe(500);
+      expect(result.remaining).toBe(500);
     });
   });
   describe("decrementMonthlyUsage", () => {
@@ -325,6 +330,9 @@ describe("Usage Tracking Service", () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
         return fn({
           $executeRaw: vi.fn().mockResolvedValue(0),
+          monthlyUsage: {
+            findUnique: vi.fn().mockResolvedValue(null),
+          },
         } as any);
       });
       const count = await decrementMonthlyUsage("shop-123");
@@ -340,6 +348,7 @@ describe("Usage Tracking Service", () => {
           conversionLog: { findFirst: vi.fn().mockResolvedValue(null) },
           monthlyUsage: {
             upsert: vi.fn().mockResolvedValue({ sentCount: 1 }),
+            findUnique: vi.fn().mockResolvedValue({ sentCount: 1 }),
           },
         } as any);
       });

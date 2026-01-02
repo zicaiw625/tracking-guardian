@@ -36,7 +36,6 @@ export async function startBatchAudit(
   adminApis: Map<string, AdminApiContext>
 ): Promise<BatchAuditResult> {
   const jobId = `batch-audit-${Date.now()}`;
-  const results: BatchAuditResult["results"] = [];
 
   logger.info("Starting batch audit", {
     jobId,
@@ -44,7 +43,7 @@ export async function startBatchAudit(
     shopCount: options.shopIds.length,
   });
 
-  const processPromises = options.shopIds.map(async (shopId) => {
+  const processPromises = options.shopIds.map(async (shopId): Promise<BatchAuditResult["results"][number]> => {
     try {
       const shop = await prisma.shop.findUnique({
         where: { id: shopId },
@@ -52,34 +51,32 @@ export async function startBatchAudit(
       });
 
       if (!shop) {
-        results.push({
+        return {
           shopId,
           shopDomain: "unknown",
           status: "skipped",
           error: "Shop not found",
-        });
-        return;
+        };
       }
 
       const admin = adminApis.get(shopId);
       if (!admin) {
-        results.push({
+        return {
           shopId,
           shopDomain: shop.shopDomain,
           status: "skipped",
           error: "Admin API not available",
-        });
-        return;
+        };
       }
 
       const scanResult = await scanShopTracking(shopId, admin);
 
-      results.push({
+      return {
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
         scanReportId: scanResult.scanReportId,
-      });
+      };
     } catch (error) {
       logger.error("Failed to audit shop in batch", {
         shopId,
@@ -91,16 +88,28 @@ export async function startBatchAudit(
         select: { shopDomain: true },
       });
 
-      results.push({
+      return {
         shopId,
         shopDomain: shop?.shopDomain || "unknown",
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
-      });
+      };
     }
   });
 
-  await Promise.allSettled(processPromises);
+  const settledResults = await Promise.allSettled(processPromises);
+  const results: BatchAuditResult["results"] = settledResults.map((result) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    } else {
+      return {
+        shopId: "unknown",
+        shopDomain: "unknown",
+        status: "failed" as const,
+        error: result.reason instanceof Error ? result.reason.message : "Unknown error",
+      };
+    }
+  });
 
   const result: BatchAuditResult = {
     jobId,

@@ -10,6 +10,64 @@ import type {
 } from "./types";
 import { logger } from "../../utils/logger.server";
 
+/**
+ * 将 Prisma AppliedRecipe 模型安全地转换为 AppliedRecipe 类型
+ */
+function mapToAppliedRecipe(
+  prismaRecipe: {
+    id: string;
+    shopId: string;
+    recipeId: string;
+    recipeVersion: string;
+    status: string;
+    config: unknown;
+    completedSteps: unknown;
+    validationResults: unknown;
+    errorMessage: string | null;
+    sourceIdentifier: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    completedAt: Date | null;
+  }
+): AppliedRecipe {
+  return {
+    id: prismaRecipe.id,
+    shopId: prismaRecipe.shopId,
+    recipeId: prismaRecipe.recipeId,
+    recipeVersion: prismaRecipe.recipeVersion,
+    status: prismaRecipe.status as AppliedRecipeStatus,
+    config: (prismaRecipe.config && typeof prismaRecipe.config === "object" && !Array.isArray(prismaRecipe.config))
+      ? (prismaRecipe.config as Record<string, unknown>)
+      : {},
+    completedSteps: Array.isArray(prismaRecipe.completedSteps)
+      ? prismaRecipe.completedSteps.filter((s): s is number => typeof s === "number")
+      : [],
+    validationResults: Array.isArray(prismaRecipe.validationResults)
+      ? prismaRecipe.validationResults.map((r: unknown) => {
+          if (r && typeof r === "object" && !Array.isArray(r)) {
+            const result = r as Record<string, unknown>;
+            return {
+              testName: typeof result.testName === "string" ? result.testName : "",
+              passed: typeof result.passed === "boolean" ? result.passed : false,
+              message: typeof result.message === "string" ? result.message : undefined,
+              timestamp: typeof result.timestamp === "string" ? result.timestamp : new Date().toISOString(),
+            };
+          }
+          return {
+            testName: "",
+            passed: false,
+            timestamp: new Date().toISOString(),
+          };
+        })
+      : [],
+    errorMessage: prismaRecipe.errorMessage ?? undefined,
+    sourceIdentifier: prismaRecipe.sourceIdentifier ?? undefined,
+    createdAt: prismaRecipe.createdAt,
+    updatedAt: prismaRecipe.updatedAt,
+    completedAt: prismaRecipe.completedAt ?? undefined,
+  };
+}
+
 export async function startRecipe(
   shopId: string,
   recipeId: string,
@@ -31,7 +89,7 @@ export async function startRecipe(
   });
   if (existing) {
     logger.info(`Recipe ${recipeId} already in progress for shop ${shopId}`);
-    return existing as unknown as AppliedRecipe;
+    return mapToAppliedRecipe(existing);
   }
 
   const applied = await prisma.appliedRecipe.create({
@@ -49,7 +107,7 @@ export async function startRecipe(
   logger.info(`Started recipe ${recipeId} for shop ${shopId}`, {
     appliedRecipeId: applied.id,
   });
-  return applied as unknown as AppliedRecipe;
+  return mapToAppliedRecipe(applied);
 }
 
 export async function updateRecipeConfig(
@@ -63,7 +121,7 @@ export async function updateRecipeConfig(
       updatedAt: new Date(),
     },
   });
-  return applied as unknown as AppliedRecipe;
+  return mapToAppliedRecipe(applied);
 }
 
 export function validateRecipeConfig(
@@ -224,7 +282,7 @@ export async function completeRecipeStep(
       updatedAt: new Date(),
     },
   });
-  return updated as unknown as AppliedRecipe;
+  return mapToAppliedRecipe(updated);
 }
 
 export async function runRecipeValidation(
@@ -365,7 +423,7 @@ export async function getAppliedRecipes(shopId: string): Promise<AppliedRecipe[]
     where: { shopId },
     orderBy: { createdAt: "desc" },
   });
-  return applied as unknown as AppliedRecipe[];
+  return applied.map(mapToAppliedRecipe);
 }
 
 export async function getAppliedRecipe(
@@ -374,7 +432,7 @@ export async function getAppliedRecipe(
   const applied = await prisma.appliedRecipe.findUnique({
     where: { id: appliedRecipeId },
   });
-  return applied as unknown as AppliedRecipe | null;
+  return applied ? mapToAppliedRecipe(applied) : null;
 }
 
 export async function rollbackRecipe(
@@ -388,5 +446,5 @@ export async function rollbackRecipe(
     },
   });
   logger.info(`Recipe rolled back: ${appliedRecipeId}`);
-  return updated as unknown as AppliedRecipe;
+  return mapToAppliedRecipe(updated);
 }

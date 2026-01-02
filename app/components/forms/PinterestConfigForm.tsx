@@ -122,7 +122,7 @@ export function PinterestConfigForm({
               不受浏览器限制影响，提高广告归因准确性。
             </Text>
             <Link
-              url="https:
+              url="https://developers.pinterest.com/docs/api/v5/"
               external
             >
               查看 Pinterest API 文档
@@ -183,7 +183,7 @@ export function PinterestConfigForm({
             <li>
               <Text as="span" variant="bodySm">
                 登录{" "}
-                <Link url="https:
+                <Link url="https://developers.pinterest.com/" external>
                   Pinterest Developers
                 </Link>
               </Text>
@@ -201,7 +201,7 @@ export function PinterestConfigForm({
             <li>
               <Text as="span" variant="bodySm">
                 在{" "}
-                <Link url="https:
+                <Link url="https://ads.pinterest.com/" external>
                   Pinterest Ads Manager
                 </Link>{" "}
                 中找到您的 Ad Account ID

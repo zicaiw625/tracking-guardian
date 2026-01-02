@@ -362,10 +362,12 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
             }
 
             for (const edge of edges) {
-                allPixels.push({
-                    id: edge.node.id,
-                    settings: edge.node.settings,
-                });
+                if (edge?.node?.id) {
+                    allPixels.push({
+                        id: edge.node.id,
+                        settings: edge.node.settings ?? null,
+                    });
+                }
             }
 
             hasNextPage = pageInfo.hasNextPage;

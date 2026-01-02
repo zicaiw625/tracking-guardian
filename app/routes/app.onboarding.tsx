@@ -190,7 +190,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (!latestScan && admin && !autoScan) {
 
     scanShopTracking(admin, shop.id).catch((err) => {
-      logger.error("Auto-scan failed in onboarding", { shopId: shop.id, error: err });
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorStack = err instanceof Error ? err.stack : undefined;
+      logger.error("Auto-scan failed in onboarding", err instanceof Error ? err : new Error(String(err)), {
+        shopId: shop.id,
+        errorMessage,
+        errorStack,
+      });
     });
   }
   let scanResult: OnboardingData["scanResult"] = null;
@@ -873,7 +879,7 @@ export default function OnboardingPage() {
               如果您在迁移过程中遇到问题，我们提供以下支持：
             </Text>
             <InlineStack gap="300" wrap>
-              <Button url="https:
+              <Button url="https://help.shopify.com/en/manual/checkout-settings" external>
                 Shopify 官方文档
               </Button>
               <Button url="/support">

@@ -9,6 +9,59 @@ import { validateConfig, logConfigStatus } from "./utils/config";
 import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, validateSecurityHeaders, } from "./utils/security-headers";
 const ABORT_DELAY = 5000;
+
+// 全局未处理Promise rejection处理器
+if (typeof process !== "undefined") {
+  process.on("unhandledRejection", (reason: unknown, promise: Promise<unknown>) => {
+    const errorMessage = reason instanceof Error ? reason.message : String(reason);
+    const errorStack = reason instanceof Error ? reason.stack : undefined;
+    logger.error("Unhandled Promise Rejection", reason instanceof Error ? reason : new Error(String(reason)), {
+      errorMessage,
+      errorStack,
+      promise: String(promise),
+    });
+  });
+
+  process.on("uncaughtException", (error: Error) => {
+    logger.error("Uncaught Exception", error, {
+      errorMessage: error.message,
+      errorStack: error.stack,
+    });
+    // 在生产环境中，未捕获的异常应该导致进程退出
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
+    }
+  });
+
+  // 应用关闭时的清理逻辑
+  const cleanup = async (signal: string) => {
+    logger.info(`Received ${signal}, starting graceful shutdown...`);
+    
+    try {
+      // 清理 Redis 连接
+      const { RedisClientFactory } = await import("./utils/redis-client");
+      await RedisClientFactory.resetAsync();
+      logger.info("Redis connections closed");
+    } catch (error) {
+      logger.error("Error closing Redis connections during shutdown", error);
+    }
+
+    try {
+      // 清理数据库连接
+      const prisma = await import("./db.server");
+      await prisma.default.$disconnect();
+      logger.info("Database connections closed");
+    } catch (error) {
+      logger.error("Error closing database connections during shutdown", error);
+    }
+
+    logger.info("Graceful shutdown completed");
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", () => cleanup("SIGTERM"));
+  process.on("SIGINT", () => cleanup("SIGINT"));
+}
 let secretsValidated = false;
 let securityChecked = false;
 let headersValidated = false;

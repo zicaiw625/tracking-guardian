@@ -215,14 +215,15 @@ function sanitizeContext(context: LogContext, depth: number = 0): LogContext {
       sanitized[key] = "[REDACTED]";
     } else if (typeof value === "object" && value !== null) {
       if (Array.isArray(value)) {
-        sanitized[key] = value.slice(0, 10).map((item) =>
+        const sanitizedArray = value.slice(0, 10).map((item) =>
           typeof item === "object" && item !== null
             ? sanitizeContext(item as LogContext, depth + 1)
             : item
         );
         if (value.length > 10) {
-          (sanitized[key] as unknown[]).push(`...(${value.length - 10} more)`);
+          sanitizedArray.push(`...(${value.length - 10} more)`);
         }
+        sanitized[key] = sanitizedArray;
       } else {
         sanitized[key] = sanitizeContext(value as LogContext, depth + 1);
       }

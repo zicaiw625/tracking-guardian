@@ -157,7 +157,8 @@ function topologicalSort(nodes: DependencyNode[]): {
   });
 
   while (queue.length > 0) {
-    const nodeId = queue.shift()!;
+    const nodeId = queue.shift();
+    if (!nodeId) break;
     order.push(nodeId);
     visited.add(nodeId);
 
@@ -285,7 +286,7 @@ export async function updateAssetDependencies(
   await prisma.auditAsset.update({
     where: { id: assetId },
     data: {
-      dependencies: dependencies as unknown as object,
+      dependencies: dependencies,
     },
   });
 }

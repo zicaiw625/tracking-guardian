@@ -349,12 +349,15 @@ export function pathShopKeyExtractor(request: Request): string {
   }
 }
 
-function resolveRequest(args: any): Request | undefined {
+function resolveRequest(args: unknown): Request | undefined {
   if (!args) return undefined;
 
   if (args instanceof Request) return args;
 
-  if (args.request instanceof Request) return args.request;
+  if (typeof args === "object" && args !== null && "request" in args) {
+    const request = (args as { request: unknown }).request;
+    if (request instanceof Request) return request;
+  }
   return undefined;
 }
 

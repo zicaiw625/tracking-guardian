@@ -41,22 +41,12 @@ function normalizeTrackingStatus(status: string): string {
     return "exception";
   }
 
-  if (normalized === "intransit") {
-    return "in_transit";
-  }
-  if (normalized === "delivered") {
-    return "delivered";
-  }
-  if (normalized === "expired" || normalized === "exception" || normalized === "undelivered") {
-    return "exception";
-  }
-
   return "pending";
 }
 
 export class AfterShipTracker {
   private apiKey: string;
-  private baseUrl = "https:
+  private baseUrl = "https://api.aftership.com/v4";
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -157,7 +147,7 @@ export class AfterShipTracker {
 
 export class SeventeenTrackTracker {
   private apiKey: string;
-  private baseUrl = "https:
+  private baseUrl = "https://api.17track.net";
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;

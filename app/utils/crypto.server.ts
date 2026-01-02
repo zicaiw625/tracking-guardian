@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "crypto";
+import { logger } from "./logger.server";
 
 const SCRYPT_PARAMS = {
     N: 131072,
@@ -34,16 +35,14 @@ export function getEncryptionKey(): Buffer {
         effectiveSecret = secret;
 
         if (secret.length < 32) {
-
-            console.warn("⚠️ [STARTUP] ENCRYPTION_SECRET is shorter than 32 characters.");
+            logger.warn("⚠️ [STARTUP] ENCRYPTION_SECRET is shorter than 32 characters.");
         }
     } else if (devSecret && !isProduction && !isCI) {
 
         effectiveSecret = devSecret;
 
         if (!hasWarnedAboutFallback) {
-
-            console.info("ℹ️ [STARTUP] Using DEV_ENCRYPTION_SECRET for development.");
+            logger.info("ℹ️ [STARTUP] Using DEV_ENCRYPTION_SECRET for development.");
             hasWarnedAboutFallback = true;
         }
     } else {
@@ -76,8 +75,7 @@ export function getEncryptionKey(): Buffer {
         usingFallback = true;
 
         if (!hasWarnedAboutFallback) {
-
-            console.warn(
+            logger.warn(
                 "⚠️ [STARTUP] No encryption secret configured. Using random fallback for local development only.\n" +
                 "   To fix this warning, add to your .env file:\n" +
                 "   DEV_ENCRYPTION_SECRET=$(openssl rand -base64 32)"
@@ -92,8 +90,7 @@ export function getEncryptionKey(): Buffer {
     }
 
     if (!process.env.ENCRYPTION_SALT && isProduction) {
-
-        console.warn("⚠️ [STARTUP] ENCRYPTION_SALT not set. Using default salt.");
+        logger.warn("⚠️ [STARTUP] ENCRYPTION_SALT not set. Using default salt.");
     }
 
     cachedKey = scryptSync(effectiveSecret, effectiveSalt, 32, SCRYPT_PARAMS);
@@ -223,7 +220,7 @@ export function normalizeOrderId(orderId: string | number): string {
         return numericMatch[1];
     }
 
-    console.warn(`[normalizeOrderId] Unable to extract numeric ID from: ${orderIdStr}`);
+    logger.warn(`[normalizeOrderId] Unable to extract numeric ID from: ${orderIdStr}`);
     return orderIdStr;
 }
 export interface MatchKeyInput {

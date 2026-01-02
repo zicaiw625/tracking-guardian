@@ -1,3 +1,5 @@
+import { logger } from "./logger.server";
+
 interface EnvConfig {
     DATABASE_URL: string;
     SHOPIFY_API_KEY?: string;
@@ -79,8 +81,7 @@ function getRetentionDays(envKey: string, defaultValue: number, minValue?: numbe
     const parsed = parseInt(envValue, 10);
     if (isNaN(parsed)) return defaultValue;
     if (minValue !== undefined && parsed < minValue) {
-
-        console.warn(`[P2-03] ${envKey}=${parsed} is below minimum ${minValue}, using minimum`);
+        logger.warn(`[P2-03] ${envKey}=${parsed} is below minimum ${minValue}, using minimum`);
         return minValue;
     }
     return parsed;
@@ -175,41 +176,41 @@ export const SHOPIFY_API_CONFIG = {
     VERSION: "2025-07",
 
     getGraphQLEndpoint: (shopDomain: string): string =>
-        `https:
+        `https://${shopDomain}/admin/api/${SHOPIFY_API_CONFIG.VERSION}/graphql.json`,
 
     getAdminUrl: (shopDomain: string, path: string = ""): string => {
         const storeHandle = shopDomain.replace(".myshopify.com", "");
-        return `https:
+        return `https://${storeHandle}.myshopify.com/admin${path}`;
     },
 } as const;
 
 export const PLATFORM_ENDPOINTS = {
 
     GA4_MEASUREMENT_PROTOCOL: (measurementId: string, apiSecret: string): string =>
-        `https:
+        `https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`,
 
     META_GRAPH_API: (pixelId: string, version: string = "v21.0"): string =>
-        `https:
+        `https://graph.facebook.com/${version}/${pixelId}/events`,
 
     TELEGRAM_BOT: (botToken: string): string =>
-        `https:
+        `https://api.telegram.org/bot${botToken}/sendMessage`,
 } as const;
 
 export const CAPI_CONFIG = {
 
     META: {
         apiVersion: "v21.0",
-        baseUrl: "https:
+        baseUrl: "https://graph.facebook.com",
         timeout: 30000,
     },
 
     GOOGLE: {
-        baseUrl: "https:
+        baseUrl: "https://www.google-analytics.com",
         timeout: 30000,
     },
 
     TIKTOK: {
-        baseUrl: "https:
+        baseUrl: "https://business-api.tiktok.com",
         timeout: 30000,
     },
 } as const;
@@ -479,31 +480,28 @@ export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; sou
 export function logConfigStatus(): void {
     const result = validateConfig();
 
-    console.log("\n=== Configuration Status ===");
-
-    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+    logger.info("\n=== Configuration Status ===");
+    logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
+    
     if (result.errors.length > 0) {
-
-        console.error("\n❌ Configuration Errors:");
+        logger.error("\n❌ Configuration Errors:");
         for (const error of result.errors) {
-
-            console.error(`   - ${error}`);
+            logger.error(`   - ${error}`);
         }
     }
+    
     if (result.warnings.length > 0) {
-
-        console.warn("\n⚠️ Configuration Warnings:");
+        logger.warn("\n⚠️ Configuration Warnings:");
         for (const warning of result.warnings) {
-
-            console.warn(`   - ${warning}`);
+            logger.warn(`   - ${warning}`);
         }
     }
+    
     if (result.valid && result.warnings.length === 0) {
-
-        console.log("\n✅ All configuration checks passed");
+        logger.info("\n✅ All configuration checks passed");
     }
 
-    console.log("============================\n");
+    logger.info("============================\n");
     if (!result.valid && isProduction()) {
         throw new Error("Invalid configuration - cannot start in production");
     }
@@ -606,7 +604,7 @@ export function getPixelEventIngestionUrl(): {
     warning?: string;
 } {
     const shopifyAppUrl = process.env.SHOPIFY_APP_URL;
-    const fallbackUrl = "https:
+    const fallbackUrl = "https://app.tracking-guardian.com"
 
     if (!shopifyAppUrl) {
         return {

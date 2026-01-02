@@ -461,7 +461,8 @@ export default function WorkspaceTemplatesPage() {
                     <Button
                       size="slim"
                       onClick={() => {
-                        setSelectedTemplate(t as unknown as TemplateData);
+                        // t 已经是 TemplateData 类型，不需要类型断言
+                        setSelectedTemplate(t);
                         setShowApplyModal(true);
                       }}
                     >

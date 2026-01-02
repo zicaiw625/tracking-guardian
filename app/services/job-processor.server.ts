@@ -13,6 +13,7 @@ import { logger } from "../utils/logger.server";
 import { JOB_PROCESSING_CONFIG } from "../utils/config";
 import { JobStatus, parseCapiInput, parsePixelClientConfig } from "../types";
 import type { ConversionData, PlatformCredentials } from "../types";
+import { parsePlatformResults } from "../types/database";
 
 import {
   batchFetchReceipts,
@@ -395,7 +396,7 @@ async function upsertConversionLogs(
     const orderValue =
       typeof job.orderValue === "number"
         ? job.orderValue
-        : job.orderValue.toNumber();
+        : job.orderValue?.toNumber() ?? 0;
 
     try {
       await prisma.conversionLog.upsert({
@@ -474,7 +475,7 @@ async function sendToPlatformWithCredentials(
     const orderValue =
       typeof job.orderValue === "number"
         ? job.orderValue
-        : job.orderValue.toNumber();
+        : job.orderValue?.toNumber() ?? 0;
 
     const conversionData: ConversionData = {
       orderId: job.orderId,
@@ -599,19 +600,25 @@ async function processSingleJob(
     shopContext
   );
 
-  if (didReceiptMatchByToken(receipt, webhookCheckoutToken || undefined)) {
+  if (didReceiptMatchByToken(receipt, webhookCheckoutToken || undefined) && receipt) {
     updateReceiptTrustLevel(
       job.shopId,
-      receipt!.orderId,
+      receipt.orderId,
       trustResult.level,
       trustResult.reason
-    ).catch((err) =>
-      logger.warn(`Failed to update receipt trust level: ${err}`)
-    );
+    ).catch((err) => {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.warn("Failed to update receipt trust level", err instanceof Error ? err : new Error(String(err)), {
+        shopId: job.shopId,
+        orderId: receipt.orderId,
+        errorMessage,
+      });
+    });
   }
 
   const strategy = job.shop.consentStrategy || "strict";
-  const previousResults = (job.platformResults as Record<string, string>) || {};
+  // 使用类型安全的解析函数处理 platformResults
+  const previousResults = parsePlatformResults(job.platformResults);
 
   const { platformResults, anyFailed, anySent, allSkipped } = await sendToPlatformsParallel(
     job.shop.pixelConfigs,
@@ -624,9 +631,15 @@ async function processSingleJob(
     previousResults
   );
 
-  upsertConversionLogs(job, platformResults, eventId, now).catch((err) =>
-    logger.warn(`Failed to upsert ConversionLogs for job ${job.id}: ${err}`)
-  );
+  upsertConversionLogs(job, platformResults, eventId, now).catch((err) => {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    logger.warn("Failed to upsert ConversionLogs", err instanceof Error ? err : new Error(String(err)), {
+      jobId: job.id,
+      shopId: job.shopId,
+      orderId: job.orderId,
+      errorMessage,
+    });
+  });
 
   const consentEvidence = buildConsentEvidence(
     strategy,
@@ -640,9 +653,17 @@ async function processSingleJob(
   if (allSkipped) {
 
     if (!reservation.alreadyCounted) {
-      await releaseBillingSlot(job.shopId).catch(err =>
-        logger.error(`Failed to release billing slot for job ${job.id}: ${err.message}`)
-      );
+      const releaseResult = await releaseBillingSlot(job.shopId);
+      if (!releaseResult.ok) {
+        logger.error("Failed to release billing slot", {
+          jobId: job.id,
+          shopId: job.shopId,
+          error: releaseResult.error.message,
+          errorType: releaseResult.error.type,
+        });
+        // 注意：即使释放失败，也不应该阻止作业完成
+        // 可以考虑添加重试机制或告警
+      }
     }
 
     logger.info(`Job ${job.id}: All platforms skipped, not billing`);
@@ -727,9 +748,17 @@ async function processSingleJob(
   }
 
   if (!reservation.alreadyCounted) {
-    await releaseBillingSlot(job.shopId).catch(err =>
-      logger.error(`Failed to release billing slot for job ${job.id}: ${err.message}`)
-    );
+    const releaseResult = await releaseBillingSlot(job.shopId);
+    if (!releaseResult.ok) {
+      logger.error("Failed to release billing slot", {
+        jobId: job.id,
+        shopId: job.shopId,
+        error: releaseResult.error.message,
+        errorType: releaseResult.error.type,
+      });
+      // 注意：即使释放失败，也不应该阻止作业完成
+      // 可以考虑添加重试机制或告警
+    }
   }
 
   if (newAttempts >= job.maxAttempts) {
@@ -806,15 +835,24 @@ export async function processConversionJobs(
   const CONCURRENCY = 10;
   for (let i = 0; i < jobsToProcess.length; i += CONCURRENCY) {
     const batch = jobsToProcess.slice(i, i + CONCURRENCY);
-
+    
+    // 使用Promise.allSettled确保所有任务都完成，即使有失败
+    // 这样可以避免一个任务失败影响其他任务
     const results = await Promise.allSettled(
-      batch.map(async (job) => {
+      batch.map(async (job, index) => {
         try {
+          // 添加任务标识，便于追踪和去重
+          const jobId = job.id;
           return await processSingleJob(job, receiptMap, now);
         } catch (error) {
           const errorMsg =
             error instanceof Error ? error.message : "Unknown error";
-          logger.error(`Failed to process job ${job.id}: ${errorMsg}`);
+          logger.error(`Failed to process job ${job.id}`, error instanceof Error ? error : new Error(String(error)), {
+            jobId: job.id,
+            shopId: job.shopId,
+            orderId: job.orderId,
+            errorMessage: errorMsg,
+          });
 
           return {
             result: "failed" as JobProcessResult,

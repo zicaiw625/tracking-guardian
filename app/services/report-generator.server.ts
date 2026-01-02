@@ -96,7 +96,7 @@ export async function generateReportData(
     reportData.scanResults = {
       riskScore: latestScan?.riskScore || 0,
       identifiedPlatforms: (latestScan?.identifiedPlatforms as string[]) || [],
-      scriptTagsCount: latestScan?.scriptTags ? (latestScan.scriptTags as unknown[]).length : 0,
+      scriptTagsCount: Array.isArray(latestScan?.scriptTags) ? latestScan.scriptTags.length : 0,
       auditAssets: auditAssets.map((asset) => ({
         id: asset.id,
         category: asset.category,
@@ -459,7 +459,7 @@ export async function fetchScanReportData(shopId: string, scanId?: string): Prom
       shopDomain: shop.shopDomain,
       riskScore: scanReport.riskScore || 0,
       identifiedPlatforms: (scanReport.identifiedPlatforms as string[]) || [],
-      scriptTagsCount: scanReport.scriptTags ? (scanReport.scriptTags as unknown[]).length : 0,
+      scriptTagsCount: Array.isArray(scanReport.scriptTags) ? scanReport.scriptTags.length : 0,
       auditAssets: auditAssets.map((asset) => ({
         id: asset.id,
         category: asset.category,

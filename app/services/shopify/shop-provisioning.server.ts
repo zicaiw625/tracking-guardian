@@ -139,42 +139,66 @@ async function runPostInstallScan(
   try {
     logger.info(`[PostInstall] Starting automatic health check for ${shopDomain}`);
 
-    const scanPromise = Promise.allSettled([
+    // 定义明确的类型
+    type TypOspResult = Awaited<ReturnType<typeof refreshTypOspStatus>>;
+    type ScanResult = Awaited<ReturnType<typeof scanShopTracking>>;
 
-      (async () => {
-        return await refreshTypOspStatus(admin, shopId);
-      })(),
-
-      scanShopTracking(admin, shopId, {
-        force: false,
-        cacheTtlMs: 0,
-      }),
-    ]);
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Scan timeout")), MAX_SCAN_TIME_MS);
+    // 创建独立的 Promise，以便在超时后仍能获取部分结果
+    const typOspPromise = refreshTypOspStatus(admin, shopId);
+    const scanTrackingPromise = scanShopTracking(admin, shopId, {
+      force: false,
+      cacheTtlMs: 0,
     });
 
-    let typOspResult: PromiseSettledResult<any> | null = null;
-    let scanResult: PromiseSettledResult<any> | null = null;
+    const scanPromise = Promise.allSettled([
+      typOspPromise,
+      scanTrackingPromise,
+    ]);
+
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error("Scan timeout"));
+      }, MAX_SCAN_TIME_MS);
+    });
+
+    let typOspResult: PromiseSettledResult<TypOspResult> | null = null;
+    let scanResult: PromiseSettledResult<ScanResult> | null = null;
 
     try {
-      const results = await Promise.race([scanPromise, timeoutPromise]);
+      // 等待 Promise.race 完成
+      await Promise.race([scanPromise, timeoutPromise]);
+      
+      // 如果到达这里，说明 scanPromise 先完成了（没有超时）
+      const results = await scanPromise;
       [typOspResult, scanResult] = results;
+      
+      // 清理超时定时器
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
     } catch (timeoutError) {
+      // 超时了，清理定时器
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+
       logger.warn(`[PostInstall] Scan timeout for ${shopDomain}, proceeding with partial results`, {
         elapsedMs: Date.now() - startTime,
       });
 
+      // 即使超时，也尝试获取已完成的部分结果
+      // 注意：这里我们仍然等待 Promise.allSettled 完成，但已经知道超时了
       try {
-        const partialResults = await Promise.allSettled([
-          Promise.resolve(typOspResult),
-          Promise.resolve(scanResult),
-        ]);
-        if (partialResults[0].status === "fulfilled") typOspResult = partialResults[0];
-        if (partialResults[1].status === "fulfilled") scanResult = partialResults[1];
-      } catch {
-
+        const partialResults = await scanPromise;
+        [typOspResult, scanResult] = partialResults;
+      } catch (error) {
+        logger.warn(`[PostInstall] Failed to get partial results after timeout for ${shopDomain}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -258,8 +282,13 @@ async function runPostInstallScan(
                   error: priorityError instanceof Error ? priorityError.message : String(priorityError),
                 });
               }
-            })().catch(() => {
-
+            })().catch((err) => {
+              const errorMessage = err instanceof Error ? err.message : String(err);
+              logger.warn("Failed to calculate priorities in post-install", err instanceof Error ? err : new Error(String(err)), {
+                shopDomain,
+                shopId,
+                errorMessage,
+              });
             });
 
             (async () => {
@@ -275,8 +304,13 @@ async function runPostInstallScan(
                   error: error instanceof Error ? error.message : String(error),
                 });
               }
-            })().catch(() => {
-
+            })().catch((err) => {
+              const errorMessage = err instanceof Error ? err.message : String(err);
+              logger.warn("Failed to calculate migration timeline in post-install", err instanceof Error ? err : new Error(String(err)), {
+                shopDomain,
+                shopId,
+                errorMessage,
+              });
             });
           }
         }
@@ -330,8 +364,13 @@ async function runPostInstallScan(
             error: error instanceof Error ? error.message : String(error),
           });
         }
-      })().catch(() => {
-
+      })().catch((err) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logger.warn("Failed to create deferred audit assets in post-install", err instanceof Error ? err : new Error(String(err)), {
+          shopDomain,
+          shopId,
+          errorMessage,
+        });
       });
     }
 
@@ -389,8 +428,11 @@ export async function handleAfterAuth(
     if (shop) {
 
       runPostInstallScan(session.shop, shop.id, admin).catch((error) => {
-        logger.error(`[PostInstall] Failed to run post-install scan for ${session.shop}`, {
-          error: error instanceof Error ? error.message : String(error),
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error("Failed to run post-install scan", error instanceof Error ? error : new Error(String(error)), {
+          shopDomain: session.shop,
+          shopId: shop.id,
+          errorMessage,
         });
       });
     }

@@ -36,7 +36,7 @@ export async function createBatchMigrationJob(
   workspaceId?: string
 ): Promise<BatchMigrationJob> {
   const job: BatchMigrationJob = {
-    id: `batch-migration-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `batch-migration-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     workspaceId,
     templateId,
     shopIds,

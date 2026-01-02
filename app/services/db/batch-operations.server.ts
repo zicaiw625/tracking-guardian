@@ -74,27 +74,36 @@ export async function batchCompleteJobs(
           },
         });
 
-        if (completed.length > 0) {
+        // 更新每个作业的详细数据，使用 Promise.allSettled 确保单个失败不影响其他
+        const updateResults = await Promise.allSettled(
+          completed.map((job) =>
+            tx.conversionJob.update({
+              where: { id: job.jobId },
+              data: {
+                platformResults: toInputJsonValue(job.platformResults),
+                trustMetadata: toInputJsonValue(job.trustMetadata),
+                consentEvidence: toInputJsonValue(job.consentEvidence),
+              },
+            })
+          )
+        );
 
-          await Promise.all(
-            completed.map((job) =>
-              tx.conversionJob.update({
-                where: { id: job.jobId },
-                data: {
-                  platformResults: toInputJsonValue(job.platformResults),
-                  trustMetadata: toInputJsonValue(job.trustMetadata),
-                  consentEvidence: toInputJsonValue(job.consentEvidence),
-                },
-              })
-            )
-          );
-        }
+        // 记录任何失败的更新
+        updateResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const job = completed[index];
+            const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+            logger.warn('Failed to update job details', { jobId: job.jobId, error: errorMsg });
+            errors.push({ id: job.jobId, error: `Failed to update details: ${errorMsg}` });
+          }
+        });
+
         processed += completed.length;
       }
 
       if (failed.length > 0) {
-
-        await Promise.all(
+        // 使用 Promise.allSettled 确保单个失败不影响其他
+        const updateResults = await Promise.allSettled(
           failed.map((job) =>
             tx.conversionJob.update({
               where: { id: job.jobId },
@@ -108,6 +117,17 @@ export async function batchCompleteJobs(
             })
           )
         );
+
+        // 记录任何失败的更新
+        updateResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const job = failed[index];
+            const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+            logger.warn('Failed to update failed job', { jobId: job.jobId, error: errorMsg });
+            errors.push({ id: job.jobId, error: `Failed to update: ${errorMsg}` });
+          }
+        });
+
         processed += failed.length;
       }
 
@@ -123,7 +143,8 @@ export async function batchCompleteJobs(
 
         const limitExceededWithErrors = limitExceeded.filter((j) => j.errorMessage);
         if (limitExceededWithErrors.length > 0) {
-          await Promise.all(
+          // 使用 Promise.allSettled 确保单个失败不影响其他
+          const updateResults = await Promise.allSettled(
             limitExceededWithErrors.map((job) =>
               tx.conversionJob.update({
                 where: { id: job.jobId },
@@ -131,6 +152,16 @@ export async function batchCompleteJobs(
               })
             )
           );
+
+          // 记录任何失败的更新
+          updateResults.forEach((result, index) => {
+            if (result.status === 'rejected') {
+              const job = limitExceededWithErrors[index];
+              const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+              logger.warn('Failed to update limit exceeded job error message', { jobId: job.jobId, error: errorMsg });
+              errors.push({ id: job.jobId, error: `Failed to update error message: ${errorMsg}` });
+            }
+          });
         }
         processed += limitExceeded.length;
       }
@@ -145,7 +176,8 @@ export async function batchCompleteJobs(
           },
         });
 
-        await Promise.all(
+        // 使用 Promise.allSettled 确保单个失败不影响其他
+        const updateResults = await Promise.allSettled(
           deadLetter.map((job) =>
             tx.conversionJob.update({
               where: { id: job.jobId },
@@ -156,6 +188,16 @@ export async function batchCompleteJobs(
             })
           )
         );
+
+        // 记录任何失败的更新
+        updateResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const job = deadLetter[index];
+            const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+            logger.warn('Failed to update dead letter job', { jobId: job.jobId, error: errorMsg });
+            errors.push({ id: job.jobId, error: `Failed to update: ${errorMsg}` });
+          }
+        });
         processed += deadLetter.length;
       }
     });

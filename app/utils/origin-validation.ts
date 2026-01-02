@@ -29,17 +29,17 @@ const ALLOWED_ORIGIN_PATTERNS: Array<{
     {
         pattern: /^https:\/\/[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/,
         description: "Shopify store domains",
-        example: "https:
+        example: "https://example.myshopify.com",
     },
     {
         pattern: /^https:\/\/checkout\.shopify\.com$/,
         description: "Shopify checkout domain",
-        example: "https:
+        example: "https://checkout.shopify.com",
     },
     {
         pattern: /^https:\/\/[a-zA-Z0-9-]+\.shopify\.com$/,
         description: "Shopify internal domains",
-        example: "https:
+        example: "https://admin.shopify.com",
     },
 ];
 const DEV_ORIGIN_PATTERNS: Array<{
@@ -348,7 +348,7 @@ function evictOldestEntries(count: number): void {
 function sanitizeOriginForLogging(origin: string): string {
     try {
         const url = new URL(origin);
-        return `${url.protocol}
+        return `${url.protocol}//${url.hostname}`;
     }
     catch {
         return origin.substring(0, 50);

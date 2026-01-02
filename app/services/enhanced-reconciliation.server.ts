@@ -516,8 +516,13 @@ export interface LocalConsistencyCheck {
 export async function checkLocalConsistency(
   shopId: string,
   orderId: string,
-  admin?: AdminApiContext
+  admin?: AdminApiContext,
+  signal?: AbortSignal
 ): Promise<LocalConsistencyCheck | null> {
+  // 检查是否已取消
+  if (signal?.aborted) {
+    return null;
+  }
 
   let shopifyOrder: { value: number; currency: string; itemCount: number } | null = null;
 
@@ -528,6 +533,12 @@ export async function checkLocalConsistency(
       new Date(),
       100
     );
+    
+    // 检查是否已取消
+    if (signal?.aborted) {
+      return null;
+    }
+    
     const order = orders.find((o) => extractOrderId(o.id) === orderId);
     if (order) {
       shopifyOrder = {
@@ -538,6 +549,11 @@ export async function checkLocalConsistency(
     }
   }
 
+  // 检查是否已取消
+  if (signal?.aborted) {
+    return null;
+  }
+
   if (!shopifyOrder) {
     const job = await prisma.conversionJob.findFirst({
       where: {
@@ -546,6 +562,11 @@ export async function checkLocalConsistency(
       },
       orderBy: { createdAt: "desc" },
     });
+
+    // 检查是否已取消
+    if (signal?.aborted) {
+      return null;
+    }
 
     if (job) {
       shopifyOrder = {
@@ -560,6 +581,16 @@ export async function checkLocalConsistency(
     return null;
   }
 
+  // 检查是否已取消
+  if (signal?.aborted) {
+    return null;
+  }
+
+  // 检查是否已取消
+  if (signal?.aborted) {
+    return null;
+  }
+
   const job = await prisma.conversionJob.findFirst({
     where: {
       shopId,
@@ -569,6 +600,11 @@ export async function checkLocalConsistency(
       eventData: true,
     },
   });
+
+  // 检查是否已取消
+  if (signal?.aborted) {
+    return null;
+  }
 
   if (job?.eventData) {
     try {
@@ -586,6 +622,11 @@ export async function checkLocalConsistency(
     }
   }
 
+  // 检查是否已取消
+  if (signal?.aborted) {
+    return null;
+  }
+
   const pixelReceipt = await prisma.pixelEventReceipt.findFirst({
     where: {
       shopId,
@@ -594,6 +635,11 @@ export async function checkLocalConsistency(
     orderBy: { createdAt: "desc" },
   });
 
+  // 检查是否已取消
+  if (signal?.aborted) {
+    return null;
+  }
+
   const capiEvents = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -601,6 +647,11 @@ export async function checkLocalConsistency(
     },
     orderBy: { createdAt: "desc" },
   });
+
+  // 检查是否已取消
+  if (signal?.aborted) {
+    return null;
+  }
 
   const issues: string[] = [];
   let consistencyStatus: "consistent" | "partial" | "inconsistent" = "consistent";
@@ -751,29 +802,77 @@ export async function performChannelReconciliation(
     const batch = orderIds.slice(i, i + maxConcurrent);
     const batchPromises = batch.map(async (orderId) => {
       let timeoutId: NodeJS.Timeout | null = null;
-      let timeoutResolved = false;
+      let timeoutController: AbortController | null = null;
+      let isTimedOut = false;
+      let checkPromise: Promise<LocalConsistencyCheck | null> | null = null;
+
       try {
-        const checkPromise = checkLocalConsistency(shopId, orderId, admin);
+        // 创建 AbortController 用于取消操作
+        timeoutController = new AbortController();
+        const timeoutSignal = timeoutController.signal;
+
+        // 启动检查操作，传入 AbortSignal
+        checkPromise = checkLocalConsistency(shopId, orderId, admin, timeoutSignal);
+        
+        // 创建超时Promise
         const timeoutPromise = new Promise<null>((resolve) => {
           timeoutId = setTimeout(() => {
-            timeoutResolved = true;
+            isTimedOut = true;
+            // 取消操作
+            timeoutController?.abort();
             resolve(null);
           }, timeout);
         });
+
+        // 使用 Promise.race 竞争执行
         const check = await Promise.race([checkPromise, timeoutPromise]);
 
-        if (timeoutId !== null && !timeoutResolved) {
+        // 清理定时器
+        if (timeoutId !== null) {
           clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        // 如果超时，返回 null（checkPromise 可能仍在运行，但会被 AbortSignal 取消）
+        if (isTimedOut) {
+          // 记录超时警告，帮助识别性能问题
+          logger.warn("Local consistency check timed out", { 
+            shopId, 
+            orderId, 
+            timeoutMs: timeout 
+          });
+          return null;
+        }
+
+        // 如果 checkPromise 被取消，check 可能是 null
+        if (check === null && timeoutSignal.aborted) {
+          return null;
         }
 
         return check;
       } catch (error) {
-
-        if (timeoutId !== null && !timeoutResolved) {
+        // 清理定时器
+        if (timeoutId !== null) {
           clearTimeout(timeoutId);
+          timeoutId = null;
         }
-        logger.warn("Failed to check local consistency", { orderId, error });
+
+        // 如果已经超时或被取消，不记录错误
+        if (!isTimedOut && !timeoutController?.signal.aborted) {
+          logger.warn("Failed to check local consistency", { orderId, error });
+        }
         return null;
+      } finally {
+        // 确保清理资源
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        // 取消操作（如果仍在运行）
+        if (timeoutController && !timeoutController.signal.aborted) {
+          timeoutController.abort();
+        }
+        timeoutController = null;
       }
     });
 

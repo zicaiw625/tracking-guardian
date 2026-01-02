@@ -114,7 +114,7 @@ export function calculateProgress(current: number, total: number): number {
 }
 
 export function generateId(prefix = "id"): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {
@@ -134,6 +134,8 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     document.body.removeChild(textArea);
     return success;
   } catch (error) {
+    // 客户端调试输出：复制到剪贴板失败
+    // eslint-disable-next-line no-console
     console.error("Failed to copy to clipboard:", error);
     return false;
   }

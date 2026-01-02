@@ -34,8 +34,8 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
       ) || ["无"]),
       "",
       "## 快速链接",
-      `- Pixels 管理: https:
-      `- Checkout Editor: https:
+      `- Pixels 管理: https://admin.shopify.com/store/${shopDomain}/settings/notifications`,
+      `- Checkout Editor: https://admin.shopify.com/store/${shopDomain}/themes/current/editor`,
       "- 应用迁移工具: /app/migrate",
     ].join("\n");
     navigator.clipboard.writeText(checklist);
@@ -85,7 +85,7 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </Text>
           <InlineStack gap="300" wrap>
             <Button
-              url="https:
+              url={`https://admin.shopify.com/store/${shopDomain || ""}/settings/notifications`}
               external
               icon={ShareIcon}
             >
@@ -107,14 +107,14 @@ export function MigrationWizard({ migrationActions, shopDomain }: MigrationWizar
           </Text>
           <InlineStack gap="300" wrap>
             <Button
-              url="https:
+              url={`https://admin.shopify.com/store/${shopDomain || ""}/themes/current/editor?template=checkout`}
               external
               icon={ShareIcon}
             >
               打开 Checkout Editor
             </Button>
             <Button
-              url="https:
+              url="https://help.shopify.com/en/manual/checkout-settings"
               external
               icon={InfoIcon}
             >

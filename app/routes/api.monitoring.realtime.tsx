@@ -29,9 +29,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     "X-Accel-Buffering": "no",
   });
 
+  let interval: ReturnType<typeof setInterval> | null = null;
+  let isClosed = false;
+
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
+
+      const cleanup = () => {
+        if (interval !== null) {
+          clearInterval(interval);
+          interval = null;
+        }
+        if (!isClosed) {
+          isClosed = true;
+          try {
+            controller.close();
+          } catch (error) {
+            // Stream may already be closed
+          }
+        }
+      };
 
       try {
         const stats = await getEventMonitoringStats(shopId, 24);
@@ -48,11 +66,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         controller.enqueue(encoder.encode(`data: ${data}\n\n`));
       } catch (error) {
         logger.error("Failed to send initial SSE data:", error);
-        controller.close();
+        cleanup();
         return;
       }
 
-      const interval = setInterval(async () => {
+      interval = setInterval(async () => {
         try {
           const stats = await getEventMonitoringStats(shopId, 24);
           const data = JSON.stringify({
@@ -65,18 +83,32 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             byPlatform: stats.byPlatform,
           });
 
-          controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          if (isClosed) return;
+          try {
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          } catch (error) {
+            logger.warn("Failed to send SSE update, closing stream", error);
+            cleanup();
+          }
         } catch (error) {
-          logger.error("Failed to send SSE update:", error);
-          clearInterval(interval);
-          controller.close();
+          logger.error("Failed to fetch monitoring stats:", error);
+          // Don't close on single error, but cleanup if stream is broken
+          if (isClosed) {
+            cleanup();
+          }
         }
       }, 5000);
 
       request.signal.addEventListener("abort", () => {
-        clearInterval(interval);
-        controller.close();
+        cleanup();
       });
+    },
+    cancel() {
+      // Ensure cleanup when stream is cancelled
+      if (interval !== null) {
+        clearInterval(interval);
+        interval = null;
+      }
     },
   });
 

@@ -206,13 +206,28 @@ export default function SurveyPage() {
     );
   }
 
-  const responseRows = recentResponses.map((response) => [
-    response.orderNumber || response.orderId.slice(0, 8),
-    response.rating ? `${response.rating} ⭐` : "-",
-    response.source || "-",
-    response.feedback ? (response.feedback.length > 50 ? `${response.feedback.slice(0, 50)}...` : response.feedback) : "-",
-    new Date(response.createdAt).toLocaleDateString("zh-CN"),
-  ]);
+  const responseRows = recentResponses.map((response) => {
+    // 安全解析日期
+    let dateStr = "-";
+    if (response.createdAt) {
+      try {
+        const date = new Date(response.createdAt);
+        if (!isNaN(date.getTime())) {
+          dateStr = date.toLocaleDateString("zh-CN");
+        }
+      } catch {
+        // 如果日期解析失败，使用默认值
+        dateStr = "-";
+      }
+    }
+    return [
+      response.orderNumber || response.orderId.slice(0, 8),
+      response.rating ? `${response.rating} ⭐` : "-",
+      response.source || "-",
+      response.feedback ? (response.feedback.length > 50 ? `${response.feedback.slice(0, 50)}...` : response.feedback) : "-",
+      dateStr,
+    ];
+  });
 
   return (
     <Page

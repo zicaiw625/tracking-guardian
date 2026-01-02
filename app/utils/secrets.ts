@@ -130,7 +130,7 @@ export function checkSecurityViolations(): SecurityViolation[] {
         }
 
         const appUrl = process.env.SHOPIFY_APP_URL;
-        if (appUrl && !appUrl.startsWith("https:
+        if (appUrl && !appUrl.startsWith("https://")) {
             violations.push({
                 type: "fatal",
                 code: "INSECURE_APP_URL",
@@ -193,20 +193,17 @@ export function enforceSecurityChecks(): void {
     }
 
     if (violations.length > 0) {
-
-        console.log("\n" + "=".repeat(80));
-
-        console.log("SECURITY CHECK SUMMARY");
-
-        console.log("=".repeat(80));
-
-        console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-
-        console.log(`Fatal issues: ${fatalViolations.length}`);
-
-        console.log(`Warnings: ${warnings.length}`);
-
-        console.log("=".repeat(80) + "\n");
+        const summary = [
+            "\n" + "=".repeat(80),
+            "SECURITY CHECK SUMMARY",
+            "=".repeat(80),
+            `Environment: ${process.env.NODE_ENV || "development"}`,
+            `Fatal issues: ${fatalViolations.length}`,
+            `Warnings: ${warnings.length}`,
+            "=".repeat(80) + "\n"
+        ].join("\n");
+        
+        logger.info(summary);
     }
 
     if (fatalViolations.length > 0) {

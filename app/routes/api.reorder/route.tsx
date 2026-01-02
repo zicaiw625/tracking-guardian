@@ -194,13 +194,13 @@ async function loaderImpl(request: Request) {
 
         const baseUrl = shop.primaryDomain.startsWith("http")
           ? shop.primaryDomain
-          : `https:
+          : `https://${shop.primaryDomain}`;
         reorderUrl = `${baseUrl}${relativeUrl}`;
       } else if (shop?.storefrontDomains && shop.storefrontDomains.length > 0) {
 
         const baseUrl = shop.storefrontDomains[0].startsWith("http")
           ? shop.storefrontDomains[0]
-          : `https:
+          : `https://${shop.storefrontDomains[0]}`;
         reorderUrl = `${baseUrl}${relativeUrl}`;
       }
 

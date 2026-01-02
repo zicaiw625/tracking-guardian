@@ -442,11 +442,15 @@ export async function processRetries(): Promise<{
 
       const credResult2 = decryptCredentials(pixelConfig, log.platform);
       if (!credResult2.ok) {
-        await prisma.conversionLog.update({
-          where: { id: log.id },
-          data: { attempts: { increment: 1 } },
-        });
-        await scheduleRetry(log.id, `No credentials configured: ${credResult2.error.message}`);
+        try {
+          await prisma.conversionLog.update({
+            where: { id: log.id },
+            data: { attempts: { increment: 1 } },
+          });
+          await scheduleRetry(log.id, `No credentials configured: ${credResult2.error.message}`);
+        } catch (updateError) {
+          logger.error(`Failed to update conversion log ${log.id}`, updateError);
+        }
         failed++;
         continue;
       }

@@ -8,6 +8,7 @@ import type {
   ConsentStrategyType,
 } from './enums';
 import { ok, err, type Result } from './result';
+import { logger } from '../utils/logger.server';
 
 export interface CapiLineItem {
   productId?: string;
@@ -451,7 +452,7 @@ export function createJsonParser<T>(
       return mapper(data);
     } catch (error) {
       if (options?.logErrors) {
-        console.error('JSON parsing error:', error);
+        logger.error('JSON parsing error', { error });
       }
       return options?.fallback ?? null;
     }

@@ -57,8 +57,8 @@ export async function cacheShopVerification(
   const key = getVerificationKey(shopDomain);
   try {
     if (data === null) {
-
-      await shopVerificationCache.set(key, null as unknown as ShopVerificationData, TTL.VERY_SHORT);
+      // 使用delete而不是缓存null，避免类型断言
+      await shopVerificationCache.delete(key);
     } else {
       await shopVerificationCache.set(key, data, ttlMs);
     }
@@ -97,7 +97,8 @@ export async function cacheShopWithConfigs(
   const key = getConfigsKey(shopDomain);
   try {
     if (data === null) {
-      await shopWithConfigsCache.set(key, null as unknown as ShopWithPixelConfigs, TTL.VERY_SHORT);
+      // 使用delete而不是缓存null，避免类型断言
+      await shopWithConfigsCache.delete(key);
     } else {
       await shopWithConfigsCache.set(key, data, ttlMs);
     }

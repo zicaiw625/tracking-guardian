@@ -256,7 +256,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     if (!pdfResult) {
                         return new Response("PDF generation failed", { status: 500 });
                     }
-                    return new Response(pdfResult.buffer as unknown as BodyInit, {
+                    return new Response(pdfResult.buffer, {
                         status: 200,
                         headers: {
                             "Content-Type": pdfResult.contentType,
@@ -334,7 +334,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     if (!pdfResult) {
                         return new Response("PDF generation failed", { status: 500 });
                     }
-                    return new Response(pdfResult.buffer as unknown as BodyInit, {
+                    return new Response(pdfResult.buffer, {
                         status: 200,
                         headers: {
                             "Content-Type": pdfResult.contentType,

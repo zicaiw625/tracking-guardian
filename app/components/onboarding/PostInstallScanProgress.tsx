@@ -35,13 +35,22 @@ export function PostInstallScanProgress({
   ];
 
   useEffect(() => {
-    let stepIndex = 0;
     let accumulatedTime = 0;
     const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
     let checkInterval: ReturnType<typeof setInterval> | null = null;
     let completionTimeout: ReturnType<typeof setTimeout> | null = null;
+    let mainInterval: ReturnType<typeof setInterval> | null = null;
+    let isMounted = true;
 
-    const interval = setInterval(() => {
+    mainInterval = setInterval(() => {
+      if (!isMounted) {
+        if (mainInterval) {
+          clearInterval(mainInterval);
+          mainInterval = null;
+        }
+        return;
+      }
+
       accumulatedTime += 100;
       const newProgress = Math.min((accumulatedTime / totalDuration) * 100, 95);
       setProgress(newProgress);
@@ -56,32 +65,54 @@ export function PostInstallScanProgress({
       }
 
       if (accumulatedTime >= totalDuration) {
-        clearInterval(interval);
+        if (mainInterval) {
+          clearInterval(mainInterval);
+          mainInterval = null;
+        }
 
-        checkInterval = setInterval(() => {
-          revalidator.revalidate();
-        }, 2000);
+        if (isMounted) {
+          checkInterval = setInterval(() => {
+            if (!isMounted) {
+              if (checkInterval) {
+                clearInterval(checkInterval);
+                checkInterval = null;
+              }
+              return;
+            }
+            revalidator.revalidate();
+          }, 2000);
 
-        completionTimeout = setTimeout(() => {
-          if (checkInterval) {
-            clearInterval(checkInterval);
-          }
-          setProgress(100);
-          setScanStatus("completed");
-          if (onComplete) {
-            onComplete();
-          }
-        }, 15000);
+          completionTimeout = setTimeout(() => {
+            if (!isMounted) return;
+            if (checkInterval) {
+              clearInterval(checkInterval);
+              checkInterval = null;
+            }
+            if (isMounted) {
+              setProgress(100);
+              setScanStatus("completed");
+              onComplete?.();
+            }
+          }, 15000);
+        }
       }
     }, 100);
 
     return () => {
-      clearInterval(interval);
+      isMounted = false;
+      
+      // 清理所有定时器
+      if (mainInterval) {
+        clearInterval(mainInterval);
+        mainInterval = null;
+      }
       if (checkInterval) {
         clearInterval(checkInterval);
+        checkInterval = null;
       }
       if (completionTimeout) {
         clearTimeout(completionTimeout);
+        completionTimeout = null;
       }
     };
   }, [onComplete, revalidator]);

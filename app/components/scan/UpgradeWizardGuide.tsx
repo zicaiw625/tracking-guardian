@@ -197,7 +197,7 @@ export function UpgradeWizardGuide({
 
               <Box paddingBlockStart="400">
                 <Link
-                  url="https:
+                  url="https://help.shopify.com/en/manual/checkout-settings"
                   external
                 >
                   <InlineStack gap="200" align="center">
@@ -289,5 +289,41 @@ export function UpgradeWizardGuide({
                           <Box>
                             <input
                               type="file"
-                              accept="image
+                              accept="image/*"
+                              onChange={handleFileUpload}
+                            />
+                          </Box>
+                        </BlockStack>
+                      </InlineStack>
+                    </BlockStack>
+                  </Card>
+                )}
+              </BlockStack>
+            </BlockStack>
+          )}
 
+          {}
+          {step === 3 && (
+            <BlockStack gap="400">
+              <Text as="h3" variant="headingMd">
+                粘贴清单内容
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                请将从 Shopify 升级向导中复制的脚本清单或代码片段粘贴到下方文本框
+              </Text>
+              <TextField
+                label="清单内容"
+                multiline
+                rows={10}
+                value={pastedContent}
+                onChange={setPastedContent}
+                placeholder="粘贴升级向导中的脚本清单或代码片段..."
+                helpText="支持纯文本、JSON 或其他格式的代码"
+              />
+            </BlockStack>
+          )}
+        </BlockStack>
+      </Modal.Section>
+    </Modal>
+  );
+}

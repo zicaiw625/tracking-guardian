@@ -11,7 +11,7 @@ const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
 const getAppUrl = (): string => {
-    return process.env.SHOPIFY_APP_URL || "https:
+    return process.env.SHOPIFY_APP_URL || "https://app.tracking-guardian.com";
 };
 const getEmailSender = (): string => {
     return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";
@@ -233,7 +233,7 @@ async function sendTelegramAlert(settings: TelegramAlertSettings, data: AlertDat
 
 请及时检查追踪配置！
   `.trim();
-    const response = await fetch(`https:
+    const response = await fetch(`https://api.telegram.org/bot${settings.botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

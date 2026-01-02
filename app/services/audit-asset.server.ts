@@ -243,9 +243,11 @@ export async function createAuditAsset(
       });
 
       calculatePriorityAndTimeEstimate(updated.id, shopId).catch((error) => {
-        logger.error("Failed to calculate priority/time estimate asynchronously", {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error("Failed to calculate priority/time estimate asynchronously", error instanceof Error ? error : new Error(String(error)), {
           assetId: updated.id,
-          error,
+          shopId,
+          errorMessage,
         });
       });
 
@@ -287,9 +289,11 @@ export async function createAuditAsset(
     });
 
     calculatePriorityAndTimeEstimate(asset.id, shopId).catch((error) => {
-      logger.error("Failed to calculate priority/time estimate asynchronously", {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error("Failed to calculate priority/time estimate asynchronously", error instanceof Error ? error : new Error(String(error)), {
         assetId: asset.id,
-        error,
+        shopId,
+        errorMessage,
       });
     });
 

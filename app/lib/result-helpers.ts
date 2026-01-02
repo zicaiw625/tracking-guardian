@@ -79,30 +79,55 @@ export async function wrapApiCall<T>(
   timeoutMs: number = 30000
 ): AsyncResult<T, AppError> {
   let timeoutId: NodeJS.Timeout | null = null;
-  let timeoutRejected = false;
+  const timeoutErrorSymbol = Symbol("TimeoutError");
 
-  try {
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => {
-        timeoutRejected = true;
-        reject(new Error(`Request timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-    });
-
-    const result = await Promise.race([operation(), timeoutPromise]);
-
-    if (timeoutId !== null && !timeoutRejected) {
-      clearTimeout(timeoutId);
-      timeoutId = null;
-    }
-
-    return ok(result);
-  } catch (error) {
-
+  // 清理定时器的辅助函数
+  const cleanupTimeout = (): void => {
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
       timeoutId = null;
+    }
+  };
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        const timeoutError = new Error(`Request timed out after ${timeoutMs}ms`);
+        (timeoutError as Error & { [timeoutErrorSymbol]: boolean })[timeoutErrorSymbol] = true;
+        reject(timeoutError);
+      }, timeoutMs);
+    });
+
+    const result = await Promise.race([
+      operation().finally(() => {
+        // 确保在操作完成时清理定时器（无论成功还是失败）
+        cleanupTimeout();
+      }),
+      timeoutPromise,
+    ]);
+
+    // 如果到达这里，说明操作成功完成（定时器已在 finally 中清理）
+    return ok(result);
+  } catch (error) {
+    // 确保定时器被清理（即使已经在 finally 中清理过，这里再次清理也是安全的）
+    cleanupTimeout();
+
+    // 检查是否是超时错误（使用符号标记更可靠）
+    const isTimeoutError = 
+      error instanceof Error && 
+      (
+        (timeoutErrorSymbol in error && (error as Error & { [timeoutErrorSymbol]: boolean })[timeoutErrorSymbol]) ||
+        error.message.includes("timed out") || 
+        error.message.includes(`Request timed out after ${timeoutMs}ms`) ||
+        error.name === "TimeoutError" ||
+        error.message.toLowerCase().includes("timeout")
+      );
+
+    if (isTimeoutError) {
+      logger.warn(`API call timed out: ${serviceName}`, {
+        serviceName,
+        timeoutMs,
+      });
     }
 
     const appError = handleApiError(error, serviceName);
@@ -113,26 +138,66 @@ export async function wrapApiCall<T>(
 function handleApiError(error: unknown, serviceName: string): AppError {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
+    const errorName = error.name?.toLowerCase() || "";
 
-    if (message.includes("timeout") || message.includes("abort")) {
+    // 处理超时和取消错误
+    if (message.includes("timeout") || message.includes("abort") || errorName.includes("timeout") || errorName.includes("abort")) {
       return AppError.retryable(
         ErrorCode.PLATFORM_TIMEOUT,
         `${serviceName} request timed out`,
-        { platform: serviceName }
+        { platform: serviceName, originalError: error.message }
       );
     }
 
-    if (message.includes("network") || message.includes("fetch") || message.includes("econnrefused")) {
+    // 处理网络错误
+    if (
+      message.includes("network") || 
+      message.includes("fetch") || 
+      message.includes("econnrefused") ||
+      message.includes("enotfound") ||
+      message.includes("econnreset") ||
+      errorName.includes("networkerror") ||
+      errorName.includes("typeerror")
+    ) {
       return AppError.retryable(
         ErrorCode.PLATFORM_NETWORK_ERROR,
         `${serviceName} network error: ${error.message}`,
-        { platform: serviceName }
+        { platform: serviceName, originalError: error.message }
+      );
+    }
+
+    // 处理认证错误
+    if (message.includes("unauthorized") || message.includes("401") || message.includes("authentication")) {
+      return new AppError(
+        ErrorCode.PLATFORM_AUTH_ERROR,
+        `${serviceName} authentication failed`,
+        false,
+        { platform: serviceName, originalError: error.message }
+      );
+    }
+
+    // 处理权限错误
+    if (message.includes("forbidden") || message.includes("403") || message.includes("permission")) {
+      return new AppError(
+        ErrorCode.PLATFORM_AUTH_ERROR,
+        `${serviceName} access forbidden`,
+        false,
+        { platform: serviceName, originalError: error.message }
       );
     }
   }
 
+  // 处理非Error对象
+  if (typeof error === "string") {
+    return ensureAppError(new Error(error), ErrorCode.PLATFORM_UNKNOWN_ERROR).withMetadata({
+      platform: serviceName,
+      originalError: error,
+    });
+  }
+
   return ensureAppError(error, ErrorCode.PLATFORM_UNKNOWN_ERROR).withMetadata({
     platform: serviceName,
+    errorType: typeof error,
   });
 }
 
@@ -186,6 +251,10 @@ export function parseJsonSafe<T>(
 export async function collectResults<T extends readonly Result<unknown, AppError>[]>(
   results: [...{ [K in keyof T]: Promise<T[K]> }]
 ): Promise<Result<{ [K in keyof T]: T[K] extends Result<infer V, AppError> ? V : never }, AppError>> {
+  if (!Array.isArray(results) || results.length === 0) {
+    return ok([] as { [K in keyof T]: T[K] extends Result<infer V, AppError> ? V : never });
+  }
+
   const settled = await Promise.all(results);
   const values: unknown[] = [];
 
@@ -202,6 +271,10 @@ export async function collectResults<T extends readonly Result<unknown, AppError
 export async function collectAllResults<T>(
   operations: Promise<Result<T, AppError>>[]
 ): AsyncResult<T[], AppError[]> {
+  if (!Array.isArray(operations) || operations.length === 0) {
+    return ok([]);
+  }
+
   const results = await Promise.all(operations);
   const values: T[] = [];
   const errors: AppError[] = [];
@@ -215,7 +288,7 @@ export async function collectAllResults<T>(
   }
 
   if (errors.length > 0) {
-    return { ok: false, error: errors };
+    return err(errors);
   }
 
   return ok(values);
@@ -282,9 +355,17 @@ export function logResult<T, E>(
   } else if (isErr(result)) {
     const error = result.error;
     if (error instanceof AppError) {
-      logger.warn(`${context}: Failed`, { code: error.code, message: error.message });
+      const logLevel = error.isInternalError() ? "error" : error.isRetryable ? "warn" : "info";
+      logger[logLevel](`${context}: Failed`, error, {
+        code: error.code,
+        message: error.message,
+        isRetryable: error.isRetryable,
+        metadata: error.metadata,
+      });
     } else {
-      logger.warn(`${context}: Failed`, { error: String(error) });
+      logger.warn(`${context}: Failed`, error instanceof Error ? error : new Error(String(error)), {
+        error: String(error),
+      });
     }
   }
   return result;

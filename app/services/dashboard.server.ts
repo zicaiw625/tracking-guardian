@@ -43,7 +43,9 @@ async function calculateHealthScore(
   const factors: { label: string; value: number; weight: number }[] = [];
 
   const avgDiscrepancy =
-    recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length;
+    recentReports.length > 0
+      ? recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length
+      : 0;
   const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500));
   factors.push({ label: "对账一致性", value: discrepancyScore, weight: 0.4 });
 

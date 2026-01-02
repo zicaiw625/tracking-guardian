@@ -22,7 +22,7 @@ import {
   hashUserData,
 } from "./base-platform.service";
 
-const SNAPCHAT_API_BASE_URL = "https:
+const SNAPCHAT_API_BASE_URL = "https://tr.snapchat.com";
 
 export interface SnapchatCredentials {
   pixelId: string;

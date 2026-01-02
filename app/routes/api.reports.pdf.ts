@@ -179,7 +179,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
 
-    return new Response(pdfResult.buffer as unknown as BodyInit, {
+    return new Response(pdfResult.buffer, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${pdfResult.filename}"`,

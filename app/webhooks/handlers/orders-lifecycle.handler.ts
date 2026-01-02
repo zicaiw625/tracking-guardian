@@ -51,7 +51,8 @@ export async function handleOrdersCancelled(
         shopId: shopRecord.id,
         eventName: "order_cancelled",
         eventId: `cancel_${orderId}_${Date.now()}`,
-        payloadJson: orderPayload as unknown as Prisma.InputJsonValue,
+        // orderPayload 已经是可序列化的对象，可以安全地转换为 Prisma.InputJsonValue
+        payloadJson: orderPayload as Prisma.InputJsonValue,
         destinationType: "verification",
         status: "ok",
         eventTimestamp: new Date(),
@@ -114,7 +115,8 @@ export async function handleOrdersUpdated(
         shopId: shopRecord.id,
         eventName: "order_updated",
         eventId: `update_${orderId}_${Date.now()}`,
-        payloadJson: orderPayload as unknown as Prisma.InputJsonValue,
+        // orderPayload 已经是可序列化的对象，可以安全地转换为 Prisma.InputJsonValue
+        payloadJson: orderPayload as Prisma.InputJsonValue,
         destinationType: "verification",
         status: "ok",
         eventTimestamp: new Date(),
@@ -188,7 +190,8 @@ export async function handleRefundsCreate(
         shopId: shopRecord.id,
         eventName: "refund_created",
         eventId: `refund_${orderId}_${Date.now()}`,
-        payloadJson: refundPayload as unknown as Prisma.InputJsonValue,
+        // refundPayload 已经是可序列化的对象，可以安全地转换为 Prisma.InputJsonValue
+        payloadJson: refundPayload as Prisma.InputJsonValue,
         destinationType: "verification",
         status: "ok",
         eventTimestamp: new Date(),

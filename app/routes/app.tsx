@@ -9,8 +9,9 @@ import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { authenticate } from "../shopify.server";
 import { ToastProvider } from "../components/ui/ToastProvider";
+import { getPolarisTranslations } from "../utils/polaris-i18n";
 
-const i18n = (translations as any).default ?? translations;
+const i18n = getPolarisTranslations(translations);
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {

@@ -336,6 +336,7 @@ function isWeekend(date: Date): boolean {
 function calculateMovingAverage(values: number[], windowSize: number): number {
   if (values.length < windowSize) return 0;
   const recent = values.slice(-windowSize);
+  if (recent.length === 0) return 0;
   return recent.reduce((sum, v) => sum + v, 0) / recent.length;
 }
 
@@ -430,7 +431,10 @@ export async function getEventVolumeStats(
 
     if (allCounts.length >= 7) {
       average7Days = calculateMovingAverage(allCounts, 7);
-      const variance = allCounts.reduce((sum, c) => sum + Math.pow(c - average7Days!, 2), 0) / allCounts.length;
+      // 防御性检查：确保 allCounts.length > 0 以避免除零错误
+      const variance = allCounts.length > 0
+        ? allCounts.reduce((sum, c) => sum + Math.pow(c - average7Days!, 2), 0) / allCounts.length
+        : 0;
       stdDev = Math.sqrt(variance);
       threshold = average7Days - 2 * stdDev;
 
@@ -546,7 +550,10 @@ export async function getEventVolumeHistory(
   let stdDev = 0;
   if (counts.length > 0) {
     mean = counts.reduce((sum, c) => sum + c, 0) / counts.length;
-    const variance = counts.reduce((sum, c) => sum + Math.pow(c - mean, 2), 0) / counts.length;
+    // 防御性检查：确保 counts.length > 0 以避免除零错误
+    const variance = counts.length > 0
+      ? counts.reduce((sum, c) => sum + Math.pow(c - mean, 2), 0) / counts.length
+      : 0;
     stdDev = Math.sqrt(variance);
   }
 

@@ -176,8 +176,8 @@ export async function generateMigrationOrder(
   const queue = [...noDependencyNodes];
 
   while (queue.length > 0) {
-    const node = queue.shift()!;
-    if (processed.has(node.id)) continue;
+    const node = queue.shift();
+    if (!node || processed.has(node.id)) continue;
 
     const asset = await prisma.auditAsset.findUnique({
       where: { id: node.assetId },

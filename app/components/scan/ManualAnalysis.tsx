@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Card,
   BlockStack,
@@ -37,8 +37,16 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
   const [analysisResult, setAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const handleAnalyzeScript = useCallback(async () => {
+  const isMountedRef = useRef(true);
 
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const handleAnalyzeScript = useCallback(async () => {
     const MAX_CONTENT_LENGTH = SCRIPT_ANALYSIS_CONFIG.MAX_CONTENT_LENGTH;
     const trimmedContent = scriptContent.trim();
 
@@ -56,26 +64,27 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
     setAnalysisError(null);
 
     try {
-
-      const result = await new Promise<ScriptAnalysisResult>((resolve, reject) => {
-        setTimeout(() => {
-          try {
-            resolve(analyzeScriptContent(trimmedContent));
-          } catch (error) {
-            reject(error);
-          }
-        }, 0);
-      });
-      setAnalysisResult(result);
+      // 直接调用分析函数，移除不必要的setTimeout
+      const result = analyzeScriptContent(trimmedContent);
+      
+      // 检查组件是否仍然挂载
+      if (isMountedRef.current) {
+        setAnalysisResult(result);
+      }
     } catch (error) {
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) {
+        return;
+      }
+
       const errorMessage = error instanceof Error ? error.message : "分析失败，请稍后重试";
       setAnalysisError(errorMessage);
-
       setAnalysisResult(null);
 
       if (process.env.NODE_ENV === "development") {
         const errorDetails = error instanceof Error ? error.stack : String(error);
-
+        // 客户端调试输出：脚本分析错误
+        // eslint-disable-next-line no-console
         console.error("Script analysis error:", {
           message: errorMessage,
           details: errorDetails,
@@ -83,7 +92,9 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
         });
       }
     } finally {
-      setIsAnalyzing(false);
+      if (isMountedRef.current) {
+        setIsAnalyzing(false);
+      }
     }
   }, [scriptContent]);
   return (

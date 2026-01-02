@@ -54,8 +54,10 @@ export function truncate(
   suffix: string = "..."
 ): string {
   if (!str) return "";
+  if (maxLength <= 0) return suffix;
   if (str.length <= maxLength) return str;
-  return str.substring(0, maxLength - suffix.length) + suffix;
+  const safeMaxLength = Math.max(0, maxLength - suffix.length);
+  return str.substring(0, safeMaxLength) + suffix;
 }
 
 export function normalizeShopDomain(domain: string): string {
@@ -77,13 +79,34 @@ export function maskSensitive(
   visibleChars: number = 4
 ): string {
   if (!value) return "***";
-  if (value.length <= visibleChars * 2) return "***";
+  if (visibleChars <= 0) return "***";
+  
+  // 如果字符串太短，无法安全显示，直接返回掩码
+  if (value.length <= 3) return "***";
+  
+  // 计算安全的可见字符数：确保前后都有足够的字符，中间有掩码
+  // 最小需要：前visibleChars + "***" + 后visibleChars = visibleChars * 2 + 3
+  const minRequiredLength = visibleChars * 2 + 3;
+  if (value.length < minRequiredLength) {
+    // 如果长度不足，显示尽可能多的字符，但至少前后各1个字符
+    const safeVisibleChars = Math.max(1, Math.floor((value.length - 3) / 2));
+    return (
+      value.substring(0, safeVisibleChars) +
+      "***" +
+      value.substring(value.length - safeVisibleChars)
+    );
+  }
+  
+  // 长度足够，使用请求的visibleChars，但不超过字符串长度的一半
+  const safeVisibleChars = Math.min(visibleChars, Math.floor((value.length - 3) / 2));
   return (
-    value.substring(0, visibleChars) +
+    value.substring(0, safeVisibleChars) +
     "***" +
-    value.substring(value.length - visibleChars)
+    value.substring(value.length - safeVisibleChars)
   );
 }
+
+// 使用现有的isObject函数，避免重复定义
 
 export function getNestedValue<T>(
   obj: unknown,
@@ -100,9 +123,14 @@ export function getNestedValue<T>(
     if (!isObject(current)) {
       return fallback;
     }
+    if (!(key in current)) {
+      return fallback;
+    }
     current = current[key];
   }
 
+  // 类型断言在这里是安全的，因为我们已经验证了路径存在
+  // 但返回类型允许undefined，所以如果类型不匹配会返回fallback
   return (current as T) ?? fallback;
 }
 
@@ -121,7 +149,61 @@ export function removeNullish<T extends Record<string, unknown>>(
 }
 
 export function deepClone<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+
+  if (obj instanceof Date) {
+    return new Date(obj.getTime()) as T;
+  }
+
+  if (obj instanceof RegExp) {
+    return new RegExp(obj.source, obj.flags) as T;
+  }
+
+  if (obj instanceof Map) {
+    const clonedMap = new Map();
+    obj.forEach((val, key) => {
+      clonedMap.set(deepClone(key), deepClone(val));
+    });
+    return clonedMap as T;
+  }
+
+  if (obj instanceof Set) {
+    const clonedSet = new Set();
+    obj.forEach((val) => {
+      clonedSet.add(deepClone(val));
+    });
+    return clonedSet as T;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => deepClone(item)) as T;
+  }
+
+  if (obj instanceof ArrayBuffer) {
+    return obj.slice(0) as T;
+  }
+
+  if (obj instanceof Error) {
+    const clonedError = new (obj.constructor as new (message: string) => Error)(obj.message);
+    clonedError.name = obj.name;
+    clonedError.stack = obj.stack;
+    return clonedError as T;
+  }
+
+  const cloned = {} as T;
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      try {
+        (cloned as Record<string, unknown>)[key] = deepClone((obj as Record<string, unknown>)[key]);
+      } catch {
+        (cloned as Record<string, unknown>)[key] = (obj as Record<string, unknown>)[key];
+      }
+    }
+  }
+
+  return cloned;
 }
 
 export function chunk<T>(array: T[], size: number): T[][] {
@@ -199,15 +281,18 @@ export async function retry<T>(
     shouldRetry = () => true,
   } = options;
 
+  // 确保至少执行一次
+  const safeMaxAttempts = Math.max(1, maxAttempts);
+
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  for (let attempt = 1; attempt <= safeMaxAttempts; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
 
-      if (attempt === maxAttempts || !shouldRetry(error)) {
+      if (attempt === safeMaxAttempts || !shouldRetry(error)) {
         throw error;
       }
 
@@ -219,7 +304,40 @@ export async function retry<T>(
     }
   }
 
-  throw lastError;
+  // 如果循环结束但还没有返回或抛出，确保抛出最后一个错误
+  if (lastError !== undefined) {
+    throw lastError;
+  }
+
+  // 理论上不应该到达这里，但为了类型安全添加
+  throw new Error("Retry function failed without capturing an error");
+}
+
+/**
+ * 安全地执行一个 fire-and-forget Promise
+ * 确保所有错误都被捕获和记录，避免未处理的 Promise 拒绝
+ */
+export function safeFireAndForget<T>(
+  promise: Promise<T>,
+  errorContext?: {
+    operation?: string;
+    metadata?: Record<string, unknown>;
+  }
+): void {
+  promise.catch((error) => {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    const logger = require("./logger.server").logger;
+    logger.error(
+      errorContext?.operation || "Fire-and-forget operation failed",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        ...errorContext?.metadata,
+        errorMessage,
+        errorStack,
+      }
+    );
+  });
 }
 
 export async function parallelLimit<T, R>(
@@ -227,6 +345,16 @@ export async function parallelLimit<T, R>(
   concurrency: number,
   fn: (item: T, index: number) => Promise<R>
 ): Promise<R[]> {
+  if (!Array.isArray(items)) {
+    throw new Error("parallelLimit: items must be an array");
+  }
+  if (items.length === 0) {
+    return [];
+  }
+  if (concurrency <= 0) {
+    throw new Error("parallelLimit: concurrency must be greater than 0");
+  }
+
   const results: (R | undefined)[] = new Array(items.length);
   const errors: Array<{ index: number; error: unknown }> = [];
 
@@ -319,7 +447,7 @@ export function extractShopifyId(gid: string | number): string {
   if (typeof gid === "number") {
     return String(gid);
   }
-  if (gid.startsWith("gid:
+  if (gid.startsWith("gid://")) {
     const parts = gid.split("/");
     return parts[parts.length - 1];
   }

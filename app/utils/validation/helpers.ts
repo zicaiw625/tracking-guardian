@@ -127,8 +127,8 @@ export function validateOrderId(
     return ok(trimmed);
   }
 
-  if (trimmed.startsWith("gid:
-    const id = trimmed.replace("gid:
+  if (trimmed.startsWith("gid://")) {
+    const id = trimmed.replace(/^gid:\/\/shopify\/\w+\//, "");
     if (/^\d+$/.test(id)) {
       return ok(trimmed);
     }
@@ -139,7 +139,7 @@ export function validateOrderId(
       ErrorCode.VALIDATION_INVALID_FORMAT,
       "Invalid order ID format",
       false,
-      { field: "orderId", expected: "numeric or gid:
+      { field: "orderId", expected: "numeric or gid://shopify/Order/123" }
     )
   );
 }

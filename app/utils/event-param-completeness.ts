@@ -39,24 +39,39 @@ export function checkParamCompleteness(
   }
 
   if (!mapping) {
-
+    // 如果没有找到映射，使用默认的必需参数
     const requiredParams = ["value", "currency"];
-    const presentParams = params ? Object.keys(params) : [];
-    const missingParams = requiredParams.filter((p) => !(p in (params || {})));
+    const isParamsObject = params !== null && 
+                          params !== undefined && 
+                          typeof params === "object" && 
+                          !Array.isArray(params);
+    const presentParams = isParamsObject ? Object.keys(params) : [];
+    const safeParams: Record<string, unknown> = isParamsObject ? params : {};
+    const missingParams = requiredParams.filter((p) => {
+      const paramValue = safeParams[p];
+      return paramValue === undefined || paramValue === null || 
+             (typeof paramValue === "string" && paramValue.trim() === "");
+    });
 
     return {
       isComplete: missingParams.length === 0,
-      completenessRate: ((requiredParams.length - missingParams.length) / requiredParams.length) * 100,
+      completenessRate: requiredParams.length > 0
+        ? ((requiredParams.length - missingParams.length) / requiredParams.length) * 100
+        : 100,
       requiredParams,
       missingParams,
       presentParams,
     };
   }
 
-  const requiredParams = mapping.requiredParams || [];
-  const presentParams = params ? Object.keys(params) : [];
+  const requiredParams = Array.isArray(mapping.requiredParams) ? mapping.requiredParams : [];
+  const safeParams = params && typeof params === "object" && !Array.isArray(params) ? params : {};
+  const presentParams = Object.keys(safeParams);
   const missingParams = requiredParams.filter((param) => {
-    const paramValue = params?.[param];
+    if (typeof param !== "string") {
+      return true; // 无效的参数名
+    }
+    const paramValue = safeParams[param];
 
     if (paramValue === undefined || paramValue === null) {
       return true;

@@ -83,7 +83,13 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
     label: "订单金额 (value)",
     required: true,
     checkFunction: (log) => {
-      return !log.orderValue || log.orderValue === null || Number(log.orderValue) === 0;
+      if (log.orderValue === null || log.orderValue === undefined) {
+        return true;
+      }
+      const numValue = typeof log.orderValue === "number" 
+        ? log.orderValue 
+        : Number(log.orderValue);
+      return isNaN(numValue) || numValue === 0;
     },
   },
   {
@@ -91,7 +97,11 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
     label: "货币代码 (currency)",
     required: true,
     checkFunction: (log) => {
-      return !log.currency || log.currency === "" || log.currency === null;
+      return !log.currency || 
+             log.currency === "" || 
+             log.currency === null || 
+             typeof log.currency !== "string" ||
+             log.currency.trim() === "";
     },
   },
   {
@@ -99,7 +109,16 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
     label: "商品信息 (items)",
     required: false,
     checkFunction: (log) => {
-
+      // items 不是必需参数，但如果有 eventData，检查其中是否包含 items
+      if (log.eventData && typeof log.eventData === "object" && !Array.isArray(log.eventData)) {
+        const eventData = log.eventData as Record<string, unknown>;
+        const items = eventData.items;
+        // 如果 items 存在但不是数组或为空数组，视为缺失
+        if (items !== undefined && items !== null && (!Array.isArray(items) || items.length === 0)) {
+          return true;
+        }
+      }
+      // 默认返回 false，因为 items 不是必需参数
       return false;
     },
   },
@@ -108,7 +127,11 @@ const PARAM_DEFINITIONS: MissingParamDefinition[] = [
     label: "事件 ID (event_id)",
     required: false,
     checkFunction: (log) => {
-      return !log.eventId || log.eventId === "" || log.eventId === null;
+      return !log.eventId || 
+             log.eventId === "" || 
+             log.eventId === null || 
+             typeof log.eventId !== "string" ||
+             log.eventId.trim() === "";
     },
   },
 ];
@@ -462,6 +485,10 @@ export async function getMissingParamsHistory(
   }>();
 
   logs.forEach((log) => {
+    // 安全处理日期，避免空值错误
+    if (!log.createdAt) {
+      return; // 跳过没有创建日期的记录
+    }
     const dateStr = log.createdAt.toISOString().split("T")[0];
     if (!dayMap.has(dateStr)) {
       dayMap.set(dateStr, { total: 0, withMissingParams: 0, byParam: {} });

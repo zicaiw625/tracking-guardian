@@ -8,8 +8,8 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./tests/setup.ts"],
     include: [
-      "tests*.test.{ts,tsx}",
-      "app*.{spec,test}.{ts,tsx}",
+      "tests/**/*.test.{ts,tsx}",
+      "app/**/*.{spec,test}.{ts,tsx}",
     ],
     exclude: ["node_modules", "build", "extensions"],
     coverage: {
@@ -17,8 +17,10 @@ export default defineConfig({
       reporter: ["text", "json", "html", "lcov"],
       include: ["app*.{ts,tsx}"],
       exclude: [
-        "node_modules
-
-*.d.ts",
-        "**/schemas
-
+        "node_modules",
+        "*.d.ts",
+        "**/schemas/**",
+      ],
+    },
+  },
+});

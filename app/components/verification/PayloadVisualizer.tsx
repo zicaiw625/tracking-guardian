@@ -58,7 +58,11 @@ export function PayloadVisualizer({
     try {
       platformMappings[platform] = mapToPlatformClient(canonical, platform);
     } catch (error) {
-      console.error(`Failed to map to ${platform}:`, error);
+      if (process.env.NODE_ENV === "development") {
+        // 客户端调试输出：平台映射失败
+        // eslint-disable-next-line no-console
+        console.error(`Failed to map to ${platform}:`, error);
+      }
     }
   }
 
@@ -257,10 +261,13 @@ function normalizeEventClient(
 ): CanonicalEventData {
   const data = payload.data || {};
   const items = Array.isArray(data.items)
-    ? data.items.map((item: any) => ({
-        item_id: item.id || item.item_id || item.variant_id || item.sku || "",
-        item_name: item.name || item.item_name || item.title || "Unknown",
-      }))
+    ? data.items.map((item: unknown) => {
+        const itemObj = item && typeof item === "object" ? item as Record<string, unknown> : {};
+        return {
+          item_id: String(itemObj.id || itemObj.item_id || itemObj.variant_id || itemObj.sku || ""),
+          item_name: String(itemObj.name || itemObj.item_name || itemObj.title || "Unknown"),
+        };
+      })
     : [];
 
   const identifier = data.orderId || data.checkoutToken || `session_${Date.now()}`;

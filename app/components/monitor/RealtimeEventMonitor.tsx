@@ -68,6 +68,7 @@ export function RealtimeEventMonitor({
 }: RealtimeEventMonitorProps) {
   const { showError } = useToastContext();
   const eventSourceRef = useRef<EventSource | null>(null);
+  const showErrorRef = useRef(showError);
 
   const [events, setEvents] = useState<RealtimeEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -85,98 +86,128 @@ export function RealtimeEventMonitor({
     isPausedRef.current = isPaused;
   }, [isPaused]);
 
-  const connect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
+  useEffect(() => {
+    showErrorRef.current = showError;
+  }, [showError]);
 
-    try {
-      const params = new URLSearchParams({
-        shopId,
-        ...(platforms.length > 0 && { platforms: platforms.join(",") }),
-      });
-      const eventSource = new EventSource(`/api/realtime-events?${params.toString()}`);
-
-      eventSource.onopen = () => {
-        setIsConnected(true);
-        setError(null);
-      };
-
-      eventSource.onmessage = (event) => {
-        if (isPausedRef.current) return;
-
-        try {
-          const data = JSON.parse(event.data) as RealtimeEvent;
-          if (typeof data.timestamp === "string") {
-            data.timestamp = new Date(data.timestamp);
-          }
-
-          setEvents((prev) => {
-            const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
-            const existingIndex = prev.findIndex(e =>
-              e.id === eventKey ||
-              (e.timestamp === data.timestamp && e.orderId === data.orderId)
-            );
-
-            if (existingIndex >= 0) {
-              const updated = [...prev];
-              updated[existingIndex] = data;
-              return updated.slice(0, 200);
-            }
-
-            return [data, ...prev].slice(0, 200);
-          });
-        } catch (err) {
-
-          if (process.env.NODE_ENV === "development") {
-
-            console.error("Failed to parse event data:", err);
-          }
-        }
-      };
-
-      eventSource.onerror = (err) => {
-
-        if (process.env.NODE_ENV === "development") {
-
-          console.error("SSE error:", err);
-        }
-        setIsConnected(false);
-        setError("连接中断，请刷新页面重试");
-        eventSource.close();
-      };
-
-      eventSourceRef.current = eventSource;
-    } catch (err) {
-      setError("无法建立连接");
-      showError("无法建立实时监控连接");
-
-      if (process.env.NODE_ENV === "development") {
-
-        console.error("SSE connection error:", err);
-      }
-    }
-  }, [shopId, platforms, showError]);
-
-  const disconnect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-    setIsConnected(false);
-  }, []);
+  const disconnectRef = useRef<(() => void) | null>(null);
+  const connectRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (autoStart) {
-      connect();
+    if (!autoStart) {
+      return;
     }
+
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    const connect = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          shopId,
+          ...(platforms.length > 0 && { platforms: platforms.join(",") }),
+        });
+        const eventSource = new EventSource(`/api/realtime-events?${params.toString()}`);
+
+        eventSource.onopen = () => {
+          setIsConnected(true);
+          setError(null);
+        };
+
+        eventSource.onmessage = (event) => {
+          if (isPausedRef.current) return;
+
+          try {
+            const data = JSON.parse(event.data) as RealtimeEvent;
+            if (typeof data.timestamp === "string") {
+              data.timestamp = new Date(data.timestamp);
+            }
+
+            setEvents((prev) => {
+              const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
+              const existingIndex = prev.findIndex(e =>
+                e.id === eventKey ||
+                (e.timestamp === data.timestamp && e.orderId === data.orderId)
+              );
+
+              if (existingIndex >= 0) {
+                const updated = [...prev];
+                updated[existingIndex] = data;
+                return updated.slice(0, 200);
+              }
+
+              return [data, ...prev].slice(0, 200);
+            });
+          } catch (err) {
+
+            if (process.env.NODE_ENV === "development") {
+              // 客户端调试输出：解析事件数据失败
+              // eslint-disable-next-line no-console
+              console.error("Failed to parse event data:", err);
+            }
+          }
+        };
+
+        eventSource.onerror = (err) => {
+
+          if (process.env.NODE_ENV === "development") {
+            // 客户端调试输出：SSE连接错误
+            // eslint-disable-next-line no-console
+            console.error("SSE error:", err);
+          }
+          setIsConnected(false);
+          setError("连接中断，请刷新页面重试");
+          eventSource.close();
+        };
+
+        eventSourceRef.current = eventSource;
+      } catch (err) {
+        setError("无法建立连接");
+        showErrorRef.current("无法建立实时监控连接");
+
+        if (process.env.NODE_ENV === "development") {
+          // 客户端调试输出：SSE连接建立失败
+          // eslint-disable-next-line no-console
+          console.error("SSE connection error:", err);
+        }
+      }
+    };
+
+    const disconnect = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      setIsConnected(false);
+    };
+
+    disconnectRef.current = disconnect;
+    connectRef.current = connect;
+    connect();
 
     return () => {
       disconnect();
     };
-
   }, [autoStart, shopId, platforms]);
+
+  const connect = useCallback(() => {
+    if (connectRef.current) {
+      connectRef.current();
+    }
+  }, []);
+
+  const disconnect = useCallback(() => {
+    if (disconnectRef.current) {
+      disconnectRef.current();
+    }
+  }, []);
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -329,7 +360,9 @@ export function RealtimeEventMonitor({
                 <Button
                   size="slim"
                   onClick={() => {
-                    disconnect();
+                    if (disconnectRef.current) {
+                      disconnectRef.current();
+                    }
                     setEvents([]);
                   }}
                   icon={RefreshIcon}

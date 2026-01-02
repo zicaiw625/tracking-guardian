@@ -1,6 +1,7 @@
 
 
 import { PrismaClient } from "@prisma/client";
+import { logger } from "./utils/logger.server";
 
 declare global {
 
@@ -14,9 +15,19 @@ const DB_CONFIG = {
 
 function getDatabaseUrl(): string {
   const baseUrl = process.env.DATABASE_URL || "";
+  const isProduction = process.env.NODE_ENV === "production";
+  
   if (!baseUrl) {
+    if (isProduction) {
+      throw new Error(
+        "DATABASE_URL environment variable is required in production. " +
+        "Please set DATABASE_URL to a valid PostgreSQL connection string."
+      );
+    }
+    // 在开发环境中，返回空字符串并让Prisma在连接时抛出更清晰的错误
     return baseUrl;
   }
+  
   try {
     const url = new URL(baseUrl);
     if (!url.searchParams.has("connection_limit")) {
@@ -27,7 +38,17 @@ function getDatabaseUrl(): string {
     }
     return url.toString();
   } catch (error) {
-    console.error("[DB] Invalid DATABASE_URL format:", error instanceof Error ? error.message : String(error));
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("[DB] Invalid DATABASE_URL format", { error: errorMessage });
+    
+    if (isProduction) {
+      throw new Error(
+        `Invalid DATABASE_URL format: ${errorMessage}. ` +
+        "Please provide a valid PostgreSQL connection string."
+      );
+    }
+    
+    // 在开发环境中，返回原始值并让Prisma处理错误
     return baseUrl;
   }
 }
@@ -43,8 +64,7 @@ function createPrismaClient(): PrismaClient {
     log: isProduction ? ["error", "warn"] : ["query", "info", "warn", "error"],
   });
   if (!isProduction) {
-
-    console.log("[STARTUP] Prisma connection pool configured:", {
+    logger.info("[STARTUP] Prisma connection pool configured", {
       connectionLimit: DB_CONFIG.connectionLimit,
       poolTimeout: DB_CONFIG.poolTimeout,
     });

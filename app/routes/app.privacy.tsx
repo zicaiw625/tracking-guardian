@@ -48,7 +48,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return json({
     shop: shop || { piiEnabled: false, pcdAcknowledged: false, consentStrategy: "strict" },
-    appDomain: process.env.APP_URL || "https:
+    appDomain: process.env.APP_URL || "https://app.tracking-guardian.com"
   });
 };
 
@@ -685,12 +685,12 @@ export default function PrivacyPage() {
                 </Link>
               </List.Item>
               <List.Item>
-                <Link url="https:
+                <Link url="https://help.shopify.com/en/manual/your-account/privacy" external>
                   Shopify 客户数据保护指南
                 </Link>
               </List.Item>
               <List.Item>
-                <Link url="https:
+                <Link url="https://help.shopify.com/en/manual/your-account/gdpr" external>
                   Shopify GDPR 要求
                 </Link>
               </List.Item>

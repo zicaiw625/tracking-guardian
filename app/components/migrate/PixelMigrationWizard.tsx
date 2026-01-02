@@ -522,6 +522,7 @@ export function PixelMigrationWizard({
 
   const assetData = initializeFromAsset();
   const timeoutRefs = useRef<Array<NodeJS.Timeout>>([]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [currentStep, setCurrentStep] = useState<WizardStep>(draftData?.step || "select");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<PlatformType>>(
     draftData?.platforms || assetData?.platforms || new Set(initialPlatforms)
@@ -621,8 +622,9 @@ const allTemplates: WizardTemplate[] = [
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-
-        console.warn("Failed to save draft to localStorage:", error);
+        // 客户端调试输出：保存草稿到localStorage失败
+        // eslint-disable-next-line no-console
+        console.warn("[PixelMigrationWizard] Failed to save draft to localStorage:", error);
       }
     }
 
@@ -640,16 +642,18 @@ const allTemplates: WizardTemplate[] = [
         if (!response.ok) {
 
           if (process.env.NODE_ENV === "development") {
-
-            console.warn("Failed to save draft to database");
+            // 客户端调试输出：保存草稿到数据库失败
+            // eslint-disable-next-line no-console
+            console.warn("[PixelMigrationWizard] Failed to save draft to database");
           }
         }
       } catch (error) {
 
-        if (process.env.NODE_ENV === "development") {
-
-          console.warn("Failed to save draft to database:", error);
-        }
+          if (process.env.NODE_ENV === "development") {
+            // 客户端调试输出：保存草稿到数据库失败
+            // eslint-disable-next-line no-console
+            console.warn("[PixelMigrationWizard] Failed to save draft to database:", error);
+          }
       }
     }
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, shopId]);
@@ -661,10 +665,11 @@ const allTemplates: WizardTemplate[] = [
       localStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch (error) {
 
-      if (process.env.NODE_ENV === "development") {
-
-        console.warn("Failed to clear draft from localStorage:", error);
-      }
+        if (process.env.NODE_ENV === "development") {
+          // 客户端调试输出：清除localStorage草稿失败
+          // eslint-disable-next-line no-console
+          console.warn("[PixelMigrationWizard] Failed to clear draft from localStorage:", error);
+        }
     }
 
     if (shopId) {
@@ -678,10 +683,11 @@ const allTemplates: WizardTemplate[] = [
         });
       } catch (error) {
 
-        if (process.env.NODE_ENV === "development") {
-
-          console.warn("Failed to clear draft from database:", error);
-        }
+          if (process.env.NODE_ENV === "development") {
+            // 客户端调试输出：清除数据库草稿失败
+            // eslint-disable-next-line no-console
+            console.warn("[PixelMigrationWizard] Failed to clear draft from database:", error);
+          }
       }
     }
   }, [shopId]);
@@ -701,10 +707,11 @@ const allTemplates: WizardTemplate[] = [
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
       } catch (error) {
 
-        if (process.env.NODE_ENV === "development") {
-
-          console.warn("Failed to sync draft to localStorage:", error);
-        }
+          if (process.env.NODE_ENV === "development") {
+            // 客户端调试输出：同步草稿到localStorage失败
+            // eslint-disable-next-line no-console
+            console.warn("[PixelMigrationWizard] Failed to sync draft to localStorage:", error);
+          }
       }
 
       showSuccess(`检测到未完成的配置（停留在第 ${steps.findIndex(s => s.id === wizardDraft.step) + 1} 步），已自动恢复。您可以继续完成配置。`);
@@ -723,7 +730,7 @@ const allTemplates: WizardTemplate[] = [
       setPlatformConfigs(configs);
     }
 
-  }, []);
+  }, [wizardDraft, shopId, showSuccess, steps, initialPlatforms, platformConfigs, setPlatformConfigs]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -734,14 +741,34 @@ const allTemplates: WizardTemplate[] = [
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, saveDraft]);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
+    // 清理之前的 interval
+    if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    // 创建新的 interval
+    intervalRef.current = setInterval(() => {
       if (currentStep !== "select" || selectedPlatforms.size > 0) {
         saveDraft();
       }
     }, 30000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [currentStep, selectedPlatforms, saveDraft]);
+
+  // 清理所有 timeout 引用
+  useEffect(() => {
+    return () => {
+      timeoutRefs.current.forEach((timeout) => clearTimeout(timeout));
+      timeoutRefs.current = [];
+    };
+  }, []);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -771,10 +798,11 @@ const allTemplates: WizardTemplate[] = [
           localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
         } catch (error) {
 
-          if (process.env.NODE_ENV === "development") {
-
-            console.warn("Failed to save draft before unload:", error);
-          }
+            if (process.env.NODE_ENV === "development") {
+              // 客户端调试输出：页面卸载前保存草稿失败
+              // eslint-disable-next-line no-console
+              console.warn("[PixelMigrationWizard] Failed to save draft before unload:", error);
+            }
         }
       }
     };
@@ -1659,8 +1687,9 @@ function ReviewStep({
       showError("保存模板失败");
 
       if (process.env.NODE_ENV === "development") {
-
-        console.error("Save template error", error);
+        // 客户端调试输出：保存模板错误
+        // eslint-disable-next-line no-console
+        console.error("[PixelMigrationWizard] Save template error:", error);
       }
     } finally {
       setIsSavingTemplate(false);
@@ -1861,6 +1890,7 @@ function TestingStep({
 }) {
   const [isValidating, setIsValidating] = useState(false);
   const [isSwitchingToLive, setIsSwitchingToLive] = useState(false);
+  const timeoutRefs = useRef<Array<NodeJS.Timeout>>([]);
   const [validationResults, setValidationResults] = useState<Record<string, {
     valid: boolean;
     message: string;
@@ -1924,8 +1954,9 @@ function TestingStep({
       showError("验证过程中发生错误");
 
       if (process.env.NODE_ENV === "development") {
-
-        console.error("Test environment validation error", error);
+        // 客户端调试输出：测试环境验证错误
+        // eslint-disable-next-line no-console
+        console.error("[PixelMigrationWizard] Test environment validation error:", error);
       }
     } finally {
       setIsValidating(false);
@@ -1939,21 +1970,31 @@ function TestingStep({
     try {
 
       const switchPromises = Array.from(selectedPlatforms).map(async (platform) => {
-        const formData = new FormData();
-        formData.append("_action", "switchEnvironment");
-        formData.append("platform", platform);
-        formData.append("environment", "live");
+        try {
+          const formData = new FormData();
+          formData.append("_action", "switchEnvironment");
+          formData.append("platform", platform);
+          formData.append("environment", "live");
 
-        const response = await fetch("/app/actions/pixel-config", {
-          method: "POST",
-          body: formData,
-        });
+          const response = await fetch("/app/actions/pixel-config", {
+            method: "POST",
+            body: formData,
+          });
 
-        const data = await response.json();
-        if (data.success) {
-          onEnvironmentToggle(platform, "live");
+          const data = await response.json();
+          if (data.success) {
+            onEnvironmentToggle(platform, "live");
+          }
+          return { platform, success: data.success, error: data.error };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          if (process.env.NODE_ENV === "development") {
+            // 客户端调试输出：切换平台失败
+            // eslint-disable-next-line no-console
+            console.error(`[PixelMigrationWizard] Failed to switch platform ${platform}:`, error);
+          }
+          return { platform, success: false, error: errorMessage };
         }
-        return { platform, success: data.success, error: data.error };
       });
 
       const results = await Promise.all(switchPromises);
@@ -1977,8 +2018,9 @@ function TestingStep({
       showError("切换环境时发生错误");
 
       if (process.env.NODE_ENV === "development") {
-
-        console.error("Switch to live error", error);
+        // 客户端调试输出：切换到生产环境错误
+        // eslint-disable-next-line no-console
+        console.error("[PixelMigrationWizard] Switch to live error:", error);
       }
     } finally {
       setIsSwitchingToLive(false);
@@ -1987,6 +2029,14 @@ function TestingStep({
 
   const handleGoToVerification = useCallback(() => {
     window.location.href = "/app/verification";
+  }, []);
+
+  // 清理所有 timeout 引用
+  useEffect(() => {
+    return () => {
+      timeoutRefs.current.forEach((timeout) => clearTimeout(timeout));
+      timeoutRefs.current = [];
+    };
   }, []);
 
   const allInTestMode = Array.from(selectedPlatforms).every(
@@ -1998,23 +2048,25 @@ function TestingStep({
     const allValid = Object.keys(validationResults).length > 0 &&
                      Object.values(validationResults).every(r => r.valid);
 
+    let timer: NodeJS.Timeout | null = null;
+
     if (
       currentStep === "testing" &&
       allValid &&
-      !isSwitchingToLive
+      !isSwitchingToLive &&
+      !allInTestMode
     ) {
-
-      if (allInTestMode) {
-        return;
-      }
-
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         showSuccess("配置验证通过！正在跳转到验收页面...");
         handleGoToVerification();
       }, 3000);
-
-      return () => clearTimeout(timer);
     }
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [currentStep, validationResults, isSwitchingToLive, allInTestMode, handleGoToVerification, showSuccess]);
 
   return (
@@ -2122,7 +2174,7 @@ function TestingStep({
                                     如果看到测试事件，说明配置正确。
                                   </Text>
                                   <Link
-                                    url="https:
+                                    url="https://business.facebook.com/events_manager"
                                     external
                                   >
                                     打开 Meta Events Manager

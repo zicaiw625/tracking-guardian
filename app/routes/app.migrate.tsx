@@ -735,7 +735,8 @@ export default function MigratePage() {
     if (stepIndex === -1) {
 
         if (process.env.NODE_ENV === "development") {
-
+            // 客户端调试输出：无效的当前步骤
+            // eslint-disable-next-line no-console
             console.error(`[MigratePage] Invalid currentStep: ${currentStep}. Available steps:`, steps.map(s => s.id));
         }
     }
@@ -807,7 +808,7 @@ export default function MigratePage() {
 
         <Banner title="服务端转化追踪 (Server-side CAPI)" tone="info" action={{
             content: "了解更多",
-            url: "https:
+            url: "https://help.shopify.com/en/manual/pixels/customer-events",
             external: true,
         }}>
           <BlockStack gap="200">
@@ -829,7 +830,7 @@ export default function MigratePage() {
           tone="warning"
           action={{
             content: "查看 Shopify 文档",
-            url: "https:
+            url: "https://shopify.dev/docs/api/admin-graphql/latest/objects/ScriptTag",
             external: true,
           }}
         >
@@ -1058,7 +1059,7 @@ export default function MigratePage() {
                   </Box>
 
                   <InlineStack gap="200">
-                    <Button variant="primary" url="https:
+                    <Button variant="primary" url={`https://admin.shopify.com/store/${shop.domain}/settings/checkout`} external>
                       前往 Shopify 后台升级
                     </Button>
                     <Button onClick={() => window.location.reload()}>

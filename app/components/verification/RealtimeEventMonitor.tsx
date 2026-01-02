@@ -31,6 +31,33 @@ import {
 import { useToastContext } from "~/components/ui";
 import { calculateEventStats, checkParamCompleteness } from "~/utils/event-param-completeness";
 
+type BadgeTone = "success" | "warning" | "critical" | "info";
+type ProgressBarTone = "success" | "highlight" | "critical" | "primary";
+
+function getCompletenessTone(rate: number): BadgeTone {
+  if (rate >= 90) return "success";
+  if (rate >= 70) return "warning";
+  return "critical";
+}
+
+function getCompletenessProgressTone(rate: number): ProgressBarTone {
+  if (rate >= 90) return "success";
+  if (rate >= 70) return "highlight";
+  return "critical";
+}
+
+function getConsistencyTone(rate: number): BadgeTone {
+  if (rate >= 95) return "success";
+  if (rate >= 80) return "warning";
+  return "critical";
+}
+
+function getConsistencyProgressTone(rate: number): ProgressBarTone {
+  if (rate >= 95) return "success";
+  if (rate >= 80) return "highlight";
+  return "critical";
+}
+
 export interface RealtimeEvent {
   id: string;
   eventType: string;
@@ -38,7 +65,7 @@ export interface RealtimeEvent {
   orderNumber?: string;
   platform: string;
   timestamp: string | Date;
-  status: "success" | "failed" | "pending";
+  status: "success" | "failed" | "pending" | "missing_params" | "not_tested";
   params?: {
     value?: number;
     currency?: string;
@@ -92,6 +119,7 @@ export function RealtimeEventMonitor({
   const [selectedEvent, setSelectedEvent] = useState<RealtimeEvent | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const isPausedRef = useRef(isPaused);
+  const showErrorRef = useRef(showError);
 
   const [filterPlatform, setFilterPlatform] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
@@ -102,139 +130,175 @@ export function RealtimeEventMonitor({
     isPausedRef.current = isPaused;
   }, [isPaused]);
 
-  const connect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
+  useEffect(() => {
+    showErrorRef.current = showError;
+  }, [showError]);
 
-    try {
-      const endpoint = useVerificationEndpoint ? "/api/verification-events" : "/api/realtime-events";
-      const params = new URLSearchParams({
-        shopId,
-        ...(platforms.length > 0 && { platforms: platforms.join(",") }),
-        ...(eventTypes.length > 0 && { eventTypes: eventTypes.join(",") }),
-        ...(runId && { runId }),
-      });
-      const eventSource = new EventSource(`${endpoint}?${params.toString()}`);
-
-      eventSource.onopen = () => {
-        setIsConnected(true);
-        setError(null);
-      };
-
-      eventSource.onmessage = (event) => {
-        if (isPausedRef.current) return;
-
-        try {
-          const rawData = JSON.parse(event.data);
-
-          if (useVerificationEndpoint && rawData.type) {
-            if (rawData.type === "connected" || rawData.type === "error" || rawData.type === "verification_run_status") {
-
-              if (rawData.type === "verification_run_status" && rawData.status) {
-
-                if (process.env.NODE_ENV === "development") {
-
-                  console.log("Verification run status:", rawData);
-                }
-              }
-              return;
-            }
-
-            const { type, ...eventData } = rawData;
-            const data = eventData as RealtimeEvent;
-
-            if (typeof data.timestamp === "string") {
-              data.timestamp = new Date(data.timestamp);
-            }
-
-            setEvents((prev) => {
-              const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
-              const existingIndex = prev.findIndex(e =>
-                e.id === eventKey ||
-                (e.timestamp === data.timestamp && e.orderId === data.orderId)
-              );
-
-              if (existingIndex >= 0) {
-                const updated = [...prev];
-                updated[existingIndex] = data;
-
-                return updated.slice(0, 200);
-              }
-
-              return [data, ...prev].slice(0, 200);
-            });
-          } else {
-
-            const data = rawData as RealtimeEvent;
-
-            if (typeof data.timestamp === "string") {
-              data.timestamp = new Date(data.timestamp);
-            }
-
-            setEvents((prev) => {
-              const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
-              const existingIndex = prev.findIndex(e =>
-                e.id === eventKey ||
-                (e.timestamp === data.timestamp && e.orderId === data.orderId)
-              );
-
-              if (existingIndex >= 0) {
-                const updated = [...prev];
-                updated[existingIndex] = data;
-
-                return updated.slice(0, 200);
-              }
-
-              return [data, ...prev].slice(0, 200);
-            });
-          }
-        } catch (err) {
-
-          if (process.env.NODE_ENV === "development") {
-
-            console.error("Failed to parse event data:", err);
-          }
-        }
-      };
-
-      eventSource.onerror = (err) => {
-
-        if (process.env.NODE_ENV === "development") {
-
-          console.error("SSE error:", err);
-        }
-        setIsConnected(false);
-        setError("连接中断，请刷新页面重试");
-        eventSource.close();
-      };
-
-      eventSourceRef.current = eventSource;
-    } catch (err) {
-      setError("无法建立连接");
-      showError("无法建立实时监控连接");
-    }
-  }, [shopId, platforms, showError, runId, eventTypes, useVerificationEndpoint]);
-
-  const disconnect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-    setIsConnected(false);
-  }, []);
+  const disconnectRef = useRef<(() => void) | null>(null);
+  const connectRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (autoStart) {
-      connect();
+    if (!autoStart) {
+      return;
     }
+
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    const connect = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+
+      try {
+        const endpoint = useVerificationEndpoint ? "/api/verification-events" : "/api/realtime-events";
+        const params = new URLSearchParams({
+          shopId,
+          ...(platforms.length > 0 && { platforms: platforms.join(",") }),
+          ...(eventTypes.length > 0 && { eventTypes: eventTypes.join(",") }),
+          ...(runId && { runId }),
+        });
+        const eventSource = new EventSource(`${endpoint}?${params.toString()}`);
+
+        eventSource.onopen = () => {
+          setIsConnected(true);
+          setError(null);
+        };
+
+        eventSource.onmessage = (event) => {
+          if (isPausedRef.current) return;
+
+          try {
+            const rawData = JSON.parse(event.data);
+
+            if (useVerificationEndpoint && rawData.type) {
+              if (rawData.type === "connected" || rawData.type === "error" || rawData.type === "verification_run_status") {
+
+                if (rawData.type === "verification_run_status" && rawData.status) {
+
+                  if (process.env.NODE_ENV === "development") {
+                    // 客户端调试输出：验证运行状态
+                    // eslint-disable-next-line no-console
+                    console.log("Verification run status:", rawData);
+                  }
+                }
+                return;
+              }
+
+              const { type, ...eventData } = rawData;
+              const data = eventData as RealtimeEvent;
+
+              if (typeof data.timestamp === "string") {
+                data.timestamp = new Date(data.timestamp);
+              }
+
+              setEvents((prev) => {
+                const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
+                const existingIndex = prev.findIndex(e =>
+                  e.id === eventKey ||
+                  (e.timestamp === data.timestamp && e.orderId === data.orderId)
+                );
+
+                if (existingIndex >= 0) {
+                  const updated = [...prev];
+                  updated[existingIndex] = data;
+
+                  return updated.slice(0, 200);
+                }
+
+                return [data, ...prev].slice(0, 200);
+              });
+            } else {
+
+              const data = rawData as RealtimeEvent;
+
+              if (typeof data.timestamp === "string") {
+                data.timestamp = new Date(data.timestamp);
+              }
+
+              setEvents((prev) => {
+                const eventKey = data.id || `${data.timestamp}_${data.orderId || ""}`;
+                const existingIndex = prev.findIndex(e =>
+                  e.id === eventKey ||
+                  (e.timestamp === data.timestamp && e.orderId === data.orderId)
+                );
+
+                if (existingIndex >= 0) {
+                  const updated = [...prev];
+                  updated[existingIndex] = data;
+
+                  return updated.slice(0, 200);
+                }
+
+                return [data, ...prev].slice(0, 200);
+              });
+            }
+          } catch (err) {
+
+            if (process.env.NODE_ENV === "development") {
+              // 客户端调试输出：解析事件数据失败
+              // eslint-disable-next-line no-console
+              console.error("Failed to parse event data:", err);
+            }
+          }
+        };
+
+        eventSource.onerror = (err) => {
+
+          if (process.env.NODE_ENV === "development") {
+            // 客户端调试输出：SSE连接错误
+            // eslint-disable-next-line no-console
+            console.error("SSE error:", err);
+          }
+          setIsConnected(false);
+          setError("连接中断，请刷新页面重试");
+          eventSource.close();
+        };
+
+        eventSourceRef.current = eventSource;
+      } catch (err) {
+        setError("无法建立连接");
+        showErrorRef.current("无法建立实时监控连接");
+
+        if (process.env.NODE_ENV === "development") {
+          // 客户端调试输出：SSE连接建立失败
+          // eslint-disable-next-line no-console
+          console.error("SSE connection error:", err);
+        }
+      }
+    };
+
+    const disconnect = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      setIsConnected(false);
+    };
+
+    disconnectRef.current = disconnect;
+    connectRef.current = connect;
+    connect();
 
     return () => {
       disconnect();
     };
-
   }, [autoStart, shopId, platforms, runId, eventTypes, useVerificationEndpoint]);
+
+  const connect = useCallback(() => {
+    if (connectRef.current) {
+      connectRef.current();
+    }
+  }, []);
+
+  const disconnect = useCallback(() => {
+    if (disconnectRef.current) {
+      disconnectRef.current();
+    }
+  }, []);
 
   const handlePauseToggle = useCallback(() => {
     setIsPaused((prev) => !prev);
@@ -423,9 +487,9 @@ export function RealtimeEventMonitor({
                   总计: {stats.total} 条事件 {events.length !== filteredEvents.length && `(已过滤 ${events.length - filteredEvents.length} 条)`}
                 </Text>
                 <InlineStack gap="200">
-                  <Badge tone="success">成功: {stats.byStatus.success}</Badge>
-                  <Badge tone="critical">失败: {stats.byStatus.failed}</Badge>
-                  <Badge tone="info">成功率: {successRate}%</Badge>
+                  <Badge tone="success">{`成功: ${stats.byStatus.success}`}</Badge>
+                  <Badge tone="critical">{`失败: ${stats.byStatus.failed}`}</Badge>
+                  <Badge tone="info">{`成功率: ${successRate}%`}</Badge>
                 </InlineStack>
               </InlineStack>
               <ProgressBar
@@ -529,26 +593,14 @@ export function RealtimeEventMonitor({
                       总体完整率
                     </Text>
                     <Badge
-                      tone={
-                        eventStats.paramCompleteness.overall >= 90
-                          ? "success"
-                          : eventStats.paramCompleteness.overall >= 70
-                          ? "warning"
-                          : "critical"
-                      }
+                      tone={getCompletenessTone(eventStats.paramCompleteness.overall)}
                     >
-                      {eventStats.paramCompleteness.overall}%
+                      {`${eventStats.paramCompleteness.overall}%`}
                     </Badge>
                   </InlineStack>
                   <ProgressBar
                     progress={eventStats.paramCompleteness.overall}
-                    tone={
-                      eventStats.paramCompleteness.overall >= 90
-                        ? "success"
-                        : eventStats.paramCompleteness.overall >= 70
-                        ? "warning"
-                        : "critical"
-                    }
+                    tone={getCompletenessProgressTone(eventStats.paramCompleteness.overall)}
                   />
                   <InlineStack gap="400">
                     <Text as="span" variant="bodySm" tone="subdued">
@@ -638,26 +690,14 @@ export function RealtimeEventMonitor({
                           一致性率
                         </Text>
                         <Badge
-                          tone={
-                            stats.consistencyRate >= 95
-                              ? "success"
-                              : stats.consistencyRate >= 80
-                              ? "warning"
-                              : "critical"
-                          }
+                          tone={getConsistencyTone(stats.consistencyRate)}
                         >
-                          {Math.round(stats.consistencyRate)}%
+                          {`${Math.round(stats.consistencyRate)}%`}
                         </Badge>
                       </InlineStack>
                       <ProgressBar
                         progress={stats.consistencyRate}
-                        tone={
-                          stats.consistencyRate >= 95
-                            ? "success"
-                            : stats.consistencyRate >= 80
-                            ? "warning"
-                            : "critical"
-                        }
+                        tone={getConsistencyProgressTone(stats.consistencyRate)}
                       />
                       <InlineStack gap="400">
                         <Text as="span" variant="bodySm" tone="subdued">
@@ -688,6 +728,12 @@ export function RealtimeEventMonitor({
                 filters={[]}
                 onQueryChange={setSearchQuery}
                 onQueryClear={() => setSearchQuery("")}
+                onClearAll={() => {
+                  setSearchQuery("");
+                  setFilterPlatform("all");
+                  setFilterStatus([]);
+                  setFilterEventType("");
+                }}
                 queryPlaceholder="搜索事件类型、平台、订单ID..."
               />
               <InlineStack gap="300" wrap>
@@ -809,13 +855,12 @@ function EventItem({
   }, [event.eventType, event.platform, event.params]);
 
   return (
-    <Box
-      background={isSelected ? "bg-surface-info" : "bg-surface-secondary"}
-      padding="300"
-      borderRadius="200"
-      onClick={onSelect}
-      style={{ cursor: "pointer" }}
-    >
+    <div onClick={onSelect} style={{ cursor: "pointer" }}>
+      <Box
+        background={isSelected ? "bg-surface-info" : "bg-surface-secondary"}
+        padding="300"
+        borderRadius="200"
+      >
       <InlineStack align="space-between" blockAlign="center">
         <InlineStack gap="300" blockAlign="center">
           <Icon
@@ -834,15 +879,9 @@ function EventItem({
                 </Text>
               )}
               <Badge
-                tone={
-                  completeness.completenessRate >= 90
-                    ? "success"
-                    : completeness.completenessRate >= 70
-                    ? "warning"
-                    : "critical"
-                }
+                tone={getCompletenessTone(completeness.completenessRate)}
               >
-                参数: {completeness.completenessRate}%
+                {`参数: ${completeness.completenessRate}%`}
               </Badge>
             </InlineStack>
             <Text as="span" variant="bodySm" tone="subdued">
@@ -856,7 +895,8 @@ function EventItem({
           </Badge>
         </InlineStack>
       </InlineStack>
-    </Box>
+      </Box>
+    </div>
   );
 }
 
@@ -995,7 +1035,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
                           金额
                         </Text>
                         <Text as="span" fontWeight="semibold">
-                          {event.params.currency} {event.params.value.toFixed(2)}
+                          {event.params.currency || ""} {typeof event.params.value === "number" ? event.params.value.toFixed(2) : event.params.value}
                         </Text>
                       </InlineStack>
                     )}
@@ -1047,26 +1087,14 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
                       完整率
                     </Text>
                     <Badge
-                      tone={
-                        completeness.completenessRate >= 90
-                          ? "success"
-                          : completeness.completenessRate >= 70
-                          ? "warning"
-                          : "critical"
-                      }
+                      tone={getCompletenessTone(completeness.completenessRate)}
                     >
-                      {completeness.completenessRate}%
+                      {`${completeness.completenessRate}%`}
                     </Badge>
                   </InlineStack>
                   <ProgressBar
                     progress={completeness.completenessRate}
-                    tone={
-                      completeness.completenessRate >= 90
-                        ? "success"
-                        : completeness.completenessRate >= 70
-                        ? "warning"
-                        : "critical"
-                    }
+                    tone={getCompletenessProgressTone(completeness.completenessRate)}
                   />
                   {completeness.requiredParams.length > 0 && (
                     <BlockStack gap="200">
@@ -1143,7 +1171,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
                         订单金额
                       </Text>
                       <Text as="span" fontWeight="semibold">
-                        {event.shopifyOrder.currency} {event.shopifyOrder.value.toFixed(2)}
+                        {event.shopifyOrder.currency || ""} {typeof event.shopifyOrder.value === "number" ? event.shopifyOrder.value.toFixed(2) : event.shopifyOrder.value}
                       </Text>
                     </InlineStack>
                     <InlineStack align="space-between">

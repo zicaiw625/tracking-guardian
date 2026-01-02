@@ -23,19 +23,43 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const platformsParam = url.searchParams.get("platforms");
     const platforms = platformsParam ? platformsParam.split(",") : [];
 
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let isClosed = false;
+
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
 
+        const cleanup = () => {
+          if (pollInterval !== null) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+          if (!isClosed) {
+            isClosed = true;
+            try {
+              controller.close();
+            } catch (error) {
+              // Stream may already be closed
+            }
+          }
+        };
+
         const sendMessage = (data: unknown) => {
-          const message = `data: ${JSON.stringify(data)}\n\n`;
-          controller.enqueue(encoder.encode(message));
+          if (isClosed) return;
+          try {
+            const message = `data: ${JSON.stringify(data)}\n\n`;
+            controller.enqueue(encoder.encode(message));
+          } catch (error) {
+            logger.warn("Failed to send SSE message, closing stream", error);
+            cleanup();
+          }
         };
 
         sendMessage({ type: "connected", timestamp: new Date().toISOString() });
 
         let lastEventId: string | null = null;
-        const pollInterval = setInterval(async () => {
+        pollInterval = setInterval(async () => {
           try {
 
             const whereClause: {
@@ -142,13 +166,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               type: "error",
               message: "Failed to fetch events",
             });
+            // Don't close on single error, but cleanup if stream is broken
+            if (isClosed) {
+              cleanup();
+            }
           }
         }, 2000);
 
         request.signal.addEventListener("abort", () => {
-          clearInterval(pollInterval);
-          controller.close();
+          cleanup();
         });
+      },
+      cancel() {
+        // Ensure cleanup when stream is cancelled
+        if (pollInterval !== null) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
       },
     });
 

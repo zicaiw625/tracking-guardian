@@ -27,8 +27,20 @@ import {
 } from "./base-platform.service";
 
 const META_API_VERSION = "v21.0";
-const META_API_BASE_URL = "https:
+const META_API_BASE_URL = "https://graph.facebook.com";
 const PIXEL_ID_PATTERN = /^\d{15,16}$/;
+
+function isMetaCredentials(credentials: unknown): credentials is MetaCredentials {
+  if (!credentials || typeof credentials !== "object") {
+    return false;
+  }
+  const creds = credentials as Record<string, unknown>;
+  return (
+    typeof creds.pixelId === "string" &&
+    typeof creds.accessToken === "string" &&
+    (creds.testEventCode === undefined || typeof creds.testEventCode === "string")
+  );
+}
 
 export class MetaPlatformService implements IPlatformService {
   readonly platform = Platform.META;
@@ -39,7 +51,17 @@ export class MetaPlatformService implements IPlatformService {
     data: ConversionData,
     eventId: string
   ): Promise<PlatformSendResult> {
-    const metaCreds = credentials as MetaCredentials;
+    if (!isMetaCredentials(credentials)) {
+      return {
+        success: false,
+        error: {
+          type: "invalid_config",
+          message: "Invalid Meta credentials format",
+          isRetryable: false,
+        },
+      };
+    }
+    const metaCreds = credentials;
     const validation = this.validateCredentials(metaCreds);
 
     if (!validation.valid) {
@@ -91,11 +113,11 @@ export class MetaPlatformService implements IPlatformService {
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
 
-    if (!credentials || typeof credentials !== "object") {
-      return { valid: false, errors: ["Credentials must be an object"] };
+    if (!isMetaCredentials(credentials)) {
+      return { valid: false, errors: ["Credentials must be a valid MetaCredentials object"] };
     }
 
-    const creds = credentials as Record<string, unknown>;
+    const creds = credentials;
 
     if (!creds.pixelId || typeof creds.pixelId !== "string") {
       errors.push("pixelId is required");

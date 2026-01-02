@@ -178,7 +178,7 @@ export const API_SECURITY_HEADERS: Record<string, string> = {
 export const HTML_SECURITY_HEADERS: Record<string, string> = {
   ...API_SECURITY_HEADERS,
   "Content-Security-Policy":
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https:
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.shopify.com https://monorail-edge.shopifysvc.com; style-src 'self' 'unsafe-inline' https://cdn.shopify.com; img-src 'self' data: https:; font-src 'self' data: https://cdn.shopify.com; connect-src 'self' https://monorail-edge.shopifysvc.com; frame-src 'self' https://cdn.shopify.com;",
 };
 
 export function applySecurityHeaders(

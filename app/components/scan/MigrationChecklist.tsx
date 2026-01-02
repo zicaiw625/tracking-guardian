@@ -136,8 +136,8 @@ export function MigrationChecklist({
   }, [newItemName, newItemType, newItemNotes, onAddManualItem]);
 
   const shopifyUpgradeUrl = shopTier === "plus"
-    ? "https:
-    : "https:
+    ? "https://www.shopify.com/pricing"
+    : "https://www.shopify.com/pricing"
 
   return (
     <>

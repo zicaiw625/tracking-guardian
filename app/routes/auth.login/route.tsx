@@ -5,8 +5,9 @@ import { AppProvider, Card, Page, Text, Banner, BlockStack, } from "@shopify/pol
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import polarisTranslationsEn from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { login } from "../../shopify.server";
+import { getPolarisTranslations } from "../../utils/polaris-i18n";
 
-const i18nEn = (polarisTranslationsEn as any).default ?? polarisTranslationsEn;
+const i18nEn = getPolarisTranslations(polarisTranslationsEn);
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
