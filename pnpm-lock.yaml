@@ -139,11 +139,11 @@ importers:
   extensions/thank-you-blocks:
     dependencies:
       '@shopify/ui-extensions':
-        specifier: ^2024.10.0
-        version: 2024.10.2
+        specifier: ^2025.7.3
+        version: 2025.10.11
       '@shopify/ui-extensions-react':
-        specifier: ^2024.10.0
-        version: 2024.10.2(@shopify/ui-extensions@2024.10.2)(react-reconciler@0.29.0(react@18.3.1))(react@18.3.1)
+        specifier: ^2025.7.3
+        version: 2025.7.3(@shopify/ui-extensions@2025.10.11)(react-reconciler@0.29.0(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -1596,14 +1596,22 @@ packages:
   '@shopify/storefront-api-client@1.0.9':
     resolution: {integrity: sha512-vgc0ZczMvrbsQQFYcIIONnIiqiafpcMyq5osI8X6PB65DhnmCQEp3kSlXKOjBPzyAWYvp28nLHS0+r4xsp4yQA==}
 
-  '@shopify/ui-extensions-react@2024.10.2':
-    resolution: {integrity: sha512-TF97qiPWtWIGtS9Rwl8CIhZ3uYD09oFHALQtksmHXsFoW6cK5/QPPXr9y9neac7nKJIqjzVYQxmRAba1T8y3nA==}
+  '@shopify/ui-extensions-react@2025.7.3':
+    resolution: {integrity: sha512-XNi91jm5oMhJG4ktoUeIQyvajDMse+MkOwc6x39NHDrjDbOEEoqBKqY+AB7ef+T9I0FDw9vkN9PdzDnXQJqEow==}
     peerDependencies:
-      '@shopify/ui-extensions': 2024.10.2
+      '@shopify/ui-extensions': 2025.7.3
       react: '>=18.0.0'
 
-  '@shopify/ui-extensions@2024.10.2':
-    resolution: {integrity: sha512-aHlKqbJMqL5yI0YjVucNhWNXciMKiibPpnawMmiqqzfmflnmj2Oy0AMa6Hrwdum/rc4XE9EoLqKyoIva4wzmdA==}
+  '@shopify/ui-extensions@2025.10.11':
+    resolution: {integrity: sha512-YmGEgkbHT5AylQNu2Qm1jWFsoSgiTvanc1bnWGmwmKlPJ9USsqUnUK+ZGBT/7C8w4Jj3kx+HuKibVmajHJ019w==}
+    peerDependencies:
+      '@preact/signals': '*'
+      preact: '*'
+    peerDependenciesMeta:
+      '@preact/signals':
+        optional: true
+      preact:
+        optional: true
 
   '@shopify/web-pixels-extension@1.4.0':
     resolution: {integrity: sha512-vPRjf9U6O+GWPmqVO2SBPjcF4pM8V3U/en5pXQ9F5DiOgmgGOymscNEnmlvL+5tgTqetgv72OR81XOW73MXMYA==}
@@ -1619,6 +1627,9 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       graphql: ^16.0.0
+
+  '@ts-morph/common@0.26.1':
+    resolution: {integrity: sha512-Sn28TGl/4cFpcM+jwsH1wLncYq3FtN/BIpem+HOygfBWPT5pAeS5dB4VFVzV8FbnOKHpDLZmvAl4AjPEev5idA==}
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -2255,6 +2266,9 @@ packages:
   cluster-key-slot@1.1.2:
     resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
     engines: {node: '>=0.10.0'}
+
+  code-block-writer@13.0.3:
+    resolution: {integrity: sha512-Oofo0pq3IKnsFtuHqSF7TqBfr71aeyZDVJ0HpmqB7FBM2qEigL0iPONSCZSO9pE9dZTAxANe5XHG9Uy0YMv8cg==}
 
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -4154,6 +4168,9 @@ packages:
   pascal-case@3.1.2:
     resolution: {integrity: sha512-uWlGT3YSnK9x3BQJaOdcZwrnV6hPpd8jFH1/ucpiLRPh/2zCVJKS19E4GvYHvaCcACn3foXZ0cLB9Wrx1KGe5g==}
 
+  path-browserify@1.0.1:
+    resolution: {integrity: sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==}
+
   path-case@3.0.4:
     resolution: {integrity: sha512-qO4qCFjXqVTrcbPt/hQfhTQ+VhFsqNKOPtytgNKkKxSoEp3XPUQ8ObFuePylOIok5gjn69ry8XiULxCwot3Wfg==}
 
@@ -4933,6 +4950,9 @@ packages:
 
   ts-log@2.2.7:
     resolution: {integrity: sha512-320x5Ggei84AxzlXp91QkIGSw5wgaLT6GeAH0KsqDmRZdVWW2OiSeVvElVoatk3f7nicwXlElXsoFkARiGE2yg==}
+
+  ts-morph@25.0.1:
+    resolution: {integrity: sha512-QJEiTdnz1YjrB3JFhd626gX4rKHDLSjSVMvGGG4v7ONc3RBwa0Eei98G9AT9uNFDMtV54JyuXsFeC+OH0n6bXQ==}
 
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
@@ -6967,20 +6987,19 @@ snapshots:
     dependencies:
       '@shopify/graphql-client': 1.4.1
 
-  '@shopify/ui-extensions-react@2024.10.2(@shopify/ui-extensions@2024.10.2)(react-reconciler@0.29.0(react@18.3.1))(react@18.3.1)':
+  '@shopify/ui-extensions-react@2025.7.3(@shopify/ui-extensions@2025.10.11)(react-reconciler@0.29.0(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@remote-ui/async-subscription': 2.1.18
       '@remote-ui/react': 5.0.8(react-reconciler@0.29.0(react@18.3.1))(react@18.3.1)
-      '@shopify/ui-extensions': 2024.10.2
+      '@shopify/ui-extensions': 2025.10.11
       '@types/react': 18.3.27
       react: 18.3.1
     transitivePeerDependencies:
       - react-reconciler
 
-  '@shopify/ui-extensions@2024.10.2':
+  '@shopify/ui-extensions@2025.10.11':
     dependencies:
-      '@remote-ui/async-subscription': 2.1.18
-      '@remote-ui/core': 2.2.7
+      ts-morph: 25.0.1
 
   '@shopify/web-pixels-extension@1.4.0': {}
 
@@ -6999,6 +7018,12 @@ snapshots:
       lodash.sortby: 4.7.0
     transitivePeerDependencies:
       - supports-color
+
+  '@ts-morph/common@0.26.1':
+    dependencies:
+      fast-glob: 3.3.3
+      minimatch: 9.0.5
+      path-browserify: 1.0.1
 
   '@tybys/wasm-util@0.10.1':
     dependencies:
@@ -7751,6 +7776,8 @@ snapshots:
   clone@2.1.2: {}
 
   cluster-key-slot@1.1.2: {}
+
+  code-block-writer@13.0.3: {}
 
   color-convert@2.0.1:
     dependencies:
@@ -10103,6 +10130,8 @@ snapshots:
       no-case: 3.0.4
       tslib: 2.6.3
 
+  path-browserify@1.0.1: {}
+
   path-case@3.0.4:
     dependencies:
       dot-case: 3.0.4
@@ -10979,6 +11008,11 @@ snapshots:
       typescript: 5.9.3
 
   ts-log@2.2.7: {}
+
+  ts-morph@25.0.1:
+    dependencies:
+      '@ts-morph/common': 0.26.1
+      code-block-writer: 13.0.3
 
   tsconfck@3.1.6(typescript@5.9.3):
     optionalDependencies:
