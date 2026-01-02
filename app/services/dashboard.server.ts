@@ -12,6 +12,7 @@ import { logger } from "../utils/logger.server";
 import { calculateMigrationProgress } from "../utils/migration-progress.server";
 import { getTierDisplayInfo } from "./shop-tier.server";
 import { DEPRECATION_DATES } from "../utils/deprecation-dates";
+import { isValidShopTier } from "../domain/shop/shop.entity";
 
 export type {
   DashboardData,
@@ -268,7 +269,8 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     }
   }
 
-  const shopTier = (shop.shopTier as "plus" | "non_plus" | "unknown") || "unknown";
+  // 使用类型守卫确保类型安全
+  const shopTier = isValidShopTier(shop.shopTier) ? shop.shopTier : "unknown";
   const tierInfo = getTierDisplayInfo(shopTier);
   const deadlineDate = new Date(tierInfo.deadlineDate);
   const now = new Date();

@@ -845,7 +845,7 @@ export async function performChannelReconciliation(
         }
 
         // 如果 checkPromise 被取消，check 可能是 null
-        if (check === null && timeoutSignal.aborted) {
+        if (check === null && timeoutController && timeoutController.signal.aborted) {
           return null;
         }
 

@@ -365,9 +365,13 @@ function getNestedValue(obj: unknown, path: string): unknown {
     }
 
     // 使用更安全的类型检查
-    const record = current as Record<string, unknown>;
-    if (key in record) {
-      current = record[key];
+    if (typeof current === "object" && current !== null && !Array.isArray(current)) {
+      const record = current as Record<string, unknown>;
+      if (key in record) {
+        current = record[key];
+      } else {
+        return undefined;
+      }
     } else {
       return undefined;
     }

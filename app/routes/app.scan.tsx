@@ -575,33 +575,76 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 }, { status: 400 });
             }
 
-            const sanitizedPlatformDetails = (data.platformDetails as Array<{
-                platform: string;
-                type: string;
-                confidence: "high" | "medium" | "low";
-                matchedPattern: string;
-            }>).map(detail => {
-                let pattern = detail.matchedPattern;
+            // 安全地验证和转换 platformDetails
+            const platformDetailsRaw = data.platformDetails;
+            const sanitizedPlatformDetails = Array.isArray(platformDetailsRaw)
+                ? platformDetailsRaw
+                    .filter((detail): detail is {
+                        platform: string;
+                        type: string;
+                        confidence: "high" | "medium" | "low";
+                        matchedPattern: string;
+                    } => {
+                        if (!detail || typeof detail !== "object" || Array.isArray(detail)) {
+                            return false;
+                        }
+                        return (
+                            typeof detail.platform === "string" &&
+                            typeof detail.type === "string" &&
+                            typeof detail.matchedPattern === "string" &&
+                            (detail.confidence === "high" || detail.confidence === "medium" || detail.confidence === "low")
+                        );
+                    })
+                    .map(detail => {
+                        let pattern = detail.matchedPattern;
 
-                pattern = sanitizeSensitiveInfo(pattern);
+                        pattern = sanitizeSensitiveInfo(pattern);
 
-                if (containsSensitiveInfo(pattern)) {
-                    pattern = "[REDACTED_PATTERN]";
-                }
+                        if (containsSensitiveInfo(pattern)) {
+                            pattern = "[REDACTED_PATTERN]";
+                        }
 
-                if (pattern.length > SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) {
-                    pattern = pattern.substring(0, SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) + "...";
-                }
+                        if (pattern.length > SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) {
+                            pattern = pattern.substring(0, SAVE_ANALYSIS_LIMITS.MAX_PATTERN_LENGTH) + "...";
+                        }
 
-                return { ...detail, matchedPattern: pattern };
-            });
+                        return { ...detail, matchedPattern: pattern };
+                    })
+                : [];
+
+            // 安全地验证和转换其他字段
+            const identifiedPlatforms = Array.isArray(data.identifiedPlatforms)
+                ? data.identifiedPlatforms.filter((p): p is string => typeof p === "string")
+                : [];
+            
+            const risks = Array.isArray(data.risks)
+                ? data.risks.filter((r): r is RiskItem => {
+                    if (!r || typeof r !== "object" || Array.isArray(r)) {
+                        return false;
+                    }
+                    return (
+                        typeof r.id === "string" &&
+                        typeof r.severity === "string" &&
+                        typeof r.title === "string" &&
+                        typeof r.description === "string"
+                    );
+                })
+                : [];
+            
+            const riskScore = typeof data.riskScore === "number" && !isNaN(data.riskScore)
+                ? Math.max(0, Math.min(100, data.riskScore))
+                : 0;
+            
+            const recommendations = Array.isArray(data.recommendations)
+                ? data.recommendations.filter((r): r is string => typeof r === "string")
+                : [];
 
             const analysisData: ScriptAnalysisResult = {
-                identifiedPlatforms: data.identifiedPlatforms as string[],
+                identifiedPlatforms,
                 platformDetails: sanitizedPlatformDetails,
-                risks: data.risks as RiskItem[],
-                riskScore: data.riskScore as number,
-                recommendations: data.recommendations as string[],
+                risks,
+                riskScore,
+                recommendations,
             };
 
             const createdAssets = [];

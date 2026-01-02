@@ -317,6 +317,8 @@ export async function retry<T>(
  * 安全地执行一个 fire-and-forget Promise
  * 确保所有错误都被捕获和记录，避免未处理的 Promise 拒绝
  */
+import { logger } from "./logger.server";
+
 export function safeFireAndForget<T>(
   promise: Promise<T>,
   errorContext?: {
@@ -327,7 +329,6 @@ export function safeFireAndForget<T>(
   promise.catch((error) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    const logger = require("./logger.server").logger;
     logger.error(
       errorContext?.operation || "Fire-and-forget operation failed",
       error instanceof Error ? error : new Error(String(error)),

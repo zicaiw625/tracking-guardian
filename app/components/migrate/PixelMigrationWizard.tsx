@@ -50,6 +50,7 @@ interface PlatformConfig {
   };
   eventMappings: Record<string, string>;
   environment: "test" | "live";
+  configVersion?: number;
 }
 
 interface EventMapping {
@@ -357,27 +358,37 @@ export function PixelMigrationWizard({
 
         if (platform === "google") {
           const ga4Match = pattern.match(/G-[A-Z0-9]{10,}/i);
-          if (ga4Match) return ga4Match[0];
+          if (ga4Match && ga4Match.length > 0 && ga4Match[0]) {
+            return ga4Match[0];
+          }
         }
 
         if (platform === "meta") {
           const metaMatch = pattern.match(/\d{15,16}/);
-          if (metaMatch) return metaMatch[0];
+          if (metaMatch && metaMatch.length > 0 && metaMatch[0]) {
+            return metaMatch[0];
+          }
         }
 
         if (platform === "tiktok") {
           const tiktokMatch = pattern.match(/[A-Z0-9]{8,}/i);
-          if (tiktokMatch) return tiktokMatch[0];
+          if (tiktokMatch && tiktokMatch.length > 0 && tiktokMatch[0]) {
+            return tiktokMatch[0];
+          }
         }
 
         if (platform === "pinterest") {
           const pinterestMatch = pattern.match(/[A-Z0-9]{8,}/i);
-          if (pinterestMatch) return pinterestMatch[0];
+          if (pinterestMatch && pinterestMatch.length > 0 && pinterestMatch[0]) {
+            return pinterestMatch[0];
+          }
         }
 
         if (platform === "snapchat") {
           const snapchatMatch = pattern.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-          if (snapchatMatch) return snapchatMatch[0];
+          if (snapchatMatch && snapchatMatch.length > 0 && snapchatMatch[0]) {
+            return snapchatMatch[0];
+          }
         }
       }
     }
@@ -386,23 +397,33 @@ export function PixelMigrationWizard({
     if (content) {
       if (platform === "google") {
         const ga4Match = content.match(/G-[A-Z0-9]{10,}/i);
-        if (ga4Match) return ga4Match[0];
+        if (ga4Match && ga4Match.length > 0 && ga4Match[0]) {
+          return ga4Match[0];
+        }
       }
       if (platform === "meta") {
         const metaMatch = content.match(/(?:fbq\s*\(['"]init['"]\s*,\s*['"]?|pixel[_-]?id['":\s]+)(\d{15,16})/i);
-        if (metaMatch && metaMatch[1]) return metaMatch[1];
+        if (metaMatch && metaMatch.length > 1 && metaMatch[1]) {
+          return metaMatch[1];
+        }
       }
       if (platform === "tiktok") {
         const tiktokMatch = content.match(/ttq\s*\.\s*load\s*\(['"]?([A-Z0-9]+)['"]?/i);
-        if (tiktokMatch && tiktokMatch[1]) return tiktokMatch[1];
+        if (tiktokMatch && tiktokMatch.length > 1 && tiktokMatch[1]) {
+          return tiktokMatch[1];
+        }
       }
       if (platform === "pinterest") {
         const pinterestMatch = content.match(/pintrk\s*\(['"]load['"]\s*,\s*['"]?([A-Z0-9]+)['"]?/i);
-        if (pinterestMatch && pinterestMatch[1]) return pinterestMatch[1];
+        if (pinterestMatch && pinterestMatch.length > 1 && pinterestMatch[1]) {
+          return pinterestMatch[1];
+        }
       }
       if (platform === "snapchat") {
         const snapchatMatch = content.match(/snaptr\s*\(['"]init['"]\s*,\s*['"]?([0-9a-f-]{36})['"]?/i);
-        if (snapchatMatch && snapchatMatch[1]) return snapchatMatch[1];
+        if (snapchatMatch && snapchatMatch.length > 1 && snapchatMatch[1]) {
+          return snapchatMatch[1];
+        }
       }
     }
 
@@ -1148,6 +1169,7 @@ const allTemplates: WizardTemplate[] = [
             onValidate={validateConfig}
             shopId={shopId}
             onEnvironmentToggle={handleEnvironmentToggle}
+            pixelConfigs={pixelConfigs}
           />
         );
       case "testing":
@@ -1638,12 +1660,20 @@ function ReviewStep({
   onValidate,
   shopId,
   onEnvironmentToggle,
+  pixelConfigs,
 }: {
   selectedPlatforms: Set<PlatformType>;
   platformConfigs: Partial<Record<PlatformType, PlatformConfig>>;
   onValidate: (platform: PlatformType) => string[];
   shopId?: string;
   onEnvironmentToggle?: (platform: PlatformType, environment: "test" | "live") => void;
+  pixelConfigs?: Array<{
+    platform: string;
+    environment: string;
+    configVersion: number;
+    previousConfig: unknown;
+    rollbackAllowed: boolean;
+  }>;
 }) {
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -1785,7 +1815,15 @@ function ReviewStep({
       {shopId && Array.from(selectedPlatforms).map((platform) => {
 
         const existingConfig = platformConfigs[platform];
-        const currentVersion = (existingConfig as any)?.configVersion || 1;
+        // 优先从 platformConfigs 获取，否则从 pixelConfigs prop 中查找
+        let currentVersion = existingConfig?.configVersion;
+        if (currentVersion === undefined && pixelConfigs) {
+          const pixelConfig = pixelConfigs.find(
+            (config: { platform: string; configVersion: number }) => config.platform === platform
+          );
+          currentVersion = pixelConfig?.configVersion;
+        }
+        currentVersion = currentVersion ?? 1;
 
         return (
           <ConfigVersionManager
