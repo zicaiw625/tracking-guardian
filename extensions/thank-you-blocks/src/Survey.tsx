@@ -80,7 +80,7 @@ const Survey = memo(function Survey() {
             return;
         }
 
-        // 安全检查：确保 backendUrl 是允许的域名，防止 token 外泄
+        
         if (!backendUrl || !isAllowedBackendUrl(backendUrl)) {
             logger.warn("Backend URL not configured or not allowed, cannot submit survey");
             setBackendUrlError(true);
@@ -161,7 +161,7 @@ const Survey = memo(function Survey() {
       </BlockStack>);
     }
 
-    // 如果后端 URL 配置错误，显示错误提示
+    
     if (backendUrlError) {
         return (
             <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">

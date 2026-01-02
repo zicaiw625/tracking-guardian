@@ -42,48 +42,48 @@ async function calculateHealthScore(
 
   const factors: { label: string; value: number; weight: number }[] = [];
 
-  // 1. 对账差异率 (权重: 40%)
+  
   const avgDiscrepancy =
     recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length;
-  const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500)); // 0.2 = 0分, 0 = 100分
+  const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500)); 
   factors.push({ label: "对账一致性", value: discrepancyScore, weight: 0.4 });
 
-  // 2. 事件成功率 (权重: 30%)
+  
   try {
-    const stats = await getEventMonitoringStats(shopId, 24 * 7); // 最近7天
+    const stats = await getEventMonitoringStats(shopId, 24 * 7); 
     const successRateScore = stats.successRate || 0;
     factors.push({ label: "事件成功率", value: successRateScore, weight: 0.3 });
   } catch (error) {
     logger.warn("Failed to get event monitoring stats for health score", { shopId, error });
-    factors.push({ label: "事件成功率", value: 100, weight: 0.3 }); // 默认满分
+    factors.push({ label: "事件成功率", value: 100, weight: 0.3 }); 
   }
 
-  // 3. 参数完整率 (权重: 20%)
+  
   try {
     const missingParamsRate = await getMissingParamsRate(shopId, 24 * 7);
     const completenessScore = 100 - (missingParamsRate || 0);
     factors.push({ label: "参数完整性", value: Math.max(0, completenessScore), weight: 0.2 });
   } catch (error) {
     logger.warn("Failed to get missing params rate for health score", { shopId, error });
-    factors.push({ label: "参数完整性", value: 100, weight: 0.2 }); // 默认满分
+    factors.push({ label: "参数完整性", value: 100, weight: 0.2 }); 
   }
 
-  // 4. 事件量稳定性 (权重: 10%)
+  
   try {
     const volumeStats = await getEventVolumeStats(shopId);
     let volumeScore = 100;
     if (volumeStats.isDrop && Math.abs(volumeStats.changePercent || 0) > 50) {
-      volumeScore = 50; // 事件量大幅下降
+      volumeScore = 50; 
     } else if (volumeStats.isDrop && Math.abs(volumeStats.changePercent || 0) > 30) {
-      volumeScore = 75; // 事件量中度下降
+      volumeScore = 75; 
     }
     factors.push({ label: "事件量稳定性", value: volumeScore, weight: 0.1 });
   } catch (error) {
     logger.warn("Failed to get event volume stats for health score", { shopId, error });
-    factors.push({ label: "事件量稳定性", value: 100, weight: 0.1 }); // 默认满分
+    factors.push({ label: "事件量稳定性", value: 100, weight: 0.1 }); 
   }
 
-  // 计算加权总分
+  
   const totalScore = factors.reduce((sum, factor) => sum + (factor.value * factor.weight), 0);
   const roundedScore = Math.round(totalScore);
 
@@ -271,7 +271,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     }
   }
 
-  // 计算升级状态
+  
   const shopTier = (shop.shopTier as "plus" | "non_plus" | "unknown") || "unknown";
   const tierInfo = getTierDisplayInfo(shopTier);
   const deadlineDate = new Date(tierInfo.deadlineDate);
@@ -289,7 +289,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     urgency = "resolved";
   }
 
-  // Plus商家自动升级开始日期（月份格式：YYYY-MM）
+  
   const autoUpgradeStartDate = shopTier === "plus" ? "2026-01" : undefined;
 
   const upgradeStatus: UpgradeStatus = {
@@ -301,7 +301,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     urgency,
   };
 
-  // 计算迁移进度
+  
   let migrationProgress;
   try {
     migrationProgress = await calculateMigrationProgress(shop.id);
@@ -309,7 +309,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     logger.error("Failed to calculate migration progress", { shopId: shop.id, error });
   }
 
-  // 获取风险分数和风险等级
+  
   const riskScore = latestScan?.riskScore ?? null;
   let riskLevel: "high" | "medium" | "low" | null = null;
   if (riskScore !== null) {
@@ -349,7 +349,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     typOspPagesEnabled: shop.typOspPagesEnabled ?? false,
     estimatedMigrationTimeMinutes,
     showOnboarding,
-    // v1.0 新增字段
+    
     upgradeStatus,
     migrationProgress,
     riskScore,

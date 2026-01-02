@@ -98,7 +98,7 @@ export function RealtimeEventMonitor({
   const [filterEventType, setFilterEventType] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // 更新isPausedRef
+  
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
@@ -134,9 +134,9 @@ export function RealtimeEventMonitor({
             if (rawData.type === "connected" || rawData.type === "error" || rawData.type === "verification_run_status") {
 
               if (rawData.type === "verification_run_status" && rawData.status) {
-                // Log in development only
+                
                 if (process.env.NODE_ENV === "development") {
-                  // eslint-disable-next-line no-console
+                  
                   console.log("Verification run status:", rawData);
                 }
               }
@@ -192,18 +192,18 @@ export function RealtimeEventMonitor({
             });
           }
         } catch (err) {
-          // Log error in development only
+          
           if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
+            
             console.error("Failed to parse event data:", err);
           }
         }
       };
 
       eventSource.onerror = (err) => {
-        // Log error in development only
+        
         if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console
+          
           console.error("SSE error:", err);
         }
         setIsConnected(false);
@@ -234,8 +234,8 @@ export function RealtimeEventMonitor({
     return () => {
       disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, shopId, platforms, runId, eventTypes, useVerificationEndpoint]); // 当这些值改变时重新连接 // connect和disconnect是稳定的，不需要作为依赖项
+    
+  }, [autoStart, shopId, platforms, runId, eventTypes, useVerificationEndpoint]); 
 
   const handlePauseToggle = useCallback(() => {
     setIsPaused((prev) => !prev);
@@ -869,7 +869,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     completeness: true,
     shopify: true,
     errors: true,
-    mapping: false, // P1-01: 事件映射可视化默认收起
+    mapping: false, 
   });
 
   const toggleSection = useCallback((section: string) => {

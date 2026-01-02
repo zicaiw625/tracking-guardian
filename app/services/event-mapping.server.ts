@@ -2,7 +2,7 @@
 import { logger } from "../utils/logger.server";
 import type { PixelConfig } from "@prisma/client";
 
-// Re-export types and constants from the shared module
+
 export type { EventMapping, PlatformEventMapping } from "./event-mapping";
 export { STANDARD_EVENT_MAPPINGS, getPlatformEventMapping, getEventMapping, mergeEventMappings, validateEventMapping, getRecommendedMappings } from "./event-mapping";
 

@@ -762,14 +762,14 @@ export async function performChannelReconciliation(
         });
         const check = await Promise.race([checkPromise, timeoutPromise]);
         
-        // 清理 timeout，避免内存泄漏
+        
         if (timeoutId !== null && !timeoutResolved) {
           clearTimeout(timeoutId);
         }
         
         return check;
       } catch (error) {
-        // 确保清理 timeout
+        
         if (timeoutId !== null && !timeoutResolved) {
           clearTimeout(timeoutId);
         }

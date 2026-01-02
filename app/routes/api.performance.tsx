@@ -41,11 +41,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return json({ success: true });
   } catch (error) {
-    // Handle Prisma errors gracefully
+    
     if (error && typeof error === "object" && "code" in error) {
       const prismaError = error as { code: string; meta?: { table?: string } };
       if (prismaError.code === "P2022" || prismaError.code === "P2021") {
-        // Table doesn't exist - migration may not have run yet
+        
         logger.warn("PerformanceMetric table not found, migration may be pending", {
           shopDomain,
           code: prismaError.code,

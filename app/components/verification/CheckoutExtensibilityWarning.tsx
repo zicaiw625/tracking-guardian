@@ -2,10 +2,7 @@
 import { Banner, BlockStack, Text, List, Link } from "@shopify/polaris";
 import { AlertTriangleIcon } from "~/components/icons";
 
-/**
- * P0-05: Checkout Extensibility 风险提示组件
- * 显示关于 Thank you / Order status 页面迁移的边界情况和风险
- */
+
 export function CheckoutExtensibilityWarning() {
   return (
     <Banner tone="warning" icon={AlertTriangleIcon}>
@@ -54,9 +51,7 @@ export function CheckoutExtensibilityWarning() {
   );
 }
 
-/**
- * 简化的风险提示（用于报告和导出）
- */
+
 export function getCheckoutExtensibilityWarningText(): string {
   return `
 重要提示：Checkout Extensibility 迁移边界情况

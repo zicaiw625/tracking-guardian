@@ -1,8 +1,6 @@
 import type { TestChecklist, TestChecklistItem } from "~/services/verification-checklist.server";
 
-/**
- * 生成测试清单的 Markdown 格式
- */
+
 export function generateChecklistMarkdown(checklist: TestChecklist): string {
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
@@ -78,9 +76,7 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
   return markdown;
 }
 
-/**
- * 生成测试清单的 CSV 格式
- */
+
 export function generateChecklistCSV(checklist: TestChecklist): string {
   const headers = [
     "ID",

@@ -1,12 +1,4 @@
-/**
- * 事件管道服务 - 统一处理事件验证、去重、路由
- * 
- * 这个服务是事件处理的核心管道，负责：
- * 1. 事件验证（schema、参数完整性）
- * 2. 去重检测（基于 event_id）
- * 3. 路由到目的地（GA4、Meta、TikTok 等）
- * 4. 记录到 EventLog 表
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -26,16 +18,14 @@ export interface EventValidationResult {
   warnings: string[];
 }
 
-/**
- * 验证事件 payload
- */
+
 export function validateEventPayload(
   payload: PixelEventPayload
 ): EventValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // 必需字段检查
+  
   if (!payload.eventName) {
     errors.push("eventName is required");
   }
@@ -48,11 +38,11 @@ export function validateEventPayload(
     errors.push("shopDomain is required");
   }
 
-  // 数据字段检查
+  
   if (payload.data) {
     const data = payload.data;
 
-    // Purchase 事件必需字段
+    
     if (payload.eventName === "checkout_completed" || payload.eventName === "purchase") {
       if (!data.value && data.value !== 0) {
         errors.push("value is required for purchase events");
@@ -67,7 +57,7 @@ export function validateEventPayload(
       }
     }
 
-    // 检查 items 数组完整性
+    
     if (data.items && Array.isArray(data.items)) {
       data.items.forEach((item: unknown, index: number) => {
         if (typeof item !== "object" || item === null) {
@@ -90,9 +80,7 @@ export function validateEventPayload(
   };
 }
 
-/**
- * 检查事件是否重复（基于 event_id）
- */
+
 export async function checkEventDeduplication(
   shopId: string,
   eventId: string | null,
@@ -131,14 +119,12 @@ export async function checkEventDeduplication(
       eventId,
       error,
     });
-    // 出错时不阻止处理，但记录日志
+    
     return { isDuplicate: false };
   }
 }
 
-/**
- * 记录事件到 EventLog 表
- */
+
 export async function logEvent(
   shopId: string,
   eventName: string,
@@ -170,20 +156,18 @@ export async function logEvent(
       eventId,
       error,
     });
-    // 不抛出错误，避免影响主流程
+    
   }
 }
 
-/**
- * 处理事件管道：验证 -> 去重 -> 路由 -> 记录
- */
+
 export async function processEventPipeline(
   shopId: string,
   payload: PixelEventPayload,
   eventId: string | null,
   destinations: string[]
 ): Promise<EventPipelineResult> {
-  // 1. 验证
+  
   const validation = validateEventPayload(payload);
   if (!validation.valid) {
     await logEvent(
@@ -203,7 +187,7 @@ export async function processEventPipeline(
     };
   }
 
-  // 2. 去重检查（对每个目的地）
+  
   const deduplicationResults: boolean[] = [];
   for (const destination of destinations) {
     const dedupResult = await checkEventDeduplication(
@@ -228,7 +212,7 @@ export async function processEventPipeline(
 
   const isDeduplicated = deduplicationResults.some((dup) => dup);
 
-  // 3. 记录事件（每个目的地一条记录）
+  
   const logPromises = destinations.map((destination) =>
     logEvent(
       shopId,
@@ -236,7 +220,7 @@ export async function processEventPipeline(
       eventId,
       payload,
       destination,
-      isDeduplicated ? "ok" : "ok", // 去重的事件也标记为 ok
+      isDeduplicated ? "ok" : "ok", 
       isDeduplicated ? "deduplicated" : undefined,
       isDeduplicated ? "Event was deduplicated" : undefined
     )
@@ -252,9 +236,7 @@ export async function processEventPipeline(
   };
 }
 
-/**
- * 批量处理事件
- */
+
 export async function processBatchEvents(
   shopId: string,
   events: Array<{
@@ -278,9 +260,7 @@ export async function processBatchEvents(
   return results;
 }
 
-/**
- * 获取事件统计（用于监控）
- */
+
 export async function getEventStats(
   shopId: string,
   startDate: Date,

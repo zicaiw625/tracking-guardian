@@ -1057,9 +1057,9 @@ export default function ScanPage() {
             analysisSavedRef.current = false;
         }
 
-        // Log error details for debugging
+        
         if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
+            
             console.error("Script analysis error", {
                 error: errorMessage,
                 errorType: error instanceof Error ? error.constructor.name : "Unknown",
@@ -1220,9 +1220,9 @@ export default function ScanPage() {
                                     chunkResult = analyzeScriptContent(chunk);
                                 } catch (syncError) {
 
-                                    // Log warning in development only
+                                    
                                     if (process.env.NODE_ENV === "development") {
-                                        // eslint-disable-next-line no-console
+                                        
                                         console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
                                     }
                                     resolve();
@@ -1254,9 +1254,9 @@ export default function ScanPage() {
                                 resolve();
                             } catch (error) {
 
-                                // Log warning in development only
+                                
                                 if (process.env.NODE_ENV === "development") {
-                                    // eslint-disable-next-line no-console
+                                    
                                     console.warn(`Chunk ${i} analysis failed:`, error);
                                 }
                                 resolve();
@@ -1869,9 +1869,9 @@ export default function ScanPage() {
                             } catch (error) {
 
                               if (error instanceof Error && error.name !== 'AbortError') {
-                                // Log error in development only
+                                
                                 if (process.env.NODE_ENV === "development") {
-                                    // eslint-disable-next-line no-console
+                                    
                                     console.error("分享失败:", error);
                                 }
 
@@ -1880,9 +1880,9 @@ export default function ScanPage() {
                                     await navigator.clipboard.writeText(shareData.text);
                                     showSuccess("报告摘要已复制到剪贴板");
                                   } catch (clipboardError) {
-                                    // Log error in development only
+                                    
                                     if (process.env.NODE_ENV === "development") {
-                                        // eslint-disable-next-line no-console
+                                        
                                         console.error("复制失败:", clipboardError);
                                     }
                                     showError("无法分享或复制，请手动复制");
@@ -1897,9 +1897,9 @@ export default function ScanPage() {
                               await navigator.clipboard.writeText(shareData.text);
                               showSuccess("报告摘要已复制到剪贴板");
                             } catch (error) {
-                              // Log error in development only
+                              
                               if (process.env.NODE_ENV === "development") {
-                                  // eslint-disable-next-line no-console
+                                  
                                   console.error("复制失败:", error);
                               }
                               showError("复制失败，请手动复制");
@@ -2720,9 +2720,9 @@ export default function ScanPage() {
                               showError("浏览器不支持复制功能");
                             }
                           } catch (error) {
-                            // Log error in development only
+                            
                             if (process.env.NODE_ENV === "development") {
-                                // eslint-disable-next-line no-console
+                                
                                 console.error("复制失败:", error);
                             }
                             showError("复制失败，请手动复制");
@@ -2765,9 +2765,9 @@ export default function ScanPage() {
                                     document.body.removeChild(a);
                                   }
                                 } catch (removeError) {
-                                  // Log warning in development only
+                                  
                                   if (process.env.NODE_ENV === "development") {
-                                      // eslint-disable-next-line no-console
+                                      
                                       console.warn("Failed to remove download link:", removeError);
                                   }
                                 }
@@ -2779,9 +2779,9 @@ export default function ScanPage() {
                                 exportTimeoutRef.current = null;
                               }, TIMEOUTS.EXPORT_CLEANUP);
                             } catch (domError) {
-                              // Log error in development only
+                              
                               if (process.env.NODE_ENV === "development") {
-                                  // eslint-disable-next-line no-console
+                                  
                                   console.error("Failed to trigger download:", domError);
                               }
 
@@ -2797,9 +2797,9 @@ export default function ScanPage() {
                             showSuccess("清单导出成功");
                             setIsExporting(false);
                           } catch (error) {
-                            // Log error in development only
+                            
                             if (process.env.NODE_ENV === "development") {
-                                // eslint-disable-next-line no-console
+                                
                                 console.error("导出失败:", error);
                             }
 
@@ -2838,9 +2838,9 @@ export default function ScanPage() {
                             URL.revokeObjectURL(url);
                             showSuccess("PDF 清单导出成功");
                           } catch (error) {
-                            // Log error in development only
+                            
                             if (process.env.NODE_ENV === "development") {
-                                // eslint-disable-next-line no-console
+                                
                                 console.error("PDF 导出失败:", error);
                             }
                             showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");

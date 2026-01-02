@@ -32,7 +32,7 @@ const ShippingTracker = memo(function ShippingTracker() {
     const tipText = useMemo(() => (settings.shipping_tip_text as string) ||
         "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。", [settings.shipping_tip_text]);
 
-    // 使用 orderConfirmation API 获取订单 ID
+    
     useEffect(() => {
         async function fetchOrderInfo() {
             try {
@@ -56,7 +56,7 @@ const ShippingTracker = memo(function ShippingTracker() {
 
     useEffect(() => {
         async function fetchTrackingInfo() {
-            // 安全检查：确保 BACKEND_URL 是允许的域名，防止 token 外泄
+            
             if (!orderId) {
                 return;
             }
@@ -72,14 +72,14 @@ const ShippingTracker = memo(function ShippingTracker() {
             setError(null);
             setIsLoading(true);
             
-            // 重试逻辑：Shopify 订单可能在 Thank you 页渲染时尚未创建完成
-            // 使用指数退避：500ms, 1500ms, 3000ms，最多 3 次
+            
+            
             const retryDelays = [0, 500, 1500, 3000];
             let lastError: Error | null = null;
             
             for (let attempt = 0; attempt < retryDelays.length; attempt++) {
                 try {
-                    // 等待退避时间（第一次立即执行）
+                    
                     if (attempt > 0) {
                         await new Promise(resolve => setTimeout(resolve, retryDelays[attempt] - retryDelays[attempt - 1]));
                     }
@@ -91,8 +91,8 @@ const ShippingTracker = memo(function ShippingTracker() {
                         continue;
                     }
 
-                    // 通过后端 API 获取物流信息（后端会从 Shopify Admin API 获取，并根据配置调用第三方）
-                    // 只传 orderId，后端会从 Shopify fulfillments 中获取 trackingNumber
+                    
+                    
                     const response = await fetch(`${BACKEND_URL}/api/tracking?orderId=${encodeURIComponent(orderId)}`, {
                         headers: {
                             "Content-Type": "application/json",
@@ -101,19 +101,19 @@ const ShippingTracker = memo(function ShippingTracker() {
                         },
                     });
 
-                    // 处理 202 Accepted（订单正在生成，需要重试）
+                    
                     if (response.status === 202) {
                         const data = await response.json();
                         const retryAfter = response.headers.get("Retry-After");
                         const retryDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
                         
-                        // 如果还有重试机会，继续重试
+                        
                         if (attempt < retryDelays.length - 1) {
                             console.log(`Order still creating, retrying after ${retryDelay}ms`, { orderId, attempt });
                             await new Promise(resolve => setTimeout(resolve, retryDelay));
                             continue;
                         } else {
-                            // 最后一次重试失败，显示友好提示
+                            
                             setError(data.message || "订单正在生成，请稍后刷新页面查看物流信息");
                             break;
                         }
@@ -121,7 +121,7 @@ const ShippingTracker = memo(function ShippingTracker() {
 
                     if (response.ok) {
                         const data = await response.json();
-                        // 处理 pending_fulfillment 状态（暂未生成物流信息）
+                        
                         if (data.tracking) {
                             setTrackingInfo({
                                 trackingNumber: data.tracking.trackingNumber,
@@ -132,24 +132,24 @@ const ShippingTracker = memo(function ShippingTracker() {
                                 events: data.tracking.events || [],
                             });
                             setError(null);
-                            break; // 成功，退出重试循环
+                            break; 
                         }
                     } else if (response.status === 404) {
-                        // 订单不存在（可能是真的不存在，不是"正在生成"）
+                        
                         setError("订单不存在");
                         break;
                     } else {
-                        // 其他错误，尝试重试
+                        
                         const errorText = await response.text().catch(() => "Unknown error");
                         lastError = new Error(`HTTP ${response.status}: ${errorText}`);
                         if (attempt < retryDelays.length - 1) {
-                            continue; // 继续重试
+                            continue; 
                         }
                     }
                 } catch (error) {
                     lastError = error instanceof Error ? error : new Error(String(error));
                     console.warn(`Failed to fetch tracking info (attempt ${attempt + 1}):`, error);
-                    // 如果是最后一次尝试，设置错误信息
+                    
                     if (attempt === retryDelays.length - 1) {
                         setError("获取物流信息失败，请稍后刷新页面");
                     }
@@ -165,7 +165,7 @@ const ShippingTracker = memo(function ShippingTracker() {
     const shippingSteps = useMemo(() => {
         if (trackingInfo) {
             const status = trackingInfo.status;
-            // 处理 pending_fulfillment 状态（暂未生成物流信息）
+            
             const isPending = status === "pending" || status === "pending_fulfillment";
             return [
                 { id: "ordered", label: "订单已确认", completed: true, date: "已完成" },
@@ -186,7 +186,7 @@ const ShippingTracker = memo(function ShippingTracker() {
     const confirmationNumber = useMemo(() => orderNumber || "处理中...", [orderNumber]);
     const trackingNumber = useMemo(() => trackingInfo?.trackingNumber || "", [trackingInfo]);
 
-    // 如果后端 URL 配置错误，显示错误提示
+    
     if (backendUrlError) {
         return (
             <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">

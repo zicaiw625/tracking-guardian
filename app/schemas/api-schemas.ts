@@ -1,7 +1,7 @@
 
 
 import { z } from "zod";
-// 统一从 pixel-event.ts 导入 OrderIdSchema，消除分叉风险
+
 import { OrderIdSchema } from "./pixel-event";
 
 export const ShopDomainSchema = z
@@ -13,7 +13,7 @@ export const ShopDomainSchema = z
     "Invalid Shopify domain format"
   );
 
-// Re-export OrderIdSchema from pixel-event.ts to ensure consistency
+
 export { OrderIdSchema };
 
 export const CheckoutTokenSchema = z

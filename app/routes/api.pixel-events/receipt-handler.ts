@@ -98,8 +98,8 @@ export async function createEventNonce(
   clientNonce?: string,
   eventType: string = "purchase"
 ): Promise<{ success: boolean; isReplay: boolean }> {
-  // P0-03: Generate unique nonce with event type to prevent replay across different event types
-  // Use client-provided nonce if available, otherwise generate from orderId + timestamp + eventType
+  
+  
   const nonceValue = clientNonce || `${orderId}:${eventType}:${timestamp}`;
   const nonceExpiresAt = new Date(Date.now() + RETENTION_CONFIG.NONCE_EXPIRY_MS);
 
@@ -300,10 +300,7 @@ export function generatePurchaseEventId(
   return generateEventId(orderId, "purchase", shopDomain);
 }
 
-/**
- * P1-01: Generate event ID for any event type using unified EventNormalizer
- * Rule: checkout_token/order_id + event_name + line_hash
- */
+
 export function generateEventIdForType(
   identifier: string,
   eventType: string,
@@ -311,7 +308,7 @@ export function generateEventIdForType(
   checkoutToken?: string | null,
   items?: Array<{ id: string; quantity: number }>
 ): string {
-  // Use new EventNormalizer for unified event ID generation
+  
   const { generateCanonicalEventId } = require("../../services/event-normalizer.server");
   return generateCanonicalEventId(
     identifier,
@@ -322,10 +319,7 @@ export function generateEventIdForType(
   );
 }
 
-/**
- * P1-01: Generate deduplication key using canonical event format
- * Rule: checkout_token/order_id + event_name + line_hash
- */
+
 export function generateDeduplicationKeyForEvent(
   orderId: string | null,
   checkoutToken: string | null,
@@ -335,10 +329,10 @@ export function generateDeduplicationKeyForEvent(
 ): string {
   const { createHash } = require("crypto");
   
-  // Use order identifier (prefer orderId, fallback to checkoutToken)
+  
   const identifier = orderId || checkoutToken || "";
   
-  // Generate items hash (to detect item changes)
+  
   const itemsHash = items.length > 0
     ? createHash("sha256")
         .update(
@@ -352,7 +346,7 @@ export function generateDeduplicationKeyForEvent(
         .substring(0, 16)
     : "empty";
   
-  // Combine: identifier + eventName + itemsHash
+  
   const keyInput = `${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
   
   return createHash("sha256")

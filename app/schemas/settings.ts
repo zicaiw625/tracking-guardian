@@ -165,7 +165,8 @@ export type PixelConfigV1 = z.infer<typeof PixelConfigSchemaV1>;
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfigV1 = {
   schema_version: "1",
-  mode: "purchase_only",
+  
+  mode: "full_funnel",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
 };

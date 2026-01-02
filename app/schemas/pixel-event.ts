@@ -2,13 +2,13 @@
 
 import { z } from 'zod';
 
-// ============================================================================
-// 统一的校验常量定义 - 所有 pixel event 相关的校验都应使用这些常量
-// ============================================================================
+
+
+
 
 export const MIN_REASONABLE_TIMESTAMP = 1577836800000;
 export const MAX_FUTURE_TIMESTAMP_OFFSET_MS = 86400000;
-export const MAX_FUTURE_TIMESTAMP_MS = MAX_FUTURE_TIMESTAMP_OFFSET_MS; // 别名，保持向后兼容
+export const MAX_FUTURE_TIMESTAMP_MS = MAX_FUTURE_TIMESTAMP_OFFSET_MS; 
 
 export const CHECKOUT_TOKEN_PATTERN = /^[a-zA-Z0-9_-]+$/;
 export const CHECKOUT_TOKEN_MIN_LENGTH = 8;

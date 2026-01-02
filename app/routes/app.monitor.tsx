@@ -238,7 +238,7 @@ export default function MonitorPage() {
     ? "像素来自开发隧道域名，而应用 URL 指向生产。请确认 Pixel 使用的 backend_url 是否为生产域名。"
     : null;
 
-    // 安全地验证和转换summary数据
+    
     function isDeliverySummary(value: unknown): value is DeliverySummary {
       if (typeof value !== "object" || value === null) return false;
       const v = value as Record<string, unknown>;
@@ -263,7 +263,7 @@ export default function MonitorPage() {
 
     const summaryData: Record<string, DeliverySummary> = isDeliverySummaryRecord(summary) ? summary : {};
     
-    // 安全地转换history数据，处理可能的JSON序列化日期
+    
     const historyData: DeliveryHealthReport[] = (history ?? []).map((h) => {
       const reportDate = h.reportDate instanceof Date 
         ? h.reportDate 
@@ -282,7 +282,7 @@ export default function MonitorPage() {
       };
     });
 
-    // 安全地验证conversionStats数据
+    
     function isConversionStat(value: unknown): value is ConversionStat {
       if (typeof value !== "object" || value === null) return false;
       const v = value as Record<string, unknown>;
@@ -370,7 +370,7 @@ export default function MonitorPage() {
         )}
 
         {}
-        {/* v1.0: 同意/隐私导致的差异说明 */}
+        {}
         <Banner tone="info" title="关于同意与隐私导致的差异">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">

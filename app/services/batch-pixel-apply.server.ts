@@ -55,7 +55,7 @@ export async function createPixelTemplate(
   options: TemplateCreateOptions
 ): Promise<{ success: boolean; templateId?: string; error?: string }> {
   try {
-    // 验证 platforms 数据
+    
     if (!isPixelTemplateConfigArray(options.platforms)) {
       logger.error("Invalid platforms data for pixel template", {
         platforms: options.platforms,
@@ -68,7 +68,7 @@ export async function createPixelTemplate(
         ownerId: options.ownerId,
         name: options.name,
         description: options.description,
-        // Prisma 需要 JSON 类型，但我们已经验证了数据结构
+        
         platforms: options.platforms as Parameters<typeof prisma.pixelTemplate.create>[0]["data"]["platforms"],
         isPublic: options.isPublic ?? false,
       },
@@ -107,7 +107,7 @@ export async function getPixelTemplates(
   });
 
   return templates.map(t => {
-    // 验证并转换 platforms 数据
+    
     const platforms = Array.isArray(t.platforms) && isPixelTemplateConfigArray(t.platforms)
       ? t.platforms
       : [];
@@ -140,7 +140,7 @@ export async function getPixelTemplate(
 
   if (!template) return null;
 
-  // 验证并转换 platforms 数据
+  
   const platforms = Array.isArray(template.platforms) && isPixelTemplateConfigArray(template.platforms)
     ? template.platforms
     : [];
@@ -169,7 +169,7 @@ export async function updatePixelTemplate(
       return { success: false, error: "模板不存在或无权限" };
     }
 
-    // 如果更新 platforms，验证数据
+    
     if (updates.platforms !== undefined) {
       if (!isPixelTemplateConfigArray(updates.platforms)) {
         logger.error("Invalid platforms data for pixel template update", {

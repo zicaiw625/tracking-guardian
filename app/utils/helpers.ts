@@ -103,7 +103,7 @@ export function getNestedValue<T>(
     current = current[key];
   }
 
-  // 类型断言在这里是安全的，因为我们已经验证了路径的每一步
+  
   return (current as T) ?? fallback;
 }
 
@@ -117,7 +117,7 @@ export function removeNullish<T extends Record<string, unknown>>(
   const filtered = Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined && v !== null)
   );
-  // 类型断言在这里是安全的，因为我们只是移除了nullish值，保持了相同的键结构
+  
   return filtered as Partial<T>;
 }
 
@@ -151,7 +151,7 @@ export function groupBy<T, K extends string | number>(
     groups[key]!.push(item);
   }
   
-  // 类型断言在这里是安全的，因为我们已经初始化了所有键
+  
   return groups as Record<K, T[]>;
 }
 
@@ -231,16 +231,16 @@ export async function parallelLimit<T, R>(
 ): Promise<R[]> {
   const results: (R | undefined)[] = new Array(items.length);
   const errors: Array<{ index: number; error: unknown }> = [];
-  // 使用Map来跟踪正在执行的promise，提高查找效率
+  
   const executing = new Map<number, Promise<{ index: number; result?: R; error?: unknown }>>();
   let nextIndex = 0;
 
-  // 启动初始批次
+  
   while (nextIndex < items.length && executing.size < concurrency) {
     const index = nextIndex++;
     const item = items[index];
 
-    // 创建promise，包装结果和索引以便追踪
+    
     const promise = fn(item, index)
       .then((result) => ({ index, result }))
       .catch((error) => ({ index, error }));
@@ -248,14 +248,14 @@ export async function parallelLimit<T, R>(
     executing.set(index, promise);
   }
 
-  // 处理所有任务
+  
   while (executing.size > 0) {
-    // 等待至少一个promise完成
+    
     const settled = await Promise.race(
       Array.from(executing.values())
     );
 
-    // 处理完成的结果
+    
     if (settled.error !== undefined) {
       errors.push({ index: settled.index, error: settled.error });
       results[settled.index] = undefined;
@@ -263,10 +263,10 @@ export async function parallelLimit<T, R>(
       results[settled.index] = settled.result;
     }
 
-    // 移除已完成的promise
+    
     executing.delete(settled.index);
 
-    // 如果有更多任务，启动新的promise
+    
     if (nextIndex < items.length) {
       const index = nextIndex++;
       const item = items[index];
@@ -279,7 +279,7 @@ export async function parallelLimit<T, R>(
     }
   }
 
-  // 如果有错误，抛出聚合错误
+  
   if (errors.length > 0) {
     const errorMessages = errors.map(
       (e) => `Item ${e.index}: ${e.error instanceof Error ? e.error.message : String(e.error)}`
@@ -289,7 +289,7 @@ export async function parallelLimit<T, R>(
     );
   }
 
-  // 验证所有结果都已设置
+  
   const validResults = results.filter((r): r is R => r !== undefined);
   
   if (validResults.length !== items.length) {

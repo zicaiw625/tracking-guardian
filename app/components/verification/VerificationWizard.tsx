@@ -1,6 +1,4 @@
-/**
- * 验收向导组件 - 生成测试清单、实时事件查看
- */
+
 
 import { useState, useCallback } from "react";
 import {
@@ -78,7 +76,7 @@ export function VerificationWizard({
 
           <Divider />
 
-          {/* P0-05: Checkout Extensibility 边界情况说明 */}
+          {}
           <Banner tone="info" title="重要提示：事件触发边界情况">
             <BlockStack gap="200">
               <Text variant="bodySm" as="p">

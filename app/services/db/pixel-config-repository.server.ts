@@ -142,8 +142,8 @@ export async function upsertPixelConfig(
     );
   }
 
-  // P0-04: Support test/live environments - need to specify environment
-  // Default to 'test' for backward compatibility, but should be passed explicitly
+  
+  
   const environment = input.environment || "test";
   
   const existingConfig = await prisma.pixelConfig.findUnique({

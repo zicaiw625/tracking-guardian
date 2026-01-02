@@ -1,6 +1,4 @@
-/**
- * 使用量告警服务 - 接近限制时通知商家
- */
+
 
 import { logger } from "~/utils/logger.server";
 import { checkUsageApproachingLimit } from "./usage-tracking.server";
@@ -14,9 +12,7 @@ export interface UsageAlert {
   message: string;
 }
 
-/**
- * 检查并生成使用量告警
- */
+
 export async function checkUsageAlerts(
   shopId: string,
   planId: PlanId,
@@ -69,22 +65,20 @@ export async function checkUsageAlerts(
   }
 }
 
-/**
- * 发送使用量告警通知（邮件/应用内）
- */
+
 export async function sendUsageAlertNotification(
   shopId: string,
   alerts: UsageAlert[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Note: 使用量告警通知实现
-    // 当前实现仅记录日志，完整实现应该：
-    // 1. 检查 AlertConfig 中的通知渠道配置
-    // 2. 检查是否已发送过（避免重复通知）- 使用 lastAlertAt 字段
-    // 3. 发送邮件通知 - 使用 notification.server.ts
-    // 4. 发送 Slack/Telegram 通知 - 使用 alerts 模块
-    // 5. 在应用内显示通知 - 创建 Notification 记录
-    // 6. 更新 lastAlertAt 时间戳
+    
+    
+    
+    
+    
+    
+    
+    
 
     logger.info("Usage alerts generated", {
       shopId,

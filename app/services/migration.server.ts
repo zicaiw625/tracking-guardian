@@ -75,11 +75,15 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         );
     }
 
+    
+    const environment = options?.environment || "live";
+    
     const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
-            shopId_platform: {
+            shopId_platform_environment: {
                 shopId,
                 platform,
+                environment,
             },
         },
     });
@@ -105,9 +109,10 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
 
     return prisma.pixelConfig.upsert({
         where: {
-            shopId_platform: {
+            shopId_platform_environment: {
                 shopId,
                 platform,
+                environment,
             },
         },
         update: {
@@ -128,16 +133,18 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
             migrationStatus: "in_progress",
             configVersion: 1,
             rollbackAllowed: false,
+            environment,
         },
     });
 }
 
-export async function completeMigration(shopId: string, platform: Platform) {
+export async function completeMigration(shopId: string, platform: Platform, environment: string = "live") {
     return prisma.pixelConfig.update({
         where: {
-            shopId_platform: {
+            shopId_platform_environment: {
                 shopId,
                 platform,
+                environment,
             },
         },
         data: {
@@ -181,10 +188,16 @@ export function buildWebPixelSettings(
     shopDomain: string,
     pixelConfig?: Partial<PixelConfig>
 ): WebPixelSettings {
+    
+    const defaultConfig: Partial<PixelConfig> = {
+        mode: "full_funnel",
+        enabled_platforms: "meta,tiktok,google",
+        strictness: "strict",
+    };
     return {
         ingestion_key: ingestionKey,
         shop_domain: shopDomain,
-        pixel_config: buildPixelConfigString(pixelConfig || {}),
+        pixel_config: buildPixelConfigString(pixelConfig || defaultConfig),
     };
 }
 
@@ -568,7 +581,7 @@ export async function migrateCredentialsToEncrypted(): Promise<{
                 logger.warn(`P0-09: Skipping ${config.id} - invalid credentials format`);
                 continue;
             }
-            // 验证 credentials 类型
+            
             const credsValidation = validateCredentials(legacyCreds);
             if (!credsValidation.success) {
                 logger.warn(`P0-09: Skipping ${config.id} - invalid credentials: ${credsValidation.errors.join(", ")}`);

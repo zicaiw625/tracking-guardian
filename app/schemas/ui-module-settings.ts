@@ -1,14 +1,8 @@
-/**
- * P1-04: 统一 UI 模块设置 Schema
- * 
- * 定义 Thank you / Order status UI 模块的统一配置格式
- */
+
 
 import { z } from "zod";
 
-/**
- * 模块类型
- */
+
 export const MODULE_KEYS = [
   "survey",
   "reorder",
@@ -19,60 +13,54 @@ export const MODULE_KEYS = [
 
 export type ModuleKey = typeof MODULE_KEYS[number];
 
-/**
- * 显示规则
- */
+
 export const DisplayRuleSchema = z.object({
-  // 显示条件
+  
   showOnThankYou: z.boolean().default(true),
   showOnOrderStatus: z.boolean().default(true),
   
-  // 订单金额条件
+  
   minOrderValue: z.number().optional(),
   maxOrderValue: z.number().optional(),
   
-  // 订单状态条件
-  orderStatuses: z.array(z.string()).optional(), // ["fulfilled", "partially_fulfilled"]
   
-  // 商品条件
+  orderStatuses: z.array(z.string()).optional(), 
+  
+  
   productTags: z.array(z.string()).optional(),
   productTypes: z.array(z.string()).optional(),
   
-  // 客户条件
+  
   customerTags: z.array(z.string()).optional(),
   
-  // 时间条件
-  showAfterHours: z.number().optional(), // 订单创建后 N 小时显示
-  showBeforeHours: z.number().optional(), // 订单创建后 N 小时内显示
   
-  // 其他条件
+  showAfterHours: z.number().optional(), 
+  showBeforeHours: z.number().optional(), 
+  
+  
   customConditions: z.record(z.unknown()).optional(),
 });
 
 export type DisplayRule = z.infer<typeof DisplayRuleSchema>;
 
-/**
- * 本地化配置
- */
+
 export const LocalizationSchema = z.object({
-  // 语言代码（ISO 639-1）
+  
   locale: z.string().default("en"),
   
-  // 翻译文本
+  
   translations: z.record(z.string()).optional(),
   
-  // 日期格式
+  
   dateFormat: z.string().default("YYYY-MM-DD"),
   
-  // 货币格式
+  
   currencyFormat: z.string().default("USD"),
 });
 
 export type Localization = z.infer<typeof LocalizationSchema>;
 
-/**
- * Survey 模块设置
- */
+
 export const SurveySettingsSchema = z.object({
   title: z.string().default("How was your experience?"),
   question: z.string().default("Rate your experience"),
@@ -92,9 +80,7 @@ export const SurveySettingsSchema = z.object({
 
 export type SurveySettings = z.infer<typeof SurveySettingsSchema>;
 
-/**
- * Reorder 模块设置
- */
+
 export const ReorderSettingsSchema = z.object({
   buttonText: z.string().default("Reorder"),
   buttonStyle: z.enum(["primary", "secondary", "outline"]).default("primary"),
@@ -105,9 +91,7 @@ export const ReorderSettingsSchema = z.object({
 
 export type ReorderSettings = z.infer<typeof ReorderSettingsSchema>;
 
-/**
- * Support 模块设置
- */
+
 export const SupportSettingsSchema = z.object({
   title: z.string().default("Need Help?"),
   description: z.string().default("Contact our support team"),
@@ -124,9 +108,7 @@ export const SupportSettingsSchema = z.object({
 
 export type SupportSettings = z.infer<typeof SupportSettingsSchema>;
 
-/**
- * Shipping Tracker 模块设置
- */
+
 export const ShippingTrackerSettingsSchema = z.object({
   title: z.string().default("Order Status"),
   showProgressBar: z.boolean().default(true),
@@ -138,9 +120,7 @@ export const ShippingTrackerSettingsSchema = z.object({
 
 export type ShippingTrackerSettings = z.infer<typeof ShippingTrackerSettingsSchema>;
 
-/**
- * Upsell Offer 模块设置
- */
+
 export const UpsellOfferSettingsSchema = z.object({
   discountCode: z.string().optional(),
   discountPercent: z.number().optional(),
@@ -154,37 +134,33 @@ export const UpsellOfferSettingsSchema = z.object({
 
 export type UpsellOfferSettings = z.infer<typeof UpsellOfferSettingsSchema>;
 
-/**
- * 统一模块设置 Schema
- */
+
 export const ModuleSettingsSchema = z.object({
-  // 基础设置
+  
   isEnabled: z.boolean().default(true),
   moduleKey: z.enum(MODULE_KEYS),
   
-  // 模块特定设置
+  
   survey: SurveySettingsSchema.optional(),
   reorder: ReorderSettingsSchema.optional(),
   support: SupportSettingsSchema.optional(),
   shipping_tracker: ShippingTrackerSettingsSchema.optional(),
   upsell_offer: UpsellOfferSettingsSchema.optional(),
   
-  // 显示规则
+  
   displayRules: DisplayRuleSchema.optional(),
   
-  // 本地化
+  
   localization: z.array(LocalizationSchema).optional(),
   
-  // 元数据
+  
   version: z.number().default(1),
   updatedAt: z.string().optional(),
 });
 
 export type ModuleSettings = z.infer<typeof ModuleSettingsSchema>;
 
-/**
- * 验证模块设置
- */
+
 export function validateModuleSettings(
   moduleKey: ModuleKey,
   settings: unknown
@@ -199,7 +175,7 @@ export function validateModuleSettings(
       updatedAt: true,
     });
     
-    // 根据模块类型添加特定设置
+    
     let schema = baseSchema;
     switch (moduleKey) {
       case "survey":
@@ -239,9 +215,7 @@ export function validateModuleSettings(
   }
 }
 
-/**
- * 获取模块默认设置
- */
+
 export function getDefaultModuleSettings(moduleKey: ModuleKey): ModuleSettings {
   const base: ModuleSettings = {
     isEnabled: true,
@@ -284,9 +258,7 @@ export function getDefaultModuleSettings(moduleKey: ModuleKey): ModuleSettings {
   }
 }
 
-/**
- * 合并模块设置（用于更新）
- */
+
 export function mergeModuleSettings(
   existing: Partial<ModuleSettings>,
   updates: Partial<ModuleSettings>

@@ -26,9 +26,9 @@ function ReorderOrderStatus() {
   const buttonText = (settings.reorder_button_text as string) || "再次购买 →";
   const showItems = settings.reorder_show_items !== "false";
 
-  // 注意：Customer Account extensions 运行在 customer account 域下
-  // 相对路径（如 /cart）会正确解析到 storefront，所以可以直接使用相对路径
-  // 如果需要绝对 URL，可以通过配置项提供 storefrontUrl，但通常相对路径就足够了
+  
+  
+  
   const generateReorderUrl = (): string => {
     if (!order?.lineItems || order.lineItems.length === 0) {
       return '/cart';
@@ -123,9 +123,7 @@ function ReorderOrderStatus() {
               }
             </Text>
           </BlockStack>
-          {/* 注意：Customer Account extensions 中，Link 包 Button 是常见用法
-              相对路径（如 /cart/...）在 customer account 域下会正确解析到 storefront
-              虽然用户建议避免 Link 包 Button，但在这个环境中这是标准做法 */}
+          {}
           <Link to={reorderUrl}>
             <Button kind="primary">
               {buttonText}

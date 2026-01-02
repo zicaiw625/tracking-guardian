@@ -1,6 +1,4 @@
-/**
- * Workspace 权限服务 - Owner/Admin/Viewer 权限检查
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -12,9 +10,7 @@ export interface PermissionCheck {
   reason?: string;
 }
 
-/**
- * 检查用户是否有权限执行操作
- */
+
 export async function checkWorkspacePermission(
   workspaceId: string,
   userId: string,
@@ -54,19 +50,19 @@ export async function checkWorkspacePermission(
 
     const role = member.role as WorkspaceRole;
 
-    // Owner 拥有所有权限
+    
     if (role === "owner") {
       return { allowed: true };
     }
 
-    // 检查具体权限
+    
     switch (action) {
       case "view":
-        // 所有角色都可以查看
+        
         return { allowed: true };
 
       case "edit":
-        // Admin 和 Owner 可以编辑
+        
         if (role === "admin") {
           return { allowed: true };
         }
@@ -76,14 +72,14 @@ export async function checkWorkspacePermission(
         };
 
       case "delete":
-        // 只有 Owner 可以删除
+        
         return {
           allowed: false,
           reason: "只有 Owner 可以删除",
         };
 
       case "manage_members":
-        // Admin 和 Owner 可以管理成员
+        
         if (role === "admin") {
           return { allowed: true };
         }
@@ -93,7 +89,7 @@ export async function checkWorkspacePermission(
         };
 
       case "manage_billing":
-        // 只有 Owner 可以管理计费
+        
         return {
           allowed: false,
           reason: "只有 Owner 可以管理计费",
@@ -119,9 +115,7 @@ export async function checkWorkspacePermission(
   }
 }
 
-/**
- * 获取用户的 workspace 角色
- */
+
 export async function getUserWorkspaceRole(
   workspaceId: string,
   userId: string

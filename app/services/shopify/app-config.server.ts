@@ -31,12 +31,12 @@ try {
 const baseSessionStorage = new PrismaSessionStorage(prisma);
 const encryptedSessionStorage = createEncryptedSessionStorage(baseSessionStorage);
 
-// 验证并获取必需的环境变量
+
 const apiKey = process.env.SHOPIFY_API_KEY;
 const apiSecretKey = process.env.SHOPIFY_API_SECRET;
 const appUrl = process.env.SHOPIFY_APP_URL?.trim();
 
-// 在生产环境中，所有必需的环境变量都必须存在
+
 if (process.env.NODE_ENV === "production") {
   if (!apiKey) {
     throw new Error("SHOPIFY_API_KEY environment variable is required in production");
@@ -49,7 +49,7 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
-// 验证并获取 appUrl
+
 let finalAppUrl: string;
 if (!appUrl || appUrl === "") {
   logger.warn("[Shopify App Config] SHOPIFY_APP_URL not set, using fallback URL");
@@ -58,7 +58,7 @@ if (!appUrl || appUrl === "") {
   finalAppUrl = appUrl;
 }
 
-// 确保 appUrl 是有效的 URL
+
 try {
   new URL(finalAppUrl);
 } catch (urlError) {
@@ -69,17 +69,17 @@ try {
   if (process.env.NODE_ENV === "production") {
     throw error;
   }
-  // 在开发环境中，使用默认值
+  
   finalAppUrl = "http://localhost:3000";
 }
 
-// 确保 apiKey 和 apiSecretKey 有值
-// 在生产环境中，这些值必须存在（已在上面验证）
-// 在开发环境中，如果不存在则使用空字符串作为后备值
+
+
+
 const finalApiKey = apiKey || "";
 const finalApiSecretKey = apiSecretKey || "";
 
-// 验证所有必需的配置都存在
+
 if (!finalApiKey || !finalApiSecretKey || !finalAppUrl) {
   const missing = [];
   if (!finalApiKey) missing.push("SHOPIFY_API_KEY");
@@ -96,8 +96,8 @@ if (!finalApiKey || !finalApiSecretKey || !finalAppUrl) {
   }
 }
 
-// 构建 shopifyApp 配置对象
-// 使用 try-catch 来捕获初始化错误
+
+
 let shopify: ReturnType<typeof shopifyApp>;
 try {
   const config = {
@@ -121,14 +121,14 @@ try {
     },
   };
 
-  // 只有在 SHOP_CUSTOM_DOMAIN 存在时才添加
+  
   if (process.env.SHOP_CUSTOM_DOMAIN) {
     (config as typeof config & { customShopDomains: string[] }).customShopDomains = [
       process.env.SHOP_CUSTOM_DOMAIN,
     ];
   }
 
-  // 在调用 shopifyApp 之前，确保所有配置都是有效的
+  
   logger.info("[Shopify App Config] Initializing shopifyApp", {
     hasApiKey: !!finalApiKey,
     hasApiSecretKey: !!finalApiSecretKey,
@@ -138,7 +138,7 @@ try {
 
   shopify = shopifyApp(config);
   
-  // 验证 shopify 对象是否存在
+  
   if (!shopify) {
     throw new Error("shopifyApp returned undefined");
   }
@@ -162,13 +162,13 @@ try {
   if (process.env.NODE_ENV === "production") {
     throw error;
   }
-  // 在开发环境中，抛出一个更友好的错误
+  
   throw new Error(
     `Failed to initialize Shopify app: ${errorMessage}`
   );
 }
 
-// 确保 shopify 对象存在后再导出
+
 if (!shopify) {
   const error = new Error("Shopify app not initialized");
   logger.error("[Shopify App Config] Shopify app is undefined", error);
@@ -178,8 +178,8 @@ if (!shopify) {
 export default shopify;
 export const apiVersion = ApiVersion.July25;
 
-// 延迟访问 shopify 对象的属性，避免在模块加载时立即访问
-// 使用函数包装来确保在运行时才访问这些属性
+
+
 export function addDocumentResponseHeaders(request: Request, headers: Headers): void {
   if (!shopify?.addDocumentResponseHeaders) {
     throw new Error("addDocumentResponseHeaders is not available");
@@ -187,7 +187,7 @@ export function addDocumentResponseHeaders(request: Request, headers: Headers): 
   return shopify.addDocumentResponseHeaders(request, headers);
 }
 
-// 直接导出，但确保它们存在
+
 export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;

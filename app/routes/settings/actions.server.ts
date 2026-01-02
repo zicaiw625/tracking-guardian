@@ -323,11 +323,15 @@ export async function handleSaveServerSide(
     updateData.credentialsEncrypted = encryptedCredentials;
   }
 
+  
+  const environment = (formData.get("environment") as "test" | "live") || "live";
+  
   await prisma.pixelConfig.upsert({
     where: {
-      shopId_platform: {
+      shopId_platform_environment: {
         shopId,
         platform,
+        environment,
       },
     },
     update: updateData,
@@ -337,6 +341,7 @@ export async function handleSaveServerSide(
       platformId,
       credentialsEncrypted: encryptedCredentials,
       serverSideEnabled: enabled,
+      environment,
     },
   });
 

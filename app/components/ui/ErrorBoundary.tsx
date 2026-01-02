@@ -53,15 +53,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
 
     if (typeof window !== "undefined" && window.console) {
-      // Log error to error reporting service in production
+      
       if (process.env.NODE_ENV === "production") {
-        // In production, errors should be logged to error reporting service
-        // For now, we'll use console.error as fallback
-        // eslint-disable-next-line no-console
+        
+        
+        
         console.error("ErrorBoundary caught an error:", error, errorInfo);
       } else {
-        // In development, log to console for debugging
-        // eslint-disable-next-line no-console
+        
+        
         console.error("ErrorBoundary caught an error:", error, errorInfo);
       }
     }

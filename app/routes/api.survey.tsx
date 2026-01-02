@@ -107,13 +107,13 @@ function validateSurveyInput(body: unknown): SurveyResponseData {
 }
 export const action = async ({ request }: ActionFunctionArgs) => {
     if (request.method === "OPTIONS") {
-        return optionsResponse(request, true); // 使用统一的 OPTIONS 处理，staticCors=true 支持 GET/POST
+        return optionsResponse(request, true); 
     }
     const rateLimit = await checkRateLimitAsync(request, "survey");
     if (rateLimit.isLimited) {
         logger.warn(`Rate limit exceeded for survey API`);
         const response = createRateLimitResponse(rateLimit.retryAfter);
-        // 添加 CORS headers
+        
         Object.entries(optionsResponse(request, true).headers).forEach(([key, value]) => {
             response.headers.set(key, value);
         });
@@ -150,7 +150,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             logger.error("SHOPIFY_API_KEY not configured");
             return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
         }
-        // 验证 JWT token（从 token 的 dest 提取 shop domain，不依赖 header）
+        
         const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
         if (!jwtResult.valid || !jwtResult.shopDomain) {
             logger.warn(`JWT verification failed: ${jwtResult.error}`);
@@ -267,7 +267,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (request.method === "OPTIONS") {
-        return optionsResponse(request, true); // 使用统一的 OPTIONS 处理
+        return optionsResponse(request, true); 
     }
     return jsonWithCors({ error: "Use admin routes for survey analytics" }, { status: 405, request, staticCors: true });
 };

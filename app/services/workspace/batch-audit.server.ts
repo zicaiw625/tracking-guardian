@@ -1,6 +1,4 @@
-/**
- * 批量 Audit 服务 - 为多个店铺运行扫描
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -28,16 +26,14 @@ export interface BatchAuditResult {
   }>;
 }
 
-// 内存存储，用于快速访问
+
 const batchAuditJobs = new Map<string, BatchAuditResult>();
 
-// Redis缓存键前缀
-const CACHE_PREFIX = "batch-audit:";
-const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24小时
 
-/**
- * 启动批量 Audit
- */
+const CACHE_PREFIX = "batch-audit:";
+const CACHE_TTL_SECONDS = 24 * 60 * 60; 
+
+
 export async function startBatchAudit(
   options: BatchAuditOptions,
   adminApis: Map<string, AdminApiContext>
@@ -51,7 +47,7 @@ export async function startBatchAudit(
     shopCount: options.shopIds.length,
   });
 
-  // 异步处理每个店铺的扫描
+  
   const processPromises = options.shopIds.map(async (shopId) => {
     try {
       const shop = await prisma.shop.findUnique({
@@ -80,7 +76,7 @@ export async function startBatchAudit(
         return;
       }
 
-      // 运行扫描
+      
       const scanResult = await scanShopTracking(shopId, admin);
 
       results.push({
@@ -109,7 +105,7 @@ export async function startBatchAudit(
     }
   });
 
-  // 等待所有扫描完成
+  
   await Promise.allSettled(processPromises);
 
   const result: BatchAuditResult = {
@@ -120,10 +116,10 @@ export async function startBatchAudit(
     results,
   };
 
-  // 存储到内存
+  
   batchAuditJobs.set(jobId, result);
 
-  // 存储到Redis缓存
+  
   try {
     const redisClient = await getRedisClient();
     const cacheKey = `${CACHE_PREFIX}${jobId}`;
@@ -145,19 +141,17 @@ export async function startBatchAudit(
   return result;
 }
 
-/**
- * 获取批量 Audit 状态
- */
+
 export async function getBatchAuditStatus(
   jobId: string
 ): Promise<BatchAuditResult | null> {
-  // 首先从内存缓存获取
+  
   const memoryResult = batchAuditJobs.get(jobId);
   if (memoryResult) {
     return memoryResult;
   }
 
-  // 从Redis缓存获取
+  
   try {
     const redisClient = await getRedisClient();
     const cacheKey = `${CACHE_PREFIX}${jobId}`;
@@ -172,7 +166,7 @@ export async function getBatchAuditStatus(
         startedAt: new Date(parsed.startedAt),
       };
 
-      // 回填到内存缓存
+      
       batchAuditJobs.set(jobId, result);
       return result;
     }

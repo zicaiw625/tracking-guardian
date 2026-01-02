@@ -17,7 +17,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
   const ingestionKey = settings.ingestion_key;
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
 
-  // 安全检查：确保 BACKEND_URL 是允许的域名，防止误配或 token 外泄
+  
   const backendUrl = BACKEND_URL && isAllowedBackendUrl(BACKEND_URL) ? BACKEND_URL : null;
 
   const isDevMode = (() => {
@@ -57,9 +57,10 @@ register(({ analytics, settings, init, customerPrivacy }: {
     logger: log,
   });
 
-  // Parse pixel config to determine mode (purchase_only or full_funnel)
+  
+  
   const pixelConfig = parsePixelConfig(settings.pixel_config);
-  const mode = pixelConfig.mode || "purchase_only";
+  const mode = pixelConfig.mode || "full_funnel";
 
   subscribeToAnalyticsEvents(analytics, sendToBackend, log, mode);
 });

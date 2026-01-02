@@ -25,22 +25,11 @@ export interface TrackingProviderConfig {
   apiSecret?: string;
 }
 
-/**
- * 将第三方提供商的状态映射到前端期望的标准格式
- * 
- * 标准状态格式（统一规范）：
- * - pending: 待处理/信息已接收
- * - pending_fulfillment: 暂未生成物流信息（仅在API响应中使用）
- * - in_transit: 运输中/派送中
- * - delivered: 已送达
- * - exception: 异常/失败/过期
- * 
- * 前端期望：pending/pending_fulfillment, in_transit, delivered
- */
+
 function normalizeTrackingStatus(status: string): string {
   const normalized = status.toLowerCase().trim();
   
-  // AfterShip 状态映射（如 "Pending", "InTransit", "Delivered"）
+  
   if (normalized === "pending" || normalized === "inforeceived") {
     return "pending";
   }
@@ -54,7 +43,7 @@ function normalizeTrackingStatus(status: string): string {
     return "exception";
   }
   
-  // 17Track 状态映射（如 "InTransit", "Delivered", "Expired"）
+  
   if (normalized === "intransit") {
     return "in_transit";
   }
@@ -65,7 +54,7 @@ function normalizeTrackingStatus(status: string): string {
     return "exception";
   }
   
-  // 如果无法识别，默认返回 pending
+  
   return "pending";
 }
 
@@ -79,8 +68,8 @@ export class AfterShipTracker {
 
   async getTracking(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
     try {
-      // 使用新版 API：GET /trackings 通过查询参数过滤
-      // 支持按 tracking_numbers 查询，一次可以查询多个
+      
+      
       const url = new URL(`${this.baseUrl}/trackings`);
       url.searchParams.append("tracking_numbers", trackingNumber);
       if (carrier) {
@@ -103,7 +92,7 @@ export class AfterShipTracker {
       }
 
       const data = await response.json();
-      // 新版 API 返回格式：{ data: { trackings: [...] } }
+      
       const trackings = data.data?.trackings || [];
       if (trackings.length === 0) {
         return null;
@@ -181,7 +170,7 @@ export class SeventeenTrackTracker {
 
   async getTracking(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
     try {
-      // 17TRACK v2.2 API：body 是数组格式，一次最多 40 个
+      
       const response = await fetch(`${this.baseUrl}/gettrackinfo`, {
         method: "POST",
         headers: {
@@ -204,7 +193,7 @@ export class SeventeenTrackTracker {
       }
 
       const data = await response.json();
-      // 17TRACK v2.2 成功时 code 通常是 0，不是 200
+      
       if (data.code !== 0 || !data.data?.accepted || data.data.accepted.length === 0) {
         return null;
       }
@@ -301,8 +290,8 @@ export async function getTrackingFromShopifyOrder(
   return {
     trackingNumber: tracking.number,
     carrier: tracking.company || "unknown",
-    // 如果有 fulfillment tracking info，说明已发货，使用标准状态格式
-    status: "in_transit", // 标准格式：pending | in_transit | delivered | exception
+    
+    status: "in_transit", 
     events: [],
   };
 }

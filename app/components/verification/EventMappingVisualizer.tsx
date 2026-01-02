@@ -1,8 +1,4 @@
-/**
- * P1-01: 事件映射可视化组件
- * 
- * 在 Verification 中可视化 Shopify 事件到平台事件的映射和 payload
- */
+
 
 import { useState } from "react";
 import {
@@ -32,7 +28,7 @@ export function EventMappingVisualizer({
 }: EventMappingVisualizerProps) {
   const [expandedPlatforms, setExpandedPlatforms] = useState<Record<string, boolean>>({});
 
-  // 规范化事件
+  
   const canonicalEvent = normalizeEvent(shopifyEvent);
 
   const togglePlatform = (platform: string) => {
@@ -54,7 +50,7 @@ export function EventMappingVisualizer({
 
         <Divider />
 
-        {/* Canonical Event Schema */}
+        {}
         <BlockStack gap="300">
           <Text as="h4" variant="headingSm">
             📋 规范化事件（Canonical Schema）
@@ -146,7 +142,7 @@ export function EventMappingVisualizer({
 
         <Divider />
 
-        {/* Platform Mappings */}
+        {}
         <BlockStack gap="300">
           <Text as="h4" variant="headingSm">
             🎯 平台映射
@@ -237,7 +233,7 @@ export function EventMappingVisualizer({
 
         <Divider />
 
-        {/* Original Payload */}
+        {}
         <BlockStack gap="200">
           <Text as="h4" variant="headingSm">
             📦 原始 Shopify 事件 Payload

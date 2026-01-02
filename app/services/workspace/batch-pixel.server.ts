@@ -1,6 +1,4 @@
-/**
- * 批量像素配置服务 - 应用模板到多个店铺
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -27,9 +25,7 @@ export interface BatchPixelResult {
   }>;
 }
 
-/**
- * 批量应用像素模板
- */
+
 export async function batchApplyPixelTemplate(
   options: BatchPixelOptions,
   template: {
@@ -52,7 +48,7 @@ export async function batchApplyPixelTemplate(
     templateId: options.templateId,
   });
 
-  // 异步处理每个店铺的配置
+  
   const processPromises = options.shopIds.map(async (shopId) => {
     try {
       const shop = await prisma.shop.findUnique({
@@ -70,7 +66,7 @@ export async function batchApplyPixelTemplate(
         return;
       }
 
-      // 为每个平台创建/更新配置
+      
       const configIds: string[] = [];
 
       for (const platformConfig of template.platforms) {
@@ -84,7 +80,7 @@ export async function batchApplyPixelTemplate(
         });
 
         if (existing) {
-          // 更新现有配置
+          
           const updated = await prisma.pixelConfig.update({
             where: { id: existing.id },
             data: {
@@ -97,7 +93,7 @@ export async function batchApplyPixelTemplate(
           });
           configIds.push(updated.id);
         } else {
-          // 创建新配置
+          
           const created = await prisma.pixelConfig.create({
             data: {
               shopId,
@@ -118,7 +114,7 @@ export async function batchApplyPixelTemplate(
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
-        pixelConfigId: configIds[0], // 返回第一个配置 ID
+        pixelConfigId: configIds[0], 
       });
     } catch (error) {
       logger.error("Failed to apply pixel template in batch", {
@@ -140,7 +136,7 @@ export async function batchApplyPixelTemplate(
     }
   });
 
-  // 等待所有配置完成
+  
   await Promise.allSettled(processPromises);
 
   return {

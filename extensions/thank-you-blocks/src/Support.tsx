@@ -18,7 +18,7 @@ function SupportBlock() {
   const api = useApi();
 
   const storefrontUrl = useMemo(() => {
-    // 使用 useShop().storefrontUrl 获取商店的完整 URL，避免相对路径在 checkout 域下解析错误
+    
     return api.shop?.storefrontUrl || "";
   }, [api.shop?.storefrontUrl]);
 
@@ -27,7 +27,7 @@ function SupportBlock() {
     (settings.support_description as string) ||
     "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。", [settings.support_description]);
   
-  // 构建完整 URL：如果配置的是相对路径，拼接 storefrontUrl；如果是绝对 URL，直接使用
+  
   const faqUrl = useMemo(() => {
     const url = (settings.support_faq_url as string) || "/pages/faq";
     if (url.startsWith("http://") || url.startsWith("https://")) {

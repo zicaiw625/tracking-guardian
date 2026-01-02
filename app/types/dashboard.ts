@@ -7,8 +7,8 @@ export type MigrationStage = "audit" | "pixel_test" | "verification" | "live" | 
 export interface UpgradeStatus {
   isUpgraded: boolean;
   shopTier: "plus" | "non_plus" | "unknown";
-  deadlineDate: string; // YYYY-MM-DD
-  autoUpgradeStartDate?: string; // YYYY-MM 格式（仅Plus商家，如 "2026-01"）
+  deadlineDate: string; 
+  autoUpgradeStartDate?: string; 
   daysRemaining: number;
   urgency: "critical" | "high" | "medium" | "low" | "resolved";
 }
@@ -51,11 +51,11 @@ export interface DashboardData {
   estimatedMigrationTimeMinutes?: number;
   showOnboarding?: boolean;
 
-  // v1.0 新增字段
+  
   upgradeStatus?: UpgradeStatus;
   migrationProgress?: MigrationProgress;
-  riskScore?: number | null; // 风险分数
-  riskLevel?: "high" | "medium" | "low" | null; // 风险等级
+  riskScore?: number | null; 
+  riskLevel?: "high" | "medium" | "low" | null; 
 
   migrationChecklist?: {
     totalItems: number;

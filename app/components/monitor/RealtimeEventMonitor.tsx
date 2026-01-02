@@ -128,18 +128,18 @@ export function RealtimeEventMonitor({
             return [data, ...prev].slice(0, 200);
           });
         } catch (err) {
-          // Log error in development only
+          
           if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
+            
             console.error("Failed to parse event data:", err);
           }
         }
       };
 
       eventSource.onerror = (err) => {
-        // Log error in development only
+        
         if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console
+          
           console.error("SSE error:", err);
         }
         setIsConnected(false);
@@ -151,9 +151,9 @@ export function RealtimeEventMonitor({
     } catch (err) {
       setError("无法建立连接");
       showError("无法建立实时监控连接");
-      // Log error in development only
+      
       if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
+        
         console.error("SSE connection error:", err);
       }
     }
@@ -175,8 +175,8 @@ export function RealtimeEventMonitor({
     return () => {
       disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, shopId, platforms]); // 当这些值改变时重新连接 // connect和disconnect是稳定的，不需要作为依赖项
+    
+  }, [autoStart, shopId, platforms]); 
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {

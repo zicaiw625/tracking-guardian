@@ -446,7 +446,7 @@ export default function VerificationPage() {
       ]}
     >
       <BlockStack gap="500">
-        {/* P0-05: Checkout Extensibility 风险提示 */}
+        {}
         <CheckoutExtensibilityWarning />
         
         {configuredPlatforms.length === 0 && (
@@ -459,7 +459,7 @@ export default function VerificationPage() {
           </Banner>
         )}
 
-        {/* v1.0: checkout_completed 触发位置不稳定提示 */}
+        {}
         <Banner
           title="重要提示：checkout_completed 事件触发位置"
           tone="info"
@@ -485,7 +485,7 @@ export default function VerificationPage() {
           </BlockStack>
         </Banner>
 
-        {/* v1.0: 验收分层说明 */}
+        {}
         <Banner
           title="验收分层说明"
           tone="info"

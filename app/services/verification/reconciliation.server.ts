@@ -1,6 +1,4 @@
-/**
- * 渠道对账服务 - 本地一致性检查（事件 value/currency 与订单一致）
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -27,15 +25,13 @@ export interface ReconciliationResult {
   isConsistent: boolean;
 }
 
-/**
- * 对账单个订单
- */
+
 export async function reconcileOrder(
   shopId: string,
   orderId: string
 ): Promise<ReconciliationResult> {
   try {
-    // 获取 Shopify 订单信息（从 ConversionLog 或订单数据）
+    
     const conversionLog = await prisma.conversionLog.findFirst({
       where: {
         shopId,
@@ -55,11 +51,11 @@ export async function reconcileOrder(
         }
       : null;
 
-    // 获取该订单的所有事件
+    
     const events = await prisma.eventLog.findMany({
       where: {
         shopId,
-        eventId: orderId, // 假设 eventId 包含订单 ID
+        eventId: orderId, 
         eventName: "checkout_completed",
       },
       select: {
@@ -94,7 +90,7 @@ export async function reconcileOrder(
       });
     } else {
       for (const platformEvent of platformEvents) {
-        // 检查金额一致性
+        
         const valueDiff = Math.abs(
           shopifyOrder.orderValue - platformEvent.eventValue
         );
@@ -104,7 +100,7 @@ export async function reconcileOrder(
             : 0;
 
         if (valueDiffRate > 1) {
-          // 允许 1% 的误差
+          
           discrepancies.push({
             platform: platformEvent.platform,
             type: "value_mismatch",
@@ -112,7 +108,7 @@ export async function reconcileOrder(
           });
         }
 
-        // 检查货币一致性
+        
         if (
           shopifyOrder.currency.toUpperCase() !==
           platformEvent.currency.toUpperCase()
@@ -143,9 +139,7 @@ export async function reconcileOrder(
   }
 }
 
-/**
- * 批量对账订单
- */
+
 export async function reconcileOrders(
   shopId: string,
   orderIds: string[]
@@ -162,16 +156,14 @@ export async function reconcileOrders(
         orderId,
         error,
       });
-      // 继续处理其他订单
+      
     }
   }
 
   return results;
 }
 
-/**
- * 获取对账摘要
- */
+
 export async function getReconciliationSummary(
   shopId: string,
   startDate: Date,
@@ -192,7 +184,7 @@ export async function getReconciliationSummary(
   >;
 }> {
   try {
-    // 获取时间范围内的所有订单事件
+    
     const events = await prisma.eventLog.findMany({
       where: {
         shopId,
@@ -236,7 +228,7 @@ export async function getReconciliationSummary(
       byPlatform[platform].total++;
     }
 
-    // 对账每个订单
+    
     let consistentOrders = 0;
     let inconsistentOrders = 0;
 
@@ -272,7 +264,7 @@ export async function getReconciliationSummary(
     const consistencyRate =
       totalOrders > 0 ? (consistentOrders / totalOrders) * 100 : 0;
 
-    // 计算各平台的一致性率
+    
     const platformStats: Record<
       string,
       {

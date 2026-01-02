@@ -17,20 +17,20 @@ import { TTL } from "../../utils/cache";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    return optionsResponse(request, true); // 使用 staticCors=true 以支持 GET 方法
+    return optionsResponse(request, true); 
   }
   return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
 };
 
-// Rate limit 配置：每个 shop 每分钟最多 60 次请求（避免重复渲染导致暴击）
+
 const trackingRateLimit = withRateLimit({
   maxRequests: 60,
-  windowMs: 60 * 1000, // 1 分钟
+  windowMs: 60 * 1000, 
   keyExtractor: pathShopKeyExtractor,
   message: "Too many tracking requests",
 });
 
-// 缓存配置：per shop + per orderId，60 秒 TTL（物流信息变化不频繁）
+
 const cachedLoader = withConditionalCache(
   trackingRateLimit(async ({ request }: LoaderFunctionArgs) => {
     return await loaderImpl(request);
@@ -50,9 +50,9 @@ const cachedLoader = withConditionalCache(
         return null;
       }
     },
-    ttl: TTL.MEDIUM, // 60 秒
+    ttl: TTL.MEDIUM, 
     shouldCache: (result) => {
-      // 只缓存成功响应（200），不缓存 202（订单正在生成）或错误响应
+      
       if (result instanceof Response) {
         return result.status === 200;
       }
@@ -73,7 +73,7 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
 
-    // 支持 session token 认证（来自 UI extension）
+    
     const authToken = extractAuthToken(request);
     
     let shopDomain: string;
@@ -81,7 +81,7 @@ async function loaderImpl(request: Request) {
     let customerGidFromToken: string | null = null;
     
     if (authToken) {
-      // 使用 session token 认证（Checkout UI Extension 场景）
+      
       const apiSecret = getShopifyApiSecret();
       const expectedAud = process.env.SHOPIFY_API_KEY;
       
@@ -90,7 +90,7 @@ async function loaderImpl(request: Request) {
         return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
       }
 
-      // 验证 JWT token（从 token 的 dest 提取 shop domain，不依赖 header）
+      
       const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
       
       if (!jwtResult.valid || !jwtResult.shopDomain) {
@@ -100,20 +100,20 @@ async function loaderImpl(request: Request) {
       
       shopDomain = jwtResult.shopDomain;
       
-      // 获取 JWT payload 中的 sub claim（customer gid），用于后续订单归属验证
+      
       customerGidFromToken = jwtResult.payload?.sub || null;
       
-      // 使用离线 token 创建 Admin Client（不依赖 authenticate.admin）
+      
       admin = await createAdminClientForShop(shopDomain);
       
       if (!admin) {
-        // 如果 admin 认证失败，我们仍然可以继续，只是无法从 Shopify 获取订单信息
+        
         logger.warn("Failed to create admin client, will try to use tracking provider only", {
           shopDomain,
         });
       }
     } else {
-      // 如果没有 session token，返回未授权（不再支持 admin 认证回退，因为这是给 Checkout UI Extension 用的）
+      
       logger.warn("Missing authentication token");
       return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401, request, staticCors: true });
     }
@@ -144,7 +144,7 @@ async function loaderImpl(request: Request) {
     let trackingInfo = null;
     let trackingNumberFromShopify: string | null = null;
     
-    // 先尝试从 Shopify 订单中获取物流信息
+    
     if (admin) {
       try {
         const orderResponse = await admin.graphql(`
@@ -173,26 +173,26 @@ async function loaderImpl(request: Request) {
 
         const orderData = await orderResponse.json();
         if (orderData.data?.order) {
-          // 安全验证：如果 JWT 中有 customer gid（sub claim），验证订单是否属于该 customer
-          // 这提供了更严格的订单归属保护，防止越权访问
-          // 注意：Checkout UI extensions 的 session token 可能没有 sub claim（匿名购买场景）
-          // 只有在有 sub claim 时才进行严格的归属验证
+          
+          
+          
+          
           const orderCustomerId = orderData.data.order.customer?.id || null;
           if (customerGidFromToken && orderCustomerId) {
-            // 规范化 customer gid 格式以便比较
-            // token 中的 sub 可能是 "gid://shopify/Customer/123456" 或纯数字
-            // order 中的 customer.id 是 "gid://shopify/Customer/123456" 格式
+            
+            
+            
             const normalizeCustomerGid = (gid: string): string => {
-              // 如果是完整 gid 格式，提取数字部分
+              
               const gidMatch = gid.match(/gid:\/\/shopify\/Customer\/(\d+)/);
               if (gidMatch) {
                 return gidMatch[1];
               }
-              // 如果已经是纯数字，直接返回
+              
               if (/^\d+$/.test(gid)) {
                 return gid;
               }
-              // 其他格式，尝试提取最后的数字部分
+              
               const lastNum = gid.split("/").pop();
               return lastNum && /^\d+$/.test(lastNum) ? lastNum : gid;
             };
@@ -200,7 +200,7 @@ async function loaderImpl(request: Request) {
             const tokenCustomerId = normalizeCustomerGid(customerGidFromToken);
             const orderCustomerIdNum = normalizeCustomerGid(orderCustomerId);
             
-            // 如果 customer ID 不匹配，拒绝访问
+            
             if (tokenCustomerId !== orderCustomerIdNum) {
               logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
                 tokenCustomerId,
@@ -210,40 +210,40 @@ async function loaderImpl(request: Request) {
             }
           }
           
-          // 转换 GraphQL 返回的 fulfillments 格式为 getTrackingFromShopifyOrder 期望的格式
-          // GraphQL 返回: fulfillments: { nodes: [{ trackingInfo: {...} }] }
-          // 函数期望: fulfillmentTrackingInfo: [{ number, company, url }]
+          
+          
+          
           const fulfillments = orderData.data.order.fulfillments?.nodes || [];
           const fulfillmentTrackingInfo = fulfillments
             .map((f: { trackingInfo?: { number: string; company: string; url?: string } }) => f.trackingInfo)
             .filter((ti: { number: string; company: string; url?: string } | undefined): ti is { number: string; company: string; url?: string } => !!ti);
           
-          // 从第一个 fulfillment 的 trackingInfo 中提取 trackingNumber（用于后续第三方 enrich）
+          
           if (fulfillmentTrackingInfo.length > 0) {
             trackingNumberFromShopify = fulfillmentTrackingInfo[0].number;
           }
           
-          // 调用 getTrackingFromShopifyOrder 获取基础 trackingInfo（可能 events 为空）
+          
           trackingInfo = await getTrackingFromShopifyOrder({
             fulfillmentTrackingInfo,
           });
           
-          // 记录订单访问日志（用于安全审计）
+          
           logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`, {
             hasCustomerVerification: !!customerGidFromToken,
             hasTrackingNumber: !!trackingNumberFromShopify,
           });
         } else {
-          // Shopify 官方明确提到：Thank you 页渲染时订单可能尚未创建，但 order id 已可用
-          // 需要等订单创建完成后再去查 Admin GraphQL，通常要等 1-2 秒再查才稳定
-          // 返回 202 Accepted + Retry-After，让客户端按指示重试
+          
+          
+          
           logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
           return jsonWithCors(
             {
               success: false,
               error: "Order not found",
               message: "订单正在生成，请稍后重试",
-              retryAfter: 2, // 建议 2 秒后重试
+              retryAfter: 2, 
             },
             {
               status: 202,
@@ -263,9 +263,9 @@ async function loaderImpl(request: Request) {
       }
     }
 
-    // 核心逻辑：如果配置了第三方 provider（且不是 native），并且有 tracking number，
-    // 应该用该 tracking number 去第三方 enrich（把 events/status 补全）
-    // 这样即使从 Shopify 获取到了简版 trackingInfo，也能拿到完整的物流节点事件
+    
+    
+    
     const trackingNumberToUse = trackingNumberFromShopify || trackingNumber || null;
     if (trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumberToUse) {
       const config: TrackingProviderConfig = {
@@ -280,35 +280,35 @@ async function loaderImpl(request: Request) {
           trackingSettings.carrier
         );
         
-        // 如果从第三方获取到了更详细的信息，使用第三方的结果（包含完整 events）
-        // 如果第三方查询失败，回退到 Shopify 的简版信息（至少保证有 tracking number 和基础状态）
+        
+        
         if (thirdPartyTracking) {
-          // 合并 Shopify 和第三方的信息：优先使用第三方的 events 和 status，但保留 Shopify 的 carrier（如果第三方没有）
+          
           trackingInfo = {
             ...thirdPartyTracking,
-            // 如果第三方没有 carrier，使用 Shopify 的
+            
             carrier: thirdPartyTracking.carrier || trackingInfo?.carrier || "unknown",
-            // 如果第三方没有 trackingNumber，使用 Shopify 的（理论上不会发生，但保险起见）
+            
             trackingNumber: thirdPartyTracking.trackingNumber || trackingInfo?.trackingNumber || trackingNumberToUse,
           };
           logger.info(`Third-party tracking enrich successful for orderId: ${orderId}, provider: ${trackingSettings.provider}`);
         } else {
-          // 第三方查询失败，但至少保留 Shopify 的 trackingInfo（如果有）
+          
           logger.warn(`Third-party tracking enrich failed for orderId: ${orderId}, provider: ${trackingSettings.provider}, falling back to Shopify data`);
         }
       } catch (error) {
-        // 第三方查询异常，回退到 Shopify 数据
+        
         logger.error(`Third-party tracking enrich error for orderId: ${orderId}`, {
           error: error instanceof Error ? error.message : String(error),
           provider: trackingSettings.provider,
         });
-        // trackingInfo 保持为 Shopify 的简版信息
+        
       }
     }
 
     if (!trackingInfo) {
-      // 返回 200 状态码，表示请求成功但暂未生成物流信息（pending_fulfillment）
-      // 这样前端可以正常处理，显示"暂未发货"等状态，而不是错误页面
+      
+      
       return jsonWithCors(
         {
           success: true,

@@ -1,6 +1,4 @@
-/**
- * 告警配置面板 - 设置阈值（失败率 > 2%、缺参率 > 阈值、事件量骤降）
- */
+
 
 import { useState, useCallback } from "react";
 import {
@@ -18,7 +16,7 @@ import {
 } from "@shopify/polaris";
 import { SettingsIcon, AlertCircleIcon } from "~/components/icons";
 
-// MonitoringAlert type definition (from Prisma schema)
+
 interface MonitoringAlert {
   id: string;
   shopId: string;
@@ -120,7 +118,7 @@ export function AlertConfigPanel({
 
           <Divider />
 
-          {/* 失败率告警 */}
+          {}
           <BlockStack gap="300">
             <InlineStack align="space-between">
               <BlockStack gap="100">
@@ -161,7 +159,7 @@ export function AlertConfigPanel({
 
           <Divider />
 
-          {/* 缺参率告警 */}
+          {}
           <BlockStack gap="300">
             <InlineStack align="space-between">
               <BlockStack gap="100">
@@ -202,7 +200,7 @@ export function AlertConfigPanel({
 
           <Divider />
 
-          {/* 事件量骤降告警 */}
+          {}
           <BlockStack gap="300">
             <InlineStack align="space-between">
               <BlockStack gap="100">

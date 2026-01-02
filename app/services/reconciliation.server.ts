@@ -254,7 +254,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
         if (matchingAlerts.length > 0) {
             for (const alertConfig of matchingAlerts) {
                 try {
-                    // 验证 alert settings
+                    
                     const channel = alertConfig.channel as AlertChannel;
                     const settingsValidation = validateAlertSettings(
                         channel,

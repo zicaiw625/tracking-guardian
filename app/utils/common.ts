@@ -314,8 +314,8 @@ export async function retry<T>(
   throw lastError;
 }
 
-// parallelLimit 已移至 helpers.ts，从此处重新导出以保持向后兼容
-// 为了保持向后兼容性（原函数签名不接受 index 参数），创建一个包装函数
+
+
 import { parallelLimit as parallelLimitWithIndex } from "./helpers";
 
 export async function parallelLimit<T, R>(
@@ -323,13 +323,13 @@ export async function parallelLimit<T, R>(
   limit: number,
   fn: (item: T) => Promise<R>
 ): Promise<R[]> {
-  // 包装函数以忽略 index 参数
+  
   return parallelLimitWithIndex(items, limit, (item, _index) => fn(item));
 }
 
-// retry 函数在 helpers.ts 中有更完整的实现，但为了保持向后兼容性，保留此处的实现
-// 注意：common.ts 中的 retry 使用 baseDelayMs，helpers.ts 中的 retry 使用 initialDelayMs
-// 两者功能相同，只是参数名不同
+
+
+
 
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,

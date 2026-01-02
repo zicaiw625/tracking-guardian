@@ -179,7 +179,7 @@ export const API_SECURITY_HEADERS: Record<string, string> = {
 export const HTML_SECURITY_HEADERS: Record<string, string> = {
   ...API_SECURITY_HEADERS,
   "Content-Security-Policy":
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https:
 };
 
 export function applySecurityHeaders(

@@ -82,7 +82,7 @@ export async function wrapApiCall<T>(
   let timeoutRejected = false;
 
   try {
-    // 创建超时 promise，确保事件监听器可以被清理
+    
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         timeoutRejected = true;
@@ -92,7 +92,7 @@ export async function wrapApiCall<T>(
 
     const result = await Promise.race([operation(), timeoutPromise]);
     
-    // 如果操作成功完成，清理 timeout
+    
     if (timeoutId !== null && !timeoutRejected) {
       clearTimeout(timeoutId);
       timeoutId = null;
@@ -100,7 +100,7 @@ export async function wrapApiCall<T>(
     
     return ok(result);
   } catch (error) {
-    // 确保清理 timeout（如果还没有被清理）
+    
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
       timeoutId = null;

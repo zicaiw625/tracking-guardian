@@ -27,14 +27,14 @@ export async function fetchTrackingFromAfterShip(
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-    // 使用新版 AfterShip Tracking API (2025-07 version)
-    // 使用 GET /trackings 通过查询参数过滤，而不是直接访问 /trackings/{number}
+    
+    
     const url = new URL("https://api.aftership.com/tracking/2025-07/trackings");
     url.searchParams.append("tracking_numbers", trackingNumber);
     
     const response = await fetch(url.toString(), {
       headers: {
-        // 使用新版 API header: as-api-key (不是 aftership-api-key)
+        
         "as-api-key": apiKey,
         "Content-Type": "application/json",
       },
@@ -49,7 +49,7 @@ export async function fetchTrackingFromAfterShip(
     }
 
     const data = await response.json();
-    // 新版 API 返回格式：{ data: { trackings: [...] } }
+    
     const trackings = data.data?.trackings || [];
     if (trackings.length === 0) {
       return null;
@@ -63,7 +63,7 @@ export async function fetchTrackingFromAfterShip(
       estimatedDelivery: tracking.expected_delivery
         ? new Date(tracking.expected_delivery)
         : undefined,
-      currentLocation: undefined, // 新版 API 中 location 在 checkpoints 中
+      currentLocation: undefined, 
       events: (tracking.checkpoints || []).map((checkpoint: {
         checkpoint_time: string;
         location?: string;
@@ -90,7 +90,7 @@ export async function fetchTrackingFrom17Track(
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-    // 17TRACK v2.2 API：body 是数组格式，一次最多 40 个
+    
     const response = await fetch(`https://api.17track.net/track/v2.2/gettrackinfo`, {
       method: "POST",
       headers: {
@@ -114,7 +114,7 @@ export async function fetchTrackingFrom17Track(
     }
 
     const data = await response.json();
-    // 17TRACK v2.2 成功时 code 通常是 0，不是 200
+    
     if (data.code !== 0 || !data.data?.accepted || data.data.accepted.length === 0) {
       return null;
     }
@@ -133,7 +133,7 @@ export async function fetchTrackingFrom17Track(
       estimatedDelivery: trackInfo.latest_status?.sub_status_time
         ? new Date(trackInfo.latest_status.sub_status_time * 1000)
         : undefined,
-      currentLocation: undefined, // 17track API 中 location 在 track_detail 中
+      currentLocation: undefined, 
       events: (trackInfo.track_detail || []).map((event: {
         track_time: number;
         location?: string;

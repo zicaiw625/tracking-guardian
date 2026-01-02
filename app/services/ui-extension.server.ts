@@ -226,10 +226,10 @@ export async function updateUiModuleConfig(
   options?: { syncToExtension?: boolean; admin?: AdminApiContext }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // P1-04: 使用统一的 schema 验证
+    
     const { validateModuleSettings, validateDisplayRules, validateLocalizationSettings } = await import("../schemas/ui-module-settings");
 
-    // 验证设置
+    
     if (config.settings) {
       const settingsValidation = validateModuleSettings(moduleKey, config.settings);
       if (!settingsValidation.valid) {
@@ -241,7 +241,7 @@ export async function updateUiModuleConfig(
       config.settings = settingsValidation.normalized;
     }
 
-    // 验证显示规则
+    
     if (config.displayRules) {
       const displayRulesValidation = validateDisplayRules(config.displayRules);
       if (!displayRulesValidation.valid) {
@@ -253,7 +253,7 @@ export async function updateUiModuleConfig(
       config.displayRules = displayRulesValidation.normalized;
     }
 
-    // 验证本地化设置
+    
     if (config.localization) {
       const localizationValidation = validateLocalizationSettings(config.localization);
       if (!localizationValidation.valid) {

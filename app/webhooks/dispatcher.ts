@@ -15,9 +15,9 @@ import {
 import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
 
-// Convert Shopify webhook topic format (e.g., "orders/paid") to handler key (e.g., "ORDERS_PAID")
+
 function normalizeTopic(topic: string): string {
-  return topic.toUpperCase().replace(/\//g, "_");
+  return topic.toUpperCase().replace(/\
 }
 
 const WEBHOOK_HANDLERS: Record<
@@ -32,7 +32,7 @@ const WEBHOOK_HANDLERS: Record<
   CUSTOMERS_DATA_REQUEST: (ctx) => handleCustomersDataRequest(ctx),
   CUSTOMERS_REDACT: (ctx) => handleCustomersRedact(ctx),
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
-  // P1-02: Order lifecycle webhooks for verification
+  
   ORDERS_CANCELLED: handleOrdersCancelled,
   ORDERS_UPDATED: handleOrdersUpdated,
   REFUNDS_CREATE: handleRefundsCreate,

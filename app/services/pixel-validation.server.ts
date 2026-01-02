@@ -66,7 +66,7 @@ export type ValidationResult =
   | { valid: true; payload: PixelEventPayload }
   | { valid: false; error: string; code: ValidationError };
 
-// 从统一的 schema 定义中导入常量，避免重复定义
+
 import {
   CHECKOUT_TOKEN_PATTERN,
   CHECKOUT_TOKEN_MIN_LENGTH,

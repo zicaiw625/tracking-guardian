@@ -24,10 +24,18 @@ export interface EnvironmentSwitchResult {
 
 export async function getEnvironmentConfig(
   shopId: string,
-  platform: string
+  platform: string,
+  environment: PixelEnvironment = "live"
 ): Promise<EnvironmentConfig | null> {
+  
   const config = await prisma.pixelConfig.findUnique({
-    where: { shopId_platform: { shopId, platform } },
+    where: { 
+      shopId_platform_environment: { 
+        shopId, 
+        platform, 
+        environment 
+      } 
+    },
     select: {
       shopId: true,
       platform: true,
@@ -53,17 +61,32 @@ export async function switchEnvironment(
   platform: string,
   targetEnvironment: PixelEnvironment
 ): Promise<EnvironmentSwitchResult> {
-  const config = await prisma.pixelConfig.findUnique({
-    where: { shopId_platform: { shopId, platform } },
+  
+  
+  const existingConfigs = await prisma.pixelConfig.findMany({
+    where: { 
+      shopId, 
+      platform,
+      isActive: true 
+    },
     select: {
       id: true,
       environment: true,
       configVersion: true,
       clientConfig: true,
       credentialsEncrypted: true,
+      serverSideEnabled: true,
     },
   });
 
+  
+  let config = existingConfigs.find(c => c.environment === targetEnvironment);
+  if (!config && existingConfigs.length > 0) {
+    
+    config = existingConfigs[0];
+  }
+
+  
   if (!config) {
     return {
       success: false,
@@ -71,7 +94,7 @@ export async function switchEnvironment(
       newEnvironment: targetEnvironment,
       configVersion: 0,
       rollbackAllowed: false,
-      error: "Platform configuration not found",
+      error: "Platform configuration not found. Please create configuration first.",
     };
   }
 
@@ -145,21 +168,67 @@ export async function switchEnvironment(
   };
 
   try {
-    const updated = await prisma.pixelConfig.update({
-      where: { id: config.id },
-      data: {
-        environment: targetEnvironment,
-        configVersion: config.configVersion + 1,
-        previousConfig: previousConfig,
-        rollbackAllowed: true,
-        updatedAt: new Date(),
-      },
-      select: {
-        environment: true,
-        configVersion: true,
-        rollbackAllowed: true,
-      },
-    });
+    
+    
+    const targetConfig = existingConfigs.find(c => c.environment === targetEnvironment);
+    
+    let updated;
+    if (targetConfig && targetConfig.id !== config.id) {
+      
+      updated = await prisma.pixelConfig.update({
+        where: { id: targetConfig.id },
+        data: {
+          configVersion: targetConfig.configVersion + 1,
+          previousConfig: previousConfig,
+          rollbackAllowed: true,
+          updatedAt: new Date(),
+        },
+        select: {
+          environment: true,
+          configVersion: true,
+          rollbackAllowed: true,
+        },
+      });
+    } else if (previousEnvironment !== targetEnvironment) {
+      
+      const newConfig = await prisma.pixelConfig.create({
+        data: {
+          shopId,
+          platform,
+          environment: targetEnvironment,
+          configVersion: 1,
+          previousConfig: previousConfig,
+          rollbackAllowed: true,
+          clientConfig: config.clientConfig,
+          credentialsEncrypted: config.credentialsEncrypted as string | null,
+          serverSideEnabled: config.serverSideEnabled || false,
+          clientSideEnabled: true,
+          isActive: true,
+        },
+        select: {
+          environment: true,
+          configVersion: true,
+          rollbackAllowed: true,
+        },
+      });
+      updated = newConfig;
+    } else {
+      
+      updated = await prisma.pixelConfig.update({
+        where: { id: config.id },
+        data: {
+          configVersion: config.configVersion + 1,
+          previousConfig: previousConfig,
+          rollbackAllowed: true,
+          updatedAt: new Date(),
+        },
+        select: {
+          environment: true,
+          configVersion: true,
+          rollbackAllowed: true,
+        },
+      });
+    }
 
     logger.info(`Environment switched`, {
       shopId,
@@ -196,10 +265,18 @@ export async function switchEnvironment(
 
 export async function rollbackEnvironment(
   shopId: string,
-  platform: string
+  platform: string,
+  environment: PixelEnvironment = "live"
 ): Promise<EnvironmentSwitchResult> {
+  
   const config = await prisma.pixelConfig.findUnique({
-    where: { shopId_platform: { shopId, platform } },
+    where: { 
+      shopId_platform_environment: { 
+        shopId, 
+        platform, 
+        environment 
+      } 
+    },
     select: {
       id: true,
       environment: true,
@@ -338,8 +415,8 @@ export async function switchAllEnvironments(
   return { success: allSuccess, results };
 }
 
-export async function isTestMode(shopId: string, platform: string): Promise<boolean> {
-  const config = await getEnvironmentConfig(shopId, platform);
+export async function isTestMode(shopId: string, platform: string, environment?: PixelEnvironment): Promise<boolean> {
+  const config = await getEnvironmentConfig(shopId, platform, environment);
   return config?.environment === "test";
 }
 

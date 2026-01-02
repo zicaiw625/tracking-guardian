@@ -73,7 +73,7 @@ export class AfterShipProvider implements ITrackingProvider {
 
   private apiKey: string = "";
   private webhookSecret: string = "";
-  // 使用新版 AfterShip Tracking API (2025-07 version)
+  
   private baseUrl = "https://api.aftership.com/tracking/2025-07";
 
   async initialize(credentials: TrackingProviderCredentials): Promise<void> {
@@ -89,7 +89,7 @@ export class AfterShipProvider implements ITrackingProvider {
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
-      // 使用新版 API header: as-api-key (不是 aftership-api-key)
+      
       "as-api-key": this.apiKey,
       "Content-Type": "application/json",
     };
@@ -114,8 +114,8 @@ export class AfterShipProvider implements ITrackingProvider {
     carrier?: string
   ): Promise<TrackingResult | TrackingError> {
     try {
-      // 使用新版 API：GET /trackings 通过查询参数过滤
-      // 支持按 tracking_numbers 查询，一次可以查询多个
+      
+      
       const url = new URL(`${this.baseUrl}/trackings`);
       url.searchParams.append("tracking_numbers", trackingNumber);
       if (carrier) {
@@ -136,7 +136,7 @@ export class AfterShipProvider implements ITrackingProvider {
 
       const data = (await response.json()) as AfterShipApiResponse<{ trackings: AfterShipTracking[] }>;
       
-      // 新版 API 返回格式：{ data: { trackings: [...] } }
+      
       if (data.meta.code !== 200 && data.meta.code !== 201) {
         throw new Error(`AfterShip API error: ${data.meta.message}`);
       }
@@ -295,7 +295,7 @@ export class AfterShipProvider implements ITrackingProvider {
   }
 
   private transformTracking(tracking: AfterShipTracking): TrackingResult {
-    // 安全地将tracking对象转换为Record<string, unknown>
+    
     const rawData: Record<string, unknown> = {
       id: tracking.id,
       tracking_number: tracking.tracking_number,

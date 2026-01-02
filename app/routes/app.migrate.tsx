@@ -733,9 +733,9 @@ export default function MigratePage() {
 
     const stepIndex = steps.findIndex((s) => s.id === currentStep);
     if (stepIndex === -1) {
-        // Log invalid step in development only
+        
         if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
+            
             console.error(`[MigratePage] Invalid currentStep: ${currentStep}. Available steps:`, steps.map(s => s.id));
         }
     }
@@ -823,7 +823,7 @@ export default function MigratePage() {
           </BlockStack>
         </Banner>
 
-        {/* v1.0: 硬约束清单 - ScriptTags 关停说明 */}
+        {}
         <Banner
           title="重要约束：ScriptTags 已弃用"
           tone="warning"
@@ -1286,7 +1286,7 @@ export default function MigratePage() {
           </Layout.Section>
 
           <Layout.Section variant="oneThird">
-            {/* v1.0: checkout_completed 触发位置重要提示 */}
+            {}
             {pixelConfigs && pixelConfigs.length > 0 && (
               <Banner
                 title="重要提示：checkout_completed 事件触发位置"

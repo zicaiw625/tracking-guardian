@@ -20,30 +20,19 @@ export interface EventSenderConfig {
   logger?: (...args: unknown[]) => void;
 }
 
-/**
- * Generate HMAC signature for pixel event
- * Format: HMAC(secret, timestamp + body_hash)
- * 
- * Note: In pixel extension, we use ingestionKey as the secret for HMAC generation.
- * The server will verify using ingestionSecret (which should match ingestionKey).
- * 
- * @param secret - The ingestion key (used as secret for HMAC)
- * @param timestamp - Event timestamp (milliseconds)
- * @param bodyHash - SHA256 hash of the request body
- * @returns Base64-encoded HMAC signature
- */
+
 async function generateHMACSignature(
   secret: string,
   timestamp: number,
   bodyHash: string
 ): Promise<string> {
-  // Use Web Crypto API for HMAC (available in modern browsers and Web Pixels sandbox)
+  
   const message = `${timestamp}:${bodyHash}`;
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
   const messageData = encoder.encode(message);
 
-  // Import key for HMAC-SHA256
+  
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
     keyData,
@@ -52,10 +41,10 @@ async function generateHMACSignature(
     ["sign"]
   );
 
-  // Generate signature
+  
   const signature = await crypto.subtle.sign("HMAC", cryptoKey, messageData);
 
-  // Convert to base64
+  
   return btoa(String.fromCharCode(...new Uint8Array(signature)));
 }
 
@@ -184,15 +173,23 @@ export function createEventSender(config: EventSenderConfig) {
       const body = JSON.stringify(payload);
       const url = `${backendUrl}/api/pixel-events`;
 
-      // P0-03: Generate HMAC signature if ingestionKey is available
+      
+      
       const headers: Record<string, string> = {
         "Content-Type": "text/plain;charset=UTF-8",
         "X-Tracking-Guardian-Timestamp": String(timestamp),
       };
 
-      if (ingestionKey) {
+      
+      if (!ingestionKey) {
+        if (isDevMode) {
+          log(`⚠️ Missing ingestionKey - HMAC signature cannot be generated. Event will be rejected in production.`);
+        }
+        
+        
+      } else {
         try {
-          // Calculate body hash (SHA256)
+          
           const bodyHashBuffer = await crypto.subtle.digest(
             "SHA-256",
             new TextEncoder().encode(body)
@@ -201,14 +198,21 @@ export function createEventSender(config: EventSenderConfig) {
             .map(b => b.toString(16).padStart(2, "0"))
             .join("");
 
-          // Generate HMAC signature
+          
           const signature = await generateHMACSignature(ingestionKey, timestamp, bodyHash);
           headers["X-Tracking-Guardian-Signature"] = signature;
-        } catch (hmacError) {
+          
           if (isDevMode) {
-            log(`HMAC signature generation failed:`, hmacError);
+            log(`HMAC signature generated successfully for ${eventName}`);
           }
-          // Continue without signature in case of error (server will handle gracefully)
+        } catch (hmacError) {
+          
+          
+          if (isDevMode) {
+            log(`❌ HMAC signature generation failed:`, hmacError);
+            log(`Event ${eventName} will be rejected by server in production without valid signature`);
+          }
+          
         }
       }
 
@@ -322,7 +326,7 @@ function subscribeToProductAddedToCart(
       productTitle: cartLine.merchandise?.product?.title || null,
       price: toNumber(cartLine.merchandise?.price?.amount),
       quantity: cartLine.quantity || 1,
-      currency: "USD", // Default, will be enriched by backend if available
+      currency: "USD", 
     });
   });
 
@@ -370,7 +374,7 @@ function subscribeToProductViewed(
       productId: productVariant.product?.id || null,
       productTitle: productVariant.product?.title || null,
       price: toNumber(productVariant.price?.amount),
-      currency: "USD", // Default, will be enriched by backend if available
+      currency: "USD", 
     });
   });
 
@@ -468,24 +472,24 @@ export function subscribeToAnalyticsEvents(
   },
   sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
   logger?: (...args: unknown[]) => void,
-  mode: "purchase_only" | "full_funnel" = "purchase_only"
+  mode: "purchase_only" | "full_funnel" = "full_funnel"
 ): void {
-  // Always subscribe to checkout_completed (primary event)
+  
   subscribeToCheckoutCompleted(analytics, sendToBackend, logger);
 
-  // Subscribe to full funnel events if mode is full_funnel
+  
   if (mode === "full_funnel") {
-    // Checkout funnel events
+    
     subscribeToCheckoutStarted(analytics, sendToBackend, logger);
     subscribeToCheckoutContactInfoSubmitted(analytics, sendToBackend, logger);
     subscribeToCheckoutShippingInfoSubmitted(analytics, sendToBackend, logger);
     subscribeToPaymentInfoSubmitted(analytics, sendToBackend, logger);
     
-    // Product & cart events
+    
     subscribeToProductAddedToCart(analytics, sendToBackend, logger);
     subscribeToProductViewed(analytics, sendToBackend, logger);
     
-    // Page navigation
+    
     subscribeToPageViewed(analytics, sendToBackend, logger);
     
     const log = logger || (() => {});

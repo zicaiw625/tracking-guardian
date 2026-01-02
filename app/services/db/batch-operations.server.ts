@@ -74,11 +74,11 @@ export async function batchCompleteJobs(
           },
         });
 
-        // Batch update completed jobs with JSON fields
-        // Note: Prisma doesn't support bulk updates with different JSON values per row
-        // So we still need individual updates, but we can optimize by grouping
+        
+        
+        
         if (completed.length > 0) {
-          // Use Promise.all for parallel updates within transaction
+          
           await Promise.all(
             completed.map((job) =>
               tx.conversionJob.update({
@@ -96,7 +96,7 @@ export async function batchCompleteJobs(
       }
 
       if (failed.length > 0) {
-        // Use Promise.all for parallel updates within transaction
+        
         await Promise.all(
           failed.map((job) =>
             tx.conversionJob.update({
@@ -124,7 +124,7 @@ export async function batchCompleteJobs(
           },
         });
 
-        // Update error messages for limit exceeded jobs in parallel
+        
         const limitExceededWithErrors = limitExceeded.filter((j) => j.errorMessage);
         if (limitExceededWithErrors.length > 0) {
           await Promise.all(
@@ -149,7 +149,7 @@ export async function batchCompleteJobs(
           },
         });
 
-        // Update dead letter jobs with JSON fields in parallel
+        
         await Promise.all(
           deadLetter.map((job) =>
             tx.conversionJob.update({

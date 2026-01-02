@@ -6,7 +6,7 @@ import type {
   ValidationResult,
 } from "./types";
 
-// 从统一的 schema 定义中导入常量，避免重复定义
+
 import {
   CHECKOUT_TOKEN_PATTERN,
   CHECKOUT_TOKEN_MIN_LENGTH,
@@ -215,7 +215,7 @@ export function validateRequest(body: unknown): ValidationResult {
 
 export function isPrimaryEvent(eventName: string, mode: "purchase_only" | "full_funnel" = "purchase_only"): boolean {
   if (mode === "full_funnel") {
-    // In full_funnel mode, accept all standard events
+    
     const fullFunnelEvents = [
       "checkout_completed",
       "checkout_started",
@@ -228,7 +228,7 @@ export function isPrimaryEvent(eventName: string, mode: "purchase_only" | "full_
     ];
     return fullFunnelEvents.includes(eventName);
   }
-  // In purchase_only mode, only accept checkout_completed
+  
   return eventName === "checkout_completed";
 }
 
@@ -241,7 +241,8 @@ export interface PixelConfig {
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   schema_version: "1",
-  mode: "purchase_only",
+  
+  mode: "full_funnel",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
 };

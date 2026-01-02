@@ -615,14 +615,14 @@ export default function PrivacyPage() {
                     content: "确认删除",
                     destructive: true,
                     onAction: () => {
-                      // 触发删除操作 - 需要实现 action
+                      
                       setShowDeleteModal(false);
-                      // Note: 数据删除功能
-                      // 当前实现显示提示，完整实现应该：
-                      // 1. 调用 action 处理删除请求
-                      // 2. 创建 GDPR 删除任务
-                      // 3. 异步处理数据删除（可能需要时间）
-                      // 4. 显示进度和确认
+                      
+                      
+                      
+                      
+                      
+                      
                       alert("删除功能需要后端支持，请联系管理员或通过 GDPR webhook 处理");
                     },
                   }}

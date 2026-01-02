@@ -1,6 +1,4 @@
-/**
- * 事件捕获服务 - 实时显示触发的事件、参数完整性检查
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -32,12 +30,10 @@ export interface EventCaptureResult {
   completenessRate: number;
 }
 
-/**
- * 捕获最近的事件（用于实时查看）
- */
+
 export async function captureRecentEvents(
   shopId: string,
-  since: Date = new Date(Date.now() - 5 * 60 * 1000), // 默认最近 5 分钟
+  since: Date = new Date(Date.now() - 5 * 60 * 1000), 
   destinationTypes?: string[]
 ): Promise<EventCaptureResult> {
   try {
@@ -116,9 +112,7 @@ export async function captureRecentEvents(
   }
 }
 
-/**
- * 检查参数完整性
- */
+
 export function checkParameterCompleteness(
   payload: Record<string, unknown>
 ): {
@@ -152,9 +146,7 @@ export function checkParameterCompleteness(
   };
 }
 
-/**
- * 获取事件统计（用于验收报告）
- */
+
 export async function getEventStatistics(
   shopId: string,
   startDate: Date,
@@ -193,17 +185,17 @@ export async function getEventStatistics(
     let eventsWithMissingParams = 0;
 
     for (const event of events) {
-      // 按事件类型统计
+      
       byEventType[event.eventName] = (byEventType[event.eventName] || 0) + 1;
 
-      // 按目的地统计
+      
       const dest = event.destinationType || "unknown";
       byDestination[dest] = (byDestination[dest] || 0) + 1;
 
-      // 按状态统计
+      
       byStatus[event.status] = (byStatus[event.status] || 0) + 1;
 
-      // 参数完整性统计
+      
       const payload = (event.payloadJson as Record<string, unknown>) || {};
       const completeness = checkParameterCompleteness(payload);
       totalCompleteness += completeness.completenessRate;

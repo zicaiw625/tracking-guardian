@@ -1,6 +1,4 @@
-/**
- * 使用量追踪服务 - 追踪像素目的地数量、UI 模块数量、事件量
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -29,9 +27,7 @@ export interface UsageTracking {
   };
 }
 
-/**
- * 获取使用量追踪信息
- */
+
 export async function getUsageTracking(
   shopId: string,
   planId: PlanId
@@ -41,7 +37,7 @@ export async function getUsageTracking(
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [pixelConfigs, uiModules, eventLogs, conversionLogs] = await Promise.all([
-      // 像素目的地数量
+      
       prisma.pixelConfig.count({
         where: {
           shopId,
@@ -49,7 +45,7 @@ export async function getUsageTracking(
         },
       }),
 
-      // UI 模块数量
+      
       prisma.uiExtensionSetting.count({
         where: {
           shopId,
@@ -57,7 +53,7 @@ export async function getUsageTracking(
         },
       }),
 
-      // 本月事件量
+      
       prisma.eventLog.count({
         where: {
           shopId,
@@ -67,7 +63,7 @@ export async function getUsageTracking(
         },
       }),
 
-      // 本月订单数
+      
       prisma.conversionLog.findMany({
         where: {
           shopId,
@@ -85,13 +81,13 @@ export async function getUsageTracking(
 
     const monthlyOrders = new Set(conversionLogs.map((log) => log.orderId)).size;
 
-    // 从 plans.ts 获取限制（需要导入相关函数）
+    
     const { getPixelDestinationsLimit, getUiModulesLimit, getPlanLimit } = await import("./plans");
 
     const pixelLimit = getPixelDestinationsLimit(planId);
     const uiLimit = getUiModulesLimit(planId);
     const orderLimit = getPlanLimit(planId);
-    const eventLimit = -1; // 事件量暂时无限制
+    const eventLimit = -1; 
 
     return {
       pixelDestinations: {
@@ -125,9 +121,7 @@ export async function getUsageTracking(
   }
 }
 
-/**
- * 检查是否接近限制
- */
+
 export async function checkUsageApproachingLimit(
   shopId: string,
   planId: PlanId,

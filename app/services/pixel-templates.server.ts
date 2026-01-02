@@ -1,8 +1,4 @@
-/**
- * 像素模板服务 - GA4、Meta、TikTok 等平台模板
- * 
- * 这个服务提供预设的像素模板，用于快速配置各平台的追踪
- */
+
 
 import { logger } from "~/utils/logger.server";
 
@@ -226,30 +222,22 @@ export const PRESET_TEMPLATES: PixelTemplate[] = [
   },
 ];
 
-/**
- * 获取模板列表
- */
+
 export function getTemplates(): PixelTemplate[] {
   return PRESET_TEMPLATES;
 }
 
-/**
- * 根据 ID 获取模板
- */
+
 export function getTemplateById(id: string): PixelTemplate | null {
   return PRESET_TEMPLATES.find(t => t.id === id) || null;
 }
 
-/**
- * 根据平台获取模板
- */
+
 export function getTemplatesByPlatform(platform: string): PixelTemplate[] {
   return PRESET_TEMPLATES.filter(t => t.platforms.includes(platform));
 }
 
-/**
- * 验证模板配置
- */
+
 export function validateTemplateConfig(
   template: PixelTemplate,
   credentials: Record<string, Record<string, string>>

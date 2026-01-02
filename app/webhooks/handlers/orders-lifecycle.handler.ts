@@ -1,8 +1,4 @@
-/**
- * P1-02: 订单生命周期 webhook handlers
- * 
- * 处理订单取消、更新和退款事件，用于验收测试
- */
+
 
 import prisma from "../../db.server";
 import { normalizeOrderId } from "../../utils/crypto.server";
@@ -12,9 +8,7 @@ import type { OrderWebhookPayload } from "../../types";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
 import type { Prisma } from "@prisma/client";
 
-/**
- * 处理订单取消事件
- */
+
 export async function handleOrdersCancelled(
   context: WebhookContext,
   shopRecord: ShopWithPixelConfigs | null
@@ -52,7 +46,7 @@ export async function handleOrdersCancelled(
     `Processing ORDERS_CANCELLED webhook for shop ${context.shop}, order ${orderId}`
   );
 
-  // 记录订单取消事件（用于验收测试）
+  
   try {
     await prisma.eventLog.create({
       data: {
@@ -79,9 +73,7 @@ export async function handleOrdersCancelled(
   };
 }
 
-/**
- * 处理订单更新事件
- */
+
 export async function handleOrdersUpdated(
   context: WebhookContext,
   shopRecord: ShopWithPixelConfigs | null
@@ -119,7 +111,7 @@ export async function handleOrdersUpdated(
     `Processing ORDERS_UPDATED webhook for shop ${context.shop}, order ${orderId}`
   );
 
-  // 记录订单更新事件（用于验收测试）
+  
   try {
     await prisma.eventLog.create({
       data: {
@@ -146,9 +138,7 @@ export async function handleOrdersUpdated(
   };
 }
 
-/**
- * 处理退款创建事件
- */
+
 export async function handleRefundsCreate(
   context: WebhookContext,
   shopRecord: ShopWithPixelConfigs | null
@@ -171,7 +161,7 @@ export async function handleRefundsCreate(
     };
   }
 
-  // 解析退款 payload
+  
   const refundPayload = context.payload as {
     id?: number | string;
     order_id?: number | string;
@@ -198,7 +188,7 @@ export async function handleRefundsCreate(
     `Processing REFUNDS_CREATE webhook for shop ${context.shop}, order ${orderId}`
   );
 
-  // 记录退款事件（用于验收测试）
+  
   try {
     await prisma.eventLog.create({
       data: {

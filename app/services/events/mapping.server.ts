@@ -1,8 +1,4 @@
-/**
- * 事件映射服务 - Shopify 标准事件 -> 平台事件
- * 
- * 这个服务负责将 Shopify 的标准事件映射到各平台的事件名称和参数
- */
+
 
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 
@@ -245,9 +241,7 @@ export const EVENT_MAPPINGS: Record<string, Record<string, EventMapping>> = {
   },
 };
 
-/**
- * 映射 Shopify 事件到平台事件
- */
+
 export function mapEventToPlatform(
   shopifyEvent: string,
   platform: string,
@@ -272,7 +266,7 @@ export function mapEventToPlatform(
   const parameters: Record<string, unknown> = {};
   const missingParameters: string[] = [];
 
-  // 映射参数
+  
   for (const [shopifyKey, platformKey] of Object.entries(mapping.parameterMapping)) {
     const value = getNestedValue(payload.data, shopifyKey);
     if (value !== undefined) {
@@ -280,14 +274,14 @@ export function mapEventToPlatform(
     }
   }
 
-  // 检查必需参数
+  
   for (const requiredParam of mapping.requiredParameters) {
     if (parameters[requiredParam] === undefined) {
       missingParameters.push(requiredParam);
     }
   }
 
-  // 特殊处理：转换 items 数组格式
+  
   if (payload.data?.items && Array.isArray(payload.data.items)) {
     if (platform === "meta") {
       parameters.content_ids = payload.data.items.map((item: unknown) => {
@@ -348,9 +342,7 @@ export function mapEventToPlatform(
   };
 }
 
-/**
- * 获取嵌套对象的值
- */
+
 function getNestedValue(obj: unknown, path: string): unknown {
   if (!obj || typeof obj !== "object") {
     return undefined;
@@ -370,9 +362,7 @@ function getNestedValue(obj: unknown, path: string): unknown {
   return current;
 }
 
-/**
- * 规范化参数值
- */
+
 export function normalizeParameterValue(
   value: unknown,
   parameterName: string,
@@ -382,17 +372,17 @@ export function normalizeParameterValue(
     return undefined;
   }
 
-  // 货币代码规范化
+  
   if (parameterName === "currency") {
     if (typeof value === "string") {
       return value.toUpperCase().trim();
     }
   }
 
-  // 金额规范化
+  
   if (parameterName === "value" || parameterName.includes("price")) {
     if (typeof value === "number") {
-      return Math.round(value * 100) / 100; // 保留两位小数
+      return Math.round(value * 100) / 100; 
     }
     if (typeof value === "string") {
       const num = parseFloat(value);
@@ -400,7 +390,7 @@ export function normalizeParameterValue(
     }
   }
 
-  // 数组规范化
+  
   if (Array.isArray(value)) {
     return value.filter(item => item !== null && item !== undefined);
   }

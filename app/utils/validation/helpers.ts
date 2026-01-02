@@ -123,12 +123,12 @@ export function validateOrderId(
 ): Result<string, AppError> {
   const trimmed = orderId.trim();
 
-  // 支持纯数字格式
+  
   if (/^\d+$/.test(trimmed)) {
     return ok(trimmed);
   }
 
-  // 支持 gid://shopify/Order/ 格式
+  
   if (trimmed.startsWith("gid://shopify/Order/")) {
     const id = trimmed.replace("gid://shopify/Order/", "");
     if (/^\d+$/.test(id)) {

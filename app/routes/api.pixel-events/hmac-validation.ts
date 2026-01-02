@@ -12,15 +12,7 @@ export interface HMACValidationResult {
   errorCode?: "missing_signature" | "invalid_signature" | "timestamp_out_of_window";
 }
 
-/**
- * Generate HMAC signature for pixel event
- * Format: HMAC(secret, timestamp + body_hash)
- * 
- * @param secret - The ingestion secret
- * @param timestamp - Event timestamp (milliseconds)
- * @param bodyHash - SHA256 hash of the request body
- * @returns Base64-encoded HMAC signature
- */
+
 export function generateHMACSignature(
   secret: string,
   timestamp: number,
@@ -32,16 +24,7 @@ export function generateHMACSignature(
   return hmac.digest("base64");
 }
 
-/**
- * Verify HMAC signature for pixel event
- * 
- * @param signature - The HMAC signature from header
- * @param secret - The ingestion secret
- * @param timestamp - Event timestamp (milliseconds)
- * @param bodyHash - SHA256 hash of the request body
- * @param timestampWindowMs - Maximum allowed timestamp difference (default: 5 minutes)
- * @returns Validation result
- */
+
 export function verifyHMACSignature(
   signature: string | null,
   secret: string,
@@ -57,7 +40,7 @@ export function verifyHMACSignature(
     };
   }
 
-  // Verify timestamp is within window
+  
   const now = Date.now();
   const timeDiff = Math.abs(now - timestamp);
   if (timeDiff > timestampWindowMs) {
@@ -68,10 +51,10 @@ export function verifyHMACSignature(
     };
   }
 
-  // Generate expected signature
+  
   const expectedSignature = generateHMACSignature(secret, timestamp, bodyHash);
 
-  // Use timing-safe comparison to prevent timing attacks
+  
   try {
     const signatureBuffer = Buffer.from(signature, "base64");
     const expectedBuffer = Buffer.from(expectedSignature, "base64");
@@ -103,23 +86,12 @@ export function verifyHMACSignature(
   }
 }
 
-/**
- * Extract HMAC signature from request headers
- */
+
 export function extractHMACSignature(request: Request): string | null {
   return request.headers.get(HMAC_HEADER);
 }
 
-/**
- * Validate HMAC signature for pixel event request
- * 
- * @param request - The incoming request
- * @param bodyText - The request body as text (for hash calculation)
- * @param secret - The ingestion secret (from shop.ingestionSecret)
- * @param timestamp - Event timestamp from payload
- * @param timestampWindowMs - Maximum allowed timestamp difference (default: 5 minutes)
- * @returns Validation result
- */
+
 export async function validatePixelEventHMAC(
   request: Request,
   bodyText: string,
@@ -130,8 +102,8 @@ export async function validatePixelEventHMAC(
   const signature = extractHMACSignature(request);
   
   if (!signature) {
-    // In production, HMAC signature is required
-    // In dev mode, we may allow requests without signature for testing
+    
+    
     return {
       valid: false,
       reason: "Missing HMAC signature header",
@@ -139,7 +111,7 @@ export async function validatePixelEventHMAC(
     };
   }
 
-  // Calculate body hash (SHA256)
+  
   const crypto = await import("crypto");
   const bodyHash = crypto.createHash("sha256").update(bodyText).digest("hex");
 

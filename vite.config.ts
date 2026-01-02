@@ -67,7 +67,7 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 4096,
-    // 只在开发环境启用 source maps，生产环境禁用以保护源码
+    
     sourcemap: process.env.NODE_ENV !== "production",
     rollupOptions: {
       external: ["html-pdf-node", "archiver"],
@@ -93,7 +93,7 @@ export default defineConfig({
     minify: "esbuild",
   },
   ssr: {
-    // 让这些依赖参与 SSR 打包而不是保持 external，避免 ESM/JSON 导入不一致导致的 undefined
+    
     noExternal: [
       "@shopify/polaris",
       "@shopify/shopify-app-remix",

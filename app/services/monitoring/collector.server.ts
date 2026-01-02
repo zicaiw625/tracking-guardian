@@ -1,9 +1,4 @@
-/**
- * 监控指标收集器 - 收集事件成功率、缺参率、去重冲突等指标
- * 
- * 这个服务负责从 EventLog 表中收集各种监控指标，
- * 供监控 Dashboard 和告警系统使用
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -50,9 +45,7 @@ export interface DeduplicationMetrics {
   }>;
 }
 
-/**
- * 收集事件成功率指标
- */
+
 export async function collectEventSuccessRate(
   shopId: string,
   startDate: Date,
@@ -90,7 +83,7 @@ export async function collectEventSuccessRate(
         metrics.failed++;
       }
 
-      // 按目的地统计
+      
       const dest = event.destinationType || "unknown";
       if (!metrics.byDestination[dest]) {
         metrics.byDestination[dest] = {
@@ -107,7 +100,7 @@ export async function collectEventSuccessRate(
         metrics.byDestination[dest].failed++;
       }
 
-      // 按事件类型统计
+      
       const eventType = event.eventName;
       if (!metrics.byEventType[eventType]) {
         metrics.byEventType[eventType] = {
@@ -125,12 +118,12 @@ export async function collectEventSuccessRate(
       }
     }
 
-    // 计算成功率
+    
     if (metrics.total > 0) {
       metrics.successRate = (metrics.success / metrics.total) * 100;
     }
 
-    // 计算各目的地的成功率
+    
     for (const dest in metrics.byDestination) {
       const destMetrics = metrics.byDestination[dest];
       if (destMetrics.total > 0) {
@@ -138,7 +131,7 @@ export async function collectEventSuccessRate(
       }
     }
 
-    // 计算各事件类型的成功率
+    
     for (const eventType in metrics.byEventType) {
       const typeMetrics = metrics.byEventType[eventType];
       if (typeMetrics.total > 0) {
@@ -156,9 +149,7 @@ export async function collectEventSuccessRate(
   }
 }
 
-/**
- * 收集缺参率指标
- */
+
 export async function collectMissingParamsMetrics(
   shopId: string,
   startDate: Date,
@@ -225,7 +216,7 @@ export async function collectMissingParamsMetrics(
       }
     }
 
-    // 计算缺参率
+    
     if (metrics.total > 0) {
       metrics.missingRate.value = (metrics.missingValue / metrics.total) * 100;
       metrics.missingRate.currency = (metrics.missingCurrency / metrics.total) * 100;
@@ -242,9 +233,7 @@ export async function collectMissingParamsMetrics(
   }
 }
 
-/**
- * 收集去重冲突指标
- */
+
 export async function collectDeduplicationMetrics(
   shopId: string,
   startDate: Date,
@@ -273,13 +262,13 @@ export async function collectDeduplicationMetrics(
       byDestination: {},
     };
 
-    // 统计去重事件
+    
     for (const event of events) {
       if (event.errorCode === "deduplicated") {
         metrics.duplicated++;
       }
 
-      // 按目的地统计
+      
       const dest = event.destinationType || "unknown";
       if (!metrics.byDestination[dest]) {
         metrics.byDestination[dest] = {
@@ -294,12 +283,12 @@ export async function collectDeduplicationMetrics(
       }
     }
 
-    // 计算去重率
+    
     if (metrics.total > 0) {
       metrics.duplicationRate = (metrics.duplicated / metrics.total) * 100;
     }
 
-    // 计算各目的地的去重率
+    
     for (const dest in metrics.byDestination) {
       const destMetrics = metrics.byDestination[dest];
       if (destMetrics.total > 0) {
@@ -317,9 +306,7 @@ export async function collectDeduplicationMetrics(
   }
 }
 
-/**
- * 收集事件量变化（用于检测骤降）
- */
+
 export async function collectEventVolumeAnomaly(
   shopId: string,
   currentPeriod: { start: Date; end: Date },
@@ -357,7 +344,7 @@ export async function collectEventVolumeAnomaly(
         ? ((currentEvents - previousEvents) / previousEvents) * 100
         : 0;
 
-    // 如果下降超过 50%，认为是异常
+    
     const isAnomaly = changeRate < -50;
 
     return {

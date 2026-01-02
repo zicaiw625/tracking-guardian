@@ -30,7 +30,7 @@ function getDecryptedSettings(config: AlertConfigWithEncryption): Record<string,
     }
     if (config.settings && typeof config.settings === "object") {
         logger.warn(`[P0-2] Using legacy plain settings for alert config - migration needed`);
-        // 对于遗留设置，我们仍然需要返回对象，但确保它是有效的对象类型
+        
         if (typeof config.settings === "object" && config.settings !== null && !Array.isArray(config.settings)) {
             return config.settings as Record<string, unknown>;
         }

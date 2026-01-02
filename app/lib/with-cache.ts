@@ -167,13 +167,13 @@ export function withConditionalCache<T>(
   const shouldCache = options.shouldCache ?? (() => true);
 
   return async (args: LoaderFunctionArgs): Promise<Response | T> => {
-    // 防呆：确保 args.request 存在
+    
     if (!args || !args.request || typeof args.request.url !== "string") {
       logger.error("[withConditionalCache] Invalid args: missing request", {
         argsType: typeof args,
         argsKeys: args ? Object.keys(args) : [],
       });
-      return loader(args); // 直接调用 loader，让它处理错误
+      return loader(args); 
     }
 
     const cacheKey = options.key(args);

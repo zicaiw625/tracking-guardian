@@ -1,11 +1,4 @@
-/**
- * 告警服务 - 检查告警条件并触发告警
- * 
- * 这个服务负责：
- * 1. 检查告警条件（失败率、缺参率、事件量骤降等）
- * 2. 触发告警（记录到 MonitoringAlertHistory）
- * 3. 发送通知（邮件、应用内等）
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -24,9 +17,7 @@ export interface AlertCheckResult {
   message?: string;
 }
 
-/**
- * 检查事件失败率告警
- */
+
 export async function checkFailureRateAlert(
   shopId: string,
   alertId: string
@@ -40,10 +31,10 @@ export async function checkFailureRateAlert(
       return { triggered: false };
     }
 
-    // 获取阈值（默认 2%）
+    
     const threshold = alert.threshold || 2.0;
 
-    // 收集最近 24 小时的数据
+    
     const endDate = new Date();
     const startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
 
@@ -52,7 +43,7 @@ export async function checkFailureRateAlert(
     const failureRate = 100 - metrics.successRate;
 
     if (failureRate > threshold) {
-      // 记录告警历史
+      
       await prisma.monitoringAlertHistory.create({
         data: {
           alertId: alert.id,
@@ -67,7 +58,7 @@ export async function checkFailureRateAlert(
         },
       });
 
-      // 更新告警统计
+      
       await prisma.monitoringAlert.update({
         where: { id: alert.id },
         data: {
@@ -96,9 +87,7 @@ export async function checkFailureRateAlert(
   }
 }
 
-/**
- * 检查缺参率告警
- */
+
 export async function checkMissingParamsAlert(
   shopId: string,
   alertId: string
@@ -119,7 +108,7 @@ export async function checkMissingParamsAlert(
 
     const metrics = await collectMissingParamsMetrics(shopId, startDate, endDate);
 
-    // 检查 value 缺参率
+    
     if (metrics.missingRate.value > threshold) {
       await prisma.monitoringAlertHistory.create({
         data: {
@@ -163,9 +152,7 @@ export async function checkMissingParamsAlert(
   }
 }
 
-/**
- * 检查事件量骤降告警
- */
+
 export async function checkVolumeDropAlert(
   shopId: string,
   alertId: string
@@ -232,9 +219,7 @@ export async function checkVolumeDropAlert(
   }
 }
 
-/**
- * 检查所有启用的告警
- */
+
 export async function checkAllAlerts(shopId: string): Promise<AlertCheckResult[]> {
   try {
     const alerts = await prisma.monitoringAlert.findMany({
@@ -279,9 +264,7 @@ export async function checkAllAlerts(shopId: string): Promise<AlertCheckResult[]
   }
 }
 
-/**
- * 创建告警配置
- */
+
 export async function createAlert(
   shopId: string,
   alertType: "failure_rate" | "missing_params" | "volume_drop",
@@ -313,9 +296,7 @@ export async function createAlert(
   }
 }
 
-/**
- * 解析告警（标记为已解决）
- */
+
 export async function resolveAlert(
   alertHistoryId: string
 ): Promise<{ success: boolean; error?: string }> {

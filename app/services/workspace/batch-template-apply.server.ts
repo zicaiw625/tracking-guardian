@@ -298,7 +298,7 @@ export async function batchApplyTemplateWithComparison(
     return { error: "模板不存在" };
   }
 
-  // 验证并转换 platforms 数据
+  
   const templatePlatforms: PixelTemplateConfig[] = Array.isArray(template.platforms) && isPixelTemplateConfigArray(template.platforms)
     ? (template.platforms as PixelTemplateConfig[])
     : [];

@@ -24,7 +24,7 @@ const UpsellOffer = memo(function UpsellOffer() {
     const [copied, setCopied] = useState(false);
 
     const storefrontUrl = useMemo(() => {
-        // 使用 useShop().storefrontUrl 获取商店的完整 URL，避免相对路径在 checkout 域下解析错误
+        
         return api.shop?.storefrontUrl || "";
     }, [api.shop?.storefrontUrl]);
 
@@ -38,7 +38,7 @@ const UpsellOffer = memo(function UpsellOffer() {
         return expiryHoursStr ? parseInt(expiryHoursStr, 10) : 24;
     }, [settings.upsell_expiry_hours]);
     
-    // 构建完整 URL：如果配置的是相对路径，拼接 storefrontUrl；如果是绝对 URL，直接使用
+    
     const continueShoppingUrl = useMemo(() => {
         const url = (settings.continue_shopping_url as string) || "/";
         if (url.startsWith("http://") || url.startsWith("https://")) {

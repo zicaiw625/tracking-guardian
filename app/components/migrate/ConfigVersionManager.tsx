@@ -66,9 +66,9 @@ export function ConfigVersionManager({
         setVersionHistory(data.history);
       }
     } catch (error) {
-      // Log error in development only
+      
       if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
+        
         console.error("Failed to load version history", error);
       }
     } finally {

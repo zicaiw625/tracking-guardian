@@ -1,8 +1,4 @@
-/**
- * P1-01: Payload 可视化组件
- * 
- * 显示规范化后的事件 payload（canonical 格式和平台映射后的格式）
- */
+
 
 import { useState } from "react";
 import {
@@ -20,7 +16,7 @@ import { CopyIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 
-// 客户端规范化逻辑（简化版，用于可视化）
+
 interface CanonicalEventData {
   event_name: string;
   event_id: string;
@@ -56,10 +52,10 @@ export function PayloadVisualizer({
   const { showSuccess } = useToastContext();
   const [selectedTab, setSelectedTab] = useState(0);
 
-  // 规范化事件（客户端简化版）
+  
   const canonical = normalizeEventClient(payload, shopDomain);
 
-  // 映射到各平台（客户端简化版）
+  
   const platformMappings: Record<string, PlatformEventData> = {};
   for (const platform of platforms) {
     try {
@@ -258,9 +254,7 @@ function getPlatformDisplayName(platform: string): string {
   return names[platform.toLowerCase()] || platform.toUpperCase();
 }
 
-/**
- * 客户端事件规范化（简化版，用于可视化）
- */
+
 function normalizeEventClient(
   payload: PixelEventPayload,
   shopDomain: string
@@ -273,7 +267,7 @@ function normalizeEventClient(
       }))
     : [];
 
-  // 生成简化的 event_id（实际应该使用服务端逻辑）
+  
   const identifier = data.orderId || data.checkoutToken || `session_${Date.now()}`;
   const eventId = `${shopDomain}:${identifier}:${payload.eventName}`.substring(0, 32);
 
@@ -289,9 +283,7 @@ function normalizeEventClient(
   };
 }
 
-/**
- * 客户端平台映射（简化版，用于可视化）
- */
+
 function mapToPlatformClient(
   canonical: CanonicalEventData,
   platform: string

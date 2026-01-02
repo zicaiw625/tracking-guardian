@@ -1,7 +1,7 @@
 
 
 import { z } from "zod";
-// 统一从 pixel-event.ts 导入 OrderIdSchema，消除分叉风险
+
 import { OrderIdSchema } from "./pixel-event";
 
 export const ConsentStateSchema = z.enum([
@@ -113,7 +113,7 @@ export const ShopifyGidSchema = z
   .string()
   .regex(/^gid:\/\/shopify\/\w+\/\d+$/, "Invalid Shopify GID format");
 
-// Re-export OrderIdSchema from pixel-event.ts to ensure consistency
+
 export { OrderIdSchema };
 
 export const RateLimitInfoSchema = z.object({

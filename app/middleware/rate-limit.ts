@@ -237,8 +237,8 @@ class DistributedRateLimitStore {
   }
 
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
-    // Synchronous method can only use in-memory store since Redis operations are async
-    // Use checkAsync() if Redis-based rate limiting is needed
+    
+    
     return memoryRateLimitStore.check(key, maxRequests, windowMs);
   }
 
@@ -350,19 +350,19 @@ export function pathShopKeyExtractor(request: Request): string {
   }
 }
 
-// 防呆函数：从各种可能的参数形式中提取 Request 对象
+
 function resolveRequest(args: any): Request | undefined {
   if (!args) return undefined;
-  // 兼容直接传入 Request 的情况（虽然不应该这样用）
+  
   if (args instanceof Request) return args;
-  // 正常的 Remix args 格式：{ request, params, context, ... }
+  
   if (args.request instanceof Request) return args.request;
   return undefined;
 }
 
-// 支持两种调用方式：
-// 1. withRateLimit(config, handler) - 直接返回包装后的 handler
-// 2. withRateLimit(config) - 返回一个函数，可以后续传入 handler（currying）
+
+
+
 export function withRateLimit<T>(
   config: RateLimitConfig,
   handler?: RateLimitedHandler<T>
@@ -379,7 +379,7 @@ export function withRateLimit<T>(
     return async (args) => {
       const request = resolveRequest(args);
 
-      // 防呆：避免直接把整个服务打死（至少打印清楚）
+      
       if (!request || typeof request.url !== "string") {
         const errorMsg = `[rate-limit] Invalid args: expected Remix args { request }, got: ${args ? Object.keys(args).join(", ") : "undefined"}`;
         logger.error(errorMsg, {
@@ -388,7 +388,7 @@ export function withRateLimit<T>(
           hasRequest: !!args?.request,
           requestType: args?.request ? typeof args.request : "undefined",
         });
-        // 直接返回错误响应，而不是让服务崩溃
+        
         return json(
           {
             success: false,
@@ -405,7 +405,7 @@ export function withRateLimit<T>(
         return handler(args);
       }
 
-      // 安全调用 keyExtractor，防止崩溃
+      
       let key: string;
       try {
         key = keyExtractor(request);
@@ -414,7 +414,7 @@ export function withRateLimit<T>(
           error: error instanceof Error ? error.message : String(error),
           requestUrl: request.url,
         });
-        // 使用 fallback key，避免服务崩溃
+        
         key = `fallback:${request.url || "unknown"}`;
       }
 
@@ -466,12 +466,12 @@ export function withRateLimit<T>(
     };
   };
 
-  // 如果提供了 handler，直接返回包装后的 handler
+  
   if (handler) {
     return createWrappedHandler(handler);
   }
 
-  // 如果没有提供 handler，返回一个函数，可以后续传入 handler（currying）
+  
   return (handler: RateLimitedHandler<T>) => createWrappedHandler(handler);
 }
 

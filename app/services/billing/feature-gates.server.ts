@@ -84,12 +84,12 @@ export function checkFeatureAccess(
   shopPlan: PlanId,
   feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit"
 ): FeatureGateResult {
-  // Audit 功能对所有套餐免费
+  
   if (feature === "audit") {
     return { allowed: true };
   }
 
-  // Pixel migration 和 UI modules 需要 Starter+
+  
   if (feature === "pixel_migration" || feature === "ui_modules") {
     const hasAccess = isPlanAtLeast(shopPlan, "starter");
     if (!hasAccess) {
@@ -128,7 +128,7 @@ export function checkFeatureAccess(
 function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit"): string {
   switch (feature) {
     case "audit":
-      return "Free"; // 免费功能
+      return "Free"; 
     case "pixel_migration":
     case "ui_modules":
     case "verification":

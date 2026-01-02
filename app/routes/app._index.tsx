@@ -325,7 +325,7 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
   );
 });
 
-// v1.0: 卡片1 - 升级状态卡片（升级状态 + 截止提醒）
+
 const UpgradeStatusCard = memo(function UpgradeStatusCard({
   upgradeStatus,
 }: {
@@ -370,7 +370,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
         </InlineStack>
 
         <BlockStack gap="300">
-          {/* 升级状态 */}
+          {}
           <InlineStack align="space-between" blockAlign="center">
             <Text as="span" variant="bodyMd" fontWeight="semibold">
               当前状态
@@ -382,7 +382,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
 
           <Divider />
 
-          {/* Plus 商家：截止提醒 + 自动升级提醒 */}
+          {}
           {upgradeStatus.shopTier === "plus" && (
             <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="center">
@@ -426,7 +426,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
             </BlockStack>
           )}
 
-          {/* 非 Plus 商家：截止提醒 */}
+          {}
           {upgradeStatus.shopTier === "non_plus" && (
             <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="center">
@@ -462,7 +462,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
   );
 });
 
-// v1.0: 卡片2 - 风险分数卡片
+
 const RiskScoreCard = memo(function RiskScoreCard({
   riskScore,
   riskLevel,
@@ -548,7 +548,7 @@ const RiskScoreCard = memo(function RiskScoreCard({
   );
 });
 
-// v1.0: 卡片3 - 迁移进度条卡片
+
 const MigrationProgressCard = memo(function MigrationProgressCard({
   migrationProgress,
 }: {
@@ -1191,7 +1191,7 @@ export default function Index() {
         )}
 
         {}
-        {/* v1.0: 三核心卡片布局 - 升级状态、风险分数、迁移进度 */}
+        {}
         <Layout>
           <Layout.Section variant="oneThird">
             <UpgradeStatusCard upgradeStatus={data.upgradeStatus} />
@@ -1209,7 +1209,7 @@ export default function Index() {
         </Layout>
 
         {}
-        {/* v1.0: 主CTA - 开始体检/继续上次体检 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">

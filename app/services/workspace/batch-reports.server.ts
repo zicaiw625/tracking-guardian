@@ -1,6 +1,4 @@
-/**
- * 批量验收报告服务 - 为多个店铺生成迁移验收报告
- */
+
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -25,12 +23,10 @@ export interface BatchReportResult {
     reportUrl?: string;
     error?: string;
   }>;
-  downloadUrl?: string; // 批量下载链接
+  downloadUrl?: string; 
 }
 
-/**
- * 生成批量验收报告
- */
+
 export async function generateBatchReports(
   options: BatchReportOptions
 ): Promise<BatchReportResult> {
@@ -44,7 +40,7 @@ export async function generateBatchReports(
     format: options.format,
   });
 
-  // 异步处理每个店铺的报告
+  
   const processPromises = options.shopIds.map(async (shopId) => {
     try {
       const shop = await prisma.shop.findUnique({
@@ -62,7 +58,7 @@ export async function generateBatchReports(
         return;
       }
 
-      // 生成报告数据
+      
       const reportData = await generateVerificationReportData(shopId);
 
       if (!reportData) {
@@ -75,12 +71,12 @@ export async function generateBatchReports(
         return;
       }
 
-      // Note: 报告文件生成和存储
-      // 当前实现返回 API URL，实际应该：
-      // 1. 使用 report-export.server.ts 中的 exportVerificationReport 生成文件
-      // 2. 上传到对象存储（S3/Cloudflare R2）或文件系统
-      // 3. 返回永久下载链接
-      // 4. 支持批量打包下载（ZIP）
+      
+      
+      
+      
+      
+      
       const reportUrl = `/api/reports/${shopId}?format=${options.format}`;
 
       results.push({
@@ -109,7 +105,7 @@ export async function generateBatchReports(
     }
   });
 
-  // 等待所有报告生成完成
+  
   await Promise.allSettled(processPromises);
 
   return {
