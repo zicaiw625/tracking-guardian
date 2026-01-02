@@ -418,7 +418,7 @@ export function PixelMigrationWizard({
           enabled: draftPlatforms.has("google"),
           platformId: wizardDraft.configs.google?.platformId || "",
           credentials: wizardDraft.configs.google?.credentials || {},
-          eventMappings: wizardDraft.configs.google?.eventMappings || DEFAULT_EVENT_MAPPINGS.google,
+          eventMappings: wizardDraft.configs.google?.eventMappings || DEFAULT_EVENT_MAPPINGS.google || {},
           environment: wizardDraft.configs.google?.environment || "test",
         },
         meta: {
@@ -426,7 +426,7 @@ export function PixelMigrationWizard({
           enabled: draftPlatforms.has("meta"),
           platformId: wizardDraft.configs.meta?.platformId || "",
           credentials: wizardDraft.configs.meta?.credentials || {},
-          eventMappings: wizardDraft.configs.meta?.eventMappings || DEFAULT_EVENT_MAPPINGS.meta,
+          eventMappings: wizardDraft.configs.meta?.eventMappings || DEFAULT_EVENT_MAPPINGS.meta || {},
           environment: wizardDraft.configs.meta?.environment || "test",
         },
         tiktok: {
@@ -434,7 +434,7 @@ export function PixelMigrationWizard({
           enabled: draftPlatforms.has("tiktok"),
           platformId: wizardDraft.configs.tiktok?.platformId || "",
           credentials: wizardDraft.configs.tiktok?.credentials || {},
-          eventMappings: wizardDraft.configs.tiktok?.eventMappings || DEFAULT_EVENT_MAPPINGS.tiktok,
+          eventMappings: wizardDraft.configs.tiktok?.eventMappings || DEFAULT_EVENT_MAPPINGS.tiktok || {},
           environment: wizardDraft.configs.tiktok?.environment || "test",
         },
         pinterest: {
@@ -442,7 +442,7 @@ export function PixelMigrationWizard({
           enabled: draftPlatforms.has("pinterest"),
           platformId: wizardDraft.configs.pinterest?.platformId || "",
           credentials: wizardDraft.configs.pinterest?.credentials || {},
-          eventMappings: wizardDraft.configs.pinterest?.eventMappings || DEFAULT_EVENT_MAPPINGS.pinterest,
+          eventMappings: wizardDraft.configs.pinterest?.eventMappings || DEFAULT_EVENT_MAPPINGS.pinterest || {},
           environment: wizardDraft.configs.pinterest?.environment || "test",
         },
         snapchat: {
@@ -450,7 +450,7 @@ export function PixelMigrationWizard({
           enabled: draftPlatforms.has("snapchat"),
           platformId: wizardDraft.configs.snapchat?.platformId || "",
           credentials: wizardDraft.configs.snapchat?.credentials || {},
-          eventMappings: wizardDraft.configs.snapchat?.eventMappings || DEFAULT_EVENT_MAPPINGS.snapchat,
+          eventMappings: wizardDraft.configs.snapchat?.eventMappings || DEFAULT_EVENT_MAPPINGS.snapchat || {},
           environment: wizardDraft.configs.snapchat?.environment || "test",
         },
       };
@@ -481,7 +481,7 @@ export function PixelMigrationWizard({
           enabled: platform === "google",
           platformId: platform === "google" ? platformId : "",
           credentials: {},
-          eventMappings: DEFAULT_EVENT_MAPPINGS.google,
+          eventMappings: DEFAULT_EVENT_MAPPINGS.google || {},
           environment: "test",
         },
         meta: {
@@ -489,7 +489,7 @@ export function PixelMigrationWizard({
           enabled: platform === "meta",
           platformId: platform === "meta" ? platformId : "",
           credentials: {},
-          eventMappings: DEFAULT_EVENT_MAPPINGS.meta,
+          eventMappings: DEFAULT_EVENT_MAPPINGS.meta || {},
           environment: "test",
         },
         tiktok: {
@@ -497,7 +497,7 @@ export function PixelMigrationWizard({
           enabled: platform === "tiktok",
           platformId: platform === "tiktok" ? platformId : "",
           credentials: {},
-          eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok,
+          eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok || {},
           environment: "test",
         },
         pinterest: {
@@ -505,7 +505,7 @@ export function PixelMigrationWizard({
           enabled: platform === "pinterest",
           platformId: platform === "pinterest" ? platformId : "",
           credentials: {},
-          eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest,
+          eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest || {},
           environment: "test",
         },
         snapchat: {
@@ -513,7 +513,7 @@ export function PixelMigrationWizard({
           enabled: platform === "snapchat",
           platformId: platform === "snapchat" ? platformId : "",
           credentials: {},
-          eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat,
+          eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat || {},
           environment: "test",
         },
       },
@@ -531,47 +531,47 @@ export function PixelMigrationWizard({
     Partial<Record<PlatformType, PlatformConfig>>
   >(() => {
     const initial = draftData?.configs || assetData?.configs;
-    if (initial) return initial;
+    if (initial) return initial as Partial<Record<PlatformType, PlatformConfig>>;
     return {
     google: {
-      platform: "google",
+      platform: "google" as PlatformType,
       enabled: false,
       platformId: "",
       credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.google,
-      environment: "test",
+      eventMappings: DEFAULT_EVENT_MAPPINGS.google || {},
+      environment: "test" as const,
     },
     meta: {
-      platform: "meta",
+      platform: "meta" as PlatformType,
       enabled: false,
       platformId: "",
       credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.meta,
-      environment: "test",
+      eventMappings: DEFAULT_EVENT_MAPPINGS.meta || {},
+      environment: "test" as const,
     },
     tiktok: {
-      platform: "tiktok",
+      platform: "tiktok" as PlatformType,
       enabled: false,
       platformId: "",
       credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok,
-      environment: "test",
+      eventMappings: DEFAULT_EVENT_MAPPINGS.tiktok || {},
+      environment: "test" as const,
     },
     pinterest: {
-      platform: "pinterest",
+      platform: "pinterest" as PlatformType,
       enabled: false,
       platformId: "",
       credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest,
-      environment: "test",
+      eventMappings: DEFAULT_EVENT_MAPPINGS.pinterest || {},
+      environment: "test" as const,
     },
     snapchat: {
-      platform: "snapchat",
+      platform: "snapchat" as PlatformType,
       enabled: false,
       platformId: "",
       credentials: {},
-      eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat,
-      environment: "test",
+      eventMappings: DEFAULT_EVENT_MAPPINGS.snapchat || {},
+      environment: "test" as const,
     },
     };
   });
@@ -691,6 +691,50 @@ const allTemplates: WizardTemplate[] = [
       }
     }
   }, [shopId]);
+
+  const steps: Array<{
+    id: WizardStep;
+    label: string;
+    number: number;
+    description: string;
+    estimatedTime: string;
+  }> = [
+    {
+      id: "select",
+      label: "选择平台",
+      number: 1,
+      description: "选择需要迁移的广告平台",
+      estimatedTime: "1 分钟",
+    },
+    {
+      id: "credentials",
+      label: "填写凭证",
+      number: 2,
+      description: "输入各平台的 API 凭证",
+      estimatedTime: "3-5 分钟",
+    },
+    {
+      id: "mappings",
+      label: "事件映射",
+      number: 3,
+      description: "配置 Shopify 事件到平台事件的映射",
+      estimatedTime: "2-3 分钟",
+    },
+    {
+      id: "review",
+      label: "检查配置",
+      number: 4,
+      description: "检查并确认所有配置信息",
+      estimatedTime: "1-2 分钟",
+    },
+    {
+      id: "testing",
+      label: "测试验证",
+      number: 5,
+      description: "在测试环境中验证配置是否正确",
+      estimatedTime: "2-3 分钟",
+    },
+  ];
 
   useEffect(() => {
     if (wizardDraft && wizardDraft.step !== "select") {
@@ -812,50 +856,6 @@ const allTemplates: WizardTemplate[] = [
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [currentStep, selectedPlatforms, platformConfigs, selectedTemplate, shopId]);
-
-  const steps: Array<{
-    id: WizardStep;
-    label: string;
-    number: number;
-    description: string;
-    estimatedTime: string;
-  }> = [
-    {
-      id: "select",
-      label: "选择平台",
-      number: 1,
-      description: "选择需要迁移的广告平台",
-      estimatedTime: "1 分钟",
-    },
-    {
-      id: "credentials",
-      label: "填写凭证",
-      number: 2,
-      description: "输入各平台的 API 凭证",
-      estimatedTime: "3-5 分钟",
-    },
-    {
-      id: "mappings",
-      label: "事件映射",
-      number: 3,
-      description: "配置 Shopify 事件到平台事件的映射",
-      estimatedTime: "2-3 分钟",
-    },
-    {
-      id: "review",
-      label: "检查配置",
-      number: 4,
-      description: "检查并确认所有配置信息",
-      estimatedTime: "1-2 分钟",
-    },
-    {
-      id: "testing",
-      label: "测试验证",
-      number: 5,
-      description: "在测试环境中验证配置是否正确",
-      estimatedTime: "2-3 分钟",
-    },
-  ];
 
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
@@ -1022,8 +1022,12 @@ const allTemplates: WizardTemplate[] = [
       case "mappings":
         Array.from(selectedPlatforms).forEach((platform) => {
           const config = platformConfigs[platform];
+          if (!config) {
+            errors.push(`${PLATFORM_INFO[platform]?.name || platform}: 配置不存在`);
+            return;
+          }
           if (!config.eventMappings || Object.keys(config.eventMappings).length === 0) {
-            errors.push(`${PLATFORM_INFO[platform].name}: 至少需要配置一个事件映射`);
+            errors.push(`${PLATFORM_INFO[platform]?.name || platform}: 至少需要配置一个事件映射`);
           }
         });
         break;
@@ -1067,6 +1071,9 @@ const allTemplates: WizardTemplate[] = [
 
     const configs = enabledPlatforms.map((platform) => {
       const config = platformConfigs[platform];
+      if (!config) {
+        throw new Error(`配置不存在: ${platform}`);
+      }
       return {
         platform,
         platformId: config.platformId,
@@ -1178,10 +1185,10 @@ const allTemplates: WizardTemplate[] = [
           </InlineStack>
           <ProgressBar progress={progress} tone="primary" size="small" />
           {}
-          <Box
-            paddingBlockStart="300"
-            paddingBlockEnd="200"
+          <div
             style={{
+              paddingBlockStart: "var(--p-space-300)",
+              paddingBlockEnd: "var(--p-space-200)",
               overflowX: "auto",
               WebkitOverflowScrolling: "touch",
             }}
@@ -1194,30 +1201,28 @@ const allTemplates: WizardTemplate[] = [
                   const isUpcoming = index > currentStepIndex;
 
                   return (
-                    <Box
+                    <div
                       key={step.id}
-                      minWidth="100px"
-                      maxWidth="180px"
-                      padding="200"
                       style={{
+                        minWidth: "100px",
+                        maxWidth: "180px",
+                        padding: "var(--p-space-200)",
                         flexShrink: 0,
                         position: "relative",
                       }}
                     >
                       <BlockStack gap="200" align="center">
-                      <Box
-                        background={
-                          isCompleted
-                            ? "bg-fill-success"
-                            : isCurrent
-                              ? "bg-fill-info"
-                              : "bg-surface-secondary"
-                        }
-                        padding="200"
-                        borderRadius="full"
-                        minWidth="36px"
-                        minHeight="36px"
+                      <div
                         style={{
+                          background: isCompleted
+                            ? "var(--p-color-bg-fill-success)"
+                            : isCurrent
+                              ? "var(--p-color-bg-fill-info)"
+                              : "var(--p-color-bg-surface-secondary)",
+                          padding: "var(--p-space-200)",
+                          borderRadius: "9999px",
+                          minWidth: "36px",
+                          minHeight: "36px",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -1233,7 +1238,7 @@ const allTemplates: WizardTemplate[] = [
                           >
                             {isCompleted ? "✓" : String(step.number)}
                           </Text>
-                        </Box>
+                        </div>
                         <BlockStack gap="050" align="center">
                           <Text
                             as="span"
@@ -1258,11 +1263,11 @@ const allTemplates: WizardTemplate[] = [
                       </BlockStack>
                       {}
                       {index < steps.length - 1 && (
-                        <Box
-                          position="absolute"
-                          left="calc(50% + 18px)"
-                          top="18px"
+                        <div
                           style={{
+                            position: "absolute",
+                            left: "calc(50% + 18px)",
+                            top: "18px",
                             width: "calc(100% - 36px)",
                             height: "2px",
                             background: isCompleted
@@ -1272,12 +1277,12 @@ const allTemplates: WizardTemplate[] = [
                           }}
                         />
                       )}
-                    </Box>
+                    </div>
                   );
                 })}
               </InlineStack>
             </Box>
-          </Box>
+          </div>
         </BlockStack>
 
         <Divider />
@@ -1386,6 +1391,7 @@ function SelectPlatformStep({
       <BlockStack gap="300">
         {(Object.keys(PLATFORM_INFO) as PlatformType[]).map((platform) => {
           const info = PLATFORM_INFO[platform];
+          if (!info) return null;
           const isSelected = selectedPlatforms.has(platform);
 
           return (
@@ -1445,7 +1451,7 @@ function SelectPlatformStep({
                           <Badge tone="info">公开</Badge>
                         )}
                         {template.usageCount > 0 && (
-                          <Badge tone="subdued">使用 {template.usageCount} 次</Badge>
+                          <Badge>{`使用 ${String(template.usageCount)} 次`}</Badge>
                         )}
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
@@ -1502,6 +1508,7 @@ function CredentialsStep({
       {Array.from(selectedPlatforms).map((platform) => {
         const config = platformConfigs[platform];
         const info = PLATFORM_INFO[platform];
+        if (!config || !info) return null;
 
         return (
           <Card key={platform}>
@@ -1608,11 +1615,12 @@ function EventMappingsStep({
 
       {Array.from(selectedPlatforms).map((platform) => {
         const config = platformConfigs[platform];
+        if (!config) return null;
 
         return (
           <EventMappingEditor
             key={platform}
-            platform={platform}
+            platform={platform as "google" | "meta" | "tiktok" | "pinterest"}
             mappings={config.eventMappings}
             onMappingChange={(shopifyEvent, platformEvent) =>
               onEventMappingUpdate(platform, shopifyEvent, platformEvent)
@@ -1718,6 +1726,7 @@ function ReviewStep({
       {Array.from(selectedPlatforms).map((platform) => {
         const config = platformConfigs[platform];
         const info = PLATFORM_INFO[platform];
+        if (!config || !info) return null;
         const errors = onValidate(platform);
 
         return (
@@ -1775,8 +1784,8 @@ function ReviewStep({
       {}
       {shopId && Array.from(selectedPlatforms).map((platform) => {
 
-        const existingConfig = pixelConfigs?.find(c => c.platform === platform);
-        const currentVersion = existingConfig?.configVersion || 1;
+        const existingConfig = platformConfigs[platform];
+        const currentVersion = (existingConfig as any)?.configVersion || 1;
 
         return (
           <ConfigVersionManager
@@ -1862,7 +1871,10 @@ function ReviewStep({
               </Text>
               <List type="bullet">
                 <List.Item>平台：{Array.from(selectedPlatforms).map(p => PLATFORM_INFO[p]?.name || p).join(", ")}</List.Item>
-                <List.Item>事件映射：{Array.from(selectedPlatforms).reduce((acc, p) => acc + Object.keys(platformConfigs[p].eventMappings).length, 0)} 个事件</List.Item>
+                <List.Item>事件映射：{Array.from(selectedPlatforms).reduce((acc, p) => {
+                  const config = platformConfigs[p];
+                  return acc + (config?.eventMappings ? Object.keys(config.eventMappings).length : 0);
+                }, 0)} 个事件</List.Item>
               </List>
               <Text as="p" variant="bodySm" tone="subdued">
                 注意：模板不会保存凭证信息，仅保存事件映射配置。
@@ -2051,7 +2063,6 @@ function TestingStep({
     let timer: NodeJS.Timeout | null = null;
 
     if (
-      currentStep === "testing" &&
       allValid &&
       !isSwitchingToLive &&
       !allInTestMode
@@ -2067,7 +2078,7 @@ function TestingStep({
         clearTimeout(timer);
       }
     };
-  }, [currentStep, validationResults, isSwitchingToLive, allInTestMode, handleGoToVerification, showSuccess]);
+  }, [validationResults, isSwitchingToLive, allInTestMode, handleGoToVerification, showSuccess]);
 
   return (
     <BlockStack gap="400">
@@ -2138,7 +2149,7 @@ function TestingStep({
                             tone={result.valid ? "success" : "critical"}
                           />
                           <Text as="span" fontWeight="semibold">
-                            {PLATFORM_INFO[platform].name}: {result.message}
+                            {PLATFORM_INFO[platform]?.name || platform}: {result.message}
                           </Text>
                         </InlineStack>
                         {result.details && (
