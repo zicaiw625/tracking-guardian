@@ -71,6 +71,16 @@ export default defineConfig({
     sourcemap: process.env.NODE_ENV !== "production",
     rollupOptions: {
       external: ["html-pdf-node", "archiver"],
+      onwarn(warning, warn) {
+        // 抑制 JSON 导入属性不一致的警告（来自 @shopify/shopify-app-remix 依赖）
+        if (
+          warning.code === "INCONSISTENT_IMPORT_ATTRIBUTES" &&
+          warning.message?.includes("en.json")
+        ) {
+          return;
+        }
+        warn(warning);
+      },
       output: {
         manualChunks: (id) => {
 
