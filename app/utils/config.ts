@@ -1,4 +1,16 @@
-import { logger } from "./logger.server";
+// Use console for logging to avoid server-only module imports
+// These functions are safe to use in both client and server contexts
+function logWarn(message: string) {
+  console.warn(message);
+}
+
+function logInfo(message: string) {
+  console.info(message);
+}
+
+function logError(message: string) {
+  console.error(message);
+}
 
 interface EnvConfig {
     DATABASE_URL: string;
@@ -76,12 +88,12 @@ export const RETRY_CONFIG = {
 } as const;
 
 function getRetentionDays(envKey: string, defaultValue: number, minValue?: number): number {
-    const envValue = process.env[envKey];
+    const envValue = typeof process !== 'undefined' ? process.env[envKey] : undefined;
     if (!envValue) return defaultValue;
     const parsed = parseInt(envValue, 10);
     if (isNaN(parsed)) return defaultValue;
     if (minValue !== undefined && parsed < minValue) {
-        logger.warn(`[P2-03] ${envKey}=${parsed} is below minimum ${minValue}, using minimum`);
+        logWarn(`[P2-03] ${envKey}=${parsed} is below minimum ${minValue}, using minimum`);
         return minValue;
     }
     return parsed;
@@ -480,28 +492,28 @@ export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; sou
 export function logConfigStatus(): void {
     const result = validateConfig();
 
-    logger.info("\n=== Configuration Status ===");
-    logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
+    logInfo("\n=== Configuration Status ===");
+    logInfo(`Environment: ${typeof process !== 'undefined' ? (process.env.NODE_ENV || "development") : "unknown"}`);
     
     if (result.errors.length > 0) {
-        logger.error("\n❌ Configuration Errors:");
+        logError("\n❌ Configuration Errors:");
         for (const error of result.errors) {
-            logger.error(`   - ${error}`);
+            logError(`   - ${error}`);
         }
     }
     
     if (result.warnings.length > 0) {
-        logger.warn("\n⚠️ Configuration Warnings:");
+        logWarn("\n⚠️ Configuration Warnings:");
         for (const warning of result.warnings) {
-            logger.warn(`   - ${warning}`);
+            logWarn(`   - ${warning}`);
         }
     }
     
     if (result.valid && result.warnings.length === 0) {
-        logger.info("\n✅ All configuration checks passed");
+        logInfo("\n✅ All configuration checks passed");
     }
 
-    logger.info("============================\n");
+    logInfo("============================\n");
     if (!result.valid && isProduction()) {
         throw new Error("Invalid configuration - cannot start in production");
     }

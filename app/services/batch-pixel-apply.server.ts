@@ -511,9 +511,10 @@ async function applyTemplateToShop(
           if (existingConfig) {
             await prisma.pixelConfig.update({
               where: { id: existingConfig.id },
-            data: updateData,
-          });
-          appliedPlatforms.push(platformConfig.platform);
+              data: updateData,
+            });
+            appliedPlatforms.push(platformConfig.platform);
+          }
         }
       } else {
         const createData: {

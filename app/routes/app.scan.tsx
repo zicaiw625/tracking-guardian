@@ -1507,7 +1507,7 @@ export default function ScanPage() {
                 showError("请至少选择一个平台或功能");
             }
         } catch (error) {
-            logger.error("Failed to process manual input", error);
+            console.error("Failed to process manual input", error);
             showError("处理失败，请稍后重试");
         }
     }, [shop, showSuccess, showError, submit]);
