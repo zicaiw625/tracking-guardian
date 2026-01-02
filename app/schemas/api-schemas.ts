@@ -13,7 +13,6 @@ export const ShopDomainSchema = z
     "Invalid Shopify domain format"
   );
 
-
 export { OrderIdSchema };
 
 export const CheckoutTokenSchema = z
@@ -193,7 +192,7 @@ export const EmailAlertSettingsSchema = z.object({
 
 export const SlackAlertSettingsSchema = z.object({
   type: z.literal("slack"),
-  webhookUrl: z.string().url().startsWith("https://", "Webhook URL 必须使用 HTTPS")
+  webhookUrl: z.string().url().startsWith("https:
 });
 
 export const TelegramAlertSettingsSchema = z.object({

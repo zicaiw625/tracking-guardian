@@ -197,7 +197,7 @@ export function UpgradeWizardGuide({
 
               <Box paddingBlockStart="400">
                 <Link
-                  url="https://help.shopify.com"
+                  url="https:
                   external
                 >
                   <InlineStack gap="200" align="center">
@@ -289,64 +289,5 @@ export function UpgradeWizardGuide({
                           <Box>
                             <input
                               type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file && onUploadScreenshot) {
-                                  onUploadScreenshot(file);
-                                  onClose();
-                                }
-                              }}
-                            />
-                          </Box>
-                        </BlockStack>
-                      </InlineStack>
-                    </BlockStack>
-                  </Card>
-                )}
-              </BlockStack>
-            </BlockStack>
-          )}
-
-          {step === 3 && (
-            <BlockStack gap="400">
-              <Text as="h3" variant="headingMd">
-                粘贴清单内容
-              </Text>
-              <Text as="p" variant="bodySm" tone="subdued">
-                将从 Shopify 升级向导中复制的脚本清单或代码片段粘贴到下方
-              </Text>
-
-              <TextField
-                label=""
-                value={pastedContent}
-                onChange={setPastedContent}
-                multiline={10}
-                placeholder="请粘贴脚本清单或代码片段..."
-                helpText="支持粘贴脚本 URL、代码片段或平台名称列表"
-              />
-
-              <Banner tone="info">
-                <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    粘贴内容示例：
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    • 脚本 URL 列表（如：https:
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    • 代码片段（如：fbq('init', '1234567890')）
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    • 平台名称列表（如：Google Analytics, Meta Pixel）
-                  </Text>
-                </BlockStack>
-              </Banner>
-            </BlockStack>
-          )}
-        </BlockStack>
-      </Modal.Section>
-    </Modal>
-  );
-}
+                              accept="image
 

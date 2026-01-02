@@ -11,7 +11,7 @@ const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
 const getAppUrl = (): string => {
-    return process.env.SHOPIFY_APP_URL || "https://example.com";
+    return process.env.SHOPIFY_APP_URL || "https:
 };
 const getEmailSender = (): string => {
     return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";
@@ -30,7 +30,7 @@ function getDecryptedSettings(config: AlertConfigWithEncryption): Record<string,
     }
     if (config.settings && typeof config.settings === "object") {
         logger.warn(`[P0-2] Using legacy plain settings for alert config - migration needed`);
-        
+
         if (typeof config.settings === "object" && config.settings !== null && !Array.isArray(config.settings)) {
             return config.settings as Record<string, unknown>;
         }
@@ -233,7 +233,7 @@ async function sendTelegramAlert(settings: TelegramAlertSettings, data: AlertDat
 
 请及时检查追踪配置！
   `.trim();
-    const response = await fetch(`https://api.telegram.org/bot${settings.botToken}/sendMessage`, {
+    const response = await fetch(`https:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

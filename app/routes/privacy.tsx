@@ -14,7 +14,6 @@ import {
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 
-
 const i18n = (translations as any).default ?? translations;
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];

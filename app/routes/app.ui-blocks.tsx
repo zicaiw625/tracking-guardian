@@ -602,7 +602,7 @@ function HelpdeskSettingsForm({
             }}
             error={errors.messengerUrl}
             autoComplete="off"
-            placeholder="https://m.me/your-page"
+            placeholder="https:
             helpText="Facebook Messenger 联系链接（可选）"
           />
         </FormLayout.Group>
@@ -1212,7 +1212,7 @@ export default function UiBlocksPage() {
               </List>
             </BlockStack>
             <Button
-              url="https://help.shopify.com"
+              url="https:
               variant="plain"
               size="slim"
               external

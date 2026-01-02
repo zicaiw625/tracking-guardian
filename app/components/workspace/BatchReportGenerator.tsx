@@ -181,7 +181,7 @@ export function BatchReportGenerator({
             onChange={(value) =>
               setWhiteLabel((prev) => ({ ...prev, logoUrl: value || undefined }))
             }
-            placeholder="https://example.com/logo.png"
+            placeholder="https:
             helpText="Logo 图片 URL（将显示在报告头部）"
           />
           <TextField

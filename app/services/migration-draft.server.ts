@@ -45,11 +45,11 @@ export async function saveMigrationDraft(
     logger.info("Migration draft saved", { shopId, step, draftId: draft.id });
     return { success: true, id: draft.id };
   } catch (error: unknown) {
-    
+
     if (error && typeof error === "object" && "code" in error) {
       const prismaError = error as { code: string; meta?: { table?: string } };
       if (prismaError.code === "P2022" || prismaError.code === "P2021") {
-        
+
         logger.warn("MigrationDraft table not found, migration may be pending", { shopId, step, code: prismaError.code });
         return {
           success: false,
@@ -91,11 +91,11 @@ export async function getMigrationDraft(
       configData: draft.configData as unknown as MigrationDraftData,
     };
   } catch (error: unknown) {
-    
+
     if (error && typeof error === "object" && "code" in error) {
       const prismaError = error as { code: string; meta?: { table?: string } };
       if (prismaError.code === "P2022" || prismaError.code === "P2021") {
-        
+
         logger.warn("MigrationDraft table not found, migration may be pending", { shopId, code: prismaError.code });
         return null;
       }

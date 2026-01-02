@@ -46,7 +46,6 @@ interface AnalysisResult {
   };
 }
 
-
 export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelProps) {
   const [scriptContent, setScriptContent] = useState("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);

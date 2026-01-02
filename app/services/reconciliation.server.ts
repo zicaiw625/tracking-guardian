@@ -87,7 +87,7 @@ async function getShopifyOrderStats(shopDomain: string, accessToken: string | nu
         } | null;
         errors?: unknown[];
     }> {
-        const response = await fetch(`https://${shopDomain}/admin/api/2025-01/graphql.json`, {
+        const response = await fetch(`https:
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -254,7 +254,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
         if (matchingAlerts.length > 0) {
             for (const alertConfig of matchingAlerts) {
                 try {
-                    
+
                     const channel = alertConfig.channel as AlertChannel;
                     const settingsValidation = validateAlertSettings(
                         channel,

@@ -45,7 +45,6 @@ export interface DeduplicationMetrics {
   }>;
 }
 
-
 export async function collectEventSuccessRate(
   shopId: string,
   startDate: Date,
@@ -83,7 +82,6 @@ export async function collectEventSuccessRate(
         metrics.failed++;
       }
 
-      
       const dest = event.destinationType || "unknown";
       if (!metrics.byDestination[dest]) {
         metrics.byDestination[dest] = {
@@ -100,7 +98,6 @@ export async function collectEventSuccessRate(
         metrics.byDestination[dest].failed++;
       }
 
-      
       const eventType = event.eventName;
       if (!metrics.byEventType[eventType]) {
         metrics.byEventType[eventType] = {
@@ -118,12 +115,10 @@ export async function collectEventSuccessRate(
       }
     }
 
-    
     if (metrics.total > 0) {
       metrics.successRate = (metrics.success / metrics.total) * 100;
     }
 
-    
     for (const dest in metrics.byDestination) {
       const destMetrics = metrics.byDestination[dest];
       if (destMetrics.total > 0) {
@@ -131,7 +126,6 @@ export async function collectEventSuccessRate(
       }
     }
 
-    
     for (const eventType in metrics.byEventType) {
       const typeMetrics = metrics.byEventType[eventType];
       if (typeMetrics.total > 0) {
@@ -148,7 +142,6 @@ export async function collectEventSuccessRate(
     throw error;
   }
 }
-
 
 export async function collectMissingParamsMetrics(
   shopId: string,
@@ -216,7 +209,6 @@ export async function collectMissingParamsMetrics(
       }
     }
 
-    
     if (metrics.total > 0) {
       metrics.missingRate.value = (metrics.missingValue / metrics.total) * 100;
       metrics.missingRate.currency = (metrics.missingCurrency / metrics.total) * 100;
@@ -232,7 +224,6 @@ export async function collectMissingParamsMetrics(
     throw error;
   }
 }
-
 
 export async function collectDeduplicationMetrics(
   shopId: string,
@@ -262,13 +253,11 @@ export async function collectDeduplicationMetrics(
       byDestination: {},
     };
 
-    
     for (const event of events) {
       if (event.errorCode === "deduplicated") {
         metrics.duplicated++;
       }
 
-      
       const dest = event.destinationType || "unknown";
       if (!metrics.byDestination[dest]) {
         metrics.byDestination[dest] = {
@@ -283,12 +272,10 @@ export async function collectDeduplicationMetrics(
       }
     }
 
-    
     if (metrics.total > 0) {
       metrics.duplicationRate = (metrics.duplicated / metrics.total) * 100;
     }
 
-    
     for (const dest in metrics.byDestination) {
       const destMetrics = metrics.byDestination[dest];
       if (destMetrics.total > 0) {
@@ -305,7 +292,6 @@ export async function collectDeduplicationMetrics(
     throw error;
   }
 }
-
 
 export async function collectEventVolumeAnomaly(
   shopId: string,
@@ -344,7 +330,6 @@ export async function collectEventVolumeAnomaly(
         ? ((currentEvents - previousEvents) / previousEvents) * 100
         : 0;
 
-    
     const isAnomaly = changeRate < -50;
 
     return {

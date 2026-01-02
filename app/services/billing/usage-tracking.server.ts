@@ -27,7 +27,6 @@ export interface UsageTracking {
   };
 }
 
-
 export async function getUsageTracking(
   shopId: string,
   planId: PlanId
@@ -37,7 +36,7 @@ export async function getUsageTracking(
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [pixelConfigs, uiModules, eventLogs, conversionLogs] = await Promise.all([
-      
+
       prisma.pixelConfig.count({
         where: {
           shopId,
@@ -45,7 +44,6 @@ export async function getUsageTracking(
         },
       }),
 
-      
       prisma.uiExtensionSetting.count({
         where: {
           shopId,
@@ -53,7 +51,6 @@ export async function getUsageTracking(
         },
       }),
 
-      
       prisma.eventLog.count({
         where: {
           shopId,
@@ -63,7 +60,6 @@ export async function getUsageTracking(
         },
       }),
 
-      
       prisma.conversionLog.findMany({
         where: {
           shopId,
@@ -81,13 +77,12 @@ export async function getUsageTracking(
 
     const monthlyOrders = new Set(conversionLogs.map((log) => log.orderId)).size;
 
-    
     const { getPixelDestinationsLimit, getUiModulesLimit, getPlanLimit } = await import("./plans");
 
     const pixelLimit = getPixelDestinationsLimit(planId);
     const uiLimit = getUiModulesLimit(planId);
     const orderLimit = getPlanLimit(planId);
-    const eventLimit = -1; 
+    const eventLimit = -1;
 
     return {
       pixelDestinations: {
@@ -120,7 +115,6 @@ export async function getUsageTracking(
     throw error;
   }
 }
-
 
 export async function checkUsageApproachingLimit(
   shopId: string,

@@ -7,8 +7,8 @@ export type MigrationStage = "audit" | "pixel_test" | "verification" | "live" | 
 export interface UpgradeStatus {
   isUpgraded: boolean;
   shopTier: "plus" | "non_plus" | "unknown";
-  deadlineDate: string; 
-  autoUpgradeStartDate?: string; 
+  deadlineDate: string;
+  autoUpgradeStartDate?: string;
   daysRemaining: number;
   urgency: "critical" | "high" | "medium" | "low" | "resolved";
 }
@@ -51,11 +51,10 @@ export interface DashboardData {
   estimatedMigrationTimeMinutes?: number;
   showOnboarding?: boolean;
 
-  
   upgradeStatus?: UpgradeStatus;
   migrationProgress?: MigrationProgress;
-  riskScore?: number | null; 
-  riskLevel?: "high" | "medium" | "low" | null; 
+  riskScore?: number | null;
+  riskLevel?: "high" | "medium" | "low" | null;
 
   migrationChecklist?: {
     totalItems: number;

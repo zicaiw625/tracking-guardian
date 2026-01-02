@@ -80,7 +80,7 @@ export function RealtimeEventMonitor({
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const isPausedRef = useRef(isPaused);
-  
+
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
@@ -128,18 +128,18 @@ export function RealtimeEventMonitor({
             return [data, ...prev].slice(0, 200);
           });
         } catch (err) {
-          
+
           if (process.env.NODE_ENV === "development") {
-            
+
             console.error("Failed to parse event data:", err);
           }
         }
       };
 
       eventSource.onerror = (err) => {
-        
+
         if (process.env.NODE_ENV === "development") {
-          
+
           console.error("SSE error:", err);
         }
         setIsConnected(false);
@@ -151,9 +151,9 @@ export function RealtimeEventMonitor({
     } catch (err) {
       setError("无法建立连接");
       showError("无法建立实时监控连接");
-      
+
       if (process.env.NODE_ENV === "development") {
-        
+
         console.error("SSE connection error:", err);
       }
     }
@@ -175,8 +175,8 @@ export function RealtimeEventMonitor({
     return () => {
       disconnect();
     };
-    
-  }, [autoStart, shopId, platforms]); 
+
+  }, [autoStart, shopId, platforms]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {

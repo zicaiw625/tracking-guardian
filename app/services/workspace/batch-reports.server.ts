@@ -23,9 +23,8 @@ export interface BatchReportResult {
     reportUrl?: string;
     error?: string;
   }>;
-  downloadUrl?: string; 
+  downloadUrl?: string;
 }
-
 
 export async function generateBatchReports(
   options: BatchReportOptions
@@ -40,7 +39,6 @@ export async function generateBatchReports(
     format: options.format,
   });
 
-  
   const processPromises = options.shopIds.map(async (shopId) => {
     try {
       const shop = await prisma.shop.findUnique({
@@ -58,7 +56,6 @@ export async function generateBatchReports(
         return;
       }
 
-      
       const reportData = await generateVerificationReportData(shopId);
 
       if (!reportData) {
@@ -71,12 +68,6 @@ export async function generateBatchReports(
         return;
       }
 
-      
-      
-      
-      
-      
-      
       const reportUrl = `/api/reports/${shopId}?format=${options.format}`;
 
       results.push({
@@ -105,7 +96,6 @@ export async function generateBatchReports(
     }
   });
 
-  
   await Promise.allSettled(processPromises);
 
   return {

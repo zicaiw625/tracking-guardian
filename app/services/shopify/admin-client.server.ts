@@ -130,7 +130,7 @@ function createEnhancedGraphQLClient(
   accessToken: string,
   apiVersion: ApiVersion = ApiVersion.July25
 ): GraphQLClient {
-  const apiUrl = `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`;
+  const apiUrl = `https:
 
   return {
     async graphql(

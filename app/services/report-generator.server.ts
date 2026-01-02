@@ -1399,7 +1399,7 @@ export function generateMigrationReportHtml(data: MigrationReportData): string {
 </head>
 <body>
   <h1>🚀 迁移报告 - ${data.shopDomain}</h1>
-  
+
   <div class="metadata">
     <p><strong>生成时间:</strong> ${timestamp}</p>
     <p><strong>报告类型:</strong> ${data.reportType}</p>

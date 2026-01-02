@@ -54,9 +54,9 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
         return;
       }
     } catch (error) {
-      
+
       if (process.env.NODE_ENV === "development") {
-        
+
         console.error("File upload error:", error);
       }
       showError("文件处理失败，请稍后重试。");
@@ -145,9 +145,9 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
         showError("未能识别到有效的平台或脚本项。请检查文件格式。");
       }
     } catch (error) {
-      
+
       if (process.env.NODE_ENV === "development") {
-        
+
         console.error("Parse error:", error);
       }
       showError("解析文件失败，请稍后重试。");

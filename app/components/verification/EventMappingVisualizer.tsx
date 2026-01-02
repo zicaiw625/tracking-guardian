@@ -28,7 +28,6 @@ export function EventMappingVisualizer({
 }: EventMappingVisualizerProps) {
   const [expandedPlatforms, setExpandedPlatforms] = useState<Record<string, boolean>>({});
 
-  
   const canonicalEvent = normalizeEvent(shopifyEvent);
 
   const togglePlatform = (platform: string) => {

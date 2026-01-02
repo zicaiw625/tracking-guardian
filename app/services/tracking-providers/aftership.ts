@@ -73,8 +73,8 @@ export class AfterShipProvider implements ITrackingProvider {
 
   private apiKey: string = "";
   private webhookSecret: string = "";
-  
-  private baseUrl = "https://api.aftership.com/tracking/2025-07";
+
+  private baseUrl = "https:
 
   async initialize(credentials: TrackingProviderCredentials): Promise<void> {
     this.apiKey = credentials.apiKey;
@@ -89,7 +89,7 @@ export class AfterShipProvider implements ITrackingProvider {
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
-      
+
       "as-api-key": this.apiKey,
       "Content-Type": "application/json",
     };
@@ -114,8 +114,7 @@ export class AfterShipProvider implements ITrackingProvider {
     carrier?: string
   ): Promise<TrackingResult | TrackingError> {
     try {
-      
-      
+
       const url = new URL(`${this.baseUrl}/trackings`);
       url.searchParams.append("tracking_numbers", trackingNumber);
       if (carrier) {
@@ -135,8 +134,7 @@ export class AfterShipProvider implements ITrackingProvider {
       }
 
       const data = (await response.json()) as AfterShipApiResponse<{ trackings: AfterShipTracking[] }>;
-      
-      
+
       if (data.meta.code !== 200 && data.meta.code !== 201) {
         throw new Error(`AfterShip API error: ${data.meta.message}`);
       }
@@ -295,7 +293,7 @@ export class AfterShipProvider implements ITrackingProvider {
   }
 
   private transformTracking(tracking: AfterShipTracking): TrackingResult {
-    
+
     const rawData: Record<string, unknown> = {
       id: tracking.id,
       tracking_number: tracking.tracking_number,

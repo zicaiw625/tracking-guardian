@@ -42,48 +42,43 @@ async function calculateHealthScore(
 
   const factors: { label: string; value: number; weight: number }[] = [];
 
-  
   const avgDiscrepancy =
     recentReports.reduce((sum, r) => sum + r.orderDiscrepancy, 0) / recentReports.length;
-  const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500)); 
+  const discrepancyScore = Math.max(0, 100 - (avgDiscrepancy * 500));
   factors.push({ label: "对账一致性", value: discrepancyScore, weight: 0.4 });
 
-  
   try {
-    const stats = await getEventMonitoringStats(shopId, 24 * 7); 
+    const stats = await getEventMonitoringStats(shopId, 24 * 7);
     const successRateScore = stats.successRate || 0;
     factors.push({ label: "事件成功率", value: successRateScore, weight: 0.3 });
   } catch (error) {
     logger.warn("Failed to get event monitoring stats for health score", { shopId, error });
-    factors.push({ label: "事件成功率", value: 100, weight: 0.3 }); 
+    factors.push({ label: "事件成功率", value: 100, weight: 0.3 });
   }
 
-  
   try {
     const missingParamsRate = await getMissingParamsRate(shopId, 24 * 7);
     const completenessScore = 100 - (missingParamsRate || 0);
     factors.push({ label: "参数完整性", value: Math.max(0, completenessScore), weight: 0.2 });
   } catch (error) {
     logger.warn("Failed to get missing params rate for health score", { shopId, error });
-    factors.push({ label: "参数完整性", value: 100, weight: 0.2 }); 
+    factors.push({ label: "参数完整性", value: 100, weight: 0.2 });
   }
 
-  
   try {
     const volumeStats = await getEventVolumeStats(shopId);
     let volumeScore = 100;
     if (volumeStats.isDrop && Math.abs(volumeStats.changePercent || 0) > 50) {
-      volumeScore = 50; 
+      volumeScore = 50;
     } else if (volumeStats.isDrop && Math.abs(volumeStats.changePercent || 0) > 30) {
-      volumeScore = 75; 
+      volumeScore = 75;
     }
     factors.push({ label: "事件量稳定性", value: volumeScore, weight: 0.1 });
   } catch (error) {
     logger.warn("Failed to get event volume stats for health score", { shopId, error });
-    factors.push({ label: "事件量稳定性", value: 100, weight: 0.1 }); 
+    factors.push({ label: "事件量稳定性", value: 100, weight: 0.1 });
   }
 
-  
   const totalScore = factors.reduce((sum, factor) => sum + (factor.value * factor.weight), 0);
   const roundedScore = Math.round(totalScore);
 
@@ -271,13 +266,12 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     }
   }
 
-  
   const shopTier = (shop.shopTier as "plus" | "non_plus" | "unknown") || "unknown";
   const tierInfo = getTierDisplayInfo(shopTier);
   const deadlineDate = new Date(tierInfo.deadlineDate);
   const now = new Date();
   const daysRemaining = Math.max(0, Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-  
+
   let urgency: UpgradeStatus["urgency"] = "low";
   if (daysRemaining <= 0) {
     urgency = "critical";
@@ -289,7 +283,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     urgency = "resolved";
   }
 
-  
   const autoUpgradeStartDate = shopTier === "plus" ? "2026-01" : undefined;
 
   const upgradeStatus: UpgradeStatus = {
@@ -301,7 +294,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     urgency,
   };
 
-  
   let migrationProgress;
   try {
     migrationProgress = await calculateMigrationProgress(shop.id);
@@ -309,7 +301,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     logger.error("Failed to calculate migration progress", { shopId: shop.id, error });
   }
 
-  
   const riskScore = latestScan?.riskScore ?? null;
   let riskLevel: "high" | "medium" | "low" | null = null;
   if (riskScore !== null) {
@@ -349,7 +340,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     typOspPagesEnabled: shop.typOspPagesEnabled ?? false,
     estimatedMigrationTimeMinutes,
     showOnboarding,
-    
+
     upgradeStatus,
     migrationProgress,
     riskScore,

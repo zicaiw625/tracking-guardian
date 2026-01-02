@@ -63,9 +63,9 @@ export function TestOrderGuide({
       setCopiedItem(itemId);
       setTimeout(() => setCopiedItem(null), 2000);
     } catch (error) {
-      
+
       if (process.env.NODE_ENV === "development") {
-        
+
         console.error("Failed to copy:", error);
       }
     }
@@ -131,7 +131,7 @@ export function TestOrderGuide({
     }
   }, [fetcher.data, onTestComplete]);
 
-  const testStoreUrl = `https://${shopDomain}`;
+  const testStoreUrl = `https:
   const testCheckoutUrl = `${testStoreUrl}/checkout/test`;
 
   return (

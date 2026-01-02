@@ -8,7 +8,6 @@ import type { OrderWebhookPayload } from "../../types";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
 import type { Prisma } from "@prisma/client";
 
-
 export async function handleOrdersCancelled(
   context: WebhookContext,
   shopRecord: ShopWithPixelConfigs | null
@@ -46,7 +45,6 @@ export async function handleOrdersCancelled(
     `Processing ORDERS_CANCELLED webhook for shop ${context.shop}, order ${orderId}`
   );
 
-  
   try {
     await prisma.eventLog.create({
       data: {
@@ -72,7 +70,6 @@ export async function handleOrdersCancelled(
     orderId,
   };
 }
-
 
 export async function handleOrdersUpdated(
   context: WebhookContext,
@@ -111,7 +108,6 @@ export async function handleOrdersUpdated(
     `Processing ORDERS_UPDATED webhook for shop ${context.shop}, order ${orderId}`
   );
 
-  
   try {
     await prisma.eventLog.create({
       data: {
@@ -138,7 +134,6 @@ export async function handleOrdersUpdated(
   };
 }
 
-
 export async function handleRefundsCreate(
   context: WebhookContext,
   shopRecord: ShopWithPixelConfigs | null
@@ -161,7 +156,6 @@ export async function handleRefundsCreate(
     };
   }
 
-  
   const refundPayload = context.payload as {
     id?: number | string;
     order_id?: number | string;
@@ -188,7 +182,6 @@ export async function handleRefundsCreate(
     `Processing REFUNDS_CREATE webhook for shop ${context.shop}, order ${orderId}`
   );
 
-  
   try {
     await prisma.eventLog.create({
       data: {

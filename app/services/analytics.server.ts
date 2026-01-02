@@ -1,6 +1,5 @@
 
 
-
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
 
@@ -24,14 +23,10 @@ export interface AnalyticsEventData {
   timestamp?: Date;
 }
 
-
 export async function trackEvent(data: AnalyticsEventData): Promise<void> {
   try {
     const timestamp = data.timestamp || new Date();
-    
-    
-    
-    
+
     logger.info("[Analytics] Track event", {
       shopId: data.shopId,
       shopDomain: data.shopDomain,
@@ -40,8 +35,6 @@ export async function trackEvent(data: AnalyticsEventData): Promise<void> {
       timestamp: timestamp.toISOString(),
     });
 
-    
-    
   } catch (error) {
     logger.error("[Analytics] Failed to track event", {
       error: error instanceof Error ? error.message : String(error),
@@ -51,12 +44,11 @@ export async function trackEvent(data: AnalyticsEventData): Promise<void> {
   }
 }
 
-
 export interface ActivationStatus {
-  d1: boolean; 
-  d2: boolean; 
-  d3: boolean; 
-  d7: boolean; 
+  d1: boolean;
+  d2: boolean;
+  d3: boolean;
+  d7: boolean;
 }
 
 export async function getActivationStatus(shopId: string): Promise<ActivationStatus> {
@@ -100,9 +92,7 @@ export async function getActivationStatus(shopId: string): Promise<ActivationSta
   const hasCompletedVerification = (shop?._count?.verificationRuns || 0) > 0;
   const d3 = hasLiveDestination && hasCompletedVerification;
 
-  
-  
-  const d7 = false; 
+  const d7 = false;
 
   return {
     d1: hasCompletedAudit,

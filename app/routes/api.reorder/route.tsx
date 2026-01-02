@@ -11,19 +11,17 @@ import prisma from "../../db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    return optionsResponse(request, true); 
+    return optionsResponse(request, true);
   }
   return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
 };
 
-
 const reorderRateLimit = withRateLimit({
   maxRequests: 60,
-  windowMs: 60 * 1000, 
+  windowMs: 60 * 1000,
   keyExtractor: pathShopKeyExtractor,
   message: "Too many reorder requests",
 });
-
 
 const cachedLoader = withConditionalCache(
   reorderRateLimit(async ({ request }: LoaderFunctionArgs) => {
@@ -44,9 +42,9 @@ const cachedLoader = withConditionalCache(
         return null;
       }
     },
-    ttl: TTL.SHORT, 
+    ttl: TTL.SHORT,
     shouldCache: (result) => {
-      
+
       if (result instanceof Response) {
         return result.status === 200;
       }
@@ -73,34 +71,30 @@ async function loaderImpl(request: Request) {
 
     const apiSecret = getShopifyApiSecret();
     const expectedAud = process.env.SHOPIFY_API_KEY;
-    
+
     if (!expectedAud) {
       logger.error("SHOPIFY_API_KEY not configured");
       return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
     }
 
-    
     const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
-    
+
     if (!jwtResult.valid || !jwtResult.shopDomain) {
       logger.warn(`JWT verification failed: ${jwtResult.error}`);
       return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401, request, staticCors: true });
     }
 
     const shopDomain = jwtResult.shopDomain;
-    
-    
+
     const customerGidFromToken = jwtResult.payload?.sub || null;
 
-    
     const admin = await createAdminClientForShop(shopDomain);
-    
+
     if (!admin) {
       logger.warn(`Failed to create admin client for shop ${shopDomain}`);
       return jsonWithCors({ error: "Failed to authenticate admin" }, { status: 401, request, staticCors: true });
     }
 
-    
     const orderResponse = await admin.graphql(`
       query GetOrderLineItems($id: ID!) {
         order(id: $id) {
@@ -127,18 +121,16 @@ async function loaderImpl(request: Request) {
     });
 
     const orderData = await orderResponse.json();
-    
+
     if (!orderData.data?.order) {
-      
-      
-      
+
       logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
       return jsonWithCors(
         {
           success: false,
           error: "Order not found",
           message: "订单正在生成，请稍后重试",
-          retryAfter: 2, 
+          retryAfter: 2,
         },
         {
           status: 202,
@@ -150,20 +142,17 @@ async function loaderImpl(request: Request) {
         }
       );
     }
-    
-    
-    
+
     const orderCustomerId = orderData.data.order.customer?.id || null;
     if (customerGidFromToken && orderCustomerId) {
-      
-      const tokenCustomerId = customerGidFromToken.includes("/") 
-        ? customerGidFromToken.split("/").pop() 
+
+      const tokenCustomerId = customerGidFromToken.includes("/")
+        ? customerGidFromToken.split("/").pop()
         : customerGidFromToken;
-      const orderCustomerIdNum = orderCustomerId.includes("/") 
-        ? orderCustomerId.split("/").pop() 
+      const orderCustomerIdNum = orderCustomerId.includes("/")
+        ? orderCustomerId.split("/").pop()
         : orderCustomerId;
-      
-      
+
       if (tokenCustomerId !== orderCustomerIdNum) {
         logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
           tokenCustomerId: tokenCustomerId,
@@ -172,18 +161,16 @@ async function loaderImpl(request: Request) {
         return jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true });
       }
     }
-    
-    
+
     logger.info(`Reorder URL requested for orderId: ${orderId}, shop: ${shopDomain}`);
 
     const lineItems = orderData.data.order.lineItems.edges || [];
-    
-    
+
     const relativeUrl = (() => {
       if (lineItems.length === 0) {
         return "/cart";
       }
-      
+
       const items = lineItems
         .map((edge: { node: { variant: { id: string }; quantity: number } }) => {
           const variantId = edge.node.variant?.id || "";
@@ -195,32 +182,30 @@ async function loaderImpl(request: Request) {
 
       return items ? `/cart/${items}` : "/cart";
     })();
-    
-    
-    
+
     let reorderUrl = relativeUrl;
     try {
       const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: { primaryDomain: true, storefrontDomains: true },
       });
-      
+
       if (shop?.primaryDomain) {
-        
-        const baseUrl = shop.primaryDomain.startsWith("http") 
-          ? shop.primaryDomain 
-          : `https://${shop.primaryDomain}`;
+
+        const baseUrl = shop.primaryDomain.startsWith("http")
+          ? shop.primaryDomain
+          : `https:
         reorderUrl = `${baseUrl}${relativeUrl}`;
       } else if (shop?.storefrontDomains && shop.storefrontDomains.length > 0) {
-        
+
         const baseUrl = shop.storefrontDomains[0].startsWith("http")
           ? shop.storefrontDomains[0]
-          : `https://${shop.storefrontDomains[0]}`;
+          : `https:
         reorderUrl = `${baseUrl}${relativeUrl}`;
       }
-      
+
     } catch (error) {
-      
+
       logger.warn("Failed to fetch shop domain for reorder URL, using relative path", {
         shopDomain,
         error: error instanceof Error ? error.message : String(error),

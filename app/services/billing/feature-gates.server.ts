@@ -84,12 +84,11 @@ export function checkFeatureAccess(
   shopPlan: PlanId,
   feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit"
 ): FeatureGateResult {
-  
+
   if (feature === "audit") {
     return { allowed: true };
   }
 
-  
   if (feature === "pixel_migration" || feature === "ui_modules") {
     const hasAccess = isPlanAtLeast(shopPlan, "starter");
     if (!hasAccess) {
@@ -128,7 +127,7 @@ export function checkFeatureAccess(
 function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit"): string {
   switch (feature) {
     case "audit":
-      return "Free"; 
+      return "Free";
     case "pixel_migration":
     case "ui_modules":
     case "verification":

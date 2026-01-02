@@ -10,7 +10,7 @@ export const AlertSlackSchema = z.object({
   webhookUrl: z
     .string()
     .url("请输入有效的 URL")
-    .startsWith("https://", "Webhook URL 必须使用 HTTPS")
+    .startsWith("https:
 });
 
 export const AlertTelegramSchema = z.object({
@@ -165,7 +165,7 @@ export type PixelConfigV1 = z.infer<typeof PixelConfigSchemaV1>;
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfigV1 = {
   schema_version: "1",
-  
+
   mode: "full_funnel",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",

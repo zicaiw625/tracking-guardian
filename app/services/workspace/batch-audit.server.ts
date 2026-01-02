@@ -26,13 +26,10 @@ export interface BatchAuditResult {
   }>;
 }
 
-
 const batchAuditJobs = new Map<string, BatchAuditResult>();
 
-
 const CACHE_PREFIX = "batch-audit:";
-const CACHE_TTL_SECONDS = 24 * 60 * 60; 
-
+const CACHE_TTL_SECONDS = 24 * 60 * 60;
 
 export async function startBatchAudit(
   options: BatchAuditOptions,
@@ -47,7 +44,6 @@ export async function startBatchAudit(
     shopCount: options.shopIds.length,
   });
 
-  
   const processPromises = options.shopIds.map(async (shopId) => {
     try {
       const shop = await prisma.shop.findUnique({
@@ -76,7 +72,6 @@ export async function startBatchAudit(
         return;
       }
 
-      
       const scanResult = await scanShopTracking(shopId, admin);
 
       results.push({
@@ -105,7 +100,6 @@ export async function startBatchAudit(
     }
   });
 
-  
   await Promise.allSettled(processPromises);
 
   const result: BatchAuditResult = {
@@ -116,10 +110,8 @@ export async function startBatchAudit(
     results,
   };
 
-  
   batchAuditJobs.set(jobId, result);
 
-  
   try {
     const redisClient = await getRedisClient();
     const cacheKey = `${CACHE_PREFIX}${jobId}`;
@@ -141,17 +133,15 @@ export async function startBatchAudit(
   return result;
 }
 
-
 export async function getBatchAuditStatus(
   jobId: string
 ): Promise<BatchAuditResult | null> {
-  
+
   const memoryResult = batchAuditJobs.get(jobId);
   if (memoryResult) {
     return memoryResult;
   }
 
-  
   try {
     const redisClient = await getRedisClient();
     const cacheKey = `${CACHE_PREFIX}${jobId}`;
@@ -166,7 +156,6 @@ export async function getBatchAuditStatus(
         startedAt: new Date(parsed.startedAt),
       };
 
-      
       batchAuditJobs.set(jobId, result);
       return result;
     }

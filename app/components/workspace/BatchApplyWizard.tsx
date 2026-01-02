@@ -140,9 +140,9 @@ export function BatchApplyWizard({
         }
       }
     } catch (error) {
-      
+
       if (process.env.NODE_ENV === "development") {
-        
+
         console.error("Failed to poll job status:", error);
       }
     }

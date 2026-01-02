@@ -34,7 +34,7 @@ export function getEncryptionKey(): Buffer {
         effectiveSecret = secret;
 
         if (secret.length < 32) {
-            
+
             console.warn("⚠️ [STARTUP] ENCRYPTION_SECRET is shorter than 32 characters.");
         }
     } else if (devSecret && !isProduction && !isCI) {
@@ -42,7 +42,7 @@ export function getEncryptionKey(): Buffer {
         effectiveSecret = devSecret;
 
         if (!hasWarnedAboutFallback) {
-            
+
             console.info("ℹ️ [STARTUP] Using DEV_ENCRYPTION_SECRET for development.");
             hasWarnedAboutFallback = true;
         }
@@ -76,7 +76,7 @@ export function getEncryptionKey(): Buffer {
         usingFallback = true;
 
         if (!hasWarnedAboutFallback) {
-            
+
             console.warn(
                 "⚠️ [STARTUP] No encryption secret configured. Using random fallback for local development only.\n" +
                 "   To fix this warning, add to your .env file:\n" +
@@ -92,7 +92,7 @@ export function getEncryptionKey(): Buffer {
     }
 
     if (!process.env.ENCRYPTION_SALT && isProduction) {
-        
+
         console.warn("⚠️ [STARTUP] ENCRYPTION_SALT not set. Using default salt.");
     }
 

@@ -134,7 +134,7 @@ export function AlertsTab({
                 value={slackWebhook}
                 onChange={setSlackWebhook}
                 autoComplete="off"
-                placeholder="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+                placeholder="https:
                 helpText="在 Slack 中创建 Incoming Webhook 获取此 URL"
               />
             )}

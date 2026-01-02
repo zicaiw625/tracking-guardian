@@ -12,7 +12,6 @@ export interface UsageAlert {
   message: string;
 }
 
-
 export async function checkUsageAlerts(
   shopId: string,
   planId: PlanId,
@@ -65,20 +64,11 @@ export async function checkUsageAlerts(
   }
 }
 
-
 export async function sendUsageAlertNotification(
   shopId: string,
   alerts: UsageAlert[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    
-    
-    
-    
-    
-    
-    
-    
 
     logger.info("Usage alerts generated", {
       shopId,

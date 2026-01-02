@@ -3,14 +3,12 @@
 import { encrypt, decrypt, encryptJson, decryptJson } from "~/utils/crypto.server";
 import { logger } from "~/utils/logger.server";
 
-
 export function encryptRawSnippet(snippet: string): string {
   if (!snippet || snippet.trim().length === 0) {
     throw new Error("Cannot encrypt empty snippet");
   }
   return encrypt(snippet);
 }
-
 
 export function decryptRawSnippet(encryptedSnippet: string | null | undefined): string | null {
   if (!encryptedSnippet) {
@@ -24,11 +22,9 @@ export function decryptRawSnippet(encryptedSnippet: string | null | undefined): 
   }
 }
 
-
 export function encryptPixelCredentials(credentials: Record<string, unknown>): string {
   return encryptJson(credentials);
 }
-
 
 export function decryptPixelCredentials<T extends Record<string, unknown>>(
   encryptedCredentials: string | null | undefined
@@ -44,11 +40,9 @@ export function decryptPixelCredentials<T extends Record<string, unknown>>(
   }
 }
 
-
 export function encryptSensitiveData(data: string): string {
   return encrypt(data);
 }
-
 
 export function decryptSensitiveData(encryptedData: string | null | undefined): string | null {
   if (!encryptedData) {

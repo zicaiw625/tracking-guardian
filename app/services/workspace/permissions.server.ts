@@ -10,7 +10,6 @@ export interface PermissionCheck {
   reason?: string;
 }
 
-
 export async function checkWorkspacePermission(
   workspaceId: string,
   userId: string,
@@ -50,19 +49,17 @@ export async function checkWorkspacePermission(
 
     const role = member.role as WorkspaceRole;
 
-    
     if (role === "owner") {
       return { allowed: true };
     }
 
-    
     switch (action) {
       case "view":
-        
+
         return { allowed: true };
 
       case "edit":
-        
+
         if (role === "admin") {
           return { allowed: true };
         }
@@ -72,14 +69,14 @@ export async function checkWorkspacePermission(
         };
 
       case "delete":
-        
+
         return {
           allowed: false,
           reason: "只有 Owner 可以删除",
         };
 
       case "manage_members":
-        
+
         if (role === "admin") {
           return { allowed: true };
         }
@@ -89,7 +86,7 @@ export async function checkWorkspacePermission(
         };
 
       case "manage_billing":
-        
+
         return {
           allowed: false,
           reason: "只有 Owner 可以管理计费",
@@ -114,7 +111,6 @@ export async function checkWorkspacePermission(
     };
   }
 }
-
 
 export async function getUserWorkspaceRole(
   workspaceId: string,

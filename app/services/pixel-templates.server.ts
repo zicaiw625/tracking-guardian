@@ -222,21 +222,17 @@ export const PRESET_TEMPLATES: PixelTemplate[] = [
   },
 ];
 
-
 export function getTemplates(): PixelTemplate[] {
   return PRESET_TEMPLATES;
 }
-
 
 export function getTemplateById(id: string): PixelTemplate | null {
   return PRESET_TEMPLATES.find(t => t.id === id) || null;
 }
 
-
 export function getTemplatesByPlatform(platform: string): PixelTemplate[] {
   return PRESET_TEMPLATES.filter(t => t.platforms.includes(platform));
 }
-
 
 export function validateTemplateConfig(
   template: PixelTemplate,

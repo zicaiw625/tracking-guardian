@@ -75,9 +75,8 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         );
     }
 
-    
     const environment = options?.environment || "live";
-    
+
     const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
             shopId_platform_environment: {
@@ -188,7 +187,7 @@ export function buildWebPixelSettings(
     shopDomain: string,
     pixelConfig?: Partial<PixelConfig>
 ): WebPixelSettings {
-    
+
     const defaultConfig: Partial<PixelConfig> = {
         mode: "full_funnel",
         enabled_platforms: "meta,tiktok,google",
@@ -471,7 +470,7 @@ export interface ScriptTagDeletionGuidance {
 export function getScriptTagDeletionGuidance(scriptTagId: number, shopDomain?: string, platform?: string): ScriptTagDeletionGuidance {
     const storeHandle = shopDomain?.replace(".myshopify.com", "");
     const adminUrl = storeHandle
-        ? `https://${storeHandle}.myshopify.com/admin`
+        ? `https:
         : undefined;
     return {
         title: `删除 ScriptTag #${scriptTagId}`,
@@ -581,7 +580,7 @@ export async function migrateCredentialsToEncrypted(): Promise<{
                 logger.warn(`P0-09: Skipping ${config.id} - invalid credentials format`);
                 continue;
             }
-            
+
             const credsValidation = validateCredentials(legacyCreds);
             if (!credsValidation.success) {
                 logger.warn(`P0-09: Skipping ${config.id} - invalid credentials: ${credsValidation.errors.join(", ")}`);

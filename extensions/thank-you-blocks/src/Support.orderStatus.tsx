@@ -19,50 +19,47 @@ function SupportOrderStatus() {
   const description =
     (settings.support_description as string) ||
     "在这里快速获取物流、售后与常见问题的官方入口。";
-  
-  
-  
-  
+
   const faqUrl = useMemo(() => {
     const url = (settings.support_faq_url as string) || "/pages/faq";
-    
-    if (url.startsWith("http://") || url.startsWith("https://")) {
+
+    if (url.startsWith("http:
       return url;
     }
-    
+
     return url;
   }, [settings.support_faq_url]);
-  
+
   const contactEmail = settings.support_contact_email as string | undefined;
   const contactUrl = useMemo(() => {
     const url = (settings.support_contact_url as string) || (contactEmail ? `mailto:${contactEmail}` : "/pages/contact");
-    
+
     if (url.startsWith("mailto:")) {
       return url;
     }
-    
-    if (url.startsWith("http://") || url.startsWith("https://")) {
+
+    if (url.startsWith("http:
       return url;
     }
-    
+
     return url;
   }, [settings.support_contact_url, contactEmail]);
-  
+
   const whatsappNumber = settings.support_whatsapp_number as string | undefined;
   const messengerUrl = settings.support_messenger_url as string | undefined;
-  
+
   const continueShoppingUrl = useMemo(() => {
     const url = (settings.continue_shopping_url as string) || "/";
-    
-    if (url.startsWith("http://") || url.startsWith("https://")) {
+
+    if (url.startsWith("http:
       return url;
     }
-    
+
     return url;
   }, [settings.continue_shopping_url]);
 
   const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
-  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : undefined;
+  const whatsappUrl = whatsappNumber ? `https:
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">

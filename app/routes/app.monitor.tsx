@@ -238,7 +238,6 @@ export default function MonitorPage() {
     ? "像素来自开发隧道域名，而应用 URL 指向生产。请确认 Pixel 使用的 backend_url 是否为生产域名。"
     : null;
 
-    
     function isDeliverySummary(value: unknown): value is DeliverySummary {
       if (typeof value !== "object" || value === null) return false;
       const v = value as Record<string, unknown>;
@@ -262,15 +261,14 @@ export default function MonitorPage() {
     }
 
     const summaryData: Record<string, DeliverySummary> = isDeliverySummaryRecord(summary) ? summary : {};
-    
-    
+
     const historyData: DeliveryHealthReport[] = (history ?? []).map((h) => {
-      const reportDate = h.reportDate instanceof Date 
-        ? h.reportDate 
-        : typeof h.reportDate === 'string' 
-          ? new Date(h.reportDate) 
+      const reportDate = h.reportDate instanceof Date
+        ? h.reportDate
+        : typeof h.reportDate === 'string'
+          ? new Date(h.reportDate)
           : new Date();
-      
+
       return {
         id: h.id,
         platform: h.platform,
@@ -282,7 +280,6 @@ export default function MonitorPage() {
       };
     });
 
-    
     function isConversionStat(value: unknown): value is ConversionStat {
       if (typeof value !== "object" || value === null) return false;
       const v = value as Record<string, unknown>;

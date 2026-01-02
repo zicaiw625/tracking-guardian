@@ -237,8 +237,7 @@ class DistributedRateLimitStore {
   }
 
   check(key: string, maxRequests: number, windowMs: number): RateLimitResult {
-    
-    
+
     return memoryRateLimitStore.check(key, maxRequests, windowMs);
   }
 
@@ -350,18 +349,14 @@ export function pathShopKeyExtractor(request: Request): string {
   }
 }
 
-
 function resolveRequest(args: any): Request | undefined {
   if (!args) return undefined;
-  
+
   if (args instanceof Request) return args;
-  
+
   if (args.request instanceof Request) return args.request;
   return undefined;
 }
-
-
-
 
 export function withRateLimit<T>(
   config: RateLimitConfig,
@@ -379,7 +374,6 @@ export function withRateLimit<T>(
     return async (args) => {
       const request = resolveRequest(args);
 
-      
       if (!request || typeof request.url !== "string") {
         const errorMsg = `[rate-limit] Invalid args: expected Remix args { request }, got: ${args ? Object.keys(args).join(", ") : "undefined"}`;
         logger.error(errorMsg, {
@@ -388,7 +382,7 @@ export function withRateLimit<T>(
           hasRequest: !!args?.request,
           requestType: args?.request ? typeof args.request : "undefined",
         });
-        
+
         return json(
           {
             success: false,
@@ -405,7 +399,6 @@ export function withRateLimit<T>(
         return handler(args);
       }
 
-      
       let key: string;
       try {
         key = keyExtractor(request);
@@ -414,7 +407,7 @@ export function withRateLimit<T>(
           error: error instanceof Error ? error.message : String(error),
           requestUrl: request.url,
         });
-        
+
         key = `fallback:${request.url || "unknown"}`;
       }
 
@@ -466,12 +459,10 @@ export function withRateLimit<T>(
     };
   };
 
-  
   if (handler) {
     return createWrappedHandler(handler);
   }
 
-  
   return (handler: RateLimitedHandler<T>) => createWrappedHandler(handler);
 }
 

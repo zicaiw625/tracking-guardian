@@ -142,10 +142,8 @@ export async function upsertPixelConfig(
     );
   }
 
-  
-  
   const environment = input.environment || "test";
-  
+
   const existingConfig = await prisma.pixelConfig.findUnique({
     where: {
       shopId_platform_environment: {

@@ -448,7 +448,7 @@ export default function VerificationPage() {
       <BlockStack gap="500">
         {}
         <CheckoutExtensibilityWarning />
-        
+
         {configuredPlatforms.length === 0 && (
           <Banner
             title="未配置服务端追踪"

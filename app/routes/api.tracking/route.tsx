@@ -17,19 +17,17 @@ import { TTL } from "../../utils/cache";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
-    return optionsResponse(request, true); 
+    return optionsResponse(request, true);
   }
   return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
 };
 
-
 const trackingRateLimit = withRateLimit({
   maxRequests: 60,
-  windowMs: 60 * 1000, 
+  windowMs: 60 * 1000,
   keyExtractor: pathShopKeyExtractor,
   message: "Too many tracking requests",
 });
-
 
 const cachedLoader = withConditionalCache(
   trackingRateLimit(async ({ request }: LoaderFunctionArgs) => {
@@ -50,9 +48,9 @@ const cachedLoader = withConditionalCache(
         return null;
       }
     },
-    ttl: TTL.MEDIUM, 
+    ttl: TTL.MEDIUM,
     shouldCache: (result) => {
-      
+
       if (result instanceof Response) {
         return result.status === 200;
       }
@@ -73,47 +71,43 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
 
-    
     const authToken = extractAuthToken(request);
-    
+
     let shopDomain: string;
     let admin: Awaited<ReturnType<typeof createAdminClientForShop>> | null = null;
     let customerGidFromToken: string | null = null;
-    
+
     if (authToken) {
-      
+
       const apiSecret = getShopifyApiSecret();
       const expectedAud = process.env.SHOPIFY_API_KEY;
-      
+
       if (!expectedAud) {
         logger.error("SHOPIFY_API_KEY not configured");
         return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
       }
 
-      
       const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
-      
+
       if (!jwtResult.valid || !jwtResult.shopDomain) {
         logger.warn(`JWT verification failed: ${jwtResult.error}`);
         return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401, request, staticCors: true });
       }
-      
+
       shopDomain = jwtResult.shopDomain;
-      
-      
+
       customerGidFromToken = jwtResult.payload?.sub || null;
-      
-      
+
       admin = await createAdminClientForShop(shopDomain);
-      
+
       if (!admin) {
-        
+
         logger.warn("Failed to create admin client, will try to use tracking provider only", {
           shopDomain,
         });
       }
     } else {
-      
+
       logger.warn("Missing authentication token");
       return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401, request, staticCors: true });
     }
@@ -143,8 +137,7 @@ async function loaderImpl(request: Request) {
 
     let trackingInfo = null;
     let trackingNumberFromShopify: string | null = null;
-    
-    
+
     if (admin) {
       try {
         const orderResponse = await admin.graphql(`
@@ -173,34 +166,28 @@ async function loaderImpl(request: Request) {
 
         const orderData = await orderResponse.json();
         if (orderData.data?.order) {
-          
-          
-          
-          
+
           const orderCustomerId = orderData.data.order.customer?.id || null;
           if (customerGidFromToken && orderCustomerId) {
-            
-            
-            
+
             const normalizeCustomerGid = (gid: string): string => {
-              
+
               const gidMatch = gid.match(/gid:\/\/shopify\/Customer\/(\d+)/);
               if (gidMatch) {
                 return gidMatch[1];
               }
-              
+
               if (/^\d+$/.test(gid)) {
                 return gid;
               }
-              
+
               const lastNum = gid.split("/").pop();
               return lastNum && /^\d+$/.test(lastNum) ? lastNum : gid;
             };
-            
+
             const tokenCustomerId = normalizeCustomerGid(customerGidFromToken);
             const orderCustomerIdNum = normalizeCustomerGid(orderCustomerId);
-            
-            
+
             if (tokenCustomerId !== orderCustomerIdNum) {
               logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
                 tokenCustomerId,
@@ -209,41 +196,33 @@ async function loaderImpl(request: Request) {
               return jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true });
             }
           }
-          
-          
-          
-          
+
           const fulfillments = orderData.data.order.fulfillments?.nodes || [];
           const fulfillmentTrackingInfo = fulfillments
             .map((f: { trackingInfo?: { number: string; company: string; url?: string } }) => f.trackingInfo)
             .filter((ti: { number: string; company: string; url?: string } | undefined): ti is { number: string; company: string; url?: string } => !!ti);
-          
-          
+
           if (fulfillmentTrackingInfo.length > 0) {
             trackingNumberFromShopify = fulfillmentTrackingInfo[0].number;
           }
-          
-          
+
           trackingInfo = await getTrackingFromShopifyOrder({
             fulfillmentTrackingInfo,
           });
-          
-          
+
           logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`, {
             hasCustomerVerification: !!customerGidFromToken,
             hasTrackingNumber: !!trackingNumberFromShopify,
           });
         } else {
-          
-          
-          
+
           logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
           return jsonWithCors(
             {
               success: false,
               error: "Order not found",
               message: "订单正在生成，请稍后重试",
-              retryAfter: 2, 
+              retryAfter: 2,
             },
             {
               status: 202,
@@ -263,9 +242,6 @@ async function loaderImpl(request: Request) {
       }
     }
 
-    
-    
-    
     const trackingNumberToUse = trackingNumberFromShopify || trackingNumber || null;
     if (trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumberToUse) {
       const config: TrackingProviderConfig = {
@@ -279,36 +255,33 @@ async function loaderImpl(request: Request) {
           trackingNumberToUse,
           trackingSettings.carrier
         );
-        
-        
-        
+
         if (thirdPartyTracking) {
-          
+
           trackingInfo = {
             ...thirdPartyTracking,
-            
+
             carrier: thirdPartyTracking.carrier || trackingInfo?.carrier || "unknown",
-            
+
             trackingNumber: thirdPartyTracking.trackingNumber || trackingInfo?.trackingNumber || trackingNumberToUse,
           };
           logger.info(`Third-party tracking enrich successful for orderId: ${orderId}, provider: ${trackingSettings.provider}`);
         } else {
-          
+
           logger.warn(`Third-party tracking enrich failed for orderId: ${orderId}, provider: ${trackingSettings.provider}, falling back to Shopify data`);
         }
       } catch (error) {
-        
+
         logger.error(`Third-party tracking enrich error for orderId: ${orderId}`, {
           error: error instanceof Error ? error.message : String(error),
           provider: trackingSettings.provider,
         });
-        
+
       }
     }
 
     if (!trackingInfo) {
-      
-      
+
       return jsonWithCors(
         {
           success: true,

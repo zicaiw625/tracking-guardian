@@ -761,15 +761,14 @@ export async function performChannelReconciliation(
           }, timeout);
         });
         const check = await Promise.race([checkPromise, timeoutPromise]);
-        
-        
+
         if (timeoutId !== null && !timeoutResolved) {
           clearTimeout(timeoutId);
         }
-        
+
         return check;
       } catch (error) {
-        
+
         if (timeoutId !== null && !timeoutResolved) {
           clearTimeout(timeoutId);
         }

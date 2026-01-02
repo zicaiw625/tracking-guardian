@@ -6,7 +6,6 @@ import type {
   TelegramAlertSettings,
 } from "~/types";
 
-
 export function isEmailAlertSettings(
   value: unknown
 ): value is EmailAlertSettings {
@@ -18,7 +17,6 @@ export function isEmailAlertSettings(
   );
 }
 
-
 export function isSlackAlertSettings(
   value: unknown
 ): value is SlackAlertSettings {
@@ -29,7 +27,6 @@ export function isSlackAlertSettings(
     typeof (value as Record<string, unknown>).webhookUrl === "string"
   );
 }
-
 
 export function isTelegramAlertSettings(
   value: unknown
@@ -44,13 +41,11 @@ export function isTelegramAlertSettings(
   );
 }
 
-
 export function asEmailAlertSettings(
   value: unknown
 ): EmailAlertSettings | null {
   return isEmailAlertSettings(value) ? value : null;
 }
-
 
 export function asSlackAlertSettings(
   value: unknown
@@ -58,13 +53,11 @@ export function asSlackAlertSettings(
   return isSlackAlertSettings(value) ? value : null;
 }
 
-
 export function asTelegramAlertSettings(
   value: unknown
 ): TelegramAlertSettings | null {
   return isTelegramAlertSettings(value) ? value : null;
 }
-
 
 export interface PixelTemplateConfig {
   platform: string;
@@ -82,12 +75,10 @@ export function isPixelTemplateConfig(
 
   const obj = value as Record<string, unknown>;
 
-  
   if (typeof obj.platform !== "string") {
     return false;
   }
 
-  
   if (
     "eventMappings" in obj &&
     obj.eventMappings !== undefined &&
@@ -98,7 +89,6 @@ export function isPixelTemplateConfig(
     return false;
   }
 
-  
   if (
     "clientSideEnabled" in obj &&
     obj.clientSideEnabled !== undefined &&
@@ -118,7 +108,6 @@ export function isPixelTemplateConfig(
   return true;
 }
 
-
 export function isPixelTemplateConfigArray(
   value: unknown
 ): value is PixelTemplateConfig[] {
@@ -128,7 +117,6 @@ export function isPixelTemplateConfigArray(
   );
 }
 
-
 export function asPixelTemplateConfigArray(
   value: unknown
 ): PixelTemplateConfig[] {
@@ -137,7 +125,6 @@ export function asPixelTemplateConfigArray(
   }
   return [];
 }
-
 
 export interface PrismaError {
   code?: string;
@@ -149,13 +136,11 @@ export interface PrismaError {
   [key: string]: unknown;
 }
 
-
 export function isPrismaError(error: unknown): error is Error & PrismaError {
   if (!(error instanceof Error)) {
     return false;
   }
-  
-  
+
   const err = error as Record<string, unknown>;
   return (
     typeof err.code === "string" &&
@@ -163,14 +148,12 @@ export function isPrismaError(error: unknown): error is Error & PrismaError {
   );
 }
 
-
 export function getPrismaErrorCode(error: unknown): string | undefined {
   if (isPrismaError(error)) {
     return error.code;
   }
   return undefined;
 }
-
 
 export function getPrismaErrorTarget(error: unknown): string[] | undefined {
   if (isPrismaError(error) && error.meta?.target) {

@@ -45,9 +45,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               shopId: shop.id,
             };
 
-            
-            
-            
             if (lastEventId) {
               const lastEvent = await prisma.conversionLog.findUnique({
                 where: { id: lastEventId },
@@ -56,7 +53,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               if (lastEvent) {
                 whereClause.createdAt = { gt: lastEvent.createdAt };
               } else {
-                
+
                 lastEventId = null;
               }
             }
@@ -66,7 +63,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 ...whereClause,
                 ...(platforms.length > 0 && { platform: { in: platforms } }),
               },
-              orderBy: { createdAt: "asc" }, 
+              orderBy: { createdAt: "asc" },
               take: 10,
               select: {
                 id: true,
@@ -82,8 +79,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               },
             });
 
-            
-            
             if (recentLogs.length > 0) {
               for (const log of recentLogs) {
                 const event = {
@@ -103,12 +98,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
                 sendMessage(event);
               }
-              
+
               lastEventId = recentLogs[recentLogs.length - 1].id;
             }
 
-            
-            
             const recentReceipts = await prisma.pixelEventReceipt.findMany({
               where: {
                 shopId: shop.id,

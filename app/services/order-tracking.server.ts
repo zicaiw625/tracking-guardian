@@ -27,14 +27,13 @@ export async function fetchTrackingFromAfterShip(
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-    
-    
-    const url = new URL("https://api.aftership.com/tracking/2025-07/trackings");
+
+    const url = new URL("https:
     url.searchParams.append("tracking_numbers", trackingNumber);
-    
+
     const response = await fetch(url.toString(), {
       headers: {
-        
+
         "as-api-key": apiKey,
         "Content-Type": "application/json",
       },
@@ -49,7 +48,7 @@ export async function fetchTrackingFromAfterShip(
     }
 
     const data = await response.json();
-    
+
     const trackings = data.data?.trackings || [];
     if (trackings.length === 0) {
       return null;
@@ -63,7 +62,7 @@ export async function fetchTrackingFromAfterShip(
       estimatedDelivery: tracking.expected_delivery
         ? new Date(tracking.expected_delivery)
         : undefined,
-      currentLocation: undefined, 
+      currentLocation: undefined,
       events: (tracking.checkpoints || []).map((checkpoint: {
         checkpoint_time: string;
         location?: string;
@@ -90,8 +89,8 @@ export async function fetchTrackingFrom17Track(
   apiKey: string
 ): Promise<TrackingInfo | null> {
   try {
-    
-    const response = await fetch(`https://api.17track.net/track/v2.2/gettrackinfo`, {
+
+    const response = await fetch(`https:
       method: "POST",
       headers: {
         "17token": apiKey,
@@ -114,7 +113,7 @@ export async function fetchTrackingFrom17Track(
     }
 
     const data = await response.json();
-    
+
     if (data.code !== 0 || !data.data?.accepted || data.data.accepted.length === 0) {
       return null;
     }
@@ -133,7 +132,7 @@ export async function fetchTrackingFrom17Track(
       estimatedDelivery: trackInfo.latest_status?.sub_status_time
         ? new Date(trackInfo.latest_status.sub_status_time * 1000)
         : undefined,
-      currentLocation: undefined, 
+      currentLocation: undefined,
       events: (trackInfo.track_detail || []).map((event: {
         track_time: number;
         location?: string;

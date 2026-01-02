@@ -71,7 +71,7 @@ export function AlertConfigForm({
           value={values.webhookUrl || ""}
           onChange={(v) => onChange({ ...values, webhookUrl: v })}
           autoComplete="off"
-          placeholder="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+          placeholder="https:
           helpText="在 Slack 中创建 Incoming Webhook 获取此 URL"
           error={errors?.webhookUrl}
           disabled={disabled}
@@ -143,7 +143,7 @@ export function isAlertConfigValid(config: AlertConfig): boolean {
       return Boolean(config.email && config.email.includes("@"));
     case "slack":
       return Boolean(
-        config.webhookUrl?.startsWith("https://")
+        config.webhookUrl?.startsWith("https:
       );
     case "telegram":
       return Boolean(config.botToken && config.chatId);

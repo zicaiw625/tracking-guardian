@@ -1,6 +1,5 @@
 import type { TestChecklist, TestChecklistItem } from "~/services/verification-checklist.server";
 
-
 export function generateChecklistMarkdown(checklist: TestChecklist): string {
   const formatTime = (minutes: number) => {
     if (minutes < 60) {
@@ -75,7 +74,6 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
 
   return markdown;
 }
-
 
 export function generateChecklistCSV(checklist: TestChecklist): string {
   const headers = [

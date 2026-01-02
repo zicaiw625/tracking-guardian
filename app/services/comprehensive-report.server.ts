@@ -305,8 +305,7 @@ async function exportComprehensiveReportPDF(
   options: ComprehensiveReportOptions
 ): Promise<{ content: Buffer; filename: string; mimeType: string }> {
   try {
-    
-    
+
     let PDFDocument: any;
     try {
       PDFDocument = (await import("pdfkit")).default;

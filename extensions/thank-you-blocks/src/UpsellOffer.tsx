@@ -24,7 +24,7 @@ const UpsellOffer = memo(function UpsellOffer() {
     const [copied, setCopied] = useState(false);
 
     const storefrontUrl = useMemo(() => {
-        
+
         return api.shop?.storefrontUrl || "";
     }, [api.shop?.storefrontUrl]);
 
@@ -37,11 +37,10 @@ const UpsellOffer = memo(function UpsellOffer() {
         const expiryHoursStr = settings.upsell_expiry_hours as string;
         return expiryHoursStr ? parseInt(expiryHoursStr, 10) : 24;
     }, [settings.upsell_expiry_hours]);
-    
-    
+
     const continueShoppingUrl = useMemo(() => {
         const url = (settings.continue_shopping_url as string) || "/";
-        if (url.startsWith("http://") || url.startsWith("https://")) {
+        if (url.startsWith("http:
             return url;
         }
         return storefrontUrl ? `${storefrontUrl}${url.startsWith("/") ? url : `/${url}`}` : url;

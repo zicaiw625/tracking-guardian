@@ -15,7 +15,6 @@ import {
 import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
 
-
 function normalizeTopic(topic: string): string {
   return topic.toUpperCase().replace(/\
 }
@@ -32,7 +31,7 @@ const WEBHOOK_HANDLERS: Record<
   CUSTOMERS_DATA_REQUEST: (ctx) => handleCustomersDataRequest(ctx),
   CUSTOMERS_REDACT: (ctx) => handleCustomersRedact(ctx),
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
-  
+
   ORDERS_CANCELLED: handleOrdersCancelled,
   ORDERS_UPDATED: handleOrdersUpdated,
   REFUNDS_CREATE: handleRefundsCreate,

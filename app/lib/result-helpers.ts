@@ -82,7 +82,7 @@ export async function wrapApiCall<T>(
   let timeoutRejected = false;
 
   try {
-    
+
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         timeoutRejected = true;
@@ -91,21 +91,20 @@ export async function wrapApiCall<T>(
     });
 
     const result = await Promise.race([operation(), timeoutPromise]);
-    
-    
+
     if (timeoutId !== null && !timeoutRejected) {
       clearTimeout(timeoutId);
       timeoutId = null;
     }
-    
+
     return ok(result);
   } catch (error) {
-    
+
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
       timeoutId = null;
     }
-    
+
     const appError = handleApiError(error, serviceName);
     return err(appError);
   }

@@ -175,41 +175,41 @@ export const SHOPIFY_API_CONFIG = {
     VERSION: "2025-07",
 
     getGraphQLEndpoint: (shopDomain: string): string =>
-        `https://${shopDomain}/admin/api/2025-07/graphql.json`,
+        `https:
 
     getAdminUrl: (shopDomain: string, path: string = ""): string => {
         const storeHandle = shopDomain.replace(".myshopify.com", "");
-        return `https://${storeHandle}.myshopify.com/admin${path}`;
+        return `https:
     },
 } as const;
 
 export const PLATFORM_ENDPOINTS = {
 
     GA4_MEASUREMENT_PROTOCOL: (measurementId: string, apiSecret: string): string =>
-        `https://www.google-analytics.com/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`,
+        `https:
 
     META_GRAPH_API: (pixelId: string, version: string = "v21.0"): string =>
-        `https://graph.facebook.com/${version}/${pixelId}/events`,
+        `https:
 
     TELEGRAM_BOT: (botToken: string): string =>
-        `https://api.telegram.org/bot${botToken}`,
+        `https:
 } as const;
 
 export const CAPI_CONFIG = {
 
     META: {
         apiVersion: "v21.0",
-        baseUrl: "https://graph.facebook.com",
+        baseUrl: "https:
         timeout: 30000,
     },
 
     GOOGLE: {
-        baseUrl: "https://www.google-analytics.com",
+        baseUrl: "https:
         timeout: 30000,
     },
 
     TIKTOK: {
-        baseUrl: "https://business-api.tiktok.com",
+        baseUrl: "https:
         timeout: 30000,
     },
 } as const;
@@ -606,7 +606,7 @@ export function getPixelEventIngestionUrl(): {
     warning?: string;
 } {
     const shopifyAppUrl = process.env.SHOPIFY_APP_URL;
-    const fallbackUrl = "https://example.com";
+    const fallbackUrl = "https:
 
     if (!shopifyAppUrl) {
         return {

@@ -66,7 +66,6 @@ export type ValidationResult =
   | { valid: true; payload: PixelEventPayload }
   | { valid: false; error: string; code: ValidationError };
 
-
 import {
   CHECKOUT_TOKEN_PATTERN,
   CHECKOUT_TOKEN_MIN_LENGTH,

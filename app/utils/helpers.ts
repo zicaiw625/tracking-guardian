@@ -103,7 +103,6 @@ export function getNestedValue<T>(
     current = current[key];
   }
 
-  
   return (current as T) ?? fallback;
 }
 
@@ -117,7 +116,7 @@ export function removeNullish<T extends Record<string, unknown>>(
   const filtered = Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined && v !== null)
   );
-  
+
   return filtered as Partial<T>;
 }
 
@@ -142,7 +141,7 @@ export function groupBy<T, K extends string | number>(
   keyFn: (item: T) => K
 ): Record<K, T[]> {
   const groups: Partial<Record<K, T[]>> = {};
-  
+
   for (const item of array) {
     const key = keyFn(item);
     if (!groups[key]) {
@@ -150,8 +149,7 @@ export function groupBy<T, K extends string | number>(
     }
     groups[key]!.push(item);
   }
-  
-  
+
   return groups as Record<K, T[]>;
 }
 
@@ -231,16 +229,14 @@ export async function parallelLimit<T, R>(
 ): Promise<R[]> {
   const results: (R | undefined)[] = new Array(items.length);
   const errors: Array<{ index: number; error: unknown }> = [];
-  
+
   const executing = new Map<number, Promise<{ index: number; result?: R; error?: unknown }>>();
   let nextIndex = 0;
 
-  
   while (nextIndex < items.length && executing.size < concurrency) {
     const index = nextIndex++;
     const item = items[index];
 
-    
     const promise = fn(item, index)
       .then((result) => ({ index, result }))
       .catch((error) => ({ index, error }));
@@ -248,14 +244,12 @@ export async function parallelLimit<T, R>(
     executing.set(index, promise);
   }
 
-  
   while (executing.size > 0) {
-    
+
     const settled = await Promise.race(
       Array.from(executing.values())
     );
 
-    
     if (settled.error !== undefined) {
       errors.push({ index: settled.index, error: settled.error });
       results[settled.index] = undefined;
@@ -263,10 +257,8 @@ export async function parallelLimit<T, R>(
       results[settled.index] = settled.result;
     }
 
-    
     executing.delete(settled.index);
 
-    
     if (nextIndex < items.length) {
       const index = nextIndex++;
       const item = items[index];
@@ -279,7 +271,6 @@ export async function parallelLimit<T, R>(
     }
   }
 
-  
   if (errors.length > 0) {
     const errorMessages = errors.map(
       (e) => `Item ${e.index}: ${e.error instanceof Error ? e.error.message : String(e.error)}`
@@ -289,9 +280,8 @@ export async function parallelLimit<T, R>(
     );
   }
 
-  
   const validResults = results.filter((r): r is R => r !== undefined);
-  
+
   if (validResults.length !== items.length) {
     throw new Error(
       `parallelLimit: Expected ${items.length} results but got ${validResults.length}. This indicates an internal error.`
@@ -329,7 +319,7 @@ export function extractShopifyId(gid: string | number): string {
   if (typeof gid === "number") {
     return String(gid);
   }
-  if (gid.startsWith("gid://shopify/WebPixel/")) {
+  if (gid.startsWith("gid:
     const parts = gid.split("/");
     return parts[parts.length - 1];
   }

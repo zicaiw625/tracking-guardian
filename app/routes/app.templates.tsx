@@ -214,7 +214,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const result = await generateTemplateShareLink(templateId, shop.id);
 
       if (result.success && result.shareLink) {
-        const baseUrl = process.env.SHOPIFY_APP_URL || "https://example.com";
+        const baseUrl = process.env.SHOPIFY_APP_URL || "https:
         const fullShareLink = `${baseUrl}${result.shareLink}`;
         return json({ success: true, shareLink: fullShareLink });
       }
@@ -358,9 +358,9 @@ export default function TemplatesPage() {
       }
     } catch (error) {
       showError("生成分享链接失败");
-      
+
       if (process.env.NODE_ENV === "development") {
-        
+
         console.error("Share link generation error", error);
       }
     } finally {
@@ -376,9 +376,9 @@ export default function TemplatesPage() {
       showSuccess("分享链接已复制到剪贴板");
     } catch (error) {
       showError("复制失败，请手动复制");
-      
+
       if (process.env.NODE_ENV === "development") {
-        
+
         console.error("Copy error", error);
       }
     }

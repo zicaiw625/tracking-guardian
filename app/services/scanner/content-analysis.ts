@@ -453,7 +453,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "🎯 **Google Ads 转化追踪**\n" +
                     "  → 迁移到: Shopify 官方 Google & YouTube 应用\n" +
                     "  → 原因: 官方应用原生支持 Enhanced Conversions，Tracking Guardian 不支持 Google Ads CAPI\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                 );
                 break;
             case "gtm":
@@ -487,7 +487,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "⚠️ **Microsoft Advertising (Bing UET)**\n" +
                     "  → 迁移到: Shopify 官方 Microsoft Channel 应用\n" +
                     "  → 原因: Tracking Guardian 不支持 Microsoft Ads 服务端追踪\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 备选: 在 Shopify 主题中添加 UET 标签（非 Thank you 页面可继续使用）"
                 );
                 break;
@@ -504,14 +504,14 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                     "⚠️ **Pinterest Tag**\n" +
                     "  → 迁移到: Shopify 官方 Pinterest 应用\n" +
                     "  → 原因: 官方应用支持 Pinterest Conversions API\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                 );
                 break;
             case "snapchat":
                 result.recommendations.push(
                     "⚠️ **Snapchat Pixel**\n" +
                     "  → 迁移到: Shopify 官方 Snapchat Ads 应用\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                 );
                 break;
             case "twitter":
@@ -526,7 +526,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "📋 **Fairing (Post-purchase Survey)**\n" +
                     "  → 迁移到: Fairing 官方 Shopify 应用（支持 Checkout Extensibility）\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 注意: 如果已安装官方应用，只需更新到最新版本即可自动适配"
                 );
                 break;
@@ -534,7 +534,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "📋 **KnoCommerce (Survey)**\n" +
                     "  → 迁移到: KnoCommerce 官方应用\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 官方应用会自动适配 Checkout Extensibility"
                 );
                 break;
@@ -542,7 +542,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "📋 **Zigpoll (Survey)**\n" +
                     "  → 迁移到: Zigpoll 官方应用（支持 Checkout UI Extension）\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                 );
                 break;
 
@@ -550,7 +550,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "🛒 **CartHook (Post-purchase Upsell)**\n" +
                     "  → 迁移到: CartHook 官方应用（支持 post-purchase extension）\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 重要: Shopify 的 post-purchase 页面使用独立的 extension API"
                 );
                 break;
@@ -558,7 +558,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "🛒 **AfterSell (Upsell)**\n" +
                     "  → 迁移到: AfterSell 官方应用\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 官方应用已支持 Checkout Extensibility"
                 );
                 break;
@@ -566,7 +566,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "🛒 **ReConvert (Upsell & Thank You)**\n" +
                     "  → 迁移到: ReConvert 官方应用（已支持新版 Thank You 页面）\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 确保更新到最新版本"
                 );
                 break;
@@ -574,7 +574,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "🛒 **Zipify OneClickUpsell**\n" +
                     "  → 迁移到: Zipify OCU 官方应用（支持 Checkout Extensibility）\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                 );
                 break;
 
@@ -582,7 +582,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "🤝 **Refersion (Affiliate)**\n" +
                     "  → 迁移到: Refersion 官方应用（支持服务端追踪）\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 官方应用使用 Webhook 追踪，不依赖客户端脚本"
                 );
                 break;
@@ -590,7 +590,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "🤝 **ReferralCandy**\n" +
                     "  → 迁移到: ReferralCandy 官方应用\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 官方应用使用 Webhook，无需客户端脚本"
                 );
                 break;
@@ -598,7 +598,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "🤝 **Tapfiliate (Affiliate)**\n" +
                     "  → 迁移到: Tapfiliate 官方应用或服务端 API 集成\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                 );
                 break;
             case "impact":
@@ -612,7 +612,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "🤝 **PartnerStack**\n" +
                     "  → 迁移到: PartnerStack 官方应用（支持 Webhook）\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                 );
                 break;
 
@@ -636,7 +636,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "📧 **Klaviyo**\n" +
                     "  → 迁移到: Klaviyo 官方应用\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 官方应用使用 Webhook 追踪订单，客户端脚本主要用于网站浏览追踪"
                 );
                 break;
@@ -644,7 +644,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "📱 **Attentive (SMS)**\n" +
                     "  → 迁移到: Attentive 官方应用（支持 Checkout Extensibility）\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                     "  → 确保更新到最新版本"
                 );
                 break;
@@ -652,7 +652,7 @@ export function analyzeScriptContent(content: string): ScriptAnalysisResult {
                 result.recommendations.push(
                     "📱 **Postscript (SMS)**\n" +
                     "  → 迁移到: Postscript 官方应用（支持新版 Checkout）\n" +
-                    "  → 链接: https://apps.shopify.com",
+                    "  → 链接: https:
                 );
                 break;
             default:

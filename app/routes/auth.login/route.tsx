@@ -6,7 +6,6 @@ import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import polarisTranslationsEn from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { login } from "../../shopify.server";
 
-
 const i18nEn = (polarisTranslationsEn as any).default ?? polarisTranslationsEn;
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];

@@ -6,7 +6,6 @@ import type {
   ValidationResult,
 } from "./types";
 
-
 import {
   CHECKOUT_TOKEN_PATTERN,
   CHECKOUT_TOKEN_MIN_LENGTH,
@@ -215,7 +214,7 @@ export function validateRequest(body: unknown): ValidationResult {
 
 export function isPrimaryEvent(eventName: string, mode: "purchase_only" | "full_funnel" = "purchase_only"): boolean {
   if (mode === "full_funnel") {
-    
+
     const fullFunnelEvents = [
       "checkout_completed",
       "checkout_started",
@@ -228,7 +227,7 @@ export function isPrimaryEvent(eventName: string, mode: "purchase_only" | "full_
     ];
     return fullFunnelEvents.includes(eventName);
   }
-  
+
   return eventName === "checkout_completed";
 }
 
@@ -241,7 +240,7 @@ export interface PixelConfig {
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   schema_version: "1",
-  
+
   mode: "full_funnel",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",

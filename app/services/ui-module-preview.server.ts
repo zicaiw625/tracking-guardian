@@ -19,7 +19,7 @@ export function generatePreviewUrl(
   target: "thank_you" | "order_status",
   testOrderId?: string
 ): string {
-  const baseUrl = `https://${shopDomain}`;
+  const baseUrl = `https:
 
   if (target === "thank_you") {
 

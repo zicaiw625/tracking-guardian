@@ -27,14 +27,14 @@ export async function getEnvironmentConfig(
   platform: string,
   environment: PixelEnvironment = "live"
 ): Promise<EnvironmentConfig | null> {
-  
+
   const config = await prisma.pixelConfig.findUnique({
-    where: { 
-      shopId_platform_environment: { 
-        shopId, 
-        platform, 
-        environment 
-      } 
+    where: {
+      shopId_platform_environment: {
+        shopId,
+        platform,
+        environment
+      }
     },
     select: {
       shopId: true,
@@ -61,13 +61,12 @@ export async function switchEnvironment(
   platform: string,
   targetEnvironment: PixelEnvironment
 ): Promise<EnvironmentSwitchResult> {
-  
-  
+
   const existingConfigs = await prisma.pixelConfig.findMany({
-    where: { 
-      shopId, 
+    where: {
+      shopId,
       platform,
-      isActive: true 
+      isActive: true
     },
     select: {
       id: true,
@@ -79,14 +78,12 @@ export async function switchEnvironment(
     },
   });
 
-  
   let config = existingConfigs.find(c => c.environment === targetEnvironment);
   if (!config && existingConfigs.length > 0) {
-    
+
     config = existingConfigs[0];
   }
 
-  
   if (!config) {
     return {
       success: false,
@@ -168,13 +165,12 @@ export async function switchEnvironment(
   };
 
   try {
-    
-    
+
     const targetConfig = existingConfigs.find(c => c.environment === targetEnvironment);
-    
+
     let updated;
     if (targetConfig && targetConfig.id !== config.id) {
-      
+
       updated = await prisma.pixelConfig.update({
         where: { id: targetConfig.id },
         data: {
@@ -190,7 +186,7 @@ export async function switchEnvironment(
         },
       });
     } else if (previousEnvironment !== targetEnvironment) {
-      
+
       const newConfig = await prisma.pixelConfig.create({
         data: {
           shopId,
@@ -213,7 +209,7 @@ export async function switchEnvironment(
       });
       updated = newConfig;
     } else {
-      
+
       updated = await prisma.pixelConfig.update({
         where: { id: config.id },
         data: {
@@ -268,14 +264,14 @@ export async function rollbackEnvironment(
   platform: string,
   environment: PixelEnvironment = "live"
 ): Promise<EnvironmentSwitchResult> {
-  
+
   const config = await prisma.pixelConfig.findUnique({
-    where: { 
-      shopId_platform_environment: { 
-        shopId, 
-        platform, 
-        environment 
-      } 
+    where: {
+      shopId_platform_environment: {
+        shopId,
+        platform,
+        environment
+      }
     },
     select: {
       id: true,
@@ -427,20 +423,20 @@ export function getPlatformEndpoint(
 
   const endpoints: Record<string, { test: string; live: string }> = {
     meta: {
-      test: "https://graph.facebook.com",
-      live: "https://graph.facebook.com",
+      test: "https:
+      live: "https:
     },
     google: {
-      test: "https://www.google-analytics.com",
-      live: "https://www.google-analytics.com",
+      test: "https:
+      live: "https:
     },
     tiktok: {
-      test: "https://business-api.tiktok.com",
-      live: "https://business-api.tiktok.com",
+      test: "https:
+      live: "https:
     },
     pinterest: {
-      test: "https://api.pinterest.com",
-      live: "https://api.pinterest.com",
+      test: "https:
+      live: "https:
     },
   };
 

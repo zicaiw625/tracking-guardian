@@ -1057,9 +1057,8 @@ export default function ScanPage() {
             analysisSavedRef.current = false;
         }
 
-        
         if (process.env.NODE_ENV === "development") {
-            
+
             console.error("Script analysis error", {
                 error: errorMessage,
                 errorType: error instanceof Error ? error.constructor.name : "Unknown",
@@ -1088,7 +1087,7 @@ export default function ScanPage() {
             return;
         }
 
-        if (!pendingDelete.gid.startsWith("gid://shopify/WebPixel/")) {
+        if (!pendingDelete.gid.startsWith("gid:
             setDeleteError("WebPixel ID 格式不正确");
             return;
         }
@@ -1220,9 +1219,8 @@ export default function ScanPage() {
                                     chunkResult = analyzeScriptContent(chunk);
                                 } catch (syncError) {
 
-                                    
                                     if (process.env.NODE_ENV === "development") {
-                                        
+
                                         console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
                                     }
                                     resolve();
@@ -1254,9 +1252,8 @@ export default function ScanPage() {
                                 resolve();
                             } catch (error) {
 
-                                
                                 if (process.env.NODE_ENV === "development") {
-                                    
+
                                     console.warn(`Chunk ${i} analysis failed:`, error);
                                 }
                                 resolve();
@@ -1713,8 +1710,8 @@ export default function ScanPage() {
                 ...items,
                 "",
                 "## 快速链接",
-                "- Pixels 管理: https://help.shopify.com",
-                "- Checkout Editor: https://help.shopify.com",
+                "- Pixels 管理: https:
+                "- Checkout Editor: https:
                 "- 应用迁移工具: /app/migrate",
             ].join("\n");
         } else {
@@ -1869,9 +1866,9 @@ export default function ScanPage() {
                             } catch (error) {
 
                               if (error instanceof Error && error.name !== 'AbortError') {
-                                
+
                                 if (process.env.NODE_ENV === "development") {
-                                    
+
                                     console.error("分享失败:", error);
                                 }
 
@@ -1880,9 +1877,9 @@ export default function ScanPage() {
                                     await navigator.clipboard.writeText(shareData.text);
                                     showSuccess("报告摘要已复制到剪贴板");
                                   } catch (clipboardError) {
-                                    
+
                                     if (process.env.NODE_ENV === "development") {
-                                        
+
                                         console.error("复制失败:", clipboardError);
                                     }
                                     showError("无法分享或复制，请手动复制");
@@ -1897,9 +1894,9 @@ export default function ScanPage() {
                               await navigator.clipboard.writeText(shareData.text);
                               showSuccess("报告摘要已复制到剪贴板");
                             } catch (error) {
-                              
+
                               if (process.env.NODE_ENV === "development") {
-                                  
+
                                   console.error("复制失败:", error);
                               }
                               showError("复制失败，请手动复制");
@@ -1944,7 +1941,7 @@ export default function ScanPage() {
                   }}
                   secondaryAction={{
                     content: "了解更多",
-                    url: "https://help.shopify.com",
+                    url: "https:
                     external: true,
                   }}
                 />
@@ -2630,7 +2627,7 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url="https://help.shopify.com"
+                    url="https:
                     external
                     icon={ShareIcon}
                   >
@@ -2657,14 +2654,14 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url="https://help.shopify.com"
+                    url="https:
                     external
                     icon={ShareIcon}
                   >
                     打开 Checkout Editor
                   </Button>
                   <Button
-                    url="https://help.shopify.com"
+                    url="https:
                     external
                     icon={InfoIcon}
                   >
@@ -2720,9 +2717,9 @@ export default function ScanPage() {
                               showError("浏览器不支持复制功能");
                             }
                           } catch (error) {
-                            
+
                             if (process.env.NODE_ENV === "development") {
-                                
+
                                 console.error("复制失败:", error);
                             }
                             showError("复制失败，请手动复制");
@@ -2765,9 +2762,9 @@ export default function ScanPage() {
                                     document.body.removeChild(a);
                                   }
                                 } catch (removeError) {
-                                  
+
                                   if (process.env.NODE_ENV === "development") {
-                                      
+
                                       console.warn("Failed to remove download link:", removeError);
                                   }
                                 }
@@ -2779,9 +2776,9 @@ export default function ScanPage() {
                                 exportTimeoutRef.current = null;
                               }, TIMEOUTS.EXPORT_CLEANUP);
                             } catch (domError) {
-                              
+
                               if (process.env.NODE_ENV === "development") {
-                                  
+
                                   console.error("Failed to trigger download:", domError);
                               }
 
@@ -2797,9 +2794,9 @@ export default function ScanPage() {
                             showSuccess("清单导出成功");
                             setIsExporting(false);
                           } catch (error) {
-                            
+
                             if (process.env.NODE_ENV === "development") {
-                                
+
                                 console.error("导出失败:", error);
                             }
 
@@ -2838,9 +2835,9 @@ export default function ScanPage() {
                             URL.revokeObjectURL(url);
                             showSuccess("PDF 清单导出成功");
                           } catch (error) {
-                            
+
                             if (process.env.NODE_ENV === "development") {
-                                
+
                                 console.error("PDF 导出失败:", error);
                             }
                             showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");
@@ -3364,7 +3361,7 @@ export default function ScanPage() {
                     </Text>
                   </Banner>
                   <Button
-                    url="https://help.shopify.com"
+                    url="https:
                     external
                     variant="primary"
                   >

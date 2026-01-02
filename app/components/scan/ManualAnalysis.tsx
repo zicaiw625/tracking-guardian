@@ -73,11 +73,9 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
 
       setAnalysisResult(null);
 
-      
-      
       if (process.env.NODE_ENV === "development") {
         const errorDetails = error instanceof Error ? error.stack : String(error);
-        
+
         console.error("Script analysis error:", {
           message: errorMessage,
           details: errorDetails,

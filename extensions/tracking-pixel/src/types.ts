@@ -66,7 +66,7 @@ export interface PixelConfig {
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   schema_version: "1",
-  
+
   mode: "full_funnel",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
@@ -81,9 +81,7 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
     const parsed = JSON.parse(configStr);
 
     if (parsed.schema_version !== "1") {
-      
-      
-      
+
       return DEFAULT_PIXEL_CONFIG;
     }
 
@@ -100,8 +98,7 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
       strictness,
     };
   } catch (e) {
-    
-    
+
     return DEFAULT_PIXEL_CONFIG;
   }
 }

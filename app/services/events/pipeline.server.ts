@@ -18,14 +18,12 @@ export interface EventValidationResult {
   warnings: string[];
 }
 
-
 export function validateEventPayload(
   payload: PixelEventPayload
 ): EventValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  
   if (!payload.eventName) {
     errors.push("eventName is required");
   }
@@ -38,11 +36,9 @@ export function validateEventPayload(
     errors.push("shopDomain is required");
   }
 
-  
   if (payload.data) {
     const data = payload.data;
 
-    
     if (payload.eventName === "checkout_completed" || payload.eventName === "purchase") {
       if (!data.value && data.value !== 0) {
         errors.push("value is required for purchase events");
@@ -57,7 +53,6 @@ export function validateEventPayload(
       }
     }
 
-    
     if (data.items && Array.isArray(data.items)) {
       data.items.forEach((item: unknown, index: number) => {
         if (typeof item !== "object" || item === null) {
@@ -79,7 +74,6 @@ export function validateEventPayload(
     warnings,
   };
 }
-
 
 export async function checkEventDeduplication(
   shopId: string,
@@ -119,11 +113,10 @@ export async function checkEventDeduplication(
       eventId,
       error,
     });
-    
+
     return { isDuplicate: false };
   }
 }
-
 
 export async function logEvent(
   shopId: string,
@@ -156,10 +149,9 @@ export async function logEvent(
       eventId,
       error,
     });
-    
+
   }
 }
-
 
 export async function processEventPipeline(
   shopId: string,
@@ -167,7 +159,7 @@ export async function processEventPipeline(
   eventId: string | null,
   destinations: string[]
 ): Promise<EventPipelineResult> {
-  
+
   const validation = validateEventPayload(payload);
   if (!validation.valid) {
     await logEvent(
@@ -187,7 +179,6 @@ export async function processEventPipeline(
     };
   }
 
-  
   const deduplicationResults: boolean[] = [];
   for (const destination of destinations) {
     const dedupResult = await checkEventDeduplication(
@@ -212,7 +203,6 @@ export async function processEventPipeline(
 
   const isDeduplicated = deduplicationResults.some((dup) => dup);
 
-  
   const logPromises = destinations.map((destination) =>
     logEvent(
       shopId,
@@ -220,7 +210,7 @@ export async function processEventPipeline(
       eventId,
       payload,
       destination,
-      isDeduplicated ? "ok" : "ok", 
+      isDeduplicated ? "ok" : "ok",
       isDeduplicated ? "deduplicated" : undefined,
       isDeduplicated ? "Event was deduplicated" : undefined
     )
@@ -235,7 +225,6 @@ export async function processEventPipeline(
     deduplicated: isDeduplicated,
   };
 }
-
 
 export async function processBatchEvents(
   shopId: string,
@@ -259,7 +248,6 @@ export async function processBatchEvents(
 
   return results;
 }
-
 
 export async function getEventStats(
   shopId: string,

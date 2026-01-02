@@ -17,7 +17,6 @@ export interface AlertCheckResult {
   message?: string;
 }
 
-
 export async function checkFailureRateAlert(
   shopId: string,
   alertId: string
@@ -31,10 +30,8 @@ export async function checkFailureRateAlert(
       return { triggered: false };
     }
 
-    
     const threshold = alert.threshold || 2.0;
 
-    
     const endDate = new Date();
     const startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
 
@@ -43,7 +40,7 @@ export async function checkFailureRateAlert(
     const failureRate = 100 - metrics.successRate;
 
     if (failureRate > threshold) {
-      
+
       await prisma.monitoringAlertHistory.create({
         data: {
           alertId: alert.id,
@@ -58,7 +55,6 @@ export async function checkFailureRateAlert(
         },
       });
 
-      
       await prisma.monitoringAlert.update({
         where: { id: alert.id },
         data: {
@@ -87,7 +83,6 @@ export async function checkFailureRateAlert(
   }
 }
 
-
 export async function checkMissingParamsAlert(
   shopId: string,
   alertId: string
@@ -108,7 +103,6 @@ export async function checkMissingParamsAlert(
 
     const metrics = await collectMissingParamsMetrics(shopId, startDate, endDate);
 
-    
     if (metrics.missingRate.value > threshold) {
       await prisma.monitoringAlertHistory.create({
         data: {
@@ -151,7 +145,6 @@ export async function checkMissingParamsAlert(
     return { triggered: false };
   }
 }
-
 
 export async function checkVolumeDropAlert(
   shopId: string,
@@ -219,7 +212,6 @@ export async function checkVolumeDropAlert(
   }
 }
 
-
 export async function checkAllAlerts(shopId: string): Promise<AlertCheckResult[]> {
   try {
     const alerts = await prisma.monitoringAlert.findMany({
@@ -264,7 +256,6 @@ export async function checkAllAlerts(shopId: string): Promise<AlertCheckResult[]
   }
 }
 
-
 export async function createAlert(
   shopId: string,
   alertType: "failure_rate" | "missing_params" | "volume_drop",
@@ -295,7 +286,6 @@ export async function createAlert(
     };
   }
 }
-
 
 export async function resolveAlert(
   alertHistoryId: string

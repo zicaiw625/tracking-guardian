@@ -25,11 +25,9 @@ export interface TrackingProviderConfig {
   apiSecret?: string;
 }
 
-
 function normalizeTrackingStatus(status: string): string {
   const normalized = status.toLowerCase().trim();
-  
-  
+
   if (normalized === "pending" || normalized === "inforeceived") {
     return "pending";
   }
@@ -42,8 +40,7 @@ function normalizeTrackingStatus(status: string): string {
   if (normalized === "exception" || normalized === "expired" || normalized === "attemptfail" || normalized === "undelivered") {
     return "exception";
   }
-  
-  
+
   if (normalized === "intransit") {
     return "in_transit";
   }
@@ -53,14 +50,13 @@ function normalizeTrackingStatus(status: string): string {
   if (normalized === "expired" || normalized === "exception" || normalized === "undelivered") {
     return "exception";
   }
-  
-  
+
   return "pending";
 }
 
 export class AfterShipTracker {
   private apiKey: string;
-  private baseUrl = "https://api.aftership.com/tracking/2025-07";
+  private baseUrl = "https:
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -68,8 +64,7 @@ export class AfterShipTracker {
 
   async getTracking(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
     try {
-      
-      
+
       const url = new URL(`${this.baseUrl}/trackings`);
       url.searchParams.append("tracking_numbers", trackingNumber);
       if (carrier) {
@@ -92,7 +87,7 @@ export class AfterShipTracker {
       }
 
       const data = await response.json();
-      
+
       const trackings = data.data?.trackings || [];
       if (trackings.length === 0) {
         return null;
@@ -162,7 +157,7 @@ export class AfterShipTracker {
 
 export class SeventeenTrackTracker {
   private apiKey: string;
-  private baseUrl = "https://api.17track.net/track/v2.2";
+  private baseUrl = "https:
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -170,7 +165,7 @@ export class SeventeenTrackTracker {
 
   async getTracking(trackingNumber: string, carrier?: string): Promise<TrackingInfo | null> {
     try {
-      
+
       const response = await fetch(`${this.baseUrl}/gettrackinfo`, {
         method: "POST",
         headers: {
@@ -193,7 +188,7 @@ export class SeventeenTrackTracker {
       }
 
       const data = await response.json();
-      
+
       if (data.code !== 0 || !data.data?.accepted || data.data.accepted.length === 0) {
         return null;
       }
@@ -290,8 +285,8 @@ export async function getTrackingFromShopifyOrder(
   return {
     trackingNumber: tracking.number,
     carrier: tracking.company || "unknown",
-    
-    status: "in_transit", 
+
+    status: "in_transit",
     events: [],
   };
 }

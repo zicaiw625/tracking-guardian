@@ -41,11 +41,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return json({ success: true });
   } catch (error) {
-    
+
     if (error && typeof error === "object" && "code" in error) {
       const prismaError = error as { code: string; meta?: { table?: string } };
       if (prismaError.code === "P2022" || prismaError.code === "P2021") {
-        
+
         logger.warn("PerformanceMetric table not found, migration may be pending", {
           shopDomain,
           code: prismaError.code,
@@ -53,7 +53,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "Performance metrics table not available" }, { status: 503 });
       }
     }
-    
+
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Failed to store performance metric", { error: errorMessage, shopDomain });
     return json({ error: "Internal server error" }, { status: 500 });

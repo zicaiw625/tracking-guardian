@@ -123,7 +123,7 @@ export async function createInvitation(
       },
     });
 
-    const baseUrl = process.env.SHOPIFY_APP_URL || "https://example.com";
+    const baseUrl = process.env.SHOPIFY_APP_URL || "https:
     const inviteUrl = `${baseUrl}/app/workspace/accept-invitation?token=${token}`;
 
     logger.info(`Workspace invitation created: ${invitationData.id} for group ${groupId}`);

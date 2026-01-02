@@ -81,7 +81,7 @@ function isValidRiskItem(item: unknown): item is import("../../types").RiskItem 
     if (!isRecord(item)) {
         return false;
     }
-    
+
     if (!("id" in item) || !("name" in item) || !("description" in item) || !("severity" in item)) {
         return false;
     }
@@ -112,7 +112,7 @@ function isCheckoutConfig(value: unknown): value is CheckoutConfig {
     if (!isRecord(value)) {
         return false;
     }
-    
+
     return (
         typeof value.checkoutApiSupported === "boolean" ||
         (value.features !== undefined && isRecord(value.features))
@@ -599,7 +599,6 @@ export async function getCachedScanResult(
 
     logger.debug(`Using cached scan result for shop ${shopId}, age: ${Date.now() - cached.completedAt.getTime()}ms`);
 
-    
     const scriptTags = isScriptTagArray(cached.scriptTags) ? cached.scriptTags : [];
     const checkoutConfig = isCheckoutConfig(cached.checkoutConfig) ? cached.checkoutConfig : null;
     const identifiedPlatforms = isStringArray(cached.identifiedPlatforms) ? cached.identifiedPlatforms : [];

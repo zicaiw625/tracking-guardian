@@ -8,21 +8,17 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./tests/setup.ts"],
     include: [
-      "tests/**/*.test.{ts,tsx}",
-      "app/**/*.{spec,test}.{ts,tsx}",
+      "tests*.test.{ts,tsx}",
+      "app*.{spec,test}.{ts,tsx}",
     ],
     exclude: ["node_modules", "build", "extensions"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
-      include: ["app/**/*.{ts,tsx}"],
+      include: ["app*.{ts,tsx}"],
       exclude: [
-        "node_modules/**",
-        "build/**",
-        "extensions/**",
-        "**/*.d.ts",
-        "**/schemas/**",
-      ],
-    },
-  },
-});
+        "node_modules
+
+*.d.ts",
+        "**/schemas
+

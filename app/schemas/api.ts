@@ -113,7 +113,6 @@ export const ShopifyGidSchema = z
   .string()
   .regex(/^gid:\/\/shopify\/\w+\/\d+$/, "Invalid Shopify GID format");
 
-
 export { OrderIdSchema };
 
 export const RateLimitInfoSchema = z.object({

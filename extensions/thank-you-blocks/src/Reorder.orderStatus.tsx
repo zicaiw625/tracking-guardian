@@ -26,9 +26,6 @@ function ReorderOrderStatus() {
   const buttonText = (settings.reorder_button_text as string) || "再次购买 →";
   const showItems = settings.reorder_show_items !== "false";
 
-  
-  
-  
   const generateReorderUrl = (): string => {
     if (!order?.lineItems || order.lineItems.length === 0) {
       return '/cart';

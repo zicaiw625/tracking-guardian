@@ -57,23 +57,19 @@ export function checkParamCompleteness(
   const presentParams = params ? Object.keys(params) : [];
   const missingParams = requiredParams.filter((param) => {
     const paramValue = params?.[param];
-    
-    
+
     if (paramValue === undefined || paramValue === null) {
       return true;
     }
 
-    
     if (typeof paramValue === "string" && paramValue.trim() === "") {
       return true;
     }
 
-    
     if (Array.isArray(paramValue) && paramValue.length === 0) {
       return true;
     }
 
-    
     return false;
   });
 

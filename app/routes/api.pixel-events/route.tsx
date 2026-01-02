@@ -236,25 +236,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    
-    
     const pixelConfigs = shop.pixelConfigs;
     const mode = pixelConfigs.some(
-      config => config.clientConfig && 
-      typeof config.clientConfig === 'object' && 
-      'mode' in config.clientConfig && 
+      config => config.clientConfig &&
+      typeof config.clientConfig === 'object' &&
+      'mode' in config.clientConfig &&
       config.clientConfig.mode === 'full_funnel'
     ) ? "full_funnel" : (
       pixelConfigs.some(
-        config => config.clientConfig && 
-        typeof config.clientConfig === 'object' && 
-        'mode' in config.clientConfig && 
+        config => config.clientConfig &&
+        typeof config.clientConfig === 'object' &&
+        'mode' in config.clientConfig &&
         config.clientConfig.mode === 'purchase_only'
-      ) ? "purchase_only" : "full_funnel" 
+      ) ? "purchase_only" : "full_funnel"
     );
 
-    
-    
     if (!isPrimaryEvent(payload.eventName, mode)) {
       logger.debug(`Event ${payload.eventName} not accepted for ${payload.shopDomain} (mode: ${mode})`);
       return emptyResponseWithCors(request);
@@ -312,14 +308,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const keyValidation = keyValidationOutcome.result;
 
-    
-    
-    
     const signature = request.headers.get("X-Tracking-Guardian-Signature");
     const isProduction = !isDevMode();
-    
+
     if (isProduction) {
-      
+
       if (!shop.ingestionSecret) {
         logger.error(`Missing ingestionSecret for ${shop.shopDomain} in production - HMAC verification required`);
         return jsonWithCors(
@@ -327,7 +320,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 500, request, shopAllowedDomains }
         );
       }
-      
+
       if (!signature) {
         const anomalyCheck = trackAnomaly(shop.shopDomain, "missing_signature");
         if (anomalyCheck.shouldBlock) {
@@ -344,8 +337,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 403, request, shopAllowedDomains }
         );
       }
-      
-      
+
       const hmacResult = await validatePixelEventHMAC(
         request,
         bodyText,
@@ -372,11 +364,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { status: 403, request, shopAllowedDomains }
         );
       }
-      
-      
+
       logger.debug(`HMAC signature verified for ${shop.shopDomain}`);
     } else if (shop.ingestionSecret && signature) {
-      
+
       const hmacResult = await validatePixelEventHMAC(
         request,
         bodyText,
@@ -387,7 +378,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       if (!hmacResult.valid) {
         logger.warn(`HMAC verification failed in dev mode for ${shop.shopDomain}: ${hmacResult.reason}`);
-        
+
       } else {
         logger.debug(`HMAC signature verified in dev mode for ${shop.shopDomain}`);
       }
@@ -395,12 +386,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
 
-    
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
 
-    
-    
     let matchKeyResult;
     let orderId: string;
     let usedCheckoutTokenAsFallback = false;
@@ -421,26 +409,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return jsonWithCors({ error: "Invalid request" }, { status: 400, request, shopAllowedDomains });
       }
     } else {
-      
+
       const checkoutToken = payload.data.checkoutToken;
       if (checkoutToken) {
-        orderId = checkoutToken; 
+        orderId = checkoutToken;
         eventIdentifier = checkoutToken;
       } else {
-        
+
         orderId = `session_${payload.timestamp}_${shop.shopDomain.replace(/\./g, "_")}`;
         eventIdentifier = orderId;
       }
     }
 
-    
-    
     const items = payload.data.items as Array<{ id?: string; quantity?: number }> | undefined;
     const normalizedItems = items?.map(item => ({
       id: String(item.id || ""),
       quantity: item.quantity || 1,
     })).filter(item => item.id);
-    
+
     const eventId = generateEventIdForType(
       eventIdentifier,
       eventType,
@@ -473,7 +459,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    
     const nonceFromBody = payload.nonce;
     const nonceResult = await createEventNonce(
       shop.id,
@@ -491,7 +476,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request, shopAllowedDomains);
     }
 
-    
     await upsertPixelEventReceipt(
       shop.id,
       orderId,

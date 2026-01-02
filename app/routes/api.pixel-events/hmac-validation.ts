@@ -12,7 +12,6 @@ export interface HMACValidationResult {
   errorCode?: "missing_signature" | "invalid_signature" | "timestamp_out_of_window";
 }
 
-
 export function generateHMACSignature(
   secret: string,
   timestamp: number,
@@ -23,7 +22,6 @@ export function generateHMACSignature(
   hmac.update(message);
   return hmac.digest("base64");
 }
-
 
 export function verifyHMACSignature(
   signature: string | null,
@@ -40,7 +38,6 @@ export function verifyHMACSignature(
     };
   }
 
-  
   const now = Date.now();
   const timeDiff = Math.abs(now - timestamp);
   if (timeDiff > timestampWindowMs) {
@@ -51,10 +48,8 @@ export function verifyHMACSignature(
     };
   }
 
-  
   const expectedSignature = generateHMACSignature(secret, timestamp, bodyHash);
 
-  
   try {
     const signatureBuffer = Buffer.from(signature, "base64");
     const expectedBuffer = Buffer.from(expectedSignature, "base64");
@@ -86,11 +81,9 @@ export function verifyHMACSignature(
   }
 }
 
-
 export function extractHMACSignature(request: Request): string | null {
   return request.headers.get(HMAC_HEADER);
 }
-
 
 export async function validatePixelEventHMAC(
   request: Request,
@@ -100,10 +93,9 @@ export async function validatePixelEventHMAC(
   timestampWindowMs: number = 5 * 60 * 1000
 ): Promise<HMACValidationResult> {
   const signature = extractHMACSignature(request);
-  
+
   if (!signature) {
-    
-    
+
     return {
       valid: false,
       reason: "Missing HMAC signature header",
@@ -111,7 +103,6 @@ export async function validatePixelEventHMAC(
     };
   }
 
-  
   const crypto = await import("crypto");
   const bodyHash = crypto.createHash("sha256").update(bodyText).digest("hex");
 

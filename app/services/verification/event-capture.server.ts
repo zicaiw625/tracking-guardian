@@ -30,10 +30,9 @@ export interface EventCaptureResult {
   completenessRate: number;
 }
 
-
 export async function captureRecentEvents(
   shopId: string,
-  since: Date = new Date(Date.now() - 5 * 60 * 1000), 
+  since: Date = new Date(Date.now() - 5 * 60 * 1000),
   destinationTypes?: string[]
 ): Promise<EventCaptureResult> {
   try {
@@ -112,7 +111,6 @@ export async function captureRecentEvents(
   }
 }
 
-
 export function checkParameterCompleteness(
   payload: Record<string, unknown>
 ): {
@@ -145,7 +143,6 @@ export function checkParameterCompleteness(
     completenessRate: Math.round(completenessRate * 100),
   };
 }
-
 
 export async function getEventStatistics(
   shopId: string,
@@ -185,17 +182,14 @@ export async function getEventStatistics(
     let eventsWithMissingParams = 0;
 
     for (const event of events) {
-      
+
       byEventType[event.eventName] = (byEventType[event.eventName] || 0) + 1;
 
-      
       const dest = event.destinationType || "unknown";
       byDestination[dest] = (byDestination[dest] || 0) + 1;
 
-      
       byStatus[event.status] = (byStatus[event.status] || 0) + 1;
 
-      
       const payload = (event.payloadJson as Record<string, unknown>) || {};
       const completeness = checkParameterCompleteness(payload);
       totalCompleteness += completeness.completenessRate;

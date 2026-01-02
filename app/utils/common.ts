@@ -314,8 +314,6 @@ export async function retry<T>(
   throw lastError;
 }
 
-
-
 import { parallelLimit as parallelLimitWithIndex } from "./helpers";
 
 export async function parallelLimit<T, R>(
@@ -323,13 +321,9 @@ export async function parallelLimit<T, R>(
   limit: number,
   fn: (item: T) => Promise<R>
 ): Promise<R[]> {
-  
+
   return parallelLimitWithIndex(items, limit, (item, _index) => fn(item));
 }
-
-
-
-
 
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,

@@ -15,16 +15,16 @@ export const WEBHOOK_CSP_DIRECTIVES: Record<string, string[]> = {
 
 export const CSP_DIRECTIVES: Record<string, string[]> = {
   "default-src": ["'self'"],
-  "script-src": ["'self'", "https://fonts.googleapis.com"],
-  "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  "script-src": ["'self'", "https:
+  "style-src": ["'self'", "'unsafe-inline'", "https:
   "img-src": ["'self'", "data:", "https:", "blob:"],
-  "font-src": ["'self'", "https://fonts.gstatic.com"],
+  "font-src": ["'self'", "https:
   "connect-src": [
     "'self'",
-    "https://fonts.googleapis.com",
-    "https://fonts.gstatic.com",
+    "https:
+    "https:
   ],
-  "frame-ancestors": ["https://admin.shopify.com"],
+  "frame-ancestors": ["https:
   "base-uri": ["'self'"],
   "form-action": ["'self'"],
   "object-src": ["'none'"],

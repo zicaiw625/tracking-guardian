@@ -98,8 +98,7 @@ export async function createEventNonce(
   clientNonce?: string,
   eventType: string = "purchase"
 ): Promise<{ success: boolean; isReplay: boolean }> {
-  
-  
+
   const nonceValue = clientNonce || `${orderId}:${eventType}:${timestamp}`;
   const nonceExpiresAt = new Date(Date.now() + RETENTION_CONFIG.NONCE_EXPIRY_MS);
 
@@ -300,7 +299,6 @@ export function generatePurchaseEventId(
   return generateEventId(orderId, "purchase", shopDomain);
 }
 
-
 export function generateEventIdForType(
   identifier: string,
   eventType: string,
@@ -308,7 +306,7 @@ export function generateEventIdForType(
   checkoutToken?: string | null,
   items?: Array<{ id: string; quantity: number }>
 ): string {
-  
+
   const { generateCanonicalEventId } = require("../../services/event-normalizer.server");
   return generateCanonicalEventId(
     identifier,
@@ -319,7 +317,6 @@ export function generateEventIdForType(
   );
 }
 
-
 export function generateDeduplicationKeyForEvent(
   orderId: string | null,
   checkoutToken: string | null,
@@ -328,11 +325,9 @@ export function generateDeduplicationKeyForEvent(
   shopDomain: string
 ): string {
   const { createHash } = require("crypto");
-  
-  
+
   const identifier = orderId || checkoutToken || "";
-  
-  
+
   const itemsHash = items.length > 0
     ? createHash("sha256")
         .update(
@@ -345,10 +340,9 @@ export function generateDeduplicationKeyForEvent(
         .digest("hex")
         .substring(0, 16)
     : "empty";
-  
-  
+
   const keyInput = `${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
-  
+
   return createHash("sha256")
     .update(keyInput, "utf8")
     .digest("hex")

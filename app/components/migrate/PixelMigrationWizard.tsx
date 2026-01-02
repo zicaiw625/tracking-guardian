@@ -619,9 +619,9 @@ const allTemplates: WizardTemplate[] = [
         timestamp: Date.now(),
       }));
     } catch (error) {
-      // Log warning in development only
+
       if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
+
         console.warn("Failed to save draft to localStorage:", error);
       }
     }
@@ -638,16 +638,16 @@ const allTemplates: WizardTemplate[] = [
         });
 
         if (!response.ok) {
-          // Log warning in development only
+
           if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
+
             console.warn("Failed to save draft to database");
           }
         }
       } catch (error) {
-        // Log warning in development only
+
         if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console
+
           console.warn("Failed to save draft to database:", error);
         }
       }
@@ -660,9 +660,9 @@ const allTemplates: WizardTemplate[] = [
       const DRAFT_STORAGE_KEY = shopId ? `pixel-wizard-draft-${shopId}` : "pixel-wizard-draft";
       localStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch (error) {
-      // Log warning in development only
+
       if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
+
         console.warn("Failed to clear draft from localStorage:", error);
       }
     }
@@ -677,9 +677,9 @@ const allTemplates: WizardTemplate[] = [
           body: formData,
         });
       } catch (error) {
-        // Log warning in development only
+
         if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console
+
           console.warn("Failed to clear draft from database:", error);
         }
       }
@@ -700,9 +700,9 @@ const allTemplates: WizardTemplate[] = [
         };
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
       } catch (error) {
-        // Log warning in development only
+
         if (process.env.NODE_ENV === "development") {
-          // eslint-disable-next-line no-console
+
           console.warn("Failed to sync draft to localStorage:", error);
         }
       }
@@ -722,8 +722,8 @@ const allTemplates: WizardTemplate[] = [
       });
       setPlatformConfigs(configs);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 只在组件挂载时运行一次
+
+  }, []);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -770,9 +770,9 @@ const allTemplates: WizardTemplate[] = [
           };
           localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
         } catch (error) {
-          // Log warning in development only
+
           if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
+
             console.warn("Failed to save draft before unload:", error);
           }
         }
@@ -871,7 +871,7 @@ const allTemplates: WizardTemplate[] = [
             eventMappings: template.eventMappings[platform] || existingConfig.eventMappings,
           };
         } else {
-          // Create default config if it doesn't exist
+
           configs[platformKey] = {
             platform: platformKey,
             enabled: true,
@@ -1657,9 +1657,9 @@ function ReviewStep({
       showSuccess("模板已保存！");
     } catch (error) {
       showError("保存模板失败");
-      // Log error in development only
+
       if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
+
         console.error("Save template error", error);
       }
     } finally {
@@ -1922,9 +1922,9 @@ function TestingStep({
       }
     } catch (error) {
       showError("验证过程中发生错误");
-      // Log error in development only
+
       if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
+
         console.error("Test environment validation error", error);
       }
     } finally {
@@ -1975,9 +1975,9 @@ function TestingStep({
       }
     } catch (error) {
       showError("切换环境时发生错误");
-      // Log error in development only
+
       if (process.env.NODE_ENV === "development") {
-        // eslint-disable-next-line no-console
+
         console.error("Switch to live error", error);
       }
     } finally {

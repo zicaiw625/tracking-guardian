@@ -26,8 +26,7 @@ const Reorder = memo(function Reorder() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backendUrlError, setBackendUrlError] = useState(false);
-  
-  
+
   const storefrontUrl = useMemo(() => {
     return api.shop?.storefrontUrl || "";
   }, [api.shop?.storefrontUrl]);
@@ -36,7 +35,6 @@ const Reorder = memo(function Reorder() {
   const subtitle = useMemo(() => (settings.reorder_subtitle as string) || "喜欢这次购物？一键再次订购相同商品", [settings.reorder_subtitle]);
   const buttonText = useMemo(() => (settings.reorder_button_text as string) || "再次购买 →", [settings.reorder_button_text]);
 
-  
   useEffect(() => {
     async function fetchOrderInfo() {
       try {
@@ -58,14 +56,12 @@ const Reorder = memo(function Reorder() {
     fetchOrderInfo();
   }, [api]);
 
-  
   useEffect(() => {
     async function fetchReorderUrl() {
       if (!orderId) {
         return;
       }
 
-      
       if (!BACKEND_URL || !isAllowedBackendUrl(BACKEND_URL)) {
         console.warn("Reorder: Backend URL not configured or not allowed", { BACKEND_URL });
         setBackendUrlError(true);
@@ -77,14 +73,12 @@ const Reorder = memo(function Reorder() {
       setError(null);
       setIsLoading(true);
 
-      
-      
       const retryDelays = [0, 500, 1500, 3000];
       let lastError: Error | null = null;
 
       for (let attempt = 0; attempt < retryDelays.length; attempt++) {
         try {
-          
+
           if (attempt > 0) {
             await new Promise(resolve => setTimeout(resolve, retryDelays[attempt] - retryDelays[attempt - 1]));
           }
@@ -104,19 +98,17 @@ const Reorder = memo(function Reorder() {
             },
           });
 
-          
           if (response.status === 202) {
             const data = await response.json();
             const retryAfter = response.headers.get("Retry-After");
             const retryDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
 
-            
             if (attempt < retryDelays.length - 1) {
               console.log(`Order still creating, retrying after ${retryDelay}ms`, { orderId, attempt });
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               continue;
             } else {
-              
+
               setError(data.message || "订单正在生成，请稍后刷新页面");
               break;
             }
@@ -124,34 +116,33 @@ const Reorder = memo(function Reorder() {
 
           if (response.ok) {
             const data = await response.json();
-            
+
             const reorderUrlFromBackend = data.reorderUrl || "/cart";
-            
-            
-            const absoluteUrl = reorderUrlFromBackend.startsWith("http://") || reorderUrlFromBackend.startsWith("https://")
+
+            const absoluteUrl = reorderUrlFromBackend.startsWith("http:
               ? reorderUrlFromBackend
-              : (storefrontUrl 
+              : (storefrontUrl
                   ? `${storefrontUrl}${reorderUrlFromBackend.startsWith("/") ? reorderUrlFromBackend : `/${reorderUrlFromBackend}`}`
                   : reorderUrlFromBackend);
             setReorderUrl(absoluteUrl);
             setError(null);
-            break; 
+            break;
           } else if (response.status === 404) {
-            
+
             setError("订单不存在");
             break;
           } else {
-            
+
             const errorText = await response.text().catch(() => "Unknown error");
             lastError = new Error(`HTTP ${response.status}: ${errorText}`);
             if (attempt < retryDelays.length - 1) {
-              continue; 
+              continue;
             }
           }
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
           console.warn(`Failed to fetch reorder URL (attempt ${attempt + 1}):`, error);
-          
+
           if (attempt === retryDelays.length - 1) {
             setError("获取重新购买链接失败，请稍后刷新页面");
           }
@@ -164,12 +155,10 @@ const Reorder = memo(function Reorder() {
     fetchReorderUrl();
   }, [orderId, api, BACKEND_URL, storefrontUrl]);
 
-  
   if (!orderId && !orderNumber) {
     return null;
   }
 
-  
   if (backendUrlError) {
     return (
       <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
@@ -181,7 +170,6 @@ const Reorder = memo(function Reorder() {
       </BlockStack>
     );
   }
-
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
@@ -220,19 +208,18 @@ const Reorder = memo(function Reorder() {
               点击按钮将跳转到购物车
             </Text>
           </BlockStack>
-          <Button 
-            kind="primary" 
+          <Button
+            kind="primary"
             loading={isLoading}
             disabled={isLoading || !reorderUrl}
             onPress={() => {
-              
-              
+
               if (reorderUrl) {
                 try {
                   if (typeof window !== "undefined" && window.location) {
                     window.location.href = reorderUrl;
                   } else {
-                    
+
                     if (typeof document !== "undefined" && document.location) {
                       document.location.href = reorderUrl;
                     }

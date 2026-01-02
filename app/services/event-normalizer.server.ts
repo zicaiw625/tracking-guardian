@@ -6,21 +6,17 @@ import { mapEventToPlatform } from "./events/mapping.server";
 import { normalizeEventParameters } from "./event-parameter-normalization.server";
 import type { EventMapping } from "./event-mapping";
 
-
 export interface CanonicalEvent {
-  eventName: string; 
+  eventName: string;
   timestamp: number;
   shopDomain: string;
-  
-  
+
   orderId?: string | null;
   checkoutToken?: string | null;
-  
-  
+
   value: number;
   currency: string;
-  
-  
+
   items?: Array<{
     id: string;
     name: string;
@@ -29,37 +25,31 @@ export interface CanonicalEvent {
     variantId?: string;
     sku?: string;
   }>;
-  
-  
+
   eventId: string;
-  
-  
+
   rawData: Record<string, unknown>;
 }
 
-
 export interface PlatformEventParams {
-  eventName: string; 
+  eventName: string;
   parameters: Record<string, unknown>;
   eventId?: string;
   isValid: boolean;
   missingParameters: string[];
 }
 
-
 export function normalizeToCanonical(
   payload: PixelEventPayload,
   eventId: string
 ): CanonicalEvent {
   const data = payload.data || {};
-  
-  
+
   const value = normalizeValue(data.value);
   const currency = normalizeCurrency(data.currency);
-  
-  
+
   const items = normalizeItems(data.items);
-  
+
   return {
     eventName: payload.eventName,
     timestamp: payload.timestamp,
@@ -74,12 +64,11 @@ export function normalizeToCanonical(
   };
 }
 
-
 export function mapToPlatform(
   canonical: CanonicalEvent,
   platform: string
 ): PlatformEventParams {
-  
+
   const payload: PixelEventPayload = {
     eventName: canonical.eventName,
     timestamp: canonical.timestamp,
@@ -101,13 +90,13 @@ export function mapToPlatform(
       event_id: canonical.eventId,
     },
   };
-  
+
   const mapped = mapEventToPlatform(
     canonical.eventName,
     platform,
     payload
   );
-  
+
   return {
     eventName: mapped.eventName,
     parameters: {
@@ -120,7 +109,6 @@ export function mapToPlatform(
   };
 }
 
-
 export function generateCanonicalEventId(
   orderId: string | null | undefined,
   checkoutToken: string | null | undefined,
@@ -129,23 +117,21 @@ export function generateCanonicalEventId(
   items?: Array<{ id: string; quantity: number }>
 ): string {
   const crypto = require("crypto");
-  
-  
+
   let identifier: string;
   if (orderId) {
     identifier = normalizeOrderId(orderId);
   } else if (checkoutToken) {
     identifier = checkoutToken;
   } else {
-    
+
     logger.warn("Generating event ID without orderId or checkoutToken", {
       eventName,
       shopDomain,
     });
     identifier = `${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
   }
-  
-  
+
   let itemsHash = "";
   if (items && items.length > 0) {
     const itemsKey = items
@@ -158,8 +144,7 @@ export function generateCanonicalEventId(
       .digest("hex")
       .substring(0, 8);
   }
-  
-  
+
   const input = `${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
   return crypto
     .createHash("sha256")
@@ -168,33 +153,30 @@ export function generateCanonicalEventId(
     .substring(0, 32);
 }
 
-
 function normalizeValue(value: unknown): number {
   if (typeof value === "number") {
-    return Math.max(0, Math.round(value * 100) / 100); 
+    return Math.max(0, Math.round(value * 100) / 100);
   }
-  
+
   if (typeof value === "string") {
     const parsed = parseFloat(value);
     return isNaN(parsed) ? 0 : Math.max(0, Math.round(parsed * 100) / 100);
   }
-  
+
   return 0;
 }
-
 
 function normalizeCurrency(currency: unknown): string {
   if (typeof currency === "string") {
     const upper = currency.toUpperCase().trim();
-    
+
     if (/^[A-Z]{3}$/.test(upper)) {
       return upper;
     }
   }
-  
-  return "USD"; 
-}
 
+  return "USD";
+}
 
 function normalizeItems(
   items: unknown
@@ -202,37 +184,32 @@ function normalizeItems(
   if (!Array.isArray(items)) {
     return undefined;
   }
-  
+
   return items
     .filter(item => item != null && typeof item === "object")
     .map(item => {
       const itemObj = item as Record<string, unknown>;
-      
-      
+
       const id =
         String(itemObj.id || itemObj.item_id || itemObj.variant_id || itemObj.sku || itemObj.product_id || "").trim();
-      
-      
+
       const name =
         String(itemObj.name || itemObj.item_name || itemObj.title || itemObj.product_name || "").trim();
-      
-      
+
       const price = normalizeValue(itemObj.price);
-      
-      
+
       const quantity =
         typeof itemObj.quantity === "number"
           ? Math.max(1, Math.floor(itemObj.quantity))
           : typeof itemObj.quantity === "string"
           ? Math.max(1, parseInt(itemObj.quantity, 10) || 1)
           : 1;
-      
-      
+
       const variantId = itemObj.variant_id
         ? String(itemObj.variant_id).trim()
         : undefined;
       const sku = itemObj.sku ? String(itemObj.sku).trim() : undefined;
-      
+
       return {
         id,
         name,
@@ -242,21 +219,18 @@ function normalizeItems(
         sku,
       };
     })
-    .filter(item => item.id && item.name); 
+    .filter(item => item.id && item.name);
 }
 
-
 function normalizeOrderId(orderId: string): string {
-  
+
   const gidMatch = orderId.match(/gid:\/\/shopify\/Order\/(\d+)/i);
   if (gidMatch) {
     return gidMatch[1];
   }
-  
-  
+
   return orderId.trim();
 }
-
 
 export function validatePlatformEvent(
   platformEvent: PlatformEventParams
@@ -265,25 +239,24 @@ export function validatePlatformEvent(
   errors: string[];
 } {
   const errors: string[] = [];
-  
+
   if (!platformEvent.isValid) {
     errors.push(`Missing required parameters: ${platformEvent.missingParameters.join(", ")}`);
   }
-  
+
   if (!platformEvent.eventName) {
     errors.push("Missing event name");
   }
-  
+
   if (!platformEvent.eventId) {
     errors.push("Missing event ID");
   }
-  
+
   return {
     isValid: errors.length === 0,
     errors,
   };
 }
-
 
 export function exportVisualPayload(
   canonical: CanonicalEvent,

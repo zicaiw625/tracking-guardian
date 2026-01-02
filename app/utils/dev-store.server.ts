@@ -23,7 +23,7 @@ export function generateModulePreviewUrl(
     return null;
   }
 
-  const baseUrl = `https://${shopDomain}`;
+  const baseUrl = `https:
 
   if (target === "thank_you") {
 

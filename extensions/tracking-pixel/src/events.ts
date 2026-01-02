@@ -20,19 +20,17 @@ export interface EventSenderConfig {
   logger?: (...args: unknown[]) => void;
 }
 
-
 async function generateHMACSignature(
   secret: string,
   timestamp: number,
   bodyHash: string
 ): Promise<string> {
-  
+
   const message = `${timestamp}:${bodyHash}`;
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
   const messageData = encoder.encode(message);
 
-  
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
     keyData,
@@ -41,10 +39,8 @@ async function generateHMACSignature(
     ["sign"]
   );
 
-  
   const signature = await crypto.subtle.sign("HMAC", cryptoKey, messageData);
 
-  
   return btoa(String.fromCharCode(...new Uint8Array(signature)));
 }
 
@@ -173,23 +169,19 @@ export function createEventSender(config: EventSenderConfig) {
       const body = JSON.stringify(payload);
       const url = `${backendUrl}/api/pixel-events`;
 
-      
-      
       const headers: Record<string, string> = {
         "Content-Type": "text/plain;charset=UTF-8",
         "X-Tracking-Guardian-Timestamp": String(timestamp),
       };
 
-      
       if (!ingestionKey) {
         if (isDevMode) {
           log(`⚠️ Missing ingestionKey - HMAC signature cannot be generated. Event will be rejected in production.`);
         }
-        
-        
+
       } else {
         try {
-          
+
           const bodyHashBuffer = await crypto.subtle.digest(
             "SHA-256",
             new TextEncoder().encode(body)
@@ -198,21 +190,19 @@ export function createEventSender(config: EventSenderConfig) {
             .map(b => b.toString(16).padStart(2, "0"))
             .join("");
 
-          
           const signature = await generateHMACSignature(ingestionKey, timestamp, bodyHash);
           headers["X-Tracking-Guardian-Signature"] = signature;
-          
+
           if (isDevMode) {
             log(`HMAC signature generated successfully for ${eventName}`);
           }
         } catch (hmacError) {
-          
-          
+
           if (isDevMode) {
             log(`❌ HMAC signature generation failed:`, hmacError);
             log(`Event ${eventName} will be rejected by server in production without valid signature`);
           }
-          
+
         }
       }
 
@@ -326,7 +316,7 @@ function subscribeToProductAddedToCart(
       productTitle: cartLine.merchandise?.product?.title || null,
       price: toNumber(cartLine.merchandise?.price?.amount),
       quantity: cartLine.quantity || 1,
-      currency: "USD", 
+      currency: "USD",
     });
   });
 
@@ -374,7 +364,7 @@ function subscribeToProductViewed(
       productId: productVariant.product?.id || null,
       productTitle: productVariant.product?.title || null,
       price: toNumber(productVariant.price?.amount),
-      currency: "USD", 
+      currency: "USD",
     });
   });
 
@@ -465,7 +455,6 @@ function subscribeToPaymentInfoSubmitted(
   log("payment_info_submitted event subscribed");
 }
 
-
 export function subscribeToAnalyticsEvents(
   analytics: {
     subscribe: (event: string, handler: (event: unknown) => void) => void;
@@ -474,24 +463,21 @@ export function subscribeToAnalyticsEvents(
   logger?: (...args: unknown[]) => void,
   mode: "purchase_only" | "full_funnel" = "full_funnel"
 ): void {
-  
+
   subscribeToCheckoutCompleted(analytics, sendToBackend, logger);
 
-  
   if (mode === "full_funnel") {
-    
+
     subscribeToCheckoutStarted(analytics, sendToBackend, logger);
     subscribeToCheckoutContactInfoSubmitted(analytics, sendToBackend, logger);
     subscribeToCheckoutShippingInfoSubmitted(analytics, sendToBackend, logger);
     subscribeToPaymentInfoSubmitted(analytics, sendToBackend, logger);
-    
-    
+
     subscribeToProductAddedToCart(analytics, sendToBackend, logger);
     subscribeToProductViewed(analytics, sendToBackend, logger);
-    
-    
+
     subscribeToPageViewed(analytics, sendToBackend, logger);
-    
+
     const log = logger || (() => {});
     log("Tracking Guardian pixel initialized - full_funnel mode enabled with all standard events");
   }

@@ -241,7 +241,6 @@ export const EVENT_MAPPINGS: Record<string, Record<string, EventMapping>> = {
   },
 };
 
-
 export function mapEventToPlatform(
   shopifyEvent: string,
   platform: string,
@@ -266,7 +265,6 @@ export function mapEventToPlatform(
   const parameters: Record<string, unknown> = {};
   const missingParameters: string[] = [];
 
-  
   for (const [shopifyKey, platformKey] of Object.entries(mapping.parameterMapping)) {
     const value = getNestedValue(payload.data, shopifyKey);
     if (value !== undefined) {
@@ -274,14 +272,12 @@ export function mapEventToPlatform(
     }
   }
 
-  
   for (const requiredParam of mapping.requiredParameters) {
     if (parameters[requiredParam] === undefined) {
       missingParameters.push(requiredParam);
     }
   }
 
-  
   if (payload.data?.items && Array.isArray(payload.data.items)) {
     if (platform === "meta") {
       parameters.content_ids = payload.data.items.map((item: unknown) => {
@@ -342,7 +338,6 @@ export function mapEventToPlatform(
   };
 }
 
-
 function getNestedValue(obj: unknown, path: string): unknown {
   if (!obj || typeof obj !== "object") {
     return undefined;
@@ -362,7 +357,6 @@ function getNestedValue(obj: unknown, path: string): unknown {
   return current;
 }
 
-
 export function normalizeParameterValue(
   value: unknown,
   parameterName: string,
@@ -372,17 +366,15 @@ export function normalizeParameterValue(
     return undefined;
   }
 
-  
   if (parameterName === "currency") {
     if (typeof value === "string") {
       return value.toUpperCase().trim();
     }
   }
 
-  
   if (parameterName === "value" || parameterName.includes("price")) {
     if (typeof value === "number") {
-      return Math.round(value * 100) / 100; 
+      return Math.round(value * 100) / 100;
     }
     if (typeof value === "string") {
       const num = parseFloat(value);
@@ -390,7 +382,6 @@ export function normalizeParameterValue(
     }
   }
 
-  
   if (Array.isArray(value)) {
     return value.filter(item => item !== null && item !== undefined);
   }

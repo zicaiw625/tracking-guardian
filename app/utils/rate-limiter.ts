@@ -355,9 +355,6 @@ export function checkRateLimit(
   const key = getRateLimitKey(request, endpoint);
   const now = Date.now();
 
-  
-  
-  
   logger.warn(
     "checkRateLimit called (sync version). This function has race conditions. Use checkRateLimitAsync instead."
   );

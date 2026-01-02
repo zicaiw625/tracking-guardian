@@ -873,7 +873,7 @@ export default function OnboardingPage() {
               如果您在迁移过程中遇到问题，我们提供以下支持：
             </Text>
             <InlineStack gap="300" wrap>
-              <Button url="https://help.shopify.com" external>
+              <Button url="https:
                 Shopify 官方文档
               </Button>
               <Button url="/support">

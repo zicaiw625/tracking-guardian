@@ -325,7 +325,6 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
   );
 });
 
-
 const UpgradeStatusCard = memo(function UpgradeStatusCard({
   upgradeStatus,
 }: {
@@ -414,7 +413,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
                         <strong>{autoUpgradeLabel}</strong> 起，Shopify 开始自动升级 Plus 商家到新版 TYP/OSP 页面，legacy 定制会丢失。
                       </Text>
                       <Link
-                        url="https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility"
+                        url="https:
                         external
                       >
                         查看 Plus 商家升级指南
@@ -462,7 +461,6 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
   );
 });
 
-
 const RiskScoreCard = memo(function RiskScoreCard({
   riskScore,
   riskLevel,
@@ -489,8 +487,8 @@ const RiskScoreCard = memo(function RiskScoreCard({
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
 
-  const riskColor = riskLevel === "high" 
-    ? "bg-fill-critical" 
+  const riskColor = riskLevel === "high"
+    ? "bg-fill-critical"
     : riskLevel === "medium"
       ? "bg-fill-caution"
       : riskLevel === "low"
@@ -547,7 +545,6 @@ const RiskScoreCard = memo(function RiskScoreCard({
     </Card>
   );
 });
-
 
 const MigrationProgressCard = memo(function MigrationProgressCard({
   migrationProgress,
@@ -844,7 +841,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
       tone={scriptTagsCount > 0 ? "warning" : "info"}
       action={{
         content: "了解更多",
-        url: "https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility",
+        url: "https:
         external: true,
       }}
     >
@@ -855,7 +852,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility"
+              url="https:
               external
             >
               查看 Plus 商家升级指南
@@ -868,7 +865,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility"
+              url="https:
               external
             >
               查看 ScriptTags 弃用时间表

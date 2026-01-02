@@ -10,19 +10,17 @@ export interface DeduplicationResult {
   deduplicationKey: string;
 }
 
-
 export function generateEventId(
   shopDomain: string,
   orderId: string | null,
   eventName: string,
   checkoutToken?: string | null
 ): string {
-  
+
   if (orderId) {
     return generateCryptoEventId(orderId, eventName, shopDomain);
   }
 
-  
   if (checkoutToken) {
     const hashInput = `${shopDomain}:${checkoutToken}:${eventName}`;
     return require("crypto")
@@ -32,7 +30,6 @@ export function generateEventId(
       .substring(0, 32);
   }
 
-  
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
   const hashInput = `${shopDomain}:${timestamp}:${random}:${eventName}`;
@@ -43,7 +40,6 @@ export function generateEventId(
     .substring(0, 32);
 }
 
-
 export function generateDeduplicationKey(
   shopId: string,
   eventId: string,
@@ -51,7 +47,6 @@ export function generateDeduplicationKey(
 ): string {
   return `${shopId}:${eventId}:${destinationType}`;
 }
-
 
 export function extractDeduplicationInfo(
   payload: PixelEventPayload,
@@ -68,7 +63,6 @@ export function extractDeduplicationInfo(
   };
 }
 
-
 export function createDeduplicationResult(
   eventId: string,
   isDuplicate: boolean,
@@ -78,16 +72,14 @@ export function createDeduplicationResult(
     eventId,
     isDuplicate,
     existingEventId,
-    deduplicationKey: eventId, 
+    deduplicationKey: eventId,
   };
 }
 
-
 export function isValidEventId(eventId: string): boolean {
-  
+
   return /^[a-f0-9]{32}$/i.test(eventId);
 }
-
 
 export function generateHybridDeduplicationKey(
   clientEventId: string | null,

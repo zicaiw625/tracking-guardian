@@ -25,13 +25,12 @@ export interface ReconciliationResult {
   isConsistent: boolean;
 }
 
-
 export async function reconcileOrder(
   shopId: string,
   orderId: string
 ): Promise<ReconciliationResult> {
   try {
-    
+
     const conversionLog = await prisma.conversionLog.findFirst({
       where: {
         shopId,
@@ -51,11 +50,10 @@ export async function reconcileOrder(
         }
       : null;
 
-    
     const events = await prisma.eventLog.findMany({
       where: {
         shopId,
-        eventId: orderId, 
+        eventId: orderId,
         eventName: "checkout_completed",
       },
       select: {
@@ -90,7 +88,7 @@ export async function reconcileOrder(
       });
     } else {
       for (const platformEvent of platformEvents) {
-        
+
         const valueDiff = Math.abs(
           shopifyOrder.orderValue - platformEvent.eventValue
         );
@@ -100,7 +98,7 @@ export async function reconcileOrder(
             : 0;
 
         if (valueDiffRate > 1) {
-          
+
           discrepancies.push({
             platform: platformEvent.platform,
             type: "value_mismatch",
@@ -108,7 +106,6 @@ export async function reconcileOrder(
           });
         }
 
-        
         if (
           shopifyOrder.currency.toUpperCase() !==
           platformEvent.currency.toUpperCase()
@@ -139,7 +136,6 @@ export async function reconcileOrder(
   }
 }
 
-
 export async function reconcileOrders(
   shopId: string,
   orderIds: string[]
@@ -156,13 +152,12 @@ export async function reconcileOrders(
         orderId,
         error,
       });
-      
+
     }
   }
 
   return results;
 }
-
 
 export async function getReconciliationSummary(
   shopId: string,
@@ -184,7 +179,7 @@ export async function getReconciliationSummary(
   >;
 }> {
   try {
-    
+
     const events = await prisma.eventLog.findMany({
       where: {
         shopId,
@@ -228,7 +223,6 @@ export async function getReconciliationSummary(
       byPlatform[platform].total++;
     }
 
-    
     let consistentOrders = 0;
     let inconsistentOrders = 0;
 
@@ -264,7 +258,6 @@ export async function getReconciliationSummary(
     const consistencyRate =
       totalOrders > 0 ? (consistentOrders / totalOrders) * 100 : 0;
 
-    
     const platformStats: Record<
       string,
       {

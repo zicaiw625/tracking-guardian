@@ -48,7 +48,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return json({
     shop: shop || { piiEnabled: false, pcdAcknowledged: false, consentStrategy: "strict" },
-    appDomain: process.env.APP_URL || "https://example.com",
+    appDomain: process.env.APP_URL || "https:
   });
 };
 
@@ -615,14 +615,9 @@ export default function PrivacyPage() {
                     content: "确认删除",
                     destructive: true,
                     onAction: () => {
-                      
+
                       setShowDeleteModal(false);
-                      
-                      
-                      
-                      
-                      
-                      
+
                       alert("删除功能需要后端支持，请联系管理员或通过 GDPR webhook 处理");
                     },
                   }}
@@ -690,12 +685,12 @@ export default function PrivacyPage() {
                 </Link>
               </List.Item>
               <List.Item>
-                <Link url="https://help.shopify.com" external>
+                <Link url="https:
                   Shopify 客户数据保护指南
                 </Link>
               </List.Item>
               <List.Item>
-                <Link url="https://help.shopify.com" external>
+                <Link url="https:
                   Shopify GDPR 要求
                 </Link>
               </List.Item>

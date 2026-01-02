@@ -31,17 +31,14 @@ function UpsellOfferOrderStatus() {
     const discountPercent = discountPercentStr ? parseInt(discountPercentStr, 10) : 10;
     const expiryHoursStr = settings.upsell_expiry_hours as string;
     const expiryHours = expiryHoursStr ? parseInt(expiryHoursStr, 10) : 24;
-    
-    
-    
-    
+
     const continueShoppingUrl = (() => {
       const url = (settings.continue_shopping_url as string) || "/";
-      
-      if (url.startsWith("http://") || url.startsWith("https://")) {
+
+      if (url.startsWith("http:
         return url;
       }
-      
+
       return url;
     })();
 

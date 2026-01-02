@@ -18,7 +18,7 @@ function SupportBlock() {
   const api = useApi();
 
   const storefrontUrl = useMemo(() => {
-    
+
     return api.shop?.storefrontUrl || "";
   }, [api.shop?.storefrontUrl]);
 
@@ -26,31 +26,30 @@ function SupportBlock() {
   const description = useMemo(() =>
     (settings.support_description as string) ||
     "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。", [settings.support_description]);
-  
-  
+
   const faqUrl = useMemo(() => {
     const url = (settings.support_faq_url as string) || "/pages/faq";
-    if (url.startsWith("http://") || url.startsWith("https://")) {
+    if (url.startsWith("http:
       return url;
     }
     return storefrontUrl ? `${storefrontUrl}${url.startsWith("/") ? url : `/${url}`}` : url;
   }, [settings.support_faq_url, storefrontUrl]);
-  
+
   const contactEmail = useMemo(() => settings.support_contact_email as string | undefined, [settings.support_contact_email]);
   const contactUrl = useMemo(() => settings.support_contact_url as string | undefined, [settings.support_contact_url]);
   const whatsappNumber = useMemo(() => settings.support_whatsapp_number as string | undefined, [settings.support_whatsapp_number]);
   const messengerUrl = useMemo(() => settings.support_messenger_url as string | undefined, [settings.support_messenger_url]);
-  
+
   const continueShoppingUrl = useMemo(() => {
     const url = (settings.continue_shopping_url as string) || "/";
-    if (url.startsWith("http://") || url.startsWith("https://")) {
+    if (url.startsWith("http:
       return url;
     }
     return storefrontUrl ? `${storefrontUrl}${url.startsWith("/") ? url : `/${url}`}` : url;
   }, [settings.continue_shopping_url, storefrontUrl]);
 
   const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
-  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : undefined;
+  const whatsappUrl = whatsappNumber ? `https:
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">

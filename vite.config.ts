@@ -17,7 +17,7 @@ if (
 }
 
 function getHostname(): string {
-  const appUrl = process.env.SHOPIFY_APP_URL || "http://localhost:3000";
+  const appUrl = process.env.SHOPIFY_APP_URL || "http:
   try {
     return new URL(appUrl).hostname;
   } catch (error) {
@@ -67,7 +67,7 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 4096,
-    
+
     sourcemap: process.env.NODE_ENV !== "production",
     rollupOptions: {
       external: ["html-pdf-node", "archiver"],
@@ -93,7 +93,7 @@ export default defineConfig({
     minify: "esbuild",
   },
   ssr: {
-    
+
     noExternal: [
       "@shopify/polaris",
       "@shopify/shopify-app-remix",

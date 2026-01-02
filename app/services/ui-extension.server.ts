@@ -226,10 +226,9 @@ export async function updateUiModuleConfig(
   options?: { syncToExtension?: boolean; admin?: AdminApiContext }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    
+
     const { validateModuleSettings, validateDisplayRules, validateLocalizationSettings } = await import("../schemas/ui-module-settings");
 
-    
     if (config.settings) {
       const settingsValidation = validateModuleSettings(moduleKey, config.settings);
       if (!settingsValidation.valid) {
@@ -241,7 +240,6 @@ export async function updateUiModuleConfig(
       config.settings = settingsValidation.normalized;
     }
 
-    
     if (config.displayRules) {
       const displayRulesValidation = validateDisplayRules(config.displayRules);
       if (!displayRulesValidation.valid) {
@@ -253,7 +251,6 @@ export async function updateUiModuleConfig(
       config.displayRules = displayRulesValidation.normalized;
     }
 
-    
     if (config.localization) {
       const localizationValidation = validateLocalizationSettings(config.localization);
       if (!localizationValidation.valid) {

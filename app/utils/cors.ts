@@ -205,7 +205,6 @@ export function handleCorsPreFlight(request?: Request, staticCors = false): Resp
     });
 }
 
-
 export function optionsResponse(request: Request, staticCors = true): Response {
     return handleCorsPreFlight(request, staticCors);
 }

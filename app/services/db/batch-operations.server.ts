@@ -74,11 +74,8 @@ export async function batchCompleteJobs(
           },
         });
 
-        
-        
-        
         if (completed.length > 0) {
-          
+
           await Promise.all(
             completed.map((job) =>
               tx.conversionJob.update({
@@ -96,7 +93,7 @@ export async function batchCompleteJobs(
       }
 
       if (failed.length > 0) {
-        
+
         await Promise.all(
           failed.map((job) =>
             tx.conversionJob.update({
@@ -124,7 +121,6 @@ export async function batchCompleteJobs(
           },
         });
 
-        
         const limitExceededWithErrors = limitExceeded.filter((j) => j.errorMessage);
         if (limitExceededWithErrors.length > 0) {
           await Promise.all(
@@ -149,7 +145,6 @@ export async function batchCompleteJobs(
           },
         });
 
-        
         await Promise.all(
           deadLetter.map((job) =>
             tx.conversionJob.update({

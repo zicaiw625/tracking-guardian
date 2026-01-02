@@ -234,8 +234,7 @@ async function exportToPDF(
 ): Promise<string> {
 
   try {
-    
-    
+
     let PDFDocument: any;
     try {
       PDFDocument = (await import("pdfkit")).default;

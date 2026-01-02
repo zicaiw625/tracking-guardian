@@ -66,9 +66,9 @@ export function ConfigVersionManager({
         setVersionHistory(data.history);
       }
     } catch (error) {
-      
+
       if (process.env.NODE_ENV === "development") {
-        
+
         console.error("Failed to load version history", error);
       }
     } finally {

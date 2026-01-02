@@ -17,7 +17,6 @@ register(({ analytics, settings, init, customerPrivacy }: {
   const ingestionKey = settings.ingestion_key;
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
 
-  
   const backendUrl = BACKEND_URL && isAllowedBackendUrl(BACKEND_URL) ? BACKEND_URL : null;
 
   const isDevMode = (() => {
@@ -57,8 +56,6 @@ register(({ analytics, settings, init, customerPrivacy }: {
     logger: log,
   });
 
-  
-  
   const pixelConfig = parsePixelConfig(settings.pixel_config);
   const mode = pixelConfig.mode || "full_funnel";
 

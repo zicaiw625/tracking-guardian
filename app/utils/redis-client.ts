@@ -341,7 +341,7 @@ class RedisClientFactory {
       this.connectionInfo = {
         connected: true,
         mode: "redis",
-        url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "//***@"),
+        url: redisUrl.replace(/\/\/[^:]+:[^@]+@/, "
         reconnectAttempts: 0,
       };
 
@@ -502,7 +502,7 @@ class RedisClientFactory {
   static reset(): void {
     if (RedisClientFactory.instance) {
       RedisClientFactory.instance.close().catch((error) => {
-        
+
         console.error("[REDIS] Error closing connection during reset:", error);
       });
       RedisClientFactory.instance = null;

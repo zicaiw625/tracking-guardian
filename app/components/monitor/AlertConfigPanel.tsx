@@ -16,7 +16,6 @@ import {
 } from "@shopify/polaris";
 import { SettingsIcon, AlertCircleIcon } from "~/components/icons";
 
-
 interface MonitoringAlert {
   id: string;
   shopId: string;

@@ -87,7 +87,6 @@ export function sanitizeUrl(url: string): string | null {
   }
 }
 
-
 export function validateBodySize(
   contentLength: string | null,
   maxSize: number
@@ -314,7 +313,6 @@ export function isPublicUrl(urlStr: string): boolean {
     return false;
   }
 }
-
 
 export function containsSensitiveInfo(text: string): boolean {
   if (typeof text !== "string" || text.length === 0) {

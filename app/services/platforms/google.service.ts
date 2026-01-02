@@ -25,7 +25,7 @@ import {
   parseGoogleError,
 } from "./base-platform.service";
 
-const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";
+const GA4_MEASUREMENT_PROTOCOL_URL = "https:
 const MEASUREMENT_ID_PATTERN = /^G-[A-Z0-9]+$/;
 
 export class GooglePlatformService implements IPlatformService {

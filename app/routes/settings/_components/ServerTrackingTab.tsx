@@ -122,14 +122,14 @@ export function ServerTrackingTab({
 
   const [showHistory, setShowHistory] = useState(false);
   const [historyTab, setHistoryTab] = useState(0);
-  const comparisonFetcher = useFetcher<{ 
+  const comparisonFetcher = useFetcher<{
     comparison?: {
       current?: Record<string, unknown>;
       previous?: Record<string, unknown>;
       differences?: string[];
-    } 
+    }
   }>();
-  const historyFetcher = useFetcher<{ 
+  const historyFetcher = useFetcher<{
     history?: Array<{
       version: number;
       config: {
@@ -141,7 +141,7 @@ export function ServerTrackingTab({
         serverSideEnabled: boolean;
       };
       savedAt: string;
-    }> 
+    }>
   }>();
 
   const loadComparison = useCallback(() => {
@@ -193,7 +193,7 @@ export function ServerTrackingTab({
               tone="warning"
               action={{
                 content: "了解更多",
-                url: "https://help.shopify.com",
+                url: "https:
                 external: true,
               }}
             >
@@ -415,7 +415,7 @@ export function ServerTrackingTab({
                 />
                 <Text as="p" variant="bodySm" tone="subdued">
                   💡 提示：确保您的 Pinterest 应用已获得 Conversion API 访问权限。
-                  访问 <a href="https://developers.pinterest.com" target="_blank" rel="noopener noreferrer">Pinterest 开发者文档</a>
+                  访问 <a href="https:
                 </Text>
               </>
             )}

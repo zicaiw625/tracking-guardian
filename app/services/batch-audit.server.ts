@@ -311,7 +311,7 @@ async function createAdminClientForShop(shopDomain: string): Promise<{
   }
 
   const apiVersion = process.env.SHOPIFY_API_VERSION || "2025-01";
-  const shopifyApiUrl = `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`;
+  const shopifyApiUrl = `https:
 
   return {
     graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {

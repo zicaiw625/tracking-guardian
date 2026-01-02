@@ -733,9 +733,9 @@ export default function MigratePage() {
 
     const stepIndex = steps.findIndex((s) => s.id === currentStep);
     if (stepIndex === -1) {
-        
+
         if (process.env.NODE_ENV === "development") {
-            
+
             console.error(`[MigratePage] Invalid currentStep: ${currentStep}. Available steps:`, steps.map(s => s.id));
         }
     }
@@ -807,7 +807,7 @@ export default function MigratePage() {
 
         <Banner title="服务端转化追踪 (Server-side CAPI)" tone="info" action={{
             content: "了解更多",
-            url: "https://help.shopify.com",
+            url: "https:
             external: true,
         }}>
           <BlockStack gap="200">
@@ -829,7 +829,7 @@ export default function MigratePage() {
           tone="warning"
           action={{
             content: "查看 Shopify 文档",
-            url: "https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility",
+            url: "https:
             external: true,
           }}
         >
@@ -1058,7 +1058,7 @@ export default function MigratePage() {
                   </Box>
 
                   <InlineStack gap="200">
-                    <Button variant="primary" url="https://help.shopify.com" external>
+                    <Button variant="primary" url="https:
                       前往 Shopify 后台升级
                     </Button>
                     <Button onClick={() => window.location.reload()}>

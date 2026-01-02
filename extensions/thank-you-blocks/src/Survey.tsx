@@ -80,7 +80,6 @@ const Survey = memo(function Survey() {
             return;
         }
 
-        
         if (!backendUrl || !isAllowedBackendUrl(backendUrl)) {
             logger.warn("Backend URL not configured or not allowed, cannot submit survey");
             setBackendUrlError(true);
@@ -161,7 +160,6 @@ const Survey = memo(function Survey() {
       </BlockStack>);
     }
 
-    
     if (backendUrlError) {
         return (
             <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">

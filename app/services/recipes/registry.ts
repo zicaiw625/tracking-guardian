@@ -63,7 +63,7 @@ export const GA4_BASIC_RECIPE: MigrationRecipe = {
       description: "完成测试订单，检查 GA4 实时报告中是否收到 purchase 事件",
       actionType: "manual",
       estimatedMinutes: 5,
-      helpUrl: "https://help.shopify.com",
+      helpUrl: "https:
     },
     {
       order: 4,
@@ -92,7 +92,7 @@ export const GA4_BASIC_RECIPE: MigrationRecipe = {
   estimatedTimeMinutes: 10,
   tags: ["google", "analytics", "ga4", "measurement-protocol"],
   icon: "📊",
-  docsUrl: "https://help.shopify.com",
+  docsUrl: "https:
 };
 export const META_CAPI_RECIPE: MigrationRecipe = {
   id: "meta-capi",
@@ -171,7 +171,7 @@ export const META_CAPI_RECIPE: MigrationRecipe = {
       description: "完成测试订单，检查 Events Manager 中是否收到 Purchase 事件",
       actionType: "manual",
       estimatedMinutes: 5,
-      helpUrl: "https://help.shopify.com",
+      helpUrl: "https:
     },
     {
       order: 5,
@@ -200,7 +200,7 @@ export const META_CAPI_RECIPE: MigrationRecipe = {
   estimatedTimeMinutes: 11,
   tags: ["meta", "facebook", "capi", "advertising"],
   icon: "📘",
-  docsUrl: "https://help.shopify.com",
+  docsUrl: "https:
 };
 export const TIKTOK_EVENTS_RECIPE: MigrationRecipe = {
   id: "tiktok-events",
@@ -292,7 +292,7 @@ export const TIKTOK_EVENTS_RECIPE: MigrationRecipe = {
   estimatedTimeMinutes: 10,
   tags: ["tiktok", "events-api", "advertising"],
   icon: "🎵",
-  docsUrl: "https://help.shopify.com",
+  docsUrl: "https:
 };
 export const SURVEY_MIGRATION_RECIPE: MigrationRecipe = {
   id: "survey-migration",
@@ -425,7 +425,7 @@ export const CUSTOM_WEBHOOK_RECIPE: MigrationRecipe = {
       type: "text",
       description: "事件发送的 HTTPS 端点",
       required: true,
-      validationPattern: "^https://",
+      validationPattern: "^https:
       validationMessage: "URL 必须使用 HTTPS",
     },
     {

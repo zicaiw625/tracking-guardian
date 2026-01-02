@@ -16,7 +16,6 @@ import { CopyIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 
-
 interface CanonicalEventData {
   event_name: string;
   event_id: string;
@@ -52,10 +51,8 @@ export function PayloadVisualizer({
   const { showSuccess } = useToastContext();
   const [selectedTab, setSelectedTab] = useState(0);
 
-  
   const canonical = normalizeEventClient(payload, shopDomain);
 
-  
   const platformMappings: Record<string, PlatformEventData> = {};
   for (const platform of platforms) {
     try {
@@ -254,7 +251,6 @@ function getPlatformDisplayName(platform: string): string {
   return names[platform.toLowerCase()] || platform.toUpperCase();
 }
 
-
 function normalizeEventClient(
   payload: PixelEventPayload,
   shopDomain: string
@@ -267,7 +263,6 @@ function normalizeEventClient(
       }))
     : [];
 
-  
   const identifier = data.orderId || data.checkoutToken || `session_${Date.now()}`;
   const eventId = `${shopDomain}:${identifier}:${payload.eventName}`.substring(0, 32);
 
@@ -282,7 +277,6 @@ function normalizeEventClient(
     checkout_token: data.checkoutToken ? String(data.checkoutToken) : undefined,
   };
 }
-
 
 function mapToPlatformClient(
   canonical: CanonicalEventData,

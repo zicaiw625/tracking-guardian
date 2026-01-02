@@ -61,8 +61,7 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
 
       return next(context);
     } catch (error) {
-      
-      
+
       logger.warn("Plan gate authentication check failed", error);
       return next(context);
     }

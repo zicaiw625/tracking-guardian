@@ -1,9 +1,7 @@
 
 
-
 import prisma from "../db.server";
 import type { MigrationStage, MigrationProgress } from "../types/dashboard";
-
 
 export async function calculateMigrationProgress(shopId: string): Promise<MigrationProgress> {
   const shop = await prisma.shop.findUnique({
@@ -41,7 +39,6 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     { stage: "monitoring", label: "监控", completed: false, inProgress: false },
   ];
 
-  
   const hasCompletedAudit = shop?.scanReports?.[0]?.status === "completed";
   if (hasCompletedAudit) {
     stages[0].completed = true;
@@ -49,13 +46,11 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     stages[0].inProgress = true;
   }
 
-  
   const hasTestPixel = shop?.pixelConfigs?.some((c) => c.environment === "test") || false;
   if (hasTestPixel) {
     stages[1].completed = true;
   }
 
-  
   const hasCompletedVerification = shop?.verificationRuns?.[0]?.status === "completed";
   if (hasCompletedVerification) {
     stages[2].completed = true;
@@ -63,18 +58,15 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     stages[2].inProgress = true;
   }
 
-  
   const hasLivePixel = (shop?._count?.pixelConfigs || 0) > 0;
   if (hasLivePixel) {
     stages[3].completed = true;
   }
 
-  
   if (hasLivePixel) {
     stages[4].completed = true;
   }
 
-  
   let currentStage: MigrationStage = "audit";
   if (hasLivePixel) {
     currentStage = "monitoring";
@@ -86,7 +78,6 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     currentStage = "pixel_test";
   }
 
-  
   const completedCount = stages.filter((s) => s.completed).length;
   const progressPercentage = Math.round((completedCount / stages.length) * 100);
 

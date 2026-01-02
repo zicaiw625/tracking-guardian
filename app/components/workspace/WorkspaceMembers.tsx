@@ -116,12 +116,7 @@ export function WorkspaceMembers({
                     <Button
                       size="micro"
                       onClick={() => {
-                        
-                        
-                        
-                        
-                        
-                        
+
                       }}
                     >
                       编辑
@@ -132,12 +127,7 @@ export function WorkspaceMembers({
                       size="micro"
                       tone="critical"
                       onClick={() => {
-                        
-                        
-                        
-                        
-                        
-                        
+
                       }}
                     >
                       移除

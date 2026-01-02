@@ -25,7 +25,6 @@ export interface BatchPixelResult {
   }>;
 }
 
-
 export async function batchApplyPixelTemplate(
   options: BatchPixelOptions,
   template: {
@@ -48,7 +47,6 @@ export async function batchApplyPixelTemplate(
     templateId: options.templateId,
   });
 
-  
   const processPromises = options.shopIds.map(async (shopId) => {
     try {
       const shop = await prisma.shop.findUnique({
@@ -66,7 +64,6 @@ export async function batchApplyPixelTemplate(
         return;
       }
 
-      
       const configIds: string[] = [];
 
       for (const platformConfig of template.platforms) {
@@ -80,7 +77,7 @@ export async function batchApplyPixelTemplate(
         });
 
         if (existing) {
-          
+
           const updated = await prisma.pixelConfig.update({
             where: { id: existing.id },
             data: {
@@ -93,7 +90,7 @@ export async function batchApplyPixelTemplate(
           });
           configIds.push(updated.id);
         } else {
-          
+
           const created = await prisma.pixelConfig.create({
             data: {
               shopId,
@@ -114,7 +111,7 @@ export async function batchApplyPixelTemplate(
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
-        pixelConfigId: configIds[0], 
+        pixelConfigId: configIds[0],
       });
     } catch (error) {
       logger.error("Failed to apply pixel template in batch", {
@@ -136,7 +133,6 @@ export async function batchApplyPixelTemplate(
     }
   });
 
-  
   await Promise.allSettled(processPromises);
 
   return {

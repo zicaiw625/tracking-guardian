@@ -98,7 +98,6 @@ export function RealtimeEventMonitor({
   const [filterEventType, setFilterEventType] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
@@ -134,9 +133,9 @@ export function RealtimeEventMonitor({
             if (rawData.type === "connected" || rawData.type === "error" || rawData.type === "verification_run_status") {
 
               if (rawData.type === "verification_run_status" && rawData.status) {
-                
+
                 if (process.env.NODE_ENV === "development") {
-                  
+
                   console.log("Verification run status:", rawData);
                 }
               }
@@ -192,18 +191,18 @@ export function RealtimeEventMonitor({
             });
           }
         } catch (err) {
-          
+
           if (process.env.NODE_ENV === "development") {
-            
+
             console.error("Failed to parse event data:", err);
           }
         }
       };
 
       eventSource.onerror = (err) => {
-        
+
         if (process.env.NODE_ENV === "development") {
-          
+
           console.error("SSE error:", err);
         }
         setIsConnected(false);
@@ -234,8 +233,8 @@ export function RealtimeEventMonitor({
     return () => {
       disconnect();
     };
-    
-  }, [autoStart, shopId, platforms, runId, eventTypes, useVerificationEndpoint]); 
+
+  }, [autoStart, shopId, platforms, runId, eventTypes, useVerificationEndpoint]);
 
   const handlePauseToggle = useCallback(() => {
     setIsPaused((prev) => !prev);
@@ -869,7 +868,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     completeness: true,
     shopify: true,
     errors: true,
-    mapping: false, 
+    mapping: false,
   });
 
   const toggleSection = useCallback((section: string) => {

@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 
-
 export const MODULE_KEYS = [
   "survey",
   "reorder",
@@ -13,53 +12,41 @@ export const MODULE_KEYS = [
 
 export type ModuleKey = typeof MODULE_KEYS[number];
 
-
 export const DisplayRuleSchema = z.object({
-  
+
   showOnThankYou: z.boolean().default(true),
   showOnOrderStatus: z.boolean().default(true),
-  
-  
+
   minOrderValue: z.number().optional(),
   maxOrderValue: z.number().optional(),
-  
-  
-  orderStatuses: z.array(z.string()).optional(), 
-  
-  
+
+  orderStatuses: z.array(z.string()).optional(),
+
   productTags: z.array(z.string()).optional(),
   productTypes: z.array(z.string()).optional(),
-  
-  
+
   customerTags: z.array(z.string()).optional(),
-  
-  
-  showAfterHours: z.number().optional(), 
-  showBeforeHours: z.number().optional(), 
-  
-  
+
+  showAfterHours: z.number().optional(),
+  showBeforeHours: z.number().optional(),
+
   customConditions: z.record(z.unknown()).optional(),
 });
 
 export type DisplayRule = z.infer<typeof DisplayRuleSchema>;
 
-
 export const LocalizationSchema = z.object({
-  
+
   locale: z.string().default("en"),
-  
-  
+
   translations: z.record(z.string()).optional(),
-  
-  
+
   dateFormat: z.string().default("YYYY-MM-DD"),
-  
-  
+
   currencyFormat: z.string().default("USD"),
 });
 
 export type Localization = z.infer<typeof LocalizationSchema>;
-
 
 export const SurveySettingsSchema = z.object({
   title: z.string().default("How was your experience?"),
@@ -80,7 +67,6 @@ export const SurveySettingsSchema = z.object({
 
 export type SurveySettings = z.infer<typeof SurveySettingsSchema>;
 
-
 export const ReorderSettingsSchema = z.object({
   buttonText: z.string().default("Reorder"),
   buttonStyle: z.enum(["primary", "secondary", "outline"]).default("primary"),
@@ -90,7 +76,6 @@ export const ReorderSettingsSchema = z.object({
 });
 
 export type ReorderSettings = z.infer<typeof ReorderSettingsSchema>;
-
 
 export const SupportSettingsSchema = z.object({
   title: z.string().default("Need Help?"),
@@ -108,7 +93,6 @@ export const SupportSettingsSchema = z.object({
 
 export type SupportSettings = z.infer<typeof SupportSettingsSchema>;
 
-
 export const ShippingTrackerSettingsSchema = z.object({
   title: z.string().default("Order Status"),
   showProgressBar: z.boolean().default(true),
@@ -119,7 +103,6 @@ export const ShippingTrackerSettingsSchema = z.object({
 });
 
 export type ShippingTrackerSettings = z.infer<typeof ShippingTrackerSettingsSchema>;
-
 
 export const UpsellOfferSettingsSchema = z.object({
   discountCode: z.string().optional(),
@@ -134,32 +117,26 @@ export const UpsellOfferSettingsSchema = z.object({
 
 export type UpsellOfferSettings = z.infer<typeof UpsellOfferSettingsSchema>;
 
-
 export const ModuleSettingsSchema = z.object({
-  
+
   isEnabled: z.boolean().default(true),
   moduleKey: z.enum(MODULE_KEYS),
-  
-  
+
   survey: SurveySettingsSchema.optional(),
   reorder: ReorderSettingsSchema.optional(),
   support: SupportSettingsSchema.optional(),
   shipping_tracker: ShippingTrackerSettingsSchema.optional(),
   upsell_offer: UpsellOfferSettingsSchema.optional(),
-  
-  
+
   displayRules: DisplayRuleSchema.optional(),
-  
-  
+
   localization: z.array(LocalizationSchema).optional(),
-  
-  
+
   version: z.number().default(1),
   updatedAt: z.string().optional(),
 });
 
 export type ModuleSettings = z.infer<typeof ModuleSettingsSchema>;
-
 
 export function validateModuleSettings(
   moduleKey: ModuleKey,
@@ -174,8 +151,7 @@ export function validateModuleSettings(
       version: true,
       updatedAt: true,
     });
-    
-    
+
     let schema = baseSchema;
     switch (moduleKey) {
       case "survey":
@@ -194,12 +170,12 @@ export function validateModuleSettings(
         schema = baseSchema.extend({ upsell_offer: UpsellOfferSettingsSchema });
         break;
     }
-    
+
     const normalized = schema.parse({
       ...settings,
       moduleKey,
     });
-    
+
     return { valid: true, normalized };
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -215,7 +191,6 @@ export function validateModuleSettings(
   }
 }
 
-
 export function getDefaultModuleSettings(moduleKey: ModuleKey): ModuleSettings {
   const base: ModuleSettings = {
     isEnabled: true,
@@ -226,7 +201,7 @@ export function getDefaultModuleSettings(moduleKey: ModuleKey): ModuleSettings {
     },
     version: 1,
   };
-  
+
   switch (moduleKey) {
     case "survey":
       return {
@@ -257,7 +232,6 @@ export function getDefaultModuleSettings(moduleKey: ModuleKey): ModuleSettings {
       return base;
   }
 }
-
 
 export function mergeModuleSettings(
   existing: Partial<ModuleSettings>,

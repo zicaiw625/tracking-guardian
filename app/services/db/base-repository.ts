@@ -51,8 +51,6 @@ export abstract class BaseRepository<
     this.modelName = modelName;
   }
 
-  
-  
   protected abstract getDelegate(client?: TransactionClient): any;
 
   async findById(
