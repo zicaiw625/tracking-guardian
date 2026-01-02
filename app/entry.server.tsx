@@ -8,6 +8,8 @@ import { ensureSecretsValid, enforceSecurityChecks } from "./utils/secrets";
 import { validateConfig, logConfigStatus } from "./utils/config";
 import { logger } from "./utils/logger.server";
 import { EMBEDDED_APP_HEADERS, addSecurityHeadersToHeaders, validateSecurityHeaders, } from "./utils/security-headers";
+import { RedisClientFactory } from "./utils/redis-client";
+import prisma from "./db.server";
 const ABORT_DELAY = 5000;
 
 // 全局未处理Promise rejection处理器
@@ -39,7 +41,6 @@ if (typeof process !== "undefined") {
     
     try {
       // 清理 Redis 连接
-      const { RedisClientFactory } = await import("./utils/redis-client");
       await RedisClientFactory.resetAsync();
       logger.info("Redis connections closed");
     } catch (error) {
@@ -48,8 +49,7 @@ if (typeof process !== "undefined") {
 
     try {
       // 清理数据库连接
-      const prisma = await import("./db.server");
-      await prisma.default.$disconnect();
+      await prisma.$disconnect();
       logger.info("Database connections closed");
     } catch (error) {
       logger.error("Error closing database connections during shutdown", error);
