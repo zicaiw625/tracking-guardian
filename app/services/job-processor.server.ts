@@ -9,6 +9,7 @@ import {
 import { decryptCredentials } from "./credentials.server";
 import { sendConversionToPlatform } from "./platforms/factory";
 import { generateEventId } from "../utils/crypto.server";
+import { generateCanonicalEventId } from "../services/event-normalizer.server";
 import { logger } from "../utils/logger.server";
 import { JOB_PROCESSING_CONFIG } from "../utils/config";
 import { JobStatus, parseCapiInput, parsePixelClientConfig } from "../types";
@@ -585,7 +586,41 @@ async function processSingleJob(
     job.createdAt
   );
 
-  const eventId = receipt?.eventId ?? generateEventId(job.orderId, "purchase", job.shop.shopDomain);
+  // 优先使用 receipt 中的 eventId（client 端生成的），如果没有则使用与 client 端相同的逻辑生成
+  let eventId: string;
+  if (receipt?.eventId) {
+    eventId = receipt.eventId;
+    logger.debug(`Using eventId from receipt for job ${job.id}`, {
+      jobId: job.id,
+      orderId: job.orderId,
+      eventId,
+    });
+  } else {
+    // 使用与 client 端相同的逻辑生成 eventId
+    // 注意：client 端发送的 items.id 可能是 variant_id 或 product_id，需要保持一致
+    const lineItems = capiInputParsed?.items;
+    // 优先使用 variantId（与 client 端 checkout.lineItems 的 id 字段一致），如果没有则使用 productId
+    const normalizedItems = lineItems?.map(item => ({
+      id: String(item.variantId || item.productId || ""),
+      quantity: item.quantity || 1,
+    })).filter(item => item.id) || [];
+    
+    eventId = generateCanonicalEventId(
+      job.orderId,
+      webhookCheckoutToken || undefined,
+      "purchase",
+      job.shop.shopDomain,
+      normalizedItems
+    );
+    
+    logger.debug(`Generated eventId for job ${job.id} using canonical logic`, {
+      jobId: job.id,
+      orderId: job.orderId,
+      eventId,
+      itemsCount: normalizedItems.length,
+      hasCheckoutToken: !!webhookCheckoutToken,
+    });
+  }
 
   const shopContext: ShopTrustContext = {
     shopDomain: job.shop.shopDomain,

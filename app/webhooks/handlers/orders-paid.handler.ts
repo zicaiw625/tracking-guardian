@@ -1,7 +1,8 @@
 
 
 import prisma from "../../db.server";
-import { normalizeOrderId, generateEventId, hashValue, normalizeEmail, normalizePhone } from "../../utils/crypto.server";
+import { normalizeOrderId, hashValue, normalizeEmail, normalizePhone } from "../../utils/crypto.server";
+import { generateCanonicalEventId } from "../../services/event-normalizer.server";
 import { checkBillingGate, type PlanId } from "../../services/billing.server";
 import { logger } from "../../utils/logger.server";
 import { parseOrderWebhookPayload } from "../../utils/webhook-validation";
@@ -154,7 +155,22 @@ async function handleBillingLimitExceeded(
   orderId: string,
   billingCheck: { usage: { current: number; limit: number } }
 ): Promise<void> {
-  const blockedEventId = generateEventId(orderId, "purchase", shopRecord.shopDomain);
+  // 使用与 pixel 端相同的 event_id 生成逻辑，确保 client/server 去重一致
+  // 对于 purchase 事件，需要包含 items 信息以生成一致的 event_id
+  // 注意：pixel 端优先使用 variantId（因为 checkout.lineItems 的 id 字段通常是 variant_id），
+  // 所以这里也要优先使用 variant_id，以保持一致性
+  const items = orderPayload.line_items?.map((item) => ({
+    id: String(item.variant_id || item.product_id || ""),
+    quantity: item.quantity || 1,
+  })).filter(item => item.id) || [];
+  
+  const blockedEventId = generateCanonicalEventId(
+    orderId,
+    orderPayload.checkout_token || null,
+    "purchase",
+    shopRecord.shopDomain,
+    items
+  );
 
   for (const pixelConfig of shopRecord.pixelConfigs) {
     await prisma.conversionLog.upsert({

@@ -182,6 +182,22 @@ export async function upsertPixelEventReceipt(
   }
 }
 
+/**
+ * 规范化 currency：优先使用 payload 中的 currency，如果确实没有则使用 USD 作为后备
+ * 确保多币种商店的对账/一致性检查不会失真
+ */
+function normalizeCurrencyForStorage(currency: unknown): string {
+  if (currency && typeof currency === 'string' && currency.trim()) {
+    const normalized = currency.trim().toUpperCase();
+    // 验证是否为有效的 ISO 4217 货币代码（3 个大写字母）
+    if (/^[A-Z]{3}$/.test(normalized)) {
+      return normalized;
+    }
+  }
+  // 只有在确实没有有效的 currency 时才使用 USD 作为后备
+  return "USD";
+}
+
 export async function recordConversionLogs(
   shopId: string,
   orderId: string,
@@ -218,7 +234,7 @@ export async function recordConversionLogs(
             orderId,
             orderNumber: payload.data.orderNumber || null,
             orderValue: payload.data.value || 0,
-            currency: payload.data.currency || "USD",
+            currency: normalizeCurrencyForStorage(payload.data.currency),
             platform,
             eventType: "purchase",
             eventId,
@@ -254,7 +270,7 @@ export async function recordConversionLogs(
             orderId,
             orderNumber: payload.data.orderNumber || null,
             orderValue: payload.data.value || 0,
-            currency: payload.data.currency || "USD",
+            currency: normalizeCurrencyForStorage(payload.data.currency),
             platform,
             eventType: "purchase",
             eventId,

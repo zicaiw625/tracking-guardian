@@ -41,7 +41,9 @@ export function normalizeEvent(
   const orderNumber = data.orderNumber ? String(data.orderNumber) : null;
 
   const value = normalizeValue(data.value);
-  const currency = normalizeCurrency(data.currency || "USD");
+  // 优先使用 payload 中的 currency，如果缺失则尝试从其他数据源获取
+  // 对于 purchase 事件，如果确实没有 currency，normalizeCurrency 会使用 USD 作为后备
+  const currency = normalizeCurrency(data.currency);
 
   const items = normalizeItems(data.items);
 
@@ -118,6 +120,9 @@ function normalizeCurrency(currency: unknown): string {
       return normalized;
     }
   }
+  // 仅在确实无法从数据中获取 currency 时使用 USD 作为后备
+  // 注意：这应该很少发生，因为 pixel 端应该总是从 checkout/cart 数据中获取 currency
+  // 如果频繁出现此情况，说明 pixel 端数据获取有问题
   return "USD";
 }
 

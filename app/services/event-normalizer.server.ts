@@ -46,7 +46,8 @@ export function normalizeToCanonical(
   const data = payload.data || {};
 
   const value = normalizeValue(data.value);
-  const currency = normalizeCurrency(data.currency);
+  // 传递 eventName 以便 normalizeCurrency 可以根据事件类型决定是否需要记录警告
+  const currency = normalizeCurrency(data.currency, payload.eventName);
 
   const items = normalizeItems(data.items);
 
@@ -166,14 +167,35 @@ function normalizeValue(value: unknown): number {
   return 0;
 }
 
-function normalizeCurrency(currency: unknown): string {
+function normalizeCurrency(currency: unknown, eventName: string): string {
+  // 如果 currency 为 null 或 undefined
+  if (currency === null || currency === undefined) {
+    // 对于需要货币的事件（purchase, add_to_cart 等），如果没有货币信息，记录警告并使用 USD 作为兜底
+    // 对于不需要货币的事件（page_viewed），也使用 USD 作为默认值（因为接口要求 string）
+    const requiresCurrency = ["checkout_completed", "purchase", "product_added_to_cart", "checkout_started", "product_viewed"].includes(eventName);
+    if (requiresCurrency) {
+      logger.warn(`Missing currency for ${eventName} event, using USD as fallback`, {
+        eventName,
+      });
+    }
+    return "USD";
+  }
+
   if (typeof currency === "string") {
     const upper = currency.toUpperCase().trim();
 
+    // 验证是否为有效的 ISO 4217 货币代码（3 个大写字母）
     if (/^[A-Z]{3}$/.test(upper)) {
       return upper;
     }
   }
+
+  // 只有在格式错误时才记录警告并使用默认值
+  logger.warn("Invalid currency format, defaulting to USD", {
+    currency,
+    currencyType: typeof currency,
+    eventName,
+  });
 
   return "USD";
 }

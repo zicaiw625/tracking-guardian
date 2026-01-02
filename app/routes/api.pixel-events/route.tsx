@@ -429,11 +429,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    const items = payload.data.items as Array<{ id?: string; quantity?: number }> | undefined;
-    const normalizedItems = items?.map(item => ({
-      id: String(item.id || ""),
-      quantity: item.quantity || 1,
-    })).filter(item => item.id);
+    // 标准化 items：client 端发送的 item.id 通常是 checkout.lineItems 的 id（variant_id）
+    // 为了与 webhook handler 保持一致，我们使用相同的逻辑：优先使用 variantId，否则使用 productId
+    const items = payload.data.items as Array<{ 
+      id?: string; 
+      quantity?: number;
+      variantId?: string;
+      variant_id?: string;
+      productId?: string;
+      product_id?: string;
+    }> | undefined;
+    const normalizedItems = items?.map(item => {
+      // 优先使用 variantId（与 client 端 checkout.lineItems 的 id 字段一致），如果没有则使用 productId
+      // 如果都没有，则使用 id（可能是 variant_id 或 product_id）
+      const itemId = item.variantId || item.variant_id || item.productId || item.product_id || item.id || "";
+      return {
+        id: String(itemId),
+        quantity: item.quantity || 1,
+      };
+    }).filter(item => item.id) || [];
 
     const eventId = generateEventIdForType(
       eventIdentifier,
@@ -521,9 +535,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
       } else {
         // P0-02/P1-01: 非 purchase 事件（page_viewed, product_viewed, add_to_cart, checkout_started 等）
-        // 通过事件管道处理，支持多平台路由
+        // 通过事件管道处理，支持多平台路由并实际发送到 destinations
         const platformNames = platformsToRecord.map(p => p.platform);
-        logger.info(`Processing ${payload.eventName} event through pipeline`, {
+        logger.info(`Processing ${payload.eventName} event through pipeline for routing to destinations`, {
           shopId: shop.id,
           eventId,
           eventName: payload.eventName,
@@ -531,21 +545,41 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           mode,
         });
         
-        processEventPipeline(shop.id, payload, eventId, platformNames).catch((error) => {
-          logger.error(`Failed to process event pipeline for ${payload.eventName}`, {
-            shopId: shop.id,
-            eventId,
-            eventName: payload.eventName,
-            platforms: platformNames,
-            error: error instanceof Error ? error.message : String(error),
+        // 异步处理但不阻塞响应，记录发送结果
+        processEventPipeline(shop.id, payload, eventId, platformNames)
+          .then((result) => {
+            if (result.success) {
+              logger.info(`Event ${payload.eventName} successfully routed to destinations`, {
+                shopId: shop.id,
+                eventId,
+                eventName: payload.eventName,
+                destinations: result.destinations,
+                deduplicated: result.deduplicated,
+              });
+            } else {
+              logger.warn(`Event ${payload.eventName} pipeline processing failed`, {
+                shopId: shop.id,
+                eventId,
+                eventName: payload.eventName,
+                errors: result.errors,
+              });
+            }
+          })
+          .catch((error) => {
+            logger.error(`Failed to process event pipeline for ${payload.eventName}`, {
+              shopId: shop.id,
+              eventId,
+              eventName: payload.eventName,
+              platforms: platformNames,
+              error: error instanceof Error ? error.message : String(error),
+            });
           });
-        });
       }
     }
 
     const message = isPurchaseEvent
       ? "Pixel event recorded, CAPI will be sent via webhook"
-      : `Pixel event recorded and routed to ${platformsToRecord.length} destination(s)`;
+      : `Pixel event recorded and routing to ${platformsToRecord.length} destination(s) (GA4/Meta/TikTok)`;
 
     return jsonWithCors(
       {

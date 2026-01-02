@@ -3,6 +3,7 @@
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
+import { sendPixelEventToPlatform } from "./pixel-event-sender.server";
 
 export interface EventPipelineResult {
   success: boolean;
@@ -39,6 +40,7 @@ export function validateEventPayload(
   if (payload.data) {
     const data = payload.data;
 
+    // purchase 事件必须包含 value、currency 和 items
     if (payload.eventName === "checkout_completed" || payload.eventName === "purchase") {
       if (!data.value && data.value !== 0) {
         errors.push("value is required for purchase events");
@@ -49,11 +51,27 @@ export function validateEventPayload(
       }
 
       if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
-        warnings.push("items array is empty or missing");
+        warnings.push("items array is empty or missing for purchase event");
+      }
+    } else {
+      // 非 purchase 事件：value/currency/items 为可选，但建议包含以保持一致性
+      // page_viewed 事件允许 value 为 0 或缺失
+      if (payload.eventName !== "page_viewed") {
+        if (data.value === undefined && data.value !== null) {
+          warnings.push(`value is recommended for ${payload.eventName} events`);
+        }
+        if (!data.currency) {
+          warnings.push(`currency is recommended for ${payload.eventName} events`);
+        }
       }
     }
 
+    // 验证 items 数组结构（如果存在）
     if (data.items && Array.isArray(data.items)) {
+      if (data.items.length === 0 && payload.eventName !== "page_viewed") {
+        warnings.push(`items array is empty for ${payload.eventName} event`);
+      }
+      
       data.items.forEach((item: unknown, index: number) => {
         if (typeof item !== "object" || item === null) {
           errors.push(`items[${index}] must be an object`);
@@ -61,8 +79,9 @@ export function validateEventPayload(
         }
 
         const itemObj = item as Record<string, unknown>;
-        if (!itemObj.product_id && !itemObj.variant_id) {
-          warnings.push(`items[${index}] missing product_id or variant_id`);
+        // 检查是否有 id、productId 或 variantId（至少需要一个）
+        if (!itemObj.id && !itemObj.productId && !itemObj.variantId && !itemObj.product_id && !itemObj.variant_id) {
+          warnings.push(`items[${index}] missing id, productId, or variantId`);
         }
       });
     }
@@ -213,24 +232,143 @@ export async function processEventPipeline(
 
   const isDeduplicated = deduplicationResults.some((dup) => dup);
 
-  const logPromises = destinations.map((destination) =>
-    logEvent(
+  // 生成 eventId（如果缺失，为非 purchase 事件生成一个临时 ID）
+  let finalEventId = eventId;
+  if (!finalEventId) {
+    // 对于非 purchase 事件，如果没有 eventId，生成一个基于 payload 的临时 ID
+    const crypto = require("crypto");
+    const identifier = payload.data?.checkoutToken || 
+                      payload.data?.orderId || 
+                      `${payload.shopDomain}:${payload.timestamp}:${payload.nonce || Math.random()}`;
+    const input = `${payload.shopDomain}:${identifier}:${payload.eventName}:${payload.timestamp}`;
+    finalEventId = crypto
+      .createHash("sha256")
+      .update(input, "utf8")
+      .digest("hex")
+      .substring(0, 32);
+    logger.debug(`Generated temporary eventId for ${payload.eventName}`, {
       shopId,
-      payload.eventName,
-      eventId,
-      payload,
-      destination,
-      isDeduplicated ? "ok" : "ok",
-      isDeduplicated ? "deduplicated" : undefined,
-      isDeduplicated ? "Event was deduplicated" : undefined
-    )
-  );
+      eventName: payload.eventName,
+      eventId: finalEventId,
+    });
+  }
 
-  await Promise.allSettled(logPromises);
+  // 如果不是重复事件，则发送到各个平台
+  if (!isDeduplicated) {
+    logger.info(`Sending ${payload.eventName} event to ${destinations.length} destination(s)`, {
+      shopId,
+      eventId: finalEventId,
+      eventName: payload.eventName,
+      destinations,
+    });
+
+    const sendPromises = destinations.map(async (destination) => {
+      try {
+        logger.debug(`Sending ${payload.eventName} to ${destination}`, {
+          shopId,
+          eventId,
+          eventName: payload.eventName,
+          platform: destination,
+        });
+
+        const sendResult = await sendPixelEventToPlatform(
+          shopId,
+          destination,
+          payload,
+          finalEventId
+        );
+
+        await logEvent(
+          shopId,
+          payload.eventName,
+          finalEventId,
+          payload,
+          destination,
+          sendResult.success ? "ok" : "fail",
+          sendResult.success ? undefined : "send_failed",
+          sendResult.error
+        );
+
+        if (sendResult.success) {
+          logger.info(`Successfully sent ${payload.eventName} to ${destination}`, {
+            shopId,
+            eventId: finalEventId,
+            eventName: payload.eventName,
+            platform: destination,
+          });
+        } else {
+          logger.warn(`Failed to send ${payload.eventName} to ${destination}`, {
+            shopId,
+            eventName: payload.eventName,
+            eventId: finalEventId,
+            platform: destination,
+            error: sendResult.error,
+          });
+        }
+
+        return sendResult;
+      } catch (error) {
+        logger.error(`Error sending ${payload.eventName} to ${destination}`, {
+          shopId,
+          eventName: payload.eventName,
+          eventId,
+          platform: destination,
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        await logEvent(
+          shopId,
+          payload.eventName,
+          finalEventId,
+          payload,
+          destination,
+          "fail",
+          "send_error",
+          error instanceof Error ? error.message : String(error)
+        );
+
+        return {
+          success: false,
+          platform: destination,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    });
+
+    const results = await Promise.allSettled(sendPromises);
+    const successCount = results.filter(
+      (r) => r.status === "fulfilled" && r.value.success
+    ).length;
+    
+    logger.info(`Event ${payload.eventName} routing completed`, {
+      shopId,
+      eventId: finalEventId,
+      eventName: payload.eventName,
+      totalDestinations: destinations.length,
+      successful: successCount,
+      failed: destinations.length - successCount,
+    });
+  } else {
+    // 如果是重复事件，只记录日志
+    const logPromises = destinations.map((destination) =>
+      logEvent(
+        shopId,
+        payload.eventName,
+        finalEventId,
+        payload,
+        destination,
+        "ok",
+        "deduplicated",
+        "Event was deduplicated"
+      )
+    );
+
+    await Promise.allSettled(logPromises);
+  }
 
   return {
     success: true,
-    eventId: eventId || undefined,
+    eventId: finalEventId || undefined,
     destinations,
     deduplicated: isDeduplicated,
   };

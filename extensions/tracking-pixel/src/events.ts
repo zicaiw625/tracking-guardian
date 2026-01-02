@@ -258,9 +258,14 @@ export function subscribeToCheckoutCompleted(
     sendToBackend("checkout_completed", {
       orderId: orderId || null,
       checkoutToken: checkoutToken || null,
-
       value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
+      currency: checkout.currencyCode || null,
+      items: checkout.lineItems?.map(item => ({
+        id: item.id || "",
+        name: item.title || "",
+        price: toNumber(item.variant?.price?.amount),
+        quantity: item.quantity || 1,
+      })) || [],
     });
   });
 
@@ -284,7 +289,7 @@ function subscribeToCheckoutStarted(
     sendToBackend("checkout_started", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
+      currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
         id: item.id || "",
         name: item.title || "",
@@ -307,16 +312,26 @@ function subscribeToProductAddedToCart(
   const log = logger || (() => {});
 
   analytics.subscribe("product_added_to_cart", (event: unknown) => {
-    const typedEvent = event as { data?: { cartLine?: CartLine } };
+    const typedEvent = event as { data?: { cartLine?: CartLine; cart?: { currencyCode?: string } } };
     const cartLine = typedEvent.data?.cartLine;
     if (!cartLine) return;
 
+    const price = toNumber(cartLine.merchandise?.price?.amount);
+    const quantity = cartLine.quantity || 1;
+    const currency = typedEvent.data?.cart?.currencyCode || null;
+
+    // 统一为 value/currency/items[] 格式
     sendToBackend("product_added_to_cart", {
-      productId: cartLine.merchandise?.product?.id || null,
-      productTitle: cartLine.merchandise?.product?.title || null,
-      price: toNumber(cartLine.merchandise?.price?.amount),
-      quantity: cartLine.quantity || 1,
-      currency: "USD",
+      value: price * quantity,
+      currency: currency,
+      items: [{
+        id: cartLine.merchandise?.product?.id || "",
+        name: cartLine.merchandise?.product?.title || "",
+        price: price,
+        quantity: quantity,
+        productId: cartLine.merchandise?.product?.id || null,
+        productTitle: cartLine.merchandise?.product?.title || null,
+      }],
     });
   });
 
@@ -333,13 +348,24 @@ function subscribeToPageViewed(
   const log = logger || (() => {});
 
   analytics.subscribe("page_viewed", (event: unknown) => {
-    const typedEvent = event as { data?: { page?: { url?: string; title?: string } } };
+    const typedEvent = event as { 
+      data?: { 
+        page?: { url?: string; title?: string; currencyCode?: string };
+        cart?: { currencyCode?: string };
+      } 
+    };
     const page = typedEvent.data?.page;
     if (!page) return;
+
+    // 统一为 value/currency/items[] 格式（page_viewed 事件 value 为 0，items 为空数组）
+    const currency = page.currencyCode || typedEvent.data?.cart?.currencyCode || null;
 
     sendToBackend("page_viewed", {
       url: page.url || null,
       title: page.title || null,
+      value: 0, // page_viewed 事件没有交易价值
+      currency: currency, // 从页面或购物车获取货币代码
+      items: [], // page_viewed 事件没有商品信息
     });
   });
 
@@ -356,15 +382,32 @@ function subscribeToProductViewed(
   const log = logger || (() => {});
 
   analytics.subscribe("product_viewed", (event: unknown) => {
-    const typedEvent = event as { data?: { productVariant?: { product?: { id?: string; title?: string }; price?: { amount?: string | number } } } };
+    const typedEvent = event as { 
+      data?: { 
+        productVariant?: { 
+          product?: { id?: string; title?: string }; 
+          price?: { amount?: string | number; currencyCode?: string };
+        };
+      };
+    };
     const productVariant = typedEvent.data?.productVariant;
     if (!productVariant) return;
 
+    const price = toNumber(productVariant.price?.amount);
+    const currency = (productVariant.price as { currencyCode?: string } | undefined)?.currencyCode || null;
+
+    // 统一为 value/currency/items[] 格式
     sendToBackend("product_viewed", {
-      productId: productVariant.product?.id || null,
-      productTitle: productVariant.product?.title || null,
-      price: toNumber(productVariant.price?.amount),
-      currency: "USD",
+      value: price,
+      currency: currency,
+      items: [{
+        id: productVariant.product?.id || "",
+        name: productVariant.product?.title || "",
+        price: price,
+        quantity: 1,
+        productId: productVariant.product?.id || null,
+        productTitle: productVariant.product?.title || null,
+      }],
     });
   });
 
@@ -388,7 +431,13 @@ function subscribeToCheckoutContactInfoSubmitted(
     sendToBackend("checkout_contact_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
+      currency: checkout.currencyCode || null,
+      items: checkout.lineItems?.map(item => ({
+        id: item.id || "",
+        name: item.title || "",
+        price: toNumber(item.variant?.price?.amount),
+        quantity: item.quantity || 1,
+      })) || [],
     });
   });
 
@@ -412,7 +461,7 @@ function subscribeToCheckoutShippingInfoSubmitted(
     sendToBackend("checkout_shipping_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
+      currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
         id: item.id || "",
         name: item.title || "",
@@ -442,7 +491,7 @@ function subscribeToPaymentInfoSubmitted(
     sendToBackend("payment_info_submitted", {
       checkoutToken: checkout.token || null,
       value: toNumber(checkout.totalPrice?.amount),
-      currency: checkout.currencyCode || "USD",
+      currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
         id: item.id || "",
         name: item.title || "",

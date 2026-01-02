@@ -85,11 +85,12 @@ export function sanitizeEventParams(
 ): EventParams {
   const sanitized: EventParams = { ...params };
 
+  // 标准化 currency：如果存在则规范化，否则保留为 undefined（不硬编码 USD）
+  // 对于需要 currency 的平台，应该在调用此函数前确保 currency 已从实际数据中获取
   if (sanitized.currency) {
-    sanitized.currency = sanitized.currency.toUpperCase().substring(0, 3);
-  } else {
-    sanitized.currency = "USD";
+    sanitized.currency = String(sanitized.currency).toUpperCase().substring(0, 3);
   }
+  // 注意：不再硬编码 USD，调用方应确保从实际数据（checkout/cart/order）中获取 currency
 
   if (sanitized.value !== undefined) {
     sanitized.value = Number(sanitized.value) || 0;
