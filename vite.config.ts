@@ -17,7 +17,7 @@ if (
 }
 
 function getHostname(): string {
-  const appUrl = process.env.SHOPIFY_APP_URL || "http:
+  const appUrl = process.env.SHOPIFY_APP_URL || "http://localhost:3000";
   try {
     return new URL(appUrl).hostname;
   } catch (error) {
