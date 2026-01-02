@@ -65,7 +65,7 @@ export function checkParamCompleteness(
   }
 
   const requiredParams = Array.isArray(mapping.requiredParams) ? mapping.requiredParams : [];
-  const safeParams = params && typeof params === "object" && !Array.isArray(params) ? params : {};
+  const safeParams = params !== null && params !== undefined && typeof params === "object" && !Array.isArray(params) ? params : {};
   const presentParams = Object.keys(safeParams);
   const missingParams = requiredParams.filter((param) => {
     if (typeof param !== "string") {

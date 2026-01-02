@@ -58,7 +58,7 @@ export function validateEventPayload(
       // 非 purchase 事件：value/currency/items 为可选，但建议包含以保持一致性
       // page_viewed 事件允许 value 为 0 或缺失
       if (payload.eventName !== "page_viewed") {
-        if (data.value === undefined && data.value !== null) {
+        if (data.value === undefined || data.value === null) {
           warnings.push(`value is recommended for ${payload.eventName} events`);
         }
         if (!data.currency) {

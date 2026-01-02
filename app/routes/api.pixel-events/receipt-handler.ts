@@ -119,7 +119,7 @@ export async function createEventNonce(
       return { success: false, isReplay: true };
     }
     logger.warn(`Nonce check failed: ${String(nonceError)}`);
-    return { success: true, isReplay: false };
+    return { success: false, isReplay: false };
   }
 }
 
