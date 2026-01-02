@@ -23,14 +23,16 @@ export interface ConfigVersionHistory {
 
 export async function saveConfigSnapshot(
   shopId: string,
-  platform: Platform
+  platform: Platform,
+  environment: "test" | "live" = "live"
 ): Promise<{ success: boolean; version?: number; error?: string }> {
   try {
     const config = await prisma.pixelConfig.findUnique({
       where: {
-        shopId_platform: {
+        shopId_platform_environment: {
           shopId,
           platform,
+          environment,
         },
       },
     });
@@ -52,9 +54,10 @@ export async function saveConfigSnapshot(
 
     await prisma.pixelConfig.update({
       where: {
-        shopId_platform: {
+        shopId_platform_environment: {
           shopId,
           platform,
+          environment,
         },
       },
       data: {
@@ -77,14 +80,16 @@ export async function saveConfigSnapshot(
 
 export async function getConfigVersionHistory(
   shopId: string,
-  platform: Platform
+  platform: Platform,
+  environment: "test" | "live" = "live"
 ): Promise<ConfigVersionHistory | null> {
   try {
     const config = await prisma.pixelConfig.findUnique({
       where: {
-        shopId_platform: {
+        shopId_platform_environment: {
           shopId,
           platform,
+          environment,
         },
       },
     });
@@ -145,14 +150,16 @@ export async function getConfigVersionHistory(
 
 export async function rollbackConfig(
   shopId: string,
-  platform: Platform
+  platform: Platform,
+  environment: "test" | "live" = "live"
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const config = await prisma.pixelConfig.findUnique({
       where: {
-        shopId_platform: {
+        shopId_platform_environment: {
           shopId,
           platform,
+          environment,
         },
       },
     });
@@ -185,9 +192,10 @@ export async function rollbackConfig(
 
     await prisma.pixelConfig.update({
       where: {
-        shopId_platform: {
+        shopId_platform_environment: {
           shopId,
           platform,
+          environment,
         },
       },
       data: {

@@ -156,7 +156,7 @@ export async function upsertPixelConfig(
   });
 
   if (existingConfig && saveSnapshot) {
-    await saveConfigSnapshot(shopId, platform).catch((error) => {
+    await saveConfigSnapshot(shopId, platform, environment).catch((error) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.warn("Failed to save config snapshot", error instanceof Error ? error : new Error(String(error)), {
         shopId,

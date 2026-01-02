@@ -103,7 +103,7 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
     }
 
     if (existingConfig) {
-        await saveConfigSnapshot(shopId, platform);
+        await saveConfigSnapshot(shopId, platform, environment);
     }
 
     return prisma.pixelConfig.upsert({

@@ -43,6 +43,7 @@ import {
   generateEventIdForType,
 } from "./receipt-handler";
 import { validatePixelEventHMAC } from "./hmac-validation";
+import { processEventPipeline } from "../../services/events/pipeline.server";
 
 const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -236,20 +237,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
+    // P0-02: 确定事件模式 - 优先从 pixelConfigs 读取，默认使用 full_funnel
     const pixelConfigs = shop.pixelConfigs;
-    const mode = pixelConfigs.some(
-      config => config.clientConfig &&
-      typeof config.clientConfig === 'object' &&
-      'mode' in config.clientConfig &&
-      config.clientConfig.mode === 'full_funnel'
-    ) ? "full_funnel" : (
-      pixelConfigs.some(
-        config => config.clientConfig &&
-        typeof config.clientConfig === 'object' &&
-        'mode' in config.clientConfig &&
-        config.clientConfig.mode === 'purchase_only'
-      ) ? "purchase_only" : "full_funnel"
-    );
+    let mode: "purchase_only" | "full_funnel" = "full_funnel";
+    
+    // 从所有配置中查找 mode 设置（优先 full_funnel）
+    for (const config of pixelConfigs) {
+      if (config.clientConfig && typeof config.clientConfig === 'object' && 'mode' in config.clientConfig) {
+        const configMode = config.clientConfig.mode;
+        if (configMode === 'full_funnel') {
+          mode = "full_funnel";
+          break; // full_funnel 优先级最高
+        } else if (configMode === 'purchase_only' && mode !== 'full_funnel') {
+          mode = "purchase_only";
+        }
+      }
+    }
+    
+    // 如果没有找到配置，默认使用 full_funnel（符合设计稿 v1 要求）
+    if (pixelConfigs.length === 0) {
+      mode = "full_funnel";
+    }
 
     if (!isPrimaryEvent(payload.eventName, mode)) {
       logger.debug(`Event ${payload.eventName} not accepted for ${payload.shopDomain} (mode: ${mode})`);
@@ -501,11 +509,49 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       consentResult
     );
 
+    // P1-01: 多事件路由器 - 支持按 eventName 分类处理并路由到 destinations
+    // purchase 事件通过 webhook 处理（CAPI 发送）；其他漏斗事件通过事件管道处理
+    if (platformsToRecord.length > 0) {
+      if (isPurchaseEvent) {
+        // purchase 事件由 webhook handler 处理 CAPI 发送
+        logger.debug(`Purchase event ${eventId} queued for webhook processing`, {
+          shopId: shop.id,
+          orderId,
+          platforms: platformsToRecord.map(p => p.platform),
+        });
+      } else {
+        // P0-02/P1-01: 非 purchase 事件（page_viewed, product_viewed, add_to_cart, checkout_started 等）
+        // 通过事件管道处理，支持多平台路由
+        const platformNames = platformsToRecord.map(p => p.platform);
+        logger.info(`Processing ${payload.eventName} event through pipeline`, {
+          shopId: shop.id,
+          eventId,
+          eventName: payload.eventName,
+          platforms: platformNames,
+          mode,
+        });
+        
+        processEventPipeline(shop.id, payload, eventId, platformNames).catch((error) => {
+          logger.error(`Failed to process event pipeline for ${payload.eventName}`, {
+            shopId: shop.id,
+            eventId,
+            eventName: payload.eventName,
+            platforms: platformNames,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      }
+    }
+
+    const message = isPurchaseEvent
+      ? "Pixel event recorded, CAPI will be sent via webhook"
+      : `Pixel event recorded and routed to ${platformsToRecord.length} destination(s)`;
+
     return jsonWithCors(
       {
         success: true,
         eventId,
-        message: "Pixel event recorded, CAPI will be sent via webhook",
+        message,
         clientSideSent: true,
         platforms: platformsToRecord,
         skippedPlatforms: skippedPlatforms.length > 0 ? skippedPlatforms : undefined,

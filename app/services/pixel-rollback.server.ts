@@ -32,11 +32,18 @@ export interface EnvironmentSwitchResult {
 
 export async function saveConfigSnapshot(
   shopId: string,
-  platform: string
+  platform: string,
+  environment: PixelEnvironment = "live"
 ): Promise<boolean> {
   try {
     const config = await prisma.pixelConfig.findUnique({
-      where: { shopId_platform: { shopId, platform } },
+      where: { 
+        shopId_platform_environment: { 
+          shopId, 
+          platform,
+          environment,
+        } 
+      },
     });
 
     if (!config) {
@@ -77,11 +84,18 @@ export async function saveConfigSnapshot(
 
 export async function rollbackConfig(
   shopId: string,
-  platform: string
+  platform: string,
+  environment: PixelEnvironment = "live"
 ): Promise<RollbackResult> {
   try {
     const config = await prisma.pixelConfig.findUnique({
-      where: { shopId_platform: { shopId, platform } },
+      where: { 
+        shopId_platform_environment: { 
+          shopId, 
+          platform,
+          environment,
+        } 
+      },
     });
 
     if (!config) {
@@ -156,11 +170,19 @@ export async function rollbackConfig(
 export async function switchEnvironment(
   shopId: string,
   platform: string,
-  newEnvironment: PixelEnvironment
+  newEnvironment: PixelEnvironment,
+  currentEnvironment: PixelEnvironment = "test"
 ): Promise<EnvironmentSwitchResult> {
   try {
+    // 查找当前环境的配置
     const config = await prisma.pixelConfig.findUnique({
-      where: { shopId_platform: { shopId, platform } },
+      where: { 
+        shopId_platform_environment: { 
+          shopId, 
+          platform,
+          environment: currentEnvironment,
+        } 
+      },
     });
 
     if (!config) {
@@ -181,14 +203,49 @@ export async function switchEnvironment(
       };
     }
 
-    await saveConfigSnapshot(shopId, platform);
+    await saveConfigSnapshot(shopId, platform, currentEnvironment);
 
-    await prisma.pixelConfig.update({
-      where: { id: config.id },
-      data: {
-        environment: newEnvironment,
+    // 检查目标环境是否已存在配置
+    const targetConfig = await prisma.pixelConfig.findUnique({
+      where: {
+        shopId_platform_environment: {
+          shopId,
+          platform,
+          environment: newEnvironment,
+        },
       },
     });
+
+    if (targetConfig) {
+      // 如果目标环境已有配置，更新它
+      await prisma.pixelConfig.update({
+        where: { id: targetConfig.id },
+        data: {
+          platformId: config.platformId,
+          credentialsEncrypted: config.credentialsEncrypted,
+          serverSideEnabled: config.serverSideEnabled,
+          clientSideEnabled: config.clientSideEnabled,
+          eventMappings: config.eventMappings,
+          clientConfig: config.clientConfig,
+          isActive: config.isActive,
+        },
+      });
+      // 停用旧环境的配置
+      await prisma.pixelConfig.update({
+        where: { id: config.id },
+        data: {
+          isActive: false,
+        },
+      });
+    } else {
+      // 如果目标环境没有配置，直接切换环境
+      await prisma.pixelConfig.update({
+        where: { id: config.id },
+        data: {
+          environment: newEnvironment,
+        },
+      });
+    }
 
     await createAuditLogEntry(shopId, {
       actorType: "user",
@@ -227,7 +284,8 @@ export async function switchEnvironment(
 
 export async function getConfigVersionInfo(
   shopId: string,
-  platform: string
+  platform: string,
+  environment: PixelEnvironment = "live"
 ): Promise<{
   currentVersion: number;
   hasRollback: boolean;
@@ -235,7 +293,13 @@ export async function getConfigVersionInfo(
   lastUpdated: Date;
 } | null> {
   const config = await prisma.pixelConfig.findUnique({
-    where: { shopId_platform: { shopId, platform } },
+    where: { 
+      shopId_platform_environment: { 
+        shopId, 
+        platform,
+        environment,
+      } 
+    },
     select: {
       configVersion: true,
       rollbackAllowed: true,
@@ -287,7 +351,8 @@ export async function getAllConfigVersions(
 
 export async function getConfigComparison(
   shopId: string,
-  platform: string
+  platform: string,
+  environment: PixelEnvironment = "live"
 ): Promise<{
   current: PixelConfigSnapshot & { version: number; updatedAt: Date };
   previous: PixelConfigSnapshot | null;
@@ -299,7 +364,13 @@ export async function getConfigComparison(
   }>;
 } | null> {
   const config = await prisma.pixelConfig.findUnique({
-    where: { shopId_platform: { shopId, platform } },
+    where: { 
+      shopId_platform_environment: { 
+        shopId, 
+        platform,
+        environment,
+      } 
+    },
     select: {
       platformId: true,
       clientSideEnabled: true,

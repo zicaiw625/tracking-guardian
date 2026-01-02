@@ -117,22 +117,24 @@ export async function saveWizardConfigs(
 
       const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
-          shopId_platform: {
+          shopId_platform_environment: {
             shopId,
             platform: config.platform as Platform,
+            environment: config.environment,
           },
         },
       });
 
       if (existingConfig && existingConfig.isActive) {
-        await saveConfigSnapshot(shopId, config.platform);
+        await saveConfigSnapshot(shopId, config.platform, config.environment);
       }
 
       await prisma.pixelConfig.upsert({
         where: {
-          shopId_platform: {
+          shopId_platform_environment: {
             shopId,
             platform: config.platform as Platform,
+            environment: config.environment,
           },
         },
         update: {
@@ -353,12 +355,12 @@ export async function validateTestEnvironment(
     verificationInstructions?: string;
   };
 }> {
-  const config = await prisma.pixelConfig.findUnique({
+  // 查找测试环境的配置
+  const config = await prisma.pixelConfig.findFirst({
     where: {
-      shopId_platform: {
-        shopId,
-        platform: platform as Platform,
-      },
+      shopId,
+      platform: platform as Platform,
+      environment: "test",
     },
   });
 

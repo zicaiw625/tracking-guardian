@@ -329,14 +329,16 @@ export async function batchApplyTemplate(
 
         await prisma.pixelConfig.upsert({
           where: {
-            shopId_platform: {
+            shopId_platform_environment: {
               shopId: member.shopId,
               platform: platformConfig.platform,
+              environment: "test", // 批量操作默认使用 test 环境
             },
           },
           create: {
             shopId: member.shopId,
             platform: platformConfig.platform,
+            environment: "test",
             clientSideEnabled: platformConfig.clientSideEnabled ?? true,
             serverSideEnabled: platformConfig.serverSideEnabled ?? false,
             eventMappings: platformConfig.eventMappings as object ?? null,

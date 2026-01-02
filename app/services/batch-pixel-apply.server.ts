@@ -499,13 +499,18 @@ async function applyTemplateToShop(
             updateData.credentialsEncrypted = credentialsEncrypted;
           }
 
-          await prisma.pixelConfig.update({
+          // 查找 test 环境的配置（批量应用默认使用 test 环境）
+          const existingConfig = await prisma.pixelConfig.findFirst({
             where: {
-              shopId_platform: {
-                shopId,
-                platform: platformConfig.platform,
-              },
+              shopId,
+              platform: platformConfig.platform,
+              environment: "test",
             },
+          });
+
+          if (existingConfig) {
+            await prisma.pixelConfig.update({
+              where: { id: existingConfig.id },
             data: updateData,
           });
           appliedPlatforms.push(platformConfig.platform);

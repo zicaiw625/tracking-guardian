@@ -119,12 +119,12 @@ export async function executeBatchMigration(
 
       for (const platformConfig of platforms) {
 
-        const existingConfig = await prisma.pixelConfig.findUnique({
+        // 查找 test 环境的配置（批量迁移默认使用 test 环境）
+        const existingConfig = await prisma.pixelConfig.findFirst({
           where: {
-            shopId_platform: {
-              shopId,
-              platform: platformConfig.platform,
-            },
+            shopId,
+            platform: platformConfig.platform,
+            environment: "test",
           },
         });
 

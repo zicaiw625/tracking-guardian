@@ -153,6 +153,7 @@ export async function getShopForVerificationWithConfigs(
                 where: {
                     isActive: true,
                     serverSideEnabled: true,
+                    environment: "live", // P0-04: 事件处理时只使用 live 环境配置
                 },
                 select: {
                     platform: true,
