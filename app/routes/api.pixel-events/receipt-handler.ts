@@ -7,6 +7,7 @@ import { logger } from "../../utils/logger.server";
 import { RETENTION_CONFIG } from "../../utils/config";
 import type { TrustLevel } from "../../utils/receipt-trust";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
+import { generateCanonicalEventId } from "../../services/event-normalizer.server";
 
 export interface MatchKeyResult {
   orderId: string;
@@ -316,17 +317,18 @@ export function generatePurchaseEventId(
 }
 
 export function generateEventIdForType(
-  identifier: string,
+  identifier: string | null | undefined,
   eventType: string,
   shopDomain: string,
   checkoutToken?: string | null,
   items?: Array<{ id: string; quantity: number }>
 ): string {
-
-  const { generateCanonicalEventId } = require("../../services/event-normalizer.server");
+  // 使用与 pipeline.server.ts 相同的 generateCanonicalEventId 逻辑
+  // 这确保了 client/server 端 event_id 生成的一致性
+  // 同一笔订单在 client 端（pixel）和 server 端（webhook）生成的 event_id 应该一致
   return generateCanonicalEventId(
-    identifier,
-    checkoutToken,
+    identifier || null, // 确保传递 null 而不是空字符串，以保持与 pipeline 的一致性
+    checkoutToken || null,
     eventType,
     shopDomain,
     items

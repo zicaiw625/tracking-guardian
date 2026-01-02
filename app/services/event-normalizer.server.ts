@@ -172,9 +172,10 @@ function normalizeCurrency(currency: unknown, eventName: string): string {
   if (currency === null || currency === undefined) {
     // 对于需要货币的事件（purchase, add_to_cart 等），如果没有货币信息，记录警告并使用 USD 作为兜底
     // 对于不需要货币的事件（page_viewed），也使用 USD 作为默认值（因为接口要求 string）
+    // 注意：这应该是最后的后备方案，正常情况下应该从事件数据中获取 currency
     const requiresCurrency = ["checkout_completed", "purchase", "product_added_to_cart", "checkout_started", "product_viewed"].includes(eventName);
     if (requiresCurrency) {
-      logger.warn(`Missing currency for ${eventName} event, using USD as fallback`, {
+      logger.warn(`Missing currency for ${eventName} event, using USD as fallback. This may indicate a data quality issue.`, {
         eventName,
       });
     }

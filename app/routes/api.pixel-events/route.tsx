@@ -417,44 +417,78 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return jsonWithCors({ error: "Invalid request" }, { status: 400, request, shopAllowedDomains });
       }
     } else {
-
+      // 对于非 purchase 事件，使用与 pipeline.server.ts 相同的逻辑：
+      // 如果没有 checkoutToken，generateCanonicalEventId 会内部生成基于 timestamp 的 identifier
+      // 这里我们只需要设置 orderId 用于 receipt 记录，eventId 会由 generateEventIdForType 生成
       const checkoutToken = payload.data.checkoutToken;
       if (checkoutToken) {
         orderId = checkoutToken;
         eventIdentifier = checkoutToken;
       } else {
-
+        // 对于非 purchase 事件且没有 checkoutToken 的情况，使用 timestamp 作为临时 identifier
+        // generateCanonicalEventId 会内部处理这种情况，生成一致的 eventId
         orderId = `session_${payload.timestamp}_${shop.shopDomain.replace(/\./g, "_")}`;
-        eventIdentifier = orderId;
+        // 传递 null，让 generateCanonicalEventId 内部生成 identifier（与 pipeline.server.ts 一致）
+        eventIdentifier = null;
       }
     }
 
-    // 标准化 items：client 端发送的 item.id 通常是 checkout.lineItems 的 id（variant_id）
-    // 为了与 webhook handler 保持一致，我们使用相同的逻辑：优先使用 variantId，否则使用 productId
+    // ============================================================================
+    // 标准化 items 和生成 eventId：确保 client/server 端 event_id 生成的一致性
+    // 
+    // 关键点：
+    // 1. client 端发送的 item.id 通常是 checkout.lineItems 的 id（variant_id）
+    // 2. 为了与 pipeline.server.ts 保持一致，我们使用相同的逻辑：优先使用 variantId，否则使用 productId
+    // 3. 这与 pipeline.server.ts 中的逻辑完全一致，确保同一笔订单在两条链路生成的 event_id 可预测一致
+    // 4. 这确保了平台侧 dedup 能够正常工作（同一订单不会重复发送）
+    // 
+    // 注意：items 标准化逻辑必须与 pipeline.server.ts 中的逻辑完全一致：
+    // - 优先级：variantId > variant_id > productId > product_id > id
+    // - quantity 默认为 1，必须是整数
+    // ============================================================================
     const items = payload.data.items as Array<{ 
       id?: string; 
-      quantity?: number;
+      quantity?: number | string;
       variantId?: string;
       variant_id?: string;
       productId?: string;
       product_id?: string;
     }> | undefined;
     const normalizedItems = items?.map(item => {
-      // 优先使用 variantId（与 client 端 checkout.lineItems 的 id 字段一致），如果没有则使用 productId
-      // 如果都没有，则使用 id（可能是 variant_id 或 product_id）
-      const itemId = item.variantId || item.variant_id || item.productId || item.product_id || item.id || "";
+      // 优先级：variantId > variant_id > productId > product_id > id
+      // 这与 pipeline.server.ts 中的逻辑完全一致，确保 eventId 生成的一致性
+      const itemId = String(
+        item.variantId || 
+        item.variant_id || 
+        item.productId || 
+        item.product_id || 
+        item.id || 
+        ""
+      ).trim();
+      
+      // quantity 标准化：必须是整数，默认为 1
+      // 这与 pipeline.server.ts 中的逻辑完全一致
+      const quantity = typeof item.quantity === "number" 
+        ? Math.max(1, Math.floor(item.quantity))
+        : typeof item.quantity === "string"
+        ? Math.max(1, parseInt(item.quantity, 10) || 1)
+        : 1;
+      
       return {
-        id: String(itemId),
-        quantity: item.quantity || 1,
+        id: itemId,
+        quantity,
       };
     }).filter(item => item.id) || [];
 
+    // 使用与 pipeline.server.ts 相同的 generateCanonicalEventId 逻辑生成 eventId
+    // 这确保了 client/server 端 event_id 生成的一致性
+    // 同一笔订单在 client 端（pixel）和 server 端（webhook）生成的 event_id 应该一致
     const eventId = generateEventIdForType(
-      eventIdentifier,
+      eventIdentifier || null, // 如果没有 identifier，传递 null，generateCanonicalEventId 会内部处理
       eventType,
       shop.shopDomain,
       payload.data.checkoutToken,
-      normalizedItems
+      normalizedItems.length > 0 ? normalizedItems : undefined
     );
 
     const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);

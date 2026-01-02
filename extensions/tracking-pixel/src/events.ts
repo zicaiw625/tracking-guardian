@@ -261,10 +261,13 @@ export function subscribeToCheckoutCompleted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
+        variantId: item.id || null, // 明确标记 variantId
+        productId: item.variant?.product?.id || null,
+        productTitle: item.variant?.product?.title || null,
       })) || [],
     });
   });
@@ -291,10 +294,13 @@ function subscribeToCheckoutStarted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
+        variantId: item.id || null, // 明确标记 variantId
+        productId: item.variant?.product?.id || null,
+        productTitle: item.variant?.product?.title || null,
       })) || [],
     });
   });
@@ -321,15 +327,23 @@ function subscribeToProductAddedToCart(
     const currency = typedEvent.data?.cart?.currencyCode || null;
 
     // 统一为 value/currency/items[] 格式
+    // items[].id 优先使用 variantId（与 checkout 事件保持一致），如果没有则使用 productId
+    // 注意：cartLine.merchandise 可能包含 variant 信息，但类型定义可能不完整
+    const merchandise = cartLine.merchandise as { id?: string; variant?: { id?: string }; product?: { id?: string; title?: string } } | undefined;
+    const variantId = merchandise?.variant?.id || merchandise?.id || null;
+    const productId = merchandise?.product?.id || null;
+    const itemId = variantId || productId || "";
+
     sendToBackend("product_added_to_cart", {
       value: price * quantity,
       currency: currency,
       items: [{
-        id: cartLine.merchandise?.product?.id || "",
+        id: itemId, // 统一使用 variantId 优先，如果没有则使用 productId
         name: cartLine.merchandise?.product?.title || "",
         price: price,
         quantity: quantity,
-        productId: cartLine.merchandise?.product?.id || null,
+        variantId: variantId,
+        productId: productId,
         productTitle: cartLine.merchandise?.product?.title || null,
       }],
     });
@@ -358,13 +372,15 @@ function subscribeToPageViewed(
     if (!page) return;
 
     // 统一为 value/currency/items[] 格式（page_viewed 事件 value 为 0，items 为空数组）
+    // 注意：page_viewed 事件可能没有 currency，但为了保持一致性，我们尝试从页面或购物车获取
+    // 如果确实没有，后端会使用 USD 作为后备（这是合理的，因为 page_viewed 事件不需要货币信息）
     const currency = page.currencyCode || typedEvent.data?.cart?.currencyCode || null;
 
     sendToBackend("page_viewed", {
       url: page.url || null,
       title: page.title || null,
       value: 0, // page_viewed 事件没有交易价值
-      currency: currency, // 从页面或购物车获取货币代码
+      currency: currency, // 从页面或购物车获取货币代码（可能为 null，后端会处理）
       items: [], // page_viewed 事件没有商品信息
     });
   });
@@ -385,6 +401,7 @@ function subscribeToProductViewed(
     const typedEvent = event as { 
       data?: { 
         productVariant?: { 
+          id?: string; // variant id
           product?: { id?: string; title?: string }; 
           price?: { amount?: string | number; currencyCode?: string };
         };
@@ -397,15 +414,21 @@ function subscribeToProductViewed(
     const currency = (productVariant.price as { currencyCode?: string } | undefined)?.currencyCode || null;
 
     // 统一为 value/currency/items[] 格式
+    // items[].id 优先使用 variantId（与 checkout 事件保持一致），如果没有则使用 productId
+    const variantId = productVariant.id || null;
+    const productId = productVariant.product?.id || null;
+    const itemId = variantId || productId || "";
+
     sendToBackend("product_viewed", {
       value: price,
       currency: currency,
       items: [{
-        id: productVariant.product?.id || "",
+        id: itemId, // 统一使用 variantId 优先，如果没有则使用 productId
         name: productVariant.product?.title || "",
         price: price,
         quantity: 1,
-        productId: productVariant.product?.id || null,
+        variantId: variantId,
+        productId: productId,
         productTitle: productVariant.product?.title || null,
       }],
     });
@@ -433,10 +456,13 @@ function subscribeToCheckoutContactInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
+        variantId: item.id || null, // 明确标记 variantId
+        productId: item.variant?.product?.id || null,
+        productTitle: item.variant?.product?.title || null,
       })) || [],
     });
   });
@@ -463,10 +489,13 @@ function subscribeToCheckoutShippingInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
+        variantId: item.id || null, // 明确标记 variantId
+        productId: item.variant?.product?.id || null,
+        productTitle: item.variant?.product?.title || null,
       })) || [],
     });
   });
@@ -493,10 +522,13 @@ function subscribeToPaymentInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "",
+        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
+        variantId: item.id || null, // 明确标记 variantId
+        productId: item.variant?.product?.id || null,
+        productTitle: item.variant?.product?.title || null,
       })) || [],
     });
   });
