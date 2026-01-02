@@ -1,12 +1,13 @@
-import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, } from "@shopify/ui-extensions-react/customer-account";
+import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, useOrder, } from "@shopify/ui-extensions-react/customer-account";
 import { useState, useEffect, useMemo } from "react";
-import { BACKEND_URL } from "../../shared/config";
+import { BACKEND_URL } from "./config";
 import { createLogger } from "./logger";
 
 export default reactExtension("customer-account.order-status.block.render", () => <SurveyOrderStatus />);
 function SurveyOrderStatus() {
     const settings = useSettings();
     const api = useApi();
+    const order = useOrder();
 
     const backendUrl = BACKEND_URL;
     const [orderId, setOrderId] = useState<string | null>(null);
@@ -19,7 +20,8 @@ function SurveyOrderStatus() {
     const title = (settings.survey_title as string) || "我们想听听您的意见";
     const question = (settings.survey_question as string) || "您是如何了解到我们的？";
 
-    const shopDomain = api.shop?.myshopifyDomain || "";
+    // Type guard: shop is only available in certain API contexts
+    const shopDomain = ('shop' in api && api.shop?.myshopifyDomain) ? api.shop.myshopifyDomain : "";
     const logger = useMemo(() => createLogger(shopDomain, "[SurveyOrderStatus]"), [shopDomain]);
 
     const sources = [
@@ -32,12 +34,9 @@ function SurveyOrderStatus() {
     useEffect(() => {
         async function fetchOrderInfo() {
             try {
-                if (api.order) {
-                    const order = await api.order.current;
-                    if (order) {
-                        setOrderId(order.id || null);
-                        setOrderNumber(order.name || null);
-                    }
+                if (order) {
+                    setOrderId(order.id || null);
+                    setOrderNumber(order.name || null);
                 }
             }
             catch (err) {
@@ -45,7 +44,7 @@ function SurveyOrderStatus() {
             }
         }
         fetchOrderInfo();
-    }, [api, logger]);
+    }, [order, logger]);
     const handleSubmit = async () => {
         if (selectedRating === null && selectedSource === null)
             return;
@@ -67,7 +66,7 @@ function SurveyOrderStatus() {
                 rating: selectedRating,
                 source: selectedSource,
             };
-            const currentShopDomain = api.shop?.myshopifyDomain || "";
+            const currentShopDomain = ('shop' in api && api.shop?.myshopifyDomain) ? api.shop.myshopifyDomain : "";
             if (token && currentShopDomain) {
                 const response = await fetch(`${backendUrl}/api/survey`, {
                     method: "POST",

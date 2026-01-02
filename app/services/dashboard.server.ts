@@ -61,7 +61,7 @@ async function calculateHealthScore(
 
   try {
     const missingParamsRate = await getMissingParamsRate(shopId, 24 * 7);
-    const completenessScore = 100 - (missingParamsRate || 0);
+    const completenessScore = 100 - (missingParamsRate?.rate || 0);
     factors.push({ label: "参数完整性", value: Math.max(0, completenessScore), weight: 0.2 });
   } catch (error) {
     logger.warn("Failed to get missing params rate for health score", { shopId, error });
@@ -185,7 +185,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   const configuredPlatforms = shop.pixelConfigs?.length || 0;
 
   const serverSideConfigsCount = shop.pixelConfigs?.filter(
-    (config) =>
+    (config: { serverSideEnabled: boolean; credentialsEncrypted: string | null }) =>
       config.serverSideEnabled &&
       config.credentialsEncrypted &&
       config.credentialsEncrypted.trim().length > 0

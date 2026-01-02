@@ -35,15 +35,20 @@ function UpsellOfferOrderStatus() {
     const continueShoppingUrl = (() => {
       const url = (settings.continue_shopping_url as string) || "/";
 
-      if (url.startsWith("http:
+      if (url.startsWith("http://") || url.startsWith("https://")) {
         return url;
       }
 
+      // For relative URLs, return as-is (Shopify will handle the base URL)
       return url;
     })();
 
     const handleCopyCode = () => {
-
+        // Note: Customer Account UI Extensions run in a sandboxed environment and don't support
+        // navigator.clipboard, window, or document APIs. The copy button provides visual
+        // feedback, but users will need to manually select and copy the discount code text.
+        // This is a known limitation of Shopify UI Extensions.
+        // We provide visual feedback to indicate the code should be copied manually.
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -83,6 +88,11 @@ function UpsellOfferOrderStatus() {
                         <Text size="large" emphasis="bold">
                             {discountCode}
                         </Text>
+                        {copied && (
+                            <Text size="extraSmall" appearance="subdued">
+                                请手动选择并复制优惠码
+                            </Text>
+                        )}
                     </BlockStack>
                     <Button kind="secondary" onPress={handleCopyCode}>
                         {copied ? "已复制 ✓" : "复制"}

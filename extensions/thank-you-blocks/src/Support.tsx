@@ -29,7 +29,7 @@ function SupportBlock() {
 
   const faqUrl = useMemo(() => {
     const url = (settings.support_faq_url as string) || "/pages/faq";
-    if (url.startsWith("http:
+    if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
     return storefrontUrl ? `${storefrontUrl}${url.startsWith("/") ? url : `/${url}`}` : url;
@@ -42,14 +42,14 @@ function SupportBlock() {
 
   const continueShoppingUrl = useMemo(() => {
     const url = (settings.continue_shopping_url as string) || "/";
-    if (url.startsWith("http:
+    if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
     return storefrontUrl ? `${storefrontUrl}${url.startsWith("/") ? url : `/${url}`}` : url;
   }, [settings.continue_shopping_url, storefrontUrl]);
 
   const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
-  const whatsappUrl = whatsappNumber ? `https:
+  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber.replace(/[^0-9+]/g, "")}` : undefined;
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">

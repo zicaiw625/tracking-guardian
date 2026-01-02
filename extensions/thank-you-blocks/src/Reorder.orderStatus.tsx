@@ -26,19 +26,28 @@ function ReorderOrderStatus() {
   const buttonText = (settings.reorder_button_text as string) || "再次购买 →";
   const showItems = settings.reorder_show_items !== "false";
 
+  // Type-safe extraction of lineItems and totalPrice
+  const lineItems: any[] = (order && 'lineItems' in order && Array.isArray(order.lineItems)) 
+    ? order.lineItems as any[] 
+    : [];
+  const totalPrice: { amount: string; currencyCode: string } | null = 
+    (order && 'totalPrice' in order && order.totalPrice && typeof order.totalPrice === 'object' && order.totalPrice !== null)
+      ? order.totalPrice as { amount: string; currencyCode: string }
+      : null;
+
   const generateReorderUrl = (): string => {
-    if (!order?.lineItems || order.lineItems.length === 0) {
+    if (!lineItems || lineItems.length === 0) {
       return '/cart';
     }
 
-    const items = order.lineItems
-      .filter(item => item.quantity > 0)
-      .map(item => {
+    const items = lineItems
+      .filter((item: any) => item && item.quantity > 0)
+      .map((item: any) => {
         const variantId = item.variant?.id || '';
         const numericId = variantId.split('/').pop() || '';
         return `${numericId}:${item.quantity}`;
       })
-      .filter(item => item && !item.startsWith(':'))
+      .filter((item: string) => item && !item.startsWith(':'))
       .join(',');
 
     if (!items) {
@@ -48,7 +57,7 @@ function ReorderOrderStatus() {
     return `/cart/${items}`;
   };
 
-  if (!order || !order.lineItems || order.lineItems.length === 0) {
+  if (!order || !lineItems || lineItems.length === 0) {
     return null;
   }
 
@@ -67,12 +76,12 @@ function ReorderOrderStatus() {
 
       <Divider />
 
-      {showItems && order.lineItems.length > 0 && (
+      {showItems && lineItems.length > 0 && (
         <BlockStack spacing="tight">
           <Text size="small" appearance="subdued">
-            本次订购了 {order.lineItems.length} 件商品:
+            本次订购了 {lineItems.length} 件商品:
           </Text>
-          {order.lineItems.slice(0, 3).map((item, index) => (
+          {lineItems.slice(0, 3).map((item: any, index: number) => (
             <InlineLayout key={index} columns={["auto", "fill", "auto"]} spacing="tight" blockAlignment="center">
               {item.image?.url && (
                 <View maxInlineSize={40}>
@@ -99,9 +108,9 @@ function ReorderOrderStatus() {
               </Text>
             </InlineLayout>
           ))}
-          {order.lineItems.length > 3 && (
+          {lineItems.length > 3 && (
             <Text size="extraSmall" appearance="subdued">
-              +{order.lineItems.length - 3} 件其他商品
+              +{lineItems.length - 3} 件其他商品
             </Text>
           )}
         </BlockStack>
@@ -114,8 +123,8 @@ function ReorderOrderStatus() {
               订单金额
             </Text>
             <Text size="medium" emphasis="bold">
-              {order.totalPrice?.amount
-                ? `${order.totalPrice.currencyCode} ${order.totalPrice.amount}`
+              {totalPrice?.amount
+                ? `${totalPrice.currencyCode} ${totalPrice.amount}`
                 : '-'
               }
             </Text>

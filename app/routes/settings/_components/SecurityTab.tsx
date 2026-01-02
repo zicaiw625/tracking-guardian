@@ -277,8 +277,8 @@ export function SecurityTab({
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
                         {shop?.piiEnabled
-                          ? "邮箱/电话哈希后发送到广告平台，提高归因准确性"
-                          : "仅发送订单金额和商品信息，隐私优先模式"}
+                          ? "邮箱/电话/姓名/地址等字段将使用 SHA-256 哈希后发送到广告平台（Meta CAPI），提高归因准确性。原始数据不会被存储。"
+                          : "仅发送订单金额和商品信息，隐私优先模式（推荐）"}
                       </Text>
                     </BlockStack>
                     <Button

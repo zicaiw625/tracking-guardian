@@ -430,6 +430,25 @@ export function ServerTrackingTab({
               onChange={setServerEnabled}
             />
 
+            {serverEnabled && (
+              <Banner tone="info">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    <strong>服务端追踪说明：</strong>
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    • <strong>数据发送范围：</strong>订单 ID、金额、币种、商品信息
+                    <br />
+                    • <strong>失败重试：</strong>自动重试 3 次，失败后记录日志
+                    <br />
+                    • <strong>去重机制：</strong>使用 eventId 确保客户端和服务端事件不重复
+                    <br />
+                    • <strong>重要提示：</strong>我们记录发送结果，但不保证第三方平台接收成功
+                  </Text>
+                </BlockStack>
+              </Banner>
+            )}
+
             <InlineStack gap="200">
               <Button
                 variant="primary"

@@ -32,6 +32,7 @@
     "ci": "pnpm ci:lint && pnpm ci:compliance && pnpm ci:test",
     "ext:inject": "node --experimental-strip-types scripts/build-extensions.ts inject",
     "ext:restore": "node --experimental-strip-types scripts/build-extensions.ts restore",
+    "ext:validate": "node --experimental-strip-types scripts/validate-extensions.ts",
     "deploy:ext": "pnpm ext:inject && shopify app deploy && pnpm ext:restore"
   },
   "type": "module",

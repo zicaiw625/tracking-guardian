@@ -1,6 +1,6 @@
 import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable, Icon, useSettings, useApi, Banner, } from "@shopify/ui-extensions-react/checkout";
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
-import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
+import { BACKEND_URL, isAllowedBackendUrl } from "./config";
 import { createLogger } from "./logger";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Survey />);
@@ -28,8 +28,8 @@ const Survey = memo(function Survey() {
     useEffect(() => {
         async function fetchOrderAndCheckoutInfo() {
             try {
-
-                if (api.orderConfirmation) {
+                // Type guard: orderConfirmation is only available in purchase.thank-you.block.render target
+                if ('orderConfirmation' in api && api.orderConfirmation) {
                     const orderData = api.orderConfirmation instanceof Promise
                         ? await api.orderConfirmation
                         : api.orderConfirmation;
@@ -42,9 +42,11 @@ const Survey = memo(function Survey() {
                     }
                 }
 
-                if (api.checkoutToken) {
-                    let tokenValue = api.checkoutToken;
+                // Type guard: checkoutToken is only available in purchase.thank-you.block.render target
+                if ('checkoutToken' in api && api.checkoutToken) {
+                    let tokenValue: unknown = api.checkoutToken;
 
+                    // Handle StatefulRemoteSubscribable<string>
                     if (typeof tokenValue === 'object' && tokenValue !== null && 'current' in tokenValue) {
                         tokenValue = (tokenValue as { current: unknown }).current;
                     }

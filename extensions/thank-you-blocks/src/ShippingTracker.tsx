@@ -14,7 +14,7 @@ import {
     Banner,
 } from "@shopify/ui-extensions-react/checkout";
 import { useMemo, memo, useState, useEffect } from "react";
-import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
+import { BACKEND_URL, isAllowedBackendUrl } from "./config";
 
 export default reactExtension("purchase.thank-you.block.render", () => <ShippingTracker />);
 
@@ -35,7 +35,8 @@ const ShippingTracker = memo(function ShippingTracker() {
     useEffect(() => {
         async function fetchOrderInfo() {
             try {
-                if (api.orderConfirmation) {
+                // Type guard: orderConfirmation is only available in purchase.thank-you.block.render target
+                if ('orderConfirmation' in api && api.orderConfirmation) {
                     const orderData = api.orderConfirmation instanceof Promise
                         ? await api.orderConfirmation
                         : api.orderConfirmation;
@@ -47,7 +48,8 @@ const ShippingTracker = memo(function ShippingTracker() {
                     }
                 }
             } catch (err) {
-                console.warn("Failed to get order info:", err);
+                // Silently handle order info fetch errors
+                // Order info may not be available in all contexts
             }
         }
         fetchOrderInfo();
@@ -61,7 +63,6 @@ const ShippingTracker = memo(function ShippingTracker() {
             }
 
             if (!BACKEND_URL || !isAllowedBackendUrl(BACKEND_URL)) {
-                console.warn("ShippingTracker: Backend URL not configured or not allowed", { BACKEND_URL });
                 setBackendUrlError(true);
                 setError("后端服务配置错误，请联系商家");
                 return;
@@ -102,7 +103,6 @@ const ShippingTracker = memo(function ShippingTracker() {
                         const retryDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
 
                         if (attempt < retryDelays.length - 1) {
-                            console.log(`Order still creating, retrying after ${retryDelay}ms`, { orderId, attempt });
                             await new Promise(resolve => setTimeout(resolve, retryDelay));
                             continue;
                         } else {
@@ -141,8 +141,7 @@ const ShippingTracker = memo(function ShippingTracker() {
                     }
                 } catch (error) {
                     lastError = error instanceof Error ? error : new Error(String(error));
-                    console.warn(`Failed to fetch tracking info (attempt ${attempt + 1}):`, error);
-
+                    
                     if (attempt === retryDelays.length - 1) {
                         setError("获取物流信息失败，请稍后刷新页面");
                     }

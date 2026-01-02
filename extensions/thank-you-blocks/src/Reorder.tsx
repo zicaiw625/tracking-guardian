@@ -11,9 +11,10 @@ import {
   useApi,
   Divider,
   Banner,
+  Link,
 } from "@shopify/ui-extensions-react/checkout";
 import { useMemo, memo, useState, useEffect } from "react";
-import { BACKEND_URL, isAllowedBackendUrl } from "../../shared/config";
+import { BACKEND_URL, isAllowedBackendUrl } from "./config";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Reorder />);
 
@@ -38,7 +39,8 @@ const Reorder = memo(function Reorder() {
   useEffect(() => {
     async function fetchOrderInfo() {
       try {
-        if (api.orderConfirmation) {
+        // Type guard: orderConfirmation is only available in purchase.thank-you.block.render target
+        if ('orderConfirmation' in api && api.orderConfirmation) {
           const orderData = api.orderConfirmation instanceof Promise
             ? await api.orderConfirmation
             : api.orderConfirmation;
@@ -50,7 +52,8 @@ const Reorder = memo(function Reorder() {
           }
         }
       } catch (err) {
-        console.warn("Failed to get order info:", err);
+        // Silently handle order info fetch errors
+        // Order info may not be available in all contexts
       }
     }
     fetchOrderInfo();
@@ -63,7 +66,6 @@ const Reorder = memo(function Reorder() {
       }
 
       if (!BACKEND_URL || !isAllowedBackendUrl(BACKEND_URL)) {
-        console.warn("Reorder: Backend URL not configured or not allowed", { BACKEND_URL });
         setBackendUrlError(true);
         setError("后端服务配置错误，请联系商家");
         return;
@@ -104,7 +106,6 @@ const Reorder = memo(function Reorder() {
             const retryDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
 
             if (attempt < retryDelays.length - 1) {
-              console.log(`Order still creating, retrying after ${retryDelay}ms`, { orderId, attempt });
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               continue;
             } else {
@@ -119,7 +120,7 @@ const Reorder = memo(function Reorder() {
 
             const reorderUrlFromBackend = data.reorderUrl || "/cart";
 
-            const absoluteUrl = reorderUrlFromBackend.startsWith("http:
+            const absoluteUrl = reorderUrlFromBackend.startsWith("http://") || reorderUrlFromBackend.startsWith("https://")
               ? reorderUrlFromBackend
               : (storefrontUrl
                   ? `${storefrontUrl}${reorderUrlFromBackend.startsWith("/") ? reorderUrlFromBackend : `/${reorderUrlFromBackend}`}`
@@ -141,8 +142,7 @@ const Reorder = memo(function Reorder() {
           }
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
-          console.warn(`Failed to fetch reorder URL (attempt ${attempt + 1}):`, error);
-
+          
           if (attempt === retryDelays.length - 1) {
             setError("获取重新购买链接失败，请稍后刷新页面");
           }
@@ -208,30 +208,25 @@ const Reorder = memo(function Reorder() {
               点击按钮将跳转到购物车
             </Text>
           </BlockStack>
-          <Button
-            kind="primary"
-            loading={isLoading}
-            disabled={isLoading || !reorderUrl}
-            onPress={() => {
-
-              if (reorderUrl) {
-                try {
-                  if (typeof window !== "undefined" && window.location) {
-                    window.location.href = reorderUrl;
-                  } else {
-
-                    if (typeof document !== "undefined" && document.location) {
-                      document.location.href = reorderUrl;
-                    }
-                  }
-                } catch (error) {
-                  console.warn("Failed to navigate to reorder URL:", error);
-                }
-              }
-            }}
-          >
-            {buttonText}
-          </Button>
+          {reorderUrl ? (
+            <Link to={reorderUrl}>
+              <Button
+                kind="primary"
+                loading={isLoading}
+                disabled={isLoading}
+              >
+                {buttonText}
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              kind="primary"
+              loading={isLoading}
+              disabled={true}
+            >
+              {buttonText}
+            </Button>
+          )}
         </InlineLayout>
       </View>
 

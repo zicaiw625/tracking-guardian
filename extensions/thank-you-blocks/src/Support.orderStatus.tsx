@@ -23,7 +23,7 @@ function SupportOrderStatus() {
   const faqUrl = useMemo(() => {
     const url = (settings.support_faq_url as string) || "/pages/faq";
 
-    if (url.startsWith("http:
+    if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
 
@@ -38,7 +38,7 @@ function SupportOrderStatus() {
       return url;
     }
 
-    if (url.startsWith("http:
+    if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
 
@@ -51,7 +51,7 @@ function SupportOrderStatus() {
   const continueShoppingUrl = useMemo(() => {
     const url = (settings.continue_shopping_url as string) || "/";
 
-    if (url.startsWith("http:
+    if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
 
@@ -59,7 +59,7 @@ function SupportOrderStatus() {
   }, [settings.continue_shopping_url]);
 
   const emailUrl = contactEmail ? `mailto:${contactEmail}` : undefined;
-  const whatsappUrl = whatsappNumber ? `https:
+  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber.replace(/[^0-9+]/g, "")}` : undefined;
 
   return (
     <BlockStack spacing="base" padding="base" border="base" cornerRadius="base">
