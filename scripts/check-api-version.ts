@@ -110,7 +110,9 @@ function checkVersionAge(version: string) {
   if (monthsOld >= 9) {
     console.warn(`⚠️  Warning: API version ${version} is ${monthsOld} months old.`);
     console.warn("   Consider upgrading to a newer version before it's deprecated.");
-    console.warn("   Check: https://shopify.dev/docs/api/usage/versioning#release-schedule");
+    console.warn(
+      "   Check: https://shopify.dev/docs/api/usage/versioning#release-schedule",
+    );
   } else if (monthsOld >= 6) {
     console.log(`ℹ️  Note: API version ${version} is ${monthsOld} months old.`);
     console.log("   Plan to upgrade within the next quarter.");
