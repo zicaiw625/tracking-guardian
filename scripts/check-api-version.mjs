@@ -100,6 +100,9 @@ function convertEnumToVersion(enumValue) {
   return `20${year}-${monthNum}`;
 }
 
+const RELEASE_SCHEDULE_URL =
+  "https://shopify.dev/docs/api/usage/versioning#release-schedule";
+
 /**
  * @param {string} version
  */
@@ -119,7 +122,7 @@ function checkVersionAge(version) {
     [
       `⚠️  Warning: API version ${version} is ${monthsOld} months old.`,
       "   Consider upgrading to a newer version before it's deprecated.",
-      "   Check: https://shopify.dev/docs/api/usage/versioning#release-schedule",
+      `   Check: ${RELEASE_SCHEDULE_URL}`,
     ].forEach((message) => console.warn(message));
   } else if (monthsOld >= 6) {
     [
