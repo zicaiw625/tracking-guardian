@@ -5,7 +5,7 @@
 ### 1. 环境准备
 
 确保已安装:
-- Node.js 20+
+- Node.js 22.18+ (required for running TypeScript scripts directly with the Node runtime)
 - PostgreSQL 数据库
 
 ### 2. 创建 Shopify App

@@ -109,7 +109,7 @@
 
 ### 前置要求
 
-- Node.js 20+
+- Node.js 22.18+ (required for running TypeScript utility scripts directly)
 - PostgreSQL 数据库
 - Shopify Partner 账号
 - Shopify CLI
