@@ -77,12 +77,15 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
 
     const environment = options?.environment || "live";
 
+    // P0-3: 支持多目的地配置 - 使用包含 platformId 的唯一约束
+    // 如果 platformId 为 null，仍然使用包含 platformId 的约束（Prisma 支持 null 值）
     const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
-            shopId_platform_environment: {
+            shopId_platform_environment_platformId: {
                 shopId,
                 platform,
                 environment,
+                platformId: platformId || null,
             },
         },
     });
@@ -106,12 +109,14 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         await saveConfigSnapshot(shopId, platform, environment);
     }
 
+    // P0-3: 支持多目的地配置 - 使用包含 platformId 的唯一约束
     return prisma.pixelConfig.upsert({
         where: {
-            shopId_platform_environment: {
+            shopId_platform_environment_platformId: {
                 shopId,
                 platform,
                 environment,
+                platformId: platformId || null,
             },
         },
         update: {
@@ -137,13 +142,31 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
     });
 }
 
-export async function completeMigration(shopId: string, platform: Platform, environment: string = "live") {
-    return prisma.pixelConfig.update({
-        where: {
-            shopId_platform_environment: {
+export async function completeMigration(shopId: string, platform: Platform, environment: string = "live", platformId?: string | null) {
+    // P0-3: 支持多目的地配置 - 需要 platformId 来唯一标识配置
+    // 如果未提供 platformId，查找第一个匹配的配置（向后兼容）
+    if (platformId === undefined) {
+        const config = await prisma.pixelConfig.findFirst({
+            where: {
                 shopId,
                 platform,
                 environment,
+            },
+        });
+        if (!config) {
+            throw new Error(`No PixelConfig found for shopId=${shopId}, platform=${platform}, environment=${environment}`);
+        }
+        platformId = config.platformId;
+    }
+    
+    // 使用包含 platformId 的唯一约束更新配置
+    return prisma.pixelConfig.update({
+        where: {
+            shopId_platform_environment_platformId: {
+                shopId,
+                platform,
+                environment,
+                platformId: platformId || null,
             },
         },
         data: {

@@ -183,11 +183,20 @@ export async function logEvent(
   }
 }
 
+/**
+ * P0-3: 多目的地配置支持
+ * 
+ * destinations 可以是：
+ * - string[]: 平台名称列表（向后兼容）
+ * - Array<{ platform: string; configId?: string; platformId?: string }>: 配置对象列表（支持多目的地）
+ * 
+ * 如果传递配置对象列表，每个配置都会被单独处理，确保同一平台的多个配置都能收到事件
+ */
 export async function processEventPipeline(
   shopId: string,
   payload: PixelEventPayload,
   eventId: string | null,
-  destinations: string[]
+  destinations: string[] | Array<{ platform: string; configId?: string; platformId?: string }>
 ): Promise<EventPipelineResult> {
 
   const validation = validateEventPayload(payload);
@@ -209,20 +218,30 @@ export async function processEventPipeline(
     };
   }
 
+  // P0-3: 标准化 destinations 为配置对象列表
+  const destinationConfigs: Array<{ platform: string; configId?: string; platformId?: string }> = 
+    destinations.length > 0 && typeof destinations[0] === 'string'
+      ? destinations.map(d => ({ platform: d }))
+      : destinations as Array<{ platform: string; configId?: string; platformId?: string }>;
+
   const deduplicationResults: boolean[] = [];
-  for (const destination of destinations) {
+  for (const destConfig of destinationConfigs) {
+    // P0-3: 使用配置ID或平台名称作为去重键，确保同一平台的多个配置都能被处理
+    const dedupKey = destConfig.configId || destConfig.platform;
     const dedupResult = await checkEventDeduplication(
       shopId,
       eventId,
       payload.eventName,
-      destination
+      dedupKey
     );
 
     if (dedupResult.isDuplicate) {
       logger.info("Event deduplicated", {
         shopId,
         eventId,
-        destination,
+        destination: destConfig.platform,
+        configId: destConfig.configId,
+        platformId: destConfig.platformId,
         existingEventId: dedupResult.existingEventId,
       });
       deduplicationResults.push(true);
@@ -447,12 +466,15 @@ export async function processEventPipeline(
   // 如果不是重复事件，则发送到各个平台
   // 这是 Destination Router 的核心逻辑：将规范化后的事件真正路由发送到 GA4/Meta/TikTok
   // 这确保了"像素迁移中心（Web Pixel → Destinations）"的产品承诺得以实现
+  // P0-3: 支持多目的地配置，每个配置都会被单独处理
   if (!isDeduplicated) {
-    logger.info(`Routing ${normalizedPayload.eventName} event to ${destinations.length} destination(s)`, {
+    const destinationNames = destinationConfigs.map(d => d.platform);
+    logger.info(`Routing ${normalizedPayload.eventName} event to ${destinationConfigs.length} destination(s)`, {
       shopId,
       eventId: finalEventId,
       eventName: normalizedPayload.eventName,
-      destinations,
+      destinations: destinationNames,
+      configCount: destinationConfigs.length,
       normalizedValue: normalizedPayload.data.value,
       normalizedCurrency: normalizedPayload.data.currency,
       itemsCount: normalizedPayload.data.items?.length || 0,
@@ -460,13 +482,16 @@ export async function processEventPipeline(
       hasCheckoutToken: !!normalizedPayload.data.checkoutToken,
     });
 
-    const sendPromises = destinations.map(async (destination) => {
+    const sendPromises = destinationConfigs.map(async (destConfig) => {
+      const destination = destConfig.platform;
       try {
         logger.debug(`Sending ${normalizedPayload.eventName} to ${destination}`, {
           shopId,
           eventId: finalEventId,
           eventName: normalizedPayload.eventName,
           platform: destination,
+          configId: destConfig.configId,
+          platformId: destConfig.platformId,
         });
 
         // 使用规范化后的 payload 发送到平台
@@ -478,6 +503,7 @@ export async function processEventPipeline(
             shopId,
             eventName: normalizedPayload.eventName,
             destination,
+            configId: destConfig.configId,
           });
           // 使用临时 ID 作为后备，但这种情况不应该发生
           eventIdForSend = generateCanonicalEventId(
@@ -489,19 +515,29 @@ export async function processEventPipeline(
           );
         }
         
+        // P0-3: 传递配置ID以支持多目的地（同一平台的多个配置）
         const sendResult = await sendPixelEventToPlatform(
           shopId,
           destination,
           normalizedPayload,
-          eventIdForSend
+          eventIdForSend,
+          destConfig.configId,
+          destConfig.platformId
         );
 
+        // P0-3: 使用配置ID作为 destinationType，确保同一平台的多个配置都能被记录
+        const destinationType = destConfig.configId 
+          ? `${destination}:${destConfig.configId}` 
+          : destConfig.platformId 
+          ? `${destination}:${destConfig.platformId}` 
+          : destination;
+        
         await logEvent(
           shopId,
           normalizedPayload.eventName,
           finalEventId,
           normalizedPayload,
-          destination,
+          destinationType,
           sendResult.success ? "ok" : "fail",
           sendResult.success ? undefined : "send_failed",
           sendResult.error
@@ -513,6 +549,8 @@ export async function processEventPipeline(
             eventId: finalEventId,
             eventName: normalizedPayload.eventName,
             platform: destination,
+            configId: destConfig.configId,
+            platformId: destConfig.platformId,
           });
         } else {
           logger.warn(`Failed to send ${normalizedPayload.eventName} to ${destination}`, {
@@ -520,6 +558,8 @@ export async function processEventPipeline(
             eventName: normalizedPayload.eventName,
             eventId: finalEventId,
             platform: destination,
+            configId: destConfig.configId,
+            platformId: destConfig.platformId,
             error: sendResult.error,
           });
         }
@@ -531,15 +571,23 @@ export async function processEventPipeline(
           eventName: normalizedPayload.eventName,
           eventId,
           platform: destination,
+          configId: destConfig.configId,
+          platformId: destConfig.platformId,
           error: error instanceof Error ? error.message : String(error),
         });
+
+        const destinationType = destConfig.configId 
+          ? `${destination}:${destConfig.configId}` 
+          : destConfig.platformId 
+          ? `${destination}:${destConfig.platformId}` 
+          : destination;
 
         await logEvent(
           shopId,
           normalizedPayload.eventName,
           finalEventId,
           normalizedPayload,
-          destination,
+          destinationType,
           "fail",
           "send_error",
           error instanceof Error ? error.message : String(error)
@@ -560,13 +608,14 @@ export async function processEventPipeline(
     
     // Destination Router 完成：非 purchase 事件已真正路由发送到 GA4/Meta/TikTok
     // 这确保了"像素迁移中心（Web Pixel → Destinations）"的产品承诺得以实现
+    // P0-3: 支持多目的地配置，每个配置都会被单独处理
     logger.info(`Event ${normalizedPayload.eventName} routing completed - sent to destinations`, {
       shopId,
       eventId: finalEventId,
       eventName: normalizedPayload.eventName,
-      totalDestinations: destinations.length,
+      totalDestinations: destinationConfigs.length,
       successful: successCount,
-      failed: destinations.length - successCount,
+      failed: destinationConfigs.length - successCount,
       normalizedValue: normalizedPayload.data.value,
       normalizedCurrency: normalizedPayload.data.currency,
       itemsCount: normalizedPayload.data.items?.length || 0,
@@ -577,26 +626,34 @@ export async function processEventPipeline(
     });
   } else {
     // 如果是重复事件，只记录日志
-    const logPromises = destinations.map((destination) =>
-      logEvent(
+    // P0-3: 为每个配置单独记录日志
+    const logPromises = destinationConfigs.map((destConfig) => {
+      const destinationType = destConfig.configId 
+        ? `${destConfig.platform}:${destConfig.configId}` 
+        : destConfig.platformId 
+        ? `${destConfig.platform}:${destConfig.platformId}` 
+        : destConfig.platform;
+      return logEvent(
         shopId,
         normalizedPayload.eventName,
         finalEventId,
         normalizedPayload,
-        destination,
+        destinationType,
         "ok",
         "deduplicated",
         "Event was deduplicated"
-      )
-    );
+      );
+    });
 
     await Promise.allSettled(logPromises);
   }
 
+  // P0-3: 返回平台名称列表以保持向后兼容
+  const destinationNames = destinationConfigs.map(d => d.platform);
   return {
     success: true,
     eventId: finalEventId || undefined,
-    destinations,
+    destinations: destinationNames,
     deduplicated: isDeduplicated,
   };
 }

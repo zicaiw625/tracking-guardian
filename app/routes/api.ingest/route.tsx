@@ -1,10 +1,17 @@
 /**
- * 向后兼容路由：/api/ingest
+ * P0-1: 向后兼容路由：/api/ingest
  * 
- * PRD 中定义的端点是 POST /ingest，但实际实现是 /api/pixel-events
- * 此路由作为向后兼容别名，重定向到实际的实现
+ * 路径说明：
+ * - POST /ingest: PRD 中定义的主要端点（推荐使用）
+ * - POST /api/ingest: 向后兼容别名
+ * - POST /api/pixel-events: 实际实现端点（内部使用）
  * 
- * 注意：此路由仅用于向后兼容，新代码应直接使用 /api/pixel-events
+ * 所有三个端点功能完全一致，都委托给 /api/pixel-events 的实际实现
+ * 
+ * 注意：
+ * - 对外文档应推荐使用 /ingest（符合 PRD）
+ * - 现有集成可以继续使用 /api/ingest 或 /api/pixel-events
+ * - 所有请求都会转发到 /api/pixel-events 的实际实现，保持功能一致性
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";

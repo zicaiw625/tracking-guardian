@@ -221,15 +221,19 @@ railway up
 
 **像素事件接收端点**：
 
-- **主要端点**：`POST /api/pixel-events`
-  - 这是实际的事件接收端点，由 Web Pixel Extension 调用
+- **主要端点（PRD 推荐）**：`POST /ingest`
+  - PRD 中定义的主要端点，推荐新集成使用
+  - 委托给 `/api/pixel-events` 的实际实现，功能完全一致
   - 支持 CORS、HMAC 验证、时间窗校验、nonce 防重放等安全机制
-  - 详细实现见 `app/routes/api.pixel-events/route.tsx`
 
-- **向后兼容端点**：`POST /api/ingest`
-  - PRD 中定义的端点是 `POST /ingest`，为保持向后兼容，提供了此别名路由
-  - 此路由重定向到 `/api/pixel-events` 的实际实现
-  - **注意**：新代码应直接使用 `/api/pixel-events`，`/api/ingest` 仅用于向后兼容
+- **向后兼容端点**：
+  - `POST /api/ingest` - 向后兼容别名，委托给 `/api/pixel-events`
+  - `POST /api/pixel-events` - 实际实现端点（内部使用）
+  
+- **注意**：
+  - 对外文档和第三方集成应推荐使用 `POST /ingest`（符合 PRD）
+  - 所有三个端点功能完全一致，都委托给 `/api/pixel-events` 的实际实现
+  - 详细实现见 `app/routes/api.pixel-events/route.tsx`
 
 **配置获取**：
 - 端点 URL 可通过 `app/utils/config.ts` 中的 `getPixelEventEndpoint()` 函数获取

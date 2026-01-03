@@ -38,7 +38,20 @@ export interface PixelConfigInput {
   serverSideEnabled?: boolean;
   eventMappings?: Prisma.InputJsonValue;
   isActive?: boolean;
-  environment?: string; // 支持多目的地配置：同一平台、同一环境可以配置多个不同的 platformId
+  /**
+   * 支持多目的地配置：同一平台、同一环境可以配置多个不同的 platformId
+   * 
+   * 数据模型约束：
+   * - @@unique([shopId, platform, environment, platformId])
+   * - 这意味着：如果 platformId 不同，可以有多条配置（例如多个 GA4 property、多个 Meta Pixel）
+   * - 如果 platformId 为空，同一平台同一环境只能有一条配置
+   * 
+   * 使用场景：
+   * - Agency 交付：同一商家可能需要向多个 GA4 property 发送事件
+   * - 多品牌：同一商家可能有多个 Meta Pixel ID
+   * - 测试/生产：通过 environment 字段区分（test/live）
+   */
+  environment?: string;
 }
 
 const shopPixelConfigsCache = new SimpleCache<PixelConfigCredentials[]>({
@@ -147,8 +160,14 @@ export async function upsertPixelConfig(
   const environment = input.environment || "test";
   const platformId = data.platformId ?? null;
 
-  // 支持多目的地配置：如果提供了 platformId，使用包含 platformId 的唯一约束
-  // 否则使用不包含 platformId 的唯一约束（向后兼容）
+  // P0-3: 支持多目的地配置
+  // - 如果提供了 platformId，使用包含 platformId 的唯一约束，允许同一平台多个配置
+  //   例如：多个 GA4 property（platformId = "G-XXXXX"）、多个 Meta Pixel（platformId = "123456789"）
+  // - 如果没有提供 platformId，使用不包含 platformId 的唯一约束（向后兼容）
+  //   注意：同一环境下同一平台只能有 1 个无 platformId 的配置
+  // - 对于需要多个同平台配置但平台不支持 platformId 的场景，建议：
+  //   1. 使用 displayName 作为区分标识（在 UI 中显示）
+  //   2. 或者为每个配置生成一个唯一的 platformId（例如基于 displayName 或时间戳）
   const existingConfig = platformId
     ? await prisma.pixelConfig.findUnique({
         where: {

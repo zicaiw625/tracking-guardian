@@ -1,4 +1,21 @@
-
+/**
+ * Shopify Thank you / Order status 页面迁移截止日期配置
+ * 
+ * P1-1: 日期对齐 Shopify 官方口径
+ * 
+ * 数据来源：Shopify 官方公告（最后验证：2025-01）
+ * - https://shopify.dev/docs/apps/online-store/checkout-extensibility
+ * - https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility
+ * - https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status
+ * 
+ * 关键时间点（与 Shopify 官方一致）：
+ * - 2025-02-01: ScriptTag 创建被禁止
+ * - 2025-08-28: Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读
+ * - 2026-01-01: Shopify 开始自动升级 Plus 商家 TYP/OSP 页面（legacy 自定义会丢失）
+ * - 2026-08-26: 非 Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读
+ * 
+ * 注意：如果 Shopify 官方更新日期，请通过环境变量覆盖或更新此文件
+ */
 
 function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
     if (envVar && /^\d{4}-\d{2}-\d{2}$/.test(envVar)) {

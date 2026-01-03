@@ -240,6 +240,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // P0-02: 确定事件模式 - 优先从 pixelConfigs 读取，默认使用 full_funnel
     // PRD 期望：像素迁移应直接覆盖 purchase 事件，因此默认使用 hybrid 策略
     // hybrid = client-side + server-side 双重发送，通过 event_id 去重
+    // 
+    // P0-3: 多目的地配置支持
+    // pixelConfigs 可能包含多个同平台配置（通过 platformId 区分），
+    // 所有配置都会被处理，支持多目的地场景（Agency/多品牌/多像素）
+    // 例如：同一店铺可以配置多个 GA4 property、多个 Meta Pixel 等
     const pixelConfigs = shop.pixelConfigs;
     let mode: "purchase_only" | "full_funnel" = "full_funnel";
     let purchaseStrategy: "server_side_only" | "hybrid" = "hybrid"; // 默认 hybrid 以符合 PRD 要求
@@ -573,24 +578,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       consentResult
     );
 
-    // P1-01: 多事件路由器 - 支持按 eventName 分类处理并路由到 destinations
+    // P0-4/P1-01: 多事件路由器 - 支持按 eventName 分类处理并路由到 destinations
     // purchase 事件根据 purchaseStrategy 配置决定处理方式：
-    // - server_side_only（默认）：仅通过 webhook 处理（CAPI 发送）
-    // - hybrid：同时通过 client-side 和 server-side 发送，通过 event_id 去重
+    // - hybrid（默认，符合 PRD 要求）：同时通过 client-side 和 server-side 发送，通过 event_id 去重
+    //   * client-side：Web Pixel Extension 发送 purchase 事件到 /ingest 端点
+    //   * server-side：orders/paid webhook 触发 CAPI 发送（作为兜底和增强）
+    //   * 去重机制：使用相同的 event_id 生成逻辑，确保同一订单不会重复发送
+    // - server_side_only：仅通过 webhook 处理（CAPI 发送），不处理 client-side purchase 事件
+    //   注意：此模式不符合 PRD 的"像素迁移应直接覆盖 purchase 事件"要求，仅用于特殊场景
     if (platformsToRecord.length > 0) {
       if (isPurchaseEvent) {
         if (purchaseStrategy === "hybrid") {
           // Hybrid 模式：client-side 也发送 purchase 事件，server-side 作为兜底
+          // P0-3: 传递配置对象以支持多目的地（同一平台的多个配置）
           const platformNames = platformsToRecord.map(p => p.platform);
           logger.info(`Processing purchase event in hybrid mode (client-side + server-side)`, {
             shopId: shop.id,
             eventId,
             orderId,
             platforms: platformNames,
+            configCount: platformsToRecord.length,
           });
           
           // 异步处理但不阻塞响应，记录发送结果
-          processEventPipeline(shop.id, payload, eventId, platformNames)
+          // P0-3: 传递配置对象列表以支持多目的地
+          processEventPipeline(shop.id, payload, eventId, platformsToRecord)
             .then((result) => {
               if (result.success) {
                 logger.info(`Purchase event successfully sent via client-side`, {
@@ -628,22 +640,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             shopId: shop.id,
             orderId,
             platforms: platformsToRecord.map(p => p.platform),
+            configCount: platformsToRecord.length,
           });
         }
       } else {
         // P0-02/P1-01: 非 purchase 事件（page_viewed, product_viewed, add_to_cart, checkout_started 等）
         // 通过事件管道处理，支持多平台路由并实际发送到 destinations
+        // P0-3: 传递配置对象以支持多目的地（同一平台的多个配置）
         const platformNames = platformsToRecord.map(p => p.platform);
         logger.info(`Processing ${payload.eventName} event through pipeline for routing to destinations`, {
           shopId: shop.id,
           eventId,
           eventName: payload.eventName,
           platforms: platformNames,
+          configCount: platformsToRecord.length,
           mode,
         });
         
         // 异步处理但不阻塞响应，记录发送结果
-        processEventPipeline(shop.id, payload, eventId, platformNames)
+        // P0-3: 传递配置对象列表以支持多目的地
+        processEventPipeline(shop.id, payload, eventId, platformsToRecord)
           .then((result) => {
             if (result.success) {
               logger.info(`Event ${payload.eventName} successfully routed to destinations`, {

@@ -25,17 +25,43 @@ export interface EnvironmentSwitchResult {
 export async function getEnvironmentConfig(
   shopId: string,
   platform: string,
-  environment: PixelEnvironment = "live"
+  environment: PixelEnvironment = "live",
+  platformId?: string | null
 ): Promise<EnvironmentConfig | null> {
-
-  const config = await prisma.pixelConfig.findUnique({
-    where: {
-      shopId_platform_environment: {
-        shopId,
-        platform,
-        environment
-      }
-    },
+  // P0-3: 支持多目的地配置 - 如果提供了 platformId，使用包含 platformId 的唯一约束
+  // 如果未提供 platformId，查找第一个匹配的配置（向后兼容）
+  const config = platformId !== undefined
+    ? await prisma.pixelConfig.findUnique({
+        where: {
+          shopId_platform_environment_platformId: {
+            shopId,
+            platform,
+            environment,
+            platformId: platformId || null,
+          }
+        },
+        select: {
+          shopId: true,
+          platform: true,
+          environment: true,
+          configVersion: true,
+          rollbackAllowed: true,
+        },
+      })
+    : await prisma.pixelConfig.findFirst({
+        where: {
+          shopId,
+          platform,
+          environment,
+        },
+        select: {
+          shopId: true,
+          platform: true,
+          environment: true,
+          configVersion: true,
+          rollbackAllowed: true,
+        },
+      });
     select: {
       shopId: true,
       platform: true,

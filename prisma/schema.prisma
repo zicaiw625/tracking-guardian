@@ -281,7 +281,11 @@ model PixelConfig {
   priority             Int?      @default(0)
   Shop                 Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  @@unique([shopId, platform, environment])
+  // P0-3: 支持同一平台多个目的地配置
+  // - 使用包含 platformId 的唯一约束，允许通过 platformId 区分多个配置
+  //   例如：多个 GA4 property（platformId = "G-XXXXX"）、多个 Meta Pixel（platformId = "123456789"）
+  // - 如果 platformId 为 null，同一店铺、同一平台、同一环境只能有 1 个配置（向后兼容）
+  // - 如果 platformId 不为 null，同一店铺、同一平台、同一环境可以有多个配置（通过不同的 platformId 区分）
   @@unique([shopId, platform, environment, platformId])
   @@index([environment])
   @@index([platform])

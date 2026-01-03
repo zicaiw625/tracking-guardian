@@ -649,9 +649,20 @@ export function getPixelEventIngestionUrl(): {
     }
 }
 
+/**
+ * P0-1: 获取像素事件端点 URL
+ * 
+ * 路径优先级（符合 PRD）：
+ * - /ingest: PRD 中定义的主要端点（推荐）
+ * - /api/ingest: 向后兼容别名
+ * - /api/pixel-events: 实际实现端点（内部使用）
+ * 
+ * 默认返回 /ingest 以符合 PRD 要求
+ */
 export function getPixelEventEndpoint(): string {
     const { url } = getPixelEventIngestionUrl();
-    return `${url}/api/pixel-events`;
+    // P0-1: 使用 PRD 中定义的 /ingest 端点作为默认
+    return `${url}/ingest`;
 }
 
 export function getConfigSummary(): Record<string, unknown> {

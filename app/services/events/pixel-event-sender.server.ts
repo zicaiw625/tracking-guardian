@@ -353,12 +353,19 @@ async function sendToTikTok(
 
 /**
  * 发送 pixel 事件到指定平台
+ * 
+ * P0-3: 多目的地配置支持
+ * 
+ * @param configId - 可选的配置ID，用于指定要使用的具体配置（支持同一平台的多个配置）
+ * @param platformId - 可选的平台ID（如 GA4 property ID、Meta Pixel ID），用于进一步区分配置
  */
 export async function sendPixelEventToPlatform(
   shopId: string,
   platform: string,
   payload: PixelEventPayload,
-  eventId: string
+  eventId: string,
+  configId?: string,
+  platformId?: string
 ): Promise<PixelEventSendResult> {
   try {
     logger.debug(`Sending ${payload.eventName} to ${platform}`, {
@@ -366,17 +373,43 @@ export async function sendPixelEventToPlatform(
       eventId,
       eventName: payload.eventName,
       platform,
+      configId,
+      platformId,
     });
 
     // 获取平台配置
     const pixelConfigs = await getShopPixelConfigs(shopId, { serverSideOnly: true });
-    const config = pixelConfigs.find((c) => c.platform === platform);
+    
+    // P0-3: 支持多目的地配置 - 优先通过 configId 查找，其次通过 platformId，最后通过平台名称
+    let config = configId 
+      ? pixelConfigs.find((c) => c.id === configId && c.platform === platform)
+      : platformId
+      ? pixelConfigs.find((c) => c.platformId === platformId && c.platform === platform)
+      : pixelConfigs.find((c) => c.platform === platform);
+
+    // 如果通过 configId 或 platformId 没找到，但存在多个同平台配置，记录警告
+    if (!config && (configId || platformId)) {
+      const matchingPlatformConfigs = pixelConfigs.filter((c) => c.platform === platform);
+      if (matchingPlatformConfigs.length > 1) {
+        logger.warn(`Multiple configs found for platform ${platform}, but specified config not found`, {
+          shopId,
+          platform,
+          configId,
+          platformId,
+          availableConfigs: matchingPlatformConfigs.map(c => ({ id: c.id, platformId: c.platformId })),
+        });
+      }
+      // 回退到第一个匹配的配置
+      config = matchingPlatformConfigs[0];
+    }
 
     if (!config) {
       logger.warn(`Pixel config not found for platform ${platform}`, {
         shopId,
         platform,
         eventName: payload.eventName,
+        configId,
+        platformId,
       });
       return {
         success: false,
