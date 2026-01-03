@@ -1,5 +1,3 @@
-
-
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
@@ -36,7 +34,6 @@ import {
   RefreshIcon,
 } from "~/components/icons";
 import { EnhancedEmptyState, EmptyStateNoPermission, useToastContext, CardSkeleton } from "~/components/ui";
-
 import { authenticate } from "../shopify.server";
 import {
   startBatchAudit,
@@ -50,9 +47,6 @@ import {
   getBatchApplyJobStatus,
   type BatchApplyResult,
 } from "../services/batch-pixel-apply.server";
-
-const BatchApplyWizard = lazy(() => import("../components/workspace/BatchApplyWizard").then(module => ({ default: module.BatchApplyWizard })));
-export type { PixelTemplate, ShopInfo } from "../components/workspace/BatchApplyWizard";
 import { TaskList } from "../components/workspace/TaskList";
 import { CommentSection } from "../components/workspace/CommentSection";
 import { BatchOperationsPanel } from "../components/workspace/BatchOperationsPanel";
@@ -90,6 +84,9 @@ import {
   getTaskComments,
   createTaskComment,
 } from "../services/task-comments.server";
+
+const BatchApplyWizard = lazy(() => import("../components/workspace/BatchApplyWizard").then(module => ({ default: module.BatchApplyWizard })));
+export type { PixelTemplate, ShopInfo } from "../components/workspace/BatchApplyWizard";
 
 interface LoaderData {
   shop: {
@@ -1872,4 +1869,3 @@ export default function WorkspacePage() {
     </Page>
   );
 }
-

@@ -9,7 +9,9 @@ const __dirname = path.dirname(__filename);
 const SHARED_CONFIG_FILE = path.join(__dirname, "../extensions/shared/config.ts");
 const THANK_YOU_CONFIG_FILE = path.join(__dirname, "../extensions/thank-you-blocks/src/config.ts");
 const SHARED_CONFIG_JS_FILE = path.join(__dirname, "../extensions/shared/config.js");
+const THANK_YOU_CONFIG_JS_FILE = path.join(__dirname, "../extensions/thank-you-blocks/src/config.js");
 const PLACEHOLDER = "__BACKEND_URL_PLACEHOLDER__";
+const BUILD_TIME_URL_PATTERN = /const\s+BUILD_TIME_URL\s*=\s*"([^"]+)";/;
 
 function readConfig(filePath) {
     return fs.readFileSync(filePath, "utf-8");
@@ -19,9 +21,79 @@ function writeConfig(filePath, content) {
     fs.writeFileSync(filePath, content, "utf-8");
 }
 
+function replaceBuildTimeUrl(content, nextValue, allowOverride = false) {
+    const match = content.match(BUILD_TIME_URL_PATTERN);
+    if (!match) {
+        return { updated: false, reason: "pattern_not_found" };
+    }
+
+    const currentValue = match[1];
+    if (!allowOverride && currentValue !== PLACEHOLDER) {
+        return { updated: false, reason: "placeholder_missing", currentValue };
+    }
+
+    if (currentValue === nextValue) {
+        return { updated: false, reason: "already_set" };
+    }
+
+    return {
+        updated: true,
+        nextContent: content.replace(BUILD_TIME_URL_PATTERN, `const BUILD_TIME_URL = "${nextValue}";`),
+        previousValue: currentValue,
+    };
+}
+
+function restoreBuildTimeUrl(content) {
+    const match = content.match(BUILD_TIME_URL_PATTERN);
+    if (!match || match[1] === PLACEHOLDER) {
+        return { updated: false };
+    }
+
+    return {
+        updated: true,
+        nextContent: content.replace(BUILD_TIME_URL_PATTERN, `const BUILD_TIME_URL = "${PLACEHOLDER}";`),
+        previousValue: match[1],
+    };
+}
+
+function processConfigFiles(targets, handler) {
+    let updatedCount = 0;
+
+    targets.forEach(({ path: filePath, label, required }) => {
+        if (!fs.existsSync(filePath)) {
+            const prefix = required ? "❌" : "⚠️ ";
+            console[required ? "error" : "log"](`${prefix} ${label} not found: ${filePath}${required ? "" : ", skipping."}`);
+            if (required) process.exit(1);
+            return;
+        }
+
+        try {
+            const content = readConfig(filePath);
+            const result = handler(content);
+
+            if (result.updated) {
+                writeConfig(filePath, result.nextContent);
+                console.log(`✅ ${label} updated (${result.previousValue ?? "placeholder"} -> ${result.nextValue ?? PLACEHOLDER})`);
+                updatedCount++;
+            } else {
+                const reason = result.reason === "placeholder_missing"
+                    ? `no placeholder (current value: ${result.currentValue ?? "unknown"})`
+                    : result.reason === "pattern_not_found"
+                        ? "BUILD_TIME_URL assignment not found"
+                        : "already up to date";
+                console.log(`ℹ️  Skipped ${label}: ${reason}`);
+            }
+        } catch (error) {
+            console.error(`❌ Failed to process ${label}: ${error instanceof Error ? error.message : String(error)}`);
+            process.exit(1);
+        }
+    });
+
+    return updatedCount;
+}
+
 function injectBackendUrl() {
     const backendUrl = process.env.SHOPIFY_APP_URL;
-
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
 
     if (!backendUrl) {
@@ -38,12 +110,10 @@ function injectBackendUrl() {
 
     try {
         const url = new URL(backendUrl);
-
         if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
             console.log("⚠️  WARNING: Using localhost URL. Pixel events will not work in production!");
         }
-    }
-    catch (error) {
+    } catch (error) {
         console.error(`❌ Invalid SHOPIFY_APP_URL: ${backendUrl}`);
         console.error("   Please provide a valid URL (e.g., https://your-app.onrender.com)");
         if (error instanceof Error) {
@@ -52,111 +122,43 @@ function injectBackendUrl() {
         process.exit(1);
     }
 
-    let injectedCount = 0;
+    const updatedCount = processConfigFiles(
+        [
+            { path: SHARED_CONFIG_FILE, label: "Shared config (extensions/shared/config.ts)", required: true },
+            { path: THANK_YOU_CONFIG_FILE, label: "Thank-you blocks config (extensions/thank-you-blocks/src/config.ts)", required: false },
+            { path: SHARED_CONFIG_JS_FILE, label: "Shared config.js (compiled)", required: false },
+            { path: THANK_YOU_CONFIG_JS_FILE, label: "Thank-you blocks config.js (compiled)", required: false },
+        ],
+        (content) => {
+            const result = replaceBuildTimeUrl(content, backendUrl);
+            return result.updated
+                ? { ...result, nextValue: backendUrl }
+                : result;
+        },
+    );
 
-    // Process shared config
-    try {
-        if (!fs.existsSync(SHARED_CONFIG_FILE)) {
-            console.error(`❌ Shared config file not found: ${SHARED_CONFIG_FILE}`);
-            process.exit(1);
-        }
-        const sharedConfig = readConfig(SHARED_CONFIG_FILE);
-        if (sharedConfig.includes(PLACEHOLDER)) {
-            const updatedSharedConfig = sharedConfig.replace(`const BUILD_TIME_URL = "${PLACEHOLDER}";`, `const BUILD_TIME_URL = "${backendUrl}";`);
-            writeConfig(SHARED_CONFIG_FILE, updatedSharedConfig);
-            console.log(`✅ Injected BACKEND_URL to shared config: ${backendUrl}`);
-            injectedCount++;
-        } else {
-            console.log("⚠️  Placeholder not found in shared config. Already replaced or config modified.");
-        }
-    } catch (error) {
-        console.error(`❌ Failed to process shared config: ${error instanceof Error ? error.message : String(error)}`);
-        process.exit(1);
-    }
-
-    // Process thank-you-blocks config
-    try {
-        if (fs.existsSync(THANK_YOU_CONFIG_FILE)) {
-            const thankYouConfig = readConfig(THANK_YOU_CONFIG_FILE);
-            if (thankYouConfig.includes(PLACEHOLDER)) {
-                const updatedThankYouConfig = thankYouConfig.replace(`const BUILD_TIME_URL = "${PLACEHOLDER}";`, `const BUILD_TIME_URL = "${backendUrl}";`);
-                writeConfig(THANK_YOU_CONFIG_FILE, updatedThankYouConfig);
-                console.log(`✅ Injected BACKEND_URL to thank-you-blocks config: ${backendUrl}`);
-                injectedCount++;
-            } else {
-                console.log("⚠️  Placeholder not found in thank-you-blocks config. Already replaced or config modified.");
-            }
-        } else {
-            console.log("⚠️  Thank-you-blocks config file not found, skipping.");
-        }
-    } catch (error) {
-        console.error(`❌ Failed to process thank-you-blocks config: ${error instanceof Error ? error.message : String(error)}`);
-        process.exit(1);
-    }
-
-    // Process shared config.js (if it exists, may be a compiled file)
-    try {
-        if (fs.existsSync(SHARED_CONFIG_JS_FILE)) {
-            const sharedConfigJs = readConfig(SHARED_CONFIG_JS_FILE);
-            if (sharedConfigJs.includes(PLACEHOLDER)) {
-                const updatedSharedConfigJs = sharedConfigJs.replace(`const BUILD_TIME_URL = "${PLACEHOLDER}";`, `const BUILD_TIME_URL = "${backendUrl}";`);
-                writeConfig(SHARED_CONFIG_JS_FILE, updatedSharedConfigJs);
-                console.log(`✅ Injected BACKEND_URL to shared config.js: ${backendUrl}`);
-                injectedCount++;
-            }
-        }
-    } catch (error) {
-        // Don't fail if config.js doesn't exist or can't be processed (it may be a compiled file)
-        console.log("ℹ️  Shared config.js not processed (may be a compiled file):", error instanceof Error ? error.message : String(error));
-    }
-
-    if (injectedCount === 0) {
+    if (updatedCount === 0) {
         console.warn("⚠️  No placeholders were replaced. Please check that config files contain the placeholder.");
     } else {
-        console.log(`✅ Successfully injected BACKEND_URL to ${injectedCount} config file(s)`);
+        console.log(`✅ Successfully injected BACKEND_URL to ${updatedCount} config file(s)`);
     }
 }
 
 function restorePlaceholder() {
-    // Restore shared config
-    const sharedConfig = readConfig(SHARED_CONFIG_FILE);
-    const urlPattern = /const BUILD_TIME_URL = "([^"]+)";/;
-    const sharedMatch = sharedConfig.match(urlPattern);
-    if (sharedMatch && sharedMatch[1] !== PLACEHOLDER) {
-        const updatedSharedConfig = sharedConfig.replace(urlPattern, `const BUILD_TIME_URL = "${PLACEHOLDER}";`);
-        writeConfig(SHARED_CONFIG_FILE, updatedSharedConfig);
-        console.log(`✅ Restored placeholder in shared config (was: ${sharedMatch[1]})`);
+    const restoredCount = processConfigFiles(
+        [
+            { path: SHARED_CONFIG_FILE, label: "Shared config (extensions/shared/config.ts)", required: true },
+            { path: THANK_YOU_CONFIG_FILE, label: "Thank-you blocks config (extensions/thank-you-blocks/src/config.ts)", required: false },
+            { path: SHARED_CONFIG_JS_FILE, label: "Shared config.js (compiled)", required: false },
+            { path: THANK_YOU_CONFIG_JS_FILE, label: "Thank-you blocks config.js (compiled)", required: false },
+        ],
+        (content) => restoreBuildTimeUrl(content),
+    );
+
+    if (restoredCount === 0) {
+        console.log("ℹ️  No placeholders were restored (files may already contain the placeholder).");
     } else {
-        console.log("ℹ️  Placeholder already in place in shared config, nothing to restore");
-    }
-
-    // Restore thank-you-blocks config
-    if (fs.existsSync(THANK_YOU_CONFIG_FILE)) {
-        const thankYouConfig = readConfig(THANK_YOU_CONFIG_FILE);
-        const thankYouMatch = thankYouConfig.match(urlPattern);
-        if (thankYouMatch && thankYouMatch[1] !== PLACEHOLDER) {
-            const updatedThankYouConfig = thankYouConfig.replace(urlPattern, `const BUILD_TIME_URL = "${PLACEHOLDER}";`);
-            writeConfig(THANK_YOU_CONFIG_FILE, updatedThankYouConfig);
-            console.log(`✅ Restored placeholder in thank-you-blocks config (was: ${thankYouMatch[1]})`);
-        } else {
-            console.log("ℹ️  Placeholder already in place in thank-you-blocks config, nothing to restore");
-        }
-    }
-
-    // Restore shared config.js (if it exists)
-    if (fs.existsSync(SHARED_CONFIG_JS_FILE)) {
-        try {
-            const sharedConfigJs = readConfig(SHARED_CONFIG_JS_FILE);
-            const sharedJsMatch = sharedConfigJs.match(urlPattern);
-            if (sharedJsMatch && sharedJsMatch[1] !== PLACEHOLDER) {
-                const updatedSharedConfigJs = sharedConfigJs.replace(urlPattern, `const BUILD_TIME_URL = "${PLACEHOLDER}";`);
-                writeConfig(SHARED_CONFIG_JS_FILE, updatedSharedConfigJs);
-                console.log(`✅ Restored placeholder in shared config.js (was: ${sharedJsMatch[1]})`);
-            }
-        } catch (error) {
-            // Don't fail if config.js can't be processed
-            console.log("ℹ️  Shared config.js not restored (may be a compiled file)");
-        }
+        console.log(`✅ Restored placeholder in ${restoredCount} config file(s)`);
     }
 }
 
