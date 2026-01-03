@@ -1,7 +1,8 @@
+#!/usr/bin/env node
 import * as fs from "fs";
 import * as path from "path";
 
-const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
+const FORBIDDEN_PATTERNS = [
     {
         pattern: /\/admin\/api\/\d{4}-\d{2}\/(?!graphql\.json)[a-z_]+/i,
         description: "REST API endpoint detected (use GraphQL instead)",
@@ -32,7 +33,7 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
     },
 ];
 
-const ALLOWED_PATTERNS: RegExp[] = [
+const ALLOWED_PATTERNS = [
     /\/admin\/api\/\d{4}-\d{2}\/graphql\.json/,
     /\/\/.*rest/i,
     /\/\*.*rest.*\*\//,
@@ -54,21 +55,14 @@ const IGNORE_PATTERNS = [
     "build",
     "dist",
     ".cache",
-    "scripts/check-graphql-only.ts",
+    "scripts/check-graphql-only.mjs",
 ];
 
-interface Violation {
-    file: string;
-    line: number;
-    content: string;
-    description: string;
-}
-
-function shouldIgnore(filePath: string): boolean {
+function shouldIgnore(filePath) {
     return IGNORE_PATTERNS.some(pattern => filePath.includes(pattern));
 }
 
-function isAllowed(line: string, filePath: string): boolean {
+function isAllowed(line, filePath) {
     if (ALLOWED_PATTERNS.some(pattern => {
         if (pattern.source.endsWith("$")) {
             return pattern.test(filePath);
@@ -80,8 +74,8 @@ function isAllowed(line: string, filePath: string): boolean {
     return false;
 }
 
-function scanFile(filePath: string): Violation[] {
-    const violations: Violation[] = [];
+function scanFile(filePath) {
+    const violations = [];
 
     try {
         const content = fs.readFileSync(filePath, "utf-8");
@@ -111,8 +105,8 @@ function scanFile(filePath: string): Violation[] {
     return violations;
 }
 
-function scanDirectory(dirPath: string): Violation[] {
-    const violations: Violation[] = [];
+function scanDirectory(dirPath) {
+    const violations = [];
 
     if (!fs.existsSync(dirPath)) {
         return violations;
@@ -137,10 +131,10 @@ function scanDirectory(dirPath: string): Violation[] {
     return violations;
 }
 
-function main(): void {
+function main() {
     console.log("🔍 Scanning for REST API usage (GraphQL-only compliance check)...\n");
 
-    const allViolations: Violation[] = [];
+    const allViolations = [];
 
     for (const dir of SCAN_DIRECTORIES) {
         const dirPath = path.join(process.cwd(), dir);

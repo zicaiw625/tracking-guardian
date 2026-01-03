@@ -1,4 +1,4 @@
-#!/usr/bin/env node --experimental-strip-types
+#!/usr/bin/env node
 /**
  * 部署前验证脚本
  * 检查所有阻断项，确保可以正常构建和部署
@@ -13,21 +13,15 @@ const __dirname = path.dirname(__filename);
 
 const ROOT_DIR = path.join(__dirname, "..");
 
-interface ValidationResult {
-    passed: boolean;
-    errors: string[];
-    warnings: string[];
-}
-
-function validateBuildExtensionsScript(): ValidationResult {
-    const result: ValidationResult = { passed: true, errors: [], warnings: [] };
-    const scriptPath = path.join(__dirname, "build-extensions.ts");
+function validateBuildExtensionsScript() {
+    const result = { passed: true, errors: [], warnings: [] };
+    const scriptPath = path.join(__dirname, "build-extensions.mjs");
 
     try {
         // 检查文件是否存在
         if (!fs.existsSync(scriptPath)) {
             result.passed = false;
-            result.errors.push(`build-extensions.ts 文件不存在: ${scriptPath}`);
+            result.errors.push(`build-extensions.mjs 文件不存在: ${scriptPath}`);
             return result;
         }
 
@@ -36,55 +30,43 @@ function validateBuildExtensionsScript(): ValidationResult {
 
         // 尝试使用 Node.js 语法检查（更可靠的方法）
         // 如果文件可以正常解析，说明没有语法错误
-        try {
-            // 使用更简单的方法：检查基本的字符串平衡
-            const singleQuotes = (content.match(/'/g) || []).length;
-            const doubleQuotes = (content.match(/"/g) || []).length;
-            const backticks = (content.match(/`/g) || []).length;
-            
-            // 检查引号是否平衡（允许奇数，因为可能有多行字符串）
-            // 这里只做基本检查，真正的语法检查应该由 TypeScript/Node.js 编译器完成
-            // 如果文件可以正常执行，说明没有语法错误
-        } catch (error) {
-            result.passed = false;
-            result.errors.push(`build-extensions.ts 语法检查失败: ${error instanceof Error ? error.message : String(error)}`);
-        }
+        // 基础平衡检查，确保明显的语法问题被捕获
 
         // 检查是否有语法错误（基本检查）
         const openBraces = (content.match(/{/g) || []).length;
         const closeBraces = (content.match(/}/g) || []).length;
         if (openBraces !== closeBraces) {
             result.passed = false;
-            result.errors.push(`build-extensions.ts 中大括号不匹配: 开括号 ${openBraces}, 闭括号 ${closeBraces}`);
+            result.errors.push(`build-extensions.mjs 中大括号不匹配: 开括号 ${openBraces}, 闭括号 ${closeBraces}`);
         }
 
         const openParens = (content.match(/\(/g) || []).length;
         const closeParens = (content.match(/\)/g) || []).length;
         if (openParens !== closeParens) {
             result.passed = false;
-            result.errors.push(`build-extensions.ts 中括号不匹配: 开括号 ${openParens}, 闭括号 ${closeParens}`);
+            result.errors.push(`build-extensions.mjs 中括号不匹配: 开括号 ${openParens}, 闭括号 ${closeParens}`);
         }
 
         // 检查是否处理了两个配置文件
         if (!content.includes("THANK_YOU_CONFIG_FILE")) {
             result.passed = false;
-            result.errors.push("build-extensions.ts 中缺少对 thank-you-blocks 配置文件的处理");
+            result.errors.push("build-extensions.mjs 中缺少对 thank-you-blocks 配置文件的处理");
         }
 
         if (!content.includes("SHARED_CONFIG_FILE")) {
             result.passed = false;
-            result.errors.push("build-extensions.ts 中缺少对 shared 配置文件的处理");
+            result.errors.push("build-extensions.mjs 中缺少对 shared 配置文件的处理");
         }
     } catch (error) {
         result.passed = false;
-        result.errors.push(`检查 build-extensions.ts 时出错: ${error instanceof Error ? error.message : String(error)}`);
+        result.errors.push(`检查 build-extensions.mjs 时出错: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     return result;
 }
 
-function validateExtensionToml(): ValidationResult {
-    const result: ValidationResult = { passed: true, errors: [], warnings: [] };
+function validateExtensionToml() {
+    const result = { passed: true, errors: [], warnings: [] };
     const tomlPath = path.join(ROOT_DIR, "extensions/thank-you-blocks/shopify.extension.toml");
 
     try {
@@ -99,8 +81,8 @@ function validateExtensionToml(): ValidationResult {
         // 检查未注释的扩展是否有占位符uid
         const lines = content.split("\n");
         let inCommentBlock = false;
-        let currentExtensionUid: string | null = null;
-        let currentExtensionName: string | null = null;
+        let currentExtensionUid = null;
+        let currentExtensionName = null;
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -150,8 +132,8 @@ function validateExtensionToml(): ValidationResult {
     return result;
 }
 
-function validateImports(): ValidationResult {
-    const result: ValidationResult = { passed: true, errors: [], warnings: [] };
+function validateImports() {
+    const result = { passed: true, errors: [], warnings: [] };
     const filesToCheck = [
         "app/routes/app.verification.tsx",
         "app/routes/app.workspace.tsx",
@@ -169,7 +151,7 @@ function validateImports(): ValidationResult {
             const lines = content.split("\n");
 
             // 检查是否有重复的react导入
-            const reactImports: Array<{ line: number; content: string }> = [];
+            const reactImports = [];
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
                 if (line.includes("from \"react\"") || line.includes("from 'react'")) {
@@ -179,7 +161,7 @@ function validateImports(): ValidationResult {
 
             if (reactImports.length > 1) {
                 // 检查是否有重复的导入项
-                const allImports = new Set<string>();
+                const allImports = new Set();
                 for (const imp of reactImports) {
                     const match = imp.content.match(/import\s+\{([^}]+)\}\s+from/);
                     if (match) {
@@ -204,8 +186,8 @@ function validateImports(): ValidationResult {
     return result;
 }
 
-function validateBackendUrlInjection(): ValidationResult {
-    const result: ValidationResult = { passed: true, errors: [], warnings: [] };
+function validateBackendUrlInjection() {
+    const result = { passed: true, errors: [], warnings: [] };
     const configFiles = [
         "extensions/shared/config.ts",
         "extensions/thank-you-blocks/src/config.ts",

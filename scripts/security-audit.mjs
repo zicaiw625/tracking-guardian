@@ -1,16 +1,8 @@
 #!/usr/bin/env node
-
-
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 
-interface SecurityCheck {
-  name: string;
-  status: "pass" | "fail" | "warning";
-  message: string;
-}
-
-const checks: SecurityCheck[] = [];
+const checks = [];
 
 function checkGraphQLOnly() {
   const routesDir = join(process.cwd(), "app/routes");
@@ -171,11 +163,11 @@ function checkPrivacyPolicy() {
   }
 }
 
-function getFilesInDir(dir: string, ext: string): string[] {
-  const files: string[] = [];
+function getFilesInDir(dir, ext) {
+  const files = [];
   try {
-    const entries = require("fs").readdirSync(dir, { withFileTypes: true });
-    entries.forEach((entry: any) => {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    entries.forEach((entry) => {
       const fullPath = join(dir, entry.name);
       if (entry.isDirectory()) {
         files.push(...getFilesInDir(fullPath, ext));
@@ -233,4 +225,3 @@ function runAudit() {
 }
 
 runAudit();
-
