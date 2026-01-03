@@ -33,7 +33,8 @@
     "ext:inject": "node --experimental-strip-types scripts/build-extensions.ts inject",
     "ext:restore": "node --experimental-strip-types scripts/build-extensions.ts restore",
     "ext:validate": "node --experimental-strip-types scripts/validate-extensions.ts",
-    "deploy:ext": "pnpm ext:inject && shopify app deploy && pnpm ext:restore"
+    "pre-deploy:check": "node --experimental-strip-types scripts/pre-deploy-check.ts",
+    "deploy:ext": "pnpm pre-deploy:check && pnpm ext:inject && shopify app deploy && pnpm ext:restore"
   },
   "type": "module",
   "engines": {

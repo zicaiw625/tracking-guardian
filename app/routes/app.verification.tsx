@@ -3,7 +3,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense, lazy } from "react";
 import {
   Page,
   Layout,
@@ -34,7 +34,6 @@ import {
   FileIcon,
 } from "~/components/icons";
 import { CardSkeleton, useToastContext, EnhancedEmptyState } from "~/components/ui";
-import { lazy, Suspense } from "react";
 
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
 const TestOrderGuide = lazy(() => import("~/components/verification/TestOrderGuide").then(module => ({ default: module.TestOrderGuide })));

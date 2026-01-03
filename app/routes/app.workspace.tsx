@@ -3,7 +3,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useRevalidator, useActionData } from "@remix-run/react";
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense, lazy } from "react";
 import {
   Page,
   Layout,
@@ -35,7 +35,7 @@ import {
   SearchIcon,
   RefreshIcon,
 } from "~/components/icons";
-import { EnhancedEmptyState, EmptyStateNoPermission, useToastContext } from "~/components/ui";
+import { EnhancedEmptyState, EmptyStateNoPermission, useToastContext, CardSkeleton } from "~/components/ui";
 
 import { authenticate } from "../shopify.server";
 import {
@@ -50,8 +50,6 @@ import {
   getBatchApplyJobStatus,
   type BatchApplyResult,
 } from "../services/batch-pixel-apply.server";
-import { lazy, Suspense } from "react";
-import { CardSkeleton } from "~/components/ui";
 
 const BatchApplyWizard = lazy(() => import("../components/workspace/BatchApplyWizard").then(module => ({ default: module.BatchApplyWizard })));
 export type { PixelTemplate, ShopInfo } from "../components/workspace/BatchApplyWizard";
