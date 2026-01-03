@@ -5,6 +5,10 @@
 #
 # If uid is missing after deploy, run: shopify app generate extension --type web_pixel
 # and copy the generated uid here, or check .shopify/project.json
+#
+# ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
+# 如果这是新扩展，运行 `shopify app deploy` 会自动生成并填充 uid
+# 如果 uid 缺失或无效，会导致扩展创建/更新失败
 
 api_version = "2025-07"
 uid = "03d3e252-5760-443c-5403-68d2888bbf444a40ddc0"

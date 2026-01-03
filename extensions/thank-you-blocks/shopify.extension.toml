@@ -6,6 +6,9 @@ handle = "tracking-guardian-blocks"
 # =============================================================================
 # Survey Block - Thank You Page
 # =============================================================================
+# ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
+# 如果这是新扩展，运行 `shopify app deploy` 会自动生成并填充 uid
+# 如果 uid 缺失或无效，会导致扩展创建/更新失败
 [[extensions]]
 type = "ui_extension"
 name = "Post-purchase Survey"
@@ -22,6 +25,7 @@ uid = "5bbce4d5-0610-0b76-fa6d-c6fef535cee9f855bf02"
 # =============================================================================
 # Survey Block - Order Status Page (Customer Account)
 # =============================================================================
+# ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
 [[extensions]]
 type = "ui_extension"
 name = "Order Status Survey"
