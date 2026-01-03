@@ -396,7 +396,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       logger.debug(`HMAC signature verified for ${shop.shopDomain}`);
     } else if (shop.ingestionSecret && signature) {
-
+      // P0-6: Dev mode 下的 HMAC 验证（可选，用于开发调试）
+      // 生产环境会在上面的分支中强制验证并拒绝无效请求
       const hmacResult = await validatePixelEventHMAC(
         request,
         bodyText,
@@ -406,8 +407,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
 
       if (!hmacResult.valid) {
+        // Dev mode 下记录警告，但不强制拒绝（方便开发调试）
+        // 生产环境会在上面的分支中强制拒绝
         logger.warn(`HMAC verification failed in dev mode for ${shop.shopDomain}: ${hmacResult.reason}`);
-
+        logger.warn(`⚠️ This request would be rejected in production. Please ensure HMAC signature is valid.`);
       } else {
         logger.debug(`HMAC signature verified in dev mode for ${shop.shopDomain}`);
       }
@@ -415,6 +418,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
 
+    // P0-2: Purchase 事件处理 - 符合 PRD 的"像素迁移应直接覆盖 purchase 事件"要求
+    // Shopify Web Pixel 发送的是 checkout_completed 事件，我们将其映射为 purchase
+    // 在 hybrid 模式下（默认），client-side 和 server-side 都会发送 purchase 事件，通过 event_id 去重
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
 
@@ -565,8 +571,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       eventType
     );
 
+    // P0-3: 过滤配置 - 只处理启用 client-side 的配置（因为事件来自 Web Pixel Extension）
+    // 对于 purchase 事件，在 hybrid 模式下需要 client-side 配置
+    // 对于非 purchase 事件，也需要 client-side 配置
+    const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
+    
     const { platformsToRecord, skippedPlatforms } = filterPlatformsByConsent(
-      pixelConfigs,
+      clientSideConfigs,
       consentResult
     );
 

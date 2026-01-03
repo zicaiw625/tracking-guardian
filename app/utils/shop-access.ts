@@ -92,8 +92,16 @@ export interface ShopVerificationData {
     storefrontDomains: string[];
 }
 
+// P0-3: 支持多目的地配置 - 包含 id 和 platformId 以区分同一平台的多个配置
 export interface ShopWithPixelConfigs extends ShopVerificationData {
-    pixelConfigs: Array<{ platform: string }>;
+    pixelConfigs: Array<{ 
+        platform: string; 
+        id: string; 
+        platformId: string | null;
+        clientConfig: unknown;
+        clientSideEnabled: boolean;
+        serverSideEnabled: boolean;
+    }>;
 }
 
 export async function getShopForVerification(shopDomain: string): Promise<ShopVerificationData | null> {
@@ -152,11 +160,19 @@ export async function getShopForVerificationWithConfigs(
             pixelConfigs: {
                 where: {
                     isActive: true,
-                    serverSideEnabled: true,
+                    // P0-3: 修复 - 获取所有活跃配置（包括 client-side 和 server-side）
+                    // 因为 purchase 事件在 hybrid 模式下需要 client-side 配置
+                    // 非 purchase 事件也需要 client-side 配置
+                    // 注意：这里不限制 serverSideEnabled，因为需要根据配置的 clientSideEnabled/serverSideEnabled 来决定处理方式
                     environment: "live", // P0-04: 事件处理时只使用 live 环境配置
                 },
                 select: {
                     platform: true,
+                    id: true,
+                    platformId: true,
+                    clientConfig: true, // P0-3: 需要 clientConfig 来读取 mode 和 purchaseStrategy
+                    clientSideEnabled: true, // P0-3: 需要知道是否启用 client-side
+                    serverSideEnabled: true, // P0-3: 需要知道是否启用 server-side
                 },
             },
         },

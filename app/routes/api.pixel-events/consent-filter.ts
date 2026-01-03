@@ -67,9 +67,18 @@ export function logNoConsentDrop(
  * 例如：同一店铺可以配置多个 GA4 property、多个 Meta Pixel 等
  * 
  * 每个配置都会被单独处理，确保所有目的地都能收到事件
+ * 
+ * 注意：此函数只处理 consent 过滤，不处理 clientSideEnabled/serverSideEnabled 过滤
+ * 这些过滤应该在调用此函数之前或之后进行
  */
 export function filterPlatformsByConsent(
-  pixelConfigs: Array<{ platform: string; id?: string; platformId?: string | null }>,
+  pixelConfigs: Array<{ 
+    platform: string; 
+    id?: string; 
+    platformId?: string | null;
+    clientSideEnabled?: boolean;
+    serverSideEnabled?: boolean;
+  }>,
   consentResult: ConsentCheckResult
 ): PlatformFilterResult {
   const platformsToRecord: Array<{ platform: string; configId?: string; platformId?: string }> = [];

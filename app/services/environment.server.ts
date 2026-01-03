@@ -62,14 +62,6 @@ export async function getEnvironmentConfig(
           rollbackAllowed: true,
         },
       });
-    select: {
-      shopId: true,
-      platform: true,
-      environment: true,
-      configVersion: true,
-      rollbackAllowed: true,
-    },
-  });
 
   if (!config) return null;
 

@@ -167,7 +167,9 @@ export function createEventSender(config: EventSenderConfig) {
       };
 
       const body = JSON.stringify(payload);
-      const url = `${backendUrl}/api/pixel-events`;
+      // P0-1: 使用 PRD 定义的 /ingest 端点（而非 /api/pixel-events）
+      // /ingest 是 PRD 中定义的主要端点，/api/pixel-events 作为内部实现端点
+      const url = `${backendUrl}/ingest`;
 
       const headers: Record<string, string> = {
         "Content-Type": "text/plain;charset=UTF-8",
