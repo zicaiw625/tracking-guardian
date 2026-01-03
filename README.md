@@ -109,7 +109,7 @@
 
 ### 前置要求
 
-- Node.js 22.18+ (required for running TypeScript utility scripts directly)
+- Node.js 22.18+ (required for running TypeScript utility scripts directly; `.nvmrc` pins 22.18.0 to avoid strip-types runtime mismatches)
 - PostgreSQL 数据库
 - Shopify Partner 账号
 - Shopify CLI
