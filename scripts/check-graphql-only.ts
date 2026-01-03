@@ -1,56 +1,43 @@
-
-
 import * as fs from "fs";
 import * as path from "path";
 
 const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
     {
-
         pattern: /\/admin\/api\/\d{4}-\d{2}\/(?!graphql\.json)[a-z_]+/i,
         description: "REST API endpoint detected (use GraphQL instead)",
     },
     {
-
         pattern: /\/admin\/api\/\d{4}-\d{2}\/[a-z_]+\.json/i,
         description: "REST .json endpoint detected",
     },
     {
-
         pattern: /AdminRestApiClient/,
         description: "AdminRestApiClient import/usage detected (use GraphQL client)",
     },
     {
-
         pattern: /\.restClient\b/,
         description: ".restClient property access detected",
     },
     {
-
         pattern: /rest:\s*true/,
         description: "REST client option detected",
     },
     {
-
         pattern: /shopify\.clients\.Rest/,
         description: "Shopify REST client constructor detected",
     },
     {
-
         pattern: /\bnew\s+Rest\s*\(|Rest\.create\s*\(/,
         description: "REST client instantiation detected",
     },
 ];
 
 const ALLOWED_PATTERNS: RegExp[] = [
-
     /\/admin\/api\/\d{4}-\d{2}\/graphql\.json/,
-
     /\/\/.*rest/i,
-    /\/\*.*rest.*\*\
-
+    /\/\*.*rest.*\*\//,
     /".*REST.*"/i,
     /'.*REST.*'/i,
-
     /\.test\.ts$/,
 ];
 
@@ -82,7 +69,6 @@ function shouldIgnore(filePath: string): boolean {
 }
 
 function isAllowed(line: string, filePath: string): boolean {
-
     if (ALLOWED_PATTERNS.some(pattern => {
         if (pattern.source.endsWith("$")) {
             return pattern.test(filePath);
@@ -102,7 +88,6 @@ function scanFile(filePath: string): Violation[] {
         const lines = content.split("\n");
 
         lines.forEach((line, index) => {
-
             if (isAllowed(line, filePath)) {
                 return;
             }
@@ -179,7 +164,7 @@ function main(): void {
 
         console.error(`\nTotal: ${allViolations.length} violation(s)`);
         console.error("\nPlease replace REST API calls with GraphQL equivalents.");
-        console.error("Reference: https:
+        console.error("Reference: https://shopify.dev/docs/api/admin-graphql");
 
         process.exit(1);
     }

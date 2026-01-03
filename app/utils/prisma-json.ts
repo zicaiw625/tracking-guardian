@@ -76,6 +76,8 @@ export const PixelClientConfigSchema = z.object({
   treatAsMarketing: z.boolean().optional(),
   conversionLabels: z.array(z.string()).optional(),
   eventMappings: z.record(z.string(), z.string()).optional(),
+  mode: z.enum(["purchase_only", "full_funnel"]).optional(),
+  purchaseStrategy: z.enum(["server_side_only", "hybrid"]).optional(),
 });
 
 export const PlatformResponseSchema = z.object({

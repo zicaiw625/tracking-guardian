@@ -72,7 +72,9 @@ const ShippingTracker = memo(function ShippingTracker() {
             setError(null);
             setIsLoading(true);
 
+            // BFS 性能优化：使用较短的超时和重试策略，避免阻塞页面渲染
             const retryDelays = [0, 500, 1500, 3000];
+            const REQUEST_TIMEOUT_MS = 5000; // 5秒超时，符合 BFS INP < 200ms 要求
             let lastError: Error | null = null;
 
             for (let attempt = 0; attempt < retryDelays.length; attempt++) {
@@ -89,54 +91,72 @@ const ShippingTracker = memo(function ShippingTracker() {
                         continue;
                     }
 
-                    const response = await fetch(`${BACKEND_URL}/api/tracking?orderId=${encodeURIComponent(orderId)}`, {
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-Shopify-Shop-Domain": shopDomain,
-                            "Authorization": `Bearer ${token}`,
-                        },
-                    });
+                    // 使用 AbortController 实现超时控制
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-                    if (response.status === 202) {
-                        const data = await response.json();
-                        const retryAfter = response.headers.get("Retry-After");
-                        const retryDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
+                    try {
+                        const response = await fetch(`${BACKEND_URL}/api/tracking?orderId=${encodeURIComponent(orderId)}`, {
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Shopify-Shop-Domain": shopDomain,
+                                "Authorization": `Bearer ${token}`,
+                            },
+                            signal: controller.signal,
+                        });
+                        clearTimeout(timeoutId);
 
-                        if (attempt < retryDelays.length - 1) {
-                            await new Promise(resolve => setTimeout(resolve, retryDelay));
-                            continue;
+                        if (response.status === 202) {
+                            const data = await response.json();
+                            const retryAfter = response.headers.get("Retry-After");
+                            const retryDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
+
+                            if (attempt < retryDelays.length - 1) {
+                                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                                continue;
+                            } else {
+
+                                setError(data.message || "订单正在生成，请稍后刷新页面查看物流信息");
+                                break;
+                            }
+                        }
+
+                        if (response.ok) {
+                            const data = await response.json();
+
+                            if (data.tracking) {
+                                setTrackingInfo({
+                                    trackingNumber: data.tracking.trackingNumber,
+                                    carrier: data.tracking.carrier,
+                                    status: data.tracking.status,
+                                    statusDescription: data.tracking.statusDescription,
+                                    estimatedDelivery: data.tracking.estimatedDelivery ? new Date(data.tracking.estimatedDelivery) : undefined,
+                                    events: data.tracking.events || [],
+                                });
+                                setError(null);
+                                break;
+                            }
+                        } else if (response.status === 404) {
+
+                            setError("订单不存在");
+                            break;
                         } else {
 
-                            setError(data.message || "订单正在生成，请稍后刷新页面查看物流信息");
-                            break;
+                            const errorText = await response.text().catch(() => "Unknown error");
+                            lastError = new Error(`HTTP ${response.status}: ${errorText}`);
+                            if (attempt < retryDelays.length - 1) {
+                                continue;
+                            }
                         }
-                    }
-
-                    if (response.ok) {
-                        const data = await response.json();
-
-                        if (data.tracking) {
-                            setTrackingInfo({
-                                trackingNumber: data.tracking.trackingNumber,
-                                carrier: data.tracking.carrier,
-                                status: data.tracking.status,
-                                statusDescription: data.tracking.statusDescription,
-                                estimatedDelivery: data.tracking.estimatedDelivery ? new Date(data.tracking.estimatedDelivery) : undefined,
-                                events: data.tracking.events || [],
-                            });
-                            setError(null);
-                            break;
+                    } catch (fetchError) {
+                        clearTimeout(timeoutId);
+                        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+                            lastError = new Error("请求超时");
+                        } else {
+                            lastError = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
                         }
-                    } else if (response.status === 404) {
-
-                        setError("订单不存在");
-                        break;
-                    } else {
-
-                        const errorText = await response.text().catch(() => "Unknown error");
-                        lastError = new Error(`HTTP ${response.status}: ${errorText}`);
-                        if (attempt < retryDelays.length - 1) {
-                            continue;
+                        if (attempt === retryDelays.length - 1) {
+                            setError("获取物流信息失败，请稍后刷新页面");
                         }
                     }
                 } catch (error) {

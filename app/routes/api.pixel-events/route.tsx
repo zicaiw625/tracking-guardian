@@ -238,25 +238,41 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // P0-02: 确定事件模式 - 优先从 pixelConfigs 读取，默认使用 full_funnel
+    // PRD 期望：像素迁移应直接覆盖 purchase 事件，因此默认使用 hybrid 策略
+    // hybrid = client-side + server-side 双重发送，通过 event_id 去重
     const pixelConfigs = shop.pixelConfigs;
     let mode: "purchase_only" | "full_funnel" = "full_funnel";
+    let purchaseStrategy: "server_side_only" | "hybrid" = "hybrid"; // 默认 hybrid 以符合 PRD 要求
     
-    // 从所有配置中查找 mode 设置（优先 full_funnel）
+    // 从所有配置中查找 mode 和 purchaseStrategy 设置（优先 full_funnel 和 hybrid）
+    let foundPurchaseStrategy = false;
     for (const config of pixelConfigs) {
-      if (config.clientConfig && typeof config.clientConfig === 'object' && 'mode' in config.clientConfig) {
-        const configMode = config.clientConfig.mode;
-        if (configMode === 'full_funnel') {
-          mode = "full_funnel";
-          break; // full_funnel 优先级最高
-        } else if (configMode === 'purchase_only' && mode !== 'full_funnel') {
-          mode = "purchase_only";
+      if (config.clientConfig && typeof config.clientConfig === 'object') {
+        if ('mode' in config.clientConfig) {
+          const configMode = config.clientConfig.mode;
+          if (configMode === 'full_funnel') {
+            mode = "full_funnel";
+          } else if (configMode === 'purchase_only' && mode !== 'full_funnel') {
+            mode = "purchase_only";
+          }
+        }
+        if ('purchaseStrategy' in config.clientConfig) {
+          foundPurchaseStrategy = true;
+          const configStrategy = config.clientConfig.purchaseStrategy;
+          if (configStrategy === 'hybrid') {
+            purchaseStrategy = "hybrid";
+          } else if (configStrategy === 'server_side_only' && purchaseStrategy !== 'hybrid') {
+            purchaseStrategy = "server_side_only";
+          }
         }
       }
     }
     
-    // 如果没有找到配置，默认使用 full_funnel（符合设计稿 v1 要求）
+    // 如果没有找到 purchaseStrategy 配置，保持默认 hybrid（符合 PRD 要求）
+    // 如果没有找到任何配置，默认使用 full_funnel + hybrid
     if (pixelConfigs.length === 0) {
       mode = "full_funnel";
+      purchaseStrategy = "hybrid";
     }
 
     if (!isPrimaryEvent(payload.eventName, mode)) {
@@ -558,15 +574,62 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
 
     // P1-01: 多事件路由器 - 支持按 eventName 分类处理并路由到 destinations
-    // purchase 事件通过 webhook 处理（CAPI 发送）；其他漏斗事件通过事件管道处理
+    // purchase 事件根据 purchaseStrategy 配置决定处理方式：
+    // - server_side_only（默认）：仅通过 webhook 处理（CAPI 发送）
+    // - hybrid：同时通过 client-side 和 server-side 发送，通过 event_id 去重
     if (platformsToRecord.length > 0) {
       if (isPurchaseEvent) {
-        // purchase 事件由 webhook handler 处理 CAPI 发送
-        logger.debug(`Purchase event ${eventId} queued for webhook processing`, {
-          shopId: shop.id,
-          orderId,
-          platforms: platformsToRecord.map(p => p.platform),
-        });
+        if (purchaseStrategy === "hybrid") {
+          // Hybrid 模式：client-side 也发送 purchase 事件，server-side 作为兜底
+          const platformNames = platformsToRecord.map(p => p.platform);
+          logger.info(`Processing purchase event in hybrid mode (client-side + server-side)`, {
+            shopId: shop.id,
+            eventId,
+            orderId,
+            platforms: platformNames,
+          });
+          
+          // 异步处理但不阻塞响应，记录发送结果
+          processEventPipeline(shop.id, payload, eventId, platformNames)
+            .then((result) => {
+              if (result.success) {
+                logger.info(`Purchase event successfully sent via client-side`, {
+                  shopId: shop.id,
+                  eventId,
+                  destinations: result.destinations,
+                  deduplicated: result.deduplicated,
+                });
+              } else {
+                logger.warn(`Purchase event client-side processing failed, will rely on server-side`, {
+                  shopId: shop.id,
+                  eventId,
+                  errors: result.errors,
+                });
+              }
+            })
+            .catch((error) => {
+              logger.error(`Failed to process purchase event via client-side`, {
+                shopId: shop.id,
+                eventId,
+                platforms: platformNames,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            });
+          
+          // Server-side 也会通过 webhook 发送（作为兜底和去重保障）
+          logger.debug(`Purchase event ${eventId} will also be sent via webhook (hybrid mode)`, {
+            shopId: shop.id,
+            orderId,
+            platforms: platformNames,
+          });
+        } else {
+          // Server-side only 模式：purchase 事件仅由 webhook handler 处理 CAPI 发送
+          logger.debug(`Purchase event ${eventId} queued for webhook processing (server-side only)`, {
+            shopId: shop.id,
+            orderId,
+            platforms: platformsToRecord.map(p => p.platform),
+          });
+        }
       } else {
         // P0-02/P1-01: 非 purchase 事件（page_viewed, product_viewed, add_to_cart, checkout_started 等）
         // 通过事件管道处理，支持多平台路由并实际发送到 destinations
@@ -612,7 +675,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     const message = isPurchaseEvent
-      ? "Pixel event recorded, CAPI will be sent via webhook"
+      ? purchaseStrategy === "hybrid"
+        ? `Pixel event recorded, sending via client-side and server-side (hybrid mode)`
+        : "Pixel event recorded, CAPI will be sent via webhook"
       : `Pixel event recorded and routing to ${platformsToRecord.length} destination(s) (GA4/Meta/TikTok)`;
 
     return jsonWithCors(

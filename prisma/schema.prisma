@@ -153,12 +153,17 @@ model PixelConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([shopId, platform, environment])
+  displayName String?
+  priority    Int     @default(0)
+
+  @@unique([shopId, platform, environment, platformId])
   @@index([shopId])
   @@index([platform])
   @@index([environment])
   @@index([shopId, environment])
   @@index([shopId, platform, environment])
+  @@index([shopId, platform])
+  @@index([priority])
 }
 
 model AlertConfig {

@@ -4,15 +4,81 @@
 
 ## 目录
 
-1. [类型系统](#类型系统)
-2. [Schema 验证](#schema-验证)
-3. [平台服务](#平台服务)
-4. [数据库操作](#数据库操作)
-5. [React Hooks](#react-hooks)
-6. [迁移优先级服务](#迁移优先级服务)
-7. [监控服务](#监控服务)
-8. [批量操作服务](#批量操作服务)
-9. [渠道对账服务](#渠道对账服务)
+1. [Pixel 事件接收 API](#pixel-事件接收-api)
+2. [类型系统](#类型系统)
+3. [Schema 验证](#schema-验证)
+4. [平台服务](#平台服务)
+5. [数据库操作](#数据库操作)
+6. [React Hooks](#react-hooks)
+7. [迁移优先级服务](#迁移优先级服务)
+8. [监控服务](#监控服务)
+9. [批量操作服务](#批量操作服务)
+10. [渠道对账服务](#渠道对账服务)
+
+---
+
+## Pixel 事件接收 API
+
+### 端点说明
+
+应用提供两个端点用于接收 Pixel 事件：
+
+- **`POST /api/pixel-events`** - 主要实现端点（推荐使用）
+- **`POST /api/ingest`** - 向后兼容别名，重定向到 `/api/pixel-events`
+
+> **注意**：`/api/ingest` 路由仅用于向后兼容 PRD 中定义的端点名称。新代码应直接使用 `/api/pixel-events`。
+
+### 请求格式
+
+```typescript
+POST /api/pixel-events
+Content-Type: application/json
+X-Tracking-Guardian-Timestamp: 1234567890
+X-Tracking-Guardian-Key: <ingestion_key>
+x-shopify-shop-domain: example.myshopify.com
+
+{
+  "eventName": "checkout_completed",
+  "data": {
+    "orderId": "gid://shopify/Order/123",
+    "value": 99.99,
+    "currency": "USD",
+    // ... 其他事件数据
+  },
+  "timestamp": 1234567890,
+  "ingestionKey": "<ingestion_key>",
+  "shopDomain": "example.myshopify.com"
+}
+```
+
+### 响应格式
+
+```typescript
+// 成功响应
+{
+  "success": true,
+  "eventId": "evt_xxx",
+  "receipt": {
+    "orderId": "gid://shopify/Order/123",
+    "eventId": "evt_xxx",
+    "trustLevel": "trusted"
+  }
+}
+
+// 错误响应
+{
+  "error": "Invalid origin",
+  "code": "INVALID_ORIGIN"
+}
+```
+
+### 安全特性
+
+- **HMAC 验证**：使用 `ingestionKey` 进行请求签名验证
+- **时间窗验证**：防止重放攻击（默认 5 分钟窗口）
+- **Origin 验证**：仅接受来自 Shopify 商店域名的请求
+- **Rate Limiting**：防止滥用
+- **Circuit Breaker**：自动熔断异常流量
 
 ---
 
