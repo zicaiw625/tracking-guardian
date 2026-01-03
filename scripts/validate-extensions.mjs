@@ -1,4 +1,4 @@
-#!/usr/bin/env node --experimental-strip-types
+#!/usr/bin/env node
 /**
  * 扩展验证脚本
  * 验证 Shopify 扩展的代码质量和配置正确性
@@ -19,24 +19,10 @@ const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const EXTENSIONS_DIR = path.join(PROJECT_ROOT, "extensions");
 
-interface Violation {
-    file: string;
-    line: number;
-    content: string;
-    description: string;
-}
-
-interface CheckResult {
-    name: string;
-    passed: boolean;
-    violations: Violation[];
-    message: string;
-}
-
-const results: CheckResult[] = [];
+const results = [];
 
 // 禁止使用的浏览器 API 模式
-const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
+const FORBIDDEN_PATTERNS = [
     {
         pattern: /\bwindow\s*\./,
         description: "window API 被禁止使用（Shopify UI Extensions 不支持）",
@@ -60,7 +46,7 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
 ];
 
 // 允许的模式（注释中的使用是允许的）
-const ALLOWED_PATTERNS: RegExp[] = [
+const ALLOWED_PATTERNS = [
     /\/\/.*(window|navigator|document|localStorage|sessionStorage)/i,
     /\/\*[\s\S]*?(window|navigator|document|localStorage|sessionStorage)[\s\S]*?\*\//i,
     /".*window.*"/,
@@ -81,24 +67,24 @@ const IGNORE_PATTERNS = [
     "build",
     "dist",
     ".cache",
-    "scripts/validate-extensions.ts",
+    "scripts/validate-extensions.mjs",
 ];
 
-function shouldIgnore(filePath: string): boolean {
+function shouldIgnore(filePath) {
     return IGNORE_PATTERNS.some(pattern => filePath.includes(pattern));
 }
 
-function isAllowed(line: string): boolean {
+function isAllowed(line) {
     return ALLOWED_PATTERNS.some(pattern => pattern.test(line));
 }
 
 // 1. 检查禁止使用的浏览器 API
-function checkForbiddenAPIs(): CheckResult {
-    const violations: Violation[] = [];
+function checkForbiddenAPIs() {
+    const violations = [];
     const extensionsSrcDir = path.join(EXTENSIONS_DIR, "thank-you-blocks", "src");
     const pixelSrcDir = path.join(EXTENSIONS_DIR, "tracking-pixel", "src");
 
-    function scanDirectory(dir: string): void {
+    function scanDirectory(dir) {
         if (!fs.existsSync(dir)) {
             return;
         }
@@ -160,8 +146,8 @@ function checkForbiddenAPIs(): CheckResult {
 }
 
 // 2. 检查扩展配置文件
-function checkExtensionConfigs(): CheckResult {
-    const violations: Violation[] = [];
+function checkExtensionConfigs() {
+    const violations = [];
     const configFiles = [
         path.join(EXTENSIONS_DIR, "thank-you-blocks", "shopify.extension.toml"),
         path.join(EXTENSIONS_DIR, "tracking-pixel", "shopify.extension.toml"),
@@ -221,8 +207,8 @@ function checkExtensionConfigs(): CheckResult {
 }
 
 // 3. 检查源代码文件结构
-function checkSourceStructure(): CheckResult {
-    const violations: Violation[] = [];
+function checkSourceStructure() {
+    const violations = [];
     const expectedDirs = [
         path.join(EXTENSIONS_DIR, "thank-you-blocks", "src"),
         path.join(EXTENSIONS_DIR, "tracking-pixel", "src"),
@@ -250,7 +236,7 @@ function checkSourceStructure(): CheckResult {
 }
 
 // 主函数
-function main(): number {
+function main() {
     console.log("🔍 开始验证 Shopify 扩展...\n");
     console.log("=".repeat(60));
 
@@ -298,4 +284,3 @@ function main(): number {
 }
 
 process.exit(main());
-

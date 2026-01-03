@@ -1,4 +1,4 @@
-#!/usr/bin/env node --experimental-strip-types
+#!/usr/bin/env node
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -11,15 +11,15 @@ const THANK_YOU_CONFIG_FILE = path.join(__dirname, "../extensions/thank-you-bloc
 const SHARED_CONFIG_JS_FILE = path.join(__dirname, "../extensions/shared/config.js");
 const PLACEHOLDER = "__BACKEND_URL_PLACEHOLDER__";
 
-function readConfig(filePath: string): string {
+function readConfig(filePath) {
     return fs.readFileSync(filePath, "utf-8");
 }
 
-function writeConfig(filePath: string, content: string): void {
+function writeConfig(filePath, content) {
     fs.writeFileSync(filePath, content, "utf-8");
 }
 
-function injectBackendUrl(): void {
+function injectBackendUrl() {
     const backendUrl = process.env.SHOPIFY_APP_URL;
 
     const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.RENDER === "true";
@@ -117,7 +117,7 @@ function injectBackendUrl(): void {
     }
 }
 
-function restorePlaceholder(): void {
+function restorePlaceholder() {
     // Restore shared config
     const sharedConfig = readConfig(SHARED_CONFIG_FILE);
     const urlPattern = /const BUILD_TIME_URL = "([^"]+)";/;
@@ -173,8 +173,8 @@ switch (command) {
 Extension Build Helper
 
 Usage:
-  node --experimental-strip-types scripts/build-extensions.ts inject   - Replace placeholder with SHOPIFY_APP_URL
-  node --experimental-strip-types scripts/build-extensions.ts restore  - Restore placeholder for version control
+  node scripts/build-extensions.mjs inject   - Replace placeholder with SHOPIFY_APP_URL
+  node scripts/build-extensions.mjs restore  - Restore placeholder for version control
 
 Environment Variables:
   SHOPIFY_APP_URL  - The backend URL to inject (required for inject command)

@@ -1,17 +1,7 @@
-#!/usr/bin/env node --experimental-strip-types
-
+#!/usr/bin/env node
 
 import * as fs from "fs";
 import * as path from "path";
-
-type RouteType = "page" | "api" | "settings";
-
-interface RouteConfig {
-  name: string;
-  type: RouteType;
-  hasLoader: boolean;
-  hasAction: boolean;
-}
 
 const PAGE_TEMPLATE = `import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -306,7 +296,7 @@ export default function {{COMPONENT_NAME}}Settings() {
 }
 `;
 
-function parseArgs(): RouteConfig {
+function parseArgs() {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
@@ -315,11 +305,11 @@ function parseArgs(): RouteConfig {
   }
 
   const name = args[0];
-  let type: RouteType = "page";
+  let type = "page";
 
   const typeIndex = args.indexOf("--type");
   if (typeIndex !== -1 && args[typeIndex + 1]) {
-    type = args[typeIndex + 1] as RouteType;
+    type = args[typeIndex + 1];
   }
 
   if (name.startsWith("api.")) {
@@ -336,14 +326,14 @@ function parseArgs(): RouteConfig {
   };
 }
 
-function toComponentName(routeName: string): string {
+function toComponentName(routeName) {
   return routeName
     .split(/[._-]/)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join("");
 }
 
-function toTitle(routeName: string): string {
+function toTitle(routeName) {
   const baseName = routeName.replace(/^(app\.|api\.|settings\.)/, "");
   return baseName
     .split(/[._-]/)
@@ -351,7 +341,7 @@ function toTitle(routeName: string): string {
     .join(" ");
 }
 
-function getTemplate(type: RouteType): string {
+function getTemplate(type) {
   switch (type) {
     case "api":
       return API_TEMPLATE;
@@ -362,7 +352,7 @@ function getTemplate(type: RouteType): string {
   }
 }
 
-function generateRoute(config: RouteConfig): void {
+function generateRoute(config) {
   const template = getTemplate(config.type);
   const componentName = toComponentName(config.name);
   const title = toTitle(config.name);
@@ -372,7 +362,7 @@ function generateRoute(config: RouteConfig): void {
     .replace(/\{\{COMPONENT_NAME\}\}/g, componentName)
     .replace(/\{\{TITLE\}\}/g, title);
 
-  let outputPath: string;
+  let outputPath;
   if (config.type === "settings") {
     const settingsName = config.name.replace(/^settings\./, "");
     outputPath = path.join(
@@ -412,7 +402,7 @@ function generateRoute(config: RouteConfig): void {
   console.log(`✓ Created ${testPath}`);
 }
 
-function generateTestFile(config: RouteConfig): string {
+function generateTestFile(config) {
   return `import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockAdminContext, createMockPrismaClient } from "../mocks";
 
@@ -440,4 +430,3 @@ describe("${config.name}", () => {
 
 const config = parseArgs();
 generateRoute(config);
-

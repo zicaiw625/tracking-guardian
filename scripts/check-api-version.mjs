@@ -1,4 +1,4 @@
-#!/usr/bin/env node --experimental-strip-types
+#!/usr/bin/env node
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -6,14 +6,10 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-interface VersionSource {
-    file: string;
-    version: string | null;
-    line?: number;
-}
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const VERSION_PATTERN = /^\d{4}-\d{2}$/;
-function extractTomlApiVersion(filePath: string): VersionSource {
+
+function extractTomlApiVersion(filePath) {
     const fullPath = path.join(PROJECT_ROOT, filePath);
     try {
         const content = fs.readFileSync(fullPath, "utf-8");
@@ -36,7 +32,7 @@ function extractTomlApiVersion(filePath: string): VersionSource {
         return { file: filePath, version: null };
     }
 }
-function extractServerApiVersion(filePath: string): VersionSource {
+function extractServerApiVersion(filePath) {
     const fullPath = path.join(PROJECT_ROOT, filePath);
     try {
         const content = fs.readFileSync(fullPath, "utf-8");
@@ -61,12 +57,12 @@ function extractServerApiVersion(filePath: string): VersionSource {
         return { file: filePath, version: null };
     }
 }
-function convertEnumToVersion(enumValue: string): string | null {
+function convertEnumToVersion(enumValue) {
     const match = enumValue.match(/^(\w+)(\d{2})$/);
     if (!match)
         return null;
     const [, month, year] = match;
-    const monthMap: Record<string, string> = {
+    const monthMap = {
         January: "01",
         February: "02",
         March: "03",
@@ -86,52 +82,54 @@ function convertEnumToVersion(enumValue: string): string | null {
     const fullYear = `20${year}`;
     return `${fullYear}-${monthNum}`;
 }
-function main(): number {
+function main() {
     console.log("🔍 Checking Shopify API version consistency...\n");
-    const sources: VersionSource[] = [
+    const sources = [
         extractTomlApiVersion("shopify.app.toml"),
-        extractServerApiVersion("app/shopify.server.ts"),
+        extractServerApiVersion("app/services/shopify/app-config.server.ts"),
         extractTomlApiVersion("extensions/tracking-pixel/shopify.extension.toml"),
     ];
-    const hasReadErrors = sources.some(s => s.version === null);
+    const hasReadErrors = sources.some((s) => s.version === null);
     if (hasReadErrors) {
         console.error("❌ Could not read version from some files:");
-        sources.filter(s => s.version === null).forEach(s => {
+        sources
+            .filter((s) => s.version === null)
+            .forEach((s) => {
             console.error(`   - ${s.file}`);
         });
         return 2;
     }
     console.log("📋 Found versions:");
-    sources.forEach(s => {
+    sources.forEach((s) => {
         console.log(`   ${s.file}:${s.line} → ${s.version}`);
     });
     console.log("");
-    const versions = new Set(sources.map(s => s.version));
+    const versions = new Set(sources.map((s) => s.version));
     if (versions.size === 1) {
         const version = sources[0].version;
         console.log(`✅ All files use API version: ${version}`);
-        if (!VERSION_PATTERN.test(version!)) {
+        if (!VERSION_PATTERN.test(version)) {
             console.warn(`⚠️  Warning: Version format "${version}" doesn't match expected YYYY-MM pattern`);
         }
-        checkVersionAge(version!);
+        checkVersionAge(version);
         return 0;
     }
     console.error("❌ API version mismatch detected!");
     console.error("");
     console.error("   All Shopify API versions must be identical across:");
     console.error("   - shopify.app.toml [webhooks] api_version");
-    console.error("   - app/shopify.server.ts apiVersion");
+    console.error("   - app/services/shopify/app-config.server.ts apiVersion");
     console.error("   - extensions/tracking-pixel/shopify.extension.toml api_version");
     console.error("");
     console.error("   Found different versions:");
-    sources.forEach(s => {
+    sources.forEach((s) => {
         console.error(`   - ${s.file}: ${s.version}`);
     });
     console.error("");
     console.error("   Fix: Update all files to use the same version.");
     return 1;
 }
-function checkVersionAge(version: string): void {
+function checkVersionAge(version) {
     const match = version.match(/^(\d{4})-(\d{2})$/);
     if (!match)
         return;
@@ -143,7 +141,7 @@ function checkVersionAge(version: string): void {
     if (monthsOld >= 9) {
         console.warn(`⚠️  Warning: API version ${version} is ${monthsOld} months old.`);
         console.warn(`   Consider upgrading to a newer version before it's deprecated.`);
-        console.warn(`   Check: https:
+        console.warn("   Check: https://shopify.dev/docs/api/usage/versioning#release-schedule");
     }
     else if (monthsOld >= 6) {
         console.log(`ℹ️  Note: API version ${version} is ${monthsOld} months old.`);
