@@ -283,11 +283,11 @@ model PixelConfig {
 
   @@unique([shopId, platform, environment])
   @@unique([shopId, platform, environment, platformId])
-  @@unique([shopId, platform])
   @@index([environment])
   @@index([platform])
   @@index([priority])
   @@index([shopId])
+  @@index([shopId, platform])
 }
 
 model PixelEventReceipt {
