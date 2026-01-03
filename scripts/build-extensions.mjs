@@ -11,7 +11,7 @@ const THANK_YOU_CONFIG_FILE = path.join(__dirname, "../extensions/thank-you-bloc
 const SHARED_CONFIG_JS_FILE = path.join(__dirname, "../extensions/shared/config.js");
 const THANK_YOU_CONFIG_JS_FILE = path.join(__dirname, "../extensions/thank-you-blocks/src/config.js");
 const PLACEHOLDER = "__BACKEND_URL_PLACEHOLDER__";
-const BUILD_TIME_URL_PATTERN = /const\s+BUILD_TIME_URL\s*=\s*"([^"]+)";/;
+const BUILD_TIME_URL_PATTERN = /const\s+BUILD_TIME_URL\s*=\s*(["'])([^"']+)\1;/;
 
 function readConfig(filePath) {
     return fs.readFileSync(filePath, "utf-8");
@@ -27,7 +27,7 @@ function replaceBuildTimeUrl(content, nextValue, allowOverride = false) {
         return { updated: false, reason: "pattern_not_found" };
     }
 
-    const currentValue = match[1];
+    const [, quote, currentValue] = match;
     if (!allowOverride && currentValue !== PLACEHOLDER) {
         return { updated: false, reason: "placeholder_missing", currentValue };
     }
@@ -38,21 +38,22 @@ function replaceBuildTimeUrl(content, nextValue, allowOverride = false) {
 
     return {
         updated: true,
-        nextContent: content.replace(BUILD_TIME_URL_PATTERN, `const BUILD_TIME_URL = "${nextValue}";`),
+        nextContent: content.replace(BUILD_TIME_URL_PATTERN, `const BUILD_TIME_URL = ${quote}${nextValue}${quote};`),
         previousValue: currentValue,
     };
 }
 
 function restoreBuildTimeUrl(content) {
     const match = content.match(BUILD_TIME_URL_PATTERN);
-    if (!match || match[1] === PLACEHOLDER) {
+    if (!match || match[2] === PLACEHOLDER) {
         return { updated: false };
     }
 
+    const [, quote, previousValue] = match;
     return {
         updated: true,
-        nextContent: content.replace(BUILD_TIME_URL_PATTERN, `const BUILD_TIME_URL = "${PLACEHOLDER}";`),
-        previousValue: match[1],
+        nextContent: content.replace(BUILD_TIME_URL_PATTERN, `const BUILD_TIME_URL = ${quote}${PLACEHOLDER}${quote};`),
+        previousValue,
     };
 }
 
