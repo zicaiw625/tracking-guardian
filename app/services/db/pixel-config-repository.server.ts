@@ -38,6 +38,7 @@ export interface PixelConfigInput {
   serverSideEnabled?: boolean;
   eventMappings?: Prisma.InputJsonValue;
   isActive?: boolean;
+  environment?: string; // 支持多目的地配置：同一平台、同一环境可以配置多个不同的 platformId
 }
 
 const shopPixelConfigsCache = new SimpleCache<PixelConfigCredentials[]>({
@@ -144,16 +145,30 @@ export async function upsertPixelConfig(
   }
 
   const environment = input.environment || "test";
+  const platformId = data.platformId ?? null;
 
-  const existingConfig = await prisma.pixelConfig.findUnique({
-    where: {
-      shopId_platform_environment: {
-        shopId,
-        platform,
-        environment,
-      },
-    },
-  });
+  // 支持多目的地配置：如果提供了 platformId，使用包含 platformId 的唯一约束
+  // 否则使用不包含 platformId 的唯一约束（向后兼容）
+  const existingConfig = platformId
+    ? await prisma.pixelConfig.findUnique({
+        where: {
+          shopId_platform_environment_platformId: {
+            shopId,
+            platform,
+            environment,
+            platformId,
+          },
+        },
+      })
+    : await prisma.pixelConfig.findUnique({
+        where: {
+          shopId_platform_environment: {
+            shopId,
+            platform,
+            environment,
+          },
+        },
+      });
 
   if (existingConfig && saveSnapshot) {
     await saveConfigSnapshot(shopId, platform, environment).catch((error) => {
@@ -166,39 +181,71 @@ export async function upsertPixelConfig(
     });
   }
 
-  const config = await prisma.pixelConfig.upsert({
-    where: {
-      shopId_platform_environment: {
-        shopId,
-        platform,
-        environment,
-      },
-    },
-    create: {
-      shopId,
-      platform,
-      platformId: data.platformId ?? null,
-      credentialsEncrypted: data.credentialsEncrypted ?? null,
-      clientConfig: data.clientConfig ?? undefined,
-      clientSideEnabled: data.clientSideEnabled ?? true,
-      serverSideEnabled: data.serverSideEnabled ?? false,
-      eventMappings: data.eventMappings ?? undefined,
-      isActive: data.isActive ?? true,
-      configVersion: 1,
-      environment,
-    },
-
-    update: {
-      platformId: data.platformId ?? undefined,
-      credentialsEncrypted: data.credentialsEncrypted ?? undefined,
-      clientConfig: data.clientConfig ?? undefined,
-      clientSideEnabled: data.clientSideEnabled ?? undefined,
-      serverSideEnabled: data.serverSideEnabled ?? undefined,
-      eventMappings: data.eventMappings ?? undefined,
-      isActive: data.isActive ?? undefined,
-
-    },
-  });
+  // 使用包含 platformId 的唯一约束以支持多目的地配置
+  const config = platformId
+    ? await prisma.pixelConfig.upsert({
+        where: {
+          shopId_platform_environment_platformId: {
+            shopId,
+            platform,
+            environment,
+            platformId,
+          },
+        },
+        create: {
+          shopId,
+          platform,
+          platformId,
+          credentialsEncrypted: data.credentialsEncrypted ?? null,
+          clientConfig: data.clientConfig ?? undefined,
+          clientSideEnabled: data.clientSideEnabled ?? true,
+          serverSideEnabled: data.serverSideEnabled ?? false,
+          eventMappings: data.eventMappings ?? undefined,
+          isActive: data.isActive ?? true,
+          configVersion: 1,
+          environment,
+        },
+        update: {
+          platformId: data.platformId ?? undefined,
+          credentialsEncrypted: data.credentialsEncrypted ?? undefined,
+          clientConfig: data.clientConfig ?? undefined,
+          clientSideEnabled: data.clientSideEnabled ?? undefined,
+          serverSideEnabled: data.serverSideEnabled ?? undefined,
+          eventMappings: data.eventMappings ?? undefined,
+          isActive: data.isActive ?? undefined,
+        },
+      })
+    : await prisma.pixelConfig.upsert({
+        where: {
+          shopId_platform_environment: {
+            shopId,
+            platform,
+            environment,
+          },
+        },
+        create: {
+          shopId,
+          platform,
+          platformId: null,
+          credentialsEncrypted: data.credentialsEncrypted ?? null,
+          clientConfig: data.clientConfig ?? undefined,
+          clientSideEnabled: data.clientSideEnabled ?? true,
+          serverSideEnabled: data.serverSideEnabled ?? false,
+          eventMappings: data.eventMappings ?? undefined,
+          isActive: data.isActive ?? true,
+          configVersion: 1,
+          environment,
+        },
+        update: {
+          platformId: data.platformId ?? undefined,
+          credentialsEncrypted: data.credentialsEncrypted ?? undefined,
+          clientConfig: data.clientConfig ?? undefined,
+          clientSideEnabled: data.clientSideEnabled ?? undefined,
+          serverSideEnabled: data.serverSideEnabled ?? undefined,
+          eventMappings: data.eventMappings ?? undefined,
+          isActive: data.isActive ?? undefined,
+        },
+      });
 
   invalidatePixelConfigCache(shopId);
 

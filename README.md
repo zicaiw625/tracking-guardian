@@ -217,6 +217,24 @@ railway up
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
 | `read_customer_events` | （未来）事件对账/同意状态补充 | `app.migrate.tsx` 授权检测 | ⚠️ 场景化 |
 
+### API 端点说明
+
+**像素事件接收端点**：
+
+- **主要端点**：`POST /api/pixel-events`
+  - 这是实际的事件接收端点，由 Web Pixel Extension 调用
+  - 支持 CORS、HMAC 验证、时间窗校验、nonce 防重放等安全机制
+  - 详细实现见 `app/routes/api.pixel-events/route.tsx`
+
+- **向后兼容端点**：`POST /api/ingest`
+  - PRD 中定义的端点是 `POST /ingest`，为保持向后兼容，提供了此别名路由
+  - 此路由重定向到 `/api/pixel-events` 的实际实现
+  - **注意**：新代码应直接使用 `/api/pixel-events`，`/api/ingest` 仅用于向后兼容
+
+**配置获取**：
+- 端点 URL 可通过 `app/utils/config.ts` 中的 `getPixelEventEndpoint()` 函数获取
+- 支持环境变量配置（开发/生产环境）
+
 ### P0-1: ScriptTag 权限说明
 
 **重要提示**：应用**不请求 `write_script_tags` 权限**。

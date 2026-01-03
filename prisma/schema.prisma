@@ -1,5 +1,3 @@
-
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +5,372 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model AlertConfig {
+  id                   String    @id
+  shopId               String
+  channel              String
+  settings             Json?
+  discrepancyThreshold Float     @default(0.1)
+  minOrdersForAlert    Int       @default(10)
+  frequency            String    @default("daily")
+  isEnabled            Boolean   @default(true)
+  lastAlertAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime
+  settingsEncrypted    String?
+  Shop                 Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([channel])
+  @@index([shopId])
+}
+
+model AuditAsset {
+  id                   String          @id
+  shopId               String
+  sourceType           String          @default("api_scan")
+  category             String          @default("other")
+  platform             String?
+  fingerprint          String?
+  displayName          String?
+  riskLevel            String          @default("medium")
+  suggestedMigration   String          @default("web_pixel")
+  migrationStatus      String          @default("pending")
+  migratedAt           DateTime?
+  details              Json?
+  scanReportId         String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime
+  priority             Int?
+  estimatedTimeMinutes Int?
+  dependencies         Json?
+  rawSnippetEncrypted  String?
+  Shop                 Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  MigrationTask        MigrationTask[]
+
+  @@unique([shopId, fingerprint])
+  @@index([category])
+  @@index([migrationStatus])
+  @@index([platform])
+  @@index([riskLevel])
+  @@index([shopId, category, riskLevel])
+  @@index([shopId, createdAt])
+  @@index([shopId])
+  @@index([shopId, migrationStatus])
+  @@index([shopId, riskLevel])
+}
+
+model AuditLog {
+  id            String   @id
+  shopId        String
+  actorType     String
+  actorId       String?
+  action        String
+  resourceType  String
+  resourceId    String?
+  previousValue Json?
+  newValue      Json?
+  metadata      Json?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+  Shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([action])
+  @@index([createdAt])
+  @@index([resourceType])
+  @@index([shopId, createdAt])
+  @@index([shopId])
+}
+
+model ConversionJob {
+  id              String    @id
+  shopId          String
+  orderId         String
+  orderNumber     String?
+  orderValue      Decimal   @db.Decimal(10, 2)
+  currency        String    @default("USD")
+  status          String    @default("queued")
+  attempts        Int       @default(0)
+  maxAttempts     Int       @default(5)
+  lastAttemptAt   DateTime?
+  nextRetryAt     DateTime?
+  errorMessage    String?
+  platformResults Json?
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime?
+  completedAt     DateTime?
+  capiInput       Json?
+  consentEvidence Json?
+  trustMetadata   Json?
+  Shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, orderId])
+  @@index([createdAt])
+  @@index([shopId])
+  @@index([status])
+  @@index([status, nextRetryAt])
+}
+
+model ConversionLog {
+  id               String    @id
+  shopId           String
+  orderId          String
+  orderNumber      String?
+  orderValue       Decimal   @db.Decimal(10, 2)
+  currency         String    @default("USD")
+  platform         String
+  eventType        String
+  status           String    @default("pending")
+  attempts         Int       @default(0)
+  lastAttemptAt    DateTime?
+  errorMessage     String?
+  platformResponse Json?
+  clientSideSent   Boolean   @default(false)
+  serverSideSent   Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  sentAt           DateTime?
+  deadLetteredAt   DateTime?
+  manuallyRetried  Boolean   @default(false)
+  maxAttempts      Int       @default(5)
+  nextRetryAt      DateTime?
+  eventId          String?
+  Shop             Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, orderId, platform, eventType])
+  @@index([createdAt])
+  @@index([orderId])
+  @@index([platform])
+  @@index([shopId, createdAt])
+  @@index([shopId, createdAt, status])
+  @@index([shopId])
+  @@index([shopId, platform, createdAt])
+  @@index([shopId, status])
+  @@index([status, deadLetteredAt])
+  @@index([status])
+  @@index([status, nextRetryAt])
+}
+
+model EventNonce {
+  id        String   @id
+  shopId    String
+  nonce     String
+  eventType String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([shopId, nonce, eventType])
+  @@index([expiresAt])
+}
+
+model GDPRJob {
+  id           String    @id
+  shopDomain   String
+  jobType      String
+  payload      Json
+  status       String    @default("queued")
+  result       Json?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  processedAt  DateTime?
+  completedAt  DateTime?
+
+  @@index([createdAt])
+  @@index([shopDomain])
+  @@index([status])
+}
+
+model MigrationDraft {
+  id         String   @id
+  shopId     String   @unique
+  step       String
+  configData Json
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+  Shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([shopId, updatedAt])
+}
+
+model MigrationTask {
+  id               String        @id
+  shopId           String
+  assetId          String?
+  title            String
+  description      String?
+  assignedToShopId String?
+  assignedByShopId String
+  status           String        @default("pending")
+  priority         Int           @default(5)
+  dueDate          DateTime?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  groupId          String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime
+  AuditAsset       AuditAsset?   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  ShopGroup        ShopGroup?    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  Shop             Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  TaskComment      TaskComment[]
+
+  @@index([assetId])
+  @@index([assignedToShopId])
+  @@index([groupId])
+  @@index([shopId])
+  @@index([status])
+}
+
+model MonthlyUsage {
+  id        String   @id
+  shopId    String
+  yearMonth String
+  sentCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, yearMonth])
+  @@index([shopId])
+  @@index([yearMonth])
+}
+
+model PerformanceMetric {
+  id             String   @id
+  shopId         String
+  metricName     String
+  metricValue    Float
+  metricId       String
+  delta          Float
+  rating         String
+  navigationType String
+  url            String
+  timestamp      DateTime
+  createdAt      DateTime @default(now())
+  Shop           Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([metricName])
+  @@index([shopId])
+  @@index([shopId, metricName, timestamp])
+  @@index([timestamp])
+}
+
+model PixelConfig {
+  id                   String    @id
+  shopId               String
+  platform             String
+  platformId           String?
+  clientSideEnabled    Boolean   @default(true)
+  serverSideEnabled    Boolean   @default(false)
+  eventMappings        Json?
+  migrationStatus      String    @default("not_started")
+  migratedAt           DateTime?
+  isActive             Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime
+  clientConfig         Json?
+  credentialsEncrypted String?
+  credentials_legacy   Json?
+  configVersion        Int       @default(1)
+  environment          String    @default("live")
+  previousConfig       Json?
+  rollbackAllowed      Boolean   @default(true)
+  displayName          String?
+  priority             Int?      @default(0)
+  Shop                 Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, platform, environment])
+  @@unique([shopId, platform, environment, platformId])
+  @@unique([shopId, platform])
+  @@index([environment])
+  @@index([platform])
+  @@index([priority])
+  @@index([shopId])
+}
+
+model PixelEventReceipt {
+  id                        String   @id
+  shopId                    String
+  orderId                   String
+  eventType                 String
+  eventId                   String?
+  pixelTimestamp            DateTime
+  consentState              Json?
+  isTrusted                 Boolean  @default(false)
+  signatureStatus           String   @default("unsigned")
+  metadata                  Json?
+  createdAt                 DateTime @default(now())
+  checkoutToken             String?
+  usedCheckoutTokenFallback Boolean  @default(false)
+  trustLevel                String   @default("unknown")
+  untrustedReason           String?
+  originHost                String?
+  Shop                      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, orderId, eventType])
+  @@index([checkoutToken])
+  @@index([orderId])
+  @@index([shopId, checkoutToken])
+  @@index([shopId])
+  @@index([shopId, orderId])
+}
+
+model PixelTemplate {
+  id          String   @id
+  ownerId     String
+  name        String
+  platforms   Json
+  description String?
+  isPublic    Boolean  @default(false)
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+
+  @@index([isPublic])
+  @@index([ownerId])
+}
+
+model ReconciliationReport {
+  id                  String   @id
+  shopId              String
+  platform            String
+  reportDate          DateTime @db.Date
+  shopifyOrders       Int      @default(0)
+  shopifyRevenue      Decimal  @default(0) @db.Decimal(12, 2)
+  platformConversions Int      @default(0)
+  platformRevenue     Decimal  @default(0) @db.Decimal(12, 2)
+  orderDiscrepancy    Float    @default(0)
+  revenueDiscrepancy  Float    @default(0)
+  status              String   @default("pending")
+  alertSent           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  Shop                Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, platform, reportDate])
+  @@index([platform])
+  @@index([reportDate])
+  @@index([shopId])
+  @@index([shopId, reportDate])
+}
+
+model ScanReport {
+  id                  String    @id
+  shopId              String
+  scriptTags          Json?
+  checkoutConfig      Json?
+  riskItems           Json?
+  riskScore           Int       @default(0)
+  identifiedPlatforms Json?
+  status              String    @default("pending")
+  errorMessage        String?
+  createdAt           DateTime  @default(now())
+  completedAt         DateTime?
+  Shop                Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([status])
 }
 
 model Session {
@@ -30,880 +394,246 @@ model Session {
 }
 
 model Shop {
-  id                String    @id @default(cuid())
-  shopDomain        String    @unique
-  accessToken       String?
-  email             String?
-  name              String?
-  plan              String    @default("free")
-  monthlyOrderLimit Int       @default(100)
-  installedAt       DateTime  @default(now())
-  uninstalledAt     DateTime?
-  isActive          Boolean   @default(true)
-
-  piiEnabled Boolean @default(false)
-
-  pcdAcknowledged   Boolean   @default(false)
-  pcdAcknowledgedAt DateTime?
-
-  weakConsentMode Boolean @default(false)
-
-  consentStrategy String @default("strict")
-
-  dataRetentionDays Int @default(90)
-
-  ingestionSecret String?
-
+  id                      String                 @id
+  shopDomain              String                 @unique
+  accessToken             String?
+  email                   String?
+  name                    String?
+  plan                    String                 @default("free")
+  monthlyOrderLimit       Int                    @default(100)
+  installedAt             DateTime               @default(now())
+  uninstalledAt           DateTime?
+  isActive                Boolean                @default(true)
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime
+  dataRetentionDays       Int                    @default(90)
+  ingestionSecret         String?
+  piiEnabled              Boolean                @default(false)
+  weakConsentMode         Boolean                @default(false)
+  consentStrategy         String                 @default("strict")
   previousIngestionSecret String?
   previousSecretExpiry    DateTime?
-
-  primaryDomain      String?
-  storefrontDomains  String[]
-
-  webPixelId String?
-
-  shopTier             String?
-  typOspPagesEnabled   Boolean?
-  typOspUpdatedAt      DateTime?
-  typOspLastCheckedAt  DateTime?
-  typOspDetectedAt     DateTime?
-  typOspStatusReason   String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  scanReports           ScanReport[]
-  pixelConfigs          PixelConfig[]
-  alertConfigs          AlertConfig[]
-  conversionLogs        ConversionLog[]
-  reconciliationReports ReconciliationReport[]
-  surveyResponses       SurveyResponse[]
-  auditLogs             AuditLog[]
-  monthlyUsages         MonthlyUsage[]
-  pixelEventReceipts    PixelEventReceipt[]
-  conversionJobs        ConversionJob[]
-
-  auditAssets           AuditAsset[]
-  verificationRuns      VerificationRun[]
-  uiExtensionSettings   UiExtensionSetting[]
-
-  migrationTasks        MigrationTask[]
-  taskComments          TaskComment[]
-  workspaceComments     WorkspaceComment[]
-
-  performanceMetrics    PerformanceMetric[]
-
-  migrationDrafts       MigrationDraft[]
-  eventLogs              EventLog[]
-  monitoringAlerts       MonitoringAlert[]
-}
-
-model ScanReport {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  scriptTags        Json?
-  checkoutConfig    Json?
-
-  riskItems Json?
-  riskScore Int   @default(0)
-
-  identifiedPlatforms Json?
-
-  status       String  @default("pending")
-  errorMessage String?
-
-  createdAt   DateTime  @default(now())
-  completedAt DateTime?
-
-  @@index([shopId])
-  @@index([status])
-}
-
-model PixelConfig {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  platform   String
-  platformId String?
-
-  credentialsEncrypted String?
-
-  clientConfig         Json?
-
-  credentials Json? @map("credentials_legacy")
-
-  clientSideEnabled Boolean @default(true)
-  serverSideEnabled Boolean @default(false)
-  eventMappings     Json?
-
-  environment String @default("live")
-
-  configVersion   Int       @default(1)
-  mappingVersion  Int       @default(1)
-  previousConfig  Json?
-  rollbackAllowed Boolean   @default(true)
-
-  migrationStatus String    @default("not_started")
-  migratedAt      DateTime?
-
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  displayName String?
-  priority    Int     @default(0)
-
-  @@unique([shopId, platform, environment, platformId])
-  @@index([shopId])
-  @@index([platform])
-  @@index([environment])
-  @@index([shopId, environment])
-  @@index([shopId, platform, environment])
-  @@index([shopId, platform])
-  @@index([priority])
-}
-
-model AlertConfig {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  channel  String
-
-  settings Json?
-
-  settingsEncrypted String?
-
-  discrepancyThreshold Float @default(0.1)
-  minOrdersForAlert    Int   @default(10)
-
-  frequency String @default("daily")
-
-  isEnabled   Boolean   @default(true)
-  lastAlertAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([shopId])
-  @@index([channel])
-}
-
-model ConversionLog {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  orderId     String
-  orderNumber String?
-  orderValue  Decimal @db.Decimal(10, 2)
-  currency    String  @default("USD")
-
-  eventId String?
-
-  platform  String
-  eventType String
-
-  status        String    @default("pending")
-  attempts      Int       @default(0)
-  maxAttempts   Int       @default(5)
-  lastAttemptAt DateTime?
-  nextRetryAt   DateTime?
-  errorMessage  String?
-
-  platformResponse Json?
-
-  clientSideSent Boolean @default(false)
-  serverSideSent Boolean @default(false)
-
-  deadLetteredAt  DateTime?
-  manuallyRetried Boolean   @default(false)
-
-  createdAt DateTime  @default(now())
-  sentAt    DateTime?
-
-  @@unique([shopId, orderId, platform, eventType])
-  @@index([shopId])
-  @@index([orderId])
-  @@index([platform])
-  @@index([status])
-  @@index([createdAt])
-
-  @@index([shopId, createdAt])
-  @@index([shopId, status])
-  @@index([shopId, platform, createdAt])
-  @@index([shopId, createdAt, status])
-
-  @@index([status, nextRetryAt])
-  @@index([status, deadLetteredAt])
-}
-
-model ReconciliationReport {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  platform   String
-  reportDate DateTime @db.Date
-
-  shopifyOrders  Int     @default(0)
-  shopifyRevenue Decimal @default(0) @db.Decimal(12, 2)
-
-  platformConversions Int     @default(0)
-  platformRevenue     Decimal @default(0) @db.Decimal(12, 2)
-
-  orderDiscrepancy   Float @default(0)
-  revenueDiscrepancy Float @default(0)
-
-  status    String  @default("pending")
-  alertSent Boolean @default(false)
-
-  createdAt DateTime @default(now())
-
-  @@unique([shopId, platform, reportDate])
-  @@index([shopId])
-  @@index([platform])
-  @@index([reportDate])
-
-  @@index([shopId, reportDate])
-}
-
-model SurveyResponse {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  orderId     String
-  orderNumber String?
-
-  rating        Int?
-  feedback      String?
-  source        String?
-  customAnswers Json?
-
-  createdAt DateTime @default(now())
-
-  @@index([shopId])
-  @@index([orderId])
-
-  @@index([shopId, orderId])
-
-  @@index([shopId, createdAt])
-}
-
-model AuditLog {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  actorType String
-  actorId   String?
-
-  action       String
-  resourceType String
-  resourceId   String?
-
-  previousValue Json?
-  newValue      Json?
-  metadata      Json?
-
-  ipAddress String?
-  userAgent String?
-
-  createdAt DateTime @default(now())
-
-  @@index([shopId])
-  @@index([action])
-  @@index([resourceType])
-  @@index([createdAt])
-
-  @@index([shopId, createdAt])
-}
-
-model MonthlyUsage {
-  id        String   @id @default(cuid())
-  shopId    String
-  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  yearMonth String
-  sentCount Int      @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([shopId, yearMonth])
-  @@index([shopId])
-  @@index([yearMonth])
-}
-
-model PixelEventReceipt {
-  id        String   @id @default(cuid())
-  shopId    String
-  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  orderId   String
-  eventType String
-  eventId   String?
-
-  checkoutToken String?
-
-  pixelTimestamp DateTime
-
-  consentState   Json?
-
-  isTrusted      Boolean  @default(false)
-  signatureStatus String  @default("unsigned")
-
-  trustLevel      String  @default("unknown")
-  untrustedReason String?
-  originHost      String?
-
-  usedCheckoutTokenFallback Boolean @default(false)
-
-  metadata       Json?
-
-  createdAt DateTime @default(now())
-
-  @@unique([shopId, orderId, eventType])
-  @@index([shopId])
-  @@index([orderId])
-  @@index([shopId, orderId])
-
-  @@index([shopId, checkoutToken])
-
-  @@index([checkoutToken])
-}
-
-model WebhookLog {
-  id        String   @id @default(cuid())
-
-  shopDomain   String
-  webhookId    String
-  topic        String
-
-  status       String    @default("processing")
-
-  orderId      String?
-
-  receivedAt   DateTime  @default(now())
-  processedAt  DateTime?
-
-  @@unique([shopDomain, webhookId, topic])
-
-  @@index([shopDomain])
-  @@index([receivedAt])
-
-  @@index([receivedAt, status])
-}
-
-model ConversionJob {
-  id        String   @id @default(cuid())
-  shopId    String
-  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  orderId      String
-  orderNumber  String?
-  orderValue   Decimal  @db.Decimal(10, 2)
-  currency     String   @default("USD")
-
-  capiInput    Json?
-
-  consentEvidence Json?
-  trustMetadata   Json?
-
-  status       String   @default("queued")
-
-  attempts     Int      @default(0)
-  maxAttempts  Int      @default(5)
-  lastAttemptAt DateTime?
-  nextRetryAt  DateTime?
-  errorMessage String?
-
-  platformResults Json?
-
-  createdAt    DateTime @default(now())
-  processedAt  DateTime?
-  completedAt  DateTime?
-
-  @@unique([shopId, orderId])
-  @@index([shopId])
-  @@index([status])
-  @@index([status, nextRetryAt])
-  @@index([createdAt])
-}
-
-model EventNonce {
-  id        String   @id @default(cuid())
-  shopId    String
-  nonce     String
-  eventType String
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-
-  @@unique([shopId, nonce, eventType])
-  @@index([expiresAt])
-}
-
-model GDPRJob {
-  id           String   @id @default(cuid())
-  shopDomain   String
-
-  jobType      String
-
-  payload      Json
-
-  status       String   @default("queued")
-
-  result       Json?
-
-  errorMessage String?
-
-  createdAt    DateTime @default(now())
-  processedAt  DateTime?
-  completedAt  DateTime?
-
-  @@index([status])
-  @@index([shopDomain])
-  @@index([createdAt])
-}
-
-model AuditAsset {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  sourceType String @default("api_scan")
-
-  category String @default("other")
-
-  platform    String?
-  fingerprint String?
-  displayName String?
-
-  riskLevel String @default("medium")
-
-  suggestedMigration String @default("web_pixel")
-
-  migrationStatus String    @default("pending")
-  migratedAt      DateTime?
-
-  priority Int?
-
-  estimatedTimeMinutes Int?
-
-  dependencies Json?
-
-  details Json?
-
-  rawSnippetEncrypted String?
-
-  scanReportId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  migrationTasks MigrationTask[]
-
-  @@unique([shopId, fingerprint])
-  @@index([shopId])
-  @@index([category])
-  @@index([riskLevel])
-  @@index([platform])
-  @@index([migrationStatus])
-
-  @@index([shopId, migrationStatus])
-  @@index([shopId, riskLevel])
-  @@index([shopId, category, riskLevel])
-  @@index([shopId, createdAt])
-}
-
-model VerificationRun {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  runName String @default("验收测试")
-
-  runType String @default("quick")
-
-  status String @default("pending")
-
-  platforms String[]
-
-  summaryJson Json?
-
-  eventsJson Json?
-
-  reportUrl String?
-
-  startedAt   DateTime?
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-
-  @@index([shopId])
-  @@index([status])
-  @@index([createdAt])
-
-  @@index([shopId, status])
-  @@index([shopId, createdAt])
-  @@index([shopId, status, createdAt])
-}
-
-model UiExtensionSetting {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  moduleKey String
-
-  settingsJson Json?
-
-  displayRules Json?
-
-  localization Json?
-
-  isEnabled Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([shopId, moduleKey])
-  @@index([shopId])
-  @@index([moduleKey])
-  @@index([isEnabled])
-}
-
-model Workspace {
-  id   String @id @default(cuid())
-  name String
-
-  ownerPartnerId String?
-  ownerEmail     String?
-
-  settingsJson Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members WorkspaceMember[]
-  shops   WorkspaceShop[]
-
-  @@index([ownerPartnerId])
-  @@index([ownerEmail])
-}
-
-model WorkspaceMember {
-  id          String    @id @default(cuid())
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  userId String
-  email  String
-
-  role String @default("viewer")
-
-  inviteStatus String    @default("pending")
-  invitedAt    DateTime  @default(now())
-  acceptedAt   DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([workspaceId, userId])
-  @@unique([workspaceId, email])
-  @@index([workspaceId])
-  @@index([userId])
-  @@index([email])
-}
-
-model WorkspaceShop {
-  id          String    @id @default(cuid())
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  shopId String
-
-  alias String?
-
-  addedAt   DateTime @default(now())
-  addedBy   String?
-  createdAt DateTime @default(now())
-
-  @@unique([workspaceId, shopId])
-  @@index([workspaceId])
-  @@index([shopId])
-}
-
-model PixelTemplate {
-  id      String @id @default(cuid())
-  ownerId String
-  name    String
-
-  platforms Json
-
-  description String?
-
-  isPublic Boolean @default(false)
-
-  usageCount Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([ownerId])
-  @@index([isPublic])
+  webPixelId              String?
+  storefrontDomains       String[]
+  primaryDomain           String?
+  shopTier                String?
+  typOspPagesEnabled      Boolean?
+  typOspUpdatedAt         DateTime?
+  pcdAcknowledged         Boolean                @default(false)
+  pcdAcknowledgedAt       DateTime?
+  typOspLastCheckedAt     DateTime?
+  typOspDetectedAt        DateTime?
+  typOspStatusReason      String?
+  AlertConfig             AlertConfig[]
+  AuditAsset              AuditAsset[]
+  AuditLog                AuditLog[]
+  ConversionJob           ConversionJob[]
+  ConversionLog           ConversionLog[]
+  MigrationDraft          MigrationDraft?
+  MigrationTask           MigrationTask[]
+  MonthlyUsage            MonthlyUsage[]
+  PerformanceMetric       PerformanceMetric[]
+  PixelConfig             PixelConfig[]
+  PixelEventReceipt       PixelEventReceipt[]
+  ReconciliationReport    ReconciliationReport[]
+  ScanReport              ScanReport[]
+  SurveyResponse          SurveyResponse[]
+  TaskComment             TaskComment[]
+  UiExtensionSetting      UiExtensionSetting[]
+  VerificationRun         VerificationRun[]
+  WorkspaceComment        WorkspaceComment[]
 }
 
 model ShopGroup {
-  id      String @id @default(cuid())
-  name    String
-  ownerId String
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members ShopGroupMember[]
-  migrationTasks MigrationTask[]
-  workspaceComments WorkspaceComment[]
+  id               String             @id
+  name             String
+  ownerId          String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime
+  MigrationTask    MigrationTask[]
+  ShopGroupMember  ShopGroupMember[]
+  WorkspaceComment WorkspaceComment[]
 
   @@index([ownerId])
 }
 
 model ShopGroupMember {
-  id      String    @id @default(cuid())
-  groupId String
-  group   ShopGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  shopId String
-
-  role String @default("member")
-
-  canEditSettings  Boolean @default(false)
-  canViewReports   Boolean @default(true)
-  canManageBilling Boolean @default(false)
-
-  createdAt DateTime @default(now())
+  id               String    @id
+  groupId          String
+  shopId           String
+  role             String    @default("member")
+  canEditSettings  Boolean   @default(false)
+  canViewReports   Boolean   @default(true)
+  canManageBilling Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  ShopGroup        ShopGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, shopId])
   @@index([groupId])
   @@index([shopId])
 }
 
-model MigrationTask {
-  id      String @id @default(cuid())
-  shopId  String
-  shop    Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+model SurveyResponse {
+  id            String   @id
+  shopId        String
+  orderId       String
+  orderNumber   String?
+  rating        Int?
+  feedback      String?
+  source        String?
+  customAnswers Json?
+  createdAt     DateTime @default(now())
+  Shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  assetId String?
-  asset   AuditAsset? @relation(fields: [assetId], references: [id], onDelete: Cascade)
-
-  title       String
-  description String?
-
-  assignedToShopId String?
-  assignedByShopId String
-
-  status String @default("pending")
-
-  priority Int @default(5)
-
-  dueDate    DateTime?
-  startedAt  DateTime?
-  completedAt DateTime?
-
-  groupId String?
-  group   ShopGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  comments TaskComment[]
-
+  @@index([orderId])
+  @@index([shopId, createdAt])
   @@index([shopId])
-  @@index([assetId])
-  @@index([assignedToShopId])
-  @@index([groupId])
-  @@index([status])
+  @@index([shopId, orderId])
 }
 
 model TaskComment {
-  id     String @id @default(cuid())
-  taskId String
-  task   MigrationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id                String        @id
+  taskId            String
+  authorShopId      String
+  content           String
+  isSystemMessage   Boolean       @default(false)
+  parentCommentId   String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime
+  Shop              Shop          @relation(fields: [authorShopId], references: [id], onDelete: Cascade)
+  TaskComment       TaskComment?  @relation("TaskCommentToTaskComment", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  other_TaskComment TaskComment[] @relation("TaskCommentToTaskComment")
+  MigrationTask     MigrationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  authorShopId String
-  authorShop   Shop  @relation(fields: [authorShopId], references: [id], onDelete: Cascade)
-
-  content String
-
-  isSystemMessage Boolean @default(false)
-
-  parentCommentId String?
-  parentComment   TaskComment? @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
-  replies         TaskComment[] @relation("CommentReplies")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([taskId])
   @@index([authorShopId])
   @@index([parentCommentId])
+  @@index([taskId])
+}
+
+model UiExtensionSetting {
+  id           String   @id
+  shopId       String
+  moduleKey    String
+  settingsJson Json?
+  displayRules Json?
+  localization Json?
+  isEnabled    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  Shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, moduleKey])
+  @@index([isEnabled])
+  @@index([moduleKey])
+  @@index([shopId])
+}
+
+model VerificationRun {
+  id          String    @id
+  shopId      String
+  runName     String    @default("验收测试")
+  runType     String    @default("quick")
+  status      String    @default("pending")
+  platforms   String[]
+  summaryJson Json?
+  eventsJson  Json?
+  reportUrl   String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  Shop        Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([shopId, createdAt])
+  @@index([shopId])
+  @@index([shopId, status, createdAt])
+  @@index([shopId, status])
+  @@index([status])
+}
+
+model WebhookLog {
+  id          String    @id
+  shopDomain  String
+  webhookId   String
+  topic       String
+  status      String    @default("processing")
+  orderId     String?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@unique([shopDomain, webhookId, topic])
+  @@index([receivedAt])
+  @@index([receivedAt, status])
+  @@index([shopDomain])
+}
+
+model Workspace {
+  id              String            @id
+  name            String
+  ownerPartnerId  String?
+  ownerEmail      String?
+  settingsJson    Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  WorkspaceMember WorkspaceMember[]
+  WorkspaceShop   WorkspaceShop[]
+
+  @@index([ownerEmail])
+  @@index([ownerPartnerId])
 }
 
 model WorkspaceComment {
-  id     String @id @default(cuid())
+  id                     String             @id
+  targetType             String
+  targetId               String
+  authorShopId           String
+  content                String
+  groupId                String?
+  parentCommentId        String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime
+  Shop                   Shop               @relation(fields: [authorShopId], references: [id], onDelete: Cascade)
+  ShopGroup              ShopGroup?         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  WorkspaceComment       WorkspaceComment?  @relation("WorkspaceCommentToWorkspaceComment", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  other_WorkspaceComment WorkspaceComment[] @relation("WorkspaceCommentToWorkspaceComment")
 
-  targetType String
-  targetId   String
-
-  authorShopId String
-  authorShop   Shop @relation(fields: [authorShopId], references: [id], onDelete: Cascade)
-
-  content String
-
-  groupId String?
-  group   ShopGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  parentCommentId String?
-  parentComment   WorkspaceComment? @relation("WorkspaceCommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
-  replies         WorkspaceComment[] @relation("WorkspaceCommentReplies")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([targetType, targetId])
   @@index([authorShopId])
   @@index([groupId])
   @@index([parentCommentId])
+  @@index([targetType, targetId])
 }
 
-model PerformanceMetric {
-  id              String   @id @default(cuid())
-  shopId          String
-  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+model WorkspaceMember {
+  id           String    @id
+  workspaceId  String
+  userId       String
+  email        String
+  role         String    @default("viewer")
+  inviteStatus String    @default("pending")
+  invitedAt    DateTime  @default(now())
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
+  Workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  metricName      String
-  metricValue     Float
-  metricId        String
-  delta           Float
-  rating          String
-  navigationType  String
-  url             String
+  @@unique([workspaceId, email])
+  @@unique([workspaceId, userId])
+  @@index([email])
+  @@index([userId])
+  @@index([workspaceId])
+}
 
-  timestamp       DateTime
+model WorkspaceShop {
+  id          String    @id
+  workspaceId String
+  shopId      String
+  alias       String?
+  addedAt     DateTime  @default(now())
+  addedBy     String?
+  createdAt   DateTime  @default(now())
+  Workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime @default(now())
-
+  @@unique([workspaceId, shopId])
   @@index([shopId])
-  @@index([metricName])
-  @@index([timestamp])
-  @@index([shopId, metricName, timestamp])
-}
-
-model MigrationDraft {
-  id        String   @id @default(cuid())
-  shopId    String
-  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  step      String
-
-  configData Json
-
-  expiresAt DateTime
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([shopId])
-  @@index([expiresAt])
-  @@index([shopId, updatedAt])
-}
-
-model EventLog {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  eventName String
-  eventId   String?
-
-  payloadJson Json?
-
-  destinationType String?
-
-  status String @default("ok")
-
-  errorCode   String?
-  errorDetail String?
-
-  eventTimestamp DateTime @default(now())
-
-  createdAt DateTime @default(now())
-
-  @@index([shopId])
-  @@index([eventName])
-  @@index([eventId])
-  @@index([destinationType])
-  @@index([status])
-  @@index([createdAt])
-
-  @@index([shopId, eventName])
-  @@index([shopId, destinationType])
-  @@index([shopId, status, createdAt])
-  @@index([shopId, eventTimestamp])
-  @@index([eventId, destinationType])
-}
-
-model MonitoringAlert {
-  id     String @id @default(cuid())
-  shopId String
-  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  alertType String
-
-  threshold Float?
-
-  condition Json?
-
-  isEnabled Boolean @default(true)
-
-  lastTriggeredAt DateTime?
-  triggerCount    Int       @default(0)
-
-  notificationChannels Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  alertHistory MonitoringAlertHistory[]
-
-  @@index([shopId])
-  @@index([alertType])
-  @@index([isEnabled])
-  @@index([shopId, alertType])
-  @@index([shopId, isEnabled])
-}
-
-model MonitoringAlertHistory {
-  id        String   @id @default(cuid())
-  alertId   String
-  alert     MonitoringAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
-
-  triggeredAt DateTime @default(now())
-
-  metricValue Float?
-  threshold   Float?
-
-  details Json?
-
-  resolvedAt DateTime?
-
-  createdAt DateTime @default(now())
-
-  @@index([alertId])
-  @@index([triggeredAt])
-  @@index([alertId, triggeredAt])
-  @@index([resolvedAt])
+  @@index([workspaceId])
 }
