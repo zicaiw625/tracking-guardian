@@ -9,13 +9,11 @@ const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const VERSION_PATTERN = /^\d{4}-\d{2}$/;
 
-type VersionSource = {
-  file: string;
-  version: string | null;
-  line?: number;
-};
-
-function extractTomlApiVersion(filePath: string): VersionSource {
+/**
+ * @param {string} filePath
+ * @returns {{file: string, version: string | null, line?: number}}
+ */
+function extractTomlApiVersion(filePath) {
   const fullPath = path.join(PROJECT_ROOT, filePath);
   try {
     const content = fs.readFileSync(fullPath, "utf-8");
@@ -40,7 +38,11 @@ function extractTomlApiVersion(filePath: string): VersionSource {
   }
 }
 
-function extractServerApiVersion(filePath: string): VersionSource {
+/**
+ * @param {string} filePath
+ * @returns {{file: string, version: string | null, line?: number}}
+ */
+function extractServerApiVersion(filePath) {
   const fullPath = path.join(PROJECT_ROOT, filePath);
   try {
     const content = fs.readFileSync(fullPath, "utf-8");
@@ -67,13 +69,17 @@ function extractServerApiVersion(filePath: string): VersionSource {
   }
 }
 
-function convertEnumToVersion(enumValue: string): string | null {
+/**
+ * @param {string} enumValue
+ * @returns {string | null}
+ */
+function convertEnumToVersion(enumValue) {
   const match = enumValue.match(/^(\w+)(\d{2})$/);
   if (!match) return null;
 
   const [, month, year] = match;
 
-  const monthMap: Record<string, string> = {
+  const monthMap = {
     January: "01",
     February: "02",
     March: "03",
@@ -91,11 +97,13 @@ function convertEnumToVersion(enumValue: string): string | null {
   const monthNum = monthMap[month];
   if (!monthNum) return null;
 
-  const fullYear = `20${year}`;
-  return `${fullYear}-${monthNum}`;
+  return `20${year}-${monthNum}`;
 }
 
-function checkVersionAge(version: string) {
+/**
+ * @param {string} version
+ */
+function checkVersionAge(version) {
   const match = version.match(/^(\d{4})-(\d{2})$/);
   if (!match) return;
 
@@ -108,21 +116,23 @@ function checkVersionAge(version: string) {
     (now.getMonth() - versionDate.getMonth());
 
   if (monthsOld >= 9) {
-    console.warn(`⚠️  Warning: API version ${version} is ${monthsOld} months old.`);
-    console.warn("   Consider upgrading to a newer version before it's deprecated.");
-    console.warn(
+    [
+      `⚠️  Warning: API version ${version} is ${monthsOld} months old.`,
+      "   Consider upgrading to a newer version before it's deprecated.",
       "   Check: https://shopify.dev/docs/api/usage/versioning#release-schedule",
-    );
+    ].forEach((message) => console.warn(message));
   } else if (monthsOld >= 6) {
-    console.log(`ℹ️  Note: API version ${version} is ${monthsOld} months old.`);
-    console.log("   Plan to upgrade within the next quarter.");
+    [
+      `ℹ️  Note: API version ${version} is ${monthsOld} months old.`,
+      "   Plan to upgrade within the next quarter.",
+    ].forEach((message) => console.log(message));
   }
 }
 
-function main(): number {
+function main() {
   console.log("🔍 Checking Shopify API version consistency...\n");
 
-  const sources: VersionSource[] = [
+  const sources = [
     extractTomlApiVersion("shopify.app.toml"),
     extractServerApiVersion("app/services/shopify/app-config.server.ts"),
     extractTomlApiVersion("extensions/tracking-pixel/shopify.extension.toml"),

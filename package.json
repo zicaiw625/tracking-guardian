@@ -22,7 +22,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
-    "check:api-version": "node scripts/check-api-version.ts",
+    "check:api-version": "node scripts/check-api-version.mjs",
     "lint:graphql-only": "node scripts/check-graphql-only.mjs",
     "security:audit": "node scripts/security-audit.mjs",
     "lint:all": "pnpm lint && pnpm typecheck && pnpm check:api-version && pnpm lint:graphql-only",
