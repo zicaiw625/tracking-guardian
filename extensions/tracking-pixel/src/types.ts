@@ -67,7 +67,8 @@ export interface PixelConfig {
 export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   schema_version: "1",
 
-  mode: "full_funnel",
+  // v1 默认使用 purchase_only（仅收集 checkout_completed），商家可在设置中切换 full_funnel
+  mode: "purchase_only",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
 };
@@ -118,4 +119,3 @@ export interface PixelInit {
   };
   customerPrivacy?: CustomerPrivacyState;
 }
-
