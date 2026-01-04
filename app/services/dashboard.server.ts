@@ -139,7 +139,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         where: { isActive: true },
         select: { id: true, serverSideEnabled: true, credentialsEncrypted: true },
       },
-      reconciliationReports: {
+      ReconciliationReport: {
         orderBy: { reportDate: "desc" },
         take: 7, // P2-9: 性能优化 - 只取最近 7 天的对账报告，使用预聚合数据
         select: { orderDiscrepancy: true },
@@ -214,7 +214,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   const hasServerSideConfig = serverSideConfigsCount > 0;
   const { score, status, factors } = await calculateHealthScore(
     shop.id,
-    shop.reconciliationReports || [],
+    shop.ReconciliationReport || [],
     serverSideConfigsCount
   );
   const planId = normalizePlan(shop.plan);
