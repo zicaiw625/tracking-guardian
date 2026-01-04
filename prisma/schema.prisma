@@ -437,7 +437,7 @@ model Shop {
   MigrationTask           MigrationTask[]
   MonthlyUsage            MonthlyUsage[]
   PerformanceMetric       PerformanceMetric[]
-  PixelConfig             PixelConfig[]
+  pixelConfigs            PixelConfig[]
   PixelEventReceipt       PixelEventReceipt[]
   ReconciliationReport    ReconciliationReport[]
   ScanReports             ScanReport[]
