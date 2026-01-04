@@ -39,6 +39,7 @@ import {
   type SetupStep,
 } from "../types/dashboard";
 import { isPlanAtLeast } from "../utils/plans";
+import { DEPRECATION_DATES, formatDeadlineDate, SHOPIFY_HELP_LINKS } from "../utils/migration-deadlines";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -876,24 +877,29 @@ function ScriptTagMigrationBanner({
 }
 
 function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number }) {
+  // P0-1: 使用统一的日期常量和官方链接
+  const plusDeadline = formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
+  const plusAutoUpgrade = formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
+  const nonPlusDeadline = formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
+  
   return (
     <Banner
       title="重要迁移截止日期"
       tone={scriptTagsCount > 0 ? "warning" : "info"}
       action={{
         content: "了解更多",
-        url: "https://help.shopify.com/en/manual/checkout-settings/upgrade-guide",
+        url: SHOPIFY_HELP_LINKS.UPGRADE_GUIDE,
         external: true,
       }}
     >
       <BlockStack gap="300">
         <BlockStack gap="100">
           <Text as="p">
-            <strong>Plus 商家:</strong> 从 <strong>2026-01</strong> 开始自动升级（legacy 定制会丢失）
+            <strong>Plus 商家:</strong> <strong>{plusDeadline}</strong> 开始限制（ScriptTag/Additional Scripts 停止执行，关键节点：升级/限制开始），<strong>{plusAutoUpgrade}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考 <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link>
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https://help.shopify.com/en/manual/checkout-settings/upgrade-guide"
+              url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}
               external
             >
               查看 Plus 商家升级指南
@@ -902,11 +908,11 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
         </BlockStack>
         <BlockStack gap="100">
           <Text as="p">
-            <strong>非 Plus 商家:</strong> 最晚 <strong>2026-08-26</strong> 必须完成升级
+            <strong>非 Plus 商家:</strong> 最晚 <strong>{nonPlusDeadline}</strong> 截止。参考 <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>Shopify Help Center</Link>
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
-              url="https://help.shopify.com/en/manual/checkout-settings/upgrade-guide"
+              url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}
               external
             >
               查看 ScriptTags 弃用时间表
@@ -1190,7 +1196,7 @@ export default function Index() {
   return (
     <Page
       title="升级迁移交付平台"
-      subtitle="Shopify 硬 deadline：Plus 商家 2026-01 自动升级 • 非 Plus 最晚 2026-08-26 • 升级不丢功能/不丢数据 • 可交付的验收报告 • 上线后有断档告警"
+      subtitle={`Shopify 官方 deadline：Plus 商家 ${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 开始限制，${formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 起自动升级 • 非 Plus 商家 ${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 截止 • 升级不丢功能/不丢数据 • 可交付的验收报告 • 上线后有断档告警`}
       primaryAction={
         !progress.allComplete && nextStep
           ? { content: nextStep.cta, url: nextStep.url }
@@ -1207,10 +1213,16 @@ export default function Index() {
               </Text>
               <List>
                 <List.Item>
-                  <strong>Plus 商家</strong>：从 <strong>2026-01</strong> 开始自动升级（legacy 定制会丢失）
+                  <strong>Plus 商家</strong>：<strong>{formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")}</strong> 开始限制（ScriptTag/Additional Scripts 停止执行，关键节点：升级/限制开始），<strong>{formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")}</strong> 起 Shopify 开始自动升级（legacy 定制会丢失）。参考{" "}
+                  <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>
+                    Shopify Help Center 升级指南
+                  </Link>
                 </List.Item>
                 <List.Item>
-                  <strong>非 Plus 商家</strong>：最晚 <strong>2026-08-26</strong> 必须完成升级
+                  <strong>非 Plus 商家</strong>：最晚 <strong>{formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")}</strong> 必须完成升级。参考{" "}
+                  <Link url={SHOPIFY_HELP_LINKS.UPGRADE_GUIDE} external>
+                    Shopify Help Center 升级指南
+                  </Link>
                 </List.Item>
                 <List.Item>
                   Legacy 的 <code>checkout.liquid</code>、<code>additional scripts</code>、<code>script tags</code> 会逐步被 sunset

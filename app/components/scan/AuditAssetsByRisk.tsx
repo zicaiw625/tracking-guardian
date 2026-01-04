@@ -11,13 +11,18 @@ import {
   Icon,
   Banner,
 } from "@shopify/polaris";
-import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon, InfoIcon, ClockIcon } from "~/components/icons";
+import { AlertCircleIcon, CheckCircleIcon, ArrowRightIcon, InfoIcon, ClockIcon, LockIcon } from "~/components/icons";
 import type { AuditAssetRecord } from "~/services/audit-asset.server";
+import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
+import type { PlanId } from "~/services/billing/plans";
 
 interface AuditAssetsByRiskProps {
   assets: AuditAssetRecord[];
   onAssetClick?: (assetId: string) => void;
   onMigrateClick?: (asset: AuditAssetRecord) => void;
+  currentPlan?: PlanId;
+  // P1-6: 免费层显示限制
+  freeTierLimit?: number; // 免费层最多显示多少条高风险资产
 }
 
 function determineRiskCategory(
@@ -95,7 +100,13 @@ const RISK_CATEGORY_INFO: Record<string, { label: string; tone: "critical" | "wa
   },
 };
 
-export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: AuditAssetsByRiskProps) {
+export function AuditAssetsByRisk({ 
+  assets, 
+  onAssetClick, 
+  onMigrateClick,
+  currentPlan = "free",
+  freeTierLimit = 3, // P1-6: 免费层默认只显示前 3 条高风险资产
+}: AuditAssetsByRiskProps) {
 
   const assetsByCategory = {
     will_fail: assets.filter((a) => {
@@ -111,6 +122,32 @@ export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: Audi
       return category === "no_migration_needed";
     }),
   };
+
+  // P1-6: 计算风险分数和预计修复时间
+  const highRiskAssets = assetsByCategory.will_fail;
+  const mediumRiskAssets = assetsByCategory.can_replace;
+  const totalHighRisk = highRiskAssets.length;
+  const totalMediumRisk = mediumRiskAssets.length;
+  
+  // 计算总体风险分数（基于高风险和中风险资产数量）
+  const riskScore = totalHighRisk * 30 + totalMediumRisk * 15;
+  const riskLevel = riskScore >= 60 ? "high" : riskScore >= 30 ? "medium" : "low";
+  
+  // 计算预计修复时间（分钟）
+  const estimatedTimeMinutes = highRiskAssets.reduce((sum, asset) => 
+    sum + (asset.estimatedTimeMinutes || 30), 0
+  ) + mediumRiskAssets.reduce((sum, asset) => 
+    sum + (asset.estimatedTimeMinutes || 20), 0
+  );
+
+  // P1-6: 免费层限制 - 只显示前 N 条高风险资产
+  const isFreeTier = currentPlan === "free";
+  const visibleHighRiskAssets = isFreeTier 
+    ? highRiskAssets.slice(0, freeTierLimit)
+    : highRiskAssets;
+  const hiddenHighRiskCount = isFreeTier 
+    ? Math.max(0, totalHighRisk - freeTierLimit)
+    : 0;
 
   const totalAssets = assets.length;
   const hasAssets = totalAssets > 0;
@@ -155,6 +192,84 @@ export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: Audi
           <Badge tone="info">{totalAssets} 项</Badge>
         </InlineStack>
 
+        {/* P1-6: 风险分数摘要卡片 */}
+        <Card>
+          <BlockStack gap="300">
+            <Text as="h3" variant="headingSm">
+              风险评分摘要
+            </Text>
+            <Layout>
+              <Layout.Section variant="oneThird">
+                <Box
+                  background={
+                    riskLevel === "high"
+                      ? "bg-fill-critical"
+                      : riskLevel === "medium"
+                      ? "bg-fill-warning"
+                      : "bg-fill-success"
+                  }
+                  padding="400"
+                  borderRadius="200"
+                >
+                  <BlockStack gap="200" align="center">
+                    <Text as="p" variant="heading2xl" fontWeight="bold">
+                      {riskScore}
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      风险分数
+                    </Text>
+                    <Badge tone={riskLevel === "high" ? "critical" : riskLevel === "medium" ? "warning" : "success"}>
+                      {riskLevel === "high" ? "高风险" : riskLevel === "medium" ? "中风险" : "低风险"}
+                    </Badge>
+                  </BlockStack>
+                </Box>
+              </Layout.Section>
+              <Layout.Section variant="oneThird">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    将失效/将断档
+                  </Text>
+                  <Text as="p" variant="headingLg" fontWeight="bold">
+                    {totalHighRisk} 项
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    预计修复时间: {estimatedTimeMinutes < 60
+                      ? `${estimatedTimeMinutes} 分钟`
+                      : `${Math.floor(estimatedTimeMinutes / 60)} 小时 ${estimatedTimeMinutes % 60} 分钟`}
+                  </Text>
+                </BlockStack>
+              </Layout.Section>
+              <Layout.Section variant="oneThird">
+                <BlockStack gap="200">
+                  {/* P1-6: 关键 CTA - 一键修复按钮 */}
+                  {totalHighRisk > 0 && (
+                    <BlockStack gap="200">
+                      <Button
+                        variant="primary"
+                        size="large"
+                        url="/app/migrate"
+                        icon={ArrowRightIcon}
+                      >
+                        启用 Purchase-only 修复（约 {Math.ceil(estimatedTimeMinutes * 0.3)} 分钟）
+                      </Button>
+                      {currentPlan !== "free" && currentPlan !== "starter" && (
+                        <Button
+                          variant="secondary"
+                          size="large"
+                          url="/app/migrate?mode=full_funnel"
+                          icon={ArrowRightIcon}
+                        >
+                          启用 Full-funnel 修复（约 {Math.ceil(estimatedTimeMinutes * 0.5)} 分钟，Growth）
+                        </Button>
+                      )}
+                    </BlockStack>
+                  )}
+                </BlockStack>
+              </Layout.Section>
+            </Layout>
+          </BlockStack>
+        </Card>
+
         {}
         {assetsByCategory.will_fail.length > 0 && (
           <BlockStack gap="300">
@@ -173,7 +288,7 @@ export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: Audi
               </Text>
             </Banner>
             <BlockStack gap="200">
-              {assetsByCategory.will_fail.map((asset) => {
+              {visibleHighRiskAssets.map((asset) => {
                 const migrationInfo = MIGRATION_LABELS[asset.suggestedMigration] || MIGRATION_LABELS.none;
                 return (
                   <Box
@@ -260,6 +375,38 @@ export function AuditAssetsByRisk({ assets, onAssetClick, onMigrateClick }: Audi
                   </Box>
                 );
               })}
+              
+              {/* P1-6: 免费层解锁提示 */}
+              {hiddenHighRiskCount > 0 && (
+                <Box
+                  background="bg-surface-secondary"
+                  padding="400"
+                  borderRadius="200"
+                >
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Icon source={LockIcon} tone="subdued" />
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            还有 {hiddenHighRiskCount} 项高风险资产未显示
+                          </Text>
+                        </InlineStack>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          升级到 Migration 或更高套餐，查看完整风险清单和迁移建议
+                        </Text>
+                      </BlockStack>
+                      <Button
+                        variant="primary"
+                        url="/app/billing"
+                        icon={ArrowRightIcon}
+                      >
+                        升级解锁
+                      </Button>
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+              )}
             </BlockStack>
           </BlockStack>
         )}

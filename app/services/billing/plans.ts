@@ -1,4 +1,5 @@
 
+import { DEPRECATION_DATES, formatDeadlineDate, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
 
 export interface PlanFeatures {
   id: string;
@@ -39,7 +40,7 @@ export const BILLING_PLANS = {
       "Audit 风险报告（可分享链接，但不导出）",
       "迁移清单 + 风险分级 + 替代路径",
       "明确提示 checkout.liquid/additional scripts 弃用限制",
-      "升级倒计时（Plus: 2026-01 自动升级，非 Plus: 2026-08-26 最晚）",
+      `升级倒计时（参考 Shopify Help Center：Plus 商家关键节点 ${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff)}（升级/限制开始），${formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 起自动升级；非 Plus 商家截止 ${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff)}。详情请参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
       "基础文档支持",
     ],
   },

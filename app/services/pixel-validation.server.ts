@@ -20,6 +20,8 @@ export interface PixelEventPayload {
   eventName: PixelEventName;
   timestamp: number;
   shopDomain: string;
+  // P0-4: ingestionKey 已从 body 中移除，不再出现在请求体中
+  // 服务端通过 shopDomain 查找 shop.ingestionSecret 进行 HMAC 验证
   consent?: {
     marketing?: boolean;
     analytics?: boolean;

@@ -13,6 +13,7 @@ import {
   Tooltip,
 } from "@shopify/polaris";
 import { AlertCircleIcon, CheckCircleIcon, ClockIcon } from "../icons";
+import { DEPRECATION_DATES, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
 
 export type ShopTier = "plus" | "non_plus" | "unknown";
 
@@ -36,21 +37,27 @@ export interface MigrationCountdownProps {
 
 const MILESTONES: Omit<CountdownMilestone, "isPassed" | "isNext">[] = [
   {
-    date: new Date("2025-02-01"),
+    date: DEPRECATION_DATES.scriptTagCreationBlocked,
     label: "ScriptTag 创建禁止",
-    description: "无法在 TYP/OSP 页面创建新的 ScriptTag",
+    description: `无法在 TYP/OSP 页面创建新的 ScriptTag（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
     tier: "all",
   },
   {
-    date: new Date("2026-01-01"),
-    label: "Plus 自动升级开始",
-    description: "Shopify 开始自动升级 Plus 商家页面，legacy 定制会丢失",
+    date: DEPRECATION_DATES.plusScriptTagExecutionOff,
+    label: "Plus 限制开始",
+    description: `Plus 商家开始受到升级限制（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
     tier: "plus",
   },
   {
-    date: new Date("2026-08-26"),
+    date: DEPRECATION_DATES.plusAutoUpgradeStart,
+    label: "Plus 自动升级开始",
+    description: `Shopify 开始自动升级 Plus 商家页面，legacy 定制会丢失（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
+    tier: "plus",
+  },
+  {
+    date: DEPRECATION_DATES.nonPlusScriptTagExecutionOff,
     label: "非 Plus 截止日期",
-    description: "所有商家的旧版追踪功能完全停止",
+    description: `所有非 Plus 商家的旧版追踪功能完全停止（参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
     tier: "non_plus",
   },
 ];
@@ -71,13 +78,14 @@ function getMilestones(shopTier: ShopTier, now: Date = new Date()): CountdownMil
 function getDeadline(shopTier: ShopTier): Date {
   switch (shopTier) {
     case "plus":
-      // Plus商家从2026-01开始自动升级，legacy定制会丢失
+      // Plus商家从2025-08-28开始限制，2026-01开始自动升级，legacy定制会丢失
       // 所以实际截止日期是2026-01之前必须完成迁移
-      return new Date("2026-01-01");
+      return DEPRECATION_DATES.plusAutoUpgradeStart;
     case "non_plus":
-      return new Date("2026-08-26");
+      // 非Plus商家最晚2026-08-26截止（参考 Shopify Help Center）
+      return DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     default:
-      return new Date("2026-08-26");
+      return DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
   }
 }
 

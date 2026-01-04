@@ -40,6 +40,22 @@ export interface ConfirmationResult {
   error?: string;
 }
 
+// P1-7: 一次性收费相关接口
+export interface OneTimePurchaseResult {
+  success: boolean;
+  confirmationUrl?: string;
+  purchaseId?: string;
+  error?: string;
+}
+
+export interface OneTimePurchaseStatus {
+  hasActivePurchase: boolean;
+  purchaseId?: string;
+  status?: string;
+  price?: number;
+  createdAt?: string;
+}
+
 const CREATE_SUBSCRIPTION_MUTATION = `
   mutation AppSubscriptionCreate(
     $name: String!
@@ -107,6 +123,50 @@ const CANCEL_SUBSCRIPTION_MUTATION = `
       userErrors {
         field
         message
+      }
+    }
+  }
+`;
+
+// P1-7: 一次性收费 GraphQL Mutation
+const CREATE_ONE_TIME_PURCHASE_MUTATION = `
+  mutation AppPurchaseOneTimeCreate(
+    $name: String!
+    $price: MoneyInput!
+    $returnUrl: URL!
+    $test: Boolean
+  ) {
+    appPurchaseOneTimeCreate(
+      name: $name
+      price: $price
+      returnUrl: $returnUrl
+      test: $test
+    ) {
+      appPurchaseOneTime {
+        id
+        status
+      }
+      confirmationUrl
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const GET_ONE_TIME_PURCHASES_QUERY = `
+  query GetOneTimePurchases {
+    appInstallation {
+      oneTimePurchases {
+        id
+        name
+        status
+        price {
+          amount
+          currencyCode
+        }
+        createdAt
       }
     }
   }
@@ -191,6 +251,7 @@ export async function createSubscription(
     };
   }
 }
+
 
 export async function getSubscriptionStatus(
   admin: AdminGraphQL,
@@ -355,6 +416,169 @@ export async function handleSubscriptionConfirmation(
     return { success: false, error: "Subscription not active" };
   } catch (error) {
     logger.error("Subscription confirmation error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * P1-7: 创建一次性收费（用于 Go-Live 验收报告等）
+ */
+export async function createOneTimePurchase(
+  admin: AdminGraphQL,
+  shopDomain: string,
+  planId: PlanId,
+  returnUrl: string,
+  isTest = false
+): Promise<OneTimePurchaseResult> {
+  const plan = BILLING_PLANS[planId];
+
+  if (!plan || !plan.isOneTime) {
+    return { success: false, error: "此套餐不支持一次性收费" };
+  }
+
+  try {
+    const response = await admin.graphql(CREATE_ONE_TIME_PURCHASE_MUTATION, {
+      variables: {
+        name: `Tracking Guardian - ${plan.name} (一次性)`,
+        price: {
+          amount: plan.price,
+          currencyCode: "USD",
+        },
+        returnUrl,
+        test: isTest || process.env.NODE_ENV !== "production",
+      },
+    });
+
+    const data = await response.json();
+    const result = data.data?.appPurchaseOneTimeCreate;
+
+    if (result?.userErrors?.length > 0) {
+      const errorMessage = result.userErrors
+        .map((e: { message: string }) => e.message)
+        .join(", ");
+      logger.error(`One-time purchase API error: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
+
+    if (result?.confirmationUrl) {
+      const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: { id: true },
+      });
+
+      if (shop) {
+        await createAuditLog({
+          shopId: shop.id,
+          actorType: "user",
+          actorId: shopDomain,
+          action: "one_time_purchase_created",
+          resourceType: "billing",
+          resourceId: result.appPurchaseOneTime?.id || "unknown",
+          metadata: { planId, price: plan.price },
+        });
+      }
+
+      return {
+        success: true,
+        confirmationUrl: result.confirmationUrl,
+        purchaseId: result.appPurchaseOneTime?.id,
+      };
+    }
+
+    return { success: false, error: "Failed to create one-time purchase" };
+  } catch (error) {
+    logger.error("One-time purchase creation error", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * P1-7: 获取一次性收费状态
+ */
+export async function getOneTimePurchaseStatus(
+  admin: AdminGraphQL,
+  shopDomain: string
+): Promise<OneTimePurchaseStatus> {
+  try {
+    const response = await admin.graphql(GET_ONE_TIME_PURCHASES_QUERY);
+    const data = await response.json();
+    const purchases = data.data?.appInstallation?.oneTimePurchases || [];
+
+    // 查找已激活的一次性收费（通常用于 Go-Live）
+    const activePurchase = purchases.find(
+      (p: { status: string }) => p.status === "ACTIVE"
+    );
+
+    if (!activePurchase) {
+      return { hasActivePurchase: false };
+    }
+
+    return {
+      hasActivePurchase: true,
+      purchaseId: activePurchase.id,
+      status: activePurchase.status,
+      price: parseFloat(activePurchase.price?.amount || "0"),
+      createdAt: activePurchase.createdAt,
+    };
+  } catch (error) {
+    logger.error("Get one-time purchase status error", error);
+    return { hasActivePurchase: false };
+  }
+}
+
+/**
+ * P1-7: 处理一次性收费确认（在用户完成支付后调用）
+ */
+export async function handleOneTimePurchaseConfirmation(
+  admin: AdminGraphQL,
+  shopDomain: string,
+  purchaseId: string
+): Promise<ConfirmationResult> {
+  try {
+    const status = await getOneTimePurchaseStatus(admin, shopDomain);
+
+    if (status.hasActivePurchase && status.purchaseId === purchaseId) {
+      // 一次性收费通常用于 Go-Live 套餐，激活后设置 plan 为 growth
+      const planId: PlanId = "growth";
+      const planConfig = BILLING_PLANS[planId];
+
+      await prisma.shop.update({
+        where: { shopDomain },
+        data: {
+          plan: planId,
+          monthlyOrderLimit: planConfig.monthlyOrderLimit,
+        },
+      });
+
+      const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: { id: true },
+      });
+
+      if (shop) {
+        await createAuditLog({
+          shopId: shop.id,
+          actorType: "system",
+          actorId: "billing",
+          action: "one_time_purchase_activated",
+          resourceType: "billing",
+          resourceId: purchaseId,
+          metadata: { plan: planId, price: status.price },
+        });
+      }
+
+      return { success: true, plan: planId };
+    }
+
+    return { success: false, error: "One-time purchase not active" };
+  } catch (error) {
+    logger.error("One-time purchase confirmation error", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

@@ -7,6 +7,7 @@ import {
   generateReconciliationReportPdf,
   generateVerificationReportPdf,
 } from "../services/pdf-generator.server";
+import { DEPRECATION_DATES, getDateDisplayLabel } from "../utils/deprecation-dates";
 
 type ExportType = "conversions" | "audit" | "receipts" | "jobs" | "scan" | "reconciliation" | "verification" | "survey";
 type ExportFormat = "csv" | "json" | "pdf" | "html";
@@ -252,6 +253,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             case "scan": {
 
                 if (format === "pdf") {
+                    // P1-5: 服务端 entitlement 硬门禁 - PDF 导出需要 Go-Live 或 Agency 套餐
+                    try {
+                        const { requireEntitlementOrThrow } = await import("../services/billing/entitlement.server");
+                        await requireEntitlementOrThrow(shop.id, "report_export");
+                    } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : "权限不足";
+                        return new Response(
+                            JSON.stringify({ 
+                                error: errorMessage || "PDF 导出需要 Go-Live 或 Agency 套餐",
+                                requiredPlan: "Go-Live",
+                            }),
+                            {
+                                status: 403,
+                                headers: { "Content-Type": "application/json" },
+                            }
+                        );
+                    }
+                    
                     const pdfResult = await generateScanReportPdf(shop.id);
                     if (!pdfResult) {
                         return new Response("PDF generation failed", { status: 500 });
@@ -293,9 +312,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     scriptTagCount: Array.isArray(latestScan.scriptTags) ? latestScan.scriptTags.length : 0,
                     recommendations: generateMigrationRecommendations(latestScan),
                     migrationDeadlines: {
-                        scriptTagPlus: "2025-08-28",
-                        scriptTagNonPlus: "2026-08-26",
-                        additionalScriptsPlus: "2025-08-28",
+                        // P0-1: 使用统一的日期常量
+                        scriptTagPlus: getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact"),
+                        scriptTagNonPlus: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
+                        additionalScriptsPlus: getDateDisplayLabel(DEPRECATION_DATES.plusAdditionalScriptsReadOnly, "exact"),
                     },
                 } : null;
 
@@ -330,6 +350,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             case "reconciliation": {
 
                 if (format === "pdf") {
+                    // P1-5: 服务端 entitlement 硬门禁 - PDF 导出需要 Go-Live 或 Agency 套餐
+                    try {
+                        const { requireEntitlementOrThrow } = await import("../services/billing/entitlement.server");
+                        await requireEntitlementOrThrow(shop.id, "report_export");
+                    } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : "权限不足";
+                        return new Response(
+                            JSON.stringify({ 
+                                error: errorMessage || "PDF 导出需要 Go-Live 或 Agency 套餐",
+                                requiredPlan: "Go-Live",
+                            }),
+                            {
+                                status: 403,
+                                headers: { "Content-Type": "application/json" },
+                            }
+                        );
+                    }
+                    
                     const pdfResult = await generateReconciliationReportPdf(shop.id);
                     if (!pdfResult) {
                         return new Response("PDF generation failed", { status: 500 });
@@ -536,7 +574,10 @@ function generateMigrationRecommendations(scan: ScanData): string[] {
 
     if (scriptTags.length > 0) {
         recommendations.push(`检测到 ${scriptTags.length} 个 ScriptTag，建议迁移到 Web Pixel`);
-        recommendations.push("ScriptTag API 将于 2025-08-28（Plus）/ 2026-08-26（非 Plus）停止工作");
+        // P0-1: 使用统一的日期常量
+        const plusDate = getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
+        const nonPlusDate = getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
+        recommendations.push(`ScriptTag API 将于 ${plusDate}（Plus）/ ${nonPlusDate}（非 Plus）停止工作`);
     }
 
     if (platforms.includes("google")) {

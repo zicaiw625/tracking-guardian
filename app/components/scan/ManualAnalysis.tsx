@@ -18,6 +18,7 @@ import { ClipboardIcon, ArrowRightIcon, SettingsIcon, AlertCircleIcon, CheckCirc
 import { analyzeScriptContent } from "../../services/scanner/content-analysis";
 import type { ScriptAnalysisResult } from "../../services/scanner.server";
 import { getSeverityBadge, getPlatformName } from "./utils";
+import { DEPRECATION_DATES, formatDeadlineDate } from "../../utils/migration-deadlines";
 import { AnalysisResultSummary } from "./AnalysisResultSummary";
 import { SCRIPT_ANALYSIS_CONFIG } from "../../utils/config";
 
@@ -126,7 +127,7 @@ export function ManualAnalysis({ deprecationStatus }: ManualAnalysisProps) {
             </BlockStack>
             <Banner
               tone="critical"
-              title="Plus：2025-08-28 / 非 Plus：2026-08-26 将失效"
+              title={`Plus：${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} / 非 Plus：${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 将失效`}
             >
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm">

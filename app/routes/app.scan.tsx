@@ -2112,10 +2112,59 @@ export default function ScanPage() {
                       </Text>
                     </BlockStack>
                   </Box>
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      风险等级
+                    </Text>
+                    <Badge tone={latestScan.riskScore > 60 ? "critical" : latestScan.riskScore > 30 ? "warning" : "success"}>
+                      {latestScan.riskScore > 60 ? "High" : latestScan.riskScore > 30 ? "Med" : "Low"}
+                    </Badge>
+                  </InlineStack>
+                  {/* P1-6: 预计修复时间 */}
+                  {(() => {
+                    const estimatedTimeMinutes = riskItems.reduce((sum, item) => {
+                      const timeMap: Record<string, number> = { high: 30, medium: 15, low: 5 };
+                      return sum + (timeMap[item.severity] || 10);
+                    }, 0);
+                    const estimatedHours = Math.floor(estimatedTimeMinutes / 60);
+                    const estimatedMins = estimatedTimeMinutes % 60;
+                    return estimatedTimeMinutes > 0 ? (
+                      <InlineStack align="space-between" blockAlign="center">
+                        <Text as="span" variant="bodySm" tone="subdued">
+                          预计修复时间
+                        </Text>
+                        <Text as="span" variant="bodySm" fontWeight="semibold">
+                          {estimatedHours > 0 ? `${estimatedHours} 小时 ` : ""}{estimatedMins > 0 ? `${estimatedMins} 分钟` : ""}
+                        </Text>
+                      </InlineStack>
+                    ) : null;
+                  })()}
                   <Text as="p" variant="bodySm" tone="subdued">
                     扫描时间:{" "}
                     {safeFormatDate(latestScan.createdAt)}
                   </Text>
+                  {/* P1-6: 关键CTA按钮 */}
+                  <Divider />
+                  <BlockStack gap="200">
+                    <Button 
+                      url={isPlanAtLeast(planIdSafe, "starter") ? "/app/migrate" : "/app/billing"}
+                      variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
+                      fullWidth
+                    >
+                      {isPlanAtLeast(planIdSafe, "starter") 
+                        ? "启用Purchase-only修复（10分钟）" 
+                        : "升级到 Migration 启用修复"}
+                    </Button>
+                    {!isPlanAtLeast(planIdSafe, "growth") && (
+                      <Button 
+                        url="/app/billing"
+                        variant="secondary"
+                        fullWidth
+                      >
+                        启用Full-funnel修复（30分钟，Growth）
+                      </Button>
+                    )}
+                  </BlockStack>
                 </BlockStack>
               </Card>
             </Layout.Section>
@@ -2447,11 +2496,34 @@ export default function ScanPage() {
 
         {latestScan && riskItems.length > 0 && !isScanning && (<Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                风险详情
-              </Text>
-              <BlockStack gap="300">
-                {riskItems.map((item, index) => (<Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  风险详情
+                </Text>
+                <Badge tone="info">{riskItems.length} 项</Badge>
+              </InlineStack>
+              
+              {/* P1-6: 免费层限制 - 只显示前 3 条高风险项 */}
+              {(() => {
+                const isFreePlan = planId === "free";
+                const FREE_AUDIT_LIMIT = 3;
+                const highRiskItems = riskItems.filter(item => item.severity === "high");
+                const displayedItems = isFreePlan 
+                  ? highRiskItems.slice(0, FREE_AUDIT_LIMIT)
+                  : riskItems;
+                const hiddenCount = isFreePlan 
+                  ? Math.max(0, riskItems.length - FREE_AUDIT_LIMIT)
+                  : 0;
+                const estimatedTimeMinutes = riskItems.reduce((sum, item) => {
+                  // 根据风险级别估算修复时间
+                  const timeMap = { high: 30, medium: 15, low: 5 };
+                  return sum + (timeMap[item.severity] || 10);
+                }, 0);
+                
+                return (
+                  <>
+                    <BlockStack gap="300">
+                      {displayedItems.map((item, index) => (<Box key={index} background="bg-surface-secondary" padding="400" borderRadius="200">
                     <BlockStack gap="300">
                       <InlineStack align="space-between">
                         <InlineStack gap="200">
@@ -2485,7 +2557,62 @@ export default function ScanPage() {
                       </InlineStack>
                     </BlockStack>
                   </Box>))}
-              </BlockStack>
+                    </BlockStack>
+                    
+                    {/* P1-6: 免费层解锁提示 */}
+                    {isFreePlan && hiddenCount > 0 && (
+                      <Banner tone="warning">
+                        <BlockStack gap="200">
+                          <Text as="p" variant="bodySm">
+                            <strong>免费版限制：</strong>仅显示前 {FREE_AUDIT_LIMIT} 条高风险项，还有 {hiddenCount} 项未显示。
+                          </Text>
+                          <InlineStack gap="200">
+                            <Button 
+                              url="/app/billing" 
+                              variant="primary"
+                              size="slim"
+                            >
+                              升级解锁完整报告
+                            </Button>
+                            <Button 
+                              url="/app/migrate" 
+                              size="slim"
+                            >
+                              启用 Purchase-only 修复（10 分钟）
+                            </Button>
+                          </InlineStack>
+                        </BlockStack>
+                      </Banner>
+                    )}
+                    
+                    {/* P1-6: 风险分数摘要和预计修复时间 */}
+                    <Box background="bg-surface-secondary" padding="400" borderRadius="200">
+                      <BlockStack gap="300">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text as="span" fontWeight="semibold">
+                            预计修复时间
+                          </Text>
+                          <Badge tone={estimatedTimeMinutes > 60 ? "warning" : "info"}>
+                            {estimatedTimeMinutes > 60 
+                              ? `${Math.floor(estimatedTimeMinutes / 60)} 小时 ${estimatedTimeMinutes % 60} 分钟`
+                              : `${estimatedTimeMinutes} 分钟`}
+                          </Badge>
+                        </InlineStack>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          基于当前风险项数量和严重程度估算
+                        </Text>
+                        {isFreePlan && (
+                          <Banner tone="info">
+                            <Text as="p" variant="bodySm">
+                              <strong>升级到 Migration 版</strong>可启用 Full-funnel 修复（30 分钟，Growth 套餐），获得完整迁移清单和验收报告。
+                            </Text>
+                          </Banner>
+                        )}
+                      </BlockStack>
+                    </Box>
+                  </>
+                );
+              })()}
             </BlockStack>
           </Card>)}
 
@@ -2598,6 +2725,8 @@ export default function ScanPage() {
         {latestScan && auditAssets && auditAssets.length > 0 && !isScanning && (
           <AuditAssetsByRisk
             assets={auditAssets}
+            currentPlan={planId}
+            freeTierLimit={3}
             onAssetClick={(assetId) => {
               window.location.href = `/app/migrate?asset=${assetId}`;
             }}
@@ -3116,7 +3245,7 @@ export default function ScanPage() {
                       </Banner>
                     </BlockStack>
 
-                    <Banner tone="critical" title="Plus：2025-08-28 / 非 Plus：2026-08-26 将失效">
+                    <Banner tone="critical" title={`Plus：${getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} / 非 Plus：${getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 将失效`}>
                       <BlockStack gap="100">
                         <Text as="p" variant="bodySm">
                           这是 Thank you / Order status 页面迁移的硬性截止时间。提前粘贴 Additional Scripts 代码并完成迁移，可避免追踪中断。
@@ -3561,7 +3690,7 @@ export default function ScanPage() {
                 <List type="bullet">
                   <List.Item>联系 Shopify 支持，提供 ScriptTag ID: {guidanceContent?.scriptTagId}</List.Item>
                   <List.Item>使用 Shopify GraphQL API 手动删除（需开发者权限）</List.Item>
-                  <List.Item>等待 ScriptTag 自动过期（Plus 商家将于 2025-08-28 停止执行，非 Plus 商家将于 2026-08-26 停止执行）</List.Item>
+                  <List.Item>等待 ScriptTag 自动过期（Plus 商家将于 {getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 停止执行，非 Plus 商家将于 {getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 停止执行）</List.Item>
                 </List>
               </BlockStack>
 

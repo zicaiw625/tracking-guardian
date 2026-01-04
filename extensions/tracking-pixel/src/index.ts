@@ -14,7 +14,9 @@ register(({ analytics, settings, init, customerPrivacy }: {
   customerPrivacy?: { subscribe?: (event: string, handler: (e: unknown) => void) => void };
 }) => {
 
-  const ingestionKey = settings.ingestion_key;
+  // P0-4: ingestionSecret 仅用于生成 HMAC 签名，不会出现在请求体中
+  // 服务端通过 shopDomain 查找 shop.ingestionSecret 进行验证
+  const ingestionSecret = settings.ingestion_key; // 保持向后兼容，settings 中仍使用 ingestion_key 字段名
   const shopDomain = settings.shop_domain || init.data?.shop?.myshopifyDomain || "";
 
   const backendUrl = BACKEND_URL && isAllowedBackendUrl(BACKEND_URL) ? BACKEND_URL : null;
@@ -35,7 +37,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
   if (isDevMode) {
     log("Development mode enabled", {
       shopDomain,
-      hasIngestionKey: !!ingestionKey,
+      hasIngestionSecret: !!ingestionSecret,
       backendUrl,
     });
   }
@@ -50,7 +52,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
   const sendToBackend = createEventSender({
     backendUrl,
     shopDomain,
-    ingestionKey,
+    ingestionSecret,
     isDevMode,
     consentManager,
     logger: log,

@@ -148,6 +148,21 @@ export async function upsertPixelConfig(
   input: PixelConfigInput,
   options?: { saveSnapshot?: boolean }
 ): Promise<PixelConfigFull> {
+  // P1-5: 服务端 entitlement 硬门禁
+  const { requireEntitlementOrThrow } = await import("../billing/entitlement.server");
+  
+  // 检查像素目的地权限（如果是新配置或启用服务端）
+  if (input.serverSideEnabled) {
+    await requireEntitlementOrThrow(shopId, "pixel_destinations");
+  }
+
+  // 检查 Full Funnel 模式权限
+  if (input.clientConfig && typeof input.clientConfig === 'object' && 'mode' in input.clientConfig) {
+    const mode = (input.clientConfig as { mode?: string }).mode;
+    if (mode === 'full_funnel') {
+      await requireEntitlementOrThrow(shopId, "full_funnel");
+    }
+  }
   const { platform, ...data } = input;
   const { saveSnapshot = true } = options || {};
 

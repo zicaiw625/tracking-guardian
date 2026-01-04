@@ -43,11 +43,14 @@ import {
 } from "../../services/pixel-rollback.server";
 
 export async function handleSaveAlert(
-
   formData: FormData,
   shopId: string,
   sessionShop: string
 ) {
+  // P1-5: 服务端 entitlement 硬门禁 - 检查告警权限
+  const { requireEntitlementOrThrow } = await import("../../services/billing/entitlement.server");
+  await requireEntitlementOrThrow(shopId, "alerts");
+  
   const channel = formData.get("channel") as string;
   const threshold = parseFloat(formData.get("threshold") as string) / 100;
   const enabled = formData.get("enabled") === "true";
@@ -212,8 +215,16 @@ export async function handleSaveServerSide(
   shopId: string,
   sessionShop: string
 ) {
+  // P1-5: 服务端 entitlement 硬门禁 - 检查像素目的地权限
+  const { requireEntitlementOrThrow } = await import("../../services/billing/entitlement.server");
+  
   const platform = formData.get("platform") as string;
   const enabled = formData.get("enabled") === "true";
+
+  // 如果启用服务端追踪，检查权限
+  if (enabled) {
+    await requireEntitlementOrThrow(shopId, "pixel_destinations");
+  }
 
   let credentials: GoogleCredentials | MetaCredentials | TikTokCredentials | PinterestCredentials;
   let platformId = "";

@@ -14,7 +14,9 @@ export interface EventSenderConfig {
 
   backendUrl: string | null;
   shopDomain: string;
-  ingestionKey?: string;
+  // P0-4: ingestionSecret 仅用于生成 HMAC 签名，不会出现在请求体中
+  // 服务端通过 shopDomain 查找 shop.ingestionSecret 进行验证
+  ingestionSecret?: string;
   isDevMode: boolean;
   consentManager: ConsentManager;
   logger?: (...args: unknown[]) => void;
@@ -113,7 +115,7 @@ async function sendCheckoutCompletedWithRetry(
 }
 
 export function createEventSender(config: EventSenderConfig) {
-  const { backendUrl, shopDomain, ingestionKey, isDevMode, consentManager, logger } = config;
+  const { backendUrl, shopDomain, ingestionSecret, isDevMode, consentManager, logger } = config;
   const log = logger || (() => {});
 
   if (!backendUrl) {
@@ -151,13 +153,13 @@ export function createEventSender(config: EventSenderConfig) {
 
       const nonce = `${timestamp}-${Math.random().toString(36).substring(2, 10)}`;
 
+      // P0-4: 请求体中不包含 ingestionSecret，仅通过签名头部进行验证
+      // 服务端通过 shopDomain 查找 shop.ingestionSecret 进行 HMAC 验证
       const payload = {
         eventName,
         timestamp,
         nonce,
         shopDomain,
-
-        ingestionKey: ingestionKey || null,
         consent: {
           marketing: consentManager.marketingAllowed,
           analytics: consentManager.analyticsAllowed,
@@ -176,9 +178,10 @@ export function createEventSender(config: EventSenderConfig) {
         "X-Tracking-Guardian-Timestamp": String(timestamp),
       };
 
-      if (!ingestionKey) {
+      // P0-4: 使用 ingestionSecret 生成 HMAC 签名（不包含在请求体中）
+      if (!ingestionSecret) {
         if (isDevMode) {
-          log(`⚠️ Missing ingestionKey - HMAC signature cannot be generated. Event will be rejected in production.`);
+          log(`⚠️ Missing ingestionSecret - HMAC signature cannot be generated. Event will be rejected in production.`);
         }
 
       } else {
@@ -192,7 +195,7 @@ export function createEventSender(config: EventSenderConfig) {
             .map(b => b.toString(16).padStart(2, "0"))
             .join("");
 
-          const signature = await generateHMACSignature(ingestionKey, timestamp, bodyHash);
+          const signature = await generateHMACSignature(ingestionSecret, timestamp, bodyHash);
           headers["X-Tracking-Guardian-Signature"] = signature;
 
           if (isDevMode) {

@@ -8,6 +8,7 @@ import {
   Tooltip,
 } from "@shopify/polaris";
 import { CheckCircleIcon, ClockIcon, AlertCircleIcon } from "../icons";
+import { DEPRECATION_DATES } from "../../utils/migration-deadlines";
 
 export type TimelineTier = "plus" | "non_plus" | "unknown";
 
@@ -30,7 +31,7 @@ export interface DeadlineTimelineProps {
 const TIMELINE_EVENTS: TimelineEvent[] = [
   {
     id: "scripttag-creation-blocked",
-    date: new Date("2025-02-01"),
+    date: DEPRECATION_DATES.scriptTagCreationBlocked,
     title: "ScriptTag 创建受限",
     description: "无法在 Thank you / Order status 页面创建新的 ScriptTag",
     affectedTiers: ["plus", "non_plus", "unknown"],
@@ -38,7 +39,7 @@ const TIMELINE_EVENTS: TimelineEvent[] = [
   },
   {
     id: "plus-scripts-readonly",
-    date: new Date("2025-08-28"),
+    date: DEPRECATION_DATES.plusScriptTagExecutionOff,
     title: "Plus 商家截止日期",
     description: "ScriptTag 和 Additional Scripts 停止执行，进入只读模式",
     affectedTiers: ["plus"],
@@ -47,7 +48,7 @@ const TIMELINE_EVENTS: TimelineEvent[] = [
   },
   {
     id: "plus-auto-upgrade-start",
-    date: new Date("2026-01-01"),
+    date: DEPRECATION_DATES.plusAutoUpgradeStart,
     title: "Plus 自动升级开始",
     description: "Shopify 开始自动升级 Plus 商家到新版 TYP/OSP 页面",
     affectedTiers: ["plus"],
@@ -55,7 +56,7 @@ const TIMELINE_EVENTS: TimelineEvent[] = [
   },
   {
     id: "non-plus-deadline",
-    date: new Date("2026-08-26"),
+    date: DEPRECATION_DATES.nonPlusScriptTagExecutionOff,
     title: "非 Plus 商家截止日期",
     description: "所有商家的 ScriptTag 和 Additional Scripts 完全停止执行",
     affectedTiers: ["non_plus", "unknown"],

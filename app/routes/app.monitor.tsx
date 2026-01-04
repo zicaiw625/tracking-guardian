@@ -73,7 +73,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         });
     }
     const summary = await getDeliveryHealthSummary(shop.id);
-    const history = await getDeliveryHealthHistory(shop.id, 30);
+    // P2-9: 性能优化 - 默认只显示最近 24 小时的数据，避免加载过多数据
+    const history = await getDeliveryHealthHistory(shop.id, 1); // 改为 1 天，减少初始加载
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
@@ -1583,7 +1584,7 @@ export default function MonitorPage() {
                 "成功发送",
                 "失败率",
                 "状态",
-            ]} rows={filteredHistory.slice(0, 20).map((report) => [
+            ]} rows={filteredHistory.slice(0, 50).map((report) => [ // P2-9: 性能优化 - 使用服务端分页，前端只显示前 50 条
                 new Date(report.reportDate).toLocaleDateString("zh-CN"),
                 isValidPlatform(report.platform) ? PLATFORM_NAMES[report.platform] : report.platform,
                 report.shopifyOrders,

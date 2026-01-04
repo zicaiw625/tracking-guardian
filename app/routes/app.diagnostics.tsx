@@ -6,6 +6,7 @@ import { useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getExistingWebPixels, isOurWebPixel, needsSettingsUpgrade } from "../services/migration.server";
+import { DEPRECATION_DATES, formatDeadlineDate } from "../utils/migration-deadlines";
 interface DiagnosticCheck {
     name: string;
     status: "pass" | "fail" | "warning" | "pending";
@@ -963,7 +964,7 @@ export default function DiagnosticsPage() {
                       Q: ScriptTag 迁移截止日期是什么？
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      A: Shopify Plus 商家：2025-08-28 停止执行；非 Plus 商家：2026-08-26 停止执行。
+                      A: Shopify Plus 商家：{formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")} 停止执行；非 Plus 商家：{formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")} 停止执行。
                       建议尽早迁移到 Web Pixel + 服务端 CAPI 方案。
                     </Text>
                   </BlockStack>

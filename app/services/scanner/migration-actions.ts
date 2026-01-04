@@ -92,8 +92,9 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
         let priority: "high" | "medium" | "low" = "high";
         let deadline: string | undefined;
 
-        const PLUS_SCRIPT_TAG_OFF_LABEL = "2025-08-28";
-        const NON_PLUS_SCRIPT_TAG_OFF_LABEL = "2026-08-26";
+        // P0-1: 使用统一的日期常量，引用 Shopify 官方口径
+        const PLUS_SCRIPT_TAG_OFF_LABEL = getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
+        const NON_PLUS_SCRIPT_TAG_OFF_LABEL = getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
 
         const isPlus = shopTier === "plus";
         const primaryStatus = isPlus ? plusExecutionStatus : nonPlusExecutionStatus;

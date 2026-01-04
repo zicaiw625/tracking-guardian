@@ -358,17 +358,38 @@ export default function VerificationPage() {
     navigator.clipboard.writeText(fullText);
   }, [testGuide]);
 
+  // P1-7: 导出前检查权限，未付费则触发一次性收费
   const handleExportPdf = useCallback(() => {
     if (!latestRun) return;
 
-    window.location.href = `/api/reports/pdf?type=verification&runId=${latestRun.runId}&format=pdf`;
-  }, [latestRun]);
+    // 如果已有权限，直接导出
+    if (canExportReports) {
+      window.location.href = `/api/reports/pdf?type=verification&runId=${latestRun.runId}&format=pdf`;
+      return;
+    }
+
+    // 未付费：触发一次性收费（Go-Live $199）
+    const formData = new FormData();
+    formData.append("_action", "purchaseOneTime");
+    formData.append("planId", "growth"); // Go-Live 套餐
+    submit(formData, { method: "post", action: "/app/billing" });
+  }, [latestRun, canExportReports, submit]);
 
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
 
-    window.location.href = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
-  }, [latestRun]);
+    // 如果已有权限，直接导出
+    if (canExportReports) {
+      window.location.href = `/api/reports?type=verification&runId=${latestRun.runId}&format=csv`;
+      return;
+    }
+
+    // 未付费：触发一次性收费（Go-Live $199）
+    const formData = new FormData();
+    formData.append("_action", "purchaseOneTime");
+    formData.append("planId", "growth"); // Go-Live 套餐
+    submit(formData, { method: "post", action: "/app/billing" });
+  }, [latestRun, canExportReports, submit]);
 
   const tabs = [
     { id: "overview", content: "验收概览" },
@@ -460,9 +481,17 @@ export default function VerificationPage() {
 
         {latestRun && !canExportReports && (
           <Banner
-            title="📄 验收报告导出（PDF/CSV）是核心付费点（给老板/客户看的证据）"
+            title="📄 生成验收报告（PDF/CSV）- 核心付费点"
             tone="warning"
-            action={{ content: "升级到 Go-Live（$199 一次性/店）", url: "/app/billing" }}
+            action={{ 
+              content: "立即生成报告（$199 一次性）", 
+              onAction: () => {
+                const formData = new FormData();
+                formData.append("_action", "purchaseOneTime");
+                formData.append("planId", "growth");
+                submit(formData, { method: "post", action: "/app/billing" });
+              }
+            }}
           >
             <BlockStack gap="200">
               <Text as="p" variant="bodySm">

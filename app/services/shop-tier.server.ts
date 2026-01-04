@@ -2,6 +2,7 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import type { ShopTier } from "../utils/deprecation-dates";
+import { DEPRECATION_DATES, getDateDisplayLabel } from "../utils/deprecation-dates";
 export interface ShopPlanInfo {
     displayName: string;
     shopifyPlus: boolean;
@@ -137,6 +138,7 @@ export function getTierDisplayInfo(tier: ShopTier): {
     deadlineDate: string;
     isKnown: boolean;
 } {
+    // P0-1: 使用统一的日期常量
     switch (tier) {
         case "plus":
             // Plus商家从2026-01开始自动升级，legacy定制会丢失
@@ -144,14 +146,14 @@ export function getTierDisplayInfo(tier: ShopTier): {
             return {
                 label: "Shopify Plus",
                 description: "您的店铺使用 Shopify Plus 计划",
-                deadlineDate: "2026-01-01",
+                deadlineDate: getDateDisplayLabel(DEPRECATION_DATES.plusAutoUpgradeStart, "exact"),
                 isKnown: true,
             };
         case "non_plus":
             return {
                 label: "Standard Shopify",
                 description: "您的店铺使用标准 Shopify 计划",
-                deadlineDate: "2026-08-26",
+                deadlineDate: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
                 isKnown: true,
             };
         case "unknown":
@@ -159,7 +161,7 @@ export function getTierDisplayInfo(tier: ShopTier): {
             return {
                 label: "未知",
                 description: "无法确认店铺版本，按非 Plus 最晚日期提示（保守）",
-                deadlineDate: "2026-08-26",
+                deadlineDate: getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact"),
                 isKnown: false,
             };
     }

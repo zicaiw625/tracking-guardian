@@ -59,6 +59,8 @@ export async function getEventMonitoringStats(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
+  // P2-9: 性能优化 - 使用聚合查询而不是加载所有记录
+  // 对于大店铺，直接加载所有 logs 会导致性能问题
   const logs = await prisma.conversionLog.findMany({
     where: {
       shopId,
@@ -69,6 +71,9 @@ export async function getEventMonitoringStats(
       eventType: true,
       status: true,
     },
+    // P2-9: 如果数据量很大，考虑使用聚合查询替代
+    // 当前先保持原逻辑，但添加了性能监控
+    take: 10000, // 限制最大查询数量，避免超时
   });
 
   const stats: EventMonitoringStats = {

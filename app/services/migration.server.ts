@@ -8,6 +8,7 @@ import { canCreatePixelConfig } from "./billing/feature-gates.server";
 import { normalizePlan } from "../utils/plans";
 import { validateCredentials } from "../types/platform";
 import { saveConfigSnapshot } from "./pixel-rollback.server";
+import { DEPRECATION_DATES, getDateDisplayLabel } from "../utils/deprecation-dates";
 
 export type Platform = "google" | "meta" | "tiktok";
 
@@ -90,18 +91,18 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         },
     });
 
+    // P1-5: 服务端 entitlement 硬门禁 - 检查像素目的地权限
     if (!existingConfig && serverSideEnabled) {
-        const shop = await prisma.shop.findUnique({
-            where: { id: shopId },
-            select: { plan: true },
-        });
+        const { requireEntitlementOrThrow } = await import("./billing/entitlement.server");
+        await requireEntitlementOrThrow(shopId, "pixel_destinations");
+    }
 
-        if (shop) {
-            const planId = normalizePlan(shop.plan);
-            const limitCheck = await canCreatePixelConfig(shopId, planId);
-            if (!limitCheck.allowed) {
-                throw new Error(limitCheck.reason || "已达到像素目的地数量限制");
-            }
+    // P1-5: 检查 Full Funnel 模式权限（如果启用）
+    if (clientConfig && typeof clientConfig === 'object' && 'mode' in clientConfig) {
+        const mode = (clientConfig as { mode?: string }).mode;
+        if (mode === 'full_funnel') {
+            const { requireEntitlementOrThrow } = await import("./billing/entitlement.server");
+            await requireEntitlementOrThrow(shopId, "full_funnel");
         }
     }
 
@@ -562,7 +563,7 @@ export function getScriptTagMigrationGuidance(platform: string, scriptTagId: num
             ...(guidance.extraSteps || []),
             ...baseSteps,
         ],
-        deadline: platform === "unknown" ? undefined : "Plus 商家: 2025-08-28; 非 Plus: 2026-08-26",
+        deadline: platform === "unknown" ? undefined : `Plus 商家: ${getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact")}; 非 Plus: ${getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact")}`,
         warning: guidance.warning,
     };
 }

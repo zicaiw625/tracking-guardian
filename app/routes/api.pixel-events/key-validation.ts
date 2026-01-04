@@ -39,6 +39,15 @@ export async function getShopForPixelVerificationWithConfigs(
   return shop;
 }
 
+/**
+ * P0-4: ingestionKey 验证已废弃
+ * 
+ * 此文件保留用于向后兼容和 secret 轮换场景，但不再作为主要验证方式。
+ * 主要信任依据已改为 HMAC 签名验证（在 route.tsx 中完成）。
+ * 
+ * 注意：新代码不应调用 validateIngestionKey，应直接使用 HMAC 验证结果。
+ */
+
 export interface KeyValidationContext {
   shop: ShopVerificationData;
   ingestionKey: string | null;
@@ -51,6 +60,10 @@ export type KeyValidationOutcome =
   | { type: "missing_key_request"; shopDomain: string }
   | { type: "key_mismatch"; shopDomain: string };
 
+/**
+ * @deprecated P0-4: 此函数已废弃，仅用于向后兼容和 secret 轮换场景
+ * 新代码应直接使用 HMAC 验证结果，不再依赖 ingestionKey 验证
+ */
 export function validateIngestionKey(ctx: KeyValidationContext): KeyValidationOutcome {
   const { shop, ingestionKey } = ctx;
 

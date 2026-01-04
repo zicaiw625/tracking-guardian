@@ -31,7 +31,6 @@ import {
 } from "./consent-filter";
 import {
   getShopForPixelVerificationWithConfigs,
-  validateIngestionKey,
 } from "./key-validation";
 import {
   isClientEventRecorded,
@@ -188,15 +187,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const rawBody = parseResult.data;
     const bodyText = parseResult.bodyText;
 
-    const validation = validateRequest(rawBody);
-    if (!validation.valid) {
+    // P0-4: 先解析基本字段以获取 shopDomain，用于查找 shop 进行 HMAC 验证
+    // 只验证必要字段（eventName, shopDomain, timestamp），不验证完整 payload
+    const basicValidation = validateRequest(rawBody);
+    if (!basicValidation.valid) {
       logger.debug(
-        `Pixel payload validation failed: code=${validation.code}, error=${validation.error}`
+        `Pixel payload validation failed: code=${basicValidation.code}, error=${basicValidation.error}`
       );
       return jsonWithCors({ error: "Invalid request" }, { status: 400, request });
     }
 
-    const { payload } = validation;
+    const { payload } = basicValidation;
 
     if (!timestampHeader) {
       const now = Date.now();
@@ -229,12 +230,96 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
+    // P0-4: 通过 shopDomain 获取 shop，用于 HMAC 验证（前置）
     const shop = await getShopForPixelVerificationWithConfigs(payload.shopDomain);
     if (!shop || !shop.isActive) {
       return jsonWithCors(
         { error: "Shop not found or inactive" },
         { status: 404, request }
       );
+    }
+
+    const shopAllowedDomains = buildShopAllowedDomains({
+      shopDomain: shop.shopDomain,
+      primaryDomain: shop.primaryDomain,
+      storefrontDomains: shop.storefrontDomains,
+    });
+
+    // P0-4: HMAC 验证前置 - 使用 shop.ingestionSecret 进行验签
+    // 不再依赖 body 中的 ingestionKey，改为通过 shopDomain 查找 shop 并使用 ingestionSecret
+    const signature = request.headers.get("X-Tracking-Guardian-Signature");
+    const isProduction = !isDevMode();
+
+    if (isProduction) {
+      if (!shop.ingestionSecret) {
+        logger.error(`Missing ingestionSecret for ${shop.shopDomain} in production - HMAC verification required`);
+        return jsonWithCors(
+          { error: "Server configuration error", errorCode: "missing_secret" },
+          { status: 500, request, shopAllowedDomains }
+        );
+      }
+
+      if (!signature) {
+        const anomalyCheck = trackAnomaly(shop.shopDomain, "missing_signature");
+        if (anomalyCheck.shouldBlock) {
+          logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+        }
+        metrics.pixelRejection({
+          shopDomain: shop.shopDomain,
+          reason: "missing_signature",
+          originType: "production_required",
+        });
+        logger.warn(`Missing HMAC signature for ${shop.shopDomain} in production`);
+        return jsonWithCors(
+          { error: "Missing signature", errorCode: "missing_signature" },
+          { status: 403, request, shopAllowedDomains }
+        );
+      }
+
+      const hmacResult = await validatePixelEventHMAC(
+        request,
+        bodyText,
+        shop.ingestionSecret,
+        payload.timestamp,
+        TIMESTAMP_WINDOW_MS
+      );
+
+      if (!hmacResult.valid) {
+        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_signature");
+        if (anomalyCheck.shouldBlock) {
+          logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
+        }
+        metrics.pixelRejection({
+          shopDomain: shop.shopDomain,
+          reason: "hmac_verification_failed",
+          originType: hmacResult.errorCode || "unknown",
+        });
+        logger.warn(
+          `HMAC verification failed for ${shop.shopDomain}: ${hmacResult.reason}`
+        );
+        return jsonWithCors(
+          { error: "Invalid signature", errorCode: hmacResult.errorCode },
+          { status: 403, request, shopAllowedDomains }
+        );
+      }
+
+      logger.debug(`HMAC signature verified for ${shop.shopDomain}`);
+    } else if (shop.ingestionSecret && signature) {
+      // Dev mode 下的 HMAC 验证（可选，用于开发调试）
+      const hmacResult = await validatePixelEventHMAC(
+        request,
+        bodyText,
+        shop.ingestionSecret,
+        payload.timestamp,
+        TIMESTAMP_WINDOW_MS
+      );
+
+      if (!hmacResult.valid) {
+        logger.warn(`HMAC verification failed in dev mode for ${shop.shopDomain}: ${hmacResult.reason}`);
+        logger.warn(`⚠️ This request would be rejected in production. Please ensure HMAC signature is valid.`);
+      } else {
+        logger.debug(`HMAC signature verified in dev mode for ${shop.shopDomain}`);
+      }
     }
 
     // P0-02: 确定事件模式 - 优先从 pixelConfigs 读取，默认使用 purchase_only（隐私最小化）
@@ -291,12 +376,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request);
     }
 
-    const shopAllowedDomains = buildShopAllowedDomains({
-      shopDomain: shop.shopDomain,
-      primaryDomain: shop.primaryDomain,
-      storefrontDomains: shop.storefrontDomains,
-    });
-
+    // P0-4: Origin 验证（在 HMAC 验证之后）
     const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains);
     if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
       const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
@@ -315,106 +395,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request, shopAllowedDomains);
     }
 
-    const ingestionKeyFromBody = payload.ingestionKey;
-    const ingestionKeyFromHeader = request.headers.get("X-Tracking-Guardian-Key");
-    const ingestionKey = ingestionKeyFromBody || ingestionKeyFromHeader || null;
-
-    const keyValidationOutcome = validateIngestionKey({
-      shop,
-      ingestionKey,
-      shopAllowedDomains,
-    });
-
-    if (keyValidationOutcome.type === "missing_key_prod") {
-      return jsonWithCors({ error: "Forbidden" }, { status: 403, request, shopAllowedDomains });
-    }
-    if (
-      keyValidationOutcome.type === "missing_key_request" ||
-      keyValidationOutcome.type === "key_mismatch"
-    ) {
-      return emptyResponseWithCors(request, shopAllowedDomains);
-    }
-
-    const keyValidation = keyValidationOutcome.result;
-
-    const signature = request.headers.get("X-Tracking-Guardian-Signature");
-    const isProduction = !isDevMode();
-
-    if (isProduction) {
-
-      if (!shop.ingestionSecret) {
-        logger.error(`Missing ingestionSecret for ${shop.shopDomain} in production - HMAC verification required`);
-        return jsonWithCors(
-          { error: "Server configuration error", errorCode: "missing_secret" },
-          { status: 500, request, shopAllowedDomains }
-        );
-      }
-
-      if (!signature) {
-        const anomalyCheck = trackAnomaly(shop.shopDomain, "missing_signature");
-        if (anomalyCheck.shouldBlock) {
-          logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
-        }
-        metrics.pixelRejection({
-          shopDomain: shop.shopDomain,
-          reason: "missing_signature",
-          originType: "production_required",
-        });
-        logger.warn(`Missing HMAC signature for ${shop.shopDomain} in production`);
-        return jsonWithCors(
-          { error: "Missing signature", errorCode: "missing_signature" },
-          { status: 403, request, shopAllowedDomains }
-        );
-      }
-
-      const hmacResult = await validatePixelEventHMAC(
-        request,
-        bodyText,
-        shop.ingestionSecret,
-        payload.timestamp,
-        TIMESTAMP_WINDOW_MS
-      );
-
-      if (!hmacResult.valid) {
-        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_signature");
-        if (anomalyCheck.shouldBlock) {
-          logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
-        }
-        metrics.pixelRejection({
-          shopDomain: shop.shopDomain,
-          reason: "hmac_verification_failed",
-          originType: hmacResult.errorCode || "unknown",
-        });
-        logger.warn(
-          `HMAC verification failed for ${shop.shopDomain}: ${hmacResult.reason}`
-        );
-        return jsonWithCors(
-          { error: "Invalid signature", errorCode: hmacResult.errorCode },
-          { status: 403, request, shopAllowedDomains }
-        );
-      }
-
-      logger.debug(`HMAC signature verified for ${shop.shopDomain}`);
-    } else if (shop.ingestionSecret && signature) {
-      // P0-6: Dev mode 下的 HMAC 验证（可选，用于开发调试）
-      // 生产环境会在上面的分支中强制验证并拒绝无效请求
-      const hmacResult = await validatePixelEventHMAC(
-        request,
-        bodyText,
-        shop.ingestionSecret,
-        payload.timestamp,
-        TIMESTAMP_WINDOW_MS
-      );
-
-      if (!hmacResult.valid) {
-        // Dev mode 下记录警告，但不强制拒绝（方便开发调试）
-        // 生产环境会在上面的分支中强制拒绝
-        logger.warn(`HMAC verification failed in dev mode for ${shop.shopDomain}: ${hmacResult.reason}`);
-        logger.warn(`⚠️ This request would be rejected in production. Please ensure HMAC signature is valid.`);
-      } else {
-        logger.debug(`HMAC signature verified in dev mode for ${shop.shopDomain}`);
-      }
-    }
+    // P0-4: ingestionKey 验证已移除，完全依赖 HMAC 签名验证
+    // 主要信任依据：HMAC 签名验证（已在上方完成）
+    // ingestionKey 不再出现在请求体中，也不再作为验证依据
+    const keyValidation: KeyValidationResult = {
+      matched: true, // HMAC 验证已通过，视为匹配
+      reason: "hmac_verified",
+    };
 
     const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
 

@@ -1,20 +1,26 @@
 /**
- * Shopify Thank you / Order status 页面迁移截止日期配置
+ * P0-1: Shopify Thank you / Order status 页面迁移截止日期配置
  * 
- * P1-1: 日期对齐 Shopify 官方口径
+ * 统一迁移截止日期 - 使用 Shopify 官方口径（上架 App Store 要求）
  * 
- * 数据来源：Shopify 官方公告（最后验证：2025-01）
- * - https://shopify.dev/docs/apps/online-store/checkout-extensibility
- * - https://help.shopify.com/en/manual/checkout-settings/checkout-extensibility
- * - https://help.shopify.com/en/manual/checkout-settings/customize-checkout-configurations/upgrade-thank-you-order-status
+ * 数据来源：Shopify 官方 Help Center（最后验证：2025-01）
+ * - Plus 商家：https://help.shopify.com/en/manual/checkout-settings/upgrade-guide
+ *   - 关键节点：2025-08-28（升级/限制开始）
+ *   - 自动升级：2026-01 起开始自动升级（Plus 的自动升级节奏会更早）
+ * - Non-Plus 商家：https://help.shopify.com/en/manual/checkout-settings/upgrade-guide
+ *   - 截止日期：2026-08-26
  * 
- * 关键时间点（与 Shopify 官方一致）：
- * - 2025-02-01: ScriptTag 创建被禁止
- * - 2025-08-28: Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读
+ * 关键时间点（与 Shopify 官方 Help Center 一致）：
+ * - 2025-02-01: ScriptTag 创建被禁止（所有商家）
+ * - 2025-08-28: Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读（关键节点：升级/限制开始）
  * - 2026-01-01: Shopify 开始自动升级 Plus 商家 TYP/OSP 页面（legacy 自定义会丢失）
- * - 2026-08-26: 非 Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读
+ * - 2026-08-26: 非 Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读（截止日期）
  * 
- * 注意：如果 Shopify 官方更新日期，请通过环境变量覆盖或更新此文件
+ * 注意：
+ * - 所有日期均引用 Shopify 官方 Help Center 和 shopify.dev 文档
+ * - 如果 Shopify 官方更新日期，请通过环境变量覆盖或更新此文件
+ * - 所有 UI 文案应明确引用 Shopify 官方来源，避免误导
+ * - Audit 报告和首页 banner 里应增加"你是 Plus 还是 Non-Plus"的判断与对应日期展示
  */
 
 function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
