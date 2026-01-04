@@ -55,7 +55,7 @@ export async function getActivationStatus(shopId: string): Promise<ActivationSta
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     select: {
-      scanReports: {
+      ScanReports: {
         orderBy: { createdAt: "desc" },
         take: 1,
         select: { status: true },
@@ -84,7 +84,7 @@ export async function getActivationStatus(shopId: string): Promise<ActivationSta
   });
 
   const hasCompletedAudit =
-    shop?.scanReports?.[0]?.status === "completed";
+    shop?.ScanReports?.[0]?.status === "completed";
 
   const hasTestDestination = (shop?.pixelConfigs?.length || 0) > 0;
 

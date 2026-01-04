@@ -7,7 +7,7 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     select: {
-      scanReports: {
+      ScanReports: {
         orderBy: { createdAt: "desc" },
         take: 1,
         select: { status: true },
@@ -39,10 +39,10 @@ export async function calculateMigrationProgress(shopId: string): Promise<Migrat
     { stage: "monitoring", label: "监控", completed: false, inProgress: false },
   ];
 
-  const hasCompletedAudit = shop?.scanReports?.[0]?.status === "completed";
+  const hasCompletedAudit = shop?.ScanReports?.[0]?.status === "completed";
   if (hasCompletedAudit) {
     stages[0].completed = true;
-  } else if (shop?.scanReports?.[0]?.status === "scanning" || shop?.scanReports?.[0]?.status === "pending") {
+  } else if (shop?.ScanReports?.[0]?.status === "scanning" || shop?.ScanReports?.[0]?.status === "pending") {
     stages[0].inProgress = true;
   }
 

@@ -124,7 +124,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       shopTier: true,
       typOspPagesEnabled: true,
       installedAt: true,
-      scanReports: {
+      ScanReports: {
         orderBy: { createdAt: "desc" },
         take: 1,
         select: {
@@ -220,7 +220,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   const planId = normalizePlan(shop.plan);
   const planDef = getPlanDefinition(planId);
 
-  const latestScan = shop.scanReports?.[0];
+  const latestScan = shop.ScanReports?.[0];
   const scriptTagAnalysis = latestScan ? analyzeScriptTags(latestScan.scriptTags) : { count: 0, hasOrderStatusScripts: false };
 
   let estimatedMigrationTimeMinutes = 30;

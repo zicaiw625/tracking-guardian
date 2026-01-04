@@ -162,7 +162,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shopTier: true,
       typOspPagesEnabled: true,
       typOspStatusReason: true,
-      scanReports: {
+      ScanReports: {
         take: 1,
         orderBy: { createdAt: "desc" },
       },
@@ -186,7 +186,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return redirect("/app");
   }
 
-  const latestScan = shop.scanReports?.[0];
+  const latestScan = shop.ScanReports?.[0];
   if (!latestScan && admin && !autoScan) {
 
     scanShopTracking(admin, shop.id).catch((err) => {
