@@ -209,7 +209,7 @@ export function BatchAuditPanel({
               <Text as="span" variant="bodySm" tone="subdued">
                 扫描进度
               </Text>
-              <Badge tone="info">{progress}%</Badge>
+              <Badge tone="info">{`${progress}%`}</Badge>
             </InlineStack>
             <ProgressBar progress={progress} tone="primary" />
             <Text as="p" variant="bodySm" tone="subdued">
@@ -229,21 +229,21 @@ export function BatchAuditPanel({
               <BlockStack gap="200">
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm">总店铺数</Text>
-                  <Badge>{summary.totalShops}</Badge>
+                  <Badge>{String(summary.totalShops)}</Badge>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm">成功</Text>
-                  <Badge tone="success">{summary.completedShops}</Badge>
+                  <Badge tone="success">{String(summary.completedShops)}</Badge>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm">失败</Text>
                   <Badge tone={summary.failedShops > 0 ? "critical" : "success"}>
-                    {summary.failedShops}
+                    {String(summary.failedShops)}
                   </Badge>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm">跳过</Text>
-                  <Badge tone="info">{summary.skippedShops}</Badge>
+                  <Badge tone="info">{String(summary.skippedShops)}</Badge>
                 </InlineStack>
                 {summary.avgRiskScore !== undefined && (
                   <>
@@ -256,15 +256,15 @@ export function BatchAuditPanel({
                     </InlineStack>
                     <InlineStack align="space-between">
                       <Text as="span" variant="bodySm">高风险店铺</Text>
-                      <Badge tone="critical">{summary.highRiskCount || 0}</Badge>
+                      <Badge tone="critical">{String(summary.highRiskCount || 0)}</Badge>
                     </InlineStack>
                     <InlineStack align="space-between">
                       <Text as="span" variant="bodySm">中风险店铺</Text>
-                      <Badge tone="warning">{summary.mediumRiskCount || 0}</Badge>
+                      <Badge>{String(summary.mediumRiskCount || 0)}</Badge>
                     </InlineStack>
                     <InlineStack align="space-between">
                       <Text as="span" variant="bodySm">低风险店铺</Text>
-                      <Badge tone="success">{summary.lowRiskCount || 0}</Badge>
+                      <Badge tone="success">{String(summary.lowRiskCount || 0)}</Badge>
                     </InlineStack>
                   </>
                 )}
@@ -292,7 +292,7 @@ export function BatchAuditPanel({
                       ? "success"
                       : result.status === "failed"
                         ? "critical"
-                        : "subdued"
+                        : undefined
                   }
                 >
                   {result.status === "success"

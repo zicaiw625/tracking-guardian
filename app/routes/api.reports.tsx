@@ -134,8 +134,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           reportType: "migration",
           migrationActions: actions.map(action => ({
             title: action.title,
-            platform: action.platform,
-            priority: action.priority,
+            platform: action.platform || "",
+            priority: action.priority === "high" ? 3 : action.priority === "medium" ? 2 : 1,
             status: "pending" as const,
             description: action.description,
           })),
@@ -166,6 +166,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         break;
       }
       case "verification": {
+        if (!runId) {
+          return new Response("runId is required for verification reports", { status: 400 });
+        }
         const data = await generateVerificationReportData(shop.id, runId);
         if (!data) {
           return new Response("No verification report data available", { status: 404 });
@@ -213,7 +216,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         : reportType === "comprehensive"
           ? `comprehensive_report_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}.pdf`
           : `report_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}.pdf`;
-      return new Response(pdf, {
+      return new Response((pdf instanceof Buffer ? pdf : Buffer.from(pdf)) as BodyInit, {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",

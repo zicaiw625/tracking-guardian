@@ -252,15 +252,15 @@ export function ChannelReconciliationPanel({
               ).length;
 
               return [
-                <Text key="platform" fontWeight="semibold">
+                <Text key="platform" as="span" fontWeight="semibold">
                   {platformName}
                 </Text>,
                 comparison.stats.shopifyOrders,
                 comparison.stats.platformEvents,
                 <Badge key="matchRate" tone={matchRateTone}>
-                  {comparison.stats.matchRate.toFixed(2)}%
+                  {`${comparison.stats.matchRate.toFixed(2)}%`}
                 </Badge>,
-                <Text key="discrepancy">
+                <Text key="discrepancy" as="span">
                   {comparison.stats.discrepancy} (
                   {comparison.stats.discrepancyRate.toFixed(2)}%)
                 </Text>,
@@ -277,7 +277,7 @@ export function ChannelReconciliationPanel({
                         : "success"
                   }
                 >
-                  {issueCount} 个问题
+                  {`${issueCount} 个问题`}
                 </Badge>,
               ];
             })}
@@ -340,11 +340,11 @@ function PlatformComparisonCard({
                 comparison.stats.matchRate >= 95
                   ? "success"
                   : comparison.stats.matchRate >= 90
-                    ? "warning"
+                    ? undefined
                     : "critical"
               }
             >
-              匹配率: {comparison.stats.matchRate.toFixed(2)}%
+              {`匹配率: ${comparison.stats.matchRate.toFixed(2)}%`}
             </Badge>
             {comparison.issues.length > 0 && (
               <Badge
@@ -354,7 +354,7 @@ function PlatformComparisonCard({
                     : "warning"
                 }
               >
-                {comparison.issues.length} 个问题
+                {`${comparison.issues.length} 个问题`}
               </Badge>
             )}
           </InlineStack>
@@ -468,27 +468,27 @@ function PlatformComparisonCard({
                 <Text as="h4" variant="headingSm">
                   缺失订单 ({comparison.stats.missingOrders.length} 个)
                 </Text>
-                <Box
-                  padding="300"
-                  background="bg-surface-secondary"
-                  borderRadius="200"
-                  maxHeight="200px"
-                  style={{ overflowY: "auto" }}
-                >
-                  <List type="bullet">
-                    {comparison.stats.missingOrders.map((orderId) => (
-                      <List.Item key={orderId}>
-                        <Button
-                          variant="plain"
-                          size="micro"
-                          onClick={() => onOrderClick(orderId)}
-                        >
-                          {orderId}
-                        </Button>
-                      </List.Item>
-                    ))}
-                  </List>
-                </Box>
+                <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                  <Box
+                    padding="300"
+                    background="bg-surface-secondary"
+                    borderRadius="200"
+                  >
+                    <List type="bullet">
+                      {comparison.stats.missingOrders.map((orderId) => (
+                        <List.Item key={orderId}>
+                          <Button
+                            variant="plain"
+                            size="micro"
+                            onClick={() => onOrderClick(orderId)}
+                          >
+                            {orderId}
+                          </Button>
+                        </List.Item>
+                      ))}
+                    </List>
+                  </Box>
+                </div>
               </BlockStack>
             )}
 
@@ -498,27 +498,27 @@ function PlatformComparisonCard({
                 <Text as="h4" variant="headingSm">
                   重复订单 ({comparison.stats.duplicateOrders.length} 个)
                 </Text>
-                <Box
-                  padding="300"
-                  background="bg-surface-secondary"
-                  borderRadius="200"
-                  maxHeight="200px"
-                  style={{ overflowY: "auto" }}
-                >
-                  <List type="bullet">
-                    {comparison.stats.duplicateOrders.map((orderId) => (
-                      <List.Item key={orderId}>
-                        <Button
-                          variant="plain"
-                          size="micro"
-                          onClick={() => onOrderClick(orderId)}
-                        >
-                          {orderId}
-                        </Button>
-                      </List.Item>
-                    ))}
-                  </List>
-                </Box>
+                <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                  <Box
+                    padding="300"
+                    background="bg-surface-secondary"
+                    borderRadius="200"
+                  >
+                    <List type="bullet">
+                      {comparison.stats.duplicateOrders.map((orderId) => (
+                        <List.Item key={orderId}>
+                          <Button
+                            variant="plain"
+                            size="micro"
+                            onClick={() => onOrderClick(orderId)}
+                          >
+                            {orderId}
+                          </Button>
+                        </List.Item>
+                      ))}
+                    </List>
+                  </Box>
+                </div>
               </BlockStack>
             )}
           </BlockStack>

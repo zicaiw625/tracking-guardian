@@ -75,7 +75,7 @@ export function ThresholdConfigCard({
           </Text>
           {config.recommendedValue !== undefined && showRecommendation && (
             <Badge tone="info">
-              推荐值: {config.recommendedValue.toFixed(1)}{config.unit}
+              {`推荐值: ${config.recommendedValue.toFixed(1)}${config.unit}`}
             </Badge>
           )}
         </InlineStack>
@@ -101,7 +101,7 @@ export function ThresholdConfigCard({
                   当前值
                 </Text>
                 <Badge tone={getStatus()}>
-                  {config.currentValue.toFixed(2)}{config.unit}
+                  {`${config.currentValue.toFixed(2)}${config.unit}`}
                 </Badge>
               </InlineStack>
               <InlineStack align="space-between" blockAlign="center">
@@ -109,7 +109,7 @@ export function ThresholdConfigCard({
                   阈值
                 </Text>
                 <Badge tone={isExceedingThreshold ? "critical" : "success"}>
-                  {config.value.toFixed(1)}{config.unit}
+                  {`${config.value.toFixed(1)}${config.unit}`}
                 </Badge>
               </InlineStack>
               {isExceedingThreshold && (

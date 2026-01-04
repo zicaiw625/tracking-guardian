@@ -23,6 +23,7 @@ import {
   getCorsHeadersPreBody,
 } from "./cors";
 import { validateRequest, isPrimaryEvent } from "./validation";
+import type { KeyValidationResult } from "./types";
 import {
   checkInitialConsent,
   filterPlatformsByConsent,
@@ -261,13 +262,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       if (!signature) {
-        const anomalyCheck = trackAnomaly(shop.shopDomain, "missing_signature");
+        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
         if (anomalyCheck.shouldBlock) {
           logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
         }
         metrics.pixelRejection({
           shopDomain: shop.shopDomain,
-          reason: "missing_signature",
+          reason: "invalid_key",
           originType: "production_required",
         });
         logger.warn(`Missing HMAC signature for ${shop.shopDomain} in production`);
@@ -288,13 +289,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       hmacValidationResult = hmacResult;
 
       if (!hmacResult.valid) {
-        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_signature");
+        const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_key");
         if (anomalyCheck.shouldBlock) {
           logger.warn(`Circuit breaker triggered for ${shop.shopDomain}: ${anomalyCheck.reason}`);
         }
         metrics.pixelRejection({
           shopDomain: shop.shopDomain,
-          reason: "hmac_verification_failed",
+          reason: "invalid_key",
           originType: hmacResult.errorCode || "unknown",
         });
         logger.warn(
@@ -445,7 +446,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     let matchKeyResult;
     let orderId: string;
     let usedCheckoutTokenAsFallback = false;
-    let eventIdentifier: string;
+    let eventIdentifier: string | null;
 
     if (isPurchaseEvent) {
       try {

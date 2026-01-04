@@ -356,15 +356,33 @@ export function logResult<T, E>(
     const error = result.error;
     if (error instanceof AppError) {
       const logLevel = error.isInternalError() ? "error" : error.isRetryable ? "warn" : "info";
-      logger[logLevel](`${context}: Failed`, error, {
-        code: error.code,
-        message: error.message,
-        isRetryable: error.isRetryable,
-        metadata: error.metadata,
-      });
+      if (logLevel === "error") {
+        logger.error(`${context}: Failed`, error, {
+          code: error.code,
+          message: error.message,
+          isRetryable: error.isRetryable,
+          metadata: error.metadata,
+        });
+      } else if (logLevel === "warn") {
+        logger.warn(`${context}: Failed`, {
+          code: error.code,
+          message: error.message,
+          isRetryable: error.isRetryable,
+          metadata: error.metadata,
+        });
+      } else {
+        logger.info(`${context}: Failed`, {
+          code: error.code,
+          message: error.message,
+          isRetryable: error.isRetryable,
+          metadata: error.metadata,
+        });
+      }
     } else {
-      logger.warn(`${context}: Failed`, error instanceof Error ? error : new Error(String(error)), {
+      logger.warn(`${context}: Failed`, {
         error: String(error),
+        errorName: error instanceof Error ? error.name : "Unknown",
+        errorMessage: error instanceof Error ? error.message : String(error),
       });
     }
   }

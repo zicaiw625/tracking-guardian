@@ -161,7 +161,7 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
             实时识别结果
           </Text>
           <Badge tone="info">
-            {result.identifiedPlatforms.length} 个平台
+            {`${result.identifiedPlatforms.length} 个平台`}
           </Badge>
         </InlineStack>
 
@@ -228,7 +228,7 @@ function PreviewPanel({ result }: { result: ScriptAnalysisResult | null }) {
                       : "info"
                 }
               >
-                {result.riskScore} / 100
+                {`${result.riskScore} / 100`}
               </Badge>
             </InlineStack>
           </Box>
@@ -416,7 +416,7 @@ export function ScriptCodeEditor({
                 borderRadius="200"
                 borderWidth="025"
                 borderColor="border"
-                marginBlockStart="300"
+                style={{ marginBlockStart: "12px" }}
               >
                 <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
                   代码高亮预览：
@@ -425,7 +425,7 @@ export function ScriptCodeEditor({
                   padding="300"
                   background="bg-surface"
                   borderRadius="100"
-                  marginBlockStart="200"
+                  style={{ marginBlockStart: "8px" }}
                 >
                   <pre
                     style={{

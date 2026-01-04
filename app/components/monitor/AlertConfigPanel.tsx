@@ -106,7 +106,7 @@ export function AlertConfigPanel({
             <Text variant="headingMd" as="h2">
               告警配置
             </Text>
-            <Badge tone="info">{existingAlerts.length} 个告警已配置</Badge>
+            <Badge tone="info">{`${existingAlerts.length} 个告警已配置`}</Badge>
           </InlineStack>
 
           <Banner tone="info">
@@ -129,13 +129,13 @@ export function AlertConfigPanel({
                 </Text>
               </BlockStack>
               {failureRateAlert && (
-                <Badge tone={failureRateAlert.isEnabled ? "success" : "subdued"}>
+                <Badge tone={failureRateAlert.isEnabled ? "success" : undefined}>
                   {failureRateAlert.isEnabled ? "已启用" : "已禁用"}
                 </Badge>
               )}
             </InlineStack>
 
-            <InlineStack gap="200" blockAlignment="end">
+            <InlineStack gap="200" blockAlign="end">
               <Box minWidth="200px">
                 <TextField
                   label="阈值 (%)"
@@ -144,6 +144,7 @@ export function AlertConfigPanel({
                   type="number"
                   suffix="%"
                   helpText="默认: 2.0%"
+                  autoComplete="off"
                 />
               </Box>
               <Button
@@ -170,13 +171,13 @@ export function AlertConfigPanel({
                 </Text>
               </BlockStack>
               {missingParamsAlert && (
-                <Badge tone={missingParamsAlert.isEnabled ? "success" : "subdued"}>
+                <Badge tone={missingParamsAlert.isEnabled ? "success" : undefined}>
                   {missingParamsAlert.isEnabled ? "已启用" : "已禁用"}
                 </Badge>
               )}
             </InlineStack>
 
-            <InlineStack gap="200" blockAlignment="end">
+            <InlineStack gap="200" blockAlign="end">
               <Box minWidth="200px">
                 <TextField
                   label="阈值 (%)"
@@ -185,6 +186,7 @@ export function AlertConfigPanel({
                   type="number"
                   suffix="%"
                   helpText="默认: 5.0%"
+                  autoComplete="off"
                 />
               </Box>
               <Button
@@ -211,13 +213,13 @@ export function AlertConfigPanel({
                 </Text>
               </BlockStack>
               {volumeDropAlert && (
-                <Badge tone={volumeDropAlert.isEnabled ? "success" : "subdued"}>
+                <Badge tone={volumeDropAlert.isEnabled ? "success" : undefined}>
                   {volumeDropAlert.isEnabled ? "已启用" : "已禁用"}
                 </Badge>
               )}
             </InlineStack>
 
-            <InlineStack gap="200" blockAlignment="end">
+            <InlineStack gap="200" blockAlign="end">
               <Box minWidth="200px">
                 <TextField
                   label="下降阈值 (%)"
@@ -226,6 +228,7 @@ export function AlertConfigPanel({
                   type="number"
                   suffix="%"
                   helpText="默认: 50%"
+                  autoComplete="off"
                 />
               </Box>
               <Button

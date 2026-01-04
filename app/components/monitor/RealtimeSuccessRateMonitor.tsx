@@ -110,11 +110,11 @@ export function RealtimeSuccessRateMonitor({
     );
   }
 
-  const successRateColor =
+  const successRateColor: "success" | "critical" | undefined =
     stats.successRate >= 95
       ? "success"
       : stats.successRate >= 80
-        ? "warning"
+        ? undefined
         : "critical";
 
   return (
@@ -173,11 +173,11 @@ export function RealtimeSuccessRateMonitor({
               按平台统计
             </Text>
             {Object.entries(stats.byPlatform).map(([platform, platformStats]) => {
-              const platformSuccessRateColor =
+              const platformSuccessRateColor: "success" | "critical" | undefined =
                 platformStats.successRate >= 95
                   ? "success"
                   : platformStats.successRate >= 80
-                    ? "warning"
+                    ? undefined
                     : "critical";
 
               return (

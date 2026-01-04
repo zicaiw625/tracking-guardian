@@ -1009,7 +1009,7 @@ export default function WorkspacePage() {
                       variant={selectedGroup?.id === group.id ? "primary" : "secondary"}
                       size="slim"
                     >
-                      {group.name} ({group.memberCount})
+                      {`${group.name} (${group.memberCount})`}
                     </Button>
                   ))}
                 </InlineStack>
@@ -1505,11 +1505,11 @@ export default function WorkspacePage() {
                                     shop.matchRate >= 95
                                       ? "success"
                                       : shop.matchRate >= 80
-                                        ? "warning"
+                                        ? undefined
                                         : "critical"
                                   }
                                 >
-                                  {shop.matchRate.toFixed(1)}%
+                                  {`${shop.matchRate.toFixed(1)}%`}
                                 </Badge>,
                               ])}
                             />
@@ -1805,7 +1805,7 @@ export default function WorkspacePage() {
             setSelectedTemplate(null);
           }}
           title="批量应用像素模板"
-          large
+          size="large"
         >
           <Modal.Section>
             <Suspense fallback={<CardSkeleton lines={5} />}>

@@ -141,10 +141,10 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
           {}
           <InlineStack gap="200" align="center">
             <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
-            <Text as="span" tone="subdued">→</Text>
-            <Badge tone={step >= 2 ? "success" : step > 2 ? "info" : "subdued"}>步骤 2</Badge>
-            <Text as="span" tone="subdued">→</Text>
-            <Badge tone={step >= 3 ? "success" : "subdued"}>步骤 3</Badge>
+            <Text as="span">→</Text>
+            <Badge tone={step >= 2 ? "success" : step > 2 ? "info" : undefined}>步骤 2</Badge>
+            <Text as="span">→</Text>
+            <Badge tone={step >= 3 ? "success" : undefined}>步骤 3</Badge>
           </InlineStack>
 
           {}
@@ -305,6 +305,7 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
                 value={additionalInfo}
                 onChange={setAdditionalInfo}
                 multiline={4}
+                autoComplete="off"
                 placeholder="例如：使用了自定义的订单追踪系统、集成了第三方客服工具等"
                 helpText="这些信息将帮助我们更准确地评估迁移风险"
               />

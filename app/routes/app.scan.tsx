@@ -2500,7 +2500,7 @@ export default function ScanPage() {
                 <Text as="h2" variant="headingMd">
                   风险详情
                 </Text>
-                <Badge tone="info">{riskItems.length} 项</Badge>
+                <Badge tone="info">{`${riskItems.length} 项`}</Badge>
               </InlineStack>
               
               {/* P1-6: 免费层限制 - 只显示前 3 条高风险项 */}
@@ -2790,8 +2790,8 @@ export default function ScanPage() {
                                 <Text as="span" fontWeight="semibold">
                                   {item.asset.displayName || item.asset.platform || "未知资产"}
                                 </Text>
-                                <Badge tone={(item.asset.priority || item.priority.priority) >= 8 ? "critical" : (item.asset.priority || item.priority.priority) >= 5 ? "warning" : "info"}>
-                                  优先级 {item.asset.priority || item.priority.priority}/10
+                                <Badge tone={(item.asset.priority || item.priority.priority) >= 8 ? "critical" : (item.asset.priority || item.priority.priority) >= 5 ? undefined : "info"}>
+                                  {`优先级 ${item.asset.priority || item.priority.priority}/10`}
                                 </Badge>
                                 {(item.asset.priority || item.priority.priority) >= 8 && (
                                   <Badge tone="attention">高优先级</Badge>

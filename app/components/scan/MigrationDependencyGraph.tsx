@@ -48,7 +48,7 @@ export function MigrationDependencyGraph({
 
     dependencyGraph.edges.forEach((edge) => {
 
-      if (edge.type === "dependency" || edge.type === "depends_on") {
+      if (edge.type === "depends_on") {
         const current = inDegree.get(edge.to) || 0;
         inDegree.set(edge.to, current + 1);
 
@@ -176,7 +176,7 @@ export function MigrationDependencyGraph({
             依赖关系分析
           </Text>
           <Badge tone="info">
-            {dependencyGraph.nodes.length} 个资产
+            {`${dependencyGraph.nodes.length} 个资产`}
           </Badge>
         </InlineStack>
 
@@ -217,8 +217,8 @@ export function MigrationDependencyGraph({
                 <Text as="h4" variant="headingSm">
                   关键路径（最长依赖链）
                 </Text>
-                <Badge tone="warning">
-                  {criticalPath.length} 步
+                <Badge>
+                  {`${criticalPath.length} 步`}
                 </Badge>
               </InlineStack>
               <List type="number">
@@ -248,12 +248,12 @@ export function MigrationDependencyGraph({
                         )}
                         {node.priority && (
                           <Badge tone="success">
-                            优先级: {node.priority}/10
+                            {`优先级: ${node.priority}/10`}
                           </Badge>
                         )}
                         {node.estimatedTimeMinutes && (
                           <Badge tone="info">
-                            预计: {formatTime(node.estimatedTimeMinutes)}
+                            {`预计: ${formatTime(node.estimatedTimeMinutes)}`}
                           </Badge>
                         )}
                       </InlineStack>
@@ -306,12 +306,12 @@ export function MigrationDependencyGraph({
                         )}
                         {node.priority && (
                           <Badge tone="success">
-                            优先级: {node.priority}/10
+                            {`优先级: ${node.priority}/10`}
                           </Badge>
                         )}
                         {node.estimatedTimeMinutes && (
                           <Badge tone="info">
-                            预计: {formatTime(node.estimatedTimeMinutes)}
+                            {`预计: ${formatTime(node.estimatedTimeMinutes)}`}
                           </Badge>
                         )}
                       </InlineStack>
@@ -343,7 +343,7 @@ export function MigrationDependencyGraph({
               依赖关系详情
             </Text>
             {dependencyGraph.edges
-              .filter((e) => e.type === "dependency" || e.type === "depends_on")
+              .filter((e) => e.type === "depends_on")
               .map((edge, index) => {
                 const fromNode = dependencyGraph.nodes.find(
                   (n) => n.id === edge.from

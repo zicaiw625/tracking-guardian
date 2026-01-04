@@ -70,6 +70,7 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     logger.info(`Cleaned up ${eventNonceResult.count} expired event nonces`);
   }
 
+  let totalMigrationDrafts = 0;
   const migrationDraftResult = await prisma.migrationDraft.deleteMany({
     where: {
       expiresAt: { lt: new Date() },
@@ -123,7 +124,6 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
   let totalWebhookLogs = 0;
   let totalScanReports = 0;
   let totalReconciliationReports = 0;
-  let totalMigrationDrafts = 0;
 
   for (const [retentionDays, shopsInGroup] of shopsByRetention) {
     const shopIds = shopsInGroup.map((s) => s.id);

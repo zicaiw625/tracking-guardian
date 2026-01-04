@@ -127,7 +127,7 @@ export function TaskAssignmentPanel({
               icon={PlusIcon}
               variant="primary"
             >
-              创建任务 ({selectedAssets.length})
+              {`创建任务 (${selectedAssets.length})`}
             </Button>
           </InlineStack>
 
@@ -171,7 +171,7 @@ export function TaskAssignmentPanel({
                             {asset.displayName || asset.platform || "未命名资产"}
                           </Text>
                           {asset.platform && <Badge>{asset.platform}</Badge>}
-                          <Badge tone={riskBadge.tone}>{riskBadge.label}风险</Badge>
+                          <Badge tone={riskBadge.tone}>{`${riskBadge.label}风险`}</Badge>
                           <Badge tone="info">{asset.category}</Badge>
                           {asset.migrationStatus === "completed" && (
                             <Badge tone="success">已完成</Badge>
@@ -232,12 +232,14 @@ export function TaskAssignmentPanel({
               onChange={setTaskTitle}
               placeholder="例如：迁移 Meta Pixel 到 Web Pixel"
               helpText="如果不填写，将使用资产名称作为标题"
+              autoComplete="off"
             />
 
             <TextField
               label="任务描述（可选）"
               value={taskDescription}
               onChange={setTaskDescription}
+              autoComplete="off"
               multiline={3}
               placeholder="添加任务描述、注意事项等"
             />
@@ -265,7 +267,7 @@ export function TaskAssignmentPanel({
               <RangeSlider
                 label=""
                 value={priority}
-                onChange={setPriority}
+                onChange={(value) => setPriority(value as number)}
                 min={1}
                 max={10}
                 step={1}
@@ -280,7 +282,13 @@ export function TaskAssignmentPanel({
               onMonthChange={(month, year) => {
 
               }}
-              onChange={setDueDate}
+              onChange={(range) => {
+                if (range && 'start' in range) {
+                  setDueDate(range.start);
+                } else {
+                  setDueDate(range as Date | undefined);
+                }
+              }}
             />
 
             <Divider />
@@ -298,13 +306,13 @@ export function TaskAssignmentPanel({
               </List>
             </BlockStack>
 
-            {fetcher.data && (fetcher.data as { error?: string }).error && (
+            {fetcher.data && (fetcher.data as { error?: string }).error ? (
               <Banner tone="critical">
                 <Text as="p" variant="bodySm">
                   {(fetcher.data as { error: string }).error}
                 </Text>
               </Banner>
-            )}
+            ) : null}
           </BlockStack>
         </Modal.Section>
       </Modal>

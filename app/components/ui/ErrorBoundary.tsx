@@ -10,6 +10,7 @@ import {
   Banner,
   List,
   Icon,
+  Box,
 } from "@shopify/polaris";
 import { AlertCircleIcon, RefreshIcon } from "~/components/icons";
 

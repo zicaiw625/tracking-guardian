@@ -169,21 +169,23 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
   }, [scriptContent, analysisResult, fetcher]);
 
   useEffect(() => {
-    if (fetcher.data) {
-      if (fetcher.data.analysis) {
-        setAnalysisResult(fetcher.data.analysis);
+    if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null) {
+      const data = fetcher.data as { analysis?: AnalysisResult; realtimeAnalysis?: ScriptAnalysisResult };
+      if (data.analysis) {
+        setAnalysisResult(data.analysis);
         setIsAnalyzing(false);
       }
 
-      if (fetcher.data.realtimeAnalysis) {
-        setRealtimeAnalysisResult(fetcher.data.realtimeAnalysis);
+      if (data.realtimeAnalysis) {
+        setRealtimeAnalysisResult(data.realtimeAnalysis);
       }
     }
   }, [fetcher.data]);
 
   useEffect(() => {
-    if (fetcher.data && fetcher.data.processed) {
-      const result = fetcher.data.processed;
+    if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "processed" in fetcher.data) {
+      const data = fetcher.data as { processed: { created: number; updated: number; duplicates: number } };
+      const result = data.processed;
       const totalCreated = result.created + result.updated;
       setIsProcessing(false);
       setScriptContent("");
@@ -275,6 +277,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
             placeholder="请粘贴您的脚本内容..."
             helpText={`已输入 ${scriptContent.length} 个字符`}
             disabled={isAnalyzing || isProcessing}
+            autoComplete="off"
           />
         }>
           <ScriptCodeEditor
@@ -297,7 +300,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               onClick={handleProcess}
               disabled={!canProcess}
               loading={isProcessing}
-              primary
+              variant="primary"
             >
               {isProcessing ? "处理中..." : "创建迁移资产"}
             </Button>
@@ -329,7 +332,7 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
                   <Text as="span" variant="bodySm" fontWeight="semibold">
                     识别的代码片段：
                   </Text>
-                  <Badge>{analysisResult.summary.totalSnippets} 个</Badge>
+                  <Badge>{`${String(analysisResult.summary.totalSnippets)} 个`}</Badge>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm" fontWeight="semibold">
@@ -358,25 +361,26 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               </BlockStack>
             </Box>
 
-            {}
-            {analysisResult.assets.length > 0 && (
+            {analysisResult && analysisResult.assets && analysisResult.assets.length > 0 ? (
               <BlockStack gap="300">
                 <Text as="h3" variant="headingSm">
-                  识别的资产 ({analysisResult.assets.length} 项)
+                  识别的资产 ({String(analysisResult.assets.length)} 项)
                 </Text>
                 <BlockStack gap="200">
                   {analysisResult.assets.map((asset, index) => {
-                    const riskBadge = {
-                      high: { tone: "critical" as const, label: "高" },
-                      medium: { tone: "warning" as const, label: "中" },
-                      low: { tone: "success" as const, label: "低" },
-                    }[asset.riskLevel];
+                    const riskBadgeMap: Record<string, { tone: "critical" | "success" | undefined; label: string }> = {
+                      high: { tone: "critical", label: "高" },
+                      medium: { tone: undefined, label: "中" },
+                      low: { tone: "success", label: "低" },
+                    };
+                    const riskBadge = riskBadgeMap[asset.riskLevel] || riskBadgeMap.medium;
 
-                    const confidenceBadge = {
-                      high: { tone: "success" as const, label: "高置信度" },
-                      medium: { tone: "info" as const, label: "中置信度" },
-                      low: { tone: "warning" as const, label: "低置信度" },
-                    }[asset.confidence];
+                    const confidenceBadgeMap: Record<string, { tone: "success" | "info" | undefined; label: string }> = {
+                      high: { tone: "success", label: "高置信度" },
+                      medium: { tone: "info", label: "中置信度" },
+                      low: { tone: undefined, label: "低置信度" },
+                    };
+                    const confidenceBadge = confidenceBadgeMap[asset.confidence] || confidenceBadgeMap.medium;
 
                     return (
                       <Box
@@ -393,12 +397,12 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
                                   {asset.displayName}
                                 </Text>
                                 {asset.platform && <Badge>{asset.platform}</Badge>}
-                                <Badge tone={riskBadge.tone}>{riskBadge.label}风险</Badge>
+                                <Badge tone={riskBadge.tone}>{`${riskBadge.label}风险`}</Badge>
                                 <Badge tone={confidenceBadge.tone}>
                                   {confidenceBadge.label}
                                 </Badge>
                               </InlineStack>
-                              <Text as="span" variant="bodySm" tone="subdued">
+                              <Text as="span" variant="bodySm">
                                 类别: {asset.category} | 建议迁移方式: {asset.suggestedMigration}
                               </Text>
                             </BlockStack>
@@ -409,23 +413,21 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
                   })}
                 </BlockStack>
               </BlockStack>
-            )}
-
-            {}
-            {fetcher.data?.processed && (
+            ) : null}
+            {fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "processed" in fetcher.data && (
               <Banner tone="success">
                 <Text as="p" variant="bodySm">
-                  成功创建 {fetcher.data.processed.created} 个新资产，
-                  更新 {fetcher.data.processed.updated} 个现有资产
-                  {fetcher.data.processed.duplicates > 0 &&
-                    `，跳过 ${fetcher.data.processed.duplicates} 个重复项`}
+                  成功创建 {String((fetcher.data as { processed: { created: number } }).processed.created)} 个新资产，
+                  更新 {String((fetcher.data as { processed: { updated: number } }).processed.updated)} 个现有资产
+                  {(fetcher.data as { processed: { duplicates: number } }).processed.duplicates > 0 &&
+                    `，跳过 ${String((fetcher.data as { processed: { duplicates: number } }).processed.duplicates)} 个重复项`}
                 </Text>
               </Banner>
             )}
 
-            {fetcher.data?.error && (
+            {fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "error" in fetcher.data && (
               <Banner tone="critical">
-                <Text as="p" variant="bodySm">{fetcher.data.error}</Text>
+                <Text as="p" variant="bodySm">{(fetcher.data as { error: string }).error}</Text>
               </Banner>
             )}
           </BlockStack>

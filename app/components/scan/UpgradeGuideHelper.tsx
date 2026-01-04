@@ -10,7 +10,6 @@ import {
   Box,
   List,
   Icon,
-  FileUpload,
 } from "@shopify/polaris";
 import { UploadIcon, InfoIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
@@ -200,24 +199,27 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
         </Banner>
 
         <Box>
-          <FileUpload
+          <input
+            type="file"
             accept=".txt,.text,.json,image/png,image/jpeg,image/jpg"
-            label="上传清单文件"
-            onDrop={(files) => {
-              if (files.length > 0) {
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              const files = e.target.files;
+              if (files && files.length > 0) {
                 handleFileUpload(files[0]);
               }
-            }}
-            onDropAccepted={(files) => {
-              if (files.length > 0) {
-                handleFileUpload(files[0]);
-              }
-            }}
-            onDropRejected={() => {
-              showError("文件类型不支持或文件过大");
             }}
             disabled={uploading}
+            style={{ display: "none" }}
+            id="file-upload-input"
           />
+          <Button
+            onClick={() => {
+              document.getElementById("file-upload-input")?.click();
+            }}
+            disabled={uploading}
+          >
+            上传清单文件
+          </Button>
         </Box>
 
         {uploadedFile && (

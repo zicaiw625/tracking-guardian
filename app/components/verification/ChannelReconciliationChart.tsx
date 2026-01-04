@@ -304,19 +304,19 @@ export function ChannelReconciliationChart({
                 <Text as="span" variant="bodySm" tone="subdued">
                   一致
                 </Text>
-                <Badge tone="success">{localConsistency.consistent}</Badge>
+                <Badge tone="success">{String(localConsistency.consistent)}</Badge>
               </InlineStack>
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">
                   部分一致
                 </Text>
-                <Badge tone="warning">{localConsistency.partial}</Badge>
+                <Badge>{String(localConsistency.partial)}</Badge>
               </InlineStack>
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">
                   不一致
                 </Text>
-                <Badge tone="critical">{localConsistency.inconsistent}</Badge>
+                <Badge tone="critical">{String(localConsistency.inconsistent)}</Badge>
               </InlineStack>
             </BlockStack>
           </BlockStack>
@@ -343,8 +343,8 @@ export function ChannelReconciliationChart({
                   <Text as="span" variant="bodySm" tone="subdued">
                     {type}
                   </Text>
-                  <Badge tone={count > 5 ? "critical" : count > 2 ? "warning" : "info"}>
-                    {count} 个
+                  <Badge tone={count > 5 ? "critical" : count > 2 ? undefined : "info"}>
+                    {`${count} 个`}
                   </Badge>
                 </InlineStack>
               ))}

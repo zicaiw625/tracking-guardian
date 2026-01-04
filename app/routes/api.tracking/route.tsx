@@ -32,7 +32,7 @@ const trackingRateLimit = withRateLimit({
 const cachedLoader = withConditionalCache(
   trackingRateLimit(async ({ request }: LoaderFunctionArgs) => {
     return await loaderImpl(request);
-  }),
+  }) as (args: LoaderFunctionArgs) => Promise<Response>,
   {
     key: (args) => {
       if (!args?.request || typeof args.request.url !== "string") {
@@ -115,7 +115,7 @@ async function loaderImpl(request: Request) {
       where: { shopDomain },
       select: {
         id: true,
-        uiExtensionSettings: {
+        UiExtensionSetting: {
           where: {
             moduleKey: "order_tracking",
             isEnabled: true,
@@ -131,7 +131,7 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true });
     }
 
-    const trackingSettings = shop.uiExtensionSettings[0]?.settingsJson as
+    const trackingSettings = shop.UiExtensionSetting[0]?.settingsJson as
       | OrderTrackingSettings
       | undefined;
 
@@ -253,7 +253,7 @@ async function loaderImpl(request: Request) {
         const thirdPartyTracking = await getTrackingInfo(
           config,
           trackingNumberToUse,
-          trackingSettings.carrier
+          trackingSettings.provider
         );
 
         if (thirdPartyTracking) {

@@ -22,6 +22,7 @@ import { getWizardTemplates } from "../services/pixel-template.server";
 import { switchEnvironment, rollbackConfig } from "../services/pixel-rollback.server";
 import { getConfigVersionHistory, rollbackConfig as rollbackConfigVersion } from "../services/pixel-config-version.server";
 import { loadWizardDraft, saveWizardDraft, clearWizardDraft, validateTestEnvironment } from "../services/migration-wizard.server";
+import { generateSimpleId } from "../utils/helpers";
 
 function generateIngestionSecret(): string {
     return randomBytes(32).toString("hex");
@@ -412,9 +413,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
                 await prisma.pixelConfig.upsert({
                     where: {
-                        shopId_platform: {
+                        shopId_platform_environment: {
                             shopId: shop.id,
                             platform,
+                            environment: config.environment,
                         },
                     },
                     update: {
@@ -426,6 +428,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         migrationStatus: "in_progress",
                     },
                     create: {
+                        id: generateSimpleId("pixel-config"),
                         shopId: shop.id,
                         platform,
                         platformId: config.platformId,

@@ -135,7 +135,7 @@ export function DiagnosticsPanel({ report, onRunDiagnostics }: DiagnosticsPanelP
                 <Box>
                   <BlockStack gap="100">
                     <Text as="span" variant="bodySm" tone="subdued">高优先级</Text>
-                    <Text as="span" variant="headingLg" tone="warning">
+                    <Text as="span" variant="headingLg">
                       {report.summary.highIssues}
                     </Text>
                   </BlockStack>
@@ -243,7 +243,7 @@ export function DiagnosticsPanel({ report, onRunDiagnostics }: DiagnosticsPanelP
                         )}
                       </BlockStack>
                       <Button
-                        plain
+                        variant="plain"
                         onClick={() => toggleIssue(issue.id)}
                         ariaExpanded={isExpanded}
                         ariaControls={`issue-${issue.id}`}

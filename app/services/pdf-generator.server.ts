@@ -140,7 +140,7 @@ export async function generateReconciliationReportPdf(
 }
 
 export async function generateVerificationReportPdf(
-  data: VerificationReportData,
+  data: VerificationReportData | VerificationReportDataFromVerification,
   options?: PDFGeneratorOptions
 ): Promise<PDFResult | null> {
   try {

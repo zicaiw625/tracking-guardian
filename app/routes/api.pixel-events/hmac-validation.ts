@@ -1,7 +1,7 @@
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { logger } from "../../utils/logger.server";
-import type { KeyValidationResult } from "./key-validation";
+import type { KeyValidationResult } from "./types";
 
 const HMAC_ALGORITHM = "sha256";
 const HMAC_HEADER = "X-Tracking-Guardian-Signature";
@@ -79,7 +79,10 @@ export function verifyHMACSignature(
 
     return { valid: true };
   } catch (error) {
-    logger.warn("HMAC signature verification error:", error);
+    logger.warn("HMAC signature verification error:", {
+      error: error instanceof Error ? error.message : String(error),
+      errorName: error instanceof Error ? error.name : "Unknown",
+    });
     return {
       valid: false,
       reason: "Invalid signature format (expected hex)",

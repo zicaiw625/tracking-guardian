@@ -46,12 +46,12 @@ export function UpgradeHealthCheck({
   const getRiskLevel = (score: number): {
     level: "low" | "medium" | "high";
     label: string;
-    tone: "success" | "warning" | "critical";
+    tone: "success" | "critical" | undefined;
   } => {
     if (score >= 70) {
       return { level: "high", label: "高风险", tone: "critical" };
     } else if (score >= 40) {
-      return { level: "medium", label: "中风险", tone: "warning" };
+      return { level: "medium", label: "中风险", tone: undefined };
     } else {
       return { level: "low", label: "低风险", tone: "success" };
     }

@@ -56,7 +56,7 @@ export function VerificationWizard({
               验收测试向导
             </Text>
             <Badge tone={allCompleted ? "success" : "info"}>
-              {completedItems.size} / {testChecklist.items.length}
+              {`${completedItems.size} / ${testChecklist.items.length}`}
             </Badge>
           </InlineStack>
 
@@ -102,7 +102,7 @@ export function VerificationWizard({
                   <List.Item key={item.id}>
                     <BlockStack gap="200">
                       <InlineStack align="space-between">
-                        <InlineStack gap="200" blockAlignment="center">
+                        <InlineStack gap="200" blockAlign="center">
                           {isCompleted ? (
                             <CheckCircleIcon />
                           ) : (
@@ -111,9 +111,9 @@ export function VerificationWizard({
                           <Text
                             variant="bodyMd"
                             as="span"
-                            fontWeight={isCompleted ? "normal" : "semibold"}
+                            fontWeight={isCompleted ? "regular" : "semibold"}
                           >
-                            {index + 1}. {item.title}
+                            {index + 1}. {item.name}
                           </Text>
                         </InlineStack>
                         {isCompleted && <Badge tone="success">已完成</Badge>}
@@ -123,15 +123,15 @@ export function VerificationWizard({
                           {item.description}
                         </Text>
                       )}
-                      {item.expectedEvents && item.expectedEvents.length > 0 && (
+                      {item.expectedResults && item.expectedResults.length > 0 && (
                         <Box>
                           <Text variant="bodySm" as="span" fontWeight="semibold">
-                            预期事件:
+                            预期结果:
                           </Text>
                           <InlineStack gap="100">
-                            {item.expectedEvents.map((event) => (
-                              <Badge key={event} tone="info">
-                                {event}
+                            {item.expectedResults.map((result) => (
+                              <Badge key={result} tone="info">
+                                {result}
                               </Badge>
                             ))}
                           </InlineStack>
@@ -139,7 +139,7 @@ export function VerificationWizard({
                       )}
                       {!isCompleted && (
                         <Button
-                          size="small"
+                          size="slim"
                           onClick={() => handleItemComplete(item.id)}
                         >
                           标记为已完成

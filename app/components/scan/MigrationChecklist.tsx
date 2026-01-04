@@ -17,6 +17,7 @@ import {
   Modal,
   Icon,
   Collapsible,
+  ProgressBar,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
@@ -253,7 +254,7 @@ export function MigrationChecklist({
                                   ? "success"
                                   : item.migrationStatus === "in_progress"
                                     ? "info"
-                                    : "subdued"
+                                    : undefined
                               }
                             >
                               {item.migrationStatus === "completed"

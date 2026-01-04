@@ -18,6 +18,7 @@ import type {
   ShopWithSecurity,
   ConsentStrategy,
 } from "../../domain/shop/shop.entity";
+import { generateSimpleId } from "../../utils/helpers";
 
 function mapToDomainShop(prismaShop: {
   id: string;
@@ -123,15 +124,17 @@ export class PrismaShopRepository implements IShopRepository {
     try {
       const shop = await this.prisma.shop.create({
         data: {
+          id: generateSimpleId("shop"),
           shopDomain: data.shopDomain,
-          accessToken: data.accessToken,
-          email: data.email,
-          name: data.name,
+          accessToken: data.accessToken ?? null,
+          email: data.email ?? null,
+          name: data.name ?? null,
           plan: data.plan ?? "free",
-          ingestionSecret: data.ingestionSecret,
-          primaryDomain: data.primaryDomain,
-          shopTier: data.shopTier,
+          ingestionSecret: data.ingestionSecret ?? null,
+          primaryDomain: data.primaryDomain ?? null,
+          shopTier: data.shopTier ?? null,
           storefrontDomains: [],
+          updatedAt: new Date(),
         },
       });
       return ok(mapToDomainShop(shop));
@@ -176,15 +179,17 @@ export class PrismaShopRepository implements IShopRepository {
       const shop = await this.prisma.shop.upsert({
         where: { shopDomain },
         create: {
+          id: generateSimpleId("shop"),
           shopDomain: createData.shopDomain,
-          accessToken: createData.accessToken,
-          email: createData.email,
-          name: createData.name,
+          accessToken: createData.accessToken ?? null,
+          email: createData.email ?? null,
+          name: createData.name ?? null,
           plan: createData.plan ?? "free",
-          ingestionSecret: createData.ingestionSecret,
-          primaryDomain: createData.primaryDomain,
-          shopTier: createData.shopTier,
+          ingestionSecret: createData.ingestionSecret ?? null,
+          primaryDomain: createData.primaryDomain ?? null,
+          shopTier: createData.shopTier ?? null,
           storefrontDomains: [],
+          updatedAt: new Date(),
         },
         update: updateData,
       });

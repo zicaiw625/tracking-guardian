@@ -62,7 +62,7 @@ export function WorkspaceMembers({
       case "admin":
         return <Badge tone="success">Admin</Badge>;
       case "viewer":
-        return <Badge tone="subdued">Viewer</Badge>;
+        return <Badge>Viewer</Badge>;
       default:
         return <Badge>{role}</Badge>;
     }
@@ -167,6 +167,7 @@ export function WorkspaceMembers({
                 onChange={setInviteEmail}
                 type="email"
                 helpText="将向该邮箱发送邀请链接"
+                autoComplete="off"
               />
               <Select
                 label="角色"

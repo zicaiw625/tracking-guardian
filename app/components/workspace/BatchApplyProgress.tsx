@@ -86,7 +86,7 @@ export function BatchApplyProgress({
             </BlockStack>
             <BlockStack gap="100" align="center">
               <AlertCircleIcon />
-              <Text as="p" variant="headingLg" fontWeight="bold" tone="warning">
+              <Text as="p" variant="headingLg" fontWeight="bold">
                 {skipped}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">

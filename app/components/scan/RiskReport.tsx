@@ -1,5 +1,5 @@
 
-
+import { Fragment } from "react";
 import {
   Card,
   BlockStack,
@@ -76,8 +76,8 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
                 <Text variant="bodyMd" as="span">
                   风险分数
                 </Text>
-                <Text variant="headingLg" as="span" tone={riskLevel === "high" ? "critical" : riskLevel === "medium" ? "warning" : "info"}>
-                  {riskScore}/100
+                <Text variant="headingLg" as="span" tone={riskLevel === "high" ? "critical" : riskLevel === "medium" ? undefined : undefined}>
+                  {`${riskScore}/100`}
                 </Text>
               </InlineStack>
               <ProgressBar progress={riskScore} size="small" />
@@ -104,7 +104,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
                 低风险: <strong>{summary.lowRiskCount}</strong> 项
               </List.Item>
               <List.Item>
-                预计迁移时间: <strong>{summary.estimatedTotalTimeMinutes}</strong> 分钟
+                预计迁移时间: <strong>{summary.totalEstimatedTime}</strong> 分钟
               </List.Item>
             </List>
           </BlockStack>
@@ -118,33 +118,32 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
               <Text variant="headingMd" as="h2">
                 会失效/受限的项
               </Text>
-              <Badge tone="critical">{categories.willFail.length}</Badge>
+              <Badge tone="critical">{String(categories.willFail.length)}</Badge>
             </InlineStack>
             <List>
               {categories.willFail.map((item) => (
-                <List.Item
-                  key={item.id}
-                  onClick={onItemClick ? () => onItemClick(item.id) : undefined}
-                >
-                  <BlockStack gap="200">
-                    <InlineStack align="space-between">
-                      <Text variant="bodyMd" as="span" fontWeight="semibold">
-                        {item.displayName}
+                <List.Item key={item.id}>
+                  <div onClick={onItemClick ? () => onItemClick(item.id) : undefined} style={{ cursor: onItemClick ? "pointer" : "default" }}>
+                    <BlockStack gap="200">
+                      <InlineStack align="space-between">
+                        <Text variant="bodyMd" as="span" fontWeight="semibold">
+                          {item.displayName}
+                        </Text>
+                        {getRiskBadge(item.riskLevel)}
+                      </InlineStack>
+                      {item.platform && (
+                        <Text variant="bodySm" as="span" tone="subdued">
+                          平台: {item.platform}
+                        </Text>
+                      )}
+                      <Text variant="bodySm" as="span">
+                        {item.description}
                       </Text>
-                      {getRiskBadge(item.riskLevel)}
-                    </InlineStack>
-                    {item.platform && (
                       <Text variant="bodySm" as="span" tone="subdued">
-                        平台: {item.platform}
+                        预计时间: {item.estimatedTimeMinutes} 分钟
                       </Text>
-                    )}
-                    <Text variant="bodySm" as="span">
-                      {item.description}
-                    </Text>
-                    <Text variant="bodySm" as="span" tone="subdued">
-                      预计时间: {item.estimatedTimeMinutes} 分钟
-                    </Text>
-                  </BlockStack>
+                    </BlockStack>
+                  </div>
                 </List.Item>
               ))}
             </List>
@@ -159,33 +158,32 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
               <Text variant="headingMd" as="h2">
                 可直接替换的项
               </Text>
-              <Badge tone="warning">{categories.canReplace.length}</Badge>
+              <Badge>{String(categories.canReplace.length)}</Badge>
             </InlineStack>
             <List>
               {categories.canReplace.map((item) => (
-                <List.Item
-                  key={item.id}
-                  onClick={onItemClick ? () => onItemClick(item.id) : undefined}
-                >
-                  <BlockStack gap="200">
-                    <InlineStack align="space-between">
-                      <Text variant="bodyMd" as="span" fontWeight="semibold">
-                        {item.displayName}
+                <List.Item key={item.id}>
+                  <div onClick={onItemClick ? () => onItemClick(item.id) : undefined} style={{ cursor: onItemClick ? "pointer" : "default" }}>
+                    <BlockStack gap="200">
+                      <InlineStack align="space-between">
+                        <Text variant="bodyMd" as="span" fontWeight="semibold">
+                          {item.displayName}
+                        </Text>
+                        {getRiskBadge(item.riskLevel)}
+                      </InlineStack>
+                      {item.platform && (
+                        <Text variant="bodySm" as="span" tone="subdued">
+                          平台: {item.platform}
+                        </Text>
+                      )}
+                      <Text variant="bodySm" as="span">
+                        推荐迁移方式: {item.suggestedMigration === "web_pixel" ? "Web Pixel" : item.suggestedMigration === "ui_extension" ? "UI Extension" : item.suggestedMigration}
                       </Text>
-                      {getRiskBadge(item.riskLevel)}
-                    </InlineStack>
-                    {item.platform && (
                       <Text variant="bodySm" as="span" tone="subdued">
-                        平台: {item.platform}
+                        预计时间: {item.estimatedTimeMinutes} 分钟
                       </Text>
-                    )}
-                    <Text variant="bodySm" as="span">
-                      推荐迁移方式: {item.suggestedMigration === "web_pixel" ? "Web Pixel" : item.suggestedMigration === "ui_extension" ? "UI Extension" : item.suggestedMigration}
-                    </Text>
-                    <Text variant="bodySm" as="span" tone="subdued">
-                      预计时间: {item.estimatedTimeMinutes} 分钟
-                    </Text>
-                  </BlockStack>
+                    </BlockStack>
+                  </div>
                 </List.Item>
               ))}
             </List>
@@ -200,7 +198,7 @@ export function RiskReport({ report, onItemClick }: RiskReportProps) {
               <Text variant="headingMd" as="h2">
                 无需迁移的项
               </Text>
-              <Badge tone="success">{categories.noMigrationNeeded.length}</Badge>
+              <Badge tone="success">{String(categories.noMigrationNeeded.length)}</Badge>
             </InlineStack>
             <List>
               {categories.noMigrationNeeded.map((item) => (

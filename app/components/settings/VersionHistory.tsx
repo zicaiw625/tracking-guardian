@@ -10,6 +10,7 @@ import {
   Divider,
   DataTable,
   EmptyState,
+  Banner,
 } from "@shopify/polaris";
 
 interface VersionHistoryItem {
@@ -64,6 +65,7 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
       <Card>
         <EmptyState
           heading="暂无版本历史"
+          image=""
         >
           <p>配置变更历史将显示在这里</p>
         </EmptyState>
@@ -78,7 +80,7 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
           <Text as="h3" variant="headingMd">
             版本历史
           </Text>
-          <Badge tone="info">{history.length} 条记录</Badge>
+          <Badge tone="info">{`${history.length} 条记录`}</Badge>
         </InlineStack>
 
         <Divider />
@@ -88,8 +90,8 @@ export function VersionHistory({ history, platform }: VersionHistoryProps) {
           headings={["版本", "时间", "操作", "变更详情"]}
           rows={history.map((item, index) => [
             <InlineStack key="version" gap="200" blockAlign="center">
-              <Badge tone={index === 0 ? "success" : "subdued"}>
-                v{item.version}
+              <Badge tone={index === 0 ? "success" : undefined}>
+                {`v${item.version}`}
               </Badge>
               {index === 0 && (
                 <Badge tone="info">当前版本</Badge>

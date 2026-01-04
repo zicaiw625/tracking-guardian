@@ -134,10 +134,19 @@ export function AuditAssetsByRisk({
   const riskLevel = riskScore >= 60 ? "high" : riskScore >= 30 ? "medium" : "low";
   
   // 计算预计修复时间（分钟）
+  const getEstimatedTime = (asset: AuditAssetRecord): number => {
+    if (asset.details && typeof asset.details === "object") {
+      const details = asset.details as Record<string, unknown>;
+      const time = details.estimatedTimeMinutes;
+      if (typeof time === "number") return time;
+    }
+    return asset.riskLevel === "high" ? 30 : 20;
+  };
+  
   const estimatedTimeMinutes = highRiskAssets.reduce((sum, asset) => 
-    sum + (asset.estimatedTimeMinutes || 30), 0
+    sum + getEstimatedTime(asset), 0
   ) + mediumRiskAssets.reduce((sum, asset) => 
-    sum + (asset.estimatedTimeMinutes || 20), 0
+    sum + getEstimatedTime(asset), 0
   );
 
   // P1-6: 免费层限制 - 只显示前 N 条高风险资产
@@ -189,7 +198,7 @@ export function AuditAssetsByRisk({
           <Text as="h2" variant="headingMd">
             审计资产清单
           </Text>
-          <Badge tone="info">{totalAssets} 项</Badge>
+          <Badge tone="info">{`${totalAssets} 项`}</Badge>
         </InlineStack>
 
         {/* P1-6: 风险分数摘要卡片 */}
@@ -198,8 +207,8 @@ export function AuditAssetsByRisk({
             <Text as="h3" variant="headingSm">
               风险评分摘要
             </Text>
-            <Layout>
-              <Layout.Section variant="oneThird">
+            <InlineStack gap="400" wrap>
+              <Box minWidth="200px">
                 <Box
                   background={
                     riskLevel === "high"
@@ -218,28 +227,28 @@ export function AuditAssetsByRisk({
                     <Text as="p" variant="bodySm">
                       风险分数
                     </Text>
-                    <Badge tone={riskLevel === "high" ? "critical" : riskLevel === "medium" ? "warning" : "success"}>
+                    <Badge tone={riskLevel === "high" ? "critical" : riskLevel === "medium" ? undefined : "success"}>
                       {riskLevel === "high" ? "高风险" : riskLevel === "medium" ? "中风险" : "低风险"}
                     </Badge>
                   </BlockStack>
                 </Box>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
+              </Box>
+              <Box minWidth="200px">
                 <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" tone="subdued">
+                  <Text as="p" variant="bodySm">
                     将失效/将断档
                   </Text>
                   <Text as="p" variant="headingLg" fontWeight="bold">
-                    {totalHighRisk} 项
+                    {String(totalHighRisk)} 项
                   </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
+                  <Text as="p" variant="bodySm">
                     预计修复时间: {estimatedTimeMinutes < 60
                       ? `${estimatedTimeMinutes} 分钟`
                       : `${Math.floor(estimatedTimeMinutes / 60)} 小时 ${estimatedTimeMinutes % 60} 分钟`}
                   </Text>
                 </BlockStack>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
+              </Box>
+              <Box minWidth="200px">
                 <BlockStack gap="200">
                   {/* P1-6: 关键 CTA - 一键修复按钮 */}
                   {totalHighRisk > 0 && (
@@ -250,7 +259,7 @@ export function AuditAssetsByRisk({
                         url="/app/migrate"
                         icon={ArrowRightIcon}
                       >
-                        启用 Purchase-only 修复（约 {Math.ceil(estimatedTimeMinutes * 0.3)} 分钟）
+                        启用 Purchase-only 修复（约 {String(Math.ceil(estimatedTimeMinutes * 0.3))} 分钟）
                       </Button>
                       {currentPlan !== "free" && currentPlan !== "starter" && (
                         <Button
@@ -259,14 +268,14 @@ export function AuditAssetsByRisk({
                           url="/app/migrate?mode=full_funnel"
                           icon={ArrowRightIcon}
                         >
-                          启用 Full-funnel 修复（约 {Math.ceil(estimatedTimeMinutes * 0.5)} 分钟，Growth）
+                          启用 Full-funnel 修复（约 {String(Math.ceil(estimatedTimeMinutes * 0.5))} 分钟，Growth）
                         </Button>
                       )}
                     </BlockStack>
                   )}
                 </BlockStack>
-              </Layout.Section>
-            </Layout>
+              </Box>
+            </InlineStack>
           </BlockStack>
         </Card>
 
@@ -279,7 +288,7 @@ export function AuditAssetsByRisk({
                 <Text as="h3" variant="headingSm" tone="critical">
                   {RISK_CATEGORY_INFO.will_fail.label}
                 </Text>
-                <Badge tone="critical">{assetsByCategory.will_fail.length} 项</Badge>
+                <Badge tone="critical">{`${assetsByCategory.will_fail.length} 项`}</Badge>
               </InlineStack>
             </InlineStack>
             <Banner tone="critical">
@@ -307,11 +316,19 @@ export function AuditAssetsByRisk({
                             {asset.platform && (
                               <Badge>{asset.platform}</Badge>
                             )}
-                            {asset.priority && (
-                              <Badge tone={asset.priority >= 8 ? "critical" : "warning"}>
-                                优先级 {asset.priority}/10
-                              </Badge>
-                            )}
+                            {(() => {
+                              const priority = asset.details && typeof asset.details === "object" 
+                                ? (asset.details as Record<string, unknown>).priority 
+                                : undefined;
+                              if (typeof priority === "number" && priority > 0) {
+                                return (
+                                  <Badge tone={priority >= 8 ? "critical" : undefined}>
+                                    {`优先级 ${priority}/10`}
+                                  </Badge>
+                                );
+                              }
+                              return null;
+                            })()}
                           </InlineStack>
                           <Text as="p" variant="bodySm" tone="subdued">
                             {asset.category === "pixel" ? "追踪像素" :
@@ -356,19 +373,31 @@ export function AuditAssetsByRisk({
                         </InlineStack>
 
                         <InlineStack gap="200" blockAlign="center" wrap>
-                          {asset.estimatedTimeMinutes && (
-                            <InlineStack gap="200" blockAlign="center">
-                              <Icon source={ClockIcon} tone="subdued" />
-                              <Text as="span" variant="bodySm" tone="subdued">
-                                预计耗时: {asset.estimatedTimeMinutes < 60
-                                  ? `${asset.estimatedTimeMinutes} 分钟`
-                                  : `${Math.floor(asset.estimatedTimeMinutes / 60)} 小时 ${asset.estimatedTimeMinutes % 60} 分钟`}
-                              </Text>
-                            </InlineStack>
-                          )}
-                          {asset.priority && asset.priority >= 8 && (
-                            <Badge tone="critical">高优先级</Badge>
-                          )}
+                          {(() => {
+                            const time = getEstimatedTime(asset);
+                            if (time > 0) {
+                              return (
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Icon source={ClockIcon} />
+                                  <Text as="span" variant="bodySm">
+                                    预计耗时: {time < 60
+                                      ? `${time} 分钟`
+                                      : `${Math.floor(time / 60)} 小时 ${time % 60} 分钟`}
+                                  </Text>
+                                </InlineStack>
+                              );
+                            }
+                            return null;
+                          })()}
+                          {(() => {
+                            const priority = asset.details && typeof asset.details === "object" 
+                              ? (asset.details as Record<string, unknown>).priority 
+                              : undefined;
+                            if (typeof priority === "number" && priority >= 8) {
+                              return <Badge tone="critical">高优先级</Badge>;
+                            }
+                            return null;
+                          })()}
                         </InlineStack>
                       </BlockStack>
                     </BlockStack>
@@ -419,10 +448,10 @@ export function AuditAssetsByRisk({
               <InlineStack align="space-between" blockAlign="center">
                 <InlineStack gap="200" blockAlign="center">
                   <Icon source={RISK_CATEGORY_INFO.can_replace.icon} tone="warning" />
-                  <Text as="h3" variant="headingSm" tone="warning">
+                  <Text as="h3" variant="headingSm">
                     {RISK_CATEGORY_INFO.can_replace.label}
                   </Text>
-                  <Badge tone="warning">{assetsByCategory.can_replace.length} 项</Badge>
+                  <Badge>{`${assetsByCategory.can_replace.length} 项`}</Badge>
                 </InlineStack>
               </InlineStack>
               <Banner tone="warning">
@@ -450,11 +479,19 @@ export function AuditAssetsByRisk({
                               {asset.platform && (
                                 <Badge>{asset.platform}</Badge>
                               )}
-                              {asset.priority && (
-                                <Badge tone={asset.priority >= 5 ? "warning" : "info"}>
-                                  优先级 {asset.priority}/10
-                                </Badge>
-                              )}
+                              {(() => {
+                                const priority = asset.details && typeof asset.details === "object" 
+                                  ? (asset.details as Record<string, unknown>).priority 
+                                  : undefined;
+                                if (typeof priority === "number" && priority > 0) {
+                                  return (
+                                    <Badge tone={priority >= 5 ? undefined : "info"}>
+                                      {`优先级 ${priority}/10`}
+                                    </Badge>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </InlineStack>
                             <Text as="p" variant="bodySm" tone="subdued">
                               {asset.category === "pixel" ? "追踪像素" :
@@ -499,19 +536,31 @@ export function AuditAssetsByRisk({
                           </InlineStack>
 
                           <InlineStack gap="200" blockAlign="center" wrap>
-                            {asset.estimatedTimeMinutes && (
-                              <InlineStack gap="200" blockAlign="center">
-                                <Icon source={ClockIcon} tone="subdued" />
-                                <Text as="span" variant="bodySm" tone="subdued">
-                                  预计耗时: {asset.estimatedTimeMinutes < 60
-                                    ? `${asset.estimatedTimeMinutes} 分钟`
-                                    : `${Math.floor(asset.estimatedTimeMinutes / 60)} 小时 ${asset.estimatedTimeMinutes % 60} 分钟`}
-                                </Text>
-                              </InlineStack>
-                            )}
-                            {asset.priority && asset.priority >= 5 && asset.priority < 8 && (
-                              <Badge tone="warning">中优先级</Badge>
-                            )}
+                            {(() => {
+                              const time = getEstimatedTime(asset);
+                              if (time > 0) {
+                                return (
+                                  <InlineStack gap="200" blockAlign="center">
+                                    <Icon source={ClockIcon} />
+                                    <Text as="span" variant="bodySm">
+                                      预计耗时: {time < 60
+                                        ? `${time} 分钟`
+                                        : `${Math.floor(time / 60)} 小时 ${time % 60} 分钟`}
+                                    </Text>
+                                  </InlineStack>
+                                );
+                              }
+                              return null;
+                            })()}
+                            {(() => {
+                              const priority = asset.details && typeof asset.details === "object" 
+                                ? (asset.details as Record<string, unknown>).priority 
+                                : undefined;
+                              if (typeof priority === "number" && priority >= 5 && priority < 8) {
+                                return <Badge>中优先级</Badge>;
+                              }
+                              return null;
+                            })()}
                           </InlineStack>
                         </BlockStack>
                       </BlockStack>
@@ -531,10 +580,10 @@ export function AuditAssetsByRisk({
               <InlineStack align="space-between" blockAlign="center">
                 <InlineStack gap="200" blockAlign="center">
                   <Icon source={RISK_CATEGORY_INFO.no_migration_needed.icon} tone="success" />
-                  <Text as="h3" variant="headingSm" tone="success">
+                  <Text as="h3" variant="headingSm">
                     {RISK_CATEGORY_INFO.no_migration_needed.label}
                   </Text>
-                  <Badge tone="success">{assetsByCategory.no_migration_needed.length} 项</Badge>
+                  <Badge tone="success">{`${assetsByCategory.no_migration_needed.length} 项`}</Badge>
                 </InlineStack>
               </InlineStack>
               <Banner tone="success">
@@ -562,11 +611,19 @@ export function AuditAssetsByRisk({
                               {asset.platform && (
                                 <Badge>{asset.platform}</Badge>
                               )}
-                              {asset.priority && (
-                                <Badge tone="info">
-                                  优先级 {asset.priority}/10
-                                </Badge>
-                              )}
+                              {(() => {
+                                const priority = asset.details && typeof asset.details === "object" 
+                                  ? (asset.details as Record<string, unknown>).priority 
+                                  : undefined;
+                                if (typeof priority === "number" && priority > 0) {
+                                  return (
+                                    <Badge tone="info">
+                                      {`优先级 ${priority}/10`}
+                                    </Badge>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </InlineStack>
                             <Text as="p" variant="bodySm" tone="subdued">
                               {asset.category === "pixel" ? "追踪像素" :
@@ -610,16 +667,22 @@ export function AuditAssetsByRisk({
                             )}
                           </InlineStack>
 
-                          {asset.estimatedTimeMinutes && (
-                            <InlineStack gap="200" blockAlign="center">
-                              <Icon source={ClockIcon} tone="subdued" />
-                              <Text as="span" variant="bodySm" tone="subdued">
-                                预计耗时: {asset.estimatedTimeMinutes < 60
-                                  ? `${asset.estimatedTimeMinutes} 分钟`
-                                  : `${Math.floor(asset.estimatedTimeMinutes / 60)} 小时 ${asset.estimatedTimeMinutes % 60} 分钟`}
-                              </Text>
-                            </InlineStack>
-                          )}
+                          {(() => {
+                            const time = getEstimatedTime(asset);
+                            if (time > 0) {
+                              return (
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Icon source={ClockIcon} />
+                                  <Text as="span" variant="bodySm">
+                                    预计耗时: {time < 60
+                                      ? `${time} 分钟`
+                                      : `${Math.floor(time / 60)} 小时 ${time % 60} 分钟`}
+                                  </Text>
+                                </InlineStack>
+                              );
+                            }
+                            return null;
+                          })()}
                         </BlockStack>
                       </BlockStack>
                     </Box>

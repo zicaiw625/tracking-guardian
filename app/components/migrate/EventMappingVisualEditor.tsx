@@ -409,9 +409,7 @@ export function EventMappingVisualEditor({
                         </Text>
                       </BlockStack>
                       {isMapped && (
-                        <Badge tone="success">
-                          <Icon source={CheckCircleIcon} />
-                        </Badge>
+                        <Badge tone="success">已映射</Badge>
                       )}
                     </InlineStack>
                     <InlineStack gap="100" wrap>

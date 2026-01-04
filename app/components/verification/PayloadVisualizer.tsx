@@ -154,8 +154,7 @@ function CanonicalView({
         borderRadius="200"
         style={{ maxHeight: "500px", overflow: "auto" }}
       >
-        <Box
-          as="pre"
+        <pre
           style={{
             fontSize: "12px",
             fontFamily: "monospace",
@@ -165,7 +164,7 @@ function CanonicalView({
           }}
         >
           {JSON.stringify(canonical, null, 2)}
-        </Box>
+        </pre>
       </Box>
 
       <BlockStack gap="200">
@@ -212,8 +211,7 @@ function PlatformView({
         borderRadius="200"
         style={{ maxHeight: "500px", overflow: "auto" }}
       >
-        <Box
-          as="pre"
+        <pre
           style={{
             fontSize: "12px",
             fontFamily: "monospace",
@@ -223,7 +221,7 @@ function PlatformView({
           }}
         >
           {JSON.stringify(mapping, null, 2)}
-        </Box>
+        </pre>
       </Box>
 
       <BlockStack gap="200">

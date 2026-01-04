@@ -26,7 +26,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const filename = `migration-checklist-${shop.shopDomain}-${new Date().toISOString().split("T")[0]}.pdf`;
 
-    return new Response(pdfBuffer, {
+    return new Response((pdfBuffer instanceof Buffer ? pdfBuffer : Buffer.from(pdfBuffer)) as BodyInit, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

@@ -10,6 +10,7 @@ import prisma from "../db.server";
 import { BILLING_PLANS, createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId, } from "../services/billing.server";
 import { getUsageHistory } from "../services/billing/usage-history.server";
 import { handleOneTimePurchaseConfirmation, createOneTimePurchase } from "../services/billing/subscription.server";
+import { logger } from "../utils/logger.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
@@ -49,7 +50,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const subscriptionStatus = await getSubscriptionStatus(admin, shopDomain);
     const orderUsage = await checkOrderLimit(shop.id, subscriptionStatus.plan);
     const usageHistory = await getUsageHistory(shop.id, 30).catch((err) => {
-      logger.warn("Failed to get usage history", err instanceof Error ? err : new Error(String(err)), {
+      logger.warn("Failed to get usage history", {
+        error: err instanceof Error ? err.message : String(err),
+        errorName: err instanceof Error ? err.name : "Unknown",
         shopId: shop.id,
         shopDomain,
       });
@@ -110,7 +113,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 };
 export default function BillingPage() {
-    const { subscription, usage, usageHistory, plans } = useLoaderData<typeof loader>();
+    const loaderData = useLoaderData<typeof loader>();
+    const { subscription, usage, plans } = loaderData;
+    const usageHistory = "usageHistory" in loaderData ? loaderData.usageHistory : null;
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
     const navigation = useNavigation();
@@ -133,6 +138,7 @@ export default function BillingPage() {
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
     const showSuccessBanner = searchParams.get("success") === "true";
+    const isOneTimePurchase = searchParams.get("type") === "oneTime";
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
     const handleSubscribe = (planId: string) => {
@@ -245,13 +251,13 @@ export default function BillingPage() {
                         <Text as="span" variant="heading2xl">
                           ${plan.price}
                         </Text>
-                        {plan.price > 0 && !plan.isOneTime && (<Text as="span" tone="subdued">/月</Text>)}
-                        {plan.isOneTime && (<Text as="span" tone="subdued">一次性</Text>)}
+                        {plan.price > 0 && !("isOneTime" in plan && plan.isOneTime) && (<Text as="span" tone="subdued">/月</Text>)}
+                        {"isOneTime" in plan && plan.isOneTime && (<Text as="span" tone="subdued">一次性</Text>)}
                       </InlineStack>
-                      {"trialDays" in plan && plan.trialDays > 0 && !plan.isOneTime && (<Text as="span" variant="bodySm" tone="success">
+                      {"trialDays" in plan && plan.trialDays > 0 && !("isOneTime" in plan && plan.isOneTime) && (<Text as="span" variant="bodySm" tone="success">
                           {plan.trialDays} 天免费试用
                         </Text>)}
-                      {plan.isOneTime && (<Text as="span" variant="bodySm" tone="info">
+                      {"isOneTime" in plan && plan.isOneTime && (<Text as="span" variant="bodySm">
                           Go-Live 交付包（一次性收费）
                         </Text>)}
                     </BlockStack>
@@ -265,7 +271,7 @@ export default function BillingPage() {
                     <Box paddingBlockStart="200">
                       {isCurrentPlan ? (<Button disabled fullWidth>当前套餐</Button>) : plan.price === 0 ? (<Button variant="secondary" fullWidth onClick={handleCancel} loading={isSubmitting} disabled={subscription.plan === "free"}>
                           降级到免费版
-                        </Button>) : plan.isOneTime ? (
+                        </Button>) : "isOneTime" in plan && plan.isOneTime ? (
                         // P1-7: Go-Live 一次性收费按钮
                         <Button 
                           variant="primary" 
@@ -278,7 +284,7 @@ export default function BillingPage() {
                           }} 
                           loading={isSubmitting}
                         >
-                          购买（${plan.price} 一次性）
+                          {`购买（$${plan.price} 一次性）`}
                         </Button>
                       ) : (<Button variant={isUpgrade ? "primary" : "secondary"} fullWidth onClick={() => handleSubscribe(planId)} loading={isSubmitting}>
                           {isUpgrade ? "升级" : isDowngrade ? "降级" : "选择"}

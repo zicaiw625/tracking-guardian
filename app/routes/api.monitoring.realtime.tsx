@@ -87,7 +87,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           try {
             controller.enqueue(encoder.encode(`data: ${data}\n\n`));
           } catch (error) {
-            logger.warn("Failed to send SSE update, closing stream", error);
+            logger.warn("Failed to send SSE update, closing stream", {
+              error: error instanceof Error ? error.message : String(error),
+              errorName: error instanceof Error ? error.name : "Unknown",
+            });
             cleanup();
           }
         } catch (error) {

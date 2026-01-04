@@ -132,18 +132,7 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                       m.label,
                       m.value1,
                       m.value2,
-                      <Badge
-                        tone={
-                          m.change > 0
-                            ? "success"
-                            : m.change < 0
-                            ? "critical"
-                            : "subdued"
-                        }
-                      >
-                        {m.change > 0 ? "+" : ""}
-                        {m.change.toFixed(1)}%
-                      </Badge>,
+                      `${m.change > 0 ? "+" : ""}${m.change.toFixed(1)}%`,
                     ])}
                   />
                 </BlockStack>
@@ -163,18 +152,7 @@ export function ReportComparison({ shopId, availableRuns }: ReportComparisonProp
                         p.platform,
                         `${p.passRate1}%`,
                         `${p.passRate2}%`,
-                        <Badge
-                          tone={
-                            p.change > 0
-                              ? "success"
-                              : p.change < 0
-                              ? "critical"
-                              : "subdued"
-                          }
-                        >
-                          {p.change > 0 ? "+" : ""}
-                          {p.change.toFixed(1)}%
-                        </Badge>,
+                        `${p.change > 0 ? "+" : ""}${p.change.toFixed(1)}%`,
                       ])}
                     />
                   </BlockStack>
@@ -231,27 +209,27 @@ function generateComparisonData(
   const metrics: ComparisonData["metrics"] = [
     {
       label: "通过率",
-      value1: `${report1.passRate}%`,
-      value2: `${report2.passRate}%`,
-      change: report2.passRate - report1.passRate,
+      value1: `${report1.summary.totalTests > 0 ? Math.round((report1.summary.passedTests / report1.summary.totalTests) * 100) : 0}%`,
+      value2: `${report2.summary.totalTests > 0 ? Math.round((report2.summary.passedTests / report2.summary.totalTests) * 100) : 0}%`,
+      change: (report2.summary.totalTests > 0 ? (report2.summary.passedTests / report2.summary.totalTests) * 100 : 0) - (report1.summary.totalTests > 0 ? (report1.summary.passedTests / report1.summary.totalTests) * 100 : 0),
     },
     {
       label: "参数完整率",
-      value1: `${report1.parameterCompleteness}%`,
-      value2: `${report2.parameterCompleteness}%`,
-      change: report2.parameterCompleteness - report1.parameterCompleteness,
+      value1: `${report1.summary.parameterCompleteness}%`,
+      value2: `${report2.summary.parameterCompleteness}%`,
+      change: report2.summary.parameterCompleteness - report1.summary.parameterCompleteness,
     },
     {
       label: "金额准确率",
-      value1: `${report1.valueAccuracy}%`,
-      value2: `${report2.valueAccuracy}%`,
-      change: report2.valueAccuracy - report1.valueAccuracy,
+      value1: `${report1.summary.valueAccuracy}%`,
+      value2: `${report2.summary.valueAccuracy}%`,
+      change: report2.summary.valueAccuracy - report1.summary.valueAccuracy,
     },
     {
       label: "总测试数",
-      value1: report1.totalTests.toString(),
-      value2: report2.totalTests.toString(),
-      change: ((report2.totalTests - report1.totalTests) / report1.totalTests) * 100,
+      value1: report1.summary.totalTests.toString(),
+      value2: report2.summary.totalTests.toString(),
+      change: report1.summary.totalTests > 0 ? ((report2.summary.totalTests - report1.summary.totalTests) / report1.summary.totalTests) * 100 : 0,
     },
   ];
 
@@ -276,17 +254,19 @@ function generateComparisonData(
   });
 
   const improvements: string[] = [];
-  if (report2.passRate < report1.passRate) {
+  const passRate1 = report1.summary.totalTests > 0 ? (report1.summary.passedTests / report1.summary.totalTests) * 100 : 0;
+  const passRate2 = report2.summary.totalTests > 0 ? (report2.summary.passedTests / report2.summary.totalTests) * 100 : 0;
+  if (passRate2 < passRate1) {
     improvements.push("通过率有所下降，建议检查最近的配置更改");
   }
-  if (report2.parameterCompleteness < report1.parameterCompleteness) {
+  if (report2.summary.parameterCompleteness < report1.summary.parameterCompleteness) {
     improvements.push("参数完整率下降，建议检查事件映射配置");
   }
-  if (report2.valueAccuracy < report1.valueAccuracy) {
+  if (report2.summary.valueAccuracy < report1.summary.valueAccuracy) {
     improvements.push("金额准确率下降，建议检查订单数据处理逻辑");
   }
-  if (report2.failedTests > report1.failedTests) {
-    improvements.push(`失败测试数从 ${report1.failedTests} 增加到 ${report2.failedTests}，需要关注错误日志`);
+  if (report2.summary.failedTests > report1.summary.failedTests) {
+    improvements.push(`失败测试数从 ${report1.summary.failedTests} 增加到 ${report2.summary.failedTests}，需要关注错误日志`);
   }
 
   return { metrics, platforms, improvements };
@@ -298,14 +278,12 @@ function calculatePlatformStats(report: VerificationReportData): Record<
 > {
   const stats: Record<string, { passed: number; total: number }> = {};
 
-  for (const result of report.results) {
-    if (!stats[result.platform]) {
-      stats[result.platform] = { passed: 0, total: 0 };
+  for (const [platform, result] of Object.entries(report.platformResults)) {
+    if (!stats[platform]) {
+      stats[platform] = { passed: 0, total: 0 };
     }
-    stats[result.platform].total++;
-    if (result.status === "success") {
-      stats[result.platform].passed++;
-    }
+    stats[platform].total += result.sent + result.failed;
+    stats[platform].passed += result.sent;
   }
 
   return stats;

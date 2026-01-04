@@ -175,6 +175,7 @@ export function BatchTaskBoard({
         {tasks.length === 0 ? (
           <EmptyState
             heading="暂无批量任务"
+            image=""
           >
             <Text as="p" tone="subdued">
               当您启动批量操作时，任务将显示在这里
@@ -265,14 +266,14 @@ export function BatchTaskBoard({
                       <Box>
                         <InlineStack gap="400">
                           <Badge tone="success">
-                            成功: {task.result.completed}
+                            {`成功: ${task.result.completed}`}
                           </Badge>
                           {task.result.failed > 0 && (
-                            <Badge tone="critical">失败: {task.result.failed}</Badge>
+                            <Badge tone="critical">{`失败: ${task.result.failed}`}</Badge>
                           )}
                           {task.result.skipped !== undefined &&
                             task.result.skipped > 0 && (
-                              <Badge>跳过: {task.result.skipped}</Badge>
+                              <Badge>{`跳过: ${task.result.skipped}`}</Badge>
                             )}
                         </InlineStack>
                       </Box>

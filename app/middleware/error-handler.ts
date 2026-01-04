@@ -164,8 +164,6 @@ function logError(error: AppError, request: Request): void {
       method,
       pathname,
       searchParams: Object.fromEntries(url.searchParams),
-      path: url.pathname,
-      method: request.method,
       metadata: error.metadata,
     });
   } else {

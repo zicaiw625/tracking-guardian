@@ -75,8 +75,8 @@ export function ConfigComparison({
           <Text as="h3" variant="headingMd">
             配置对比
           </Text>
-          <Badge tone={changedFields.length > 0 ? "attention" : "success"}>
-            {changedFields.length} 项变更
+          <Badge tone={changedFields.length > 0 ? undefined : "success"}>
+            {`${changedFields.length} 项变更`}
           </Badge>
         </InlineStack>
 
@@ -144,7 +144,7 @@ export function ConfigComparison({
             <Text as="span" variant="bodySm" tone="subdued">
               当前版本
             </Text>
-            <Badge>v{current.version}</Badge>
+            <Badge>{`v${current.version}`}</Badge>
           </InlineStack>
           <InlineStack align="space-between">
             <Text as="span" variant="bodySm" tone="subdued">

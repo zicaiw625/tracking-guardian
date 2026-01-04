@@ -691,13 +691,13 @@ export default function VerificationPage() {
               <BlockStack gap="200">
                 <InlineStack gap="300" wrap>
                   <Badge tone="info">
-                    {testChecklist.requiredItemsCount} 项必需
+                    {`${String(testChecklist.requiredItemsCount)} 项必需`}
                   </Badge>
                   <Badge>
-                    {testChecklist.optionalItemsCount} 项可选
+                    {`${String(testChecklist.optionalItemsCount)} 项可选`}
                   </Badge>
                   <Badge tone="success">
-                    预计 {Math.floor(testChecklist.totalEstimatedTime / 60)} 小时 {testChecklist.totalEstimatedTime % 60} 分钟
+                    {`预计 ${String(Math.floor(testChecklist.totalEstimatedTime / 60))} 小时 ${String(testChecklist.totalEstimatedTime % 60)} 分钟`}
                   </Badge>
                 </InlineStack>
               </BlockStack>
@@ -1071,7 +1071,7 @@ export default function VerificationPage() {
                                       <Layout.Section variant="oneQuarter">
                                         <Box background="bg-surface-warning-secondary" padding="300" borderRadius="200">
                                           <BlockStack gap="100" align="center">
-                                            <Text as="p" variant="headingLg" fontWeight="bold" tone="warning">
+                                            <Text as="p" variant="headingLg" fontWeight="bold">
                                               {latestRun.reconciliation.localConsistency.partial}
                                             </Text>
                                             <Text as="p" variant="bodySm" tone="subdued">
@@ -1363,7 +1363,7 @@ export default function VerificationPage() {
                 📝 验收测试清单
               </Text>
               {latestRun && (
-                <Badge tone={latestRun.status === "completed" ? "success" : latestRun.status === "running" ? "info" : "subdued"}>
+                <Badge tone={latestRun.status === "completed" ? "success" : latestRun.status === "running" ? "info" : undefined}>
                   {latestRun.status === "completed" ? "已完成" : latestRun.status === "running" ? "运行中" : "待运行"}
                 </Badge>
               )}
@@ -1437,7 +1437,7 @@ export default function VerificationPage() {
                             <Badge tone="warning">⚠ 参数缺失</Badge>
                           )}
                           {itemStatus === "not_tested" && (
-                            <Badge tone="subdued">未测试</Badge>
+                            <Badge>未测试</Badge>
                           )}
                         </InlineStack>
                         <Text as="span" variant="bodySm" tone="subdued">

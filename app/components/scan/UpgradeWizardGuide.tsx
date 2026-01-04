@@ -96,7 +96,7 @@ export function UpgradeWizardGuide({
         ...(step > 1 ? [{ content: "上一步", onAction: handleBack }] : []),
         { content: "取消", onAction: handleCancel },
       ]}
-      large
+      size="large"
     >
       <Modal.Section>
         <BlockStack gap="400">
@@ -313,12 +313,12 @@ export function UpgradeWizardGuide({
               </Text>
               <TextField
                 label="清单内容"
-                multiline
-                rows={10}
+                multiline={10}
                 value={pastedContent}
                 onChange={setPastedContent}
                 placeholder="粘贴升级向导中的脚本清单或代码片段..."
                 helpText="支持纯文本、JSON 或其他格式的代码"
+                autoComplete="off"
               />
             </BlockStack>
           )}

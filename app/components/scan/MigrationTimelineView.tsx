@@ -70,16 +70,16 @@ export function MigrationTimelineView({
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
 
-  const getRiskBadgeTone = (risk: string) => {
+  const getRiskBadgeTone = (risk: string): "critical" | "info" | undefined => {
     switch (risk) {
       case "high":
         return "critical";
       case "medium":
-        return "warning";
+        return undefined;
       case "low":
         return "info";
       default:
-        return "subdued";
+        return undefined;
     }
   };
 
@@ -95,7 +95,7 @@ export function MigrationTimelineView({
             ? "bg-surface-success"
             : item.canStart
               ? "bg-surface-secondary"
-              : "bg-surface-warning-subdued"
+              : undefined
         }
         padding="300"
         borderRadius="200"
@@ -117,11 +117,11 @@ export function MigrationTimelineView({
                   {item.asset.displayName || `${item.asset.category} - ${item.asset.platform || "未知"}`}
                 </Text>
                 <Badge tone={riskBadgeTone}>
-                  {item.asset.riskLevel === "high" ? "高" : item.asset.riskLevel === "medium" ? "中" : "低"}风险
+                  {`${item.asset.riskLevel === "high" ? "高" : item.asset.riskLevel === "medium" ? "中" : "低"}风险`}
                 </Badge>
                 {item.asset.priority && (
-                  <Badge tone={item.asset.priority >= 8 ? "critical" : item.asset.priority >= 5 ? "warning" : "info"}>
-                    优先级 {item.asset.priority}/10
+                  <Badge tone={item.asset.priority >= 8 ? "critical" : item.asset.priority >= 5 ? undefined : "info"}>
+                    {`优先级 ${item.asset.priority}/10`}
                   </Badge>
                 )}
               </InlineStack>
@@ -152,7 +152,7 @@ export function MigrationTimelineView({
           {}
           {item.blockingDependencies.length > 0 && (
             <Box paddingBlockStart="200">
-              <Box background="bg-surface-warning-subdued" padding="200" borderRadius="100">
+              <Box background="bg-surface-secondary" padding="200" borderRadius="100">
                 <Text as="p" variant="bodySm" tone="subdued">
                   <strong>等待依赖项完成：</strong>
                   {item.blockingDependencies.length} 个依赖项需要先完成
@@ -173,13 +173,13 @@ export function MigrationTimelineView({
             迁移时间线
           </Text>
           <Badge tone="info">
-            预计总时间: {formatTime(timeline.totalEstimatedTime)}
+            {`预计总时间: ${formatTime(timeline.totalEstimatedTime)}`}
           </Badge>
         </InlineStack>
 
         {}
         {timeline.criticalPath.length > 0 && (
-          <Box background="bg-surface-info-subdued" padding="300" borderRadius="200">
+          <Box background="bg-surface-secondary" padding="300" borderRadius="200">
             <BlockStack gap="200">
               <InlineStack gap="200" blockAlign="center">
                 <Icon source={AlertCircleIcon} tone="info" />
@@ -200,7 +200,7 @@ export function MigrationTimelineView({
                   ) : null;
                 })}
                 {timeline.criticalPath.length > 5 && (
-                  <Badge tone="subdued">+{timeline.criticalPath.length - 5} 项</Badge>
+                  <Badge>{`+${timeline.criticalPath.length - 5} 项`}</Badge>
                 )}
               </InlineStack>
             </BlockStack>
@@ -215,7 +215,7 @@ export function MigrationTimelineView({
               variant="plain"
               onClick={() => toggleSection("canStart")}
             >
-              {expandedSections.has("canStart") ? "▼" : "▶"} 可开始迁移 ({canStartItems.length} 项)
+              {`${expandedSections.has("canStart") ? "▼" : "▶"} 可开始迁移 (${canStartItems.length} 项)`}
             </Button>
             <Collapsible
               open={expandedSections.has("canStart")}
@@ -237,7 +237,7 @@ export function MigrationTimelineView({
               variant="plain"
               onClick={() => toggleSection("blocked")}
             >
-              {expandedSections.has("blocked") ? "▼" : "▶"} 等待依赖项 ({blockedItems.length} 项)
+              {`${expandedSections.has("blocked") ? "▼" : "▶"} 等待依赖项 (${blockedItems.length} 项)`}
             </Button>
             <Collapsible
               open={expandedSections.has("blocked")}
@@ -259,7 +259,7 @@ export function MigrationTimelineView({
               variant="plain"
               onClick={() => toggleSection("completed")}
             >
-              {expandedSections.has("completed") ? "▼" : "▶"} 已完成 ({completedItems.length} 项)
+              {`${expandedSections.has("completed") ? "▼" : "▶"} 已完成 (${completedItems.length} 项)`}
             </Button>
             <Collapsible
               open={expandedSections.has("completed")}

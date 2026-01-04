@@ -480,7 +480,7 @@ export default function TemplatesPage() {
               <Text as="h2" variant="headingMd">
                 我的模板
               </Text>
-              <Badge tone="info">{myTemplates.length} 个</Badge>
+              <Badge tone="info">{`${myTemplates.length} 个`}</Badge>
             </InlineStack>
 
             {myTemplates.length === 0 ? (
@@ -580,7 +580,7 @@ export default function TemplatesPage() {
                 <Text as="h2" variant="headingMd">
                   公开模板
                 </Text>
-                <Badge tone="info">{publicTemplates.length} 个</Badge>
+                <Badge tone="info">{`${publicTemplates.length} 个`}</Badge>
               </InlineStack>
 
               <DataTable
@@ -723,6 +723,7 @@ export default function TemplatesPage() {
                         value={shareLink}
                         readOnly
                         helpText="复制此链接并分享给其他用户，他们可以通过此链接导入模板"
+                        autoComplete="off"
                       />
                       <Button
                         variant="primary"
@@ -774,7 +775,7 @@ export default function TemplatesPage() {
                         <Text as="span" variant="bodySm" tone="subdued">
                           使用次数：
                         </Text>
-                        <Badge>{sharingTemplate.usageCount}</Badge>
+                        <Badge>{String(sharingTemplate.usageCount)}</Badge>
                       </InlineStack>
                     </BlockStack>
                   </BlockStack>
@@ -833,7 +834,7 @@ export default function TemplatesPage() {
                       <Text as="span" fontWeight="semibold">
                         使用次数：
                       </Text>
-                      <Badge>{previewingTemplate.usageCount}</Badge>
+                      <Badge>{String(previewingTemplate.usageCount)}</Badge>
                     </InlineStack>
                     <InlineStack gap="200" blockAlign="center">
                       <Text as="span" fontWeight="semibold">

@@ -1,9 +1,10 @@
 
-import type { Middleware } from "./types";
+import type { Middleware, MiddlewareContext, MiddlewareResult } from "./types";
 import { checkFeatureAccess } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import prisma from "../db.server";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
+import { logger } from "../utils/logger.server";
 
 export interface PlanGateConfig {
   feature: "verification" | "alerts" | "reconciliation" | "agency";
@@ -12,7 +13,7 @@ export interface PlanGateConfig {
 }
 
 export function withPlanGate(config: PlanGateConfig): Middleware {
-  return async (context, next) => {
+  return async (context: MiddlewareContext): Promise<MiddlewareResult> => {
     const { request } = context;
 
     try {
@@ -26,7 +27,7 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
       });
 
       if (!shop) {
-        return json({ error: "Shop not found" }, { status: 404 });
+        return { continue: false, response: json({ error: "Shop not found" }, { status: 404 }) };
       }
 
       const planId = normalizePlanId(shop.plan || "free") as PlanId;
@@ -35,11 +36,12 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
       if (!gateResult.allowed) {
 
         if (config.redirectTo) {
-          return Response.redirect(new URL(config.redirectTo, request.url));
+          const redirectUrl = new URL(config.redirectTo, request.url).toString();
+          return { continue: false, response: redirect(redirectUrl) };
         }
 
         if (config.showUpgradePrompt) {
-          return json(
+          return { continue: false, response: json(
             {
               error: "Feature requires upgrade",
               gateResult,
@@ -47,23 +49,25 @@ export function withPlanGate(config: PlanGateConfig): Middleware {
               requiredFeature: config.feature,
             },
             { status: 403 }
-          );
+          ) };
         }
 
-        return json(
+        return { continue: false, response: json(
           {
             error: gateResult.reason || "Feature not available in current plan",
             gateResult,
           },
           { status: 403 }
-        );
+        ) };
       }
 
-      return next(context);
+      return { continue: true, context };
     } catch (error) {
-
-      logger.warn("Plan gate authentication check failed", error);
-      return next(context);
+      logger.warn("Plan gate authentication check failed", {
+        error: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : "Unknown",
+      });
+      return { continue: true, context };
     }
   };
 }

@@ -1,9 +1,10 @@
 
-import type { Middleware } from "./types";
+import type { Middleware, MiddlewareContext, MiddlewareResult } from "./types";
 import { checkPixelDestinationsLimit, checkUiModulesLimit, checkMultiShopLimit } from "../services/billing/limits.server";
 import { normalizePlanId, type PlanId } from "../services/billing/plans";
 import prisma from "../db.server";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
+import { logger } from "../utils/logger.server";
 
 export interface PlanLimitConfig {
   limitType: "pixel_destinations" | "ui_modules" | "multi_shop";
@@ -12,7 +13,7 @@ export interface PlanLimitConfig {
 }
 
 export function withPlanLimit(config: PlanLimitConfig): Middleware {
-  return async (context, next) => {
+  return async (context: MiddlewareContext): Promise<MiddlewareResult> => {
     const { request } = context;
 
     try {
@@ -26,7 +27,7 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
       });
 
       if (!shop) {
-        return json({ error: "Shop not found" }, { status: 404 });
+        return { continue: false, response: json({ error: "Shop not found" }, { status: 404 }) };
       }
 
       const planId = normalizePlanId(shop.plan || "free") as PlanId;
@@ -43,17 +44,18 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
           limitResult = await checkMultiShopLimit(shop.id, planId);
           break;
         default:
-          return next(context);
+          return { continue: true, context };
       }
 
       if (!limitResult.allowed) {
 
         if (config.redirectTo) {
-          return Response.redirect(new URL(config.redirectTo, request.url));
+          const redirectUrl = new URL(config.redirectTo, request.url).toString();
+          return { continue: false, response: redirect(redirectUrl) };
         }
 
         if (config.showUpgradePrompt) {
-          return json(
+          return { continue: false, response: json(
             {
               error: "Plan limit exceeded",
               limitResult,
@@ -61,22 +63,25 @@ export function withPlanLimit(config: PlanLimitConfig): Middleware {
               limitType: config.limitType,
             },
             { status: 403 }
-          );
+          ) };
         }
 
-        return json(
+        return { continue: false, response: json(
           {
             error: limitResult.reason || "Plan limit exceeded",
             limitResult,
           },
           { status: 403 }
-        );
+        ) };
       }
 
-      return next(context);
+      return { continue: true, context };
     } catch (error) {
-
-      return next(context);
+      logger.warn("Plan limit check failed", {
+        error: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : "Unknown",
+      });
+      return { continue: true, context };
     }
   };
 }

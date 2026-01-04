@@ -79,7 +79,7 @@ export function matchScriptTagsToRecipes(scriptTags: ScriptTag[]): MatchResult {
     if (matches.length > 0) {
       allMatches.push(...matches);
     } else if (content) {
-      unmatched.push({ content, identifier });
+      unmatched.push({ content, identifier: identifier ? String(identifier) : undefined });
     }
   }
   const recipeMap = new Map<string, RecipeMatch>();

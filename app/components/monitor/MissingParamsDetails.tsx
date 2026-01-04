@@ -97,18 +97,18 @@ export function MissingParamsDetails({ stats }: MissingParamsDetailsProps) {
                             eventStats.rate < 5
                               ? "success"
                               : eventStats.rate < 10
-                                ? "warning"
+                                ? undefined
                                 : "critical"
                           }
                         >
-                          {eventStats.rate.toFixed(2)}%
+                          {`${eventStats.rate.toFixed(2)}%`}
                         </Badge>
-                        <Text as="span" variant="bodySm" tone="subdued">
+                        <Text as="span" variant="bodySm">
                           {eventStats.missing} / {eventStats.total} 缺失
                         </Text>
                       </InlineStack>
                       <Button
-                        plain
+                        variant="plain"
                         onClick={() => toggleGroup(groupKey)}
                         icon={isExpanded ? ArrowUpIcon : ArrowDownIcon}
                       >
@@ -189,13 +189,13 @@ export function MissingParamsDetails({ stats }: MissingParamsDetailsProps) {
                           platformStats.rate < 5
                             ? "success"
                             : platformStats.rate < 10
-                              ? "warning"
+                              ? undefined
                               : "critical"
                         }
                       >
-                        {platformStats.rate.toFixed(2)}%
+                        {`${platformStats.rate.toFixed(2)}%`}
                       </Badge>
-                      <Text as="span" variant="bodySm" tone="subdued">
+                      <Text as="span" variant="bodySm">
                         {platformStats.missing} / {platformStats.total} 缺失
                       </Text>
                     </InlineStack>

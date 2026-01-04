@@ -103,14 +103,14 @@ export function CommentSection({
 
     return (
       <Box key={comment.id} paddingBlockStart={level > 0 ? "300" : "400"}>
-        <Box paddingInlineStart={`${indent}px`}>
+        <Box style={{ paddingInlineStart: `${indent}px` }}>
           <BlockStack gap="200">
             <InlineStack align="space-between" blockAlign="center">
               <InlineStack gap="200" blockAlign="center">
                 <Text as="span" variant="bodySm" fontWeight="semibold">
                   {comment.authorShopDomain}
                 </Text>
-                {comment.isSystemMessage && (
+                {('isSystemMessage' in comment && comment.isSystemMessage) && (
                   <Badge tone="info">系统消息</Badge>
                 )}
                 <Text as="span" variant="bodySm" tone="subdued">
@@ -130,7 +130,7 @@ export function CommentSection({
             </InlineStack>
 
             <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-              <Text as="p" variant="bodySm" whiteSpace="pre-wrap">
+              <Box style={{ fontSize: "13px", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>
                 {comment.content.split(/(@\w+)/g).map((part, idx) => {
                   if (part.startsWith("@")) {
                     const domain = part.substring(1);
@@ -145,10 +145,10 @@ export function CommentSection({
                   }
                   return <span key={idx}>{part}</span>;
                 })}
-              </Text>
+              </Box>
             </Box>
 
-            {!comment.isSystemMessage && (
+            {!('isSystemMessage' in comment && comment.isSystemMessage) && (
               <InlineStack gap="200">
                 {replyingTo === comment.id ? (
                   <>

@@ -289,13 +289,13 @@ export function ConfigVersionManager({
                 </List.Item>
               </List>
 
-              {fetcher.data && (fetcher.data as { error?: string }).error && (
+              {fetcher.data && (fetcher.data as { error?: string }).error ? (
                 <Banner tone="critical">
                   <Text as="p" variant="bodySm">
                     {(fetcher.data as { error: string }).error}
                   </Text>
                 </Banner>
-              )}
+              ) : null}
             </BlockStack>
           </BlockStack>
         </Modal.Section>

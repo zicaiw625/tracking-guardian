@@ -157,7 +157,9 @@ export function MissingParamsChart({
       tooltip: {
         callbacks: {
           label: (context) => {
-            return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}%`;
+            const y = context.parsed.y;
+            if (y === null || y === undefined) return `${context.dataset.label}: N/A`;
+            return `${context.dataset.label}: ${y.toFixed(2)}%`;
           },
         },
       },
@@ -187,7 +189,9 @@ export function MissingParamsChart({
       tooltip: {
         callbacks: {
           label: (context) => {
-            return `平均缺参率: ${context.parsed.y.toFixed(2)}%`;
+            const y = context.parsed.y;
+            if (y === null || y === undefined) return `平均缺参率: N/A`;
+            return `平均缺参率: ${y.toFixed(2)}%`;
           },
         },
       },

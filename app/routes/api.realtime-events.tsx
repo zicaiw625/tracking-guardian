@@ -51,7 +51,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             const message = `data: ${JSON.stringify(data)}\n\n`;
             controller.enqueue(encoder.encode(message));
           } catch (error) {
-            logger.warn("Failed to send SSE message, closing stream", error);
+            logger.warn("Failed to send SSE message, closing stream", {
+              error: error instanceof Error ? error.message : String(error),
+              errorName: error instanceof Error ? error.name : "Unknown",
+            });
             cleanup();
           }
         };

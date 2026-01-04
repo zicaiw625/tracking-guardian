@@ -3,6 +3,7 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { generateSimpleId } from "../utils/helpers";
 import type { WebVitalsMetric } from "../utils/web-vitals.client";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -10,9 +11,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
+  let shopDomain: string | undefined;
   try {
     const { session } = await authenticate.admin(request);
-    const shopDomain = session.shop;
+    shopDomain = session.shop;
 
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
@@ -27,6 +29,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     await prisma.performanceMetric.create({
       data: {
+        id: generateSimpleId("perf"),
         shopId: shop.id,
         metricName: metric.name,
         metricValue: metric.value,

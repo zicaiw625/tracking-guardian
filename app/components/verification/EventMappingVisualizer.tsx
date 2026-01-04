@@ -12,6 +12,7 @@ import {
   Divider,
   Collapsible,
   List,
+  Banner,
 } from "@shopify/polaris";
 import { mapEventToPlatform } from "~/services/events/mapping.server";
 import { normalizeEvent } from "~/services/events/normalizer.server";
@@ -113,19 +114,18 @@ export function EventMappingVisualizer({
                   <Text as="p" variant="bodySm" tone="subdued">
                     <strong>完整规范化数据：</strong>
                   </Text>
-                  <Box
-                    as="pre"
-                    padding="200"
-                    background="bg-surface-tertiary"
-                    borderRadius="100"
+                  <pre
                     style={{
+                      padding: "8px",
+                      background: "var(--p-color-bg-surface-tertiary)",
+                      borderRadius: "4px",
                       fontSize: "11px",
                       overflow: "auto",
                       maxHeight: "300px",
                     }}
                   >
                     {JSON.stringify(canonicalEvent, null, 2)}
-                  </Box>
+                  </pre>
                 </Box>
               </Collapsible>
               <Button
@@ -198,16 +198,15 @@ export function EventMappingVisualizer({
                     id={`platform-${platform}`}
                     transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
                   >
-                    <BlockStack gap="200" paddingBlockStart="200">
+                    <BlockStack gap="200" style={{ paddingBlockStart: "8px" }}>
                       <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
                         映射后的参数：
                       </Text>
-                      <Box
-                        as="pre"
-                        padding="200"
-                        background="bg-surface-tertiary"
-                        borderRadius="100"
+                      <pre
                         style={{
+                          padding: "8px",
+                          background: "var(--p-color-bg-surface-tertiary)",
+                          borderRadius: "4px",
                           fontSize: "11px",
                           overflow: "auto",
                           maxHeight: "300px",
@@ -221,7 +220,7 @@ export function EventMappingVisualizer({
                           null,
                           2
                         )}
-                      </Box>
+                      </pre>
                     </BlockStack>
                   </Collapsible>
                 </BlockStack>
@@ -242,8 +241,7 @@ export function EventMappingVisualizer({
             padding="300"
             borderRadius="200"
           >
-            <Box
-              as="pre"
+            <pre
               style={{
                 fontSize: "11px",
                 overflow: "auto",
@@ -252,7 +250,7 @@ export function EventMappingVisualizer({
               }}
             >
               {JSON.stringify(shopifyEvent, null, 2)}
-            </Box>
+            </pre>
           </Box>
         </BlockStack>
       </BlockStack>

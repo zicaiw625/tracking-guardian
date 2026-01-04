@@ -1,6 +1,6 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
 import { useState } from "react";
 import {
@@ -173,7 +173,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
 
-    return Response.redirect(`/api/exports?${params.toString()}`);
+    return redirect(`/api/exports?${params.toString()}`);
   }
 
   return json({ error: "无效的操作" }, { status: 400 });
@@ -284,7 +284,7 @@ export default function SurveyPage() {
                       <Text as="span" variant="bodySm">
                         {item.source}
                       </Text>
-                      <Badge>{item.count}</Badge>
+                      <Badge>{String(item.count)}</Badge>
                     </InlineStack>
                   ))}
                   {stats.sourceBreakdown.length === 0 && (

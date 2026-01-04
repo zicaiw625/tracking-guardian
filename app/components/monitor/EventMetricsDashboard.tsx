@@ -60,7 +60,7 @@ export function EventMetricsDashboard({
                 <Text variant="bodyMd" as="span">
                   总体成功率
                 </Text>
-                <InlineStack gap="200" blockAlignment="center">
+                <InlineStack gap="200" blockAlign="center">
                   <Text variant="headingLg" as="span">
                     {eventMetrics.successRate.toFixed(2)}%
                   </Text>
@@ -135,7 +135,7 @@ export function EventMetricsDashboard({
                 <Text variant="bodyMd" as="span">
                   Items 缺参率
                 </Text>
-                <Text variant="headingSm" as="span" tone={missingParamsMetrics.missingRate.items > 10 ? "warning" : "subdued"}>
+                <Text variant="headingSm" as="span">
                   {missingParamsMetrics.missingRate.items.toFixed(2)}%
                 </Text>
               </InlineStack>

@@ -287,14 +287,14 @@ export function ConfigManagementCard({
                   "current" in comparisonFetcher.data.comparison &&
                   "previous" in comparisonFetcher.data.comparison &&
                   "differences" in comparisonFetcher.data.comparison &&
-                  Array.isArray(comparisonFetcher.data.comparison.differences) && (
+                  Array.isArray(comparisonFetcher.data.comparison.differences) ? (
                     <ConfigComparison
                       current={comparisonFetcher.data.comparison.current as ConfigComparisonData["current"]}
                       previous={comparisonFetcher.data.comparison.previous as ConfigComparisonData["previous"]}
                       differences={comparisonFetcher.data.comparison.differences as ConfigComparisonData["differences"]}
                       platform={selectedPlatform}
                     />
-                  )}
+                  ) : null}
                 {activeTab === 1 && selectedPlatform && (
                   <ConfigVersionManager
                     shopId={shopId}

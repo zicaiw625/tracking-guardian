@@ -128,9 +128,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         checkMonitoringAlerts(shop.id).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to check monitoring alerts", error instanceof Error ? error : new Error(String(error)), {
+            logger.warn("Failed to check monitoring alerts", {
                 shopId: shop.id,
-                errorMessage,
+                error: errorMessage,
+                errorName: error instanceof Error ? error.name : "Unknown",
                 errorStack,
             });
             return null;
@@ -138,9 +139,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         getMissingParamsHistory(shop.id, 7).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to get missing params history", error instanceof Error ? error : new Error(String(error)), {
+            logger.warn("Failed to get missing params history", {
                 shopId: shop.id,
-                errorMessage,
+                error: errorMessage,
+                errorName: error instanceof Error ? error.name : "Unknown",
                 errorStack,
             });
             return [];
@@ -148,9 +150,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         getEventVolumeHistory(shop.id, 7).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to get event volume history", error instanceof Error ? error : new Error(String(error)), {
+            logger.warn("Failed to get event volume history", {
                 shopId: shop.id,
-                errorMessage,
+                error: errorMessage,
+                errorName: error instanceof Error ? error.name : "Unknown",
                 errorStack,
             });
             return [];
@@ -158,9 +161,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         reconcileChannels(shop.id, 24).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to reconcile channels", error instanceof Error ? error : new Error(String(error)), {
+            logger.warn("Failed to reconcile channels", {
                 shopId: shop.id,
-                errorMessage,
+                error: errorMessage,
+                errorName: error instanceof Error ? error.name : "Unknown",
                 errorStack,
             });
             return [];
@@ -168,9 +172,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         analyzeDedupConflicts(shop.id, last24h, new Date()).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to analyze dedup conflicts", error instanceof Error ? error : new Error(String(error)), {
+            logger.warn("Failed to analyze dedup conflicts", {
                 shopId: shop.id,
-                errorMessage,
+                error: errorMessage,
+                errorName: error instanceof Error ? error.name : "Unknown",
                 errorStack,
             });
             return null;
@@ -178,9 +183,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         getMissingParamsRateByEventType(shop.id, 24).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to get missing params rate by event type", error instanceof Error ? error : new Error(String(error)), {
+            logger.warn("Failed to get missing params rate by event type", {
                 shopId: shop.id,
-                errorMessage,
+                error: errorMessage,
+                errorName: error instanceof Error ? error.name : "Unknown",
                 errorStack,
             });
             return null;
@@ -188,9 +194,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         getEventSuccessRateHistory(shop.id, 24).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to get event success rate history", error instanceof Error ? error : new Error(String(error)), {
+            logger.warn("Failed to get event success rate history", {
                 shopId: shop.id,
-                errorMessage,
+                error: errorMessage,
+                errorName: error instanceof Error ? error.name : "Unknown",
                 errorStack,
             });
             return { overall: [], byDestination: {}, byEventType: {} };
@@ -198,9 +205,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         runDiagnostics(shop.id).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to run diagnostics", error instanceof Error ? error : new Error(String(error)), {
+            logger.warn("Failed to run diagnostics", {
                 shopId: shop.id,
-                errorMessage,
+                error: errorMessage,
+                errorName: error instanceof Error ? error.name : "Unknown",
                 errorStack,
             });
             return null;
@@ -236,7 +244,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 };
 export default function MonitorPage() {
-  const { summary, history, conversionStats, configHealth, alertConfigs, alertCount, recentAlerts, currentAlertStatus, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsHistory, eventVolumeHistory, channelReconciliation, dedupAnalysis, missingParamsDetailed, successRateHistory, diagnosticsReport, lastUpdated } = useLoaderData<typeof loader>();
+  const loaderData = useLoaderData<typeof loader>();
+  const { summary, history, conversionStats, configHealth, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsDetailed, lastUpdated, shop } = loaderData;
+  const alertConfigs = "alertConfigs" in loaderData ? loaderData.alertConfigs : false;
+  const alertCount = "alertCount" in loaderData ? loaderData.alertCount : 0;
+  const recentAlerts = "recentAlerts" in loaderData ? loaderData.recentAlerts : [];
+  const currentAlertStatus = "currentAlertStatus" in loaderData ? loaderData.currentAlertStatus : [];
+  const missingParamsHistory = "missingParamsHistory" in loaderData ? loaderData.missingParamsHistory : [];
+  const eventVolumeHistory = "eventVolumeHistory" in loaderData ? loaderData.eventVolumeHistory : [];
+  const channelReconciliation = "channelReconciliation" in loaderData ? loaderData.channelReconciliation : [];
+  const dedupAnalysis = "dedupAnalysis" in loaderData ? loaderData.dedupAnalysis : null;
+  const successRateHistory = "successRateHistory" in loaderData ? loaderData.successRateHistory : { overall: [], byDestination: {}, byEventType: {} };
+  const diagnosticsReport = "diagnosticsReport" in loaderData ? loaderData.diagnosticsReport : null;
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedChartPlatform, setSelectedChartPlatform] = useState<string>("all");
   const [missingParamsTimeRange, setMissingParamsTimeRange] = useState<string>("24");
@@ -312,6 +331,17 @@ export default function MonitorPage() {
     const summaryData: Record<string, DeliverySummary> = isDeliverySummaryRecord(summary) ? summary : {};
 
     const historyData: DeliveryHealthReport[] = (history ?? []).map((h) => {
+      if (!h || typeof h !== "object") {
+        return {
+          id: "",
+          platform: "",
+          reportDate: new Date(),
+          shopifyOrders: 0,
+          platformConversions: 0,
+          orderDiscrepancy: 0,
+          alertSent: false,
+        };
+      }
       const reportDate = h.reportDate instanceof Date
         ? h.reportDate
         : typeof h.reportDate === 'string'
@@ -456,12 +486,12 @@ export default function MonitorPage() {
                   )}
                 </Text>
               )}
-              {monitoringAlert.stats?.byEventType && (
+              {monitoringAlert.stats && "byEventType" in monitoringAlert.stats && monitoringAlert.stats.byEventType && (
                 <BlockStack gap="100">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
                     按事件类型缺参率：
                   </Text>
-                  {Object.entries(monitoringAlert.stats.byEventType)
+                  {Object.entries(monitoringAlert.stats.byEventType as Record<string, number>)
                     .sort(([, a], [, b]) => (b as number) - (a as number))
                     .slice(0, 3)
                     .map(([eventType, rate]) => (
@@ -652,7 +682,7 @@ export default function MonitorPage() {
                           tone={(() => {
                             const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
                             const missingRate = (totalMissing / monitoringStats.totalEvents) * 100;
-                            return missingRate < 5 ? "success" : missingRate < 10 ? "warning" : "critical";
+                            return missingRate < 5 ? "success" : missingRate < 10 ? undefined : "critical";
                           })()}
                         >
                           {(() => {
@@ -701,7 +731,7 @@ export default function MonitorPage() {
                                   const totalMissing = missingParamsStats.reduce((sum, s) => sum + s.count, 0);
                                   const overallRate = (totalMissing / monitoringStats.totalEvents) * 100;
                                   if (overallRate < 5) return "success";
-                                  if (overallRate < 10) return "warning";
+                                  if (overallRate < 10) return undefined;
                                   return "critical";
                                 })()}
                                 fontWeight="bold"
@@ -759,8 +789,8 @@ export default function MonitorPage() {
                           <BlockStack gap="200">
                             <InlineStack align="space-between" blockAlign="center">
                               <InlineStack gap="200" blockAlign="center">
-                                <Badge tone={missingRate < 5 ? "success" : missingRate < 10 ? "warning" : "critical"}>
-                                  {platformName} - {stat.eventType}
+                                <Badge tone={missingRate < 5 ? "success" : missingRate < 10 ? undefined : "critical"}>
+                                  {`${platformName} - ${stat.eventType}`}
                                 </Badge>
                                 <Text as="span" variant="bodySm" tone="subdued">
                                   {stat.count} 次缺失
@@ -871,11 +901,11 @@ export default function MonitorPage() {
                                       stats.rate < 5
                                         ? "success"
                                         : stats.rate < 10
-                                          ? "warning"
+                                          ? undefined
                                           : "critical"
                                     }
                                   >
-                                    缺参率: {stats.rate.toFixed(2)}%
+                                    {`缺参率: ${stats.rate.toFixed(2)}%`}
                                   </Badge>
                                 </InlineStack>
                                 <Text as="span" variant="bodySm" tone="subdued">
@@ -890,8 +920,8 @@ export default function MonitorPage() {
                                       {Object.entries(stats.missingParams)
                                         .sort(([, a], [, b]) => b - a)
                                         .map(([param, count]) => (
-                                          <Badge key={param} tone="warning">
-                                            {param}: {count} 次
+                                          <Badge key={param}>
+                                            {`${param}: ${count} 次`}
                                           </Badge>
                                         ))}
                                     </InlineStack>
@@ -927,7 +957,7 @@ export default function MonitorPage() {
                   <Box minWidth="200px">
                     <BlockStack gap="100">
                       <Text as="span" variant="bodySm" tone="subdued">成功率</Text>
-                      <Text as="span" variant="headingLg" tone={monitoringStats.successRate >= 95 ? "success" : monitoringStats.successRate >= 90 ? "warning" : "critical"}>
+                      <Text as="span" variant="headingLg" tone={monitoringStats.successRate >= 95 ? "success" : monitoringStats.successRate >= 90 ? undefined : "critical"}>
                         {monitoringStats.successRate.toFixed(2)}%
                       </Text>
                     </BlockStack>
@@ -935,7 +965,7 @@ export default function MonitorPage() {
                   <Box minWidth="200px">
                     <BlockStack gap="100">
                       <Text as="span" variant="bodySm" tone="subdued">失败率</Text>
-                      <Text as="span" variant="headingLg" tone={monitoringStats.failureRate < 2 ? "success" : monitoringStats.failureRate < 5 ? "warning" : "critical"}>
+                      <Text as="span" variant="headingLg" tone={monitoringStats.failureRate < 2 ? "success" : monitoringStats.failureRate < 5 ? undefined : "critical"}>
                         {monitoringStats.failureRate.toFixed(2)}%
                       </Text>
                     </BlockStack>
@@ -954,8 +984,8 @@ export default function MonitorPage() {
                             {isValidPlatform(platform) ? PLATFORM_NAMES[platform] : platform}
                           </Text>
                           <InlineStack gap="300">
-                            <Badge tone={stats.successRate >= 95 ? "success" : stats.successRate >= 90 ? "warning" : "critical"}>
-                              成功率: {stats.successRate.toFixed(2)}%
+                            <Badge tone={stats.successRate >= 95 ? "success" : stats.successRate >= 90 ? undefined : "critical"}>
+                              {`成功率: ${stats.successRate.toFixed(2)}%`}
                             </Badge>
                             <Text as="span" variant="bodySm" tone="subdued">
                               {stats.success}/{stats.total}
@@ -982,8 +1012,8 @@ export default function MonitorPage() {
                                 {eventType}
                               </Text>
                               <InlineStack gap="300">
-                                <Badge tone={stats.successRate >= 95 ? "success" : stats.successRate >= 90 ? "warning" : "critical"}>
-                                  成功率: {stats.successRate.toFixed(2)}%
+                                <Badge tone={stats.successRate >= 95 ? "success" : stats.successRate >= 90 ? undefined : "critical"}>
+                                  {`成功率: ${stats.successRate.toFixed(2)}%`}
                                 </Badge>
                                 <Text as="span" variant="bodySm" tone="subdued">
                                   {stats.success}/{stats.total}
@@ -992,7 +1022,7 @@ export default function MonitorPage() {
                             </InlineStack>
                             <ProgressBar
                               progress={stats.successRate}
-                              tone={stats.successRate >= 95 ? "success" : stats.successRate >= 90 ? "warning" : "critical"}
+                              tone={stats.successRate >= 95 ? "success" : stats.successRate >= 90 ? undefined : "critical"}
                               size="small"
                             />
                             <InlineStack align="space-between">
@@ -1021,7 +1051,8 @@ export default function MonitorPage() {
                 比较 Shopify 订单与平台事件的一致性，确保追踪数据准确
               </Text>
               <BlockStack gap="300">
-                {channelReconciliation.map((recon) => {
+                {Array.isArray(channelReconciliation) && channelReconciliation.map((recon) => {
+                  if (!recon) return null;
                   const platformName = isValidPlatform(recon.platform)
                     ? PLATFORM_NAMES[recon.platform]
                     : recon.platform;
@@ -1049,11 +1080,11 @@ export default function MonitorPage() {
                               recon.matchRate >= 95
                                 ? "success"
                                 : recon.matchRate >= 90
-                                  ? "warning"
+                                  ? undefined
                                   : "critical"
                             }
                           >
-                            匹配率: {recon.matchRate.toFixed(2)}%
+                            {`匹配率: ${recon.matchRate.toFixed(2)}%`}
                           </Badge>
                         </InlineStack>
                         <BlockStack gap="100">
@@ -1082,7 +1113,7 @@ export default function MonitorPage() {
                                 as="span"
                                 variant="bodySm"
                                 fontWeight="semibold"
-                                tone={recon.discrepancyRate > 10 ? "critical" : "warning"}
+                                tone={recon.discrepancyRate > 10 ? "critical" : undefined}
                               >
                                 {recon.discrepancy} ({recon.discrepancyRate.toFixed(2)}%)
                               </Text>
@@ -1094,7 +1125,7 @@ export default function MonitorPage() {
                   );
                 })}
               </BlockStack>
-              {channelReconciliation.some((r) => r.discrepancyRate > 10) && (
+              {Array.isArray(channelReconciliation) && channelReconciliation.some((r) => r && r.discrepancyRate > 10) && (
                 <Banner tone="warning">
                   <Text as="p" variant="bodySm">
                     ⚠️ 部分平台存在较大差异，建议检查事件发送配置或联系平台技术支持。
@@ -1115,11 +1146,11 @@ export default function MonitorPage() {
                   🔄 去重冲突检测（最近24小时）
                 </Text>
                 {dedupAnalysis.duplicateRate > 5 ? (
-                  <Badge tone="critical">冲突率: {dedupAnalysis.duplicateRate.toFixed(2)}%</Badge>
+                  <Badge tone="critical">{`冲突率: ${dedupAnalysis.duplicateRate.toFixed(2)}%`}</Badge>
                 ) : dedupAnalysis.duplicateRate > 1 ? (
-                  <Badge tone="warning">冲突率: {dedupAnalysis.duplicateRate.toFixed(2)}%</Badge>
+                  <Badge>{`冲突率: ${dedupAnalysis.duplicateRate.toFixed(2)}%`}</Badge>
                 ) : (
-                  <Badge tone="success">冲突率: {dedupAnalysis.duplicateRate.toFixed(2)}%</Badge>
+                  <Badge tone="success">{`冲突率: ${dedupAnalysis.duplicateRate.toFixed(2)}%`}</Badge>
                 )}
               </InlineStack>
 
@@ -1144,7 +1175,7 @@ export default function MonitorPage() {
                         <Text
                           as="span"
                           variant="headingLg"
-                          tone={dedupAnalysis.duplicateRate > 5 ? "critical" : dedupAnalysis.duplicateRate > 1 ? "warning" : "success"}
+                          tone={dedupAnalysis.duplicateRate > 5 ? "critical" : dedupAnalysis.duplicateRate > 1 ? undefined : "success"}
                         >
                           {dedupAnalysis.duplicateRate.toFixed(2)}%
                         </Text>
@@ -1193,11 +1224,11 @@ export default function MonitorPage() {
                                       stats.duplicateRate > 5
                                         ? "critical"
                                         : stats.duplicateRate > 1
-                                          ? "warning"
+                                          ? undefined
                                           : "success"
                                     }
                                   >
-                                    冲突率: {stats.duplicateRate.toFixed(2)}%
+                                    {`冲突率: ${stats.duplicateRate.toFixed(2)}%`}
                                   </Badge>
                                 </InlineStack>
                                 <InlineStack align="space-between">
@@ -1216,7 +1247,7 @@ export default function MonitorPage() {
                                     as="span"
                                     variant="bodySm"
                                     fontWeight="semibold"
-                                    tone={stats.duplicates > 0 ? "warning" : "success"}
+                                    tone={stats.duplicates > 0 ? undefined : "success"}
                                   >
                                     {stats.duplicates}
                                   </Text>

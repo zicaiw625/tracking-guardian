@@ -228,10 +228,10 @@ export function GuidedSupplement({
           {}
           <InlineStack gap="200" align="center">
             <Badge tone={step >= 1 ? "success" : "info"}>步骤 1</Badge>
-            <Text as="span" tone="subdued">→</Text>
-            <Badge tone={step >= 2 ? "success" : step > 2 ? "info" : "subdued"}>步骤 2</Badge>
-            <Text as="span" tone="subdued">→</Text>
-            <Badge tone={step >= 3 ? "success" : "subdued"}>步骤 3</Badge>
+            <Text as="span">→</Text>
+            <Badge tone={step >= 2 ? "success" : step > 2 ? "info" : undefined}>步骤 2</Badge>
+            <Text as="span">→</Text>
+            <Badge tone={step >= 3 ? "success" : undefined}>步骤 3</Badge>
           </InlineStack>
 
           {}
@@ -370,6 +370,7 @@ export function GuidedSupplement({
                     multiline={6}
                     placeholder="从 Shopify 升级向导中复制的清单文本..."
                     helpText="粘贴后，系统会自动识别并匹配已选择的功能"
+                    autoComplete="off"
                   />
                 </BlockStack>
               </Card>
@@ -414,11 +415,11 @@ export function GuidedSupplement({
                 multiline={4}
                 placeholder="例如：使用了自定义的订单追踪系统、集成了第三方客服工具等"
                 helpText="这些信息将帮助我们更准确地评估迁移风险"
+                autoComplete="off"
               />
 
               <Divider />
 
-              {}
               <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                 <BlockStack gap="300">
                   <Text as="h3" variant="headingSm">
@@ -474,21 +475,21 @@ export function GuidedSupplement({
                 </BlockStack>
               </Box>
 
-              {fetcher.data && (fetcher.data as { error?: string }).error && (
+              {fetcher.data && (fetcher.data as { error?: string }).error ? (
                 <Banner tone="critical">
                   <Text as="p" variant="bodySm">
                     {(fetcher.data as { error: string }).error}
                   </Text>
                 </Banner>
-              )}
+              ) : null}
 
-              {fetcher.data && (fetcher.data as { success?: boolean }).success && (
+              {fetcher.data && (fetcher.data as { success?: boolean }).success ? (
                 <Banner tone="success">
                   <Text as="p" variant="bodySm">
                     成功创建迁移资产！
                   </Text>
                 </Banner>
-              )}
+              ) : null}
             </BlockStack>
           )}
         </BlockStack>

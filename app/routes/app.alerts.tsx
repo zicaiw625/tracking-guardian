@@ -115,7 +115,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     orderBy: { createdAt: "desc" },
   });
 
-  const alertHistory = await getAlertHistory(shop.id, 50);
+  const alertHistoryRaw = await getAlertHistory(shop.id, 50);
+  const alertHistory = alertHistoryRaw.map(alert => ({
+    id: alert.id,
+    alertType: alert.alertType,
+    severity: alert.severity,
+    message: alert.message,
+    triggeredAt: alert.createdAt,
+    resolvedAt: alert.acknowledged ? alert.createdAt : null,
+  }));
   const thresholdRecommendations = await getThresholdRecommendations(shop.id);
 
   return json<LoaderData>({
@@ -341,7 +349,7 @@ export default function AlertsPage() {
                     : "Telegram",
                   <Badge
                     key={config.id}
-                    tone={config.isEnabled ? "success" : "subdued"}
+                    tone={config.isEnabled ? "success" : undefined}
                   >
                     {config.isEnabled ? "已启用" : "已禁用"}
                   </Badge>,

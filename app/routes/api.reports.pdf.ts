@@ -201,7 +201,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
 
-    return new Response(pdfResult.buffer, {
+    return new Response((pdfResult.buffer instanceof Buffer ? pdfResult.buffer : Buffer.from(pdfResult.buffer)) as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${pdfResult.filename}"`,

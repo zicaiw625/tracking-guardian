@@ -31,7 +31,7 @@ export function PriorityBadge({ priority, size = "medium" }: PriorityBadgeProps)
 
   return (
     <Badge tone={getTone()} size={size}>
-      {getLabel()} ({priority}/10)
+      {`${getLabel()} (${priority}/10)`}
     </Badge>
   );
 }

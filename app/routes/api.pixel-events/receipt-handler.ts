@@ -5,6 +5,7 @@ import { generateEventId, generateMatchKey } from "../../utils/crypto.server";
 import { extractOriginHost } from "../../utils/origin-validation";
 import { logger } from "../../utils/logger.server";
 import { RETENTION_CONFIG } from "../../utils/config";
+import { generateSimpleId } from "../../utils/helpers";
 import type { TrustLevel } from "../../utils/receipt-trust";
 import type { PixelEventPayload, KeyValidationResult } from "./types";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
@@ -107,10 +108,11 @@ export async function createEventNonce(
   try {
     await prisma.eventNonce.create({
       data: {
+        id: generateSimpleId("nonce"),
         shopId,
         nonce: nonceValue,
         eventType,
-        expiresAt: nonceExpiresAt,
+        expiresAt: new Date(nonceExpiresAt),
       },
     });
     return { success: true, isReplay: false };
@@ -148,6 +150,7 @@ export async function upsertPixelEventReceipt(
         },
       },
       create: {
+        id: generateSimpleId("receipt"),
         shopId,
         orderId,
         eventType,
@@ -159,8 +162,8 @@ export async function upsertPixelEventReceipt(
         signatureStatus: keyValidation.matched ? (keyValidation.reason || "hmac_verified") : keyValidation.reason,
         usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
         trustLevel: trustResult.trustLevel,
-        untrustedReason: trustResult.untrustedReason,
-        originHost,
+        untrustedReason: trustResult.untrustedReason || null,
+        originHost: originHost || null,
       },
       update: {
         eventId,
@@ -232,6 +235,7 @@ export async function recordConversionLogs(
             eventId,
           },
           create: {
+            id: generateSimpleId("conv"),
             shopId,
             orderId,
             orderNumber: payload.data.orderNumber || null,
@@ -268,6 +272,7 @@ export async function recordConversionLogs(
             eventId,
           },
           create: {
+            id: generateSimpleId("conv"),
             shopId,
             orderId,
             orderNumber: payload.data.orderNumber || null,

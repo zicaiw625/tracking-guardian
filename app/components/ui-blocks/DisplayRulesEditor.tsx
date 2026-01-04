@@ -182,6 +182,7 @@ export function DisplayRulesEditor({
               }
               onChange={handleMinOrderValueChange}
               prefix="¥"
+              autoComplete="off"
               helpText="只有订单金额大于等于此值时，模块才会显示"
               placeholder="0"
             />
@@ -202,14 +203,9 @@ export function DisplayRulesEditor({
                   label="添加客户标签"
                   value={customerTagInput}
                   onChange={setCustomerTagInput}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddCustomerTag();
-                    }
-                  }}
                   placeholder="VIP"
                   helpText="输入标签名称后按 Enter 添加"
+                  autoComplete="off"
                 />
               </Box>
               <Button onClick={handleAddCustomerTag} disabled={!customerTagInput.trim()}>
@@ -239,7 +235,7 @@ export function DisplayRulesEditor({
             <Text as="p" variant="bodySm" tone="subdued">
               只有来自指定国家/地区的订单才会显示此模块
             </Text>
-            <Box maxHeight="200px" overflowY="auto" padding="300" background="bg-surface-secondary" borderRadius="200">
+            <Box padding="300" background="bg-surface-secondary" borderRadius="200" style={{ maxHeight: "200px", overflowY: "auto" }}>
               <BlockStack gap="200">
                 {COMMON_COUNTRIES.map((country) => (
                   <Checkbox

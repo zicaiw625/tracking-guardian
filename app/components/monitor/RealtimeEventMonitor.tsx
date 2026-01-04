@@ -305,32 +305,12 @@ export function RealtimeEventMonitor({
             </Text>
             <InlineStack gap="200" blockAlign="center">
               {isConnected ? (
-                <Badge tone="success">
-                  <InlineStack gap="100" blockAlign="center">
-                    <Box
-                      width="8px"
-                      height="8px"
-                      background="bg-fill-success"
-                      borderRadius="full"
-                    />
-                    已连接
-                  </InlineStack>
-                </Badge>
+                <Badge tone="success">已连接</Badge>
               ) : (
-                <Badge tone="subdued">
-                  <InlineStack gap="100" blockAlign="center">
-                    <Box
-                      width="8px"
-                      height="8px"
-                      background="bg-surface-disabled"
-                      borderRadius="full"
-                    />
-                  未连接
-                  </InlineStack>
-                </Badge>
+                <Badge>未连接</Badge>
               )}
               {events.length > 0 && (
-                <Text as="span" variant="bodySm" tone="subdued">
+                <Text as="span" variant="bodySm">
                   共 {events.length} 条事件
                 </Text>
               )}
@@ -396,6 +376,7 @@ export function RealtimeEventMonitor({
                   prefix={<Icon source={SearchIcon} />}
                   clearButton
                   onClearButtonClick={() => setSearchQuery("")}
+                  autoComplete="off"
                 />
               </Box>
               <Box minWidth="150px">
@@ -454,7 +435,7 @@ export function RealtimeEventMonitor({
               columnContentTypes={["text", "text", "text", "text", "text", "text", "text", "text"]}
               headings={headings}
               rows={rows}
-              increasedDensity
+              increasedTableDensity
             />
           </Scrollable>
         )}
@@ -465,27 +446,27 @@ export function RealtimeEventMonitor({
             <Divider />
             <InlineStack gap="400" wrap>
               <Box>
-                <Text as="span" variant="bodySm" tone="subdued">
+                <Text as="span" variant="bodySm">
                   成功:{" "}
                 </Text>
                 <Badge tone="success">
-                  {events.filter((e) => e.status === "success").length}
+                  {String(events.filter((e) => e.status === "success").length)}
                 </Badge>
               </Box>
               <Box>
-                <Text as="span" variant="bodySm" tone="subdued">
+                <Text as="span" variant="bodySm">
                   失败:{" "}
                 </Text>
                 <Badge tone="critical">
-                  {events.filter((e) => e.status === "failed").length}
+                  {String(events.filter((e) => e.status === "failed").length)}
                 </Badge>
               </Box>
               <Box>
-                <Text as="span" variant="bodySm" tone="subdued">
+                <Text as="span" variant="bodySm">
                   处理中:{" "}
                 </Text>
                 <Badge tone="info">
-                  {events.filter((e) => e.status === "pending").length}
+                  {String(events.filter((e) => e.status === "pending").length)}
                 </Badge>
               </Box>
             </InlineStack>
@@ -574,7 +555,7 @@ export function RealtimeEventMonitor({
                       <List.Item>
                         <InlineStack gap="200" blockAlign="center">
                           <Text as="span" fontWeight="semibold">重试次数：</Text>
-                          <Badge>{selectedEvent.attempts}</Badge>
+                          <Badge>{String(selectedEvent.attempts)}</Badge>
                         </InlineStack>
                       </List.Item>
                     )}
@@ -601,16 +582,14 @@ export function RealtimeEventMonitor({
                         background="bg-surface-secondary"
                         borderRadius="200"
                       >
-                        <Box
-                          as="pre"
-                          style={{
-                            fontSize: "12px",
-                            overflow: "auto",
-                            margin: 0,
-                          }}
-                        >
+                        <pre style={{
+                          fontSize: "12px",
+                          overflow: "auto",
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                        }}>
                           {JSON.stringify(selectedEvent.params, null, 2)}
-                        </Box>
+                        </pre>
                       </Box>
                     </BlockStack>
                   </>
@@ -644,17 +623,15 @@ export function RealtimeEventMonitor({
                         background="bg-surface-secondary"
                         borderRadius="200"
                       >
-                        <Box
-                          as="pre"
-                          style={{
-                            fontSize: "12px",
-                            overflow: "auto",
-                            maxHeight: "300px",
-                            margin: 0,
-                          }}
-                        >
+                        <pre style={{
+                          fontSize: "12px",
+                          overflow: "auto",
+                          maxHeight: "300px",
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                        }}>
                           {JSON.stringify(selectedEvent.payload, null, 2)}
-                        </Box>
+                        </pre>
                       </Box>
                     </BlockStack>
                   </>
@@ -672,17 +649,15 @@ export function RealtimeEventMonitor({
                         background="bg-surface-secondary"
                         borderRadius="200"
                       >
-                        <Box
-                          as="pre"
-                          style={{
-                            fontSize: "12px",
-                            overflow: "auto",
-                            maxHeight: "300px",
-                            margin: 0,
-                          }}
-                        >
+                        <pre style={{
+                          fontSize: "12px",
+                          overflow: "auto",
+                          maxHeight: "300px",
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                        }}>
                           {JSON.stringify(selectedEvent.details, null, 2)}
-                        </Box>
+                        </pre>
                       </Box>
                     </BlockStack>
                   </>

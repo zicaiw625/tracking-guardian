@@ -106,12 +106,12 @@ export function BatchReportGenerator({
         <Text variant="headingMd" as="h2">
           批量报告生成器
         </Text>
-        <Text as="p" color="subdued">
+        <Text as="p" variant="bodySm">
           为分组 "{groupName}" 生成多店铺迁移验收聚合报告
         </Text>
 
         {error && (
-          <Banner status="critical" onDismiss={() => setError(null)}>
+          <Banner tone="critical" onDismiss={() => setError(null)}>
             <p>{error}</p>
           </Banner>
         )}
@@ -174,6 +174,7 @@ export function BatchReportGenerator({
             }
             placeholder="Tracking Guardian"
             helpText="自定义报告中的公司名称"
+            autoComplete="off"
           />
           <TextField
             label="Logo URL"
@@ -183,6 +184,7 @@ export function BatchReportGenerator({
             }
             placeholder="https://example.com/logo.png"
             helpText="Logo 图片 URL（将显示在报告头部）"
+            autoComplete="off"
           />
           <TextField
             label="联系邮箱"
@@ -192,6 +194,7 @@ export function BatchReportGenerator({
             }
             placeholder="contact@example.com"
             helpText="将显示在报告页脚"
+            autoComplete="off"
           />
           <TextField
             label="联系电话"
@@ -201,6 +204,7 @@ export function BatchReportGenerator({
             }
             placeholder="+86 123 4567 8900"
             helpText="将显示在报告页脚"
+            autoComplete="off"
           />
         </BlockStack>
 
@@ -208,7 +212,7 @@ export function BatchReportGenerator({
 
         <InlineStack>
           <Button
-            primary
+            variant="primary"
             loading={isGenerating}
             onClick={handleGenerate}
             disabled={reportTypes.length === 0}

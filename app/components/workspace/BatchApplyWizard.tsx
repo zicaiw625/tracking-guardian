@@ -177,13 +177,23 @@ export function BatchApplyWizard({
       if (response.jobId) {
         setJobId(response.jobId);
         setProgress(0);
-      } else if (response.result) {
+      } else if (response.result && typeof response.result === 'object' && response.result !== null) {
+        const result = response.result as { successCount?: number; failedCount?: number; skippedCount?: number; results?: unknown[] };
         setProgress(100);
         setResults({
-          success: response.result.successCount || 0,
-          failed: response.result.failedCount || 0,
-          skipped: response.result.skippedCount || 0,
-          details: response.result.results || [],
+          success: result.successCount || 0,
+          failed: result.failedCount || 0,
+          skipped: result.skippedCount || 0,
+          details: (result.results || []).map((r: unknown) => {
+            const item = r as { shopId?: string; shopDomain?: string; status?: string; message?: string; platformsApplied?: string[] };
+            return {
+              shopId: item.shopId || "",
+              shopDomain: item.shopDomain || "",
+              status: (item.status === "success" || item.status === "failed" || item.status === "skipped" ? item.status : "skipped") as "success" | "failed" | "skipped",
+              message: item.message || "",
+              platformsApplied: item.platformsApplied,
+            };
+          }),
         });
         setCurrentStep("complete");
       }
@@ -217,7 +227,7 @@ export function BatchApplyWizard({
                     {template.name}
                   </Text>
                   {template.usageCount !== undefined && (
-                    <Badge tone="info">已使用 {template.usageCount} 次</Badge>
+                    <Badge tone="info">{`已使用 ${template.usageCount} 次`}</Badge>
                   )}
                 </InlineStack>
                 {template.description && (
@@ -250,15 +260,15 @@ export function BatchApplyWizard({
                 </Text>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm">总店铺数</Text>
-                  <Badge>{targetShops.length}</Badge>
+                  <Badge>{String(targetShops.length)}</Badge>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm">已有配置</Text>
-                  <Badge tone="warning">{shopsWithConfig}</Badge>
+                  <Badge>{String(shopsWithConfig)}</Badge>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="span" variant="bodySm">无配置（将新建）</Text>
-                  <Badge tone="success">{shopsWithoutConfig}</Badge>
+                  <Badge tone="success">{String(shopsWithoutConfig)}</Badge>
                 </InlineStack>
               </BlockStack>
             </Box>
@@ -468,15 +478,15 @@ export function BatchApplyWizard({
               </InlineStack>
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">已完成</Text>
-                <Badge tone="success">{completed}</Badge>
+                <Badge tone="success">{String(completed)}</Badge>
               </InlineStack>
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">失败</Text>
-                <Badge tone={failed > 0 ? "critical" : "success"}>{failed}</Badge>
+                <Badge tone={failed > 0 ? "critical" : "success"}>{String(failed)}</Badge>
               </InlineStack>
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">跳过</Text>
-                <Badge tone="info">{skipped}</Badge>
+                <Badge tone="info">{String(skipped)}</Badge>
               </InlineStack>
               <InlineStack align="space-between">
                 <Text as="span" variant="bodySm" tone="subdued">处理进度</Text>
@@ -537,7 +547,7 @@ export function BatchApplyWizard({
                       <BlockStack gap="100">
                         <Text as="span" variant="bodySm" tone="subdued">成功</Text>
                         <Badge tone="success" size="large">
-                          {results.success}
+                          {String(results.success)}
                         </Badge>
                       </BlockStack>
                     </Box>
@@ -545,7 +555,7 @@ export function BatchApplyWizard({
                       <BlockStack gap="100">
                         <Text as="span" variant="bodySm" tone="subdued">失败</Text>
                         <Badge tone={results.failed > 0 ? "critical" : "success"} size="large">
-                          {results.failed}
+                          {String(results.failed)}
                         </Badge>
                       </BlockStack>
                     </Box>
@@ -553,7 +563,7 @@ export function BatchApplyWizard({
                       <BlockStack gap="100">
                         <Text as="span" variant="bodySm" tone="subdued">跳过</Text>
                         <Badge tone="info" size="large">
-                          {results.skipped}
+                          {String(results.skipped)}
                         </Badge>
                       </BlockStack>
                     </Box>
@@ -583,7 +593,7 @@ export function BatchApplyWizard({
                           <BlockStack gap="100">
                             <Text as="span" variant="bodySm" tone="subdued">新建配置</Text>
                             <Badge tone="success" size="large">
-                              {results.summary.changesBreakdown.created}
+                              {String(results.summary.changesBreakdown.created)}
                             </Badge>
                           </BlockStack>
                         </Box>
@@ -591,7 +601,7 @@ export function BatchApplyWizard({
                           <BlockStack gap="100">
                             <Text as="span" variant="bodySm" tone="subdued">更新配置</Text>
                             <Badge tone="info" size="large">
-                              {results.summary.changesBreakdown.updated}
+                              {String(results.summary.changesBreakdown.updated)}
                             </Badge>
                           </BlockStack>
                         </Box>
@@ -599,7 +609,7 @@ export function BatchApplyWizard({
                           <BlockStack gap="100">
                             <Text as="span" variant="bodySm" tone="subdued">跳过配置</Text>
                             <Badge tone="warning" size="large">
-                              {results.summary.changesBreakdown.skipped}
+                              {String(results.summary.changesBreakdown.skipped)}
                             </Badge>
                           </BlockStack>
                         </Box>
@@ -607,7 +617,7 @@ export function BatchApplyWizard({
                           <BlockStack gap="100">
                             <Text as="span" variant="bodySm" tone="subdued">无变更</Text>
                             <Badge size="large">
-                              {results.summary.changesBreakdown.noChange}
+                              {String(results.summary.changesBreakdown.noChange)}
                             </Badge>
                           </BlockStack>
                         </Box>
@@ -633,7 +643,7 @@ export function BatchApplyWizard({
                               <Text as="span" variant="bodySm" fontWeight="semibold">
                                 {platform.charAt(0).toUpperCase() + platform.slice(1)}
                               </Text>
-                              <Badge>{count} 个店铺</Badge>
+                              <Badge>{`${count} 个店铺`}</Badge>
                             </InlineStack>
                           </List.Item>
                         ))}

@@ -133,16 +133,16 @@ export function MigrationChecklistEnhanced({
     return mins > 0 ? `${hours} 小时 ${mins} 分钟` : `${hours} 小时`;
   };
 
-  const getRiskBadgeTone = (risk: string) => {
+  const getRiskBadgeTone = (risk: string): "critical" | "info" | undefined => {
     switch (risk) {
       case "high":
         return "critical";
       case "medium":
-        return "warning";
+        return undefined;
       case "low":
         return "info";
       default:
-        return "subdued";
+        return undefined;
     }
   };
 
@@ -153,9 +153,9 @@ export function MigrationChecklistEnhanced({
       case "in_progress":
         return <Badge tone="info">进行中</Badge>;
       case "pending":
-        return <Badge tone="attention">待处理</Badge>;
+        return <Badge tone="info">待处理</Badge>;
       case "skipped":
-        return <Badge tone="subdued">已跳过</Badge>;
+        return <Badge>已跳过</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -168,9 +168,9 @@ export function MigrationChecklistEnhanced({
       case "ui_extension":
         return <Badge tone="success">UI Extension</Badge>;
       case "server_side":
-        return <Badge tone="warning">Server-side</Badge>;
+        return <Badge>Server-side</Badge>;
       case "none":
-        return <Badge tone="subdued">无需迁移</Badge>;
+        return <Badge>无需迁移</Badge>;
       default:
         return <Badge>{migration}</Badge>;
     }
@@ -227,7 +227,7 @@ export function MigrationChecklistEnhanced({
             >
               导出 CSV
             </Button>
-            <Badge tone="info">{filteredAndSortedItems.length} / {stats.total} 项</Badge>
+            <Badge tone="info">{`${filteredAndSortedItems.length} / ${stats.total} 项`}</Badge>
           </InlineStack>
         </InlineStack>
 
@@ -247,7 +247,7 @@ export function MigrationChecklistEnhanced({
                 <Text as="span" variant="bodySm" tone="subdued">
                   中风险项
                 </Text>
-                <Text as="span" variant="headingLg" fontWeight="bold" tone="warning">
+                <Text as="span" variant="headingLg" fontWeight="bold">
                   {stats.medium}
                 </Text>
               </BlockStack>
@@ -283,6 +283,7 @@ export function MigrationChecklistEnhanced({
                 prefix={<Icon source={SearchIcon} />}
                 clearButton
                 onClearButtonClick={() => setSearchQuery("")}
+                autoComplete="off"
               />
             </Box>
             <Box minWidth="150px">
@@ -378,8 +379,8 @@ export function MigrationChecklistEnhanced({
                         <Badge tone={getRiskBadgeTone(item.riskLevel)}>
                           {item.riskLevel === "high" ? "高" : item.riskLevel === "medium" ? "中" : "低"}
                         </Badge>
-                        <Badge tone={item.priority >= 8 ? "critical" : item.priority >= 5 ? "warning" : "info"}>
-                          优先级 {item.priority}/10
+                        <Badge tone={item.priority >= 8 ? "critical" : item.priority >= 5 ? undefined : "info"}>
+                          {`优先级 ${item.priority}/10`}
                         </Badge>
                         {getStatusBadge(item.status)}
                         {getMigrationBadge(item.suggestedMigration)}
@@ -411,9 +412,7 @@ export function MigrationChecklistEnhanced({
                             variant="plain"
                             onClick={() => toggleExpanded(item.id)}
                           >
-                            {expandedItems.has(item.id) ? "隐藏" : "显示"}依赖关系
-                            {dependencies.length > 0 && ` (${dependencies.length} 个依赖)`}
-                            {dependents.length > 0 && ` (${dependents.length} 个被依赖)`}
+                            {`${expandedItems.has(item.id) ? "隐藏" : "显示"}依赖关系${dependencies.length > 0 ? ` (${dependencies.length} 个依赖)` : ""}${dependents.length > 0 ? ` (${dependents.length} 个被依赖)` : ""}`}
                           </Button>
                         );
                       })()}
@@ -433,7 +432,7 @@ export function MigrationChecklistEnhanced({
                           >
                             <BlockStack gap="200">
                               {dependencies.length > 0 && (
-                                <Box background="bg-surface-warning-subdued" padding="300" borderRadius="200">
+                                <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                                   <BlockStack gap="200">
                                     <InlineStack gap="200" blockAlign="center">
                                       <Icon source={AlertCircleIcon} tone="warning" />
@@ -460,7 +459,7 @@ export function MigrationChecklistEnhanced({
                                 </Box>
                               )}
                               {dependents.length > 0 && (
-                                <Box background="bg-surface-info-subdued" padding="300" borderRadius="200">
+                                <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                                   <BlockStack gap="200">
                                     <InlineStack gap="200" blockAlign="center">
                                       <Icon source={CheckCircleIcon} tone="info" />

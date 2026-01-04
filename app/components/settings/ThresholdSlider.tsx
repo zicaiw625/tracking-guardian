@@ -7,6 +7,7 @@ import {
   InlineStack,
   Badge,
   ProgressBar,
+  Button,
 } from "@shopify/polaris";
 
 interface ThresholdSliderProps {
@@ -42,9 +43,10 @@ export function ThresholdSlider({
   recommendedValue,
   onApplyRecommendation,
 }: ThresholdSliderProps) {
-  const getTone = (val: number): "success" | "warning" | "critical" => {
+  const getTone = (val: number): "success" | "critical" | undefined => {
     const range = colorRanges.find((r) => val >= r.min && val < r.max);
-    return range?.tone || "success";
+    if (!range) return "success";
+    return range.tone === "warning" ? undefined : range.tone;
   };
 
   const percentage = ((value - min) / (max - min)) * 100;
@@ -67,11 +69,11 @@ export function ThresholdSlider({
         <InlineStack gap="200" blockAlign="center">
           {currentValue !== undefined && (
             <Badge tone={wouldTrigger ? "critical" : "success"}>
-              当前: {currentValue.toFixed(1)}{unit}
+              {`当前: ${currentValue.toFixed(1)}${unit}`}
             </Badge>
           )}
           <Badge tone={getTone(value)}>
-            阈值: {value}{unit}
+            {`阈值: ${value}${unit}`}
           </Badge>
         </InlineStack>
       </InlineStack>

@@ -281,9 +281,7 @@ export function TestOrderGuide({
                                       : "info"
                                 }
                               >
-                                {event}
-                                {isFound === true && " ✓"}
-                                {isFound === false && " ✗"}
+                                {`${event}${isFound === true ? " ✓" : isFound === false ? " ✗" : ""}`}
                               </Badge>
                             );
                           })}

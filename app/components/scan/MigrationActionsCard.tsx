@@ -101,7 +101,7 @@ export function MigrationActionsCard({
                 {action.estimatedTimeMinutes && (
                   <InlineStack gap="200" blockAlign="center">
                     <Badge tone="info">
-                      预计时间: {action.estimatedTimeMinutes} 分钟
+                      {`预计时间: ${action.estimatedTimeMinutes} 分钟`}
                     </Badge>
                   </InlineStack>
                 )}

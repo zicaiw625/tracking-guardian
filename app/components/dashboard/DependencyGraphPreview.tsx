@@ -141,7 +141,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               </InlineStack>
             </BlockStack>
 
-            {Object.keys(summary.nodesByCategory).length > 0 && (
+            {summary && Object.keys(summary.nodesByCategory).length > 0 && (
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm">
                   类别分布
@@ -150,11 +150,14 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                   {Object.entries(summary.nodesByCategory)
                     .sort(([_, a], [__, b]) => b - a)
                     .slice(0, 5)
-                      .map(([category, count]) => (
-                      <Badge key={category}>
-                        {`${categoryLabels[category] || category}: ${String(count)}`}
-                      </Badge>
-                    ))}
+                    .map(([category, count]) => {
+                      const label = categoryLabels[category] || category;
+                      return (
+                        <Badge key={category}>
+                          {`${label}: ${String(count)}`}
+                        </Badge>
+                      );
+                    })}
                 </InlineStack>
               </BlockStack>
             )}

@@ -290,7 +290,7 @@ const MigrationStatusCard = memo(function MigrationStatusCard({
                 <Text as="span" variant="bodyMd" fontWeight="semibold">
                   待迁移 ScriptTags
                 </Text>
-                <Badge tone="warning">{scriptTagsCount} 个</Badge>
+                <Badge>{`${scriptTagsCount} 个`}</Badge>
               </InlineStack>
             </>
           )}
@@ -646,7 +646,7 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
                 <Text
                   as="span"
                   variant="bodyMd"
-                  tone={isCompleted ? "success" : isCurrent ? "info" : isPending ? "subdued" : "base"}
+                  tone={isCompleted ? "success" : isCurrent ? undefined : undefined}
                   fontWeight={isCurrent ? "semibold" : "regular"}
                 >
                   {stage.label}
@@ -983,7 +983,7 @@ function MigrationChecklistPreviewCard({
           <Text as="h2" variant="headingMd">
             迁移清单预览
           </Text>
-          <Badge tone="info">{checklist.totalItems} 项</Badge>
+          <Badge tone="info">{`${checklist.totalItems} 项`}</Badge>
         </InlineStack>
 
         {}
@@ -1001,7 +1001,7 @@ function MigrationChecklistPreviewCard({
               <Text as="span" variant="bodySm" tone="subdued">
                 中风险项
               </Text>
-              <Text as="span" fontWeight="semibold" tone="warning">
+              <Text as="span" fontWeight="semibold">
                 {checklist.mediumPriorityItems}
               </Text>
             </InlineStack>
@@ -1087,7 +1087,7 @@ function MigrationChecklistPreviewCard({
                           </Badge>
                           {item.priority > 0 && (
                             <Badge tone={priorityBadgeTone}>
-                              优先级 {item.priority}/10
+                              {`优先级 ${item.priority}/10`}
                             </Badge>
                           )}
                           {item.status === "completed" && (
@@ -1228,7 +1228,7 @@ export default function Index() {
                   Legacy 的 <code>checkout.liquid</code>、<code>additional scripts</code>、<code>script tags</code> 会逐步被 sunset
                 </List.Item>
               </List>
-              <Text as="p" style={{ marginTop: "8px" }}>
+              <Text as="p" variant="bodyMd" style={{ marginTop: "8px" }}>
                 <strong>我们的承诺：</strong>
               </Text>
               <List>
@@ -1242,7 +1242,7 @@ export default function Index() {
                   ✅ <strong>上线后有断档告警</strong>（事件量骤降、失败率监控）
                 </List.Item>
               </List>
-              <Text as="p" variant="bodySm" tone="subdued" style={{ marginTop: "8px" }}>
+              <Text as="p" variant="bodySm" style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
                 基于 <strong>Web Pixels + Checkout UI Extensions</strong> 的合规迁移方案，替换 Additional Scripts，减少结账页脚本风险。
               </Text>
             </BlockStack>

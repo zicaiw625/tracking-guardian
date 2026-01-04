@@ -93,16 +93,15 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
                   分享链接
                 </Text>
                 <InlineStack gap="200" blockAlign="center">
-                  <TextField
-                    value={shareUrl}
-                    readOnly
-                    autoComplete="off"
-                    connectedRight={
-                      <Button icon={CopyIcon} onClick={handleCopyUrl}>
-                        复制
-                      </Button>
-                    }
-                  />
+                  <Box style={{ minWidth: 0, flex: "1 1 0%" }}>
+                    <TextField
+                      value={shareUrl || ""}
+                      readOnly
+                    />
+                  </Box>
+                  <Button icon={CopyIcon} onClick={handleCopyUrl}>
+                    复制
+                  </Button>
                 </InlineStack>
                 {expiresAt && (
                   <Text as="span" variant="bodySm" tone="subdued">

@@ -50,7 +50,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           const message = JSON.stringify({ type, ...(typeof data === "object" ? data : { data }) });
           controller.enqueue(encoder.encode(`data: ${message}\n\n`));
         } catch (error) {
-          logger.warn("Failed to send SSE message, closing stream", error);
+          logger.warn("Failed to send SSE message, closing stream", {
+            error: error instanceof Error ? error.message : String(error),
+            errorName: error instanceof Error ? error.name : "Unknown",
+          });
           cleanup();
         }
       };
@@ -160,11 +163,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               items?: number;
               hasEventId?: boolean;
             };
-            trust?: {
-              isTrusted: boolean;
-              trustLevel: string;
-              hasConsent: boolean;
+            shopifyOrder?: {
+              value: number;
+              currency: string;
+              itemCount: number;
             };
+            discrepancies?: string[];
             errors?: string[];
           }> = [];
 
@@ -216,13 +220,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 value: Number(log.orderValue),
                 currency: log.currency,
                 hasEventId,
-              },
-              paramCompleteness: {
-                hasValue,
-                hasCurrency,
-                hasEventId,
-                missingParams,
-                completeness,
               },
               shopifyOrder,
               discrepancies: discrepancies.length > 0 ? discrepancies : undefined,

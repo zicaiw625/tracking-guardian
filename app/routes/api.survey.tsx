@@ -5,6 +5,7 @@ import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limi
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret, } from "../utils/shopify-jwt";
 import { optionsResponse, jsonWithCors } from "../utils/cors";
 import { logger } from "../utils/logger.server";
+import { generateSimpleId } from "../utils/helpers";
 const VALID_SOURCES = ["search", "social", "friend", "ad", "other"];
 const MAX_ORDER_ID_LENGTH = 64;
 const MAX_ORDER_NUMBER_LENGTH = 32;
@@ -233,15 +234,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         const surveyResponse = await prisma.surveyResponse.create({
             data: {
+                id: generateSimpleId("survey"),
                 shopId: shop.id,
                 orderId: surveyKey,
-                orderNumber: validatedData.orderNumber,
-                rating: validatedData.rating,
-                feedback: validatedData.feedback,
-                source: validatedData.source,
+                orderNumber: validatedData.orderNumber || null,
+                rating: validatedData.rating || null,
+                feedback: validatedData.feedback || null,
+                source: validatedData.source || null,
                 customAnswers: validatedData.customAnswers
                     ? JSON.parse(JSON.stringify(validatedData.customAnswers))
-                    : undefined,
+                    : null,
             },
         });
         logger.info(`Survey response saved`, {
