@@ -249,6 +249,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 不再依赖 body 中的 ingestionKey，改为通过 shopDomain 查找 shop 并使用 ingestionSecret
     const signature = request.headers.get("X-Tracking-Guardian-Signature");
     const isProduction = !isDevMode();
+    let hmacValidationResult: { valid: boolean; reason?: string; errorCode?: string } | null = null;
 
     if (isProduction) {
       if (!shop.ingestionSecret) {
@@ -284,6 +285,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         TIMESTAMP_WINDOW_MS
       );
 
+      hmacValidationResult = hmacResult;
+
       if (!hmacResult.valid) {
         const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_signature");
         if (anomalyCheck.shouldBlock) {
@@ -313,6 +316,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         payload.timestamp,
         TIMESTAMP_WINDOW_MS
       );
+
+      hmacValidationResult = hmacResult;
 
       if (!hmacResult.valid) {
         logger.warn(`HMAC verification failed in dev mode for ${shop.shopDomain}: ${hmacResult.reason}`);
@@ -395,13 +400,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return emptyResponseWithCors(request, shopAllowedDomains);
     }
 
-    // P0-4: ingestionKey 验证已移除，完全依赖 HMAC 签名验证
+    // P0-1: ingestionKey 验证已完全移除，完全依赖 HMAC 签名验证
     // 主要信任依据：HMAC 签名验证（已在上方完成）
-    // ingestionKey 不再出现在请求体中，也不再作为验证依据
-    const keyValidation: KeyValidationResult = {
-      matched: true, // HMAC 验证已通过，视为匹配
-      reason: "hmac_verified",
-    };
+    // - 客户端不再在请求体中发送 ingestionKey
+    // - 服务端不再从请求体中读取或验证 ingestionKey
+    // - 所有验证都通过 HMAC 签名完成（X-Tracking-Guardian-Signature header）
+    // - 生产环境必须提供有效的 HMAC 签名，否则请求会被拒绝
+    // 
+    // keyValidation 基于 HMAC 验证结果：
+    // - 生产环境：如果到达这里，说明 HMAC 验证已通过（失败会在上方返回）
+    // - 开发环境：根据实际的 HMAC 验证结果设置（如果未提供 signature 或验证失败，matched 为 false）
+    const keyValidation: KeyValidationResult = (() => {
+      if (isProduction) {
+        // 生产环境：如果到达这里，HMAC 验证肯定已通过（失败会在上方返回 403）
+        return {
+          matched: true,
+          reason: "hmac_verified",
+        };
+      } else {
+        // 开发环境：根据实际的 HMAC 验证结果设置
+        if (hmacValidationResult) {
+          return {
+            matched: hmacValidationResult.valid,
+            reason: hmacValidationResult.valid ? "hmac_verified" : (hmacValidationResult.reason || "hmac_verification_failed"),
+          };
+        } else {
+          // 开发环境：如果没有 signature 或没有进行验证，允许通过但标记为未验证
+          return {
+            matched: !signature || !shop.ingestionSecret, // 如果没有 signature 或 secret，dev 模式允许但标记为未验证
+            reason: !signature ? "no_signature_in_dev" : (!shop.ingestionSecret ? "no_secret_in_dev" : "hmac_not_verified"),
+          };
+        }
+      }
+    })();
 
     const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
 

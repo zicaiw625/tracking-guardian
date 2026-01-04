@@ -225,13 +225,13 @@ export default function PrivacyPage() {
               />
 
               <DataTypeCard
-                title="PII 数据（可选）"
-                description="仅在启用 PII 开关时收集，用于提高广告平台匹配率"
+                title="PII 数据（可选，需商家明确启用）"
+                description="默认模式下不收集任何 PII。本应用的代码实现中包含处理 PII 的能力（通过 piiEnabled、pcdAcknowledged、isPiiFullyEnabled 等配置项控制），但这些功能默认全部关闭。仅在商家明确启用 PII 开关且满足所有合规条件（包括 PCD 审核通过、商家合规确认、商家明确同意、Shopify 实际提供 PII）时收集，用于提高广告平台匹配率。所有 PII 均使用 SHA256 哈希后传输，不存储原始数据。"
                 items={[
-                  "邮箱地址（SHA256 哈希后存储）",
-                  "电话号码（SHA256 哈希后存储）",
-                  "姓名（SHA256 哈希后存储）",
-                  "收货地址（SHA256 哈希后存储）",
+                  "邮箱地址（SHA256 哈希后传输，不存储原始数据）",
+                  "电话号码（SHA256 哈希后传输，不存储原始数据）",
+                  "姓名（SHA256 哈希后传输，不存储原始数据）",
+                  "收货地址（SHA256 哈希后传输，不存储原始数据）",
                 ]}
                 tone="warning"
               />

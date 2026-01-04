@@ -119,11 +119,12 @@ export function withPixelCors(customHeaders: string[] = []): Middleware {
       return null;
     },
     methods: ["GET", "POST", "OPTIONS"],
+    // P0-1: 已移除 X-Tracking-Guardian-Key，完全依赖 HMAC 签名验证（X-Tracking-Guardian-Signature）
     allowedHeaders: [
       "Content-Type",
       "X-Shopify-Shop-Domain",
-      "X-Tracking-Guardian-Key",
       "X-Tracking-Guardian-Timestamp",
+      "X-Tracking-Guardian-Signature",
       ...customHeaders,
     ],
     exposedHeaders: ["X-RateLimit-Remaining", "X-RateLimit-Reset"],

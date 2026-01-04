@@ -329,7 +329,8 @@ export function determineTrustLevel(
   if (!keyValidation.matched) {
     return {
       level: 'untrusted',
-      reason: keyValidation.reason || 'ingestion_key_invalid',
+      // P0-1: 使用 hmac_signature_invalid 替代 ingestion_key_invalid，更准确地反映验证方式
+      reason: keyValidation.reason || 'hmac_signature_invalid',
     };
   }
 

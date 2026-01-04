@@ -153,7 +153,8 @@ export function createEventSender(config: EventSenderConfig) {
 
       const nonce = `${timestamp}-${Math.random().toString(36).substring(2, 10)}`;
 
-      // P0-4: 请求体中不包含 ingestionSecret，仅通过签名头部进行验证
+      // P0-1: 请求体中不包含 ingestionKey 或 ingestionSecret
+      // 安全验证完全依赖 HMAC 签名（X-Tracking-Guardian-Signature header）
       // 服务端通过 shopDomain 查找 shop.ingestionSecret 进行 HMAC 验证
       const payload = {
         eventName,
@@ -178,7 +179,8 @@ export function createEventSender(config: EventSenderConfig) {
         "X-Tracking-Guardian-Timestamp": String(timestamp),
       };
 
-      // P0-4: 使用 ingestionSecret 生成 HMAC 签名（不包含在请求体中）
+      // P0-1: 使用 ingestionSecret 生成 HMAC 签名（不包含在请求体中）
+      // 生产环境必须提供有效的 HMAC 签名，否则请求会被拒绝
       if (!ingestionSecret) {
         if (isDevMode) {
           log(`⚠️ Missing ingestionSecret - HMAC signature cannot be generated. Event will be rejected in production.`);

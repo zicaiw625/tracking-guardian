@@ -54,8 +54,6 @@ export {
 
 export {
   getShopForPixelVerification,
-  validateIngestionKey,
-  type KeyValidationContext,
-  type KeyValidationOutcome,
+  getShopForPixelVerificationWithConfigs,
 } from "./key-validation";
 

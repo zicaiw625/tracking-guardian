@@ -83,7 +83,8 @@ export function evaluateTrustLevel(
     trustLevel = "partial";
   } else if (!keyValidation.matched) {
     trustLevel = "untrusted";
-    untrustedReason = keyValidation.reason || "ingestion_key_invalid";
+    // P0-1: 使用 hmac_signature_invalid 替代 ingestion_key_invalid，更准确地反映验证方式
+    untrustedReason = keyValidation.reason || "hmac_signature_invalid";
   } else if (!hasCheckoutToken) {
     trustLevel = "partial";
     untrustedReason = "missing_checkout_token";
@@ -155,7 +156,7 @@ export async function upsertPixelEventReceipt(
         pixelTimestamp: new Date(payload.timestamp),
         consentState: payload.consent ? JSON.parse(JSON.stringify(payload.consent)) : undefined,
         isTrusted: trustResult.isTrusted,
-        signatureStatus: keyValidation.matched ? "key_matched" : keyValidation.reason,
+        signatureStatus: keyValidation.matched ? (keyValidation.reason || "hmac_verified") : keyValidation.reason,
         usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
         trustLevel: trustResult.trustLevel,
         untrustedReason: trustResult.untrustedReason,
@@ -167,7 +168,7 @@ export async function upsertPixelEventReceipt(
         pixelTimestamp: new Date(payload.timestamp),
         consentState: payload.consent ? JSON.parse(JSON.stringify(payload.consent)) : undefined,
         isTrusted: trustResult.isTrusted,
-        signatureStatus: keyValidation.matched ? "key_matched" : keyValidation.reason,
+        signatureStatus: keyValidation.matched ? (keyValidation.reason || "hmac_verified") : keyValidation.reason,
         usedCheckoutTokenFallback: usedCheckoutTokenAsFallback,
         trustLevel: trustResult.trustLevel,
         untrustedReason: trustResult.untrustedReason,

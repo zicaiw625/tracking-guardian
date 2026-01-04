@@ -53,34 +53,24 @@ export default function PublicPrivacyPolicy() {
 
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
-                  <strong>重要提示：</strong>本应用采用<strong>隐私优先</strong>设计。默认情况下，我们<strong>不收集或处理任何个人身份信息（PII）</strong>。商家可选择性启用增强匹配功能以提升转化追踪准确性，但必须确认其合规义务（GDPR、CCPA 等）并明确同意启用。
+                  <strong>隐私优先设计：</strong>本应用采用<strong>默认隐私最小化</strong>设计。默认情况下，我们<strong>不收集或处理任何个人身份信息（PII）</strong>。商家可选择性启用增强匹配功能以提升转化追踪准确性，但必须确认其合规义务（GDPR、CCPA 等）并明确同意启用。
                 </Text>
                 <Text as="p" variant="bodySm" style={{ marginTop: "8px" }}>
-                  <strong>数据来源：</strong>本隐私政策基于 Shopify Web Pixels 和 Checkout Extensibility 的官方要求。迁移截止日期参考{" "}
-                  <Link url="https://help.shopify.com/en/manual/checkout-settings/upgrade-guide" external>
-                    Shopify Help Center 升级指南
-                  </Link>
-                  {" "}：Plus 商家关键节点 <strong>2025-08-28</strong>（升级/限制开始），<strong>2026-01</strong> 起自动升级；非 Plus 商家截止 <strong>2026-08-26</strong>。详情请参考{" "}
-                  <Link url="https://shopify.dev/docs/apps/online-store/web-pixels" external>
-                    Shopify Web Pixels 文档
-                  </Link>
-                  {" "}和{" "}
-                  <Link url="https://shopify.dev/docs/apps/online-store/protected-customer-data" external>
-                    Shopify Protected Customer Data (PCD) 文档
-                  </Link>
-                  。所有日期均引用 Shopify 官方 Help Center 和 shopify.dev 文档，确保与实际要求一致。
-                </Text>
-                <Text as="p" variant="bodySm" style={{ marginTop: "8px" }}>
-                  <strong>隐私政策结构：</strong>本政策采用三段式结构，清晰说明默认数据处理模式、可选增强匹配功能以及数据保留与删除机制，确保与实际行为完全一致。
+                  <strong>代码能力与隐私政策一致性：</strong>本应用的代码实现中<strong>包含</strong>处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code>、<code>isPiiFullyEnabled</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。默认模式下，即使代码中存在这些能力，我们<strong>不会处理任何 PII 数据</strong>。仅在商家主动启用增强匹配功能<strong>且满足所有合规条件</strong>时才会处理哈希后的 PII。此设计确保代码能力与隐私政策声明完全一致，符合 Shopify App Store 审核要求。
                 </Text>
               </Banner>
 
               <BlockStack gap="200">
                 <Text as="h2" variant="headingLg">
-                  1. 默认数据处理模式（隐私优先）
+                  第一部分：默认数据处理模式（隐私最小化）
                 </Text>
+                <Banner tone="success">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    📌 这是所有商家的默认模式，无需任何配置即可使用
+                  </Text>
+                </Banner>
                 <Text as="p">
-                  默认情况下，Tracking Guardian 仅处理事件日志，<strong>不收集或处理任何个人身份信息（PII）</strong>。此模式符合 Shopify Web Pixels 的隐私最小化原则，适用于所有商家，无需额外配置。
+                  默认情况下，Tracking Guardian 仅处理订单事件必要字段，<strong>不收集或处理任何个人身份信息（PII）</strong>。此模式符合 Shopify Web Pixels 的隐私最小化原则，适用于所有商家，无需额外配置。
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued" style={{ marginTop: "8px", marginBottom: "8px" }}>
                   <strong>默认数据处理范围：</strong>
@@ -93,24 +83,32 @@ export default function PublicPrivacyPolicy() {
                     <strong>像素事件数据（来自 Web Pixel）：</strong> 默认情况下，我们<strong>仅收集</strong> <code>checkout_completed</code>（购买完成）事件。事件元数据包括时间戳、店铺域名和客户同意状态。我们<strong>不收集</strong>页面浏览、商品浏览、加购等事件，除非商家明确启用 Full Funnel 模式（需要 Growth 及以上套餐）。
                   </List.Item>
                   <List.Item>
-                    <strong>我们默认不收集的内容：</strong> 客户邮箱地址、电话号码、姓名、地址或其他任何个人身份信息（PII）。我们也不收集浏览历史、页面浏览或加购事件，除非商家明确启用 Full Funnel 模式。
+                    <strong>我们默认不收集的内容：</strong> 客户邮箱地址、电话号码、姓名、地址或其他任何个人身份信息（PII）。我们也不收集浏览历史、页面浏览或加购事件，除非商家明确启用 Full Funnel 模式。<strong>注意：</strong>虽然我们的代码实现中包含处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code> 等配置项控制），但这些功能默认全部关闭。仅在商家主动启用增强匹配功能且满足所有合规条件时，才会处理哈希后的 PII。
                   </List.Item>
                   <List.Item>
                     <strong>数据用途：</strong> 默认模式下，所有事件仅用于 analytics（分析）目的（如 Google Analytics 4），不用于 marketing（营销）目的。事件数据仅发送到商家配置的 analytics 平台，不包含任何 PII。
                   </List.Item>
+                  <List.Item>
+                    <strong>数据分享：</strong> 默认模式下，我们<strong>不分享</strong>任何客户 PII 给第三方（因为默认模式下我们不收集 PII）。所有数据仅用于转化追踪和报告生成，不会用于广告投放、用户画像构建或其他营销目的。如果商家启用了增强匹配功能，哈希后的 PII 会发送到商家配置的广告平台，但不会用于其他目的或出售给第三方。
+                  </List.Item>
                 </List>
 
                 <Text as="h2" variant="headingLg">
-                  2. 增强匹配模式（可选，需商家主动启用并确认合规）
+                  第二部分：可选增强功能（需商家主动启用并确认合规）
                 </Text>
+                <Banner tone="warning">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    ⚠️ 此功能默认关闭，必须由商家在应用设置中明确启用并确认合规义务
+                  </Text>
+                </Banner>
                 <Text as="p">
                   商家可在应用设置中启用<strong>增强匹配/广告转化</strong>功能以提升转化追踪准确性。此功能<strong>默认关闭</strong>，必须由商家主动启用并确认合规。
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued" style={{ marginTop: "8px", marginBottom: "8px" }}>
-                  <strong>合规说明（参考 Shopify 官方要求）：</strong>本应用遵循 Shopify Web Pixels 和 Protected Customer Data (PCD) 的严格隐私要求。增强匹配功能仅在以下条件<strong>全部满足</strong>时才会启用。我们不会在未满足这些条件的情况下处理 PII，即使商家误操作也不会触发 PII 处理。如果 Shopify 因 PCD 限制或客户未同意而未提供 PII 字段，应用会自动回退到默认隐私优先模式（仅发送非 PII 事件数据）。
+                  <strong>代码能力说明：</strong>本应用的代码实现中<strong>包含</strong>处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code>、<code>isPiiFullyEnabled</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。在应用设置中，商家必须明确勾选"启用增强匹配"并确认合规义务，系统才会处理 PII。即使商家勾选了启用选项，如果 Shopify 未提供 PII 字段（例如因 PCD 限制或客户未同意），应用代码会自动跳过 PII 处理，仅发送非 PII 事件数据。我们不会尝试从其他来源获取 PII，也不会在未获得明确授权的情况下处理 PII。
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued" style={{ marginTop: "8px", marginBottom: "8px" }}>
-                  <strong>实际行为说明：</strong>本应用的实际代码实现与隐私政策完全一致。在应用设置中，商家必须明确勾选"启用增强匹配"并确认合规义务，系统才会处理 PII。即使商家勾选了启用选项，如果 Shopify 未提供 PII 字段（例如因 PCD 限制或客户未同意），应用代码会自动跳过 PII 处理，仅发送非 PII 事件数据。我们不会尝试从其他来源获取 PII，也不会在未获得明确授权的情况下处理 PII。
+                  <strong>合规说明（参考 Shopify 官方要求）：</strong>本应用遵循 Shopify Web Pixels 和 Protected Customer Data (PCD) 的严格隐私要求。增强匹配功能仅在以下条件<strong>全部满足</strong>时才会启用。我们不会在未满足这些条件的情况下处理 PII，即使商家误操作也不会触发 PII 处理。如果 Shopify 因 PCD 限制或客户未同意而未提供 PII 字段，应用会自动回退到默认隐私优先模式（仅发送非 PII 事件数据）。
                 </Text>
                 <Text as="p" fontWeight="bold">
                   启用此功能的前提条件（必须全部满足）：
@@ -161,7 +159,7 @@ export default function PublicPrivacyPolicy() {
                     <strong>自动回退机制：</strong>如果 Shopify 未提供 PII 字段（例如因 PCD 限制、客户未同意或应用未通过 PCD 审核），应用会自动回退到默认隐私优先模式，仅发送非 PII 事件数据。此回退是自动的，无需商家干预。即使商家启用了增强匹配，如果 Shopify 未提供 PII，我们也不会尝试获取或处理 PII。
                   </List.Item>
                   <List.Item>
-                    <strong>数据目的地：</strong>哈希后的 PII 仅发送到商家配置的广告平台（如 Google GA4、Meta Conversions API、TikTok Events API 等），不会用于其他目的。我们不会将 PII 用于广告投放、用户画像构建或其他营销目的。我们不会将 PII 出售给第三方或用于任何非转化追踪目的。
+                    <strong>数据目的地：</strong>哈希后的 PII 仅发送到商家配置的广告平台（如 Google GA4、Meta Conversions API、TikTok Events API 等），不会用于其他目的。我们不会将 PII 用于广告投放、用户画像构建或其他营销目的。我们不会将 PII 出售给第三方或用于任何非转化追踪目的。<strong>重要：</strong>此功能仅在商家明确启用增强匹配且满足所有合规条件时才会生效。默认模式下，我们不收集、不处理、不分享任何 PII。
                   </List.Item>
                   <List.Item>
                     <strong>用途分级：</strong>我们区分 analytics（分析）和 marketing（营销）用途。默认情况下，所有事件仅用于 analytics（如 Google Analytics 4）。Marketing 用途（如 Meta、TikTok 广告转化）需要商家明确启用并确认合规。所有事件日志和报表中都会标记该事件是 analytics 还是 marketing 用途。
@@ -215,7 +213,16 @@ export default function PublicPrivacyPolicy() {
 
               <BlockStack gap="200">
                 <Text as="h2" variant="headingLg">
-                  3. 数据使用方式
+                  第三部分：透明披露与合规
+                </Text>
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    📋 数据使用、保留、删除和合规机制
+                  </Text>
+                </Banner>
+                
+                <Text as="h3" variant="headingMd">
+                  3.1 数据使用方式
                 </Text>
                 <Text as="p">我们处理数据用于以下目的：</Text>
                 <List type="number">
@@ -240,12 +247,8 @@ export default function PublicPrivacyPolicy() {
                 </Text>
               </BlockStack>
 
-              <BlockStack gap="200">
-                <Text as="h2" variant="headingLg">
-                  4. 数据保留与删除
-                </Text>
                 <Text as="h3" variant="headingMd">
-                  4.1 数据保留期限
+                  3.2 数据保留期限
                 </Text>
                 <List type="bullet">
                   <List.Item>
@@ -260,7 +263,7 @@ export default function PublicPrivacyPolicy() {
                 </List>
 
                 <Text as="h3" variant="headingMd">
-                  4.2 数据删除与 GDPR 合规
+                  3.3 数据删除与 GDPR 合规
                 </Text>
                 <Text as="p">
                   我们完全遵守 GDPR、CCPA 及其他适用的隐私法规。我们实现了 Shopify <strong>强制合规 webhooks</strong>（上架 App Store 的公开应用必须实现）：
@@ -295,12 +298,11 @@ export default function PublicPrivacyPolicy() {
                 </List>
               </BlockStack>
 
-              <BlockStack gap="200">
-                <Text as="h2" variant="headingLg">
-                  5. 联系方式
+                <Text as="h3" variant="headingMd">
+                  3.4 联系方式
                 </Text>
                 <Text as="p">
-                  For privacy-related inquiries, please contact us at:{" "}
+                  如有隐私相关问题，请通过以下方式联系我们：{" "}
                   <Link url={`mailto:${contactEmail}`}>{contactEmail}</Link>
                 </Text>
               </BlockStack>

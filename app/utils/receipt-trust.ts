@@ -11,7 +11,8 @@ export function buildShopAllowedDomains(myshopifyDomain: string, primaryDomain?:
     });
 }
 export type TrustLevel = "trusted" | "partial" | "untrusted";
-export type UntrustedReason = "missing_checkout_token" | "checkout_token_mismatch" | "missing_origin" | "invalid_origin" | "timestamp_mismatch" | "receipt_too_old" | "time_skew_exceeded" | "ingestion_key_missing" | "ingestion_key_invalid" | "order_not_found" | "receipt_not_found";
+// P0-1: 移除 ingestion_key_missing 和 ingestion_key_invalid，添加 hmac_signature_invalid
+export type UntrustedReason = "missing_checkout_token" | "checkout_token_mismatch" | "missing_origin" | "invalid_origin" | "timestamp_mismatch" | "receipt_too_old" | "time_skew_exceeded" | "hmac_signature_invalid" | "order_not_found" | "receipt_not_found";
 export interface ReceiptTrustResult {
     trusted: boolean;
     level: TrustLevel;
@@ -50,12 +51,14 @@ export function verifyReceiptTrust(options: VerifyReceiptOptions): ReceiptTrustR
             details: "No pixel event receipt found for this order",
         };
     }
+    // P0-1: ingestionKeyMatched 现在基于 HMAC 签名验证结果，不再是明文 key 验证
+    // 参数名保持 ingestionKeyMatched 以保持向后兼容，但实际含义是 HMAC 签名验证通过
     if (!ingestionKeyMatched) {
         return {
             trusted: false,
             level: "untrusted",
-            reason: "ingestion_key_invalid",
-            details: "Ingestion key validation failed",
+            reason: "hmac_signature_invalid",
+            details: "HMAC signature validation failed (previously called ingestion_key_invalid)",
         };
     }
     if (!receiptCheckoutToken) {

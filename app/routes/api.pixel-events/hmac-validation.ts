@@ -86,21 +86,24 @@ export function extractHMACSignature(request: Request): string | null {
 }
 
 /**
- * P0-4: 安全模型说明
+ * P0-1/P0-4: 安全模型说明
  * 
- * ingestion_key (secret 参数) 不是真正的"机密"，因为它存储在 Web Pixel settings 中，
- * 这些设置会被发送到客户端（像素沙箱环境）。从安全模型上讲，它更像是一个"识别用 token"。
+ * ingestionSecret (secret 参数) 用于生成 HMAC 签名，不直接出现在请求体中。
+ * 客户端使用 ingestionSecret 生成签名，服务端通过 shopDomain 查找对应的 ingestionSecret 进行验证。
  * 
  * 真正的安全边界依赖于：
- * 1. Shopify 像素隐私加载机制（customer_privacy）确保只有授权的像素能运行
+ * 1. HMAC 签名验证（X-Tracking-Guardian-Signature header）- 主要验证机制
  * 2. Origin/Referrer 校验（确保请求来自 Shopify checkout 页面）
- * 3. Rate limiting 和异常检测（防止滥用）
- * 4. Nonce + timestamp 防重放攻击
+ * 3. Shopify 像素隐私加载机制（customer_privacy）确保只有授权的像素能运行
+ * 4. Rate limiting 和异常检测（防止滥用）
+ * 5. Nonce + timestamp 防重放攻击
  * 
  * HMAC 签名主要用于：
  * - 防篡改（验证 payload 完整性）
- * - 关联店铺（通过 ingestion_key 识别来源店铺）
+ * - 关联店铺（通过 shopDomain 查找对应的 ingestionSecret 进行验证）
  * - 配合 nonce/timestamp 防重放
+ * 
+ * 注意：客户端不再在请求体中发送 ingestionKey，服务端完全依赖 HMAC 签名验证。
  */
 export async function validatePixelEventHMAC(
   request: Request,

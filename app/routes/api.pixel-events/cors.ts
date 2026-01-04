@@ -6,9 +6,10 @@ import {
   jsonWithCors as jsonWithCorsBase,
 } from "../../utils/cors";
 
+// P0-1: 已移除 X-Tracking-Guardian-Key，完全依赖 HMAC 签名验证（X-Tracking-Guardian-Signature）
 export const PIXEL_CUSTOM_HEADERS = [
-  "X-Tracking-Guardian-Key",
   "X-Tracking-Guardian-Timestamp",
+  "X-Tracking-Guardian-Signature",
 ];
 
 export function getCorsHeadersPreBody(request: Request): HeadersInit {

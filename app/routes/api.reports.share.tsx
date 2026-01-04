@@ -3,6 +3,7 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { createShareableReport } from "../services/report-sharing.server";
 import { logger } from "../utils/logger.server";
+import prisma from "../db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -40,7 +41,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // 获取shop记录
-    const { prisma } = await import("../db.server");
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: session.shop },
       select: { id: true },
