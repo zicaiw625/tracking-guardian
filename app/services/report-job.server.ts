@@ -7,6 +7,10 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { fetchScanReportData, generateScanReportHtml } from "./report-generator.server";
+import { generateVerificationReportData, generateVerificationReportCSV } from "./verification-report.server";
+import { generateScanReportPdf, generateVerificationReportPdf } from "./pdf-generator.server";
+import { exportComprehensiveReport } from "./comprehensive-report.server";
 
 export type ReportJobStatus = "pending" | "processing" | "completed" | "failed";
 export type ReportFormat = "pdf" | "csv" | "json";
@@ -131,25 +135,65 @@ async function processReportJob(jobId: string): Promise<void> {
     try {
       switch (job.reportType) {
         case "scan": {
-          const { generateScanReport } = await import("./report-generator.server");
-          const result = await generateScanReport(job.shopId, {
-            format: job.format,
-          });
-          resultUrl = result.url;
+          if (job.format === "pdf") {
+            const pdfResult = await generateScanReportPdf(job.shopId);
+            if (!pdfResult) {
+              throw new Error("Failed to generate scan report PDF");
+            }
+            resultUrl = await saveReportResult(jobId, {
+              content: pdfResult.buffer,
+              filename: pdfResult.filename,
+              mimeType: pdfResult.contentType,
+            });
+          } else if (job.format === "csv") {
+            const data = await fetchScanReportData(job.shopId);
+            if (!data) {
+              throw new Error("Failed to fetch scan report data");
+            }
+            // 生成 CSV（简化版本，实际应该使用专门的 CSV 生成函数）
+            const csv = `Shop Domain,Risk Score,Platforms\n${data.shopDomain},${data.riskScore},"${data.identifiedPlatforms.join(",")}"\n`;
+            resultUrl = await saveReportResult(jobId, {
+              content: csv,
+              filename: `scan-report-${data.shopDomain}-${new Date().toISOString().split("T")[0]}.csv`,
+              mimeType: "text/csv",
+            });
+          } else {
+            throw new Error(`Unsupported format for scan report: ${job.format}`);
+          }
           break;
         }
         case "verification": {
-          const { generateVerificationReport } = await import("./report-generator.server");
           const runId = job.metadata?.runId as string | undefined;
-          const result = await generateVerificationReport(job.shopId, {
-            format: job.format,
-            runId,
-          });
-          resultUrl = result.url;
+          if (!runId) {
+            throw new Error("runId is required for verification report");
+          }
+          const data = await generateVerificationReportData(job.shopId, runId);
+          if (!data) {
+            throw new Error("Failed to fetch verification report data");
+          }
+          if (job.format === "pdf") {
+            const pdfResult = await generateVerificationReportPdf(data);
+            if (!pdfResult) {
+              throw new Error("Failed to generate verification report PDF");
+            }
+            resultUrl = await saveReportResult(jobId, {
+              content: pdfResult.buffer,
+              filename: pdfResult.filename,
+              mimeType: pdfResult.contentType,
+            });
+          } else if (job.format === "csv") {
+            const csv = generateVerificationReportCSV(data);
+            resultUrl = await saveReportResult(jobId, {
+              content: csv,
+              filename: `verification-report-${data.shopDomain}-${new Date().toISOString().split("T")[0]}.csv`,
+              mimeType: "text/csv",
+            });
+          } else {
+            throw new Error(`Unsupported format for verification report: ${job.format}`);
+          }
           break;
         }
         case "comprehensive": {
-          const { exportComprehensiveReport } = await import("./comprehensive-report.server");
           const result = await exportComprehensiveReport(job.shopId, {
             format: job.format as "pdf" | "csv" | "json",
             includeScan: true,

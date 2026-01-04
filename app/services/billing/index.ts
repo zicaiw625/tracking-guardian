@@ -23,11 +23,14 @@ export {
   type SubscriptionStatus,
   type CancelResult,
   type ConfirmationResult,
+  type OneTimePurchaseResult,
   createSubscription,
   getSubscriptionStatus,
   cancelSubscription,
   syncSubscriptionStatus,
   handleSubscriptionConfirmation,
+  createOneTimePurchase,
+  handleOneTimePurchaseConfirmation,
 } from "./subscription.server";
 
 export {

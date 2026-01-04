@@ -1,4 +1,5 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -24,6 +25,7 @@ import { generateRiskReportCSV } from "../services/risk-report.server";
 import { generateVerificationReportPdf } from "../services/pdf-generator.server";
 import { exportComprehensiveReport } from "../services/comprehensive-report.server";
 import { normalizePlanId, planSupportsReportExport, type PlanId } from "../services/billing/plans";
+import { createReportJob } from "../services/report-job.server";
 
 type ReportType = "scan" | "migration" | "reconciliation" | "risk" | "verification" | "comprehensive";
 
@@ -69,7 +71,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // P2-9: PDF/CSV 导出改为异步任务（避免阻塞请求）
     const asyncParam = url.searchParams.get("async");
     if (asyncParam !== "false") {
-      const { createReportJob } = await import("../services/report-job.server");
       const job = await createReportJob({
         shopId: shop.id,
         reportType,

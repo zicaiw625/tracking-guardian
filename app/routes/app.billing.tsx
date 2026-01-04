@@ -9,6 +9,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { BILLING_PLANS, createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId, } from "../services/billing.server";
 import { getUsageHistory } from "../services/billing/usage-history.server";
+import { handleOneTimePurchaseConfirmation, createOneTimePurchase } from "../services/billing/subscription.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
@@ -18,7 +19,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     
     // P1-7: 处理一次性收费确认
     if (purchaseId) {
-        const { handleOneTimePurchaseConfirmation } = await import("../services/billing/subscription.server");
         await handleOneTimePurchaseConfirmation(admin, shopDomain, purchaseId);
         return redirect("/app/billing?success=true&type=oneTime");
     }
@@ -88,7 +88,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             const planId = formData.get("planId") as PlanId;
             const appUrl = process.env.SHOPIFY_APP_URL || "";
             const returnUrl = `${appUrl}/app/billing`;
-            const { createOneTimePurchase } = await import("../services/billing/subscription.server");
             const result = await createOneTimePurchase(admin, shopDomain, planId, returnUrl, process.env.NODE_ENV !== "production");
             if (result.success && result.confirmationUrl) {
                 return redirect(result.confirmationUrl);
