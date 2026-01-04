@@ -237,7 +237,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
-    // P0-02: 确定事件模式 - 优先从 pixelConfigs 读取，默认使用 full_funnel
+    // P0-02: 确定事件模式 - 优先从 pixelConfigs 读取，默认使用 purchase_only（隐私最小化）
     // PRD 期望：像素迁移应直接覆盖 purchase 事件，因此默认使用 hybrid 策略
     // hybrid = client-side + server-side 双重发送，通过 event_id 去重
     // 
