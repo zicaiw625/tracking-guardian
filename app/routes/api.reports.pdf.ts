@@ -18,7 +18,7 @@ import {
   fetchScanReportData,
   fetchReconciliationReportData,
 } from "../services/report-generator.server";
-import { planSupportsFeature, normalizePlanId, type PlanId } from "../services/billing/plans";
+import { planSupportsFeature, normalizePlanId, type PlanId, planSupportsReportExport } from "../services/billing/plans";
 import { logger } from "../utils/logger.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -44,7 +44,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  const planId = normalizePlanId(shop.plan);
+  const planId = normalizePlanId(shop.plan) as PlanId;
+
+  // PDF/CSV 导出需要 Go-Live 或 Agency 计划（报告导出功能）
+  // HTML 格式和分享链接是免费的
+  if ((format === "pdf" || format === "csv") && !planSupportsReportExport(planId)) {
+    return new Response(
+      JSON.stringify({ 
+        error: "报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版只能查看和分享链接。",
+        requiredPlan: "Go-Live",
+      }),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
 
   if (reportType === "batch") {
     if (!planSupportsFeature(planId as PlanId, "agency")) {

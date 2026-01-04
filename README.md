@@ -1,101 +1,127 @@
 # Tracking Guardian
 
-**Post-purchase Tracking Guardian** - 帮助 Shopify 商家解决 Checkout Extensibility 迁移后追踪脚本断裂问题的应用。
+**Shopify 升级迁移交付平台** - 帮助商家在 Shopify Checkout Extensibility 升级截止日前，安全迁移追踪脚本和页面功能，提供可交付的验收报告和断档监控。
 
-## 功能特性
+## 🎯 产品定位
 
-### 1. 安装后自动体检与 Dashboard
-- **自动体检**：安装后自动扫描店铺，评估迁移风险
-- **Dashboard 概览**：显示升级状态、风险分数、预计迁移时间
-- **迁移清单预览**：优先级排序的迁移清单，显示高风险项和预计时间
-- **快速入口**：一键跳转到 Audit、迁移、验收等页面
+**升级迁移交付平台** - 帮助商家在 Shopify Checkout Extensibility 升级截止日前，安全迁移追踪脚本和页面功能
 
-### 2. 一键扫描与风险报告
+### 我们的确定性来自 Shopify 的硬 deadline
+
+- **Plus 店铺**：从 **2026-01 开始自动升级**（legacy 定制会丢失）
+- **非 Plus 店铺**：最晚 **2026-08-26** 必须完成升级
+- Legacy 的 `checkout.liquid`、`additional scripts`、`script tags` 会逐步被 sunset
+
+### v1 的核心承诺（不是"我帮你追踪效果提升"，而是）
+
+✅ **升级不丢功能/不丢数据**（在 Shopify 允许范围内）  
+✅ **给你一份"可交付的验收报告"**（PDF/CSV，给老板/客户看的证据）  
+✅ **上线后有断档告警**（事件量骤降、失败率监控）
+
+### 核心价值主张
+
+避开直接硬刚 Elevar/Littledata（他们价位与预期都更高，$99+/月），专注于让商家**"敢点发布/敢切 Live"**的核心能力。
+
+**产品卖点话术**：
+- "替换 Additional Scripts，减少结账页脚本风险"
+- "基于 Web Pixels + Checkout UI Extensions 的合规迁移"
+- "验收报告 + 断档告警（给老板/客户看的证据）"
+
+## v1 MVP 核心功能（付费理由非常硬）
+
+### (A) 免费：Audit 风险报告（必须强）
 - **自动扫描**：通过 Shopify API 读取已安装的 ScriptTags 和 Web Pixels
 - **手动分析**：支持手动粘贴 Additional Scripts 内容进行分析
   - ⚠️ **注意**：Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts，需要商家手动复制粘贴
-- **智能识别**：识别 Google、Meta、TikTok、Pinterest 等常见追踪平台
-- **优先级计算**：基于风险等级、影响范围、迁移难度自动计算优先级（1-10分）
-- **时间估算**：基于历史数据和复杂度估算预计迁移时间
-- **依赖分析**：分析迁移项之间的依赖关系，生成最优迁移顺序
-- **风险评分**：生成风险评分和迁移建议
-- **动态截止日期**：根据当前日期和店铺类型显示截止日期状态
+- **迁移清单**：生成完整的迁移清单，包含每个待迁移项
+- **风险分级**：基于风险等级、影响范围、迁移难度进行分级（高/中/低）
+- **替代路径**：明确标注每个迁移项的替代路径（Web Pixel / Checkout UI Extension / 不可迁移）
+- **截止日期提醒**：根据店铺类型（Plus/非Plus）显示 Shopify 官方截止日期
+  - Plus 店铺：2026-01 开始自动升级
+  - 非 Plus 店铺：最晚 2026-08-26
+- **可分享报告链接**：免费用户可查看和分享报告链接，但导出功能需付费
 
-### 3. 像素迁移中心（向导式）
-- **分步骤向导**：清晰的 5 步流程（选择平台 → 填写凭证 → 事件映射 → 检查配置 → 测试验证）
-- **草稿保存**：步骤间自动保存草稿，支持断点续传
-- **事件映射可视化编辑器**：
-  - 拖拽式事件映射界面
-  - 实时预览映射结果
-  - 批量编辑功能
-  - 推荐映射一键应用
-- **模板库**：预设模板（标准配置、高级配置）和自定义模板
-- **环境切换**：支持 Test/Live 环境切换
-- **配置版本管理**：支持配置回滚
-- **支持的平台**：
-  - Google Analytics 4 / Google Ads
+### (B) 付费：像素"最小可用迁移"（标准事件映射 + 参数完整率）
+- **支持的平台**（v1 只做这3个）：
+  - Google Analytics 4 (GA4)
   - Meta (Facebook) Pixel
   - TikTok Pixel
-  - Pinterest Conversions API
+- **标准事件映射**：自动映射标准电商事件（purchase、view_item、add_to_cart 等）
+- **参数完整率检查**：验证事件参数（value、currency、items 等）的完整性
+- **可下载 payload 证据**：支持下载事件 payload，用于验证和存档
+- **Test/Live 环境切换**：支持测试环境验证后再发布到生产环境
+- **事件流预览**：实时预览事件触发情况
 
-> **注意**：Microsoft Ads (Bing) 和 Microsoft Clarity 暂不支持服务端追踪。
-> - Bing: 建议使用 Microsoft 官方 Shopify 应用
-> - Clarity: 客户端会话回放工具，请在主题中直接添加
+> **技术说明**：Web Pixel 运行在严格沙箱（Web Worker）环境中，很多能力受限。我们会明确告知限制，并提供可行的替代方案。
 
-### 4. 事件对账与验收
-- **验收向导**：生成测试清单（下单、退款、取消、编辑订单等）
-- **实时事件监控**：使用 Server-Sent Events (SSE) 实时显示事件触发
-- **事件参数完整性检查**：检查 value、currency、items 等必需参数
-- **金额准确性验证**：验证事件金额与订单金额是否一致
-- **渠道对账**：本地一致性检查（我们发送的数据与 Shopify 订单数据对比）
-- **测试订单指引**：详细的测试步骤和预期事件说明
-- **报告导出**：支持 PDF/CSV 格式导出验收报告
+### (C) 付费：Thank you / Order status 模块库（v1 只做 2 个）
+- **Post-purchase Survey（购后问卷）**：收集客户反馈，了解获客渠道（官方示例场景，有强差异化）
+- **Help & Support 模块（帮助中心/联系客服）**：迁移替代件、配置简单，包含 FAQ、联系客服、继续购物等功能
 
-### 5. 追踪健康监控与送达对账
-- 每日自动对账：Shopify Webhook 订单 vs 像素回执 vs 平台送达日志
-- 投递成功率监控：检测发送失败、超时、凭证过期等问题
-- 送达缺口分析：识别丢失发生在像素端、服务端还是平台端
-- 偏差率报警（邮件/Slack/Telegram）
-- 可视化监控面板
+> **v1.1 以后规划**：订单追踪/再购等模块放到后续版本（集成复杂度高，边界条件多，会拖慢 v1 节奏）
 
-> **重要说明**：当前对账功能验证的是「事件是否成功发送到广告平台」，而非「平台侧报表中的转化数」。
-> 我们保证您能证明事件已发出、能定位丢失发生在哪一环节（像素未触发 / 服务端发送失败 / 平台 API 错误），
-> 但**不包含**平台侧转化报表的回读对比（如 Meta Ads Manager 的转化数、Google Ads 的归因报表等）。
+### (D) 付费：验收（Verification）+ 断档监控（Monitoring）
+这是产品的"交付件"，也是 Agency 愿意付钱的关键。
 
-### 6. 服务器端转化补齐
-- Shopify Webhooks 自动触发
-- Meta Conversions API (CAPI)
-- GA4 Measurement Protocol（⚠️ 仅支持 GA4，非 Google Ads）
-- TikTok Events API
+- **验收功能**：
+  - 测试清单：生成完整的测试清单（下单、退款、取消、编辑订单等）
+  - 事件触发记录：实时记录事件触发情况
+  - 参数完整率：检查事件参数的完整性
+  - 订单一致性：验证事件金额/币种与 Shopify 订单的一致性
+  - 隐私合规检查：验证像素是否尊重 consent / customerPrivacy
+- **监控功能**：
+  - 事件量骤降检测：监控事件量的异常下降
+  - 失败率阈值告警：当失败率超过阈值时告警
+  - Purchase 缺参率监控：监控 purchase 事件关键参数的缺失率
+  - 多渠道告警：支持邮件/Slack/Telegram 告警
 
-> **重要说明**：
-> - **GA4**：使用 GA4 Measurement Protocol 发送服务端事件，适用于 Google Analytics 4 属性
-> - **Google Ads**：当前**不支持** Google Ads 离线转化导入（Enhanced Conversions for Leads / Offline Conversions）。如需 Google Ads 归因，建议配合使用 Google 官方 Shopify 应用或 Google Ads 离线转化导入工具
-> - 本应用专注于 GA4 + Meta CAPI + TikTok Events API 的统一管理
+## 未来版本规划（v1 暂不包含）
 
-### 7. Thank you / Order status UI 模块库
-- Post-purchase Survey（购后问卷）
-- Shipping Tracker（物流追踪）- Beta
-- Upsell Offer（二次购买优惠）- Beta
-- Support & FAQ 模块（客服入口、FAQ、继续购物）
+### 服务器端转化补齐（Server-side CAPI/MP）+ 混合去重
+- ⚠️ **v1 暂不包含**：这是 v1.1/v1.2 的功能，做了会被拿去和 Elevar/Littledata 正面对比预期
+- 规划功能：
+  - Meta Conversions API (CAPI)
+  - GA4 Measurement Protocol
+  - TikTok Events API
+  - 客户端/服务端混合去重
 
-### 8. Agency 多店支持（高阶套餐）
+### 深集成功能
+- ⚠️ **v1 暂不包含**：
+  - AfterShip/17Track 等物流追踪集成（API/适配会膨胀）
+  - 其他第三方服务深度集成
+
+### 其他 UI 模块
+- ⚠️ **v1 暂不包含**：
+  - Shipping Tracker（物流追踪）- 需深集成，v1.1+
+  - Upsell Offer（二次购买优惠）- 边界条件复杂，v1.1+
+  - Reorder（再购按钮）- 集成复杂，v1.1+
+
+## Agency 多店支持（高阶套餐）
 - **多店工作区**：创建和管理多个店铺分组
 - **批量 Audit 扫描**：批量运行扫描，跟踪进度和结果汇总
 - **批量应用像素模板**：一键将配置应用到多个店铺
-- **迁移验收报告导出**：生成多店铺迁移报告（PDF），包含每个店铺的迁移状态和进度统计
+- **迁移验收报告导出**：生成多店铺迁移报告（PDF/CSV），包含每个店铺的迁移状态和进度统计
 - **白标报告支持**：支持自定义品牌（Agency 品牌）
-- **团队协作**：成员权限管理（Owner/Admin/Viewer）、任务分配、协作评论
 
-### 套餐与商业化（对齐"上线即可收费"）
+### 套餐与定价（迁移交付导向）
+
+市场参照：成熟 tracking 工具普遍 $99+/月甚至更高。我们 $29/$49/$199 的优势是"迁移助手 + 验收交付"，定价表达这个价值。
 
 | 套餐 | 定价 | 适用场景 | 核心能力 |
 | --- | --- | --- | --- |
-| Free | $0 | 扫描、评估阶段 | Audit 扫描报告、迁移清单与建议、截止期提醒 |
-| Starter | $29/mo | 单店/单渠道迁移 | 1 个目的地像素（test/live）、1 个页面模块、基础验收 |
-| Growth | $79/mo | 多渠道运营 & 对账 | 3 个目的地像素、全部页面模块、事件对账 + 告警 |
-| Agency | $199/mo | 多店代理/协作 | 多店铺 workspace、批量交付 + 报告导出 + 团队协作 |
+| **Free** | $0 | 扫描、评估阶段 | Audit 扫描报告（可分享链接，但**不导出**）、迁移清单与建议、风险分级与替代路径、截止日期提醒 |
+| **Migration** | **$49/月** | 像素迁移阶段 | 1 个像素目的地（GA4 或 Meta 或 TikTok 三选一）、Survey 或 Helpdesk 二选一、验收向导（**不含报告导出**）、标准事件映射 + 参数完整率、可下载 payload 证据、Test/Live 环境切换 |
+| **Go-Live** | **$199 一次性/店** 或 $199/月 | 项目交付阶段 | 像素 + 模块发布 + **验收报告导出（PDF/CSV）** - 目标是"Agency 直接报给客户的交付包"、事件参数完整率检查、订单金额/币种一致性验证、隐私合规检查 |
+| **Monitor** | **$29/月（可叠加）** | 上线后监控 | 事件量骤降告警、失败率阈值监控、purchase 缺参率检测、日志留存与查询、版本回滚支持 |
+| **Agency** | **$199/月** | 多店代理/协作 | 多店铺 workspace + 批量 Audit + 批量导出报告 + 团队协作、白标报告支持、专属客户成功经理、SLA 保障 |
 
+> **付费墙设计原则**：把"看报告"做免费，把"导出报告/分享给客户"做付费，非常适合 Agency 场景。
+> 
+> **付费触发点**（3个强 CTA，直接对应商家的"升级项目交付"）：
+> 1. **启用像素迁移（Test 环境）** → 进入付费试用/订阅（Migration $49/月）
+> 2. **发布 Thank you/Order status 模块** → 进入付费（Migration $49/月）
+> 3. **生成验收报告（PDF/CSV）** → 付费（Go-Live $199 一次性或 $199/月）
+>
 > 权限/功能 gating 已在前端页面展示：升级 CTA 位于仪表盘与迁移页；默认 plan 为 Free。
 
 ## 技术栈
@@ -273,6 +299,12 @@ ScriptTag 清理需要商家手动操作：
 
 ## Built for Shopify (BFS) 特性
 
+### 上架与 BFS 策略
+
+* **替换 Additional Scripts，减少结账页脚本风险** - 基于 Web Pixels + Checkout UI Extensions 的合规迁移
+* **验收报告 + 断档告警** - 给老板/客户看的证据
+* **性能优化** - 符合 BFS LCP/CLS/INP 指标要求（LCP ≤2.5s、CLS ≤0.1、INP ≤200ms）
+
 ### 合规与平台要求
 
 - **GraphQL Admin API**：所有 Admin 操作（WebPixel 创建/删除、checkoutProfiles 查询等）均使用 GraphQL，符合 2025-04-01 起新提交公共应用必须使用 GraphQL Admin API 的要求。代码参考：`app/services/admin-mutations.server.ts`、`app/services/checkout-profile.server.ts`。
@@ -284,6 +316,7 @@ ScriptTag 清理需要商家手动操作：
 - **最小化 API 调用**：批量处理订单数据，避免不必要的轮询
 - **智能缓存**：使用内存缓存减少重复数据库查询
 - **懒加载**：按需加载扫描历史和监控数据
+- **减少脚本负载**：替换 Additional Scripts，使用 Web Pixels（Web Worker 沙箱环境）
 
 ### 稳定性保障
 

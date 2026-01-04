@@ -18,6 +18,8 @@ export interface ModuleInfo {
   category: "engagement" | "support" | "conversion";
   requiredPlan: PlanId;
   targets: ("thank_you" | "order_status")[];
+  disabled?: boolean; // v1 暂不包含的模块
+  disabledReason?: string; // 禁用原因（如 "v1.1+ 规划中"）
 }
 
 export interface OrderTrackingSettings {
@@ -132,6 +134,9 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     category: "support",
     requiredPlan: "growth",
     targets: ["thank_you", "order_status"],
+    // v1 暂不包含，v1.1+ 规划
+    disabled: true,
+    disabledReason: "v1.1+ 规划中",
   },
   reorder: {
     key: "reorder",
@@ -142,6 +147,9 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     category: "conversion",
     requiredPlan: "growth",
     targets: ["thank_you", "order_status"],
+    // v1 暂不包含，v1.1+ 规划
+    disabled: true,
+    disabledReason: "v1.1+ 规划中",
   },
   upsell: {
     key: "upsell",
@@ -152,6 +160,9 @@ export const UI_MODULES: Record<ModuleKey, ModuleInfo> = {
     category: "conversion",
     requiredPlan: "growth",
     targets: ["thank_you", "order_status"],
+    // v1 暂不包含，v1.1+ 规划
+    disabled: true,
+    disabledReason: "v1.1+ 规划中",
   },
 };
 

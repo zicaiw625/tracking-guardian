@@ -35,22 +35,25 @@ const FEATURE_INFO: Record<
 > = {
   pixel_destinations: {
     name: "像素目的地",
-    description: "配置多个广告平台的像素追踪",
+    description: "标准事件映射 + 参数完整率（v1 最小可用迁移）",
     requiredPlan: "starter",
     featureList: [
-      "支持 GA4、Meta、TikTok、Pinterest 等平台",
-      "服务端 Conversions API 发送",
-      "事件去重与一致性保障",
+      "支持 GA4、Meta、TikTok（v1 仅此 3 个平台，避开 Elevar/Littledata 高价位竞争）",
+      "标准事件映射：自动映射标准电商事件（purchase、view_item、add_to_cart 等）",
+      "参数完整率检查：验证事件参数（value、currency、items 等）的完整性",
+      "可下载 payload 证据：支持下载事件 payload，用于验证和存档",
+      "Test/Live 环境切换：支持测试环境验证后再发布到生产环境",
+      "技术说明：Web Pixel 运行在严格沙箱（Web Worker）环境中，很多能力受限",
     ],
   },
   ui_modules: {
     name: "UI 模块",
-    description: "在 Thank you / Order status 页面添加自定义模块",
+    description: "Thank you / Order status 页面模块（v1 仅支持 Survey/Helpdesk）",
     requiredPlan: "starter",
     featureList: [
-      "购后问卷、订单追踪、再购按钮",
-      "帮助中心、追加销售等模块",
-      "完全自定义配置",
+      "Post-purchase Survey（购后问卷）",
+      "Help & Support 模块（帮助中心/联系客服）",
+      "基于 Checkout UI Extensions 的合规实现",
     ],
   },
   verification: {

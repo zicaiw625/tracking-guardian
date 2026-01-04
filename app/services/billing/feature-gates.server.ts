@@ -82,7 +82,7 @@ export async function checkUiModulesLimit(
 
 export function checkFeatureAccess(
   shopPlan: PlanId,
-  feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit"
+  feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit" | "report_export"
 ): FeatureGateResult {
 
   if (feature === "audit") {
@@ -95,7 +95,7 @@ export function checkFeatureAccess(
       const planConfig = getPlanOrDefault(shopPlan);
       return {
         allowed: false,
-        reason: `${feature === "pixel_migration" ? "像素迁移" : "UI 模块"}功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
+        reason: `${feature === "pixel_migration" ? "像素迁移" : "UI 模块"}功能需要 Migration 及以上套餐。当前套餐：${planConfig.name}`,
       };
     }
     return { allowed: true };
@@ -113,6 +113,7 @@ export function checkFeatureAccess(
       pixel_migration: "像素迁移",
       ui_modules: "UI 模块",
       audit: "Audit 扫描",
+      report_export: "报告导出",
     };
 
     return {
@@ -124,15 +125,18 @@ export function checkFeatureAccess(
   return { allowed: true };
 }
 
-function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit"): string {
+function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit" | "report_export"): string {
   switch (feature) {
     case "audit":
       return "Free";
     case "pixel_migration":
     case "ui_modules":
     case "verification":
-      return "Starter";
+      return "Migration";
     case "alerts":
+      return "Monitor";
+    case "report_export":
+      return "Go-Live";
     case "reconciliation":
       return "Growth";
     case "agency":
@@ -141,13 +145,17 @@ function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliatio
 }
 
 function isPlanAtLeast(current: PlanId, target: PlanId): boolean {
-  const tierOrder: Record<PlanId, number> = {
+  // Monitor 是叠加功能，不参与主层级比较
+  if (current === "monitor" || target === "monitor") {
+    return false;
+  }
+  const tierOrder: Record<Exclude<PlanId, "monitor">, number> = {
     free: 0,
     starter: 1,
     growth: 2,
     agency: 3,
   };
-  return tierOrder[current] >= tierOrder[target];
+  return tierOrder[current as Exclude<PlanId, "monitor">] >= tierOrder[target as Exclude<PlanId, "monitor">];
 }
 
 export async function canCreatePixelConfig(
@@ -201,6 +209,7 @@ export async function getFeatureLimitsSummary(
     alerts: boolean;
     reconciliation: boolean;
     agency: boolean;
+    reportExport: boolean;
   };
 }> {
   const [pixelLimit, uiLimit] = await Promise.all([
@@ -224,6 +233,7 @@ export async function getFeatureLimitsSummary(
       alerts: planSupportsFeature(shopPlan, "alerts"),
       reconciliation: planSupportsFeature(shopPlan, "reconciliation"),
       agency: planSupportsFeature(shopPlan, "agency"),
+      reportExport: planSupportsFeature(shopPlan, "report_export"),
     },
   };
 }

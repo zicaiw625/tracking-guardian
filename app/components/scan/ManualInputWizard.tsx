@@ -156,15 +156,36 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               <Text as="p" variant="bodySm" tone="subdued">
                 勾选所有在 Thank you / Order status 页面使用的追踪平台
               </Text>
+              
+              <Banner tone="warning">
+                <Text as="p" variant="bodySm">
+                  <strong>v1 支持范围</strong>：GA4、Meta、TikTok（其他平台将在 v1.1+ 支持）。请选择所有您使用的平台，系统将在报告中标注 v1 可迁移的项目。
+                </Text>
+              </Banner>
+              
               <BlockStack gap="300">
-                {AVAILABLE_PLATFORMS.map((platform) => (
-                  <Checkbox
-                    key={platform.value}
-                    label={platform.label}
-                    checked={selectedPlatforms.includes(platform.value)}
-                    onChange={() => handlePlatformToggle(platform.value)}
-                  />
-                ))}
+                {AVAILABLE_PLATFORMS.map((platform) => {
+                  const isV1Supported = 
+                    platform.value === "google" || 
+                    platform.value === "meta" || 
+                    platform.value === "tiktok";
+                  
+                  return (
+                    <InlineStack key={platform.value} gap="200" blockAlign="center">
+                      <Checkbox
+                        label={platform.label}
+                        checked={selectedPlatforms.includes(platform.value)}
+                        onChange={() => handlePlatformToggle(platform.value)}
+                      />
+                      {isV1Supported && (
+                        <Badge tone="success" size="small">v1 支持</Badge>
+                      )}
+                      {!isV1Supported && (platform.value === "pinterest" || platform.value === "snapchat") && (
+                        <Badge tone="info" size="small">v1.1+</Badge>
+                      )}
+                    </InlineStack>
+                  );
+                })}
               </BlockStack>
 
               <Divider />
@@ -175,15 +196,35 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               <Text as="p" variant="bodySm" tone="subdued">
                 勾选所有在 Thank you / Order status 页面使用的功能
               </Text>
+              
+              <Banner tone="warning">
+                <Text as="p" variant="bodySm">
+                  <strong>v1 支持范围</strong>：购后问卷（Survey）和帮助中心（Helpdesk）（其他功能将在 v1.1+ 支持）。请选择所有您使用的功能，系统将在报告中标注 v1 可迁移的项目。
+                </Text>
+              </Banner>
+              
               <BlockStack gap="300">
-                {AVAILABLE_FEATURES.map((feature) => (
-                  <Checkbox
-                    key={feature.value}
-                    label={feature.label}
-                    checked={selectedFeatures.includes(feature.value)}
-                    onChange={() => handleFeatureToggle(feature.value)}
-                  />
-                ))}
+                {AVAILABLE_FEATURES.map((feature) => {
+                  const isV1Supported = 
+                    feature.value === "survey" || 
+                    feature.value === "support";
+                  
+                  return (
+                    <InlineStack key={feature.value} gap="200" blockAlign="center">
+                      <Checkbox
+                        label={feature.label}
+                        checked={selectedFeatures.includes(feature.value)}
+                        onChange={() => handleFeatureToggle(feature.value)}
+                      />
+                      {isV1Supported && (
+                        <Badge tone="success" size="small">v1 支持</Badge>
+                      )}
+                      {!isV1Supported && (
+                        <Badge tone="info" size="small">v1.1+</Badge>
+                      )}
+                    </InlineStack>
+                  );
+                })}
               </BlockStack>
 
               {selectedPlatforms.length === 0 && selectedFeatures.length === 0 && (

@@ -21,7 +21,7 @@ import {
   ProgressBar,
   List,
 } from "@shopify/polaris";
-import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon, ClockIcon } from "~/components/icons";
+import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon, ClockIcon, LockIcon } from "~/components/icons";
 import { EnhancedEmptyState } from "~/components/ui";
 import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
 import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScanProgress";
@@ -38,6 +38,7 @@ import {
   type DashboardData,
   type SetupStep,
 } from "../types/dashboard";
+import { isPlanAtLeast } from "../utils/plans";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -386,17 +387,37 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
             <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="span" variant="bodyMd" fontWeight="semibold">
-                  截止日期
+                  迁移截止日期
                 </Text>
                 <InlineStack gap="200" blockAlign="center">
                   <Text as="span" variant="bodyMd" fontWeight="bold">{deadlineLabel}</Text>
                   <Badge tone={urgencyBadge.tone}>{urgencyBadge.label}</Badge>
                 </InlineStack>
               </InlineStack>
-              {upgradeStatus.daysRemaining > 0 && (
-                <Text as="p" variant="bodySm" tone="subdued">
-                  剩余 {upgradeStatus.daysRemaining} 天
-                </Text>
+              {upgradeStatus.daysRemaining > 0 && upgradeStatus.daysRemaining <= 365 && (
+                <Box
+                  padding="400"
+                  background={
+                    upgradeStatus.urgency === "critical"
+                      ? "bg-surface-critical"
+                      : upgradeStatus.urgency === "high"
+                        ? "bg-surface-warning"
+                        : "bg-surface-info"
+                  }
+                  borderRadius="200"
+                >
+                  <InlineStack gap="300" blockAlign="center">
+                    <Icon source={ClockIcon} />
+                    <BlockStack gap="100">
+                      <Text as="p" variant="headingMd" fontWeight="bold">
+                        剩余 {upgradeStatus.daysRemaining} 天
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        建议尽快完成迁移以避免功能丢失
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
+                </Box>
               )}
               {autoUpgradeLabel && (
                 <>
@@ -430,17 +451,37 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
             <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="span" variant="bodyMd" fontWeight="semibold">
-                  截止日期
+                  迁移截止日期
                 </Text>
                 <InlineStack gap="200" blockAlign="center">
                   <Text as="span" variant="bodyMd" fontWeight="bold">{deadlineLabel}</Text>
                   <Badge tone={urgencyBadge.tone}>{urgencyBadge.label}</Badge>
                 </InlineStack>
               </InlineStack>
-              {upgradeStatus.daysRemaining > 0 && (
-                <Text as="p" variant="bodySm" tone="subdued">
-                  剩余 {upgradeStatus.daysRemaining} 天
-                </Text>
+              {upgradeStatus.daysRemaining > 0 && upgradeStatus.daysRemaining <= 365 && (
+                <Box
+                  padding="400"
+                  background={
+                    upgradeStatus.urgency === "critical"
+                      ? "bg-surface-critical"
+                      : upgradeStatus.urgency === "high"
+                        ? "bg-surface-warning"
+                        : "bg-surface-info"
+                  }
+                  borderRadius="200"
+                >
+                  <InlineStack gap="300" blockAlign="center">
+                    <Icon source={ClockIcon} />
+                    <BlockStack gap="100">
+                      <Text as="p" variant="headingMd" fontWeight="bold">
+                        剩余 {upgradeStatus.daysRemaining} 天
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        建议尽快完成迁移以避免功能丢失
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
+                </Box>
               )}
             </BlockStack>
           )}
@@ -848,7 +889,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
       <BlockStack gap="300">
         <BlockStack gap="100">
           <Text as="p">
-            <strong>Plus 商家:</strong> 截止 <strong>2025-08-28</strong>，且 <strong>2026-01</strong> 自动升级开始（legacy 定制会丢失）
+            <strong>Plus 商家:</strong> 从 <strong>2026-01</strong> 开始自动升级（legacy 定制会丢失）
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
@@ -861,7 +902,7 @@ function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number 
         </BlockStack>
         <BlockStack gap="100">
           <Text as="p">
-            <strong>非 Plus 商家:</strong> 截止 <strong>2026-08-26</strong>
+            <strong>非 Plus 商家:</strong> 最晚 <strong>2026-08-26</strong> 必须完成升级
           </Text>
           <Text as="p" variant="bodySm" tone="subdued">
             <Link
@@ -1148,7 +1189,8 @@ export default function Index() {
 
   return (
     <Page
-      title="Tracking Guardian"
+      title="升级迁移交付平台"
+      subtitle="Shopify 硬 deadline：Plus 商家 2026-01 自动升级 • 非 Plus 最晚 2026-08-26 • 升级不丢功能/不丢数据 • 可交付的验收报告 • 上线后有断档告警"
       primaryAction={
         !progress.allComplete && nextStep
           ? { content: nextStep.cta, url: nextStep.url }
@@ -1158,11 +1200,40 @@ export default function Index() {
       <BlockStack gap="500">
         {}
         {showWelcomeBanner && (
-          <Banner title="欢迎使用 Tracking Guardian" tone="info" onDismiss={handleDismissWelcomeBanner}>
-            <p>
-              帮助您扫描、迁移和监控 Thank you / Order status 页面的追踪脚本，
-              确保在 Checkout Extensibility 迁移后转化追踪正常工作。
-            </p>
+          <Banner title="Shopify 升级迁移交付平台" tone="info" onDismiss={handleDismissWelcomeBanner}>
+            <BlockStack gap="300">
+              <Text as="p">
+                <strong>Shopify 硬 deadline（官方公告）：</strong>
+              </Text>
+              <List>
+                <List.Item>
+                  <strong>Plus 商家</strong>：从 <strong>2026-01</strong> 开始自动升级（legacy 定制会丢失）
+                </List.Item>
+                <List.Item>
+                  <strong>非 Plus 商家</strong>：最晚 <strong>2026-08-26</strong> 必须完成升级
+                </List.Item>
+                <List.Item>
+                  Legacy 的 <code>checkout.liquid</code>、<code>additional scripts</code>、<code>script tags</code> 会逐步被 sunset
+                </List.Item>
+              </List>
+              <Text as="p" style={{ marginTop: "8px" }}>
+                <strong>我们的承诺：</strong>
+              </Text>
+              <List>
+                <List.Item>
+                  ✅ <strong>升级不丢功能/不丢数据</strong>（在 Shopify 允许范围内）
+                </List.Item>
+                <List.Item>
+                  ✅ <strong>可交付的验收报告</strong>（PDF/CSV，给老板/客户看的证据）
+                </List.Item>
+                <List.Item>
+                  ✅ <strong>上线后有断档告警</strong>（事件量骤降、失败率监控）
+                </List.Item>
+              </List>
+              <Text as="p" variant="bodySm" tone="subdued" style={{ marginTop: "8px" }}>
+                基于 <strong>Web Pixels + Checkout UI Extensions</strong> 的合规迁移方案，替换 Additional Scripts，减少结账页脚本风险。
+              </Text>
+            </BlockStack>
           </Banner>
         )}
 
@@ -1207,19 +1278,20 @@ export default function Index() {
 
         {}
         {}
+        {/* 免费 Audit 入口 - 核心获客点 */}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="200">
                 <Text as="h2" variant="headingMd">
                   {data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
-                    ? "开始体检"
-                    : "继续上次体检"}
+                    ? "免费体检（Audit 风险报告）"
+                    : "查看完整 Audit 报告"}
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
                   {data.latestScan
-                    ? "完成体检后将获得详细的迁移清单和推荐方案"
-                    : "开始扫描现有的追踪脚本和像素，生成迁移清单"}
+                    ? "✅ 迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接，导出需升级 Go-Live"
+                    : "免费开始：自动扫描 ScriptTags/Web Pixels + 手动粘贴 Additional Scripts，生成完整的迁移清单、风险分级和替代路径。报告会明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制"}
                 </Text>
               </BlockStack>
               <Button
@@ -1229,12 +1301,99 @@ export default function Index() {
                 icon={ArrowRightIcon}
               >
                 {data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
-                  ? "开始体检"
-                  : "继续上次体检"}
+                  ? "开始免费体检"
+                  : "查看完整报告"}
               </Button>
             </InlineStack>
           </BlockStack>
         </Card>
+
+        {/* 付费墙 CTA - 3个强触发点 */}
+        {data.latestScan && (
+          <Layout>
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="start">
+                    <BlockStack gap="200">
+                      <Text as="h3" variant="headingSm">
+                        🎯 启用像素迁移（Test 环境）
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        标准事件映射 + 参数完整率 + 可下载 payload 证据（GA4/Meta/TikTok 三选一）
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        <strong>技术说明：</strong>Web Pixel 是 strict sandbox（Web Worker），很多能力受限
+                      </Text>
+                      <Badge tone="info">Migration $49/月</Badge>
+                    </BlockStack>
+                    <Icon source={LockIcon} />
+                  </InlineStack>
+                  <Button
+                    url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/migrate" : "/app/billing"}
+                    variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
+                    fullWidth
+                  >
+                    {isPlanAtLeast(data.planId || "free", "starter") ? "开始迁移" : "升级到 Migration"}
+                  </Button>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="start">
+                    <BlockStack gap="200">
+                      <Text as="h3" variant="headingSm">
+                        📦 发布 Thank you/Order status 模块
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Survey 问卷或 Helpdesk 帮助中心（二选一）• 基于 Checkout UI Extensions，符合 Shopify 官方推荐
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        <strong>Shopify 官方示例场景：</strong>Survey 是官方教程背书的场景
+                      </Text>
+                      <Badge tone="info">Migration $49/月</Badge>
+                    </BlockStack>
+                    <Icon source={LockIcon} />
+                  </InlineStack>
+                  <Button
+                    url={isPlanAtLeast(data.planId || "free", "starter") ? "/app/ui-blocks" : "/app/billing"}
+                    variant={isPlanAtLeast(data.planId || "free", "starter") ? "primary" : "secondary"}
+                    fullWidth
+                  >
+                    {isPlanAtLeast(data.planId || "free", "starter") ? "配置模块" : "升级到 Migration"}
+                  </Button>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="start">
+                    <BlockStack gap="200">
+                      <Text as="h3" variant="headingSm">
+                        📄 生成验收报告（PDF/CSV）
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        测试清单 + 事件参数完整率 + 订单金额/币种一致性 + 隐私合规检查（consent/customerPrivacy）• 给老板/客户看的证据
+                      </Text>
+                      <Badge tone="warning">Go-Live $199 一次性/店</Badge>
+                    </BlockStack>
+                    <Icon source={LockIcon} />
+                  </InlineStack>
+                  <Button
+                    url={isPlanAtLeast(data.planId || "free", "growth") ? "/app/verification" : "/app/billing"}
+                    variant={isPlanAtLeast(data.planId || "free", "growth") ? "primary" : "secondary"}
+                    fullWidth
+                  >
+                    {isPlanAtLeast(data.planId || "free", "growth") ? "生成报告" : "升级到 Go-Live"}
+                  </Button>
+                </BlockStack>
+              </Card>
+            </Layout.Section>
+          </Layout>
+        )}
         {}
         <Layout>
           <Layout.Section variant="oneThird">

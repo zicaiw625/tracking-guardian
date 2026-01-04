@@ -139,10 +139,12 @@ export function getTierDisplayInfo(tier: ShopTier): {
 } {
     switch (tier) {
         case "plus":
+            // Plus商家从2026-01开始自动升级，legacy定制会丢失
+            // 所以实际截止日期是2026-01-01之前必须完成迁移
             return {
                 label: "Shopify Plus",
                 description: "您的店铺使用 Shopify Plus 计划",
-                deadlineDate: "2025-08-28",
+                deadlineDate: "2026-01-01",
                 isKnown: true,
             };
         case "non_plus":

@@ -266,23 +266,55 @@ export function GuidedSupplement({
                 </BlockStack>
               </Banner>
 
+              <Banner tone="warning">
+                <BlockStack gap="100">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    v1 支持范围说明：
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    • <strong>像素平台</strong>：v1 仅支持 GA4、Meta、TikTok（其他平台将在 v1.1+ 支持）
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    • <strong>UI 模块</strong>：v1 仅支持购后问卷（Survey）和帮助中心（Helpdesk）（其他模块将在 v1.1+ 支持）
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    请选择所有您使用的功能，系统将在报告中标注 v1 可迁移的项目。
+                  </Text>
+                </BlockStack>
+              </Banner>
+
               <BlockStack gap="300">
-                {UPGRADE_WIZARD_CHECKLIST.map((item) => (
-                  <Box
-                    key={item.id}
-                    background={
-                      selectedItems.includes(item.id) ? "bg-surface-success" : "bg-surface-secondary"
-                    }
-                    padding="300"
-                    borderRadius="200"
-                  >
-                    <Checkbox
-                      label={item.label}
-                      checked={selectedItems.includes(item.id)}
-                      onChange={() => handleItemToggle(item.id)}
-                    />
-                  </Box>
-                ))}
+                {UPGRADE_WIZARD_CHECKLIST.map((item) => {
+                  // 标注 v1 支持的功能
+                  const isV1Supported = 
+                    (item.id === "ga4" || item.id === "meta" || item.id === "tiktok") ||
+                    (item.id === "survey" || item.id === "support");
+                  
+                  return (
+                    <Box
+                      key={item.id}
+                      background={
+                        selectedItems.includes(item.id) ? "bg-surface-success" : "bg-surface-secondary"
+                      }
+                      padding="300"
+                      borderRadius="200"
+                    >
+                      <InlineStack gap="200" blockAlign="center">
+                        <Checkbox
+                          label={item.label}
+                          checked={selectedItems.includes(item.id)}
+                          onChange={() => handleItemToggle(item.id)}
+                        />
+                        {isV1Supported && (
+                          <Badge tone="success" size="small">v1 支持</Badge>
+                        )}
+                        {!isV1Supported && (item.category === "pixel" || item.category === "survey" || item.category === "support") && (
+                          <Badge tone="info" size="small">v1.1+</Badge>
+                        )}
+                      </InlineStack>
+                    </Box>
+                  );
+                })}
               </BlockStack>
 
               {selectedItems.length === 0 && (

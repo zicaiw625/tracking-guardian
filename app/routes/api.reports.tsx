@@ -23,6 +23,7 @@ import {
 import { generateRiskReportCSV } from "../services/risk-report.server";
 import { generateVerificationReportPdf } from "../services/pdf-generator.server";
 import { exportComprehensiveReport } from "../services/comprehensive-report.server";
+import { normalizePlanId, planSupportsReportExport, type PlanId } from "../services/billing/plans";
 
 type ReportType = "scan" | "migration" | "reconciliation" | "risk" | "verification" | "comprehensive";
 
@@ -33,6 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   const shop = await prisma.shop.findUnique({
     where: { shopDomain: session.shop },
+    select: { id: true, plan: true, shopDomain: true, shopTier: true },
   });
   if (!shop) {
     return new Response("Shop not found", { status: 404 });
@@ -42,6 +44,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const format = url.searchParams.get("format") || "html";
   const days = parseInt(url.searchParams.get("days") || "7", 10);
   const runId = url.searchParams.get("runId") || undefined;
+  
+  // PDF/CSV 导出需要 Go-Live 或 Agency 计划（报告导出功能）
+  // HTML 格式和分享链接是免费的
+  if (format === "pdf" || format === "csv") {
+    const planId = normalizePlanId(shop.plan) as PlanId;
+    if (!planSupportsReportExport(planId)) {
+      return new Response(
+        JSON.stringify({ 
+          error: "报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版只能查看和分享链接。",
+          requiredPlan: "Go-Live",
+        }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+  
   logger.info(`Report generation requested: ${reportType} (${format}) for ${shop.shopDomain}`);
   try {
     let html: string | undefined;

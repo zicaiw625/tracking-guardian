@@ -56,7 +56,7 @@ import {
 import {
   checkFeatureAccess,
 } from "../services/billing/feature-gates.server";
-import { normalizePlanId, type PlanId } from "../services/billing/plans";
+import { normalizePlanId, type PlanId, planSupportsReportExport } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
@@ -99,6 +99,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planId = normalizePlanId(shop.plan || "free") as PlanId;
   const gateResult = checkFeatureAccess(planId, "verification");
   const canAccessVerification = gateResult.allowed;
+  const canExportReports = planSupportsReportExport(planId);
 
   const configuredPlatforms = shop.pixelConfigs.map((c) => c.platform);
   const history = await getVerificationHistory(shop.id, 5);
@@ -116,6 +117,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     testItems: VERIFICATION_TEST_ITEMS,
     testChecklist,
     canAccessVerification,
+    canExportReports,
     gateResult: gateResult.allowed ? undefined : gateResult,
     currentPlan: planId,
   });
@@ -315,7 +317,7 @@ function ScoreCard({
 }
 
 export default function VerificationPage() {
-  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist, canAccessVerification, gateResult, currentPlan } =
+  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist, canAccessVerification, canExportReports, gateResult, currentPlan } =
     useLoaderData<typeof loader>();
   const shopDomain = shop?.domain || "";
   const actionData = useActionData<typeof action>();
@@ -414,8 +416,8 @@ export default function VerificationPage() {
 
   return (
     <Page
-      title="验收向导"
-      subtitle="验证追踪配置是否正常工作"
+      title="验收（Verification）+ 断档监控（Monitoring）"
+      subtitle="测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 • 隐私合规检查（consent/customerPrivacy）• 验收报告导出（PDF/CSV）是核心付费点（给老板/客户看的证据）• Go-Live $199 一次性/店"
       primaryAction={{
         content: isRunning ? "运行中..." : "运行验收",
         onAction: handleRunVerification,
@@ -428,7 +430,7 @@ export default function VerificationPage() {
           onAction: () => revalidator.revalidate(),
           icon: RefreshIcon,
         },
-        ...(latestRun ? [
+        ...(latestRun && canExportReports ? [
           {
             content: "导出 PDF",
             onAction: handleExportPdf,
@@ -453,6 +455,29 @@ export default function VerificationPage() {
             action={{ content: "前往配置", url: "/app/settings" }}
           >
             <p>请先在设置页面配置至少一个平台的 CAPI 凭证，然后再进行验收测试。</p>
+          </Banner>
+        )}
+
+        {latestRun && !canExportReports && (
+          <Banner
+            title="📄 验收报告导出（PDF/CSV）是核心付费点（给老板/客户看的证据）"
+            tone="warning"
+            action={{ content: "升级到 Go-Live（$199 一次性/店）", url: "/app/billing" }}
+          >
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm">
+                需要 <strong>Go-Live 交付版</strong> ($199 一次性/店) 或 <strong>Agency 版</strong> ($199/月) 套餐。
+              </Text>
+              <Text as="p" variant="bodySm">
+                报告包含：测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 + 隐私合规检查（consent/customerPrivacy）
+              </Text>
+              <Text as="p" variant="bodySm">
+                这是项目的核心交付件，适合 Agency 直接报给客户的验收报告。
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                当前套餐：<strong>{currentPlan === "free" ? "免费版" : currentPlan === "starter" ? "Migration 迁移版" : currentPlan}</strong>
+              </Text>
+            </BlockStack>
           </Banner>
         )}
 

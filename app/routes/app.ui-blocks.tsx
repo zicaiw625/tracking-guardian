@@ -277,9 +277,20 @@ function ModuleCard({
                 {upgradeRequired && !module.isEnabled && (
                   <Badge tone="attention">需要升级</Badge>
                 )}
+                {/* v1 支持标记 */}
+                {(module.moduleKey === "survey" || module.moduleKey === "helpdesk") && (
+                  <Badge tone="success" size="small">v1 支持</Badge>
+                )}
+                {module.moduleKey !== "survey" && module.moduleKey !== "helpdesk" && !info.disabled && (
+                  <Badge tone="info" size="small">v1.1+</Badge>
+                )}
+                {info.disabled && (
+                  <Badge tone="info" size="small">v1.1+ 规划中</Badge>
+                )}
               </InlineStack>
               <Text as="p" variant="bodySm" tone="subdued">
                 {info.description}
+                {info.disabled && info.disabledReason && `（${info.disabledReason}）`}
               </Text>
             </BlockStack>
           </InlineStack>
@@ -298,10 +309,10 @@ function ModuleCard({
               variant={module.isEnabled ? "secondary" : "primary"}
               onClick={() => onToggle(module.moduleKey, !module.isEnabled)}
               loading={isSubmitting}
-              disabled={!canEnable && !module.isEnabled}
+              disabled={(!canEnable && !module.isEnabled) || info.disabled}
               size="slim"
             >
-              {module.isEnabled ? "停用" : "启用"}
+              {module.isEnabled ? "停用" : info.disabled ? "v1.1+ 支持" : "启用"}
             </Button>
           </InlineStack>
         </InlineStack>
@@ -1151,9 +1162,9 @@ export default function UiBlocksPage() {
   };
 
   return (
-    <Page
-      title="UI 模块配置"
-      subtitle="配置 Thank You / Order Status 页面的 UI 模块"
+      <Page
+      title="Thank you / Order status 模块"
+      subtitle="v1 仅支持：Survey 问卷 + Helpdesk 帮助中心（二选一）• 基于 Checkout UI Extensions，符合 Shopify 官方推荐 • Survey 是官方教程背书的场景 • Migration $49/月"
       primaryAction={{
         content: "刷新",
         onAction: () => revalidator.revalidate(),
@@ -1190,6 +1201,25 @@ export default function UiBlocksPage() {
         {}
         <Banner tone="info">
           <BlockStack gap="200">
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              v1 支持范围说明：
+            </Text>
+            <Text as="p" variant="bodySm">
+              • <strong>v1 支持</strong>：购后问卷（Survey）、帮助中心（Helpdesk）
+            </Text>
+            <Text as="p" variant="bodySm">
+              • <strong>v1.1+ 规划</strong>：物流追踪、再购按钮、追加销售等模块将在后续版本支持
+            </Text>
+            <Divider />
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              付费触发点（3个强CTA，直接对应商家的"升级项目交付"）：
+            </Text>
+            <List type="number">
+              <List.Item><strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Migration $49/月）</List.Item>
+              <List.Item><strong>发布 Thank you/Order status 模块</strong> → 进入付费（Migration $49/月）</List.Item>
+              <List.Item><strong>生成验收报告（PDF/CSV）</strong> → 付费（Go-Live $199 一次性或 $199/月）</List.Item>
+            </List>
+            <Divider />
             <Text as="p" variant="bodySm">
               配置完成后，模块将自动显示在 Thank You 和 Order Status 页面。
               您可以在 Shopify Admin 的 <strong>Checkout Editor</strong> 中调整模块位置和样式。

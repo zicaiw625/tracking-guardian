@@ -70,8 +70,8 @@ interface PixelTemplate {
 const PRESET_TEMPLATES: PixelTemplate[] = [
   {
     id: "standard",
-    name: "标准配置",
-    description: "适用于大多数电商店铺的标准事件映射",
+    name: "标准配置（v1）",
+    description: "适用于大多数电商店铺的标准事件映射（GA4/Meta/TikTok）",
     platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {
@@ -87,9 +87,9 @@ const PRESET_TEMPLATES: PixelTemplate[] = [
   },
   {
     id: "advanced",
-    name: "高级配置",
-    description: "包含更多事件类型的完整映射",
-    platforms: ["google", "meta", "tiktok", "pinterest", "snapchat"],
+    name: "高级配置（v1.1+）",
+    description: "包含更多事件类型的完整映射（v1.1+ 将支持 Pinterest/Snapchat）",
+    platforms: ["google", "meta", "tiktok"],
     eventMappings: {
       google: {
         checkout_completed: "purchase",
@@ -105,12 +105,6 @@ const PRESET_TEMPLATES: PixelTemplate[] = [
         checkout_completed: "CompletePayment",
         checkout_started: "InitiateCheckout",
         add_to_cart: "AddToCart",
-      },
-      pinterest: {
-        checkout_completed: "checkout",
-      },
-      snapchat: {
-        checkout_completed: "PURCHASE",
       },
     },
   },
@@ -738,7 +732,7 @@ const allTemplates: WizardTemplate[] = [
       id: "mappings",
       label: "事件映射",
       number: 3,
-      description: "配置 Shopify 事件到平台事件的映射",
+      description: "标准事件映射 + 参数完整率检查（Shopify 事件 → 平台事件）",
       estimatedTime: "2-3 分钟",
     },
     {
@@ -752,7 +746,7 @@ const allTemplates: WizardTemplate[] = [
       id: "testing",
       label: "测试验证",
       number: 5,
-      description: "在测试环境中验证配置是否正确",
+      description: "在测试环境中验证配置 + 可下载 payload 证据",
       estimatedTime: "2-3 分钟",
     },
   ];
@@ -1410,11 +1404,45 @@ function SelectPlatformStep({
         </BlockStack>
       </Banner>
 
+      <Banner tone="info">
+        <BlockStack gap="200">
+          <Text as="p" variant="bodySm" fontWeight="semibold">
+            v1 像素迁移核心能力：
+          </Text>
+          <Text as="p" variant="bodySm">
+            • <strong>标准事件映射</strong>：Shopify 事件 → 平台事件（GA4/Meta/TikTok）
+          </Text>
+          <Text as="p" variant="bodySm">
+            • <strong>参数完整率检查</strong>：自动验证事件参数是否完整
+          </Text>
+          <Text as="p" variant="bodySm">
+            • <strong>可下载 payload 证据</strong>：用于验证和存档（Test/Live 环境）
+          </Text>
+          <Text as="p" variant="bodySm">
+            • <strong>v1 支持平台</strong>：GA4、Meta、TikTok（三选一，Migration $49/月）
+          </Text>
+          <Text as="p" variant="bodySm">
+            • <strong>v1.1+ 规划</strong>：Pinterest、Snapchat 等其他平台将在后续版本支持
+          </Text>
+          <Divider />
+          <Text as="p" variant="bodySm" fontWeight="semibold">
+            ⚠️ 技术限制说明：
+          </Text>
+          <Text as="p" variant="bodySm">
+            Web Pixel 运行在 strict sandbox（Web Worker）环境中，很多能力受限（如 DOM 访问、第三方 cookie、localStorage 等）。部分原有脚本功能可能无法完全迁移。
+          </Text>
+        </BlockStack>
+      </Banner>
+
       <BlockStack gap="300">
         {(Object.keys(PLATFORM_INFO) as PlatformType[]).map((platform) => {
           const info = PLATFORM_INFO[platform];
           if (!info) return null;
           const isSelected = selectedPlatforms.has(platform);
+          
+          // v1 只支持 GA4/Meta/TikTok
+          const isV1Supported = platform === "google" || platform === "meta" || platform === "tiktok";
+          const isDisabled = !isV1Supported;
 
           return (
             <Card key={platform}>
@@ -1425,20 +1453,41 @@ function SelectPlatformStep({
                       {info.icon}
                     </Text>
                     <BlockStack gap="100">
-                      <Text as="span" fontWeight="semibold">
-                        {info.name}
-                      </Text>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" fontWeight="semibold">
+                          {info.name}
+                        </Text>
+                        {isV1Supported && (
+                          <Badge tone="success" size="small">v1 支持</Badge>
+                        )}
+                        {!isV1Supported && (
+                          <Badge tone="info" size="small">v1.1+</Badge>
+                        )}
+                      </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
                         {info.description}
+                        {!isV1Supported && "（v1.1+ 版本将支持）"}
                       </Text>
                     </BlockStack>
                   </InlineStack>
                   <Checkbox
                     checked={isSelected}
-                    onChange={(checked) => onPlatformToggle(platform, checked)}
+                    onChange={(checked) => {
+                      if (!isDisabled) {
+                        onPlatformToggle(platform, checked);
+                      }
+                    }}
+                    disabled={isDisabled}
                     label=""
                   />
                 </InlineStack>
+                {isDisabled && (
+                  <Banner tone="info">
+                    <Text as="p" variant="bodySm">
+                      该平台将在 v1.1+ 版本支持。v1 专注于 GA4、Meta、TikTok 的最小可用迁移。
+                    </Text>
+                  </Banner>
+                )}
               </BlockStack>
             </Card>
           );

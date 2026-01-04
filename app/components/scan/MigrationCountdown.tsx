@@ -42,15 +42,9 @@ const MILESTONES: Omit<CountdownMilestone, "isPassed" | "isNext">[] = [
     tier: "all",
   },
   {
-    date: new Date("2025-08-28"),
-    label: "Plus 截止日期",
-    description: "Plus 商家的 ScriptTag 和 Additional Scripts 停止执行",
-    tier: "plus",
-  },
-  {
     date: new Date("2026-01-01"),
-    label: "Plus 自动升级",
-    description: "Shopify 开始自动升级 Plus 商家页面",
+    label: "Plus 自动升级开始",
+    description: "Shopify 开始自动升级 Plus 商家页面，legacy 定制会丢失",
     tier: "plus",
   },
   {
@@ -77,7 +71,9 @@ function getMilestones(shopTier: ShopTier, now: Date = new Date()): CountdownMil
 function getDeadline(shopTier: ShopTier): Date {
   switch (shopTier) {
     case "plus":
-      return new Date("2025-08-28");
+      // Plus商家从2026-01开始自动升级，legacy定制会丢失
+      // 所以实际截止日期是2026-01之前必须完成迁移
+      return new Date("2026-01-01");
     case "non_plus":
       return new Date("2026-08-26");
     default:

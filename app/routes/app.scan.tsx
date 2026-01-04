@@ -1852,7 +1852,7 @@ export default function ScanPage() {
     </Banner>
   ) : null;
 
-  return (<Page title="追踪脚本扫描" subtitle="扫描店铺中的追踪脚本，识别迁移风险">
+  return (<Page title="Audit 风险报告（免费获客）" subtitle="迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接，导出需升级 Go-Live">
     <BlockStack gap="500">
       {additionalScriptsWarning}
       {paginationLimitWarning}
@@ -1905,14 +1905,15 @@ export default function ScanPage() {
             )}
             {!isGrowthOrAbove && (
               <List type="bullet">
-                <List.Item>像素迁移中心（App Pixel + CAPI 向导）在 Growth 及以上开放</List.Item>
-                <List.Item>高级 TY/OS 组件、事件对账与多渠道像素需 Pro 及以上</List.Item>
-                <List.Item>多店铺/白标报告在 Agency 套餐提供</List.Item>
+                <List.Item><strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Migration $49/月）</List.Item>
+                <List.Item>像素迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据（GA4/Meta/TikTok v1 支持）</List.Item>
+                <List.Item><strong>生成验收报告（PDF/CSV）</strong> → 付费（Go-Live $199 一次性或 $199/月）</List.Item>
+                <List.Item>这是"升级项目交付"的核心能力：让商家"敢点发布/敢切 Live"</List.Item>
               </List>
             )}
             {isGrowthOrAbove && !isProOrAbove && (
               <List type="bullet">
-                <List.Item>当前可用：App Pixel + 单/双渠道 CAPI 迁移</List.Item>
+                <List.Item>当前可用：Web Pixel 标准事件映射（v1 最小可用迁移，v1.1+ 将支持服务端 CAPI）</List.Item>
                 <List.Item>升级到 Pro 以解锁事件对账、告警与高级 TY/OS 模块</List.Item>
               </List>
             )}
@@ -1941,80 +1942,115 @@ export default function ScanPage() {
                     <InlineStack gap="200">
                       <Button
                         icon={ExportIcon}
-                        onClick={() => window.open("/api/exports?type=scan&format=json&include_meta=true", "_blank")}
+                        onClick={() => {
+                          const planIdSafe = planId || "free";
+                          const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
+                          if (!isGrowthOrAbove) {
+                            showError("报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版可查看和分享链接，但导出功能需升级。");
+                            window.location.href = "/app/settings?tab=subscription";
+                            return;
+                          }
+                          window.open("/api/exports?type=scan&format=json&include_meta=true", "_blank");
+                        }}
                       >
-                        导出扫描报告
+                        导出扫描报告 {!isGrowthOrAbove && "(需 Go-Live)"}
                       </Button>
                       <Button
                         icon={ExportIcon}
-                        onClick={() => window.open("/api/reports?type=risk", "_blank")}
+                        onClick={() => {
+                          const planIdSafe = planId || "free";
+                          const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
+                          if (!isGrowthOrAbove) {
+                            showError("报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版可查看和分享链接，但导出功能需升级。");
+                            window.location.href = "/app/settings?tab=subscription";
+                            return;
+                          }
+                          window.open("/api/reports?type=risk", "_blank");
+                        }}
                       >
-                        导出风险报告 (PDF)
+                        导出风险报告 (PDF) {!isGrowthOrAbove && "(需 Go-Live)"}
                       </Button>
+                      {/* 分享链接是免费的，导出需要付费 */}
                       <Button
                         icon={ShareIcon}
                         onClick={async () => {
+                          try {
+                            // 尝试生成可分享链接（免费功能）
+                            const response = await fetch("/api/reports/share", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                reportType: "scan",
+                                reportId: latestScan.id,
+                              }),
+                            });
 
-                          const validatedRiskScore = validateRiskScore(latestScan.riskScore);
+                            if (response.ok) {
+                              const data = await response.json();
+                              const shareUrl = data.shareUrl;
+                              
+                              const validatedRiskScore = validateRiskScore(latestScan.riskScore);
+                              const scanDate = safeParseDate(latestScan.createdAt);
+                              
+                              const shareText = `店铺追踪扫描报告\n风险评分: ${validatedRiskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${scanDate.toLocaleString("zh-CN")}\n\n查看完整报告: ${shareUrl}`;
 
-                          const scanDate = safeParseDate(latestScan.createdAt);
-
-                          const shareData = {
-                            title: "追踪脚本扫描报告",
-                            text: `店铺追踪扫描报告\n风险评分: ${validatedRiskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${scanDate.toLocaleString("zh-CN")}`,
-                          };
-
-                          if (navigator.share) {
-                            try {
-                              await navigator.share(shareData);
-                              showSuccess("报告已分享");
-                            } catch (error) {
-
-                              if (error instanceof Error && error.name !== 'AbortError') {
-
-                                if (process.env.NODE_ENV === "development") {
-                                    // 客户端调试输出：分享功能失败
-                                    // eslint-disable-next-line no-console
-                                    console.error("分享失败:", error);
-                                }
-
-                                if (navigator.clipboard && navigator.clipboard.writeText) {
-                                  try {
-                                    await navigator.clipboard.writeText(shareData.text);
-                                    showSuccess("报告摘要已复制到剪贴板");
-                                  } catch (clipboardError) {
-
-                                    if (process.env.NODE_ENV === "development") {
-                                        // 客户端调试输出：剪贴板复制失败
-                                        // eslint-disable-next-line no-console
-                                        console.error("复制失败:", clipboardError);
-                                    }
-                                    showError("无法分享或复制，请手动复制");
+                              if (navigator.share) {
+                                try {
+                                  await navigator.share({
+                                    title: "追踪脚本扫描报告",
+                                    text: shareText,
+                                    url: shareUrl,
+                                  });
+                                  showSuccess("报告链接已分享");
+                                  return;
+                                } catch (error) {
+                                  if (error instanceof Error && error.name !== 'AbortError') {
+                                    // 分享失败，回退到复制
                                   }
-                                } else {
-                                  showError("浏览器不支持分享或复制功能");
                                 }
                               }
-                            }
-                          } else if (navigator.clipboard && navigator.clipboard.writeText) {
-                            try {
-                              await navigator.clipboard.writeText(shareData.text);
-                              showSuccess("报告摘要已复制到剪贴板");
-                            } catch (error) {
 
-                              if (process.env.NODE_ENV === "development") {
-                                  // 客户端调试输出：剪贴板复制失败
-                                  // eslint-disable-next-line no-console
-                                  console.error("复制失败:", error);
+                              // 回退到复制链接
+                              if (navigator.clipboard && navigator.clipboard.writeText) {
+                                await navigator.clipboard.writeText(shareUrl);
+                                showSuccess("报告链接已复制到剪贴板（7天内有效）");
+                              } else {
+                                showError("浏览器不支持分享或复制功能");
                               }
-                              showError("复制失败，请手动复制");
+                            } else {
+                              // 如果生成链接失败，使用简单的文本分享
+                              const validatedRiskScore = validateRiskScore(latestScan.riskScore);
+                              const scanDate = safeParseDate(latestScan.createdAt);
+                              const shareData = {
+                                title: "追踪脚本扫描报告",
+                                text: `店铺追踪扫描报告\n风险评分: ${validatedRiskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${scanDate.toLocaleString("zh-CN")}`,
+                              };
+
+                              if (navigator.share) {
+                                try {
+                                  await navigator.share(shareData);
+                                  showSuccess("报告摘要已分享");
+                                  return;
+                                } catch (error) {
+                                  if (error instanceof Error && error.name !== 'AbortError') {
+                                    // 继续到复制
+                                  }
+                                }
+                              }
+
+                              if (navigator.clipboard && navigator.clipboard.writeText) {
+                                await navigator.clipboard.writeText(shareData.text);
+                                showSuccess("报告摘要已复制到剪贴板");
+                              } else {
+                                showError("浏览器不支持分享或复制功能");
+                              }
                             }
-                          } else {
-                            showError("浏览器不支持分享或复制功能");
+                          } catch (error) {
+                            showError("生成分享链接失败：" + (error instanceof Error ? error.message : "未知错误"));
                           }
                         }}
                       >
-                        分享摘要
+                        分享报告链接（免费）
                       </Button>
                     </InlineStack>
                   )}
@@ -2284,12 +2320,12 @@ export default function ScanPage() {
                     </Box>
                     <Box background="bg-surface" padding="300" borderRadius="100" minWidth="150px">
                       <BlockStack gap="100">
-                        <Text as="p" variant="bodySm" tone="subdued">服务端追踪</Text>
+                        <Text as="p" variant="bodySm" tone="subdued">Web Pixel</Text>
                         <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
-                          更可靠
+                          标准事件
                         </Text>
                         <Text as="p" variant="bodySm" tone="success">
-                          CAPI 双重保障
+                          合规迁移（v1）
                         </Text>
                       </BlockStack>
                     </Box>
@@ -2312,7 +2348,7 @@ export default function ScanPage() {
                       ))
                     ) : (
                       <Text as="p" variant="bodySm">
-                        所有追踪功能将通过 Web Pixel + 服务端 CAPI 恢复
+                        所有追踪功能将通过 Web Pixel 标准事件映射恢复（v1 最小可用迁移）
                       </Text>
                     )}
                   </BlockStack>
@@ -2321,7 +2357,7 @@ export default function ScanPage() {
                     <Text as="p" variant="bodySm">
                       <strong>✅ 迁移的核心价值：</strong>
                       迁移是一次性工作，完成后可确保转化追踪在 ScriptTag 废弃后继续正常工作。
-                      服务端 CAPI 不受浏览器隐私设置和广告拦截器影响，是 Shopify 和各广告平台推荐的追踪方式。
+                      v1 提供 Web Pixel 标准事件映射（GA4/Meta/TikTok），v1.1+ 将支持服务端 CAPI（不受浏览器隐私设置和广告拦截器影响）。
                       实际追踪效果因店铺情况而异。
                     </Text>
                   </Banner>
@@ -2359,7 +2395,7 @@ export default function ScanPage() {
                         功能恢复
                       </Text>
                       <Text as="p" variant="bodySm" tone="success">
-                        Web Pixel + CAPI 双保险
+                        Web Pixel 标准事件
                       </Text>
                     </BlockStack>
                   </Box>
@@ -2381,15 +2417,15 @@ export default function ScanPage() {
                   </Box>
                 </InlineStack>
 
-                <Banner tone="info" title="服务端 CAPI 的技术优势">
+                <Banner tone="info" title="v1 最小可用迁移说明">
                   <Text as="p" variant="bodySm">
-                    ✅ 不受 iOS 14.5+ App Tracking Transparency 限制
+                    ✅ v1 支持：Web Pixel 标准事件映射（GA4/Meta/TikTok）
                     <br />
-                    ✅ 不受浏览器广告拦截器影响
+                    ✅ 标准事件映射 + 参数完整率检查 + 可下载 payload 证据
                     <br />
-                    ✅ 不受第三方 Cookie 弃用影响
+                    ✅ 验收向导 + 事件参数完整率 + 订单金额/币种一致性验证
                     <br />
-                    ✅ Shopify Webhook 直接传递订单数据
+                    <Text as="span" fontWeight="semibold">⚠️ v1.1+ 规划：</Text> 服务端 CAPI（不受浏览器隐私设置和广告拦截器影响）
                     <br />
                     <Text as="span" tone="subdued">
                       注：实际归因效果因广告账户设置、流量来源等因素而异
@@ -2539,7 +2575,7 @@ export default function ScanPage() {
                             配置 Pixel
                           </Button>
                         )}
-                        {action.type === "enable_capi" && (
+                        {action.type === "enable_capi" && false && ( // v1 暂不支持 CAPI，v1.1+ 功能
                           <Button
                             size="slim"
                             url="/app/settings"
@@ -3499,7 +3535,7 @@ export default function ScanPage() {
                   </List.Item>
                   <List.Item>
                     <Text as="span">
-                      <strong>配置 CAPI 凭证</strong>：在「设置」页面配置相应平台的服务端追踪凭证
+                      <strong>配置像素凭证</strong>：在「迁移」页面配置相应平台的像素 ID（GA4/Meta/TikTok）
                     </Text>
                   </List.Item>
                   <List.Item>
@@ -3535,7 +3571,7 @@ export default function ScanPage() {
                   <Banner tone="success">
                     <Text as="p" variant="bodySm">
                       💡 安装 Tracking Guardian 的 Web Pixel 后，旧的 {guidanceContent.platform} ScriptTag 可以安全删除，
-                      因为服务端 CAPI 将接管所有转化追踪功能。
+                      因为 Web Pixel 标准事件映射将接管所有转化追踪功能（v1 最小可用迁移）。
                     </Text>
                   </Banner>
                 </>

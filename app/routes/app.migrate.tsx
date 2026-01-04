@@ -633,13 +633,14 @@ export default function MigratePage() {
     const submit = useSubmit();
     const navigation = useNavigation();
     const { showSuccess, showError } = useToastContext();
+    const isStarterOrAbove = isPlanAtLeast(planId, "starter");
     const isGrowthOrAbove = isPlanAtLeast(planId, "growth");
     const isProOrAbove = isPlanAtLeast(planId, "pro");
     const isAgency = isPlanAtLeast(planId, "agency");
     const [currentStep, setCurrentStep] = useState<SetupStep>(() => {
         if (!typOspStatus.enabled) return "typOsp";
         if (pixelStatus === "installed") {
-            return hasCapiConfig ? "complete" : "capi";
+            return "complete"; // v1 移除 CAPI，像素迁移完成后直接完成
         }
         return "pixel";
     });
@@ -664,7 +665,7 @@ export default function MigratePage() {
         if (data?._action === "enablePixel") {
             if (data?.success) {
                 showSuccess(data?.message || "App Pixel 已启用");
-                setCurrentStep("capi");
+                setCurrentStep("complete"); // v1 移除 CAPI，直接完成
                 return;
             } else if (data?.error) {
                 showError(data.error);
@@ -695,19 +696,19 @@ export default function MigratePage() {
             }
         }
 
-        if (pixelStatus === "installed" && hasCapiConfig && typOspStatus.enabled) {
-            setCurrentStep("complete");
-        } else if (pixelStatus === "installed") {
-            setCurrentStep("capi");
+        if (pixelStatus === "installed" && typOspStatus.enabled) {
+            setCurrentStep("complete"); // v1 移除 CAPI，像素迁移完成即完成
         } else if (!typOspStatus.enabled) {
             setCurrentStep("typOsp");
         } else {
             setCurrentStep("pixel");
         }
-    }, [actionData, pixelStatus, hasCapiConfig, typOspStatus.enabled, showSuccess, showError, revalidator]);
+    }, [actionData, pixelStatus, typOspStatus.enabled, showSuccess, showError, revalidator]);
 
     const handleEnablePixel = () => {
-        if (!isGrowthOrAbove) {
+        if (!isStarterOrAbove) {
+            showError("启用像素迁移需要 Migration ($49/月) 及以上套餐。请先升级套餐。");
+            window.location.href = "/app/billing";
             return;
         }
         const formData = new FormData();
@@ -726,9 +727,10 @@ export default function MigratePage() {
     };
     const steps = [
         { id: "typOsp", label: "升级 Checkout", number: 1 },
-        { id: "pixel", label: "启用 App Pixel", number: 2 },
-        { id: "capi", label: "配置服务端追踪", number: 3 },
-        { id: "complete", label: "完成设置", number: 4 },
+        { id: "pixel", label: "启用像素迁移", number: 2 },
+        // v1 移除 CAPI 步骤（v1.1+ 规划）
+        // { id: "capi", label: "配置服务端追踪", number: 3 },
+        { id: "complete", label: "完成设置", number: 3 },
     ];
 
     const stepIndex = steps.findIndex((s) => s.id === currentStep);
@@ -772,7 +774,7 @@ export default function MigratePage() {
 
     if (!shop) {
       return (
-        <Page title="设置追踪" subtitle="配置服务端转化追踪（Server-side CAPI）">
+        <Page title="像素迁移向导" subtitle="最小可用迁移：标准事件映射 + 参数完整率">
           <EnhancedEmptyState
             icon="⚠️"
             title="店铺信息未找到"
@@ -786,7 +788,7 @@ export default function MigratePage() {
       );
     }
 
-    return (<Page title="设置追踪" subtitle="配置服务端转化追踪（Server-side CAPI）">
+    return (<Page title="像素迁移向导" subtitle="标准事件映射 + 参数完整率 + 可下载 payload 证据（v1 最小可用迁移：GA4/Meta/TikTok 三选一）• 技术说明：Web Pixel 是 strict sandbox（Web Worker），很多能力受限">
       <BlockStack gap="500">
         {upgradeStatus && (<Banner title={upgradeStatus.title} tone={upgradeStatus.urgency === "critical"
             ? "critical"
@@ -806,20 +808,21 @@ export default function MigratePage() {
             </BlockStack>
           </Banner>)}
 
-        <Banner title="服务端转化追踪 (Server-side CAPI)" tone="info" action={{
+        <Banner title="像素最小可用迁移（标准事件映射 + 参数完整率）" tone="info" action={{
             content: "了解更多",
             url: "https://help.shopify.com/en/manual/pixels/customer-events",
             external: true,
         }}>
           <BlockStack gap="200">
             <Text as="p">
-              Tracking Guardian 使用 <strong>服务端 Conversions API</strong> 来发送转化数据。
-              这种方式比客户端像素更准确、更隐私友好，并且不受广告拦截器影响。
+              v1 专注于<strong>标准事件映射 + 参数完整率 + 可下载 payload 证据</strong>。
+              支持 GA4、Meta、TikTok（v1 仅此 3 个平台）。Web Pixel 运行在严格沙箱（Web Worker）环境中，很多能力受限。我们会明确告知限制，并提供可行的替代方案。
             </Text>
             <List type="bullet">
-              <List.Item>降低广告拦截器影响，提高追踪一致性</List.Item>
-              <List.Item>不受 iOS 14+ 隐私限制影响</List.Item>
-              <List.Item>符合 GDPR/CCPA 要求</List.Item>
+              <List.Item><strong>标准事件映射</strong>：自动映射标准电商事件（purchase、view_item、add_to_cart 等）</List.Item>
+              <List.Item><strong>参数完整率检查</strong>：验证事件参数（value、currency、items 等）的完整性</List.Item>
+              <List.Item><strong>可下载 payload 证据</strong>：支持下载事件 payload，用于验证和存档</List.Item>
+              <List.Item><strong>Test/Live 环境切换</strong>：支持测试环境验证后再发布到生产环境</List.Item>
             </List>
           </BlockStack>
         </Banner>
@@ -858,14 +861,15 @@ export default function MigratePage() {
             )}
             {!isGrowthOrAbove && (
               <List type="bullet">
-                <List.Item>像素迁移中心（App Pixel + CAPI 向导）在 Growth 及以上开放</List.Item>
-                <List.Item>高级 TY/OS 组件、事件对账与多渠道像素需 Pro 及以上</List.Item>
-                <List.Item>多店铺/白标报告在 Agency 套餐提供</List.Item>
+                <List.Item><strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Migration $49/月）</List.Item>
+                <List.Item>像素迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据（GA4/Meta/TikTok v1 支持）</List.Item>
+                <List.Item><strong>生成验收报告（PDF/CSV）</strong> → 付费（Go-Live $199 一次性或 $199/月）</List.Item>
+                <List.Item>这是"升级项目交付"的核心能力：让商家"敢点发布/敢切 Live"</List.Item>
               </List>
             )}
             {isGrowthOrAbove && !isProOrAbove && (
               <List type="bullet">
-                <List.Item>当前可用：App Pixel + 单/双渠道 CAPI 迁移</List.Item>
+                <List.Item>当前可用：Web Pixel 标准事件映射（v1 最小可用迁移，v1.1+ 将支持服务端 CAPI）</List.Item>
                 <List.Item>升级到 Pro 以解锁事件对账、告警与高级 TY/OS 模块</List.Item>
               </List>
             )}
@@ -1004,7 +1008,7 @@ export default function MigratePage() {
         {identifiedPlatforms.length > 0 && currentStep === "pixel" && (<Banner tone="warning" title="检测到旧版追踪代码">
             <BlockStack gap="200">
               <Text as="p">
-                扫描发现您的店铺可能有旧版追踪脚本。启用服务端追踪后，建议删除这些旧代码以避免重复追踪：
+                扫描发现您的店铺可能有旧版追踪脚本。启用 Web Pixel 迁移后，建议删除这些旧代码以避免重复追踪：
               </Text>
               <InlineStack gap="200">
                 {identifiedPlatforms.map((platform) => (<Badge key={platform} tone="attention">
@@ -1104,13 +1108,13 @@ export default function MigratePage() {
 
                   {}
 
-                  {!isGrowthOrAbove && (
+                  {!isStarterOrAbove && (
                     <Banner
                       tone="warning"
-                      action={{ content: "升级至 Growth", url: "/app/settings?tab=subscription" }}
+                      action={{ content: "升级至 Migration ($49/月)", url: "/app/billing" }}
                     >
                       <Text as="p">
-                        App Pixel 启用与 CAPI 迁移在 Growth 及以上套餐开放。请升级后继续。
+                        <strong>启用像素迁移（Test 环境）</strong>需要 Migration ($49/月) 套餐。这是付费触发点：让您"敢点发布/敢切 Live"的核心能力。
                       </Text>
                     </Banner>
                   )}
@@ -1120,109 +1124,18 @@ export default function MigratePage() {
                     onClick={handleEnablePixel}
                     loading={isSubmitting}
                     size="large"
-                    disabled={!isGrowthOrAbove}
+                    disabled={!isStarterOrAbove}
                   >
-                    一键启用 App Pixel
+                    {isStarterOrAbove ? "启用像素迁移（Test 环境）" : "升级到 Migration 以启用"}
                   </Button>
                 </BlockStack>
               </Card>)}
 
+            {/* v1 移除 CAPI 步骤（v1.1+ 规划）
             {currentStep === "capi" && (
-              <>
-                {!showWizard ? (
-                  <Card>
-                    <BlockStack gap="400">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Icon source={CheckCircleIcon} tone="success"/>
-                        <Text as="h2" variant="headingMd">
-                          App Pixel 已启用
-                        </Text>
-                      </InlineStack>
-
-                      <Divider />
-
-                      <Text as="h2" variant="headingMd">
-                        第 3 步：配置服务端追踪 (CAPI)
-                      </Text>
-
-                      <Text as="p" tone="subdued">
-                        配置广告平台的 Conversions API 凭证，让 Tracking Guardian 自动发送转化数据。
-                      </Text>
-
-                      <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-                        <BlockStack gap="300">
-                          <Text as="span" fontWeight="semibold">支持的平台：</Text>
-                          <List type="bullet">
-                            <List.Item>Google Analytics 4 (Measurement Protocol)</List.Item>
-                            <List.Item>Meta Conversions API (Facebook CAPI)</List.Item>
-                            <List.Item>TikTok Events API</List.Item>
-                            <List.Item>Pinterest Conversions API</List.Item>
-                          </List>
-                        </BlockStack>
-                      </Box>
-
-                      <Banner tone="info">
-                        <BlockStack gap="200">
-                          <Text as="p">
-                            使用向导可以快速配置多个平台，或前往设置页面手动配置。
-                          </Text>
-                        </BlockStack>
-                      </Banner>
-
-                      {!isProOrAbove && (
-                        <Banner
-                          tone="warning"
-                          action={{ content: "升级至 Pro", url: "/app/settings?tab=subscription" }}
-                        >
-                          <Text as="p">
-                            事件对账与多渠道 CAPI 配置在 Pro 及以上开放。请升级以继续配置凭证。
-                          </Text>
-                        </Banner>
-                      )}
-
-                      <InlineStack gap="200">
-                        <Button
-                          variant="primary"
-                          size="large"
-                          disabled={!isProOrAbove}
-                          onClick={() => setShowWizard(true)}
-                        >
-                          使用向导配置
-                        </Button>
-                        <Button url="/app/settings" size="large" disabled={!isProOrAbove}>
-                          前往设置页面
-                        </Button>
-                        <Button onClick={() => setCurrentStep("complete")} disabled={!isProOrAbove}>
-                          稍后配置
-                        </Button>
-                      </InlineStack>
-                    </BlockStack>
-                  </Card>
-                ) : (
-                  <Suspense fallback={<CardSkeleton lines={5} />}>
-                    <PixelMigrationWizard
-                      pixelConfigs={pixelConfigs}
-                      onComplete={handleWizardComplete}
-                      onCancel={() => setShowWizard(false)}
-                      shopId={shop?.id}
-                      initialPlatforms={
-                        prefillPlatform
-                          ? [prefillPlatform as "google" | "meta" | "tiktok" | "pinterest"].filter((p): p is "google" | "meta" | "tiktok" | "pinterest" =>
-                              ["google", "meta", "tiktok", "pinterest"].includes(p)
-                            )
-                          : identifiedPlatforms.filter((p): p is "google" | "meta" | "tiktok" | "pinterest" =>
-                              ["google", "meta", "tiktok", "pinterest"].includes(p)
-                            )
-                      }
-                      canManageMultiple={isAgency}
-                      templates={templates}
-                      wizardDraft={wizardDraft}
-                      prefillAsset={prefillAsset}
-                    />
-                  </Suspense>
-                )}
-              </>
+              // ... CAPI 配置界面（已隐藏）
             )}
+            */}
 
             {currentStep === "complete" && (<Card>
                 <BlockStack gap="400">
@@ -1250,15 +1163,9 @@ export default function MigratePage() {
                       <InlineStack gap="400">
                         <InlineStack gap="100" blockAlign="center">
                           <Icon source={CheckCircleIcon} tone="success"/>
-                          <Text as="span">App Pixel 已启用</Text>
+                          <Text as="span">Web Pixel 已启用</Text>
                         </InlineStack>
-                        {hasCapiConfig ? (<InlineStack gap="100" blockAlign="center">
-                            <Icon source={CheckCircleIcon} tone="success"/>
-                            <Text as="span">CAPI 已配置</Text>
-                          </InlineStack>) : (<InlineStack gap="100" blockAlign="center">
-                            <Icon source={AlertCircleIcon} tone="caution"/>
-                            <Text as="span">CAPI 未配置</Text>
-                          </InlineStack>)}
+                        {/* v1 移除 CAPI 状态显示（v1.1+ 规划） */}
                       </InlineStack>
                     </BlockStack>
                   </Box>

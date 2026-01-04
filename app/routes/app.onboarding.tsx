@@ -431,8 +431,8 @@ export default function OnboardingPage() {
 
   return (
     <Page
-      title="🚀 欢迎使用 Tracking Guardian"
-      subtitle="10 分钟定位风险，30 分钟完成迁移"
+      title="🚀 欢迎使用升级迁移交付平台"
+      subtitle="升级不丢功能/不丢数据 • 可交付的验收报告 • 上线后有断档告警"
     >
       <BlockStack gap="500">
         {}
