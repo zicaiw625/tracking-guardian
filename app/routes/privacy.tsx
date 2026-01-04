@@ -245,7 +245,6 @@ export default function PublicPrivacyPolicy() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   <strong>注意：</strong>我们<strong>不会</strong>将数据用于广告投放、用户画像构建或其他营销目的。数据仅用于转化追踪和报告生成。
                 </Text>
-              </BlockStack>
 
                 <Text as="h3" variant="headingMd">
                   3.2 数据保留期限
@@ -296,7 +295,6 @@ export default function PublicPrivacyPolicy() {
                     商家可通过 {contactEmail} 联系我们请求手动数据删除或验证删除状态
                   </List.Item>
                 </List>
-              </BlockStack>
 
                 <Text as="h3" variant="headingMd">
                   3.4 联系方式
