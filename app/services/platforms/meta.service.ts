@@ -113,11 +113,11 @@ export class MetaPlatformService implements IPlatformService {
   validateCredentials(credentials: unknown): CredentialsValidationResult {
     const errors: string[] = [];
 
-    if (!isMetaCredentials(credentials)) {
-      return { valid: false, errors: ["Credentials must be a valid MetaCredentials object"] };
+    if (!credentials || typeof credentials !== "object") {
+      return { valid: false, errors: ["Credentials must be an object"] };
     }
 
-    const creds = credentials;
+    const creds = credentials as Record<string, unknown>;
 
     if (!creds.pixelId || typeof creds.pixelId !== "string") {
       errors.push("pixelId is required");

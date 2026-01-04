@@ -1815,8 +1815,8 @@ export default function ScanPage() {
                 ...items,
                 "",
                 "## 快速链接",
-                `- Pixels 管理: https://admin.shopify.com/store/${shopDomain}/settings/notifications`,
-                `- Checkout Editor: https://admin.shopify.com/store/${shopDomain}/themes/current/editor`,
+                `- Pixels 管理: https://admin.shopify.com/store/${shop?.domain || 'shop'}/settings/notifications`,
+                `- Checkout Editor: https://admin.shopify.com/store/${shop?.domain || 'shop'}/themes/current/editor`,
                 "- 应用迁移工具: /app/migrate",
             ].join("\n");
         } else {
@@ -2900,7 +2900,7 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url={`https://admin.shopify.com/store/${shopDomain}/settings/notifications`}
+                    url={`https://admin.shopify.com/store/${shop?.domain || 'shop'}/settings/notifications`}
                     external
                     icon={ShareIcon}
                   >
@@ -2926,7 +2926,7 @@ export default function ScanPage() {
                 </Text>
                 <InlineStack gap="300" wrap>
                   <Button
-                    url={`https://admin.shopify.com/store/${shopDomain}/themes/current/editor`}
+                    url={`https://admin.shopify.com/store/${shop?.domain || 'shop'}/themes/current/editor`}
                     external
                     icon={ShareIcon}
                   >

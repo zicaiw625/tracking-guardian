@@ -410,37 +410,39 @@ export function ScriptCodeEditor({
 
             {}
             {value && showPreview && (
-              <Box
-                padding="400"
-                background="bg-surface-secondary"
-                borderRadius="200"
-                borderWidth="025"
-                borderColor="border"
-                style={{ marginBlockStart: "12px" }}
-              >
-                <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
-                  代码高亮预览：
-                </Text>
+              <BlockStack gap="300">
                 <Box
-                  padding="300"
-                  background="bg-surface"
-                  borderRadius="100"
-                  style={{ marginBlockStart: "8px" }}
+                  padding="400"
+                  background="bg-surface-secondary"
+                  borderRadius="200"
+                  borderWidth="025"
+                  borderColor="border"
                 >
-                  <pre
-                    style={{
-                      margin: 0,
-                      fontSize: "13px",
-                      lineHeight: "1.6",
-                      fontFamily:
-                        'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                    dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                  />
+                  <BlockStack gap="300">
+                    <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
+                      代码高亮预览：
+                    </Text>
+                    <Box
+                      padding="300"
+                      background="bg-surface"
+                      borderRadius="100"
+                    >
+                      <pre
+                        style={{
+                          margin: 0,
+                          fontSize: "13px",
+                          lineHeight: "1.6",
+                          fontFamily:
+                            'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                        dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                      />
+                    </Box>
+                  </BlockStack>
                 </Box>
-              </Box>
+              </BlockStack>
             )}
           </Box>
 

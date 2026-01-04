@@ -1881,10 +1881,7 @@ function ReviewStep({
             platform={platform}
             currentVersion={currentVersion}
             onRollbackComplete={() => {
-
-              if (onEnvironmentToggle) {
-
-              }
+              // Rollback complete handler - no additional action needed
             }}
           />
         );

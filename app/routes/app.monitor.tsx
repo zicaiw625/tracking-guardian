@@ -261,6 +261,7 @@ export default function MonitorPage() {
   const [missingParamsTimeRange, setMissingParamsTimeRange] = useState<string>("24");
   const [selectedSuccessRateDestination, setSelectedSuccessRateDestination] = useState<string>("all");
   const [selectedSuccessRateEventType, setSelectedSuccessRateEventType] = useState<string>("all");
+  const [alertHistoryTimeRange, setAlertHistoryTimeRange] = useState<"7d" | "30d" | "90d">("30d");
 
     const isDevUrl = configHealth.appUrl && (configHealth.appUrl.includes("ngrok") || configHealth.appUrl.includes("trycloudflare"));
 

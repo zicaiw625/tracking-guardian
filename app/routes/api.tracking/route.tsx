@@ -30,9 +30,9 @@ const trackingRateLimit = withRateLimit({
 });
 
 const cachedLoader = withConditionalCache(
-  trackingRateLimit(async ({ request }: LoaderFunctionArgs) => {
-    return await loaderImpl(request);
-  }) as (args: LoaderFunctionArgs) => Promise<Response>,
+  trackingRateLimit(async (args: LoaderFunctionArgs) => {
+    return await loaderImpl(args.request);
+  }),
   {
     key: (args) => {
       if (!args?.request || typeof args.request.url !== "string") {

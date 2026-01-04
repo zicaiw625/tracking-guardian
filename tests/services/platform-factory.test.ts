@@ -55,7 +55,9 @@ describe("getSupportedPlatforms", () => {
     expect(platforms).toContain("google");
     expect(platforms).toContain("meta");
     expect(platforms).toContain("tiktok");
-    expect(platforms).toHaveLength(3);
+    expect(platforms).toContain("pinterest");
+    expect(platforms).toContain("snapchat");
+    expect(platforms).toHaveLength(5);
   });
 });
 

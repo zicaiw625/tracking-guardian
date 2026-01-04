@@ -143,40 +143,30 @@ export function validateModuleSettings(
   settings: unknown
 ): { valid: boolean; error?: string; normalized?: ModuleSettings } {
   try {
-    const baseSchema = ModuleSettingsSchema.pick({
-      isEnabled: true,
-      moduleKey: true,
-      displayRules: true,
-      localization: true,
-      version: true,
-      updatedAt: true,
-    });
-
-    let schema = baseSchema;
+    let settingsSchema: z.ZodTypeAny;
     switch (moduleKey) {
       case "survey":
-        schema = baseSchema.extend({ survey: SurveySettingsSchema });
+        settingsSchema = SurveySettingsSchema;
         break;
       case "reorder":
-        schema = baseSchema.extend({ reorder: ReorderSettingsSchema });
+        settingsSchema = ReorderSettingsSchema;
         break;
       case "support":
-        schema = baseSchema.extend({ support: SupportSettingsSchema });
+        settingsSchema = SupportSettingsSchema;
         break;
       case "shipping_tracker":
-        schema = baseSchema.extend({ shipping_tracker: ShippingTrackerSettingsSchema });
+        settingsSchema = ShippingTrackerSettingsSchema;
         break;
       case "upsell_offer":
-        schema = baseSchema.extend({ upsell_offer: UpsellOfferSettingsSchema });
+        settingsSchema = UpsellOfferSettingsSchema;
         break;
+      default:
+        return { valid: false, error: `Unknown module key: ${moduleKey}` };
     }
 
-    const normalized = schema.parse({
-      ...settings,
-      moduleKey,
-    });
+    const normalized = settingsSchema.parse(settings);
 
-    return { valid: true, normalized };
+    return { valid: true, normalized: normalized as ModuleSettings };
   } catch (error) {
     if (error instanceof z.ZodError) {
       return {
@@ -230,6 +220,64 @@ export function getDefaultModuleSettings(moduleKey: ModuleKey): ModuleSettings {
       };
     default:
       return base;
+  }
+}
+
+const DisplayRulesSchema = z.object({
+  enabled: z.boolean(),
+  targets: z.array(z.enum(["thank_you", "order_status"])),
+  conditions: z.object({
+    minOrderValue: z.number().optional(),
+    customerTags: z.array(z.string()).optional(),
+    countries: z.array(z.string()).optional(),
+  }).optional(),
+});
+
+const LocalizationSettingsSchema = z.record(z.string(), z.object({
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  buttonText: z.string().optional(),
+  question: z.string().optional(),
+  description: z.string().optional(),
+}));
+
+export function validateDisplayRules(
+  displayRules: unknown
+): { valid: boolean; errors?: string[]; normalized?: z.infer<typeof DisplayRulesSchema> } {
+  try {
+    const normalized = DisplayRulesSchema.parse(displayRules);
+    return { valid: true, normalized };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        valid: false,
+        errors: error.errors.map(e => `${e.path.join(".")}: ${e.message}`),
+      };
+    }
+    return {
+      valid: false,
+      errors: [error instanceof Error ? error.message : "Unknown error"],
+    };
+  }
+}
+
+export function validateLocalizationSettings(
+  localization: unknown
+): { valid: boolean; errors?: string[]; normalized?: z.infer<typeof LocalizationSettingsSchema> } {
+  try {
+    const normalized = LocalizationSettingsSchema.parse(localization);
+    return { valid: true, normalized };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        valid: false,
+        errors: error.errors.map(e => `${e.path.join(".")}: ${e.message}`),
+      };
+    }
+    return {
+      valid: false,
+      errors: [error instanceof Error ? error.message : "Unknown error"],
+    };
   }
 }
 

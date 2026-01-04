@@ -234,7 +234,7 @@ export async function updateUiModuleConfig(
       if (!settingsValidation.valid) {
         return {
           success: false,
-          error: `设置验证失败: ${settingsValidation.errors.join(", ")}`,
+          error: `设置验证失败: ${settingsValidation.error || "未知错误"}`,
         };
       }
       config.settings = settingsValidation.normalized;

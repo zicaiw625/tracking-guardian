@@ -96,6 +96,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             deadlines: null,
             upgradeStatus: null,
             migrationUrgency: null,
+            templates: [],
+            wizardDraft: null,
+            pixelConfigs: [],
+            prefillPlatform: prefillPlatform || null,
+            prefillAsset: null,
         });
     }
 
@@ -413,30 +418,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
                 await prisma.pixelConfig.upsert({
                     where: {
-                        shopId_platform_environment: {
+                        shopId_platform_environment_platformId: {
                             shopId: shop.id,
                             platform,
                             environment: config.environment,
+                            platformId: config.platformId || null,
                         },
                     },
                     update: {
-                        platformId: config.platformId,
+                        platformId: config.platformId || null,
                         credentialsEncrypted: encryptedCredentials,
                         serverSideEnabled: true,
                         eventMappings: config.eventMappings as object,
                         environment: config.environment,
                         migrationStatus: "in_progress",
+                        updatedAt: new Date(),
                     },
                     create: {
                         id: generateSimpleId("pixel-config"),
                         shopId: shop.id,
                         platform,
-                        platformId: config.platformId,
+                        platformId: config.platformId || null,
                         credentialsEncrypted: encryptedCredentials,
                         serverSideEnabled: true,
                         eventMappings: config.eventMappings as object,
                         environment: config.environment,
                         migrationStatus: "in_progress",
+                        updatedAt: new Date(),
                     },
                 });
             }

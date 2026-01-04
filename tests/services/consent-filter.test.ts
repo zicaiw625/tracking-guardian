@@ -169,7 +169,10 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
 
       const result = filterPlatformsByConsent(marketingPlatforms, consent);
 
-      expect(result.platformsToRecord).toEqual(["meta", "tiktok"]);
+      expect(result.platformsToRecord).toEqual([
+        { platform: "meta" },
+        { platform: "tiktok" }
+      ]);
       expect(result.skippedPlatforms).toEqual([]);
     });
 
@@ -199,7 +202,9 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
 
       const result = filterPlatformsByConsent(analyticsPlatforms, consent);
 
-      expect(result.platformsToRecord).toEqual(["google"]);
+      expect(result.platformsToRecord).toEqual([
+        { platform: "google" }
+      ]);
       expect(result.skippedPlatforms).toEqual([]);
     });
 
@@ -229,7 +234,11 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
 
       const result = filterPlatformsByConsent(mixedPlatforms, consent);
 
-      expect(result.platformsToRecord).toEqual(["meta", "google", "tiktok"]);
+      expect(result.platformsToRecord).toEqual([
+        { platform: "meta" },
+        { platform: "google" },
+        { platform: "tiktok" }
+      ]);
       expect(result.skippedPlatforms).toEqual([]);
     });
 
@@ -243,7 +252,10 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
 
       const result = filterPlatformsByConsent(mixedPlatforms, consent);
 
-      expect(result.platformsToRecord).toEqual(["meta", "tiktok"]);
+      expect(result.platformsToRecord).toEqual([
+        { platform: "meta" },
+        { platform: "tiktok" }
+      ]);
       expect(result.skippedPlatforms).toEqual(["google"]);
     });
 
@@ -257,7 +269,9 @@ describe("Consent Filter - filterPlatformsByConsent", () => {
 
       const result = filterPlatformsByConsent(mixedPlatforms, consent);
 
-      expect(result.platformsToRecord).toEqual(["google"]);
+      expect(result.platformsToRecord).toEqual([
+        { platform: "google" }
+      ]);
       expect(result.skippedPlatforms).toEqual(["meta", "tiktok"]);
     });
 

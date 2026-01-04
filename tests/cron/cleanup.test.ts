@@ -7,6 +7,9 @@ vi.mock("../../app/db.server", () => ({
     eventNonce: {
       deleteMany: vi.fn(),
     },
+    migrationDraft: {
+      deleteMany: vi.fn(),
+    },
     gDPRJob: {
       deleteMany: vi.fn(),
     },
@@ -66,6 +69,7 @@ describe("Cleanup Task", () => {
     vi.clearAllMocks();
 
     (prisma.eventNonce.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
+    (prisma.migrationDraft.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
     (prisma.gDPRJob.deleteMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 0 });
     (prisma.shop.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   });
