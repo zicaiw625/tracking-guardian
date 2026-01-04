@@ -544,7 +544,7 @@ export function subscribeToAnalyticsEvents(
   },
   sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
   logger?: (...args: unknown[]) => void,
-  mode: "purchase_only" | "full_funnel" = "full_funnel"
+  mode: "purchase_only" | "full_funnel" = "purchase_only" // v1 默认 purchase_only，符合隐私最小化原则
 ): void {
 
   subscribeToCheckoutCompleted(analytics, sendToBackend, logger);

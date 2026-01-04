@@ -246,7 +246,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 所有配置都会被处理，支持多目的地场景（Agency/多品牌/多像素）
     // 例如：同一店铺可以配置多个 GA4 property、多个 Meta Pixel 等
     const pixelConfigs = shop.pixelConfigs;
-    let mode: "purchase_only" | "full_funnel" = "full_funnel";
+    let mode: "purchase_only" | "full_funnel" = "purchase_only"; // 默认 purchase_only，符合隐私最小化原则
     let purchaseStrategy: "server_side_only" | "hybrid" = "hybrid"; // 默认 hybrid 以符合 PRD 要求
     
     // 从所有配置中查找 mode 和 purchaseStrategy 设置（优先 full_funnel 和 hybrid）
@@ -274,9 +274,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     
     // 如果没有找到 purchaseStrategy 配置，保持默认 hybrid（符合 PRD 要求）
-    // 如果没有找到任何配置，默认使用 full_funnel + hybrid
+    // 如果没有找到任何配置，默认使用 purchase_only + hybrid（符合隐私最小化原则）
     if (pixelConfigs.length === 0) {
-      mode = "full_funnel";
+      mode = "purchase_only";
       purchaseStrategy = "hybrid";
     }
 

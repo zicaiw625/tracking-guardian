@@ -57,7 +57,8 @@ register(({ analytics, settings, init, customerPrivacy }: {
   });
 
   const pixelConfig = parsePixelConfig(settings.pixel_config);
-  const mode = pixelConfig.mode || "full_funnel";
+  // v1 默认 purchase_only，符合隐私最小化原则
+  const mode = pixelConfig.mode || "purchase_only";
 
   subscribeToAnalyticsEvents(analytics, sendToBackend, log, mode);
 });

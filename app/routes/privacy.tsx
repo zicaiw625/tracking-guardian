@@ -79,11 +79,26 @@ export default function PublicPrivacyPolicy() {
                 <Text as="h3" variant="headingMd">
                   1.2 Pixel Event Data (from Web Pixel)
                 </Text>
+                <Text as="p">
+                  <strong>Default Mode (Purchase Only):</strong> By default, we ONLY collect{" "}
+                  <code>checkout_completed</code> events to minimize data collection and align with privacy-first principles.
+                </Text>
+                <Text as="p">
+                  <strong>Optional Full Funnel Mode:</strong> Merchants can optionally enable full funnel tracking
+                  in app settings to collect additional events for conversion optimization:
+                </Text>
                 <List type="bullet">
-                  <List.Item>
-                    <strong>Event Type:</strong> We ONLY collect{" "}
-                    <code>checkout_completed</code> events.
-                  </List.Item>
+                  <List.Item><code>page_viewed</code> - Page view tracking</List.Item>
+                  <List.Item><code>product_viewed</code> - Product page views</List.Item>
+                  <List.Item><code>product_added_to_cart</code> - Add to cart events</List.Item>
+                  <List.Item><code>checkout_started</code> - Checkout initiation</List.Item>
+                  <List.Item><code>checkout_completed</code> - Purchase completion (always collected)</List.Item>
+                </List>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  <strong>Note:</strong> Full funnel mode must be explicitly enabled by the merchant in app settings. 
+                  By default, only <code>checkout_completed</code> events are collected.
+                </Text>
+                <List type="bullet">
                   <List.Item>
                     <strong>Event Metadata:</strong> Timestamp, Shop Domain, and
                     Consent State.
@@ -91,19 +106,18 @@ export default function PublicPrivacyPolicy() {
                 </List>
 
                 <Text as="h3" variant="headingMd">
-                  1.3 What We DO NOT Collect
+                  1.3 What We DO NOT Collect (Default Mode)
                 </Text>
                 <Text as="p">
-                  We explicitly <strong>DO NOT</strong> collect or send to ad
-                  platforms:
+                  In the default <strong>Purchase Only</strong> mode, we explicitly <strong>DO NOT</strong> collect:
                 </Text>
                 <List type="bullet">
-                  <List.Item>Browsing history (Page views)</List.Item>
-                  <List.Item>Add to cart events</List.Item>
-                  <List.Item>Customer email addresses (PII)</List.Item>
-                  <List.Item>Customer phone numbers (PII)</List.Item>
-                  <List.Item>Customer names or addresses (PII)</List.Item>
-                  <List.Item>Payment information</List.Item>
+                  <List.Item>Browsing history (Page views) - Only collected if full funnel mode is enabled</List.Item>
+                  <List.Item>Add to cart events - Only collected if full funnel mode is enabled</List.Item>
+                  <List.Item>Customer email addresses (PII) - Never collected or stored</List.Item>
+                  <List.Item>Customer phone numbers (PII) - Never collected or stored</List.Item>
+                  <List.Item>Customer names or addresses (PII) - Never collected or stored</List.Item>
+                  <List.Item>Payment information - Never collected</List.Item>
                 </List>
               </BlockStack>
 

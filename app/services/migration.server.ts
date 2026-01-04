@@ -212,7 +212,7 @@ export function buildWebPixelSettings(
 ): WebPixelSettings {
 
     const defaultConfig: Partial<PixelConfig> = {
-        mode: "full_funnel",
+        mode: "purchase_only", // v1 默认 purchase_only，符合隐私最小化原则
         enabled_platforms: "meta,tiktok,google",
         strictness: "strict",
     };

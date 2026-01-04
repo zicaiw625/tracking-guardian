@@ -240,8 +240,8 @@ export interface PixelConfig {
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   schema_version: "1",
-
-  mode: "full_funnel",
+  // v1 默认使用 purchase_only（仅收集结账完成事件），符合隐私最小化原则
+  mode: "purchase_only",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
 };

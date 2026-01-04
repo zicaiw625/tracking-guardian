@@ -166,8 +166,9 @@ export type PixelConfigV1 = z.infer<typeof PixelConfigSchemaV1>;
 
 export const DEFAULT_PIXEL_CONFIG: PixelConfigV1 = {
   schema_version: "1",
-
-  mode: "full_funnel",
+  // v1 默认使用 purchase_only（仅收集结账完成事件），符合隐私最小化原则
+  // 商家可在设置中切换为 full_funnel（收集全漏斗事件）
+  mode: "purchase_only",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
 };

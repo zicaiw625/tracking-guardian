@@ -58,7 +58,12 @@
 - **Post-purchase Survey（购后问卷）**：收集客户反馈，了解获客渠道（官方示例场景，有强差异化）
 - **Help & Support 模块（帮助中心/联系客服）**：迁移替代件、配置简单，包含 FAQ、联系客服、继续购物等功能
 
-> **v1.1 以后规划**：订单追踪/再购等模块放到后续版本（集成复杂度高，边界条件多，会拖慢 v1 节奏）
+> **v1.1 以后规划**：以下模块在 v1 中**不可用**（代码中已标记为 disabled），将在后续版本发布：
+> - Reorder（再购按钮）- 集成复杂度高，边界条件多
+> - Order Tracking（物流追踪）- 需深集成，API/适配会膨胀
+> - Upsell Offer（追加销售）- 边界条件复杂
+> 
+> **注意**：v1 套餐文案和功能列表中不应包含上述模块。
 
 ### (D) 付费：验收（Verification）+ 断档监控（Monitoring）
 这是产品的"交付件"，也是 Agency 愿意付钱的关键。
@@ -308,7 +313,10 @@ ScriptTag 清理需要商家手动操作：
 ### 合规与平台要求
 
 - **GraphQL Admin API**：所有 Admin 操作（WebPixel 创建/删除、checkoutProfiles 查询等）均使用 GraphQL，符合 2025-04-01 起新提交公共应用必须使用 GraphQL Admin API 的要求。代码参考：`app/services/admin-mutations.server.ts`、`app/services/checkout-profile.server.ts`。
-- **隐私与最小权限**：仅订阅 `checkout_completed` 事件；默认严格同意策略；PCD 功能需显式开启且数据即时哈希、不落库；权限表见上。
+- **隐私与最小权限**：
+  - **默认事件收集模式（purchase_only）**：仅收集 `checkout_completed` 事件，符合隐私最小化原则
+  - **可选全漏斗模式（full_funnel）**：商家可显式启用以收集更多事件（page_viewed, product_viewed, add_to_cart, checkout_started）
+  - 默认严格同意策略；PCD 功能需显式开启且数据即时哈希、不落库；权限表见上
 - **上线检查**：健康度评分基于近 7 日对账差异率；监控页记录像素心跳来源与送达率，便于自检 BFS 可靠性指标。
 
 ### 性能优化

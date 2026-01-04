@@ -31,6 +31,22 @@ const FORBIDDEN_PATTERNS = [
         pattern: /\bnew\s+Rest\s*\(|Rest\.create\s*\(/,
         description: "REST client instantiation detected",
     },
+    {
+        pattern: /admin\.rest\./i,
+        description: "admin.rest property access detected (use admin.graphql instead)",
+    },
+    {
+        pattern: /\.rest\.resources\./i,
+        description: ".rest.resources REST API usage detected (use GraphQL instead)",
+    },
+    {
+        pattern: /admin\.rest\.resources\.[A-Z]/i,
+        description: "admin.rest.resources.* REST API usage detected (use GraphQL instead)",
+    },
+    {
+        pattern: /\.rest\.resources\.[A-Z]/i,
+        description: ".rest.resources.* REST API usage detected (use GraphQL instead)",
+    },
 ];
 
 const ALLOWED_PATTERNS = [
