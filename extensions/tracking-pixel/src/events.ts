@@ -2,6 +2,11 @@
 
 import type { CheckoutData, CartLine } from "./types";
 import type { ConsentManager } from "./consent";
+// P0: 使用 @noble/hashes 替代 WebCrypto API，避免 strict sandbox 环境下的全局对象依赖
+// strict sandbox 只保证 self/console/timers/fetch，不保证 crypto.subtle/TextEncoder/btoa
+import { sha256 } from "@noble/hashes/sha256";
+import { hmac } from "@noble/hashes/hmac";
+import { utf8ToBytes, bytesToHex } from "@noble/hashes/utils";
 
 export function toNumber(value: string | number | undefined | null, defaultValue = 0): number {
   if (value === undefined || value === null) return defaultValue;
@@ -22,28 +27,32 @@ export interface EventSenderConfig {
   logger?: (...args: unknown[]) => void;
 }
 
-async function generateHMACSignature(
+/**
+ * P0: 使用 @noble/hashes 生成 HMAC 签名（hex 格式）
+ * 
+ * 原因：Shopify Web Pixel strict sandbox 环境不保证 WebCrypto API、
+ * TextEncoder、btoa 等全局对象存在，可能导致签名生成失败。
+ * 
+ * @noble/hashes 是纯 JS 实现，零全局依赖，完全兼容 strict sandbox。
+ * 使用 hex 格式而非 base64，避免需要 btoa。
+ */
+function generateHMACSignature(
   secret: string,
   timestamp: number,
   bodyHash: string
-): Promise<string> {
-
+): string {
   const message = `${timestamp}:${bodyHash}`;
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const messageData = encoder.encode(message);
+  // 使用 @noble/hashes 的 hmac 函数，返回 hex 格式
+  return bytesToHex(hmac(sha256, utf8ToBytes(secret), utf8ToBytes(message)));
+}
 
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyData,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign("HMAC", cryptoKey, messageData);
-
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+/**
+ * P0: 使用 @noble/hashes 生成 SHA-256 哈希（hex 格式）
+ * 
+ * 替代 crypto.subtle.digest，避免 strict sandbox 环境下的全局对象依赖。
+ */
+function sha256Hex(input: string): string {
+  return bytesToHex(sha256(utf8ToBytes(input)));
 }
 
 const RETRY_DELAYS_MS = [0, 300, 1200];
@@ -188,16 +197,13 @@ export function createEventSender(config: EventSenderConfig) {
 
       } else {
         try {
+          // P0: 使用 @noble/hashes 生成 body hash（hex 格式）
+          // 避免依赖 crypto.subtle 和 TextEncoder
+          const bodyHash = sha256Hex(body);
 
-          const bodyHashBuffer = await crypto.subtle.digest(
-            "SHA-256",
-            new TextEncoder().encode(body)
-          );
-          const bodyHash = Array.from(new Uint8Array(bodyHashBuffer))
-            .map(b => b.toString(16).padStart(2, "0"))
-            .join("");
-
-          const signature = await generateHMACSignature(ingestionSecret, timestamp, bodyHash);
+          // P0: 使用 @noble/hashes 生成 HMAC 签名（hex 格式）
+          // 避免依赖 WebCrypto API 和 btoa
+          const signature = generateHMACSignature(ingestionSecret, timestamp, bodyHash);
           headers["X-Tracking-Guardian-Signature"] = signature;
 
           if (isDevMode) {

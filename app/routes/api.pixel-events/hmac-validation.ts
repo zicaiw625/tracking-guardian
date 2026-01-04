@@ -12,6 +12,12 @@ export interface HMACValidationResult {
   errorCode?: "missing_signature" | "invalid_signature" | "timestamp_out_of_window";
 }
 
+/**
+ * P0: 生成 HMAC 签名（hex 格式）
+ * 
+ * 从 base64 改为 hex 格式，以匹配客户端使用 @noble/hashes 生成的签名。
+ * hex 格式更简单，不需要 base64 编码/解码，且与 @noble/hashes 默认输出一致。
+ */
 export function generateHMACSignature(
   secret: string,
   timestamp: number,
@@ -20,7 +26,7 @@ export function generateHMACSignature(
   const message = `${timestamp}:${bodyHash}`;
   const hmac = createHmac(HMAC_ALGORITHM, secret);
   hmac.update(message);
-  return hmac.digest("base64");
+  return hmac.digest("hex");
 }
 
 export function verifyHMACSignature(
@@ -51,8 +57,9 @@ export function verifyHMACSignature(
   const expectedSignature = generateHMACSignature(secret, timestamp, bodyHash);
 
   try {
-    const signatureBuffer = Buffer.from(signature, "base64");
-    const expectedBuffer = Buffer.from(expectedSignature, "base64");
+    // P0: 使用 hex 格式进行签名验证，匹配客户端 @noble/hashes 的输出
+    const signatureBuffer = Buffer.from(signature, "hex");
+    const expectedBuffer = Buffer.from(expectedSignature, "hex");
 
     if (signatureBuffer.length !== expectedBuffer.length) {
       return {
@@ -75,7 +82,7 @@ export function verifyHMACSignature(
     logger.warn("HMAC signature verification error:", error);
     return {
       valid: false,
-      reason: "Invalid signature format",
+      reason: "Invalid signature format (expected hex)",
       errorCode: "invalid_signature",
     };
   }
