@@ -19,12 +19,18 @@ import { generateSimpleId } from "../utils/helpers";
 import type { PixelEventPayload } from "../routes/api.pixel-events/types";
 
 /**
- * P0-T4: Payload 脱敏策略
+ * P0-T4: Payload 脱敏策略（纯防御性日志清理）
+ * 
+ * 注意：此函数仅用于日志记录时的防御性脱敏，不是业务逻辑。
+ * v1.0 版本不包含任何 PII/hash 生成能力，所有平台服务都不发送 PII。
  * 
  * 根据 Shopify 2025-12-10 起执行的"受保护客户数据"策略：
  * - 允许：event_name、value、currency、items（SKU/variant_id）、event_id、timestamp、non-PII context
  * - 禁止/清空：email、phone、name、address、IP、精准定位等
- * - 对哈希后的 PII 也要谨慎处理
+ * - 对哈希后的 PII 也要谨慎处理（即使 v1.0 不生成，也要防御性清理）
+ * 
+ * 此函数的作用：在将事件数据写入 EventLog/DeliveryAttempt 表时，删除可能意外包含的 PII 字段，
+ * 确保即使第三方 payload 包含 PII，也不会被持久化存储。
  */
 function sanitizePII(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {
@@ -101,6 +107,8 @@ function sanitizePII(payload: unknown): unknown {
     "user_id",
     "userId",
     // Hash 形态的字段（也属于 PII 处理范畴）
+    // 注意：v1.0 版本不生成这些字段，但保留在防御性清理列表中，以防止第三方 payload 包含此类数据
+    // Meta CAPI 标准缩写
     "em",
     "ph",
     "fn",
@@ -111,6 +119,7 @@ function sanitizePII(payload: unknown): unknown {
     "country",
     "user_data",
     "external_id",
+    // 常见 hash 字段名变体
     "email_hash",
     "phone_hash",
     "hashed_email",
@@ -118,6 +127,12 @@ function sanitizePII(payload: unknown): unknown {
     "hashed_phone_number",
     "pre_hashed_user_data",
     "preHashedUserData",
+    "customer_email_hash",
+    "customer_phone_hash",
+    "hashedEmail",
+    "hashedPhone",
+    "emailHash",
+    "phoneHash",
   ]);
 
   // 敏感凭证字段

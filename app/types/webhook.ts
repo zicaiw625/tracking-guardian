@@ -1,74 +1,8 @@
 
 
-export interface OrderWebhookPayload {
-  id: number;
-  order_number?: number | null;
-  total_price?: string | null;
-  currency?: string | null;
-  checkout_token?: string | null;
-  total_tax?: string | null;
-  total_shipping_price_set?: {
-    shop_money?: {
-      amount?: string | null;
-      currency_code?: string | null;
-    } | null;
-  } | null;
-  processed_at?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  customer?: {
-    first_name?: string | null;
-    last_name?: string | null;
-  } | null;
-  billing_address?: {
-    phone?: string | null;
-    first_name?: string | null;
-    last_name?: string | null;
-    city?: string | null;
-    province?: string | null;
-    country_code?: string | null;
-    zip?: string | null;
-  } | null;
-  line_items?: Array<{
-    product_id?: number;
-    variant_id?: number;
-    sku?: string;
-    title?: string;
-    name?: string;
-    quantity?: number;
-    price?: string;
-  }> | null;
-}
-
-export interface MinimalOrderPayload {
-  id: number;
-  order_number?: number | null;
-  total_price?: string | null;
-  currency?: string | null;
-  checkout_token?: string | null;
-  processed_at?: string | null;
-  line_items?: Array<{
-    product_id?: number;
-    variant_id?: number;
-    sku?: string;
-    title?: string;
-    name?: string;
-    quantity?: number;
-    price?: string;
-  }> | null;
-}
-
-export function toMinimalOrderPayload(order: OrderWebhookPayload): MinimalOrderPayload {
-  return {
-    id: order.id,
-    order_number: order.order_number,
-    total_price: order.total_price,
-    currency: order.currency,
-    checkout_token: order.checkout_token,
-    processed_at: order.processed_at,
-    line_items: order.line_items,
-  };
-}
+// P0-5: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 Order webhook 相关的类型定义
+// v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
+// 已移除：OrderWebhookPayload, MinimalOrderPayload, toMinimalOrderPayload
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

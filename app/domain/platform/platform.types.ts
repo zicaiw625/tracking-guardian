@@ -55,24 +55,15 @@ export interface ConversionLineItem {
   price: number;
 }
 
+// P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 PII 相关字段
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 export interface ConversionData {
   orderId: string;
   orderNumber?: string | null;
   value: number;
   currency: string;
   lineItems?: ConversionLineItem[];
-
-  email?: string;
-  phone?: string;
-  firstName?: string;
-  lastName?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  zip?: string;
-
-  clientIp?: string;
-  userAgent?: string;
+  // P0-1: v1.0 版本移除所有 PII 字段：email, phone, firstName, lastName, city, state, country, zip, clientIp, userAgent
 }
 
 export type PlatformErrorType =

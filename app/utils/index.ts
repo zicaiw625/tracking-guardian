@@ -6,6 +6,8 @@ export { logger, createRequestLogger, type RequestLogger } from "./logger.server
 
 export {
   hashValue,
+  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，normalizePhone/normalizeEmail 在 v1.0 中不使用
+  // 保留导出仅为了代码兼容性，它们将在 v1.1 中重新启用
   normalizePhone,
   normalizeEmail,
   getEncryptionKey,
@@ -164,8 +166,7 @@ export {
 } from "./shop-access";
 
 export {
-  validateOrderWebhookPayload,
-  parseOrderWebhookPayload,
+  // P0-6: v1.0 版本移除 validateOrderWebhookPayload 和 parseOrderWebhookPayload 导出
   parseGDPRDataRequestPayload,
   parseGDPRCustomerRedactPayload,
   parseGDPRShopRedactPayload,

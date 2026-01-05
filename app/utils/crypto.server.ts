@@ -191,9 +191,18 @@ export async function hashValue(value: string): Promise<string> {
 export function hashValueSync(value: string): string {
     return createHash("sha256").update(value, "utf8").digest("hex");
 }
+// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此这些函数在 v1.0 中不被使用
+// 保留这些函数仅为了代码兼容性，它们将在 v1.1 中重新启用（当需要 PCD/PII 处理时）
+// v1.0 版本不调用这些函数，所有平台服务都不发送 PII
+/**
+ * @deprecated v1.0 版本不使用 - v1.0 不处理任何 PII
+ */
 export function normalizePhone(phone: string): string {
     return phone.replace(/[^\d+]/g, "");
 }
+/**
+ * @deprecated v1.0 版本不使用 - v1.0 不处理任何 PII
+ */
 export function normalizeEmail(email: string): string {
     return email.toLowerCase().trim();
 }

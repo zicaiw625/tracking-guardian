@@ -124,37 +124,8 @@ export function withShopDomain(): ContextMiddlewareOptions {
   };
 }
 
-export function getClientIp(request: Request): string | undefined {
-
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim();
-  }
-
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) {
-    return realIp;
-  }
-
-  return undefined;
-}
-
-export function getUserAgent(request: Request): string | undefined {
-  return request.headers.get("user-agent") ?? undefined;
-}
-
-export function getRequestInfo(request: Request): {
-  method: string;
-  path: string;
-  clientIp?: string;
-  userAgent?: string;
-} {
-  const url = new URL(request.url);
-  return {
-    method: request.method,
-    path: url.pathname,
-    clientIp: getClientIp(request),
-    userAgent: getUserAgent(request),
-  };
-}
+// P1-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 IP 和 User-Agent 相关的工具函数
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据或网络标识符
+// 已移除：getClientIp, getUserAgent, getRequestInfo
+// 这些函数可能在未来被误用，因此从 v1.0 代码库中完全删除
 

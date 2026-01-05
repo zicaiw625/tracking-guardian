@@ -155,17 +155,13 @@ export class TwitterPlatformService implements IPlatformService {
   ): Promise<Record<string, unknown>> {
     const eventTime = new Date().toISOString();
 
-    // P0: v1.0 版本不处理任何 PII 数据（包括 hashed email/phone）
-    // 所有 PII 相关功能已移除，将在 v1.1 中重新引入
-    // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
-    // v1.0: 不包含任何 PII 数据
-    const hashedEmail = undefined;
-    const hashedPhone = undefined;
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含任何用户标识符
+    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据（包括 hash 形态）
 
     return {
       conversion_time: eventTime,
       event_id: eventId,
-      // v1.0: identifiers 字段已移除（不包含 hashed_email 或 hashed_phone_number）
+      // P0-3: v1.0 版本 identifiers 数组为空，不包含任何 PII（包括 hashed_email/hashed_phone_number）
       identifiers: [],
       conversion_event: TWITTER_EVENT_TYPES.purchase,
       value: data.value.toString(),
@@ -188,14 +184,8 @@ export class TwitterPlatformService implements IPlatformService {
   ): Promise<ConversionApiResponse> {
     const eventTime = new Date().toISOString();
 
-    // P0: v1.0 版本不处理任何 PII 数据（包括 hashed email/phone）
-    // 所有 PII 相关功能已移除，将在 v1.1 中重新引入
-    // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
-    // v1.0: 不包含任何 PII 数据
-    const hashedEmail = undefined;
-    const hashedPhone = undefined;
-
-    // v1.0: identifiers 数组为空，不包含任何 PII 标识符
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此 identifiers 数组为空
+    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据（包括 hash 形态）
     const identifiers: Array<Record<string, string>> = [];
 
     const eventPayload = {

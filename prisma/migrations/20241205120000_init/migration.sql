@@ -1,4 +1,6 @@
-
+-- P0-4: v1.0 版本不包含任何 PCD/PII 处理，初始迁移已移除所有 PII 字段创建
+-- v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
+-- 已从初始迁移中移除：Shop.piiEnabled, Shop.pcdAcknowledged, Shop.pcdAcknowledgedAt, AuditLog.ipAddress, AuditLog.userAgent
 
 CREATE TABLE "Session" (
     "id" TEXT NOT NULL,
@@ -31,9 +33,6 @@ CREATE TABLE "Shop" (
     "installedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "uninstalledAt" TIMESTAMP(3),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "piiEnabled" BOOLEAN NOT NULL DEFAULT false,
-    "pcdAcknowledged" BOOLEAN NOT NULL DEFAULT false,
-    "pcdAcknowledgedAt" TIMESTAMP(3),
     "weakConsentMode" BOOLEAN NOT NULL DEFAULT false,
     "consentStrategy" TEXT NOT NULL DEFAULT 'strict',
     "dataRetentionDays" INTEGER NOT NULL DEFAULT 90,
@@ -178,8 +177,6 @@ CREATE TABLE "AuditLog" (
     "previousValue" JSONB,
     "newValue" JSONB,
     "metadata" JSONB,
-    "ipAddress" TEXT,
-    "userAgent" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
