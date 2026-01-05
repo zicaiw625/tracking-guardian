@@ -3,6 +3,7 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { htmlToPdf } from "./pdf-generator.server";
 import type { VerificationSummary } from "./verification.server";
+import { getEventLogs } from "./event-log.server";
 
 export interface VerificationReportData {
   runId: string;
@@ -73,6 +74,52 @@ export async function generateVerificationReportData(
   }>) || [];
   const reconciliation = summary?.reconciliation as VerificationSummary["reconciliation"] | undefined;
 
+  // P0: 获取 EventLog 证据链（用于导出报告）
+  const eventLogs = await getEventLogs(run.shopId, {
+    startDate: run.startedAt || undefined,
+    endDate: run.completedAt || undefined,
+    limit: 1000, // 限制数量避免报告过大
+  });
+
+  // 将 EventLog 与 events 关联（通过 eventId 或 orderId）
+  const eventsWithEvidence = events.map((e) => {
+    const relatedLogs = eventLogs.filter((log) => {
+      if (e.orderId && log.requestPayload && typeof log.requestPayload === "object") {
+        const payload = log.requestPayload as Record<string, unknown>;
+        const body = payload.body as Record<string, unknown> | undefined;
+        if (body) {
+          // 检查 GA4/Meta/TikTok payload 中的 orderId
+          const orderIdInPayload = 
+            (body as any)?.data?.[0]?.custom_data?.order_id ||
+            (body as any)?.events?.[0]?.params?.transaction_id ||
+            (body as any)?.properties?.order_id;
+          return orderIdInPayload === e.orderId;
+        }
+      }
+      return log.eventId === e.testItemId || log.eventName === e.eventType;
+    });
+
+    return {
+      testItemId: e.testItemId || "",
+      eventType: e.eventType || "",
+      platform: e.platform || "",
+      orderId: e.orderId,
+      status: e.status || "not_tested",
+      params: e.params,
+      discrepancies: e.discrepancies,
+      errors: e.errors,
+      // P0: 添加证据链
+      evidence: relatedLogs.map((log) => ({
+        destination: log.destination,
+        requestPayload: log.requestPayload,
+        status: log.status,
+        errorDetail: log.errorDetail,
+        responseStatus: log.responseStatus,
+        sentAt: log.sentAt,
+      })),
+    };
+  });
+
   return {
     runId: run.id,
     shopId: run.shopId,
@@ -92,16 +139,7 @@ export async function generateVerificationReportData(
     },
     platformResults: (summary?.platformResults as Record<string, { sent: number; failed: number }>) || {},
     reconciliation,
-    events: events.map((e) => ({
-      testItemId: e.testItemId || "",
-      eventType: e.eventType || "",
-      platform: e.platform || "",
-      orderId: e.orderId,
-      status: e.status || "not_tested",
-      params: e.params,
-      discrepancies: e.discrepancies,
-      errors: e.errors,
-    })),
+    events: eventsWithEvidence,
   };
 }
 
@@ -317,6 +355,12 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
   </table>
 
   <h2>事件详情</h2>
+  <p style="color: #6d7175; font-size: 14px; margin-bottom: 10px;">
+    💡 <strong>注意：</strong>以下事件包含发往平台的请求 payload 证据链。如果某些字段（如姓名、邮箱、电话、地址）为 null，可能是由于：
+    <br />• PCD (Protected Customer Data) 需要额外 scope 审批（2025-12-10 起生效）
+    <br />• 用户未同意 analytics/marketing consent
+    <br />• 这是 Shopify 平台的合规行为，不是故障
+  </p>
   <table>
     <thead>
       <tr>
@@ -328,10 +372,16 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
         <th>金额</th>
         <th>币种</th>
         <th>问题</th>
+        <th>证据链</th>
       </tr>
     </thead>
     <tbody>
-      ${data.events.map((event) => `
+      ${data.events.map((event) => {
+        const evidenceCount = (event as any).evidence?.length || 0;
+        const evidenceHtml = evidenceCount > 0 
+          ? `<details style="cursor: pointer;"><summary>查看 ${evidenceCount} 条证据</summary><pre style="background: #f6f6f7; padding: 10px; margin: 5px 0; border-radius: 4px; font-size: 12px; max-height: 200px; overflow: auto;">${JSON.stringify((event as any).evidence, null, 2)}</pre></details>`
+          : "无证据";
+        return `
         <tr>
           <td>${event.testItemId}</td>
           <td>${event.eventType}</td>
@@ -341,8 +391,10 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
           <td>${event.params?.value?.toFixed(2) || ""}</td>
           <td>${event.params?.currency || ""}</td>
           <td>${event.discrepancies?.join("; ") || event.errors?.join("; ") || ""}</td>
+          <td>${evidenceHtml}</td>
         </tr>
-      `).join("")}
+      `;
+      }).join("")}
     </tbody>
   </table>
   `;

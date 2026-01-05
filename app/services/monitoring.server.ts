@@ -692,12 +692,26 @@ export async function checkMonitoringAlerts(
   }
 
   if (volumeStats.isDrop && Math.abs(volumeStats.changePercent) > volumeDropThreshold) {
+    // P0: checkout_completed 事件量下降可能是平台行为导致的（upsell/加载失败/同意状态）
+    const checkoutCompletedDrop = volumeStats.byEventType?.["checkout_completed"];
+    const hasCheckoutCompletedDrop = checkoutCompletedDrop && Math.abs(checkoutCompletedDrop) > volumeDropThreshold;
+    
+    let reason = `事件量下降 ${Math.abs(volumeStats.changePercent).toFixed(2)}%，可能发生断档`;
+    if (hasCheckoutCompletedDrop) {
+      reason += `。注意：checkout_completed 事件量下降可能是 Shopify 平台行为导致的：`;
+      reason += `（1）存在 upsell/post-purchase 时，事件在第一个 upsell 页触发，Thank you 页不再触发；`;
+      reason += `（2）触发页加载失败时，事件完全不触发；`;
+      reason += `（3）用户未同意 analytics consent 时，事件不会触发。`;
+      reason += `建议检查 server-side webhook（orders/paid）作为兜底。`;
+    }
+    
     return {
       shouldAlert: true,
-      reason: `事件量下降 ${Math.abs(volumeStats.changePercent).toFixed(2)}%，可能发生断档`,
+      reason,
       severity: Math.abs(volumeStats.changePercent) > 80 ? "critical" : "warning",
       stats: {
         volumeDrop: volumeStats.changePercent,
+        byEventType: volumeStats.byEventType,
       },
     };
   }

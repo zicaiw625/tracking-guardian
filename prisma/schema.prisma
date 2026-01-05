@@ -471,6 +471,7 @@ model Shop {
   UiExtensionSetting      UiExtensionSetting[]
   VerificationRun         VerificationRun[]
   WorkspaceComment        WorkspaceComment[]
+  EventLog                EventLog[]
 }
 
 model ShopGroup {
@@ -685,4 +686,30 @@ model WorkspaceShop {
   @@unique([workspaceId, shopId])
   @@index([shopId])
   @@index([workspaceId])
+}
+
+// P0: EventLog - 用于持久化最终发往平台的请求 payload 证据链
+// 这是 Verification 和 Monitoring 的核心数据源，支持导出验收报告
+model EventLog {
+  id              String   @id
+  shopId          String
+  eventId         String?
+  eventName       String
+  destination     String   // 平台名称 (google/meta/tiktok)
+  destinationId   String?  // 平台配置ID或平台ID（用于区分同一平台的多个配置）
+  requestPayload  Json     // 最终发往平台的请求 payload（脱敏后）
+  status          String   @default("pending") // pending/sent/failed
+  errorDetail     String?
+  responseStatus  Int?     // HTTP 响应状态码
+  responseBody    String?  // 响应体（仅错误时记录，限制长度）
+  createdAt       DateTime @default(now())
+  sentAt          DateTime?
+  Shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt])
+  @@index([shopId, eventName, createdAt])
+  @@index([shopId, destination, createdAt])
+  @@index([shopId, status, createdAt])
+  @@index([eventId])
+  @@index([createdAt])
 }

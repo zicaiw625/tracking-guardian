@@ -7,6 +7,7 @@ import { getPlatformEventName } from "../pixel-mapping.server";
 import type { Platform } from "~/types/platform";
 import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout, DEFAULT_API_TIMEOUT_MS } from "../platforms/interface";
+import { createEventLog, updateEventLogStatus } from "../event-log.server";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";
 const META_API_BASE_URL = "https://graph.facebook.com";
@@ -17,6 +18,9 @@ interface PixelEventSendResult {
   success: boolean;
   platform: string;
   error?: string;
+  requestPayload?: unknown;
+  responseStatus?: number;
+  responseBody?: string;
 }
 
 /**
@@ -127,6 +131,14 @@ async function sendToGA4(
 
     const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${googleCreds.measurementId}&api_secret=${googleCreds.apiSecret}`;
 
+    // P0: 记录请求 payload 到 EventLog（在发送前）
+    const requestPayload = {
+      url,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: ga4Payload,
+    };
+
     const response = await fetchWithTimeout(
       url,
       {
@@ -137,15 +149,23 @@ async function sendToGA4(
       DEFAULT_API_TIMEOUT_MS
     );
 
-    if (response.status === 204 || response.ok) {
-      return { success: true, platform: "google" };
+    const errorText = await response.text().catch(() => "");
+    const isSuccess = response.status === 204 || response.ok;
+
+    // P0: 更新 EventLog 状态（注意：这里需要 shopId，但函数签名中没有，需要在调用处传入）
+    // 暂时先记录，后续在 sendPixelEventToPlatform 中统一处理
+
+    if (isSuccess) {
+      return { success: true, platform: "google", requestPayload, responseStatus: response.status };
     }
 
-    const errorText = await response.text().catch(() => "");
     return {
       success: false,
       platform: "google",
       error: `GA4 error: ${response.status} ${errorText}`,
+      requestPayload,
+      responseStatus: response.status,
+      responseBody: errorText,
     };
   } catch (error) {
     return {
@@ -221,6 +241,20 @@ async function sendToMeta(
 
     const url = `${META_API_BASE_URL}/${META_API_VERSION}/${metaCreds.pixelId}/events`;
 
+    // P0: 记录请求 payload 到 EventLog（在发送前）
+    const requestPayload = {
+      url,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer ***REDACTED***",
+      },
+      body: {
+        ...eventPayload,
+        access_token: "***REDACTED***",
+      },
+    };
+
     const response = await fetchWithTimeout(
       url,
       {
@@ -237,15 +271,20 @@ async function sendToMeta(
       DEFAULT_API_TIMEOUT_MS
     );
 
-    if (response.ok) {
-      return { success: true, platform: "meta" };
+    const errorData = await response.json().catch(() => ({}));
+    const isSuccess = response.ok;
+
+    if (isSuccess) {
+      return { success: true, platform: "meta", requestPayload, responseStatus: response.status };
     }
 
-    const errorData = await response.json().catch(() => ({}));
     return {
       success: false,
       platform: "meta",
       error: `Meta error: ${response.status} ${errorData.error?.message || "Unknown error"}`,
+      requestPayload,
+      responseStatus: response.status,
+      responseBody: JSON.stringify(errorData),
     };
   } catch (error) {
     return {
@@ -319,6 +358,17 @@ async function sendToTikTok(
       ...(tiktokCreds.testEventCode && { test_event_code: tiktokCreds.testEventCode }),
     };
 
+    // P0: 记录请求 payload 到 EventLog（在发送前）
+    const requestPayload = {
+      url: TIKTOK_API_URL,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Token": "***REDACTED***",
+      },
+      body: { data: [eventPayload] },
+    };
+
     const response = await fetchWithTimeout(
       TIKTOK_API_URL,
       {
@@ -332,15 +382,20 @@ async function sendToTikTok(
       DEFAULT_API_TIMEOUT_MS
     );
 
-    if (response.ok) {
-      return { success: true, platform: "tiktok" };
+    const errorData = await response.json().catch(() => ({}));
+    const isSuccess = response.ok;
+
+    if (isSuccess) {
+      return { success: true, platform: "tiktok", requestPayload, responseStatus: response.status };
     }
 
-    const errorData = await response.json().catch(() => ({}));
     return {
       success: false,
       platform: "tiktok",
       error: `TikTok error: ${response.status} ${errorData.message || "Unknown error"}`,
+      requestPayload,
+      responseStatus: response.status,
+      responseBody: JSON.stringify(errorData),
     };
   } catch (error) {
     return {
@@ -438,25 +493,46 @@ export async function sendPixelEventToPlatform(
 
     // 根据平台调用相应的发送函数
     const normalizedPlatform = platform.toLowerCase();
+    let sendResult: PixelEventSendResult;
+    
     if (normalizedPlatform === "google") {
-      return await sendToGA4(credentials, payload.eventName, payload, eventId);
+      sendResult = await sendToGA4(credentials, payload.eventName, payload, eventId);
     } else if (normalizedPlatform === "meta" || normalizedPlatform === "facebook") {
-      return await sendToMeta(credentials, payload.eventName, payload, eventId);
+      sendResult = await sendToMeta(credentials, payload.eventName, payload, eventId);
     } else if (normalizedPlatform === "tiktok") {
-      return await sendToTikTok(credentials, payload.eventName, payload, eventId);
+      sendResult = await sendToTikTok(credentials, payload.eventName, payload, eventId);
+    } else {
+      logger.warn(`Unsupported platform: ${platform}`, {
+        shopId,
+        platform,
+        eventName: payload.eventName,
+      });
+
+      return {
+        success: false,
+        platform,
+        error: `Unsupported platform: ${platform}`,
+      };
     }
 
-    logger.warn(`Unsupported platform: ${platform}`, {
-      shopId,
-      platform,
-      eventName: payload.eventName,
-    });
+    // P0: 记录 EventLog（在发送后，包含响应信息）
+    if (sendResult.requestPayload) {
+      await createEventLog({
+        shopId,
+        eventId,
+        eventName: payload.eventName,
+        destination: normalizedPlatform,
+        destinationId: config.platformId || config.id,
+        requestPayload: sendResult.requestPayload,
+        status: sendResult.success ? "sent" : "failed",
+        errorDetail: sendResult.error || null,
+        responseStatus: sendResult.responseStatus || null,
+        responseBody: sendResult.responseBody || null,
+      });
+    }
 
-    return {
-      success: false,
-      platform,
-      error: `Unsupported platform: ${platform}`,
-    };
+    return sendResult;
+
   } catch (error) {
     logger.error(`Failed to send pixel event to ${platform}`, {
       shopId,
