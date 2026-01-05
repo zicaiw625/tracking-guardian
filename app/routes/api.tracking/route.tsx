@@ -13,6 +13,7 @@ import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
 import { withConditionalCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
+import { getUiModuleConfig } from "../../services/ui-extension.server";
 
 interface FulfillmentNode {
   trackingInfo?: {
@@ -126,7 +127,6 @@ async function loaderImpl(request: Request) {
     }
 
     // P0-5: 使用 getUiModuleConfig 获取已解密的配置（包含解密后的 apiKey）
-    const { getUiModuleConfig } = await import("../../services/ui-extension.server");
     const trackingModuleConfig = await getUiModuleConfig(shop.id, "order_tracking");
     const trackingSettings = trackingModuleConfig.isEnabled 
       ? (trackingModuleConfig.settings as OrderTrackingSettings | undefined)

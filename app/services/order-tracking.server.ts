@@ -1,6 +1,7 @@
 
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
+import { getUiModuleConfig } from "./ui-extension.server";
 
 export interface TrackingProvider {
   name: "aftership" | "17track" | "native";
@@ -198,7 +199,6 @@ export async function getOrderTracking(
 ): Promise<TrackingInfo | null> {
   try {
     // P0-5: 使用 getUiModuleConfig 获取已解密的配置（包含解密后的 apiKey）
-    const { getUiModuleConfig } = await import("./ui-extension.server");
     const config = await getUiModuleConfig(shopId, "order_tracking");
 
     if (!config.isEnabled) {

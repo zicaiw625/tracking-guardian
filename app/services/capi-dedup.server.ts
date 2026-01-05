@@ -3,6 +3,7 @@
 import { randomUUID, createHash } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { generateEventId as generateEventIdUnified } from "../utils/crypto.server";
 
 export interface DedupResult {
   shouldSend: boolean;
@@ -37,7 +38,6 @@ export function generateEventId(
     return createHash("sha256").update(input).digest("hex").substring(0, 32);
   }
 
-  const { generateEventId: generateEventIdUnified } = require("../utils/crypto.server");
   return generateEventIdUnified(orderId, eventType, shopDomain);
 }
 

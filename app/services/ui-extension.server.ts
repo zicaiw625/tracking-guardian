@@ -5,6 +5,7 @@ import prisma from "../db.server";
 import { getPlanOrDefault, type PlanId } from "./billing/plans";
 import { logger } from "../utils/logger.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
+import { encryptJson, decryptJson } from "../utils/crypto.server";
 
 export {
   type ModuleKey,
@@ -188,7 +189,6 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
       let moduleSettings: ModuleSettings;
       if (existing.settingsEncrypted) {
         try {
-          const { decryptJson } = require("../utils/crypto.server");
           moduleSettings = decryptJson<ModuleSettings>(existing.settingsEncrypted);
         } catch (error) {
           logger.error("Failed to decrypt settingsEncrypted in getUiModuleConfigs", {
@@ -237,7 +237,6 @@ export async function getUiModuleConfig(
     if (setting.settingsEncrypted) {
       // 使用加密字段
       try {
-        const { decryptJson } = await import("../utils/crypto.server");
         settings = decryptJson<ModuleSettings>(setting.settingsEncrypted);
       } catch (error) {
         logger.error("Failed to decrypt settingsEncrypted", {
@@ -257,7 +256,6 @@ export async function getUiModuleConfig(
         const settingsObj = settings as Record<string, unknown>;
         if (settingsObj._apiKeyEncrypted && settingsObj.apiKey && typeof settingsObj.apiKey === "string") {
           try {
-            const { decryptJson } = await import("../utils/crypto.server");
             const decrypted = decryptJson<{ apiKey: string }>(settingsObj.apiKey as string);
             settings = {
               ...settingsObj,
@@ -373,7 +371,6 @@ export async function updateUiModuleConfig(
     // P0-8: 使用 settingsEncrypted 存储加密后的设置（推荐方式）
     // 对于包含敏感信息的设置（如 order_tracking 的 apiKey），加密整个 settings 对象
     if (config.settings) {
-      const { encryptJson } = await import("../utils/crypto.server");
       try {
         // 加密整个 settings 对象
         const encryptedSettings = encryptJson(config.settings);
