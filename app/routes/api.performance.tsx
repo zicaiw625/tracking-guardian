@@ -25,7 +25,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "Shop not found" }, { status: 404 });
     }
 
-    const metric = (await request.json()) as WebVitalsMetric;
+    let metric: WebVitalsMetric;
+    try {
+      metric = (await request.json()) as WebVitalsMetric;
+    } catch (parseError) {
+      logger.error("Failed to parse performance metric request body", {
+        shopDomain,
+        error: parseError instanceof Error ? parseError.message : String(parseError),
+      });
+      return json({ error: "Invalid request body" }, { status: 400 });
+    }
 
     await prisma.performanceMetric.create({
       data: {
@@ -44,6 +53,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return json({ success: true });
   } catch (error) {
+    // Handle Response objects (from authenticate.admin redirects, etc.)
+    if (error instanceof Response) {
+      logger.error("Failed to store performance metric - received Response object", {
+        shopDomain,
+        status: error.status,
+        statusText: error.statusText,
+        url: error.url,
+      });
+      // If it's an authentication redirect, return appropriate error
+      if (error.status === 401 || error.status === 403) {
+        return json({ error: "Authentication required" }, { status: 401 });
+      }
+      return json({ error: "Request failed" }, { status: error.status || 500 });
+    }
+
     // Handle Prisma errors (table not found, etc.)
     if (error && typeof error === "object" && "code" in error) {
       const prismaError = error as { code: string; meta?: { table?: string } };
@@ -57,9 +81,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // Log error with proper serialization
-    const errorForLogging = error instanceof Error 
-      ? error 
-      : new Error(String(error));
+    let errorForLogging: Error;
+    let errorMessage: string;
+    
+    if (error instanceof Error) {
+      errorForLogging = error;
+      errorMessage = error.message;
+    } else if (error && typeof error === "object") {
+      // Try to extract meaningful information from the error object
+      const errorObj = error as Record<string, unknown>;
+      errorMessage = 
+        "message" in errorObj && typeof errorObj.message === "string"
+          ? errorObj.message
+          : "code" in errorObj && typeof errorObj.code === "string"
+          ? `Error code: ${errorObj.code}`
+          : JSON.stringify(error);
+      errorForLogging = new Error(errorMessage);
+    } else {
+      errorMessage = String(error);
+      errorForLogging = new Error(errorMessage);
+    }
     
     const errorType = error && typeof error === "object" && "constructor" in error
       ? (error.constructor as { name?: string })?.name || typeof error
@@ -68,6 +109,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     logger.error("Failed to store performance metric", errorForLogging, {
       shopDomain,
       errorType,
+      errorMessage,
     });
     
     return json({ error: "Internal server error" }, { status: 500 });
