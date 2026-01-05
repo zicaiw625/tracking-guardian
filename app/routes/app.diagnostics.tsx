@@ -312,13 +312,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此不再通过 orders/paid webhook 创建 ConversionJob
     // v1.0 仅依赖 Web Pixels 标准事件，ConversionJob 仅用于历史数据查询
     const relatedJobs: never[] = []; // v1.0: 不再创建新的 ConversionJob
-        select: {
-            orderId: true,
-            status: true,
-            platformResults: true,
-            errorMessage: true,
-        }
-    }) : [];
 
     type RecentEvent = typeof recentEventsRaw[number];
     type RelatedJob = typeof relatedJobs[number];
