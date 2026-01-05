@@ -79,6 +79,19 @@ export async function handleAppUninstalled(
   }
 
   if (shopRecord) {
+    // P0-T5: 删除事件证据链数据（按 shop_id 全删）
+    const eventLogsDeleted = await prisma.eventLog.deleteMany({
+      where: { shopId: shopRecord.id },
+    });
+    const deliveryAttemptsDeleted = await prisma.deliveryAttempt.deleteMany({
+      where: { shopId: shopRecord.id },
+    });
+    
+    logger.info(`Deleted event logs and delivery attempts for shop ${shop}`, {
+      eventLogsDeleted: eventLogsDeleted.count,
+      deliveryAttemptsDeleted: deliveryAttemptsDeleted.count,
+    });
+
     await prisma.shop.update({
       where: { id: shopRecord.id },
       data: {

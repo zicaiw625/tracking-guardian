@@ -1,21 +1,32 @@
 /**
- * P0: EventLog 服务 - 用于持久化最终发往平台的请求 payload 证据链
+ * P0: EventLog 和 DeliveryAttempt 服务 - 事件证据链
  * 
  * 这是 Verification 和 Monitoring 的核心数据源，支持导出验收报告。
- * 所有发往 GA4/Meta/TikTok 的请求 payload 都会被记录，用于：
- * 1. Verification UI 实时查看事件与 payload
- * 2. 导出验收报告（含证据）
- * 3. 监控缺参率（value/currency/items）
+ * 
+ * 数据模型：
+ * - EventLog: 记录所有从 web_pixel 接收到的标准化事件
+ * - DeliveryAttempt: 记录每次向目的地发送的完整请求 payload 和响应
+ * 
+ * 使用流程：
+ * 1. 接收到事件时，创建 EventLog 记录
+ * 2. 准备发送到目的地时，创建 DeliveryAttempt (status=pending)
+ * 3. 发送完成后，更新 DeliveryAttempt (status=ok/fail)
  */
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { generateSimpleId } from "../utils/helpers";
+import type { PixelEventPayload } from "../routes/api.pixel-events/types";
 
 /**
- * 脱敏敏感信息（access_token, api_secret 等）
+ * P0-T4: Payload 脱敏策略
+ * 
+ * 根据 Shopify 2025-12-10 起执行的"受保护客户数据"策略：
+ * - 允许：event_name、value、currency、items（SKU/variant_id）、event_id、timestamp、non-PII context
+ * - 禁止/清空：email、phone、name、address、IP、精准定位等
+ * - 对哈希后的 PII 也要谨慎处理
  */
-function sanitizePayload(payload: unknown): unknown {
+function sanitizePII(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {
     return payload;
   }
@@ -23,7 +34,124 @@ function sanitizePayload(payload: unknown): unknown {
   const sanitized = Array.isArray(payload) ? [...payload] : { ...payload as Record<string, unknown> };
 
   if (Array.isArray(sanitized)) {
-    return sanitized.map(item => sanitizePayload(item));
+    return sanitized.map(item => sanitizePII(item));
+  }
+
+  const obj = sanitized as Record<string, unknown>;
+  
+  // PII 字段白名单（允许保留的字段）
+  const allowedFields = new Set([
+    "event_name",
+    "eventName",
+    "value",
+    "currency",
+    "items",
+    "event_id",
+    "eventId",
+    "timestamp",
+    "event_time",
+    "client_id",
+    "order_id",
+    "orderId",
+    "item_id",
+    "item_name",
+    "item_name",
+    "quantity",
+    "price",
+    "content_id",
+    "content_name",
+    "contents",
+    "content_type",
+    "engagement_time_msec",
+    "url",
+    "method",
+    "headers",
+    "body",
+    "data",
+    "pixel_code",
+    "test_event_code",
+    "testEventCode",
+  ]);
+
+  // 明确禁止的 PII 字段
+  const piiFields = new Set([
+    "email",
+    "phone",
+    "phone_number",
+    "name",
+    "first_name",
+    "last_name",
+    "full_name",
+    "address",
+    "street",
+    "city",
+    "state",
+    "zip",
+    "postal_code",
+    "country",
+    "ip",
+    "ip_address",
+    "user_agent",
+    "latitude",
+    "longitude",
+    "location",
+    "customer_id",
+    "customerId",
+    "user_id",
+    "userId",
+  ]);
+
+  // 敏感凭证字段
+  const sensitiveKeys = new Set([
+    "access_token",
+    "api_secret",
+    "apiSecret",
+    "accessToken",
+    "authorization",
+    "Authorization",
+  ]);
+
+  const result: Record<string, unknown> = {};
+
+  for (const key of Object.keys(obj)) {
+    const lowerKey = key.toLowerCase();
+    
+    // 跳过 PII 字段
+    if (piiFields.has(lowerKey)) {
+      continue;
+    }
+    
+    // 脱敏敏感凭证
+    if (sensitiveKeys.has(key) || sensitiveKeys.has(lowerKey)) {
+      result[key] = "***REDACTED***";
+      continue;
+    }
+    
+    // 允许的字段或嵌套对象
+    if (allowedFields.has(key) || allowedFields.has(lowerKey) || !piiFields.has(lowerKey)) {
+      if (typeof obj[key] === "object" && obj[key] !== null) {
+        result[key] = sanitizePII(obj[key]);
+      } else {
+        result[key] = obj[key];
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * 脱敏敏感凭证（access_token, api_secret 等）
+ */
+function sanitizeCredentials(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+
+  const sanitized = Array.isArray(payload) ? [...payload] : { ...payload as Record<string, unknown> };
+
+  if (Array.isArray(sanitized)) {
+    return sanitized.map(item => sanitizeCredentials(item));
   }
 
   const obj = sanitized as Record<string, unknown>;
@@ -40,95 +168,192 @@ function sanitizePayload(payload: unknown): unknown {
     if (sensitiveKeys.includes(key.toLowerCase())) {
       obj[key] = "***REDACTED***";
     } else if (typeof obj[key] === "object" && obj[key] !== null) {
-      obj[key] = sanitizePayload(obj[key]);
+      obj[key] = sanitizeCredentials(obj[key]);
     }
   }
 
   return obj;
 }
 
+/**
+ * 创建 EventLog 记录（事件证据链核心）
+ */
 export interface CreateEventLogOptions {
   shopId: string;
-  eventId: string | null;
+  eventId: string; // 必填，canonical dedup key
   eventName: string;
-  destination: string;
-  destinationId?: string | null;
-  requestPayload: unknown;
-  status: "pending" | "sent" | "failed";
-  errorDetail?: string | null;
-  responseStatus?: number | null;
-  responseBody?: string | null;
+  occurredAt: Date; // 事件发生时间
+  normalizedEventJson: PixelEventPayload | Record<string, unknown>; // 标准化后的内部事件
+  shopifyContextJson?: Record<string, unknown> | null; // Shopify 上下文（可选，脱敏后）
+  source?: string; // 默认 "web_pixel"
 }
 
-/**
- * 创建 EventLog 记录
- */
-export async function createEventLog(options: CreateEventLogOptions): Promise<void> {
+export async function createEventLog(options: CreateEventLogOptions): Promise<string | null> {
   try {
-    const sanitizedPayload = sanitizePayload(options.requestPayload);
+    // 脱敏 shopifyContextJson 中的 PII
+    const sanitizedContext = options.shopifyContextJson 
+      ? sanitizePII(options.shopifyContextJson) as Record<string, unknown>
+      : null;
+    
+    // 脱敏 normalizedEventJson 中的 PII
+    const sanitizedEvent = sanitizePII(options.normalizedEventJson) as Record<string, unknown>;
 
-    await prisma.eventLog.create({
+    const eventLog = await prisma.eventLog.create({
       data: {
         id: generateSimpleId("evtlog"),
         shopId: options.shopId,
-        eventId: options.eventId || null,
+        source: options.source || "web_pixel",
         eventName: options.eventName,
-        destination: options.destination,
-        destinationId: options.destinationId || null,
-        requestPayload: sanitizedPayload as Record<string, unknown>,
-        status: options.status,
-        errorDetail: options.errorDetail || null,
-        responseStatus: options.responseStatus || null,
-        responseBody: options.responseBody ? options.responseBody.substring(0, 2000) : null, // 限制长度
-        sentAt: options.status === "sent" ? new Date() : null,
+        eventId: options.eventId,
+        occurredAt: options.occurredAt,
+        shopifyContextJson: sanitizedContext,
+        normalizedEventJson: sanitizedEvent,
       },
     });
+
+    return eventLog.id;
   } catch (error) {
+    // 如果是唯一约束冲突（重复事件），返回 null 而不是抛出错误
+    if (error instanceof Error && error.message.includes("unique") || error instanceof Error && error.message.includes("Unique")) {
+      logger.debug("EventLog already exists (deduplication)", {
+        shopId: options.shopId,
+        eventId: options.eventId,
+        eventName: options.eventName,
+      });
+      // 尝试查找已存在的记录
+      const existing = await prisma.eventLog.findUnique({
+        where: {
+          shopId_eventId: {
+            shopId: options.shopId,
+            eventId: options.eventId,
+          },
+        },
+      });
+      return existing?.id || null;
+    }
+
     // 记录失败不应阻塞事件发送流程
     logger.error("Failed to create EventLog", {
       shopId: options.shopId,
       eventId: options.eventId,
       eventName: options.eventName,
-      destination: options.destination,
       error: error instanceof Error ? error.message : String(error),
     });
+    return null;
   }
 }
 
 /**
- * 更新 EventLog 状态（从 pending 到 sent/failed）
+ * 创建 DeliveryAttempt 记录（发送尝试）
+ * 
+ * 在发送前调用，创建 status=pending 的记录
  */
-export async function updateEventLogStatus(
-  shopId: string,
-  eventId: string | null,
-  destination: string,
-  status: "sent" | "failed",
-  errorDetail?: string | null,
-  responseStatus?: number | null,
-  responseBody?: string | null
-): Promise<void> {
+export interface CreateDeliveryAttemptOptions {
+  eventLogId: string;
+  shopId: string;
+  destinationType: string; // ga4/meta/tiktok
+  environment: "test" | "live"; // test/live
+  requestPayloadJson: unknown; // 最终请求 payload（脱敏后）
+}
+
+export async function createDeliveryAttempt(
+  options: CreateDeliveryAttemptOptions
+): Promise<string | null> {
   try {
-    await prisma.eventLog.updateMany({
-      where: {
-        shopId,
-        eventId: eventId || undefined,
-        destination,
+    // 脱敏 PII 和凭证
+    const sanitizedPayload = sanitizePII(sanitizeCredentials(options.requestPayloadJson));
+
+    const attempt = await prisma.deliveryAttempt.create({
+      data: {
+        id: generateSimpleId("delivery"),
+        eventLogId: options.eventLogId,
+        shopId: options.shopId,
+        destinationType: options.destinationType,
+        environment: options.environment,
+        requestPayloadJson: sanitizedPayload as Record<string, unknown>,
         status: "pending",
       },
+    });
+
+    return attempt.id;
+  } catch (error) {
+    // 如果是唯一约束冲突（重复发送），标记为 skipped_dedup
+    if (error instanceof Error && (error.message.includes("unique") || error.message.includes("Unique"))) {
+      logger.debug("DeliveryAttempt already exists (deduplication)", {
+        shopId: options.shopId,
+        eventLogId: options.eventLogId,
+        destinationType: options.destinationType,
+        environment: options.environment,
+      });
+      
+      // 查找已存在的记录并更新为 skipped_dedup
+      const existing = await prisma.deliveryAttempt.findUnique({
+        where: {
+          shopId_eventLogId_destinationType_environment: {
+            shopId: options.shopId,
+            eventLogId: options.eventLogId,
+            destinationType: options.destinationType,
+            environment: options.environment,
+          },
+        },
+      });
+      
+      if (existing && existing.status === "pending") {
+        // 如果之前是 pending，更新为 skipped_dedup
+        await prisma.deliveryAttempt.update({
+          where: { id: existing.id },
+          data: { status: "skipped_dedup" },
+        });
+      }
+      
+      return existing?.id || null;
+    }
+
+    // 记录失败不应阻塞事件发送流程
+    logger.error("Failed to create DeliveryAttempt", {
+      shopId: options.shopId,
+      eventLogId: options.eventLogId,
+      destinationType: options.destinationType,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+/**
+ * 更新 DeliveryAttempt 状态（发送完成后调用）
+ */
+export interface UpdateDeliveryAttemptOptions {
+  attemptId: string;
+  status: "ok" | "fail" | "skipped";
+  errorCode?: string | null;
+  errorDetail?: string | null;
+  responseStatus?: number | null;
+  responseBodySnippet?: string | null;
+  latencyMs?: number | null;
+}
+
+export async function updateDeliveryAttempt(
+  options: UpdateDeliveryAttemptOptions
+): Promise<void> {
+  try {
+    await prisma.deliveryAttempt.update({
+      where: { id: options.attemptId },
       data: {
-        status,
-        errorDetail: errorDetail || null,
-        responseStatus: responseStatus || null,
-        responseBody: responseBody ? responseBody.substring(0, 2000) : null,
-        sentAt: status === "sent" ? new Date() : null,
+        status: options.status,
+        errorCode: options.errorCode || null,
+        errorDetail: options.errorDetail || null,
+        responseStatus: options.responseStatus || null,
+        responseBodySnippet: options.responseBodySnippet 
+          ? options.responseBodySnippet.substring(0, 2000) 
+          : null,
+        latencyMs: options.latencyMs || null,
       },
     });
   } catch (error) {
-    logger.error("Failed to update EventLog status", {
-      shopId,
-      eventId,
-      destination,
-      status,
+    logger.error("Failed to update DeliveryAttempt", {
+      attemptId: options.attemptId,
+      status: options.status,
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -140,10 +365,8 @@ export async function updateEventLogStatus(
 export async function getEventLogs(
   shopId: string,
   options: {
-    eventId?: string | null;
+    eventId?: string;
     eventName?: string;
-    destination?: string;
-    status?: string;
     limit?: number;
     offset?: number;
     startDate?: Date;
@@ -151,47 +374,65 @@ export async function getEventLogs(
   } = {}
 ): Promise<Array<{
   id: string;
-  eventId: string | null;
+  eventId: string;
   eventName: string;
-  destination: string;
-  destinationId: string | null;
-  requestPayload: unknown;
-  status: string;
-  errorDetail: string | null;
-  responseStatus: number | null;
+  occurredAt: Date;
+  normalizedEventJson: unknown;
+  shopifyContextJson: unknown;
   createdAt: Date;
-  sentAt: Date | null;
+  deliveryAttempts: Array<{
+    id: string;
+    destinationType: string;
+    environment: string;
+    status: string;
+    requestPayloadJson: unknown;
+    errorCode: string | null;
+    errorDetail: string | null;
+    responseStatus: number | null;
+    latencyMs: number | null;
+    createdAt: Date;
+  }>;
 }>> {
   try {
     const logs = await prisma.eventLog.findMany({
       where: {
         shopId,
-        ...(options.eventId !== undefined && { eventId: options.eventId || null }),
+        ...(options.eventId && { eventId: options.eventId }),
         ...(options.eventName && { eventName: options.eventName }),
-        ...(options.destination && { destination: options.destination }),
-        ...(options.status && { status: options.status }),
         ...(options.startDate && { createdAt: { gte: options.startDate } }),
         ...(options.endDate && { createdAt: { lte: options.endDate } }),
       },
       orderBy: { createdAt: "desc" },
       take: options.limit || 100,
       skip: options.offset || 0,
-      select: {
-        id: true,
-        eventId: true,
-        eventName: true,
-        destination: true,
-        destinationId: true,
-        requestPayload: true,
-        status: true,
-        errorDetail: true,
-        responseStatus: true,
-        createdAt: true,
-        sentAt: true,
+      include: {
+        DeliveryAttempt: {
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 
-    return logs;
+    return logs.map(log => ({
+      id: log.id,
+      eventId: log.eventId,
+      eventName: log.eventName,
+      occurredAt: log.occurredAt,
+      normalizedEventJson: log.normalizedEventJson,
+      shopifyContextJson: log.shopifyContextJson,
+      createdAt: log.createdAt,
+      deliveryAttempts: log.DeliveryAttempt.map(attempt => ({
+        id: attempt.id,
+        destinationType: attempt.destinationType,
+        environment: attempt.environment,
+        status: attempt.status,
+        requestPayloadJson: attempt.requestPayloadJson,
+        errorCode: attempt.errorCode,
+        errorDetail: attempt.errorDetail,
+        responseStatus: attempt.responseStatus,
+        latencyMs: attempt.latencyMs,
+        createdAt: attempt.createdAt,
+      })),
+    }));
   } catch (error) {
     logger.error("Failed to get EventLogs", {
       shopId,
@@ -202,3 +443,180 @@ export async function getEventLogs(
   }
 }
 
+/**
+ * P0-T5: 导出事件证据链数据为 CSV（脱敏后）
+ * 
+ * 只导出脱敏字段，不包含 PII
+ */
+export async function exportEventLogsAsCSV(
+  shopId: string,
+  options: {
+    startDate?: Date;
+    endDate?: Date;
+    eventName?: string;
+    limit?: number;
+  } = {}
+): Promise<string> {
+  try {
+    const logs = await getEventLogs(shopId, {
+      startDate: options.startDate,
+      endDate: options.endDate,
+      eventName: options.eventName,
+      limit: options.limit || 1000,
+    });
+
+    // CSV 头部
+    const headers = [
+      "Event ID",
+      "Event Name",
+      "Occurred At",
+      "Destination",
+      "Environment",
+      "Status",
+      "Error Code",
+      "Latency (ms)",
+      "Created At",
+    ];
+
+    // CSV 行
+    const rows = logs.flatMap(log => {
+      if (log.deliveryAttempts.length === 0) {
+        // 如果没有 delivery attempts，只输出 event log 信息
+        return [[
+          log.eventId,
+          log.eventName,
+          log.occurredAt.toISOString(),
+          "",
+          "",
+          "",
+          "",
+          "",
+          log.createdAt.toISOString(),
+        ]];
+      }
+
+      return log.deliveryAttempts.map(attempt => [
+        log.eventId,
+        log.eventName,
+        log.occurredAt.toISOString(),
+        attempt.destinationType,
+        attempt.environment,
+        attempt.status,
+        attempt.errorCode || "",
+        attempt.latencyMs?.toString() || "",
+        attempt.createdAt.toISOString(),
+      ]);
+    });
+
+    // 转义 CSV 字段
+    function escapeCSV(value: string): string {
+      if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    }
+
+    // 构建 CSV
+    const csvLines = [
+      headers.map(escapeCSV).join(","),
+      ...rows.map(row => row.map(cell => escapeCSV(String(cell || ""))).join(",")),
+    ];
+
+    return csvLines.join("\n");
+  } catch (error) {
+    logger.error("Failed to export EventLogs as CSV", {
+      shopId,
+      options,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+/**
+ * 获取 DeliveryAttempt 统计（用于 Monitoring）
+ */
+export async function getDeliveryAttemptStats(
+  shopId: string,
+  options: {
+    destinationType?: string;
+    environment?: string;
+    startDate?: Date;
+    endDate?: Date;
+  } = {}
+): Promise<{
+  total: number;
+  ok: number;
+  fail: number;
+  skipped: number;
+  skippedDedup: number;
+  avgLatencyMs: number | null;
+  p50LatencyMs: number | null;
+  p95LatencyMs: number | null;
+}> {
+  try {
+    const attempts = await prisma.deliveryAttempt.findMany({
+      where: {
+        shopId,
+        ...(options.destinationType && { destinationType: options.destinationType }),
+        ...(options.environment && { environment: options.environment }),
+        ...(options.startDate && { createdAt: { gte: options.startDate } }),
+        ...(options.endDate && { createdAt: { lte: options.endDate } }),
+      },
+      select: {
+        status: true,
+        latencyMs: true,
+      },
+    });
+
+    const total = attempts.length;
+    const ok = attempts.filter(a => a.status === "ok").length;
+    const fail = attempts.filter(a => a.status === "fail").length;
+    const skipped = attempts.filter(a => a.status === "skipped").length;
+    const skippedDedup = attempts.filter(a => a.status === "skipped_dedup").length;
+
+    const latencies = attempts
+      .filter(a => a.latencyMs !== null)
+      .map(a => a.latencyMs!)
+      .sort((a, b) => a - b);
+
+    const avgLatencyMs = latencies.length > 0
+      ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length
+      : null;
+
+    const p50LatencyMs = latencies.length > 0
+      ? latencies[Math.floor(latencies.length * 0.5)]
+      : null;
+
+    const p95LatencyMs = latencies.length > 0
+      ? latencies[Math.floor(latencies.length * 0.95)]
+      : null;
+
+    return {
+      total,
+      ok,
+      fail,
+      skipped,
+      skippedDedup,
+      avgLatencyMs: avgLatencyMs ? Math.round(avgLatencyMs) : null,
+      p50LatencyMs,
+      p95LatencyMs,
+    };
+  } catch (error) {
+    logger.error("Failed to get DeliveryAttempt stats", {
+      shopId,
+      options,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      total: 0,
+      ok: 0,
+      fail: 0,
+      skipped: 0,
+      skippedDedup: 0,
+      avgLatencyMs: null,
+      p50LatencyMs: null,
+      p95LatencyMs: null,
+    };
+  }
+}

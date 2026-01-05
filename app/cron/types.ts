@@ -10,6 +10,8 @@ export interface CleanupResult {
   webhookLogsDeleted: number;
   scanReportsDeleted: number;
   reconciliationReportsDeleted: number;
+  eventLogsDeleted: number; // P0-T5: 事件证据链数据
+  deliveryAttemptsDeleted: number; // P0-T5: 发送尝试记录
   gdprJobsDeleted: number;
   eventNoncesDeleted: number;
   migrationDraftsDeleted: number;

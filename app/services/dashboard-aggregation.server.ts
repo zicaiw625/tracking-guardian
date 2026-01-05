@@ -33,35 +33,58 @@ export async function aggregateDailyMetrics(
   const endOfDay = new Date(date);
   endOfDay.setUTCHours(23, 59, 59, 999);
 
-  // 查询转化日志
-  const conversionLogs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源（只统计 purchase/checkout_completed 事件）
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: {
         gte: startOfDay,
         lte: endOfDay,
       },
+      EventLog: {
+        eventName: {
+          in: ["purchase", "checkout_completed"],
+        },
+      },
     },
     select: {
-      platform: true,
+      destinationType: true,
       status: true,
-      orderValue: true,
+      EventLog: {
+        select: {
+          normalizedEventJson: true,
+        },
+      },
     },
+    take: 10000, // 限制最大查询数量，避免超时
   });
 
-  const totalOrders = conversionLogs.length;
-  const successfulOrders = conversionLogs.filter((log) => log.status === "sent").length;
-  const totalValue = conversionLogs.reduce((sum, log) => sum + Number(log.orderValue), 0);
+  // 从 normalizedEventJson 中提取 value
+  const orders: Array<{ platform: string; status: string; value: number }> = [];
+  for (const attempt of attempts) {
+    const normalizedEvent = attempt.EventLog.normalizedEventJson as Record<string, unknown>;
+    const value = typeof normalizedEvent.value === "number" ? normalizedEvent.value : 0;
+    
+    orders.push({
+      platform: attempt.destinationType,
+      status: attempt.status,
+      value,
+    });
+  }
+
+  const totalOrders = orders.length;
+  const successfulOrders = orders.filter((o) => o.status === "ok").length;
+  const totalValue = orders.reduce((sum, o) => sum + o.value, 0);
   const successRate = totalOrders > 0 ? successfulOrders / totalOrders : 0;
 
   // 按平台分组统计
   const platformBreakdown: Record<string, { count: number; value: number }> = {};
-  for (const log of conversionLogs) {
-    if (!platformBreakdown[log.platform]) {
-      platformBreakdown[log.platform] = { count: 0, value: 0 };
+  for (const order of orders) {
+    if (!platformBreakdown[order.platform]) {
+      platformBreakdown[order.platform] = { count: 0, value: 0 };
     }
-    platformBreakdown[log.platform].count++;
-    platformBreakdown[log.platform].value += Number(log.orderValue);
+    platformBreakdown[order.platform].count++;
+    platformBreakdown[order.platform].value += order.value;
   }
 
   // 查询事件量（从 pixelEventReceipt）
@@ -191,48 +214,72 @@ export async function getAggregatedMetrics(
     });
   }
 
-  // 回退到实时计算
-  const conversionLogs = await prisma.conversionLog.findMany({
+  // P0-T8: 回退到实时计算（使用 delivery_attempts）
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: {
         gte: startDate,
         lte: endDate,
       },
+      EventLog: {
+        eventName: {
+          in: ["purchase", "checkout_completed"],
+        },
+      },
     },
     select: {
-      platform: true,
+      destinationType: true,
       status: true,
-      orderValue: true,
       createdAt: true,
+      EventLog: {
+        select: {
+          normalizedEventJson: true,
+        },
+      },
     },
+    take: 10000, // 限制最大查询数量，避免超时
   });
 
-  const totalOrders = conversionLogs.length;
-  const successfulOrders = conversionLogs.filter((log) => log.status === "sent").length;
-  const totalValue = conversionLogs.reduce((sum, log) => sum + Number(log.orderValue), 0);
+  // 从 normalizedEventJson 中提取 value
+  const orders: Array<{ platform: string; status: string; value: number; createdAt: Date }> = [];
+  for (const attempt of attempts) {
+    const normalizedEvent = attempt.EventLog.normalizedEventJson as Record<string, unknown>;
+    const value = typeof normalizedEvent.value === "number" ? normalizedEvent.value : 0;
+    
+    orders.push({
+      platform: attempt.destinationType,
+      status: attempt.status,
+      value,
+      createdAt: attempt.createdAt,
+    });
+  }
+
+  const totalOrders = orders.length;
+  const successfulOrders = orders.filter((o) => o.status === "ok").length;
+  const totalValue = orders.reduce((sum, o) => sum + o.value, 0);
   const successRate = totalOrders > 0 ? successfulOrders / totalOrders : 0;
 
   const platformBreakdown: Record<string, { count: number; value: number }> = {};
-  for (const log of conversionLogs) {
-    if (!platformBreakdown[log.platform]) {
-      platformBreakdown[log.platform] = { count: 0, value: 0 };
+  for (const order of orders) {
+    if (!platformBreakdown[order.platform]) {
+      platformBreakdown[order.platform] = { count: 0, value: 0 };
     }
-    platformBreakdown[log.platform].count++;
-    platformBreakdown[log.platform].value += Number(log.orderValue);
+    platformBreakdown[order.platform].count++;
+    platformBreakdown[order.platform].value += order.value;
   }
 
   // 按日期分组
   const dailyMap = new Map<string, { orders: number; value: number; successful: number }>();
-  for (const log of conversionLogs) {
-    const dateKey = log.createdAt.toISOString().split("T")[0];
+  for (const order of orders) {
+    const dateKey = order.createdAt.toISOString().split("T")[0];
     if (!dailyMap.has(dateKey)) {
       dailyMap.set(dateKey, { orders: 0, value: 0, successful: 0 });
     }
     const day = dailyMap.get(dateKey)!;
     day.orders++;
-    day.value += Number(log.orderValue);
-    if (log.status === "sent") {
+    day.value += order.value;
+    if (order.status === "ok") {
       day.successful++;
     }
   }

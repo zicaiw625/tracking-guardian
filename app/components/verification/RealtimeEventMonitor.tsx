@@ -27,9 +27,11 @@ import {
   RefreshIcon,
   PlayIcon,
   PauseIcon,
+  ClipboardIcon,
 } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
 import { calculateEventStats, checkParamCompleteness } from "~/utils/event-param-completeness";
+import { CheckoutCompletedBehaviorHint } from "./CheckoutCompletedBehaviorHint";
 
 type BadgeTone = "success" | "warning" | "critical" | "info";
 type ProgressBarTone = "success" | "highlight" | "critical" | "primary";
@@ -92,6 +94,9 @@ export interface RealtimeEvent {
   };
   discrepancies?: string[];
   platformResponse?: unknown;
+  // P0-T6: 添加 eventLogId 和 deliveryAttemptId 以便获取实际 payload
+  eventLogId?: string;
+  deliveryAttemptId?: string;
 }
 
 export interface RealtimeEventMonitorProps {
@@ -913,6 +918,7 @@ function EventItem({
 }
 
 function EventDetails({ event }: { event: RealtimeEvent }) {
+  const { showSuccess } = useToastContext();
   const [expanded, setExpanded] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
@@ -921,7 +927,17 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     shopify: true,
     errors: true,
     mapping: false,
+    payload: false, // P0-T6: 添加 payload 部分
   });
+  const [payloadData, setPayloadData] = useState<{
+    requestPayload?: unknown;
+    responseStatus?: number;
+    responseBody?: string;
+    latencyMs?: number;
+    errorCode?: string;
+    errorDetail?: string;
+  } | null>(null);
+  const [loadingPayload, setLoadingPayload] = useState(false);
 
   const toggleSection = useCallback((section: string) => {
     setExpandedSections((prev) => ({
@@ -933,6 +949,54 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
   const completeness = useMemo(() => {
     return checkParamCompleteness(event.eventType, event.platform, event.params);
   }, [event.eventType, event.platform, event.params]);
+
+  // P0-T6: 获取实际发送的 payload
+  const loadPayload = useCallback(async () => {
+    if (!event.eventLogId || loadingPayload) return;
+    
+    setLoadingPayload(true);
+    try {
+      const response = await fetch(`/app/api/event-log/${event.eventLogId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch event log details");
+      }
+      const data = await response.json();
+      
+      // 找到对应的 delivery attempt
+      const attempt = data.deliveryAttempts?.find(
+        (a: { id: string }) => a.id === event.deliveryAttemptId
+      );
+      
+      if (attempt) {
+        setPayloadData({
+          requestPayload: attempt.requestPayloadJson,
+          responseStatus: attempt.responseStatus,
+          responseBody: attempt.responseBodySnippet,
+          latencyMs: attempt.latencyMs,
+          errorCode: attempt.errorCode,
+          errorDetail: attempt.errorDetail,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load payload:", error);
+    } finally {
+      setLoadingPayload(false);
+    }
+  }, [event.eventLogId, event.deliveryAttemptId, loadingPayload]);
+
+  // 当展开 payload 部分时自动加载
+  useEffect(() => {
+    if (expandedSections.payload && !payloadData && event.eventLogId) {
+      loadPayload();
+    }
+  }, [expandedSections.payload, payloadData, event.eventLogId, loadPayload]);
+
+  const copyPayload = useCallback(() => {
+    if (payloadData?.requestPayload) {
+      navigator.clipboard.writeText(JSON.stringify(payloadData.requestPayload, null, 2));
+      showSuccess("Payload 已复制到剪贴板");
+    }
+  }, [payloadData, showSuccess]);
 
   return (
     <BlockStack gap="300">
@@ -1192,6 +1256,128 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
                       </Text>
                       <Text as="span" fontWeight="semibold">{event.shopifyOrder.itemCount}</Text>
                     </InlineStack>
+                  </BlockStack>
+                </Collapsible>
+              </BlockStack>
+            </Card>
+          )}
+
+          {/* P0-T7: checkout_completed 事件缺失提示 */}
+          {event.eventType === "checkout_completed" && event.status !== "success" && (
+            <CheckoutCompletedBehaviorHint mode="missing" />
+          )}
+
+          {/* P0-T6: 实际发送的 Payload */}
+          {event.eventLogId && (
+            <Card>
+              <BlockStack gap="200">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => toggleSection("payload")}
+                  onKeyDown={(e) => e.key === "Enter" && toggleSection("payload")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text as="span" fontWeight="semibold" variant="headingSm">
+                      实际发送的 Payload
+                    </Text>
+                    <Text as="span" tone="subdued">
+                      {expandedSections.payload ? "▲ 收起" : "▼ 展开"}
+                    </Text>
+                  </InlineStack>
+                </div>
+                <Collapsible open={expandedSections.payload} id="event-details-payload">
+                  <BlockStack gap="300">
+                    {loadingPayload ? (
+                      <Text as="p" tone="subdued">加载中...</Text>
+                    ) : payloadData ? (
+                      <>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            这是实际发送到 {event.platform} 的请求 payload（已脱敏）
+                          </Text>
+                          <Button
+                            icon={ClipboardIcon}
+                            onClick={copyPayload}
+                            size="slim"
+                          >
+                            复制 Payload
+                          </Button>
+                        </InlineStack>
+                        <Box
+                          padding="300"
+                          background="bg-surface-secondary"
+                          borderRadius="200"
+                        >
+                          <div style={{ maxHeight: "500px", overflow: "auto" }}>
+                            <pre
+                              style={{
+                                fontSize: "12px",
+                                fontFamily: "monospace",
+                                margin: 0,
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-word",
+                              }}
+                            >
+                              {JSON.stringify(payloadData.requestPayload, null, 2)}
+                            </pre>
+                          </div>
+                        </Box>
+                        {payloadData.responseStatus && (
+                          <InlineStack gap="400">
+                            <Text as="span" variant="bodySm" tone="subdued">
+                              <strong>响应状态:</strong> {payloadData.responseStatus}
+                            </Text>
+                            {payloadData.latencyMs && (
+                              <Text as="span" variant="bodySm" tone="subdued">
+                                <strong>延迟:</strong> {payloadData.latencyMs}ms
+                              </Text>
+                            )}
+                          </InlineStack>
+                        )}
+                        {payloadData.errorCode && (
+                          <Banner tone="critical" title="发送失败">
+                            <Text as="p" variant="bodySm">
+                              <strong>错误代码:</strong> {payloadData.errorCode}
+                            </Text>
+                            {payloadData.errorDetail && (
+                              <Text as="p" variant="bodySm">
+                                <strong>错误详情:</strong> {payloadData.errorDetail}
+                              </Text>
+                            )}
+                          </Banner>
+                        )}
+                        {payloadData.responseBody && (
+                          <Box
+                            padding="300"
+                            background="bg-surface-tertiary"
+                            borderRadius="200"
+                          >
+                            <Text as="p" variant="bodySm" fontWeight="semibold" tone="subdued">
+                              响应片段:
+                            </Text>
+                            <pre
+                              style={{
+                                fontSize: "11px",
+                                fontFamily: "monospace",
+                                margin: 0,
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-word",
+                                maxHeight: "200px",
+                                overflow: "auto",
+                              }}
+                            >
+                              {payloadData.responseBody}
+                            </pre>
+                          </Box>
+                        )}
+                      </>
+                    ) : (
+                      <Text as="p" tone="subdued">
+                        暂无 payload 数据
+                      </Text>
+                    )}
                   </BlockStack>
                 </Collapsible>
               </BlockStack>

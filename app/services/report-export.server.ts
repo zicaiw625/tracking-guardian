@@ -54,18 +54,43 @@ export async function exportVerificationReport(
     errors?: string[];
   }>) || [];
 
+  // P0-T6: 获取 payload 证据（默认 N=20 条）
+  const payloadSampleCount = 20;
+  const eventsWithPayloads = await Promise.all(
+    events
+      .filter(e => e.eventLogId && e.deliveryAttemptId)
+      .slice(0, payloadSampleCount)
+      .map(async (event) => {
+        try {
+          const attempt = await prisma.deliveryAttempt.findUnique({
+            where: { id: event.deliveryAttemptId! },
+            select: { requestPayloadJson: true },
+          });
+          return {
+            ...event,
+            payload: attempt?.requestPayloadJson || null,
+          };
+        } catch {
+          return { ...event, payload: null };
+        }
+      })
+  );
+
   switch (options.format) {
     case "csv":
-      return exportToCSV(run, summary, events, options);
+      return exportToCSV(run, summary, eventsWithPayloads, options);
     case "json":
-      return exportToJSON(run, summary, events, options);
+      return exportToJSON(run, summary, eventsWithPayloads, options);
     case "pdf":
-      return exportToPDF(run, summary, events, options);
+      return exportToPDF(run, summary, eventsWithPayloads, options);
     default:
       throw new Error(`Unsupported format: ${options.format}`);
   }
 }
 
+/**
+ * P0-T6: 导出验证报告为 CSV，包含 payload 证据（默认 N=20 条）
+ */
 function exportToCSV(
   run: {
     Shop: { shopDomain: string };
@@ -87,6 +112,9 @@ function exportToCSV(
     };
     discrepancies?: string[];
     errors?: string[];
+    eventLogId?: string;
+    deliveryAttemptId?: string;
+    payload?: unknown;
   }>,
   options: ExportOptions
 ): string {
@@ -153,6 +181,21 @@ function exportToCSV(
       ];
       lines.push(row.map((cell) => `"${cell}"`).join(","));
     });
+    
+    // P0-T6: 添加 payload 证据部分（默认 N=20 条）
+    const eventsWithPayloads = events.filter(e => (e as { payload?: unknown }).payload);
+    if (eventsWithPayloads.length > 0) {
+      lines.push("");
+      lines.push("Payload 证据（抽样）");
+      eventsWithPayloads.forEach((event, index) => {
+        const payload = (event as { payload?: unknown }).payload;
+        if (payload) {
+          lines.push(`事件 ${index + 1} (${event.eventType || "N/A"} - ${event.platform || "N/A"}):`);
+          lines.push(JSON.stringify(payload, null, 2));
+          lines.push("");
+        }
+      });
+    }
   }
 
   return lines.join("\n");

@@ -84,6 +84,19 @@ export async function processShopRedact(
     });
     deletedCounts.monthlyUsages = monthlyUsageResult.count;
 
+    // P0-T5: 删除事件证据链数据
+    const eventLogResult = await prisma.eventLog.deleteMany({
+      where: { shopId: shop.id },
+    });
+    deletedCounts.eventLogs = eventLogResult.count;
+    logger.info(`[GDPR] Deleted ${eventLogResult.count} event logs for shop ${shopDomain}`);
+
+    const deliveryAttemptResult = await prisma.deliveryAttempt.deleteMany({
+      where: { shopId: shop.id },
+    });
+    deletedCounts.deliveryAttempts = deliveryAttemptResult.count;
+    logger.info(`[GDPR] Deleted ${deliveryAttemptResult.count} delivery attempts for shop ${shopDomain}`);
+
     await prisma.shop.delete({
       where: { id: shop.id },
     });

@@ -33,6 +33,7 @@ import {
 } from "~/components/icons";
 import { CardSkeleton, useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { CheckoutExtensibilityWarning } from "~/components/verification/CheckoutExtensibilityWarning";
+import { CheckoutCompletedBehaviorHint } from "~/components/verification/CheckoutCompletedBehaviorHint";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -514,30 +515,8 @@ export default function VerificationPage() {
         )}
 
         {}
-        <Banner
-          title="重要提示：checkout_completed 事件触发位置"
-          tone="info"
-        >
-          <BlockStack gap="200">
-            <Text as="p" variant="bodySm">
-              <strong>checkout_completed</strong> 事件通常在 Thank you 页面触发，但存在以下特殊情况：
-            </Text>
-            <List type="bullet">
-              <List.Item>
-                <strong>存在 upsell/post-purchase：</strong>事件会在第一个 upsell 页面触发，且不会在 Thank you 页面再次触发
-              </List.Item>
-              <List.Item>
-                <strong>页面加载失败：</strong>如果应触发事件的页面加载失败，则事件不会触发
-              </List.Item>
-            </List>
-            <Text as="p" variant="bodySm" tone="subdued">
-              这会影响"保证不断"的承诺边界与验收设计。验收测试时请考虑这些场景。
-            </Text>
-            <Text as="p" variant="bodySm" tone="subdued">
-              <strong>注意：</strong>标准事件列表来自 Shopify Web Pixels 文档，避免使用旧脚本时代的事件来对比。
-            </Text>
-          </BlockStack>
-        </Banner>
+        {/* P0-T7: checkout_completed 已知行为的产品内提示 */}
+        <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
 
         {}
         <Banner

@@ -2,6 +2,7 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { getDeliveryAttemptStats } from "./event-log.server";
 
 export interface EventMonitoringStats {
   totalEvents: number;
@@ -59,27 +60,28 @@ export async function getEventMonitoringStats(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  // P2-9: 性能优化 - 使用聚合查询而不是加载所有记录
-  // 对于大店铺，直接加载所有 logs 会导致性能问题
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
     },
     select: {
-      platform: true,
-      eventType: true,
+      destinationType: true,
       status: true,
+      EventLog: {
+        select: {
+          eventName: true,
+        },
+      },
     },
-    // P2-9: 如果数据量很大，考虑使用聚合查询替代
-    // 当前先保持原逻辑，但添加了性能监控
     take: 10000, // 限制最大查询数量，避免超时
   });
 
   const stats: EventMonitoringStats = {
-    totalEvents: logs.length,
-    successfulEvents: logs.filter((l) => l.status === "sent").length,
-    failedEvents: logs.filter((l) => l.status === "failed" || l.status === "dead_letter").length,
+    totalEvents: attempts.length,
+    successfulEvents: attempts.filter((a) => a.status === "ok").length,
+    failedEvents: attempts.filter((a) => a.status === "fail").length,
     successRate: 0,
     failureRate: 0,
     byPlatform: {},
@@ -91,12 +93,13 @@ export async function getEventMonitoringStats(
     stats.failureRate = (stats.failedEvents / stats.totalEvents) * 100;
   }
 
-  const platforms = new Set(logs.map((l) => l.platform));
+  // 按平台统计
+  const platforms = new Set(attempts.map((a) => a.destinationType));
   platforms.forEach((platform) => {
-    const platformLogs = logs.filter((l) => l.platform === platform);
-    const success = platformLogs.filter((l) => l.status === "sent").length;
-    const failed = platformLogs.filter((l) => l.status === "failed" || l.status === "dead_letter").length;
-    const total = platformLogs.length;
+    const platformAttempts = attempts.filter((a) => a.destinationType === platform);
+    const success = platformAttempts.filter((a) => a.status === "ok").length;
+    const failed = platformAttempts.filter((a) => a.status === "fail").length;
+    const total = platformAttempts.length;
 
     stats.byPlatform[platform] = {
       total,
@@ -106,12 +109,13 @@ export async function getEventMonitoringStats(
     };
   });
 
-  const eventTypes = new Set(logs.map((l) => l.eventType));
+  // 按事件类型统计
+  const eventTypes = new Set(attempts.map((a) => a.EventLog.eventName));
   eventTypes.forEach((eventType) => {
-    const eventLogs = logs.filter((l) => l.eventType === eventType);
-    const success = eventLogs.filter((l) => l.status === "sent").length;
-    const failed = eventLogs.filter((l) => l.status === "failed" || l.status === "dead_letter").length;
-    const total = eventLogs.length;
+    const eventAttempts = attempts.filter((a) => a.EventLog.eventName === eventType);
+    const success = eventAttempts.filter((a) => a.status === "ok").length;
+    const failed = eventAttempts.filter((a) => a.status === "fail").length;
+    const total = eventAttempts.length;
 
     stats.byEventType[eventType] = {
       total,
@@ -132,34 +136,71 @@ export async function getMissingParamsStats(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
-      status: { in: ["sent", "failed"] },
+      status: { in: ["ok", "fail"] },
     },
     select: {
-      platform: true,
-      eventType: true,
-      orderValue: true,
-      currency: true,
-      eventId: true,
+      destinationType: true,
+      requestPayloadJson: true,
+      EventLog: {
+        select: {
+          eventName: true,
+          eventId: true,
+        },
+      },
     },
   });
 
   const missingParamsMap = new Map<string, MissingParamsStats>();
 
-  logs.forEach((log) => {
-    const key = `${log.platform}:${log.eventType}`;
+  attempts.forEach((attempt) => {
+    const key = `${attempt.destinationType}:${attempt.EventLog.eventName}`;
     const missingParams: string[] = [];
 
-    if (!log.orderValue || log.orderValue === null) {
+    // 从 requestPayloadJson 中提取参数
+    const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
+    let hasValue = false;
+    let hasCurrency = false;
+    const hasEventId = !!attempt.EventLog.eventId;
+
+    // 根据平台解析 payload
+    if (attempt.destinationType === "google") {
+      const body = requestPayload.body as Record<string, unknown>;
+      const events = body?.events as Array<Record<string, unknown>> | undefined;
+      if (events && events.length > 0) {
+        const params = events[0].params as Record<string, unknown> | undefined;
+        hasValue = params?.value !== undefined && params?.value !== null;
+        hasCurrency = !!params?.currency;
+      }
+    } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
+      const body = requestPayload.body as Record<string, unknown>;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const customData = data[0].custom_data as Record<string, unknown> | undefined;
+        hasValue = customData?.value !== undefined && customData?.value !== null;
+        hasCurrency = !!customData?.currency;
+      }
+    } else if (attempt.destinationType === "tiktok") {
+      const body = requestPayload.body as Record<string, unknown>;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const properties = data[0].properties as Record<string, unknown> | undefined;
+        hasValue = properties?.value !== undefined && properties?.value !== null;
+        hasCurrency = !!properties?.currency;
+      }
+    }
+
+    if (!hasValue) {
       missingParams.push("value");
     }
-    if (!log.currency) {
+    if (!hasCurrency) {
       missingParams.push("currency");
     }
-    if (!log.eventId) {
+    if (!hasEventId) {
       missingParams.push("event_id");
     }
 
@@ -175,8 +216,8 @@ export async function getMissingParamsStats(
         });
       } else {
         missingParamsMap.set(key, {
-          eventType: log.eventType,
-          platform: log.platform,
+          eventType: attempt.EventLog.eventName,
+          platform: attempt.destinationType,
           missingParams,
           count: 1,
         });
@@ -217,19 +258,23 @@ export async function getMissingParamsRateByEventType(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
-      status: { in: ["sent", "failed"] },
+      status: { in: ["ok", "fail"] },
     },
     select: {
-      platform: true,
-      eventType: true,
-      orderValue: true,
-      currency: true,
-      eventId: true,
+      destinationType: true,
+      requestPayloadJson: true,
       createdAt: true,
+      EventLog: {
+        select: {
+          eventName: true,
+          eventId: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 1000,
@@ -255,17 +300,50 @@ export async function getMissingParamsRateByEventType(
     missingParams: string[];
   }> = [];
 
-  logs.forEach((log) => {
+  attempts.forEach((attempt) => {
     total++;
     const missingParams: string[] = [];
 
-    if (!log.orderValue || log.orderValue === null) {
+    // 从 requestPayloadJson 中提取参数
+    const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
+    let hasValue = false;
+    let hasCurrency = false;
+    const hasEventId = !!attempt.EventLog.eventId;
+
+    // 根据平台解析 payload
+    if (attempt.destinationType === "google") {
+      const body = requestPayload.body as Record<string, unknown>;
+      const events = body?.events as Array<Record<string, unknown>> | undefined;
+      if (events && events.length > 0) {
+        const params = events[0].params as Record<string, unknown> | undefined;
+        hasValue = params?.value !== undefined && params?.value !== null;
+        hasCurrency = !!params?.currency;
+      }
+    } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
+      const body = requestPayload.body as Record<string, unknown>;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const customData = data[0].custom_data as Record<string, unknown> | undefined;
+        hasValue = customData?.value !== undefined && customData?.value !== null;
+        hasCurrency = !!customData?.currency;
+      }
+    } else if (attempt.destinationType === "tiktok") {
+      const body = requestPayload.body as Record<string, unknown>;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const properties = data[0].properties as Record<string, unknown> | undefined;
+        hasValue = properties?.value !== undefined && properties?.value !== null;
+        hasCurrency = !!properties?.currency;
+      }
+    }
+
+    if (!hasValue) {
       missingParams.push("value");
     }
-    if (!log.currency) {
+    if (!hasCurrency) {
       missingParams.push("currency");
     }
-    if (!log.eventId) {
+    if (!hasEventId) {
       missingParams.push("event_id");
     }
 
@@ -274,48 +352,50 @@ export async function getMissingParamsRateByEventType(
       missing++;
     }
 
-    if (!byEventType[log.eventType]) {
-      byEventType[log.eventType] = {
+    const eventType = attempt.EventLog.eventName;
+    if (!byEventType[eventType]) {
+      byEventType[eventType] = {
         total: 0,
         missing: 0,
         rate: 0,
         missingParams: {},
       };
     }
-    byEventType[log.eventType].total++;
+    byEventType[eventType].total++;
     if (hasMissing) {
-      byEventType[log.eventType].missing++;
+      byEventType[eventType].missing++;
       missingParams.forEach((param) => {
-        byEventType[log.eventType].missingParams[param] =
-          (byEventType[log.eventType].missingParams[param] || 0) + 1;
+        byEventType[eventType].missingParams[param] =
+          (byEventType[eventType].missingParams[param] || 0) + 1;
       });
     }
-    byEventType[log.eventType].rate =
-      byEventType[log.eventType].total > 0
-        ? (byEventType[log.eventType].missing / byEventType[log.eventType].total) * 100
+    byEventType[eventType].rate =
+      byEventType[eventType].total > 0
+        ? (byEventType[eventType].missing / byEventType[eventType].total) * 100
         : 0;
 
-    if (!byPlatform[log.platform]) {
-      byPlatform[log.platform] = {
+    const platform = attempt.destinationType;
+    if (!byPlatform[platform]) {
+      byPlatform[platform] = {
         total: 0,
         missing: 0,
         rate: 0,
       };
     }
-    byPlatform[log.platform].total++;
+    byPlatform[platform].total++;
     if (hasMissing) {
-      byPlatform[log.platform].missing++;
+      byPlatform[platform].missing++;
     }
-    byPlatform[log.platform].rate =
-      byPlatform[log.platform].total > 0
-        ? (byPlatform[log.platform].missing / byPlatform[log.platform].total) * 100
+    byPlatform[platform].rate =
+      byPlatform[platform].total > 0
+        ? (byPlatform[platform].missing / byPlatform[platform].total) * 100
         : 0;
 
     if (hasMissing && recent.length < 50) {
       recent.push({
-        timestamp: log.createdAt,
-        eventType: log.eventType,
-        platform: log.platform,
+        timestamp: attempt.createdAt,
+        eventType,
+        platform,
         missingParams,
       });
     }
@@ -360,14 +440,15 @@ export async function getEventVolumeStats(
   const fourteenDaysAgo = new Date(now);
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-  const [current24h, previous24h, recent14DaysLogs] = await Promise.all([
-    prisma.conversionLog.count({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const [current24h, previous24h, recent14DaysAttempts] = await Promise.all([
+    prisma.deliveryAttempt.count({
       where: {
         shopId,
         createdAt: { gte: current24hStart },
       },
     }),
-    prisma.conversionLog.count({
+    prisma.deliveryAttempt.count({
       where: {
         shopId,
         createdAt: {
@@ -376,7 +457,7 @@ export async function getEventVolumeStats(
         },
       },
     }),
-    prisma.conversionLog.findMany({
+    prisma.deliveryAttempt.findMany({
       where: {
         shopId,
         createdAt: { gte: fourteenDaysAgo },
@@ -406,17 +487,17 @@ export async function getEventVolumeStats(
   let stdDev: number | undefined;
   let threshold: number | undefined;
 
-  if (recent14DaysLogs.length >= 7) {
+  if (recent14DaysAttempts.length >= 7) {
     const dailyCounts = new Map<string, { count: number; isWeekend: boolean }>();
-    recent14DaysLogs.forEach((log) => {
-      const day = log.createdAt.toISOString().split("T")[0];
+    recent14DaysAttempts.forEach((attempt) => {
+      const day = attempt.createdAt.toISOString().split("T")[0];
       const existing = dailyCounts.get(day);
       if (existing) {
         existing.count++;
       } else {
         dailyCounts.set(day, {
           count: 1,
-          isWeekend: isWeekend(log.createdAt),
+          isWeekend: isWeekend(attempt.createdAt),
         });
       }
     });
@@ -531,7 +612,8 @@ export async function getEventVolumeHistory(
   since.setDate(since.getDate() - days);
   since.setHours(0, 0, 0, 0);
 
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
@@ -545,8 +627,8 @@ export async function getEventVolumeHistory(
   });
 
   const dailyCounts = new Map<string, number>();
-  logs.forEach((log) => {
-    const day = log.createdAt.toISOString().split("T")[0];
+  attempts.forEach((attempt) => {
+    const day = attempt.createdAt.toISOString().split("T")[0];
     dailyCounts.set(day, (dailyCounts.get(day) || 0) + 1);
   });
 
@@ -692,12 +774,14 @@ export async function checkMonitoringAlerts(
   }
 
   if (volumeStats.isDrop && Math.abs(volumeStats.changePercent) > volumeDropThreshold) {
-    // P0: checkout_completed 事件量下降可能是平台行为导致的（upsell/加载失败/同意状态）
-    const checkoutCompletedDrop = volumeStats.byEventType?.["checkout_completed"];
-    const hasCheckoutCompletedDrop = checkoutCompletedDrop && Math.abs(checkoutCompletedDrop) > volumeDropThreshold;
+    // P0-T7: checkout_completed 事件量下降可能是平台行为导致的（upsell/加载失败/同意状态）
+    const checkoutCompletedStats = monitoringStats.byEventType["checkout_completed"];
+    const hasCheckoutCompletedDrop = checkoutCompletedStats && 
+      checkoutCompletedStats.total > 0 && 
+      (checkoutCompletedStats.failed / checkoutCompletedStats.total) * 100 > volumeDropThreshold;
     
     let reason = `事件量下降 ${Math.abs(volumeStats.changePercent).toFixed(2)}%，可能发生断档`;
-    if (hasCheckoutCompletedDrop) {
+    if (hasCheckoutCompletedDrop || checkoutCompletedStats) {
       reason += `。注意：checkout_completed 事件量下降可能是 Shopify 平台行为导致的：`;
       reason += `（1）存在 upsell/post-purchase 时，事件在第一个 upsell 页触发，Thank you 页不再触发；`;
       reason += `（2）触发页加载失败时，事件完全不触发；`;
@@ -711,7 +795,6 @@ export async function checkMonitoringAlerts(
       severity: Math.abs(volumeStats.changePercent) > 80 ? "critical" : "warning",
       stats: {
         volumeDrop: volumeStats.changePercent,
-        byEventType: volumeStats.byEventType,
       },
     };
   }
@@ -768,23 +851,44 @@ export async function reconcileChannels(
   for (const config of shop.pixelConfigs) {
     const platform = config.platform;
 
-    const platformLogs = await prisma.conversionLog.findMany({
+    // P0-T8: 使用 delivery_attempts 作为数据源（只统计 purchase/checkout_completed 事件）
+    const attempts = await prisma.deliveryAttempt.findMany({
       where: {
         shopId,
-        platform,
-        eventType: "purchase",
+        destinationType: platform,
         createdAt: { gte: since },
-        status: "sent",
+        status: "ok",
+        EventLog: {
+          eventName: {
+            in: ["purchase", "checkout_completed"],
+          },
+        },
       },
       select: {
-        orderId: true,
-        orderValue: true,
-        currency: true,
+        EventLog: {
+          select: {
+            normalizedEventJson: true,
+          },
+        },
       },
+      take: 10000, // 限制最大查询数量，避免超时
     });
 
-    const platformEventCount = new Set(platformLogs.map(l => l.orderId)).size;
-    const platformTotalValue = platformLogs.reduce((sum, l) => sum + Number(l.orderValue || 0), 0);
+    // 从 normalizedEventJson 中提取 orderId 和 value
+    const platformEvents: Array<{ orderId: string; value: number }> = [];
+    for (const attempt of attempts) {
+      const normalizedEvent = attempt.EventLog.normalizedEventJson as Record<string, unknown>;
+      const orderId = typeof normalizedEvent.order_id === "string" ? normalizedEvent.order_id : 
+                     typeof normalizedEvent.orderId === "string" ? normalizedEvent.orderId : "";
+      const value = typeof normalizedEvent.value === "number" ? normalizedEvent.value : 0;
+      
+      if (orderId) {
+        platformEvents.push({ orderId, value });
+      }
+    }
+
+    const platformEventCount = new Set(platformEvents.map(e => e.orderId)).size;
+    const platformTotalValue = platformEvents.reduce((sum, e) => sum + e.value, 0);
 
     const matchRate = shopifyOrderCount > 0
       ? (platformEventCount / shopifyOrderCount) * 100
@@ -833,19 +937,23 @@ export async function getMissingParamsHistory(
   since.setDate(since.getDate() - days);
   since.setHours(0, 0, 0, 0);
 
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
-      status: { in: ["sent", "failed"] },
+      status: { in: ["ok", "fail"] },
     },
     select: {
       createdAt: true,
-      platform: true,
-      eventType: true,
-      orderValue: true,
-      currency: true,
-      eventId: true,
+      destinationType: true,
+      requestPayloadJson: true,
+      EventLog: {
+        select: {
+          eventName: true,
+          eventId: true,
+        },
+      },
     },
     orderBy: {
       createdAt: "asc",
@@ -858,9 +966,43 @@ export async function getMissingParamsHistory(
     byPlatform: Map<string, { total: number; missing: number }>;
   }>();
 
-  logs.forEach((log) => {
-    const date = log.createdAt.toISOString().split("T")[0];
-    const hasMissingParams = !log.orderValue || !log.currency || !log.eventId;
+  attempts.forEach((attempt) => {
+    const date = attempt.createdAt.toISOString().split("T")[0];
+    
+    // 从 requestPayloadJson 中提取参数
+    const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
+    let hasValue = false;
+    let hasCurrency = false;
+    const hasEventId = !!attempt.EventLog.eventId;
+
+    // 根据平台解析 payload
+    if (attempt.destinationType === "google") {
+      const body = requestPayload.body as Record<string, unknown>;
+      const events = body?.events as Array<Record<string, unknown>> | undefined;
+      if (events && events.length > 0) {
+        const params = events[0].params as Record<string, unknown> | undefined;
+        hasValue = params?.value !== undefined && params?.value !== null;
+        hasCurrency = !!params?.currency;
+      }
+    } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
+      const body = requestPayload.body as Record<string, unknown>;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const customData = data[0].custom_data as Record<string, unknown> | undefined;
+        hasValue = customData?.value !== undefined && customData?.value !== null;
+        hasCurrency = !!customData?.currency;
+      }
+    } else if (attempt.destinationType === "tiktok") {
+      const body = requestPayload.body as Record<string, unknown>;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const properties = data[0].properties as Record<string, unknown> | undefined;
+        hasValue = properties?.value !== undefined && properties?.value !== null;
+        hasCurrency = !!properties?.currency;
+      }
+    }
+
+    const hasMissingParams = !hasValue || !hasCurrency || !hasEventId;
 
     if (!dailyData.has(date)) {
       dailyData.set(date, {
@@ -877,10 +1019,11 @@ export async function getMissingParamsHistory(
       dayData.missing++;
     }
 
-    if (!dayData.byPlatform.has(log.platform)) {
-      dayData.byPlatform.set(log.platform, { total: 0, missing: 0 });
+    const platform = attempt.destinationType;
+    if (!dayData.byPlatform.has(platform)) {
+      dayData.byPlatform.set(platform, { total: 0, missing: 0 });
     }
-    const platformData = dayData.byPlatform.get(log.platform)!;
+    const platformData = dayData.byPlatform.get(platform)!;
     platformData.total++;
     if (hasMissingParams) {
       platformData.missing++;

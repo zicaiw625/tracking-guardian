@@ -91,15 +91,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
       const pollEvents = async () => {
         try {
-
-          const whereClause: Prisma.ConversionLogWhereInput = {
+          // P0-T6: 使用 event_logs + delivery_attempts 作为数据源
+          const whereClause: Prisma.EventLogWhereInput = {
             shopId: shop.id,
-            ...(platforms.length > 0 && { platform: { in: platforms } }),
-            ...(eventTypes.length > 0 && { eventType: { in: eventTypes } }),
+            ...(eventTypes.length > 0 && { eventName: { in: eventTypes } }),
           };
 
           if (lastEventId) {
-            const lastEvent = await prisma.conversionLog.findUnique({
+            const lastEvent = await prisma.eventLog.findUnique({
               where: { id: lastEventId },
               select: { createdAt: true },
             });
@@ -108,45 +107,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
           }
 
-          const conversionLogs = await prisma.conversionLog.findMany({
+          const eventLogs = await prisma.eventLog.findMany({
             where: whereClause,
             orderBy: { createdAt: "desc" },
-            take: 10,
+            take: 20,
             select: {
               id: true,
-              orderId: true,
-              orderValue: true,
-              currency: true,
-              platform: true,
-              eventType: true,
-              status: true,
-              createdAt: true,
               eventId: true,
-              errorMessage: true,
-            },
-          });
-
-          const pixelReceipts = await prisma.pixelEventReceipt.findMany({
-            where: {
-              shopId: shop.id,
-              ...(platforms.length > 0 && { eventType: { in: eventTypes } }),
-              ...(lastEventId && {
-                createdAt: {
-                  gt: new Date(Date.now() - pollInterval * 2),
+              eventName: true,
+              source: true,
+              occurredAt: true,
+              createdAt: true,
+              shopifyContextJson: true,
+              normalizedEventJson: true,
+              deliveryAttempts: {
+                where: platforms.length > 0 ? { destinationType: { in: platforms } } : undefined,
+                select: {
+                  id: true,
+                  destinationType: true,
+                  environment: true,
+                  status: true,
+                  errorCode: true,
+                  errorDetail: true,
+                  responseStatus: true,
+                  responseBodySnippet: true,
+                  latencyMs: true,
+                  requestPayloadJson: true,
+                  createdAt: true,
                 },
-              }),
-            },
-            orderBy: { createdAt: "desc" },
-            take: 10,
-            select: {
-              id: true,
-              orderId: true,
-              eventType: true,
-              createdAt: true,
-              eventId: true,
-              consentState: true,
-              isTrusted: true,
-              trustLevel: true,
+                orderBy: { createdAt: "desc" },
+              },
             },
           });
 
@@ -175,84 +165,105 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               trustLevel: string | null;
               hasConsent: boolean;
             };
+            // P0-T6: 添加 eventLogId 和 deliveryAttemptId 以便 UI 获取实际 payload
+            eventLogId?: string;
+            deliveryAttemptId?: string;
           }> = [];
 
-          for (const log of conversionLogs) {
-            if (lastEventId && log.id === lastEventId) continue;
+          for (const eventLog of eventLogs) {
+            if (lastEventId && eventLog.id === lastEventId) continue;
 
-            let shopifyOrder: { value: number; currency: string; itemCount: number } | undefined;
-            try {
+            // 从 shopifyContextJson 或 normalizedEventJson 中提取 orderId
+            const shopifyContext = eventLog.shopifyContextJson as Record<string, unknown> | null;
+            const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+            const orderId = (shopifyContext?.orderId || normalizedEvent?.orderId || "") as string;
 
-              shopifyOrder = {
-                value: Number(log.orderValue),
-                currency: log.currency || "USD",
-                itemCount: 0,
-              };
-            } catch (error) {
-              logger.warn("Failed to fetch Shopify order data", { orderId: log.orderId, error });
-            }
+            // 为每个 delivery attempt 创建一个事件
+            for (const attempt of eventLog.deliveryAttempts) {
+              // 从 requestPayloadJson 中提取参数
+              const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
+              let value: number | undefined;
+              let currency: string | undefined;
 
-            const hasValue = log.orderValue !== null && log.orderValue !== undefined;
-            const hasCurrency = !!log.currency;
-            const hasEventId = !!log.eventId;
-            const missingParams: string[] = [];
-            if (!hasValue) missingParams.push("value");
-            if (!hasCurrency) missingParams.push("currency");
-            if (!hasEventId) missingParams.push("event_id");
-
-            const completeness = missingParams.length === 0 ? 100 : Math.max(0, 100 - (missingParams.length * 33));
-
-            const discrepancies: string[] = [];
-            if (shopifyOrder && hasValue) {
-              const eventValue = Number(log.orderValue);
-              const orderValue = shopifyOrder.value;
-              if (Math.abs(eventValue - orderValue) >= 0.01) {
-                discrepancies.push(`金额不一致: 事件 ${eventValue} vs 订单 ${orderValue}`);
+              // 根据平台解析 payload
+              if (attempt.destinationType === "google") {
+                const body = requestPayload?.body as Record<string, unknown> | undefined;
+                const events = body?.events as Array<Record<string, unknown>> | undefined;
+                if (events && events.length > 0) {
+                  const params = events[0].params as Record<string, unknown> | undefined;
+                  value = params?.value as number | undefined;
+                  currency = params?.currency as string | undefined;
+                }
+              } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
+                const body = requestPayload?.body as Record<string, unknown> | undefined;
+                const data = body?.data as Array<Record<string, unknown>> | undefined;
+                if (data && data.length > 0) {
+                  const customData = data[0].custom_data as Record<string, unknown> | undefined;
+                  value = customData?.value as number | undefined;
+                  currency = customData?.currency as string | undefined;
+                }
+              } else if (attempt.destinationType === "tiktok") {
+                const body = requestPayload?.body as Record<string, unknown> | undefined;
+                const data = body?.data as Array<Record<string, unknown>> | undefined;
+                if (data && data.length > 0) {
+                  const properties = data[0].properties as Record<string, unknown> | undefined;
+                  value = properties?.value as number | undefined;
+                  currency = properties?.currency as string | undefined;
+                }
               }
-              if (log.currency !== shopifyOrder.currency) {
-                discrepancies.push(`币种不一致: 事件 ${log.currency} vs 订单 ${shopifyOrder.currency}`);
+
+              const hasEventId = !!eventLog.eventId;
+              const missingParams: string[] = [];
+              if (!value) missingParams.push("value");
+              if (!currency) missingParams.push("currency");
+              if (!hasEventId) missingParams.push("event_id");
+
+              const status = attempt.status === "ok" ? "success" : 
+                           attempt.status === "fail" ? "failed" : "pending";
+
+              events.push({
+                id: `${eventLog.id}-${attempt.id}`,
+                eventType: eventLog.eventName,
+                orderId,
+                platform: attempt.destinationType,
+                timestamp: attempt.createdAt,
+                status,
+                params: {
+                  value,
+                  currency,
+                  hasEventId,
+                },
+                errors: attempt.errorDetail ? [attempt.errorDetail] : undefined,
+                // P0-T6: 添加 eventLogId 和 deliveryAttemptId 以便 UI 获取实际 payload
+                eventLogId: eventLog.id,
+                deliveryAttemptId: attempt.id,
+              });
+
+              if (!lastEventId || attempt.createdAt > new Date()) {
+                lastEventId = eventLog.id;
               }
             }
 
-            events.push({
-              id: log.id,
-              eventType: log.eventType,
-              orderId: log.orderId,
-              platform: log.platform,
-              timestamp: log.createdAt,
-              status: log.status === "sent" ? "success" : log.status === "failed" ? "failed" : "pending",
-              params: {
-                value: Number(log.orderValue),
-                currency: log.currency,
-                hasEventId,
-              },
-              shopifyOrder,
-              discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
-              errors: log.errorMessage ? [log.errorMessage] : undefined,
-            });
+            // 如果没有 delivery attempts，仍然创建一个事件记录
+            if (eventLog.deliveryAttempts.length === 0) {
+              events.push({
+                id: eventLog.id,
+                eventType: eventLog.eventName,
+                orderId,
+                platform: eventLog.source,
+                timestamp: eventLog.createdAt,
+                status: "pending",
+                params: {
+                  hasEventId: !!eventLog.eventId,
+                },
+                // P0-T6: 添加 eventLogId 以便 UI 获取实际 payload
+                eventLogId: eventLog.id,
+              });
 
-            if (!lastEventId || log.createdAt > new Date()) {
-              lastEventId = log.id;
+              if (!lastEventId || eventLog.createdAt > new Date()) {
+                lastEventId = eventLog.id;
+              }
             }
-          }
-
-          for (const receipt of pixelReceipts) {
-            events.push({
-              id: `pixel-${receipt.id}`,
-              eventType: receipt.eventType,
-              orderId: receipt.orderId,
-              platform: "pixel",
-              timestamp: receipt.createdAt,
-              status: receipt.isTrusted ? "success" : "pending",
-              params: {
-                hasEventId: !!receipt.eventId,
-              },
-              trust: {
-                isTrusted: receipt.isTrusted,
-                trustLevel: receipt.trustLevel,
-                hasConsent: !!receipt.consentState,
-              },
-            });
           }
 
           for (const event of events) {

@@ -75,22 +75,28 @@ export async function getEventSuccessRateStats(
   since.setHours(since.getHours() - hours);
   const now = new Date();
 
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since, lte: now },
     },
     select: {
-      platform: true,
-      eventType: true,
+      destinationType: true,
       status: true,
+      EventLog: {
+        select: {
+          eventName: true,
+        },
+      },
     },
+    take: 10000, // 限制最大查询数量，避免超时
   });
 
-  const total = logs.length;
-  const successful = logs.filter((l) => l.status === "sent").length;
-  const failed = logs.filter((l) => l.status === "failed" || l.status === "dead_letter").length;
-  const pending = logs.filter((l) => l.status === "pending" || l.status === "queued").length;
+  const total = attempts.length;
+  const successful = attempts.filter((a) => a.status === "ok").length;
+  const failed = attempts.filter((a) => a.status === "fail").length;
+  const pending = attempts.filter((a) => a.status === "pending").length;
 
   const overall = {
     total,
@@ -103,16 +109,16 @@ export async function getEventSuccessRateStats(
 
   const destinationMap = new Map<string, { total: number; successful: number; failed: number; pending: number }>();
 
-  logs.forEach((log) => {
-    const dest = log.platform;
+  attempts.forEach((attempt) => {
+    const dest = attempt.destinationType;
     if (!destinationMap.has(dest)) {
       destinationMap.set(dest, { total: 0, successful: 0, failed: 0, pending: 0 });
     }
     const stats = destinationMap.get(dest)!;
     stats.total++;
-    if (log.status === "sent") {
+    if (attempt.status === "ok") {
       stats.successful++;
-    } else if (log.status === "failed" || log.status === "dead_letter") {
+    } else if (attempt.status === "fail") {
       stats.failed++;
     } else {
       stats.pending++;
@@ -131,16 +137,16 @@ export async function getEventSuccessRateStats(
 
   const eventTypeMap = new Map<string, { total: number; successful: number; failed: number; pending: number }>();
 
-  logs.forEach((log) => {
-    const eventType = log.eventType;
+  attempts.forEach((attempt) => {
+    const eventType = attempt.EventLog.eventName;
     if (!eventTypeMap.has(eventType)) {
       eventTypeMap.set(eventType, { total: 0, successful: 0, failed: 0, pending: 0 });
     }
     const stats = eventTypeMap.get(eventType)!;
     stats.total++;
-    if (log.status === "sent") {
+    if (attempt.status === "ok") {
       stats.successful++;
-    } else if (log.status === "failed" || log.status === "dead_letter") {
+    } else if (attempt.status === "fail") {
       stats.failed++;
     } else {
       stats.pending++;
@@ -159,16 +165,16 @@ export async function getEventSuccessRateStats(
 
   const destinationEventTypeMap = new Map<string, { total: number; successful: number; failed: number }>();
 
-  logs.forEach((log) => {
-    const key = `${log.platform}:${log.eventType}`;
+  attempts.forEach((attempt) => {
+    const key = `${attempt.destinationType}:${attempt.EventLog.eventName}`;
     if (!destinationEventTypeMap.has(key)) {
       destinationEventTypeMap.set(key, { total: 0, successful: 0, failed: 0 });
     }
     const stats = destinationEventTypeMap.get(key)!;
     stats.total++;
-    if (log.status === "sent") {
+    if (attempt.status === "ok") {
       stats.successful++;
-    } else if (log.status === "failed" || log.status === "dead_letter") {
+    } else if (attempt.status === "fail") {
       stats.failed++;
     }
   });
@@ -207,28 +213,34 @@ export async function getEventSuccessRateHistory(
   since.setHours(since.getHours() - hours);
   const now = new Date();
 
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since, lte: now },
     },
     select: {
-      platform: true,
-      eventType: true,
+      destinationType: true,
       status: true,
       createdAt: true,
+      EventLog: {
+        select: {
+          eventName: true,
+        },
+      },
     },
     orderBy: {
       createdAt: "asc",
     },
+    take: 10000, // 限制最大查询数量，避免超时
   });
 
   const hourMap = new Map<string, { total: number; successful: number; failed: number }>();
   const destinationHourMap = new Map<string, Map<string, { total: number; successful: number; failed: number }>>();
   const eventTypeHourMap = new Map<string, Map<string, { total: number; successful: number; failed: number }>>();
 
-  logs.forEach((log) => {
-    const date = new Date(log.createdAt);
+  attempts.forEach((attempt) => {
+    const date = new Date(attempt.createdAt);
     const dateStr = date.toISOString().split("T")[0];
     const hour = date.getHours();
     const hourKey = `${dateStr}:${hour}`;
@@ -238,13 +250,13 @@ export async function getEventSuccessRateHistory(
     }
     const overallStats = hourMap.get(hourKey)!;
     overallStats.total++;
-    if (log.status === "sent") {
+    if (attempt.status === "ok") {
       overallStats.successful++;
-    } else if (log.status === "failed" || log.status === "dead_letter") {
+    } else if (attempt.status === "fail") {
       overallStats.failed++;
     }
 
-    const destination = log.platform;
+    const destination = attempt.destinationType;
     if (!destinationHourMap.has(destination)) {
       destinationHourMap.set(destination, new Map());
     }
@@ -254,13 +266,13 @@ export async function getEventSuccessRateHistory(
     }
     const destStats = destHourMap.get(hourKey)!;
     destStats.total++;
-    if (log.status === "sent") {
+    if (attempt.status === "ok") {
       destStats.successful++;
-    } else if (log.status === "failed" || log.status === "dead_letter") {
+    } else if (attempt.status === "fail") {
       destStats.failed++;
     }
 
-    const eventType = log.eventType;
+    const eventType = attempt.EventLog.eventName;
     if (!eventTypeHourMap.has(eventType)) {
       eventTypeHourMap.set(eventType, new Map());
     }
@@ -270,9 +282,9 @@ export async function getEventSuccessRateHistory(
     }
     const eventStats = eventHourMap.get(hourKey)!;
     eventStats.total++;
-    if (log.status === "sent") {
+    if (attempt.status === "ok") {
       eventStats.successful++;
-    } else if (log.status === "failed" || log.status === "dead_letter") {
+    } else if (attempt.status === "fail") {
       eventStats.failed++;
     }
   });

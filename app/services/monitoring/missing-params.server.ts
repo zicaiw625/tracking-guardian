@@ -174,20 +174,25 @@ export async function getMissingParamsStats(
   since.setHours(since.getHours() - hours);
   const now = new Date();
 
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since, lte: now },
-      status: { in: ["sent", "failed"] },
+      status: { in: ["ok", "fail"] },
     },
     select: {
-      platform: true,
-      eventType: true,
-      orderValue: true,
-      currency: true,
-      eventId: true,
+      destinationType: true,
+      requestPayloadJson: true,
+      EventLog: {
+        select: {
+          eventName: true,
+          eventId: true,
+        },
+      },
       createdAt: true,
     },
+    take: 10000, // 限制最大查询数量，避免超时
   });
 
   let total = 0;
@@ -212,14 +217,48 @@ export async function getMissingParamsStats(
     byParam: Record<string, number>;
   }> = {};
 
-  logs.forEach((log) => {
+  attempts.forEach((attempt) => {
     total++;
+    
+    // 从 requestPayloadJson 中提取参数
+    const payload = attempt.requestPayloadJson as Record<string, unknown>;
+    let value: number | null = null;
+    let currency: string | null = null;
+    const eventId = attempt.EventLog.eventId || null;
+
+    // 根据平台解析 payload
+    if (attempt.destinationType === "google") {
+      const body = payload.body as Record<string, unknown> | undefined;
+      const events = body?.events as Array<Record<string, unknown>> | undefined;
+      if (events && events.length > 0) {
+        const params = events[0].params as Record<string, unknown> | undefined;
+        value = params?.value as number | null || null;
+        currency = params?.currency as string | null || null;
+      }
+    } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
+      const body = payload.body as Record<string, unknown> | undefined;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const customData = data[0].custom_data as Record<string, unknown> | undefined;
+        value = customData?.value as number | null || null;
+        currency = customData?.currency as string | null || null;
+      }
+    } else if (attempt.destinationType === "tiktok") {
+      const body = payload.body as Record<string, unknown> | undefined;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const properties = data[0].properties as Record<string, unknown> | undefined;
+        value = properties?.value as number | null || null;
+        currency = properties?.currency as string | null || null;
+      }
+    }
+
     const missingParams = detectMissingParams({
-      orderValue: log.orderValue ? (typeof log.orderValue === 'string' ? parseFloat(log.orderValue) : Number(log.orderValue)) : null,
-      currency: log.currency || null,
-      eventId: log.eventId || null,
-      platform: log.platform || undefined,
-      eventType: log.eventType || undefined,
+      orderValue: value,
+      currency: currency,
+      eventId: eventId,
+      platform: attempt.destinationType || undefined,
+      eventType: attempt.EventLog.eventName || undefined,
     }, paramsToCheck);
     const hasMissingParams = missingParams.length > 0;
 
@@ -230,7 +269,7 @@ export async function getMissingParamsStats(
       });
     }
 
-    const platform = log.platform;
+    const platform = attempt.destinationType;
     if (!byPlatform[platform]) {
       byPlatform[platform] = { total: 0, withMissingParams: 0, missingRate: 0, byParam: {} };
     }
@@ -243,7 +282,7 @@ export async function getMissingParamsStats(
       });
     }
 
-    const eventType = log.eventType;
+    const eventType = attempt.EventLog.eventName;
     if (!byEventType[eventType]) {
       byEventType[eventType] = { total: 0, withMissingParams: 0, missingRate: 0, byParam: {} };
     }
@@ -470,23 +509,28 @@ export async function getMissingParamsHistory(
   since.setDate(since.getDate() - days);
   since.setHours(0, 0, 0, 0);
 
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
-      status: { in: ["sent", "failed"] },
+      status: { in: ["ok", "fail"] },
     },
     select: {
-      platform: true,
-      eventType: true,
-      orderValue: true,
-      currency: true,
-      eventId: true,
+      destinationType: true,
+      requestPayloadJson: true,
       createdAt: true,
+      EventLog: {
+        select: {
+          eventName: true,
+          eventId: true,
+        },
+      },
     },
     orderBy: {
       createdAt: "asc",
     },
+    take: 10000, // 限制最大查询数量，避免超时
   });
 
   const dayMap = new Map<string, {
@@ -495,12 +539,12 @@ export async function getMissingParamsHistory(
     byParam: Record<string, number>;
   }>();
 
-  logs.forEach((log) => {
+  attempts.forEach((attempt) => {
     // 安全处理日期，避免空值错误
-    if (!log.createdAt) {
+    if (!attempt.createdAt) {
       return; // 跳过没有创建日期的记录
     }
-    const dateStr = log.createdAt.toISOString().split("T")[0];
+    const dateStr = attempt.createdAt.toISOString().split("T")[0];
     if (!dayMap.has(dateStr)) {
       dayMap.set(dateStr, { total: 0, withMissingParams: 0, byParam: {} });
     }
@@ -508,12 +552,45 @@ export async function getMissingParamsHistory(
     const dayStats = dayMap.get(dateStr)!;
     dayStats.total++;
 
+    // 从 requestPayloadJson 中提取参数
+    const payload = attempt.requestPayloadJson as Record<string, unknown>;
+    let value: number | null = null;
+    let currency: string | null = null;
+    const eventId = attempt.EventLog.eventId || null;
+
+    // 根据平台解析 payload
+    if (attempt.destinationType === "google") {
+      const body = payload.body as Record<string, unknown> | undefined;
+      const events = body?.events as Array<Record<string, unknown>> | undefined;
+      if (events && events.length > 0) {
+        const params = events[0].params as Record<string, unknown> | undefined;
+        value = params?.value as number | null || null;
+        currency = params?.currency as string | null || null;
+      }
+    } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
+      const body = payload.body as Record<string, unknown> | undefined;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const customData = data[0].custom_data as Record<string, unknown> | undefined;
+        value = customData?.value as number | null || null;
+        currency = customData?.currency as string | null || null;
+      }
+    } else if (attempt.destinationType === "tiktok") {
+      const body = payload.body as Record<string, unknown> | undefined;
+      const data = body?.data as Array<Record<string, unknown>> | undefined;
+      if (data && data.length > 0) {
+        const properties = data[0].properties as Record<string, unknown> | undefined;
+        value = properties?.value as number | null || null;
+        currency = properties?.currency as string | null || null;
+      }
+    }
+
     const missingParams = detectMissingParams({
-      orderValue: log.orderValue ? (typeof log.orderValue === 'string' ? parseFloat(log.orderValue) : Number(log.orderValue)) : null,
-      currency: log.currency || null,
-      eventId: log.eventId || null,
-      platform: log.platform || undefined,
-      eventType: log.eventType || undefined,
+      orderValue: value,
+      currency: currency,
+      eventId: eventId,
+      platform: attempt.destinationType || undefined,
+      eventType: attempt.EventLog.eventName || undefined,
     }, paramsToCheck);
     if (missingParams.length > 0) {
       dayStats.withMissingParams++;

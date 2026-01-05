@@ -42,6 +42,8 @@ uid = "47dc5576-827b-917a-6223-7c68db326d526075dfb3"
 # =============================================================================
 # Shipping Tracker Block - Thank You Page
 # =============================================================================
+# ⚠️ v1 不支持：此模块在 v1 中不可用（代码中已标记为 disabled）
+# 将在 v1.1+ 版本中支持，详见 app/types/ui-extension.ts
 [[extensions]]
 type = "ui_extension"
 name = "Shipping Progress Tracker"
@@ -58,6 +60,8 @@ uid = "bef2635d-b17d-f9e5-c450-4597976fddffea5be910"
 # =============================================================================
 # Shipping Tracker Block - Order Status Page (Customer Account)
 # =============================================================================
+# ⚠️ v1 不支持：此模块在 v1 中不可用（代码中已标记为 disabled）
+# 将在 v1.1+ 版本中支持，详见 app/types/ui-extension.ts
 [[extensions]]
 type = "ui_extension"
 name = "Order Status Shipping Tracker"
@@ -74,6 +78,8 @@ uid = "42c378fa-d787-9bb3-9f2d-ee152e6cf2f01a2bf2ea"
 # =============================================================================
 # Upsell Offer Block - Thank You Page
 # =============================================================================
+# ⚠️ v1 不支持：此模块在 v1 中不可用（代码中已标记为 disabled）
+# 将在 v1.1+ 版本中支持，详见 app/types/ui-extension.ts
 [[extensions]]
 type = "ui_extension"
 name = "Thank You Upsell Offer"
@@ -90,6 +96,8 @@ uid = "8ff9cced-1b31-c305-3b10-526580549f5e6864bc1a"
 # =============================================================================
 # Upsell Offer Block - Order Status Page (Customer Account)
 # =============================================================================
+# ⚠️ v1 不支持：此模块在 v1 中不可用（代码中已标记为 disabled）
+# 将在 v1.1+ 版本中支持，详见 app/types/ui-extension.ts
 [[extensions]]
 type = "ui_extension"
 name = "Order Status Upsell Offer"
@@ -138,23 +146,17 @@ uid = "0aa738e0-79d9-076a-435f-5ad1ea813a9058225869"
 # =============================================================================
 # Reorder Block - Thank You Page
 # =============================================================================
-# ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
+# ⚠️ v1 不支持：此模块在 v1 中不可用（代码中已标记为 disabled）
+# 将在 v1.1+ 版本中支持，详见 app/types/ui-extension.ts
 # 
-# 生成真实 uid 的方法（详见 DEPLOYMENT.md）：
-#   1. 运行: shopify app deploy（推荐，自动生成）
-#   2. 或运行: shopify app generate extension
-#      - 选择 "ui_extension" 类型
-#      - 选择 "purchase.thank-you.block.render" target
-#      - 将生成的 uid 替换下面的占位符
-#   3. 或从 Shopify Partners Dashboard 获取已创建扩展的 uid
-#
-# ⚠️ 部署前必须替换占位符 uid，否则扩展创建会失败
+# ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
+# 当前 UID 为临时生成，部署时 Shopify CLI 会自动替换
 # =============================================================================
 [[extensions]]
 type = "ui_extension"
 name = "Reorder Button"
 handle = "reorder-button"
-uid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890abcdef01"  # ⚠️ 部署前必须替换为 Shopify CLI 生成的真实 uid（详见 DEPLOYMENT.md）
+uid = "982865da-1686-33a5-6e19-9911913ba427ae89829a"  # 临时 UID，部署时会被 Shopify CLI 自动替换
 
   [extensions.capabilities]
   network_access = true
@@ -166,23 +168,17 @@ uid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890abcdef01"  # ⚠️ 部署前必须�
 # =============================================================================
 # Reorder Block - Order Status Page (Customer Account)
 # =============================================================================
-# ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
+# ⚠️ v1 不支持：此模块在 v1 中不可用（代码中已标记为 disabled）
+# 将在 v1.1+ 版本中支持，详见 app/types/ui-extension.ts
 # 
-# 生成真实 uid 的方法（详见 DEPLOYMENT.md）：
-#   1. 运行: shopify app deploy（推荐，自动生成）
-#   2. 或运行: shopify app generate extension
-#      - 选择 "ui_extension" 类型
-#      - 选择 "customer-account.order-status.block.render" target
-#      - 将生成的 uid 替换下面的占位符
-#   3. 或从 Shopify Partners Dashboard 获取已创建扩展的 uid
-#
-# ⚠️ 部署前必须替换占位符 uid，否则扩展创建会失败
+# ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
+# 当前 UID 为临时生成，部署时 Shopify CLI 会自动替换
 # =============================================================================
 [[extensions]]
 type = "ui_extension"
 name = "Order Status Reorder Button"
 handle = "order-status-reorder-button"
-uid = "b2c3d4e5-f6a7-8901-bcde-f234567890abcdef01234"  # ⚠️ 部署前必须替换为 Shopify CLI 生成的真实 uid（详见 DEPLOYMENT.md）
+uid = "9436a208-0840-5eaa-957b-305b3da901ee5fb027de"  # 临时 UID，部署时会被 Shopify CLI 自动替换
 
   [extensions.capabilities]
   network_access = false

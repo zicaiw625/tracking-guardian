@@ -398,20 +398,20 @@ model Session {
 }
 
 model AppliedRecipe {
-  id                String   @id
+  id                String    @id
   shopId            String
   recipeId          String
   recipeVersion     String
-  status            String   @default("pending")
-  config            Json     @default("{}")
-  completedSteps    Json     @default("[]")
-  validationResults Json     @default("[]")
+  status            String    @default("pending")
+  config            Json      @default("{}")
+  completedSteps    Json      @default("[]")
+  validationResults Json      @default("[]")
   errorMessage      String?
   sourceIdentifier  String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   completedAt       DateTime?
-  Shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  Shop              Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId])
   @@index([recipeId])
@@ -472,6 +472,7 @@ model Shop {
   VerificationRun         VerificationRun[]
   WorkspaceComment        WorkspaceComment[]
   EventLog                EventLog[]
+  DeliveryAttempt         DeliveryAttempt[]
 }
 
 model ShopGroup {
@@ -688,28 +689,52 @@ model WorkspaceShop {
   @@index([workspaceId])
 }
 
-// P0: EventLog - 用于持久化最终发往平台的请求 payload 证据链
-// 这是 Verification 和 Monitoring 的核心数据源，支持导出验收报告
+// P0: EventLogs - 事件证据链核心表
+// 记录所有从 web_pixel 接收到的标准化事件，用于 Verification/Reports/Monitoring
 model EventLog {
-  id              String   @id
-  shopId          String
-  eventId         String?
-  eventName       String
-  destination     String   // 平台名称 (google/meta/tiktok)
-  destinationId   String?  // 平台配置ID或平台ID（用于区分同一平台的多个配置）
-  requestPayload  Json     // 最终发往平台的请求 payload（脱敏后）
-  status          String   @default("pending") // pending/sent/failed
-  errorDetail     String?
-  responseStatus  Int?     // HTTP 响应状态码
-  responseBody    String?  // 响应体（仅错误时记录，限制长度）
-  createdAt       DateTime @default(now())
-  sentAt          DateTime?
-  Shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  id                  String            @id
+  shopId              String
+  source              String            @default("web_pixel") // 事件来源
+  eventName           String // 如 checkout_completed
+  eventId             String // canonical dedup key（必填，用于幂等对账）
+  occurredAt          DateTime // 事件发生时间（来自 payload.timestamp）
+  shopifyContextJson  Json? // Shopify 上下文（可选，脱敏后）
+  normalizedEventJson Json // 标准化后的内部事件格式
+  createdAt           DateTime          @default(now())
+  Shop                Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  DeliveryAttempt     DeliveryAttempt[]
 
+  @@unique([shopId, eventId]) // 确保同一事件不会重复记录
   @@index([shopId, createdAt])
   @@index([shopId, eventName, createdAt])
-  @@index([shopId, destination, createdAt])
-  @@index([shopId, status, createdAt])
   @@index([eventId])
+  @@index([occurredAt])
+}
+
+// P0: DeliveryAttempts - 发送尝试记录表
+// 记录每次向目的地发送的完整请求 payload 和响应，支持复现与导出
+model DeliveryAttempt {
+  id                  String   @id
+  eventLogId          String // 关联到 EventLog
+  shopId              String
+  destinationType     String // ga4/meta/tiktok
+  environment         String   @default("live") // test/live
+  requestPayloadJson  Json // 最终请求 payload（脱敏后）
+  status              String   @default("pending") // ok/fail/skipped/skipped_dedup
+  errorCode           String? // 错误分类代码
+  errorDetail         String? // 可读错误信息
+  responseStatus      Int? // HTTP 响应状态码
+  responseBodySnippet String? // 响应体片段（可截断，限制长度）
+  latencyMs           Int? // 请求延迟（毫秒）
+  createdAt           DateTime @default(now())
+  EventLog            EventLog @relation(fields: [eventLogId], references: [id], onDelete: Cascade)
+  Shop                Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  // 唯一约束：确保同一事件对同一目的地（test/live）只记录一次成功发送
+  @@unique([shopId, eventLogId, destinationType, environment])
+  @@index([shopId, createdAt])
+  @@index([shopId, destinationType, createdAt])
+  @@index([shopId, status, createdAt])
+  @@index([eventLogId])
   @@index([createdAt])
 }

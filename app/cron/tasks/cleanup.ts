@@ -124,6 +124,8 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
   let totalWebhookLogs = 0;
   let totalScanReports = 0;
   let totalReconciliationReports = 0;
+  let totalEventLogs = 0;
+  let totalDeliveryAttempts = 0;
 
   for (const [retentionDays, shopsInGroup] of shopsByRetention) {
     const shopIds = shopsInGroup.map((s) => s.id);
@@ -135,6 +137,15 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     const auditCutoff = new Date();
     auditCutoff.setUTCDate(auditCutoff.getUTCDate() - Math.max(retentionDays, 180));
 
+    // P0-T5: 数据保留策略
+    // - 热数据：30天（DeliveryAttempts，用于实时监控）
+    // - 冷数据：90天（EventLogs，用于历史记录）
+    const hotDataCutoff = new Date();
+    hotDataCutoff.setUTCDate(hotDataCutoff.getUTCDate() - 30);
+    
+    const coldDataCutoff = new Date();
+    coldDataCutoff.setUTCDate(coldDataCutoff.getUTCDate() - Math.max(retentionDays, 90));
+
     const [
       conversionLogsCount,
       surveyResponsesCount,
@@ -144,6 +155,8 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
       webhookLogsCount,
       scanReportsCount,
       reconciliationCount,
+      deliveryAttemptsCount,
+      eventLogsCount,
     ] = await Promise.all([
 
       batchDelete(
@@ -259,6 +272,36 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
           }),
         (ids) => prisma.reconciliationReport.deleteMany({ where: { id: { in: ids } } })
       ),
+
+      // P0-T5: 清理热数据（30天）- DeliveryAttempts
+      batchDelete(
+        "DeliveryAttempt",
+        () =>
+          prisma.deliveryAttempt.findMany({
+            where: {
+              shopId: { in: shopIds },
+              createdAt: { lt: hotDataCutoff },
+            },
+            select: { id: true },
+            take: CLEANUP_BATCH_SIZE,
+          }),
+        (ids) => prisma.deliveryAttempt.deleteMany({ where: { id: { in: ids } } })
+      ),
+
+      // P0-T5: 清理冷数据（90天）- EventLogs
+      batchDelete(
+        "EventLog",
+        () =>
+          prisma.eventLog.findMany({
+            where: {
+              shopId: { in: shopIds },
+              createdAt: { lt: coldDataCutoff },
+            },
+            select: { id: true },
+            take: CLEANUP_BATCH_SIZE,
+          }),
+        (ids) => prisma.eventLog.deleteMany({ where: { id: { in: ids } } })
+      ),
     ]);
 
     totalConversionLogs += conversionLogsCount;
@@ -269,6 +312,8 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     totalWebhookLogs += webhookLogsCount;
     totalScanReports += scanReportsCount;
     totalReconciliationReports += reconciliationCount;
+    totalDeliveryAttempts += deliveryAttemptsCount;
+    totalEventLogs += eventLogsCount;
 
     const totalDeleted =
       conversionLogsCount +
@@ -278,7 +323,9 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
       pixelReceiptsCount +
       webhookLogsCount +
       scanReportsCount +
-      reconciliationCount;
+      reconciliationCount +
+      deliveryAttemptsCount +
+      eventLogsCount;
 
     if (totalDeleted > 0) {
       logger.info(`Batch cleanup for ${shopsInGroup.length} shops (${retentionDays} day retention)`, {
@@ -292,6 +339,8 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
         webhookLogs: webhookLogsCount,
         scanReports: scanReportsCount,
         reconciliations: reconciliationCount,
+        deliveryAttempts: deliveryAttemptsCount,
+        eventLogs: eventLogsCount,
       });
     }
   }
@@ -306,6 +355,8 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     webhookLogsDeleted: totalWebhookLogs,
     scanReportsDeleted: totalScanReports,
     reconciliationReportsDeleted: totalReconciliationReports,
+    eventLogsDeleted: totalEventLogs,
+    deliveryAttemptsDeleted: totalDeliveryAttempts,
     gdprJobsDeleted: gdprJobResult.count,
     eventNoncesDeleted: eventNonceResult.count,
     migrationDraftsDeleted: totalMigrationDrafts,

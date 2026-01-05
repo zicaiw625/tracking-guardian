@@ -61,8 +61,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             conversionStats: null,
             configHealth: {
                 appUrl: process.env.SHOPIFY_APP_URL || "",
-                lastPixelOrigin: null,
-                lastPixelTime: null
+                lastPixelOrigin: latestEventLog?.source || null,
+                lastPixelTime: latestEventLog?.createdAt.toISOString() || null
             },
             lastUpdated: new Date().toISOString(),
             monitoringStats: null,
@@ -76,25 +76,40 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // P2-9: 性能优化 - 默认只显示最近 24 小时的数据，避免加载过多数据
     const history = await getDeliveryHealthHistory(shop.id, 1); // 改为 1 天，减少初始加载
 
+    // P0-T8: 使用 delivery_attempts 作为数据源
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
     sevenDaysAgo.setUTCHours(0, 0, 0, 0);
-    const conversionStats = await prisma.conversionLog.groupBy({
-        by: ["platform", "status"],
+    
+    // 从 delivery_attempts 聚合统计
+    const deliveryAttempts = await prisma.deliveryAttempt.findMany({
         where: {
             shopId: shop.id,
             createdAt: { gte: sevenDaysAgo },
         },
-        _count: true,
-        _sum: { orderValue: true },
+        select: {
+            destinationType: true,
+            status: true,
+        },
     });
 
+    // 手动聚合统计
+    const conversionStats = deliveryAttempts.reduce((acc, attempt) => {
+        const key = `${attempt.destinationType}:${attempt.status}`;
+        if (!acc[key]) {
+            acc[key] = { platform: attempt.destinationType, status: attempt.status, _count: 0, _sum: { orderValue: 0 } };
+        }
+        acc[key]._count++;
+        return acc;
+    }, {} as Record<string, { platform: string; status: string; _count: number; _sum: { orderValue: number } }>);
+
     const appUrl = process.env.SHOPIFY_APP_URL || "";
-    const latestReceipt = await prisma.pixelEventReceipt.findFirst({
+    // P0-T8: 使用 EventLog 获取最新事件信息
+    const latestEventLog = await prisma.eventLog.findFirst({
         where: { shopId: shop.id },
         orderBy: { createdAt: "desc" },
         select: {
-            originHost: true,
+            source: true,
             createdAt: true
         }
     });
@@ -219,11 +234,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         shop: { id: shop.id, domain: shopDomain },
         summary,
         history,
-        conversionStats,
+        conversionStats: Object.values(conversionStats).map(stat => ({
+            platform: stat.platform,
+            status: stat.status,
+            _count: stat._count,
+            _sum: { orderValue: stat._sum.orderValue },
+        })),
         configHealth: {
             appUrl,
-            lastPixelOrigin: latestReceipt?.originHost || null,
-            lastPixelTime: latestReceipt?.createdAt ? latestReceipt.createdAt.toISOString() : null
+            lastPixelOrigin: latestEventLog?.source || null,
+            lastPixelTime: latestEventLog?.createdAt ? latestEventLog.createdAt.toISOString() : null
         },
         alertConfigs: alertConfigs.length > 0,
         alertCount: alertConfigs.length,

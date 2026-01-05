@@ -83,14 +83,15 @@ export async function detectVolumeAnomaly(
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const current24h = await prisma.conversionLog.count({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const current24h = await prisma.deliveryAttempt.count({
     where: {
       shopId,
       createdAt: { gte: current24hStart },
     },
   });
 
-  const previous24h = await prisma.conversionLog.count({
+  const previous24h = await prisma.deliveryAttempt.count({
     where: {
       shopId,
       createdAt: {
@@ -101,7 +102,7 @@ export async function detectVolumeAnomaly(
   });
 
   const [recent7DaysLogs, recent30DaysLogs] = await Promise.all([
-    prisma.conversionLog.findMany({
+    prisma.deliveryAttempt.findMany({
       where: {
         shopId,
         createdAt: { gte: sevenDaysAgo },
@@ -109,8 +110,9 @@ export async function detectVolumeAnomaly(
       select: {
         createdAt: true,
       },
+      take: 10000, // 限制最大查询数量，避免超时
     }),
-    prisma.conversionLog.findMany({
+    prisma.deliveryAttempt.findMany({
       where: {
         shopId,
         createdAt: { gte: thirtyDaysAgo },
@@ -118,6 +120,7 @@ export async function detectVolumeAnomaly(
       select: {
         createdAt: true,
       },
+      take: 10000, // 限制最大查询数量，避免超时
     }),
   ]);
 
@@ -292,33 +295,35 @@ export async function detectVolumeAnomalyByPlatform(
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+    // P0-T8: 使用 delivery_attempts 作为数据源（注意：字段名从 platform 改为 destinationType）
     const [current24h, previous24h, recent7DaysLogs] = await Promise.all([
-      prisma.conversionLog.count({
+      prisma.deliveryAttempt.count({
         where: {
           shopId,
-          platform,
+          destinationType: platform,
           createdAt: { gte: current24hStart },
         },
       }),
-      prisma.conversionLog.count({
+      prisma.deliveryAttempt.count({
         where: {
           shopId,
-          platform,
+          destinationType: platform,
           createdAt: {
             gte: previous24hStart,
             lt: current24hStart,
           },
         },
       }),
-      prisma.conversionLog.findMany({
+      prisma.deliveryAttempt.findMany({
         where: {
           shopId,
-          platform,
+          destinationType: platform,
           createdAt: { gte: sevenDaysAgo },
         },
         select: {
           createdAt: true,
         },
+        take: 10000, // 限制最大查询数量，避免超时
       }),
     ]);
 
@@ -520,7 +525,8 @@ export async function getVolumeHistoryByHour(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  const logs = await prisma.conversionLog.findMany({
+  // P0-T8: 使用 delivery_attempts 作为数据源
+  const logs = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
@@ -531,6 +537,7 @@ export async function getVolumeHistoryByHour(
     orderBy: {
       createdAt: "asc",
     },
+    take: 10000, // 限制最大查询数量，避免超时
   });
 
   const hourMap = new Map<string, number>();

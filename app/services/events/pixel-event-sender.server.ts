@@ -7,7 +7,10 @@ import { getPlatformEventName } from "../pixel-mapping.server";
 import type { Platform } from "~/types/platform";
 import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout, DEFAULT_API_TIMEOUT_MS } from "../platforms/interface";
-import { createEventLog, updateEventLogStatus } from "../event-log.server";
+import { 
+  createDeliveryAttempt, 
+  updateDeliveryAttempt 
+} from "../event-log.server";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";
 const META_API_BASE_URL = "https://graph.facebook.com";
@@ -420,7 +423,8 @@ export async function sendPixelEventToPlatform(
   payload: PixelEventPayload,
   eventId: string,
   configId?: string,
-  platformId?: string
+  platformId?: string,
+  eventLogId?: string | null // P0-T2: 用于创建 DeliveryAttempt
 ): Promise<PixelEventSendResult> {
   try {
     logger.debug(`Sending ${payload.eventName} to ${platform}`, {
@@ -493,6 +497,174 @@ export async function sendPixelEventToPlatform(
 
     // 根据平台调用相应的发送函数
     const normalizedPlatform = platform.toLowerCase();
+    const environment = (config.environment || "live") as "test" | "live";
+    
+    // P0-T2: 在发送前构建 payload 并创建 DeliveryAttempt (status=pending)
+    // 1. 构建 payload
+    // 2. 写入 delivery_attempts.request_payload_json（status=pending）
+    // 3. HTTP call
+    // 4. 更新 status/latency/response/error
+    
+    let requestPayload: unknown = null;
+    let attemptId: string | null = null;
+    
+    // 构建请求 payload（不包含敏感凭证）
+    if (normalizedPlatform === "google") {
+      const googleCreds = credentials as { measurementId?: string; apiSecret?: string };
+      if (googleCreds.measurementId && googleCreds.apiSecret) {
+        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "google");
+        const data = payload.data || {};
+        const params: Record<string, unknown> = { engagement_time_msec: "1" };
+        if (platformEventName !== "page_view" && data.value !== undefined && data.value !== null) {
+          params.value = data.value;
+        }
+        if (data.currency) params.currency = data.currency;
+        if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+          params.items = data.items.map((item) => ({
+            item_id: item.id || "",
+            item_name: item.name || "",
+            quantity: item.quantity || 1,
+            price: item.price || 0,
+          }));
+        }
+        const ga4Payload = {
+          client_id: `server.${eventId}`,
+          events: [{ name: platformEventName, params }],
+        };
+        const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${googleCreds.measurementId}&api_secret=${googleCreds.apiSecret}`;
+        requestPayload = {
+          url,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: ga4Payload,
+        };
+      }
+    } else if (normalizedPlatform === "meta" || normalizedPlatform === "facebook") {
+      const metaCreds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
+      if (metaCreds.pixelId && metaCreds.accessToken) {
+        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "meta");
+        const data = payload.data || {};
+        const eventTime = Math.floor(Date.now() / 1000);
+        const contents = data.items && Array.isArray(data.items) && data.items.length > 0
+          ? data.items.map((item) => ({
+              id: item.id || "",
+              quantity: item.quantity || 1,
+              item_price: item.price || 0,
+            }))
+          : [];
+        const customData: Record<string, unknown> = {};
+        if (platformEventName !== "PageView" && data.value !== undefined && data.value !== null) {
+          customData.value = data.value;
+        }
+        if (data.currency) customData.currency = data.currency;
+        if (contents.length > 0) {
+          customData.contents = contents;
+          customData.content_type = "product";
+        }
+        if (data.orderId) customData.order_id = data.orderId;
+        const eventPayload = {
+          data: [{
+            event_name: platformEventName,
+            event_time: eventTime,
+            event_id: eventId,
+            action_source: "website",
+            custom_data: customData,
+          }],
+          ...(metaCreds.testEventCode && { test_event_code: metaCreds.testEventCode }),
+        };
+        const url = `${META_API_BASE_URL}/${META_API_VERSION}/${metaCreds.pixelId}/events`;
+        requestPayload = {
+          url,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer ***REDACTED***",
+          },
+          body: {
+            ...eventPayload,
+            access_token: "***REDACTED***",
+          },
+        };
+      }
+    } else if (normalizedPlatform === "tiktok") {
+      const tiktokCreds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
+      if (tiktokCreds.pixelId && tiktokCreds.accessToken) {
+        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "tiktok");
+        const data = payload.data || {};
+        const timestamp = new Date().toISOString();
+        const contents = data.items && Array.isArray(data.items) && data.items.length > 0
+          ? data.items.map((item) => ({
+              content_id: item.id || "",
+              content_name: item.name || "",
+              quantity: item.quantity || 1,
+              price: item.price || 0,
+            }))
+          : [];
+        const properties: Record<string, unknown> = {};
+        if (platformEventName !== "PageView" && data.value !== undefined && data.value !== null) {
+          properties.value = data.value;
+        }
+        if (data.currency) properties.currency = data.currency;
+        if (contents.length > 0) {
+          properties.contents = contents;
+          properties.content_type = "product";
+        }
+        if (data.orderId) properties.order_id = data.orderId;
+        const eventPayload = {
+          pixel_code: tiktokCreds.pixelId,
+          event: platformEventName,
+          event_id: eventId,
+          timestamp,
+          context: { user: {} },
+          properties,
+          ...(tiktokCreds.testEventCode && { test_event_code: tiktokCreds.testEventCode }),
+        };
+        requestPayload = {
+          url: TIKTOK_API_URL,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Token": "***REDACTED***",
+          },
+          body: { data: [eventPayload] },
+        };
+      }
+    } else {
+      logger.warn(`Unsupported platform: ${platform}`, {
+        shopId,
+        platform,
+        eventName: payload.eventName,
+      });
+      return {
+        success: false,
+        platform,
+        error: `Unsupported platform: ${platform}`,
+      };
+    }
+
+    // P0-T2: 在发送前创建 DeliveryAttempt (status=pending)
+    if (eventLogId && requestPayload) {
+      try {
+        attemptId = await createDeliveryAttempt({
+          eventLogId,
+          shopId,
+          destinationType: normalizedPlatform,
+          environment,
+          requestPayloadJson: requestPayload,
+        });
+      } catch (error) {
+        // 记录失败不应阻塞事件发送流程
+        logger.error("Failed to create DeliveryAttempt (non-blocking)", {
+          shopId,
+          eventLogId,
+          platform: normalizedPlatform,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    // 执行 HTTP 请求
+    const startTime = Date.now();
     let sendResult: PixelEventSendResult;
     
     if (normalizedPlatform === "google") {
@@ -502,12 +674,7 @@ export async function sendPixelEventToPlatform(
     } else if (normalizedPlatform === "tiktok") {
       sendResult = await sendToTikTok(credentials, payload.eventName, payload, eventId);
     } else {
-      logger.warn(`Unsupported platform: ${platform}`, {
-        shopId,
-        platform,
-        eventName: payload.eventName,
-      });
-
+      // 不应该到达这里，因为上面已经检查过了
       return {
         success: false,
         platform,
@@ -515,20 +682,52 @@ export async function sendPixelEventToPlatform(
       };
     }
 
-    // P0: 记录 EventLog（在发送后，包含响应信息）
-    if (sendResult.requestPayload) {
-      await createEventLog({
-        shopId,
-        eventId,
-        eventName: payload.eventName,
-        destination: normalizedPlatform,
-        destinationId: config.platformId || config.id,
-        requestPayload: sendResult.requestPayload,
-        status: sendResult.success ? "sent" : "failed",
-        errorDetail: sendResult.error || null,
-        responseStatus: sendResult.responseStatus || null,
-        responseBody: sendResult.responseBody || null,
-      });
+    const latencyMs = Date.now() - startTime;
+
+    // P0-T2: 更新 DeliveryAttempt 状态（发送完成后）
+    if (attemptId) {
+      try {
+        // 分类错误代码
+        let errorCode: string | null = null;
+        if (!sendResult.success && sendResult.error) {
+          const errorMsg = sendResult.error.toLowerCase();
+          const status = sendResult.responseStatus;
+          
+          if (status === 401 || status === 403 || errorMsg.includes("unauthorized") || errorMsg.includes("token")) {
+            errorCode = "auth_error";
+          } else if (status === 429 || errorMsg.includes("rate limit")) {
+            errorCode = "rate_limited";
+          } else if (status && status >= 500) {
+            errorCode = "server_error";
+          } else if (status === 400 || errorMsg.includes("invalid") || errorMsg.includes("validation")) {
+            errorCode = "validation_error";
+          } else if (errorMsg.includes("timeout") || errorMsg.includes("network")) {
+            errorCode = "network_error";
+          } else if (errorMsg.includes("credential") || errorMsg.includes("config")) {
+            errorCode = "config_error";
+          } else {
+            errorCode = "send_failed";
+          }
+        }
+        
+        await updateDeliveryAttempt({
+          attemptId,
+          status: sendResult.success ? "ok" : "fail",
+          errorCode,
+          errorDetail: sendResult.error || null,
+          responseStatus: sendResult.responseStatus || null,
+          responseBodySnippet: sendResult.responseBody || null,
+          latencyMs,
+        });
+      } catch (error) {
+        // 记录失败不应阻塞事件发送流程
+        logger.error("Failed to update DeliveryAttempt (non-blocking)", {
+          shopId,
+          attemptId,
+          platform: normalizedPlatform,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     return sendResult;

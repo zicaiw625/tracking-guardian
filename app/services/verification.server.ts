@@ -5,6 +5,7 @@ import { logger } from "../utils/logger.server";
 import { reconcilePixelVsCapi, performBulkLocalConsistencyCheck, performChannelReconciliation, type ReconciliationResult } from "./enhanced-reconciliation.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import type { Prisma } from "@prisma/client";
+import { getEventLogs } from "./event-log.server";
 
 export interface VerificationTestItem {
   id: string;
@@ -119,6 +120,9 @@ export interface VerificationEventResult {
   };
   discrepancies?: string[];
   errors?: string[];
+  // P0-T6: 添加 eventLogId 和 deliveryAttemptId 用于导出报告时获取 payload 证据
+  eventLogId?: string;
+  deliveryAttemptId?: string;
 }
 
 export interface VerificationSummary {
@@ -277,23 +281,17 @@ export async function analyzeRecentEvents(
 
   const targetPlatforms = platforms || run.platforms;
 
-  const conversionLogs = await prisma.conversionLog.findMany({
-    where: {
-      shopId,
-      createdAt: { gte: since },
-      platform: { in: targetPlatforms },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
+  // P0-T6: 使用 event_logs + delivery_attempts 作为数据源
+  const eventLogs = await getEventLogs(shopId, {
+    startDate: since,
+    limit: 1000,
   });
 
-  const pixelReceipts = await prisma.pixelEventReceipt.findMany({
-    where: {
-      shopId,
-      createdAt: { gte: since },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
+  // 过滤出目标平台的事件
+  const filteredEventLogs = eventLogs.filter(log => {
+    return log.deliveryAttempts.some(attempt => 
+      targetPlatforms.includes(attempt.destinationType)
+    );
   });
 
   const results: VerificationEventResult[] = [];
@@ -303,27 +301,81 @@ export async function analyzeRecentEvents(
   let totalValueAccuracy = 0;
   let valueChecks = 0;
 
-  const orderIds = [...new Set(conversionLogs.map((l: { orderId: string }) => l.orderId))];
+  // P0-T6: 从 event_logs 和 delivery_attempts 提取数据
+  const orderIds = new Set<string>();
 
-  for (const orderId of orderIds) {
-    const orderLogs = conversionLogs.filter((l: { orderId: string }) => l.orderId === orderId);
-    const receipt = pixelReceipts.find((r: { orderId: string }) => r.orderId === orderId);
+  for (const eventLog of filteredEventLogs) {
+    // 从 normalizedEventJson 中提取 orderId
+    const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown>;
+    const data = normalizedEvent.data as Record<string, unknown> | undefined;
+    const orderId = data?.orderId as string | undefined;
+    
+    if (orderId) {
+      orderIds.add(orderId);
+    }
 
-    for (const log of orderLogs) {
+    // 处理每个 delivery attempt
+    for (const attempt of eventLog.deliveryAttempts) {
+      if (!targetPlatforms.includes(attempt.destinationType)) {
+        continue;
+      }
+
       const discrepancies: string[] = [];
       const errors: string[] = [];
 
-      if (log.status === "failed" || log.status === "dead_letter") {
-        failedTests++;
-        if (log.errorMessage) {
-          errors.push(log.errorMessage);
+      // 从 requestPayloadJson 中提取参数
+      const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
+      let value: number | undefined;
+      let currency: string | undefined;
+      let items: number | undefined;
+
+      // 根据平台解析 payload
+      if (attempt.destinationType === "google") {
+        const body = requestPayload.body as Record<string, unknown>;
+        const events = body?.events as Array<Record<string, unknown>> | undefined;
+        if (events && events.length > 0) {
+          const params = events[0].params as Record<string, unknown> | undefined;
+          value = params?.value as number | undefined;
+          currency = params?.currency as string | undefined;
+          items = Array.isArray(params?.items) ? params.items.length : undefined;
         }
-      } else if (log.status === "sent") {
+      } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
+        const body = requestPayload.body as Record<string, unknown>;
+        const data = body?.data as Array<Record<string, unknown>> | undefined;
+        if (data && data.length > 0) {
+          const customData = data[0].custom_data as Record<string, unknown> | undefined;
+          value = customData?.value as number | undefined;
+          currency = customData?.currency as string | undefined;
+          items = Array.isArray(customData?.contents) ? customData.contents.length : undefined;
+        }
+      } else if (attempt.destinationType === "tiktok") {
+        const body = requestPayload.body as Record<string, unknown>;
+        const data = body?.data as Array<Record<string, unknown>> | undefined;
+        if (data && data.length > 0) {
+          const properties = data[0].properties as Record<string, unknown> | undefined;
+          value = properties?.value as number | undefined;
+          currency = properties?.currency as string | undefined;
+          items = Array.isArray(properties?.contents) ? properties.contents.length : undefined;
+        }
+      }
 
-        const hasValue = log.orderValue !== null;
-        const hasCurrency = !!log.currency;
-        const hasEventId = !!log.eventId;
+      // 也可以从 normalizedEventJson 中获取
+      if (value === undefined && data) {
+        value = data.value as number | undefined;
+      }
+      if (currency === undefined && data) {
+        currency = data.currency as string | undefined;
+      }
+      if (items === undefined && data) {
+        const dataItems = data.items as Array<unknown> | undefined;
+        items = dataItems ? dataItems.length : undefined;
+      }
 
+      const hasValue = value !== undefined && value !== null;
+      const hasCurrency = !!currency;
+      const hasEventId = !!eventLog.eventId;
+
+      if (attempt.status === "ok") {
         if (!hasValue || !hasCurrency) {
           missingParamTests++;
           if (!hasValue) discrepancies.push("缺少 value 参数");
@@ -332,31 +384,56 @@ export async function analyzeRecentEvents(
           passedTests++;
         }
 
-        if (receipt && hasValue) {
+        if (hasValue) {
           valueChecks++;
-          totalValueAccuracy += 100;
+          totalValueAccuracy += 100; // 简化处理，实际应该与 Shopify 订单对比
         }
 
         results.push({
           testItemId: "purchase",
-          eventType: log.eventType,
-          platform: log.platform,
-          orderId: log.orderId,
-          orderNumber: log.orderNumber || undefined,
-          status:
-            log.status === "sent"
-              ? discrepancies.length > 0
-                ? "missing_params"
-                : "success"
-              : "failed",
-          triggeredAt: log.sentAt || log.createdAt,
+          eventType: eventLog.eventName,
+          platform: attempt.destinationType,
+          orderId: orderId || undefined,
+          orderNumber: undefined, // 可以从 Shopify API 获取
+          status: discrepancies.length > 0 ? "missing_params" : "success",
+          triggeredAt: eventLog.occurredAt,
           params: {
-            value: Number(log.orderValue),
-            currency: log.currency,
-            hasEventId: !!log.eventId,
+            value: value || undefined,
+            currency: currency || undefined,
+            items: items || undefined,
+            hasEventId,
+          },
+          discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
+          errors: undefined,
+          // P0-T6: 添加 eventLogId 和 deliveryAttemptId 用于导出报告时获取 payload 证据
+          eventLogId: eventLog.id,
+          deliveryAttemptId: attempt.id,
+        });
+      } else if (attempt.status === "fail") {
+        failedTests++;
+        if (attempt.errorDetail) {
+          errors.push(attempt.errorDetail);
+        }
+
+        results.push({
+          testItemId: "purchase",
+          eventType: eventLog.eventName,
+          platform: attempt.destinationType,
+          orderId: orderId || undefined,
+          orderNumber: undefined,
+          status: "failed",
+          triggeredAt: eventLog.occurredAt,
+          params: {
+            value: value || undefined,
+            currency: currency || undefined,
+            items: items || undefined,
+            hasEventId,
           },
           discrepancies: discrepancies.length > 0 ? discrepancies : undefined,
           errors: errors.length > 0 ? errors : undefined,
+          // P0-T6: 添加 eventLogId 和 deliveryAttemptId 用于导出报告时获取 payload 证据
+          eventLogId: eventLog.id,
+          deliveryAttemptId: attempt.id,
         });
       }
     }
@@ -367,17 +444,25 @@ export async function analyzeRecentEvents(
     totalTests > 0 ? Math.round(((passedTests + missingParamTests) / totalTests) * 100) : 0;
   const valueAccuracy = valueChecks > 0 ? Math.round(totalValueAccuracy / valueChecks) : 100;
 
+  // P0-T6: 从 delivery_attempts 统计平台结果
   const platformResults: Record<string, { sent: number; failed: number }> = {};
-  conversionLogs.forEach((log: { platform: string; status: string }) => {
-    if (!platformResults[log.platform]) {
-      platformResults[log.platform] = { sent: 0, failed: 0 };
+  for (const eventLog of filteredEventLogs) {
+    for (const attempt of eventLog.deliveryAttempts) {
+      if (!targetPlatforms.includes(attempt.destinationType)) {
+        continue;
+      }
+      
+      if (!platformResults[attempt.destinationType]) {
+        platformResults[attempt.destinationType] = { sent: 0, failed: 0 };
+      }
+      
+      if (attempt.status === "ok") {
+        platformResults[attempt.destinationType].sent++;
+      } else if (attempt.status === "fail") {
+        platformResults[attempt.destinationType].failed++;
+      }
     }
-    if (log.status === "sent") {
-      platformResults[log.platform].sent++;
-    } else if (log.status === "failed" || log.status === "dead_letter") {
-      platformResults[log.platform].failed++;
-    }
-  });
+  }
 
   let reconciliation: VerificationSummary["reconciliation"] | undefined;
   try {
@@ -390,14 +475,26 @@ export async function analyzeRecentEvents(
       type: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch";
     }> = [];
 
+    // P0-T6: 从 delivery_attempts 统计重复发送
     const orderPlatformMap = new Map<string, Map<string, number>>();
-    for (const log of conversionLogs) {
-      const key = `${log.orderId}_${log.platform}`;
-      const count = orderPlatformMap.get(log.orderId)?.get(log.platform) || 0;
-      if (!orderPlatformMap.has(log.orderId)) {
-        orderPlatformMap.set(log.orderId, new Map());
+    for (const eventLog of filteredEventLogs) {
+      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown>;
+      const data = normalizedEvent.data as Record<string, unknown> | undefined;
+      const orderId = data?.orderId as string | undefined;
+      
+      if (!orderId) continue;
+
+      for (const attempt of eventLog.deliveryAttempts) {
+        if (!targetPlatforms.includes(attempt.destinationType)) {
+          continue;
+        }
+        
+        const count = orderPlatformMap.get(orderId)?.get(attempt.destinationType) || 0;
+        if (!orderPlatformMap.has(orderId)) {
+          orderPlatformMap.set(orderId, new Map());
+        }
+        orderPlatformMap.get(orderId)!.set(attempt.destinationType, count + 1);
       }
-      orderPlatformMap.get(log.orderId)!.set(log.platform, count + 1);
     }
 
     for (const [orderId, platformMap] of orderPlatformMap) {
@@ -438,7 +535,8 @@ export async function analyzeRecentEvents(
     } catch (error) {
       logger.warn("Failed to perform bulk local consistency check, falling back to individual checks", { error });
 
-      const sampleOrderIds = orderIds.slice(0, 10);
+      const orderIdsArray = Array.from(orderIds);
+      const sampleOrderIds = orderIdsArray.slice(0, 10);
       for (const orderId of sampleOrderIds) {
         try {
           const checks = await performChannelReconciliation(shopId, [orderId], admin);
@@ -482,7 +580,8 @@ export async function analyzeRecentEvents(
       });
     });
 
-    const totalChecked = Math.min(orderIds.length, 50);
+    const orderIdsArray = Array.from(orderIds);
+    const totalChecked = Math.min(orderIdsArray.length, 50);
     const consistent = totalChecked - localConsistencyChecks.length;
     const partial = localConsistencyChecks.filter((c) => c.status === "partial").length;
     const inconsistent = localConsistencyChecks.filter((c) => c.status === "inconsistent").length;

@@ -23,6 +23,7 @@ import {
 } from "../icons";
 import { useState, useCallback, useEffect } from "react";
 import { useFetcher } from "@remix-run/react";
+import { CheckoutCompletedBehaviorHint } from "./CheckoutCompletedBehaviorHint";
 
 export interface TestOrderGuideProps {
   shopDomain: string;
@@ -320,7 +321,7 @@ export function TestOrderGuide({
                                 {verificationResults[item.id].expectedEvents} 个预期事件
                               </Text>
                               {verificationResults[item.id].missingEvents.length > 0 && (
-                                <BlockStack gap="100">
+                                <BlockStack gap="200">
                                   <Text as="span" variant="bodySm" fontWeight="semibold">
                                     缺失事件：
                                   </Text>
@@ -331,6 +332,12 @@ export function TestOrderGuide({
                                       )
                                     )}
                                   </List>
+                                  {/* P0-T7: checkout_completed 事件缺失时的行为提示 */}
+                                  {verificationResults[item.id].missingEvents.some(
+                                    (e) => e.toLowerCase().includes("checkout_completed") || e.toLowerCase().includes("purchase")
+                                  ) && (
+                                    <CheckoutCompletedBehaviorHint mode="missing" collapsible={true} />
+                                  )}
                                 </BlockStack>
                               )}
                               {verificationResults[item.id].errors &&

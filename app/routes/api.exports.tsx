@@ -8,8 +8,9 @@ import {
   generateVerificationReportPdf,
 } from "../services/pdf-generator.server";
 import { DEPRECATION_DATES, getDateDisplayLabel } from "../utils/deprecation-dates";
+import { exportEventLogsAsCSV, getEventLogs } from "../services/event-log.server";
 
-type ExportType = "conversions" | "audit" | "receipts" | "jobs" | "scan" | "reconciliation" | "verification" | "survey";
+type ExportType = "conversions" | "audit" | "receipts" | "jobs" | "scan" | "reconciliation" | "verification" | "survey" | "events";
 type ExportFormat = "csv" | "json" | "pdf" | "html";
 const EXPORT_LIMITS = {
     conversions: 10000,
@@ -20,6 +21,7 @@ const EXPORT_LIMITS = {
     reconciliation: 100,
     verification: 50,
     survey: 10000,
+    events: 10000,
 };
 const FIELD_DEFINITIONS = {
     conversions: {
@@ -483,6 +485,60 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     source: { description: "How customer found us", pii: false },
                     customAnswers: { description: "Custom survey answers (JSON)", pii: false },
                     createdAt: { description: "Response timestamp", pii: false },
+                };
+                break;
+            }
+
+            case "events": {
+                // P0-T5: 使用 event_logs + delivery_attempts 导出事件日志
+                if (format === "csv") {
+                    const csv = await exportEventLogsAsCSV(shop.id, {
+                        startDate: dateFilter.gte,
+                        endDate: dateFilter.lte,
+                        limit: EXPORT_LIMITS.events,
+                    });
+                    filename = `event_logs_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
+                    return new Response(csv, {
+                        status: 200,
+                        headers: {
+                            "Content-Type": "text/csv",
+                            "Content-Disposition": `attachment; filename="${filename}.csv"`,
+                        },
+                    });
+                }
+
+                // JSON 格式导出
+                const eventLogs = await getEventLogs(shop.id, {
+                    startDate: dateFilter.gte,
+                    endDate: dateFilter.lte,
+                    limit: EXPORT_LIMITS.events,
+                });
+
+                data = eventLogs.map(log => ({
+                    eventId: log.eventId,
+                    eventName: log.eventName,
+                    source: log.source,
+                    occurredAt: log.occurredAt.toISOString(),
+                    createdAt: log.createdAt.toISOString(),
+                    deliveryAttempts: log.deliveryAttempts.map(attempt => ({
+                        destinationType: attempt.destinationType,
+                        environment: attempt.environment,
+                        status: attempt.status,
+                        errorCode: attempt.errorCode,
+                        errorDetail: attempt.errorDetail,
+                        responseStatus: attempt.responseStatus,
+                        latencyMs: attempt.latencyMs,
+                        createdAt: attempt.createdAt.toISOString(),
+                    })),
+                }));
+                filename = `event_logs_${shop.shopDomain}_${new Date().toISOString().split("T")[0]}`;
+                fieldDefs = {
+                    eventId: { description: "Canonical event ID", pii: false },
+                    eventName: { description: "Event name (e.g., purchase, refund)", pii: false },
+                    source: { description: "Event source (pixel/webhook)", pii: false },
+                    occurredAt: { description: "When event occurred", pii: false },
+                    createdAt: { description: "When event log was created", pii: false },
+                    deliveryAttempts: { description: "Array of delivery attempts", pii: false },
                 };
                 break;
             }

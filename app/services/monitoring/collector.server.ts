@@ -51,8 +51,8 @@ export async function collectEventSuccessRate(
   endDate: Date
 ): Promise<EventMetrics> {
   try {
-    // Note: Using ConversionLog instead of eventLog as the model doesn't exist
-    const events = await prisma.conversionLog.findMany({
+    // P0-T8: 使用 delivery_attempts 作为数据源
+    const attempts = await prisma.deliveryAttempt.findMany({
       where: {
         shopId,
         createdAt: {
@@ -61,14 +61,19 @@ export async function collectEventSuccessRate(
         },
       },
       select: {
-        eventType: true,
-        platform: true,
+        destinationType: true,
         status: true,
+        EventLog: {
+          select: {
+            eventName: true,
+          },
+        },
       },
+      take: 10000, // 限制最大查询数量，避免超时
     });
 
     const metrics: EventMetrics = {
-      total: events.length,
+      total: attempts.length,
       success: 0,
       failed: 0,
       successRate: 0,
@@ -76,14 +81,14 @@ export async function collectEventSuccessRate(
       byEventType: {},
     };
 
-    for (const event of events) {
-      if (event.status === "sent" || event.status === "pending") {
+    for (const attempt of attempts) {
+      if (attempt.status === "ok") {
         metrics.success++;
-      } else {
+      } else if (attempt.status === "fail") {
         metrics.failed++;
       }
 
-      const dest = event.platform || "unknown";
+      const dest = attempt.destinationType || "unknown";
       if (!metrics.byDestination[dest]) {
         metrics.byDestination[dest] = {
           total: 0,
@@ -93,13 +98,13 @@ export async function collectEventSuccessRate(
         };
       }
       metrics.byDestination[dest].total++;
-      if (event.status === "sent" || event.status === "pending") {
+      if (attempt.status === "ok") {
         metrics.byDestination[dest].success++;
-      } else {
+      } else if (attempt.status === "fail") {
         metrics.byDestination[dest].failed++;
       }
 
-      const eventType = event.eventType || "unknown";
+      const eventType = attempt.EventLog.eventName || "unknown";
       if (!metrics.byEventType[eventType]) {
         metrics.byEventType[eventType] = {
           total: 0,
@@ -109,9 +114,9 @@ export async function collectEventSuccessRate(
         };
       }
       metrics.byEventType[eventType].total++;
-      if (event.status === "sent" || event.status === "pending") {
+      if (attempt.status === "ok") {
         metrics.byEventType[eventType].success++;
-      } else {
+      } else if (attempt.status === "fail") {
         metrics.byEventType[eventType].failed++;
       }
     }
@@ -150,29 +155,36 @@ export async function collectMissingParamsMetrics(
   endDate: Date
 ): Promise<MissingParamsMetrics> {
   try {
-    // Note: Using ConversionLog instead of eventLog as the model doesn't exist
-    const events = await prisma.conversionLog.findMany({
+    // P0-T8: 使用 delivery_attempts 作为数据源
+    const attempts = await prisma.deliveryAttempt.findMany({
       where: {
         shopId,
-        eventType: {
-          in: ["checkout_completed", "purchase"],
-        },
         createdAt: {
           gte: startDate,
           lte: endDate,
         },
+        EventLog: {
+          eventName: {
+            in: ["checkout_completed", "purchase"],
+          },
+        },
       },
       select: {
-        platformResponse: true,
-        errorMessage: true,
+        requestPayloadJson: true,
+        EventLog: {
+          select: {
+            eventName: true,
+          },
+        },
       },
+      take: 10000, // 限制最大查询数量，避免超时
     });
 
     const metrics: MissingParamsMetrics = {
       missingValue: 0,
       missingCurrency: 0,
       missingItems: 0,
-      total: events.length,
+      total: attempts.length,
       missingRate: {
         value: 0,
         currency: 0,
@@ -180,33 +192,52 @@ export async function collectMissingParamsMetrics(
       },
     };
 
-    for (const event of events) {
-      const payload = event.platformResponse as {
-        data?: {
-          value?: number;
-          currency?: string;
-          items?: unknown[];
-        };
-      };
+    for (const attempt of attempts) {
+      // 从 requestPayloadJson 中提取参数（根据平台不同，结构可能不同）
+      const payload = attempt.requestPayloadJson as Record<string, unknown>;
+      let value: number | undefined;
+      let currency: string | undefined;
+      let items: unknown[] | undefined;
 
-      if (!payload.data) {
+      // 根据平台解析 payload
+      if (attempt.destinationType === "google") {
+        const body = payload.body as Record<string, unknown> | undefined;
+        const events = body?.events as Array<Record<string, unknown>> | undefined;
+        if (events && events.length > 0) {
+          const params = events[0].params as Record<string, unknown> | undefined;
+          value = params?.value as number | undefined;
+          currency = params?.currency as string | undefined;
+          items = params?.items as unknown[] | undefined;
+        }
+      } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
+        const body = payload.body as Record<string, unknown> | undefined;
+        const data = body?.data as Array<Record<string, unknown>> | undefined;
+        if (data && data.length > 0) {
+          const customData = data[0].custom_data as Record<string, unknown> | undefined;
+          value = customData?.value as number | undefined;
+          currency = customData?.currency as string | undefined;
+          items = customData?.contents as unknown[] | undefined;
+        }
+      } else if (attempt.destinationType === "tiktok") {
+        const body = payload.body as Record<string, unknown> | undefined;
+        const data = body?.data as Array<Record<string, unknown>> | undefined;
+        if (data && data.length > 0) {
+          const properties = data[0].properties as Record<string, unknown> | undefined;
+          value = properties?.value as number | undefined;
+          currency = properties?.currency as string | undefined;
+          items = properties?.contents as unknown[] | undefined;
+        }
+      }
+
+      if (value === undefined || value === null) {
         metrics.missingValue++;
-        metrics.missingCurrency++;
-        metrics.missingItems++;
-        continue;
       }
 
-      const data = payload.data;
-
-      if (data.value === undefined || data.value === null) {
-        metrics.missingValue++;
-      }
-
-      if (!data.currency) {
+      if (!currency) {
         metrics.missingCurrency++;
       }
 
-      if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+      if (!items || !Array.isArray(items) || items.length === 0) {
         metrics.missingItems++;
       }
     }
@@ -233,8 +264,8 @@ export async function collectDeduplicationMetrics(
   endDate: Date
 ): Promise<DeduplicationMetrics> {
   try {
-    // Note: Using ConversionLog instead of eventLog as the model doesn't exist
-    const events = await prisma.conversionLog.findMany({
+    // P0-T8: 使用 delivery_attempts 作为数据源
+    const attempts = await prisma.deliveryAttempt.findMany({
       where: {
         shopId,
         createdAt: {
@@ -243,26 +274,26 @@ export async function collectDeduplicationMetrics(
         },
       },
       select: {
-        eventId: true,
-        platform: true,
-        errorMessage: true,
+        destinationType: true,
+        status: true,
       },
+      take: 10000, // 限制最大查询数量，避免超时
     });
 
     const metrics: DeduplicationMetrics = {
-      total: events.length,
+      total: attempts.length,
       duplicated: 0,
       duplicationRate: 0,
       byDestination: {},
     };
 
-    for (const event of events) {
-      // Note: ConversionLog doesn't have deduplication status, skip for now
-      // if (event.errorCode === "deduplicated") {
-      //   metrics.duplicated++;
-      // }
+    for (const attempt of attempts) {
+      // P0-T8: DeliveryAttempt 有 skipped_dedup 状态
+      if (attempt.status === "skipped_dedup") {
+        metrics.duplicated++;
+      }
 
-      const dest = event.platform || "unknown";
+      const dest = attempt.destinationType || "unknown";
       if (!metrics.byDestination[dest]) {
         metrics.byDestination[dest] = {
           total: 0,
@@ -271,10 +302,9 @@ export async function collectDeduplicationMetrics(
         };
       }
       metrics.byDestination[dest].total++;
-      // Note: ConversionLog doesn't have deduplication status, skip for now
-      // if (event.errorCode === "deduplicated") {
-      //   metrics.byDestination[dest].duplicated++;
-      // }
+      if (attempt.status === "skipped_dedup") {
+        metrics.byDestination[dest].duplicated++;
+      }
     }
 
     if (metrics.total > 0) {
@@ -309,8 +339,9 @@ export async function collectEventVolumeAnomaly(
   isAnomaly: boolean;
 }> {
   try {
+    // P0-T8: 使用 delivery_attempts 作为数据源
     const [currentEvents, previousEvents] = await Promise.all([
-      prisma.conversionLog.count({
+      prisma.deliveryAttempt.count({
         where: {
           shopId,
           createdAt: {
@@ -319,7 +350,7 @@ export async function collectEventVolumeAnomaly(
           },
         },
       }),
-      prisma.conversionLog.count({
+      prisma.deliveryAttempt.count({
         where: {
           shopId,
           createdAt: {

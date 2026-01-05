@@ -5,6 +5,7 @@ import { logger } from "~/utils/logger.server";
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { sendPixelEventToPlatform } from "./pixel-event-sender.server";
 import { generateCanonicalEventId } from "../event-normalizer.server";
+import { createEventLog } from "../event-log.server";
 
 export interface EventPipelineResult {
   success: boolean;
@@ -141,6 +142,8 @@ function isObject(value: unknown): value is object {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+// P0-T2: 已迁移到新的 EventLog/DeliveryAttempt 服务
+// 此函数保留用于向后兼容，但实际记录已由新的服务处理
 export async function logEvent(
   shopId: string,
   eventName: string,
@@ -151,37 +154,9 @@ export async function logEvent(
   errorCode?: string,
   errorDetail?: string
 ): Promise<void> {
-  try {
-    // 验证 payload 是有效的对象
-    if (!isObject(payload)) {
-      logger.error("Invalid payload type", { shopId, eventName, payloadType: typeof payload });
-      throw new Error("Payload must be an object");
-    }
-
-    // Note: Event logging is currently disabled as there's no matching Prisma model
-    // TODO: Create an appropriate event log model or use ConversionLog instead
-    // await prisma.eventLog.create({
-    //   data: {
-    //     shopId,
-    //     eventName,
-    //     eventId: eventId || null,
-    //     payloadJson: payload,
-    //     destinationType: destinationType || null,
-    //     status,
-    //     errorCode: errorCode || null,
-    //     errorDetail: errorDetail || null,
-    //     eventTimestamp: new Date(payload.timestamp),
-    //   },
-    // });
-  } catch (error) {
-    logger.error("Failed to log event", {
-      shopId,
-      eventName,
-      eventId,
-      error,
-    });
-
-  }
+  // 已迁移到新的 EventLog/DeliveryAttempt 服务
+  // 此函数保留用于向后兼容，但不再执行实际操作
+  // 实际的记录由 createEventLog 和 createDeliveryAttempt/updateDeliveryAttempt 处理
 }
 
 /**
@@ -464,6 +439,30 @@ export async function processEventPipeline(
     });
   }
 
+  // P0-T2: 创建 EventLog 记录（事件证据链核心）
+  let eventLogId: string | null = null;
+  if (!isDeduplicated && finalEventId) {
+    try {
+      eventLogId = await createEventLog({
+        shopId,
+        eventId: finalEventId,
+        eventName: normalizedPayload.eventName,
+        occurredAt: new Date(normalizedPayload.timestamp || Date.now()),
+        normalizedEventJson: normalizedPayload,
+        shopifyContextJson: null, // 可以从 payload 中提取 Shopify 上下文
+        source: "web_pixel",
+      });
+    } catch (error) {
+      logger.error("Failed to create EventLog (non-blocking)", {
+        shopId,
+        eventId: finalEventId,
+        eventName: normalizedPayload.eventName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // 继续执行，不阻塞事件发送
+    }
+  }
+
   // 如果不是重复事件，则发送到各个平台
   // 这是 Destination Router 的核心逻辑：将规范化后的事件真正路由发送到 GA4/Meta/TikTok
   // 这确保了"像素迁移中心（Web Pixel → Destinations）"的产品承诺得以实现
@@ -516,6 +515,7 @@ export async function processEventPipeline(
           );
         }
         
+        // P0-T2: 传递 eventLogId 以支持 DeliveryAttempt 记录
         // P0-3: 传递配置ID以支持多目的地（同一平台的多个配置）
         const sendResult = await sendPixelEventToPlatform(
           shopId,
@@ -523,7 +523,8 @@ export async function processEventPipeline(
           normalizedPayload,
           eventIdForSend,
           destConfig.configId,
-          destConfig.platformId
+          destConfig.platformId,
+          eventLogId // 传递 eventLogId 用于创建 DeliveryAttempt
         );
 
         // P0-3: 使用配置ID作为 destinationType，确保同一平台的多个配置都能被记录

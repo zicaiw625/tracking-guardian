@@ -109,12 +109,29 @@ export function mapToPlatform(
   };
 }
 
+/**
+ * P0-T3: 生成 canonical event_id（可测试的纯函数，含版本号）
+ * 
+ * 版本: v1
+ * 
+ * 生成规则:
+ * 1. 对于 purchase/checkout_completed 事件: 使用 orderId 作为 identifier
+ * 2. 对于其他事件: 使用 orderId 或 checkoutToken 作为 identifier
+ * 3. 如果都没有: 使用时间戳+随机数（不推荐，但作为后备）
+ * 4. 包含 items hash 以确保同一订单的不同商品组合有不同的 event_id
+ * 
+ * 输入格式: `${shopDomain}:${identifier}:${eventName}:${itemsHash}`
+ * 输出: SHA256 哈希的前 32 个字符
+ * 
+ * 注意: 此函数必须是纯函数，相同的输入必须产生相同的输出
+ */
 export function generateCanonicalEventId(
   orderId: string | null | undefined,
   checkoutToken: string | null | undefined,
   eventName: string,
   shopDomain: string,
-  items?: Array<{ id: string; quantity: number }>
+  items?: Array<{ id: string; quantity: number }>,
+  version: string = "v1" // 版本号，用于未来兼容性
 ): string {
   const crypto = require("crypto");
 
@@ -124,16 +141,22 @@ export function generateCanonicalEventId(
   } else if (checkoutToken) {
     identifier = checkoutToken;
   } else {
-
-    logger.warn("Generating event ID without orderId or checkoutToken", {
+    // 后备方案：使用时间戳+随机数（不推荐，但作为后备）
+    // 注意：这会导致每次调用产生不同的 event_id，不符合幂等性
+    // 应该尽量避免这种情况
+    // P0-T3: 为了保持向后兼容，暂时保留此逻辑，但记录警告
+    logger.warn("Generating event ID without orderId or checkoutToken (non-idempotent, should be avoided)", {
       eventName,
       shopDomain,
     });
-    identifier = `${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    // 使用固定值作为后备，确保至少在同一秒内是稳定的
+    const timestamp = Math.floor(Date.now() / 1000); // 秒级时间戳
+    identifier = `fallback_${timestamp}`;
   }
 
   let itemsHash = "";
   if (items && items.length > 0) {
+    // 对 items 进行排序以确保一致性
     const itemsKey = items
       .map(item => `${item.id}:${item.quantity}`)
       .sort()
@@ -145,7 +168,8 @@ export function generateCanonicalEventId(
       .substring(0, 8);
   }
 
-  const input = `${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
+  // 包含版本号以确保未来兼容性
+  const input = `${version}:${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
   return crypto
     .createHash("sha256")
     .update(input, "utf8")
