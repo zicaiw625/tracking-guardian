@@ -120,7 +120,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               createdAt: true,
               shopifyContextJson: true,
               normalizedEventJson: true,
-              deliveryAttempts: {
+              DeliveryAttempt: {
                 where: platforms.length > 0 ? { destinationType: { in: platforms } } : undefined,
                 select: {
                   id: true,
@@ -179,7 +179,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             const orderId = (shopifyContext?.orderId || normalizedEvent?.orderId || "") as string;
 
             // 为每个 delivery attempt 创建一个事件
-            for (const attempt of eventLog.deliveryAttempts) {
+            for (const attempt of eventLog.DeliveryAttempt) {
               // 从 requestPayloadJson 中提取参数
               const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
               let value: number | undefined;
@@ -245,7 +245,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
 
             // 如果没有 delivery attempts，仍然创建一个事件记录
-            if (eventLog.deliveryAttempts.length === 0) {
+            if (eventLog.DeliveryAttempt.length === 0) {
               events.push({
                 id: eventLog.id,
                 eventType: eventLog.eventName,

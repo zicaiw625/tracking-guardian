@@ -126,21 +126,49 @@ export async function performEnhancedChannelReconciliation(
   for (const config of shop.pixelConfigs) {
     const platform = config.platform;
 
-    const platformLogs = await prisma.conversionLog.findMany({
+    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+    const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
-        platform,
-        eventType: "purchase",
+        eventName: { in: ["checkout_completed", "purchase"] },
         createdAt: { gte: since },
-        status: "sent",
+        DeliveryAttempt: {
+          some: {
+            destinationType: platform,
+            status: "ok", // 只统计成功发送的
+          },
+        },
       },
-      select: {
-        orderId: true,
-        orderNumber: true,
-        orderValue: true,
-        currency: true,
-        createdAt: true,
+      include: {
+        DeliveryAttempt: {
+          where: {
+            destinationType: platform,
+            status: "ok",
+          },
+          select: {
+            id: true,
+            destinationType: true,
+            requestPayloadJson: true,
+          },
+        },
       },
+    });
+
+    // 从 EventLog 中提取订单信息
+    const platformLogs = eventLogs.map((eventLog) => {
+      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+      const orderId = (normalizedEvent?.orderId as string) || "";
+      const orderNumber = (normalizedEvent?.orderNumber as string) || null;
+      const value = (normalizedEvent?.value as number) || 0;
+      const currency = (normalizedEvent?.currency as string) || "USD";
+      
+      return {
+        orderId,
+        orderNumber,
+        orderValue: value,
+        currency,
+        createdAt: eventLog.createdAt,
+      };
     });
 
     const platformOrderIds = new Set(platformLogs.map((l: { orderId: string }) => l.orderId));
@@ -366,20 +394,84 @@ export async function getOrderCrossPlatformComparison(
     },
   });
 
-  const platformEvents = await prisma.conversionLog.findMany({
+  // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+  const eventLogs = await prisma.eventLog.findMany({
     where: {
       shopId,
-      orderId,
-      eventType: "purchase",
+      eventName: { in: ["checkout_completed", "purchase"] },
     },
-    select: {
-      platform: true,
-      orderId: true,
-      orderValue: true,
-      currency: true,
-      createdAt: true,
-      status: true,
+    include: {
+      DeliveryAttempt: {
+        where: {
+          status: { in: ["ok", "fail"] },
+        },
+        select: {
+          id: true,
+          destinationType: true,
+          status: true,
+          requestPayloadJson: true,
+          createdAt: true,
+        },
+      },
     },
+  });
+
+  // 过滤出匹配 orderId 的事件
+  const matchingEvents = eventLogs.filter((eventLog) => {
+    const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+    const eventOrderId = normalizedEvent?.orderId as string | undefined;
+    return eventOrderId === orderId;
+  });
+
+  // 从 DeliveryAttempt 中提取平台事件信息
+  const platformEvents = matchingEvents.flatMap((eventLog) => {
+    const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+    const eventValue = (normalizedEvent?.value as number) || 0;
+    const currency = (normalizedEvent?.currency as string) || "USD";
+    
+    return eventLog.DeliveryAttempt.map((attempt) => {
+      // 尝试从 requestPayloadJson 中提取更准确的值
+      let finalValue = eventValue;
+      let finalCurrency = currency;
+      
+      if (attempt.requestPayloadJson) {
+        const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
+        if (attempt.destinationType === "google") {
+          const body = requestPayload?.body as Record<string, unknown> | undefined;
+          const events = body?.events as Array<Record<string, unknown>> | undefined;
+          if (events && events.length > 0) {
+            const params = events[0].params as Record<string, unknown> | undefined;
+            if (params?.value !== undefined) finalValue = (params.value as number) || 0;
+            if (params?.currency) finalCurrency = String(params.currency);
+          }
+        } else if (attempt.destinationType === "meta" || attempt.destinationType === "facebook") {
+          const body = requestPayload?.body as Record<string, unknown> | undefined;
+          const data = body?.data as Array<Record<string, unknown>> | undefined;
+          if (data && data.length > 0) {
+            const customData = data[0].custom_data as Record<string, unknown> | undefined;
+            if (customData?.value !== undefined) finalValue = (customData.value as number) || 0;
+            if (customData?.currency) finalCurrency = String(customData.currency);
+          }
+        } else if (attempt.destinationType === "tiktok") {
+          const body = requestPayload?.body as Record<string, unknown> | undefined;
+          const data = body?.data as Array<Record<string, unknown>> | undefined;
+          if (data && data.length > 0) {
+            const properties = data[0].properties as Record<string, unknown> | undefined;
+            if (properties?.value !== undefined) finalValue = (properties.value as number) || 0;
+            if (properties?.currency) finalCurrency = String(properties.currency);
+          }
+        }
+      }
+
+      return {
+        platform: attempt.destinationType,
+        orderId,
+        orderValue: finalValue,
+        currency: finalCurrency,
+        createdAt: attempt.createdAt,
+        status: attempt.status === "ok" ? "sent" : attempt.status,
+      };
+    });
   });
 
   const shop = await prisma.shop.findUnique({

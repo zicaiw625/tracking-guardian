@@ -177,49 +177,59 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const fiveMinutesAgo = new Date();
       fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
 
-      const [conversionLogs, pixelReceipts] = await Promise.all([
-        prisma.conversionLog.findMany({
-          where: {
-            shopId: shop.id,
-            eventType,
-            createdAt: { gte: fiveMinutesAgo },
-            status: "sent",
+      // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+      const eventLogs = await prisma.eventLog.findMany({
+        where: {
+          shopId: shop.id,
+          createdAt: { gte: fiveMinutesAgo },
+          // 匹配 eventName 或通过 normalizedEventJson 中的 shopifyEventName
+          OR: [
+            { eventName: { in: expectedEvents } },
+            { eventName: eventType },
+          ],
+        },
+        include: {
+          DeliveryAttempt: {
+            where: {
+              status: { in: ["ok", "fail"] }, // 只检查已发送的（成功或失败）
+            },
+            select: {
+              id: true,
+              destinationType: true,
+              status: true,
+            },
           },
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        }),
-        prisma.pixelEventReceipt.findMany({
-          where: {
-            shopId: shop.id,
-            eventType,
-            createdAt: { gte: fiveMinutesAgo },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        }),
-      ]);
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50, // 增加查询数量以确保覆盖所有事件
+      });
 
       const foundEvents = new Set<string>();
-      const allEvents = [
-        ...conversionLogs.map((log) => log.eventType),
-        ...pixelReceipts.map((receipt) => receipt.eventType),
-      ];
-
-      for (const expected of expectedEvents) {
-        const found = allEvents.some((actual) => {
-
-          if (actual.toLowerCase() === expected.toLowerCase()) {
-            return true;
+      
+      // 从 EventLog 中提取事件名称（eventName 或从 normalizedEventJson 中提取）
+      for (const eventLog of eventLogs) {
+        // 检查 eventName 是否匹配
+        const eventName = eventLog.eventName;
+        
+        // 也尝试从 normalizedEventJson 中提取 shopifyEventName
+        const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+        const shopifyEventName = normalizedEvent?.shopifyEventName as string | undefined;
+        
+        // 只有当有 DeliveryAttempt 且状态为 ok 或 fail 时才认为事件已发生
+        const hasValidDelivery = eventLog.DeliveryAttempt.length > 0;
+        
+        if (hasValidDelivery) {
+          // 检查 eventName 是否匹配任何 expectedEvents
+          for (const expected of expectedEvents) {
+            if (eventName.toLowerCase() === expected.toLowerCase() ||
+                shopifyEventName?.toLowerCase() === expected.toLowerCase() ||
+                eventName.toLowerCase().includes(expected.toLowerCase()) ||
+                expected.toLowerCase().includes(eventName.toLowerCase()) ||
+                shopifyEventName?.toLowerCase().includes(expected.toLowerCase()) ||
+                expected.toLowerCase().includes(shopifyEventName?.toLowerCase() || "")) {
+              foundEvents.add(expected);
+            }
           }
-
-          if (actual.toLowerCase().includes(expected.toLowerCase()) ||
-              expected.toLowerCase().includes(actual.toLowerCase())) {
-            return true;
-          }
-          return false;
-        });
-        if (found) {
-          foundEvents.add(expected);
         }
       }
 

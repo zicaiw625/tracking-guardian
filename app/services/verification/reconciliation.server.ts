@@ -30,61 +30,119 @@ export async function reconcileOrder(
   orderId: string
 ): Promise<ReconciliationResult> {
   try {
-
-    const conversionLog = await prisma.conversionLog.findFirst({
+    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+    // 查找该订单的所有事件（主要是 checkout_completed/purchase）
+    const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
+        // 通过 normalizedEventJson 中的 orderId 匹配
+        // 注意：这里需要查询所有事件，然后过滤 orderId
+      },
+      include: {
+        DeliveryAttempt: {
+          where: {
+            status: { in: ["ok", "fail"] }, // 只检查已发送的（成功或失败）
+          },
+          select: {
+            id: true,
+            destinationType: true,
+            status: true,
+            requestPayloadJson: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100, // 限制查询数量
+    });
+
+    // 过滤出匹配 orderId 的事件
+    const matchingEvents = eventLogs.filter((eventLog) => {
+      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+      const eventOrderId = normalizedEvent?.orderId as string | undefined;
+      return eventOrderId === orderId;
+    });
+
+    // 从第一个匹配的事件中提取 Shopify 订单信息
+    let shopifyOrder: { orderId: string; orderValue: number; currency: string } | null = null;
+    if (matchingEvents.length > 0) {
+      const firstEvent = matchingEvents[0];
+      const normalizedEvent = firstEvent.normalizedEventJson as Record<string, unknown> | null;
+      const value = (normalizedEvent?.value as number) || 0;
+      const currency = (normalizedEvent?.currency as string) || "USD";
+      
+      shopifyOrder = {
         orderId,
-      },
-      select: {
-        orderValue: true,
-        currency: true,
-      },
-    });
+        orderValue: value,
+        currency,
+      };
+    }
 
-    const shopifyOrder = conversionLog
-      ? {
-          orderId,
-          orderValue: Number(conversionLog.orderValue || 0),
-          currency: conversionLog.currency || "USD",
+    // 从 DeliveryAttempt 中提取平台事件信息
+    const platformEventsMap = new Map<string, {
+      platform: string;
+      eventValue: number;
+      currency: string;
+      eventId: string | null;
+      status: string;
+    }>();
+
+    for (const eventLog of matchingEvents) {
+      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+      const eventValue = (normalizedEvent?.value as number) || 0;
+      const currency = (normalizedEvent?.currency as string) || "USD";
+      const eventId = eventLog.eventId;
+
+      for (const attempt of eventLog.DeliveryAttempt) {
+        const platform = attempt.destinationType;
+        const key = `${platform}-${eventLog.eventName}`;
+        
+        // 如果该平台已有记录，保留状态为 "ok" 的记录
+        if (!platformEventsMap.has(key) || attempt.status === "ok") {
+          // 尝试从 requestPayloadJson 中提取更准确的值
+          let finalValue = eventValue;
+          let finalCurrency = currency;
+          
+          if (attempt.requestPayloadJson) {
+            const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
+            if (platform === "google") {
+              const body = requestPayload?.body as Record<string, unknown> | undefined;
+              const events = body?.events as Array<Record<string, unknown>> | undefined;
+              if (events && events.length > 0) {
+                const params = events[0].params as Record<string, unknown> | undefined;
+                if (params?.value !== undefined) finalValue = (params.value as number) || 0;
+                if (params?.currency) finalCurrency = String(params.currency);
+              }
+            } else if (platform === "meta" || platform === "facebook") {
+              const body = requestPayload?.body as Record<string, unknown> | undefined;
+              const data = body?.data as Array<Record<string, unknown>> | undefined;
+              if (data && data.length > 0) {
+                const customData = data[0].custom_data as Record<string, unknown> | undefined;
+                if (customData?.value !== undefined) finalValue = (customData.value as number) || 0;
+                if (customData?.currency) finalCurrency = String(customData.currency);
+              }
+            } else if (platform === "tiktok") {
+              const body = requestPayload?.body as Record<string, unknown> | undefined;
+              const data = body?.data as Array<Record<string, unknown>> | undefined;
+              if (data && data.length > 0) {
+                const properties = data[0].properties as Record<string, unknown> | undefined;
+                if (properties?.value !== undefined) finalValue = (properties.value as number) || 0;
+                if (properties?.currency) finalCurrency = String(properties.currency);
+              }
+            }
+          }
+
+          platformEventsMap.set(key, {
+            platform,
+            eventValue: finalValue,
+            currency: finalCurrency,
+            eventId,
+            status: attempt.status === "ok" ? "sent" : attempt.status,
+          });
         }
-      : null;
+      }
+    }
 
-    const events = await prisma.conversionLog.findMany({
-      where: {
-        shopId,
-        orderId: orderId,
-        eventType: "checkout_completed",
-      },
-      select: {
-        platform: true,
-        orderValue: true,
-        currency: true,
-        orderId: true,
-        status: true,
-        createdAt: true,
-      },
-    });
-
-    const platformEvents = events
-      .map((event: { platform: string | null; orderValue: { toNumber: () => number } | number; currency: string; orderId: string; status: string; createdAt: Date }) => {
-        const orderValue = typeof event.orderValue === 'object' && 'toNumber' in event.orderValue 
-          ? event.orderValue.toNumber() 
-          : typeof event.orderValue === 'number' 
-          ? event.orderValue 
-          : 0;
-        return {
-          platform: event.platform || "unknown",
-          orderId: event.orderId,
-          orderValue: orderValue,
-          eventValue: orderValue,
-          currency: event.currency || "USD",
-          eventId: event.orderId,
-          status: event.status,
-          createdAt: event.createdAt,
-        };
-      })
-      .filter((e: { platform: string }) => e.platform !== "unknown");
+    const platformEvents = Array.from(platformEventsMap.values());
 
     const discrepancies: ReconciliationResult["discrepancies"] = [];
 
@@ -187,22 +245,26 @@ export async function getReconciliationSummary(
   >;
 }> {
   try {
-
-    const events = await prisma.conversionLog.findMany({
+    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+    const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
-        eventType: "checkout_completed",
+        eventName: { in: ["checkout_completed", "purchase"] }, // 主要关注购买事件
         createdAt: {
           gte: startDate,
           lte: endDate,
         },
       },
-      select: {
-        orderId: true,
-        platform: true,
-        orderValue: true,
-        currency: true,
-        status: true,
+      include: {
+        DeliveryAttempt: {
+          where: {
+            status: { in: ["ok", "fail"] },
+          },
+          select: {
+            destinationType: true,
+            status: true,
+          },
+        },
       },
     });
 
@@ -216,20 +278,27 @@ export async function getReconciliationSummary(
       }
     > = {};
 
-    for (const event of events) {
-      if (event.orderId) {
-        orderIds.add(event.orderId);
+    // 从 EventLog 中提取 orderId 和平台信息
+    for (const eventLog of eventLogs) {
+      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+      const orderId = normalizedEvent?.orderId as string | undefined;
+      
+      if (orderId) {
+        orderIds.add(orderId);
       }
 
-      const platform = event.platform || "unknown";
-      if (!byPlatform[platform]) {
-        byPlatform[platform] = {
-          total: 0,
-          consistent: 0,
-          inconsistent: 0,
-        };
+      // 统计每个平台的事件数
+      for (const attempt of eventLog.DeliveryAttempt) {
+        const platform = attempt.destinationType;
+        if (!byPlatform[platform]) {
+          byPlatform[platform] = {
+            total: 0,
+            consistent: 0,
+            inconsistent: 0,
+          };
+        }
+        byPlatform[platform].total++;
       }
-      byPlatform[platform].total++;
     }
 
     let consistentOrders = 0;

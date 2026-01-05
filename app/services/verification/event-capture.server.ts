@@ -36,28 +36,38 @@ export async function captureRecentEvents(
   destinationTypes?: string[]
 ): Promise<EventCaptureResult> {
   try {
-    const events = await prisma.conversionLog.findMany({
+    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+    const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
         createdAt: {
           gte: since,
         },
         ...(destinationTypes && destinationTypes.length > 0
-          ? { platform: { in: destinationTypes } }
+          ? {
+              DeliveryAttempt: {
+                some: {
+                  destinationType: { in: destinationTypes },
+                },
+              },
+            }
           : {}),
       },
-      select: {
-        id: true,
-        orderId: true,
-        orderValue: true,
-        currency: true,
-        platform: true,
-        eventType: true,
-        status: true,
-        errorMessage: true,
-        platformResponse: true,
-        createdAt: true,
-        eventId: true,
+      include: {
+        DeliveryAttempt: {
+          where: destinationTypes && destinationTypes.length > 0
+            ? { destinationType: { in: destinationTypes } }
+            : undefined,
+          select: {
+            id: true,
+            destinationType: true,
+            status: true,
+            errorCode: true,
+            errorDetail: true,
+            requestPayloadJson: true,
+            createdAt: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -65,46 +75,79 @@ export async function captureRecentEvents(
       take: 100,
     });
 
-    const capturedEvents: CapturedEvent[] = events.map((event) => {
-      const orderValue = typeof event.orderValue === 'object' && 'toNumber' in event.orderValue 
-        ? event.orderValue.toNumber() 
-        : typeof event.orderValue === 'number' 
-        ? event.orderValue 
-        : 0;
+    const capturedEvents: CapturedEvent[] = [];
+    
+    for (const eventLog of eventLogs) {
+      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+      const value = (normalizedEvent?.value as number) || 0;
+      const currency = (normalizedEvent?.currency as string) || "USD";
+      const items = (normalizedEvent?.items as Array<Record<string, unknown>>) || [];
       
-      const payload = (event.platformResponse as Record<string, unknown>) || {};
-      const data = {
-        value: orderValue,
-        currency: event.currency || "USD",
-        items: [],
-      };
+      // 为每个 DeliveryAttempt 创建一个 CapturedEvent
+      for (const attempt of eventLog.DeliveryAttempt) {
+        const payload = (attempt.requestPayloadJson as Record<string, unknown>) || {};
+        const data = {
+          value,
+          currency,
+          items,
+        };
 
-      const hasValue = orderValue > 0;
-      const hasCurrency = Boolean(event.currency);
-      const hasItems = false; // ConversionLog doesn't have items
+        const hasValue = value > 0;
+        const hasCurrency = Boolean(currency);
+        const hasItems = Array.isArray(items) && items.length > 0;
 
-      const completenessRate =
-        ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
+        const completenessRate =
+          ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
 
-      return {
-        id: event.id,
-        eventName: event.eventType || "checkout_completed",
-        eventId: event.eventId || event.orderId,
-        destinationType: event.platform || null,
-        payload: { ...payload, data },
-        status: event.status === "sent" || event.status === "ok" ? "ok" : "fail",
-        errorCode: event.errorMessage ? "conversion_failed" : null,
-        errorDetail: event.errorMessage || null,
-        eventTimestamp: event.createdAt,
-        createdAt: event.createdAt,
-        parameterCompleteness: {
-          hasValue,
-          hasCurrency,
-          hasItems,
-          completenessRate: Math.round(completenessRate * 100),
-        },
-      };
-    });
+        capturedEvents.push({
+          id: `${eventLog.id}-${attempt.id}`,
+          eventName: eventLog.eventName,
+          eventId: eventLog.eventId,
+          destinationType: attempt.destinationType,
+          payload: { ...payload, data },
+          status: attempt.status === "ok" ? "ok" : "fail",
+          errorCode: attempt.errorCode || null,
+          errorDetail: attempt.errorDetail || null,
+          eventTimestamp: eventLog.occurredAt,
+          createdAt: attempt.createdAt,
+          parameterCompleteness: {
+            hasValue,
+            hasCurrency,
+            hasItems,
+            completenessRate: Math.round(completenessRate * 100),
+          },
+        });
+      }
+      
+      // 如果没有 DeliveryAttempt，仍然创建一个事件记录
+      if (eventLog.DeliveryAttempt.length === 0) {
+        const hasValue = value > 0;
+        const hasCurrency = Boolean(currency);
+        const hasItems = Array.isArray(items) && items.length > 0;
+
+        const completenessRate =
+          ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
+
+        capturedEvents.push({
+          id: eventLog.id,
+          eventName: eventLog.eventName,
+          eventId: eventLog.eventId,
+          destinationType: eventLog.source || null,
+          payload: { data: { value, currency, items } },
+          status: "pending",
+          errorCode: null,
+          errorDetail: null,
+          eventTimestamp: eventLog.occurredAt,
+          createdAt: eventLog.createdAt,
+          parameterCompleteness: {
+            hasValue,
+            hasCurrency,
+            hasItems,
+            completenessRate: Math.round(completenessRate * 100),
+          },
+        });
+      }
+    }
 
     const success = capturedEvents.filter((e) => e.status === "ok").length;
     const failed = capturedEvents.filter((e) => e.status === "fail").length;
@@ -182,7 +225,8 @@ export async function getEventStatistics(
   };
 }> {
   try {
-    const events = await prisma.conversionLog.findMany({
+    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+    const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
         createdAt: {
@@ -190,16 +234,26 @@ export async function getEventStatistics(
           lte: endDate,
         },
         ...(destinationTypes && destinationTypes.length > 0
-          ? { platform: { in: destinationTypes } }
+          ? {
+              DeliveryAttempt: {
+                some: {
+                  destinationType: { in: destinationTypes },
+                },
+              },
+            }
           : {}),
       },
-      select: {
-        eventType: true,
-        platform: true,
-        status: true,
-        orderValue: true,
-        currency: true,
-        platformResponse: true,
+      include: {
+        DeliveryAttempt: {
+          where: destinationTypes && destinationTypes.length > 0
+            ? { destinationType: { in: destinationTypes } }
+            : undefined,
+          select: {
+            destinationType: true,
+            status: true,
+            requestPayloadJson: true,
+          },
+        },
       },
     });
 
@@ -209,53 +263,81 @@ export async function getEventStatistics(
     let totalCompleteness = 0;
     let eventsWithAllParams = 0;
     let eventsWithMissingParams = 0;
+    let totalEvents = 0;
 
-    for (const event of events) {
-      const eventType = event.eventType || "checkout_completed";
+    for (const eventLog of eventLogs) {
+      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
+      const value = (normalizedEvent?.value as number) || 0;
+      const currency = (normalizedEvent?.currency as string) || "USD";
+      const items = (normalizedEvent?.items as Array<Record<string, unknown>>) || [];
+      
+      const eventType = eventLog.eventName;
       byEventType[eventType] = (byEventType[eventType] || 0) + 1;
 
-      const dest = event.platform || "unknown";
-      byDestination[dest] = (byDestination[dest] || 0) + 1;
+      // 为每个 DeliveryAttempt 统计
+      for (const attempt of eventLog.DeliveryAttempt) {
+        totalEvents++;
+        const dest = attempt.destinationType;
+        byDestination[dest] = (byDestination[dest] || 0) + 1;
 
-      const status = event.status === "sent" || event.status === "ok" ? "ok" : "fail";
-      byStatus[status] = (byStatus[status] || 0) + 1;
-      
-      const hasValue = (typeof event.orderValue === 'object' && 'toNumber' in event.orderValue 
-        ? event.orderValue.toNumber() 
-        : typeof event.orderValue === 'number' 
-        ? event.orderValue 
-        : 0) > 0;
-      const hasCurrency = Boolean(event.currency);
-      const completenessRate = ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0)) / 2;
-      
-      totalCompleteness += completenessRate;
-      if (completenessRate === 1) {
-        eventsWithAllParams++;
-      } else {
-        eventsWithMissingParams++;
+        const status = attempt.status === "ok" ? "ok" : "fail";
+        byStatus[status] = (byStatus[status] || 0) + 1;
+        
+        const hasValue = value > 0;
+        const hasCurrency = Boolean(currency);
+        const hasItems = Array.isArray(items) && items.length > 0;
+        const completenessRate = ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
+        
+        totalCompleteness += completenessRate;
+        if (completenessRate === 1) {
+          eventsWithAllParams++;
+        } else {
+          eventsWithMissingParams++;
+        }
+
+        const payload = (attempt.requestPayloadJson as Record<string, unknown>) || {};
+        const data = { value, currency, items };
+        const completeness = checkParameterCompleteness({ ...payload, data });
+        totalCompleteness += completeness.completenessRate / 100;
+
+        if (completeness.completenessRate === 100) {
+          eventsWithAllParams++;
+        } else {
+          eventsWithMissingParams++;
+        }
       }
-
-      const payload = (event.platformResponse as Record<string, unknown>) || {};
-      const completeness = checkParameterCompleteness(payload);
-      totalCompleteness += completeness.completenessRate / 100;
-
-      if (completeness.completenessRate === 100) {
-        eventsWithAllParams++;
-      } else {
-        eventsWithMissingParams++;
+      
+      // 如果没有 DeliveryAttempt，仍然统计事件本身
+      if (eventLog.DeliveryAttempt.length === 0) {
+        totalEvents++;
+        const dest = eventLog.source || "unknown";
+        byDestination[dest] = (byDestination[dest] || 0) + 1;
+        byStatus["pending"] = (byStatus["pending"] || 0) + 1;
+        
+        const hasValue = value > 0;
+        const hasCurrency = Boolean(currency);
+        const hasItems = Array.isArray(items) && items.length > 0;
+        const completenessRate = ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
+        
+        totalCompleteness += completenessRate;
+        if (completenessRate === 1) {
+          eventsWithAllParams++;
+        } else {
+          eventsWithMissingParams++;
+        }
       }
     }
 
     const avgCompleteness =
-      events.length > 0 ? totalCompleteness / events.length : 0;
+      totalEvents > 0 ? totalCompleteness / totalEvents : 0;
 
     return {
-      total: events.length,
+      total: totalEvents,
       byEventType,
       byDestination,
       byStatus,
       completenessStats: {
-        avgCompleteness: Math.round(avgCompleteness),
+        avgCompleteness: Math.round(avgCompleteness * 100),
         eventsWithAllParams,
         eventsWithMissingParams,
       },
