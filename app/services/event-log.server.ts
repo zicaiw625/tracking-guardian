@@ -73,7 +73,8 @@ function sanitizePII(payload: unknown): unknown {
     "testEventCode",
   ]);
 
-  // 明确禁止的 PII 字段
+  // 明确禁止的 PII 字段（包括 hash 形态）
+  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此显式删除所有 PII 字段（包括 hash 形态）
   const piiFields = new Set([
     "email",
     "phone",
@@ -99,6 +100,24 @@ function sanitizePII(payload: unknown): unknown {
     "customerId",
     "user_id",
     "userId",
+    // Hash 形态的字段（也属于 PII 处理范畴）
+    "em",
+    "ph",
+    "fn",
+    "ln",
+    "zp",
+    "ct",
+    "st",
+    "country",
+    "user_data",
+    "external_id",
+    "email_hash",
+    "phone_hash",
+    "hashed_email",
+    "hashed_phone",
+    "hashed_phone_number",
+    "pre_hashed_user_data",
+    "preHashedUserData",
   ]);
 
   // 敏感凭证字段

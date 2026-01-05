@@ -19,7 +19,7 @@ import {
 import {
   classifyHttpError,
   classifyJsError,
-  hashUserData,
+  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 hashUserData 导入
 } from "./base-platform.service";
 
 const TWITTER_API_BASE_URL = "https://ads-api.twitter.com";

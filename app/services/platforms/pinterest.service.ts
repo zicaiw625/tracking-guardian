@@ -17,7 +17,7 @@ import {
   measureDuration,
   DEFAULT_API_TIMEOUT_MS,
 } from "./interface";
-import { classifyHttpError, classifyJsError, hashSHA256 } from "./base-platform.service";
+import { classifyHttpError, classifyJsError } from "./base-platform.service";
 
 const PINTEREST_API_VERSION = "v5";
 const PINTEREST_API_BASE_URL = "https://api.pinterest.com";

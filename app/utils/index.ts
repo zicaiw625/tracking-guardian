@@ -315,18 +315,9 @@ export {
   SafeStringSchema,
 } from "./security";
 
-export {
-  maskEmail,
-  maskPhone,
-  maskName,
-  maskPII,
-  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 extractPIISafely, hasPII, calculatePIIQuality, getPIIQualityLabel, logPIIStatus 导出
-  // 这些函数仅用于订单 webhook 处理，v1.0 不处理订单 webhooks
-  detectPII,
-  PII_PATTERNS,
-  PII_FIELD_NAMES,
-  type ExtractedPII,
-} from "./pii";
+// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此完全移除 pii.ts 文件及其所有导出
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
+// 如果将来需要 PII 处理，这些函数将在 v1.1 中重新引入
 
 export {
   evaluatePlatformConsent,
