@@ -74,6 +74,23 @@ export default function PublicPrivacyPolicy() {
                 <Text as="p">
                   默认情况下，Tracking Guardian 仅处理订单事件必要字段，<strong>不收集或处理任何个人身份信息（PII）</strong>。此模式符合 Shopify Web Pixels 的隐私最小化原则，适用于所有商家，无需额外配置。
                 </Text>
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    <strong>代码实现说明（重要）：</strong>我们的 Web Pixel 扩展代码中实现了订阅多种 Shopify 标准事件的能力（包括 <code>page_viewed</code>、<code>product_viewed</code>、<code>product_added_to_cart</code>、<code>checkout_started</code>、<code>checkout_contact_info_submitted</code>、<code>checkout_shipping_info_submitted</code>、<code>payment_info_submitted</code>、<code>checkout_completed</code>）。但是，这些事件订阅功能通过 <code>mode</code> 参数控制：<strong>默认值为 <code>"purchase_only"</code></strong>，此时<strong>仅订阅并收集</strong> <code>checkout_completed</code>（购买完成）事件；<strong>只有在商家明确启用 Full Funnel 模式（<code>mode = "full_funnel"</code>）时，才会订阅并收集其他事件</strong>。此设计确保代码能力与隐私政策声明完全一致。在应用设置中，商家可以查看当前模式（默认显示为"仅购买事件"），并可以选择升级到 Full Funnel 模式（需要 Growth 及以上套餐）。
+                  </Text>
+                  <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
+                    <Text as="p">
+                      <strong>Pixel 加载与事件发送条件（代码实现说明）：</strong>我们的 Web Pixel 配置为需要 <code>analytics</code> 同意才能加载（<code>analytics = true</code>），但不强制要求 <code>marketing</code> 同意（<code>marketing = false</code>）。这意味着<strong>只有当客户授予 analytics 同意时，Pixel 才会加载</strong>；如果客户未授予 analytics 同意，Pixel 不会加载，也不会发送任何事件。事件发送遵循以下规则：<strong>只有当客户授予 analytics 同意或 marketing 同意时，事件才会被发送到后端</strong>。如果客户未授予任何同意，事件将被跳过，不会发送。Marketing 同意需要同时满足 <code>marketingAllowed = true</code> 和 <code>saleOfDataAllowed = true</code>（符合 CCPA 要求）。服务端会根据各平台的要求（<code>requiresSaleOfData</code>）和事件用途（analytics vs marketing）进行进一步过滤，确保合规性。具体来说：
+                    </Text>
+                    <ul style={{ marginTop: "8px", marginLeft: "20px", fontSize: "13px" }}>
+                      <li><strong>Google Analytics 4 (GA4)：</strong> 只需 analytics 同意即可发送（<code>requiresSaleOfData = false</code>）</li>
+                      <li><strong>Meta Conversions API / TikTok Events API：</strong> 需要 marketing 同意（即 <code>marketingAllowed = true</code> 且 <code>saleOfDataAllowed = true</code>），因为 <code>requiresSaleOfData = true</code></li>
+                    </ul>
+                    <Text as="p" style={{ marginTop: "8px" }}>
+                      <strong>v1.0 版本平台支持范围（代码实现说明）：</strong>v1.0 版本<strong>默认仅支持</strong>以下三个平台：Google Analytics 4 (GA4)、Meta Conversions API (Facebook/Instagram)、TikTok Events API。代码中的默认配置为 <code>enabled_platforms = "meta,tiktok,google"</code>。虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持代码（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。如果商家尝试配置其他平台，系统会显示警告提示这些平台在 v1.0 中不支持。
+                    </Text>
+                  </div>
+                </Banner>
                 <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>
                   <Text as="p">
                     <strong>默认数据处理范围：</strong>
@@ -84,16 +101,41 @@ export default function PublicPrivacyPolicy() {
                     <strong>订单数据（来自 Shopify Webhooks）：</strong> 订单 ID、订单号、订单金额、货币、商品信息（商品 ID、名称、数量）以及结账令牌（用于事件关联）。这些数据<strong>不包含</strong>客户姓名、邮箱、电话或地址等 PII。
                   </List.Item>
                   <List.Item>
-                    <strong>像素事件数据（来自 Web Pixel）：</strong> 默认情况下，我们<strong>仅收集</strong> <code>checkout_completed</code>（购买完成）事件。事件元数据包括时间戳、店铺域名和客户同意状态。我们<strong>不收集</strong>页面浏览、商品浏览、加购等事件，除非商家明确启用 Full Funnel 模式（需要 Growth 及以上套餐）。
+                    <strong>像素事件数据（来自 Web Pixel）：</strong> 默认情况下（<code>mode = "purchase_only"</code>），我们<strong>仅收集</strong> <code>checkout_completed</code>（购买完成）事件。事件元数据包括时间戳、店铺域名、客户同意状态、订单信息（订单 ID、订单金额、货币、商品信息）和结账令牌（用于事件关联）。我们<strong>不收集</strong>以下事件，除非商家明确启用 Full Funnel 模式（需要 Growth 及以上套餐）：
+                    <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
+                      <li><code>page_viewed</code> - 页面浏览事件</li>
+                      <li><code>product_viewed</code> - 商品浏览事件</li>
+                      <li><code>product_added_to_cart</code> - 加入购物车事件</li>
+                      <li><code>checkout_started</code> - 结账开始事件</li>
+                      <li><code>checkout_contact_info_submitted</code> - 结账联系信息提交事件</li>
+                      <li><code>checkout_shipping_info_submitted</code> - 结账配送信息提交事件</li>
+                      <li><code>payment_info_submitted</code> - 支付信息提交事件</li>
+                    </ul>
+                    <strong>重要说明：</strong>虽然我们的代码实现中包含订阅上述所有 Shopify 标准事件的能力，但这些事件订阅功能<strong>默认全部关闭</strong>（通过 <code>mode = "purchase_only"</code> 控制），仅在商家明确启用 Full Funnel 模式（<code>mode = "full_funnel"</code>）时才会激活。商家可以在应用设置中查看当前模式，并选择是否启用 Full Funnel 模式。
                   </List.Item>
                   <List.Item>
-                    <strong>我们默认不收集的内容：</strong> 客户邮箱地址、电话号码、姓名、地址或其他任何个人身份信息（PII）。我们也不收集浏览历史、页面浏览或加购事件，除非商家明确启用 Full Funnel 模式。<strong>注意：</strong>虽然我们的代码实现中包含处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code> 等配置项控制），但这些功能默认全部关闭。仅在商家主动启用增强匹配功能且满足所有合规条件时，才会处理哈希后的 PII。
+                    <strong>我们默认不收集的内容：</strong> 
+                    <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
+                      <li><strong>个人身份信息（PII）：</strong>客户邮箱地址、电话号码、姓名、地址或其他任何个人身份信息。这些信息仅在商家明确启用增强匹配功能且满足所有合规条件时才会处理（使用 SHA-256 哈希后传输）。</li>
+                      <li><strong>浏览和交互事件：</strong>页面浏览（<code>page_viewed</code>）、商品浏览（<code>product_viewed</code>）、加购（<code>product_added_to_cart</code>）或结账流程中的中间事件（<code>checkout_started</code>、<code>checkout_contact_info_submitted</code>、<code>checkout_shipping_info_submitted</code>、<code>payment_info_submitted</code>）。这些事件仅在商家明确启用 Full Funnel 模式（需要 Growth 及以上套餐）时才会收集。</li>
+                    </ul>
+                    <strong>注意：</strong>虽然我们的代码实现中包含订阅这些事件和处理 PII 的能力（通过 <code>mode</code> 参数和 <code>piiEnabled</code>、<code>pcdAcknowledged</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。仅在商家主动启用 Full Funnel 模式时才会订阅额外事件；仅在商家主动启用增强匹配功能且满足所有合规条件时，才会处理哈希后的 PII。
                   </List.Item>
                   <List.Item>
-                    <strong>数据用途：</strong> 默认模式下，所有事件仅用于 analytics（分析）目的（如 Google Analytics 4），不用于 marketing（营销）目的。事件数据仅发送到商家配置的 analytics 平台，不包含任何 PII。
+                    <strong>数据用途：</strong> 默认模式下，所有事件仅用于 analytics（分析）目的（如 Google Analytics 4），不用于 marketing（营销）目的。事件数据仅发送到商家配置的 analytics 平台，不包含任何 PII。<strong>重要说明（代码实现说明）：</strong>Pixel 需要客户授予 analytics 同意才能加载（如果客户未授予 analytics 同意，Pixel 不会加载）。事件发送需要客户授予 analytics 同意或 marketing 同意（代码中检查 <code>hasAnalyticsConsent() || hasMarketingConsent()</code>）。如果客户未授予任何同意，事件将被跳过，不会发送到后端。这确保了完全符合 Shopify Customer Privacy API 的要求。
                   </List.Item>
                   <List.Item>
-                    <strong>数据分享：</strong> 默认模式下，我们<strong>不分享</strong>任何客户 PII 给第三方（因为默认模式下我们不收集 PII）。所有数据仅用于转化追踪和报告生成，不会用于广告投放、用户画像构建或其他营销目的。如果商家启用了增强匹配功能，哈希后的 PII 会发送到商家配置的广告平台，但不会用于其他目的或出售给第三方。
+                    <strong>数据传输方式：</strong> 我们使用<strong>服务端 API（Server-Side API）</strong>将事件数据发送到广告平台。具体包括：
+                    <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
+                      <li><strong>Google Analytics 4 (GA4)：</strong> 通过 Google Measurement Protocol API 发送事件数据（v1.0 默认支持）</li>
+                      <li><strong>Meta Conversions API：</strong> 通过 Meta Conversions API 发送事件数据（v1.0 默认支持）</li>
+                      <li><strong>TikTok Events API：</strong> 通过 TikTok Events API 发送事件数据（v1.0 默认支持）</li>
+                      <li><strong>其他平台（Snapchat、Twitter/X、Pinterest 等）：</strong> 代码实现中包含这些平台的支持（在 <code>app/services/platforms/registry.ts</code> 中注册），但在 v1.0 中<strong>默认不启用</strong>（默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>），且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。</li>
+                    </ul>
+                    所有事件数据通过 HTTPS 加密传输，确保数据安全。默认模式下，发送的数据<strong>不包含任何 PII</strong>，仅包含订单信息（订单 ID、金额、货币、商品信息）和事件元数据（时间戳、店铺域名、客户同意状态）。<strong>v1.0 版本仅支持 GA4、Meta 和 TikTok 平台</strong>，其他平台（Snapchat、Twitter/X、Pinterest 等）将在 v1.1+ 版本中正式支持。
+                  </List.Item>
+                  <List.Item>
+                    <strong>数据分享：</strong> 默认模式下，我们<strong>不分享</strong>任何客户 PII 给第三方（因为默认模式下我们不收集 PII）。所有数据仅用于转化追踪和报告生成，不会用于广告投放、用户画像构建或其他营销目的。如果商家启用了增强匹配功能，哈希后的 PII 会通过服务端 API 发送到商家配置的广告平台，但不会用于其他目的或出售给第三方。
                   </List.Item>
                 </List>
 
@@ -140,34 +182,47 @@ export default function PublicPrivacyPolicy() {
                   </List.Item>
                 </List>
                 <Text as="p" fontWeight="bold">
-                  启用增强匹配后，我们会处理以下 PII 字段（全部使用 SHA-256 哈希后传输）：
+                  启用增强匹配后，我们会处理以下 PII 字段（全部使用 SHA-256 哈希后通过服务端 API 传输）：
                 </Text>
                 <List type="bullet">
                   <List.Item>
-                    <strong>邮箱地址：</strong>使用 SHA-256 哈希后发送到广告平台（Google GA4、Meta Conversions API、TikTok Events API 等）
+                    <strong>邮箱地址：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台（v1.0 支持：Google GA4 Measurement Protocol、Meta Conversions API、TikTok Events API）
                   </List.Item>
                   <List.Item>
-                    <strong>电话号码：</strong>使用 SHA-256 哈希后发送到广告平台
+                    <strong>电话号码：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台
                   </List.Item>
                   <List.Item>
-                    <strong>姓名（名和姓）：</strong>使用 SHA-256 哈希后发送到广告平台
+                    <strong>姓名（名和姓）：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台
                   </List.Item>
                   <List.Item>
-                    <strong>地址信息（城市、州/省、邮编、国家）：</strong>使用 SHA-256 哈希后发送到广告平台
+                    <strong>地址信息（城市、州/省、邮编、国家）：</strong>使用 SHA-256 哈希后通过服务端 API 发送到广告平台
                   </List.Item>
                 </List>
+                <Text as="p" variant="bodySm" tone="subdued" style={{ marginTop: "8px" }}>
+                  <strong>重要说明：</strong>所有 PII 字段在发送前都会使用 SHA-256 算法进行哈希处理。哈希处理在服务端内存中进行，<strong>我们不会在数据库中存储未哈希的 PII</strong>。哈希后的数据通过 HTTPS 加密传输到广告平台的服务端 API，确保数据安全。即使启用增强匹配，我们也只处理哈希后的数据，原始 PII 不会进入我们的数据库或日志系统。
+                </Text>
                 <Text as="p" variant="bodySm" tone="subdued" fontWeight="bold">
                   ⚠️ 重要说明（符合 Shopify 官方合规要求）：
                 </Text>
                 <List type="bullet">
                   <List.Item>
-                    <strong>哈希处理：</strong>所有 PII 字段在发送到广告平台前均使用 SHA-256 进行哈希处理，我们<strong>不在数据库中存储未哈希的 PII</strong>。哈希处理在内存中进行，不会持久化存储。即使启用增强匹配，我们也只处理哈希后的数据，原始 PII 不会进入我们的数据库。
+                    <strong>哈希处理：</strong>所有 PII 字段在发送到广告平台前均使用 SHA-256 进行哈希处理，我们<strong>不在数据库中存储未哈希的 PII</strong>。哈希处理在服务端内存中进行，不会持久化存储。即使启用增强匹配，我们也只处理哈希后的数据，原始 PII 不会进入我们的数据库或日志系统。
+                  </List.Item>
+                  <List.Item>
+                    <strong>服务端 API 传输：</strong>所有事件数据（包括哈希后的 PII，如果启用增强匹配）都通过服务端 API 发送到广告平台，而不是通过客户端 JavaScript 代码。这确保了数据传输的安全性和可靠性，并符合各平台的 Server-Side API 最佳实践。我们使用以下服务端 API：
+                    <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
+                      <li><strong>Google Analytics 4：</strong> Measurement Protocol API（<code>https://www.google-analytics.com/mp/collect</code>）- v1.0 默认支持</li>
+                      <li><strong>Meta：</strong> Conversions API（<code>https://graph.facebook.com/v21.0/{pixelId}/events</code>）- v1.0 默认支持</li>
+                      <li><strong>TikTok：</strong> Events API（<code>https://business-api.tiktok.com/open_api/v1.3/event/track/</code>）- v1.0 默认支持</li>
+                      <li><strong>其他平台（Snapchat、Twitter/X 等）：</strong> 代码实现中包含这些平台的服务端 API 支持（在 <code>app/services/platforms/registry.ts</code> 中注册），但在 v1.0 中默认不启用（默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>），不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持。</li>
+                    </ul>
+                    所有 API 请求都通过 HTTPS 加密传输，确保数据安全。
                   </List.Item>
                   <List.Item>
                     <strong>自动回退机制：</strong>如果 Shopify 未提供 PII 字段（例如因 PCD 限制、客户未同意或应用未通过 PCD 审核），应用会自动回退到默认隐私优先模式，仅发送非 PII 事件数据。此回退是自动的，无需商家干预。即使商家启用了增强匹配，如果 Shopify 未提供 PII，我们也不会尝试获取或处理 PII。
                   </List.Item>
                   <List.Item>
-                    <strong>数据目的地：</strong>哈希后的 PII 仅发送到商家配置的广告平台（如 Google GA4、Meta Conversions API、TikTok Events API 等），不会用于其他目的。我们不会将 PII 用于广告投放、用户画像构建或其他营销目的。我们不会将 PII 出售给第三方或用于任何非转化追踪目的。<strong>重要：</strong>此功能仅在商家明确启用增强匹配且满足所有合规条件时才会生效。默认模式下，我们不收集、不处理、不分享任何 PII。
+                    <strong>数据目的地：</strong>哈希后的 PII 仅发送到商家配置的广告平台（v1.0 默认支持：Google GA4、Meta Conversions API、TikTok Events API，代码中默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>），不会用于其他目的。我们不会将 PII 用于广告投放、用户画像构建或其他营销目的。我们不会将 PII 出售给第三方或用于任何非转化追踪目的。<strong>重要：</strong>此功能仅在商家明确启用增强匹配且满足所有合规条件时才会生效。默认模式下，我们不收集、不处理、不分享任何 PII。<strong>v1.0 版本限制（代码实现说明）：</strong>虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。
                   </List.Item>
                   <List.Item>
                     <strong>用途分级：</strong>我们区分 analytics（分析）和 marketing（营销）用途。默认情况下，所有事件仅用于 analytics（如 Google Analytics 4）。Marketing 用途（如 Meta、TikTok 广告转化）需要商家明确启用并确认合规。所有事件日志和报表中都会标记该事件是 analytics 还是 marketing 用途。
@@ -190,14 +245,17 @@ export default function PublicPrivacyPolicy() {
                   Full Funnel 模式收集的事件（不含 PII）：
                 </Text>
                 <List type="bullet">
-                  <List.Item><code>page_viewed</code> - 页面浏览追踪（仅 URL 和页面标题，不含用户信息）</List.Item>
-                  <List.Item><code>product_viewed</code> - 商品页面浏览（仅商品 ID、名称、价格，不含用户信息）</List.Item>
-                  <List.Item><code>product_added_to_cart</code> - 加入购物车事件（仅商品信息，不含用户信息）</List.Item>
-                  <List.Item><code>checkout_started</code> - 结账开始（仅购物车金额和商品信息）</List.Item>
-                  <List.Item><code>checkout_completed</code> - 购买完成（始终收集，无论是否启用 Full Funnel）</List.Item>
+                  <List.Item><code>checkout_completed</code> - 购买完成事件（始终收集，无论是否启用 Full Funnel）。包含订单 ID、订单金额、货币、商品信息（商品 ID、名称、价格、数量）和结账令牌。</List.Item>
+                  <List.Item><code>checkout_started</code> - 结账开始事件（仅 Full Funnel 模式）。包含结账令牌、购物车金额、货币和商品信息。</List.Item>
+                  <List.Item><code>checkout_contact_info_submitted</code> - 结账联系信息提交事件（仅 Full Funnel 模式）。包含结账令牌、购物车金额、货币和商品信息。</List.Item>
+                  <List.Item><code>checkout_shipping_info_submitted</code> - 结账配送信息提交事件（仅 Full Funnel 模式）。包含结账令牌、购物车金额、货币和商品信息。</List.Item>
+                  <List.Item><code>payment_info_submitted</code> - 支付信息提交事件（仅 Full Funnel 模式）。包含结账令牌、购物车金额、货币和商品信息。</List.Item>
+                  <List.Item><code>product_added_to_cart</code> - 加入购物车事件（仅 Full Funnel 模式）。包含商品信息（商品 ID、名称、价格、数量）和货币。</List.Item>
+                  <List.Item><code>product_viewed</code> - 商品页面浏览事件（仅 Full Funnel 模式）。包含商品信息（商品 ID、名称、价格）和货币。</List.Item>
+                  <List.Item><code>page_viewed</code> - 页面浏览追踪事件（仅 Full Funnel 模式）。包含页面 URL 和页面标题，不含用户信息。</List.Item>
                 </List>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  <strong>注意：</strong>Full Funnel 模式必须在应用设置中明确启用，且需要 Growth 及以上套餐。默认情况下，仅收集 <code>checkout_completed</code> 事件。Full Funnel 事件<strong>不包含任何 PII</strong>，仅包含商品和交易信息。这些事件仅用于 analytics 目的，除非商家明确启用 marketing 用途。
+                  <strong>注意：</strong>Full Funnel 模式必须在应用设置中明确启用，且需要 Growth 及以上套餐。默认情况下（purchase_only 模式），仅收集 <code>checkout_completed</code> 事件。Full Funnel 模式启用后，会额外收集上述 7 种标准 Shopify 事件（<code>checkout_started</code>、<code>checkout_contact_info_submitted</code>、<code>checkout_shipping_info_submitted</code>、<code>payment_info_submitted</code>、<code>product_added_to_cart</code>、<code>product_viewed</code>、<code>page_viewed</code>）。所有 Full Funnel 事件<strong>不包含任何 PII</strong>，仅包含商品和交易信息。这些事件仅用于 analytics 目的，除非商家明确启用 marketing 用途。
                 </Text>
                 
                 <Text as="h3" variant="headingMd">
@@ -211,7 +269,7 @@ export default function PublicPrivacyPolicy() {
                     <strong>Analytics 用途（默认）：</strong>所有事件默认仅用于 analytics 目的（如 Google Analytics 4）。这些事件不包含 PII，仅用于网站分析和转化追踪。
                   </List.Item>
                   <List.Item>
-                    <strong>Marketing 用途（需明确启用）：</strong>如果商家启用增强匹配并将事件发送到广告平台（如 Meta、TikTok），这些事件会被标记为 marketing 用途。商家必须确认其合规义务并已获得客户同意。
+                    <strong>Marketing 用途（需明确启用）：</strong>如果商家启用增强匹配并将事件发送到广告平台（v1.0 默认支持：Meta、TikTok，代码中默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>），这些事件会被标记为 marketing 用途。商家必须确认其合规义务并已获得客户同意。<strong>v1.0 版本限制（代码实现说明）：</strong>虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。
                   </List.Item>
                   <List.Item>
                     <strong>日志标记：</strong>所有事件日志和报表中都会标记该事件是 analytics 还是 marketing 用途，用于对账解释和支持排查。
@@ -235,7 +293,7 @@ export default function PublicPrivacyPolicy() {
                 <Text as="p">我们处理数据用于以下目的：</Text>
                 <List type="number">
                   <List.Item>
-                    <strong>发送转化事件到广告平台：</strong>将事件数据（默认不含 PII，启用增强匹配后包含哈希后的 PII）发送到商家配置的广告平台（Google GA4、Meta Conversions API、TikTok Events API 等）
+                    <strong>发送转化事件到广告平台：</strong>将事件数据（默认不含 PII，启用增强匹配后包含哈希后的 PII）发送到商家配置的广告平台。v1.0 版本<strong>默认支持且推荐使用</strong>以下平台：Google Analytics 4 (GA4)、Meta Conversions API (Facebook/Instagram)、TikTok Events API（代码中默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>）。<strong>v1.0 版本限制（代码实现说明）：</strong>虽然代码实现中包含 Snapchat、Twitter/X、Pinterest 等平台的支持代码（在 <code>app/services/platforms/registry.ts</code> 和 <code>app/utils/platform-consent.ts</code> 中注册），但这些平台在 v1.0 中<strong>默认不启用</strong>，且不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持并默认启用。v1.0 商家应仅配置 GA4、Meta 和 TikTok 平台。
                   </List.Item>
                   <List.Item>
                     <strong>事件去重：</strong>在客户端像素和服务端 API 之间进行事件去重，防止重复转化上报

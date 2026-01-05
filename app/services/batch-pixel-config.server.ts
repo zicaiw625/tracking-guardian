@@ -455,7 +455,7 @@ export function getPresetTemplates(): Array<Omit<PixelTemplate, "id" | "ownerId"
     },
     {
       name: "全渠道追踪套件",
-      description: "包含 GA4、Meta、TikTok、Pinterest、Snapchat 和 Twitter 的完整配置",
+      description: "包含 GA4、Meta、TikTok、Pinterest、Snapchat 和 Twitter 的完整配置（⚠️ v1.0 仅支持 GA4、Meta、TikTok；Pinterest、Snapchat 和 Twitter 将在 v1.1+ 版本中正式支持）",
       platforms: [
         {
           platform: "google",
@@ -493,7 +493,7 @@ export function getPresetTemplates(): Array<Omit<PixelTemplate, "id" | "ownerId"
     },
     {
       name: "社交媒体追踪套件",
-      description: "TikTok、Snapchat 和 Twitter 社交平台追踪",
+      description: "TikTok、Snapchat 和 Twitter 社交平台追踪（⚠️ v1.0 仅支持 TikTok；Snapchat 和 Twitter 将在 v1.1+ 版本中正式支持）",
       platforms: [
         {
           platform: "tiktok",

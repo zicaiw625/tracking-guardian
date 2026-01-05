@@ -163,7 +163,7 @@ export const PRESET_TEMPLATES: PixelTemplate[] = [
   {
     id: "all-platforms",
     name: "全平台追踪套件",
-    description: "包含 GA4、Meta、TikTok、Pinterest、Snapchat 的完整配置",
+    description: "包含 GA4、Meta、TikTok、Pinterest、Snapchat 的完整配置（⚠️ v1.0 仅支持 GA4、Meta、TikTok；Pinterest 和 Snapchat 将在 v1.1+ 版本中正式支持）",
     platforms: ["google", "meta", "tiktok", "pinterest", "snapchat"],
     eventMappings: {
       google: {

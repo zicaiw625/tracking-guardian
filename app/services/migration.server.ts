@@ -72,6 +72,16 @@ export interface SavePixelConfigOptions {
 export async function savePixelConfig(shopId: string, platform: Platform, platformId: string, options?: SavePixelConfigOptions) {
     const { clientConfig, credentialsEncrypted, serverSideEnabled } = options || {};
 
+    // P0-4: v1.0 范围收敛 - 只支持 GA4/Meta/TikTok
+    // Snapchat/Twitter/Pinterest 等平台将在 v1.1+ 版本支持
+    const v1SupportedPlatforms = ["google", "meta", "tiktok"];
+    if (!v1SupportedPlatforms.includes(platform)) {
+        throw new Error(
+            `平台 ${platform} 在 v1.0 版本中不支持。v1.0 仅支持: ${v1SupportedPlatforms.join(", ")}。` +
+            `其他平台（如 Snapchat、Twitter、Pinterest）将在 v1.1+ 版本中提供支持。`
+        );
+    }
+
     if (serverSideEnabled === true && !credentialsEncrypted) {
         throw new Error(
             `启用服务端追踪时必须提供 credentialsEncrypted。平台: ${platform}, shopId: ${shopId}`

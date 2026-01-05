@@ -695,7 +695,7 @@ export const PRESET_TEMPLATES: Array<{
     id: "social-focus",
     name: "社交媒体专注",
     nameEn: "Social Media Focus",
-    description: "Meta + TikTok + Snapchat，适合社交流量为主的店铺",
+    description: "Meta + TikTok + Snapchat，适合社交流量为主的店铺（⚠️ v1.0 仅支持 Meta 和 TikTok；Snapchat 将在 v1.1+ 版本中正式支持）",
     platforms: [
       {
         platform: "meta",
