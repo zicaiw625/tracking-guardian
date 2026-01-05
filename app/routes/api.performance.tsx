@@ -55,11 +55,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   } catch (error) {
     // Handle Response objects (from authenticate.admin redirects, etc.)
     if (error instanceof Response) {
+      // Check if it's a valid redirect with Location header
+      const location = error.headers.get("Location");
+      if (location && (error.status >= 300 && error.status < 400)) {
+        // Valid redirect - return it as-is
+        return error;
+      }
+      
+      // Invalid redirect or non-redirect Response - log and return error
       logger.error("Failed to store performance metric - received Response object", {
         shopDomain,
         status: error.status,
         statusText: error.statusText,
         url: error.url,
+        hasLocation: !!location,
       });
       // If it's an authentication redirect, return appropriate error
       if (error.status === 401 || error.status === 403) {
