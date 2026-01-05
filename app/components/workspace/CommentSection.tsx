@@ -103,7 +103,8 @@ export function CommentSection({
 
     return (
       <Box key={comment.id} paddingBlockStart={level > 0 ? "300" : "400"}>
-        <Box style={{ paddingInlineStart: `${indent}px` }}>
+        <Box>
+          <div style={{ paddingInlineStart: `${indent}px` }}>
           <BlockStack gap="200">
             <InlineStack align="space-between" blockAlign="center">
               <InlineStack gap="200" blockAlign="center">
@@ -130,7 +131,7 @@ export function CommentSection({
             </InlineStack>
 
             <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-              <Box style={{ fontSize: "13px", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>
+              <div style={{ fontSize: "13px", lineHeight: "1.5", whiteSpace: "pre-wrap" }}>
                 {comment.content.split(/(@\w+)/g).map((part, idx) => {
                   if (part.startsWith("@")) {
                     const domain = part.substring(1);
@@ -145,7 +146,7 @@ export function CommentSection({
                   }
                   return <span key={idx}>{part}</span>;
                 })}
-              </Box>
+              </div>
             </Box>
 
             {!('isSystemMessage' in comment && comment.isSystemMessage) && (
@@ -199,6 +200,7 @@ export function CommentSection({
               </BlockStack>
             )}
           </BlockStack>
+          </div>
         </Box>
       </Box>
     );

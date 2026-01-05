@@ -1,8 +1,9 @@
 
 
+import { randomUUID } from "crypto";
 import { billingCache } from "~/utils/cache";
 import { BILLING_PLANS, type PlanId, getPlanOrDefault } from "./plans";
-import { getOrCreateMonthlyUsage } from "./usage.server";
+import { getOrCreateMonthlyUsage , getCurrentYearMonth } from "./usage.server";
 import { ok, err, type Result, type AsyncResult, fromPromise } from "~/types/result";
 
 export type BillingErrorType =
@@ -242,7 +243,6 @@ export async function isApproachingLimit(
 }
 
 import prisma from "~/db.server";
-import { getCurrentYearMonth } from "./usage.server";
 
 export interface AtomicReservationResult {
   success: boolean;
@@ -263,7 +263,13 @@ export async function checkAndReserveBillingSlot(
     const planConfig = getPlanOrDefault(shopPlan);
     const limit = planConfig.monthlyOrderLimit;
 
-    const result = await prisma.$transaction(async (tx) => {
+    // Retry logic for Serializable isolation level (can cause serialization failures P40001)
+    const maxRetries = 3;
+    let lastError: unknown;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const result = await prisma.$transaction(async (tx) => {
 
       const existingJob = await tx.conversionJob.findUnique({
         where: { shopId_orderId: { shopId, orderId } },
@@ -285,9 +291,38 @@ export async function checkAndReserveBillingSlot(
         };
       }
 
+      const log = await tx.conversionLog.findFirst({
+        where: {
+          shopId,
+          orderId,
+          status: "sent",
+        },
+      });
+
+      if (log) {
+        const usage = await tx.monthlyUsage.findUnique({
+          where: { shopId_yearMonth: { shopId, yearMonth } },
+          select: { sentCount: true },
+        });
+        const current = usage?.sentCount || 0;
+        return {
+          success: true,
+          current,
+          limit,
+          remaining: Math.max(0, limit - current),
+          alreadyCounted: true,
+        };
+      }
+
       await tx.monthlyUsage.upsert({
         where: { shopId_yearMonth: { shopId, yearMonth } },
-        create: { shopId, yearMonth, sentCount: 0 },
+        create: { 
+          id: randomUUID(), 
+          shopId, 
+          yearMonth, 
+          sentCount: 0,
+          updatedAt: new Date(),
+        },
         update: {},
       });
 
@@ -307,7 +342,6 @@ export async function checkAndReserveBillingSlot(
       const current = finalUsage?.sentCount || 0;
 
       if (updated === 0) {
-
         return {
           success: false,
           current,
@@ -325,15 +359,43 @@ export async function checkAndReserveBillingSlot(
         alreadyCounted: false,
       };
     }, {
+          isolationLevel: "Serializable",
+          maxWait: 5000, // Maximum time to wait for a transaction slot
+        });
 
-      isolationLevel: "Serializable",
-    });
+        if (result.success && !result.alreadyCounted) {
+          billingCache.delete(`billing:${shopId}`);
+        }
 
-    if (result.success && !result.alreadyCounted) {
-      billingCache.delete(`billing:${shopId}`);
+        return ok(result);
+      } catch (error) {
+        lastError = error;
+        
+        // Check if it's a serialization failure (deadlock or serialization error)
+        const isPrismaError_ = error && typeof error === 'object' && 'code' in error;
+        const errorCode = isPrismaError_ ? (error as { code?: string }).code : null;
+        
+        // P40001 = serialization failure, P40xxx = deadlock
+        const isSerializationError = errorCode === 'P40001' || (errorCode?.startsWith('P40') ?? false);
+        
+        if (isSerializationError && attempt < maxRetries - 1) {
+          // Exponential backoff: 50ms, 100ms, 200ms
+          const backoffMs = 50 * Math.pow(2, attempt);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+          continue; // Retry the transaction
+        }
+        
+        // Not a retryable error or max retries exceeded
+        throw error;
+      }
     }
-
-    return ok(result);
+    
+    // If we get here, all retries failed
+    return err({
+      type: "DATABASE_ERROR",
+      message: lastError instanceof Error ? lastError.message : "Unknown database error after retries",
+      shopId,
+    });
   } catch (error) {
     return err({
       type: "DATABASE_ERROR",
@@ -421,9 +483,9 @@ export function getSuggestedUpgrade(
   currentPlan: PlanId,
   currentUsage: number
 ): PlanId | null {
-  const plans: PlanId[] = ["starter", "pro", "enterprise"];
+  const plans: PlanId[] = ["starter", "growth", "agency"];
 
-  if (currentPlan === "enterprise") {
+  if (currentPlan === "agency") {
     return null;
   }
 

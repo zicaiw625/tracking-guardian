@@ -2,7 +2,7 @@
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData , useNavigate } from "@remix-run/react";
 import { useState, useEffect, memo, useMemo } from "react";
 import {
   Page,
@@ -27,7 +27,6 @@ import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
 import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScanProgress";
 import { RiskDistributionChart } from "~/components/dashboard/RiskDistributionChart";
 import { DependencyGraphPreview } from "~/components/dashboard/DependencyGraphPreview";
-import { useNavigate } from "@remix-run/react";
 
 import { authenticate } from "../shopify.server";
 import { getDashboardData } from "../services/dashboard.server";
@@ -1228,9 +1227,11 @@ export default function Index() {
                   Legacy 的 <code>checkout.liquid</code>、<code>additional scripts</code>、<code>script tags</code> 会逐步被 sunset
                 </List.Item>
               </List>
-              <Text as="p" variant="bodyMd" style={{ marginTop: "8px" }}>
+              <div style={{ marginTop: "8px" }}>
+              <Text as="p" variant="bodyMd">
                 <strong>我们的承诺：</strong>
               </Text>
+              </div>
               <List>
                 <List.Item>
                   ✅ <strong>升级不丢功能/不丢数据</strong>（在 Shopify 允许范围内）
@@ -1242,9 +1243,11 @@ export default function Index() {
                   ✅ <strong>上线后有断档告警</strong>（事件量骤降、失败率监控）
                 </List.Item>
               </List>
-              <Text as="p" variant="bodySm" style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
-                基于 <strong>Web Pixels + Checkout UI Extensions</strong> 的合规迁移方案，替换 Additional Scripts，减少结账页脚本风险。
-              </Text>
+              <Box paddingBlockStart="200">
+                <Text as="p" variant="bodySm">
+                  基于 <strong>Web Pixels + Checkout UI Extensions</strong> 的合规迁移方案，替换 Additional Scripts，减少结账页脚本风险。
+                </Text>
+              </Box>
             </BlockStack>
           </Banner>
         )}

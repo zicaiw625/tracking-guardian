@@ -36,15 +36,28 @@ export async function captureRecentEvents(
   destinationTypes?: string[]
 ): Promise<EventCaptureResult> {
   try {
-    const events = await prisma.eventLog.findMany({
+    const events = await prisma.conversionLog.findMany({
       where: {
         shopId,
         createdAt: {
           gte: since,
         },
         ...(destinationTypes && destinationTypes.length > 0
-          ? { destinationType: { in: destinationTypes } }
+          ? { platform: { in: destinationTypes } }
           : {}),
+      },
+      select: {
+        id: true,
+        orderId: true,
+        orderValue: true,
+        currency: true,
+        platform: true,
+        eventType: true,
+        status: true,
+        errorMessage: true,
+        platformResponse: true,
+        createdAt: true,
+        eventId: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -52,27 +65,37 @@ export async function captureRecentEvents(
       take: 100,
     });
 
-    const capturedEvents: CapturedEvent[] = events.map((event: { payloadJson: unknown; eventId: string | null; destinationType: string | null }) => {
-      const payload = (event.payloadJson as Record<string, unknown>) || {};
-      const data = (payload.data as Record<string, unknown>) || {};
+    const capturedEvents: CapturedEvent[] = events.map((event) => {
+      const orderValue = typeof event.orderValue === 'object' && 'toNumber' in event.orderValue 
+        ? event.orderValue.toNumber() 
+        : typeof event.orderValue === 'number' 
+        ? event.orderValue 
+        : 0;
+      
+      const payload = (event.platformResponse as Record<string, unknown>) || {};
+      const data = {
+        value: orderValue,
+        currency: event.currency || "USD",
+        items: [],
+      };
 
-      const hasValue = data.value !== undefined && data.value !== null;
-      const hasCurrency = Boolean(data.currency);
-      const hasItems = Array.isArray(data.items) && data.items.length > 0;
+      const hasValue = orderValue > 0;
+      const hasCurrency = Boolean(event.currency);
+      const hasItems = false; // ConversionLog doesn't have items
 
       const completenessRate =
         ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
 
       return {
         id: event.id,
-        eventName: event.eventName,
-        eventId: event.eventId || null,
-        destinationType: event.destinationType || null,
-        payload,
-        status: event.status as "ok" | "fail",
-        errorCode: event.errorCode || null,
-        errorDetail: event.errorDetail || null,
-        eventTimestamp: event.eventTimestamp,
+        eventName: event.eventType || "checkout_completed",
+        eventId: event.eventId || event.orderId,
+        destinationType: event.platform || null,
+        payload: { ...payload, data },
+        status: event.status === "sent" || event.status === "ok" ? "ok" : "fail",
+        errorCode: event.errorMessage ? "conversion_failed" : null,
+        errorDetail: event.errorMessage || null,
+        eventTimestamp: event.createdAt,
         createdAt: event.createdAt,
         parameterCompleteness: {
           hasValue,
@@ -159,7 +182,7 @@ export async function getEventStatistics(
   };
 }> {
   try {
-    const events = await prisma.eventLog.findMany({
+    const events = await prisma.conversionLog.findMany({
       where: {
         shopId,
         createdAt: {
@@ -167,8 +190,16 @@ export async function getEventStatistics(
           lte: endDate,
         },
         ...(destinationTypes && destinationTypes.length > 0
-          ? { destinationType: { in: destinationTypes } }
+          ? { platform: { in: destinationTypes } }
           : {}),
+      },
+      select: {
+        eventType: true,
+        platform: true,
+        status: true,
+        orderValue: true,
+        currency: true,
+        platformResponse: true,
       },
     });
 
@@ -180,17 +211,33 @@ export async function getEventStatistics(
     let eventsWithMissingParams = 0;
 
     for (const event of events) {
+      const eventType = event.eventType || "checkout_completed";
+      byEventType[eventType] = (byEventType[eventType] || 0) + 1;
 
-      byEventType[event.eventName] = (byEventType[event.eventName] || 0) + 1;
-
-      const dest = event.destinationType || "unknown";
+      const dest = event.platform || "unknown";
       byDestination[dest] = (byDestination[dest] || 0) + 1;
 
-      byStatus[event.status] = (byStatus[event.status] || 0) + 1;
+      const status = event.status === "sent" || event.status === "ok" ? "ok" : "fail";
+      byStatus[status] = (byStatus[status] || 0) + 1;
+      
+      const hasValue = (typeof event.orderValue === 'object' && 'toNumber' in event.orderValue 
+        ? event.orderValue.toNumber() 
+        : typeof event.orderValue === 'number' 
+        ? event.orderValue 
+        : 0) > 0;
+      const hasCurrency = Boolean(event.currency);
+      const completenessRate = ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0)) / 2;
+      
+      totalCompleteness += completenessRate;
+      if (completenessRate === 1) {
+        eventsWithAllParams++;
+      } else {
+        eventsWithMissingParams++;
+      }
 
-      const payload = (event.payloadJson as Record<string, unknown>) || {};
+      const payload = (event.platformResponse as Record<string, unknown>) || {};
       const completeness = checkParameterCompleteness(payload);
-      totalCompleteness += completeness.completenessRate;
+      totalCompleteness += completeness.completenessRate / 100;
 
       if (completeness.completenessRate === 100) {
         eventsWithAllParams++;

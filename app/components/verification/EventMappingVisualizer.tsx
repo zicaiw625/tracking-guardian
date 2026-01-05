@@ -198,7 +198,8 @@ export function EventMappingVisualizer({
                     id={`platform-${platform}`}
                     transition={{ duration: "200ms", timingFunction: "ease-in-out" }}
                   >
-                    <BlockStack gap="200" style={{ paddingBlockStart: "8px" }}>
+                    <div style={{ paddingBlockStart: "8px" }}>
+                    <BlockStack gap="200">
                       <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
                         映射后的参数：
                       </Text>
@@ -222,6 +223,7 @@ export function EventMappingVisualizer({
                         )}
                       </pre>
                     </BlockStack>
+                    </div>
                   </Collapsible>
                 </BlockStack>
               </Box>

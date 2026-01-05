@@ -1,8 +1,10 @@
 
 
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
+import type { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { CONFIG } from "../utils/config";
 
 export interface WorkspaceInvitation {
   id: string;
@@ -73,7 +75,7 @@ export async function createInvitation(
         ownerId: inviterId,
       },
       include: {
-        members: true,
+        ShopGroupMember: true,
       },
     });
 
@@ -116,14 +118,18 @@ export async function createInvitation(
 
     await prisma.auditLog.create({
       data: {
+        id: randomUUID(),
         shopId: inviterId,
+        actorType: "user",
         action: "workspace_invitation_created",
-        details: JSON.stringify(invitationData),
+        resourceType: "workspace_invitation",
+        resourceId: invitationData.id,
+        metadata: invitationData as unknown as Prisma.InputJsonValue,
         createdAt: new Date(),
       },
     });
 
-    const baseUrl = process.env.SHOPIFY_APP_URL || "https://app.tracking-guardian.com";
+    const baseUrl = CONFIG.getEnv("SHOPIFY_APP_URL", "https://app.tracking-guardian.com");
     const inviteUrl = `${baseUrl}/app/workspace/accept-invitation?token=${token}`;
 
     logger.info(`Workspace invitation created: ${invitationData.id} for group ${groupId}`);
@@ -153,7 +159,7 @@ export async function getInvitationByToken(
 
     for (const log of logs) {
       try {
-        const invitation = JSON.parse(log.details || "{}") as WorkspaceInvitation;
+        const invitation = JSON.parse(log.metadata ? JSON.stringify(log.metadata) : "{}") as WorkspaceInvitation;
         if (invitation.token === token) {
 
           if (new Date(invitation.expiresAt) < new Date()) {
@@ -209,6 +215,7 @@ export async function acceptInvitation(
 
     await prisma.shopGroupMember.create({
       data: {
+        id: randomUUID(),
         groupId: invitation.groupId,
         shopId: acceptorShopId,
         role: invitation.role,
@@ -220,14 +227,18 @@ export async function acceptInvitation(
 
     await prisma.auditLog.create({
       data: {
+        id: randomUUID(),
         shopId: acceptorShopId,
+        actorType: "user",
         action: "workspace_invitation_accepted",
-        details: JSON.stringify({
+        resourceType: "workspace_invitation",
+        resourceId: invitation.id,
+        metadata: {
           invitationId: invitation.id,
           groupId: invitation.groupId,
           groupName: invitation.groupName,
           acceptedAt: new Date(),
-        }),
+        } as Prisma.InputJsonValue,
         createdAt: new Date(),
       },
     });
@@ -263,13 +274,17 @@ export async function declineInvitation(
 
     await prisma.auditLog.create({
       data: {
+        id: randomUUID(),
         shopId: declinerShopId,
+        actorType: "user",
         action: "workspace_invitation_declined",
-        details: JSON.stringify({
+        resourceType: "workspace_invitation",
+        resourceId: invitation.id,
+        metadata: {
           invitationId: invitation.id,
           groupId: invitation.groupId,
           declinedAt: new Date(),
-        }),
+        } as Prisma.InputJsonValue,
         createdAt: new Date(),
       },
     });
@@ -313,7 +328,7 @@ export async function getPendingInvitations(
 
     for (const log of logs) {
       try {
-        const invitation = JSON.parse(log.details || "{}") as WorkspaceInvitation;
+        const invitation = JSON.parse(log.metadata ? JSON.stringify(log.metadata) : "{}") as WorkspaceInvitation;
         if (invitation.groupId === groupId && invitation.status === "pending") {
 
           if (new Date(invitation.expiresAt) < new Date()) {
@@ -352,18 +367,22 @@ export async function revokeInvitation(
 
     for (const log of logs) {
       try {
-        const invitation = JSON.parse(log.details || "{}") as WorkspaceInvitation;
+        const invitation = JSON.parse(log.metadata ? JSON.stringify(log.metadata) : "{}") as WorkspaceInvitation;
         if (invitation.id === invitationId) {
           found = true;
 
           await prisma.auditLog.create({
             data: {
+              id: randomUUID(),
               shopId: ownerId,
+              actorType: "system",
               action: "workspace_invitation_revoked",
-              details: JSON.stringify({
+              resourceType: "workspace_invitation",
+              resourceId: invitationId,
+              metadata: {
                 invitationId,
                 revokedAt: new Date(),
-              }),
+              } as Prisma.InputJsonValue,
               createdAt: new Date(),
             },
           });

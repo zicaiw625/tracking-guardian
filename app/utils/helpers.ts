@@ -1,4 +1,4 @@
-
+import { logger } from "./logger.server";
 
 export function safeParseFloat(
   value: string | number | undefined | null,
@@ -317,8 +317,6 @@ export async function retry<T>(
  * 安全地执行一个 fire-and-forget Promise
  * 确保所有错误都被捕获和记录，避免未处理的 Promise 拒绝
  */
-import { logger } from "./logger.server";
-
 export function safeFireAndForget<T>(
   promise: Promise<T>,
   errorContext?: {

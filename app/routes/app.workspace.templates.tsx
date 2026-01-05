@@ -43,6 +43,7 @@ import {
   PRESET_TEMPLATES,
   applyPresetTemplate,
   type PixelTemplateConfig,
+  type BatchApplyResult,
 } from "../services/batch-pixel-apply.server";
 import { getShopGroups, getShopGroupDetails } from "../services/multi-shop.server";
 
@@ -246,14 +247,14 @@ export default function WorkspaceTemplatesPage() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [applyGroupId, setApplyGroupId] = useState<string>("");
   const [overwriteExisting, setOverwriteExisting] = useState(false);
-  const [applyResult, setApplyResult] = useState<any>(null);
+  const [applyResult, setApplyResult] = useState<BatchApplyResult | null>(null);
 
   const isSubmitting = navigation.state === "submitting";
   const actionData = useActionData<typeof action>();
 
   useEffect(() => {
-    if (actionData?.success && actionData.actionType === "apply_template" && actionData.result) {
-      setApplyResult(actionData.result);
+    if (actionData && "success" in actionData && actionData.success && "actionType" in actionData && actionData.actionType === "apply_template" && "result" in actionData && actionData.result) {
+      setApplyResult(actionData.result as BatchApplyResult);
       setShowApplyModal(false);
       revalidator.revalidate();
     }
@@ -461,8 +462,10 @@ export default function WorkspaceTemplatesPage() {
                     <Button
                       size="slim"
                       onClick={() => {
-                        // t 已经是 TemplateData 类型，不需要类型断言
-                        setSelectedTemplate(t);
+                        setSelectedTemplate({
+                          ...t,
+                          createdAt: new Date(t.createdAt),
+                        });
                         setShowApplyModal(true);
                       }}
                     >

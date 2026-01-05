@@ -112,6 +112,7 @@ export interface RiskItem {
   details?: string;
   platform?: string;
   impact?: string;
+  recommendation?: string;
 }
 
 export interface ScanResult {

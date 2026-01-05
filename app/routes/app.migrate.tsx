@@ -416,17 +416,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
                 const encryptedCredentials = encryptJson(credentials);
 
+                const platformIdValue = config.platformId?.trim() || null;
+                
                 await prisma.pixelConfig.upsert({
                     where: {
                         shopId_platform_environment_platformId: {
                             shopId: shop.id,
                             platform,
                             environment: config.environment,
-                            platformId: config.platformId || null,
+                            platformId: platformIdValue || "",
                         },
                     },
                     update: {
-                        platformId: config.platformId || null,
+                        platformId: platformIdValue as string | null,
                         credentialsEncrypted: encryptedCredentials,
                         serverSideEnabled: true,
                         eventMappings: config.eventMappings as object,
@@ -438,7 +440,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         id: generateSimpleId("pixel-config"),
                         shopId: shop.id,
                         platform,
-                        platformId: config.platformId || null,
+                        platformId: (config.platformId && config.platformId.trim()) ? config.platformId : null,
                         credentialsEncrypted: encryptedCredentials,
                         serverSideEnabled: true,
                         eventMappings: config.eventMappings as object,

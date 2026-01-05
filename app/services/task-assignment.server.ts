@@ -1,4 +1,5 @@
 
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { canManageMultipleShops, getShopGroupDetails } from "./multi-shop.server";
@@ -84,6 +85,7 @@ export async function createMigrationTask(
 
     const task = await prisma.migrationTask.create({
       data: {
+        id: randomUUID(),
         shopId: input.shopId,
         assetId: input.assetId,
         title: input.title,
@@ -94,6 +96,7 @@ export async function createMigrationTask(
         dueDate: input.dueDate,
         groupId: input.groupId,
         status: "pending",
+        updatedAt: new Date(),
       },
     });
 
@@ -115,8 +118,8 @@ export async function updateMigrationTask(
     const task = await prisma.migrationTask.findUnique({
       where: { id: taskId },
       include: {
-        group: {
-          include: { members: true },
+        ShopGroup: {
+          include: { ShopGroupMember: true },
         },
       },
     });
@@ -127,10 +130,10 @@ export async function updateMigrationTask(
 
     const isOwner = task.shopId === updatedByShopId;
     const isAssignedTo = task.assignedToShopId === updatedByShopId;
-    const isGroupAdmin = task.group?.members.some(
-      (m) => m.shopId === updatedByShopId && (m.role === "admin" || m.role === "owner")
+    const isGroupAdmin = task.ShopGroup?.ShopGroupMember.some(
+      (m: { shopId: string; role: string }) => m.shopId === updatedByShopId && (m.role === "admin" || m.role === "owner")
     );
-    const isGroupOwner = task.group?.ownerId === updatedByShopId;
+    const isGroupOwner = task.ShopGroup?.ownerId === updatedByShopId;
 
     if (!isOwner && !isAssignedTo && !isGroupAdmin && !isGroupOwner) {
       return { error: "无权修改此任务" };
@@ -209,19 +212,19 @@ export async function getMigrationTasks(
   const tasks = await prisma.migrationTask.findMany({
     where,
     include: {
-      asset: {
+      AuditAsset: {
         select: {
           displayName: true,
         },
       },
-      group: {
+      ShopGroup: {
         select: {
           name: true,
         },
       },
       _count: {
         select: {
-          comments: true,
+          TaskComment: true,
         },
       },
     },
@@ -250,7 +253,7 @@ export async function getMigrationTasks(
     shopId: t.shopId,
     shopDomain: shopMap.get(t.shopId) || "Unknown",
     assetId: t.assetId,
-    assetDisplayName: t.asset?.displayName || null,
+    assetDisplayName: t.AuditAsset?.displayName || null,
     title: t.title,
     description: t.description,
     assignedToShopId: t.assignedToShopId,
@@ -263,8 +266,8 @@ export async function getMigrationTasks(
     startedAt: t.startedAt,
     completedAt: t.completedAt,
     groupId: t.groupId,
-    groupName: t.group?.name || null,
-    commentCount: t._count.comments,
+    groupName: t.ShopGroup?.name || null,
+    commentCount: t._count.TaskComment,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
   }));
@@ -277,19 +280,19 @@ export async function getMigrationTask(
   const task = await prisma.migrationTask.findUnique({
     where: { id: taskId },
     include: {
-      asset: {
+      AuditAsset: {
         select: {
           displayName: true,
         },
       },
-      group: {
+      ShopGroup: {
         include: {
-          members: true,
+          ShopGroupMember: true,
         },
         select: {
           name: true,
           ownerId: true,
-          members: {
+          ShopGroupMember: {
             select: {
               shopId: true,
             },
@@ -298,7 +301,7 @@ export async function getMigrationTask(
       },
       _count: {
         select: {
-          comments: true,
+          TaskComment: true,
         },
       },
     },
@@ -310,8 +313,8 @@ export async function getMigrationTask(
 
   const isOwner = task.shopId === requesterShopId;
   const isAssignedTo = task.assignedToShopId === requesterShopId;
-  const isGroupMember = task.group?.members.some((m) => m.shopId === requesterShopId);
-  const isGroupOwner = task.group?.ownerId === requesterShopId;
+    const isGroupMember = task.ShopGroup?.ShopGroupMember.some((m: { shopId: string }) => m.shopId === requesterShopId);
+    const isGroupOwner = task.ShopGroup?.ownerId === requesterShopId;
 
   if (!isOwner && !isAssignedTo && !isGroupMember && !isGroupOwner) {
     return null;
@@ -332,7 +335,7 @@ export async function getMigrationTask(
     shopId: task.shopId,
     shopDomain: shopMap.get(task.shopId) || "Unknown",
     assetId: task.assetId,
-    assetDisplayName: task.asset?.displayName || null,
+    assetDisplayName: task.AuditAsset?.displayName || null,
     title: task.title,
     description: task.description,
     assignedToShopId: task.assignedToShopId,
@@ -345,8 +348,8 @@ export async function getMigrationTask(
     startedAt: task.startedAt,
     completedAt: task.completedAt,
     groupId: task.groupId,
-    groupName: task.group?.name || null,
-    commentCount: task._count.comments,
+    groupName: task.ShopGroup?.name || null,
+    commentCount: task._count.TaskComment,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   };
@@ -360,8 +363,8 @@ export async function deleteMigrationTask(
     const task = await prisma.migrationTask.findUnique({
       where: { id: taskId },
       include: {
-        group: {
-          include: { members: true },
+        ShopGroup: {
+          include: { ShopGroupMember: true },
         },
       },
     });
@@ -371,9 +374,9 @@ export async function deleteMigrationTask(
     }
 
     const isCreator = task.assignedByShopId === deletedByShopId;
-    const isGroupOwner = task.group?.ownerId === deletedByShopId;
-    const isGroupAdmin = task.group?.members.some(
-      (m) => m.shopId === deletedByShopId && m.role === "admin"
+    const isGroupOwner = task.ShopGroup?.ownerId === deletedByShopId;
+    const isGroupAdmin = task.ShopGroup?.ShopGroupMember.some(
+      (m: { shopId: string; role: string }) => m.shopId === deletedByShopId && m.role === "admin"
     );
 
     if (!isCreator && !isGroupOwner && !isGroupAdmin) {

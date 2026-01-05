@@ -89,9 +89,10 @@ export function MigrationChecklistEnhanced({
           return b.priority - a.priority;
         case "time":
           return a.estimatedTime - b.estimatedTime;
-        case "risk":
+        case "risk": {
           const riskOrder = { high: 3, medium: 2, low: 1 };
           return riskOrder[b.riskLevel] - riskOrder[a.riskLevel];
+        }
         case "category":
           return a.category.localeCompare(b.category);
         default:

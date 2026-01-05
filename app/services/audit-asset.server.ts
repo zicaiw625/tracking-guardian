@@ -1,8 +1,8 @@
 
 
+import crypto, { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
-import crypto from "crypto";
 
 export type AssetSourceType = "api_scan" | "manual_paste" | "merchant_confirmed";
 
@@ -111,16 +111,6 @@ async function calculatePriorityAndTimeEstimate(
     const { calculatePriority, updateAssetPriority } = await import("./scanner/priority-calculator");
     const asset = await prisma.auditAsset.findUnique({
       where: { id: assetId },
-      select: {
-        id: true,
-        category: true,
-        riskLevel: true,
-        migrationStatus: true,
-        suggestedMigration: true,
-        platform: true,
-        dependencies: true,
-        details: true,
-      },
     });
 
     if (!asset) {
@@ -130,16 +120,6 @@ async function calculatePriorityAndTimeEstimate(
 
     const allAssets = await prisma.auditAsset.findMany({
       where: { shopId },
-      select: {
-        id: true,
-        category: true,
-        riskLevel: true,
-        migrationStatus: true,
-        suggestedMigration: true,
-        platform: true,
-        dependencies: true,
-        details: true,
-      },
     });
 
     const priorityResult = await calculatePriority(asset, allAssets);
@@ -257,6 +237,7 @@ export async function createAuditAsset(
 
     const asset = await prisma.auditAsset.create({
       data: {
+        id: randomUUID(),
         shopId,
         sourceType: input.sourceType,
         category: input.category,
@@ -268,6 +249,7 @@ export async function createAuditAsset(
         migrationStatus: "pending",
         details: input.details as object,
         scanReportId: input.scanReportId,
+        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -317,7 +299,7 @@ export async function batchCreateAuditAssets(
   let created = 0;
   let updated = 0;
   let failed = 0;
-  let duplicates = 0;
+  const duplicates = 0;
 
   if (assets.length > 50) {
     try {
@@ -353,6 +335,7 @@ export async function batchCreateAuditAssets(
             } else {
               await tx.auditAsset.create({
                 data: {
+                  id: randomUUID(),
                   shopId,
                   sourceType: input.sourceType,
                   category: input.category,
@@ -364,6 +347,7 @@ export async function batchCreateAuditAssets(
                   migrationStatus: "pending",
                   details: input.details as object,
                   scanReportId: scanReportId || input.scanReportId,
+                  updatedAt: new Date(),
                 },
               });
               created++;

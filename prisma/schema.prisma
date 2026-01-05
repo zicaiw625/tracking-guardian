@@ -397,6 +397,28 @@ model Session {
   @@index([shop])
 }
 
+model AppliedRecipe {
+  id                String   @id
+  shopId            String
+  recipeId          String
+  recipeVersion     String
+  status            String   @default("pending")
+  config            Json     @default("{}")
+  completedSteps    Json     @default("[]")
+  validationResults Json     @default("[]")
+  errorMessage      String?
+  sourceIdentifier  String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  completedAt       DateTime?
+  Shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([recipeId])
+  @@index([status])
+  @@index([shopId, status])
+}
+
 model Shop {
   id                      String                 @id
   shopDomain              String                 @unique
@@ -428,7 +450,9 @@ model Shop {
   typOspLastCheckedAt     DateTime?
   typOspDetectedAt        DateTime?
   typOspStatusReason      String?
+  settings                Json?
   AlertConfig             AlertConfig[]
+  AppliedRecipe           AppliedRecipe[]
   AuditAsset              AuditAsset[]
   AuditLog                AuditLog[]
   ConversionJob           ConversionJob[]
@@ -440,6 +464,7 @@ model Shop {
   pixelConfigs            PixelConfig[]
   PixelEventReceipt       PixelEventReceipt[]
   ReconciliationReport    ReconciliationReport[]
+  ReportJob               ReportJob[]
   ScanReports             ScanReport[]
   SurveyResponse          SurveyResponse[]
   TaskComment             TaskComment[]
@@ -530,6 +555,26 @@ model UiExtensionSetting {
   @@index([isEnabled])
   @@index([moduleKey])
   @@index([shopId])
+}
+
+model ReportJob {
+  id          String    @id
+  shopId      String
+  reportType  String
+  format      String
+  status      String    @default("pending")
+  progress    Int?
+  error       String?
+  resultUrl   String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  Shop        Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([status])
+  @@index([shopId, status])
 }
 
 model VerificationRun {

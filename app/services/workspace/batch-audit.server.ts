@@ -69,13 +69,20 @@ export async function startBatchAudit(
         };
       }
 
-      const scanResult = await scanShopTracking(shopId, admin);
+      const scanResult = await scanShopTracking(admin, shopId);
+
+      // Get the scan report ID from the database
+      const scanReport = await prisma.scanReport.findFirst({
+        where: { shopId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
 
       return {
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
-        scanReportId: scanResult.scanReportId,
+        scanReportId: scanReport?.id || undefined,
       };
     } catch (error) {
       logger.error("Failed to audit shop in batch", {

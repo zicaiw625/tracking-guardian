@@ -9,8 +9,7 @@ import {
   batchExportScanReports,
   type BatchReportExportOptions,
 } from "../services/batch-report-export.server";
-import { getShopGroupDetails } from "../services/multi-shop.server";
-import { canManageMultipleShops } from "../services/multi-shop.server";
+import { getShopGroupDetails , canManageMultipleShops } from "../services/multi-shop.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);

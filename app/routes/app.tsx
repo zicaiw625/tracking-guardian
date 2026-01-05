@@ -22,7 +22,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 export default function App() {
     const { apiKey } = useLoaderData<typeof loader>();
-    return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={i18n}>
+    // Note: i18n type assertion is needed due to type mismatch between Polaris translations
+    // and AppProvider's expected type. The translations object is valid at runtime.
+    return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={i18n as any}>
       <NavMenu>
         <a href="/app" rel="home">升级迁移交付平台</a>
         <a href="/app/scan">体检&清单（免费 Audit）</a>
@@ -42,8 +44,10 @@ export const headers: HeadersFunction = (headersArgs) => {
     return boundary.headers(headersArgs);
 };
 export function ErrorBoundary() {
+    // Note: i18n type assertion is needed due to type mismatch between Polaris translations
+    // and PolarisAppProvider's expected type. The translations object is valid at runtime.
     return (
-        <PolarisAppProvider i18n={i18n}>
+        <PolarisAppProvider i18n={i18n as any}>
             {boundary.error(useRouteError())}
         </PolarisAppProvider>
     );

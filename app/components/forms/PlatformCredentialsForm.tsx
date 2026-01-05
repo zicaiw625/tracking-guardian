@@ -1,7 +1,6 @@
 
 
 import { BlockStack, TextField, Banner, Text } from "@shopify/polaris";
-import type { ReactNode } from "react";
 
 export type PlatformType = "meta" | "google" | "tiktok";
 

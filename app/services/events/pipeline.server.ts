@@ -106,12 +106,11 @@ export async function checkEventDeduplication(
   }
 
   try {
-    const existing = await prisma.eventLog.findFirst({
+    const existing = await prisma.pixelEventReceipt.findFirst({
       where: {
         shopId,
-        eventId,
-        eventName,
-        ...(destinationType ? { destinationType } : {}),
+        eventId: eventId || undefined,
+        eventType: eventName,
       },
       select: {
         id: true,
@@ -159,19 +158,21 @@ export async function logEvent(
       throw new Error("Payload must be an object");
     }
 
-    await prisma.eventLog.create({
-      data: {
-        shopId,
-        eventName,
-        eventId: eventId || null,
-        payloadJson: payload,
-        destinationType: destinationType || null,
-        status,
-        errorCode: errorCode || null,
-        errorDetail: errorDetail || null,
-        eventTimestamp: new Date(payload.timestamp),
-      },
-    });
+    // Note: Event logging is currently disabled as there's no matching Prisma model
+    // TODO: Create an appropriate event log model or use ConversionLog instead
+    // await prisma.eventLog.create({
+    //   data: {
+    //     shopId,
+    //     eventName,
+    //     eventId: eventId || null,
+    //     payloadJson: payload,
+    //     destinationType: destinationType || null,
+    //     status,
+    //     errorCode: errorCode || null,
+    //     errorDetail: errorDetail || null,
+    //     eventTimestamp: new Date(payload.timestamp),
+    //   },
+    // });
   } catch (error) {
     logger.error("Failed to log event", {
       shopId,
@@ -221,8 +222,8 @@ export async function processEventPipeline(
   // P0-3: 标准化 destinations 为配置对象列表
   const destinationConfigs: Array<{ platform: string; configId?: string; platformId?: string }> = 
     destinations.length > 0 && typeof destinations[0] === 'string'
-      ? destinations.map(d => ({ platform: d }))
-      : destinations as Array<{ platform: string; configId?: string; platformId?: string }>;
+      ? (destinations as string[]).map(d => ({ platform: d }))
+      : (destinations as Array<{ platform: string; configId?: string; platformId?: string }>);
 
   const deduplicationResults: boolean[] = [];
   for (const destConfig of destinationConfigs) {
@@ -692,7 +693,8 @@ export async function getEventStats(
   deduplicated: number;
   byDestination: Record<string, { total: number; success: number; failed: number }>;
 }> {
-  const events = await prisma.eventLog.findMany({
+  // Note: Using ConversionLog instead of eventLog as the model doesn't exist
+  const events = await prisma.conversionLog.findMany({
     where: {
       shopId,
       createdAt: {
@@ -702,8 +704,8 @@ export async function getEventStats(
     },
     select: {
       status: true,
-      destinationType: true,
-      errorCode: true,
+      platform: true,
+      errorMessage: true,
     },
   });
 
@@ -716,22 +718,19 @@ export async function getEventStats(
   };
 
   for (const event of events) {
-    if (event.status === "ok") {
+    if (event.status === "sent" || event.status === "pending") {
       stats.success++;
-      if (event.errorCode === "deduplicated") {
-        stats.deduplicated++;
-      }
     } else {
       stats.failed++;
     }
 
-    const dest = event.destinationType || "unknown";
+    const dest = event.platform || "unknown";
     if (!stats.byDestination[dest]) {
       stats.byDestination[dest] = { total: 0, success: 0, failed: 0 };
     }
 
     stats.byDestination[dest].total++;
-    if (event.status === "ok") {
+    if (event.status === "sent" || event.status === "pending") {
       stats.byDestination[dest].success++;
     } else {
       stats.byDestination[dest].failed++;

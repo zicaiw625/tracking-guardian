@@ -161,9 +161,8 @@ export function TaskAssignmentPanel({
                     }
                     padding="300"
                     borderRadius="200"
-                    onClick={() => handleAssetToggle(asset.id)}
-                    style={{ cursor: "pointer" }}
                   >
+                    <div onClick={() => handleAssetToggle(asset.id)} style={{ cursor: "pointer", width: "100%", height: "100%" }}>
                     <InlineStack align="space-between" blockAlign="start">
                       <BlockStack gap="200">
                         <InlineStack gap="200" wrap>
@@ -187,6 +186,7 @@ export function TaskAssignmentPanel({
                         <CheckCircleIcon />
                       )}
                     </InlineStack>
+                    </div>
                   </Box>
                 );
               })}

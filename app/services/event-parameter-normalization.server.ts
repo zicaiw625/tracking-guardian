@@ -48,7 +48,7 @@ export interface ShopifyEventData {
     price?: number;
     quantity?: number;
     product_id?: string;
-    variant_id?: string;
+    item_name?: string;
   }>;
   order_id?: string;
   event_id?: string;
@@ -93,7 +93,7 @@ export function normalizeEventParameters(
       );
     }
 
-    if (platform === "meta") {
+    if (platform === "meta" && normalized.contents) {
       normalized.num_items = normalized.contents.reduce(
         (sum, item) => sum + item.quantity,
         0

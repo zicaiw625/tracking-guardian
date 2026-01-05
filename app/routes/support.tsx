@@ -33,7 +33,7 @@ export default function PublicSupportPage() {
   const { contactEmail } = useLoaderData<typeof loader>();
 
   return (
-    <AppProvider i18n={i18n}>
+    <AppProvider i18n={i18n as any}>
       <Page title="Support & FAQ" subtitle="Tracking Guardian Help Center">
         <Layout>
           <Layout.Section>

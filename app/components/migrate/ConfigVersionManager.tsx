@@ -12,7 +12,7 @@ import {
   Modal,
   Banner,
 } from "@shopify/polaris";
-import { ClockIcon, ArrowLeftIcon, CheckCircleIcon } from "~/components/icons";
+import { ClockIcon, ArrowLeftIcon } from "~/components/icons";
 import { useFetcher } from "@remix-run/react";
 import type { PlatformType } from "~/types/enums";
 
@@ -35,9 +35,9 @@ interface ConfigVersion {
 }
 
 export function ConfigVersionManager({
-  shopId,
+  shopId: _shopId,
   platform,
-  currentVersion: initialCurrentVersion,
+  currentVersion: _initialCurrentVersion,
   onRollbackComplete,
 }: ConfigVersionManagerProps) {
   const [versionHistory, setVersionHistory] = useState<{

@@ -320,10 +320,9 @@ export default function SurveyPage() {
                       background="bg-surface-secondary"
                       minHeight="8px"
                       borderRadius="100"
-                      style={{
-                        width: `${(item.count / stats.withRating) * 100}%`,
-                      }}
-                    />
+                    >
+                      <div style={{ width: `${(item.count / stats.withRating) * 100}%`, height: "100%" }} />
+                    </Box>
                   </BlockStack>
                 ))}
               </BlockStack>

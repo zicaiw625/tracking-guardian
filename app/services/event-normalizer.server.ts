@@ -1,7 +1,7 @@
 
 
 import { logger } from "../utils/logger.server";
-import type { PixelEventPayload } from "../routes/api.pixel-events/types";
+import type { PixelEventPayload, PixelEventName, PixelEventData } from "../routes/api.pixel-events/types";
 import { mapEventToPlatform } from "./events/mapping.server";
 import { normalizeEventParameters } from "./event-parameter-normalization.server";
 import type { EventMapping } from "./event-mapping";
@@ -61,7 +61,7 @@ export function normalizeToCanonical(
     currency,
     items,
     eventId,
-    rawData: data,
+    rawData: data as Record<string, unknown>,
   };
 }
 
@@ -71,7 +71,7 @@ export function mapToPlatform(
 ): PlatformEventParams {
 
   const payload: PixelEventPayload = {
-    eventName: canonical.eventName,
+    eventName: canonical.eventName as PixelEventName,
     timestamp: canonical.timestamp,
     shopDomain: canonical.shopDomain,
     data: {
@@ -88,8 +88,7 @@ export function mapToPlatform(
       })),
       orderId: canonical.orderId,
       checkoutToken: canonical.checkoutToken,
-      event_id: canonical.eventId,
-    },
+    } as PixelEventData,
   };
 
   const mapped = mapEventToPlatform(

@@ -170,6 +170,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             };
             discrepancies?: string[];
             errors?: string[];
+            trust?: {
+              isTrusted: boolean;
+              trustLevel: string | null;
+              hasConsent: boolean;
+            };
           }> = [];
 
           for (const log of conversionLogs) {
@@ -277,6 +282,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       if (intervalId !== null) {
         clearInterval(intervalId);
         intervalId = null;
+      }
+      if (!isClosed) {
+        isClosed = true;
       }
     },
   });

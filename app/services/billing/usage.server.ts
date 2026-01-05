@@ -1,4 +1,5 @@
 
+import { randomUUID } from "crypto";
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import { billingCache } from "~/utils/cache";
@@ -193,9 +194,11 @@ export async function getOrCreateMonthlyUsage(
       },
     },
     create: {
+      id: randomUUID(),
       shopId,
       yearMonth: ym,
       sentCount: 0,
+      updatedAt: new Date(),
     },
     update: {},
   });
@@ -319,9 +322,11 @@ export async function incrementMonthlyUsage(
         },
       },
       create: {
+        id: randomUUID(),
         shopId,
         yearMonth,
         sentCount: 1,
+        updatedAt: new Date(),
       },
       update: {
         sentCount: {
@@ -424,9 +429,11 @@ export async function incrementMonthlyUsageIdempotent(
         },
       },
       create: {
+        id: randomUUID(),
         shopId,
         yearMonth,
         sentCount: 1,
+        updatedAt: new Date(),
       },
       update: {
         sentCount: {
@@ -498,6 +505,35 @@ export async function tryReserveUsageSlot(
       };
     }
 
+    const log = await tx.conversionLog.findFirst({
+      where: {
+        shopId,
+        orderId,
+        status: "sent",
+      },
+    });
+
+    if (log) {
+      const usage = await tx.monthlyUsage.findUnique({
+        where: {
+          shopId_yearMonth: {
+            shopId,
+            yearMonth,
+          },
+        },
+        select: {
+          sentCount: true,
+        },
+      });
+      const current = usage?.sentCount || 0;
+      return {
+        reserved: false,
+        current,
+        limit,
+        remaining: Math.max(0, limit - current),
+      };
+    }
+
     await tx.monthlyUsage.upsert({
       where: {
         shopId_yearMonth: {
@@ -506,9 +542,11 @@ export async function tryReserveUsageSlot(
         },
       },
       create: {
+        id: randomUUID(),
         shopId,
         yearMonth,
         sentCount: 0,
+        updatedAt: new Date(),
       },
       update: {},
     });

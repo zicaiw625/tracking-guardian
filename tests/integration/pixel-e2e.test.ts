@@ -65,7 +65,7 @@ describe("Web Pixel E2E Flow", () => {
         saleOfData: true,
       },
       data: {
-        orderId: "gid:
+        orderId: "gid://shopify/Order/123456",
         checkoutToken: "abc123-checkout-token",
         value: 149.99,
         currency: "USD",
@@ -99,7 +99,7 @@ describe("Web Pixel E2E Flow", () => {
     });
 
     it("should accept valid pixel event from myshopify.com origin", () => {
-      const result = validatePixelOriginPreBody("https:
+      const result = validatePixelOriginPreBody("https://test-shop.myshopify.com");
       expect(result.valid).toBe(true);
       expect(result.reason).toBe("https_origin");
     });
@@ -112,19 +112,19 @@ describe("Web Pixel E2E Flow", () => {
       });
 
       const primaryResult = validatePixelOriginForShop(
-        "https:
+        "https://test-shop.myshopify.com",
         allowedDomains
       );
       expect(primaryResult.valid).toBe(true);
 
       const subdomainResult = validatePixelOriginForShop(
-        "https:
+        "https://test-shop.myshopify.com",
         allowedDomains
       );
       expect(subdomainResult.valid).toBe(true);
 
       const externalResult = validatePixelOriginForShop(
-        "https:
+        "https://test-shop.myshopify.com",
         allowedDomains
       );
       expect(externalResult.valid).toBe(false);

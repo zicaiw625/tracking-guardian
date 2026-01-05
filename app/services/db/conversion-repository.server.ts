@@ -1,5 +1,6 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { Prisma } from "@prisma/client";
 import type { ConversionJob } from "@prisma/client";
@@ -220,6 +221,7 @@ export async function createConversionJob(data: {
 }): Promise<ConversionJob> {
   return prisma.conversionJob.create({
     data: {
+      id: randomUUID(),
       shopId: data.shopId,
       orderId: data.orderId,
       orderNumber: data.orderNumber,

@@ -361,75 +361,90 @@ export function ManualPastePanel({ shopId, onAssetsCreated }: ManualPastePanelPr
               </BlockStack>
             </Box>
 
-            {analysisResult && analysisResult.assets && analysisResult.assets.length > 0 ? (
-              <BlockStack gap="300">
-                <Text as="h3" variant="headingSm">
-                  识别的资产 ({String(analysisResult.assets.length)} 项)
-                </Text>
-                <BlockStack gap="200">
-                  {analysisResult.assets.map((asset, index) => {
-                    const riskBadgeMap: Record<string, { tone: "critical" | "success" | undefined; label: string }> = {
-                      high: { tone: "critical", label: "高" },
-                      medium: { tone: undefined, label: "中" },
-                      low: { tone: "success", label: "低" },
-                    };
-                    const riskBadge = riskBadgeMap[asset.riskLevel] || riskBadgeMap.medium;
+            {(() => {
+              if (analysisResult?.assets && analysisResult.assets.length > 0) {
+                return (
+                  <BlockStack gap="300">
+                    <Text as="h3" variant="headingSm">
+                      识别的资产 ({String(analysisResult.assets.length)} 项)
+                    </Text>
+                    <BlockStack gap="200">
+                      {analysisResult.assets.map((asset, index) => {
+                        const riskBadgeMap: Record<string, { tone: "critical" | "success" | undefined; label: string }> = {
+                          high: { tone: "critical", label: "高" },
+                          medium: { tone: undefined, label: "中" },
+                          low: { tone: "success", label: "低" },
+                        };
+                        const riskBadge = riskBadgeMap[asset.riskLevel] || riskBadgeMap.medium;
 
-                    const confidenceBadgeMap: Record<string, { tone: "success" | "info" | undefined; label: string }> = {
-                      high: { tone: "success", label: "高置信度" },
-                      medium: { tone: "info", label: "中置信度" },
-                      low: { tone: undefined, label: "低置信度" },
-                    };
-                    const confidenceBadge = confidenceBadgeMap[asset.confidence] || confidenceBadgeMap.medium;
+                        const confidenceBadgeMap: Record<string, { tone: "success" | "info" | undefined; label: string }> = {
+                          high: { tone: "success", label: "高置信度" },
+                          medium: { tone: "info", label: "中置信度" },
+                          low: { tone: undefined, label: "低置信度" },
+                        };
+                        const confidenceBadge = confidenceBadgeMap[asset.confidence] || confidenceBadgeMap.medium;
 
-                    return (
-                      <Box
-                        key={index}
-                        background="bg-surface-secondary"
-                        padding="300"
-                        borderRadius="200"
-                      >
-                        <BlockStack gap="200">
-                          <InlineStack align="space-between" blockAlign="start">
-                            <BlockStack gap="100">
-                              <InlineStack gap="200" wrap>
-                                <Text as="span" variant="bodyMd" fontWeight="semibold">
-                                  {asset.displayName}
-                                </Text>
-                                {asset.platform && <Badge>{asset.platform}</Badge>}
-                                <Badge tone={riskBadge.tone}>{`${riskBadge.label}风险`}</Badge>
-                                <Badge tone={confidenceBadge.tone}>
-                                  {confidenceBadge.label}
-                                </Badge>
+                        return (
+                          <Box
+                            key={index}
+                            background="bg-surface-secondary"
+                            padding="300"
+                            borderRadius="200"
+                          >
+                            <BlockStack gap="200">
+                              <InlineStack align="space-between" blockAlign="start">
+                                <BlockStack gap="100">
+                                  <InlineStack gap="200" wrap>
+                                    <Text as="span" variant="bodyMd" fontWeight="semibold">
+                                      {asset.displayName}
+                                    </Text>
+                                    {asset.platform && <Badge>{asset.platform}</Badge>}
+                                    <Badge tone={riskBadge.tone}>{`${riskBadge.label}风险`}</Badge>
+                                    <Badge tone={confidenceBadge.tone}>
+                                      {confidenceBadge.label}
+                                    </Badge>
+                                  </InlineStack>
+                                  <Text as="span" variant="bodySm">
+                                    类别: {asset.category} | 建议迁移方式: {asset.suggestedMigration}
+                                  </Text>
+                                </BlockStack>
                               </InlineStack>
-                              <Text as="span" variant="bodySm">
-                                类别: {asset.category} | 建议迁移方式: {asset.suggestedMigration}
-                              </Text>
                             </BlockStack>
-                          </InlineStack>
-                        </BlockStack>
-                      </Box>
-                    );
-                  })}
-                </BlockStack>
-              </BlockStack>
-            ) : null}
-            {fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "processed" in fetcher.data && (
-              <Banner tone="success">
-                <Text as="p" variant="bodySm">
-                  成功创建 {String((fetcher.data as { processed: { created: number } }).processed.created)} 个新资产，
-                  更新 {String((fetcher.data as { processed: { updated: number } }).processed.updated)} 个现有资产
-                  {(fetcher.data as { processed: { duplicates: number } }).processed.duplicates > 0 &&
-                    `，跳过 ${String((fetcher.data as { processed: { duplicates: number } }).processed.duplicates)} 个重复项`}
-                </Text>
-              </Banner>
-            )}
+                          </Box>
+                        );
+                      })}
+                    </BlockStack>
+                  </BlockStack>
+                );
+              }
+              return null;
+            })()}
+            {(() => {
+              if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "processed" in fetcher.data) {
+                return (
+                  <Banner tone="success">
+                    <Text as="p" variant="bodySm">
+                      成功创建 {String((fetcher.data as { processed: { created: number } }).processed.created)} 个新资产，
+                      更新 {String((fetcher.data as { processed: { updated: number } }).processed.updated)} 个现有资产
+                      {(fetcher.data as { processed: { duplicates: number } }).processed.duplicates > 0 &&
+                        `，跳过 ${String((fetcher.data as { processed: { duplicates: number } }).processed.duplicates)} 个重复项`}
+                    </Text>
+                  </Banner>
+                );
+              }
+              return null;
+            })()}
 
-            {fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "error" in fetcher.data && (
-              <Banner tone="critical">
-                <Text as="p" variant="bodySm">{(fetcher.data as { error: string }).error}</Text>
-              </Banner>
-            )}
+            {(() => {
+              if (fetcher.data && typeof fetcher.data === "object" && fetcher.data !== null && "error" in fetcher.data) {
+                return (
+                  <Banner tone="critical">
+                    <Text as="p" variant="bodySm">{(fetcher.data as { error: string }).error}</Text>
+                  </Banner>
+                );
+              }
+              return null;
+            })()}
           </BlockStack>
         )}
       </BlockStack>

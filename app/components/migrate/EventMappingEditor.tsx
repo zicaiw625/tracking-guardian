@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Card,
   Text,
@@ -8,22 +8,16 @@ import {
   Button,
   Box,
   Divider,
-  TextField,
-  Select,
   Banner,
   List,
-  DataTable,
-  Icon,
   Checkbox,
-  ButtonGroup,
-  Collapsible,
   Popover,
+  Select,
+  DataTable,
+  ButtonGroup,
   ActionList,
 } from "@shopify/polaris";
 import {
-  CheckCircleIcon,
-  AlertCircleIcon,
-  InfoIcon,
   ArrowUpIcon,
   ArrowDownIcon,
 } from "~/components/icons";

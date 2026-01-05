@@ -44,6 +44,7 @@ import {
 } from "./receipt-handler";
 import { validatePixelEventHMAC } from "./hmac-validation";
 import { processEventPipeline } from "../../services/events/pipeline.server";
+import { safeFireAndForget } from "../../utils/helpers";
 
 const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -632,8 +633,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           
           // 异步处理但不阻塞响应，记录发送结果
           // P0-3: 传递配置对象列表以支持多目的地
-          processEventPipeline(shop.id, payload, eventId, platformsToRecord)
-            .then((result) => {
+          safeFireAndForget(
+            processEventPipeline(shop.id, payload, eventId, platformsToRecord).then((result) => {
               if (result.success) {
                 logger.info(`Purchase event successfully sent via client-side`, {
                   shopId: shop.id,
@@ -648,15 +649,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   errors: result.errors,
                 });
               }
-            })
-            .catch((error) => {
-              logger.error(`Failed to process purchase event via client-side`, {
+            }),
+            {
+              operation: "processPurchaseEventPipeline",
+              metadata: {
                 shopId: shop.id,
                 eventId,
                 platforms: platformNames,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            });
+              },
+            }
+          );
           
           // Server-side 也会通过 webhook 发送（作为兜底和去重保障）
           logger.debug(`Purchase event ${eventId} will also be sent via webhook (hybrid mode)`, {
@@ -689,8 +691,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         
         // 异步处理但不阻塞响应，记录发送结果
         // P0-3: 传递配置对象列表以支持多目的地
-        processEventPipeline(shop.id, payload, eventId, platformsToRecord)
-          .then((result) => {
+        safeFireAndForget(
+          processEventPipeline(shop.id, payload, eventId, platformsToRecord).then((result) => {
             if (result.success) {
               logger.info(`Event ${payload.eventName} successfully routed to destinations`, {
                 shopId: shop.id,
@@ -707,16 +709,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 errors: result.errors,
               });
             }
-          })
-          .catch((error) => {
-            logger.error(`Failed to process event pipeline for ${payload.eventName}`, {
+          }),
+          {
+            operation: "processEventPipeline",
+            metadata: {
               shopId: shop.id,
               eventId,
               eventName: payload.eventName,
               platforms: platformNames,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          });
+            },
+          }
+        );
       }
     }
 

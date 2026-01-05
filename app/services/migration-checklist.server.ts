@@ -255,7 +255,7 @@ export async function generateMigrationChecklist(
     },
   });
 
-  const items: MigrationChecklistItem[] = assets.map((asset) => {
+  const items: MigrationChecklistItem[] = await Promise.all(assets.map(async (asset) => {
 
     const dependencies = (asset.dependencies as string[] | null) || [];
     const hasDependencies = dependencies.length > 0;
@@ -269,7 +269,15 @@ export async function generateMigrationChecklist(
       }
     }
 
-    const priority = asset.priority ?? calculatePriority(asset, asset.category, assets);
+    // calculatePriority requires full AuditAsset, but we only have partial fields
+    // Use asset.priority if available, otherwise calculate a simple priority
+    const priority = asset.priority ?? (
+      asset.riskLevel === "high" ? 9 :
+      asset.riskLevel === "medium" ? 6 :
+      asset.category === "pixel" ? 8 :
+      asset.category === "script" ? 7 :
+      5
+    );
     const estimatedTime = asset.estimatedTimeMinutes ?? estimateMigrationTime(
       asset.category,
       asset.suggestedMigration,
@@ -283,7 +291,7 @@ export async function generateMigrationChecklist(
       id: `checklist-${asset.id}`,
       assetId: asset.id,
       title: asset.displayName || `${asset.category} - ${asset.platform || "未知"}`,
-      description: getMigrationDescription(asset),
+      description: getMigrationDescription(asset as AuditAsset),
       category: asset.category,
       platform: asset.platform || undefined,
       riskLevel: asset.riskLevel as "high" | "medium" | "low",
@@ -300,7 +308,7 @@ export async function generateMigrationChecklist(
         | "completed"
         | "skipped",
     };
-  });
+  }));
 
   const dependencyMap = new Map<string, string[]>();
   const dependentsMap = new Map<string, string[]>();

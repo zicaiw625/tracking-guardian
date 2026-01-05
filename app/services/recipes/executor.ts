@@ -9,6 +9,7 @@ import type {
   RecipeValidationResult,
 } from "./types";
 import { logger } from "../../utils/logger.server";
+import type { Prisma } from "@prisma/client";
 
 /**
  * 将 Prisma AppliedRecipe 模型安全地转换为 AppliedRecipe 类型
@@ -94,6 +95,7 @@ export async function startRecipe(
 
   const applied = await prisma.appliedRecipe.create({
     data: {
+      id: `${shopId}-${recipeId}-${Date.now()}`,
       shopId,
       recipeId,
       recipeVersion: recipe.version,
@@ -158,7 +160,7 @@ export async function executeRecipeStep(
 ): Promise<RecipeStepResult> {
   const applied = await prisma.appliedRecipe.findUnique({
     where: { id: appliedRecipeId },
-    include: { shop: true },
+    include: { Shop: true },
   });
   if (!applied) {
     return { success: false, message: "Applied recipe not found" };
@@ -184,7 +186,7 @@ export async function executeRecipeStep(
         step.autoAction,
         {
           shopId: applied.shopId,
-          shopDomain: applied.shop.shopDomain,
+          shopDomain: applied.Shop.shopDomain,
           recipe,
           config: applied.config as Record<string, unknown>,
           appliedRecipeId,
@@ -290,7 +292,7 @@ export async function runRecipeValidation(
 ): Promise<RecipeValidationResult[]> {
   const applied = await prisma.appliedRecipe.findUnique({
     where: { id: appliedRecipeId },
-    include: { shop: true },
+    include: { Shop: true },
   });
   if (!applied) {
     return [{ testName: "validation", passed: false, message: "Applied recipe not found" }];
@@ -337,7 +339,9 @@ export async function runRecipeValidation(
     results.push(result);
   }
 
-  const existingResults = (applied.validationResults as RecipeValidationResult[]) || [];
+  const existingResults = Array.isArray(applied.validationResults) 
+    ? (applied.validationResults as unknown as RecipeValidationResult[])
+    : [];
   await prisma.appliedRecipe.update({
     where: { id: appliedRecipeId },
     data: {
@@ -347,7 +351,7 @@ export async function runRecipeValidation(
           ...r,
           timestamp: new Date().toISOString(),
         })),
-      ],
+      ] as unknown as Prisma.InputJsonValue,
     },
   });
 

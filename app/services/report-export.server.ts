@@ -26,7 +26,7 @@ export async function exportVerificationReport(
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
     include: {
-      shop: {
+      Shop: {
         select: {
           shopDomain: true,
         },
@@ -68,7 +68,7 @@ export async function exportVerificationReport(
 
 function exportToCSV(
   run: {
-    shop: { shopDomain: string };
+    Shop: { shopDomain: string };
     runName: string;
     startedAt: Date | null;
     status: string;
@@ -93,7 +93,7 @@ function exportToCSV(
   const lines: string[] = [];
 
   lines.push("验收报告");
-  lines.push(`店铺: ${run.shop.shopDomain}`);
+  lines.push(`店铺: ${run.Shop.shopDomain}`);
   lines.push(`运行名称: ${run.runName}`);
   lines.push(`运行时间: ${run.startedAt ? new Date(run.startedAt).toLocaleString("zh-CN") : "N/A"}`);
   lines.push(`状态: ${run.status}`);
@@ -101,9 +101,9 @@ function exportToCSV(
 
     if (summary && options.includeSummary) {
       lines.push("摘要");
-      lines.push(`总事件数: ${summary.totalEvents}`);
-      lines.push(`成功事件: ${summary.successfulEvents}`);
-      lines.push(`失败事件: ${summary.failedEvents}`);
+      lines.push(`总测试数: ${summary.totalTests}`);
+      lines.push(`通过测试: ${summary.passedTests}`);
+      lines.push(`失败测试: ${summary.failedTests}`);
       lines.push(`参数完整率: ${summary.parameterCompleteness}%`);
       lines.push(`金额准确率: ${summary.valueAccuracy}%`);
       lines.push("");
@@ -161,7 +161,7 @@ function exportToCSV(
 function exportToJSON(
   run: {
     id: string;
-    shop: { shopDomain: string };
+    Shop: { shopDomain: string };
     runName: string;
     runType: string;
     status: string;
@@ -189,7 +189,7 @@ function exportToJSON(
   const data = {
     report: {
       id: run.id,
-      shopDomain: run.shop.shopDomain,
+      shopDomain: run.Shop.shopDomain,
       runName: run.runName,
       runType: run.runType,
       status: run.status,
@@ -207,7 +207,7 @@ function exportToJSON(
 async function exportToPDF(
   run: {
     id: string;
-    shop: { shopDomain: string };
+    Shop: { shopDomain: string };
     runName: string;
     runType: string;
     status: string;
@@ -234,10 +234,13 @@ async function exportToPDF(
 ): Promise<string> {
 
   try {
-
+    // Dynamic import for pdfkit
+    // Note: Using any type here because pdfkit's type definitions are incomplete
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let PDFDocument: any;
     try {
-      PDFDocument = (await import("pdfkit")).default;
+      const pdfkitModule = await import("pdfkit");
+      PDFDocument = pdfkitModule.default || pdfkitModule;
     } catch {
       logger.warn("PDFKit not installed, falling back to JSON export");
       return exportToJSON(run, summary, events, options);
@@ -260,7 +263,7 @@ async function exportToPDF(
     doc.moveDown();
 
     doc.fontSize(12);
-    doc.text(`店铺: ${run.shop.shopDomain}`);
+    doc.text(`店铺: ${run.Shop.shopDomain}`);
     doc.text(`运行名称: ${run.runName}`);
     doc.text(`运行时间: ${run.startedAt ? new Date(run.startedAt).toLocaleString("zh-CN") : "N/A"}`);
     doc.text(`状态: ${run.status}`);
@@ -269,9 +272,9 @@ async function exportToPDF(
     if (summary && options.includeSummary) {
       doc.fontSize(16).text("摘要", { underline: true });
       doc.fontSize(12);
-      doc.text(`总事件数: ${summary.totalEvents}`);
-      doc.text(`成功事件: ${summary.successfulEvents}`);
-      doc.text(`失败事件: ${summary.failedEvents}`);
+      doc.text(`总测试数: ${summary.totalTests}`);
+      doc.text(`通过测试: ${summary.passedTests}`);
+      doc.text(`失败测试: ${summary.failedTests}`);
       if (summary.parameterCompleteness !== undefined) {
         doc.text(`参数完整率: ${summary.parameterCompleteness}%`);
       }
@@ -413,9 +416,13 @@ export async function exportMigrationChecklist(
 
 async function exportChecklistToPDF(shopDomain: string, assets: Array<Record<string, unknown>>): Promise<string> {
   try {
+    // Dynamic import for pdfkit
+    // Note: Using any type here because pdfkit's type definitions are incomplete
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let PDFDocument: any;
     try {
-      PDFDocument = (await import("pdfkit")).default;
+      const pdfkitModule = await import("pdfkit");
+      PDFDocument = pdfkitModule.default || pdfkitModule;
     } catch {
       logger.warn("PDFKit not installed, falling back to JSON export");
       return exportChecklistToJSON(shopDomain, assets);
@@ -670,9 +677,13 @@ async function exportMultiShopToPDF(
   options: ExportOptions & { workspaceName?: string; agencyBranding?: { name?: string; logo?: string } }
 ): Promise<string> {
   try {
+    // Dynamic import for pdfkit
+    // Note: Using any type here because pdfkit's type definitions are incomplete
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let PDFDocument: any;
     try {
-      PDFDocument = (await import("pdfkit")).default;
+      const pdfkitModule = await import("pdfkit");
+      PDFDocument = pdfkitModule.default || pdfkitModule;
     } catch {
       logger.warn("PDFKit not installed, falling back to JSON export");
       return exportMultiShopToJSON(shops, shopAssets, options);

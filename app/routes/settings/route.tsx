@@ -14,6 +14,7 @@ import {
   SecurityTab,
   SubscriptionTab,
 } from "./_components";
+import type { PlanId } from "~/services/billing/plans";
 
 export const loader = settingsLoader;
 export const action = settingsAction;
@@ -567,7 +568,7 @@ export default function SettingsPage() {
             />
           )}
 
-          {selectedTab === 3 && <SubscriptionTab />}
+          {selectedTab === 3 && <SubscriptionTab currentPlan={shop?.plan as PlanId || "free"} />}
         </Tabs>
       </BlockStack>
     </Page>

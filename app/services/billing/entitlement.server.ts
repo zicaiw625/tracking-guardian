@@ -114,7 +114,10 @@ export async function checkEntitlement(
         }
       } catch (error) {
         // 如果检查失败，回退到 plan 检查结果
-        logger.warn("Failed to check one-time purchase status", error);
+        logger.warn("Failed to check one-time purchase status", {
+          shopId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       
       return planCheck;

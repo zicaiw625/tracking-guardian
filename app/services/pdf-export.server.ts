@@ -42,7 +42,7 @@ export async function generateMigrationChecklistPDF(
       doc.moveDown(0.5);
     }
 
-    doc.fontSize(16).font("Helvetica-Bold").text("迁移项目", { pageBreak: false });
+    doc.fontSize(16).font("Helvetica-Bold").text("迁移项目");
     doc.moveDown(0.5);
 
     checklist.items.forEach((item, index) => {

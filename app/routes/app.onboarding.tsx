@@ -154,7 +154,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const autoScan = url.searchParams.get("autoScan") === "true";
   const skipOnboarding = url.searchParams.get("skip") === "true";
 
-  let shop = await prisma.shop.findUnique({
+  const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
       id: true,

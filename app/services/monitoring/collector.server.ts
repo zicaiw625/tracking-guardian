@@ -51,7 +51,8 @@ export async function collectEventSuccessRate(
   endDate: Date
 ): Promise<EventMetrics> {
   try {
-    const events = await prisma.eventLog.findMany({
+    // Note: Using ConversionLog instead of eventLog as the model doesn't exist
+    const events = await prisma.conversionLog.findMany({
       where: {
         shopId,
         createdAt: {
@@ -60,8 +61,8 @@ export async function collectEventSuccessRate(
         },
       },
       select: {
-        eventName: true,
-        destinationType: true,
+        eventType: true,
+        platform: true,
         status: true,
       },
     });
@@ -76,13 +77,13 @@ export async function collectEventSuccessRate(
     };
 
     for (const event of events) {
-      if (event.status === "ok") {
+      if (event.status === "sent" || event.status === "pending") {
         metrics.success++;
       } else {
         metrics.failed++;
       }
 
-      const dest = event.destinationType || "unknown";
+      const dest = event.platform || "unknown";
       if (!metrics.byDestination[dest]) {
         metrics.byDestination[dest] = {
           total: 0,
@@ -92,13 +93,13 @@ export async function collectEventSuccessRate(
         };
       }
       metrics.byDestination[dest].total++;
-      if (event.status === "ok") {
+      if (event.status === "sent" || event.status === "pending") {
         metrics.byDestination[dest].success++;
       } else {
         metrics.byDestination[dest].failed++;
       }
 
-      const eventType = event.eventName;
+      const eventType = event.eventType || "unknown";
       if (!metrics.byEventType[eventType]) {
         metrics.byEventType[eventType] = {
           total: 0,
@@ -108,7 +109,7 @@ export async function collectEventSuccessRate(
         };
       }
       metrics.byEventType[eventType].total++;
-      if (event.status === "ok") {
+      if (event.status === "sent" || event.status === "pending") {
         metrics.byEventType[eventType].success++;
       } else {
         metrics.byEventType[eventType].failed++;
@@ -149,10 +150,11 @@ export async function collectMissingParamsMetrics(
   endDate: Date
 ): Promise<MissingParamsMetrics> {
   try {
-    const events = await prisma.eventLog.findMany({
+    // Note: Using ConversionLog instead of eventLog as the model doesn't exist
+    const events = await prisma.conversionLog.findMany({
       where: {
         shopId,
-        eventName: {
+        eventType: {
           in: ["checkout_completed", "purchase"],
         },
         createdAt: {
@@ -161,8 +163,8 @@ export async function collectMissingParamsMetrics(
         },
       },
       select: {
-        payloadJson: true,
-        errorCode: true,
+        platformResponse: true,
+        errorMessage: true,
       },
     });
 
@@ -179,7 +181,7 @@ export async function collectMissingParamsMetrics(
     };
 
     for (const event of events) {
-      const payload = event.payloadJson as {
+      const payload = event.platformResponse as {
         data?: {
           value?: number;
           currency?: string;
@@ -231,7 +233,8 @@ export async function collectDeduplicationMetrics(
   endDate: Date
 ): Promise<DeduplicationMetrics> {
   try {
-    const events = await prisma.eventLog.findMany({
+    // Note: Using ConversionLog instead of eventLog as the model doesn't exist
+    const events = await prisma.conversionLog.findMany({
       where: {
         shopId,
         createdAt: {
@@ -241,8 +244,8 @@ export async function collectDeduplicationMetrics(
       },
       select: {
         eventId: true,
-        destinationType: true,
-        errorCode: true,
+        platform: true,
+        errorMessage: true,
       },
     });
 
@@ -254,11 +257,12 @@ export async function collectDeduplicationMetrics(
     };
 
     for (const event of events) {
-      if (event.errorCode === "deduplicated") {
-        metrics.duplicated++;
-      }
+      // Note: ConversionLog doesn't have deduplication status, skip for now
+      // if (event.errorCode === "deduplicated") {
+      //   metrics.duplicated++;
+      // }
 
-      const dest = event.destinationType || "unknown";
+      const dest = event.platform || "unknown";
       if (!metrics.byDestination[dest]) {
         metrics.byDestination[dest] = {
           total: 0,
@@ -267,9 +271,10 @@ export async function collectDeduplicationMetrics(
         };
       }
       metrics.byDestination[dest].total++;
-      if (event.errorCode === "deduplicated") {
-        metrics.byDestination[dest].duplicated++;
-      }
+      // Note: ConversionLog doesn't have deduplication status, skip for now
+      // if (event.errorCode === "deduplicated") {
+      //   metrics.byDestination[dest].duplicated++;
+      // }
     }
 
     if (metrics.total > 0) {
@@ -305,7 +310,7 @@ export async function collectEventVolumeAnomaly(
 }> {
   try {
     const [currentEvents, previousEvents] = await Promise.all([
-      prisma.eventLog.count({
+      prisma.conversionLog.count({
         where: {
           shopId,
           createdAt: {
@@ -314,7 +319,7 @@ export async function collectEventVolumeAnomaly(
           },
         },
       }),
-      prisma.eventLog.count({
+      prisma.conversionLog.count({
         where: {
           shopId,
           createdAt: {

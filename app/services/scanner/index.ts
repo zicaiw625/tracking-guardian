@@ -18,6 +18,7 @@ import { analyzeScriptContent } from "./content-analysis";
 import { detectRisksInContent } from "./risk-detector.server";
 import { refreshTypOspStatus } from "../checkout-profile.server";
 import { logger } from "../../utils/logger.server";
+import type { Prisma } from "@prisma/client";
 import { SCANNER_CONFIG } from "../../utils/config";
 import {
     batchCreateAuditAssets,
@@ -336,9 +337,9 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
             if (data.errors && data.errors.length > 0) {
                 const errorMessage = data.errors[0]?.message || "Unknown GraphQL error";
                 if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
-                    logger.warn("WebPixels API not available (may need to reinstall app for read_pixels scope):", errorMessage);
+                    logger.warn("WebPixels API not available (may need to reinstall app for read_pixels scope):", { error: errorMessage });
                 } else {
-                    logger.error("GraphQL error fetching WebPixels:", errorMessage);
+                    logger.error("GraphQL error fetching WebPixels:", { error: errorMessage });
                 }
                 return allPixels;
             }
@@ -398,7 +399,7 @@ async function fetchAllWebPixels(admin: AdminApiContext): Promise<WebPixelInfo[]
 
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
-            logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", errorMessage);
+            logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", { error: errorMessage });
         } else {
             logger.error("Failed to fetch WebPixels (paginated):", error);
         }
@@ -554,7 +555,7 @@ function detectDuplicatePixels(result: EnhancedScanResult): Array<{
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.warn(`Failed to parse pixel settings for pixel ${pixel.id} in detectDuplicatePixels:`, errorMessage);
+            logger.warn(`Failed to parse pixel settings for pixel ${pixel.id} in detectDuplicatePixels:`, { error: errorMessage, pixelId: pixel.id });
 
             continue;
         }
@@ -775,7 +776,7 @@ export async function scanShopTracking(
             try {
                 return JSON.parse(JSON.stringify(obj)) as T;
             } catch (error) {
-                logger.warn("Failed to clone object for database storage, using original:", error instanceof Error ? error.message : String(error));
+                logger.warn("Failed to clone object for database storage, using original:", { error: error instanceof Error ? error.message : String(error) });
 
                 return obj;
             }
@@ -783,11 +784,12 @@ export async function scanShopTracking(
 
         const savedReport = await prisma.scanReport.create({
             data: {
+                id: `${shopId}-${Date.now()}`,
                 shopId,
-                scriptTags: safeJsonClone(result.scriptTags),
-                checkoutConfig: result.checkoutConfig ? safeJsonClone(result.checkoutConfig) : undefined,
+                scriptTags: (safeJsonClone(result.scriptTags) as unknown) as Prisma.InputJsonValue,
+                checkoutConfig: result.checkoutConfig ? ((safeJsonClone(result.checkoutConfig) as unknown) as Prisma.InputJsonValue) : undefined,
                 identifiedPlatforms: result.identifiedPlatforms,
-                riskItems: safeJsonClone(result.riskItems),
+                riskItems: (safeJsonClone(result.riskItems) as unknown) as Prisma.InputJsonValue,
                 riskScore: result.riskScore,
                 status: errors.length > 0 ? "completed_with_errors" : "completed",
                 errorMessage: errors.length > 0 ? JSON.stringify(errors) : null,
@@ -825,13 +827,17 @@ export async function scanShopTracking(
 
             let riskLevel: "high" | "medium" | "low" = tag.display_scope === "order_status" ? "high" : "medium";
             if (riskDetection) {
-
                 if (riskDetection.detectedIssues.piiAccess ||
                     riskDetection.detectedIssues.windowDocumentAccess ||
                     riskDetection.detectedIssues.blockingLoad) {
                     riskLevel = "high";
                 } else if (riskDetection.detectedIssues.duplicateTriggers) {
-                    riskLevel = riskLevel === "low" ? "medium" : riskLevel;
+                    // If riskLevel is "medium" and duplicate triggers are detected, keep it as "medium"
+                    // (no change needed as it's already "medium" by default)
+                    // This check is kept for clarity, though it will never be "low" at this point
+                    if (riskLevel === "medium") {
+                        // Already medium, no change needed
+                    }
                 }
             }
 

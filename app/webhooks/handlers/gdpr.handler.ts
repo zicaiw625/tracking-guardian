@@ -1,5 +1,6 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import {
@@ -90,6 +91,7 @@ async function queueGDPRJob(
   try {
     await prisma.gDPRJob.create({
       data: {
+        id: randomUUID(),
         shopDomain,
         jobType,
         payload: JSON.parse(JSON.stringify(payload)),

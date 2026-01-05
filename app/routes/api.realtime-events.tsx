@@ -186,6 +186,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           clearInterval(pollInterval);
           pollInterval = null;
         }
+        if (!isClosed) {
+          isClosed = true;
+        }
       },
     });
 

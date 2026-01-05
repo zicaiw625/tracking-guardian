@@ -7,14 +7,49 @@
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
+import { CONFIG } from "../utils/config";
+import { safeFireAndForget } from "../utils/helpers";
 import { fetchScanReportData, generateScanReportHtml } from "./report-generator.server";
-import { generateVerificationReportData, generateVerificationReportCSV } from "./verification-report.server";
-import { generateScanReportPdf, generateVerificationReportPdf } from "./pdf-generator.server";
+import { generateVerificationReportData, generateVerificationReportCSV , generateVerificationReportPDF } from "./verification-report.server";
+import { generateScanReportPdf } from "./pdf-generator.server";
 import { exportComprehensiveReport } from "./comprehensive-report.server";
+import type { Prisma } from "@prisma/client";
 
 export type ReportJobStatus = "pending" | "processing" | "completed" | "failed";
 export type ReportFormat = "pdf" | "csv" | "json";
 export type ReportType = "scan" | "migration" | "reconciliation" | "risk" | "verification" | "comprehensive";
+
+function mapToReportJob(prismaJob: {
+  id: string;
+  shopId: string;
+  reportType: string;
+  format: string;
+  status: string;
+  progress: number | null;
+  error: string | null;
+  resultUrl: string | null;
+  metadata: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt: Date | null;
+}): ReportJob {
+  return {
+    id: prismaJob.id,
+    shopId: prismaJob.shopId,
+    reportType: prismaJob.reportType as ReportType,
+    format: prismaJob.format as ReportFormat,
+    status: prismaJob.status as ReportJobStatus,
+    progress: prismaJob.progress ?? undefined,
+    error: prismaJob.error ?? undefined,
+    resultUrl: prismaJob.resultUrl ?? undefined,
+    metadata: typeof prismaJob.metadata === "object" && prismaJob.metadata !== null && !Array.isArray(prismaJob.metadata)
+      ? (prismaJob.metadata as Record<string, unknown>)
+      : {},
+    createdAt: prismaJob.createdAt,
+    updatedAt: prismaJob.updatedAt,
+    completedAt: prismaJob.completedAt ?? undefined,
+  };
+}
 
 export interface ReportJob {
   id: string;
@@ -46,11 +81,12 @@ export async function createReportJob(
 ): Promise<ReportJob> {
   const job = await prisma.reportJob.create({
     data: {
+      id: `${options.shopId}-${options.reportType}-${Date.now()}`,
       shopId: options.shopId,
       reportType: options.reportType,
       format: options.format,
       status: "pending",
-      metadata: options.metadata || {},
+      metadata: (options.metadata || {}) as Prisma.InputJsonValue,
     },
   });
 
@@ -63,22 +99,22 @@ export async function createReportJob(
 
   // 触发异步处理（在实际实现中，这里应该发送到任务队列）
   // 为了简化，我们使用 setTimeout 模拟异步处理
-  processReportJob(job.id).catch((error) => {
-    logger.error("Failed to process report job", error, {
-      jobId: job.id,
-    });
+  safeFireAndForget(processReportJob(job.id), {
+    operation: "processReportJob",
+    metadata: { jobId: job.id },
   });
 
-  return job;
+  return mapToReportJob(job);
 }
 
 /**
  * 获取报表任务状态
  */
 export async function getReportJobStatus(jobId: string): Promise<ReportJob | null> {
-  return prisma.reportJob.findUnique({
+  const job = await prisma.reportJob.findUnique({
     where: { id: jobId },
   });
+  return job ? mapToReportJob(job) : null;
 }
 
 /**
@@ -88,11 +124,12 @@ export async function getShopReportJobs(
   shopId: string,
   limit: number = 20
 ): Promise<ReportJob[]> {
-  return prisma.reportJob.findMany({
+  const jobs = await prisma.reportJob.findMany({
     where: { shopId },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
+  return jobs.map(mapToReportJob);
 }
 
 /**
@@ -116,18 +153,21 @@ async function processReportJob(jobId: string): Promise<void> {
     },
   });
 
-  try {
-    // 根据报表类型调用相应的生成函数
-    let resultUrl: string | undefined;
-    let progress = 0;
+  // 根据报表类型调用相应的生成函数
+  let resultUrl: string | undefined;
+  let progress = 0;
+  let progressInterval: NodeJS.Timeout | null = null;
 
+  try {
     // 模拟进度更新
-    const progressInterval = setInterval(async () => {
+    progressInterval = setInterval(async () => {
       progress += 10;
       if (progress < 90) {
         await prisma.reportJob.update({
           where: { id: jobId },
           data: { progress },
+        }).catch((error) => {
+          logger.warn("Failed to update report job progress", { jobId, error });
         });
       }
     }, 500);
@@ -143,7 +183,7 @@ async function processReportJob(jobId: string): Promise<void> {
             resultUrl = await saveReportResult(jobId, {
               content: pdfResult.buffer,
               filename: pdfResult.filename,
-              mimeType: pdfResult.contentType,
+              mimeType: "application/pdf",
             });
           } else if (job.format === "csv") {
             const data = await fetchScanReportData(job.shopId);
@@ -163,7 +203,10 @@ async function processReportJob(jobId: string): Promise<void> {
           break;
         }
         case "verification": {
-          const runId = job.metadata?.runId as string | undefined;
+          const metadata = typeof job.metadata === "object" && job.metadata !== null && !Array.isArray(job.metadata)
+            ? (job.metadata as Record<string, unknown>)
+            : {};
+          const runId = metadata.runId as string | undefined;
           if (!runId) {
             throw new Error("runId is required for verification report");
           }
@@ -172,14 +215,14 @@ async function processReportJob(jobId: string): Promise<void> {
             throw new Error("Failed to fetch verification report data");
           }
           if (job.format === "pdf") {
-            const pdfResult = await generateVerificationReportPdf(data);
+            const pdfResult = await generateVerificationReportPDF(data);
             if (!pdfResult) {
               throw new Error("Failed to generate verification report PDF");
             }
             resultUrl = await saveReportResult(jobId, {
               content: pdfResult.buffer,
               filename: pdfResult.filename,
-              mimeType: pdfResult.contentType,
+              mimeType: "application/pdf",
             });
           } else if (job.format === "csv") {
             const csv = generateVerificationReportCSV(data);
@@ -210,7 +253,11 @@ async function processReportJob(jobId: string): Promise<void> {
           throw new Error(`Unsupported report type: ${job.reportType}`);
       }
 
-      clearInterval(progressInterval);
+      // 清理进度更新定时器
+      if (progressInterval !== null) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
 
       // 更新为完成状态
       await prisma.reportJob.update({
@@ -228,10 +275,19 @@ async function processReportJob(jobId: string): Promise<void> {
         resultUrl,
       });
     } catch (error) {
-      clearInterval(progressInterval);
+      // 清理进度更新定时器
+      if (progressInterval !== null) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
       throw error;
     }
   } catch (error) {
+    // 确保清理进度更新定时器（即使外层catch也要清理）
+    if (progressInterval !== null) {
+      clearInterval(progressInterval);
+      progressInterval = null;
+    }
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Report job failed", error instanceof Error ? error : new Error(String(error)), {
       jobId,
@@ -259,7 +315,7 @@ async function saveReportResult(
   // 在实际实现中，这里应该将文件保存到对象存储（S3、GCS 等）
   // 并返回可访问的 URL
   // 为了简化，我们返回一个临时 URL
-  const baseUrl = process.env.SHOPIFY_APP_URL || "https://app.tracking-guardian.com";
+  const baseUrl = CONFIG.getEnv("SHOPIFY_APP_URL", "https://app.tracking-guardian.com");
   return `${baseUrl}/api/reports/download/${jobId}`;
 }
 

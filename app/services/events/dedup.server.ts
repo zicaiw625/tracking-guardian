@@ -57,8 +57,8 @@ export function extractDeduplicationInfo(
   eventName: string;
 } {
   return {
-    orderId: payload.data?.orderId || payload.data?.order_id || null,
-    checkoutToken: payload.data?.checkoutToken || payload.data?.checkout_token || null,
+    orderId: payload.data?.orderId || null,
+    checkoutToken: payload.data?.checkoutToken || null,
     eventName: payload.eventName,
   };
 }

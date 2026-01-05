@@ -1,5 +1,7 @@
 
 
+import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { canManageMultipleShops, getShopGroupDetails } from "./multi-shop.server";
@@ -121,11 +123,13 @@ export async function createPixelTemplate(
   try {
     const template = await prisma.pixelTemplate.create({
       data: {
+        id: randomUUID(),
         ownerId,
         name: input.name,
         description: input.description,
         platforms: toInputJsonValue(input.platforms),
         isPublic: input.isPublic ?? false,
+        updatedAt: new Date(),
       },
     });
 
@@ -327,30 +331,42 @@ export async function batchApplyTemplate(
           continue;
         }
 
-        await prisma.pixelConfig.upsert({
+        const existing = await prisma.pixelConfig.findFirst({
           where: {
-            shopId_platform_environment: {
-              shopId: member.shopId,
-              platform: platformConfig.platform,
-              environment: "test", // 批量操作默认使用 test 环境
-            },
-          },
-          create: {
             shopId: member.shopId,
             platform: platformConfig.platform,
             environment: "test",
-            clientSideEnabled: platformConfig.clientSideEnabled ?? true,
-            serverSideEnabled: platformConfig.serverSideEnabled ?? false,
-            eventMappings: platformConfig.eventMappings as object ?? null,
-            isActive: true,
-          },
-          update: {
-            clientSideEnabled: platformConfig.clientSideEnabled ?? true,
-            serverSideEnabled: platformConfig.serverSideEnabled ?? false,
-            eventMappings: platformConfig.eventMappings as object ?? null,
-            isActive: true,
+            platformId: null,
           },
         });
+
+        if (existing) {
+          await prisma.pixelConfig.update({
+            where: { id: existing.id },
+            data: {
+              clientSideEnabled: platformConfig.clientSideEnabled ?? true,
+              serverSideEnabled: platformConfig.serverSideEnabled ?? false,
+              eventMappings: (platformConfig.eventMappings as Prisma.InputJsonValue) ?? null,
+              isActive: true,
+              updatedAt: new Date(),
+            },
+          });
+        } else {
+          await prisma.pixelConfig.create({
+            data: {
+              id: randomUUID(),
+              shopId: member.shopId,
+              platform: platformConfig.platform,
+              platformId: null,
+              environment: "test",
+              clientSideEnabled: platformConfig.clientSideEnabled ?? true,
+              serverSideEnabled: platformConfig.serverSideEnabled ?? false,
+              eventMappings: (platformConfig.eventMappings as Prisma.InputJsonValue) ?? null,
+              isActive: true,
+              updatedAt: new Date(),
+            },
+          });
+        }
 
         appliedPlatforms.push(platformConfig.platform);
       }

@@ -273,10 +273,19 @@ export function RealtimeEventMonitor({
 
     const disconnect = () => {
       if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+        try {
+          eventSourceRef.current.close();
+        } catch (error) {
+          // EventSource may already be closed
+          if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
+            console.warn("Error closing EventSource:", error);
+          }
+        }
         eventSourceRef.current = null;
       }
       setIsConnected(false);
+      setError(null);
     };
 
     disconnectRef.current = disconnect;
@@ -285,6 +294,9 @@ export function RealtimeEventMonitor({
 
     return () => {
       disconnect();
+      // Clear refs to prevent memory leaks
+      disconnectRef.current = null;
+      connectRef.current = null;
     };
   }, [autoStart, shopId, platforms, runId, eventTypes, useVerificationEndpoint]);
 

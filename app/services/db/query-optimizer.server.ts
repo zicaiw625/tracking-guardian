@@ -52,10 +52,10 @@ export async function fetchJobsWithRelations(
 ): Promise<JobWithRelations[]> {
   if (jobIds.length === 0) return [];
 
-  return prisma.conversionJob.findMany({
+  const jobs = await prisma.conversionJob.findMany({
     where: { id: { in: jobIds } },
     include: {
-      shop: {
+      Shop: {
         select: {
           id: true,
           shopDomain: true,
@@ -78,6 +78,11 @@ export async function fetchJobsWithRelations(
       },
     },
   });
+
+  return jobs.map(job => ({
+    ...job,
+    shop: job.Shop as ShopWithConfigs,
+  })) as JobWithRelations[];
 }
 
 export async function fetchShopsWithConfigs(

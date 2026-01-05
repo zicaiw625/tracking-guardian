@@ -40,14 +40,9 @@ export async function generateWorkspaceMigrationReport(
   const group = await prisma.shopGroup.findUnique({
     where: { id: groupId },
     include: {
-      members: {
-        include: {
-          shop: {
-            select: {
-              id: true,
-              shopDomain: true,
-            },
-          },
+      ShopGroupMember: {
+        select: {
+          shopId: true,
         },
       },
     },
@@ -60,9 +55,10 @@ export async function generateWorkspaceMigrationReport(
 
   const shopStatuses: ShopMigrationStatus[] = [];
 
-  for (const member of group.members) {
+  const members = "ShopGroupMember" in group ? (group as typeof group & { ShopGroupMember: Array<{ shopId: string; Shop?: { shopDomain: string } }> }).ShopGroupMember : [];
+  for (const member of members) {
     const shopId = member.shopId;
-    const shopDomain = member.shop?.shopDomain || "unknown";
+    const shopDomain = member.Shop?.shopDomain || "unknown";
 
     try {
       const checklist = await getMigrationChecklist(shopId, false);
@@ -172,7 +168,7 @@ export async function exportWorkspaceReportAsPdf(
     const html = generateReportHtml(report, options);
     const pdfResult = await htmlToPdf(html, {
       format: "A4",
-      margin: { top: 20, right: 20, bottom: 20, left: 20 },
+      margin: { top: "20", right: "20", bottom: "20", left: "20" },
     });
 
     if (!pdfResult) {
@@ -183,7 +179,7 @@ export async function exportWorkspaceReportAsPdf(
     const filename = `migration-report-${report.workspaceName.replace(/\s+/g, "_")}-${timestamp}.pdf`;
 
     return {
-      buffer: pdfResult.buffer as Buffer,
+      buffer: Buffer.from(pdfResult.buffer as unknown as ArrayBuffer),
       filename,
       contentType: "application/pdf",
     };

@@ -1,16 +1,13 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-
-describe("Batch Audit Service", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("should have tests for batch audit functionality", () => {
-
-    expect(true).toBe(true);
-  });
-});
+import {
+  startBatchAudit,
+  getBatchAuditStatus,
+  getBatchAuditHistory,
+  getBatchAuditStatistics,
+  cleanupOldJobs,
+  type BatchAuditOptions,
+} from "../../../app/services/batch-audit.server";
 
 vi.mock("../../../app/services/multi-shop.server", () => ({
   canManageMultipleShops: vi.fn().mockResolvedValue(true),
@@ -23,6 +20,16 @@ vi.mock("../../../app/services/multi-shop.server", () => ({
       { shopId: "shop-2", shopDomain: "shop2.myshopify.com" },
       { shopId: "shop-3", shopDomain: "shop3.myshopify.com" },
     ],
+  }),
+}));
+
+vi.mock("../../../app/services/scanner.server", () => ({
+  scanShopTracking: vi.fn().mockResolvedValue({
+    scriptTags: [],
+    checkoutConfig: null,
+    riskItems: [],
+    riskScore: 0,
+    identifiedPlatforms: [],
   }),
 }));
 

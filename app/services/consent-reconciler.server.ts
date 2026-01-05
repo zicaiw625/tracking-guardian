@@ -26,7 +26,7 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
             status: "pending_consent",
         },
         include: {
-            shop: {
+            Shop: {
                 select: {
                     id: true,
                     shopDomain: true,
@@ -91,7 +91,7 @@ export async function reconcilePendingConsent(): Promise<ConsentReconciliationRe
                 }
             }
             if (receipt) {
-                const strategy = log.shop.consentStrategy || "strict";
+                const strategy = log.Shop.consentStrategy || "strict";
 
                 const rawConsentState = receipt.consentState as {
                     marketing?: boolean;

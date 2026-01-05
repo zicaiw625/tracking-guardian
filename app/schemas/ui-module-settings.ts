@@ -30,7 +30,7 @@ export const DisplayRuleSchema = z.object({
   showAfterHours: z.number().optional(),
   showBeforeHours: z.number().optional(),
 
-  customConditions: z.record(z.unknown()).optional(),
+  customConditions: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type DisplayRule = z.infer<typeof DisplayRuleSchema>;
@@ -39,7 +39,7 @@ export const LocalizationSchema = z.object({
 
   locale: z.string().default("en"),
 
-  translations: z.record(z.string()).optional(),
+  translations: z.record(z.string(), z.string()).optional(),
 
   dateFormat: z.string().default("YYYY-MM-DD"),
 
@@ -99,7 +99,7 @@ export const ShippingTrackerSettingsSchema = z.object({
   showTrackingNumber: z.boolean().default(true),
   showEstimatedDelivery: z.boolean().default(true),
   tipText: z.string().optional(),
-  customStatusLabels: z.record(z.string()).optional(),
+  customStatusLabels: z.record(z.string(), z.string()).optional(),
 });
 
 export type ShippingTrackerSettings = z.infer<typeof ShippingTrackerSettingsSchema>;
@@ -171,7 +171,7 @@ export function validateModuleSettings(
     if (error instanceof z.ZodError) {
       return {
         valid: false,
-        error: error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", "),
+        error: error.issues.map((e: z.ZodIssue) => `${e.path.join(".")}: ${e.message}`).join(", "),
       };
     }
     return {
@@ -251,7 +251,7 @@ export function validateDisplayRules(
     if (error instanceof z.ZodError) {
       return {
         valid: false,
-        errors: error.errors.map(e => `${e.path.join(".")}: ${e.message}`),
+        errors: error.issues.map((e: z.ZodIssue) => `${e.path.join(".")}: ${e.message}`),
       };
     }
     return {
@@ -271,7 +271,7 @@ export function validateLocalizationSettings(
     if (error instanceof z.ZodError) {
       return {
         valid: false,
-        errors: error.errors.map(e => `${e.path.join(".")}: ${e.message}`),
+        errors: error.issues.map((e: z.ZodIssue) => `${e.path.join(".")}: ${e.message}`),
       };
     }
     return {
@@ -285,14 +285,20 @@ export function mergeModuleSettings(
   existing: Partial<ModuleSettings>,
   updates: Partial<ModuleSettings>
 ): ModuleSettings {
+  const defaultSettings = getDefaultModuleSettings(updates.moduleKey || existing.moduleKey || "survey");
+  const defaultDisplayRules: DisplayRule = {
+    showOnThankYou: true,
+    showOnOrderStatus: true,
+  };
+  
   return {
-    ...getDefaultModuleSettings(updates.moduleKey || existing.moduleKey || "survey"),
+    ...defaultSettings,
     ...existing,
     ...updates,
     displayRules: {
-      ...getDefaultModuleSettings(updates.moduleKey || existing.moduleKey || "survey").displayRules,
-      ...existing.displayRules,
-      ...updates.displayRules,
-    },
+      ...defaultDisplayRules,
+      ...(existing.displayRules || {}),
+      ...(updates.displayRules || {}),
+    } as DisplayRule,
   };
 }

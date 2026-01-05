@@ -22,7 +22,7 @@ import { classifyHttpError, classifyJsError, hashSHA256 } from "./base-platform.
 const PINTEREST_API_VERSION = "v5";
 const PINTEREST_API_BASE_URL = "https://api.pinterest.com";
 
-export interface PinterestCredentials extends PlatformCredentials {
+export interface PinterestCredentials {
   adAccountId: string;
   accessToken: string;
   testMode?: boolean;
@@ -144,9 +144,8 @@ export class PinterestPlatformService implements IPlatformService {
         response: {
           success: true,
           events_received: response.num_events_received,
-          events_processed: response.num_events_processed,
           timestamp: new Date().toISOString(),
-        },
+        } as ConversionApiResponse,
         duration,
       };
     } catch (error) {
@@ -253,21 +252,16 @@ export class PinterestPlatformService implements IPlatformService {
   private async buildUserData(data: ConversionData): Promise<PinterestUserData> {
     const userData: PinterestUserData = {};
 
-    if (data.customerEmail) {
-      const normalizedEmail = data.customerEmail.toLowerCase().trim();
+    if (data.email) {
+      const normalizedEmail = data.email.toLowerCase().trim();
       userData.em = [await hashSHA256(normalizedEmail)];
     }
 
-    if (data.customerPhone) {
-
-      const normalizedPhone = data.customerPhone.replace(/\D/g, "");
+    if (data.phone) {
+      const normalizedPhone = data.phone.replace(/\D/g, "");
       if (normalizedPhone.length >= 10) {
         userData.ph = [await hashSHA256(normalizedPhone)];
       }
-    }
-
-    if (data.customerId) {
-      userData.external_id = [data.customerId];
     }
 
     return userData;
@@ -386,10 +380,10 @@ export class PinterestPlatformService implements IPlatformService {
         };
       case 3:
         return {
-          type: "rate_limit",
+          type: "rate_limited",
           message: `Rate limit exceeded: ${message}`,
           isRetryable: true,
-          retryAfterMs: 60000,
+          retryAfter: 60,
         };
       case 4:
         return {
@@ -399,7 +393,7 @@ export class PinterestPlatformService implements IPlatformService {
         };
       case 5:
         return {
-          type: "api_error",
+          type: "server_error",
           message: `Resource not found: ${message}`,
           isRetryable: false,
         };

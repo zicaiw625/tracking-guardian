@@ -46,7 +46,7 @@ export async function generateVerificationReportData(
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
     include: {
-      shop: {
+      Shop: {
         select: { shopDomain: true },
       },
     },
@@ -76,7 +76,7 @@ export async function generateVerificationReportData(
   return {
     runId: run.id,
     shopId: run.shopId,
-    shopDomain: run.shop.shopDomain,
+    shopDomain: run.Shop.shopDomain,
     runName: run.runName,
     runType: run.runType as "quick" | "full" | "custom",
     status: run.status as "pending" | "running" | "completed" | "failed",

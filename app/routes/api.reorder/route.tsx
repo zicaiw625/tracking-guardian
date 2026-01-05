@@ -4,7 +4,7 @@ import { createAdminClientForShop } from "../../shopify.server";
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
 import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
-import { withRateLimit, pathShopKeyExtractor } from "../../middleware/rate-limit";
+import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
 import { withConditionalCache, createUrlCacheKey } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
 import prisma from "../../db.server";
@@ -16,17 +16,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
 };
 
-const reorderRateLimit = withRateLimit({
+const reorderRateLimit = withRateLimit<Response>({
   maxRequests: 60,
   windowMs: 60 * 1000,
   keyExtractor: pathShopKeyExtractor,
   message: "Too many reorder requests",
+}) as (handler: RateLimitedHandler<Response>) => RateLimitedHandler<Response | Response>;
+
+const rateLimitedLoader = reorderRateLimit(async (args: LoaderFunctionArgs | ActionFunctionArgs): Promise<Response> => {
+  return await loaderImpl((args as LoaderFunctionArgs).request);
 });
 
 const cachedLoader = withConditionalCache(
-  reorderRateLimit(async (args: LoaderFunctionArgs) => {
-    return await loaderImpl(args.request);
-  }),
+  async (args: LoaderFunctionArgs) => {
+    return await rateLimitedLoader(args);
+  },
   {
     key: (args) => {
       if (!args?.request || typeof args.request.url !== "string") {
@@ -120,7 +124,14 @@ async function loaderImpl(request: Request) {
       },
     });
 
-    const orderData = await orderResponse.json();
+    const orderData = await orderResponse.json().catch((jsonError) => {
+      logger.warn("Failed to parse GraphQL response as JSON", {
+        error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+        orderId,
+        shopDomain,
+      });
+      return { data: null };
+    });
 
     if (!orderData.data?.order) {
 

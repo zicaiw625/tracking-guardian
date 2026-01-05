@@ -5,6 +5,7 @@ import { WebhookStatus } from "../../types";
 import { logger } from "../../utils/logger.server";
 import type { WebhookLockResult } from "../types";
 import { isPrismaError, getPrismaErrorCode } from "../../utils/type-guards";
+import { generateSimpleId } from "../../utils/helpers";
 
 export async function tryAcquireWebhookLock(
   shopDomain: string,
@@ -23,6 +24,7 @@ export async function tryAcquireWebhookLock(
   try {
     await prisma.webhookLog.create({
       data: {
+        id: generateSimpleId("webhook") || crypto.randomUUID(),
         shopDomain,
         webhookId,
         topic,

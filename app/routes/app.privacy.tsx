@@ -19,7 +19,7 @@ import {
   Icon,
   Collapsible,
   Button,
-} from "@shopify/polaris";
+ Modal } from "@shopify/polaris";
 import {
   LockFilledIcon,
   ClockIcon,
@@ -28,7 +28,6 @@ import {
   CheckCircleIcon,
 } from "~/components/icons";
 import { useState } from "react";
-import { Modal } from "@shopify/polaris";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";

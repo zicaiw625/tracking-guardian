@@ -8,6 +8,7 @@ import type {
   ConsentStrategyType,
 } from './enums';
 import { ok, err, type Result } from './result';
+import { logger } from '../utils/logger.server';
 
 export interface CapiLineItem {
   productId?: string;
@@ -271,18 +272,24 @@ export function parseRiskItems(json: unknown): RiskItemJson[] {
 
   return json
     .filter((item): item is Record<string, unknown> =>
-      item !== null && typeof item === 'object'
+      item !== null && typeof item === 'object' && !Array.isArray(item)
     )
-    .map(item => ({
-      id: typeof item.id === 'string' ? item.id : '',
-      severity: ['low', 'medium', 'high', 'critical'].includes(item.severity as string)
-        ? item.severity as RiskItemJson['severity']
-        : 'low',
-      title: typeof item.title === 'string' ? item.title : '',
-      description: typeof item.description === 'string' ? item.description : '',
-      platform: typeof item.platform === 'string' ? item.platform : undefined,
-      recommendation: typeof item.recommendation === 'string' ? item.recommendation : undefined,
-    }))
+    .map(item => {
+      const severityValue = typeof item.severity === 'string' ? item.severity : 'low';
+      const validSeverities: RiskItemJson['severity'][] = ['low', 'medium', 'high', 'critical'];
+      const severity: RiskItemJson['severity'] = validSeverities.includes(severityValue as RiskItemJson['severity'])
+        ? severityValue as RiskItemJson['severity']
+        : 'low';
+      
+      return {
+        id: typeof item.id === 'string' ? item.id : '',
+        severity,
+        title: typeof item.title === 'string' ? item.title : '',
+        description: typeof item.description === 'string' ? item.description : '',
+        platform: typeof item.platform === 'string' ? item.platform : undefined,
+        recommendation: typeof item.recommendation === 'string' ? item.recommendation : undefined,
+      };
+    })
     .filter(item => item.id && item.title);
 }
 
@@ -451,7 +458,16 @@ export function createJsonParser<T>(
       return mapper(data);
     } catch (error) {
       if (options?.logErrors) {
-        console.error('JSON parsing error', { error });
+        if (typeof window === "undefined") {
+          // Server-side: use structured logger
+          logger.error('JSON parsing error', error, { context: 'createJsonParser' });
+        } else {
+          // Client-side: use console for development debugging
+          if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
+            console.error('JSON parsing error', { error });
+          }
+        }
       }
       return options?.fallback ?? null;
     }

@@ -596,12 +596,14 @@ export interface AlertCheckResult {
   shouldAlert: boolean;
   reason: string;
   severity: "critical" | "warning" | "info";
-  stats: {
-    successRate?: number;
-    failureRate?: number;
-    missingParamsRate?: number;
-    volumeDrop?: number;
-  };
+    stats: {
+      successRate?: number;
+      failureRate?: number;
+      missingParamsRate?: number;
+      volumeDrop?: number;
+      byEventType?: Record<string, number>;
+      eventType?: string;
+    };
 }
 
 export async function checkMonitoringAlerts(

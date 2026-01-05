@@ -478,13 +478,13 @@ function HelpdeskSettingsForm({
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const validateEmail = (email: string) => {
+  const validateEmail = (email: string | undefined) => {
     if (!email) return undefined;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email) ? undefined : "请输入有效的邮箱地址";
   };
 
-  const validateUrl = (url: string) => {
+  const validateUrl = (url: string | undefined) => {
     if (!url) return undefined;
     if (!url.startsWith("/") && !url.startsWith("http")) {
       return "链接应以 / 开头（相对路径）或 http/https 开头（绝对路径）";
@@ -529,17 +529,17 @@ function HelpdeskSettingsForm({
         <FormLayout.Group>
           <TextField
             label="FAQ 链接"
-            value={settings.faqUrl || ""}
+            value={settings.faqUrl ?? ""}
             onChange={(value) => {
-              onChange({ ...settings, faqUrl: value });
+              onChange({ ...settings, faqUrl: value || undefined });
               const error = validateUrl(value);
-              setErrors({ ...errors, faqUrl: error });
+              setErrors({ ...errors, faqUrl: error || "" });
             }}
             onBlur={() => {
-              const error = validateUrl(settings.faqUrl || "");
-              setErrors({ ...errors, faqUrl: error });
+              const error = validateUrl(settings.faqUrl ?? "");
+              setErrors({ ...errors, faqUrl: error || "" });
             }}
-            error={errors.faqUrl}
+            error={errors.faqUrl || undefined}
             autoComplete="off"
             placeholder="/pages/faq"
             helpText="常见问题页面链接（相对路径或绝对路径）"
@@ -550,17 +550,17 @@ function HelpdeskSettingsForm({
           <TextField
             label="联系邮箱"
             type="email"
-            value={settings.contactEmail || ""}
+            value={settings.contactEmail ?? ""}
             onChange={(value) => {
-              onChange({ ...settings, contactEmail: value });
+              onChange({ ...settings, contactEmail: value || undefined });
               const error = validateEmail(value);
-              setErrors({ ...errors, contactEmail: error });
+              setErrors({ ...errors, contactEmail: error || "" });
             }}
             onBlur={() => {
-              const error = validateEmail(settings.contactEmail || "");
-              setErrors({ ...errors, contactEmail: error });
+              const error = validateEmail(settings.contactEmail ?? "");
+              setErrors({ ...errors, contactEmail: error || "" });
             }}
-            error={errors.contactEmail}
+            error={errors.contactEmail || undefined}
             autoComplete="off"
             placeholder="support@example.com"
             helpText="客服邮箱地址"
@@ -570,17 +570,17 @@ function HelpdeskSettingsForm({
         <FormLayout.Group>
           <TextField
             label="联系页面链接"
-            value={settings.contactUrl || ""}
+            value={settings.contactUrl ?? ""}
             onChange={(value) => {
-              onChange({ ...settings, contactUrl: value });
+              onChange({ ...settings, contactUrl: value || undefined });
               const error = validateUrl(value);
-              setErrors({ ...errors, contactUrl: error });
+              setErrors({ ...errors, contactUrl: error || "" });
             }}
             onBlur={() => {
-              const error = validateUrl(settings.contactUrl || "");
-              setErrors({ ...errors, contactUrl: error });
+              const error = validateUrl(settings.contactUrl ?? "");
+              setErrors({ ...errors, contactUrl: error || "" });
             }}
-            error={errors.contactUrl}
+            error={errors.contactUrl || undefined}
             autoComplete="off"
             placeholder="/pages/contact"
             helpText="联系页面链接"
@@ -601,17 +601,17 @@ function HelpdeskSettingsForm({
         <FormLayout.Group>
           <TextField
             label="Facebook Messenger 链接"
-            value={settings.messengerUrl || ""}
+            value={settings.messengerUrl ?? ""}
             onChange={(value) => {
-              onChange({ ...settings, messengerUrl: value });
+              onChange({ ...settings, messengerUrl: value || undefined });
               const error = validateUrl(value);
-              setErrors({ ...errors, messengerUrl: error });
+              setErrors({ ...errors, messengerUrl: error || "" });
             }}
             onBlur={() => {
-              const error = validateUrl(settings.messengerUrl || "");
-              setErrors({ ...errors, messengerUrl: error });
+              const error = validateUrl(settings.messengerUrl ?? "");
+              setErrors({ ...errors, messengerUrl: error || "" });
             }}
-            error={errors.messengerUrl}
+            error={errors.messengerUrl || undefined}
             autoComplete="off"
             placeholder="https://m.me/your-page"
             helpText="Facebook Messenger 联系链接（可选）"
@@ -621,17 +621,17 @@ function HelpdeskSettingsForm({
         <FormLayout.Group>
           <TextField
             label="继续购物链接"
-            value={settings.continueShoppingUrl || ""}
+            value={settings.continueShoppingUrl ?? ""}
             onChange={(value) => {
-              onChange({ ...settings, continueShoppingUrl: value });
+              onChange({ ...settings, continueShoppingUrl: value || undefined });
               const error = validateUrl(value);
-              setErrors({ ...errors, continueShoppingUrl: error });
+              setErrors({ ...errors, continueShoppingUrl: error || "" });
             }}
             onBlur={() => {
-              const error = validateUrl(settings.continueShoppingUrl || "");
-              setErrors({ ...errors, continueShoppingUrl: error });
+              const error = validateUrl(settings.continueShoppingUrl ?? "");
+              setErrors({ ...errors, continueShoppingUrl: error || "" });
             }}
-            error={errors.continueShoppingUrl}
+            error={errors.continueShoppingUrl || undefined}
             autoComplete="off"
             placeholder="/"
             helpText="继续购物按钮的链接地址"
@@ -857,11 +857,11 @@ function UpsellSettingsForm({
             onChange={(value) => {
               onChange({ ...settings, discountPercent: parseInt(value) || undefined });
               const error = validateDiscountPercent(value);
-              setErrors({ ...errors, discountPercent: error });
+              setErrors({ ...errors, discountPercent: error || "" });
             }}
             onBlur={() => {
               const error = validateDiscountPercent(String(settings.discountPercent || ""));
-              setErrors({ ...errors, discountPercent: error });
+              setErrors({ ...errors, discountPercent: error || "" });
             }}
             error={errors.discountPercent}
             autoComplete="off"

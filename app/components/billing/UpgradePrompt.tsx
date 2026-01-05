@@ -10,9 +10,8 @@ import {
   Badge,
   Divider,
 } from "@shopify/polaris";
-import { CheckCircleIcon } from "~/components/icons";
 import type { PlanId } from "~/services/billing/plans";
-import { BILLING_PLANS, getUpgradeOptions, getPlanConfig } from "~/services/billing/plans";
+import { getUpgradeOptions, getPlanConfig } from "~/services/billing/plans";
 
 export interface UpgradePromptProps {
   currentPlan: PlanId;

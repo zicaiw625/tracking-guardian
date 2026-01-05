@@ -1,5 +1,7 @@
 
 
+import { randomUUID } from "crypto";
+import type { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 
@@ -29,10 +31,12 @@ export async function createWorkspace(
   try {
     const workspace = await prisma.workspace.create({
       data: {
+        id: randomUUID(),
         name: input.name,
         ownerPartnerId: input.ownerPartnerId || null,
         ownerEmail: input.ownerEmail || null,
-        settingsJson: input.settings || {},
+        settingsJson: input.settings ? (input.settings as Prisma.InputJsonValue) : undefined,
+        updatedAt: new Date(),
       },
     });
 
@@ -77,8 +81,8 @@ export async function getWorkspace(
   const workspace = await prisma.workspace.findUnique({
     where: { id: workspaceId },
     include: {
-      members: true,
-      shops: true,
+      WorkspaceMember: true,
+      WorkspaceShop: true,
     },
   });
 
@@ -90,19 +94,19 @@ export async function getWorkspace(
     ownerPartnerId: workspace.ownerPartnerId,
     ownerEmail: workspace.ownerEmail,
     settings: (workspace.settingsJson as Record<string, unknown>) || {},
-    members: workspace.members.map((m: { id: string; userId: string; email: string; role: string; inviteStatus: string }) => ({
+    members: "WorkspaceMember" in workspace ? (workspace as typeof workspace & { WorkspaceMember: Array<{ id: string; userId: string; email: string; role: string; inviteStatus: string }> }).WorkspaceMember.map((m) => ({
       id: m.id,
       userId: m.userId,
       email: m.email,
       role: m.role,
       inviteStatus: m.inviteStatus,
-    })),
-    shops: workspace.shops.map((s: { id: string; shopId: string; alias: string | null; addedAt: Date }) => ({
+    })) : [],
+    shops: "WorkspaceShop" in workspace ? (workspace as typeof workspace & { WorkspaceShop: Array<{ id: string; shopId: string; alias: string | null; addedAt: Date }> }).WorkspaceShop.map((s) => ({
       id: s.id,
       shopId: s.shopId,
       alias: s.alias,
       addedAt: s.addedAt,
-    })),
+    })) : [],
     createdAt: workspace.createdAt,
   };
 }
@@ -130,11 +134,13 @@ export async function addWorkspaceMember(
 
     await prisma.workspaceMember.create({
       data: {
+        id: randomUUID(),
         workspaceId,
         userId: member.userId,
         email: member.email,
         role: member.role,
         inviteStatus: "pending",
+        updatedAt: new Date(),
       },
     });
 
@@ -228,6 +234,7 @@ export async function addShopToWorkspace(
 
     await prisma.workspaceShop.create({
       data: {
+        id: randomUUID(),
         workspaceId: input.workspaceId,
         shopId: input.shopId,
         alias: input.alias || null,
@@ -290,20 +297,28 @@ export async function getUserWorkspaces(
       inviteStatus: "accepted",
     },
     include: {
-      workspace: {
+      Workspace: {
         include: {
-          shops: true,
+          WorkspaceShop: {
+            select: {
+              id: true,
+              shopId: true,
+            },
+          },
         },
       },
     },
   });
 
-  return memberships.map((m: { role: string; workspace: { id: string; name: string; shops: unknown[] } }) => ({
-    workspaceId: m.workspace.id,
-    name: m.workspace.name,
-    role: m.role,
-    shopCount: m.workspace.shops.length,
-  }));
+  return memberships.map((m) => {
+    const workspace = "Workspace" in m ? (m as typeof m & { Workspace: { id: string; name: string; WorkspaceShop: unknown[] } }).Workspace : null;
+    return {
+      workspaceId: m.workspaceId,
+      name: workspace?.name || "",
+      role: m.role,
+      shopCount: workspace?.WorkspaceShop.length || 0,
+    };
+  });
 }
 
 export async function checkWorkspacePermission(
@@ -346,6 +361,11 @@ export async function getWorkspaceShops(
   const workspaceShops = await prisma.workspaceShop.findMany({
     where: { workspaceId },
     orderBy: { addedAt: "desc" },
+    select: {
+      shopId: true,
+      alias: true,
+      addedAt: true,
+    },
   });
 
   const shopIds = workspaceShops.map((ws: { shopId: string }) => ws.shopId);
@@ -360,15 +380,15 @@ export async function getWorkspaceShops(
     },
   });
 
-  const shopMap = new Map(shops.map((s: { id: string }) => [s.id, s]));
+  const shopMap = new Map(shops.map((s: { id: string; shopDomain: string; name: string | null }) => [s.id, s]));
 
-  return workspaceShops.map((ws: { shopId: string }) => {
+  return workspaceShops.map((ws: { shopId: string; alias: string | null; addedAt: Date }) => {
     const shop = shopMap.get(ws.shopId);
     return {
       shopId: ws.shopId,
       alias: ws.alias,
       shopDomain: shop?.shopDomain,
-      shopName: shop?.name || null,
+      shopName: shop?.name ?? undefined,
       addedAt: ws.addedAt,
     };
   });

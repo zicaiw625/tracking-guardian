@@ -1,5 +1,6 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { normalizeOrderId } from "../../utils/crypto.server";
 import { logger } from "../../utils/logger.server";
@@ -46,16 +47,16 @@ export async function handleOrdersCancelled(
   );
 
   try {
-    await prisma.eventLog.create({
+    // Note: eventLog model was removed, using WebhookLog instead for tracking
+    await prisma.webhookLog.create({
       data: {
-        shopId: shopRecord.id,
-        eventName: "order_cancelled",
-        eventId: `cancel_${orderId}_${Date.now()}`,
-        // orderPayload 已经是可序列化的对象，可以安全地转换为 Prisma.InputJsonValue
-        payloadJson: orderPayload as Prisma.InputJsonValue,
-        destinationType: "verification",
-        status: "ok",
-        eventTimestamp: new Date(),
+        id: randomUUID(),
+        shopDomain: context.shop,
+        webhookId: `cancel_${orderId}_${Date.now()}`,
+        topic: "orders/cancelled",
+        status: "processed",
+        orderId: orderId,
+        processedAt: new Date(),
       },
     });
 
@@ -110,16 +111,16 @@ export async function handleOrdersUpdated(
   );
 
   try {
-    await prisma.eventLog.create({
+    // Note: eventLog model was removed, using WebhookLog instead for tracking
+    await prisma.webhookLog.create({
       data: {
-        shopId: shopRecord.id,
-        eventName: "order_updated",
-        eventId: `update_${orderId}_${Date.now()}`,
-        // orderPayload 已经是可序列化的对象，可以安全地转换为 Prisma.InputJsonValue
-        payloadJson: orderPayload as Prisma.InputJsonValue,
-        destinationType: "verification",
-        status: "ok",
-        eventTimestamp: new Date(),
+        id: randomUUID(),
+        shopDomain: context.shop,
+        webhookId: `update_${orderId}_${Date.now()}`,
+        topic: "orders/updated",
+        status: "processed",
+        orderId: orderId,
+        processedAt: new Date(),
       },
     });
 
@@ -185,16 +186,16 @@ export async function handleRefundsCreate(
   );
 
   try {
-    await prisma.eventLog.create({
+    // Note: eventLog model was removed, using WebhookLog instead for tracking
+    await prisma.webhookLog.create({
       data: {
-        shopId: shopRecord.id,
-        eventName: "refund_created",
-        eventId: `refund_${orderId}_${Date.now()}`,
-        // refundPayload 已经是可序列化的对象，可以安全地转换为 Prisma.InputJsonValue
-        payloadJson: refundPayload as Prisma.InputJsonValue,
-        destinationType: "verification",
-        status: "ok",
-        eventTimestamp: new Date(),
+        id: randomUUID(),
+        shopDomain: context.shop,
+        webhookId: `refund_${orderId}_${Date.now()}`,
+        topic: "refunds/create",
+        status: "processed",
+        orderId: orderId,
+        processedAt: new Date(),
       },
     });
 

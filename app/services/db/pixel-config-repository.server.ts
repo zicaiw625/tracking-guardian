@@ -1,5 +1,6 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { SimpleCache } from "../../utils/cache";
 import { type PlatformType } from "../../types/enums";
@@ -194,20 +195,19 @@ export async function upsertPixelConfig(
           },
         },
       })
-    : await prisma.pixelConfig.findUnique({
+    : await prisma.pixelConfig.findFirst({
         where: {
-          shopId_platform_environment: {
-            shopId,
-            platform,
-            environment,
-          },
+          shopId,
+          platform,
+          environment,
+          platformId: null,
         },
       });
 
   if (existingConfig && saveSnapshot) {
-    await saveConfigSnapshot(shopId, platform, environment).catch((error) => {
+    await saveConfigSnapshot(shopId, platform, environment as "test" | "live").catch((error) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.warn("Failed to save config snapshot", error instanceof Error ? error : new Error(String(error)), {
+      logger.warn("Failed to save config snapshot", {
         shopId,
         platform,
         errorMessage,
@@ -227,6 +227,7 @@ export async function upsertPixelConfig(
           },
         },
         create: {
+          id: randomUUID(),
           shopId,
           platform,
           platformId,
@@ -238,7 +239,8 @@ export async function upsertPixelConfig(
           isActive: data.isActive ?? true,
           configVersion: 1,
           environment,
-        },
+          updatedAt: new Date(),
+        } as unknown as Prisma.PixelConfigCreateInput,
         update: {
           platformId: data.platformId ?? undefined,
           credentialsEncrypted: data.credentialsEncrypted ?? undefined,
@@ -249,37 +251,49 @@ export async function upsertPixelConfig(
           isActive: data.isActive ?? undefined,
         },
       })
-    : await prisma.pixelConfig.upsert({
-        where: {
-          shopId_platform_environment: {
+    : (async () => {
+        const existing = await prisma.pixelConfig.findFirst({
+          where: {
             shopId,
             platform,
             environment,
+            platformId: null,
           },
-        },
-        create: {
-          shopId,
-          platform,
-          platformId: null,
-          credentialsEncrypted: data.credentialsEncrypted ?? null,
-          clientConfig: data.clientConfig ?? undefined,
-          clientSideEnabled: data.clientSideEnabled ?? true,
-          serverSideEnabled: data.serverSideEnabled ?? false,
-          eventMappings: data.eventMappings ?? undefined,
-          isActive: data.isActive ?? true,
-          configVersion: 1,
-          environment,
-        },
-        update: {
-          platformId: data.platformId ?? undefined,
-          credentialsEncrypted: data.credentialsEncrypted ?? undefined,
-          clientConfig: data.clientConfig ?? undefined,
-          clientSideEnabled: data.clientSideEnabled ?? undefined,
-          serverSideEnabled: data.serverSideEnabled ?? undefined,
-          eventMappings: data.eventMappings ?? undefined,
-          isActive: data.isActive ?? undefined,
-        },
-      });
+        });
+        if (existing) {
+          return await prisma.pixelConfig.update({
+            where: { id: existing.id },
+            data: {
+              credentialsEncrypted: data.credentialsEncrypted ?? null,
+              clientConfig: data.clientConfig ?? undefined,
+              clientSideEnabled: data.clientSideEnabled ?? false,
+              serverSideEnabled: data.serverSideEnabled ?? false,
+              eventMappings: data.eventMappings ?? undefined,
+              isActive: data.isActive ?? true,
+              ...(("migrationStatus" in data && data.migrationStatus) ? { migrationStatus: data.migrationStatus as string } : {}),
+              updatedAt: new Date(),
+            },
+          });
+        } else {
+          return await prisma.pixelConfig.create({
+            data: {
+              id: randomUUID(),
+              shopId,
+              platform,
+              platformId: null,
+              environment,
+              credentialsEncrypted: data.credentialsEncrypted ?? null,
+              clientConfig: data.clientConfig ?? undefined,
+              clientSideEnabled: data.clientSideEnabled ?? false,
+              serverSideEnabled: data.serverSideEnabled ?? false,
+              eventMappings: data.eventMappings ?? undefined,
+              isActive: data.isActive ?? true,
+              migrationStatus: ("migrationStatus" in data && data.migrationStatus) ? (data.migrationStatus as string) : "not_started",
+              updatedAt: new Date(),
+            } as unknown as Prisma.PixelConfigCreateInput,
+          });
+        }
+      })();
 
   invalidatePixelConfigCache(shopId);
 

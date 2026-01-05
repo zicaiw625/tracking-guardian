@@ -1,5 +1,7 @@
 
 
+import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { encryptJson, decryptJson } from "../utils/crypto.server";
@@ -10,6 +12,7 @@ import { canCreatePixelConfig } from "./billing/feature-gates.server";
 import { getValidCredentials } from "./credentials.server";
 import { sendConversion } from "./platforms/registry";
 import { generateDedupeEventId } from "./platforms/interface";
+import type { PlatformCredentials } from "../domain/platform";
 
 export interface WizardConfig {
   platform: Platform | "pinterest";
@@ -117,24 +120,26 @@ export async function saveWizardConfigs(
 
       const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
-          shopId_platform_environment: {
+          shopId_platform_environment_platformId: {
             shopId,
             platform: config.platform as Platform,
-            environment: config.environment,
+            environment: (config.environment || "live") as string,
+            platformId: config.platformId,
           },
         },
       });
 
       if (existingConfig && existingConfig.isActive) {
-        await saveConfigSnapshot(shopId, config.platform, config.environment);
+        await saveConfigSnapshot(shopId, config.platform, config.environment || "live");
       }
 
       await prisma.pixelConfig.upsert({
         where: {
-          shopId_platform_environment: {
+          shopId_platform_environment_platformId: {
             shopId,
             platform: config.platform as Platform,
-            environment: config.environment,
+            environment: (config.environment || "live") as string,
+            platformId: config.platformId,
           },
         },
         update: {
@@ -142,21 +147,23 @@ export async function saveWizardConfigs(
           credentialsEncrypted: encryptedCredentials,
           serverSideEnabled: true,
           eventMappings: config.eventMappings as object,
-          environment: config.environment,
+          environment: config.environment || "live",
           migrationStatus: "in_progress",
           updatedAt: new Date(),
         },
         create: {
+          id: randomUUID(),
           shopId,
-          platform: config.platform as Platform,
-          platformId: config.platformId,
-          credentialsEncrypted: encryptedCredentials,
-          serverSideEnabled: true,
-          eventMappings: config.eventMappings as object,
-          environment: config.environment,
+      platform: config.platform as Platform,
+      platformId: config.platformId,
+      credentialsEncrypted: encryptedCredentials,
+      serverSideEnabled: true,
+      eventMappings: config.eventMappings as object,
+      environment: config.environment || "live",
           migrationStatus: "in_progress",
           configVersion: 1,
           rollbackAllowed: false,
+          updatedAt: new Date(),
         },
       });
 
@@ -288,7 +295,7 @@ export async function loadWizardDraft(shopId: string): Promise<WizardState | nul
         try {
           credentials = decryptJson(existingConfig.credentialsEncrypted) as Record<string, string>;
         } catch (error) {
-          logger.warn(`Failed to decrypt credentials for ${platform}`, error);
+          logger.warn(`Failed to decrypt credentials for ${platform}`, { error: error instanceof Error ? error.message : String(error) });
 
           credentials = draftConfig.credentials || {};
         }
@@ -329,7 +336,7 @@ export async function clearWizardDraft(shopId: string): Promise<{ success: boole
       },
       data: {
         migrationStatus: "not_started",
-        clientConfig: null,
+        clientConfig: Prisma.JsonNull,
       },
     });
 
@@ -453,7 +460,7 @@ export async function validateTestEnvironment(
     const startTime = Date.now();
     const sendResult = await sendConversion(
       platform as Platform,
-      credentialsResult.value.credentials,
+      credentialsResult.value.credentials as PlatformCredentials,
       testData,
       testEventId
     );

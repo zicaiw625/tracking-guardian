@@ -71,6 +71,44 @@ export type {
   AuditMetadataJson,
 } from "./database";
 
+export type {
+  Platform,
+  GoogleCredentials,
+  MetaCredentials,
+  TikTokCredentials,
+  PinterestCredentials,
+  SnapchatCredentials,
+  TwitterCredentials,
+  WebhookCredentials,
+  PlatformCredentials,
+  GoogleCredentialsTyped,
+  MetaCredentialsTyped,
+  TikTokCredentialsTyped,
+  PinterestCredentialsTyped,
+  SnapchatCredentialsTyped,
+  TwitterCredentialsTyped,
+  TypedPlatformCredentials,
+  LineItem,
+  ConversionData,
+  ConversionStatus,
+  ConversionLogData,
+  ConversionApiResponse,
+  PlatformErrorType,
+  PlatformError,
+  PlatformResult,
+  PixelConfigData,
+  MigrationConfig,
+  MigrationResult,
+  GooglePlatformConfig,
+  MetaPlatformConfig,
+  TikTokPlatformConfig,
+  PinterestPlatformConfig,
+  SnapchatPlatformConfig,
+  TwitterPlatformConfig,
+  PlatformConfig,
+  ExtractCredentials,
+} from "./platform";
+
 export {
 
   parseCapiInput,
@@ -86,41 +124,6 @@ export {
   isCapiInputJson,
   isConsentStateJson,
 } from "./database";
-
-export type {
-
-  Platform,
-
-  GoogleCredentials,
-  MetaCredentials,
-  TikTokCredentials,
-  PlatformCredentials,
-
-  GoogleCredentialsTyped,
-  MetaCredentialsTyped,
-  TikTokCredentialsTyped,
-  TypedPlatformCredentials,
-
-  LineItem,
-  ConversionData,
-  ConversionStatus,
-  ConversionLogData,
-  ConversionApiResponse,
-
-  PlatformErrorType,
-  PlatformError,
-  PlatformResult,
-
-  PixelConfigData,
-  MigrationConfig,
-  MigrationResult,
-
-  GooglePlatformConfig,
-  MetaPlatformConfig,
-  TikTokPlatformConfig,
-  PlatformConfig,
-  ExtractCredentials,
-} from "./platform";
 
 export {
   PLATFORM_NAMES,

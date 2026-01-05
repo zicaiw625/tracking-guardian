@@ -78,7 +78,7 @@ export function SubscriptionTab({ currentPlan, subscriptionStatus }: Subscriptio
               padding="400"
               borderRadius="200"
               borderWidth="025"
-              borderColor="border-subdued"
+              borderColor="border"
             >
               <BlockStack gap="300">
                 <InlineStack align="space-between">

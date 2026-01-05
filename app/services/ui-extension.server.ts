@@ -1,5 +1,6 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { getPlanOrDefault, type PlanId } from "./billing/plans";
 import { logger } from "../utils/logger.server";
@@ -177,8 +178,8 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
         moduleKey,
         isEnabled: existing.isEnabled,
         settings: (existing.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey),
-        displayRules: (existing.displayRules as DisplayRules) || getDefaultDisplayRules(moduleKey),
-        localization: (existing.localization as LocalizationSettings) || undefined,
+        displayRules: (existing.displayRules as unknown as DisplayRules) || getDefaultDisplayRules(moduleKey),
+        localization: (existing.localization as unknown as LocalizationSettings) || undefined,
       };
     }
 
@@ -206,8 +207,8 @@ export async function getUiModuleConfig(
       moduleKey,
       isEnabled: setting.isEnabled,
       settings: (setting.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey),
-      displayRules: (setting.displayRules as DisplayRules) || getDefaultDisplayRules(moduleKey),
-      localization: (setting.localization as LocalizationSettings) || undefined,
+      displayRules: (setting.displayRules as unknown as DisplayRules) || getDefaultDisplayRules(moduleKey),
+      localization: (setting.localization as unknown as LocalizationSettings) || undefined,
     };
   }
 
@@ -229,15 +230,33 @@ export async function updateUiModuleConfig(
 
     const { validateModuleSettings, validateDisplayRules, validateLocalizationSettings } = await import("../schemas/ui-module-settings");
 
+    // Map ModuleKey from ui-extension types to schema types
+    const mapModuleKeyToSchema = (key: ModuleKey): "survey" | "reorder" | "support" | "shipping_tracker" | "upsell_offer" => {
+      switch (key) {
+        case "helpdesk":
+          return "support";
+        case "order_tracking":
+          return "shipping_tracker";
+        case "upsell":
+          return "upsell_offer";
+        case "survey":
+        case "reorder":
+          return key;
+        default:
+          return "survey"; // fallback
+      }
+    };
+
     if (config.settings) {
-      const settingsValidation = validateModuleSettings(moduleKey, config.settings);
+      const schemaModuleKey = mapModuleKeyToSchema(moduleKey);
+      const settingsValidation = validateModuleSettings(schemaModuleKey, config.settings);
       if (!settingsValidation.valid) {
         return {
           success: false,
           error: `设置验证失败: ${settingsValidation.error || "未知错误"}`,
         };
       }
-      config.settings = settingsValidation.normalized;
+      config.settings = settingsValidation.normalized as ModuleSettings;
     }
 
     if (config.displayRules) {
@@ -245,7 +264,7 @@ export async function updateUiModuleConfig(
       if (!displayRulesValidation.valid) {
         return {
           success: false,
-          error: `显示规则验证失败: ${displayRulesValidation.errors.join(", ")}`,
+          error: `显示规则验证失败: ${displayRulesValidation.errors?.join(", ") || "未知错误"}`,
         };
       }
       config.displayRules = displayRulesValidation.normalized;
@@ -256,7 +275,7 @@ export async function updateUiModuleConfig(
       if (!localizationValidation.valid) {
         return {
           success: false,
-          error: `本地化设置验证失败: ${localizationValidation.errors.join(", ")}`,
+          error: `本地化设置验证失败: ${localizationValidation.errors?.join(", ") || "未知错误"}`,
         };
       }
       config.localization = localizationValidation.normalized;
@@ -293,12 +312,14 @@ export async function updateUiModuleConfig(
       },
       update: data,
       create: {
+        id: randomUUID(),
         shopId,
         moduleKey,
         isEnabled: config.isEnabled ?? false,
         settingsJson: (config.settings || getDefaultSettings(moduleKey)) as object,
         displayRules: (config.displayRules || getDefaultDisplayRules(moduleKey)) as object,
-        localization: config.localization as object,
+        localization: config.localization ? (config.localization as object) : undefined,
+        updatedAt: new Date(),
       },
     });
 
@@ -361,14 +382,16 @@ export async function resetModuleToDefault(
       update: {
         settingsJson: getDefaultSettings(moduleKey) as object,
         displayRules: getDefaultDisplayRules(moduleKey) as object,
-        localization: null,
+        localization: undefined,
       },
       create: {
+        id: randomUUID(),
         shopId,
         moduleKey,
         isEnabled: false,
         settingsJson: getDefaultSettings(moduleKey) as object,
         displayRules: getDefaultDisplayRules(moduleKey) as object,
+        updatedAt: new Date(),
       },
     });
 

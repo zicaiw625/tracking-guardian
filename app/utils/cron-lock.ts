@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "./logger.server";
 const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
@@ -46,6 +47,7 @@ export async function acquireCronLock(lockType: string, instanceId: string, time
         }
         const lockRecord = await prisma.webhookLog.create({
             data: {
+                id: randomUUID(),
                 shopDomain: lockKey,
                 webhookId: instanceId,
                 topic: "CRON_LOCK",

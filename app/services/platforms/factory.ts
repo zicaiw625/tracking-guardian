@@ -7,6 +7,7 @@ import { metaService, MetaPlatformService } from './meta.service';
 import { tiktokService, TikTokPlatformService } from './tiktok.service';
 import { pinterestService, PinterestPlatformService } from './pinterest.service';
 import { snapchatService, SnapchatPlatformService } from './snapchat.service';
+import { twitterService, TwitterPlatformService } from './twitter.service';
 import type {
   ConversionData,
   PlatformCredentials,
@@ -19,6 +20,7 @@ const platformServices: Record<PlatformType, IPlatformService> = {
   [Platform.TIKTOK]: tiktokService,
   [Platform.PINTEREST]: pinterestService,
   [Platform.SNAPCHAT]: snapchatService,
+  [Platform.TWITTER]: twitterService,
 };
 
 export function getPlatformService(platform: PlatformType | string): IPlatformService {
@@ -103,11 +105,13 @@ export {
   TikTokPlatformService,
   PinterestPlatformService,
   SnapchatPlatformService,
+  TwitterPlatformService,
   googleService,
   metaService,
   tiktokService,
   pinterestService,
   snapchatService,
+  twitterService,
 };
 
 export { sendConversionToGoogle } from './google.service';

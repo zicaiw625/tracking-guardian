@@ -51,7 +51,7 @@ describe("Recipe Matcher", () => {
         expect(metaMatch).toBeDefined();
       });
       it("should match Facebook SDK URL with keywords", () => {
-        const content = "https:
+        const content = "https://connect.facebook.net/en_US/fbevents.js";
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
         const metaMatch = matches.find(m => m.recipe.id === "meta-capi");
@@ -73,7 +73,7 @@ describe("Recipe Matcher", () => {
         expect(matches[0].recipe.id).toBe("tiktok-events");
       });
       it("should match TikTok analytics domain", () => {
-        const content = "https:
+        const content = "https://connect.facebook.net/en_US/fbevents.js";
         const matches = matchScriptToRecipes(content);
         expect(matches.length).toBeGreaterThan(0);
         const tiktokMatch = matches.find(m => m.recipe.id === "tiktok-events");
@@ -179,12 +179,12 @@ describe("Recipe Matcher", () => {
       const scriptTags: ScriptTag[] = [
         {
           id: "1",
-          src: "https:
+          src: "https://example.com/script.js",
           display_scope: "all",
         },
         {
           id: "2",
-          src: "https:
+          src: "https://example.com/script.js",
           display_scope: "all",
         },
       ];
@@ -195,7 +195,7 @@ describe("Recipe Matcher", () => {
       const scriptTags: ScriptTag[] = [
         {
           id: "1",
-          src: "https:
+          src: "https://example.com/script.js",
           display_scope: "all",
         },
       ];

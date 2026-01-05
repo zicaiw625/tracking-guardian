@@ -27,7 +27,7 @@ describe("Scanner Pattern Detection", () => {
         });
 
         it("should detect TikTok from analytics domain", () => {
-            const content = `https:
+            const content = `https://analytics.tiktok.com/i18n/pixel/events.js`;
             const platforms = detectPlatforms(content);
             expect(platforms).toContain("tiktok");
         });
@@ -36,7 +36,7 @@ describe("Scanner Pattern Detection", () => {
             const content = `
                 gtag('config', 'G-XXXXXXXXXX');
                 fbq('track', 'Purchase');
-                https:
+                https://analytics.tiktok.com/i18n/pixel/events.js
             `;
             const platforms = detectPlatforms(content);
             expect(platforms).toContain("google");
@@ -54,31 +54,31 @@ describe("Scanner Pattern Detection", () => {
     describe("identifyPlatformFromSrc", () => {
         it("should identify GTM from GTM URL", () => {
 
-            const src = "https:
+            const src = "https://www.googletagmanager.com/gtm.js?id=GTM-XXXXXX";
             const platform = identifyPlatformFromSrc(src);
             expect(platform).toBe("gtm");
         });
 
         it("should identify Google from GA4 URL", () => {
-            const src = "https:
+            const src = "https://www.google-analytics.com/g/collect";
             const platform = identifyPlatformFromSrc(src);
             expect(platform).toBe("google");
         });
 
         it("should identify Meta from Facebook CDN", () => {
-            const src = "https:
+            const src = "https://connect.facebook.net/en_US/fbevents.js";
             const platform = identifyPlatformFromSrc(src);
             expect(platform).toBe("meta");
         });
 
         it("should identify TikTok from analytics domain", () => {
-            const src = "https:
+            const src = "https://analytics.tiktok.com/i18n/pixel/events.js";
             const platform = identifyPlatformFromSrc(src);
             expect(platform).toBe("tiktok");
         });
 
         it("should return unknown for unrecognized URLs", () => {
-            const src = "https:
+            const src = "https://example.com/script.js";
             const platform = identifyPlatformFromSrc(src);
             expect(platform).toBe("unknown");
         });
@@ -125,7 +125,7 @@ describe("Content Analysis", () => {
 
         it("should detect platforms and generate recommendations", () => {
             const content = `
-                !function(f,b,e,v,n,t,s){...}
+                !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)}}
                 fbq('init', '1234567890123456');
                 fbq('track', 'PageView');
             `;

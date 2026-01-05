@@ -108,7 +108,14 @@ export async function performEnhancedChannelReconciliation(
     shopifyOrders.map((o: { orderId: string }) => [o.orderId, o])
   );
   const shopifyTotalValue = shopifyOrders.reduce(
-    (sum: number, o: { orderValue: string | number | null }) => sum + Number(o.orderValue || 0),
+    (sum: number, o: { orderValue: { toNumber: () => number } | number }) => {
+      const value = typeof o.orderValue === 'object' && 'toNumber' in o.orderValue 
+        ? o.orderValue.toNumber() 
+        : typeof o.orderValue === 'number' 
+        ? o.orderValue 
+        : 0;
+      return sum + value;
+    },
     0
   );
 
@@ -141,13 +148,27 @@ export async function performEnhancedChannelReconciliation(
       platformLogs.map((l: { orderId: string }) => [l.orderId, l])
     );
     const platformTotalValue = platformLogs.reduce(
-      (sum: number, l: { orderValue: string | number | null }) => sum + Number(l.orderValue || 0),
+      (sum: number, l: { orderValue: { toNumber: () => number } | number }) => {
+        const value = typeof l.orderValue === 'object' && 'toNumber' in l.orderValue 
+          ? l.orderValue.toNumber() 
+          : typeof l.orderValue === 'number' 
+          ? l.orderValue 
+          : 0;
+        return sum + value;
+      },
       0
     );
 
     platformOrderMaps[platform] = platformOrderIds;
     platformValueMaps[platform] = new Map(
-      platformLogs.map((l: { orderId: string; orderValue: string | number | null }) => [l.orderId, Number(l.orderValue || 0)])
+      platformLogs.map((l: { orderId: string; orderValue: { toNumber: () => number } | number }) => {
+        const value = typeof l.orderValue === 'object' && 'toNumber' in l.orderValue 
+          ? l.orderValue.toNumber() 
+          : typeof l.orderValue === 'number' 
+          ? l.orderValue 
+          : 0;
+        return [l.orderId, value];
+      })
     );
 
     const missingOrders: string[] = [];
@@ -429,14 +450,21 @@ export async function getOrderCrossPlatformComparison(
           createdAt: shopifyOrder.createdAt,
         }
       : null,
-    platformEvents: platformEvents.map((e: { platform: string; orderId: string }) => ({
-      platform: e.platform,
-      orderId: e.orderId,
-      orderValue: Number(e.orderValue || 0),
-      currency: e.currency || "USD",
-      createdAt: e.createdAt,
-      status: e.status,
-    })),
+    platformEvents: platformEvents.map((e) => {
+      const orderValue = typeof e.orderValue === 'object' && 'toNumber' in e.orderValue 
+        ? e.orderValue.toNumber() 
+        : typeof e.orderValue === 'number' 
+        ? e.orderValue 
+        : 0;
+      return {
+        platform: e.platform,
+        orderId: e.orderId,
+        orderValue,
+        currency: e.currency || "USD",
+        createdAt: e.createdAt,
+        status: e.status || "unknown",
+      };
+    }),
     discrepancies,
   };
 }

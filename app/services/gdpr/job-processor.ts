@@ -31,7 +31,7 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
     if (result && typeof result === "object" && !Array.isArray(result)) {
       return {
         success: true,
-        result: result as GDPRJobResult,
+        result: result as unknown as GDPRJobResult,
       };
     }
     // 如果结果格式不正确，返回错误

@@ -1,10 +1,13 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { canManageMultipleShops, getShopGroupDetails } from "./multi-shop.server";
 import { scanShopTracking } from "./scanner.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
+import { Prisma } from "@prisma/client";
+import { toInputJsonValue } from "../utils/prisma-json";
 
 export interface BatchAuditOptions {
 
@@ -226,13 +229,28 @@ export async function runBatchAuditSync(
             };
           }
 
-          const scanResult = await scanShopTracking(adminContext.admin, shop.id);
+          const scanResult = await scanShopTracking(adminContext, shop.id);
+
+          // Create ScanReport record (scanShopTracking doesn't return scanReportId directly)
+          const scanReport = await prisma.scanReport.create({
+            data: {
+              id: randomUUID(),
+              shopId: shop.id,
+              scriptTags: toInputJsonValue(scanResult.scriptTags),
+              checkoutConfig: scanResult.checkoutConfig ? toInputJsonValue(scanResult.checkoutConfig) : Prisma.JsonNull,
+              riskItems: toInputJsonValue(scanResult.riskItems),
+              riskScore: scanResult.riskScore,
+              identifiedPlatforms: toInputJsonValue(scanResult.identifiedPlatforms),
+              status: "completed",
+              completedAt: new Date(),
+            },
+          });
 
           return {
             shopId: shop.id,
             shopDomain: shop.shopDomain,
             status: "success" as const,
-            scanReportId: scanResult.id,
+            scanReportId: scanReport.id,
             riskScore: scanResult.riskScore,
             identifiedPlatforms: scanResult.identifiedPlatforms,
             duration: Date.now() - startTime,
@@ -384,11 +402,26 @@ async function scanShopWithRetry(
         member.shopId
       );
 
+      // Create ScanReport record (scanShopTracking doesn't return scanReportId directly)
+      const scanReport = await prisma.scanReport.create({
+        data: {
+          id: randomUUID(),
+          shopId: member.shopId,
+          scriptTags: toInputJsonValue(scanResult.scriptTags),
+          checkoutConfig: scanResult.checkoutConfig ? toInputJsonValue(scanResult.checkoutConfig) : Prisma.JsonNull,
+          riskItems: toInputJsonValue(scanResult.riskItems),
+          riskScore: scanResult.riskScore,
+          identifiedPlatforms: toInputJsonValue(scanResult.identifiedPlatforms),
+          status: "completed",
+          completedAt: new Date(),
+        },
+      });
+
       return {
         shopId: member.shopId,
         shopDomain: member.shopDomain,
         status: "success",
-        scanReportId: scanResult.id,
+        scanReportId: scanReport.id,
         riskScore: scanResult.riskScore,
         identifiedPlatforms: scanResult.identifiedPlatforms,
         duration: Date.now() - startTime,

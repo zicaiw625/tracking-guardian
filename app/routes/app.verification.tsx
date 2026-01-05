@@ -55,6 +55,7 @@ import {
 } from "../utils/verification-checklist";
 import {
   checkFeatureAccess,
+  type FeatureGateResult,
 } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId, planSupportsReportExport } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
@@ -91,6 +92,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       testItems: VERIFICATION_TEST_ITEMS,
       testChecklist: generateTestChecklist("", "quick"),
       canAccessVerification: false,
+      canExportReports: false,
       gateResult: undefined,
       currentPlan: "free" as PlanId,
     });
@@ -317,8 +319,9 @@ function ScoreCard({
 }
 
 export default function VerificationPage() {
-  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist, canAccessVerification, canExportReports, gateResult, currentPlan } =
-    useLoaderData<typeof loader>();
+  const loaderData = useLoaderData<typeof loader>();
+  const { shop, configuredPlatforms, history, latestRun, testGuide, testItems, testChecklist, canAccessVerification, canExportReports, currentPlan } = loaderData;
+  const gateResult = ("gateResult" in loaderData && loaderData.gateResult) as FeatureGateResult | undefined;
   const shopDomain = shop?.domain || "";
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
@@ -660,7 +663,11 @@ export default function VerificationPage() {
                   <Button
                     icon={ClipboardIcon}
                     onClick={() => {
-                      const markdown = generateChecklistMarkdown(testChecklist);
+                      const checklist: TestChecklist = {
+                        ...testChecklist,
+                        generatedAt: new Date(testChecklist.generatedAt),
+                      };
+                      const markdown = generateChecklistMarkdown(checklist);
                       navigator.clipboard.writeText(markdown);
                       showSuccess("测试清单已复制到剪贴板");
                     }}
@@ -671,7 +678,11 @@ export default function VerificationPage() {
                   <Button
                     icon={ExportIcon}
                     onClick={() => {
-                      const csv = generateChecklistCSV(testChecklist);
+                      const checklist: TestChecklist = {
+                        ...testChecklist,
+                        generatedAt: new Date(testChecklist.generatedAt),
+                      };
+                      const csv = generateChecklistCSV(checklist);
                       const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
@@ -780,13 +791,13 @@ export default function VerificationPage() {
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {}
           {selectedTab === 0 && (
-            <Box paddingBlockStart="400">
+            <Box padding="400">
               <BlockStack gap="500">
                 {isRunning && (
                   <Card>
                     <BlockStack gap="400">
                       <CardSkeleton lines={3} showTitle={true} />
-                      <Box paddingBlockStart="200">
+                      <Box padding="200">
                         <ProgressBar progress={75} tone="primary" />
                       </Box>
                     </BlockStack>
@@ -946,9 +957,9 @@ export default function VerificationPage() {
 
                         {}
                         {latestRun.reconciliation && (
-                          <Box paddingBlockStart="400">
+                          <Box padding="400">
                             <Divider />
-                            <BlockStack gap="400" paddingBlockStart="400">
+                            <BlockStack gap="400">
                               <Text as="h3" variant="headingSm">
                                 📊 渠道对账
                               </Text>
@@ -964,7 +975,7 @@ export default function VerificationPage() {
 
                               {}
                               <Layout>
-                                <Layout.Section variant="oneQuarter">
+                                <Layout.Section variant="oneThird">
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                                     <BlockStack gap="100" align="center">
                                       <Text as="p" variant="headingLg" fontWeight="bold">
@@ -976,7 +987,7 @@ export default function VerificationPage() {
                                     </BlockStack>
                                   </Box>
                                 </Layout.Section>
-                                <Layout.Section variant="oneQuarter">
+                                <Layout.Section variant="oneThird">
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                                     <BlockStack gap="100" align="center">
                                       <Text as="p" variant="headingLg" fontWeight="bold">
@@ -988,7 +999,7 @@ export default function VerificationPage() {
                                     </BlockStack>
                                   </Box>
                                 </Layout.Section>
-                                <Layout.Section variant="oneQuarter">
+                                <Layout.Section variant="oneThird">
                                   <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                                     <BlockStack gap="100" align="center">
                                       <Text as="p" variant="headingLg" fontWeight="bold">
@@ -996,18 +1007,6 @@ export default function VerificationPage() {
                                       </Text>
                                       <Text as="p" variant="bodySm" tone="subdued">
                                         仅 CAPI
-                                      </Text>
-                                    </BlockStack>
-                                  </Box>
-                                </Layout.Section>
-                                <Layout.Section variant="oneQuarter">
-                                  <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                                    <BlockStack gap="100" align="center">
-                                      <Text as="p" variant="headingLg" fontWeight="bold">
-                                        {latestRun.reconciliation.pixelVsCapi.consentBlocked}
-                                      </Text>
-                                      <Text as="p" variant="bodySm" tone="subdued">
-                                        因同意阻止
                                       </Text>
                                     </BlockStack>
                                   </Box>
@@ -1034,9 +1033,9 @@ export default function VerificationPage() {
                                 </Banner>
                               )}
                               {latestRun.reconciliation.localConsistency && (
-                                <Box paddingBlockStart="300">
+                                <Box padding="300">
                                   <Divider />
-                                  <BlockStack gap="300" paddingBlockStart="300">
+                                  <BlockStack gap="300">
                                     <Text as="h3" variant="headingSm">
                                       🔍 本地一致性检查
                                     </Text>
@@ -1044,7 +1043,7 @@ export default function VerificationPage() {
                                       对订单数据进行深度一致性验证，确保 Pixel 和 CAPI 事件的关键参数匹配
                                     </Text>
                                     <Layout>
-                                      <Layout.Section variant="oneQuarter">
+                                      <Layout.Section variant="oneThird">
                                         <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                                           <BlockStack gap="100" align="center">
                                             <Text as="p" variant="headingLg" fontWeight="bold">
@@ -1056,8 +1055,8 @@ export default function VerificationPage() {
                                           </BlockStack>
                                         </Box>
                                       </Layout.Section>
-                                      <Layout.Section variant="oneQuarter">
-                                        <Box background="bg-surface-success-secondary" padding="300" borderRadius="200">
+                                      <Layout.Section variant="oneThird">
+                                        <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                                           <BlockStack gap="100" align="center">
                                             <Text as="p" variant="headingLg" fontWeight="bold" tone="success">
                                               {latestRun.reconciliation.localConsistency.consistent}
@@ -1068,8 +1067,8 @@ export default function VerificationPage() {
                                           </BlockStack>
                                         </Box>
                                       </Layout.Section>
-                                      <Layout.Section variant="oneQuarter">
-                                        <Box background="bg-surface-warning-secondary" padding="300" borderRadius="200">
+                                      <Layout.Section variant="oneThird">
+                                        <Box background="bg-surface-secondary" padding="300" borderRadius="200">
                                           <BlockStack gap="100" align="center">
                                             <Text as="p" variant="headingLg" fontWeight="bold">
                                               {latestRun.reconciliation.localConsistency.partial}
@@ -1080,19 +1079,17 @@ export default function VerificationPage() {
                                           </BlockStack>
                                         </Box>
                                       </Layout.Section>
-                                      <Layout.Section variant="oneQuarter">
-                                        <Box background="bg-surface-critical-secondary" padding="300" borderRadius="200">
-                                          <BlockStack gap="100" align="center">
-                                            <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
-                                              {latestRun.reconciliation.localConsistency.inconsistent}
-                                            </Text>
-                                            <Text as="p" variant="bodySm" tone="subdued">
-                                              不一致
-                                            </Text>
-                                          </BlockStack>
-                                        </Box>
-                                      </Layout.Section>
                                     </Layout>
+                                    <Box background="bg-surface-secondary" padding="300" borderRadius="200">
+                                      <BlockStack gap="100" align="center">
+                                        <Text as="p" variant="headingLg" fontWeight="bold" tone="critical">
+                                          {latestRun.reconciliation.localConsistency.inconsistent}
+                                        </Text>
+                                        <Text as="p" variant="bodySm" tone="subdued">
+                                          不一致
+                                        </Text>
+                                      </BlockStack>
+                                    </Box>
                                     {latestRun.reconciliation.localConsistency.issues && latestRun.reconciliation.localConsistency.issues.length > 0 && (
                                       <Banner
                                         tone={
@@ -1153,7 +1150,7 @@ export default function VerificationPage() {
                                                     </Badge>
                                                   </InlineStack>
                                                   {issue.issues && issue.issues.length > 0 && (
-                                                    <Box paddingBlockStart="100">
+                                                    <Box padding="100">
                                                       <List type="bullet">
                                                         {issue.issues.map((i, issueIdx) => (
                                                           <List.Item key={issueIdx}>
@@ -1206,7 +1203,7 @@ export default function VerificationPage() {
 
           {}
           {selectedTab === 1 && (
-            <Box paddingBlockStart="400">
+            <Box padding="400">
               <Card>
                 <BlockStack gap="400">
                   <InlineStack align="space-between" blockAlign="center">
@@ -1258,7 +1255,7 @@ export default function VerificationPage() {
 
           {}
           {selectedTab === 2 && (
-            <Box paddingBlockStart="400">
+            <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={3} />}>
                 <RealtimeEventMonitor
                   shopId={shop.id}
@@ -1274,7 +1271,7 @@ export default function VerificationPage() {
 
           {}
           {selectedTab === 3 && (
-            <Box paddingBlockStart="400">
+            <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={5} />}>
                 <TestOrderGuide
                   shopDomain={shopDomain}
@@ -1283,10 +1280,10 @@ export default function VerificationPage() {
                     id: item.id,
                     name: item.name,
                     description: item.description,
-                    steps: item.steps,
-                    expectedEvents: item.expectedResults || [],
+                    steps: "steps" in item ? (item.steps as string[]) : [],
+                    expectedEvents: "expectedResults" in item ? (item.expectedResults as string[]) : [],
                     eventType: item.eventType,
-                    category: item.category,
+                    category: "category" in item ? (item.category as string) : "purchase",
                   }))}
                   onTestComplete={(itemId, verified) => {
                     if (verified) {
@@ -1301,7 +1298,7 @@ export default function VerificationPage() {
           )}
 
           {selectedTab === 6 && (
-            <Box paddingBlockStart="400">
+            <Box padding="400">
               <BlockStack gap="500">
                 <Card>
                   <BlockStack gap="400">
@@ -1345,7 +1342,7 @@ export default function VerificationPage() {
                       availableRuns={history.map((run) => ({
                         runId: run.runId,
                         runName: run.runName || `${run.runType === "full" ? "完整" : "快速"}验收`,
-                        completedAt: run.completedAt || undefined,
+                        completedAt: run.completedAt ? new Date(run.completedAt) : undefined,
                       }))}
                     />
                   </Suspense>

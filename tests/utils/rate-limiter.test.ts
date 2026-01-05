@@ -7,7 +7,7 @@ import {
 } from "../../app/utils/rate-limiter";
 
 function createMockRequest(
-  url: string = "http:
+  url: string = "http://localhost",
   headers: Record<string, string> = {}
 ): Request {
   return new Request(url, {
@@ -53,11 +53,11 @@ describe("Rate Limiter", () => {
     });
 
     it("should use shop domain when available", async () => {
-      const request1 = createMockRequest("http:
+      const request1 = createMockRequest("http://localhost", {
         "x-shopify-shop-domain": "shop1.myshopify.com",
         "x-forwarded-for": "1.1.1.1",
       });
-      const request2 = createMockRequest("http:
+      const request2 = createMockRequest("http://localhost", {
         "x-shopify-shop-domain": "shop2.myshopify.com",
         "x-forwarded-for": "1.1.1.1",
       });

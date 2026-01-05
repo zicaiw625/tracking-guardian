@@ -1,7 +1,7 @@
 
 
 import { type Shop, type Prisma, type PixelConfig } from "@prisma/client";
-import { BaseRepository, type TransactionClient } from "./base-repository";
+import { BaseRepository, type TransactionClient, type PrismaDelegate } from "./base-repository";
 import { ok, err, type AsyncResult } from "../../types/result";
 import { AppError, ErrorCode } from "../../utils/errors";
 
@@ -22,9 +22,9 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
     super("Shop");
   }
 
-  protected getDelegate(client?: TransactionClient) {
+  protected getDelegate(client?: TransactionClient): PrismaDelegate<Shop> {
     const db = client || this.db;
-    return db.shop;
+    return db.shop as unknown as PrismaDelegate<Shop>;
   }
 
   async findByDomain(
@@ -80,7 +80,7 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
             where: { isActive: true },
             orderBy: { platform: "asc" },
           },
-          alertConfigs: {
+          AlertConfig: {
             where: { isEnabled: true },
           },
         },

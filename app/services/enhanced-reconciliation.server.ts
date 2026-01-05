@@ -1,5 +1,6 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { logger } from "../utils/logger.server";
@@ -104,7 +105,10 @@ export async function fetchShopifyOrders(
       },
     });
 
-    const data = await response.json();
+    const data = await response.json().catch((jsonError) => {
+      logger.error("Failed to parse GraphQL response as JSON", { error: jsonError });
+      return { data: null };
+    });
     const orders = data.data?.orders?.edges?.map((edge: { node: ShopifyOrder }) => edge.node) || [];
     return orders;
   } catch (error) {
@@ -469,6 +473,7 @@ export async function saveReconciliationReport(
         status: "completed",
       },
       create: {
+        id: randomUUID(),
         shopId: result.shopId,
         platform,
         reportDate: result.period.start,
@@ -597,7 +602,10 @@ export async function checkLocalConsistency(
       orderId,
     },
     select: {
-      eventData: true,
+      capiInput: true,
+      orderValue: true,
+      currency: true,
+      orderNumber: true,
     },
   });
 
@@ -606,12 +614,12 @@ export async function checkLocalConsistency(
     return null;
   }
 
-  if (job?.eventData) {
+  if (job?.capiInput) {
     try {
-      const eventData = typeof job.eventData === "string"
-        ? JSON.parse(job.eventData)
-        : job.eventData;
-      if (eventData.items && Array.isArray(eventData.items)) {
+      const eventData = typeof job.capiInput === "string"
+        ? JSON.parse(job.capiInput)
+        : job.capiInput;
+      if (eventData && typeof eventData === "object" && "items" in eventData && Array.isArray(eventData.items)) {
         shopifyOrder.itemCount = eventData.items.reduce(
           (sum: number, item: { quantity?: number }) => sum + (item.quantity || 1),
           0
@@ -631,6 +639,12 @@ export async function checkLocalConsistency(
     where: {
       shopId,
       orderId,
+    },
+    select: {
+      id: true,
+      orderId: true,
+      metadata: true,
+      checkoutToken: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -660,20 +674,25 @@ export async function checkLocalConsistency(
   const pixelPayloadErrors: string[] = [];
 
   if (pixelReceipt) {
-    if (!pixelReceipt.payload) {
+    const metadata = pixelReceipt.metadata as Record<string, unknown> | null;
+    const payload = metadata?.payload || metadata;
+    
+    if (!payload) {
       pixelPayloadValid = false;
       pixelPayloadErrors.push("Pixel 收据缺少 payload");
     } else {
       try {
-        const payload = typeof pixelReceipt.payload === "string"
-          ? JSON.parse(pixelReceipt.payload)
-          : pixelReceipt.payload;
+        const parsedPayload = typeof payload === "string"
+          ? JSON.parse(payload)
+          : payload;
 
-        if (!payload.event_name) {
-          pixelPayloadErrors.push("缺少 event_name");
-        }
-        if (!payload.event_time) {
-          pixelPayloadErrors.push("缺少 event_time");
+        if (parsedPayload && typeof parsedPayload === "object") {
+          if (!("event_name" in parsedPayload)) {
+            pixelPayloadErrors.push("缺少 event_name");
+          }
+          if (!("event_time" in parsedPayload)) {
+            pixelPayloadErrors.push("缺少 event_time");
+          }
         }
       } catch (error) {
         pixelPayloadValid = false;
@@ -681,16 +700,19 @@ export async function checkLocalConsistency(
       }
     }
 
-    if (pixelReceipt.orderValue) {
-      const pixelValue = Number(pixelReceipt.orderValue);
+    const orderValue = metadata?.orderValue || metadata?.value;
+    const currency = metadata?.currency;
+    
+    if (orderValue !== undefined && orderValue !== null) {
+      const pixelValue = Number(orderValue);
       const valueMatch = Math.abs(pixelValue - shopifyOrder.value) < 0.01;
-      const currencyMatch = pixelReceipt.currency === shopifyOrder.currency;
+      const currencyMatch = currency ? String(currency) === shopifyOrder.currency : false;
 
       if (!valueMatch) {
         issues.push(`Pixel 金额不匹配: ${pixelValue} vs ${shopifyOrder.value}`);
       }
-      if (!currencyMatch) {
-        issues.push(`Pixel 币种不匹配: ${pixelReceipt.currency} vs ${shopifyOrder.currency}`);
+      if (currency && !currencyMatch) {
+        issues.push(`Pixel 币种不匹配: ${String(currency)} vs ${shopifyOrder.currency}`);
       }
     }
   } else {
@@ -770,13 +792,21 @@ export async function checkLocalConsistency(
 
   return {
     orderId,
-    orderNumber: pixelReceipt?.orderNumber || null,
+    orderNumber: job?.orderNumber || null,
     shopifyOrder,
     pixelReceipt: {
       hasReceipt: !!pixelReceipt,
       payloadValid: pixelPayloadValid,
-      valueMatch: pixelReceipt ? Math.abs(Number(pixelReceipt.orderValue || 0) - shopifyOrder.value) < 0.01 : false,
-      currencyMatch: pixelReceipt ? pixelReceipt.currency === shopifyOrder.currency : false,
+      valueMatch: pixelReceipt ? (() => {
+        const metadata = pixelReceipt.metadata as Record<string, unknown> | null;
+        const orderValue = metadata?.orderValue || metadata?.value;
+        return orderValue !== undefined && orderValue !== null ? Math.abs(Number(orderValue) - shopifyOrder.value) < 0.01 : false;
+      })() : false,
+      currencyMatch: pixelReceipt ? (() => {
+        const metadata = pixelReceipt.metadata as Record<string, unknown> | null;
+        const currency = metadata?.currency;
+        return currency ? String(currency) === shopifyOrder.currency : false;
+      })() : false,
       payloadErrors: pixelPayloadErrors.length > 0 ? pixelPayloadErrors : undefined,
     },
     capiEvents: capiEventChecks,
@@ -814,38 +844,76 @@ export async function performChannelReconciliation(
         // 启动检查操作，传入 AbortSignal
         checkPromise = checkLocalConsistency(shopId, orderId, admin, timeoutSignal);
         
-        // 创建超时Promise
+        // 创建超时Promise，使用AbortSignal来避免竞态条件
         const timeoutPromise = new Promise<null>((resolve) => {
+          if (timeoutSignal.aborted) {
+            resolve(null);
+            return;
+          }
+          
           timeoutId = setTimeout(() => {
-            isTimedOut = true;
-            // 取消操作
-            timeoutController?.abort();
+            if (!timeoutSignal.aborted) {
+              isTimedOut = true;
+              // 取消操作
+              timeoutController?.abort();
+            }
             resolve(null);
           }, timeout);
         });
 
         // 使用 Promise.race 竞争执行
+        // 注意：即使超时，checkPromise可能仍在运行，但会被AbortSignal取消
         const check = await Promise.race([checkPromise, timeoutPromise]);
 
-        // 清理定时器
+        // 清理定时器（无论结果如何）
         if (timeoutId !== null) {
           clearTimeout(timeoutId);
           timeoutId = null;
         }
 
         // 如果超时，返回 null（checkPromise 可能仍在运行，但会被 AbortSignal 取消）
-        if (isTimedOut) {
+        if (isTimedOut || (check === null && timeoutController?.signal.aborted)) {
           // 记录超时警告，帮助识别性能问题
-          logger.warn("Local consistency check timed out", { 
-            shopId, 
-            orderId, 
-            timeoutMs: timeout 
-          });
+          if (isTimedOut) {
+            logger.warn("Local consistency check timed out", { 
+              shopId, 
+              orderId, 
+              timeoutMs: timeout 
+            });
+          }
+          // 如果超时，确保取消操作并等待checkPromise完成（如果仍在运行）
+          if (checkPromise && timeoutController && !timeoutController.signal.aborted) {
+            timeoutController.abort();
+            // 等待checkPromise完成以避免资源泄漏（使用race避免无限等待）
+            let cleanupTimeoutId: NodeJS.Timeout | null = null;
+            try {
+              await Promise.race([
+                checkPromise.catch(() => null), // 忽略错误，因为我们已经超时了
+                new Promise<void>(resolve => {
+                  cleanupTimeoutId = setTimeout(() => {
+                    resolve();
+                  }, 1000); // 最多等待1秒
+                })
+              ]);
+            } catch {
+              // 忽略错误
+            } finally {
+              // 确保清理cleanup超时定时器
+              if (cleanupTimeoutId !== null) {
+                clearTimeout(cleanupTimeoutId);
+              }
+            }
+          }
           return null;
         }
 
-        // 如果 checkPromise 被取消，check 可能是 null
-        if (check === null && timeoutController && timeoutController.signal.aborted) {
+        // 验证返回结果的有效性
+        if (check === null) {
+          logger.warn("Local consistency check returned null", {
+            shopId,
+            orderId,
+            wasAborted: timeoutController?.signal.aborted ?? false,
+          });
           return null;
         }
 

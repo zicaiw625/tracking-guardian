@@ -27,13 +27,12 @@ export async function saveConfigSnapshot(
   environment: "test" | "live" = "live"
 ): Promise<{ success: boolean; version?: number; error?: string }> {
   try {
-    const config = await prisma.pixelConfig.findUnique({
+    const config = await prisma.pixelConfig.findFirst({
       where: {
-        shopId_platform_environment: {
-          shopId,
-          platform,
-          environment,
-        },
+        shopId,
+        platform,
+        environment,
+        platformId: null,
       },
     });
 
@@ -53,13 +52,7 @@ export async function saveConfigSnapshot(
     const newVersion = config.configVersion + 1;
 
     await prisma.pixelConfig.update({
-      where: {
-        shopId_platform_environment: {
-          shopId,
-          platform,
-          environment,
-        },
-      },
+      where: { id: config.id },
       data: {
         previousConfig: currentConfig as object,
         configVersion: newVersion,
@@ -84,13 +77,12 @@ export async function getConfigVersionHistory(
   environment: "test" | "live" = "live"
 ): Promise<ConfigVersionHistory | null> {
   try {
-    const config = await prisma.pixelConfig.findUnique({
+    const config = await prisma.pixelConfig.findFirst({
       where: {
-        shopId_platform_environment: {
-          shopId,
-          platform,
-          environment,
-        },
+        shopId,
+        platform,
+        environment,
+        platformId: null,
       },
     });
 
@@ -154,13 +146,12 @@ export async function rollbackConfig(
   environment: "test" | "live" = "live"
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const config = await prisma.pixelConfig.findUnique({
+    const config = await prisma.pixelConfig.findFirst({
       where: {
-        shopId_platform_environment: {
-          shopId,
-          platform,
-          environment,
-        },
+        shopId,
+        platform,
+        environment,
+        platformId: null,
       },
     });
 
@@ -191,13 +182,7 @@ export async function rollbackConfig(
     };
 
     await prisma.pixelConfig.update({
-      where: {
-        shopId_platform_environment: {
-          shopId,
-          platform,
-          environment,
-        },
-      },
+      where: { id: config.id },
       data: {
         platformId: previous.platformId || null,
         credentialsEncrypted: previous.credentialsEncrypted || null,
@@ -221,4 +206,3 @@ export async function rollbackConfig(
     };
   }
 }
-

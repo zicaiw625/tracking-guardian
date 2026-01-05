@@ -232,9 +232,15 @@ describe("buildTrustMetadata", () => {
 
 describe("extractOriginHost", () => {
   it("should extract hostname from valid URL", () => {
-    expect(extractOriginHost("https:
-    expect(extractOriginHost("https:
-    expect(extractOriginHost("https:
+    expect(extractOriginHost("https://example.com")).toBe("example.com");
+    expect(extractOriginHost("https://test-shop.myshopify.com")).toBe("test-shop.myshopify.com");
+    expect(extractOriginHost("https://subdomain.example.com")).toBe("subdomain.example.com");
+    expect(extractOriginHost("https://example.com")).toBe("example.com");
+    expect(extractOriginHost("https://test-shop.myshopify.com")).toBe("test-shop.myshopify.com");
+    expect(extractOriginHost("https://subdomain.example.com")).toBe("subdomain.example.com");
+    expect(extractOriginHost("https://example.com")).toBe("example.com");
+    expect(extractOriginHost("https://test-shop.myshopify.com")).toBe("test-shop.myshopify.com");
+    expect(extractOriginHost("https://subdomain.example.com")).toBe("subdomain.example.com");
   });
 
   it("should return null for sandbox origin", () => {

@@ -12,6 +12,7 @@ import {
     getScriptTagExecutionStatus,
     getAdditionalScriptsDeprecationStatus,
     DEPRECATION_DATES,
+    getDateDisplayLabel,
     type ShopTier,
 } from "../../utils/deprecation-dates";
 import { isOurWebPixel, needsSettingsUpgrade } from "../migration.server";
@@ -220,7 +221,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             const settings = JSON.parse(p.settings);
             return isOurWebPixel(settings);
         } catch (error) {
-            logger.warn(`Failed to parse pixel settings for pixel ${p.id} in hasAppPixelConfigured:`, error instanceof Error ? error.message : String(error));
+            logger.warn(`Failed to parse pixel settings for pixel ${p.id} in hasAppPixelConfigured:`, { error: error instanceof Error ? error.message : String(error), pixelId: p.id });
             return false;
         }
     });
@@ -232,7 +233,7 @@ export function generateMigrationActions(result: EnhancedScanResult, shopTier: s
             const settings = JSON.parse(p.settings);
             return isOurWebPixel(settings) && needsSettingsUpgrade(settings);
         } catch (error) {
-            logger.warn(`Failed to parse pixel settings for pixel ${p.id} in pixelNeedsUpgrade:`, error instanceof Error ? error.message : String(error));
+            logger.warn(`Failed to parse pixel settings for pixel ${p.id} in pixelNeedsUpgrade:`, { error: error instanceof Error ? error.message : String(error), pixelId: p.id });
             return false;
         }
     });
@@ -346,7 +347,7 @@ function getConfiguredPlatforms(result: EnhancedScanResult): Set<string> {
                     }
                 }
             } catch (error) {
-                logger.warn(`Failed to parse pixel settings for pixel ${pixel.id} in getConfiguredPlatforms:`, error instanceof Error ? error.message : String(error));
+                logger.warn(`Failed to parse pixel settings for pixel ${pixel.id} in getConfiguredPlatforms:`, { error: error instanceof Error ? error.message : String(error), pixelId: pixel.id });
 
                 continue;
             }

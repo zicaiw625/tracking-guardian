@@ -1,6 +1,6 @@
 
 
-import type { AuditAsset } from "@prisma/client";
+import type { AuditAsset , Prisma } from "@prisma/client";
 import prisma from "../../db.server";
 
 export interface TimeEstimate {
@@ -216,7 +216,7 @@ export async function updateAssetTimeEstimate(
       where: { id: assetId },
       data: {
         estimatedTimeMinutes: estimate.estimatedMinutes,
-        details,
+        details: details as Prisma.InputJsonValue,
       },
     });
   }

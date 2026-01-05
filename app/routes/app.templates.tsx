@@ -53,6 +53,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       templates: [],
       planId: "free" as const,
       canManageTemplates: false,
+      isAgency: false,
+      workspaceId: undefined,
     });
   }
 
@@ -61,26 +63,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const templates = await getPixelTemplates(shop.id, true);
 
-  const workspace = await prisma.workspace.findFirst({
+  const workspaceShop = await prisma.workspaceShop.findFirst({
     where: {
-      members: {
-        some: {
-          shopId: shop.id,
-          role: { in: ["owner", "admin"] },
-        },
-      },
+      shopId: shop.id,
     },
-    select: {
-      id: true,
-      name: true,
-      members: {
+    include: {
+      Workspace: {
         select: {
-          shopId: true,
-          role: true,
+          id: true,
+          name: true,
         },
       },
     },
   });
+
+  const workspace = workspaceShop
+    ? {
+        id: workspaceShop.Workspace.id,
+        name: workspaceShop.Workspace.name,
+        WorkspaceShop: [workspaceShop],
+      }
+    : null;
 
   return json({
     shop: { id: shop.id, domain: shopDomain },
@@ -288,7 +291,11 @@ export default function TemplatesPage() {
 
   if (actionData) {
     if (actionData.success) {
-      showSuccess(actionData.message || "操作成功");
+      if ("message" in actionData && typeof actionData.message === "string") {
+        showSuccess(actionData.message);
+      } else {
+        showSuccess("操作成功");
+      }
       if (editingTemplate || showCreateModal) {
         setEditingTemplate(null);
         setShowCreateModal(false);
@@ -296,7 +303,7 @@ export default function TemplatesPage() {
         setTemplateDescription("");
         setTemplateIsPublic(false);
       }
-    } else if (actionData.error) {
+    } else if ("error" in actionData && typeof actionData.error === "string") {
       showError(actionData.error);
     }
   }
@@ -307,6 +314,7 @@ export default function TemplatesPage() {
   }, []);
 
   const handleEditTemplate = useCallback((template: typeof templates[0]) => {
+    if (!template) return;
     setEditingTemplate(template);
     setTemplateName(template.name);
     setTemplateDescription(template.description || "");
@@ -324,11 +332,12 @@ export default function TemplatesPage() {
   }, [submit]);
 
   const handlePreviewTemplate = useCallback((template: typeof templates[0]) => {
+    if (!template) return;
     setPreviewingTemplate(template);
   }, []);
 
   const handleApplyTemplate = useCallback((template: typeof templates[0]) => {
-
+    if (!template) return;
     if (typeof window !== "undefined") {
       sessionStorage.setItem("applyTemplateId", template.id);
       window.location.href = "/app/migrate?applyTemplate=" + template.id;
@@ -336,6 +345,7 @@ export default function TemplatesPage() {
   }, []);
 
   const handleShareTemplate = useCallback(async (template: typeof templates[0]) => {
+    if (!template) return;
     setSharingTemplate(template);
     setIsGeneratingShareLink(true);
     setShareLink(null);
@@ -351,10 +361,12 @@ export default function TemplatesPage() {
       });
 
       const data = await response.json();
-      if (data.success && data.shareLink) {
+      if (data.success && "shareLink" in data && typeof data.shareLink === "string") {
         setShareLink(data.shareLink);
+      } else if ("error" in data && typeof data.error === "string") {
+        showError(data.error);
       } else {
-        showError(data.error || "生成分享链接失败");
+        showError("生成分享链接失败");
       }
     } catch (error) {
       showError("生成分享链接失败");
@@ -416,8 +428,8 @@ export default function TemplatesPage() {
     submit(formData, { method: "post" });
   }, [templateName, templateDescription, templateIsPublic, editingTemplate, submit, showError]);
 
-  const myTemplates = templates.filter((t) => t.id.startsWith("clx") || !t.isPublic);
-  const publicTemplates = templates.filter((t) => t.isPublic && !myTemplates.includes(t));
+  const myTemplates = templates.filter((t): t is NonNullable<typeof t> => t !== null && (t.id.startsWith("clx") || !t.isPublic));
+  const publicTemplates = templates.filter((t): t is NonNullable<typeof t> => t !== null && t.isPublic && !myTemplates.includes(t));
 
   if (!shop) {
     return (
@@ -485,6 +497,7 @@ export default function TemplatesPage() {
 
             {myTemplates.length === 0 ? (
               <EmptyState
+                image=""
                 heading="还没有创建模板"
                 action={{
                   content: "创建第一个模板",
@@ -693,7 +706,11 @@ export default function TemplatesPage() {
           title={sharingTemplate ? `分享模板：${sharingTemplate.name}` : ""}
           primaryAction={{
             content: shareLink ? "复制链接" : "生成链接",
-            onAction: shareLink ? handleCopyShareLink : () => handleShareTemplate(sharingTemplate!),
+            onAction: shareLink ? handleCopyShareLink : () => {
+              if (sharingTemplate) {
+                handleShareTemplate(sharingTemplate);
+              }
+            },
             loading: isGeneratingShareLink,
           }}
           secondaryActions={[
@@ -892,8 +909,7 @@ export default function TemplatesPage() {
                                 background="bg-surface-secondary"
                                 borderRadius="200"
                               >
-                                <Box
-                                  as="pre"
+                                <pre
                                   style={{
                                     fontSize: "12px",
                                     overflow: "auto",
@@ -901,7 +917,7 @@ export default function TemplatesPage() {
                                   }}
                                 >
                                   {JSON.stringify(platformConfig.eventMappings, null, 2)}
-                                </Box>
+                                </pre>
                               </Box>
                             </BlockStack>
                           )}

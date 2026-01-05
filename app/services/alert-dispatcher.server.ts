@@ -688,7 +688,7 @@ export async function runAlertChecks(shopId: string): Promise<{
     select: {
       id: true,
       shopDomain: true,
-      alertConfigs: {
+      AlertConfig: {
         where: { isEnabled: true },
         select: {
           id: true,
@@ -708,7 +708,7 @@ export async function runAlertChecks(shopId: string): Promise<{
     return { checked: 0, triggered: 0, sent: 0, results: [] };
   }
 
-  const firstConfig = shop.alertConfigs[0];
+  const firstConfig = shop.AlertConfig[0];
   const settings = firstConfig?.settings as { thresholds?: { failureRate?: number; missingParams?: number; volumeDrop?: number } } | undefined;
 
   const thresholds: Partial<AlertThresholds> = {
@@ -729,7 +729,7 @@ export async function runAlertChecks(shopId: string): Promise<{
   let sent = 0;
 
   for (const alertResult of triggeredAlerts) {
-    for (const config of shop.alertConfigs) {
+    for (const config of shop.AlertConfig) {
 
       const canSend = await canSendAlert(config.id, config.frequency);
       if (!canSend) {
@@ -761,7 +761,7 @@ export async function runAlertChecks(shopId: string): Promise<{
           discrepancyThreshold: config.discrepancyThreshold,
           minOrdersForAlert: config.minOrdersForAlert,
           isEnabled: true,
-        };
+        } as unknown as Parameters<typeof sendAlert>[0];
         const success = await sendAlert(alertConfig, alertData);
         if (success) {
           sent++;
@@ -825,7 +825,7 @@ export async function runAllShopAlertChecks(): Promise<{
   const shops = await prisma.shop.findMany({
     where: {
       isActive: true,
-      alertConfigs: {
+      AlertConfig: {
         some: { isEnabled: true },
       },
     },

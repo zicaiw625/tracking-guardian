@@ -1,5 +1,7 @@
 
 
+import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { encryptJson } from "../utils/crypto.server";
@@ -7,6 +9,7 @@ import type { PlanId } from "./billing/plans";
 import { getPixelDestinationsLimit } from "./billing/plans";
 import { createBatchJob, updateBatchJobProgress, getBatchJobStatus } from "./batch-job-queue.server";
 import { isPixelTemplateConfigArray } from "../utils/type-guards";
+import { toInputJsonValue } from "../utils/prisma-json";
 
 export interface PixelTemplateConfig {
   platform: string;
@@ -65,12 +68,13 @@ export async function createPixelTemplate(
 
     const template = await prisma.pixelTemplate.create({
       data: {
+        id: randomUUID(),
         ownerId: options.ownerId,
         name: options.name,
         description: options.description,
-
-        platforms: options.platforms as Parameters<typeof prisma.pixelTemplate.create>[0]["data"]["platforms"],
+        platforms: toInputJsonValue(options.platforms),
         isPublic: options.isPublic ?? false,
+        updatedAt: new Date(),
       },
     });
 
@@ -184,7 +188,7 @@ export async function updatePixelTemplate(
         name: updates.name,
         description: updates.description,
         platforms: updates.platforms !== undefined
-          ? (updates.platforms as Parameters<typeof prisma.pixelTemplate.update>[0]["data"]["platforms"])
+          ? toInputJsonValue(updates.platforms)
           : undefined,
         isPublic: updates.isPublic,
       },
@@ -517,31 +521,21 @@ async function applyTemplateToShop(
           }
         }
       } else {
-        const createData: {
-          shopId: string;
-          platform: string;
-          eventMappings: object;
-          clientSideEnabled: boolean;
-          serverSideEnabled: boolean;
-          isActive: boolean;
-          migrationStatus: string;
-          credentialsEncrypted?: string;
-        } = {
-          shopId,
-          platform: platformConfig.platform,
-          eventMappings: platformConfig.eventMappings as object,
-          clientSideEnabled: platformConfig.clientSideEnabled ?? true,
-          serverSideEnabled: platformConfig.serverSideEnabled ?? false,
-          isActive: false,
-          migrationStatus: "not_started",
-        };
-
-        if (credentialsEncrypted) {
-          createData.credentialsEncrypted = credentialsEncrypted;
-        }
-
         await prisma.pixelConfig.create({
-          data: createData,
+          data: {
+            id: randomUUID(),
+            shopId,
+            platform: platformConfig.platform,
+            platformId: null,
+            environment: "test",
+            eventMappings: (platformConfig.eventMappings as Prisma.InputJsonValue) ?? null,
+            clientSideEnabled: platformConfig.clientSideEnabled ?? true,
+            serverSideEnabled: platformConfig.serverSideEnabled ?? false,
+            isActive: false,
+            migrationStatus: "not_started",
+            credentialsEncrypted: credentialsEncrypted ?? null,
+            updatedAt: new Date(),
+          },
         });
         appliedPlatforms.push(platformConfig.platform);
       }

@@ -103,7 +103,7 @@ function validateEndpointUrl(url: string): { valid: boolean; error?: string } {
   }
 }
 export class WebhookPlatformService implements IPlatformService {
-  readonly platform: PlatformType = Platform.WEBHOOK;
+  readonly platform: PlatformType = "webhook" as PlatformType;
   readonly displayName = "通用 HTTP Webhook";
 
   async sendConversion(

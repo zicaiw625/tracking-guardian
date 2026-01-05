@@ -260,8 +260,8 @@ export function DiagnosticsPanel({ report, onRunDiagnostics }: DiagnosticsPanelP
                         </Text>
                         {issue.recommendations
                           .sort((a, b) => {
-                            const priorityOrder = { high: 3, medium: 2, low: 1 };
-                            return priorityOrder[b.priority] - priorityOrder[a.priority];
+                            const priorityOrder: Record<"critical" | "high" | "medium" | "low", number> = { critical: 4, high: 3, medium: 2, low: 1 };
+                            return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
                           })
                           .map((recommendation, idx) => (
                             <Box

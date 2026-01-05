@@ -24,7 +24,7 @@ export async function checkWorkspacePermission(
         },
       },
       include: {
-        workspace: {
+        Workspace: {
           select: {
             ownerPartnerId: true,
             ownerEmail: true,
@@ -126,6 +126,7 @@ export async function getUserWorkspaceRole(
       },
       select: {
         role: true,
+        inviteStatus: true,
       },
     });
 

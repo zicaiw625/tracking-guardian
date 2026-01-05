@@ -124,6 +124,13 @@ export default async function handleRequest(request: Request, responseStatusCode
                 const body = new PassThrough();
                 const stream = createReadableStreamFromReadable(body);
                 responseHeaders.set("Content-Type", "text/html");
+                
+                // Clear the abort timeout since we've successfully rendered
+                if (abortTimeoutId !== null) {
+                    clearTimeout(abortTimeoutId);
+                    abortTimeoutId = null;
+                }
+                
                 resolve(new Response(stream, {
                     headers: responseHeaders,
                     status: responseStatusCode,
@@ -131,6 +138,11 @@ export default async function handleRequest(request: Request, responseStatusCode
                 pipe(body);
             },
             onShellError(error) {
+                // Clear the abort timeout on error
+                if (abortTimeoutId !== null) {
+                    clearTimeout(abortTimeoutId);
+                    abortTimeoutId = null;
+                }
                 reject(error);
             },
             onError(error) {
@@ -138,6 +150,11 @@ export default async function handleRequest(request: Request, responseStatusCode
                 logger.error("React render error", error);
             },
         });
-        setTimeout(abort, ABORT_DELAY);
+        
+        // Set up abort timeout and store the timeout ID for cleanup
+        let abortTimeoutId: NodeJS.Timeout | null = setTimeout(() => {
+            abortTimeoutId = null;
+            abort();
+        }, ABORT_DELAY);
     });
 }

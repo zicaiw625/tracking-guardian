@@ -140,6 +140,9 @@ async function executeBatchVerificationAsync(
 
   const { runType, platforms, concurrency } = options;
 
+  // Store job reference for use in nested function
+  const jobRef = job;
+
   async function processShop(shopId: string): Promise<void> {
     try {
       const shop = await prisma.shop.findUnique({
@@ -161,14 +164,14 @@ async function executeBatchVerificationAsync(
       });
 
       if (configs.length === 0) {
-        job.results.push({
+        jobRef.results.push({
           shopId,
           shopDomain: shop.shopDomain,
           status: "skipped",
           error: "未配置服务端追踪",
         });
-        job.progress.skipped++;
-        job.updatedAt = new Date();
+        jobRef.progress.skipped++;
+        jobRef.updatedAt = new Date();
         return;
       }
 
@@ -177,14 +180,14 @@ async function executeBatchVerificationAsync(
         : configs.map(c => c.platform);
 
       if (targetPlatforms.length === 0) {
-        job.results.push({
+        jobRef.results.push({
           shopId,
           shopDomain: shop.shopDomain,
           status: "skipped",
           error: "没有匹配的平台配置",
         });
-        job.progress.skipped++;
-        job.updatedAt = new Date();
+        jobRef.progress.skipped++;
+        jobRef.updatedAt = new Date();
         return;
       }
 
@@ -197,14 +200,14 @@ async function executeBatchVerificationAsync(
 
       await analyzeRecentEvents(shopId, runId);
 
-      job.results.push({
+      jobRef.results.push({
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
         runId,
       });
 
-      job.progress.completed++;
+      jobRef.progress.completed++;
     } catch (error) {
       logger.error(`Batch verification failed for shop ${shopId}`, error);
 
@@ -213,16 +216,16 @@ async function executeBatchVerificationAsync(
         select: { shopDomain: true },
       });
 
-      job.results.push({
+      jobRef.results.push({
         shopId,
         shopDomain: shop?.shopDomain || "unknown",
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
       });
 
-      job.progress.failed++;
+      jobRef.progress.failed++;
     } finally {
-      job.updatedAt = new Date();
+      jobRef.updatedAt = new Date();
     }
   }
 
@@ -244,9 +247,9 @@ async function executeBatchVerificationAsync(
 
   logger.info(`Batch verification job completed: ${jobId}`, {
     total: job.progress.total,
-    completed: job.progress.completed,
-    failed: job.progress.failed,
-    skipped: job.progress.skipped,
+    completed: jobRef.progress.completed,
+    failed: jobRef.progress.failed,
+    skipped: jobRef.progress.skipped,
   });
 }
 

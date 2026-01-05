@@ -51,11 +51,11 @@ describe("Subscription Service", () => {
           data: {
             appSubscriptionCreate: {
               appSubscription: {
-                id: "gid:
+                id: "gid://shopify/AppSubscription/123456",
                 status: "PENDING",
                 trialDays: 0,
               },
-              confirmationUrl: "https:
+              confirmationUrl: "https://example.com/confirm",
               userErrors: [],
             },
           },
@@ -127,7 +127,7 @@ describe("Subscription Service", () => {
           data: {
             appSubscriptionCreate: {
               appSubscription: { id: "sub-1", status: "PENDING" },
-              confirmationUrl: "https:
+              confirmationUrl: "https://example.com/confirm",
               userErrors: [],
             },
           },
@@ -168,7 +168,7 @@ describe("Subscription Service", () => {
             appInstallation: {
               activeSubscriptions: [
                 {
-                  id: "gid:
+                  id: "gid://shopify/AppSubscription/123456",
                   name: "Tracking Guardian - Growth",
                   status: "ACTIVE",
                   trialDays: 0,

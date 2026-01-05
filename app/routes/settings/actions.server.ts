@@ -3,6 +3,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { testNotification } from "../../services/notification.server";
@@ -119,6 +120,7 @@ export async function handleSaveAlert(
       isEnabled: enabled,
     },
     create: {
+      id: randomUUID(),
       shopId,
       channel,
       settings: nonSensitiveSettings as Prisma.InputJsonValue,
@@ -126,7 +128,7 @@ export async function handleSaveAlert(
       discrepancyThreshold: threshold,
       frequency,
       isEnabled: enabled,
-    },
+    } as unknown as Prisma.AlertConfigCreateInput,
   });
 
   await createAuditLog({
@@ -336,24 +338,33 @@ export async function handleSaveServerSide(
 
   const environment = (formData.get("environment") as "test" | "live") || "live";
 
-  await prisma.pixelConfig.upsert({
+  // Try to find existing config first
+  const existing = await prisma.pixelConfig.findFirst({
     where: {
-      shopId_platform_environment: {
-        shopId,
-        platform,
-        environment,
-      },
-    },
-    update: updateData,
-    create: {
       shopId,
       platform,
-      platformId,
-      credentialsEncrypted: encryptedCredentials,
-      serverSideEnabled: enabled,
       environment,
+      platformId: platformId || null,
     },
   });
+
+  if (existing) {
+    await prisma.pixelConfig.update({
+      where: { id: existing.id },
+      data: updateData,
+    });
+  } else {
+    await prisma.pixelConfig.create({
+      data: {
+        id: randomUUID(),
+        shopId,
+        platform,
+        platformId,
+        environment,
+        ...updateData,
+      } as unknown as Prisma.PixelConfigCreateInput,
+    });
+  }
 
   await invalidateAllShopCaches(sessionShop, shopId);
 
@@ -657,11 +668,11 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const result = await switchEnvironment(shop.id, platform, newEnvironment);
 
       if (result.success) {
-        await invalidateAllShopCaches(sessionShop, shop.id);
+        await invalidateAllShopCaches(session.shop, shop.id);
         await createAuditLog({
           shopId: shop.id,
           actorType: "user",
-          actorId: sessionShop,
+          actorId: session.shop,
           action: "pixel_config_updated",
           resourceType: "pixel_config",
           resourceId: platform,
@@ -695,11 +706,11 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const result = await rollbackConfig(shop.id, platform);
 
       if (result.success) {
-        await invalidateAllShopCaches(sessionShop, shop.id);
+        await invalidateAllShopCaches(session.shop, shop.id);
         await createAuditLog({
           shopId: shop.id,
           actorType: "user",
-          actorId: sessionShop,
+          actorId: session.shop,
           action: "pixel_config_updated",
           resourceType: "pixel_config",
           resourceId: platform,

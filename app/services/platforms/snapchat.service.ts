@@ -74,7 +74,6 @@ export class SnapchatPlatformService implements IPlatformService {
       logger.info(`Snapchat CAPI: conversion sent successfully`, {
         orderId: data.orderId.slice(0, 8),
         eventId: dedupeEventId,
-        status: response.status,
         durationMs: duration,
       });
 

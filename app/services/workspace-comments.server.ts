@@ -1,4 +1,5 @@
 
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getShopGroupDetails } from "./multi-shop.server";
@@ -94,12 +95,14 @@ export async function createWorkspaceComment(
 
     const comment = await prisma.workspaceComment.create({
       data: {
+        id: randomUUID(),
         targetType: input.targetType,
         targetId: input.targetId,
         authorShopId,
         content: input.content,
-        parentCommentId: input.parentCommentId,
-        groupId: input.groupId,
+        parentCommentId: input.parentCommentId ?? null,
+        groupId: input.groupId ?? null,
+        updatedAt: new Date(),
       },
     });
 
@@ -132,15 +135,15 @@ export async function getWorkspaceComments(
       parentCommentId: null,
     },
     include: {
-      group: {
+      ShopGroup: {
         select: {
           name: true,
         },
       },
-      replies: {
+      other_WorkspaceComment: {
         orderBy: { createdAt: "asc" },
         include: {
-          group: {
+          ShopGroup: {
             select: {
               name: true,
             },
@@ -152,9 +155,9 @@ export async function getWorkspaceComments(
   });
 
   const authorShopIds = new Set<string>();
-  comments.forEach((c: { authorShopId: string; replies: Array<{ authorShopId: string }> }) => {
+  comments.forEach((c) => {
     authorShopIds.add(c.authorShopId);
-    c.replies.forEach((r: { authorShopId: string }) => authorShopIds.add(r.authorShopId));
+    c.other_WorkspaceComment.forEach((r: typeof c.other_WorkspaceComment[0]) => authorShopIds.add(r.authorShopId));
   });
 
   const shops = await prisma.shop.findMany({
@@ -164,27 +167,7 @@ export async function getWorkspaceComments(
 
   const shopMap = new Map(shops.map((s: { id: string; shopDomain: string }) => [s.id, s.shopDomain]));
 
-  const mapComment = (c: {
-    id: string;
-    targetType: string;
-    targetId: string;
-    authorShopId: string;
-    content: string;
-    groupId: string | null;
-    group: { name: string } | null;
-    parentCommentId: string | null;
-    replies: Array<{
-      id: string;
-      authorShopId: string;
-      content: string;
-      groupId: string | null;
-      group: { name: string } | null;
-      createdAt: Date;
-      updatedAt: Date;
-    }>;
-    createdAt: Date;
-    updatedAt: Date;
-  }): WorkspaceCommentWithAuthor => ({
+  const mapComment = (c: typeof comments[0]): WorkspaceCommentWithAuthor => ({
     id: c.id,
     targetType: c.targetType,
     targetId: c.targetId,
@@ -192,9 +175,22 @@ export async function getWorkspaceComments(
     authorShopDomain: shopMap.get(c.authorShopId) || "Unknown",
     content: c.content,
     groupId: c.groupId,
-    groupName: c.group?.name || null,
+    groupName: c.ShopGroup?.name || null,
     parentCommentId: c.parentCommentId,
-    replies: c.replies.map(mapComment),
+    replies: c.other_WorkspaceComment.map((r: typeof c.other_WorkspaceComment[0]) => ({
+      id: r.id,
+      targetType: c.targetType,
+      targetId: c.targetId,
+      authorShopId: r.authorShopId,
+      authorShopDomain: shopMap.get(r.authorShopId) || "Unknown",
+      content: r.content,
+      groupId: r.groupId,
+      groupName: r.ShopGroup?.name || null,
+      parentCommentId: c.id,
+      replies: [],
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    })),
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   });

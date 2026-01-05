@@ -141,11 +141,13 @@ export async function generateBatchReportData(
         const checklist = await getMigrationChecklist(shopId, false);
         const progress = await getMigrationProgress(shopId);
 
-        let migrationStatus: ShopReportData["migrationStatus"]["status"] = "not_started";
+        let migrationStatus: "not_started" | "in_progress" | "completed" | "failed" = "not_started";
         if (progress.completed === progress.total && progress.total > 0) {
           migrationStatus = "completed";
         } else if (progress.inProgress > 0 || progress.completed > 0) {
           migrationStatus = "in_progress";
+        } else if (progress.total === 0) {
+          migrationStatus = "not_started";
         }
 
         shopData.migrationStatus = {
@@ -167,12 +169,12 @@ export async function generateBatchReportData(
         select: {
           id: true,
           createdAt: true,
-          summary: true,
+          summaryJson: true,
         },
       });
 
-      if (latestVerification && latestVerification.summary) {
-        const summary = latestVerification.summary as {
+      if (latestVerification && "summaryJson" in latestVerification && latestVerification.summaryJson) {
+        const summary = latestVerification.summaryJson as {
           totalTests?: number;
           passedTests?: number;
         };
@@ -279,7 +281,7 @@ export async function generateBatchReportPdf(
 
     const pdfBuffer = await htmlToPdf(html, {
       format: "A4",
-      margin: { top: 20, right: 20, bottom: 20, left: 20 },
+      margin: { top: "20", right: "20", bottom: "20", left: "20" },
     });
 
     if (!pdfBuffer) {

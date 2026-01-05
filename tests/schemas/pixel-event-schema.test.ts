@@ -109,7 +109,7 @@ describe("PixelEventSchema", () => {
     timestamp: Date.now(),
     shopDomain: "test-shop.myshopify.com",
     data: {
-      orderId: "gid:
+      orderId: "gid://shopify/Order/123456",
       checkoutToken: "valid-checkout-token-123",
     },
   };
@@ -154,7 +154,7 @@ describe("PixelEventSchema", () => {
       timestamp: Date.now(),
       shopDomain: "test-shop.myshopify.com",
       data: {
-        url: "https:
+        url: "https://example.com/product",
         title: "Test Product",
       },
     };

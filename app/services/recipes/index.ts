@@ -1,4 +1,4 @@
 export * from "./types";
 export * from "./registry";
-export * from "./matcher";
+export { matchScriptToRecipes, matchScriptTagsToRecipes } from "./matcher";
 export * from "./executor";

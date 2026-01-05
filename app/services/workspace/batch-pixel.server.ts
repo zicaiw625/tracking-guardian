@@ -1,5 +1,7 @@
 
 
+import { randomUUID } from "crypto";
+import type { Prisma } from "@prisma/client";
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
@@ -92,8 +94,8 @@ export async function batchApplyPixelTemplate(
 
         if (existing) {
           const eventMappings = platformConfig.eventMappings && typeof platformConfig.eventMappings === "object"
-            ? platformConfig.eventMappings
-            : existing.eventMappings;
+            ? (platformConfig.eventMappings as Prisma.InputJsonValue)
+            : existing.eventMappings ? (existing.eventMappings as Prisma.InputJsonValue) : undefined;
 
           const updated = await prisma.pixelConfig.update({
             where: { id: existing.id },
@@ -101,18 +103,19 @@ export async function batchApplyPixelTemplate(
               platformId: platformConfig.platformId ?? existing.platformId,
               eventMappings: eventMappings,
               configVersion: existing.configVersion + 1,
-              previousConfig: existing.clientConfig,
+              previousConfig: existing.clientConfig ? (existing.clientConfig as Prisma.InputJsonValue) : undefined,
               updatedAt: new Date(),
             },
           });
           configIds.push(updated.id);
         } else {
           const eventMappings = platformConfig.eventMappings && typeof platformConfig.eventMappings === "object"
-            ? platformConfig.eventMappings
-            : null;
+            ? (platformConfig.eventMappings as Prisma.InputJsonValue)
+            : undefined;
 
           const created = await prisma.pixelConfig.create({
             data: {
+              id: randomUUID(),
               shopId,
               platform: platformConfig.platform,
               platformId: platformId,
@@ -121,6 +124,7 @@ export async function batchApplyPixelTemplate(
               serverSideEnabled: false,
               environment: "test",
               isActive: true,
+              updatedAt: new Date(),
             },
           });
           configIds.push(created.id);

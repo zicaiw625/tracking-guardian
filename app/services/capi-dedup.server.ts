@@ -1,7 +1,7 @@
 
 
+import { randomUUID, createHash } from "crypto";
 import prisma from "../db.server";
-import { createHash } from "crypto";
 import { logger } from "../utils/logger.server";
 
 export interface DedupResult {
@@ -148,6 +148,7 @@ export async function checkShouldSend(
   try {
     await prisma.eventNonce.create({
       data: {
+        id: randomUUID(),
         shopId,
         nonce: eventId,
         eventType,
@@ -155,7 +156,6 @@ export async function checkShouldSend(
       },
     });
   } catch (error) {
-
     if ((error as { code?: string }).code === "P2002") {
       logger.debug("Dedup: Nonce exists", { orderId, platform, eventId });
       return {
@@ -164,7 +164,14 @@ export async function checkShouldSend(
         reason: "duplicate",
       };
     }
-
+    
+    // Log other errors but don't block the operation
+    logger.warn("Failed to create event nonce", {
+      orderId,
+      platform,
+      eventId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   logger.debug("Dedup: Should send", { orderId, platform, eventId });

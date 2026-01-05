@@ -28,13 +28,14 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       consentStrategy: true,
       dataRetentionDays: true,
 
-      alertConfigs: {
+      AlertConfig: {
         select: {
           id: true,
           channel: true,
+          settings: true,
+          frequency: true,
           discrepancyThreshold: true,
           isEnabled: true,
-
         },
       },
 
@@ -63,19 +64,23 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
     shop?.previousSecretExpiry &&
     new Date() < shop.previousSecretExpiry;
 
-  const alertConfigs: AlertConfigDisplay[] = shop?.alertConfigs.map((config: {
+  const alertConfigs: AlertConfigDisplay[] = shop?.AlertConfig.map((config: {
     id: string;
     channel: string;
+    settings: unknown;
+    frequency: string;
     discrepancyThreshold: number;
     isEnabled: boolean;
   }) => ({
     id: config.id,
     channel: config.channel,
+    settings: config.settings as Record<string, unknown> | null,
+    frequency: config.frequency,
     discrepancyThreshold: config.discrepancyThreshold,
     isEnabled: config.isEnabled,
   })) ?? [];
 
-  const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs.map((config: {
+  const pixelConfigs: PixelConfigDisplay[] = shop?.pixelConfigs?.map((config: {
     id: string;
     platform: string;
     platformId: string | null;

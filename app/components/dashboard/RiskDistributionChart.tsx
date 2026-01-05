@@ -1,7 +1,7 @@
 
-import { Card, BlockStack, Text, Box, InlineStack, Badge, Button } from "@shopify/polaris";
+import { Card, BlockStack, Text, Box, InlineStack, Badge } from "@shopify/polaris";
 import { useMemo, useState } from "react";
-import { Bar, Doughnut, Line } from "react-chartjs-2";
+import { Bar, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -43,7 +43,7 @@ interface RiskDistributionChartProps {
 }
 
 export function RiskDistributionChart({ distribution }: RiskDistributionChartProps) {
-  const [viewMode, setViewMode] = useState<"risk" | "category" | "platform">("risk");
+  const [viewMode] = useState<"risk" | "category" | "platform">("risk");
 
   const riskLevelData = useMemo(() => {
     return {

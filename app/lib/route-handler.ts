@@ -6,6 +6,7 @@ import { AppError, ErrorCode, ensureAppError } from "../utils/errors";
 import { logger, createRequestLogger, type RequestLogger } from "../utils/logger.server";
 import { type Result, ok, err } from "../types/result";
 import type { AdminApiContext, Session } from "@shopify/shopify-app-remix/server";
+import { safeFireAndForget } from "../utils/helpers";
 
 export interface AuthContext {
   session: Session;
@@ -212,9 +213,13 @@ export function createWebhookHandler<TPayload = unknown, TOutput = unknown>(
 
       if (config.async) {
 
-        config.execute(validatedPayload, { shop, webhookId, topic, admin }).catch((error) => {
-          logger.error("Async webhook processing failed", error, { shop, topic });
-        });
+        safeFireAndForget(
+          config.execute(validatedPayload, { shop, webhookId, topic, admin }),
+          {
+            operation: "asyncWebhookProcessing",
+            metadata: { shop, topic },
+          }
+        );
         return new Response("OK", { status: 200 });
       }
 

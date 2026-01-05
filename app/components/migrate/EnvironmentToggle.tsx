@@ -12,7 +12,6 @@ import {
   Banner,
   Modal,
 } from "@shopify/polaris";
-import { AlertCircleIcon } from "~/components/icons";
 
 type PixelEnvironment = "test" | "live";
 

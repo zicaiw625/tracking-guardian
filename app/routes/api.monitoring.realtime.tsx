@@ -112,6 +112,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         clearInterval(interval);
         interval = null;
       }
+      if (!isClosed) {
+        isClosed = true;
+      }
     },
   });
 

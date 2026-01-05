@@ -257,7 +257,7 @@ describe("Recipe Migration Flow Integration", () => {
           surveyQuestion: "How did you hear about us?",
         },
         "custom-webhook": {
-          endpointUrl: "https:
+          endpointUrl: "https://example.com/webhook",
           authType: "bearer",
           authValue: "token123",
         },

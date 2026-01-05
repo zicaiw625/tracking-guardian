@@ -1,5 +1,6 @@
 
 
+import { randomUUID } from "crypto";
 import prisma, { type TransactionClient } from "../db.server";
 import {
   checkAndReserveBillingSlot,
@@ -12,6 +13,7 @@ import { generateEventId } from "../utils/crypto.server";
 import { generateCanonicalEventId } from "../services/event-normalizer.server";
 import { logger } from "../utils/logger.server";
 import { JOB_PROCESSING_CONFIG } from "../utils/config";
+import { safeFireAndForget } from "../utils/helpers";
 import { JobStatus, parseCapiInput, parsePixelClientConfig } from "../types";
 import type { ConversionData, PlatformCredentials } from "../types";
 import { parsePlatformResults } from "../types/database";
@@ -217,10 +219,10 @@ async function claimJobsForProcessing(batchSize: number): Promise<string[]> {
 async function fetchJobsWithRelations(
   jobIds: string[]
 ): Promise<JobWithRelations[]> {
-  return prisma.conversionJob.findMany({
+  const jobs = await prisma.conversionJob.findMany({
     where: { id: { in: jobIds } },
     include: {
-      shop: {
+      Shop: {
         select: {
           id: true,
           shopDomain: true,
@@ -236,7 +238,6 @@ async function fetchJobsWithRelations(
               platform: true,
               platformId: true,
               credentialsEncrypted: true,
-              credentials: true,
               clientConfig: true,
             },
           },
@@ -244,6 +245,14 @@ async function fetchJobsWithRelations(
       },
     },
   });
+
+  return jobs.map((job) => {
+    const { Shop, ...jobWithoutShop } = job;
+    return {
+      ...jobWithoutShop,
+      shop: Shop as JobWithRelations["shop"],
+    };
+  }) as JobWithRelations[];
 }
 
 async function batchUpdateJobs(updates: JobUpdateEntry[]): Promise<void> {
@@ -410,6 +419,7 @@ async function upsertConversionLogs(
           },
         },
         create: {
+          id: randomUUID(),
           shopId: job.shopId,
           orderId: job.orderId,
           orderNumber: job.orderNumber,
@@ -636,19 +646,21 @@ async function processSingleJob(
   );
 
   if (didReceiptMatchByToken(receipt, webhookCheckoutToken || undefined) && receipt) {
-    updateReceiptTrustLevel(
-      job.shopId,
-      receipt.orderId,
-      trustResult.level,
-      trustResult.reason
-    ).catch((err) => {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.warn("Failed to update receipt trust level", err instanceof Error ? err : new Error(String(err)), {
-        shopId: job.shopId,
-        orderId: receipt.orderId,
-        errorMessage,
-      });
-    });
+    safeFireAndForget(
+      updateReceiptTrustLevel(
+        job.shopId,
+        receipt.orderId,
+        trustResult.level,
+        trustResult.reason
+      ),
+      {
+        operation: "updateReceiptTrustLevel",
+        metadata: {
+          shopId: job.shopId,
+          orderId: receipt.orderId,
+        },
+      }
+    );
   }
 
   const strategy = job.shop.consentStrategy || "strict";
@@ -666,15 +678,17 @@ async function processSingleJob(
     previousResults
   );
 
-  upsertConversionLogs(job, platformResults, eventId, now).catch((err) => {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    logger.warn("Failed to upsert ConversionLogs", err instanceof Error ? err : new Error(String(err)), {
-      jobId: job.id,
-      shopId: job.shopId,
-      orderId: job.orderId,
-      errorMessage,
-    });
-  });
+  safeFireAndForget(
+    upsertConversionLogs(job, platformResults, eventId, now),
+    {
+      operation: "upsertConversionLogs",
+      metadata: {
+        jobId: job.id,
+        shopId: job.shopId,
+        orderId: job.orderId,
+      },
+    }
+  );
 
   const consentEvidence = buildConsentEvidence(
     strategy,
@@ -878,15 +892,33 @@ export async function processConversionJobs(
         try {
           // 添加任务标识，便于追踪和去重
           const jobId = job.id;
-          return await processSingleJob(job, receiptMap, now);
+          const result = await processSingleJob(job, receiptMap, now);
+          
+          // 验证返回结果的有效性
+          if (!result || !result.update || !result.result) {
+            logger.error(`Invalid result from processSingleJob for job ${job.id}`, {
+              jobId: job.id,
+              shopId: job.shopId,
+              orderId: job.orderId,
+              result: result ? JSON.stringify(result) : "null",
+            });
+            throw new Error("Invalid result from processSingleJob");
+          }
+          
+          return result;
         } catch (error) {
           const errorMsg =
             error instanceof Error ? error.message : "Unknown error";
+          const errorStack = error instanceof Error ? error.stack : undefined;
+          
           logger.error(`Failed to process job ${job.id}`, error instanceof Error ? error : new Error(String(error)), {
             jobId: job.id,
             shopId: job.shopId,
             orderId: job.orderId,
             errorMessage: errorMsg,
+            errorStack,
+            attempts: job.attempts,
+            maxAttempts: job.maxAttempts,
           });
 
           return {
@@ -926,7 +958,14 @@ export async function processConversionJobs(
         }
       } else {
         failed++;
-        logger.error("Job processing promise rejected:", result.reason);
+        const errorReason = result.reason instanceof Error 
+          ? result.reason 
+          : new Error(String(result.reason));
+        logger.error("Job processing promise rejected", errorReason, {
+          errorMessage: errorReason.message,
+          errorStack: errorReason.stack,
+          errorName: errorReason.name,
+        });
       }
     }
   }

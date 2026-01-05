@@ -1,7 +1,6 @@
 
-import { Text, InlineStack } from "@shopify/polaris";
+import { Text, InlineStack , Icon } from "@shopify/polaris";
 import { ClockIcon } from "../icons";
-import { Icon } from "@shopify/polaris";
 
 export interface TimeEstimateProps {
   minutes: number;

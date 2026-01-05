@@ -21,7 +21,8 @@ export type AlertSettings =
 export interface AlertConfigDisplay {
   id: string;
   channel: string;
-
+  settings?: Record<string, unknown> | null;
+  frequency?: string;
   discrepancyThreshold: number;
   isEnabled: boolean;
 }

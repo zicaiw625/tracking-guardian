@@ -11,9 +11,23 @@ import type { OrderTrackingSettings } from "../../types/ui-extension";
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
 import { createAdminClientForShop } from "../../shopify.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
-import { withRateLimit, pathShopKeyExtractor } from "../../middleware/rate-limit";
+import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
 import { withConditionalCache } from "../../lib/with-cache";
 import { TTL } from "../../utils/cache";
+
+interface FulfillmentNode {
+  trackingInfo?: {
+    number: string;
+    company: string;
+    url?: string;
+  };
+}
+
+interface TrackingInfo {
+  number: string;
+  company: string;
+  url?: string;
+}
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -22,17 +36,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return jsonWithCors({ error: "Method not allowed" }, { status: 405, request, staticCors: true });
 };
 
-const trackingRateLimit = withRateLimit({
+const trackingRateLimit = withRateLimit<Response>({
   maxRequests: 60,
   windowMs: 60 * 1000,
   keyExtractor: pathShopKeyExtractor,
   message: "Too many tracking requests",
+}) as (handler: RateLimitedHandler<Response>) => RateLimitedHandler<Response | Response>;
+
+const rateLimitedLoader = trackingRateLimit(async (args: LoaderFunctionArgs | ActionFunctionArgs): Promise<Response> => {
+  return await loaderImpl((args as LoaderFunctionArgs).request);
 });
 
 const cachedLoader = withConditionalCache(
-  trackingRateLimit(async (args: LoaderFunctionArgs) => {
-    return await loaderImpl(args.request);
-  }),
+  async (args: LoaderFunctionArgs) => {
+    return await rateLimitedLoader(args);
+  },
   {
     key: (args) => {
       if (!args?.request || typeof args.request.url !== "string") {
@@ -164,7 +182,13 @@ async function loaderImpl(request: Request) {
           },
         });
 
-        const orderData = await orderResponse.json();
+        const orderData = await orderResponse.json().catch((jsonError) => {
+          logger.warn("Failed to parse GraphQL response as JSON", {
+            error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+            orderId,
+          });
+          return { data: null };
+        });
         if (orderData.data?.order) {
 
           const orderCustomerId = orderData.data.order.customer?.id || null;
@@ -197,10 +221,10 @@ async function loaderImpl(request: Request) {
             }
           }
 
-          const fulfillments = orderData.data.order.fulfillments?.nodes || [];
+          const fulfillments = (orderData.data.order.fulfillments?.nodes || []) as FulfillmentNode[];
           const fulfillmentTrackingInfo = fulfillments
-            .map((f: { trackingInfo?: { number: string; company: string; url?: string } }) => f.trackingInfo)
-            .filter((ti: { number: string; company: string; url?: string } | undefined): ti is { number: string; company: string; url?: string } => !!ti);
+            .map((f: FulfillmentNode) => f.trackingInfo)
+            .filter((ti: TrackingInfo | undefined): ti is TrackingInfo => !!ti);
 
           if (fulfillmentTrackingInfo.length > 0) {
             trackingNumberFromShopify = fulfillmentTrackingInfo[0].number;

@@ -10,7 +10,7 @@ import {
   generateMigrationReportHtml,
   type MigrationReportData,
 } from "../services/report-generator.server";
-import { generateEnhancedRiskReport } from "../services/risk-report.server";
+import { generateEnhancedRiskReport , generateRiskReportCSV } from "../services/risk-report.server";
 import { generateRiskReportHtml } from "../services/risk-report-html.server";
 import { generateMigrationActions } from "../services/scanner/migration-actions";
 import type { EnhancedScanResult } from "../services/scanner/types";
@@ -20,9 +20,7 @@ import {
   generateVerificationReportData,
   generateVerificationReportHtml,
   generateVerificationReportCSV,
-} from "../services/verification-report.server";
-import { generateRiskReportCSV } from "../services/risk-report.server";
-import { generateVerificationReportPdf } from "../services/pdf-generator.server";
+ generateVerificationReportPDF } from "../services/verification-report.server";
 import { exportComprehensiveReport } from "../services/comprehensive-report.server";
 import { normalizePlanId, planSupportsReportExport, type PlanId } from "../services/billing/plans";
 import { createReportJob } from "../services/report-job.server";
@@ -176,7 +174,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         if (format === "csv") {
           csv = generateVerificationReportCSV(data);
         } else if (format === "pdf") {
-          const pdfResult = await generateVerificationReportPdf(data);
+          const pdfResult = await generateVerificationReportPDF(data);
           if (pdfResult) {
             pdf = pdfResult.buffer;
           } else {

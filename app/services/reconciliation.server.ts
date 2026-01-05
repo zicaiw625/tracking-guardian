@@ -184,7 +184,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
                 where: { isActive: true, serverSideEnabled: true },
                 select: { platform: true },
             },
-            alertConfigs: {
+            AlertConfig: {
                 where: { isEnabled: true },
                 select: {
                     id: true,
@@ -250,7 +250,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
             ? (totalRevenue - sentRevenue) / totalRevenue
             : 0;
         let alertSent = false;
-        const matchingAlerts = shopWithRelations.alertConfigs.filter(a => totalOrders >= a.minOrdersForAlert && orderDiscrepancy >= a.discrepancyThreshold);
+        const matchingAlerts = shopWithRelations.AlertConfig.filter(a => totalOrders >= a.minOrdersForAlert && orderDiscrepancy >= a.discrepancyThreshold);
         if (matchingAlerts.length > 0) {
             for (const alertConfig of matchingAlerts) {
                 try {
@@ -317,6 +317,7 @@ export async function runDailyReconciliation(shopId: string): Promise<Reconcilia
                 alertSent,
             },
             create: {
+                id: `${shopId}-${platform}-${reportDate.toISOString().split("T")[0]}`,
                 shopId,
                 platform,
                 reportDate,

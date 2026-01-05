@@ -144,15 +144,13 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         take: 7, // P2-9: 性能优化 - 只取最近 7 天的对账报告，使用预聚合数据
         select: { orderDiscrepancy: true },
       },
-      // P2-9: 性能优化 - 使用预聚合的统计表（如果存在）来加速查询
-      // 当前使用 _count，未来可以考虑使用物化视图或预聚合表
-      alertConfigs: {
+      AlertConfig: {
         where: { isEnabled: true },
         select: { id: true },
       },
       _count: {
         select: {
-          conversionLogs: {
+          ConversionLog: {
             where: {
               createdAt: {
                 gte: new Date(Date.now() - SEVEN_DAYS_MS),
@@ -190,7 +188,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
 
   // P2-9: 性能优化 - 尝试使用预聚合数据获取周转化统计
   // 如果预聚合数据不可用，回退到实时计算
-  let weeklyConversions = shop._count?.conversionLogs || 0;
+  let weeklyConversions = shop._count?.ConversionLog || 0;
   try {
     const { getAggregatedMetrics } = await import("./dashboard-aggregation.server");
     const sevenDaysAgo = new Date();
@@ -291,7 +289,9 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
   }
 
   // 使用类型守卫确保类型安全
-  const shopTier = isValidShopTier(shop.shopTier) ? shop.shopTier : "unknown";
+  const shopTier = (shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier))
+    ? shop.shopTier
+    : "unknown";
   const tierInfo = getTierDisplayInfo(shopTier);
   const deadlineDate = new Date(tierInfo.deadlineDate);
   const now = new Date();
@@ -352,8 +352,8 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
         }
       : null,
     configuredPlatforms,
-    weeklyConversions: shop._count?.conversionLogs || 0,
-    hasAlertConfig: (shop.alertConfigs?.length || 0) > 0,
+    weeklyConversions: shop._count?.ConversionLog || 0,
+    hasAlertConfig: (shop.AlertConfig?.length || 0) > 0,
     hasServerSideConfig,
     plan: shop.plan || "free",
     planId,

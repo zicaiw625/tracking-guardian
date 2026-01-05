@@ -50,13 +50,23 @@ export interface TwitterCredentials {
   testMode?: boolean;
 }
 
+export interface WebhookCredentials {
+  endpointUrl: string;
+  authType: "none" | "bearer" | "basic" | "header";
+  authValue?: string;
+  customHeaders?: Record<string, string>;
+  payloadTemplate?: string;
+  timeoutMs?: number;
+}
+
 export type PlatformCredentials =
   | GoogleCredentials
   | MetaCredentials
   | TikTokCredentials
   | PinterestCredentials
   | SnapchatCredentials
-  | TwitterCredentials;
+  | TwitterCredentials
+  | WebhookCredentials;
 
 export interface GoogleCredentialsTyped extends GoogleCredentials {
   readonly platform: "google";

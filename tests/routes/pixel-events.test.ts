@@ -48,28 +48,28 @@ describe("Pixel Events API - Origin Validation", () => {
     });
 
     it("accepts *.myshopify.com origins", () => {
-      expect(isValidShopifyOrigin("https:
-      expect(isValidShopifyOrigin("https:
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
     });
 
     it("rejects invalid domains", () => {
-      expect(isValidShopifyOrigin("https:
-      expect(isValidShopifyOrigin("https:
-      expect(isValidShopifyOrigin("https:
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
     });
 
     it("rejects non-HTTPS origins", () => {
-      expect(isValidShopifyOrigin("http:
+      expect(isValidShopifyOrigin("http://test-shop.myshopify.com")).toBe(false);
     });
 
     it("accepts checkout domains", () => {
-      expect(isValidShopifyOrigin("https:
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
     });
 
     it("rejects fake checkout domains (security fix)", () => {
-      expect(isValidShopifyOrigin("https:
-      expect(isValidShopifyOrigin("https:
-      expect(isValidShopifyOrigin("https:
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
+      expect(isValidShopifyOrigin("https://test-shop.myshopify.com"));
     });
   });
 
@@ -82,13 +82,19 @@ describe("Pixel Events API - Origin Validation", () => {
     });
 
     it("accepts localhost origins", () => {
-      expect(isValidDevOrigin("http:
+      expect(isValidDevOrigin("http://localhost:3000")).toBe(true);
+      expect(isValidDevOrigin("https://localhost:3000")).toBe(true);
+      expect(isValidDevOrigin("http://127.0.0.1:3000")).toBe(true);
       expect(isValidDevOrigin("https:
-      expect(isValidDevOrigin("http:
+      expect(isValidDevOrigin("http://localhost:3000")).toBe(true);
+      expect(isValidDevOrigin("https://localhost:3000")).toBe(true);
+      expect(isValidDevOrigin("http://127.0.0.1:3000")).toBe(true);
     });
 
     it("accepts 127.0.0.1 origins", () => {
-      expect(isValidDevOrigin("http:
+      expect(isValidDevOrigin("http://localhost:3000")).toBe(true);
+      expect(isValidDevOrigin("https://localhost:3000")).toBe(true);
+      expect(isValidDevOrigin("http://127.0.0.1:3000")).toBe(true);
     });
 
     it("rejects null", () => {

@@ -2021,7 +2021,12 @@ function TestingStep({
           body: formData,
         });
 
-        const data = await response.json();
+        const data = await response.json().catch((error) => {
+          if (process.env.NODE_ENV === "development") {
+            console.error(`[PixelMigrationWizard] Failed to parse JSON for ${platform}:`, error);
+          }
+          return { valid: false, message: "解析响应失败", details: {} };
+        });
         return { platform, result: data };
       });
 
@@ -2077,7 +2082,12 @@ function TestingStep({
             body: formData,
           });
 
-          const data = await response.json();
+          const data = await response.json().catch((error) => {
+            if (process.env.NODE_ENV === "development") {
+              console.error(`[PixelMigrationWizard] Failed to parse JSON when switching ${platform} to live:`, error);
+            }
+            return { success: false, error: "解析响应失败" };
+          });
           if (data.success) {
             onEnvironmentToggle(platform, "live");
           }

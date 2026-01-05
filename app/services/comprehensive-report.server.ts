@@ -305,10 +305,13 @@ async function exportComprehensiveReportPDF(
   options: ComprehensiveReportOptions
 ): Promise<{ content: Buffer; filename: string; mimeType: string }> {
   try {
-
+    // Dynamic import for pdfkit
+    // Note: Using any type here because pdfkit's type definitions are incomplete
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let PDFDocument: any;
     try {
-      PDFDocument = (await import("pdfkit")).default;
+      const pdfkit = await import("pdfkit");
+      PDFDocument = pdfkit.default || pdfkit;
     } catch {
       logger.warn("PDFKit not installed, cannot generate PDF");
       throw new Error("PDFKit not available");
@@ -441,10 +444,15 @@ export async function exportBatchComprehensiveReports(
   }
 ): Promise<{ content: Buffer; filename: string; mimeType: string }> {
   try {
-    const archiver = await import("archiver").catch(() => null);
-
-    if (!archiver) {
+    const archiverModule = await import("archiver").catch(() => null);
+    if (!archiverModule) {
       throw new Error("archiver package not available for batch report generation");
+    }
+
+    // Handle both default export and named export
+    const archiverFactory = (archiverModule as { default?: typeof import("archiver") }).default || archiverModule;
+    if (typeof archiverFactory !== "function") {
+      throw new Error("archiver module is not a function");
     }
 
     const results: Array<{ buffer: Buffer; filename: string }> = [];
@@ -462,7 +470,10 @@ export async function exportBatchComprehensiveReports(
           });
         }
       } catch (error) {
-        logger.warn(`Failed to generate report for shop ${shopId}`, error);
+        logger.warn(`Failed to generate report for shop ${shopId}`, {
+          shopId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -471,10 +482,13 @@ export async function exportBatchComprehensiveReports(
     }
 
     const chunks: Buffer[] = [];
-    const archive = archiver.default("zip", { zlib: { level: 9 } });
+    const archive = archiverFactory("zip", { zlib: { level: 9 } });
+    if (!archive) {
+      throw new Error("Archiver not available");
+    }
 
-    archive.on("data", (chunk) => chunks.push(chunk));
-    archive.on("error", (err) => {
+    archive.on("data", (chunk: Buffer) => chunks.push(chunk));
+    archive.on("error", (err: Error) => {
       throw err;
     });
 

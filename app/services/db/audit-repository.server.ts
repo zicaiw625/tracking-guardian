@@ -1,5 +1,6 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { Prisma } from "@prisma/client";
 import { logger } from "../../utils/logger.server";
@@ -39,7 +40,9 @@ export type AuditAction =
   | "capi_send_failed"
   | "capi_retry_scheduled"
   | "capi_dead_lettered"
-  | "gdpr_customer_redact";
+  | "gdpr_customer_redact"
+  | "one_time_purchase_created"
+  | "one_time_purchase_activated";
 
 export type ResourceType =
   | "pixel_config"
@@ -148,6 +151,7 @@ export async function createAuditLogEntry(
   try {
     await prisma.auditLog.create({
       data: {
+        id: randomUUID(),
         shopId,
         actorType: entry.actorType,
         actorId: entry.actorId,
@@ -184,6 +188,7 @@ export async function batchCreateAuditLogs(
   try {
     const result = await prisma.auditLog.createMany({
       data: entries.map((entry) => ({
+        id: randomUUID(),
         shopId: entry.shopId,
         actorType: entry.actorType,
         actorId: entry.actorId,

@@ -1,5 +1,6 @@
 
 
+import { randomUUID } from "crypto";
 import { getDb } from "../../container";
 import { Prisma } from "@prisma/client";
 import { JobStatus } from "../../types";
@@ -251,6 +252,7 @@ export async function batchInsertReceipts(
               },
             },
             create: {
+              id: randomUUID(),
               shopId: receipt.shopId,
               orderId: receipt.orderId,
               eventType: receipt.eventType,
@@ -364,6 +366,7 @@ export async function batchCreateAuditLogs(
   try {
     const result = await db.auditLog.createMany({
       data: entries.map((entry) => ({
+        id: randomUUID(),
         shopId: entry.shopId,
         action: entry.action,
         actorType: "system",

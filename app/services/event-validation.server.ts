@@ -114,7 +114,13 @@ export async function validateEvents(
   });
 
   const results: EventValidationResult[] = logs.map((log) => {
-    const validation = validateEventParams(log);
+    const validation = validateEventParams({
+      orderValue: log.orderValue ? Number(log.orderValue) : null,
+      currency: log.currency,
+      eventId: log.eventId,
+      platform: log.platform,
+      eventType: log.eventType,
+    });
     return {
       ...validation,
       orderId: log.orderId,

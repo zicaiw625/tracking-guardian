@@ -56,7 +56,7 @@ export async function htmlToPdf(
       return buffer;
     }
   } catch (error) {
-    logger.warn("html-pdf-node not available, using fallback", error);
+    logger.warn("html-pdf-node not available, using fallback", { error: String(error) });
   }
 
   logger.warn("PDF generation fallback: returning HTML wrapped in basic structure");
@@ -112,11 +112,11 @@ export async function generateScanReportPdf(
 
 export async function generateReconciliationReportPdf(
   shopId: string,
-  reportId?: string,
+  days: number = 7,
   options?: PDFGeneratorOptions
 ): Promise<PDFResult | null> {
   try {
-    const data = await fetchReconciliationReportData(shopId, reportId);
+    const data = await fetchReconciliationReportData(shopId, days);
     if (!data) {
       logger.error("Failed to fetch reconciliation report data for PDF generation");
       return null;
@@ -140,7 +140,7 @@ export async function generateReconciliationReportPdf(
 }
 
 export async function generateVerificationReportPdf(
-  data: VerificationReportData | VerificationReportDataFromVerification,
+  data: VerificationReportData,
   options?: PDFGeneratorOptions
 ): Promise<PDFResult | null> {
   try {
@@ -174,7 +174,7 @@ export async function generateBatchReports(
 
   try {
 
-    const archiver = await import("archiver").catch(() => null);
+    const archiver = await import("archiver").catch(() => null) as typeof import("archiver") | null;
 
     if (!archiver) {
       logger.error("archiver package not available for batch PDF generation");
@@ -191,7 +191,7 @@ export async function generateBatchReports(
           result = await generateScanReportPdf(shopId, undefined, options);
           break;
         case "reconciliation":
-          result = await generateReconciliationReportPdf(shopId, undefined, options);
+          result = await generateReconciliationReportPdf(shopId, 7, options);
           break;
 
         default:
@@ -211,10 +211,10 @@ export async function generateBatchReports(
     }
 
     const chunks: Buffer[] = [];
-    const archive = archiver.default("zip", { zlib: { level: 9 } });
+    const archive = archiver("zip", { zlib: { level: 9 } });
 
-    archive.on("data", (chunk) => chunks.push(chunk));
-    archive.on("error", (err) => {
+    archive.on("data", (chunk: Buffer) => chunks.push(chunk));
+    archive.on("error", (err: Error) => {
       throw err;
     });
 

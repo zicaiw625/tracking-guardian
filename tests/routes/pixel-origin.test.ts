@@ -4,25 +4,25 @@ import { isValidPixelOrigin } from "../../app/utils/origin-validation";
 describe("isValidPixelOrigin", () => {
   describe("should accept valid HTTPS origins", () => {
     it("accepts custom domain origin", () => {
-      const result = isValidPixelOrigin("https:
+      const result = isValidPixelOrigin("https://example.com");
       expect(result.valid).toBe(true);
       expect(result.reason).toBe("https_origin");
     });
 
     it("accepts myshopify.com origin", () => {
-      const result = isValidPixelOrigin("https:
+      const result = isValidPixelOrigin("https://example.com");
       expect(result.valid).toBe(true);
       expect(result.reason).toBe("https_origin");
     });
 
     it("accepts checkout.shopify.com origin", () => {
-      const result = isValidPixelOrigin("https:
+      const result = isValidPixelOrigin("https://example.com");
       expect(result.valid).toBe(true);
       expect(result.reason).toBe("https_origin");
     });
 
     it("accepts subdomain custom domain", () => {
-      const result = isValidPixelOrigin("https:
+      const result = isValidPixelOrigin("https://example.com");
       expect(result.valid).toBe(true);
       expect(result.reason).toBe("https_origin");
     });
@@ -50,13 +50,13 @@ describe("isValidPixelOrigin", () => {
 
   describe("should reject HTTP origins", () => {
     it("rejects plain HTTP", () => {
-      const result = isValidPixelOrigin("http:
+      const result = isValidPixelOrigin("http://example.com");
       expect(result.valid).toBe(false);
       expect(result.reason).toBe("http_not_allowed");
     });
 
     it("rejects HTTP myshopify domain", () => {
-      const result = isValidPixelOrigin("http:
+      const result = isValidPixelOrigin("http://example.com");
       expect(result.valid).toBe(false);
       expect(result.reason).toBe("http_not_allowed");
     });

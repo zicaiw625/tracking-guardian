@@ -16,6 +16,7 @@ import {
 } from "@shopify/polaris";
 import { SearchIcon, ExportIcon, CheckCircleIcon, AlertCircleIcon } from "~/components/icons";
 import { BatchReportGenerator } from "./BatchReportGenerator";
+import type { BatchReportOptions } from "~/services/workspace/batch-report.server";
 
 interface BatchOperationsPanelProps {
   groupId: string;
@@ -24,7 +25,7 @@ interface BatchOperationsPanelProps {
   memberCount: number;
   onBatchAuditStart?: () => void;
   onBatchTemplateApply?: () => void;
-  onReportGenerate?: (options: Record<string, unknown>) => Promise<void>;
+  onReportGenerate?: (options: BatchReportOptions) => Promise<void>;
 }
 
 export function BatchOperationsPanel({

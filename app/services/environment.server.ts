@@ -1,5 +1,7 @@
 
 
+import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
@@ -31,14 +33,12 @@ export async function getEnvironmentConfig(
   // P0-3: 支持多目的地配置 - 如果提供了 platformId，使用包含 platformId 的唯一约束
   // 如果未提供 platformId，查找第一个匹配的配置（向后兼容）
   const config = platformId !== undefined
-    ? await prisma.pixelConfig.findUnique({
+    ? await prisma.pixelConfig.findFirst({
         where: {
-          shopId_platform_environment_platformId: {
-            shopId,
-            platform,
-            environment,
-            platformId: platformId || null,
-          }
+          shopId,
+          platform,
+          environment,
+          platformId: platformId ?? null,
         },
         select: {
           shopId: true,
@@ -207,18 +207,20 @@ export async function switchEnvironment(
 
       const newConfig = await prisma.pixelConfig.create({
         data: {
+          id: randomUUID(),
           shopId,
           platform,
           environment: targetEnvironment,
           configVersion: 1,
-          previousConfig: previousConfig,
+          previousConfig: previousConfig as Prisma.InputJsonValue,
           rollbackAllowed: true,
-          clientConfig: config.clientConfig,
+          clientConfig: config.clientConfig as Prisma.InputJsonValue | undefined,
           credentialsEncrypted: config.credentialsEncrypted as string | null,
           serverSideEnabled: config.serverSideEnabled || false,
           clientSideEnabled: true,
           isActive: true,
-        },
+          updatedAt: new Date(),
+        } as unknown as Prisma.PixelConfigCreateInput,
         select: {
           environment: true,
           configVersion: true,
@@ -283,13 +285,12 @@ export async function rollbackEnvironment(
   environment: PixelEnvironment = "live"
 ): Promise<EnvironmentSwitchResult> {
 
-  const config = await prisma.pixelConfig.findUnique({
+  const config = await prisma.pixelConfig.findFirst({
     where: {
-      shopId_platform_environment: {
-        shopId,
-        platform,
-        environment
-      }
+      shopId,
+      platform,
+      environment,
+      platformId: null,
     },
     select: {
       id: true,
@@ -336,7 +337,7 @@ export async function rollbackEnvironment(
       data: {
         environment: previousConfig.environment,
         configVersion: config.configVersion + 1,
-        previousConfig: null,
+        previousConfig: Prisma.JsonNull,
         rollbackAllowed: false,
         updatedAt: new Date(),
       },

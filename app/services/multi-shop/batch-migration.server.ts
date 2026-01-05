@@ -1,8 +1,9 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
-import type { AdminApiContext } from "../../types";
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { createWebPixel, updateWebPixel } from "../migration.server";
 
 export interface BatchMigrationJob {
@@ -110,6 +111,16 @@ export async function executeBatchMigration(
         throw new Error(`Shop not found: ${shopId}`);
       }
 
+      // template is already checked at function start, but TypeScript needs this check
+      if (!template) {
+        throw new Error(`Template not found: ${jobId}`);
+      }
+      // job is guaranteed to exist (checked at function start), but TypeScript needs this
+      const currentJob = activeJobs.get(jobId);
+      if (!currentJob) {
+        throw new Error(`Job not found: ${jobId}`);
+      }
+
       const platforms = template.platforms as Array<{
         platform: string;
         eventMappings?: Record<string, string>;
@@ -142,12 +153,15 @@ export async function executeBatchMigration(
 
           await prisma.pixelConfig.create({
             data: {
+              id: randomUUID(),
               shopId,
               platform: platformConfig.platform,
-              eventMappings: platformConfig.eventMappings || {},
+              platformId: null,
+              eventMappings: platformConfig.eventMappings || {} as object,
               clientSideEnabled: platformConfig.clientSideEnabled ?? true,
               serverSideEnabled: platformConfig.serverSideEnabled ?? false,
               environment: "test",
+              updatedAt: new Date(),
             },
           });
         }
@@ -156,46 +170,47 @@ export async function executeBatchMigration(
       let pixelId: string | undefined;
       try {
         const pixelResult = await createWebPixel(admin, shop.shopDomain, shopId);
-        if (pixelResult.success && pixelResult.pixelId) {
-          pixelId = pixelResult.pixelId;
+        if (pixelResult.success && pixelResult.webPixelId) {
+          pixelId = pixelResult.webPixelId;
         }
       } catch (error) {
 
-        logger.warn(`Failed to create web pixel for ${shop.shopDomain}, trying to update`, error);
-        try {
-          const updateResult = await updateWebPixel(admin, shop.shopDomain, shopId);
-          if (updateResult.success && updateResult.pixelId) {
-            pixelId = updateResult.pixelId;
-          }
-        } catch (updateError) {
-          logger.error(`Failed to update web pixel for ${shop.shopDomain}`, updateError);
-        }
+        logger.warn(`Failed to create web pixel for ${shop.shopDomain}`, { error });
+        // Note: Cannot update web pixel here as we don't have webPixelId
+        // updateWebPixel requires webPixelId as the second parameter
       }
 
-      job.results.push({
+      // Use currentJob from above check
+      currentJob.results.push({
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
         pixelId,
       });
 
-      job.progress.completed++;
+      currentJob.progress.completed++;
     } catch (error) {
-      logger.error(`Batch migration failed for shop ${shopId}`, error);
+      logger.error(`Batch migration failed for shop ${shopId}`, { error });
 
       const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         select: { shopDomain: true },
       });
 
-      job.results.push({
+      // job is guaranteed to exist (checked at function start)
+      const currentJob = activeJobs.get(jobId);
+      if (!currentJob) {
+        logger.error(`Job ${jobId} not found when recording failure`);
+        return;
+      }
+      currentJob.results.push({
         shopId,
         shopDomain: shop?.shopDomain || "unknown",
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
       });
 
-      job.progress.failed++;
+      currentJob.progress.failed++;
     }
   }
 

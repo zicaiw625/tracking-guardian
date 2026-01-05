@@ -34,29 +34,26 @@ export async function getRecentEvents(
     },
   });
 
-  return logs.map((log: {
-    id: string;
-    eventType: string;
-    platform: string;
-    orderId: string;
-    status: string;
-    createdAt: Date;
-    orderValue: number | string | null;
-    currency: string | null;
-    errorMessage: string | null;
-  }) => ({
-    id: log.id,
-    eventType: log.eventType,
-    platform: log.platform,
-    orderId: log.orderId,
-    status: log.status === "sent" ? "success" : log.status === "failed" ? "failed" : "pending",
-    timestamp: log.createdAt,
-    params: {
-      value: log.orderValue ? Number(log.orderValue) : undefined,
-      currency: log.currency,
-    },
-    errors: log.errorMessage ? [log.errorMessage] : undefined,
-  }));
+  return logs.map((log) => {
+    const orderValue = log.orderValue;
+    const numericValue = orderValue != null 
+      ? (typeof orderValue === "number" ? orderValue : Number(orderValue))
+      : undefined;
+    
+    return {
+      id: log.id,
+      eventType: log.eventType,
+      platform: log.platform,
+      orderId: log.orderId,
+      status: log.status === "sent" ? "success" : log.status === "failed" ? "failed" : "pending",
+      timestamp: log.createdAt,
+      params: {
+        value: numericValue,
+        currency: log.currency ?? undefined,
+      },
+      errors: log.errorMessage ? [log.errorMessage] : undefined,
+    };
+  });
 }
 
 export async function subscribeToEvents(

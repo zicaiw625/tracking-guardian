@@ -2,8 +2,7 @@
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { canManageMultipleShops, getShopGroupDetails } from "../multi-shop.server";
-import { batchApplyPixelTemplate, type BatchApplyOptions, type BatchApplyResult } from "../batch-pixel-apply.server";
-import type { PixelTemplateConfig } from "../batch-pixel-apply.server";
+import { batchApplyPixelTemplate, type BatchApplyOptions, type BatchApplyResult , PixelTemplateConfig } from "../batch-pixel-apply.server";
 import { isPixelTemplateConfigArray, type PixelTemplateConfig as TypeGuardPixelTemplateConfig } from "../../utils/type-guards";
 
 export interface BatchTemplateApplyOptions {
@@ -68,7 +67,7 @@ export interface EnhancedBatchApplyResult {
       skipped: number;
       noChange: number;
     };
-    errorBreakdown: Record<string, number>;
+    errorBreakdown: Record<string, number> | undefined;
   };
   startedAt: Date;
   completedAt: Date;
@@ -425,7 +424,7 @@ export async function batchApplyTemplateWithComparison(
       totalPlatformsApplied,
       platformsBreakdown,
       changesBreakdown,
-      errorBreakdown: Object.keys(errorBreakdown).length > 0 ? errorBreakdown : undefined,
+      errorBreakdown: Object.keys(errorBreakdown).length > 0 ? errorBreakdown : ({} as Record<string, number>),
     },
     startedAt,
     completedAt,
@@ -505,15 +504,15 @@ export async function compareShopConfigs(
     const shopsWithPlatform = shopData.filter((s: { platforms: string[] }) => s.platforms.includes(platformName));
     const shopsWithoutPlatform = shopData.filter((s: { platforms: string[] }) => !s.platforms.includes(platformName));
 
-    const configs = shopsWithPlatform.map((s: { configs: Array<{ platform: string }> }) => {
-      const config = s.configs.find((c: { platform: string }) => c.platform === platformName);
+    const configs = shopsWithPlatform.map((s: { shopId: string; shopDomain: string; configs: Array<{ platform: string; clientSideEnabled?: boolean; serverSideEnabled?: boolean; eventMappings?: unknown }> }) => {
+      const config = s.configs.find((c) => c.platform === platformName);
       return {
         shopId: s.shopId,
         shopDomain: s.shopDomain,
         config: config
           ? {
-              clientSideEnabled: config.clientSideEnabled,
-              serverSideEnabled: config.serverSideEnabled,
+              clientSideEnabled: config.clientSideEnabled ?? false,
+              serverSideEnabled: config.serverSideEnabled ?? false,
               eventMappings: config.eventMappings,
             }
           : null,

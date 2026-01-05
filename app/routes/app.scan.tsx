@@ -24,9 +24,9 @@ import { calculateRiskScore } from "../services/scanner/risk-assessment";
 import { refreshTypOspStatus } from "../services/checkout-profile.server";
 import { generateMigrationActions } from "../services/scanner/migration-actions";
 import { getExistingWebPixels } from "../services/migration.server";
-import { createAuditAsset, batchCreateAuditAssets, getAuditAssets } from "../services/audit-asset.server";
+import { createAuditAsset, batchCreateAuditAssets, getAuditAssets, type AuditAssetInput } from "../services/audit-asset.server";
 import { processManualPasteAssets, analyzeManualPaste } from "../services/audit-asset-analysis.server";
-import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
+import { getScriptTagDeprecationStatus, getAdditionalScriptsDeprecationStatus, getMigrationUrgencyStatus, getUpgradeStatusMessage, formatDeadlineForUI, getDateDisplayLabel, DEPRECATION_DATES, type ShopTier, type ShopUpgradeStatus, } from "../utils/deprecation-dates";
 import { getPlanDefinition, normalizePlan, isPlanAtLeast } from "../utils/plans";
 import { generateMigrationTimeline, getMigrationProgress } from "../services/migration-priority.server";
 import { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } from "../utils/config";
@@ -169,6 +169,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             migrationTimeline: null,
             migrationProgress: null,
             dependencyGraph: null,
+            auditAssets: [],
+            migrationChecklist: null,
         });
     }
     const latestScanRaw = await prisma.scanReport.findFirst({
@@ -176,7 +178,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         orderBy: { createdAt: "desc" },
     });
 
-    const shopTier: ShopTier = isValidShopTier(shop.shopTier)
+    const shopTier: ShopTier = (shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier))
         ? shop.shopTier
         : "unknown";
 
@@ -330,7 +332,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         generateMigrationTimeline(shop.id).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to generate migration timeline", error instanceof Error ? error : new Error(String(error)), {
+            logger.error("Failed to generate migration timeline", error instanceof Error ? error : new Error(String(error)), {
                 shopId: shop.id,
                 errorMessage,
                 errorStack,
@@ -340,7 +342,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         getMigrationProgress(shop.id).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to get migration progress", error instanceof Error ? error : new Error(String(error)), {
+            logger.error("Failed to get migration progress", error instanceof Error ? error : new Error(String(error)), {
                 shopId: shop.id,
                 errorMessage,
                 errorStack,
@@ -350,7 +352,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         analyzeDependencies(shop.id).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to analyze dependencies", error instanceof Error ? error : new Error(String(error)), {
+            logger.error("Failed to analyze dependencies", error instanceof Error ? error : new Error(String(error)), {
                 shopId: shop.id,
                 errorMessage,
                 errorStack,
@@ -372,7 +374,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         generateMigrationChecklist(shop.id).catch((error) => {
             const errorMessage = error instanceof Error ? error.message : String(error);
             const errorStack = error instanceof Error ? error.stack : undefined;
-            logger.warn("Failed to generate migration checklist", error instanceof Error ? error : new Error(String(error)), {
+            logger.error("Failed to generate migration checklist", error instanceof Error ? error : new Error(String(error)), {
                 shopId: shop.id,
                 errorMessage,
                 errorStack,
@@ -538,11 +540,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
 
             if (!data.platformDetails.every((p: unknown) => {
-                if (typeof p !== "object" || p === null) return false;
+                if (typeof p !== "object" || p === null || Array.isArray(p)) return false;
                 const detail = p as Record<string, unknown>;
                 return (
                     typeof detail.platform === "string" &&
                     typeof detail.type === "string" &&
+                    typeof detail.confidence === "string" &&
                     (detail.confidence === "high" || detail.confidence === "medium" || detail.confidence === "low") &&
                     typeof detail.matchedPattern === "string"
                 );
@@ -551,12 +554,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }
 
             if (!data.risks.every((r: unknown) => {
-                if (typeof r !== "object" || r === null) return false;
+                if (typeof r !== "object" || r === null || Array.isArray(r)) return false;
                 const risk = r as Record<string, unknown>;
                 return (
                     typeof risk.id === "string" &&
                     typeof risk.name === "string" &&
                     typeof risk.description === "string" &&
+                    typeof risk.severity === "string" &&
                     (risk.severity === "high" || risk.severity === "medium" || risk.severity === "low")
                 );
             })) {
@@ -858,23 +862,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 return json({ error: "缺少资产数据" }, { status: 400 });
             }
 
-            let assets: Array<{
-                sourceType: string;
-                category: string;
-                platform?: string;
-                displayName: string;
-                riskLevel: string;
-                suggestedMigration: string;
-                details?: Record<string, unknown>;
-            }>;
+            let assets: AuditAssetInput[];
             try {
-                assets = JSON.parse(assetsStr);
+                const parsed = JSON.parse(assetsStr);
+                if (!Array.isArray(parsed) || parsed.length === 0) {
+                    return json({ error: "资产数据必须是非空数组" }, { status: 400 });
+                }
+                assets = parsed as AuditAssetInput[];
             } catch {
                 return json({ error: "无效的资产数据格式" }, { status: 400 });
-            }
-
-            if (!Array.isArray(assets) || assets.length === 0) {
-                return json({ error: "资产数据必须是非空数组" }, { status: 400 });
             }
 
             const result = await batchCreateAuditAssets(shop.id, assets);
@@ -1363,13 +1359,12 @@ export default function ScanPage() {
                             }
                         };
 
-                        let handle: number | IdleCallbackHandle;
                         if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-                            handle = requestIdleCallback(processChunk, { timeout: TIMEOUTS.IDLE_CALLBACK });
+                            const handle = requestIdleCallback(processChunk, { timeout: TIMEOUTS.IDLE_CALLBACK });
                             idleCallbackHandlesRef.current.push(handle);
                         } else {
                             // 在浏览器环境中，setTimeout 返回 number 类型
-                            handle = window.setTimeout(processChunk, TIMEOUTS.SET_TIMEOUT_FALLBACK);
+                            const handle = setTimeout(processChunk, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number | IdleCallbackHandle;
                             idleCallbackHandlesRef.current.push(handle);
                         }
                     });
@@ -1417,13 +1412,12 @@ export default function ScanPage() {
                         }
                     };
 
-                    let handle: number | IdleCallbackHandle;
                     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-                        handle = requestIdleCallback(processContent, { timeout: TIMEOUTS.IDLE_CALLBACK });
+                        const handle = requestIdleCallback(processContent, { timeout: TIMEOUTS.IDLE_CALLBACK });
                         idleCallbackHandlesRef.current.push(handle);
                     } else {
                         // 在浏览器环境中，setTimeout 返回 number 类型
-                        handle = window.setTimeout(processContent, TIMEOUTS.SET_TIMEOUT_FALLBACK);
+                        const handle = setTimeout(processContent, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number | IdleCallbackHandle;
                         idleCallbackHandlesRef.current.push(handle);
                     }
                 });
@@ -1550,6 +1544,7 @@ export default function ScanPage() {
                 showError("请至少选择一个平台或功能");
             }
         } catch (error) {
+            // eslint-disable-next-line no-console
             console.error("Failed to process manual input", error);
             showError("处理失败，请稍后重试");
         }
@@ -1953,7 +1948,7 @@ export default function ScanPage() {
                           window.open("/api/exports?type=scan&format=json&include_meta=true", "_blank");
                         }}
                       >
-                        导出扫描报告 {!isGrowthOrAbove && "(需 Go-Live)"}
+                        导出扫描报告{!isGrowthOrAbove ? " (需 Go-Live)" : ""}
                       </Button>
                       <Button
                         icon={ExportIcon}
@@ -1968,7 +1963,7 @@ export default function ScanPage() {
                           window.open("/api/reports?type=risk", "_blank");
                         }}
                       >
-                        导出风险报告 (PDF) {!isGrowthOrAbove && "(需 Go-Live)"}
+                        导出风险报告 (PDF){!isGrowthOrAbove ? " (需 Go-Live)" : ""}
                       </Button>
                       {/* 分享链接是免费的，导出需要付费 */}
                       <Button
@@ -1986,7 +1981,10 @@ export default function ScanPage() {
                             });
 
                             if (response.ok) {
-                              const data = await response.json();
+                              const data = await response.json().catch((error) => {
+                                showError("解析响应失败");
+                                throw error;
+                              });
                               const shareUrl = data.shareUrl;
                               
                               const validatedRiskScore = validateRiskScore(latestScan.riskScore);
@@ -2086,7 +2084,6 @@ export default function ScanPage() {
                   secondaryAction={{
                     content: "了解更多",
                     url: "https://help.shopify.com/en/manual/pixels/customer-events",
-                    external: true,
                   }}
                 />
               )}
@@ -2722,10 +2719,15 @@ export default function ScanPage() {
         {}
         {}
         {}
-        {latestScan && auditAssets && auditAssets.length > 0 && !isScanning && (
+        {latestScan && auditAssets && Array.isArray(auditAssets) && auditAssets.length > 0 && !isScanning && (
           <AuditAssetsByRisk
-            assets={auditAssets}
-            currentPlan={planId}
+            assets={auditAssets.filter((a): a is NonNullable<typeof a> => a !== null).map((asset) => ({
+              ...asset,
+              createdAt: new Date(asset.createdAt),
+              updatedAt: new Date(asset.updatedAt),
+              migratedAt: asset.migratedAt ? new Date(asset.migratedAt) : null,
+            }))}
+            currentPlan={planId === "pro" ? "growth" : planId === "free" || planId === "starter" || planId === "growth" || planId === "monitor" || planId === "agency" ? planId : "free"}
             freeTierLimit={3}
             onAssetClick={(assetId) => {
               window.location.href = `/app/migrate?asset=${assetId}`;
@@ -2802,23 +2804,27 @@ export default function ScanPage() {
                               </InlineStack>
                               <InlineStack gap="200" blockAlign="center">
                                 <Text as="span" variant="bodySm" tone="subdued">
-                                  {item.priority.reasoning?.join(" • ") || item.priority.reason}
+                                  {item.priority.reason || "无说明"}
                                 </Text>
                                 {item.asset.estimatedTimeMinutes && (
-                                  <Badge>
+                                  <InlineStack gap="100" blockAlign="center">
                                     <Icon source={ClockIcon} />
-                                    预计 {item.asset.estimatedTimeMinutes < 60
-                                      ? `${item.asset.estimatedTimeMinutes} 分钟`
-                                      : `${Math.floor(item.asset.estimatedTimeMinutes / 60)} 小时 ${item.asset.estimatedTimeMinutes % 60} 分钟`}
-                                  </Badge>
+                                    <Badge>
+                                      {`预计 ${item.asset.estimatedTimeMinutes < 60
+                                        ? `${item.asset.estimatedTimeMinutes} 分钟`
+                                        : `${Math.floor(item.asset.estimatedTimeMinutes / 60)} 小时 ${item.asset.estimatedTimeMinutes % 60} 分钟`}`}
+                                    </Badge>
+                                  </InlineStack>
                                 )}
                                 {!item.asset.estimatedTimeMinutes && item.priority.estimatedTime && (
-                                  <Badge>
+                                  <InlineStack gap="100" blockAlign="center">
                                     <Icon source={ClockIcon} />
-                                    预计 {item.priority.estimatedTime < 60
-                                      ? `${item.priority.estimatedTime} 分钟`
-                                      : `${Math.floor(item.priority.estimatedTime / 60)} 小时 ${item.priority.estimatedTime % 60} 分钟`}
-                                  </Badge>
+                                    <Badge>
+                                      {`预计 ${item.priority.estimatedTime < 60
+                                        ? `${item.priority.estimatedTime} 分钟`
+                                        : `${Math.floor(item.priority.estimatedTime / 60)} 小时 ${item.priority.estimatedTime % 60} 分钟`}`}
+                                    </Badge>
+                                  </InlineStack>
                                 )}
                               </InlineStack>
                               {item.blockingDependencies.length > 0 && (

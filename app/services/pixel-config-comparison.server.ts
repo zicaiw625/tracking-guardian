@@ -23,8 +23,13 @@ export async function compareConfigVersions(
   platform: string
 ): Promise<ConfigComparisonResult | null> {
   try {
-    const config = await prisma.pixelConfig.findUnique({
-      where: { shopId_platform: { shopId, platform } },
+    const config = await prisma.pixelConfig.findFirst({
+      where: { 
+        shopId,
+        platform,
+        environment: "live",
+        platformId: null,
+      },
       select: {
         id: true,
         platformId: true,
@@ -130,13 +135,12 @@ export async function getConfigVersionHistory(
   environment: string;
 }>> {
   try {
-    const config = await prisma.pixelConfig.findUnique({
-      where: { 
-        shopId_platform_environment: { 
-          shopId, 
-          platform,
-          environment,
-        } 
+    const config = await prisma.pixelConfig.findFirst({
+      where: {
+        shopId,
+        platform,
+        environment,
+        platformId: null,
       },
       select: {
         configVersion: true,

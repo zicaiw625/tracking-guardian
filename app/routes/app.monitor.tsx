@@ -343,10 +343,11 @@ export default function MonitorPage() {
           alertSent: false,
         };
       }
-      const reportDate = h.reportDate instanceof Date
-        ? h.reportDate
-        : typeof h.reportDate === 'string'
-          ? new Date(h.reportDate)
+      const reportDateValue = (h as Record<string, unknown>).reportDate;
+      const reportDate = reportDateValue instanceof Date
+        ? reportDateValue
+        : typeof reportDateValue === 'string'
+          ? new Date(reportDateValue)
           : new Date();
 
       return {
@@ -487,21 +488,26 @@ export default function MonitorPage() {
                   )}
                 </Text>
               )}
-              {monitoringAlert.stats && "byEventType" in monitoringAlert.stats && monitoringAlert.stats.byEventType && (
-                <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    按事件类型缺参率：
-                  </Text>
-                  {Object.entries(monitoringAlert.stats.byEventType as Record<string, number>)
-                    .sort(([, a], [, b]) => (b as number) - (a as number))
-                    .slice(0, 3)
-                    .map(([eventType, rate]) => (
-                      <Text key={eventType} as="p" variant="bodySm" tone="subdued">
-                        {eventType}: {(rate as number).toFixed(2)}%
+              {(() => {
+                if (monitoringAlert.stats && "byEventType" in monitoringAlert.stats && monitoringAlert.stats.byEventType) {
+                  return (
+                    <BlockStack gap="100">
+                      <Text as="p" variant="bodySm" fontWeight="semibold">
+                        按事件类型缺参率：
                       </Text>
-                    ))}
-                </BlockStack>
-              )}
+                      {Object.entries(monitoringAlert.stats.byEventType as Record<string, number>)
+                        .sort(([, a], [, b]) => (b as number) - (a as number))
+                        .slice(0, 3)
+                        .map(([eventType, rate]) => (
+                          <Text key={eventType} as="p" variant="bodySm" tone="subdued">
+                            {eventType}: {(rate as number).toFixed(2)}%
+                          </Text>
+                        ))}
+                    </BlockStack>
+                  );
+                }
+                return null;
+              })()}
             </BlockStack>
           </Banner>
         )}
@@ -592,7 +598,10 @@ export default function MonitorPage() {
         {}
         {diagnosticsReport && (
           <DiagnosticsPanel
-            report={diagnosticsReport}
+            report={{
+              ...diagnosticsReport,
+              timestamp: new Date(diagnosticsReport.timestamp),
+            }}
             onRunDiagnostics={() => {
               window.location.reload();
             }}
@@ -608,11 +617,11 @@ export default function MonitorPage() {
         )}
 
         {}
-        {successRateHistory && successRateHistory.overall && successRateHistory.overall.length > 0 && (
+        {successRateHistory && successRateHistory.overall && Array.isArray(successRateHistory.overall) && successRateHistory.overall.length > 0 && (
           <SuccessRateChart
-            overall={successRateHistory.overall}
-            byDestination={successRateHistory.byDestination}
-            byEventType={successRateHistory.byEventType}
+            overall={successRateHistory.overall.filter((item): item is NonNullable<typeof item> => item !== null)}
+            byDestination={successRateHistory.byDestination || {}}
+            byEventType={successRateHistory.byEventType || {}}
             selectedDestination={selectedSuccessRateDestination === "all" ? undefined : selectedSuccessRateDestination}
             onDestinationChange={setSelectedSuccessRateDestination}
             selectedEventType={selectedSuccessRateEventType === "all" ? undefined : selectedSuccessRateEventType}
@@ -621,9 +630,9 @@ export default function MonitorPage() {
         )}
 
         {}
-        {eventVolumeHistory && eventVolumeHistory.length > 0 && volumeStats && (
+        {eventVolumeHistory && Array.isArray(eventVolumeHistory) && eventVolumeHistory.length > 0 && volumeStats && (
           <EventVolumeChart
-            historyData={eventVolumeHistory}
+            historyData={eventVolumeHistory.filter((item): item is NonNullable<typeof item> => item !== null)}
             current24h={volumeStats.current24h}
             previous24h={volumeStats.previous24h}
             changePercent={volumeStats.changePercent}
@@ -859,7 +868,7 @@ export default function MonitorPage() {
                       </Text>
                     </Banner>
                     <MissingParamsChart
-                      historyData={missingParamsHistory}
+                      historyData={Array.isArray(missingParamsHistory) ? missingParamsHistory.filter((item): item is NonNullable<typeof item> => item !== null) : []}
                       selectedPlatform={selectedChartPlatform}
                       onPlatformChange={setSelectedChartPlatform}
                     />

@@ -196,22 +196,31 @@ export async function getMissingParamsStats(
   const byPlatform: Record<string, {
     total: number;
     withMissingParams: number;
+    missingRate: number;
     byParam: Record<string, number>;
   }> = {};
   const byEventType: Record<string, {
     total: number;
     withMissingParams: number;
+    missingRate: number;
     byParam: Record<string, number>;
   }> = {};
   const byPlatformAndEventType: Record<string, {
     total: number;
     withMissingParams: number;
+    missingRate: number;
     byParam: Record<string, number>;
   }> = {};
 
   logs.forEach((log) => {
     total++;
-    const missingParams = detectMissingParams(log, paramsToCheck);
+    const missingParams = detectMissingParams({
+      orderValue: log.orderValue ? (typeof log.orderValue === 'string' ? parseFloat(log.orderValue) : Number(log.orderValue)) : null,
+      currency: log.currency || null,
+      eventId: log.eventId || null,
+      platform: log.platform || undefined,
+      eventType: log.eventType || undefined,
+    }, paramsToCheck);
     const hasMissingParams = missingParams.length > 0;
 
     if (hasMissingParams) {
@@ -223,7 +232,7 @@ export async function getMissingParamsStats(
 
     const platform = log.platform;
     if (!byPlatform[platform]) {
-      byPlatform[platform] = { total: 0, withMissingParams: 0, byParam: {} };
+      byPlatform[platform] = { total: 0, withMissingParams: 0, missingRate: 0, byParam: {} };
     }
     byPlatform[platform].total++;
     if (hasMissingParams) {
@@ -236,7 +245,7 @@ export async function getMissingParamsStats(
 
     const eventType = log.eventType;
     if (!byEventType[eventType]) {
-      byEventType[eventType] = { total: 0, withMissingParams: 0, byParam: {} };
+      byEventType[eventType] = { total: 0, withMissingParams: 0, missingRate: 0, byParam: {} };
     }
     byEventType[eventType].total++;
     if (hasMissingParams) {
@@ -249,7 +258,7 @@ export async function getMissingParamsStats(
 
     const key = `${platform}:${eventType}`;
     if (!byPlatformAndEventType[key]) {
-      byPlatformAndEventType[key] = { total: 0, withMissingParams: 0, byParam: {} };
+      byPlatformAndEventType[key] = { total: 0, withMissingParams: 0, missingRate: 0, byParam: {} };
     }
     byPlatformAndEventType[key].total++;
     if (hasMissingParams) {
@@ -468,6 +477,8 @@ export async function getMissingParamsHistory(
       status: { in: ["sent", "failed"] },
     },
     select: {
+      platform: true,
+      eventType: true,
       orderValue: true,
       currency: true,
       eventId: true,
@@ -497,7 +508,13 @@ export async function getMissingParamsHistory(
     const dayStats = dayMap.get(dateStr)!;
     dayStats.total++;
 
-    const missingParams = detectMissingParams(log, paramsToCheck);
+    const missingParams = detectMissingParams({
+      orderValue: log.orderValue ? (typeof log.orderValue === 'string' ? parseFloat(log.orderValue) : Number(log.orderValue)) : null,
+      currency: log.currency || null,
+      eventId: log.eventId || null,
+      platform: log.platform || undefined,
+      eventType: log.eventType || undefined,
+    }, paramsToCheck);
     if (missingParams.length > 0) {
       dayStats.withMissingParams++;
       missingParams.forEach((result) => {

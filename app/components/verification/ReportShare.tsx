@@ -41,7 +41,9 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
         throw new Error("生成分享链接失败");
       }
 
-      const data = await response.json();
+      const data = await response.json().catch((error) => {
+        throw new Error("解析响应失败：" + (error instanceof Error ? error.message : "未知错误"));
+      });
       setShareUrl(data.shareUrl);
       setExpiresAt(new Date(data.expiresAt));
       showSuccess("分享链接已生成");
@@ -93,11 +95,15 @@ export function ReportShare({ runId, shopId }: ReportShareProps) {
                   分享链接
                 </Text>
                 <InlineStack gap="200" blockAlign="center">
-                  <Box style={{ minWidth: 0, flex: "1 1 0%" }}>
+                  <Box>
+                    <div style={{ minWidth: 0, flex: "1 1 0%" }}>
                     <TextField
                       value={shareUrl || ""}
+                      label=""
+                      autoComplete="off"
                       readOnly
                     />
+                    </div>
                   </Box>
                   <Button icon={CopyIcon} onClick={handleCopyUrl}>
                     复制

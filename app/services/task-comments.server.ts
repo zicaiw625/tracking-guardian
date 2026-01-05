@@ -1,4 +1,5 @@
 
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { getShopGroupDetails } from "./multi-shop.server";
@@ -32,8 +33,8 @@ export async function createTaskComment(
     const task = await prisma.migrationTask.findUnique({
       where: { id: input.taskId },
       include: {
-        group: {
-          include: { members: true },
+        ShopGroup: {
+          include: { ShopGroupMember: true },
         },
       },
     });
@@ -44,8 +45,8 @@ export async function createTaskComment(
 
     const isOwner = task.shopId === authorShopId;
     const isAssignedTo = task.assignedToShopId === authorShopId;
-    const isGroupMember = task.group?.members.some((m) => m.shopId === authorShopId);
-    const isGroupOwner = task.group?.ownerId === authorShopId;
+    const isGroupMember = task.ShopGroup?.ShopGroupMember.some((m: { shopId: string }) => m.shopId === authorShopId);
+    const isGroupOwner = task.ShopGroup?.ownerId === authorShopId;
 
     if (!isOwner && !isAssignedTo && !isGroupMember && !isGroupOwner) {
       return { error: "无权在此任务中评论" };
@@ -62,12 +63,13 @@ export async function createTaskComment(
 
     const comment = await prisma.taskComment.create({
       data: {
+        id: randomUUID(),
         taskId: input.taskId,
         authorShopId,
         content: input.content,
         parentCommentId: input.parentCommentId,
         isSystemMessage: false,
-
+        updatedAt: new Date(),
       },
     });
 
@@ -93,8 +95,8 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
   const task = await prisma.migrationTask.findUnique({
     where: { id: taskId },
     include: {
-      group: {
-        include: { members: true },
+      ShopGroup: {
+        include: { ShopGroupMember: true },
       },
     },
   });
@@ -105,8 +107,8 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
 
   const isOwner = task.shopId === requesterShopId;
   const isAssignedTo = task.assignedToShopId === requesterShopId;
-  const isGroupMember = task.group?.members.some((m) => m.shopId === requesterShopId);
-  const isGroupOwner = task.group?.ownerId === requesterShopId;
+    const isGroupMember = task.ShopGroup?.ShopGroupMember.some((m: { shopId: string }) => m.shopId === requesterShopId);
+    const isGroupOwner = task.ShopGroup?.ownerId === requesterShopId;
 
   if (!isOwner && !isAssignedTo && !isGroupMember && !isGroupOwner) {
     return [];
@@ -118,7 +120,7 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
       parentCommentId: null,
     },
     include: {
-      replies: {
+      other_TaskComment: {
         orderBy: { createdAt: "asc" },
       },
     },
@@ -128,7 +130,7 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
   const authorShopIds = new Set<string>();
   comments.forEach((c) => {
     authorShopIds.add(c.authorShopId);
-    c.replies.forEach((r) => authorShopIds.add(r.authorShopId));
+    c.other_TaskComment.forEach((r) => authorShopIds.add(r.authorShopId));
   });
 
   const shops = await prisma.shop.findMany({
@@ -145,7 +147,7 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
     content: string;
     isSystemMessage: boolean;
     parentCommentId: string | null;
-    replies: Array<{
+    other_TaskComment: Array<{
       id: string;
       authorShopId: string;
       content: string;
@@ -156,18 +158,41 @@ export async function getTaskComments(taskId: string, requesterShopId: string): 
     }>;
     createdAt: Date;
     updatedAt: Date;
-  }): CommentWithAuthor => ({
-    id: c.id,
-    taskId: c.taskId,
-    authorShopId: c.authorShopId,
-    authorShopDomain: shopMap.get(c.authorShopId) || "Unknown",
-    content: c.content,
-    isSystemMessage: c.isSystemMessage,
-    parentCommentId: c.parentCommentId,
-    replies: c.replies.map(mapComment),
-    createdAt: c.createdAt,
-    updatedAt: c.updatedAt,
-  });
+  }): CommentWithAuthor => {
+    const mapReply = (reply: {
+      id: string;
+      authorShopId: string;
+      content: string;
+      isSystemMessage: boolean;
+      parentCommentId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }): CommentWithAuthor => ({
+      id: reply.id,
+      taskId: c.taskId,
+      authorShopId: reply.authorShopId,
+      authorShopDomain: shopMap.get(reply.authorShopId) || "Unknown",
+      content: reply.content,
+      isSystemMessage: reply.isSystemMessage,
+      parentCommentId: reply.parentCommentId,
+      replies: [],
+      createdAt: reply.createdAt,
+      updatedAt: reply.updatedAt,
+    });
+
+    return {
+      id: c.id,
+      taskId: c.taskId,
+      authorShopId: c.authorShopId,
+      authorShopDomain: shopMap.get(c.authorShopId) || "Unknown",
+      content: c.content,
+      isSystemMessage: c.isSystemMessage,
+      parentCommentId: c.parentCommentId,
+      replies: c.other_TaskComment.map(mapReply),
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    };
+  };
 
   return comments.map(mapComment);
 }
@@ -179,10 +204,12 @@ export async function createSystemComment(
   try {
     await prisma.taskComment.create({
       data: {
+        id: randomUUID(),
         taskId,
         authorShopId: "",
         content,
         isSystemMessage: true,
+        updatedAt: new Date(),
       },
     });
   } catch (error) {

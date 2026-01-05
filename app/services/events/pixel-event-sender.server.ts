@@ -4,7 +4,7 @@ import { logger } from "~/utils/logger.server";
 import { getShopPixelConfigs } from "../db/pixel-config-repository.server";
 import { decryptCredentials } from "../credentials.server";
 import { getPlatformEventName } from "../pixel-mapping.server";
-import type { Platform } from "../types/platform";
+import type { Platform } from "~/types/platform";
 import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout, DEFAULT_API_TIMEOUT_MS } from "../platforms/interface";
 
@@ -108,8 +108,8 @@ async function sendToGA4(
     }
     if (data.items && Array.isArray(data.items) && data.items.length > 0) {
       params.items = data.items.map((item) => ({
-        item_id: item.id || item.productId || "",
-        item_name: item.name || item.productTitle || "",
+        item_id: item.id || "",
+        item_name: item.name || "",
         quantity: item.quantity || 1,
         price: item.price || 0,
       }));
@@ -183,7 +183,7 @@ async function sendToMeta(
     const contents =
       data.items && Array.isArray(data.items) && data.items.length > 0
         ? data.items.map((item) => ({
-            id: item.id || item.productId || "",
+            id: item.id || "",
             quantity: item.quantity || 1,
             item_price: item.price || 0,
           }))
@@ -283,8 +283,8 @@ async function sendToTikTok(
     const contents =
       data.items && Array.isArray(data.items) && data.items.length > 0
         ? data.items.map((item) => ({
-            content_id: item.id || item.productId || "",
-            content_name: item.name || item.productTitle || "",
+            content_id: item.id || "",
+            content_name: item.name || "",
             quantity: item.quantity || 1,
             price: item.price || 0,
           }))

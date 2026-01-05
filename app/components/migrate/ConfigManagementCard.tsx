@@ -16,7 +16,6 @@ import {
 import { SettingsIcon } from "~/components/icons";
 import { ConfigComparison } from "~/components/settings/ConfigComparison";
 import type { PixelConfigSnapshot } from "~/services/pixel-rollback.server";
-import { VersionHistory } from "~/components/settings/VersionHistory";
 import { ConfigVersionManager } from "./ConfigVersionManager";
 import { useFetcher } from "@remix-run/react";
 import type { Platform } from "~/services/migration.server";

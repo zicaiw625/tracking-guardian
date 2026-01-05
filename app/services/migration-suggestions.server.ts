@@ -145,7 +145,7 @@ export async function getMigrationSuggestionForAsset(
   const asset = await prisma.auditAsset.findUnique({
     where: { id: assetId },
     include: {
-      shop: {
+      Shop: {
         select: { id: true },
       },
     },
@@ -182,7 +182,7 @@ export async function getMigrationSuggestionForAsset(
     priority: asset.priority || 5,
     estimatedTimeMinutes: asset.estimatedTimeMinutes || 15,
     steps: generateMigrationSteps(asset, asset.suggestedMigration, asset.platform),
-    migrationType: asset.suggestedMigration,
+    migrationType: asset.suggestedMigration as "none" | "web_pixel" | "ui_extension" | "server_side",
     platform: asset.platform || undefined,
     dependencies,
     canStart,

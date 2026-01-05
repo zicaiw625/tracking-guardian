@@ -435,7 +435,7 @@ export async function createOneTimePurchase(
 ): Promise<OneTimePurchaseResult> {
   const plan = BILLING_PLANS[planId];
 
-  if (!plan || !plan.isOneTime) {
+  if (!plan || !("isOneTime" in plan) || !plan.isOneTime) {
     return { success: false, error: "此套餐不支持一次性收费" };
   }
 

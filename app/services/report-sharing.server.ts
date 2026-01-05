@@ -2,6 +2,7 @@
 import prisma from "../db.server";
 import { randomBytes } from "crypto";
 import { logger } from "../utils/logger.server";
+import type { Prisma } from "@prisma/client";
 
 export interface ShareableReport {
   id: string;
@@ -71,7 +72,7 @@ export async function createShareableReport(
 
       await prisma.shop.update({
         where: { id: shopId },
-        data: { settings: { ...shopSettings, shareableReports: updatedReports } },
+        data: { settings: ({ ...shopSettings, shareableReports: updatedReports } as unknown) as Prisma.InputJsonValue },
       });
 
       const baseUrl = process.env.SHOPIFY_APP_URL || process.env.PUBLIC_APP_URL || "";
@@ -100,7 +101,7 @@ export async function createShareableReport(
 
     await prisma.shop.update({
       where: { id: shopId },
-      data: { settings: { ...shopSettings, shareableReports: updatedReports } },
+        data: { settings: ({ ...shopSettings, shareableReports: updatedReports } as unknown) as Prisma.InputJsonValue },
     });
 
     const baseUrl = process.env.SHOPIFY_APP_URL || process.env.PUBLIC_APP_URL || "";
@@ -157,7 +158,7 @@ export async function getShareableReport(
 
         await prisma.shop.update({
           where: { id: shop.id },
-          data: { settings: { ...shopSettings, shareableReports: updatedReports } },
+          data: { settings: ({ ...shopSettings, shareableReports: updatedReports } as unknown) as Prisma.InputJsonValue },
         });
 
         return {
@@ -204,7 +205,7 @@ export async function cleanupExpiredShares(): Promise<number> {
       if (activeReports.length !== reports.length) {
         await prisma.shop.update({
           where: { id: shop.id },
-          data: { settings: { ...shopSettings, shareableReports: activeReports } },
+          data: { settings: ({ ...shopSettings, shareableReports: activeReports } as unknown) as Prisma.InputJsonValue },
         });
         cleanedCount += reports.length - activeReports.length;
       }
@@ -261,7 +262,7 @@ export async function deleteShareableReport(
 
     await prisma.shop.update({
       where: { id: shopId },
-      data: { settings: { ...shopSettings, shareableReports: updatedReports } },
+        data: { settings: ({ ...shopSettings, shareableReports: updatedReports } as unknown) as Prisma.InputJsonValue },
     });
 
     logger.info("Shareable report deleted", { shopId, shareToken });

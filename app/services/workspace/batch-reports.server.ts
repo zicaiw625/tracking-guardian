@@ -54,7 +54,21 @@ export async function generateBatchReports(
         };
       }
 
-      const reportData = await generateVerificationReportData(shopId);
+      // Get the latest verification run for this shop
+      const latestRun = await prisma.verificationRun.findFirst({
+        where: { shopId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+      if (!latestRun) {
+        return {
+          shopId,
+          shopDomain: shop.shopDomain,
+          status: "skipped",
+          error: "No verification run found",
+        };
+      }
+      const reportData = await generateVerificationReportData(shopId, latestRun.id);
 
       if (!reportData) {
         return {

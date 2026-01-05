@@ -4,6 +4,7 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { reconcilePixelVsCapi, performBulkLocalConsistencyCheck, performChannelReconciliation, type ReconciliationResult } from "./enhanced-reconciliation.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
+import type { Prisma } from "@prisma/client";
 
 export interface VerificationTestItem {
   id: string;
@@ -188,6 +189,7 @@ export async function createVerificationRun(
 
   const run = await prisma.verificationRun.create({
     data: {
+      id: `${shopId}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
       shopId,
       runName,
       runType,
@@ -221,7 +223,7 @@ export async function getVerificationRun(runId: string): Promise<VerificationSum
   const run = await prisma.verificationRun.findUnique({
     where: { id: runId },
     include: {
-      shop: {
+      Shop: {
         select: { shopDomain: true },
       },
     },
@@ -230,7 +232,7 @@ export async function getVerificationRun(runId: string): Promise<VerificationSum
   if (!run) return null;
 
   const summary = run.summaryJson as Record<string, unknown> | null;
-  const events = (run.eventsJson as VerificationEventResult[]) || [];
+  const events = ((run.eventsJson as unknown) as VerificationEventResult[]) || [];
   const reconciliation = summary?.reconciliation as VerificationSummary["reconciliation"] | undefined;
 
   return {
@@ -457,10 +459,26 @@ export async function analyzeRecentEvents(
     }
 
     localConsistencyChecks.forEach((check) => {
+      // Map status to the expected type
+      let issueType: "duplicate" | "missing" | "value_mismatch" | "currency_mismatch" = "missing";
+      if (check.status === "inconsistent") {
+        // Try to determine the specific issue type from the issues
+        const issuesStr = check.issues.join("; ").toLowerCase();
+        if (issuesStr.includes("currency") || issuesStr.includes("币种")) {
+          issueType = "currency_mismatch";
+        } else if (issuesStr.includes("value") || issuesStr.includes("金额") || issuesStr.includes("value")) {
+          issueType = "value_mismatch";
+        } else {
+          issueType = "value_mismatch"; // default for inconsistent
+        }
+      } else if (check.status === "partial") {
+        issueType = "missing";
+      }
+      
       consistencyIssues.push({
         orderId: check.orderId,
         issue: check.issues.join("; "),
-        type: check.status === "inconsistent" ? "error" : "warning",
+        type: issueType,
       });
     });
 
@@ -502,7 +520,7 @@ export async function analyzeRecentEvents(
         valueAccuracy,
         reconciliation,
       },
-      eventsJson: results,
+      eventsJson: results as unknown as Prisma.InputJsonValue,
     },
   });
 
@@ -538,15 +556,15 @@ export async function getVerificationHistory(
     take: limit,
   });
 
-  return runs.map((run: { id: string; shopId: string; runName: string; summaryJson: unknown; createdAt: Date }) => {
+  return runs.map((run) => {
     const summary = run.summaryJson as Record<string, unknown> | null;
     return {
       runId: run.id,
       shopId: run.shopId,
       runName: run.runName,
-      runType: run.runType as "quick" | "full" | "custom",
-      status: run.status as "pending" | "running" | "completed" | "failed",
-      platforms: run.platforms,
+      runType: (run.runType || "quick") as "quick" | "full" | "custom",
+      status: (run.status || "pending") as "pending" | "running" | "completed" | "failed",
+      platforms: run.platforms || [],
       startedAt: run.startedAt || undefined,
       completedAt: run.completedAt || undefined,
       totalTests: (summary?.totalTests as number) || 0,

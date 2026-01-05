@@ -200,10 +200,19 @@ export async function getWizardTemplates(shopId: string): Promise<{
   return { presets, custom };
 }
 
+export interface PixelPlatformConfig {
+  platform: string;
+  enabled: boolean;
+  platformId: string;
+  credentials: Record<string, unknown>;
+  eventMappings: Record<string, string>;
+  environment: string;
+}
+
 export function applyTemplateToConfigs(
   template: WizardTemplate,
-  currentConfigs: Record<string, any>
-): Record<string, any> {
+  currentConfigs: Record<string, PixelPlatformConfig>
+): Record<string, PixelPlatformConfig> {
   const newConfigs = { ...currentConfigs };
 
   template.platforms.forEach((platform) => {

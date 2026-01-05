@@ -130,7 +130,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid:
+                id: "gid://shopify/CheckoutProfile/123456",
                 name: "Default",
                 isPublished: true,
                 typOspPagesActive: true,
@@ -160,7 +160,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid:
+                id: "gid://shopify/CheckoutProfile/123456",
                 name: "Default",
                 isPublished: true,
                 typOspPagesActive: false,
@@ -187,13 +187,13 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid:
+                id: "gid://shopify/CheckoutProfile/123456",
                 name: "Default",
                 isPublished: true,
                 typOspPagesActive: false,
               },
               {
-                id: "gid:
+                id: "gid://shopify/CheckoutProfile/123456",
                 name: "Custom",
                 isPublished: true,
                 typOspPagesActive: true,
@@ -219,13 +219,13 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid:
+                id: "gid://shopify/CheckoutProfile/123456",
                 name: "Draft",
                 isPublished: false,
                 typOspPagesActive: true,
               },
               {
-                id: "gid:
+                id: "gid://shopify/CheckoutProfile/123456",
                 name: "Published",
                 isPublished: true,
                 typOspPagesActive: false,
@@ -320,7 +320,7 @@ describe("checkoutProfiles typOspPagesActive 解析", () => {
           checkoutProfiles: {
             nodes: [
               {
-                id: "gid:
+                id: "gid://shopify/CheckoutProfile/123456",
                 name: "Default",
                 isPublished: true,
 

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { sendAlert } from "./notification.server";
 import { logger } from "../utils/logger.server";
@@ -92,7 +93,7 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
                 where: { isActive: true },
                 select: { platform: true },
             },
-            alertConfigs: {
+            AlertConfig: {
                 where: { isEnabled: true },
             },
         },
@@ -171,6 +172,7 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
                 status: "completed",
             },
             create: {
+                id: randomUUID(),
                 shopId,
                 platform,
                 reportDate: yesterday,
@@ -184,7 +186,7 @@ export async function runDailyDeliveryHealthCheck(shopId: string): Promise<Deliv
             },
         });
         const failureRate = 1 - successRate;
-        for (const alertConfig of shop.alertConfigs) {
+        for (const alertConfig of shop.AlertConfig) {
             const typedAlertConfig = parseAlertConfig(alertConfig);
             if (!typedAlertConfig)
                 continue;

@@ -109,7 +109,7 @@ export async function checkMultiShopLimit(
   const shopGroups = await prisma.shopGroup.findMany({
     where: { ownerId: shopId },
     include: {
-      members: {
+      ShopGroupMember: {
         select: { shopId: true },
       },
     },
@@ -117,7 +117,7 @@ export async function checkMultiShopLimit(
 
   const uniqueShopIds = new Set<string>();
   shopGroups.forEach((group) => {
-    group.members.forEach((member) => {
+    group.ShopGroupMember.forEach((member: { shopId: string }) => {
       uniqueShopIds.add(member.shopId);
     });
   });

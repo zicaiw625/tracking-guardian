@@ -1,6 +1,6 @@
 
 import { Card, BlockStack, Text, Box, Badge, InlineStack, Button, Banner } from "@shopify/polaris";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { ArrowRightIcon } from "~/components/icons";
 import type { DependencyGraph } from "~/services/dependency-analysis.server";
 
@@ -8,8 +8,17 @@ interface DependencyGraphPreviewProps {
   dependencyGraph: DependencyGraph | null;
 }
 
+interface GraphSummary {
+  totalNodes: number;
+  totalEdges: number;
+  nodesByRisk: Record<string, number>;
+  nodesByCategory: Record<string, number>;
+  avgDependencies: string;
+  criticalPath: number;
+}
+
 export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPreviewProps) {
-  const summary = useMemo(() => {
+  const summary = useMemo<GraphSummary | null>(() => {
     if (!dependencyGraph || dependencyGraph.nodes.length === 0) {
       return null;
     }
@@ -49,6 +58,24 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
     };
   }, [dependencyGraph]);
 
+  const categoryLabels = {
+    pixel: "像素追踪",
+    affiliate: "联盟营销",
+    survey: "问卷调研",
+    support: "客服支持",
+    analytics: "分析工具",
+    other: "其他",
+  } as const;
+
+  const categorySectionData = useMemo<[string, number][] | null>(() => {
+    if (!summary || !summary.nodesByCategory || typeof summary.nodesByCategory !== "object" || Object.keys(summary.nodesByCategory).length === 0) {
+      return null;
+    }
+    return Object.entries(summary.nodesByCategory) as [string, number][];
+  }, [summary]);
+
+  
+
   if (!dependencyGraph || dependencyGraph.nodes.length === 0) {
     return (
       <Card>
@@ -66,15 +93,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
     );
   }
 
-  const categoryLabels: Record<string, string> = {
-    pixel: "像素追踪",
-    affiliate: "联盟营销",
-    survey: "问卷调研",
-    support: "客服支持",
-    analytics: "分析工具",
-    other: "其他",
-  };
-
   return (
     <Card>
       <BlockStack gap="400">
@@ -87,7 +105,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
 
         {summary && (
           <BlockStack gap="400">
-            {}
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack align="space-between">
@@ -117,7 +134,6 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               </BlockStack>
             </Box>
 
-            {}
             <BlockStack gap="200">
               <Text as="h3" variant="headingSm">
                 风险分布
@@ -141,28 +157,33 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
               </InlineStack>
             </BlockStack>
 
-            {summary && Object.keys(summary.nodesByCategory).length > 0 && (
+            {(categorySectionData !== null && categorySectionData.length > 0 ? (
               <BlockStack gap="200">
                 <Text as="h3" variant="headingSm">
                   类别分布
                 </Text>
                 <InlineStack gap="200" wrap>
-                  {Object.entries(summary.nodesByCategory)
-                    .sort(([_, a], [__, b]) => b - a)
+                  {categorySectionData
+                    .sort(([_, a], [__, b]) => {
+                      const countA = typeof a === "number" ? a : 0;
+                      const countB = typeof b === "number" ? b : 0;
+                      return countB - countA;
+                    })
                     .slice(0, 5)
                     .map(([category, count]) => {
-                      const label = categoryLabels[category] || category;
+                      const label = (categoryLabels[category as keyof typeof categoryLabels] as string) || category;
+                      const countValue = typeof count === "number" ? count : 0;
                       return (
                         <Badge key={category}>
-                          {`${label}: ${String(count)}`}
+                          {`${String(label)}: ${String(countValue)}`}
                         </Badge>
                       );
                     })}
                 </InlineStack>
               </BlockStack>
-            )}
+            ) : null) as ReactNode}
 
-            {dependencyGraph.edges.length > 0 && (
+            {dependencyGraph.edges.length > 0 ? (
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="center">
                   <Text as="h3" variant="headingSm">
@@ -201,17 +222,17 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                           </Box>
                         );
                       })}
-                    {dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length > 5 && (
+                    {dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length > 5 ? (
                       <Text as="p" variant="bodySm" tone="subdued" alignment="center">
                         还有 {String(dependencyGraph.edges.filter((e) => e.type === "depends_on" || e.type === "blocks" || e.type === "recommended_after").length - 5)} 条依赖关系...
                       </Text>
-                    )}
+                    ) : null}
                   </BlockStack>
                 </Box>
               </BlockStack>
-            )}
+            ) : null}
 
-            {("cycles" in dependencyGraph && dependencyGraph.cycles && Array.isArray(dependencyGraph.cycles) && dependencyGraph.cycles.length > 0) && (
+            {("cycles" in dependencyGraph && dependencyGraph.cycles && Array.isArray(dependencyGraph.cycles) && dependencyGraph.cycles.length > 0) ? (
               <Banner tone="warning">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" fontWeight="semibold">
@@ -222,7 +243,7 @@ export function DependencyGraphPreview({ dependencyGraph }: DependencyGraphPrevi
                   </Text>
                 </BlockStack>
               </Banner>
-            )}
+            ) : null}
 
             <Button url="/app/scan" fullWidth icon={ArrowRightIcon}>
               查看完整依赖图

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
@@ -60,10 +61,12 @@ export async function saveMigrationDraft(
     const draft = await prisma.migrationDraft.upsert({
       where: { shopId },
       create: {
+        id: randomUUID(),
         shopId,
         step,
         configData: configData as object,
         expiresAt,
+        updatedAt: new Date(),
       },
       update: {
         step,

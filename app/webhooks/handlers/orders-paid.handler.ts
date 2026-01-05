@@ -1,6 +1,7 @@
 
 
 import prisma from "../../db.server";
+import { randomUUID } from "crypto";
 import { normalizeOrderId, hashValue, normalizeEmail, normalizePhone } from "../../utils/crypto.server";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
 import { checkBillingGate, type PlanId } from "../../services/billing.server";
@@ -12,6 +13,7 @@ import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from 
 import type { Prisma } from "@prisma/client";
 import { extractPIISafely, logPIIStatus, type ExtractedPII } from "../../utils/pii";
 import { PCD_CONFIG } from "../../utils/config";
+import { generateSimpleId } from "../../utils/helpers";
 
 export interface HashedUserData {
   em?: string;
@@ -183,6 +185,7 @@ async function handleBillingLimitExceeded(
         },
       },
       create: {
+        id: randomUUID(),
         shopId: shopRecord.id,
         orderId,
         orderNumber: orderPayload.order_number
@@ -230,6 +233,7 @@ async function queueOrderForProcessing(
         },
       },
       create: {
+        id: generateSimpleId("job"),
         shopId: shopRecord.id,
         orderId,
         orderNumber: orderPayload.order_number

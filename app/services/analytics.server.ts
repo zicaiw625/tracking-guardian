@@ -1,5 +1,6 @@
 
 
+import { Prisma } from "@prisma/client";
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
 
@@ -69,12 +70,12 @@ export async function getActivationStatus(shopId: string): Promise<ActivationSta
           pixelConfigs: {
             where: { environment: "live", isActive: true },
           },
-          verificationRuns: {
+          VerificationRun: {
             where: {
               status: "completed",
               summaryJson: {
                 path: ["successfulEvents"],
-                not: null,
+                not: Prisma.JsonNull,
               },
             },
           },
@@ -89,7 +90,7 @@ export async function getActivationStatus(shopId: string): Promise<ActivationSta
   const hasTestDestination = (shop?.pixelConfigs?.length || 0) > 0;
 
   const hasLiveDestination = (shop?._count?.pixelConfigs || 0) > 0;
-  const hasCompletedVerification = (shop?._count?.verificationRuns || 0) > 0;
+  const hasCompletedVerification = (shop?._count?.VerificationRun || 0) > 0;
   const d3 = hasLiveDestination && hasCompletedVerification;
 
   const d7 = false;

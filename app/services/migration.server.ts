@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { Prisma } from "@prisma/client";
 import { encryptJson } from "../utils/crypto.server";
@@ -65,6 +66,7 @@ export interface SavePixelConfigOptions {
     clientConfig?: Record<string, string | number | boolean>;
     credentialsEncrypted?: string;
     serverSideEnabled?: boolean;
+    environment?: string;
 }
 
 export async function savePixelConfig(shopId: string, platform: Platform, platformId: string, options?: SavePixelConfigOptions) {
@@ -79,14 +81,14 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
     const environment = options?.environment || "live";
 
     // P0-3: 支持多目的地配置 - 使用包含 platformId 的唯一约束
-    // 如果 platformId 为 null，仍然使用包含 platformId 的约束（Prisma 支持 null 值）
+    // platformId 是必需的 string，直接使用
     const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
             shopId_platform_environment_platformId: {
                 shopId,
                 platform,
-                environment,
-                platformId: platformId || null,
+                environment: environment as string,
+                platformId: platformId,
             },
         },
     });
@@ -107,17 +109,18 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
     }
 
     if (existingConfig) {
-        await saveConfigSnapshot(shopId, platform, environment);
+        await saveConfigSnapshot(shopId, platform, environment as "test" | "live");
     }
 
     // P0-3: 支持多目的地配置 - 使用包含 platformId 的唯一约束
+    // platformId 是必需的 string，直接使用
     return prisma.pixelConfig.upsert({
         where: {
             shopId_platform_environment_platformId: {
                 shopId,
                 platform,
-                environment,
-                platformId: platformId || null,
+                environment: environment as string,
+                platformId: platformId,
             },
         },
         update: {
@@ -129,6 +132,7 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
             updatedAt: new Date(),
         },
         create: {
+            id: randomUUID(),
             shopId,
             platform,
             platformId,
@@ -138,7 +142,8 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
             migrationStatus: "in_progress",
             configVersion: 1,
             rollbackAllowed: false,
-            environment,
+            environment: environment as "test" | "live",
+            updatedAt: new Date(),
         },
     });
 }
@@ -161,13 +166,36 @@ export async function completeMigration(shopId: string, platform: Platform, envi
     }
     
     // 使用包含 platformId 的唯一约束更新配置
+    // platformId 可能是 null，需要特殊处理
+    if (platformId === null || platformId === undefined) {
+        // 如果 platformId 为 null，使用 findFirst 查找，然后更新
+        const config = await prisma.pixelConfig.findFirst({
+            where: {
+                shopId,
+                platform,
+                environment,
+                platformId: null,
+            },
+        });
+        if (!config) {
+            throw new Error(`No PixelConfig found for shopId=${shopId}, platform=${platform}, environment=${environment}, platformId=null`);
+        }
+        return prisma.pixelConfig.update({
+            where: { id: config.id },
+            data: {
+                migrationStatus: "completed",
+                migratedAt: new Date(),
+            },
+        });
+    }
+    
     return prisma.pixelConfig.update({
         where: {
             shopId_platform_environment_platformId: {
                 shopId,
                 platform,
-                environment,
-                platformId: platformId || null,
+                environment: environment as string,
+                platformId: platformId,
             },
         },
         data: {
@@ -430,11 +458,11 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
         `, { variables: { cursor } });
             const result = await response.json();
 
-            if (result.errors && result.errors.length > 0) {
-                const errorMessage = result.errors[0]?.message || "Unknown GraphQL error";
+            if (result && typeof result === 'object' && 'errors' in result && Array.isArray(result.errors) && result.errors.length > 0) {
+                const errorMessage = (result.errors[0] as { message?: string })?.message || "Unknown GraphQL error";
 
                 if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
-                    logger.warn("WebPixels API not available (may need to reinstall app for read_pixels scope):", errorMessage);
+                    logger.warn("WebPixels API not available (may need to reinstall app for read_pixels scope):", { error: errorMessage });
                 } else {
                     logger.error("GraphQL error fetching WebPixels:", errorMessage);
                 }
@@ -475,7 +503,7 @@ export async function getExistingWebPixels(admin: AdminApiContext): Promise<Arra
 
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes("doesn't exist") || errorMessage.includes("access")) {
-            logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", errorMessage);
+            logger.warn("WebPixels API call failed (scope issue, app may need reinstall):", { error: errorMessage });
         } else {
             logger.error("Failed to get Web Pixels (paginated):", error);
         }
@@ -578,12 +606,12 @@ export async function migrateCredentialsToEncrypted(): Promise<{
     let failed = 0;
     const configs = await prisma.pixelConfig.findMany({
         where: {
-            credentials: { not: Prisma.JsonNull },
+            credentials_legacy: { not: Prisma.JsonNull },
         },
         select: {
             id: true,
             platform: true,
-            credentials: true,
+            credentials_legacy: true,
             credentialsEncrypted: true,
             shopId: true,
         },
@@ -595,11 +623,11 @@ export async function migrateCredentialsToEncrypted(): Promise<{
                 logger.info(`P0-09: Skipping ${config.id} - already has encrypted credentials`);
                 await prisma.pixelConfig.update({
                     where: { id: config.id },
-                    data: { credentials: Prisma.JsonNull },
+                    data: { credentials_legacy: Prisma.JsonNull },
                 });
                 continue;
             }
-            const legacyCreds = config.credentials;
+            const legacyCreds = config.credentials_legacy;
             if (!legacyCreds || typeof legacyCreds !== 'object') {
                 logger.warn(`P0-09: Skipping ${config.id} - invalid credentials format`);
                 continue;
@@ -615,7 +643,7 @@ export async function migrateCredentialsToEncrypted(): Promise<{
                 where: { id: config.id },
                 data: {
                     credentialsEncrypted: encrypted,
-                    credentials: Prisma.JsonNull,
+                    credentials_legacy: Prisma.JsonNull,
                 },
             });
             logger.info(`P0-09: Migrated credentials for ${config.platform} on shop ${config.shopId}`);
@@ -646,9 +674,9 @@ export async function verifyCredentialsEncryption(): Promise<{
         select: {
             id: true,
             platform: true,
-            credentials: true,
+            credentials_legacy: true,
             credentialsEncrypted: true,
-            shop: { select: { shopDomain: true } },
+            Shop: { select: { shopDomain: true } },
         },
     });
     const unencryptedConfigs: Array<{
@@ -659,12 +687,12 @@ export async function verifyCredentialsEncryption(): Promise<{
     let encrypted = 0;
     let unencrypted = 0;
     for (const config of configs) {
-        if (config.credentials && !config.credentialsEncrypted) {
+        if (config.credentials_legacy && !config.credentialsEncrypted) {
             unencrypted++;
             unencryptedConfigs.push({
                 id: config.id,
                 platform: config.platform,
-                shopDomain: config.shop.shopDomain,
+                shopDomain: config.Shop.shopDomain,
             });
         }
         else if (config.credentialsEncrypted) {

@@ -7,11 +7,11 @@ import {
   generateEncryptedIngestionSecret,
 } from "../../utils/token-encryption";
 import { logger } from "../../utils/logger.server";
-import type { ShopQueryResponse, ShopTierValue } from "../../types/shopify";
-import type { WebhookRegisterResults } from "../../types/shopify";
+import { safeFireAndForget } from "../../utils/helpers";
+import type { ShopQueryResponse, ShopTierValue , WebhookRegisterResults } from "../../types/shopify";
 import { cleanupDeprecatedWebhookSubscriptions } from "./webhook-cleanup.server";
 import { scanShopTracking } from "../scanner.server";
-import { batchCreateAuditAssets } from "../audit-asset.server";
+import { batchCreateAuditAssets, type AuditAssetInput, type RiskLevel, type SuggestedMigration } from "../audit-asset.server";
 import { generateMigrationActions } from "../scanner/migration-actions";
 import { refreshTypOspStatus } from "../checkout-profile.server";
 import { generateMigrationTimeline, calculateAllAssetPriorities } from "../migration-priority.server";
@@ -109,12 +109,14 @@ async function upsertShopRecord(
       ...(shopInfo.shopTier !== "unknown" && { shopTier: shopInfo.shopTier }),
     },
     create: {
+      id: shopDomain,
       shopDomain,
       accessToken: encryptedAccessToken,
       ingestionSecret: newIngestionSecret.encrypted,
       primaryDomain: shopInfo.primaryDomain,
       storefrontDomains: [],
       shopTier: shopInfo.shopTier,
+      updatedAt: new Date(),
     },
   });
 
@@ -241,16 +243,15 @@ async function runPostInstallScan(
         });
 
         const shopTier = (shop?.shopTier as "plus" | "non_plus" | null) || null;
-        const migrationActions = generateMigrationActions(scanData, shopTier || "unknown");
+        const migrationActions = scanData ? generateMigrationActions(scanData, shopTier || "unknown") : [];
 
-        const auditAssets = migrationActions.map((action) => ({
+        const auditAssets: AuditAssetInput[] = migrationActions.map((action) => ({
           displayName: action.title,
-          category: action.type === "pixel" ? "pixel" : "other",
-          platform: action.platform || null,
+          category: action.type === "configure_pixel" ? "pixel" : "other",
+          platform: action.platform || undefined,
           sourceType: "api_scan" as const,
-          riskLevel: action.priority === "high" ? "high" : action.priority === "medium" ? "medium" : "low",
-          suggestedMigration: action.type === "pixel" ? "web_pixel" : action.type === "ui_extension" ? "ui_extension" : "none",
-          migrationStatus: "pending" as const,
+          riskLevel: (action.priority === "high" ? "high" : action.priority === "medium" ? "medium" : "low") as RiskLevel,
+          suggestedMigration: (action.type === "configure_pixel" ? "web_pixel" : "none") as SuggestedMigration,
           details: {
             scriptTagId: action.scriptTagId,
             webPixelGid: action.webPixelGid,
@@ -284,9 +285,10 @@ async function runPostInstallScan(
               }
             })().catch((err) => {
               const errorMessage = err instanceof Error ? err.message : String(err);
-              logger.warn("Failed to calculate priorities in post-install", err instanceof Error ? err : new Error(String(err)), {
+              logger.warn("Failed to calculate priorities in post-install", {
                 shopDomain,
                 shopId,
+                error: err instanceof Error ? err : new Error(String(err)),
                 errorMessage,
               });
             });
@@ -306,9 +308,10 @@ async function runPostInstallScan(
               }
             })().catch((err) => {
               const errorMessage = err instanceof Error ? err.message : String(err);
-              logger.warn("Failed to calculate migration timeline in post-install", err instanceof Error ? err : new Error(String(err)), {
+              logger.warn("Failed to calculate migration timeline in post-install", {
                 shopDomain,
                 shopId,
+                error: err instanceof Error ? err : new Error(String(err)),
                 errorMessage,
               });
             });
@@ -333,14 +336,13 @@ async function runPostInstallScan(
           const shopTier = (shop?.shopTier as "plus" | "non_plus" | null) || null;
           const migrationActions = generateMigrationActions(scanData!, shopTier || "unknown");
 
-          const auditAssets = migrationActions.map((action) => ({
+          const auditAssets: AuditAssetInput[] = migrationActions.map((action) => ({
             displayName: action.title,
-            category: action.type === "pixel" ? "pixel" : "other",
-            platform: action.platform || null,
+            category: action.type === "configure_pixel" ? "pixel" : "other",
+            platform: action.platform || undefined,
             sourceType: "api_scan" as const,
-            riskLevel: action.priority === "high" ? "high" : action.priority === "medium" ? "medium" : "low",
-            suggestedMigration: action.type === "pixel" ? "web_pixel" : action.type === "ui_extension" ? "ui_extension" : "none",
-            migrationStatus: "pending" as const,
+            riskLevel: (action.priority === "high" ? "high" : action.priority === "medium" ? "medium" : "low") as RiskLevel,
+            suggestedMigration: (action.type === "configure_pixel" ? "web_pixel" : "none") as SuggestedMigration,
             details: {
               scriptTagId: action.scriptTagId,
               webPixelGid: action.webPixelGid,
@@ -366,8 +368,9 @@ async function runPostInstallScan(
         }
       })().catch((err) => {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        logger.warn("Failed to create deferred audit assets in post-install", err instanceof Error ? err : new Error(String(err)), {
+        logger.warn("Failed to create deferred audit assets in post-install", {
           shopDomain,
+          error: err instanceof Error ? err : new Error(String(err)),
           shopId,
           errorMessage,
         });
@@ -427,14 +430,16 @@ export async function handleAfterAuth(
 
     if (shop) {
 
-      runPostInstallScan(session.shop, shop.id, admin).catch((error) => {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error("Failed to run post-install scan", error instanceof Error ? error : new Error(String(error)), {
-          shopDomain: session.shop,
-          shopId: shop.id,
-          errorMessage,
-        });
-      });
+      safeFireAndForget(
+        runPostInstallScan(session.shop, shop.id, admin),
+        {
+          operation: "runPostInstallScan",
+          metadata: {
+            shopDomain: session.shop,
+            shopId: shop.id,
+          },
+        }
+      );
     }
   }
 }

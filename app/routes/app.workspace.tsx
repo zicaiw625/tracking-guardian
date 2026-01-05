@@ -69,7 +69,7 @@ import {
   type ShopGroupDetails,
   type AggregatedStats,
 } from "../services/multi-shop.server";
-import { getAuditAssets } from "../services/audit-asset.server";
+import { getAuditAssets, type AuditAssetRecord } from "../services/audit-asset.server";
 import { startBatchVerification } from "../services/batch-verification.server";
 import { createInvitation } from "../services/workspace-invitation.server";
 import { BILLING_PLANS, type PlanId } from "../services/billing/plans";
@@ -86,7 +86,7 @@ import {
 } from "../services/task-comments.server";
 
 const BatchApplyWizard = lazy(() => import("../components/workspace/BatchApplyWizard").then(module => ({ default: module.BatchApplyWizard })));
-export type { PixelTemplate, ShopInfo } from "../components/workspace/BatchApplyWizard";
+import type { PixelTemplate, ShopInfo } from "../components/workspace/BatchApplyWizard";
 
 interface LoaderData {
   shop: {
@@ -136,6 +136,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       groupStats: null,
       shopBreakdown: null,
       planInfo: BILLING_PLANS.free,
+      tasks: [],
     });
   }
 
@@ -618,6 +619,7 @@ function StatsCard({
 }
 
 export default function WorkspacePage() {
+  const loaderData = useLoaderData<typeof loader>();
   const {
     shop,
     canManage,
@@ -628,9 +630,9 @@ export default function WorkspacePage() {
     shopBreakdown,
     planInfo,
     tasks,
-    auditAssets = [],
-    availableMembers = [],
-  } = useLoaderData<typeof loader>();
+  } = loaderData;
+  const auditAssets = "auditAssets" in loaderData ? (loaderData as typeof loaderData & { auditAssets: AuditAssetRecord[] }).auditAssets : [];
+  const availableMembers = "availableMembers" in loaderData ? (loaderData as typeof loaderData & { availableMembers: Array<{ shopId: string; shopDomain: string; role: string }> }).availableMembers : [];
   const actionData = useActionData<typeof action>();
 
   const submit = useSubmit();
@@ -714,7 +716,7 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     if (actionData) {
-      if (actionData.success) {
+      if ("success" in actionData && actionData.success) {
         const actionType = (actionData as { actionType?: string }).actionType;
         if (actionType === "create_group") {
           showSuccess("工作区创建成功！");
@@ -725,7 +727,7 @@ export default function WorkspacePage() {
         } else if (actionType === "remove_shop") {
           showSuccess("店铺已从工作区移除");
         } else if (actionType === "export_batch") {
-          setExportResult(actionData);
+          setExportResult(actionData as typeof exportResult);
           showSuccess("批量导出完成");
         } else if (actionType === "batch_apply_template") {
           const data = actionData as { jobId?: string; result?: BatchApplyResult };
@@ -734,15 +736,25 @@ export default function WorkspacePage() {
             showSuccess("批量应用已启动，正在处理中...");
 
           } else if (data.result) {
-            setBatchApplyStatus(data.result);
+            const progress = data.result.totalShops > 0 
+              ? Math.round((data.result.successCount + data.result.failedCount) / data.result.totalShops * 100)
+              : 100;
+            setBatchApplyStatus({
+              status: data.result.success ? "completed" : "failed",
+              progress,
+              totalItems: data.result.totalShops,
+              completedItems: data.result.successCount,
+              failedItems: data.result.failedCount,
+              result: data.result,
+            });
             showSuccess(`批量应用完成：成功 ${data.result.successCount}，失败 ${data.result.failedCount}`);
           }
         } else {
           showSuccess("操作成功");
         }
         revalidator.revalidate();
-      } else if (actionData.error) {
-        showError("操作失败：" + actionData.error);
+      } else if ("error" in actionData && actionData.error) {
+        showError("操作失败：" + String(actionData.error));
       }
     }
   }, [actionData, showSuccess, showError, revalidator]);
@@ -1578,29 +1590,36 @@ export default function WorkspacePage() {
                             >
                               <Text as="p" variant="bodySm">
                                 {exportResult.success
-                                  ? `✅ 成功导出 ${exportResult.result.successCount} 个店铺的报告`
-                                  : `⚠️ 部分导出失败，成功 ${exportResult.result.successCount} 个，失败 ${exportResult.result.failedCount} 个`}
+                                  ? `✅ 成功导出 ${exportResult.successCount || 0} 个店铺的报告`
+                                  : `⚠️ 部分导出失败，成功 ${exportResult.successCount || 0} 个，失败 ${exportResult.failedCount || 0} 个`}
                               </Text>
                             </Banner>
-                            {exportResult.result.combinedReport && (
+                            {(() => {
+                              if (!("result" in exportResult) || !exportResult.result || typeof exportResult.result !== "object" || exportResult.result === null) return null;
+                              if (!("combinedReport" in exportResult.result) || !exportResult.result.combinedReport || typeof exportResult.result.combinedReport !== "object" || exportResult.result.combinedReport === null) return null;
+                              if (!("filename" in exportResult.result.combinedReport) || !("content" in exportResult.result.combinedReport) || !("mimeType" in exportResult.result.combinedReport)) return null;
+                              const result = exportResult.result as { combinedReport: { filename: string; content: string; mimeType: string } };
+                              return (
                               <Button
                                 variant="primary"
                                 onClick={() => {
+                                  const combinedReport = result.combinedReport;
                                   const blob = new Blob(
-                                    [exportResult.result.combinedReport.content],
-                                    { type: exportResult.result.combinedReport.mimeType }
+                                    [combinedReport.content],
+                                    { type: combinedReport.mimeType }
                                   );
                                   const url = URL.createObjectURL(blob);
                                   const a = document.createElement("a");
                                   a.href = url;
-                                  a.download = exportResult.result.combinedReport.filename;
+                                  a.download = combinedReport.filename;
                                   a.click();
                                   URL.revokeObjectURL(url);
                                 }}
                               >
-                                下载合并报告 ({exportResult.result.combinedReport.filename})
+                                下载合并报告 ({typeof exportResult.result === "object" && exportResult.result !== null && "combinedReport" in exportResult.result && exportResult.result.combinedReport && typeof exportResult.result.combinedReport === "object" && exportResult.result.combinedReport !== null && "filename" in exportResult.result.combinedReport ? String(exportResult.result.combinedReport.filename) : ""})
                               </Button>
-                            )}
+                              );
+                            })()}
                           </BlockStack>
                         </Card>
                       )}

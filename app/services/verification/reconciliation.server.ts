@@ -50,30 +50,38 @@ export async function reconcileOrder(
         }
       : null;
 
-    const events = await prisma.eventLog.findMany({
+    const events = await prisma.conversionLog.findMany({
       where: {
         shopId,
-        eventId: orderId,
-        eventName: "checkout_completed",
+        orderId: orderId,
+        eventType: "checkout_completed",
       },
       select: {
-        destinationType: true,
-        payloadJson: true,
-        eventId: true,
+        platform: true,
+        orderValue: true,
+        currency: true,
+        orderId: true,
         status: true,
+        createdAt: true,
       },
     });
 
     const platformEvents = events
-      .map((event: { payloadJson: unknown; destinationType: string | null; eventId: string | null; status: string }) => {
-        const payload = (event.payloadJson as Record<string, unknown>) || {};
-        const data = (payload.data as Record<string, unknown>) || {};
+      .map((event: { platform: string | null; orderValue: { toNumber: () => number } | number; currency: string; orderId: string; status: string; createdAt: Date }) => {
+        const orderValue = typeof event.orderValue === 'object' && 'toNumber' in event.orderValue 
+          ? event.orderValue.toNumber() 
+          : typeof event.orderValue === 'number' 
+          ? event.orderValue 
+          : 0;
         return {
-          platform: event.destinationType || "unknown",
-          eventValue: Number(data.value || 0),
-          currency: (data.currency as string) || "USD",
-          eventId: event.eventId || null,
+          platform: event.platform || "unknown",
+          orderId: event.orderId,
+          orderValue: orderValue,
+          eventValue: orderValue,
+          currency: event.currency || "USD",
+          eventId: event.orderId,
           status: event.status,
+          createdAt: event.createdAt,
         };
       })
       .filter((e: { platform: string }) => e.platform !== "unknown");
@@ -180,19 +188,20 @@ export async function getReconciliationSummary(
 }> {
   try {
 
-    const events = await prisma.eventLog.findMany({
+    const events = await prisma.conversionLog.findMany({
       where: {
         shopId,
-        eventName: "checkout_completed",
+        eventType: "checkout_completed",
         createdAt: {
           gte: startDate,
           lte: endDate,
         },
       },
       select: {
-        eventId: true,
-        destinationType: true,
-        payloadJson: true,
+        orderId: true,
+        platform: true,
+        orderValue: true,
+        currency: true,
         status: true,
       },
     });
@@ -208,11 +217,11 @@ export async function getReconciliationSummary(
     > = {};
 
     for (const event of events) {
-      if (event.eventId) {
-        orderIds.add(event.eventId);
+      if (event.orderId) {
+        orderIds.add(event.orderId);
       }
 
-      const platform = event.destinationType || "unknown";
+      const platform = event.platform || "unknown";
       if (!byPlatform[platform]) {
         byPlatform[platform] = {
           total: 0,

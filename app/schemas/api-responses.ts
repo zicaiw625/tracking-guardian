@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { PlatformTypeSchema } from "./platform-credentials";
+import { OrderIdSchema } from "./pixel-event";
 
 export const SuccessResponseSchema = z.object({
   success: z.literal(true),

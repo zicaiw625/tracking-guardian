@@ -55,6 +55,26 @@ export const EVENT_MAPPINGS: Record<
     search: "search",
     view_collection: "pagevisit",
   },
+  snapchat: {
+    checkout_completed: "PURCHASE",
+    checkout_started: "START_CHECKOUT",
+    add_to_cart: "ADD_CART",
+    view_item: "VIEW_CONTENT",
+    remove_from_cart: "REMOVE_FROM_CART",
+    page_view: "PAGE_VIEW",
+    search: "SEARCH",
+    view_collection: "VIEW_CONTENT",
+  },
+  twitter: {
+    checkout_completed: "Purchase",
+    checkout_started: "InitiateCheckout",
+    add_to_cart: "AddToCart",
+    view_item: "ViewContent",
+    remove_from_cart: "RemoveFromCart",
+    page_view: "PageView",
+    search: "Search",
+    view_collection: "ViewContent",
+  },
 };
 
 export function getPlatformEventName(
@@ -212,6 +232,8 @@ export function validateEventParams(
     meta: ["value", "currency"],
     tiktok: ["value", "currency"],
     pinterest: ["value", "currency"],
+    snapchat: ["value", "currency"],
+    twitter: ["value", "currency"],
   };
 
   const required = requiredParams[platform] || [];

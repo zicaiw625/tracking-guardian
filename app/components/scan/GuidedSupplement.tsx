@@ -121,7 +121,7 @@ export function GuidedSupplement({
       return;
     }
 
-    let finalSelectedItems = [...selectedItems];
+    const finalSelectedItems = [...selectedItems];
     if (additionalNotes.trim()) {
       const detectedItems = extractFeaturesFromText(additionalNotes);
 

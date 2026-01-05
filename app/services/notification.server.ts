@@ -2,19 +2,20 @@ import { Resend } from "resend";
 import type { AlertData, AlertConfig, EmailAlertSettings, SlackAlertSettings, TelegramAlertSettings, } from "../types";
 import { decryptJson } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
+import { CONFIG } from "../utils/config";
 import {
   asEmailAlertSettings,
   asSlackAlertSettings,
   asTelegramAlertSettings,
 } from "../utils/type-guards";
-const resend = process.env.RESEND_API_KEY
-    ? new Resend(process.env.RESEND_API_KEY)
+const resend = CONFIG.getEnv("RESEND_API_KEY")
+    ? new Resend(CONFIG.getEnv("RESEND_API_KEY"))
     : null;
 const getAppUrl = (): string => {
-    return process.env.SHOPIFY_APP_URL || "https://app.tracking-guardian.com";
+    return CONFIG.getEnv("SHOPIFY_APP_URL", "https://app.tracking-guardian.com");
 };
 const getEmailSender = (): string => {
-    return process.env.EMAIL_SENDER || "Tracking Guardian <alerts@tracking-guardian.app>";
+    return CONFIG.getEnv("EMAIL_SENDER", "Tracking Guardian <alerts@tracking-guardian.app>");
 };
 interface AlertConfigWithEncryption extends AlertConfig {
     settingsEncrypted?: string | null;
@@ -32,7 +33,7 @@ function getDecryptedSettings(config: AlertConfigWithEncryption): Record<string,
         logger.warn(`[P0-2] Using legacy plain settings for alert config - migration needed`);
 
         if (typeof config.settings === "object" && config.settings !== null && !Array.isArray(config.settings)) {
-            return config.settings as Record<string, unknown>;
+            return config.settings as unknown as Record<string, unknown>;
         }
     }
     return null;

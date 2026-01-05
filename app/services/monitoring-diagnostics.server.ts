@@ -36,7 +36,7 @@ export type DiagnosticIssueType =
   | "platform_specific_error";
 
 export interface DiagnosticRecommendation {
-  priority: "high" | "medium" | "low";
+  priority: "critical" | "high" | "medium" | "low";
   action: string;
   description: string;
   steps: string[];
@@ -118,8 +118,8 @@ export async function runDiagnostics(
   const allRecommendations = issues
     .flatMap((issue) => issue.recommendations)
     .sort((a, b) => {
-      const priorityOrder = { high: 3, medium: 2, low: 1 };
-      return priorityOrder[b.priority] - priorityOrder[a.priority];
+      const priorityOrder: Record<"critical" | "high" | "medium" | "low", number> = { critical: 4, high: 3, medium: 2, low: 1 };
+      return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
     });
 
   return {
@@ -497,6 +497,10 @@ async function diagnosePixelHeartbeat(
     severity: alertResult.severity,
     title: "像素心跳丢失",
     description: alertResult.message,
+    metrics: {
+      current: alertResult.severity === "critical" ? 0 : undefined,
+      threshold: 24,
+    },
     recommendations,
     autoFixable: false,
     estimatedFixTime: "10-15 分钟",
@@ -569,6 +573,9 @@ async function diagnoseConfigErrors(
       severity: "high",
       title: "未配置像素追踪",
       description: "未检测到任何活动的像素配置，需要配置至少一个平台的追踪",
+      metrics: {
+        current: 0,
+      },
       recommendations: [
         {
           priority: "high",

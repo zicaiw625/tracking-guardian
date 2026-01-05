@@ -2,7 +2,11 @@
 
 import prisma from "../db.server";
 import { Prisma } from "@prisma/client";
-import type { PlatformError } from "../types";
+import type { PlatformError ,
+  ConversionData,
+  PlatformCredentials,
+  ConversionApiResponse,
+} from "../types";
 import {
   calculateBackoff,
   shouldRetry as shouldRetryPlatform,
@@ -13,11 +17,6 @@ import { sendConversionToPlatform } from "./platforms";
 import { generateEventId } from "../utils/crypto.server";
 import { logger } from "../utils/logger.server";
 import { toJsonInput } from "../utils/prisma-json";
-import type {
-  ConversionData,
-  PlatformCredentials,
-  ConversionApiResponse,
-} from "../types";
 import type { PlatformSendResult } from "./platforms/interface";
 
 export { processConversionJobs, calculateNextRetryTime } from "./conversion-job.server";
@@ -250,7 +249,7 @@ export async function processPendingConversions(): Promise<{
       attempts: 0,
     },
     include: {
-      shop: {
+      Shop: {
         select: {
           id: true,
           shopDomain: true,
@@ -263,7 +262,6 @@ export async function processPendingConversions(): Promise<{
               platform: true,
               platformId: true,
               credentialsEncrypted: true,
-              credentials: true,
             },
           },
         },
@@ -284,7 +282,7 @@ export async function processPendingConversions(): Promise<{
 
       const billingCheck = await checkBillingGate(
         log.shopId,
-        (log.shop.plan || "free") as PlanId
+        (log.Shop.plan || "free") as PlanId
       );
 
       if (!billingCheck.allowed) {
@@ -304,7 +302,7 @@ export async function processPendingConversions(): Promise<{
         continue;
       }
 
-      const pixelConfig = log.shop.pixelConfigs.find((pc) => pc.platform === log.platform);
+      const pixelConfig = log.Shop.pixelConfigs.find((pc) => pc.platform === log.platform);
       if (!pixelConfig) {
         await prisma.conversionLog.update({
           where: { id: log.id },
@@ -335,7 +333,7 @@ export async function processPendingConversions(): Promise<{
       }
       const credentials = credResult.value.credentials;
 
-      const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.shop.shopDomain);
+      const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.Shop.shopDomain);
       const conversionData: ConversionData = {
         orderId: log.orderId,
         orderNumber: log.orderNumber,
@@ -388,7 +386,7 @@ export async function processRetries(): Promise<{
       nextRetryAt: { lte: now },
     },
     include: {
-      shop: {
+      Shop: {
         select: {
           id: true,
           shopDomain: true,
@@ -413,7 +411,7 @@ export async function processRetries(): Promise<{
 
       const billingCheck = await checkBillingGate(
         log.shopId,
-        (log.shop.plan || "free") as PlanId
+        (log.Shop.plan || "free") as PlanId
       );
 
       if (!billingCheck.allowed) {
@@ -433,7 +431,7 @@ export async function processRetries(): Promise<{
         continue;
       }
 
-      const pixelConfig = log.shop.pixelConfigs.find((pc) => pc.platform === log.platform);
+      const pixelConfig = log.Shop.pixelConfigs.find((pc) => pc.platform === log.platform);
       if (!pixelConfig) {
         await scheduleRetry(log.id, "Pixel config not found or disabled");
         failed++;
@@ -456,7 +454,7 @@ export async function processRetries(): Promise<{
       }
       const credentials = credResult2.value.credentials;
 
-      const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.shop.shopDomain);
+      const eventId = log.eventId || generateEventId(log.orderId, log.eventType, log.Shop.shopDomain);
       const conversionData: ConversionData = {
         orderId: log.orderId,
         orderNumber: log.orderNumber,

@@ -25,6 +25,7 @@ import { ConfigComparison } from "~/components/settings/ConfigComparison";
 import { VersionHistory } from "~/components/settings/VersionHistory";
 import { useState, useEffect, useCallback } from "react";
 import { useFetcher } from "@remix-run/react";
+import type { PixelConfigSnapshot } from "~/services/pixel-rollback.server";
 
 type PixelEnvironment = "test" | "live";
 
@@ -124,23 +125,22 @@ export function ServerTrackingTab({
   const [historyTab, setHistoryTab] = useState(0);
   const comparisonFetcher = useFetcher<{
     comparison?: {
-      current?: Record<string, unknown>;
-      previous?: Record<string, unknown>;
-      differences?: string[];
+      current: PixelConfigSnapshot & { version: number; updatedAt: string };
+      previous: PixelConfigSnapshot | null;
+      differences: Array<{
+        field: string;
+        current: unknown;
+        previous: unknown;
+        changed: boolean;
+      }>;
     }
   }>();
   const historyFetcher = useFetcher<{
     history?: Array<{
       version: number;
-      config: {
-        platformId: string | null;
-        credentialsEncrypted: string | null;
-        eventMappings: Record<string, string> | null;
-        environment: string;
-        clientSideEnabled: boolean;
-        serverSideEnabled: boolean;
-      };
-      savedAt: string;
+      timestamp: string;
+      operation: string;
+      changes: Record<string, unknown>;
     }>
   }>();
 
@@ -500,15 +500,28 @@ export function ServerTrackingTab({
                   <Box paddingBlockStart="400">
                     {historyTab === 0 && comparisonFetcher.data?.comparison && (
                       <ConfigComparison
-                        current={comparisonFetcher.data.comparison.current}
-                        previous={comparisonFetcher.data.comparison.previous}
-                        differences={comparisonFetcher.data.comparison.differences}
+                        current={{
+                          ...comparisonFetcher.data.comparison.current,
+                          updatedAt: new Date(comparisonFetcher.data.comparison.current.updatedAt),
+                        }}
+                        previous={comparisonFetcher.data.comparison.previous ? {
+                          ...comparisonFetcher.data.comparison.previous,
+                        } : null}
+                        differences={comparisonFetcher.data.comparison.differences.map(d => ({
+                          field: d.field,
+                          current: d.current ?? undefined,
+                          previous: d.previous ?? undefined,
+                          changed: d.changed ?? false,
+                        }))}
                         platform={serverPlatform}
                       />
                     )}
                     {historyTab === 1 && historyFetcher.data?.history && (
                       <VersionHistory
-                        history={historyFetcher.data.history}
+                        history={historyFetcher.data.history.map(item => ({
+                          ...item,
+                          timestamp: new Date(item.timestamp),
+                        }))}
                         platform={serverPlatform}
                       />
                     )}

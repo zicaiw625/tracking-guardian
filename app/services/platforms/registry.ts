@@ -168,9 +168,9 @@ export function initializePlatformRegistry(
   platformRegistry.register("google", services?.google ?? googleService);
   platformRegistry.register("meta", services?.meta ?? metaService);
   platformRegistry.register("tiktok", services?.tiktok ?? tiktokService);
-  platformRegistry.register("pinterest", services?.pinterest ?? pinterestService);
-  platformRegistry.register("snapchat", services?.snapchat ?? snapchatService);
-  platformRegistry.register("twitter", services?.twitter ?? twitterService);
+  platformRegistry.register("pinterest" as Platform, services?.["pinterest" as Platform] ?? pinterestService);
+  platformRegistry.register("snapchat" as Platform, services?.["snapchat" as Platform] ?? snapchatService);
+  platformRegistry.register("twitter" as Platform, services?.["twitter" as Platform] ?? twitterService);
 
   logger.info("Platform registry initialized", {
     platforms: platformRegistry.getPlatforms(),

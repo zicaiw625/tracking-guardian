@@ -1,9 +1,12 @@
 
 
+import { randomUUID } from "crypto";
 import prisma from "../../db.server";
 import { logger } from "../../utils/logger.server";
 import { scanShopTracking } from "../scanner.server";
-import type { AdminApiContext } from "../../types";
+import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
+import { Prisma } from "@prisma/client";
+import { toInputJsonValue } from "../../utils/prisma-json";
 
 export interface BatchScanJob {
   id: string;
@@ -101,11 +104,26 @@ export async function executeBatchScan(
 
       const scanResult = await scanShopTracking(admin, shopId);
 
+      // Create ScanReport record in database
+      const scanReport = await prisma.scanReport.create({
+        data: {
+          id: randomUUID(),
+          shopId,
+          scriptTags: toInputJsonValue(scanResult.scriptTags),
+          checkoutConfig: scanResult.checkoutConfig ? toInputJsonValue(scanResult.checkoutConfig) : Prisma.JsonNull,
+          riskItems: toInputJsonValue(scanResult.riskItems),
+          riskScore: scanResult.riskScore,
+          identifiedPlatforms: toInputJsonValue(scanResult.identifiedPlatforms),
+          status: "completed",
+          completedAt: new Date(),
+        },
+      });
+
       return {
         shopId,
         shopDomain: shop.shopDomain,
         status: "success",
-        scanReportId: scanResult.id,
+        scanReportId: scanReport.id,
       };
     } catch (error) {
       logger.error(`Batch scan failed for shop ${shopId}`, error);
@@ -198,9 +216,9 @@ export async function getBatchScanSummary(job: BatchScanJob): Promise<{
 
         if (scanReport?.identifiedPlatforms) {
           const platforms = Array.isArray(scanReport.identifiedPlatforms)
-            ? scanReport.identifiedPlatforms
+            ? (scanReport.identifiedPlatforms as string[])
             : [];
-          platforms.forEach((platform) => {
+          platforms.forEach((platform: string) => {
             summary.platforms[platform] = (summary.platforms[platform] || 0) + 1;
           });
         }

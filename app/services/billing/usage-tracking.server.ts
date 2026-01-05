@@ -51,7 +51,7 @@ export async function getUsageTracking(
         },
       }),
 
-      prisma.eventLog.count({
+      prisma.pixelEventReceipt.count({
         where: {
           shopId,
           createdAt: {
@@ -75,7 +75,7 @@ export async function getUsageTracking(
       }),
     ]);
 
-    const monthlyOrders = new Set(conversionLogs.map((log) => log.orderId)).size;
+    const monthlyOrders = new Set(conversionLogs.map((log: { orderId: string }) => log.orderId)).size;
 
     const { getPixelDestinationsLimit, getUiModulesLimit, getPlanLimit } = await import("./plans");
 

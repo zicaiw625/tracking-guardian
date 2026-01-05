@@ -235,7 +235,8 @@ export function DisplayRulesEditor({
             <Text as="p" variant="bodySm" tone="subdued">
               只有来自指定国家/地区的订单才会显示此模块
             </Text>
-            <Box padding="300" background="bg-surface-secondary" borderRadius="200" style={{ maxHeight: "200px", overflowY: "auto" }}>
+            <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+              <div style={{ maxHeight: "200px", overflowY: "auto" }}>
               <BlockStack gap="200">
                 {COMMON_COUNTRIES.map((country) => (
                   <Checkbox
@@ -248,6 +249,7 @@ export function DisplayRulesEditor({
                   />
                 ))}
               </BlockStack>
+              </div>
             </Box>
             {displayRules.conditions?.countries &&
               displayRules.conditions.countries.length > 0 && (

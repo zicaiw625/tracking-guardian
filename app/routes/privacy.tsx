@@ -31,7 +31,7 @@ export default function PublicPrivacyPolicy() {
   const { lastUpdated, contactEmail } = useLoaderData<typeof loader>();
 
   return (
-    <AppProvider i18n={i18n}>
+    <AppProvider i18n={i18n as any}>
       <div style={{ maxWidth: "800px", margin: "0 auto", padding: "2rem" }}>
         <BlockStack gap="500">
           <BlockStack gap="200">
@@ -55,9 +55,11 @@ export default function PublicPrivacyPolicy() {
                 <Text as="p" variant="bodySm">
                   <strong>隐私优先设计：</strong>本应用采用<strong>默认隐私最小化</strong>设计。默认情况下，我们<strong>不收集或处理任何个人身份信息（PII）</strong>。商家可选择性启用增强匹配功能以提升转化追踪准确性，但必须确认其合规义务（GDPR、CCPA 等）并明确同意启用。
                 </Text>
-                <Box as="p" style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
-                  <strong>代码能力与隐私政策一致性：</strong>本应用的代码实现中<strong>包含</strong>处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code>、<code>isPiiFullyEnabled</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。默认模式下，即使代码中存在这些能力，我们<strong>不会处理任何 PII 数据</strong>。仅在商家主动启用增强匹配功能<strong>且满足所有合规条件</strong>时才会处理哈希后的 PII。此设计确保代码能力与隐私政策声明完全一致，符合 Shopify App Store 审核要求。
-                </Box>
+                <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
+                  <Text as="p">
+                    <strong>代码能力与隐私政策一致性：</strong>本应用的代码实现中<strong>包含</strong>处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code>、<code>isPiiFullyEnabled</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。默认模式下，即使代码中存在这些能力，我们<strong>不会处理任何 PII 数据</strong>。仅在商家主动启用增强匹配功能<strong>且满足所有合规条件</strong>时才会处理哈希后的 PII。此设计确保代码能力与隐私政策声明完全一致，符合 Shopify App Store 审核要求。
+                  </Text>
+                </div>
               </Banner>
 
               <BlockStack gap="200">
@@ -72,9 +74,11 @@ export default function PublicPrivacyPolicy() {
                 <Text as="p">
                   默认情况下，Tracking Guardian 仅处理订单事件必要字段，<strong>不收集或处理任何个人身份信息（PII）</strong>。此模式符合 Shopify Web Pixels 的隐私最小化原则，适用于所有商家，无需额外配置。
                 </Text>
-                <Box as="p" style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>
-                  <strong>默认数据处理范围：</strong>
-                </Box>
+                <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>
+                  <Text as="p">
+                    <strong>默认数据处理范围：</strong>
+                  </Text>
+                </div>
                 <List type="bullet">
                   <List.Item>
                     <strong>订单数据（来自 Shopify Webhooks）：</strong> 订单 ID、订单号、订单金额、货币、商品信息（商品 ID、名称、数量）以及结账令牌（用于事件关联）。这些数据<strong>不包含</strong>客户姓名、邮箱、电话或地址等 PII。
@@ -104,12 +108,16 @@ export default function PublicPrivacyPolicy() {
                 <Text as="p">
                   商家可在应用设置中启用<strong>增强匹配/广告转化</strong>功能以提升转化追踪准确性。此功能<strong>默认关闭</strong>，必须由商家主动启用并确认合规。
                 </Text>
-                <Box as="p" style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>
-                  <strong>代码能力说明：</strong>本应用的代码实现中<strong>包含</strong>处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code>、<code>isPiiFullyEnabled</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。在应用设置中，商家必须明确勾选"启用增强匹配"并确认合规义务，系统才会处理 PII。即使商家勾选了启用选项，如果 Shopify 未提供 PII 字段（例如因 PCD 限制或客户未同意），应用代码会自动跳过 PII 处理，仅发送非 PII 事件数据。我们不会尝试从其他来源获取 PII，也不会在未获得明确授权的情况下处理 PII。
-                </Box>
-                <Box as="p" style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>
-                  <strong>合规说明（参考 Shopify 官方要求）：</strong>本应用遵循 Shopify Web Pixels 和 Protected Customer Data (PCD) 的严格隐私要求。增强匹配功能仅在以下条件<strong>全部满足</strong>时才会启用。我们不会在未满足这些条件的情况下处理 PII，即使商家误操作也不会触发 PII 处理。如果 Shopify 因 PCD 限制或客户未同意而未提供 PII 字段，应用会自动回退到默认隐私优先模式（仅发送非 PII 事件数据）。
-                </Box>
+                <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>
+                  <Text as="p">
+                    <strong>代码能力说明：</strong>本应用的代码实现中<strong>包含</strong>处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code>、<code>isPiiFullyEnabled</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。在应用设置中，商家必须明确勾选"启用增强匹配"并确认合规义务，系统才会处理 PII。即使商家勾选了启用选项，如果 Shopify 未提供 PII 字段（例如因 PCD 限制或客户未同意），应用代码会自动跳过 PII 处理，仅发送非 PII 事件数据。我们不会尝试从其他来源获取 PII，也不会在未获得明确授权的情况下处理 PII。
+                  </Text>
+                </div>
+                <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>
+                  <Text as="p">
+                    <strong>合规说明（参考 Shopify 官方要求）：</strong>本应用遵循 Shopify Web Pixels 和 Protected Customer Data (PCD) 的严格隐私要求。增强匹配功能仅在以下条件<strong>全部满足</strong>时才会启用。我们不会在未满足这些条件的情况下处理 PII，即使商家误操作也不会触发 PII 处理。如果 Shopify 因 PCD 限制或客户未同意而未提供 PII 字段，应用会自动回退到默认隐私优先模式（仅发送非 PII 事件数据）。
+                  </Text>
+                </div>
                 <Text as="p" fontWeight="bold">
                   启用此功能的前提条件（必须全部满足）：
                 </Text>

@@ -38,6 +38,20 @@ export type TransactionClient = Omit<
   "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
 >;
 
+/**
+ * Common interface for Prisma model delegates
+ * Each Prisma model has a delegate with these standard methods
+ */
+export interface PrismaDelegate<TModel> {
+  findUnique(args: { where: { id: string }; [key: string]: unknown }): Promise<TModel | null>;
+  findFirst(args?: { where?: Record<string, unknown>; [key: string]: unknown }): Promise<TModel | null>;
+  findMany(args?: { where?: Record<string, unknown>; [key: string]: unknown }): Promise<TModel[]>;
+  count(args?: { where?: Record<string, unknown> }): Promise<number>;
+  create(args: { data: unknown; [key: string]: unknown }): Promise<TModel>;
+  update(args: { where: { id: string }; data: unknown; [key: string]: unknown }): Promise<TModel>;
+  delete(args: { where: { id: string } }): Promise<TModel>;
+}
+
 export abstract class BaseRepository<
   TModel extends BaseModel,
   TCreate,
@@ -51,7 +65,13 @@ export abstract class BaseRepository<
     this.modelName = modelName;
   }
 
-  protected abstract getDelegate(client?: TransactionClient): any;
+  /**
+   * Get the Prisma delegate for this model
+   * Note: Type is simplified to PrismaDelegate interface since actual Prisma delegate types
+   * are model-specific and TypeScript cannot express this polymorphism well.
+   * Subclasses should return the actual delegate (e.g., db.shop, db.pixelConfig, etc.)
+   */
+  protected abstract getDelegate(client?: TransactionClient): PrismaDelegate<TModel>;
 
   async findById(
     id: string,

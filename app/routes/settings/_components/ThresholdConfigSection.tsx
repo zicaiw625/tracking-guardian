@@ -23,9 +23,17 @@ export function ThresholdConfigSection({
   failureRateThreshold,
   onFailureRateChange,
 }: ThresholdConfigSectionProps) {
-  const recommendationsFetcher = useFetcher();
-  const currentFetcher = useFetcher();
-  const testFetcher = useFetcher();
+  const recommendationsFetcher = useFetcher<{ recommendations?: { failureRate?: number; missingParams?: number; volumeDrop?: number } }>();
+  const currentFetcher = useFetcher<{ current?: { failureRate?: number; missingParams?: number; volumeDrop?: number } }>();
+  const testFetcher = useFetcher<{ 
+    testResult?: { 
+      passed?: boolean; 
+      message?: string;
+      failureRate?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
+      missingParams?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
+      volumeDrop?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
+    } 
+  }>();
 
   const [missingParamsThreshold, setMissingParamsThreshold] = useState(5);
   const [volumeDropThreshold, setVolumeDropThreshold] = useState(50);
@@ -35,9 +43,15 @@ export function ThresholdConfigSection({
     currentFetcher.load("/api/threshold-recommendations?action=current");
   }, []);
 
-  const recommendations = recommendationsFetcher.data?.recommendations;
-  const currentValues = currentFetcher.data?.current;
-  const testResult = testFetcher.data?.testResult;
+  const recommendations = recommendationsFetcher.data?.recommendations as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
+  const currentValues = currentFetcher.data?.current as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
+  const testResult = testFetcher.data?.testResult as { 
+    passed?: boolean; 
+    message?: string;
+    failureRate?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
+    missingParams?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
+    volumeDrop?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
+  } | undefined;
 
   const handleTest = () => {
     testFetcher.load(
@@ -64,7 +78,7 @@ export function ThresholdConfigSection({
             { min: 10, max: 50, tone: "critical" },
           ]}
         />
-        {currentValues && (
+        {currentValues && currentValues.failureRate !== undefined && (
           <Box paddingBlockStart="200" paddingBlockEnd="200">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="span" variant="bodySm" tone="subdued">
@@ -76,17 +90,17 @@ export function ThresholdConfigSection({
             </InlineStack>
           </Box>
         )}
-        {recommendations && (
+        {recommendations && recommendations.failureRate !== undefined && (
           <Banner tone="info">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm">
                 推荐值: {recommendations.failureRate.toFixed(1)}%（基于历史数据）
               </Text>
-              {Math.abs(failureRateThreshold - recommendations.failureRate) > 0.5 && (
+              {Math.abs(failureRateThreshold - (recommendations.failureRate ?? 0)) > 0.5 && (
                 <Button
                   size="slim"
                   variant="secondary"
-                  onClick={() => onFailureRateChange(recommendations.failureRate)}
+                  onClick={() => onFailureRateChange(recommendations.failureRate ?? 0)}
                 >
                   应用推荐值
                 </Button>
@@ -115,7 +129,7 @@ export function ThresholdConfigSection({
             { min: 10, max: 50, tone: "critical" },
           ]}
         />
-        {currentValues && (
+        {currentValues && currentValues.missingParams !== undefined && (
           <Box paddingBlockStart="200" paddingBlockEnd="200">
             <InlineStack align="space-between" blockAlign="center">
               <Text as="span" variant="bodySm" tone="subdued">
@@ -127,17 +141,17 @@ export function ThresholdConfigSection({
             </InlineStack>
           </Box>
         )}
-        {recommendations && (
+        {recommendations && recommendations.missingParams !== undefined && (
           <Banner tone="info">
             <BlockStack gap="200">
               <Text as="p" variant="bodySm">
                 推荐值: {recommendations.missingParams.toFixed(1)}%（基于历史数据）
               </Text>
-              {Math.abs(missingParamsThreshold - recommendations.missingParams) > 0.5 && (
+              {Math.abs(missingParamsThreshold - (recommendations.missingParams ?? 0)) > 0.5 && (
                 <Button
                   size="slim"
                   variant="secondary"
-                  onClick={() => setMissingParamsThreshold(recommendations.missingParams)}
+                  onClick={() => setMissingParamsThreshold(recommendations.missingParams ?? 0)}
                 >
                   应用推荐值
                 </Button>
@@ -174,20 +188,20 @@ export function ThresholdConfigSection({
       </Button>
 
       {}
-      {testResult && (
-        <Banner tone={testResult.failureRate.wouldTrigger || testResult.missingParams.wouldTrigger ? "warning" : "success"}>
+      {testResult && testResult.failureRate && testResult.missingParams && testResult.volumeDrop && (
+        <Banner tone={(testResult.failureRate.wouldTrigger || testResult.missingParams.wouldTrigger) ? "warning" : "success"}>
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
               测试结果（过去24小时）
             </Text>
             <Text as="p" variant="bodySm">
-              失败率: {testResult.failureRate.wouldTrigger ? "⚠️ 将触发" : "✅ 正常"}（当前: {testResult.failureRate.currentValue.toFixed(2)}%，阈值: {testResult.failureRate.threshold.toFixed(1)}%）
+              失败率: {testResult.failureRate.wouldTrigger ? "⚠️ 将触发" : "✅ 正常"}（当前: {(testResult.failureRate.currentValue ?? 0).toFixed(2)}%，阈值: {(testResult.failureRate.threshold ?? 0).toFixed(1)}%）
             </Text>
             <Text as="p" variant="bodySm">
-              缺参率: {testResult.missingParams.wouldTrigger ? "⚠️ 将触发" : "✅ 正常"}（当前: {testResult.missingParams.currentValue.toFixed(2)}%，阈值: {testResult.missingParams.threshold.toFixed(1)}%）
+              缺参率: {testResult.missingParams.wouldTrigger ? "⚠️ 将触发" : "✅ 正常"}（当前: {(testResult.missingParams.currentValue ?? 0).toFixed(2)}%，阈值: {(testResult.missingParams.threshold ?? 0).toFixed(1)}%）
             </Text>
             <Text as="p" variant="bodySm">
-              事件量骤降: {testResult.volumeDrop.wouldTrigger ? "⚠️ 将触发" : "✅ 正常"}（变化: {testResult.volumeDrop.currentValue.toFixed(2)}%，阈值: {testResult.volumeDrop.threshold.toFixed(1)}%）
+              事件量骤降: {testResult.volumeDrop.wouldTrigger ? "⚠️ 将触发" : "✅ 正常"}（变化: {(testResult.volumeDrop.currentValue ?? 0).toFixed(2)}%，阈值: {(testResult.volumeDrop.threshold ?? 0).toFixed(1)}%）
             </Text>
           </BlockStack>
         </Banner>

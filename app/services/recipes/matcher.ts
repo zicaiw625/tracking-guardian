@@ -17,7 +17,7 @@ export interface MatchResult {
 
 export function matchScriptToRecipes(
   content: string,
-  identifier?: string
+  identifier?: string | number
 ): RecipeMatch[] {
   const matches: RecipeMatch[] = [];
   for (const recipe of RECIPE_REGISTRY) {
@@ -52,7 +52,7 @@ export function matchScriptToRecipes(
             confidence,
             matchedPattern: pattern,
             sourceContent: content.substring(0, 500),
-            sourceIdentifier: identifier,
+            sourceIdentifier: identifier != null ? String(identifier) : undefined,
           });
         }
       }
@@ -75,11 +75,11 @@ export function matchScriptTagsToRecipes(scriptTags: ScriptTag[]): MatchResult {
   for (const tag of scriptTags) {
     const content = tag.src || "";
     const identifier = tag.id;
-    const matches = matchScriptToRecipes(content, identifier);
+    const matches = matchScriptToRecipes(content, identifier != null ? String(identifier) : undefined);
     if (matches.length > 0) {
       allMatches.push(...matches);
     } else if (content) {
-      unmatched.push({ content, identifier: identifier ? String(identifier) : undefined });
+      unmatched.push({ content, identifier: identifier != null ? String(identifier) : undefined });
     }
   }
   const recipeMap = new Map<string, RecipeMatch>();

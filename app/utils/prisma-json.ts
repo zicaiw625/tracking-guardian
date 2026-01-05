@@ -237,9 +237,9 @@ export function mergeConsentStates(
   };
 }
 
-export function toInputJsonValue(value: unknown): Prisma.InputJsonValue | typeof Prisma.DbNull {
+export function toInputJsonValue(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   if (value === undefined || value === null) {
-    return Prisma.DbNull;
+    return Prisma.JsonNull;
   }
   return value as Prisma.InputJsonValue;
 }

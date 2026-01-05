@@ -101,11 +101,21 @@ export function checkFeatureAccess(
     return { allowed: true };
   }
 
-  const hasAccess = planSupportsFeature(shopPlan, feature);
+  // Handle features that are not in planSupportsFeature
+  let hasAccess = false;
+  const standardFeatures: readonly ("verification" | "alerts" | "reconciliation" | "agency" | "report_export")[] = ["verification", "alerts", "reconciliation", "agency", "report_export"] as const;
+  const alwaysAvailableFeatures: readonly ("pixel_migration" | "ui_modules" | "audit")[] = ["pixel_migration", "ui_modules", "audit"] as const;
+  
+  if (alwaysAvailableFeatures.includes(feature as "pixel_migration" | "ui_modules" | "audit")) {
+    // These features are always available
+    hasAccess = true;
+  } else if (standardFeatures.includes(feature as "verification" | "alerts" | "reconciliation" | "agency" | "report_export")) {
+    hasAccess = planSupportsFeature(shopPlan, feature as "verification" | "alerts" | "reconciliation" | "agency" | "report_export");
+  }
 
   if (!hasAccess) {
     const planConfig = getPlanOrDefault(shopPlan);
-    const featureNames: Record<typeof feature, string> = {
+    const featureNames: Record<string, string> = {
       verification: "验收功能",
       alerts: "告警功能",
       reconciliation: "事件对账",
