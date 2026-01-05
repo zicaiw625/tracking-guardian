@@ -54,86 +54,9 @@ function normalize(value: string | null | undefined): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function extractPIISafely(
-  payload: OrderWebhookPayload | null | undefined,
-  piiEnabled: boolean
-): ExtractedPII {
-  if (!piiEnabled || !payload) {
-    return {};
-  }
-
-  const billingAddress = payload.billing_address || {};
-  const customer = payload.customer || {};
-
-  return {
-    email: normalize(payload.email),
-    phone: normalize(payload.phone) || normalize(billingAddress.phone),
-    firstName:
-      normalize(customer.first_name) || normalize(billingAddress.first_name),
-    lastName:
-      normalize(customer.last_name) || normalize(billingAddress.last_name),
-    city: normalize(billingAddress.city),
-    state: normalize(billingAddress.province),
-    country: normalize(billingAddress.country_code),
-    zip: normalize(billingAddress.zip),
-  };
-}
-
-export function hasPII(pii: ExtractedPII): boolean {
-  return !!(
-    pii.email ||
-    pii.phone ||
-    pii.firstName ||
-    pii.lastName ||
-    pii.city ||
-    pii.state ||
-    pii.country ||
-    pii.zip
-  );
-}
-
-export function logPIIStatus(
-  orderId: string,
-  pii: ExtractedPII,
-  piiEnabled: boolean
-): void {
-  if (!piiEnabled) {
-    logger.debug(`[PII] Order ${orderId}: PII disabled`);
-    return;
-  }
-
-  const available: string[] = [];
-  const missing: string[] = [];
-  const fields = [
-    "email",
-    "phone",
-    "firstName",
-    "lastName",
-    "city",
-    "state",
-    "country",
-    "zip",
-  ] as const;
-
-  for (const field of fields) {
-    if (pii[field]) {
-      available.push(field);
-    } else {
-      missing.push(field);
-    }
-  }
-
-  if (available.length === 0) {
-    logger.debug(
-      `[PII] Order ${orderId}: No PII available. ` +
-        `This may indicate Protected Customer Data access is not granted.`
-    );
-  } else {
-    logger.debug(
-      `[PII] Order ${orderId}: Available=[${available.join(",")}], Missing=[${missing.join(",")}]`
-    );
-  }
-}
+// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此完全删除 extractPIISafely, hasPII, logPIIStatus 函数
+// 这些函数仅用于订单 webhook 处理，v1.0 不处理订单 webhooks
+// 如果将来需要 PII 处理，这些函数将在 v1.1 中重新引入
 
 export function maskEmail(email: string | undefined): string | undefined {
   if (!email) return undefined;
@@ -272,34 +195,6 @@ export function normalizeEmail(email: string): string {
   return email.toLowerCase().trim();
 }
 
-export function calculatePIIQuality(pii: ExtractedPII): number {
-  const weights = {
-    email: 30,
-    phone: 25,
-    firstName: 10,
-    lastName: 10,
-    city: 5,
-    state: 5,
-    country: 10,
-    zip: 5,
-  };
-
-  let score = 0;
-
-  for (const [field, weight] of Object.entries(weights)) {
-    if (pii[field as keyof ExtractedPII]) {
-      score += weight;
-    }
-  }
-
-  return score;
-}
-
-export function getPIIQualityLabel(
-  score: number
-): "high" | "medium" | "low" | "none" {
-  if (score >= 70) return "high";
-  if (score >= 40) return "medium";
-  if (score > 0) return "low";
-  return "none";
-}
+// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此完全删除 calculatePIIQuality 和 getPIIQualityLabel 函数
+// 这些函数仅用于评估 PII 数据质量，v1.0 不处理任何 PII
+// 如果将来需要 PII 处理，这些函数将在 v1.1 中重新引入

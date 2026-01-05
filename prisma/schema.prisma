@@ -72,8 +72,6 @@ model AuditLog {
   previousValue Json?
   newValue      Json?
   metadata      Json?
-  ipAddress     String?
-  userAgent     String?
   createdAt     DateTime @default(now())
   Shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
@@ -281,11 +279,6 @@ model PixelConfig {
   priority             Int?      @default(0)
   Shop                 Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // P0-3: 支持同一平台多个目的地配置
-  // - 使用包含 platformId 的唯一约束，允许通过 platformId 区分多个配置
-  //   例如：多个 GA4 property（platformId = "G-XXXXX"）、多个 Meta Pixel（platformId = "123456789"）
-  // - 如果 platformId 为 null，同一店铺、同一平台、同一环境只能有 1 个配置（向后兼容）
-  // - 如果 platformId 不为 null，同一店铺、同一平台、同一环境可以有多个配置（通过不同的 platformId 区分）
   @@unique([shopId, platform, environment, platformId])
   @@index([environment])
   @@index([platform])
@@ -434,7 +427,6 @@ model Shop {
   updatedAt               DateTime
   dataRetentionDays       Int                    @default(90)
   ingestionSecret         String?
-  piiEnabled              Boolean                @default(false)
   weakConsentMode         Boolean                @default(false)
   consentStrategy         String                 @default("strict")
   previousIngestionSecret String?
@@ -445,8 +437,6 @@ model Shop {
   shopTier                String?
   typOspPagesEnabled      Boolean?
   typOspUpdatedAt         DateTime?
-  pcdAcknowledged         Boolean                @default(false)
-  pcdAcknowledgedAt       DateTime?
   typOspLastCheckedAt     DateTime?
   typOspDetectedAt        DateTime?
   typOspStatusReason      String?
@@ -457,6 +447,8 @@ model Shop {
   AuditLog                AuditLog[]
   ConversionJob           ConversionJob[]
   ConversionLog           ConversionLog[]
+  DeliveryAttempt         DeliveryAttempt[]
+  EventLog                EventLog[]
   MigrationDraft          MigrationDraft?
   MigrationTask           MigrationTask[]
   MonthlyUsage            MonthlyUsage[]
@@ -471,8 +463,6 @@ model Shop {
   UiExtensionSetting      UiExtensionSetting[]
   VerificationRun         VerificationRun[]
   WorkspaceComment        WorkspaceComment[]
-  EventLog                EventLog[]
-  DeliveryAttempt         DeliveryAttempt[]
 }
 
 model ShopGroup {
@@ -689,49 +679,44 @@ model WorkspaceShop {
   @@index([workspaceId])
 }
 
-// P0: EventLogs - 事件证据链核心表
-// 记录所有从 web_pixel 接收到的标准化事件，用于 Verification/Reports/Monitoring
 model EventLog {
   id                  String            @id
   shopId              String
-  source              String            @default("web_pixel") // 事件来源
-  eventName           String // 如 checkout_completed
-  eventId             String // canonical dedup key（必填，用于幂等对账）
-  occurredAt          DateTime // 事件发生时间（来自 payload.timestamp）
-  shopifyContextJson  Json? // Shopify 上下文（可选，脱敏后）
-  normalizedEventJson Json // 标准化后的内部事件格式
+  source              String            @default("web_pixel")
+  eventName           String
+  eventId             String
+  occurredAt          DateTime
+  shopifyContextJson  Json?
+  normalizedEventJson Json
   createdAt           DateTime          @default(now())
-  Shop                Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
   DeliveryAttempt     DeliveryAttempt[]
+  Shop                Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  @@unique([shopId, eventId]) // 确保同一事件不会重复记录
+  @@unique([shopId, eventId])
   @@index([shopId, createdAt])
   @@index([shopId, eventName, createdAt])
   @@index([eventId])
   @@index([occurredAt])
 }
 
-// P0: DeliveryAttempts - 发送尝试记录表
-// 记录每次向目的地发送的完整请求 payload 和响应，支持复现与导出
 model DeliveryAttempt {
   id                  String   @id
-  eventLogId          String // 关联到 EventLog
+  eventLogId          String
   shopId              String
-  destinationType     String // ga4/meta/tiktok
-  environment         String   @default("live") // test/live
-  requestPayloadJson  Json // 最终请求 payload（脱敏后）
-  status              String   @default("pending") // ok/fail/skipped/skipped_dedup
-  errorCode           String? // 错误分类代码
-  errorDetail         String? // 可读错误信息
-  responseStatus      Int? // HTTP 响应状态码
-  responseBodySnippet String? // 响应体片段（可截断，限制长度）
-  latencyMs           Int? // 请求延迟（毫秒）
+  destinationType     String
+  environment         String   @default("live")
+  requestPayloadJson  Json
+  status              String   @default("pending")
+  errorCode           String?
+  errorDetail         String?
+  responseStatus      Int?
+  responseBodySnippet String?
+  latencyMs           Int?
   createdAt           DateTime @default(now())
   EventLog            EventLog @relation(fields: [eventLogId], references: [id], onDelete: Cascade)
   Shop                Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  // 唯一约束：确保同一事件对同一目的地（test/live）只记录一次成功发送
-  @@unique([shopId, eventLogId, destinationType, environment])
+  @@unique([shopId, eventLogId, destinationType, environment], map: "DeliveryAttempt_shopId_eventLogId_destinationType_environment_k")
   @@index([shopId, createdAt])
   @@index([shopId, destinationType, createdAt])
   @@index([shopId, status, createdAt])

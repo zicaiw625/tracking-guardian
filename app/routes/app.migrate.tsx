@@ -1050,7 +1050,9 @@ export default function MigratePage() {
                         <strong>重要提示：</strong>旧版脚本（script tags、additional scripts、checkout.liquid）在 Thank you / Order status 页面将被替换/弃用，且有明确的关停日期。升级后，这些脚本将无法正常工作。
                       </Text>
                       <Text as="p" tone="subdued" variant="bodySm">
-                        <strong>checkout_completed 触发边界：</strong>该事件不一定在 Thank you 页触发。当存在 upsell/post-purchase 时，可能在第一个 upsell 页触发，且 Thank you 页不再触发。若触发页加载失败则完全不触发。建议使用 server-side webhook（orders/paid）作为兜底。
+                        <strong>checkout_completed 触发边界：</strong>该事件不一定在 Thank you 页触发。当存在 upsell/post-purchase 时，可能在第一个 upsell 页触发，且 Thank you 页不再触发。若触发页加载失败则完全不触发。
+                        <br />
+                        <strong>v1.0 版本说明：</strong>v1.0 版本仅依赖 Web Pixels 标准事件，不处理订单 webhooks。请确保 checkout_completed 事件能够正常触发。
                       </Text>
                     </BlockStack>
                   </Banner>
@@ -1286,7 +1288,7 @@ export default function MigratePage() {
                     <BlockStack gap="200">
                       <Text as="span" fontWeight="semibold">2. 服务端接收 Webhook</Text>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        Shopify 发送 orders/paid webhook 到我们的服务器
+                        v1.0 版本：仅依赖 Web Pixels 标准事件（checkout_completed），不处理订单 webhooks
                       </Text>
                     </BlockStack>
                   </Box>

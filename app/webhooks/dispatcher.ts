@@ -3,14 +3,10 @@
 import { logger } from "../utils/logger.server";
 import { WebhookStatus } from "../types";
 import {
-  handleOrdersPaid,
   handleAppUninstalled,
   handleCustomersDataRequest,
   handleCustomersRedact,
   handleShopRedact,
-  handleOrdersCancelled,
-  handleOrdersUpdated,
-  handleRefundsCreate,
 } from "./handlers";
 import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
@@ -19,6 +15,8 @@ function normalizeTopic(topic: string): string {
   return topic.toUpperCase().replace(/\//g, "_");
 }
 
+// P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有订单相关 webhook handlers
+// v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
 const WEBHOOK_HANDLERS: Record<
   string,
   (
@@ -26,15 +24,10 @@ const WEBHOOK_HANDLERS: Record<
     shopRecord: ShopWithPixelConfigs | null
   ) => Promise<WebhookHandlerResult>
 > = {
-  ORDERS_PAID: handleOrdersPaid,
   APP_UNINSTALLED: handleAppUninstalled,
   CUSTOMERS_DATA_REQUEST: (ctx) => handleCustomersDataRequest(ctx),
   CUSTOMERS_REDACT: (ctx) => handleCustomersRedact(ctx),
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
-
-  ORDERS_CANCELLED: handleOrdersCancelled,
-  ORDERS_UPDATED: handleOrdersUpdated,
-  REFUNDS_CREATE: handleRefundsCreate,
 };
 
 const GDPR_TOPICS = new Set([

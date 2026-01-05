@@ -165,7 +165,9 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SCOPES=read_orders,read_script_tags,read_pixels,write_pixels,read_customer_events
+# P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 read_orders scope
+# v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 ```
@@ -242,7 +244,7 @@ railway up
 
 | 权限 | 用途 | 代码调用点 | 首次安装必需? |
 |------|------|-----------|--------------|
-| `read_orders` | 接收 `orders/paid` webhook 发送转化事件 | `webhooks.tsx` | ✅ 是 |
+| ~~`read_orders`~~ | ~~接收 `orders/paid` webhook 发送转化事件~~ | ~~`webhooks.tsx`~~ | ❌ v1.0 已移除 |
 | `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
@@ -293,8 +295,9 @@ ScriptTag 清理需要商家手动操作：
 
 ## Webhook 订阅
 
-- `orders/paid` - 订单支付时发送转化（主要使用）
-- `orders/updated` - 订单更新时同步状态
+- ~~`orders/paid`~~ - ~~订单支付时发送转化~~（v1.0 已移除，仅依赖 Web Pixels 标准事件）
+- ~~`orders/updated`~~ - ~~订单更新时同步状态~~（v1.0 已移除）
+- ~~`refunds/create`~~ - ~~退款创建时同步状态~~（v1.0 已移除）
 - `app/uninstalled` - 应用卸载时清理数据
 
 ### GDPR 合规 Webhook（自动处理）

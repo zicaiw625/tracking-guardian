@@ -5,7 +5,7 @@ import { json } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
 import prisma from "../../db.server";
 import { checkTokenExpirationIssues } from "../../services/retry.server";
-import { PCD_CONFIG } from "../../utils/config";
+// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG 导入
 import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats } from "../../services/monitoring.server";
 import { logger } from "../../utils/logger.server";
 import type { SettingsLoaderData, AlertConfigDisplay, PixelConfigDisplay } from "./types";
@@ -22,8 +22,7 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
       ingestionSecret: true,
       previousIngestionSecret: true,
       previousSecretExpiry: true,
-      piiEnabled: true,
-      pcdAcknowledged: true,
+      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 和 pcdAcknowledged 查询
       weakConsentMode: true,
       consentStrategy: true,
       dataRetentionDays: true,
@@ -142,16 +141,17 @@ export async function settingsLoader({ request }: LoaderFunctionArgs) {
           graceWindowExpiry: hasActiveGraceWindow
             ? shop.previousSecretExpiry
             : null,
-          piiEnabled: shop.piiEnabled,
-          pcdAcknowledged: shop.pcdAcknowledged,
+          // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不返回 piiEnabled、pcdAcknowledged
+          // v1.0 版本代码中已完全移除这些字段，不会返回任何 PII 相关配置
           weakConsentMode: shop.weakConsentMode,
           consentStrategy: shop.consentStrategy || "strict",
           dataRetentionDays: shop.dataRetentionDays,
         }
       : null,
     tokenIssues,
-    pcdApproved: PCD_CONFIG.APPROVED,
-    pcdStatusMessage: PCD_CONFIG.STATUS_MESSAGE,
+    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不返回 PCD 相关状态
+    pcdApproved: false,
+    pcdStatusMessage: "v1.0 版本不包含任何 PCD/PII 处理功能",
     currentMonitoringData,
   };
 

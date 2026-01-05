@@ -53,11 +53,11 @@ export default function PublicPrivacyPolicy() {
 
               <Banner tone="info">
                 <Text as="p" variant="bodySm">
-                  <strong>隐私优先设计：</strong>本应用采用<strong>默认隐私最小化</strong>设计。默认情况下，我们<strong>不收集或处理任何个人身份信息（PII）</strong>。商家可选择性启用增强匹配功能以提升转化追踪准确性，但必须确认其合规义务（GDPR、CCPA 等）并明确同意启用。
+                  <strong>隐私优先设计：</strong>本应用（v1.0）采用<strong>完全隐私最小化</strong>设计。v1.0 版本<strong>不包含任何 PII 处理功能</strong>，不收集、不处理、不发送任何个人身份信息（包括哈希值）。
                 </Text>
                 <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px" }}>
                   <Text as="p">
-                    <strong>代码能力与隐私政策一致性：</strong>本应用的代码实现中<strong>包含</strong>处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code>、<code>isPiiFullyEnabled</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。默认模式下，即使代码中存在这些能力，我们<strong>不会处理任何 PII 数据</strong>。仅在商家主动启用增强匹配功能<strong>且满足所有合规条件</strong>时才会处理哈希后的 PII。此设计确保代码能力与隐私政策声明完全一致，符合 Shopify App Store 审核要求。
+                    <strong>v1.0 版本说明：</strong>v1.0 版本仅依赖 Web Pixels 标准事件，发送订单金额、商品信息等非 PII 数据。PII 增强匹配功能（包括邮箱/电话/姓名/地址等字段的哈希处理）将在 v1.1 版本中提供（需通过 Shopify PCD 审核）。这确保 v1.0 版本完全符合 Shopify App Store 审核要求，避免 PCD 合规复杂性。
                   </Text>
                 </div>
               </Banner>
@@ -119,7 +119,7 @@ export default function PublicPrivacyPolicy() {
                       <li><strong>个人身份信息（PII）：</strong>客户邮箱地址、电话号码、姓名、地址或其他任何个人身份信息。这些信息仅在商家明确启用增强匹配功能且满足所有合规条件时才会处理（使用 SHA-256 哈希后传输）。</li>
                       <li><strong>浏览和交互事件：</strong>页面浏览（<code>page_viewed</code>）、商品浏览（<code>product_viewed</code>）、加购（<code>product_added_to_cart</code>）或结账流程中的中间事件（<code>checkout_started</code>、<code>checkout_contact_info_submitted</code>、<code>checkout_shipping_info_submitted</code>、<code>payment_info_submitted</code>）。这些事件仅在商家明确启用 Full Funnel 模式（需要 Growth 及以上套餐）时才会收集。</li>
                     </ul>
-                    <strong>注意：</strong>虽然我们的代码实现中包含订阅这些事件和处理 PII 的能力（通过 <code>mode</code> 参数和 <code>piiEnabled</code>、<code>pcdAcknowledged</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。仅在商家主动启用 Full Funnel 模式时才会订阅额外事件；仅在商家主动启用增强匹配功能且满足所有合规条件时，才会处理哈希后的 PII。
+                    <strong>注意：</strong>v1.0 版本<strong>不包含任何 PII 处理功能</strong>，代码中已完全移除所有 PII 相关配置项和逻辑。仅在商家主动启用 Full Funnel 模式时才会订阅额外事件（但仍不处理 PII）。PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核）。
                   </List.Item>
                   <List.Item>
                     <strong>数据用途：</strong> 默认模式下，所有事件仅用于 analytics（分析）目的（如 Google Analytics 4），不用于 marketing（营销）目的。事件数据仅发送到商家配置的 analytics 平台，不包含任何 PII。<strong>重要说明（代码实现说明）：</strong>Pixel 需要客户授予 analytics 同意才能加载（如果客户未授予 analytics 同意，Pixel 不会加载）。事件发送需要客户授予 analytics 同意或 marketing 同意（代码中检查 <code>hasAnalyticsConsent() || hasMarketingConsent()</code>）。如果客户未授予任何同意，事件将被跳过，不会发送到后端。这确保了完全符合 Shopify Customer Privacy API 的要求。
@@ -152,7 +152,7 @@ export default function PublicPrivacyPolicy() {
                 </Text>
                 <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>
                   <Text as="p">
-                    <strong>代码能力说明：</strong>本应用的代码实现中<strong>包含</strong>处理 PII 的能力（通过 <code>piiEnabled</code>、<code>pcdAcknowledged</code>、<code>isPiiFullyEnabled</code> 等配置项控制），但这些功能<strong>默认全部关闭</strong>。在应用设置中，商家必须明确勾选"启用增强匹配"并确认合规义务，系统才会处理 PII。即使商家勾选了启用选项，如果 Shopify 未提供 PII 字段（例如因 PCD 限制或客户未同意），应用代码会自动跳过 PII 处理，仅发送非 PII 事件数据。我们不会尝试从其他来源获取 PII，也不会在未获得明确授权的情况下处理 PII。
+                    <strong>v1.0 版本说明：</strong>v1.0 版本<strong>不包含任何 PII 处理功能</strong>，代码中已完全移除所有 PII 相关配置项和逻辑（包括 <code>piiEnabled</code>、<code>pcdAcknowledged</code>、<code>isPiiFullyEnabled</code> 等）。PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核）。v1.0 版本仅发送非 PII 事件数据（订单 ID、金额、商品信息等），不处理任何客户身份信息。
                   </Text>
                 </div>
                 <div style={{ fontSize: "13px", lineHeight: "1.5", marginTop: "8px", marginBottom: "8px" }}>

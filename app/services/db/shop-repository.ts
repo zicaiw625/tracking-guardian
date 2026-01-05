@@ -111,7 +111,7 @@ export class ShopRepository extends BaseRepository<Shop, ShopCreate, ShopUpdate>
   async updateSettings(
     shopDomain: string,
     settings: {
-      piiEnabled?: boolean;
+      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
       consentStrategy?: string;
       dataRetentionDays?: number;
       storefrontDomains?: string[];

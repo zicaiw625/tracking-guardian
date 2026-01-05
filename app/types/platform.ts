@@ -391,33 +391,17 @@ export const LineItemSchema = z.object({
   price: z.number().nonnegative(),
 });
 
-export interface PreHashedUserData {
-  em?: string;
-  ph?: string;
-  fn?: string;
-  ln?: string;
-  ct?: string;
-  st?: string;
-  country?: string;
-  zp?: string;
-}
+// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PreHashedUserData 接口
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
 export interface ConversionData {
   orderId: string;
   orderNumber: string | null;
   value: number;
   currency: string;
-  email?: string | null;
-  phone?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  city?: string | null;
-  state?: string | null;
-  country?: string | null;
-  zip?: string | null;
+  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 PII 相关字段
+  // email, phone, firstName, lastName, city, state, country, zip, preHashedUserData 已移除
   lineItems?: LineItem[];
-
-  preHashedUserData?: PreHashedUserData | null;
 }
 
 export const ConversionDataSchema = z.object({
@@ -425,14 +409,8 @@ export const ConversionDataSchema = z.object({
   orderNumber: z.string().nullable(),
   value: z.number().nonnegative(),
   currency: z.string().length(3),
-  email: z.string().email().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  firstName: z.string().nullable().optional(),
-  lastName: z.string().nullable().optional(),
-  city: z.string().nullable().optional(),
-  state: z.string().nullable().optional(),
-  country: z.string().nullable().optional(),
-  zip: z.string().nullable().optional(),
+  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 PII 相关字段
+  // email, phone, firstName, lastName, city, state, country, zip 已移除
   lineItems: z.array(LineItemSchema).optional(),
 });
 

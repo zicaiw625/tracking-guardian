@@ -22,8 +22,7 @@ interface ShopData {
   hasIngestionSecret: boolean;
   hasActiveGraceWindow: boolean;
   graceWindowExpiry: Date | string | null;
-  piiEnabled: boolean;
-  pcdAcknowledged: boolean;
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 和 pcdAcknowledged
   weakConsentMode: boolean;
   consentStrategy: string;
   dataRetentionDays: number;
@@ -31,89 +30,25 @@ interface ShopData {
 
 interface SecurityTabProps {
   shop: ShopData | null;
-  pcdApproved: boolean;
-  pcdStatusMessage: string;
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 pcdApproved 和 pcdStatusMessage
   isSubmitting: boolean;
   onRotateSecret: () => void;
 }
 
 export function SecurityTab({
   shop,
-  pcdApproved,
-  pcdStatusMessage,
   isSubmitting,
   onRotateSecret,
 }: SecurityTabProps) {
   const submit = useSubmit();
 
-  const handlePiiToggle = () => {
-
-    if (!shop?.piiEnabled) {
-
-      if (!pcdApproved) {
-        alert(
-          "⚠️ 暂时无法启用 PII 增强匹配\n\n" +
-            "【原因】\n" +
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-            "本应用尚未通过 Shopify Protected Customer Data (PCD) 审核。\n" +
-            "在获得批准之前，无法访问或使用受保护的客户数据字段。\n\n" +
-            "【当前状态】\n" +
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-            (pcdStatusMessage || "PCD 审核申请中，请等待 Shopify 审批。") +
-            "\n\n" +
-            "【您可以做什么】\n" +
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-            "✅ 使用默认的「隐私优先模式」，转化追踪功能完全正常\n" +
-            "✅ 等待我们获得 PCD 批准后再启用增强匹配\n" +
-            "✅ 如有疑问请联系我们的支持团队"
-        );
-        return;
-      }
-
-      const confirmed = confirm(
-        "⚠️ 启用 PII 增强匹配前，请仔细阅读以下内容：\n\n" +
-          "【默认模式说明】\n" +
-          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-          "✅ 默认模式下，我们不收集任何 PII，转化追踪功能完全正常\n" +
-          "✅ 默认模式可满足基本归因需求，实际效果因店铺而异\n" +
-          "✅ 仅当广告平台明确提示「匹配率不足」时，再考虑启用增强匹配\n\n" +
-          "【可选增强功能】\n" +
-          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-          "• 此功能默认关闭，必须由您主动启用并确认合规\n" +
-          "• 此功能需要通过 Shopify PCD (Protected Customer Data) 审核\n" +
-          "• 若 PII 字段不可用（返回 null），将自动回退到默认模式\n" +
-          "• 2025-12-10 起，Web Pixel 中的 PII 需要 PCD 批准才能获取\n\n" +
-          "【您的合规责任】\n" +
-          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-          "• 确保符合 GDPR/CCPA/PIPL 等隐私法规\n" +
-          "• 更新您的隐私政策，明确说明默认不收集 PII，可选增强匹配\n\n" +
-          "【我们如何处理 PII】\n" +
-          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-          "• 所有 PII 在发送前会进行 SHA256 哈希处理\n" +
-          "• 原始 PII 不会被存储，仅在内存中处理后立即丢弃\n" +
-          "• 若 PII 字段为空，转化事件仍会发送（仅缺少增强匹配）\n\n" +
-          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-          "点击「确定」表示：\n" +
-          "• 您已确认确实需要增强匹配功能\n" +
-          "• 您理解默认模式不收集 PII，启用后若 PII 不可用将自动回退\n" +
-          "• 您将更新隐私政策以符合合规要求"
-      );
-      if (!confirmed) return;
-    }
-
-    const formData = new FormData();
-    formData.append("_action", "updatePrivacySettings");
-    formData.append("piiEnabled", String(!shop?.piiEnabled));
-    formData.append("pcdAcknowledged", String(!shop?.piiEnabled));
-    formData.append("consentStrategy", shop?.consentStrategy || "strict");
-    formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
-    submit(formData, { method: "post" });
-  };
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 handlePiiToggle 函数
+  // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
   const handleDataRetentionChange = (value: string) => {
     const formData = new FormData();
     formData.append("_action", "updatePrivacySettings");
-    formData.append("piiEnabled", String(shop?.piiEnabled || false));
+    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不传递 piiEnabled
     formData.append("consentStrategy", shop?.consentStrategy || "balanced");
     formData.append("dataRetentionDays", value);
     submit(formData, { method: "post" });
@@ -128,7 +63,7 @@ export function SecurityTab({
     }
     const formData = new FormData();
     formData.append("_action", "updatePrivacySettings");
-    formData.append("piiEnabled", String(shop?.piiEnabled || false));
+    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不传递 piiEnabled
     formData.append("consentStrategy", value);
     formData.append("dataRetentionDays", String(shop?.dataRetentionDays || 90));
     submit(formData, { method: "post" });
@@ -240,224 +175,8 @@ export function SecurityTab({
 
             <Divider />
 
-            {}
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h3" variant="headingMd">
-                  隐私设置 - PII 增强匹配
-                </Text>
-                <Badge tone="info">可选功能</Badge>
-              </InlineStack>
-
-              <Banner tone="success" title="💡 提示：不启用 PII 也能正常追踪">
-                <BlockStack gap="200">
-                  <Text as="p" variant="bodySm" fontWeight="semibold">
-                    不启用 PII 增强匹配，您的转化追踪功能完全正常！
-                  </Text>
-                  <Text as="p" variant="bodySm">
-                    我们发送的订单数据（金额、商品、订单号）已经足够广告平台进行归因优化。
-                    PII 增强匹配是可选的高级功能，仅当广告平台明确建议时才需要考虑。
-                  </Text>
-                </BlockStack>
-              </Banner>
-
-              <Text as="p" variant="bodySm" tone="subdued">
-                PII
-                增强匹配可将哈希后的邮箱/电话发送到广告平台，用于提高归因准确性。
-                <strong>
-                  {" "}
-                  这是完全可选的功能，不启用也能正常使用所有转化追踪功能。
-                </strong>
-              </Text>
-
-              <Box
-                background="bg-surface-success"
-                padding="300"
-                borderRadius="200"
-              >
-                <BlockStack gap="200">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" fontWeight="semibold">
-                          PII 增强匹配
-                        </Text>
-                        <Badge tone="success">
-                          已禁用（v1.0 默认）
-                        </Badge>
-                      </InlineStack>
-                      <Text as="span" variant="bodySm" tone="subdued">
-                        <strong>v1.0 版本说明：</strong>当前版本（v1.0）不包含任何 PII 处理功能，仅发送订单金额和商品信息，采用隐私优先模式。PII 增强匹配功能（包括邮箱/电话/姓名/地址等字段的哈希处理）将在 v1.1 版本中提供。这确保 v1.0 版本完全符合 Shopify App Store 审核要求，避免 PCD 合规复杂性。
-                      </Text>
-                    </BlockStack>
-                    <Button
-                      variant="secondary"
-                      size="slim"
-                      disabled={true}
-                    >
-                      v1.1 功能（暂不可用）
-                    </Button>
-                  </InlineStack>
-                </BlockStack>
-              </Box>
-
-              {shop?.piiEnabled && (
-                <Banner
-                  title="⚠️ PII 增强匹配已启用 - 请确认您的合规义务"
-                  tone="warning"
-                >
-                  <BlockStack gap="200">
-                    <Text as="p" variant="bodySm" fontWeight="semibold">
-                      {pcdApproved
-                        ? "ℹ️ 增强匹配功能已启用。若 PII 字段不可用（返回 null），将自动降级为隐私优先模式。"
-                        : "⚠️ 注意：此功能需要 Shopify PCD 审核，若 PII 字段不可用将自动降级为隐私优先模式。"}
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      作为商户，启用 PII 增强匹配后，您需要确认以下事项：
-                    </Text>
-                    <Text as="p" variant="bodySm">
-                      ☑️
-                      您的店铺隐私政策已更新，明确说明邮箱/电话用于广告归因
-                      <br />
-                      ☑️
-                      您已确认目标市场允许此类数据处理（GDPR/CCPA/PIPL 等）
-                      <br />
-                      ☑️ 您理解哈希后的 PII 将发送到您配置的广告平台
-                    </Text>
-                    <Divider />
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      💡
-                      提醒：如果您不确定是否需要此功能，建议禁用 PII
-                      并使用默认的隐私优先模式。
-                      不启用 PII
-                      也能完整追踪转化事件，只是归因匹配率可能略低。
-                    </Text>
-                  </BlockStack>
-                </Banner>
-              )}
-
-              {!shop?.piiEnabled && (
-                <Box
-                  background="bg-fill-success-secondary"
-                  padding="400"
-                  borderRadius="200"
-                >
-                  <BlockStack gap="300">
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="success">✓ 推荐配置</Badge>
-                      <Text as="h3" variant="headingMd" tone="success">
-                        隐私优先模式 - 您当前的最佳选择
-                      </Text>
-                    </InlineStack>
-
-                    <Box
-                      background="bg-surface"
-                      padding="300"
-                      borderRadius="100"
-                    >
-                      <BlockStack gap="200">
-                        <Text
-                          as="p"
-                          variant="bodyMd"
-                          fontWeight="bold"
-                          tone="success"
-                        >
-                          🎉 恭喜！转化追踪已正常运行，无需任何额外配置！
-                        </Text>
-                        <Divider />
-                        <InlineStack gap="400" align="space-between" wrap>
-                          <BlockStack gap="100">
-                            <Text
-                              as="p"
-                              variant="bodySm"
-                              fontWeight="semibold"
-                            >
-                              📤 我们发送：
-                            </Text>
-                            <Text as="p" variant="bodySm">
-                              订单金额、货币、商品 SKU/数量
-                            </Text>
-                          </BlockStack>
-                          <BlockStack gap="100">
-                            <Text
-                              as="p"
-                              variant="bodySm"
-                              fontWeight="semibold"
-                            >
-                              🚫 我们不发送：
-                            </Text>
-                            <Text as="p" variant="bodySm">
-                              邮箱、电话、地址等 PII
-                            </Text>
-                          </BlockStack>
-                          <BlockStack gap="100">
-                            <Text
-                              as="p"
-                              variant="bodySm"
-                              fontWeight="semibold"
-                            >
-                              ✅ 追踪效果：
-                            </Text>
-                            <Text as="p" variant="bodySm">
-                              全部转化事件被准确追踪
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
-                      </BlockStack>
-                    </Box>
-
-                    <BlockStack gap="100">
-                      <Text as="p" variant="bodySm" fontWeight="semibold">
-                        为什么推荐此模式？
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        ✅ 合规更简单，无需特别声明 PII 用途
-                        <br />✅
-                        符合 GDPR（欧盟）、CCPA（美国）、PIPL（中国）等隐私法规的数据最小化原则
-                        <br />✅
-                        广告平台可以基于订单数据（金额、商品）进行归因优化
-                        <br />✅
-                        实际追踪效果因店铺情况而异，建议根据您的广告平台反馈决定
-                      </Text>
-                    </BlockStack>
-
-                    <Box
-                      background="bg-surface-secondary"
-                      padding="200"
-                      borderRadius="100"
-                    >
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        💡 <strong>什么情况下才考虑启用 PII？</strong>
-                        仅当广告平台明确告知您「匹配率过低，建议使用增强匹配」时，再考虑启用。
-                        实际效果因店铺流量来源、客户群体等因素而异。
-                      </Text>
-                    </Box>
-
-                    <Box
-                      background={
-                        pcdApproved
-                          ? "bg-surface-secondary"
-                          : "bg-surface-caution"
-                      }
-                      padding="200"
-                      borderRadius="100"
-                    >
-                      <Text
-                        as="p"
-                        variant="bodySm"
-                        tone={pcdApproved ? "subdued" : "caution"}
-                      >
-                        {pcdApproved
-                          ? "ℹ️ 增强匹配功能可尝试启用。注：若 Shopify 未返回 PII 字段，将自动以隐私优先模式运行。"
-                          : "🔒 增强匹配暂不可用：需要完成 Shopify PCD 审核流程，完成后将开放此功能。"}
-                      </Text>
-                    </Box>
-                  </BlockStack>
-                </Box>
-              )}
-            </BlockStack>
-
-            <Divider />
+            {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 PII 增强匹配相关的 UI */}
+            {/* v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据 */}
 
             {}
             <BlockStack gap="300">
@@ -523,10 +242,9 @@ export function SecurityTab({
                   </Text>
                   <Text as="p" variant="bodySm">
                     <strong>关于 PII（邮箱/电话等）：</strong>
-                    <br />• 默认模式下：本应用不会主动采集或发送 PII 数据。代码中存在处理 PII 的能力（通过 piiEnabled、pcdAcknowledged、isPiiFullyEnabled 等配置项控制），但这些功能默认全部关闭。即使代码中存在这些能力，在未启用的情况下，我们不会处理任何 PII 数据。
-                    <br />• 启用增强匹配后：需要 Shopify PCD
-                    审核才能访问受保护字段；若 PII
-                    字段为空（null），将自动降级为隐私优先模式。此设计确保代码能力与隐私政策声明完全一致。
+                    <br />• v1.0 版本：本应用不包含任何 PII 处理功能，不收集、不处理、不发送任何个人身份信息（包括哈希值）。
+                    <br />• v1.0 仅依赖 Web Pixels 标准事件，发送订单金额、商品信息等非 PII 数据。
+                    <br />• PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核）。
                   </Text>
                 </BlockStack>
               </Banner>

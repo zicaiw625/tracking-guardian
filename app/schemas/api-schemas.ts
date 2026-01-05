@@ -179,7 +179,7 @@ export const PixelConfigUpdateSchema = z.object({
 
 export const ShopSettingsUpdateSchema = z.object({
   consentStrategy: z.enum(["strict", "balanced", "weak"]).optional(),
-  piiEnabled: z.boolean().optional(),
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
   storefrontDomains: z.array(z.string().max(255)).max(10).optional(),
 });
 

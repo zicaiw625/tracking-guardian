@@ -146,9 +146,11 @@ export const DataRetentionDaysSchema = z
     "数据保留天数必须是 30、60、90、180 或 365"
   );
 
+// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此完全删除 PrivacySettingsSchema
+// 此 Schema 将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
+// 当前仅保留数据保留策略相关的配置
 export const PrivacySettingsSchema = z.object({
-  piiEnabled: z.boolean(),
-  pcdAcknowledged: z.boolean().optional(),
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 和 pcdAcknowledged 字段
   consentStrategy: ConsentStrategySchema,
   dataRetentionDays: DataRetentionDaysSchema,
 });

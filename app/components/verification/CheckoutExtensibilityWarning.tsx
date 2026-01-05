@@ -28,7 +28,9 @@ export function CheckoutExtensibilityWarning() {
               <Text as="span" variant="bodyMd">
                 <strong>checkout_completed 触发位置：</strong> 该事件不一定在 Thank you 页触发。
                 当存在 upsell / post-purchase 时，可能在第一个 upsell 页触发，且 Thank you 页不再触发。
-                若触发页加载失败则完全不触发。建议使用 server-side webhook（orders/paid）作为兜底。
+                若触发页加载失败则完全不触发。
+                <br />
+                <strong>v1.0 版本说明：</strong>v1.0 版本仅依赖 Web Pixels 标准事件，不处理订单 webhooks。
               </Text>
             </List.Item>
 
@@ -41,8 +43,8 @@ export function CheckoutExtensibilityWarning() {
           </List>
 
           <Text as="p" variant="bodySm" tone="subdued">
-            💡 <strong>建议：</strong> 在验收测试中，请特别关注 upsell 场景和 consent 变化场景，
-            并验证 server-side webhook 兜底机制是否正常工作。
+            💡 <strong>v1.0 版本说明：</strong> v1.0 版本仅依赖 Web Pixels 标准事件，不处理订单 webhooks。
+            在验收测试中，请特别关注 upsell 场景和 consent 变化场景，确保 checkout_completed 事件能够正常触发。
           </Text>
         </BlockStack>
       </BlockStack>
@@ -61,7 +63,7 @@ export function getCheckoutExtensibilityWarningText(): string {
 2. checkout_completed 触发位置
    该事件不一定在 Thank you 页触发。当存在 upsell / post-purchase 时，可能在第一个 upsell 页触发，
    且 Thank you 页不再触发。若触发页加载失败则完全不触发。
-   建议：使用 server-side webhook（orders/paid）作为兜底。
+   v1.0 版本说明：v1.0 版本仅依赖 Web Pixels 标准事件，不处理订单 webhooks。
 
 3. Web Pixel 隐私与 consent
    在需要 consent 的地区，回调会在 consent 后执行，之前注册的事件会 replay。

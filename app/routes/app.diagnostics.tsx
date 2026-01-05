@@ -28,7 +28,8 @@ interface EventFunnel {
     pixelRequests: number;
     passedOrigin: number;
     passedKey: number;
-    matchedWebhook: number;
+    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 matchedWebhook 字段
+    // v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
     sentToPlatforms: number;
     period: string;
 }
@@ -41,7 +42,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         select: {
             id: true,
             ingestionSecret: true,
-            piiEnabled: true,
+            // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
             consentStrategy: true,
             dataRetentionDays: true,
 
@@ -70,7 +71,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 pixelRequests: 0,
                 passedOrigin: 0,
                 passedKey: 0,
-                matchedWebhook: 0,
+                // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 matchedWebhook
                 sentToPlatforms: 0,
                 period: "24h",
             } as EventFunnel,
@@ -255,12 +256,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             isTrusted: true,
         },
     });
-    const matchedWebhookCount = await prisma.conversionJob.count({
-        where: {
-            shopId: shop.id,
-            createdAt: { gte: last24h },
-        },
-    });
+    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 matchedWebhook 计数
+    // v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
+    const matchedWebhookCount = 0;
     const sentToPlatformsCount = await prisma.conversionLog.count({
         where: {
             shopId: shop.id,
@@ -272,7 +270,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         pixelRequests: pixelReceiptsCount,
         passedOrigin: pixelReceiptsCount,
         passedKey: trustedReceiptsCount,
-        matchedWebhook: matchedWebhookCount,
+        // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 matchedWebhook
         sentToPlatforms: sentToPlatformsCount,
         period: "24h",
     };
@@ -290,18 +288,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             status: "failed",
         },
     });
-    const queuedJobs = await prisma.conversionJob.count({
-        where: {
-            shopId: shop.id,
-            status: { in: ["queued", "processing"] },
-        },
-    });
-    const deadLetterJobs = await prisma.conversionJob.count({
-        where: {
-            shopId: shop.id,
-            status: "dead_letter",
-        },
-    });
+    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此不再通过 orders/paid webhook 创建 ConversionJob
+    // v1.0 仅依赖 Web Pixels 标准事件，ConversionJob 仅用于历史数据查询
+    const queuedJobs = 0; // v1.0: 不再创建新的 ConversionJob
+    const deadLetterJobs = 0; // v1.0: 不再创建新的 ConversionJob
 
     const recentEventsRaw = await prisma.pixelEventReceipt.findMany({
         where: { shopId: shop.id },
@@ -319,11 +309,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const orderIds = recentEventsRaw.map((e: { orderId: string | null }) => e.orderId).filter(Boolean) as string[];
 
-    const relatedJobs = orderIds.length > 0 ? await prisma.conversionJob.findMany({
-        where: {
-            shopId: shop.id,
-            orderId: { in: orderIds }
-        },
+    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此不再通过 orders/paid webhook 创建 ConversionJob
+    // v1.0 仅依赖 Web Pixels 标准事件，ConversionJob 仅用于历史数据查询
+    const relatedJobs: never[] = []; // v1.0: 不再创建新的 ConversionJob
         select: {
             orderId: true,
             status: true,
@@ -543,9 +531,10 @@ export default function DiagnosticsPage() {
 
                 <FunnelStage label="3. 通过 Key 验证" count={data.eventFunnel.passedKey} total={data.eventFunnel.pixelRequests} description="Ingestion Key 匹配的请求"/>
 
-                <FunnelStage label="4. 匹配订单 Webhook" count={data.eventFunnel.matchedWebhook} total={data.eventFunnel.pixelRequests} description="关联到 orders/paid webhook 的事件"/>
+                {/* P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除"匹配订单 Webhook"阶段 */}
+                {/* v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks */}
 
-                <FunnelStage label="5. 成功发送到平台" count={data.eventFunnel.sentToPlatforms} total={data.eventFunnel.pixelRequests} description="通过 CAPI 发送到广告平台"/>
+                <FunnelStage label="4. 成功发送到平台" count={data.eventFunnel.sentToPlatforms} total={data.eventFunnel.pixelRequests} description="通过 CAPI 发送到广告平台"/>
               </BlockStack>
 
               {data.eventFunnel.pixelRequests === 0 && (<Banner tone="info">
@@ -578,23 +567,16 @@ export default function DiagnosticsPage() {
                           {Math.round((data.eventFunnel.passedKey / data.eventFunnel.pixelRequests) * 100)}%
                         </Text>
                       </Box>
-                      <Box>
-                        <Text as="span" variant="bodySm" tone="subdued">Webhook 匹配率: </Text>
-                        <Text as="span" fontWeight="semibold" tone={
-                          data.eventFunnel.matchedWebhook / data.eventFunnel.pixelRequests >= 0.9 ? "success" :
-                          data.eventFunnel.matchedWebhook / data.eventFunnel.pixelRequests >= 0.5 ? "caution" : "critical"
-                        }>
-                          {Math.round((data.eventFunnel.matchedWebhook / data.eventFunnel.pixelRequests) * 100)}%
-                        </Text>
-                      </Box>
+                      {/* P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除"Webhook 匹配率"指标 */}
+                      {/* v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks */}
                       <Box>
                         <Text as="span" variant="bodySm" tone="subdued">发送成功率: </Text>
                         <Text as="span" fontWeight="semibold" tone={
-                          data.eventFunnel.sentToPlatforms / data.eventFunnel.matchedWebhook >= 0.9 ? "success" :
-                          data.eventFunnel.sentToPlatforms / data.eventFunnel.matchedWebhook >= 0.5 ? "caution" : "critical"
+                          data.eventFunnel.sentToPlatforms / data.eventFunnel.pixelRequests >= 0.9 ? "success" :
+                          data.eventFunnel.sentToPlatforms / data.eventFunnel.pixelRequests >= 0.5 ? "caution" : "critical"
                         }>
-                          {data.eventFunnel.matchedWebhook > 0
-                            ? Math.round((data.eventFunnel.sentToPlatforms / data.eventFunnel.matchedWebhook) * 100)
+                          {data.eventFunnel.pixelRequests > 0
+                            ? Math.round((data.eventFunnel.sentToPlatforms / data.eventFunnel.pixelRequests) * 100)
                             : 0}%
                         </Text>
                       </Box>

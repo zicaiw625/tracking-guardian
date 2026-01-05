@@ -98,7 +98,7 @@ export {
   SCANNER_CONFIG,
   MONITORING_CONFIG,
   FEATURE_FLAGS,
-  PCD_CONFIG,
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG 导出
   INGESTION_KEY_CONFIG,
 
   validateConfig,
@@ -320,12 +320,9 @@ export {
   maskPhone,
   maskName,
   maskPII,
-  extractPIISafely,
+  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 extractPIISafely, hasPII, calculatePIIQuality, getPIIQualityLabel, logPIIStatus 导出
+  // 这些函数仅用于订单 webhook 处理，v1.0 不处理订单 webhooks
   detectPII,
-  hasPII,
-  calculatePIIQuality,
-  getPIIQualityLabel,
-  logPIIStatus,
   PII_PATTERNS,
   PII_FIELD_NAMES,
   type ExtractedPII,

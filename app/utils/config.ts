@@ -426,37 +426,20 @@ export function isDevelopment(): boolean {
     return process.env.NODE_ENV !== "production";
 }
 
-export const PCD_CONFIG = {
+// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
-    APPROVED: getBoolEnv("PCD_APPROVED", false),
-
-    STATUS_MESSAGE: getEnv("PCD_STATUS_MESSAGE", ""),
-} as const;
-
-export function getPcdConfigSummary(): {
-    approved: boolean;
-    hasCustomMessage: boolean;
-    source: "default" | "env";
-} {
-    return {
-        approved: PCD_CONFIG.APPROVED,
-        hasCustomMessage: PCD_CONFIG.STATUS_MESSAGE.length > 0,
-        source: process.env.PCD_APPROVED ? "env" : "default",
-    };
-}
-
-export const FEATURE_FLAGS = {
-
+export const     FEATURE_FLAGS = {
+    
     FUNNEL_EVENTS: getBoolEnv("FEATURE_FUNNEL_EVENTS", false),
-
+    
     DEBUG_LOGGING: getBoolEnv("FEATURE_DEBUG_LOGGING", false),
-
+    
     EXTENDED_PAYLOAD: getBoolEnv("FEATURE_EXTENDED_PAYLOAD", false),
-
+    
     TRACKING_API: getBoolEnv("FEATURE_TRACKING_API", false),
-
-    PII_HASHING: getBoolEnv("FEATURE_PII_HASHING", false),
-
+    
+    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII_HASHING feature flag
     CHECKOUT_BLOCKS: getBoolEnv("FEATURE_CHECKOUT_BLOCKS", false),
 } as const;
 
@@ -478,10 +461,7 @@ export function getFeatureFlagsSummary(): Record<string, { enabled: boolean; sou
             enabled: FEATURE_FLAGS.TRACKING_API,
             source: process.env.FEATURE_TRACKING_API ? "env" : "default",
         },
-        piiHashing: {
-            enabled: FEATURE_FLAGS.PII_HASHING,
-            source: process.env.FEATURE_PII_HASHING ? "env" : "default",
-        },
+        // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII_HASHING feature flag
         checkoutBlocks: {
             enabled: FEATURE_FLAGS.CHECKOUT_BLOCKS,
             source: process.env.FEATURE_CHECKOUT_BLOCKS ? "env" : "default",
@@ -565,7 +545,7 @@ export const CONFIG = {
 
     features: FEATURE_FLAGS,
 
-    pcd: PCD_CONFIG,
+    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG
 
     getEnv,
     getRequiredEnv,
@@ -690,7 +670,7 @@ export function getConfigSummary(): Record<string, unknown> {
         },
         retention: getRetentionConfigSummary(),
         features: getFeatureFlagsSummary(),
-        pcd: getPcdConfigSummary(),
+        // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD 配置摘要
         shopifyApiVersion: CONFIG.shopify.VERSION,
     };
 }

@@ -614,14 +614,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       consentResult
     );
 
-    // P0-4/P1-01: 多事件路由器 - 支持按 eventName 分类处理并路由到 destinations
-    // purchase 事件根据 purchaseStrategy 配置决定处理方式：
-    // - hybrid（默认，符合 PRD 要求）：同时通过 client-side 和 server-side 发送，通过 event_id 去重
-    //   * client-side：Web Pixel Extension 发送 purchase 事件到 /ingest 端点
-    //   * server-side：orders/paid webhook 触发 CAPI 发送（作为兜底和增强）
-    //   * 去重机制：使用相同的 event_id 生成逻辑，确保同一订单不会重复发送
-    // - server_side_only：仅通过 webhook 处理（CAPI 发送），不处理 client-side purchase 事件
-    //   注意：此模式不符合 PRD 的"像素迁移应直接覆盖 purchase 事件"要求，仅用于特殊场景
+    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此仅依赖 Web Pixels 标准事件
+    // v1.0 版本仅通过 client-side Web Pixel Extension 发送 purchase 事件到 /ingest 端点
+    // 不处理订单 webhooks（orders/paid 等已移除）
     if (platformsToRecord.length > 0) {
       if (isPurchaseEvent) {
         if (purchaseStrategy === "hybrid") {

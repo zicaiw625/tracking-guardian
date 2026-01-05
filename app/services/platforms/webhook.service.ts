@@ -66,10 +66,7 @@ function buildDefaultPayload(data: ConversionData, eventId: string): Record<stri
     order_number: data.orderNumber,
     value: data.value,
     currency: data.currency,
-    customer: {
-      email_hash: data.preHashedUserData?.em || null,
-      phone_hash: data.preHashedUserData?.ph || null,
-    },
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含 customer 字段
     items: data.lineItems?.map(item => ({
       product_id: item.productId,
       variant_id: item.variantId,

@@ -70,7 +70,9 @@ services:
       - key: SHOPIFY_API_SECRET
         sync: false
       - key: SCOPES
-        value: read_orders,read_script_tags,read_pixels,write_pixels,read_customer_events
+        # P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 read_orders scope
+        # v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
+        value: read_script_tags,read_pixels,write_pixels,read_customer_events
       - key: SHOPIFY_APP_URL
         sync: false  # 部署后获取的 URL
       # Security (Auto-generated)

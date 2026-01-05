@@ -99,7 +99,7 @@ export interface JobWithShop extends ConversionJob {
   readonly shop: {
     shopDomain: string;
     plan: string;
-    piiEnabled: boolean;
+    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
     consentStrategy: string;
   };
 }

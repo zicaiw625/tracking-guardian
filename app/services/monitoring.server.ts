@@ -786,7 +786,9 @@ export async function checkMonitoringAlerts(
       reason += `（1）存在 upsell/post-purchase 时，事件在第一个 upsell 页触发，Thank you 页不再触发；`;
       reason += `（2）触发页加载失败时，事件完全不触发；`;
       reason += `（3）用户未同意 analytics consent 时，事件不会触发。`;
-      reason += `建议检查 server-side webhook（orders/paid）作为兜底。`;
+      // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 orders/paid webhook 引用
+      // v1.0 仅依赖 Web Pixels 标准事件，请确保 checkout_completed 事件能够正常触发
+      reason += `v1.0 版本仅依赖 Web Pixels 标准事件，请确保 checkout_completed 事件能够正常触发。`;
     }
     
     return {

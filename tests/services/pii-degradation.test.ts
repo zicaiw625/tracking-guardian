@@ -4,7 +4,8 @@ import type { ConversionData } from "../../app/types";
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-describe("P0-01: PII Degradation Handling", () => {
+// P0-5: v1.0 版本不包含任何 PCD/PII 处理，因此更新测试以验证"不包含 PII"的行为
+describe("P0-01: v1.0 No PII Handling", () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
@@ -13,8 +14,8 @@ describe("P0-01: PII Degradation Handling", () => {
     vi.restoreAllMocks();
   });
 
-  describe("ConversionData with null PII", () => {
-    it("should accept ConversionData with all PII fields as null", () => {
+  describe("ConversionData without PII (v1.0)", () => {
+    it("should accept ConversionData without any PII fields (v1.0 behavior)", () => {
       const data: ConversionData = {
         orderId: "12345",
         orderNumber: "#1001",
@@ -31,6 +32,7 @@ describe("P0-01: PII Degradation Handling", () => {
       };
 
       expect(data.orderId).toBe("12345");
+      // P0-3: v1.0 版本不处理任何 PII，即使字段存在也应为 null/undefined
       expect(data.email).toBeNull();
       expect(data.phone).toBeNull();
     });
@@ -64,8 +66,8 @@ describe("P0-01: PII Degradation Handling", () => {
     });
   });
 
-  describe("Meta CAPI with degraded PII", () => {
-    it("should build user data with no PII without throwing", async () => {
+  describe("Meta CAPI without PII (v1.0)", () => {
+    it("should send conversion without user_data field (v1.0: no PII)", async () => {
       const { sendConversionToMeta } = await import(
         "../../app/services/platforms/meta.service"
       );
@@ -121,13 +123,13 @@ describe("P0-01: PII Degradation Handling", () => {
       const [, requestInit] = mockFetch.mock.calls[0];
       const body = JSON.parse(requestInit.body);
 
-      expect(body.data[0].user_data.em[0]).toMatch(/^[a-f0-9]{64}$/);
-      expect(body.data[0].user_data.ph).toBeUndefined();
+      // P0-3: v1.0 版本不包含 user_data 字段（不处理任何 PII）
+      expect(body.data[0].user_data).toBeUndefined();
     });
   });
 
-  describe("TikTok Events API with degraded PII", () => {
-    it("should send conversion with no PII without throwing", async () => {
+  describe("TikTok Events API without PII (v1.0)", () => {
+    it("should send conversion without user field (v1.0: no PII)", async () => {
       const { sendConversionToTikTok } = await import(
         "../../app/services/platforms/tiktok.service"
       );

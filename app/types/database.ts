@@ -18,16 +18,8 @@ export interface CapiLineItem {
   price: number;
 }
 
-export interface HashedUserDataJson {
-  em?: string;
-  ph?: string;
-  fn?: string;
-  ln?: string;
-  ct?: string;
-  st?: string;
-  country?: string;
-  zp?: string;
-}
+// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 HashedUserDataJson 接口
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
 export interface CapiInputJson {
   orderId: string;
@@ -43,8 +35,7 @@ export interface CapiInputJson {
   webhookReceivedAt?: string;
   checkoutToken?: string | null;
   shopifyOrderId?: number | string;
-
-  hashedUserData?: HashedUserDataJson | null;
+  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 hashedUserData 字段
 }
 
 export function parseCapiInput(json: unknown): CapiInputJson | null {
@@ -75,29 +66,12 @@ export function parseCapiInput(json: unknown): CapiInputJson | null {
       ? data.shopifyOrderId
       : undefined,
 
-    hashedUserData: parseHashedUserData(data.hashedUserData),
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 hashedUserData 解析
   };
 }
 
-function parseHashedUserData(json: unknown): HashedUserDataJson | null {
-  if (!json || typeof json !== 'object') {
-    return null;
-  }
-
-  const data = json as Record<string, unknown>;
-  const result: HashedUserDataJson = {};
-
-  if (typeof data.em === 'string' && data.em) result.em = data.em;
-  if (typeof data.ph === 'string' && data.ph) result.ph = data.ph;
-  if (typeof data.fn === 'string' && data.fn) result.fn = data.fn;
-  if (typeof data.ln === 'string' && data.ln) result.ln = data.ln;
-  if (typeof data.ct === 'string' && data.ct) result.ct = data.ct;
-  if (typeof data.st === 'string' && data.st) result.st = data.st;
-  if (typeof data.country === 'string' && data.country) result.country = data.country;
-  if (typeof data.zp === 'string' && data.zp) result.zp = data.zp;
-
-  return Object.keys(result).length > 0 ? result : null;
-}
+// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 parseHashedUserData 函数
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
 function parseCapiLineItem(item: unknown): CapiLineItem | null {
   if (!item || typeof item !== 'object') return null;

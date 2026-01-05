@@ -10,7 +10,7 @@ export interface ShopBasic {
   shopDomain: string;
   plan: string | null;
   consentStrategy: string | null;
-  piiEnabled: boolean;
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
   isActive: boolean;
 }
 
@@ -40,7 +40,7 @@ const SHOP_BASIC_SELECT = {
   shopDomain: true,
   plan: true,
   consentStrategy: true,
-  piiEnabled: true,
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
   isActive: true,
 } as const;
 

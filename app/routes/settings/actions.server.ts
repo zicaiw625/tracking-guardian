@@ -36,7 +36,7 @@ import {
   SecureEmailSchema,
   SecureUrlSchema,
 } from "../../utils/security";
-import { PCD_CONFIG } from "../../utils/config";
+// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG 导入
 import {
   switchEnvironment,
   rollbackConfig,
@@ -529,71 +529,29 @@ export async function handleRotateIngestionSecret(
   });
 }
 
+// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此完全移除 handleUpdatePrivacySettings 函数
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据，因此不需要隐私设置更新功能
+// 此函数将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
 export async function handleUpdatePrivacySettings(
   formData: FormData,
   shopId: string,
   sessionShop: string
 ) {
-  // P0: v1.0 版本不包含任何 PCD/PII 处理
-  // 所有 PII 相关功能（包括 hashed email/phone）已移除，将在 v1.1 中重新引入
-  // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
-  const piiRequested = formData.get("piiEnabled") === "true";
-  const pcdAcknowledged = formData.get("pcdAcknowledged") === "true";
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理
+  // 仅保留 consentStrategy 和 dataRetentionDays 的更新（这些不涉及 PII）
   const consentStrategy =
     (formData.get("consentStrategy") as string) || "strict";
   const dataRetentionDays =
     parseInt(formData.get("dataRetentionDays") as string) || 90;
 
-  // v1.0: 强制禁用 PII 功能，无论 PCD_CONFIG.APPROVED 的值如何
-  // 这是为了确保 v1.0 版本完全符合 App Store 审核要求
-  if (piiRequested) {
-    logger.warn("PII enable attempt blocked: v1.0 does not support PII processing", {
-      shopId,
-      sessionShop,
-      version: "v1.0",
-    });
-    return json({
-      success: false,
-      message:
-        "v1.0 版本不支持 PII 增强匹配功能。此功能将在 v1.1 版本中提供。",
-      requirePcdApproval: false,
-      versionRestriction: true,
-    });
-  }
-
-  // v1.0: 强制设置为 false，确保不会处理任何 PII
-  const piiEnabled = false;
-
-  if (piiEnabled && !pcdAcknowledged) {
-    return json({
-      success: false,
-      message: "启用 PII 发送需要先确认您的合规义务",
-      requirePcdAcknowledgement: true,
-    });
-  }
-
-  const updateData: {
-    piiEnabled: boolean;
-    weakConsentMode: boolean;
-    consentStrategy: string;
-    dataRetentionDays: number;
-    pcdAcknowledged?: boolean;
-    pcdAcknowledgedAt?: Date | null;
-  } = {
-    piiEnabled,
-    weakConsentMode: false,
-    consentStrategy,
-    dataRetentionDays,
-  };
-
-  if (piiEnabled && pcdAcknowledged) {
-    updateData.pcdAcknowledged = true;
-    updateData.pcdAcknowledgedAt = new Date();
-  }
-
   await prisma.shop.update({
     where: { id: shopId },
-    data: updateData,
+    data: {
+      consentStrategy,
+      dataRetentionDays,
+      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不更新 piiEnabled、pcdAcknowledged 等字段
+      // 这些字段在 schema 中保留以支持未来版本，但在 v1.0 中不会被使用
+    },
   });
 
   await createAuditLog({
@@ -604,11 +562,9 @@ export async function handleUpdatePrivacySettings(
     resourceType: "shop",
     resourceId: shopId,
     metadata: {
-      piiEnabled,
-      pcdAcknowledged,
       consentStrategy,
       dataRetentionDays,
-      pcdApproved: PCD_CONFIG.APPROVED,
+      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不记录 PII 相关元数据
     },
   });
 

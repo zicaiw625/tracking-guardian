@@ -30,9 +30,7 @@ export interface ShopUpdateData {
   plan: PlanId;
   monthlyOrderLimit: number;
   isActive: boolean;
-  piiEnabled: boolean;
-  pcdAcknowledged: boolean;
-  pcdAcknowledgedAt: Date | null;
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled、pcdAcknowledged、pcdAcknowledgedAt 字段
   consentStrategy: ConsentStrategy;
   dataRetentionDays: number;
   ingestionSecret: string | null;

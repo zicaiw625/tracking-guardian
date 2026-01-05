@@ -34,8 +34,7 @@ export {
   shouldRetry,
   formatErrorForLog,
 
-  buildMetaHashedUserData,
-  buildTikTokHashedUserData,
+  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 buildMetaHashedUserData 和 buildTikTokHashedUserData 导出
 
   sendToMultiplePlatforms,
 

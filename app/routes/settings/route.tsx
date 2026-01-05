@@ -20,7 +20,7 @@ export const loader = settingsLoader;
 export const action = settingsAction;
 
 export default function SettingsPage() {
-  const { shop, tokenIssues, pcdApproved, pcdStatusMessage, currentMonitoringData } =
+  const { shop, tokenIssues, currentMonitoringData } =
     useLoaderData<typeof settingsLoader>();
   const actionData = useActionData<SettingsActionResponse>();
   const submit = useSubmit();
@@ -561,8 +561,7 @@ export default function SettingsPage() {
           {selectedTab === 2 && (
             <SecurityTab
               shop={shop}
-              pcdApproved={pcdApproved}
-              pcdStatusMessage={pcdStatusMessage}
+              // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 pcdApproved 和 pcdStatusMessage
               isSubmitting={isSubmitting}
               onRotateSecret={handleRotateSecret}
             />

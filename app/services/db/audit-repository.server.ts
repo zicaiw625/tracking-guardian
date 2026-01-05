@@ -66,8 +66,7 @@ export interface AuditLogEntry {
   previousValue?: Record<string, unknown>;
   newValue?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
+  // P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此移除 ipAddress 和 userAgent 字段
 }
 
 export interface AuditLogQueryOptions {
@@ -93,8 +92,7 @@ export interface AuditLogFull extends AuditLogSummary {
   previousValue: unknown;
   newValue: unknown;
   metadata: unknown;
-  ipAddress: string | null;
-  userAgent: string | null;
+  // P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此移除 ipAddress 和 userAgent 字段
 }
 
 const SENSITIVE_FIELDS = [
@@ -131,17 +129,11 @@ function redactSensitiveFields(
   return redacted;
 }
 
-export function extractRequestContext(request: Request): {
-  ipAddress?: string;
-  userAgent?: string;
-} {
-  return {
-    ipAddress:
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      request.headers.get("x-real-ip") ||
-      undefined,
-    userAgent: request.headers.get("user-agent") || undefined,
-  };
+// P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此移除 extractRequestContext 函数
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据或网络标识符
+export function extractRequestContext(request: Request): Record<string, never> {
+  // P0-4: v1.0 版本不收集 IP 或 User-Agent
+  return {};
 }
 
 export async function createAuditLogEntry(
@@ -161,8 +153,7 @@ export async function createAuditLogEntry(
         previousValue: redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue | undefined,
         newValue: redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue | undefined,
         metadata: entry.metadata as Prisma.InputJsonValue | undefined,
-        ipAddress: entry.ipAddress,
-        userAgent: entry.userAgent,
+        // P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此不存储 ipAddress 和 userAgent
       },
     });
 
@@ -198,8 +189,7 @@ export async function batchCreateAuditLogs(
         previousValue: redactSensitiveFields(entry.previousValue) as Prisma.InputJsonValue | undefined,
         newValue: redactSensitiveFields(entry.newValue) as Prisma.InputJsonValue | undefined,
         metadata: entry.metadata as Prisma.InputJsonValue | undefined,
-        ipAddress: entry.ipAddress,
-        userAgent: entry.userAgent,
+        // P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此不存储 ipAddress 和 userAgent
       })),
     });
 

@@ -164,7 +164,7 @@ export const ShopSettingsResponseSchema = z.object({
   shopDomain: z.string(),
   plan: z.string(),
   monthlyOrderLimit: z.number(),
-  piiEnabled: z.boolean(),
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
   consentStrategy: z.enum(["strict", "balanced", "weak"]),
   dataRetentionDays: z.number(),
   primaryDomain: z.string().nullable(),

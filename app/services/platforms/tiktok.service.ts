@@ -21,8 +21,6 @@ import {
 import {
   classifyJsError,
   parseTikTokError,
-  buildTikTokHashedUserData,
-  type TikTokUserData,
 } from "./base-platform.service";
 
 const TIKTOK_API_URL = "https://business-api.tiktok.com";
@@ -164,7 +162,8 @@ export class TikTokPlatformService implements IPlatformService {
     eventId: string
   ): Promise<Record<string, unknown>> {
     const timestamp = new Date().toISOString();
-    const { user } = await buildTikTokHashedUserData(data);
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含 user 字段
+    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
     const contents =
       data.lineItems?.map((item) => ({
@@ -179,7 +178,7 @@ export class TikTokPlatformService implements IPlatformService {
       event_id: eventId,
       timestamp,
       context: {
-        user,
+        // P0-3: v1.0 版本不包含 user 字段（不处理任何 PII）
       },
       properties: {
         currency: data.currency,
@@ -197,14 +196,8 @@ export class TikTokPlatformService implements IPlatformService {
     eventId: string
   ): Promise<ConversionApiResponse> {
     const timestamp = new Date().toISOString();
-    const { user, hasPii } = await buildTikTokHashedUserData(data);
-
-    if (!hasPii) {
-      logger.info(`TikTok Events API: Sending conversion with no PII`, {
-        orderId: data.orderId.slice(0, 8),
-        note: "Conversion will still be recorded but may have lower match rate",
-      });
-    }
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含 user 字段
+    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
     const contents =
       data.lineItems?.map((item) => ({
@@ -220,7 +213,7 @@ export class TikTokPlatformService implements IPlatformService {
       event_id: eventId,
       timestamp,
       context: {
-        user,
+        // P0-3: v1.0 版本不包含 user 字段（不处理任何 PII）
       },
       properties: {
         currency: data.currency,

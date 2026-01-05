@@ -47,8 +47,7 @@ const FIELD_DEFINITIONS = {
         action: { description: "Action performed", pii: false },
         resourceType: { description: "Type of resource affected", pii: false },
         resourceId: { description: "ID of affected resource", pii: false },
-        ipAddress: { description: "Request IP address", pii: true, note: "Network identifier" },
-        userAgent: { description: "Browser/client info", pii: true, note: "Device fingerprint component" },
+        // P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此移除 ipAddress 和 userAgent 字段
         createdAt: { description: "Action timestamp", pii: false },
     },
     receipts: {
@@ -170,8 +169,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                         previousValue: true,
                         newValue: true,
                         metadata: true,
-                        ipAddress: true,
-                        userAgent: true,
+                        // P0-4: v1.0 版本不包含任何 PCD/PII 处理，因此不导出 ipAddress 和 userAgent
                         createdAt: true,
                     },
                     orderBy: { createdAt: "desc" },

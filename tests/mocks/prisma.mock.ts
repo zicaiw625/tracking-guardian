@@ -95,7 +95,7 @@ export function createMockShop(overrides: Partial<MockShop> = {}): MockShop {
     shopDomain: "test-shop.myshopify.com",
     plan: "free",
     monthlyOrderLimit: 100,
-    piiEnabled: false,
+    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
     consentStrategy: "strict",
     dataRetentionDays: 90,
     isActive: true,
@@ -105,8 +105,7 @@ export function createMockShop(overrides: Partial<MockShop> = {}): MockShop {
     webPixelId: null,
     shopTier: "non_plus",
     typOspPagesEnabled: false,
-    pcdAcknowledged: false,
-    pcdAcknowledgedAt: null,
+    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 pcdAcknowledged、pcdAcknowledgedAt 字段
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     ...overrides,
@@ -118,7 +117,7 @@ export interface MockShop {
   shopDomain: string;
   plan: string | null;
   monthlyOrderLimit: number;
-  piiEnabled: boolean;
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
   consentStrategy: string | null;
   dataRetentionDays: number;
   isActive: boolean;
@@ -128,8 +127,7 @@ export interface MockShop {
   webPixelId: string | null;
   shopTier: string | null;
   typOspPagesEnabled: boolean | null;
-  pcdAcknowledged: boolean;
-  pcdAcknowledgedAt: Date | null;
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 pcdAcknowledged、pcdAcknowledgedAt 字段
   createdAt: Date;
   updatedAt: Date;
 }

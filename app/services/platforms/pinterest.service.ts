@@ -39,21 +39,9 @@ type PinterestEventType =
   | "view_category"
   | "custom";
 
-interface PinterestUserData {
-  em?: string[];
-  ph?: string[];
-  ge?: string[];
-  bd?: string[];
-  ln?: string[];
-  fn?: string[];
-  ct?: string[];
-  st?: string[];
-  zp?: string[];
-  country?: string[];
-  external_id?: string[];
-  click_id?: string;
-  partner_id?: string;
-}
+// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此完全删除 PinterestUserData 类型定义
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
+// 此类型定义将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
 
 interface PinterestCustomData {
   currency?: string;
@@ -71,6 +59,9 @@ interface PinterestCustomData {
   np?: string;
 }
 
+// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此完全删除 PinterestEventData 类型定义中的 user_data 字段
+// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
+// 使用 Omit<PinterestEventData, "user_data"> 来创建不包含 user_data 的类型
 interface PinterestEventData {
   event_name: PinterestEventType;
   action_source: "app_android" | "app_ios" | "web" | "offline";
@@ -78,7 +69,7 @@ interface PinterestEventData {
   event_id: string;
   event_source_url?: string;
   partner_name?: string;
-  user_data: PinterestUserData;
+  // P0-3: user_data 字段已完全移除，不发送任何 PII
   custom_data?: PinterestCustomData;
   app_id?: string;
   app_name?: string;
@@ -222,7 +213,6 @@ export class PinterestPlatformService implements IPlatformService {
     eventId: string
   ): Promise<Record<string, unknown>> {
     const eventTime = Math.floor(Date.now() / 1000);
-    const userData = await this.buildUserData(data);
 
     const contents =
       data.lineItems?.map((item) => ({
@@ -231,12 +221,16 @@ export class PinterestPlatformService implements IPlatformService {
         quantity: item.quantity,
       })) || [];
 
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此完全移除 user_data 字段
+    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
+    // 注意：Pinterest API 可能要求 user_data 字段，但 v1.0 版本不发送任何 PII
+    // 如果 Pinterest API 强制要求 user_data，需要联系 Pinterest 支持或等待 v1.1 版本
     const eventData: PinterestEventData = {
       event_name: "checkout",
       action_source: "web",
       event_time: eventTime,
       event_id: eventId,
-      user_data: userData,
+      // P0-3: user_data 字段已完全移除，不发送任何 PII
       custom_data: {
         currency: data.currency,
         value: data.value.toString(),
@@ -249,59 +243,18 @@ export class PinterestPlatformService implements IPlatformService {
     return { data: [eventData] };
   }
 
-  private async buildUserData(data: ConversionData): Promise<PinterestUserData> {
-    const userData: PinterestUserData = {};
-
-    if (data.email) {
-      const normalizedEmail = data.email.toLowerCase().trim();
-      userData.em = [await hashSHA256(normalizedEmail)];
-    }
-
-    if (data.phone) {
-      const normalizedPhone = data.phone.replace(/\D/g, "");
-      if (normalizedPhone.length >= 10) {
-        userData.ph = [await hashSHA256(normalizedPhone)];
-      }
-    }
-
-    return userData;
-  }
-
   private async sendRequest(
     credentials: PinterestCredentials,
     data: ConversionData,
     eventId: string
   ): Promise<PinterestApiResponse> {
-    const eventTime = Math.floor(Date.now() / 1000);
-    const userData = await this.buildUserData(data);
-
-    const contents =
-      data.lineItems?.map((item) => ({
-        id: item.productId,
-        item_price: item.price.toString(),
-        quantity: item.quantity,
-      })) || [];
-
-    const eventData: PinterestEventData = {
-      event_name: "checkout",
-      action_source: "web",
-      event_time: eventTime,
-      event_id: eventId,
-      user_data: userData,
-      custom_data: {
-        currency: data.currency,
-        value: data.value.toString(),
-        order_id: data.orderId,
-        contents,
-        num_items: contents.reduce((sum, c) => sum + (c.quantity || 1), 0),
-      },
-    };
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此完全移除 user_data 字段
+    // 使用 buildPayload 方法构建 payload（已移除 user_data）
+    const payload = await this.buildPayload(data, eventId);
 
     const url = `${PINTEREST_API_BASE_URL}/${PINTEREST_API_VERSION}/ad_accounts/${credentials.adAccountId}/events`;
 
-    const requestBody = {
-      data: [eventData],
-    };
+    const requestBody = payload;
 
     if (credentials.testMode) {
       logger.info(`Pinterest CAPI: sending in test mode`, {

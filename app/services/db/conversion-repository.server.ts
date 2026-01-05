@@ -63,7 +63,7 @@ const JOB_WITH_SHOP_SELECT = {
       shopDomain: true,
       plan: true,
       consentStrategy: true,
-      piiEnabled: true,
+      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
       isActive: true,
       primaryDomain: true,
       storefrontDomains: true,
@@ -79,7 +79,7 @@ interface JobShopData {
   shopDomain: string;
   plan: string | null;
   consentStrategy: string;
-  piiEnabled: boolean;
+  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
   isActive: boolean;
   primaryDomain: string | null;
   storefrontDomains: Prisma.JsonValue;

@@ -254,7 +254,7 @@ export async function processPendingConversions(): Promise<{
           id: true,
           shopDomain: true,
           plan: true,
-          piiEnabled: true,
+          // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
           pixelConfigs: {
             where: { isActive: true, serverSideEnabled: true },
             select: {

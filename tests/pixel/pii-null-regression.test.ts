@@ -29,13 +29,14 @@ vi.mock("../../app/db.server", () => ({
 import prisma from "../../app/db.server";
 import { generateEventId, normalizeOrderId } from "../../app/utils/crypto.server";
 
-describe("P0-02: PII Null Regression Tests", () => {
+// P0-5: v1.0 版本不包含任何 PCD/PII 处理，因此更新测试以验证"不包含 PII"的行为
+describe("P0-02: v1.0 No PII Tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("Pixel Event Payload without PII", () => {
-    it("should handle checkout_completed with all PII fields null", () => {
+  describe("Pixel Event Payload (v1.0: No PII)", () => {
+    it("should handle checkout_completed without any PII fields (v1.0 behavior)", () => {
       const piiNullPayload = {
         eventName: "checkout_completed",
         timestamp: Date.now(),
@@ -199,14 +200,13 @@ describe("P0-02: PII Null Regression Tests", () => {
   });
 
   describe("CAPI Sending without PII", () => {
-    it("should send Meta CAPI without user data when PII unavailable", () => {
+        it("should send Meta CAPI without user_data field (v1.0: no PII)", () => {
       const metaPayload = {
         event_name: "Purchase",
         event_time: Math.floor(Date.now() / 1000),
         event_id: "evt_12345_purchase_test-shop",
         action_source: "website",
-        user_data: {
-        },
+        // P0-3: v1.0 版本不包含 user_data 字段（不处理任何 PII）
         custom_data: {
           currency: "USD",
           value: 99.99,
@@ -308,8 +308,9 @@ describe("P0-02: PII Null Regression Tests", () => {
   });
 });
 
-describe("P0-02: Documentation", () => {
-  it("documents that pixel only sends non-PII data", () => {
+describe("P0-02: v1.0 Documentation", () => {
+  it("documents that v1.0 does not process any PII (including hashed data)", () => {
+    // P0-5: v1.0 版本不包含任何 PCD/PII 处理，仅发送订单金额和商品信息
     expect(true).toBe(true);
   });
 });

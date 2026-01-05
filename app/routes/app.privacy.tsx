@@ -39,14 +39,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
     select: {
-      piiEnabled: true,
-      pcdAcknowledged: true,
+      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 和 pcdAcknowledged 查询
       consentStrategy: true,
     },
   });
 
   return json({
-    shop: shop || { piiEnabled: false, pcdAcknowledged: false, consentStrategy: "strict" },
+    shop: shop || { consentStrategy: "strict" },
     appDomain: process.env.APP_URL || "https://app.tracking-guardian.com"
   });
 };
@@ -165,26 +164,8 @@ export default function PrivacyPage() {
                   </Badge>
                 </BlockStack>
               </Box>
-              <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                <BlockStack gap="100">
-                  <Text as="span" variant="bodySm" tone="subdued">
-                    PII 高级开关
-                  </Text>
-                  <Badge tone={shop.piiEnabled ? "warning" : "success"}>
-                    {shop.piiEnabled ? "已启用" : "已禁用"}
-                  </Badge>
-                </BlockStack>
-              </Box>
-              <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                <BlockStack gap="100">
-                  <Text as="span" variant="bodySm" tone="subdued">
-                    PCD 确认
-                  </Text>
-                  <Badge tone={shop.pcdAcknowledged ? "success" : "attention"}>
-                    {shop.pcdAcknowledged ? "已确认" : "未确认"}
-                  </Badge>
-                </BlockStack>
-              </Box>
+              {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII 高级开关和 PCD 确认 UI */}
+              {/* PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核） */}
             </InlineStack>
           </BlockStack>
         </Card>
@@ -223,17 +204,8 @@ export default function PrivacyPage() {
                 tone="success"
               />
 
-              <DataTypeCard
-                title="PII 数据（可选，需商家明确启用）"
-                description="默认模式下不收集任何 PII。本应用的代码实现中包含处理 PII 的能力（通过 piiEnabled、pcdAcknowledged、isPiiFullyEnabled 等配置项控制），但这些功能默认全部关闭。仅在商家明确启用 PII 开关且满足所有合规条件（包括 PCD 审核通过、商家合规确认、商家明确同意、Shopify 实际提供 PII）时收集，用于提高广告平台匹配率。所有 PII 均使用 SHA256 哈希后传输，不存储原始数据。"
-                items={[
-                  "邮箱地址（SHA256 哈希后传输，不存储原始数据）",
-                  "电话号码（SHA256 哈希后传输，不存储原始数据）",
-                  "姓名（SHA256 哈希后传输，不存储原始数据）",
-                  "收货地址（SHA256 哈希后传输，不存储原始数据）",
-                ]}
-                tone="warning"
-              />
+              {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII 数据卡片 */}
+              {/* PII 增强匹配功能将在 v1.1 版本中提供（需通过 Shopify PCD 审核） */}
             </BlockStack>
           </Layout.Section>
 
@@ -383,7 +355,8 @@ export default function PrivacyPage() {
                 <Text as="p" variant="bodySm">
                   当客户通过 Shopify 请求删除其数据时，我们会收到{" "}
                   <code>CUSTOMERS_DATA_REQUEST</code> 或{" "}
-                  <code>CUSTOMERS_REDACT</code> webhook，并删除相关的 PII 哈希。
+                  <code>CUSTOMERS_REDACT</code> webhook，并删除相关的数据。
+                  {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不涉及 PII 哈希删除 */}
                 </Text>
               </BlockStack>
             </Box>
@@ -402,12 +375,7 @@ export default function PrivacyPage() {
               </BlockStack>
             </Box>
 
-            <Banner tone="warning">
-              <p>
-                <strong>注意</strong>：PII 数据仅以 SHA256 哈希形式存储，
-                我们无法从哈希还原原始数据。删除操作会移除哈希值记录。
-              </p>
-            </Banner>
+            {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII 哈希相关的警告 */}
           </BlockStack>
         </CollapsibleSection>
 
@@ -442,19 +410,7 @@ export default function PrivacyPage() {
               </BlockStack>
             </Box>
 
-            <Box background="bg-surface-secondary" padding="400" borderRadius="200">
-              <BlockStack gap="300">
-                <InlineStack gap="300" blockAlign="center">
-                  <Icon source={LockFilledIcon} tone="success" />
-                  <Text as="span" fontWeight="semibold">
-                    PII 哈希
-                  </Text>
-                </InlineStack>
-                <Text as="p" variant="bodySm">
-                  客户 PII（邮箱、电话等）在进入系统时即被 SHA256 哈希，原始数据不存储。
-                </Text>
-              </BlockStack>
-            </Box>
+            {/* P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII 哈希安全措施说明 */}
 
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">

@@ -56,7 +56,7 @@ interface JobWithRelations {
     id: string;
     shopDomain: string;
     plan: string | null;
-    piiEnabled: boolean;
+    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
     consentStrategy: string | null;
     primaryDomain: string | null;
     storefrontDomains: string[];
@@ -227,7 +227,7 @@ async function fetchJobsWithRelations(
           id: true,
           shopDomain: true,
           plan: true,
-          piiEnabled: true,
+          // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
           consentStrategy: true,
           primaryDomain: true,
           storefrontDomains: true,

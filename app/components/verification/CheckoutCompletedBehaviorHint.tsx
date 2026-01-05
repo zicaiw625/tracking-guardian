@@ -85,7 +85,7 @@ export function CheckoutCompletedBehaviorHint({
         </List.Item>
         <List.Item>
           <Text as="span" variant="bodySm" tone="subdued">
-            验证 server-side webhook（orders/paid）是否正常工作，作为 client-side 事件的兜底
+            v1.0 版本：仅依赖 Web Pixels 标准事件（checkout_completed），不处理订单 webhooks
           </Text>
         </List.Item>
         <List.Item>

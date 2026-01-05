@@ -22,8 +22,6 @@ import {
   classifyHttpError,
   classifyJsError,
   parseMetaError,
-  buildMetaHashedUserData,
-  type MetaUserData,
 } from "./base-platform.service";
 
 const META_API_VERSION = "v21.0";
@@ -168,7 +166,8 @@ export class MetaPlatformService implements IPlatformService {
     eventId: string
   ): Promise<Record<string, unknown>> {
     const eventTime = Math.floor(Date.now() / 1000);
-    const { userData } = await buildMetaHashedUserData(data);
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含 user_data 字段
+    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
     const contents =
       data.lineItems?.map((item) => ({
@@ -184,7 +183,7 @@ export class MetaPlatformService implements IPlatformService {
           event_time: eventTime,
           event_id: eventId,
           action_source: "website",
-          user_data: userData,
+          // P0-3: v1.0 版本不包含 user_data 字段（不处理任何 PII）
           custom_data: {
             currency: data.currency,
             value: data.value,
@@ -202,14 +201,8 @@ export class MetaPlatformService implements IPlatformService {
     data: ConversionData,
     eventId: string
   ): Promise<ConversionApiResponse> {
-    const { userData, piiQuality } = await buildMetaHashedUserData(data);
-
-    if (piiQuality === "none") {
-      logger.info(`Meta CAPI: Sending conversion with no PII`, {
-        orderId: data.orderId.slice(0, 8),
-        note: "Conversion will still be recorded but may have lower match rate",
-      });
-    }
+    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含 user_data 字段
+    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
     const eventTime = Math.floor(Date.now() / 1000);
     const contents =
@@ -226,7 +219,7 @@ export class MetaPlatformService implements IPlatformService {
           event_time: eventTime,
           event_id: eventId,
           action_source: "website",
-          user_data: userData,
+          // P0-3: v1.0 版本不包含 user_data 字段（不处理任何 PII）
           custom_data: {
             currency: data.currency,
             value: data.value,
