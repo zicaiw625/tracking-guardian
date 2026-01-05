@@ -315,6 +315,11 @@ export default function PublicPrivacyPolicy() {
                 <Text as="h3" variant="headingMd">
                   3.2 数据保留期限
                 </Text>
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    <strong>v1.0 数据保留策略：</strong>v1.0 版本采用<strong>单层数据保留</strong>策略。商家可在应用设置中配置数据保留期限（30-365 天），默认保留期为 90 天。超过保留期的事件日志和转化记录会在每日自动删除。<strong>冷热分层存储（30 天热数据 + 90 天冷数据归档）将在 v1.1+ 版本中提供</strong>。
+                  </Text>
+                </Banner>
                 <List type="bullet">
                   <List.Item>
                     <strong>可配置保留期：</strong>商家可在应用设置中配置数据保留期限（30-365 天）。默认保留期为 90 天。超过保留期的事件日志和转化记录会在每日自动删除。
@@ -324,6 +329,14 @@ export default function PublicPrivacyPolicy() {
                   </List.Item>
                   <List.Item>
                     <strong>订单数据：</strong>来自 Shopify Webhooks 的订单数据（不含 PII）会保留至配置的保留期，用于对账和报告生成。
+                  </List.Item>
+                  <List.Item>
+                    <strong>v1.1+ 规划：</strong>冷热分层存储功能将在 v1.1+ 版本中提供。该功能将支持：
+                    <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
+                      <li><strong>热数据（30 天）：</strong>存储在数据库中，用于快速查询和实时监控</li>
+                      <li><strong>冷数据（90 天）：</strong>归档到冷存储（如 S3），用于历史报告和审计</li>
+                      <li><strong>自动归档：</strong>超过 30 天的数据自动归档到冷存储</li>
+                    </ul>
                   </List.Item>
                 </List>
 

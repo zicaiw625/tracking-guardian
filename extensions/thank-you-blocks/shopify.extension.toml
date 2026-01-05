@@ -138,54 +138,58 @@ uid = "0aa738e0-79d9-076a-435f-5ad1ea813a9058225869"
 # =============================================================================
 # Reorder Block - Thank You Page
 # =============================================================================
-# ⚠️ 重要：此扩展的 uid 是占位符，部署前必须替换为真实值！
-# 生成真实 uid 的方法：
-#   1. 运行: shopify app generate extension
-#   2. 选择 "ui_extension" 类型
-#   3. 选择 "purchase.thank-you.block.render" target
-#   4. 将生成的 uid 替换下面的占位符
-# 或者从 Shopify Partners Dashboard 中获取已创建扩展的 uid
+# ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
+# 
+# 生成真实 uid 的方法（详见 DEPLOYMENT.md）：
+#   1. 运行: shopify app deploy（推荐，自动生成）
+#   2. 或运行: shopify app generate extension
+#      - 选择 "ui_extension" 类型
+#      - 选择 "purchase.thank-you.block.render" target
+#      - 将生成的 uid 替换下面的占位符
+#   3. 或从 Shopify Partners Dashboard 获取已创建扩展的 uid
 #
-# 如果暂时不需要此扩展，可以注释掉整个 [[extensions]] 块
+# ⚠️ 部署前必须替换占位符 uid，否则扩展创建会失败
 # =============================================================================
-# [[extensions]]
-# type = "ui_extension"
-# name = "Reorder Button"
-# handle = "reorder-button"
-# uid = "00000000-0000-0000-0000-00000000000000000000"  # ⚠️ 必须替换为真实 uid
-#
-#   [extensions.capabilities]
-#   network_access = true
-#
-#   [[extensions.targeting]]
-#   module = "./src/Reorder.tsx"
-#   target = "purchase.thank-you.block.render"
+[[extensions]]
+type = "ui_extension"
+name = "Reorder Button"
+handle = "reorder-button"
+uid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890abcdef01"  # ⚠️ 部署前必须替换为 Shopify CLI 生成的真实 uid（详见 DEPLOYMENT.md）
+
+  [extensions.capabilities]
+  network_access = true
+
+  [[extensions.targeting]]
+  module = "./src/Reorder.tsx"
+  target = "purchase.thank-you.block.render"
 
 # =============================================================================
 # Reorder Block - Order Status Page (Customer Account)
 # =============================================================================
-# ⚠️ 重要：此扩展的 uid 是占位符，部署前必须替换为真实值！
-# 生成真实 uid 的方法：
-#   1. 运行: shopify app generate extension
-#   2. 选择 "ui_extension" 类型
-#   3. 选择 "customer-account.order-status.block.render" target
-#   4. 将生成的 uid 替换下面的占位符
-# 或者从 Shopify Partners Dashboard 中获取已创建扩展的 uid
+# ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
+# 
+# 生成真实 uid 的方法（详见 DEPLOYMENT.md）：
+#   1. 运行: shopify app deploy（推荐，自动生成）
+#   2. 或运行: shopify app generate extension
+#      - 选择 "ui_extension" 类型
+#      - 选择 "customer-account.order-status.block.render" target
+#      - 将生成的 uid 替换下面的占位符
+#   3. 或从 Shopify Partners Dashboard 获取已创建扩展的 uid
 #
-# 如果暂时不需要此扩展，可以注释掉整个 [[extensions]] 块
+# ⚠️ 部署前必须替换占位符 uid，否则扩展创建会失败
 # =============================================================================
-# [[extensions]]
-# type = "ui_extension"
-# name = "Order Status Reorder Button"
-# handle = "order-status-reorder-button"
-# uid = "00000000-0000-0000-0000-00000000000000000001"  # ⚠️ 必须替换为真实 uid
-#
-#   [extensions.capabilities]
-#   network_access = false
-#
-#   [[extensions.targeting]]
-#   module = "./src/Reorder.orderStatus.tsx"
-#   target = "customer-account.order-status.block.render"
+[[extensions]]
+type = "ui_extension"
+name = "Order Status Reorder Button"
+handle = "order-status-reorder-button"
+uid = "b2c3d4e5-f6a7-8901-bcde-f234567890abcdef01234"  # ⚠️ 部署前必须替换为 Shopify CLI 生成的真实 uid（详见 DEPLOYMENT.md）
+
+  [extensions.capabilities]
+  network_access = false
+
+  [[extensions.targeting]]
+  module = "./src/Reorder.orderStatus.tsx"
+  target = "customer-account.order-status.block.render"
 
 # =============================================================================
 # Settings Schema
