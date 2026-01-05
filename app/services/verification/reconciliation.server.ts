@@ -2,6 +2,7 @@
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
+import type { Prisma } from "@prisma/client";
 
 export interface ReconciliationResult {
   orderId: string;
@@ -30,42 +31,115 @@ export async function reconcileOrder(
   orderId: string
 ): Promise<ReconciliationResult> {
   try {
-    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
-    // 查找该订单的所有事件（主要是 checkout_completed/purchase）
-    const eventLogs = await prisma.eventLog.findMany({
-      where: {
+    // P0: 优化查询 - 使用 PostgreSQL JSON 操作符直接过滤 orderId，避免 take=100 内存过滤
+    // 这确保即使数据量大时也能准确找到订单的所有事件
+    // 使用 Prisma 的 $queryRaw 执行原始 SQL，利用 PostgreSQL 的 JSON 操作符进行高效查询
+    // 如果原始 SQL 查询失败，会回退到应用层过滤（但移除 take 限制）
+    let formattedEvents: Array<{
+      id: string;
+      eventId: string | null;
+      eventName: string;
+      normalizedEventJson: Prisma.JsonValue;
+      DeliveryAttempt: Array<{
+        id: string;
+        destinationType: string;
+        status: string;
+        requestPayloadJson: Prisma.JsonValue | null;
+      }>;
+    }>;
+
+    try {
+      // 尝试使用原始 SQL 查询以获得更好的性能
+      const rawResults = await prisma.$queryRaw<Array<{
+        id: string;
+        eventId: string | null;
+        eventName: string;
+        normalizedEventJson: Prisma.JsonValue;
+        delivery_attempts: string; // JSON 字符串
+      }>>`
+        SELECT 
+          el.id,
+          el."eventId",
+          el."eventName",
+          el."normalizedEventJson",
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', da.id,
+                'destinationType', da."destinationType",
+                'status', da.status,
+                'requestPayloadJson', da."requestPayloadJson"
+              )
+            ) FILTER (WHERE da.id IS NOT NULL),
+            '[]'::json
+          )::text as delivery_attempts
+        FROM "EventLog" el
+        LEFT JOIN "DeliveryAttempt" da ON da."eventLogId" = el.id 
+          AND da.status IN ('ok', 'fail')
+        WHERE el."shopId" = ${shopId}
+          AND el."normalizedEventJson"->>'orderId' = ${orderId}
+        GROUP BY el.id, el."eventId", el."eventName", el."normalizedEventJson"
+        ORDER BY el."createdAt" DESC
+      `;
+
+      formattedEvents = rawResults.map(event => ({
+        id: event.id,
+        eventId: event.eventId,
+        eventName: event.eventName,
+        normalizedEventJson: event.normalizedEventJson,
+        DeliveryAttempt: JSON.parse(event.delivery_attempts || "[]") as Array<{
+          id: string;
+          destinationType: string;
+          status: string;
+          requestPayloadJson: Prisma.JsonValue | null;
+        }>,
+      }));
+    } catch (rawQueryError) {
+      // 回退到应用层过滤（移除 take 限制以确保找到所有匹配的事件）
+      logger.warn("Raw SQL query failed, falling back to application-level filtering", {
+        error: rawQueryError instanceof Error ? rawQueryError.message : String(rawQueryError),
         shopId,
-        // 通过 normalizedEventJson 中的 orderId 匹配
-        // 注意：这里需要查询所有事件，然后过滤 orderId
-      },
-      include: {
-        DeliveryAttempt: {
-          where: {
-            status: { in: ["ok", "fail"] }, // 只检查已发送的（成功或失败）
-          },
-          select: {
-            id: true,
-            destinationType: true,
-            status: true,
-            requestPayloadJson: true,
+        orderId,
+      });
+
+      const allEvents = await prisma.eventLog.findMany({
+        where: { shopId },
+        include: {
+          DeliveryAttempt: {
+            where: {
+              status: { in: ["ok", "fail"] },
+            },
+            select: {
+              id: true,
+              destinationType: true,
+              status: true,
+              requestPayloadJson: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 100, // 限制查询数量
-    });
+        orderBy: { createdAt: "desc" },
+        // 移除 take 限制，在应用层过滤
+      });
 
-    // 过滤出匹配 orderId 的事件
-    const matchingEvents = eventLogs.filter((eventLog) => {
-      const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
-      const eventOrderId = normalizedEvent?.orderId as string | undefined;
-      return eventOrderId === orderId;
-    });
+      // 在应用层过滤 orderId
+      formattedEvents = allEvents
+        .filter(event => {
+          const normalizedEvent = event.normalizedEventJson as Record<string, unknown> | null;
+          return normalizedEvent?.orderId === orderId;
+        })
+        .map(event => ({
+          id: event.id,
+          eventId: event.eventId,
+          eventName: event.eventName,
+          normalizedEventJson: event.normalizedEventJson,
+          DeliveryAttempt: event.DeliveryAttempt,
+        }));
+    }
 
     // 从第一个匹配的事件中提取 Shopify 订单信息
     let shopifyOrder: { orderId: string; orderValue: number; currency: string } | null = null;
-    if (matchingEvents.length > 0) {
-      const firstEvent = matchingEvents[0];
+    if (formattedEvents.length > 0) {
+      const firstEvent = formattedEvents[0];
       const normalizedEvent = firstEvent.normalizedEventJson as Record<string, unknown> | null;
       const value = (normalizedEvent?.value as number) || 0;
       const currency = (normalizedEvent?.currency as string) || "USD";
@@ -86,7 +160,7 @@ export async function reconcileOrder(
       status: string;
     }>();
 
-    for (const eventLog of matchingEvents) {
+    for (const eventLog of formattedEvents) {
       const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
       const eventValue = (normalizedEvent?.value as number) || 0;
       const currency = (normalizedEvent?.currency as string) || "USD";

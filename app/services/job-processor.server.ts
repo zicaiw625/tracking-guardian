@@ -488,14 +488,17 @@ async function sendToPlatformWithCredentials(
         ? job.orderValue
         : job.orderValue?.toNumber() ?? 0;
 
+    // P0: v1.0 版本不包含任何 PCD/PII 处理
+    // 明确设置 preHashedUserData 为 null，确保不会处理任何 PII 数据
     const conversionData: ConversionData = {
       orderId: job.orderId,
       orderNumber: job.orderNumber,
       value: orderValue,
       currency: job.currency,
       lineItems,
-
-      preHashedUserData: capiInput?.hashedUserData ?? null,
+      // v1.0: 强制设置为 null，即使 capiInput 中有 hashedUserData 也不使用
+      preHashedUserData: null,
+      // v1.0: 不传递任何 PII 字段（email, phone, firstName, lastName 等）
     };
 
     const result = await sendConversionToPlatform(

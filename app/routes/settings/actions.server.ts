@@ -534,6 +534,9 @@ export async function handleUpdatePrivacySettings(
   shopId: string,
   sessionShop: string
 ) {
+  // P0: v1.0 版本不包含任何 PCD/PII 处理
+  // 所有 PII 相关功能（包括 hashed email/phone）已移除，将在 v1.1 中重新引入
+  // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
   const piiRequested = formData.get("piiEnabled") === "true";
   const pcdAcknowledged = formData.get("pcdAcknowledged") === "true";
   const consentStrategy =
@@ -541,20 +544,25 @@ export async function handleUpdatePrivacySettings(
   const dataRetentionDays =
     parseInt(formData.get("dataRetentionDays") as string) || 90;
 
-  if (piiRequested && !PCD_CONFIG.APPROVED) {
-    logger.warn("PII enable attempt blocked: PCD approval is not granted", {
+  // v1.0: 强制禁用 PII 功能，无论 PCD_CONFIG.APPROVED 的值如何
+  // 这是为了确保 v1.0 版本完全符合 App Store 审核要求
+  if (piiRequested) {
+    logger.warn("PII enable attempt blocked: v1.0 does not support PII processing", {
       shopId,
       sessionShop,
+      version: "v1.0",
     });
     return json({
       success: false,
       message:
-        "Shopify Protected Customer Data (PCD) 审核未通过，当前禁止开启增强匹配/PII 发送。",
-      requirePcdApproval: true,
+        "v1.0 版本不支持 PII 增强匹配功能。此功能将在 v1.1 版本中提供。",
+      requirePcdApproval: false,
+      versionRestriction: true,
     });
   }
 
-  const piiEnabled = piiRequested && PCD_CONFIG.APPROVED;
+  // v1.0: 强制设置为 false，确保不会处理任何 PII
+  const piiEnabled = false;
 
   if (piiEnabled && !pcdAcknowledged) {
     return json({

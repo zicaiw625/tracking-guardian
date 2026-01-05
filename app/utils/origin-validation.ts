@@ -132,7 +132,14 @@ export function validatePixelOriginPreBody(origin: string | null): {
         return { valid: false, reason: "malformed_origin", shouldLog: true, shouldReject: true };
     }
 }
-export function validatePixelOriginForShop(origin: string | null, shopAllowedDomains: string[]): {
+export function validatePixelOriginForShop(
+    origin: string | null, 
+    shopAllowedDomains: string[],
+    options?: {
+        referer?: string | null;
+        shopDomain?: string | null;
+    }
+): {
     valid: boolean;
     reason: string;
     matched?: string;
@@ -140,7 +147,31 @@ export function validatePixelOriginForShop(origin: string | null, shopAllowedDom
 } {
     const devMode = isDevMode();
     const allowNullOrigin = shouldAllowNullOrigin();
-    if (origin === "null" || origin === null) {
+    
+    // P1: 如果 Origin 缺失或无效，尝试使用 Referer 或 shopDomain 作为 fallback
+    let effectiveOrigin = origin;
+    let originSource = "origin_header";
+    
+    if ((origin === "null" || !origin) && options) {
+        // 尝试使用 Referer header
+        if (options.referer) {
+            try {
+                const refererUrl = new URL(options.referer);
+                effectiveOrigin = refererUrl.origin;
+                originSource = "referer_header";
+            } catch {
+                // Referer 无效，继续尝试 shopDomain
+            }
+        }
+        
+        // 如果 Referer 也无效，尝试使用 shopDomain 构造 origin
+        if ((!effectiveOrigin || effectiveOrigin === "null") && options.shopDomain) {
+            effectiveOrigin = `https://${options.shopDomain}`;
+            originSource = "shop_domain_fallback";
+        }
+    }
+    
+    if (effectiveOrigin === "null" || effectiveOrigin === null) {
         const allowed = allowNullOrigin;
         return {
             valid: allowed,
@@ -148,7 +179,7 @@ export function validatePixelOriginForShop(origin: string | null, shopAllowedDom
             shouldReject: !allowed,
         };
     }
-    if (!origin) {
+    if (!effectiveOrigin) {
         return {
             valid: devMode,
             reason: devMode ? "no_origin_dev" : "missing_origin",
@@ -156,8 +187,38 @@ export function validatePixelOriginForShop(origin: string | null, shopAllowedDom
         };
     }
     try {
-        const url = new URL(origin);
+        const url = new URL(effectiveOrigin);
         const hostname = url.hostname.toLowerCase();
+        
+        // P1: 记录 fallback 使用情况（用于监控和调试）
+        // 如果使用了 fallback，记录警告以便监控异常情况
+        // ⚠️ 上架前审查要点：Origin header 缺失可能表示配置问题或安全风险
+        // 生产环境必须严格记录并监控此类情况
+        if (originSource !== "origin_header") {
+            if (devMode) {
+                logger.debug(`[Origin Fallback] Using ${originSource} for origin validation (dev mode)`, {
+                    originalOrigin: origin,
+                    effectiveOrigin,
+                    shopDomain: options?.shopDomain,
+                    referer: options?.referer,
+                });
+            } else {
+                // 生产环境：记录警告，因为 fallback 可能表示配置问题或安全风险
+                // P1-1: 加强告警记录 - 使用 fallback 时记录详细信息，便于监控和排查
+                logger.warn(`[Origin Fallback] Using ${originSource} for origin validation`, {
+                    originalOrigin: origin,
+                    effectiveOrigin,
+                    shopDomain: options?.shopDomain,
+                    referer: options?.referer,
+                    securityNote: "Origin header missing - using fallback. This may indicate a configuration issue or security concern.",
+                    alertLevel: "warning",
+                    // 记录时间戳，便于后续分析
+                    timestamp: new Date().toISOString(),
+                });
+                // P1-1: 可以考虑在这里触发监控告警（如果配置了告警系统）
+                // 例如：await triggerSecurityAlert({ type: "origin_fallback", shopDomain: options?.shopDomain });
+            }
+        }
         if (url.protocol !== "https:" && !isDevMode()) {
             return { valid: false, reason: "https_required", shouldReject: true };
         }

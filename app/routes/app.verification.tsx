@@ -480,6 +480,31 @@ export default function VerificationPage() {
       ]}
     >
       <BlockStack gap="500">
+        {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
+        <Banner tone="info" title="重要说明：事件发送与平台归因">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              <strong>本应用仅保证事件生成与发送成功，不保证平台侧归因一致。</strong>
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>我们保证：</strong>事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>我们不保证：</strong>平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制等。
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>验收报告说明：</strong>本验收报告仅验证事件是否成功发送到平台 API，以及事件参数是否完整。平台侧报表中的归因数据可能因平台算法、数据处理延迟等因素与 Shopify 订单数据存在差异，这是正常现象。
+                </Text>
+              </List.Item>
+            </List>
+          </BlockStack>
+        </Banner>
         {}
         <CheckoutExtensibilityWarning />
 
@@ -776,6 +801,32 @@ export default function VerificationPage() {
             </BlockStack>
           </Card>
         )}
+
+        {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
+        <Banner tone="info" title="重要说明：事件发送与平台归因">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              <strong>本应用仅保证事件生成与发送成功，不保证平台侧归因一致。</strong>
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>我们保证：</strong>事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>我们不保证：</strong>平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制、平台数据去重和合并规则等。
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>验证方法：</strong>您可以通过本应用的验收报告查看事件发送状态和请求/响应详情，或使用平台提供的测试工具（如 Meta Events Manager、GA4 DebugView）验证事件接收情况。
+                </Text>
+              </List.Item>
+            </List>
+          </BlockStack>
+        </Banner>
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {}
@@ -1173,6 +1224,32 @@ export default function VerificationPage() {
                     </Card>
                   </>
                 )}
+
+                {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
+                <Banner tone="info" title="重要说明：事件发送与平台归因">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm">
+                      <strong>本应用仅保证事件生成与发送成功，不保证平台侧归因一致。</strong>
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          <strong>我们保证：</strong>事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）。验收报告显示的是我们系统记录的事件发送状态。
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          <strong>我们不保证：</strong>平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制、数据处理延迟等。
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          <strong>验收报告说明：</strong>本验收功能仅验证事件是否成功发送到平台 API，以及事件数据是否完整。如果验收显示"通过"，表示事件已成功发送；但平台侧报表中的归因数据可能因平台算法等因素与 Shopify 订单数据存在差异，这是正常现象。
+                        </Text>
+                      </List.Item>
+                    </List>
+                  </BlockStack>
+                </Banner>
 
                 {!isRunning && !latestRun && (
                   <EnhancedEmptyState

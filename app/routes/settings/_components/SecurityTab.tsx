@@ -162,8 +162,22 @@ export function SecurityTab({
                 <br />• 在多店铺场景中识别请求来源
               </Text>
               <Text as="p" variant="bodySm" tone="caution">
-                ⚠️ 注意：此令牌在浏览器网络请求中可见，不是安全凭证。
-                真正的安全由 TLS 加密、Origin 验证、速率限制和数据最小化提供。
+                ⚠️ 重要安全说明：此令牌在浏览器网络请求中可见，不是强安全边界。
+                真正的安全由多层防护提供：
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                • <strong>TLS 加密</strong>：所有数据传输均通过 HTTPS 加密
+                <br />• <strong>Origin 验证</strong>：仅接受来自 Shopify checkout 页面的请求（含 Referer/ShopDomain fallback，生产环境会记录 fallback 使用情况）
+                <br />• <strong>HMAC 签名</strong>：用于防误报/防跨店伪造和基础抗滥用，不承诺强防伪造（密钥在客户端可见，主要依赖多层防护）
+                <br />• <strong>速率限制</strong>：防止滥用和异常流量
+                <br />• <strong>数据最小化</strong>：v1.0 版本不处理任何 PII 数据（包括哈希值）
+              </Text>
+              <Text as="p" variant="bodySm" tone="caution">
+                <strong>安全边界说明：</strong>此令牌主要用于事件关联和诊断，配合上述多层防护机制共同保障安全。
+                不要将此令牌视为强安全凭证，真正的安全由整体架构设计提供。
+                <br />
+                <strong>关于 HMAC 签名密钥：</strong>由于 ingestion_key 通过 Web Pixel settings 下发到客户端，无法做到真正保密。
+                此 HMAC 签名机制的主要目的是防误报/防跨店伪造和基础抗滥用，不承诺"强防伪造"。
               </Text>
 
               <Box
@@ -257,9 +271,7 @@ export function SecurityTab({
               </Text>
 
               <Box
-                background={
-                  shop?.piiEnabled ? "bg-surface-warning" : "bg-surface-success"
-                }
+                background="bg-surface-success"
                 padding="300"
                 borderRadius="200"
               >
@@ -270,30 +282,20 @@ export function SecurityTab({
                         <Text as="span" fontWeight="semibold">
                           PII 增强匹配
                         </Text>
-                        <Badge tone={shop?.piiEnabled ? "warning" : "success"}>
-                          {shop?.piiEnabled
-                            ? "已启用 - 请确认合规义务"
-                            : "已禁用（推荐）"}
+                        <Badge tone="success">
+                          已禁用（v1.0 默认）
                         </Badge>
                       </InlineStack>
                       <Text as="span" variant="bodySm" tone="subdued">
-                        {shop?.piiEnabled
-                          ? "邮箱/电话/姓名/地址等字段将使用 SHA-256 哈希后发送到广告平台（Meta CAPI），提高归因准确性。原始数据不会被存储。注意：即使启用此功能，如果 Shopify 未提供 PII 字段（例如因 PCD 限制或客户未同意），应用会自动回退到默认隐私优先模式。"
-                          : "仅发送订单金额和商品信息，隐私优先模式（推荐）。默认模式下不收集任何 PII。本应用的代码实现中包含处理 PII 的能力（通过 piiEnabled、pcdAcknowledged、isPiiFullyEnabled 等配置项控制），但这些功能默认全部关闭。仅在商家明确启用增强匹配功能且满足所有合规条件时才会处理哈希后的 PII。"}
+                        <strong>v1.0 版本说明：</strong>当前版本（v1.0）不包含任何 PII 处理功能，仅发送订单金额和商品信息，采用隐私优先模式。PII 增强匹配功能（包括邮箱/电话/姓名/地址等字段的哈希处理）将在 v1.1 版本中提供。这确保 v1.0 版本完全符合 Shopify App Store 审核要求，避免 PCD 合规复杂性。
                       </Text>
                     </BlockStack>
                     <Button
                       variant="secondary"
                       size="slim"
-                      onClick={handlePiiToggle}
-                      loading={isSubmitting}
-                      disabled={!shop?.piiEnabled && !pcdApproved}
+                      disabled={true}
                     >
-                      {shop?.piiEnabled
-                        ? "禁用"
-                        : pcdApproved
-                          ? "启用"
-                          : "暂不可用"}
+                      v1.1 功能（暂不可用）
                     </Button>
                   </InlineStack>
                 </BlockStack>

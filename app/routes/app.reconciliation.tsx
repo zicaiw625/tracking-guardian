@@ -608,7 +608,7 @@ export default function ReconciliationPage() {
           <BlockStack gap="200">
             <p>
               <strong>什么是送达健康度？</strong>送达健康度显示的是 Shopify 订单有多少成功发送到了广告平台（Meta、Google、TikTok 等）。
-              这是“我们是否成功投递事件”的视角，而非“平台实际归因了多少转化”。
+              这是"我们是否成功投递事件"的视角，而非"平台实际归因了多少转化"。
             </p>
             <p>
               <strong>常见送达缺口原因：</strong>
@@ -620,9 +620,46 @@ export default function ReconciliationPage() {
               <li>平台 API 临时错误</li>
             </ul>
             <p>
-              <strong>📊 想要“平台报表对账”？</strong>
-              如需对比“我们发送的转化数”与“Meta/Google 后台显示的转化数”，需要集成各平台的报表 API。
+              <strong>📊 想要"平台报表对账"？</strong>
+              如需对比"我们发送的转化数"与"Meta/Google 后台显示的转化数"，需要集成各平台的报表 API。
               这是高级功能，如有需求请联系我们。
+            </p>
+          </BlockStack>
+        </Banner>
+
+        {/* P2: 免责声明 - 只保证生成与发送成功，不保证平台侧归因一致 */}
+        <Banner title="重要说明：服务范围与限制" tone="warning">
+          <BlockStack gap="200">
+            <p>
+              <strong>我们保证什么：</strong>
+            </p>
+            <ul>
+              <li>✅ 事件成功生成：我们确保从 Shopify 订单数据正确生成符合平台规范的事件 payload</li>
+              <li>✅ 事件成功发送：我们确保事件通过 API 成功发送到目标平台（Meta CAPI、GA4 Measurement Protocol、TikTok Events API 等）</li>
+              <li>✅ 可复现证据：我们提供完整的 payload 日志和发送记录，可用于验证和存档</li>
+            </ul>
+            <p>
+              <strong>我们不保证什么：</strong>
+            </p>
+            <ul>
+              <li>❌ 平台侧归因一致性：我们<strong>不保证</strong>平台后台显示的转化数与我们的发送记录完全一致</li>
+              <li>❌ 平台侧匹配率：我们<strong>不保证</strong>平台能够成功匹配用户并归因转化（这取决于平台的算法、用户数据质量、cookie 政策等因素）</li>
+              <li>❌ 广告效果：我们<strong>不保证</strong>使用我们的服务后广告效果会提升或转化率会增加</li>
+            </ul>
+            <p>
+              <strong>为什么会有差异？</strong>
+            </p>
+            <ul>
+              <li>平台去重逻辑：平台可能根据内部算法对重复事件进行去重</li>
+              <li>用户匹配：平台需要匹配用户身份才能归因转化，匹配失败会导致转化未被归因</li>
+              <li>归因窗口：平台有自己的归因窗口设置，超出窗口的转化可能不被归因</li>
+              <li>数据延迟：平台数据处理和报表更新可能有延迟</li>
+              <li>隐私限制：GDPR/CCPA 等隐私法规可能影响平台的数据收集和归因能力</li>
+            </ul>
+            <p>
+              <strong>我们的价值：</strong>
+              我们提供的是<strong>可验证的事件发送服务</strong>，确保事件按照平台规范正确生成和发送。
+              这为您提供了完整的审计轨迹和证据链，但最终的归因结果由各平台决定。
             </p>
           </BlockStack>
         </Banner>

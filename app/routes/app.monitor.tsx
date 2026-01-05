@@ -265,6 +265,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 export default function MonitorPage() {
   const loaderData = useLoaderData<typeof loader>();
+  
+  // P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致
   const { summary, history, conversionStats, configHealth, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsDetailed, lastUpdated, shop } = loaderData;
   const alertConfigs = "alertConfigs" in loaderData ? loaderData.alertConfigs : false;
   const alertCount = "alertCount" in loaderData ? loaderData.alertCount : 0;
@@ -449,6 +451,31 @@ export default function MonitorPage() {
             }
         ]}>
       <BlockStack gap="500">
+        {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
+        <Banner tone="info" title="重要说明：事件发送与平台归因">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              <strong>本应用仅保证事件生成与发送成功，不保证平台侧归因一致。</strong>
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>我们保证：</strong>事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>我们不保证：</strong>平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制等。
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>监控报告说明：</strong>本监控面板仅显示事件是否成功发送到平台 API，以及发送成功率。平台侧报表中的归因数据可能因平台算法、数据处理延迟等因素与 Shopify 订单数据存在差异，这是正常现象。
+                </Text>
+              </List.Item>
+            </List>
+          </BlockStack>
+        </Banner>
 
         {!hasData && (
           <EnhancedEmptyState

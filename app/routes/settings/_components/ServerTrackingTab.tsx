@@ -445,6 +445,41 @@ export function ServerTrackingTab({
                     <br />
                     • <strong>重要提示：</strong>我们记录发送结果，但不保证第三方平台接收成功
                   </Text>
+                  <Divider />
+                  <Text as="p" variant="bodySm" fontWeight="semibold" tone="caution">
+                    <strong>⚠️ 关于平台侧归因：</strong>
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <strong>我们保证：</strong>事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）。我们记录发送结果，包括成功/失败状态和错误信息。
+                    <br />
+                    <br />
+                    <strong>我们不保证：</strong>平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括：
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        平台算法：各平台使用不同的归因模型和算法处理转化数据
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        用户隐私设置：浏览器隐私设置、广告拦截器、iOS ATT 等可能影响归因
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        跨设备追踪限制：用户在不同设备上的行为可能无法完全关联
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        数据处理延迟：平台侧数据处理和报表更新可能存在延迟
+                      </Text>
+                    </List.Item>
+                  </List>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    这是正常现象，不是故障。我们仅保证事件成功发送到平台 API，不保证平台侧报表中的归因数据与 Shopify 订单数据完全一致。
+                  </Text>
                 </BlockStack>
               </Banner>
             )}

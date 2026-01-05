@@ -98,20 +98,23 @@ export function extractHMACSignature(request: Request): string | null {
 /**
  * P0-1/P0-4: 安全模型说明
  * 
- * ingestionSecret (secret 参数) 用于生成 HMAC 签名，不直接出现在请求体中。
- * 客户端使用 ingestionSecret 生成签名，服务端通过 shopDomain 查找对应的 ingestionSecret 进行验证。
+ * ⚠️ 重要：HMAC 签名密钥（ingestionSecret）在客户端可见
  * 
- * 真正的安全边界依赖于：
- * 1. HMAC 签名验证（X-Tracking-Guardian-Signature header）- 主要验证机制
+ * ingestionSecret 通过 Web Pixel settings 下发到客户端，因此无法做到真正保密。
+ * 此 HMAC 签名机制的主要目的是：
+ * - 防误报/防跨店伪造：确保事件来自正确的店铺（通过 shopDomain 查找对应的 ingestionSecret）
+ * - 基础抗滥用：配合 rate limiting 和异常检测防止恶意请求
+ * - 防篡改：验证 payload 完整性
+ * - 防重放：配合 nonce + timestamp 防止重放攻击
+ * 
+ * ⚠️ 这不是强安全边界，不要承诺"强防伪造"。
+ * 
+ * 真正的安全边界依赖于多层防护：
+ * 1. HMAC 签名验证（X-Tracking-Guardian-Signature header）- 防误报/防跨店伪造
  * 2. Origin/Referrer 校验（确保请求来自 Shopify checkout 页面）
  * 3. Shopify 像素隐私加载机制（customer_privacy）确保只有授权的像素能运行
  * 4. Rate limiting 和异常检测（防止滥用）
  * 5. Nonce + timestamp 防重放攻击
- * 
- * HMAC 签名主要用于：
- * - 防篡改（验证 payload 完整性）
- * - 关联店铺（通过 shopDomain 查找对应的 ingestionSecret 进行验证）
- * - 配合 nonce/timestamp 防重放
  * 
  * 注意：客户端不再在请求体中发送 ingestionKey，服务端完全依赖 HMAC 签名验证。
  */

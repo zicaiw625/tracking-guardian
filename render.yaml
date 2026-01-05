@@ -2,9 +2,16 @@
 # https://render.com/docs/blueprint-spec
 #
 # ============================================================================
-# 重要：Cron Job 配置说明
+# 重要：Cron Job 配置说明（P1: 上架前必须确认）
 # ============================================================================
 # Render Blueprint 目前不支持声明 Cron Job，需要在 Render Dashboard 手动创建。
+#
+# ⚠️ 上架前检查清单：
+# [ ] 已在 Render Dashboard 创建 Cron Job
+# [ ] Cron Job 已配置正确的 CRON_SECRET 环境变量
+# [ ] Cron Job 调度频率已设置（建议：*/5 * * * * 每 5 分钟）
+# [ ] 已测试 Cron Job 能正常调用 /api/cron 端点
+# [ ] 已确认监控告警任务能正常运行（检查 app/cron/tasks/alert-checks.ts）
 #
 # 步骤：
 # 1. 登录 Render Dashboard (https://dashboard.render.com)
@@ -12,18 +19,26 @@
 # 3. 配置如下：
 #    - Name: tracking-guardian-cron
 #    - Region: 与 web service 相同 (singapore)
-#    - Schedule: */5 * * * * (每 5 分钟)
+#    - Schedule: */5 * * * * (每 5 分钟，可根据需要调整)
 #    - Command: curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<YOUR_APP_URL>/api/cron
 #    - Environment Variables:
 #      - CRON_SECRET: 从 web service 环境变量复制（或使用相同的 generateValue）
+#      - DATABASE_URL: 从 web service 环境变量复制
+#      - 其他必要的环境变量（如 SHOPIFY_API_KEY 等，如果 cron 任务需要）
 #
 # 任务执行内容（参见 app/cron/tasks/index.ts）：
 # - GDPR 合规处理（优先级最高）
 # - Consent 对账
 # - Conversion 重试
 # - 交付健康度检查
+# - 监控告警检查（app/cron/tasks/alert-checks.ts）- 必须运行才能触发告警
 # - 数据清理（过期数据删除）
 # - 店铺状态刷新
+#
+# 验证 Cron Job 是否正常工作：
+# 1. 查看 Render Dashboard 的 Cron Job 执行日志
+# 2. 检查应用日志中是否有 "Processing GDPR jobs..." 等 cron 任务日志
+# 3. 确认监控告警功能能正常触发（检查是否有告警记录）
 #
 # 详细部署指南请参见：docs/DEPLOY_RENDER.md
 # ============================================================================

@@ -336,13 +336,32 @@ export interface TikTokUserData {
 
 export type PiiQuality = "none" | "partial" | "good";
 
+/**
+ * P0-1: v1.0 版本不处理任何 PCD/PII 数据（包括哈希后的数据）
+ * 
+ * 上架前审查要求：
+ * - v1.0 必须完全避免 PCD (Protected Customer Data) 合规复杂性
+ * - 即使收到 preHashedUserData 或 email/phone 字段，也返回空的 userData
+ * - 所有 PII 处理逻辑已通过 `if (false)` 禁用，确保不会执行
+ * - 此函数在 v1.0 中仅作为占位符存在，将在 v1.1 中重新启用（需通过 PCD 审核）
+ * 
+ * 安全说明：
+ * - 哈希后的 PII 仍然被视为客户数据处理的一部分
+ * - v1.0 策略：完全不处理任何形式的 PII，包括哈希值
+ * - 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
+ */
 export async function buildMetaHashedUserData(
   data: ConversionData
 ): Promise<{ userData: MetaUserData; piiQuality: PiiQuality }> {
+  // P0-1: v1.0 版本不处理任何 PII 数据（包括哈希后的数据）
+  // 即使收到 preHashedUserData 或 email/phone 字段，在 v1.0 中也返回空的 userData
+  // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
   const userData: MetaUserData = {};
   const availableFields: string[] = [];
 
-  if (data.preHashedUserData) {
+  // v1.0: 跳过所有 PII 处理，直接返回空 userData
+  // 在 v1.1+ 中，当 PCD 审核通过后，可以重新启用此功能
+  if (false && data.preHashedUserData) {
     const pre = data.preHashedUserData;
 
     if (pre.em) {
@@ -389,61 +408,65 @@ export async function buildMetaHashedUserData(
     }
   }
 
-  if (data.email) {
-    userData.em = [await hashValue(normalizeEmail(data.email))];
-    availableFields.push("email");
-  }
-
-  if (data.phone) {
-    userData.ph = [await hashValue(normalizePhone(data.phone))];
-    availableFields.push("phone");
-  }
-
-  if (data.firstName) {
-    const normalized = data.firstName.toLowerCase().trim();
-    if (normalized) {
-      userData.fn = [await hashValue(normalized)];
-      availableFields.push("firstName");
+  // v1.0: 跳过所有原始 PII 字段的处理
+  // 在 v1.1+ 中，当 PCD 审核通过后，可以重新启用此功能
+  if (false) {
+    if (data.email) {
+      userData.em = [await hashValue(normalizeEmail(data.email))];
+      availableFields.push("email");
     }
-  }
 
-  if (data.lastName) {
-    const normalized = data.lastName.toLowerCase().trim();
-    if (normalized) {
-      userData.ln = [await hashValue(normalized)];
-      availableFields.push("lastName");
+    if (data.phone) {
+      userData.ph = [await hashValue(normalizePhone(data.phone))];
+      availableFields.push("phone");
     }
-  }
 
-  if (data.city) {
-    const normalized = data.city.toLowerCase().replace(/\s/g, "");
-    if (normalized) {
-      userData.ct = [await hashValue(normalized)];
-      availableFields.push("city");
+    if (data.firstName) {
+      const normalized = data.firstName.toLowerCase().trim();
+      if (normalized) {
+        userData.fn = [await hashValue(normalized)];
+        availableFields.push("firstName");
+      }
     }
-  }
 
-  if (data.state) {
-    const normalized = data.state.toLowerCase().trim();
-    if (normalized) {
-      userData.st = [await hashValue(normalized)];
-      availableFields.push("state");
+    if (data.lastName) {
+      const normalized = data.lastName.toLowerCase().trim();
+      if (normalized) {
+        userData.ln = [await hashValue(normalized)];
+        availableFields.push("lastName");
+      }
     }
-  }
 
-  if (data.country) {
-    const normalized = data.country.toLowerCase().trim();
-    if (normalized) {
-      userData.country = [await hashValue(normalized)];
-      availableFields.push("country");
+    if (data.city) {
+      const normalized = data.city.toLowerCase().replace(/\s/g, "");
+      if (normalized) {
+        userData.ct = [await hashValue(normalized)];
+        availableFields.push("city");
+      }
     }
-  }
 
-  if (data.zip) {
-    const normalized = data.zip.replace(/\s/g, "");
-    if (normalized) {
-      userData.zp = [await hashValue(normalized)];
-      availableFields.push("zip");
+    if (data.state) {
+      const normalized = data.state.toLowerCase().trim();
+      if (normalized) {
+        userData.st = [await hashValue(normalized)];
+        availableFields.push("state");
+      }
+    }
+
+    if (data.country) {
+      const normalized = data.country.toLowerCase().trim();
+      if (normalized) {
+        userData.country = [await hashValue(normalized)];
+        availableFields.push("country");
+      }
+    }
+
+    if (data.zip) {
+      const normalized = data.zip.replace(/\s/g, "");
+      if (normalized) {
+        userData.zp = [await hashValue(normalized)];
+        availableFields.push("zip");
+      }
     }
   }
 
@@ -459,37 +482,54 @@ export async function buildMetaHashedUserData(
   return { userData, piiQuality };
 }
 
+/**
+ * P0-1: v1.0 版本不处理任何 PCD/PII 数据（包括哈希后的数据）
+ * 
+ * 上架前审查要求：
+ * - v1.0 必须完全避免 PCD (Protected Customer Data) 合规复杂性
+ * - 即使收到 preHashedUserData 或 email/phone 字段，也返回空的 user 对象
+ * - 所有 PII 处理逻辑已通过 `if (false)` 禁用，确保不会执行
+ * - 此函数在 v1.0 中仅作为占位符存在，将在 v1.1 中重新启用（需通过 PCD 审核）
+ * 
+ * 安全说明：
+ * - 哈希后的 PII 仍然被视为客户数据处理的一部分
+ * - v1.0 策略：完全不处理任何形式的 PII，包括哈希值
+ * - 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
+ */
 export async function buildTikTokHashedUserData(
   data: ConversionData
 ): Promise<{ user: TikTokUserData; hasPii: boolean }> {
+  // P0-1: v1.0 版本不处理任何 PII 数据（包括哈希后的数据）
+  // 即使收到 preHashedUserData 或 email/phone 字段，在 v1.0 中也返回空的 user 对象
+  // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
   const user: TikTokUserData = {};
-  let hasPii = false;
+  const hasPii = false; // v1.0: 强制设置为 false，确保不会处理任何 PII
 
-  if (data.preHashedUserData) {
-    const pre = data.preHashedUserData;
+  // v1.0: 跳过所有 PII 处理，直接返回空 user 对象
+  // 在 v1.1+ 中，当 PCD 审核通过后，可以重新启用此功能
+  if (false) {
+    if (data.preHashedUserData) {
+      const pre = data.preHashedUserData;
 
-    if (pre.em) {
-      user.email = pre.em;
-      hasPii = true;
+      if (pre.em) {
+        user.email = pre.em;
+        // hasPii = true; // v1.0: 已禁用
+      }
+      if (pre.ph) {
+        user.phone_number = pre.ph;
+        // hasPii = true; // v1.0: 已禁用
+      }
     }
-    if (pre.ph) {
-      user.phone_number = pre.ph;
-      hasPii = true;
+
+    if (data.email) {
+      user.email = await hashValue(normalizeEmail(data.email));
+      // hasPii = true; // v1.0: 已禁用
     }
 
-    if (hasPii) {
-      return { user, hasPii };
+    if (data.phone) {
+      user.phone_number = await hashValue(normalizePhone(data.phone));
+      // hasPii = true; // v1.0: 已禁用
     }
-  }
-
-  if (data.email) {
-    user.email = await hashValue(normalizeEmail(data.email));
-    hasPii = true;
-  }
-
-  if (data.phone) {
-    user.phone_number = await hashValue(normalizePhone(data.phone));
-    hasPii = true;
   }
 
   return { user, hasPii };

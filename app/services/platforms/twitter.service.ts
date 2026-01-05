@@ -155,16 +155,18 @@ export class TwitterPlatformService implements IPlatformService {
   ): Promise<Record<string, unknown>> {
     const eventTime = new Date().toISOString();
 
-    const hashedEmail = data.email ? await hashUserData(data.email.toLowerCase().trim()) : undefined;
-    const hashedPhone = data.phone ? await hashUserData(data.phone.replace(/\D/g, '')) : undefined;
+    // P0: v1.0 版本不处理任何 PII 数据（包括 hashed email/phone）
+    // 所有 PII 相关功能已移除，将在 v1.1 中重新引入
+    // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
+    // v1.0: 不包含任何 PII 数据
+    const hashedEmail = undefined;
+    const hashedPhone = undefined;
 
     return {
       conversion_time: eventTime,
       event_id: eventId,
-      identifiers: [
-        ...(hashedEmail ? [{ hashed_email: hashedEmail }] : []),
-        ...(hashedPhone ? [{ hashed_phone_number: hashedPhone }] : []),
-      ],
+      // v1.0: identifiers 字段已移除（不包含 hashed_email 或 hashed_phone_number）
+      identifiers: [],
       conversion_event: TWITTER_EVENT_TYPES.purchase,
       value: data.value.toString(),
       currency: data.currency,
@@ -186,16 +188,15 @@ export class TwitterPlatformService implements IPlatformService {
   ): Promise<ConversionApiResponse> {
     const eventTime = new Date().toISOString();
 
-    const hashedEmail = data.email ? await hashUserData(data.email.toLowerCase().trim()) : undefined;
-    const hashedPhone = data.phone ? await hashUserData(data.phone.replace(/\D/g, '')) : undefined;
+    // P0: v1.0 版本不处理任何 PII 数据（包括 hashed email/phone）
+    // 所有 PII 相关功能已移除，将在 v1.1 中重新引入
+    // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
+    // v1.0: 不包含任何 PII 数据
+    const hashedEmail = undefined;
+    const hashedPhone = undefined;
 
+    // v1.0: identifiers 数组为空，不包含任何 PII 标识符
     const identifiers: Array<Record<string, string>> = [];
-    if (hashedEmail) {
-      identifiers.push({ hashed_email: hashedEmail });
-    }
-    if (hashedPhone) {
-      identifiers.push({ hashed_phone_number: hashedPhone });
-    }
 
     const eventPayload = {
       conversions: [

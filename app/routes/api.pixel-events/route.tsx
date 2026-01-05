@@ -384,7 +384,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // P0-4: Origin 验证（在 HMAC 验证之后）
-    const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains);
+    // P1: 增加 fallback - 如果 Origin 缺失，尝试使用 Referer 或 shopDomain
+    const referer = request.headers.get("Referer");
+    const shopOriginValidation = validatePixelOriginForShop(origin, shopAllowedDomains, {
+      referer,
+      shopDomain: shop.shopDomain,
+    });
     if (!shopOriginValidation.valid && shopOriginValidation.shouldReject) {
       const anomalyCheck = trackAnomaly(shop.shopDomain, "invalid_origin");
       if (anomalyCheck.shouldBlock) {
@@ -397,7 +402,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
       logger.warn(
         `Rejected pixel origin at Stage 2 for ${shop.shopDomain}: ` +
-          `origin=${origin?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
+          `origin=${origin?.substring(0, 100) || "null"}, referer=${referer?.substring(0, 100) || "null"}, reason=${shopOriginValidation.reason}`
       );
       return emptyResponseWithCors(request, shopAllowedDomains);
     }

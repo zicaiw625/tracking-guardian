@@ -2,7 +2,7 @@
 
 import prisma from "../../db.server";
 import { randomUUID } from "crypto";
-import { normalizeOrderId, hashValue, normalizeEmail, normalizePhone } from "../../utils/crypto.server";
+import { normalizeOrderId } from "../../utils/crypto.server";
 import { generateCanonicalEventId } from "../../services/event-normalizer.server";
 import { checkBillingGate, type PlanId } from "../../services/billing.server";
 import { logger } from "../../utils/logger.server";
@@ -11,81 +11,15 @@ import { ConversionLogStatus, JobStatus } from "../../types";
 import type { OrderWebhookPayload } from "../../types";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "../types";
 import type { Prisma } from "@prisma/client";
-import { extractPIISafely, logPIIStatus, type ExtractedPII } from "../../utils/pii";
-import { PCD_CONFIG } from "../../utils/config";
 import { generateSimpleId } from "../../utils/helpers";
 
-export interface HashedUserData {
-  em?: string;
-  ph?: string;
-  fn?: string;
-  ln?: string;
-  ct?: string;
-  st?: string;
-  country?: string;
-  zp?: string;
-}
-
-async function hashPII(pii: ExtractedPII): Promise<HashedUserData> {
-  const hashed: HashedUserData = {};
-
-  if (pii.email) {
-    hashed.em = await hashValue(normalizeEmail(pii.email));
-  }
-
-  if (pii.phone) {
-    hashed.ph = await hashValue(normalizePhone(pii.phone));
-  }
-
-  if (pii.firstName) {
-    const normalized = pii.firstName.toLowerCase().trim();
-    if (normalized) {
-      hashed.fn = await hashValue(normalized);
-    }
-  }
-
-  if (pii.lastName) {
-    const normalized = pii.lastName.toLowerCase().trim();
-    if (normalized) {
-      hashed.ln = await hashValue(normalized);
-    }
-  }
-
-  if (pii.city) {
-    const normalized = pii.city.toLowerCase().replace(/\s/g, "");
-    if (normalized) {
-      hashed.ct = await hashValue(normalized);
-    }
-  }
-
-  if (pii.state) {
-    const normalized = pii.state.toLowerCase().trim();
-    if (normalized) {
-      hashed.st = await hashValue(normalized);
-    }
-  }
-
-  if (pii.country) {
-    const normalized = pii.country.toLowerCase().trim();
-    if (normalized) {
-      hashed.country = await hashValue(normalized);
-    }
-  }
-
-  if (pii.zip) {
-    const normalized = pii.zip.replace(/\s/g, "");
-    if (normalized) {
-      hashed.zp = await hashValue(normalized);
-    }
-  }
-
-  return hashed;
-}
+// P0: v1.0 版本不包含任何 PCD/PII 处理
+// 所有 PII 相关功能（包括 hashed email/phone）已移除，将在 v1.1 中重新引入
+// 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
 
 async function buildCapiInput(
   orderPayload: OrderWebhookPayload,
-  orderId: string,
-  shopConfig: { piiEnabled: boolean; pcdAcknowledged: boolean }
+  orderId: string
 ): Promise<Record<string, unknown>> {
   const items =
     orderPayload.line_items?.map((item) => ({
@@ -101,26 +35,7 @@ async function buildCapiInput(
     .map((item) => item.productId)
     .filter((id): id is string => !!id);
 
-  let hashedUserData: HashedUserData | null = null;
-  const pcdApproved = PCD_CONFIG.APPROVED;
-  const shouldExtractPii = shopConfig.piiEnabled && shopConfig.pcdAcknowledged && pcdApproved;
-
-  if (shopConfig.piiEnabled && !pcdApproved) {
-    logger.info(`[P1-2] Skipping PII extraction for order ${orderId}: PCD approval not granted`);
-  }
-
-  if (shouldExtractPii) {
-    const pii = extractPIISafely(orderPayload, true);
-    logPIIStatus(orderId, pii, true);
-
-    if (Object.keys(pii).length > 0) {
-      hashedUserData = await hashPII(pii);
-      logger.debug(`[P1-2] PII hashed for order ${orderId}`, {
-        fieldsHashed: Object.keys(hashedUserData).length,
-      });
-    }
-  }
-
+  // v1.0: 不包含任何 PII 数据（包括 hashedUserData）
   return {
     orderId,
     value: safeParseFloat(orderPayload.total_price),
@@ -139,8 +54,7 @@ async function buildCapiInput(
     webhookReceivedAt: new Date().toISOString(),
     checkoutToken: orderPayload.checkout_token || null,
     shopifyOrderId: orderPayload.id,
-
-    hashedUserData,
+    // v1.0: hashedUserData 字段已移除
   };
 }
 
@@ -219,10 +133,8 @@ async function queueOrderForProcessing(
 ): Promise<void> {
   const orderId = normalizeOrderId(String(orderPayload.id));
 
-  const capiInput = await buildCapiInput(orderPayload, orderId, {
-    piiEnabled: shopRecord.piiEnabled ?? false,
-    pcdAcknowledged: shopRecord.pcdAcknowledged ?? false,
-  }) as Prisma.InputJsonValue;
+  // v1.0: 不传递 PII 配置，buildCapiInput 不再处理任何 PII
+  const capiInput = await buildCapiInput(orderPayload, orderId) as Prisma.InputJsonValue;
 
   try {
     await prisma.conversionJob.upsert({

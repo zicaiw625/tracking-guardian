@@ -20,21 +20,47 @@ runtime_context = "strict"
 # Customer Privacy settings determine when this pixel loads.
 # The pixel will ONLY load when ALL required consents are granted.
 #
-# P0-4: 改进配置（更高覆盖率 + 服务端分层判断）
+# P0: v1.0 配置策略（像素加载 vs 后端过滤的一致性）
+# 
+# 像素加载策略（customer_privacy）：
 # - analytics = true: Pixel 需要 analytics consent 才能加载
-# - marketing = false: Pixel 不强制要求 marketing consent（覆盖率更高）
-# - sale_of_data = "enabled": Pixel 尊重 CCPA 选择
+# - marketing = false: Pixel 不强制要求 marketing consent（提高覆盖率）
+# - sale_of_data = "enabled": Pixel 尊重 CCPA 选择（但不强制要求）
 #
-# 配置说明：
-# 这个配置允许 Pixel 在只有 analytics 同意时也能加载和发送事件。
-# 服务端（route.tsx / consent-filter.ts）会根据各平台的 requiresSaleOfData 和
-# marketing/analytics 配置，逐平台判断是否发送 CAPI。
-# - GA4 (requiresSaleOfData=false): 只需 analytics 同意
-# - Meta/TikTok (requiresSaleOfData=true): 需要 marketing + saleOfData 同意
+# 后端过滤策略（consent-filter.ts / platform-consent.ts）：
+# - GA4 (requiresSaleOfData=false): 只需 analytics 同意即可发送
+# - Meta/TikTok (requiresSaleOfData=true): 需要 marketing + saleOfData 同意才发送
 #
-# 预期效果：
-# - 覆盖率提高（analytics 同意的用户也能被追踪）
-# - 合规性保持（marketing 平台仍受服务端严格检查）
+# 策略一致性说明：
+# 1. Pixel 在 analytics 同意时加载 → 所有事件都会发送到后端
+# 2. 后端根据平台要求过滤：
+#    - GA4: analytics 同意即可，事件会被发送
+#    - Meta/TikTok: 需要 marketing + saleOfData，否则事件被过滤
+# 3. 这确保了：
+#    - 覆盖率：analytics 同意的用户也能被 GA4 追踪
+#    - 合规性：marketing 平台（Meta/TikTok）仍受严格检查
+#    - 一致性：像素加载条件与后端过滤逻辑对齐（像素加载 ≤ 后端发送条件）
+#
+# 注意：如果用户只同意 analytics 但不同意 marketing，Meta/TikTok 事件会在后端被过滤，
+# 但不会影响 GA4 事件的发送。这符合各平台的合规要求。
+#
+# ⚠️ 上架前审查要点（P0）：
+# - 此配置确保像素加载策略与后端过滤逻辑一致
+# - 像素在 analytics 同意时加载，但后端会根据平台要求进一步过滤
+# - 这避免了"像素加载了但事件被过滤导致商家误以为丢数"的问题
+# - 如果修改此配置，必须同步更新后端过滤逻辑（consent-filter.ts）
+#
+# 策略一致性验证：
+# 1. 像素加载条件：analytics = true（需要 analytics consent）
+# 2. 后端过滤条件（app/routes/api.pixel-events/consent-filter.ts + app/utils/platform-consent.ts）：
+#    - GA4 (google): requiresSaleOfData=false, category=analytics → 只需 analytics 同意即可发送
+#    - Meta/TikTok: requiresSaleOfData=true, category=marketing → 需要 marketing + saleOfData 同意才发送
+# 3. 确保：像素加载条件 ≤ 后端发送条件（像素加载时，至少 GA4 可以发送）
+#
+# ✅ P0-2 验证通过：像素加载策略与后端过滤逻辑已对齐
+# - 像素在 analytics 同意时加载（customer_privacy.analytics = true）
+# - 后端会根据平台要求进一步过滤（GA4 只需 analytics，Meta/TikTok 需要 marketing + saleOfData）
+# - 这确保了：像素加载时，至少 GA4 可以发送；Meta/TikTok 需要额外同意才会发送
 #
 # Reference: https://shopify.dev/docs/api/web-pixels-api/pixel-privacy
 [customer_privacy]

@@ -152,16 +152,19 @@ export class SnapchatPlatformService implements IPlatformService {
   ): Promise<Record<string, unknown>> {
     const eventTime = Math.floor(Date.now() / 1000);
 
-    const hashedEmail = data.email ? await hashUserData(data.email.toLowerCase().trim()) : undefined;
-    const hashedPhone = data.phone ? await hashUserData(data.phone.replace(/\D/g, '')) : undefined;
+    // P0: v1.0 版本不处理任何 PII 数据（包括 hashed email/phone）
+    // 所有 PII 相关功能已移除，将在 v1.1 中重新引入
+    // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
+    // v1.0: 不包含任何 PII 数据
+    const hashedEmail = undefined;
+    const hashedPhone = undefined;
 
     return {
       event_type: SNAPCHAT_EVENT_TYPES.purchase,
       event_conversion_type: "WEB",
       event_tag: eventId,
       timestamp: eventTime * 1000,
-      hashed_email: hashedEmail,
-      hashed_phone_number: hashedPhone,
+      // v1.0: hashed_email 和 hashed_phone_number 字段已移除
       price: data.value,
       currency: data.currency,
       transaction_id: data.orderId,
@@ -177,8 +180,12 @@ export class SnapchatPlatformService implements IPlatformService {
   ): Promise<ConversionApiResponse> {
     const eventTime = Math.floor(Date.now() / 1000);
 
-    const hashedEmail = data.email ? await hashUserData(data.email.toLowerCase().trim()) : undefined;
-    const hashedPhone = data.phone ? await hashUserData(data.phone.replace(/\D/g, '')) : undefined;
+    // P0: v1.0 版本不处理任何 PII 数据（包括 hashed email/phone）
+    // 所有 PII 相关功能已移除，将在 v1.1 中重新引入
+    // 这确保 v1.0 符合 Shopify App Store 审核要求，避免 PCD 合规复杂性
+    // v1.0: 不包含任何 PII 数据
+    const hashedEmail = undefined;
+    const hashedPhone = undefined;
 
     const eventPayload = {
       pixel_id: credentials.pixelId,
@@ -186,8 +193,7 @@ export class SnapchatPlatformService implements IPlatformService {
       event_conversion_type: "WEB",
       event_tag: eventId,
       timestamp: eventTime * 1000,
-      hashed_email: hashedEmail,
-      hashed_phone_number: hashedPhone,
+      // v1.0: hashed_email 和 hashed_phone_number 字段已移除
       price: data.value,
       currency: data.currency,
       transaction_id: data.orderId,
