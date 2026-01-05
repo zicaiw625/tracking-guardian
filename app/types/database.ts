@@ -8,7 +8,6 @@ import type {
   ConsentStrategyType,
 } from './enums';
 import { ok, err, type Result } from './result';
-import { logger } from '../utils/logger.server';
 
 export interface CapiLineItem {
   productId?: string;
@@ -458,16 +457,10 @@ export function createJsonParser<T>(
       return mapper(data);
     } catch (error) {
       if (options?.logErrors) {
-        if (typeof window === "undefined") {
-          // Server-side: use structured logger
-          logger.error('JSON parsing error', error, { context: 'createJsonParser' });
-        } else {
-          // Client-side: use console for development debugging
-          if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
-            console.error('JSON parsing error', { error });
-          }
-        }
+        // Use console.error to avoid importing server-only modules
+        // This function may be used in both client and server contexts
+        // eslint-disable-next-line no-console
+        console.error('JSON parsing error', { error, context: 'createJsonParser' });
       }
       return options?.fallback ?? null;
     }
