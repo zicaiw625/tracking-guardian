@@ -44,7 +44,8 @@ export async function getWizardTemplates(shopId: string): Promise<{
       id: "advanced",
       name: "高级配置",
       description: "包含更多事件类型的完整映射，适合需要详细转化漏斗分析的店铺",
-      platforms: ["google", "meta", "tiktok", "pinterest"],
+      // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok，移除 Pinterest
+      platforms: ["google", "meta", "tiktok"],
       eventMappings: {
         google: {
           checkout_completed: "purchase",
@@ -61,9 +62,10 @@ export async function getWizardTemplates(shopId: string): Promise<{
           checkout_started: "InitiateCheckout",
           add_to_cart: "AddToCart",
         },
-        pinterest: {
-          checkout_completed: "checkout",
-        },
+        // P0-6: Pinterest 将在 v1.1+ 版本支持
+        // pinterest: {
+        //   checkout_completed: "checkout",
+        // },
       },
       isPublic: true,
       usageCount: 0,
@@ -72,7 +74,8 @@ export async function getWizardTemplates(shopId: string): Promise<{
       id: "ecommerce-optimized",
       name: "电商优化配置",
       description: "专为电商店铺优化的完整转化漏斗追踪，包含商品浏览、加购、结账、购买全流程",
-      platforms: ["google", "meta", "tiktok", "pinterest"],
+      // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok，移除 Pinterest
+      platforms: ["google", "meta", "tiktok"],
       eventMappings: {
         google: {
           checkout_completed: "purchase",
@@ -92,11 +95,12 @@ export async function getWizardTemplates(shopId: string): Promise<{
           add_to_cart: "AddToCart",
           view_item: "ViewContent",
         },
-        pinterest: {
-          checkout_completed: "checkout",
-          add_to_cart: "add_to_cart",
-          view_item: "page_visit",
-        },
+        // P0-6: Pinterest 将在 v1.1+ 版本支持
+        // pinterest: {
+        //   checkout_completed: "checkout",
+        //   add_to_cart: "add_to_cart",
+        //   view_item: "page_visit",
+        // },
       },
       isPublic: true,
       usageCount: 0,
@@ -126,8 +130,9 @@ export async function getWizardTemplates(shopId: string): Promise<{
     {
       id: "social-commerce",
       name: "社交电商配置",
-      description: "专为社交电商优化的配置，包含 TikTok 和 Pinterest，适合依赖社交媒体流量的店铺",
-      platforms: ["meta", "tiktok", "pinterest"],
+      description: "专为社交电商优化的配置，包含 Meta 和 TikTok，适合依赖社交媒体流量的店铺",
+      // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok，移除 Pinterest
+      platforms: ["meta", "tiktok"],
       eventMappings: {
         meta: {
           checkout_completed: "Purchase",
@@ -141,11 +146,12 @@ export async function getWizardTemplates(shopId: string): Promise<{
           add_to_cart: "AddToCart",
           view_item: "ViewContent",
         },
-        pinterest: {
-          checkout_completed: "checkout",
-          add_to_cart: "add_to_cart",
-          view_item: "page_visit",
-        },
+        // P0-6: Pinterest 将在 v1.1+ 版本支持
+        // pinterest: {
+        //   checkout_completed: "checkout",
+        //   add_to_cart: "add_to_cart",
+        //   view_item: "page_visit",
+        // },
       },
       isPublic: true,
       usageCount: 0,

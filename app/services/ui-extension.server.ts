@@ -184,10 +184,28 @@ export async function getUiModuleConfigs(shopId: string): Promise<UiModuleConfig
     const existing = settings.find((s: { moduleKey: string }) => s.moduleKey === moduleKey);
 
     if (existing) {
+      // P0-8: 优先使用 settingsEncrypted，如果没有则回退到 settingsJson（向后兼容）
+      let moduleSettings: ModuleSettings;
+      if (existing.settingsEncrypted) {
+        try {
+          const { decryptJson } = require("../utils/crypto.server");
+          moduleSettings = decryptJson<ModuleSettings>(existing.settingsEncrypted);
+        } catch (error) {
+          logger.error("Failed to decrypt settingsEncrypted in getUiModuleConfigs", {
+            shopId,
+            moduleKey,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          moduleSettings = getDefaultSettings(moduleKey);
+        }
+      } else {
+        moduleSettings = (existing.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
+      }
+      
       return {
         moduleKey,
         isEnabled: existing.isEnabled,
-        settings: (existing.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey),
+        settings: moduleSettings,
         displayRules: (existing.displayRules as unknown as DisplayRules) || getDefaultDisplayRules(moduleKey),
         localization: (existing.localization as unknown as LocalizationSettings) || undefined,
       };
@@ -213,35 +231,50 @@ export async function getUiModuleConfig(
   });
 
   if (setting) {
-    // P0-5: v1.0 安全要求 - 解密 UI 模块的敏感字段（如 API Key）
-    let settings = (setting.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
+    // P0-8: 优先使用 settingsEncrypted，如果没有则回退到 settingsJson（向后兼容）
+    let settings: ModuleSettings;
     
-    // 如果是 order_tracking 模块且 apiKey 已加密，则解密
-    if (moduleKey === "order_tracking" && settings && typeof settings === "object") {
-      const settingsObj = settings as Record<string, unknown>;
-      if (settingsObj._apiKeyEncrypted && settingsObj.apiKey && typeof settingsObj.apiKey === "string") {
-        try {
-          const { decryptJson } = await import("../utils/crypto.server");
-          const decrypted = decryptJson<{ apiKey: string }>(settingsObj.apiKey);
-          settings = {
-            ...settingsObj,
-            apiKey: decrypted.apiKey,
-            _apiKeyEncrypted: undefined, // 解密后移除标记（不暴露给前端）
-          } as ModuleSettings;
-        } catch (error) {
-          logger.error("Failed to decrypt API key", {
-            shopId,
-            moduleKey,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          // 解密失败时，移除 apiKey（安全起见）
-          settings = {
-            ...settingsObj,
-            apiKey: undefined,
-            _apiKeyEncrypted: undefined,
-          } as ModuleSettings;
+    if (setting.settingsEncrypted) {
+      // 使用加密字段
+      try {
+        const { decryptJson } = await import("../utils/crypto.server");
+        settings = decryptJson<ModuleSettings>(setting.settingsEncrypted);
+      } catch (error) {
+        logger.error("Failed to decrypt settingsEncrypted", {
+          shopId,
+          moduleKey,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // 解密失败，回退到默认设置
+        settings = getDefaultSettings(moduleKey);
+      }
+    } else if (setting.settingsJson) {
+      // 向后兼容：使用明文 settingsJson（已废弃）
+      settings = (setting.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
+      
+      // 如果是 order_tracking 模块且 apiKey 已加密（旧格式），则解密
+      if (moduleKey === "order_tracking" && settings && typeof settings === "object") {
+        const settingsObj = settings as Record<string, unknown>;
+        if (settingsObj._apiKeyEncrypted && settingsObj.apiKey && typeof settingsObj.apiKey === "string") {
+          try {
+            const { decryptJson } = await import("../utils/crypto.server");
+            const decrypted = decryptJson<{ apiKey: string }>(settingsObj.apiKey as string);
+            settings = {
+              ...settingsObj,
+              apiKey: decrypted.apiKey,
+              _apiKeyEncrypted: undefined, // 解密后移除标记
+            } as ModuleSettings;
+          } catch (error) {
+            logger.error("Failed to decrypt API key from legacy format", {
+              shopId,
+              moduleKey,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
       }
+    } else {
+      settings = getDefaultSettings(moduleKey);
     }
     
     return {
@@ -337,38 +370,29 @@ export async function updateUiModuleConfig(
     if (config.isEnabled !== undefined) {
       data.isEnabled = config.isEnabled;
     }
-    // P0-5: v1.0 安全要求 - 加密 UI 模块的敏感字段（如 API Key）
-    // 在保存前，对 order_tracking 模块的 apiKey 进行加密
-    let settingsToSave: Record<string, unknown> | undefined;
+    // P0-8: 使用 settingsEncrypted 存储加密后的设置（推荐方式）
+    // 对于包含敏感信息的设置（如 order_tracking 的 apiKey），加密整个 settings 对象
     if (config.settings) {
-      settingsToSave = { ...config.settings };
-      if (moduleKey === "order_tracking" && settingsToSave.apiKey && typeof settingsToSave.apiKey === "string") {
-        // 检查是否已经是加密格式（避免重复加密）
-        const apiKeyValue = settingsToSave.apiKey;
-        const isAlreadyEncrypted = settingsToSave._apiKeyEncrypted === true;
-        
-        if (!isAlreadyEncrypted) {
-          const { encryptJson } = await import("../utils/crypto.server");
-          // 加密 apiKey，存储为加密后的字符串
-          // 注意：这里只加密 apiKey 的值，而不是整个 settings 对象
-          // 这样可以保持 settingsJson 的其他字段可读，同时保护敏感信息
-          try {
-            const encryptedApiKey = encryptJson({ apiKey: apiKeyValue });
-            settingsToSave.apiKey = encryptedApiKey;
-            settingsToSave._apiKeyEncrypted = true; // 标记为已加密
-          } catch (error) {
-            logger.error("Failed to encrypt API key", {
-              shopId,
-              moduleKey,
-              error: error instanceof Error ? error.message : String(error),
-            });
-            // 如果加密失败，不保存 apiKey（安全起见）
-            delete settingsToSave.apiKey;
-          }
-        }
-        // 如果已经是加密格式，保持不变
+      const { encryptJson } = await import("../utils/crypto.server");
+      try {
+        // 加密整个 settings 对象
+        const encryptedSettings = encryptJson(config.settings);
+        data.settingsEncrypted = encryptedSettings;
+        // 不再保存明文 settingsJson（为了安全）
+        // 但保留 settingsJson 字段为空，以便向后兼容
+        data.settingsJson = null;
+      } catch (error) {
+        logger.error("Failed to encrypt settings", {
+          shopId,
+          moduleKey,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // 如果加密失败，不保存设置（安全起见）
+        return {
+          success: false,
+          error: "设置加密失败，请稍后重试",
+        };
       }
-      data.settingsJson = settingsToSave as object;
     }
     if (config.displayRules) {
       data.displayRules = config.displayRules as object;
@@ -387,7 +411,9 @@ export async function updateUiModuleConfig(
         shopId,
         moduleKey,
         isEnabled: config.isEnabled ?? false,
-        settingsJson: (settingsToSave || config.settings || getDefaultSettings(moduleKey)) as object,
+        // P0-8: 使用 settingsEncrypted 而不是 settingsJson
+        settingsJson: null, // 不再保存明文
+        settingsEncrypted: data.settingsEncrypted || null,
         displayRules: (config.displayRules || getDefaultDisplayRules(moduleKey)) as object,
         localization: config.localization ? (config.localization as object) : undefined,
         updatedAt: new Date(),
@@ -451,7 +477,9 @@ export async function resetModuleToDefault(
         shopId_moduleKey: { shopId, moduleKey },
       },
       update: {
-        settingsJson: getDefaultSettings(moduleKey) as object,
+        // P0-8: 重置时也使用加密字段
+        settingsJson: null,
+        settingsEncrypted: null,
         displayRules: getDefaultDisplayRules(moduleKey) as object,
         localization: undefined,
       },
@@ -460,7 +488,8 @@ export async function resetModuleToDefault(
         shopId,
         moduleKey,
         isEnabled: false,
-        settingsJson: getDefaultSettings(moduleKey) as object,
+        settingsJson: null, // P0-8: 不再保存明文
+        settingsEncrypted: null,
         displayRules: getDefaultDisplayRules(moduleKey) as object,
         updatedAt: new Date(),
       },

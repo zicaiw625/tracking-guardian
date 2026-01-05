@@ -5,10 +5,10 @@ embedded = true
 
 [access_scopes]
 # Note: write_script_tags removed - blocked by Shopify from 2025-02-01 on checkout pages
-# P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 read_orders scope
-# v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
+# P0-4: v1.0 版本需要 read_orders scope 以支持 Reorder 功能（查询订单 line items）
+# Reorder 功能是 v1.0 模块库的核心功能之一，需要读取订单信息以构建再购链接
 # If you still need ScriptTag scanning, keep read_script_tags; remove it if not needed
-scopes = "read_script_tags,read_pixels,write_pixels,read_customer_events"
+scopes = "read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders"
 
 [auth]
 redirect_urls = [

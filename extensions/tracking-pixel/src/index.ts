@@ -58,9 +58,10 @@ register(({ analytics, settings, init, customerPrivacy }: {
     logger: log,
   });
 
-  const pixelConfig = parsePixelConfig(settings.pixel_config);
+  // P1-11: 不再从 settings.pixel_config 读取配置，使用默认配置
+  // 完整配置由后端根据 shop_domain 提供（如果需要）
   // v1 默认 purchase_only，符合隐私最小化原则
-  const mode = pixelConfig.mode || "purchase_only";
+  const mode = "purchase_only"; // 使用默认模式
 
   subscribeToAnalyticsEvents(analytics, sendToBackend, log, mode);
 });

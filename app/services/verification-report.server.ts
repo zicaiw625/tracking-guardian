@@ -186,11 +186,23 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
     `金额准确率: ${data.summary.valueAccuracy}%`,
   ];
 
+  // P1-12: 在 CSV 中添加免责声明
+  const disclaimer = [
+    "",
+    "重要说明：事件发送与平台归因",
+    "本应用仅保证事件生成与发送成功，不保证平台侧归因一致。",
+    "我们保证：事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）。",
+    "我们不保证：平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制、数据处理延迟等。",
+    "验收报告说明：本验收报告仅验证事件是否成功发送到平台 API，以及事件参数是否完整。平台侧报表中的归因数据可能因平台算法、数据处理延迟等因素与 Shopify 订单数据存在差异，这是正常现象。",
+    "",
+  ];
+
   const csv = [
     `验收报告 - ${data.runName}`,
     `生成时间: ${data.completedAt?.toLocaleString("zh-CN") || new Date().toLocaleString("zh-CN")}`,
     `店铺: ${data.shopDomain}`,
     "",
+    ...disclaimer.map((line) => `"${line.replace(/"/g, '""')}"`),
     ...headers.map((h) => `"${h}"`).join(","),
     ...rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
     "",
@@ -450,7 +462,18 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
     `;
   }
 
+  // P1-12: 添加免责声明，明确说明我们只保证生成与发送成功，不保证平台侧归因一致
   html += `
+  <div style="margin-top: 40px; padding: 20px; background: #f6f6f7; border-radius: 8px; border-left: 4px solid #008060;">
+    <h3 style="color: #202223; margin-top: 0;">重要说明：事件发送与平台归因</h3>
+    <p style="margin: 10px 0; color: #202223;"><strong>本应用仅保证事件生成与发送成功，不保证平台侧归因一致。</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px; color: #6d7175;">
+      <li style="margin: 8px 0;"><strong>我们保证：</strong>事件已成功生成并发送到目标平台 API（GA4 Measurement Protocol、Meta Conversions API、TikTok Events API 等）。本报告中的"成功"状态表示事件已成功发送到平台 API，并收到平台确认响应。</li>
+      <li style="margin: 8px 0;"><strong>我们不保证：</strong>平台侧报表中的归因数据与 Shopify 订单数据完全一致。平台侧归因受多种因素影响，包括平台算法、用户隐私设置、跨设备追踪限制、数据处理延迟等。</li>
+      <li style="margin: 8px 0;"><strong>验收报告说明：</strong>本验收报告仅验证事件是否成功发送到平台 API，以及事件参数是否完整。平台侧报表中的归因数据可能因平台算法、数据处理延迟等因素与 Shopify 订单数据存在差异，这是正常现象。</li>
+    </ul>
+  </div>
+
   <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #6d7175; font-size: 12px;">
     <p>报告生成时间: ${new Date().toLocaleString("zh-CN")}</p>
     <p>Tracking Guardian - Checkout 升级助手</p>

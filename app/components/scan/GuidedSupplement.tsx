@@ -24,17 +24,20 @@ export interface GuidedSupplementProps {
   shopId: string;
 }
 
+// P0-6: v1.0 版本仅支持 GA4/Meta/TikTok，移除非 v1.0 平台入口
 const UPGRADE_WIZARD_CHECKLIST = [
   { id: "ga4", label: "Google Analytics 4 (GA4)", category: "pixel", platform: "google" },
   { id: "meta", label: "Meta Pixel (Facebook)", category: "pixel", platform: "meta" },
   { id: "tiktok", label: "TikTok Pixel", category: "pixel", platform: "tiktok" },
-  { id: "pinterest", label: "Pinterest Tag", category: "pixel", platform: "pinterest" },
-  { id: "snapchat", label: "Snapchat Pixel", category: "pixel", platform: "snapchat" },
+  // P0-6: Pinterest/Snapchat 等平台将在 v1.1+ 版本支持，v1.0 中不显示
+  // { id: "pinterest", label: "Pinterest Tag", category: "pixel", platform: "pinterest" },
+  // { id: "snapchat", label: "Snapchat Pixel", category: "pixel", platform: "snapchat" },
   { id: "survey", label: "售后问卷 / 评价收集", category: "survey", platform: undefined },
   { id: "support", label: "客服入口 / 帮助中心", category: "support", platform: undefined },
   { id: "reorder", label: "再购功能", category: "other", platform: undefined },
   { id: "affiliate", label: "联盟追踪 / 分佣", category: "affiliate", platform: undefined },
-  { id: "upsell", label: "追加销售 / 推荐商品", category: "other", platform: undefined },
+  // P0-6: Upsell 模块在 v1.0 中不可用，将在 v1.1+ 版本支持
+  // { id: "upsell", label: "追加销售 / 推荐商品", category: "other", platform: undefined },
   { id: "tracking", label: "订单追踪 / 物流查询", category: "support", platform: undefined },
   { id: "other", label: "其他脚本或功能", category: "other", platform: undefined },
 ];

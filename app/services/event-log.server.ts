@@ -48,67 +48,87 @@ function sanitizePII(payload: unknown): unknown {
 
   const obj = sanitized as Record<string, unknown>;
   
-  // PII 字段白名单（允许保留的字段）
+  // P0-7: PII 字段白名单（允许保留的字段）- 统一使用小写
+  // 只保留事件追踪必需的非 PII 字段
   const allowedFields = new Set([
     "event_name",
-    "eventName",
+    "eventname",
     "value",
     "currency",
     "items",
     "event_id",
-    "eventId",
+    "eventid",
     "timestamp",
     "event_time",
+    "eventtime",
     "client_id",
+    "clientid",
     "order_id",
-    "orderId",
+    "orderid",
     "item_id",
+    "itemid",
     "item_name",
-    "item_name",
+    "itemname",
     "quantity",
     "price",
     "content_id",
+    "contentid",
     "content_name",
+    "contentname",
     "contents",
     "content_type",
+    "contenttype",
     "engagement_time_msec",
+    "engagementtimemsec",
     "url",
     "method",
     "headers",
     "body",
     "data",
     "pixel_code",
+    "pixelcode",
     "test_event_code",
-    "testEventCode",
+    "testeventcode",
+    "product_id",
+    "productid",
+    "variant_id",
+    "variantid",
   ]);
 
-  // 明确禁止的 PII 字段（包括 hash 形态）
-  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此显式删除所有 PII 字段（包括 hash 形态）
+  // P0-7: 明确禁止的 PII 字段（包括 hash 形态）- 统一使用小写
+  // v1.0 版本不包含任何 PCD/PII 处理，因此显式删除所有 PII 字段（包括 hash 形态）
   const piiFields = new Set([
     "email",
     "phone",
     "phone_number",
+    "phonenumber",
     "name",
     "first_name",
+    "firstname",
     "last_name",
+    "lastname",
     "full_name",
+    "fullname",
     "address",
     "street",
     "city",
     "state",
     "zip",
     "postal_code",
+    "postalcode",
     "country",
     "ip",
     "ip_address",
+    "ipaddress",
     "user_agent",
+    "useragent",
     "latitude",
     "longitude",
     "location",
     "customer_id",
-    "customerId",
+    "customerid",
     "user_id",
-    "userId",
+    "userid",
     // Hash 形态的字段（也属于 PII 处理范畴）
     // 注意：v1.0 版本不生成这些字段，但保留在防御性清理列表中，以防止第三方 payload 包含此类数据
     // Meta CAPI 标准缩写
@@ -119,59 +139,72 @@ function sanitizePII(payload: unknown): unknown {
     "zp",
     "ct",
     "st",
-    "country",
     "user_data",
+    "userdata",
     "external_id",
+    "externalid",
     // 常见 hash 字段名变体
     "email_hash",
+    "emailhash",
     "phone_hash",
+    "phonehash",
     "hashed_email",
+    "hashedemail",
     "hashed_phone",
+    "hashedphone",
     "hashed_phone_number",
+    "hashedphonenumber",
     "pre_hashed_user_data",
-    "preHashedUserData",
+    "prehasheduserdata",
     "customer_email_hash",
+    "customeremailhash",
     "customer_phone_hash",
-    "hashedEmail",
-    "hashedPhone",
-    "emailHash",
-    "phoneHash",
+    "customerphonehash",
   ]);
 
-  // 敏感凭证字段
+  // P0-7: 敏感凭证字段 - 统一使用小写
   const sensitiveKeys = new Set([
     "access_token",
+    "accesstoken",
     "api_secret",
-    "apiSecret",
-    "accessToken",
+    "apisecret",
     "authorization",
-    "Authorization",
   ]);
 
   const result: Record<string, unknown> = {};
 
-  // P0-5: 改为严格白名单模式 - 只保留明确允许的字段，其他一律删除
+  // P0-7: 严格白名单模式 - 只保留明确允许的字段，其他一律删除
+  // 统一使用 lowercase 比较，确保字段名无论大小写都能正确匹配
   // 这样可以确保即使第三方 payload 包含未知的 PII 字段，也不会被存储
   for (const key of Object.keys(obj)) {
     const lowerKey = key.toLowerCase();
     
     // 防御性检查：如果字段名包含 PII 关键词，即使不在黑名单中也要删除
+    // 但需要排除白名单中的字段（如 order_id, item_id 等）
     const piiKeywords = ["email", "phone", "address", "name", "customer", "user", "personal", "identify"];
     const containsPiiKeyword = piiKeywords.some(keyword => lowerKey.includes(keyword));
     
-    // 明确禁止 PII 字段
-    if (piiFields.has(lowerKey) || containsPiiKeyword) {
+    // 先检查是否在白名单中（白名单优先）
+    const isAllowed = allowedFields.has(lowerKey);
+    
+    // 如果不在白名单中，检查是否包含 PII 关键词
+    if (!isAllowed && containsPiiKeyword) {
+      // 不在白名单且包含 PII 关键词的字段一律删除
+      continue;
+    }
+    
+    // 明确禁止的 PII 字段（即使不在关键词列表中也要删除）
+    if (piiFields.has(lowerKey)) {
       continue;
     }
     
     // 脱敏敏感凭证
-    if (sensitiveKeys.has(key) || sensitiveKeys.has(lowerKey)) {
+    if (sensitiveKeys.has(lowerKey)) {
       result[key] = "***REDACTED***";
       continue;
     }
     
     // 严格白名单：只有明确在白名单中的字段才保留
-    const isAllowed = allowedFields.has(key) || allowedFields.has(lowerKey);
     if (!isAllowed) {
       // 不在白名单中的字段一律删除（白名单模式）
       continue;

@@ -663,22 +663,42 @@ export async function sendPixelEventToPlatform(
       }
     }
 
-    // 执行 HTTP 请求
+    // P2-13: 执行 HTTP 请求，统一超时和错误处理
     const startTime = Date.now();
     let sendResult: PixelEventSendResult;
     
-    if (normalizedPlatform === "google") {
-      sendResult = await sendToGA4(credentials, payload.eventName, payload, eventId);
-    } else if (normalizedPlatform === "meta" || normalizedPlatform === "facebook") {
-      sendResult = await sendToMeta(credentials, payload.eventName, payload, eventId);
-    } else if (normalizedPlatform === "tiktok") {
-      sendResult = await sendToTikTok(credentials, payload.eventName, payload, eventId);
-    } else {
-      // 不应该到达这里，因为上面已经检查过了
-      return {
+    try {
+      if (normalizedPlatform === "google") {
+        sendResult = await sendToGA4(credentials, payload.eventName, payload, eventId);
+      } else if (normalizedPlatform === "meta" || normalizedPlatform === "facebook") {
+        sendResult = await sendToMeta(credentials, payload.eventName, payload, eventId);
+      } else if (normalizedPlatform === "tiktok") {
+        sendResult = await sendToTikTok(credentials, payload.eventName, payload, eventId);
+      } else {
+        // 不应该到达这里，因为上面已经检查过了
+        return {
+          success: false,
+          platform,
+          error: `Unsupported platform: ${platform}`,
+        };
+      }
+    } catch (error) {
+      // P2-13: 统一错误处理（超时、网络错误等）
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to send event to ${platform}`, {
+        shopId,
+        platform,
+        eventName: payload.eventName,
+        eventId,
+        error: errorMessage,
+      });
+      
+      sendResult = {
         success: false,
         platform,
-        error: `Unsupported platform: ${platform}`,
+        error: errorMessage.includes("timeout") || errorMessage.includes("aborted")
+          ? `Request timeout after ${DEFAULT_API_TIMEOUT_MS}ms`
+          : errorMessage,
       };
     }
 

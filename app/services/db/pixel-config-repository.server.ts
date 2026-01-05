@@ -15,6 +15,7 @@ export interface PixelConfigCredentials {
   credentialsEncrypted: string | null;
   credentials: Prisma.JsonValue;
   clientConfig: Prisma.JsonValue;
+  environment: string | null; // P0-5: 添加 environment 字段，用于 Test/Live 环境判断
 }
 
 export type PixelConfigFull = PixelConfig;
@@ -67,6 +68,7 @@ const CREDENTIALS_SELECT = {
   credentialsEncrypted: true,
   credentials: true,
   clientConfig: true,
+  environment: true, // P0-5: 添加 environment 字段，用于 Test/Live 环境判断
 } as const;
 
 const SUMMARY_SELECT = {

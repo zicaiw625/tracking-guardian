@@ -3,6 +3,7 @@
 import { logger } from "../utils/logger.server";
 import prisma from "../db.server";
 import type { ModuleKey } from "../types/ui-extension";
+import { decryptJson } from "../utils/crypto.server";
 
 export interface ModulePreviewConfig {
   moduleKey: ModuleKey;
@@ -104,9 +105,28 @@ export async function getModulePreviewConfig(
     return null;
   }
 
+  // P0-8: 优先使用 settingsEncrypted，如果没有则回退到 settingsJson（向后兼容）
+  let settings: Record<string, unknown> = {};
+  if (setting.settingsEncrypted) {
+    try {
+      settings = decryptJson<Record<string, unknown>>(setting.settingsEncrypted);
+    } catch (error) {
+      logger.error("Failed to decrypt settingsEncrypted in getModulePreviewConfig", {
+        shopId,
+        moduleKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // 如果解密失败，回退到 settingsJson（向后兼容）
+      settings = (setting.settingsJson as Record<string, unknown>) || {};
+    }
+  } else {
+    // 向后兼容：使用明文 settingsJson（已废弃）
+    settings = (setting.settingsJson as Record<string, unknown>) || {};
+  }
+
   return {
     moduleKey: setting.moduleKey as ModuleKey,
-    settings: (setting.settingsJson as Record<string, unknown>) || {},
+    settings,
     displayRules: (setting.displayRules as {
       enabled: boolean;
       targets: ("thank_you" | "order_status")[];
@@ -127,9 +147,28 @@ export async function getAllModulePreviewConfigs(
   const result: Record<string, ModulePreviewConfig | null> = {};
 
   for (const setting of settings) {
+    // P0-8: 优先使用 settingsEncrypted，如果没有则回退到 settingsJson（向后兼容）
+    let moduleSettings: Record<string, unknown> = {};
+    if (setting.settingsEncrypted) {
+      try {
+        moduleSettings = decryptJson<Record<string, unknown>>(setting.settingsEncrypted);
+      } catch (error) {
+        logger.error("Failed to decrypt settingsEncrypted in getAllModulePreviewConfigs", {
+          shopId,
+          moduleKey: setting.moduleKey,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // 如果解密失败，回退到 settingsJson（向后兼容）
+        moduleSettings = (setting.settingsJson as Record<string, unknown>) || {};
+      }
+    } else {
+      // 向后兼容：使用明文 settingsJson（已废弃）
+      moduleSettings = (setting.settingsJson as Record<string, unknown>) || {};
+    }
+
     result[setting.moduleKey] = {
       moduleKey: setting.moduleKey as ModuleKey,
-      settings: (setting.settingsJson as Record<string, unknown>) || {},
+      settings: moduleSettings,
       displayRules: (setting.displayRules as {
         enabled: boolean;
         targets: ("thank_you" | "order_status")[];

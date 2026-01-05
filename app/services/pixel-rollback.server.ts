@@ -169,15 +169,31 @@ export async function switchEnvironment(
   shopId: string,
   platform: string,
   newEnvironment: PixelEnvironment,
-  currentEnvironment: PixelEnvironment = "test"
+  currentEnvironment?: PixelEnvironment // P0-5: 改为可选参数，从 DB 读取当前激活环境
 ): Promise<EnvironmentSwitchResult> {
   try {
+    // P0-5: 如果没有提供 currentEnvironment，从 DB 读取当前激活环境
+    let actualCurrentEnvironment = currentEnvironment;
+    if (!actualCurrentEnvironment) {
+      const activeConfig = await prisma.pixelConfig.findFirst({
+        where: {
+          shopId,
+          platform,
+          isActive: true,
+        },
+        select: {
+          environment: true,
+        },
+      });
+      actualCurrentEnvironment = (activeConfig?.environment as PixelEnvironment) || "test";
+    }
+    
     // 查找当前环境的配置
     const config = await prisma.pixelConfig.findFirst({
       where: { 
         shopId,
         platform,
-        environment: currentEnvironment,
+        environment: actualCurrentEnvironment,
       },
     });
 
@@ -199,7 +215,7 @@ export async function switchEnvironment(
       };
     }
 
-    await saveConfigSnapshot(shopId, platform, currentEnvironment);
+    await saveConfigSnapshot(shopId, platform, actualCurrentEnvironment);
 
     // 检查目标环境是否已存在配置（使用相同的 platformId 如果可能）
     const targetConfig = await prisma.pixelConfig.findFirst({

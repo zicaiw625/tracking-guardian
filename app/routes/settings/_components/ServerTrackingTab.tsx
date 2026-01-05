@@ -230,7 +230,8 @@ export function ServerTrackingTab({
                 { label: "Meta Conversions API（CAPI）", value: "meta" },
                 { label: "Google GA4 Measurement Protocol", value: "google" },
                 { label: "TikTok Events API", value: "tiktok" },
-                { label: "Pinterest Conversions API", value: "pinterest" },
+                // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok，Pinterest 等平台将在 v1.1+ 支持
+                // { label: "Pinterest Conversions API", value: "pinterest" },
               ]}
               value={serverPlatform}
               onChange={setServerPlatform}
@@ -384,12 +385,15 @@ export function ServerTrackingTab({
               </>
             )}
 
+            {/* P0-6: v1.0 版本不支持 Pinterest，此代码块不会被执行（选项已从下拉菜单移除） */}
             {serverPlatform === "pinterest" && (
               <>
                 <Banner tone="info">
                   <p>
                     <strong>Pinterest Conversions API</strong>{" "}
                     允许您直接将转化数据发送到 Pinterest，提高广告归因准确性。
+                    <br />
+                    <strong>注意：</strong>Pinterest 将在 v1.1+ 版本支持。
                   </p>
                 </Banner>
                 <TextField

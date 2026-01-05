@@ -249,16 +249,17 @@ export function buildWebPixelSettings(
     shopDomain: string,
     pixelConfig?: Partial<PixelConfig>
 ): WebPixelSettings {
-
-    const defaultConfig: Partial<PixelConfig> = {
-        mode: "purchase_only", // v1 默认 purchase_only，符合隐私最小化原则
-        enabled_platforms: "meta,tiktok,google",
-        strictness: "strict",
-    };
+    // P1-11: Web Pixel Settings 只下发小字段，不塞大 JSON
+    // 像素端通过 shop_domain 去后端获取完整配置（如果需要）
+    // 只保留必要的标识字段：shop_domain、ingestion_key、config_version
+    const configVersion = "1"; // 配置版本号，用于向后兼容
+    
     return {
         ingestion_key: ingestionKey,
         shop_domain: shopDomain,
-        pixel_config: buildPixelConfigString(pixelConfig || defaultConfig),
+        // P1-11: 不再下发 pixel_config JSON，改为只下发 config_version
+        // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
+        config_version: configVersion,
     };
 }
 

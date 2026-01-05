@@ -398,7 +398,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             }>;
 
             for (const config of configs) {
-                const platform = config.platform as "google" | "meta" | "tiktok" | "pinterest";
+                // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok
+                const platform = config.platform as "google" | "meta" | "tiktok";
 
                 let credentials: Record<string, string> = {};
                 if (platform === "google") {
@@ -476,7 +477,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         try {
-            const result = await validateTestEnvironment(shopIdParam, platform as "google" | "meta" | "tiktok" | "pinterest");
+            // P0-6: v1.0 版本仅支持 GA4/Meta/TikTok
+            const result = await validateTestEnvironment(shopIdParam, platform as "google" | "meta" | "tiktok");
             return json(result);
         } catch (error) {
             logger.error("Failed to validate test environment", error);

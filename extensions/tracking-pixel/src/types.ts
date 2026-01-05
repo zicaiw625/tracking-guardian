@@ -107,8 +107,10 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
 export interface PixelSettings {
   ingestion_key?: string;
   shop_domain?: string;
-
-  pixel_config?: string;
+  config_version?: string; // P1-11: 配置版本号，用于向后兼容
+  // P1-11: pixel_config 已移除，不再在 settings 中存储大 JSON
+  // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
+  pixel_config?: string; // 保留用于向后兼容，但不再使用
 }
 
 export interface PixelInit {

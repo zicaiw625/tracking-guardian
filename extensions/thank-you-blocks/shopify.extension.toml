@@ -1,11 +1,9 @@
 api_version = "2025-07"
-type = "ui_extension"
-name = "Tracking Guardian Blocks"
-handle = "tracking-guardian-blocks"
 
 # =============================================================================
 # Survey Block - Thank You Page
 # =============================================================================
+# P0-2: 按官方规范，只使用 [[extensions]] 结构，移除顶层 type/name/handle
 # ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
 # 如果这是新扩展，运行 `shopify app deploy` 会自动生成并填充 uid
 # 如果 uid 缺失或无效，会导致扩展创建/更新失败
@@ -43,12 +41,14 @@ uid = "47dc5576-827b-917a-6223-7c68db326d526075dfb3"
 # Shipping Tracker Block - Thank You Page
 # =============================================================================
 # v1 已支持：此模块在 v1 中可用（Growth 套餐）
+# P0-2: ShippingTracker 需要调用后端 API 获取物流信息，需要网络访问
 [[extensions]]
 type = "ui_extension"
 name = "Shipping Progress Tracker"
 handle = "shipping-tracker"
 uid = "bef2635d-b17d-f9e5-c450-4597976fddffea5be910"
 
+  # P0-2: 需要网络访问（调用 /api/tracking 获取物流信息）
   [extensions.capabilities]
   network_access = true
 
@@ -60,12 +60,14 @@ uid = "bef2635d-b17d-f9e5-c450-4597976fddffea5be910"
 # Shipping Tracker Block - Order Status Page (Customer Account)
 # =============================================================================
 # v1 已支持：此模块在 v1 中可用（Growth 套餐）
+# P0-2: ShippingTracker 需要调用后端 API 获取物流信息，需要网络访问
 [[extensions]]
 type = "ui_extension"
 name = "Order Status Shipping Tracker"
 handle = "order-status-shipping-tracker"
 uid = "42c378fa-d787-9bb3-9f2d-ee152e6cf2f01a2bf2ea"
 
+  # P0-2: 需要网络访问（调用 /api/tracking 获取物流信息）
   [extensions.capabilities]
   network_access = true
 
@@ -146,6 +148,7 @@ uid = "0aa738e0-79d9-076a-435f-5ad1ea813a9058225869"
 # =============================================================================
 # v1 已支持：此模块在 v1 中可用（Growth 套餐）
 # 
+# P0-2: Thank you 的 Reorder 需要调用后端 API 获取订单信息，需要网络访问
 # ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
 # 当前 UID 为临时生成，部署时 Shopify CLI 会自动替换
 # =============================================================================
@@ -155,6 +158,7 @@ name = "Reorder Button"
 handle = "reorder-button"
 uid = "982865da-1686-33a5-6e19-9911913ba427ae89829a"  # 临时 UID，部署时会被 Shopify CLI 自动替换
 
+  # P0-2: 需要网络访问（调用 /api/reorder 获取订单 line items）
   [extensions.capabilities]
   network_access = true
 
@@ -167,6 +171,7 @@ uid = "982865da-1686-33a5-6e19-9911913ba427ae89829a"  # 临时 UID，部署时�
 # =============================================================================
 # v1 已支持：此模块在 v1 中可用（Growth 套餐）
 # 
+# P0-2: Order Status 的 Reorder 使用本地构建 cart permalink，不需要网络请求
 # ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
 # 当前 UID 为临时生成，部署时 Shopify CLI 会自动替换
 # =============================================================================
@@ -176,6 +181,7 @@ name = "Order Status Reorder Button"
 handle = "order-status-reorder-button"
 uid = "9436a208-0840-5eaa-957b-305b3da901ee5fb027de"  # 临时 UID，部署时会被 Shopify CLI 自动替换
 
+  # P0-2: 不需要网络访问（本地构建 cart permalink）
   [extensions.capabilities]
   network_access = false
 

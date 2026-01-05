@@ -269,8 +269,8 @@ model PixelConfig {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime
   clientConfig         Json?
-  credentialsEncrypted String?
-  credentials_legacy   Json?
+  credentialsEncrypted String? // P0-8: 加密后的凭证（推荐使用）
+  credentials_legacy   Json?   // P0-8: 已废弃，保留用于向后兼容，新数据应使用 credentialsEncrypted
   configVersion        Int       @default(1)
   environment          String    @default("live")
   previousConfig       Json?
@@ -532,16 +532,17 @@ model TaskComment {
 }
 
 model UiExtensionSetting {
-  id           String   @id
-  shopId       String
-  moduleKey    String
-  settingsJson Json?
-  displayRules Json?
-  localization Json?
-  isEnabled    Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime
-  Shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  id               String   @id
+  shopId           String
+  moduleKey        String
+  settingsJson     Json?    // P0-8: 已废弃，保留用于向后兼容，新数据应使用 settingsEncrypted
+  settingsEncrypted String? // P0-8: 加密后的设置（推荐使用）
+  displayRules     Json?
+  localization     Json?
+  isEnabled        Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime
+  Shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, moduleKey])
   @@index([isEnabled])

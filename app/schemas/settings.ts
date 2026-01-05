@@ -178,7 +178,10 @@ export const DEFAULT_PIXEL_CONFIG: PixelConfigV1 = {
 export const WebPixelSettingsSchema = z.object({
   ingestion_key: z.string().min(1, "Ingestion key is required"),
   shop_domain: z.string().min(1, "Shop domain is required"),
-  pixel_config: z.string().optional(),
+  config_version: z.string().optional(), // P1-11: 配置版本号，用于向后兼容
+  // P1-11: pixel_config 已移除，不再在 settings 中存储大 JSON
+  // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
+  pixel_config: z.string().optional(), // 保留用于向后兼容，但不再使用
 });
 
 export type WebPixelSettings = z.infer<typeof WebPixelSettingsSchema>;

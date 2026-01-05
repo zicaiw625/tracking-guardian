@@ -7,9 +7,8 @@ import {
 } from "../../services/shipping-tracker.server";
 import { logger } from "../../utils/logger.server";
 import type { OrderTrackingSettings } from "../../types/ui-extension";
-import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
-// P0-5: v1.0 版本不包含 read_orders scope，移除对 Admin API 的依赖
-// import { createAdminClientForShop } from "../../shopify.server";
+// P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
+import { authenticate } from "../../shopify.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
 import { withConditionalCache } from "../../lib/with-cache";
@@ -89,32 +88,23 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
 
-    const authToken = extractAuthToken(request);
-
-    let shopDomain: string;
-
-    // P0-5: v1.0 版本仍需要 JWT 验证以确保请求来源合法，但不再需要 Admin API
-    if (!authToken) {
-      logger.warn("Missing authentication token");
-      return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401, request, staticCors: true });
+    // P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
+    // 这会自动处理 JWT 验证和 CORS，并返回 session 信息
+    let session;
+    try {
+      const authResult = await authenticate.public.checkout(request);
+      session = authResult.session;
+    } catch (authError) {
+      logger.warn("Checkout authentication failed", {
+        error: authError instanceof Error ? authError.message : String(authError),
+      });
+      return jsonWithCors(
+        { error: "Unauthorized: Invalid authentication" },
+        { status: 401, request, staticCors: true }
+      );
     }
 
-    const apiSecret = getShopifyApiSecret();
-    const expectedAud = process.env.SHOPIFY_API_KEY;
-
-    if (!expectedAud) {
-      logger.error("SHOPIFY_API_KEY not configured");
-      return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
-    }
-
-    const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
-
-    if (!jwtResult.valid || !jwtResult.shopDomain) {
-      logger.warn(`JWT verification failed: ${jwtResult.error}`);
-      return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401, request, staticCors: true });
-    }
-
-    shopDomain = jwtResult.shopDomain;
+    const shopDomain = session.shop;
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: {
@@ -239,6 +229,7 @@ async function loaderImpl(request: Request) {
       );
     }
 
+    // P2-14: 返回字段最小化，只返回展示所需的 tracking 字段
     return jsonWithCors({
       success: true,
       tracking: {

@@ -1,7 +1,6 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { createAdminClientForShop } from "../../shopify.server";
-import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
+import { createAdminClientForShop, authenticate } from "../../shopify.server";
 import { logger } from "../../utils/logger.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
@@ -68,29 +67,26 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
 
-    const authToken = extractAuthToken(request);
-    if (!authToken) {
-      return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401, request, staticCors: true });
+    // P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
+    // 这会自动处理 JWT 验证和 CORS，并返回 session 信息
+    let session;
+    try {
+      const authResult = await authenticate.public.checkout(request);
+      session = authResult.session;
+    } catch (authError) {
+      logger.warn("Checkout authentication failed", {
+        error: authError instanceof Error ? authError.message : String(authError),
+      });
+      return jsonWithCors(
+        { error: "Unauthorized: Invalid authentication" },
+        { status: 401, request, staticCors: true }
+      );
     }
 
-    const apiSecret = getShopifyApiSecret();
-    const expectedAud = process.env.SHOPIFY_API_KEY;
-
-    if (!expectedAud) {
-      logger.error("SHOPIFY_API_KEY not configured");
-      return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
-    }
-
-    const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
-
-    if (!jwtResult.valid || !jwtResult.shopDomain) {
-      logger.warn(`JWT verification failed: ${jwtResult.error}`);
-      return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401, request, staticCors: true });
-    }
-
-    const shopDomain = jwtResult.shopDomain;
-
-    const customerGidFromToken = jwtResult.payload?.sub || null;
+    const shopDomain = session.shop;
+    
+    // P0-1: 从 session 中获取 customer ID（如果可用）
+    const customerGidFromToken = session.customerId || null;
 
     const admin = await createAdminClientForShop(shopDomain);
 
@@ -99,6 +95,7 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Failed to authenticate admin" }, { status: 401, request, staticCors: true });
     }
 
+    // P2-14: 只查询构建 cart 所需的字段（variantId 和 quantity）
     const orderResponse = await admin.graphql(`
       query GetOrderLineItems($id: ID!) {
         order(id: $id) {
@@ -223,6 +220,7 @@ async function loaderImpl(request: Request) {
       });
     }
 
+    // P2-14: 返回字段最小化，只返回构建 cart 所需的 reorderUrl
     return jsonWithCors({ reorderUrl }, { request, staticCors: true });
   } catch (error) {
     logger.error("Failed to get reorder URL", {

@@ -40,15 +40,15 @@ export const BILLING_PLANS = {
       "Audit 风险报告（可分享链接，但不导出）",
       "迁移清单 + 风险分级 + 替代路径",
       "明确提示 checkout.liquid/additional scripts 弃用限制",
-      `升级倒计时（参考 Shopify Help Center：Plus 商家关键节点 ${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff)}（升级/限制开始），${formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 起自动升级；非 Plus 商家截止 ${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff)}。详情请参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
+      `升级倒计时（参考 Shopify Help Center：Plus 商家关键节点 ${formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff)}（升级/限制开始），${formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month")} 起开始自动升级（Shopify 会提前通知）；非 Plus 商家截止 ${formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff)}。详情请参考 ${SHOPIFY_HELP_LINKS.UPGRADE_GUIDE}）`,
       "基础文档支持",
     ],
   },
   starter: {
     id: "starter",
-    name: "Migration 迁移版",
-    nameEn: "Migration",
-    price: 49,
+    name: "Starter 入门版",
+    nameEn: "Starter",
+    price: 29, // P1-10: 按 PRD 调整为 $29
     monthlyOrderLimit: 1000,
     trialDays: 7,
     pixelDestinations: 1,
@@ -73,9 +73,9 @@ export const BILLING_PLANS = {
   },
   growth: {
     id: "growth",
-    name: "Go-Live 交付版",
-    nameEn: "Go-Live",
-    price: 199,
+    name: "Growth 成长版",
+    nameEn: "Growth",
+    price: 79, // P1-10: 按 PRD 调整为 $79
     monthlyOrderLimit: 10000,
     trialDays: 7,
     pixelDestinations: 3,
@@ -207,12 +207,14 @@ export function getPlanLimit(planId: PlanId): number {
 
 export function detectPlanFromPrice(price: number): PlanId {
   if (price >= 199) {
-    // $199 可能是 Go-Live (一次性) 或 Agency (月付)
-    // 默认返回 agency，实际应通过订阅类型判断
+    // $199 是 Agency (月付)
     return "agency";
   }
-  if (price >= 49 && price < 199) {
-    return "starter"; // Migration $49/月
+  if (price >= 79 && price < 199) {
+    return "growth"; // Growth $79/月
+  }
+  if (price >= 29 && price < 79) {
+    return "starter"; // Starter $29/月
   }
   return "free";
 }

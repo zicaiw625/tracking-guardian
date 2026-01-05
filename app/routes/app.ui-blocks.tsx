@@ -1139,8 +1139,10 @@ export default function UiBlocksPage() {
   ];
 
   const filterModules = (category?: string) => {
-    if (!category || category === "all") return modules;
-    return modules.filter((m) => UI_MODULES[m.moduleKey].category === category);
+    // P0-6: 过滤掉 disabled 的模块（如 Upsell），确保 v1.0 中不显示
+    const availableModules = modules.filter((m) => !UI_MODULES[m.moduleKey].disabled);
+    if (!category || category === "all") return availableModules;
+    return availableModules.filter((m) => UI_MODULES[m.moduleKey].category === category);
   };
 
   const filteredModules = filterModules(
@@ -1464,11 +1466,13 @@ export default function UiBlocksPage() {
                       onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
                     />
                   )}
-                  {editingModule === "upsell" && editingSettings && (
-                    <UpsellSettingsForm
-                      settings={editingSettings as UpsellSettings}
-                      onChange={(s) => setEditingSettings(s as Record<string, unknown>)}
-                    />
+                  {/* P0-6: Upsell 模块在 v1.0 中不可用，将在 v1.1+ 版本中提供 */}
+                  {editingModule === "upsell" && editingSettings && UI_MODULES.upsell.disabled && (
+                    <Banner tone="warning">
+                      <Text as="p">
+                        Upsell 模块在 v1.0 版本中不可用，将在 v1.1+ 版本中提供。
+                      </Text>
+                    </Banner>
                   )}
                 </>
               )}

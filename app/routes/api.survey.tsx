@@ -2,7 +2,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import type { SurveyResponseData } from "../types";
 import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limiter";
-import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret, } from "../utils/shopify-jwt";
+// P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
+import { authenticate } from "../shopify.server";
 import { optionsResponse, jsonWithCors } from "../utils/cors";
 import { logger } from "../utils/logger.server";
 import { generateSimpleId } from "../utils/helpers";
@@ -133,31 +134,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return jsonWithCors({ error: "Request body too large", maxSize: MAX_SURVEY_BODY_SIZE }, { status: 413, request, staticCors: true });
     }
     try {
-        const authToken = extractAuthToken(request);
-        if (!authToken) {
-            logger.warn("Missing Authorization header");
-            return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401, request, staticCors: true });
-        }
-        let apiSecret: string;
+        // P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
+        // 这会自动处理 JWT 验证和 CORS，并返回 session 信息
+        let session;
         try {
-            apiSecret = getShopifyApiSecret();
-        }
-        catch (error) {
-            logger.error("Failed to get Shopify API secret", error);
-            return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
-        }
-        const expectedAud = process.env.SHOPIFY_API_KEY;
-        if (!expectedAud) {
-            logger.error("SHOPIFY_API_KEY not configured");
-            return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
+            const authResult = await authenticate.public.checkout(request);
+            session = authResult.session;
+        } catch (authError) {
+            logger.warn("Checkout authentication failed", {
+                error: authError instanceof Error ? authError.message : String(authError),
+            });
+            return jsonWithCors(
+                { error: "Unauthorized: Invalid authentication" },
+                { status: 401, request, staticCors: true }
+            );
         }
 
-        const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
-        if (!jwtResult.valid || !jwtResult.shopDomain) {
-            logger.warn(`JWT verification failed: ${jwtResult.error}`);
-            return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401, request, staticCors: true });
-        }
-        const shopDomain = jwtResult.shopDomain;
+        const shopDomain = session.shop;
         let rawBody: unknown;
         try {
             rawBody = await request.json();

@@ -138,8 +138,8 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     plusAutoUpgradeStart: {
         date: DEPRECATION_DATES.plusAutoUpgradeStart,
         precision: "month",
-        displayLabel: "2026-01",
-        isEstimate: true,
+        displayLabel: "2026-01", // P0-9: 使用月份精度，避免因 Shopify 实际批次不同导致显示错误
+        isEstimate: true, // 标记为估算，因为 Shopify 会分批自动升级
     },
 };
 export type ShopTier = "plus" | "non_plus" | "unknown";
@@ -444,9 +444,10 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     }
     if (tier === "plus" && isPlusDeadlinePassed) {
 
+        // P0-9: 使用官方表述，避免精确到日
         const autoUpgradeNote = isInPlusAutoUpgradeWindow
-            ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起）。`
-            : `\n\n📅 ${autoUpgradeStartLabel}起，Shopify 将开始自动迁移 Plus 商家到新版页面。`;
+            ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起，Shopify 会提前通知）。`
+            : `\n\n📅 ${autoUpgradeStartLabel}起，Shopify 将开始自动迁移 Plus 商家到新版页面（Shopify 会提前通知）。`;
         return {
             isUpgraded: false,
             urgency: "critical",

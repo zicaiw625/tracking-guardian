@@ -89,7 +89,14 @@ name = "Shop Domain"
 description = "The myshopify.com domain for this store. Auto-configured during installation."
 type = "single_line_text_field"
 
-[settings.fields.pixel_config]
-name = "Pixel Configuration"
-description = "JSON configuration for pixel behavior (mode, strictness, enabled platforms). Schema versioned for compatibility."
+[settings.fields.config_version]
+name = "Config Version"
+description = "Configuration schema version for backward compatibility. Auto-configured during installation."
 type = "single_line_text_field"
+
+# P1-11: pixel_config 已移除，不再在 settings 中存储大 JSON
+# 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
+# [settings.fields.pixel_config]
+# name = "Pixel Configuration"
+# description = "JSON configuration for pixel behavior (mode, strictness, enabled platforms). Schema versioned for compatibility."
+# type = "single_line_text_field"
