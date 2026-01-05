@@ -743,12 +743,19 @@ function OrderTrackingSettingsForm({
             label="物流追踪服务商"
             options={[
               { label: "Shopify 原生", value: "native" },
-              { label: "AfterShip", value: "aftership" },
-              { label: "17Track", value: "17track" },
+              // P0-5: v1.0 版本不支持第三方物流集成（AfterShip/17Track），将在 v2.0+ 提供
+              // 暂时禁用这些选项，避免用户选择后功能不可用
+              // { label: "AfterShip", value: "aftership", disabled: true },
+              // { label: "17Track", value: "17track", disabled: true },
             ]}
             value={settings.provider || "native"}
-            onChange={(value) => onChange({ ...settings, provider: value as "native" | "aftership" | "17track" })}
-            helpText="选择物流追踪服务提供商。Shopify 原生无需配置，其他服务商需要 API Key"
+            onChange={(value) => {
+              // P0-5: v1.0 版本只允许 native 提供商
+              if (value === "native") {
+                onChange({ ...settings, provider: value as "native" });
+              }
+            }}
+            helpText="v1.0 版本仅支持 Shopify 原生物流追踪。第三方服务商（AfterShip/17Track）将在 v2.0+ 版本中提供"
           />
         </FormLayout.Group>
 
@@ -1202,13 +1209,16 @@ export default function UiBlocksPage() {
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              v1 支持范围说明：
+              v1.0 支持范围说明：
             </Text>
             <Text as="p" variant="bodySm">
-              • <strong>v1 支持</strong>：购后问卷（Survey）、帮助中心（Helpdesk）
+              • <strong>v1.0 已支持</strong>：购后问卷（Survey）、帮助中心（Helpdesk）、物流追踪（Shopify 原生）、再购按钮（Reorder）
             </Text>
             <Text as="p" variant="bodySm">
-              • <strong>v1.1+ 规划</strong>：物流追踪、再购按钮、追加销售等模块将在后续版本支持
+              • <strong>v1.1+ 规划</strong>：追加销售（Upsell）模块将在 v1.1+ 版本中提供
+            </Text>
+            <Text as="p" variant="bodySm">
+              • <strong>v2.0+ 规划</strong>：第三方物流集成（AfterShip/17Track）将在 v2.0+ 版本中提供
             </Text>
             <Divider />
             <Text as="p" variant="bodySm" fontWeight="semibold">

@@ -337,6 +337,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // pixelConfigs 可能包含多个同平台配置（通过 platformId 区分），
     // 所有配置都会被处理，支持多目的地场景（Agency/多品牌/多像素）
     // 例如：同一店铺可以配置多个 GA4 property、多个 Meta Pixel 等
+    // 
+    // P0-5: Test/Live 环境处理
+    // 当前实现：默认使用 live 环境的配置（getShopForVerificationWithConfigs 默认 environment: "live"）
+    // Test 环境的处理方式：
+    // 1. Test 配置仍然发送到相同的 ingest endpoint
+    // 2. Test 环境的配置通过 PixelConfig.environment="test" 区分
+    // 3. 平台 API 调用时，Test 环境的配置会附带各平台的 test_event_code/testEventCode
+    // 如果将来需要在事件层面传递环境信息，可以通过以下方式扩展：
+    // - 在 payload 中添加 environment 字段
+    // - 通过 HTTP header 传递环境信息
+    // - 从 Web Pixel Extension settings 中读取环境配置
     const pixelConfigs = shop.pixelConfigs;
     let mode: "purchase_only" | "full_funnel" = "purchase_only"; // 默认 purchase_only，符合隐私最小化原则
     let purchaseStrategy: "server_side_only" | "hybrid" = "hybrid"; // 默认 hybrid 以符合 PRD 要求

@@ -19,18 +19,21 @@ import { generateSimpleId } from "../utils/helpers";
 import type { PixelEventPayload } from "../routes/api.pixel-events/types";
 
 /**
- * P0-T4: Payload 脱敏策略（纯防御性日志清理）
+ * P0-T4: Payload 脱敏策略（严格白名单模式）
  * 
  * 注意：此函数仅用于日志记录时的防御性脱敏，不是业务逻辑。
  * v1.0 版本不包含任何 PII/hash 生成能力，所有平台服务都不发送 PII。
  * 
  * 根据 Shopify 2025-12-10 起执行的"受保护客户数据"策略：
- * - 允许：event_name、value、currency、items（SKU/variant_id）、event_id、timestamp、non-PII context
+ * - 允许（白名单）：event_name、value、currency、items（SKU/variant_id）、event_id、timestamp、non-PII context
  * - 禁止/清空：email、phone、name、address、IP、精准定位等
  * - 对哈希后的 PII 也要谨慎处理（即使 v1.0 不生成，也要防御性清理）
  * 
- * 此函数的作用：在将事件数据写入 EventLog/DeliveryAttempt 表时，删除可能意外包含的 PII 字段，
- * 确保即使第三方 payload 包含 PII，也不会被持久化存储。
+ * 实现方式：严格白名单模式
+ * - 只有明确在白名单中的字段才保留
+ * - 其他字段一律删除（包括未知字段）
+ * - 对包含 PII 关键词的字段名进行防御性检查
+ * - 确保即使第三方 payload 包含未知的 PII 字段，也不会被持久化存储
  */
 function sanitizePII(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") {
@@ -147,11 +150,17 @@ function sanitizePII(payload: unknown): unknown {
 
   const result: Record<string, unknown> = {};
 
+  // P0-5: 改为严格白名单模式 - 只保留明确允许的字段，其他一律删除
+  // 这样可以确保即使第三方 payload 包含未知的 PII 字段，也不会被存储
   for (const key of Object.keys(obj)) {
     const lowerKey = key.toLowerCase();
     
-    // 跳过 PII 字段
-    if (piiFields.has(lowerKey)) {
+    // 防御性检查：如果字段名包含 PII 关键词，即使不在黑名单中也要删除
+    const piiKeywords = ["email", "phone", "address", "name", "customer", "user", "personal", "identify"];
+    const containsPiiKeyword = piiKeywords.some(keyword => lowerKey.includes(keyword));
+    
+    // 明确禁止 PII 字段
+    if (piiFields.has(lowerKey) || containsPiiKeyword) {
       continue;
     }
     
@@ -161,13 +170,18 @@ function sanitizePII(payload: unknown): unknown {
       continue;
     }
     
-    // 允许的字段或嵌套对象
-    if (allowedFields.has(key) || allowedFields.has(lowerKey) || !piiFields.has(lowerKey)) {
-      if (typeof obj[key] === "object" && obj[key] !== null) {
-        result[key] = sanitizePII(obj[key]);
-      } else {
-        result[key] = obj[key];
-      }
+    // 严格白名单：只有明确在白名单中的字段才保留
+    const isAllowed = allowedFields.has(key) || allowedFields.has(lowerKey);
+    if (!isAllowed) {
+      // 不在白名单中的字段一律删除（白名单模式）
+      continue;
+    }
+    
+    // 对于允许的字段，递归处理嵌套对象
+    if (typeof obj[key] === "object" && obj[key] !== null) {
+      result[key] = sanitizePII(obj[key]);
+    } else {
+      result[key] = obj[key];
     }
   }
 

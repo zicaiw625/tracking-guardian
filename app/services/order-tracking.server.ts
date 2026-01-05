@@ -197,26 +197,35 @@ export async function getOrderTracking(
   trackingNumber?: string
 ): Promise<TrackingInfo | null> {
   try {
+    // P0-5: 使用 getUiModuleConfig 获取已解密的配置（包含解密后的 apiKey）
+    const { getUiModuleConfig } = await import("./ui-extension.server");
+    const config = await getUiModuleConfig(shopId, "order_tracking");
 
-    const setting = await prisma.uiExtensionSetting.findUnique({
-      where: {
-        shopId_moduleKey: {
-          shopId,
-          moduleKey: "order_tracking",
-        },
-      },
-    });
-
-    if (!setting || !setting.isEnabled) {
+    if (!config.isEnabled) {
       return null;
     }
 
-    const config = setting.settingsJson as {
+    const settings = config.settings as {
       provider?: "aftership" | "17track" | "native";
       apiKey?: string;
     } | null;
 
-    const provider = config?.provider || "native";
+    const provider = settings?.provider || "native";
+    
+    // P0-5: v1.0 版本只支持 native 提供商，第三方集成将在 v2.0+ 提供
+    const { canUseThirdPartyTracking } = await import("../utils/version-gate");
+    if (provider !== "native") {
+      const gateResult = canUseThirdPartyTracking(provider);
+      if (!gateResult.allowed) {
+        logger.warn(`Third-party tracking provider ${provider} not available in v1.0`, {
+          shopId,
+          orderId,
+          reason: gateResult.reason,
+        });
+        // 降级到 native 提供商
+        // return null; // 或者返回 null，取决于业务需求
+      }
+    }
 
     if (!trackingNumber) {
       const tracking = await getTrackingFromShopify(shopId, orderId);
@@ -231,14 +240,14 @@ export async function getOrderTracking(
 
     switch (provider) {
       case "aftership":
-        if (config?.apiKey) {
-          return await fetchTrackingFromAfterShip(trackingNumber, config.apiKey);
+        if (settings?.apiKey) {
+          return await fetchTrackingFromAfterShip(trackingNumber, settings.apiKey);
         }
         break;
 
       case "17track":
-        if (config?.apiKey) {
-          return await fetchTrackingFrom17Track(trackingNumber, config.apiKey);
+        if (settings?.apiKey) {
+          return await fetchTrackingFrom17Track(trackingNumber, settings.apiKey);
         }
         break;
 

@@ -550,7 +550,7 @@ export async function handleUpdatePrivacySettings(
       consentStrategy,
       dataRetentionDays,
       // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此不更新 piiEnabled、pcdAcknowledged 等字段
-      // 这些字段在 schema 中保留以支持未来版本，但在 v1.0 中不会被使用
+      // v1.0 版本已从 schema 中完全移除这些字段，这些功能将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
     },
   });
 

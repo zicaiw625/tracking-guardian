@@ -108,6 +108,16 @@ export async function canUseModule(shopId: string, moduleKey: ModuleKey): Promis
   currentPlan: PlanId;
   reason?: string;
 }> {
+  // P0-5: v1.0 功能边界检查
+  const { isModuleAvailableInV1 } = await import("../utils/version-gate");
+  if (!isModuleAvailableInV1(moduleKey)) {
+    return {
+      allowed: false,
+      requiredPlan: UI_MODULES[moduleKey].requiredPlan,
+      currentPlan: "free",
+      reason: `${moduleKey} 模块在 v1.0 版本中不可用，将在后续版本中提供`,
+    };
+  }
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
     select: { plan: true },
@@ -203,10 +213,41 @@ export async function getUiModuleConfig(
   });
 
   if (setting) {
+    // P0-5: v1.0 安全要求 - 解密 UI 模块的敏感字段（如 API Key）
+    let settings = (setting.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey);
+    
+    // 如果是 order_tracking 模块且 apiKey 已加密，则解密
+    if (moduleKey === "order_tracking" && settings && typeof settings === "object") {
+      const settingsObj = settings as Record<string, unknown>;
+      if (settingsObj._apiKeyEncrypted && settingsObj.apiKey && typeof settingsObj.apiKey === "string") {
+        try {
+          const { decryptJson } = await import("../utils/crypto.server");
+          const decrypted = decryptJson<{ apiKey: string }>(settingsObj.apiKey);
+          settings = {
+            ...settingsObj,
+            apiKey: decrypted.apiKey,
+            _apiKeyEncrypted: undefined, // 解密后移除标记（不暴露给前端）
+          } as ModuleSettings;
+        } catch (error) {
+          logger.error("Failed to decrypt API key", {
+            shopId,
+            moduleKey,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          // 解密失败时，移除 apiKey（安全起见）
+          settings = {
+            ...settingsObj,
+            apiKey: undefined,
+            _apiKeyEncrypted: undefined,
+          } as ModuleSettings;
+        }
+      }
+    }
+    
     return {
       moduleKey,
       isEnabled: setting.isEnabled,
-      settings: (setting.settingsJson as ModuleSettings) || getDefaultSettings(moduleKey),
+      settings,
       displayRules: (setting.displayRules as unknown as DisplayRules) || getDefaultDisplayRules(moduleKey),
       localization: (setting.localization as unknown as LocalizationSettings) || undefined,
     };
@@ -296,8 +337,38 @@ export async function updateUiModuleConfig(
     if (config.isEnabled !== undefined) {
       data.isEnabled = config.isEnabled;
     }
+    // P0-5: v1.0 安全要求 - 加密 UI 模块的敏感字段（如 API Key）
+    // 在保存前，对 order_tracking 模块的 apiKey 进行加密
+    let settingsToSave: Record<string, unknown> | undefined;
     if (config.settings) {
-      data.settingsJson = config.settings as object;
+      settingsToSave = { ...config.settings };
+      if (moduleKey === "order_tracking" && settingsToSave.apiKey && typeof settingsToSave.apiKey === "string") {
+        // 检查是否已经是加密格式（避免重复加密）
+        const apiKeyValue = settingsToSave.apiKey;
+        const isAlreadyEncrypted = settingsToSave._apiKeyEncrypted === true;
+        
+        if (!isAlreadyEncrypted) {
+          const { encryptJson } = await import("../utils/crypto.server");
+          // 加密 apiKey，存储为加密后的字符串
+          // 注意：这里只加密 apiKey 的值，而不是整个 settings 对象
+          // 这样可以保持 settingsJson 的其他字段可读，同时保护敏感信息
+          try {
+            const encryptedApiKey = encryptJson({ apiKey: apiKeyValue });
+            settingsToSave.apiKey = encryptedApiKey;
+            settingsToSave._apiKeyEncrypted = true; // 标记为已加密
+          } catch (error) {
+            logger.error("Failed to encrypt API key", {
+              shopId,
+              moduleKey,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            // 如果加密失败，不保存 apiKey（安全起见）
+            delete settingsToSave.apiKey;
+          }
+        }
+        // 如果已经是加密格式，保持不变
+      }
+      data.settingsJson = settingsToSave as object;
     }
     if (config.displayRules) {
       data.displayRules = config.displayRules as object;
@@ -316,7 +387,7 @@ export async function updateUiModuleConfig(
         shopId,
         moduleKey,
         isEnabled: config.isEnabled ?? false,
-        settingsJson: (config.settings || getDefaultSettings(moduleKey)) as object,
+        settingsJson: (settingsToSave || config.settings || getDefaultSettings(moduleKey)) as object,
         displayRules: (config.displayRules || getDefaultDisplayRules(moduleKey)) as object,
         localization: config.localization ? (config.localization as object) : undefined,
         updatedAt: new Date(),

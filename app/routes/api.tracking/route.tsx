@@ -3,13 +3,13 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../../db.server";
 import {
   getTrackingInfo,
-  getTrackingFromShopifyOrder,
   type TrackingProviderConfig,
 } from "../../services/shipping-tracker.server";
 import { logger } from "../../utils/logger.server";
 import type { OrderTrackingSettings } from "../../types/ui-extension";
 import { verifyShopifyJwt, extractAuthToken, getShopifyApiSecret } from "../../utils/shopify-jwt";
-import { createAdminClientForShop } from "../../shopify.server";
+// P0-5: v1.0 版本不包含 read_orders scope，移除对 Admin API 的依赖
+// import { createAdminClientForShop } from "../../shopify.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
 import { withConditionalCache } from "../../lib/with-cache";
@@ -92,43 +92,29 @@ async function loaderImpl(request: Request) {
     const authToken = extractAuthToken(request);
 
     let shopDomain: string;
-    let admin: Awaited<ReturnType<typeof createAdminClientForShop>> | null = null;
-    let customerGidFromToken: string | null = null;
 
-    if (authToken) {
-
-      const apiSecret = getShopifyApiSecret();
-      const expectedAud = process.env.SHOPIFY_API_KEY;
-
-      if (!expectedAud) {
-        logger.error("SHOPIFY_API_KEY not configured");
-        return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
-      }
-
-      const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
-
-      if (!jwtResult.valid || !jwtResult.shopDomain) {
-        logger.warn(`JWT verification failed: ${jwtResult.error}`);
-        return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401, request, staticCors: true });
-      }
-
-      shopDomain = jwtResult.shopDomain;
-
-      customerGidFromToken = jwtResult.payload?.sub || null;
-
-      admin = await createAdminClientForShop(shopDomain);
-
-      if (!admin) {
-
-        logger.warn("Failed to create admin client, will try to use tracking provider only", {
-          shopDomain,
-        });
-      }
-    } else {
-
+    // P0-5: v1.0 版本仍需要 JWT 验证以确保请求来源合法，但不再需要 Admin API
+    if (!authToken) {
       logger.warn("Missing authentication token");
       return jsonWithCors({ error: "Unauthorized: Missing authentication token" }, { status: 401, request, staticCors: true });
     }
+
+    const apiSecret = getShopifyApiSecret();
+    const expectedAud = process.env.SHOPIFY_API_KEY;
+
+    if (!expectedAud) {
+      logger.error("SHOPIFY_API_KEY not configured");
+      return jsonWithCors({ error: "Server configuration error" }, { status: 500, request, staticCors: true });
+    }
+
+    const jwtResult = await verifyShopifyJwt(authToken, apiSecret, undefined, expectedAud);
+
+    if (!jwtResult.valid || !jwtResult.shopDomain) {
+      logger.warn(`JWT verification failed: ${jwtResult.error}`);
+      return jsonWithCors({ error: `Unauthorized: ${jwtResult.error}` }, { status: 401, request, staticCors: true });
+    }
+
+    shopDomain = jwtResult.shopDomain;
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       select: {
@@ -149,124 +135,55 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true });
     }
 
-    const trackingSettings = shop.UiExtensionSetting[0]?.settingsJson as
-      | OrderTrackingSettings
-      | undefined;
+    // P0-5: 使用 getUiModuleConfig 获取已解密的配置（包含解密后的 apiKey）
+    const { getUiModuleConfig } = await import("../../services/ui-extension.server");
+    const trackingModuleConfig = await getUiModuleConfig(shop.id, "order_tracking");
+    const trackingSettings = trackingModuleConfig.isEnabled 
+      ? (trackingModuleConfig.settings as OrderTrackingSettings | undefined)
+      : undefined;
 
     let trackingInfo = null;
     let trackingNumberFromShopify: string | null = null;
 
-    if (admin) {
-      try {
-        const orderResponse = await admin.graphql(`
-          query GetOrder($id: ID!) {
-            order(id: $id) {
-              id
-              customer {
-                id
-              }
-              fulfillments(first: 10) {
-                nodes {
-                  trackingInfo {
-                    number
-                    company
-                    url
-                  }
-                }
-              }
-            }
-          }
-        `, {
-          variables: {
-            id: orderId,
+    // P0-5: v1.0 版本不包含 read_orders scope，因此移除对 Shopify 订单 GraphQL 查询的依赖
+    // v1.0 版本仅支持通过用户提供的 trackingNumber 或第三方 API 查询物流信息
+    // 如果需要读取 Shopify 订单信息，需要 v1.1+ 版本并添加 read_orders scope
+    // 
+    // 注意：在 v1.0 中，ShippingTracker 将：
+    // 1. 优先使用用户提供的 trackingNumber（来自 URL 参数）
+    // 2. 如果配置了第三方追踪服务（AfterShip/17Track）且有 apiKey，使用第三方 API
+    // 3. 否则返回提示信息，引导用户查看邮件或联系客服
+
+    // v1.0: 不查询 Shopify 订单，直接使用提供的 trackingNumber 或第三方服务
+    logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`, {
+      hasTrackingNumber: !!trackingNumber,
+      hasThirdPartyProvider: !!trackingSettings?.provider && trackingSettings.provider !== "native",
+    });
+
+    // v1.0: 使用用户提供的 trackingNumber（如果存在）
+    const trackingNumberToUse = trackingNumber || trackingNumberFromShopify || null;
+    
+    // 如果没有 trackingNumber 且没有配置第三方服务，返回提示信息
+    if (!trackingNumberToUse) {
+      return jsonWithCors(
+        {
+          success: true,
+          tracking: {
+            trackingNumber: null,
+            status: "pending_fulfillment",
+            statusDescription: "物流信息将在发货后通过邮件通知您。如有疑问，请联系客服。",
+            carrier: null,
+            estimatedDelivery: null,
+            events: [],
+            // v1.0 提示：由于未配置 read_orders scope，无法自动获取物流单号
+            // 用户可以通过邮件中的物流信息或联系客服获取追踪号码
+            message: "物流追踪号码将在发货后的邮件中提供。",
           },
-        });
-
-        const orderData = await orderResponse.json().catch((jsonError) => {
-          logger.warn("Failed to parse GraphQL response as JSON", {
-            error: jsonError instanceof Error ? jsonError.message : String(jsonError),
-            orderId,
-          });
-          return { data: null };
-        });
-        if (orderData.data?.order) {
-
-          const orderCustomerId = orderData.data.order.customer?.id || null;
-          if (customerGidFromToken && orderCustomerId) {
-
-            const normalizeCustomerGid = (gid: string): string => {
-
-              const gidMatch = gid.match(/gid:\/\/shopify\/Customer\/(\d+)/);
-              if (gidMatch) {
-                return gidMatch[1];
-              }
-
-              if (/^\d+$/.test(gid)) {
-                return gid;
-              }
-
-              const lastNum = gid.split("/").pop();
-              return lastNum && /^\d+$/.test(lastNum) ? lastNum : gid;
-            };
-
-            const tokenCustomerId = normalizeCustomerGid(customerGidFromToken);
-            const orderCustomerIdNum = normalizeCustomerGid(orderCustomerId);
-
-            if (tokenCustomerId !== orderCustomerIdNum) {
-              logger.warn(`Order access denied: customer mismatch for orderId: ${orderId}, shop: ${shopDomain}`, {
-                tokenCustomerId,
-                orderCustomerId: orderCustomerIdNum,
-              });
-              return jsonWithCors({ error: "Order access denied" }, { status: 403, request, staticCors: true });
-            }
-          }
-
-          const fulfillments = (orderData.data.order.fulfillments?.nodes || []) as FulfillmentNode[];
-          const fulfillmentTrackingInfo = fulfillments
-            .map((f: FulfillmentNode) => f.trackingInfo)
-            .filter((ti: TrackingInfo | undefined): ti is TrackingInfo => !!ti);
-
-          if (fulfillmentTrackingInfo.length > 0) {
-            trackingNumberFromShopify = fulfillmentTrackingInfo[0].number;
-          }
-
-          trackingInfo = await getTrackingFromShopifyOrder({
-            fulfillmentTrackingInfo,
-          });
-
-          logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`, {
-            hasCustomerVerification: !!customerGidFromToken,
-            hasTrackingNumber: !!trackingNumberFromShopify,
-          });
-        } else {
-
-          logger.info(`Order not found (may be still creating) for orderId: ${orderId}, shop: ${shopDomain}`);
-          return jsonWithCors(
-            {
-              success: false,
-              error: "Order not found",
-              message: "订单正在生成，请稍后重试",
-              retryAfter: 2,
-            },
-            {
-              status: 202,
-              request,
-              staticCors: true,
-              headers: {
-                "Retry-After": "2",
-              },
-            }
-          );
-        }
-      } catch (error) {
-        logger.warn("Failed to fetch order from Shopify", {
-          error: error instanceof Error ? error.message : String(error),
-          orderId,
-        });
-      }
+        },
+        { status: 200, request, staticCors: true }
+      );
     }
 
-    const trackingNumberToUse = trackingNumberFromShopify || trackingNumber || null;
     if (trackingSettings?.provider && trackingSettings.provider !== "native" && trackingNumberToUse) {
       const config: TrackingProviderConfig = {
         provider: trackingSettings.provider,

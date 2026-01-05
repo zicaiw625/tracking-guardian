@@ -143,7 +143,8 @@ export async function getShopForVerification(shopDomain: string): Promise<ShopVe
 }
 
 export async function getShopForVerificationWithConfigs(
-    shopDomain: string
+    shopDomain: string,
+    environment?: "test" | "live"
 ): Promise<ShopWithPixelConfigs | null> {
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
@@ -164,12 +165,15 @@ export async function getShopForVerificationWithConfigs(
                     // 因为 purchase 事件在 hybrid 模式下需要 client-side 配置
                     // 非 purchase 事件也需要 client-side 配置
                     // 注意：这里不限制 serverSideEnabled，因为需要根据配置的 clientSideEnabled/serverSideEnabled 来决定处理方式
-                    environment: "live", // P0-04: 事件处理时只使用 live 环境配置
+                    // P0-5: 支持 Test/Live 环境选择
+                    // 如果指定了 environment，只获取该环境的配置；否则默认使用 live 环境（向后兼容）
+                    ...(environment ? { environment } : { environment: "live" }),
                 },
                 select: {
                     platform: true,
                     id: true,
                     platformId: true,
+                    environment: true, // P0-5: 返回环境信息，以便调用方验证
                     clientConfig: true, // P0-3: 需要 clientConfig 来读取 mode 和 purchaseStrategy
                     clientSideEnabled: true, // P0-3: 需要知道是否启用 client-side
                     serverSideEnabled: true, // P0-3: 需要知道是否启用 server-side
