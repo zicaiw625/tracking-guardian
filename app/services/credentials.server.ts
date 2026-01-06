@@ -24,7 +24,7 @@ export interface CredentialsWithMetadata {
 
 export interface PixelConfigForCredentials {
   credentialsEncrypted?: string | null;
-  credentials?: unknown;
+  credentials_legacy?: unknown; // P0-5: 修复字段名，与 Prisma schema 一致
   platform?: string;
 }
 
@@ -95,8 +95,8 @@ export function decryptCredentials(
 
   }
 
-  if (pixelConfig.credentials) {
-    const legacyResult = tryReadLegacy(pixelConfig.credentials, platform);
+  if (pixelConfig.credentials_legacy) {
+    const legacyResult = tryReadLegacy(pixelConfig.credentials_legacy, platform);
     if (legacyResult.ok) {
       return ok({ credentials: legacyResult.value, usedLegacy: true });
     }

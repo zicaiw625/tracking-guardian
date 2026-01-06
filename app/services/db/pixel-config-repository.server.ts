@@ -13,7 +13,7 @@ export interface PixelConfigCredentials {
   platform: string;
   platformId: string | null;
   credentialsEncrypted: string | null;
-  credentials: Prisma.JsonValue;
+  credentials_legacy: Prisma.JsonValue | null; // P0-5: 修复字段名，与 Prisma schema 一致
   clientConfig: Prisma.JsonValue;
   environment: string | null; // P0-5: 添加 environment 字段，用于 Test/Live 环境判断
 }
@@ -66,7 +66,7 @@ const CREDENTIALS_SELECT = {
   platform: true,
   platformId: true,
   credentialsEncrypted: true,
-  credentials: true,
+  credentials_legacy: true, // P0-5: 修复字段名，与 Prisma schema 一致
   clientConfig: true,
   environment: true, // P0-5: 添加 environment 字段，用于 Test/Live 环境判断
 } as const;
@@ -84,10 +84,11 @@ const SUMMARY_SELECT = {
 
 export async function getShopPixelConfigs(
   shopId: string,
-  options: { serverSideOnly?: boolean; skipCache?: boolean } = {}
+  options: { serverSideOnly?: boolean; skipCache?: boolean; environment?: "test" | "live" } = {}
 ): Promise<PixelConfigCredentials[]> {
-  const { serverSideOnly = false, skipCache = false } = options;
-  const cacheKey = `configs:${shopId}:${serverSideOnly ? "server" : "all"}`;
+  const { serverSideOnly = false, skipCache = false, environment } = options;
+  // P0-4: 缓存 key 包含 environment，确保不同环境的配置不会混淆
+  const cacheKey = `configs:${shopId}:${serverSideOnly ? "server" : "all"}:${environment || "live"}`;
 
   if (!skipCache) {
     const cached = shopPixelConfigsCache.get(cacheKey);
@@ -103,6 +104,14 @@ export async function getShopPixelConfigs(
 
   if (serverSideOnly) {
     where.serverSideEnabled = true;
+  }
+
+  // P0-4: 按 environment 过滤配置，默认使用 live 环境（向后兼容）
+  if (environment) {
+    where.environment = environment;
+  } else {
+    // 默认只返回 live 环境的配置（向后兼容）
+    where.environment = "live";
   }
 
   const configs = await prisma.pixelConfig.findMany({
@@ -435,8 +444,11 @@ export async function getConfiguredPlatforms(
 }
 
 export function invalidatePixelConfigCache(shopId: string): void {
-  shopPixelConfigsCache.delete(`configs:${shopId}:all`);
-  shopPixelConfigsCache.delete(`configs:${shopId}:server`);
+  // P0-4: 清除所有环境的缓存
+  shopPixelConfigsCache.delete(`configs:${shopId}:all:live`);
+  shopPixelConfigsCache.delete(`configs:${shopId}:all:test`);
+  shopPixelConfigsCache.delete(`configs:${shopId}:server:live`);
+  shopPixelConfigsCache.delete(`configs:${shopId}:server:test`);
 }
 
 export function clearPixelConfigCache(): void {

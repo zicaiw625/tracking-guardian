@@ -13,7 +13,7 @@
  * 关键时间点（与 Shopify 官方 Help Center 一致）：
  * - 2025-02-01: ScriptTag 创建被禁止（所有商家）
  * - 2025-08-28: Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读（关键节点：升级/限制开始）
- * - 2026-01-01: Shopify 开始自动升级 Plus 商家 TYP/OSP 页面（legacy 自定义会丢失）
+ * - 2026-01: Shopify 开始自动升级 Plus 商家 TYP/OSP 页面（legacy 自定义会丢失，通常带 30 天通知）
  * - 2026-08-26: 非 Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读（截止日期）
  * 
  * 注意：
@@ -46,7 +46,9 @@ const DEFAULT_DATES = {
     nonPlusAdditionalScriptsReadOnly: "2026-08-26",
     scriptTagBlocked: "2025-02-01",
 
-    plusAutoUpgradeStart: "2026-01-01",
+    // P1-2: 使用月份级别日期，避免硬编码精确日期
+    // Shopify 官方描述为"2026-01 起"，实际升级时间以官方通知为准
+    plusAutoUpgradeStart: "2026-01-01", // 使用月初作为默认值，但 UI 显示时使用月份精度
 } as const;
 
 export const DEPRECATION_DATES = {
@@ -75,6 +77,9 @@ export const DEPRECATION_DATES = {
         DEFAULT_DATES.scriptTagBlocked
     ),
 
+    // P1-2: 使用月份级别精度，避免硬编码精确日期
+    // Shopify 官方描述：2026-01 起开始自动升级（Plus 商家），通常带 30 天通知
+    // 实际升级时间以 Shopify 官方通知为准，此处仅作为月份级别估算
     plusAutoUpgradeStart: parseEnvDate(
         process.env.DEPRECATION_PLUS_AUTO_UPGRADE,
         DEFAULT_DATES.plusAutoUpgradeStart
@@ -138,8 +143,8 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     plusAutoUpgradeStart: {
         date: DEPRECATION_DATES.plusAutoUpgradeStart,
         precision: "month",
-        displayLabel: "2026-01", // P0-9: 使用月份精度，避免因 Shopify 实际批次不同导致显示错误
-        isEstimate: true, // 标记为估算，因为 Shopify 会分批自动升级
+        displayLabel: "2026-01", // P1-2: 使用月份精度，避免硬编码精确日期。Shopify 官方描述为"2026-01 起"，实际升级时间以官方通知为准
+        isEstimate: true, // 标记为估算，因为 Shopify 会分批自动升级，通常带 30 天通知
     },
 };
 export type ShopTier = "plus" | "non_plus" | "unknown";

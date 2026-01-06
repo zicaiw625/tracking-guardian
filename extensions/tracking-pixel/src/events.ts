@@ -25,6 +25,8 @@ export interface EventSenderConfig {
   isDevMode: boolean;
   consentManager: ConsentManager;
   logger?: (...args: unknown[]) => void;
+  // P0-4: 环境（test 或 live），用于后端按环境过滤配置
+  environment?: "test" | "live";
 }
 
 /**
@@ -124,7 +126,7 @@ async function sendCheckoutCompletedWithRetry(
 }
 
 export function createEventSender(config: EventSenderConfig) {
-  const { backendUrl, shopDomain, ingestionSecret, isDevMode, consentManager, logger } = config;
+  const { backendUrl, shopDomain, ingestionSecret, isDevMode, consentManager, logger, environment = "live" } = config;
   const log = logger || (() => {});
 
   if (!backendUrl) {
@@ -175,7 +177,11 @@ export function createEventSender(config: EventSenderConfig) {
           analytics: consentManager.analyticsAllowed,
           saleOfData: consentManager.saleOfDataAllowed,
         },
-        data,
+        data: {
+          ...data,
+          // P0-4: 添加 environment 字段，用于后端按环境过滤配置
+          environment,
+        },
       };
 
       const body = JSON.stringify(payload);

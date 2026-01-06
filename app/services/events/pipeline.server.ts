@@ -172,7 +172,8 @@ export async function processEventPipeline(
   shopId: string,
   payload: PixelEventPayload,
   eventId: string | null,
-  destinations: string[] | Array<{ platform: string; configId?: string; platformId?: string }>
+  destinations: string[] | Array<{ platform: string; configId?: string; platformId?: string }>,
+  environment?: "test" | "live" // P0-4: Test/Live 环境过滤
 ): Promise<EventPipelineResult> {
 
   const validation = validateEventPayload(payload);
@@ -517,6 +518,7 @@ export async function processEventPipeline(
         
         // P0-T2: 传递 eventLogId 以支持 DeliveryAttempt 记录
         // P0-3: 传递配置ID以支持多目的地（同一平台的多个配置）
+        // P0-4: 传递 environment 以支持 Test/Live 环境过滤
         const sendResult = await sendPixelEventToPlatform(
           shopId,
           destination,
@@ -524,7 +526,8 @@ export async function processEventPipeline(
           eventIdForSend,
           destConfig.configId,
           destConfig.platformId,
-          eventLogId // 传递 eventLogId 用于创建 DeliveryAttempt
+          eventLogId, // 传递 eventLogId 用于创建 DeliveryAttempt
+          environment // P0-4: 传递 environment 以支持 Test/Live 环境过滤
         );
 
         // P0-3: 使用配置ID作为 destinationType，确保同一平台的多个配置都能被记录

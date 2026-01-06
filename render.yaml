@@ -70,9 +70,9 @@ services:
       - key: SHOPIFY_API_SECRET
         sync: false
       - key: SCOPES
-        # P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 read_orders scope
-        # v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
-        value: read_script_tags,read_pixels,write_pixels,read_customer_events
+        # P0-4: v1.0 版本需要 read_orders scope 以支持 Reorder 功能（查询订单 line items）
+        # Reorder 功能是 v1.0 模块库的核心功能之一，需要读取订单信息以构建再购链接
+        value: read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
       - key: SHOPIFY_APP_URL
         sync: false  # 部署后获取的 URL
       # Security (Auto-generated)

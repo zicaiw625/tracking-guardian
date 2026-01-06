@@ -182,6 +182,9 @@ export const WebPixelSettingsSchema = z.object({
   // P1-11: pixel_config 已移除，不再在 settings 中存储大 JSON
   // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
   pixel_config: z.string().optional(), // 保留用于向后兼容，但不再使用
+  // P0-4: 默认环境（test 或 live），用于后端按环境过滤配置
+  // 默认为 "live"，商家可以在 Admin 中切换
+  environment: z.enum(["test", "live"]).optional().default("live"),
 });
 
 export type WebPixelSettings = z.infer<typeof WebPixelSettingsSchema>;

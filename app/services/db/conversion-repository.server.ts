@@ -87,7 +87,7 @@ interface JobShopData {
     id: string;
     platform: string;
     platformId: string | null;
-    credentials: Prisma.JsonValue;
+    credentials_legacy: Prisma.JsonValue | null; // P0-5: 修复字段名，与 Prisma schema 一致
     credentialsEncrypted: string | null;
     clientConfig: Prisma.JsonValue;
     isActive: boolean;

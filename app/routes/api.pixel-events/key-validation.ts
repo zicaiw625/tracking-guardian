@@ -36,17 +36,21 @@ export async function getShopForPixelVerification(
 }
 
 export async function getShopForPixelVerificationWithConfigs(
-  shopDomain: string
+  shopDomain: string,
+  environment?: "test" | "live"
 ): Promise<ShopWithPixelConfigs | null> {
-
-  const cached = await getCachedShopWithConfigs(shopDomain);
+  // P0-4: 支持 Test/Live 环境过滤
+  // 缓存 key 包含 environment，确保不同环境的配置不会混淆
+  const cacheKey = environment ? `${shopDomain}:${environment}` : `${shopDomain}:live`;
+  const cached = await getCachedShopWithConfigs(cacheKey);
   if (cached !== undefined) {
     return cached;
   }
 
-  const shop = await getShopForVerificationWithConfigs(shopDomain);
+  // P0-4: 传递 environment 参数，默认使用 live（向后兼容）
+  const shop = await getShopForVerificationWithConfigs(shopDomain, environment || "live");
 
-  await cacheShopWithConfigs(shopDomain, shop);
+  await cacheShopWithConfigs(cacheKey, shop);
 
   return shop;
 }

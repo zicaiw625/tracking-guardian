@@ -76,40 +76,9 @@ uid = "42c378fa-d787-9bb3-9f2d-ee152e6cf2f01a2bf2ea"
   target = "customer-account.order-status.block.render"
 
 # =============================================================================
-# Upsell Offer Block - Thank You Page
+# P1: v1.0 版本已移除 Upsell 扩展点
+# Upsell 功能将在 v1.1+ 版本中支持
 # =============================================================================
-# ⚠️ v1 不支持：此模块在 v1 中不可用（代码中已标记为 disabled）
-# 将在 v1.1+ 版本中支持，详见 app/types/ui-extension.ts
-[[extensions]]
-type = "ui_extension"
-name = "Thank You Upsell Offer"
-handle = "upsell-offer"
-uid = "8ff9cced-1b31-c305-3b10-526580549f5e6864bc1a"
-
-  [extensions.capabilities]
-  network_access = false
-
-  [[extensions.targeting]]
-  module = "./src/UpsellOffer.tsx"
-  target = "purchase.thank-you.block.render"
-
-# =============================================================================
-# Upsell Offer Block - Order Status Page (Customer Account)
-# =============================================================================
-# ⚠️ v1 不支持：此模块在 v1 中不可用（代码中已标记为 disabled）
-# 将在 v1.1+ 版本中支持，详见 app/types/ui-extension.ts
-[[extensions]]
-type = "ui_extension"
-name = "Order Status Upsell Offer"
-handle = "order-status-upsell-offer"
-uid = "d83854d0-2c3f-238c-9db2-263b144d459fed9be367"
-
-  [extensions.capabilities]
-  network_access = false
-
-  [[extensions.targeting]]
-  module = "./src/UpsellOffer.orderStatus.tsx"
-  target = "customer-account.order-status.block.render"
 
 # =============================================================================
 # Support / FAQ Block - Thank You Page
@@ -212,37 +181,15 @@ uid = "9436a208-0840-5eaa-957b-305b3da901ee5fb027de"  # 临时 UID，部署时�
   name = "Shipping Tracker Title"
   description = "Title for the shipping progress section (e.g., '订单状态')"
   type = "single_line_text_field"
-
+  
   [[settings.fields]]
   key = "shipping_tip_text"
   name = "Shipping Tip Text"
   description = "Helpful tip shown below the progress tracker"
   type = "single_line_text_field"
 
-  # Upsell Offer Settings
-  [[settings.fields]]
-  key = "upsell_discount_code"
-  name = "Discount Code"
-  description = "The discount code to offer (e.g., THANKYOU10)"
-  type = "single_line_text_field"
-
-  [[settings.fields]]
-  key = "upsell_discount_percent"
-  name = "Discount Percentage"
-  description = "Discount percentage (e.g., 10 for 10%)"
-  type = "single_line_text_field"
-
-  [[settings.fields]]
-  key = "upsell_expiry_hours"
-  name = "Offer Expiry Hours"
-  description = "How many hours the offer is valid (e.g., 24)"
-  type = "single_line_text_field"
-
-  [[settings.fields]]
-  key = "continue_shopping_url"
-  name = "Continue Shopping URL"
-  description = "URL to redirect when clicking 'Continue Shopping' (optional, defaults to store home)"
-  type = "single_line_text_field"
+  # P1: v1.0 版本已移除 Upsell 扩展点，相关设置已移除
+  # Upsell 功能将在 v1.1+ 版本中支持
 
   # Support / FAQ Settings
   [[settings.fields]]

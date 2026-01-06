@@ -111,6 +111,8 @@ export interface PixelSettings {
   // P1-11: pixel_config 已移除，不再在 settings 中存储大 JSON
   // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
   pixel_config?: string; // 保留用于向后兼容，但不再使用
+  // P0-4: 默认环境（test 或 live），用于后端按环境过滤配置
+  environment?: "test" | "live";
 }
 
 export interface PixelInit {

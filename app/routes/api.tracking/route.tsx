@@ -8,7 +8,7 @@ import {
 import { logger } from "../../utils/logger.server";
 import type { OrderTrackingSettings } from "../../types/ui-extension";
 // P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
-import { authenticate } from "../../shopify.server";
+import { authenticate, createAdminClientForShop } from "../../shopify.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
 import { withConditionalCache } from "../../lib/with-cache";
@@ -134,23 +134,82 @@ async function loaderImpl(request: Request) {
 
     let trackingInfo = null;
     let trackingNumberFromShopify: string | null = null;
+    let carrierFromShopify: string | null = null;
+    let trackingUrlFromShopify: string | null = null;
 
-    // P0-5: v1.0 版本不包含 read_orders scope，因此移除对 Shopify 订单 GraphQL 查询的依赖
-    // v1.0 版本仅支持通过用户提供的 trackingNumber 或第三方 API 查询物流信息
-    // 如果需要读取 Shopify 订单信息，需要 v1.1+ 版本并添加 read_orders scope
-    // 
-    // 注意：在 v1.0 中，ShippingTracker 将：
+    // P0-3: v1.0 版本已包含 read_orders scope，可以查询 Shopify 订单 fulfillments
+    // 查询策略：
     // 1. 优先使用用户提供的 trackingNumber（来自 URL 参数）
-    // 2. 如果配置了第三方追踪服务（AfterShip/17Track）且有 apiKey，使用第三方 API
-    // 3. 否则返回提示信息，引导用户查看邮件或联系客服
+    // 2. 如果没有提供，尝试从 Shopify 订单 fulfillments 中获取
+    // 3. 如果配置了第三方追踪服务（AfterShip/17Track）且有 apiKey，使用第三方 API 丰富信息
+    // 4. 否则返回提示信息，引导用户查看邮件或联系客服
 
-    // v1.0: 不查询 Shopify 订单，直接使用提供的 trackingNumber 或第三方服务
     logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`, {
       hasTrackingNumber: !!trackingNumber,
       hasThirdPartyProvider: !!trackingSettings?.provider && trackingSettings.provider !== "native",
     });
 
-    // v1.0: 使用用户提供的 trackingNumber（如果存在）
+    // P0-3: 查询 Shopify 订单 fulfillments 获取物流信息
+    try {
+      const admin = await createAdminClientForShop(shopDomain);
+      if (admin) {
+        const fulfillmentResponse = await admin.graphql(`
+          query GetOrderFulfillments($id: ID!) {
+            order(id: $id) {
+              id
+              fulfillments(first: 10) {
+                edges {
+                  node {
+                    trackingInfo {
+                      number
+                      company
+                      url
+                    }
+                    status
+                  }
+                }
+              }
+            }
+          }
+        `, {
+          variables: {
+            id: orderId,
+          },
+        });
+
+        const fulfillmentData = await fulfillmentResponse.json().catch((jsonError) => {
+          logger.warn("Failed to parse fulfillment GraphQL response as JSON", {
+            error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+            orderId,
+            shopDomain,
+          });
+          return { data: null };
+        });
+
+        if (fulfillmentData.data?.order?.fulfillments?.edges?.length > 0) {
+          // 取第一个 fulfillment 的 tracking info（通常订单只有一个 fulfillment）
+          const firstFulfillment = fulfillmentData.data.order.fulfillments.edges[0].node;
+          if (firstFulfillment.trackingInfo) {
+            trackingNumberFromShopify = firstFulfillment.trackingInfo.number || null;
+            carrierFromShopify = firstFulfillment.trackingInfo.company || null;
+            trackingUrlFromShopify = firstFulfillment.trackingInfo.url || null;
+            logger.info(`Found tracking info from Shopify for orderId: ${orderId}`, {
+              trackingNumber: trackingNumberFromShopify,
+              carrier: carrierFromShopify,
+            });
+          }
+        }
+      }
+    } catch (error) {
+      // 如果查询失败（例如没有 read_orders scope 或订单不存在），记录警告但继续处理
+      logger.warn("Failed to query Shopify order fulfillments", {
+        error: error instanceof Error ? error.message : String(error),
+        orderId,
+        shopDomain,
+      });
+    }
+
+    // 优先使用用户提供的 trackingNumber，否则使用从 Shopify 获取的
     const trackingNumberToUse = trackingNumber || trackingNumberFromShopify || null;
     
     // 如果没有 trackingNumber 且没有配置第三方服务，返回提示信息
@@ -165,8 +224,6 @@ async function loaderImpl(request: Request) {
             carrier: null,
             estimatedDelivery: null,
             events: [],
-            // v1.0 提示：由于未配置 read_orders scope，无法自动获取物流单号
-            // 用户可以通过邮件中的物流信息或联系客服获取追踪号码
             message: "物流追踪号码将在发货后的邮件中提供。",
           },
         },
@@ -212,6 +269,24 @@ async function loaderImpl(request: Request) {
     }
 
     if (!trackingInfo) {
+      // P0-3: 如果没有第三方追踪信息，但从 Shopify 获取到了基本信息，返回这些信息
+      if (trackingNumberToUse) {
+        return jsonWithCors(
+          {
+            success: true,
+            tracking: {
+              trackingNumber: trackingNumberToUse,
+              status: "pending_fulfillment",
+              statusDescription: "物流信息已生成，正在等待承运商更新状态",
+              carrier: carrierFromShopify || null,
+              estimatedDelivery: null,
+              events: [],
+              ...(trackingUrlFromShopify ? { trackingUrl: trackingUrlFromShopify } : {}),
+            },
+          },
+          { status: 200, request, staticCors: true }
+        );
+      }
 
       return jsonWithCors(
         {

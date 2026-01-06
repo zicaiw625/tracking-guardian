@@ -49,6 +49,9 @@ register(({ analytics, settings, init, customerPrivacy }: {
     subscribeToConsentChanges(customerPrivacy, consentManager, log);
   }
 
+  // P0-4: 从 settings 读取 environment，默认为 "live"
+  const environment = (settings.environment as "test" | "live" | undefined) || "live";
+
   const sendToBackend = createEventSender({
     backendUrl,
     shopDomain,
@@ -56,6 +59,7 @@ register(({ analytics, settings, init, customerPrivacy }: {
     isDevMode,
     consentManager,
     logger: log,
+    environment,
   });
 
   // P1-11: 不再从 settings.pixel_config 读取配置，使用默认配置

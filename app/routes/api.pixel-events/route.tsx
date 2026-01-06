@@ -233,7 +233,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // P0-4: 通过 shopDomain 获取 shop，用于 HMAC 验证（前置）
-    const shop = await getShopForPixelVerificationWithConfigs(payload.shopDomain);
+    // P0-4: 支持 Test/Live 环境过滤 - 从 payload.data 中读取 environment（如果存在），否则默认使用 "live"
+    const environment = (payload.data as { environment?: "test" | "live" })?.environment || "live";
+    const shop = await getShopForPixelVerificationWithConfigs(payload.shopDomain, environment);
     if (!shop || !shop.isActive) {
       return jsonWithCors(
         { error: "Shop not found or inactive" },
@@ -338,16 +340,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // 所有配置都会被处理，支持多目的地场景（Agency/多品牌/多像素）
     // 例如：同一店铺可以配置多个 GA4 property、多个 Meta Pixel 等
     // 
-    // P0-5: Test/Live 环境处理
-    // 当前实现：默认使用 live 环境的配置（getShopForVerificationWithConfigs 默认 environment: "live"）
+    // P0-4: Test/Live 环境处理
+    // 当前实现：从 payload.data.environment 读取环境信息（如果存在），否则默认使用 "live"
+    // getShopForPixelVerificationWithConfigs 已按 environment 过滤配置
     // Test 环境的处理方式：
     // 1. Test 配置仍然发送到相同的 ingest endpoint
     // 2. Test 环境的配置通过 PixelConfig.environment="test" 区分
     // 3. 平台 API 调用时，Test 环境的配置会附带各平台的 test_event_code/testEventCode
-    // 如果将来需要在事件层面传递环境信息，可以通过以下方式扩展：
-    // - 在 payload 中添加 environment 字段
-    // - 通过 HTTP header 传递环境信息
-    // - 从 Web Pixel Extension settings 中读取环境配置
+    // 注意：shop.pixelConfigs 已经按 environment 过滤，只包含匹配环境的配置
     const pixelConfigs = shop.pixelConfigs;
     let mode: "purchase_only" | "full_funnel" = "purchase_only"; // 默认 purchase_only，符合隐私最小化原则
     let purchaseStrategy: "server_side_only" | "hybrid" = "hybrid"; // 默认 hybrid 以符合 PRD 要求
@@ -644,8 +644,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           
           // 异步处理但不阻塞响应，记录发送结果
           // P0-3: 传递配置对象列表以支持多目的地
+          // P0-4: 传递 environment 以支持 Test/Live 环境过滤
           safeFireAndForget(
-            processEventPipeline(shop.id, payload, eventId, platformsToRecord).then((result) => {
+            processEventPipeline(shop.id, payload, eventId, platformsToRecord, environment).then((result) => {
               if (result.success) {
                 logger.info(`Purchase event successfully sent via client-side`, {
                   shopId: shop.id,
@@ -702,8 +703,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         
         // 异步处理但不阻塞响应，记录发送结果
         // P0-3: 传递配置对象列表以支持多目的地
+        // P0-4: 传递 environment 以支持 Test/Live 环境过滤
         safeFireAndForget(
-          processEventPipeline(shop.id, payload, eventId, platformsToRecord).then((result) => {
+          processEventPipeline(shop.id, payload, eventId, platformsToRecord, environment).then((result) => {
             if (result.success) {
               logger.info(`Event ${payload.eventName} successfully routed to destinations`, {
                 shopId: shop.id,

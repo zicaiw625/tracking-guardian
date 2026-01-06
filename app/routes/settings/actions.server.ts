@@ -632,6 +632,36 @@ export async function settingsAction({ request }: ActionFunctionArgs) {
       const result = await switchEnvironment(shop.id, platform, newEnvironment);
 
       if (result.success) {
+        // P0-4: 同步 environment 到 pixel settings
+        try {
+          const shopData = await prisma.shop.findUnique({
+            where: { id: shop.id },
+            select: { webPixelId: true, ingestionSecret: true, shopDomain: true },
+          });
+          
+          if (shopData?.webPixelId) {
+            const { decryptIngestionSecret } = await import("../../utils/token-encryption");
+            const ingestionKey = shopData.ingestionSecret 
+              ? decryptIngestionSecret(shopData.ingestionSecret)
+              : undefined;
+            
+            await updateWebPixel(
+              admin,
+              shopData.webPixelId,
+              ingestionKey,
+              shopData.shopDomain || session.shop,
+              newEnvironment
+            );
+          }
+        } catch (syncError) {
+          logger.warn("Failed to sync environment to pixel settings", {
+            shopId: shop.id,
+            platform,
+            environment: newEnvironment,
+            error: syncError instanceof Error ? syncError.message : String(syncError),
+          });
+        }
+        
         await invalidateAllShopCaches(session.shop, shop.id);
         await createAuditLog({
           shopId: shop.id,

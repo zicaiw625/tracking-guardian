@@ -424,7 +424,8 @@ export async function sendPixelEventToPlatform(
   eventId: string,
   configId?: string,
   platformId?: string,
-  eventLogId?: string | null // P0-T2: 用于创建 DeliveryAttempt
+  eventLogId?: string | null, // P0-T2: 用于创建 DeliveryAttempt
+  environment?: "test" | "live" // P0-4: Test/Live 环境过滤
 ): Promise<PixelEventSendResult> {
   try {
     logger.debug(`Sending ${payload.eventName} to ${platform}`, {
@@ -434,10 +435,15 @@ export async function sendPixelEventToPlatform(
       platform,
       configId,
       platformId,
+      environment,
     });
 
-    // 获取平台配置
-    const pixelConfigs = await getShopPixelConfigs(shopId, { serverSideOnly: true });
+    // P0-4: 获取平台配置时按 environment 过滤
+    // 如果未指定 environment，默认使用 "live"（向后兼容）
+    const pixelConfigs = await getShopPixelConfigs(shopId, { 
+      serverSideOnly: true,
+      environment: environment || "live"
+    });
     
     // P0-3: 支持多目的地配置 - 优先通过 configId 查找，其次通过 platformId，最后通过平台名称
     let config = configId 

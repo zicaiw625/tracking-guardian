@@ -247,11 +247,12 @@ export { DEFAULT_PIXEL_CONFIG };
 export function buildWebPixelSettings(
     ingestionKey: string,
     shopDomain: string,
-    pixelConfig?: Partial<PixelConfig>
+    pixelConfig?: Partial<PixelConfig>,
+    environment: "test" | "live" = "live"
 ): WebPixelSettings {
     // P1-11: Web Pixel Settings 只下发小字段，不塞大 JSON
     // 像素端通过 shop_domain 去后端获取完整配置（如果需要）
-    // 只保留必要的标识字段：shop_domain、ingestion_key、config_version
+    // 只保留必要的标识字段：shop_domain、ingestion_key、config_version、environment
     const configVersion = "1"; // 配置版本号，用于向后兼容
     
     return {
@@ -260,6 +261,8 @@ export function buildWebPixelSettings(
         // P1-11: 不再下发 pixel_config JSON，改为只下发 config_version
         // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
         config_version: configVersion,
+        // P0-4: 默认环境（test 或 live），用于后端按环境过滤配置
+        environment,
     };
 }
 
@@ -354,8 +357,9 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
     }
 }
 
-export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string): Promise<CreateWebPixelResult> {
-    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "");
+export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string, environment: "test" | "live" = "live"): Promise<CreateWebPixelResult> {
+    // P0-4: 支持 environment 参数，确保 pixel settings 中包含正确的 environment 字段
+    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, environment);
     const settings = JSON.stringify(pixelSettings);
     try {
         const response = await admin.graphql(`

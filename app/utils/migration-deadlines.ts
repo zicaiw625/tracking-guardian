@@ -24,7 +24,7 @@ export const DEPRECATION_DATES = DEPRECATION_DATES_IMPORT;
 export const PLUS_DEADLINES = {
   /** 2025-08-28: Plus 商家 ScriptTag 和 Additional Scripts 停止执行，进入只读模式 */
   SCRIPT_TAG_OFF: DEPRECATION_DATES.plusScriptTagExecutionOff,
-  /** 2026-01-01: Plus 商家自动升级开始（Shopify 开始自动升级 Plus 商家到新版 TYP/OSP 页面） */
+  /** 2026-01: Plus 商家自动升级开始（Shopify 开始自动升级 Plus 商家到新版 TYP/OSP 页面，通常带 30 天通知） */
   AUTO_UPGRADE_START: DEPRECATION_DATES.plusAutoUpgradeStart,
 } as const;
 
@@ -50,8 +50,8 @@ export const COMMON_DEADLINES = {
 export function getShopDeadline(shopTier: ShopTier): Date {
   switch (shopTier) {
     case "plus":
-      // Plus 商家：2025-08-28 开始限制，2026-01 起自动升级
-      // 实际截止日期是 2026-01-01 之前必须完成迁移
+      // Plus 商家：2025-08-28 开始限制，2026-01 起自动升级（Shopify 会提前通知）
+      // 注意：自动升级开始时间以 Shopify 官方通知为准，此处为月份级别估算
       return PLUS_DEADLINES.AUTO_UPGRADE_START;
     case "non_plus":
     case "unknown":
