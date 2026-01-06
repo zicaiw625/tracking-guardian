@@ -7,11 +7,12 @@ import { CheckCircleIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { BILLING_PLANS, createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId, PLAN_IDS } from "../services/billing.server";
+import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId } from "../services/billing.server";
 import { getUsageHistory } from "../services/billing/usage-history.server";
 // P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除一次性购买相关导入
 import { logger } from "../utils/logger.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+    const { BILLING_PLANS, PLAN_IDS } = await import("../services/billing.server");
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
     const url = new URL(request.url);
@@ -38,6 +39,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             },
             usage: { exceeded: false, current: 0, limit: 100 },
             plans: BILLING_PLANS,
+            planIds: PLAN_IDS,
             appUrl: process.env.SHOPIFY_APP_URL || "",
         });
     }
@@ -58,6 +60,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         usage: orderUsage,
         usageHistory,
         plans: BILLING_PLANS,
+        planIds: PLAN_IDS,
         appUrl: process.env.SHOPIFY_APP_URL || "",
     });
 };
@@ -95,7 +98,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 export default function BillingPage() {
     const loaderData = useLoaderData<typeof loader>();
-    const { subscription, usage, plans } = loaderData;
+    const { subscription, usage, plans, planIds } = loaderData;
     const usageHistory = "usageHistory" in loaderData ? loaderData.usageHistory : null;
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
@@ -215,7 +218,7 @@ export default function BillingPage() {
         <Text as="h2" variant="headingMd">可用套餐</Text>
 
         <Layout>
-          {PLAN_IDS.map((planId) => {
+          {planIds.map((planId) => {
             const plan = plans[planId];
             if (!plan) return null;
             const isCurrentPlan = subscription.plan === planId;
