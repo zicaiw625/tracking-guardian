@@ -397,8 +397,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       purchaseStrategy = "hybrid";
     }
 
+    // P0-4: 在 purchase_only 模式下，非主事件应该直接返回 204，不写任何数据库记录
+    // 这避免了 page_viewed 等高频事件导致数据库写入 QPS 过高的问题
+    // 短路检查应该在获取 shop 和 mode 之后立即进行，避免不必要的后续处理
     if (!isPrimaryEvent(payload.eventName, mode)) {
-      logger.debug(`Event ${payload.eventName} not accepted for ${payload.shopDomain} (mode: ${mode})`);
+      logger.debug(`Event ${payload.eventName} not accepted for ${payload.shopDomain} (mode: ${mode}) - skipping all DB writes`);
       return emptyResponseWithCors(request);
     }
 
@@ -568,58 +571,71 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       normalizedItems.length > 0 ? normalizedItems : undefined
     );
 
-    const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);
-    if (alreadyRecorded) {
-      return jsonWithCors(
-        {
-          success: true,
-          eventId,
-          message: "Client event already recorded",
-          clientSideSent: true,
-        },
-        { request, shopAllowedDomains }
-      );
-    }
+    // P0-4: 只对 purchase 事件写入 receipt/nonce（强去重/强可靠）
+    // 对于非 purchase 事件，只写入 EventLog + DeliveryAttempt（通过 processEventPipeline）
+    // 这避免了 page_viewed 等高频事件导致数据库写入 QPS 过高的问题
+    if (isPurchaseEvent) {
+      const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);
+      if (alreadyRecorded) {
+        return jsonWithCors(
+          {
+            success: true,
+            eventId,
+            message: "Client event already recorded",
+            clientSideSent: true,
+          },
+          { request, shopAllowedDomains }
+        );
+      }
 
-    if (pixelConfigs.length === 0) {
-      return jsonWithCors(
-        {
-          success: true,
-          eventId,
-          message: "No server-side tracking configured - client event acknowledged",
-        },
-        { request, shopAllowedDomains }
-      );
-    }
+      if (pixelConfigs.length === 0) {
+        return jsonWithCors(
+          {
+            success: true,
+            eventId,
+            message: "No server-side tracking configured - client event acknowledged",
+          },
+          { request, shopAllowedDomains }
+        );
+      }
 
-    const nonceFromBody = payload.nonce;
-    const nonceResult = await createEventNonce(
-      shop.id,
-      orderId,
-      payload.timestamp,
-      nonceFromBody,
-      eventType
-    );
-    if (nonceResult.isReplay) {
-      metrics.pixelRejection({
-        shopDomain: shop.shopDomain,
-        reason: "replay_detected",
-        originType: "nonce_collision",
+      const nonceFromBody = payload.nonce;
+      const nonceResult = await createEventNonce(
+        shop.id,
+        orderId,
+        payload.timestamp,
+        nonceFromBody,
+        eventType
+      );
+      if (nonceResult.isReplay) {
+        metrics.pixelRejection({
+          shopDomain: shop.shopDomain,
+          reason: "replay_detected",
+          originType: "nonce_collision",
+        });
+        return emptyResponseWithCors(request, shopAllowedDomains);
+      }
+
+      await upsertPixelEventReceipt(
+        shop.id,
+        orderId,
+        eventId,
+        payload,
+        keyValidation,
+        trustResult,
+        usedCheckoutTokenAsFallback,
+        origin,
+        eventType
+      );
+    } else {
+      // P0-4: 非 purchase 事件不写入 receipt/nonce，只通过 processEventPipeline 写入 EventLog + DeliveryAttempt
+      // 这避免了 page_viewed 等高频事件导致数据库写入 QPS 过高的问题
+      logger.debug(`Non-purchase event ${payload.eventName} - skipping receipt/nonce, will only write EventLog via pipeline`, {
+        shopId: shop.id,
+        eventName: payload.eventName,
+        eventId,
       });
-      return emptyResponseWithCors(request, shopAllowedDomains);
     }
-
-    await upsertPixelEventReceipt(
-      shop.id,
-      orderId,
-      eventId,
-      payload,
-      keyValidation,
-      trustResult,
-      usedCheckoutTokenAsFallback,
-      origin,
-      eventType
-    );
 
     // P0-3: 过滤配置 - 只处理启用 client-side 的配置（因为事件来自 Web Pixel Extension）
     // 对于 purchase 事件，在 hybrid 模式下需要 client-side 配置

@@ -451,6 +451,44 @@ export default function MonitorPage() {
             }
         ]}>
       <BlockStack gap="500">
+        {/* P2-2: 像素隐私/同意逻辑说明 - 对齐 Shopify Pixel Privacy 文档 */}
+        <Banner tone="info" title="像素隐私与同意过滤说明">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              <strong>像素加载策略与后端过滤逻辑：</strong>
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>像素加载条件：</strong>Web Pixel 在用户同意 <strong>analytics</strong> 时加载（符合 Shopify Pixel Privacy 规范）
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>后端过滤策略：</strong>
+                  <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
+                    <li><strong>GA4：</strong>只需 analytics 同意即可发送（analytics 类别）</li>
+                    <li><strong>Meta/TikTok：</strong>需要 marketing + saleOfData 同意才发送（marketing 类别，需要 CCPA 同意）</li>
+                  </ul>
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>为什么这样设计：</strong>这确保了 analytics 同意的用户也能被 GA4 追踪，同时 marketing 平台（Meta/TikTok）仍受严格检查，符合各平台的合规要求。
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>如果事件被过滤：</strong>当用户只同意 analytics 但不同意 marketing 时，GA4 事件仍会发送，但 Meta/TikTok 事件会在后端被过滤。这是正常的合规行为，不会影响 GA4 追踪。
+                </Text>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              参考：<Link url="https://shopify.dev/docs/api/web-pixels-api/pixel-privacy" external>Shopify Pixel Privacy 文档</Link>
+            </Text>
+          </BlockStack>
+        </Banner>
+
         {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
@@ -493,9 +531,6 @@ export default function MonitorPage() {
             }}
           />
         )}
-
-        {}
-        {}
         <Banner tone="info" title="关于同意与隐私导致的差异">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -515,6 +550,51 @@ export default function MonitorPage() {
             </List>
             <Text as="p" variant="bodySm" tone="subdued">
               提示：如果 Pixel Helper 显示 "Pixel is awaiting consent"，这表示像素正在等待用户同意，不是追踪失败。请区分因同意阻止导致的差异和真正的发送故障。
+            </Text>
+          </BlockStack>
+        </Banner>
+
+        {/* P2-2: 像素隐私/同意逻辑详细说明 */}
+        <Banner tone="info" title="像素加载与事件发送的同意策略说明">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              <strong>为什么只同意 analytics 时 GA4 能发送，但 Meta/TikTok 不能？</strong>
+            </Text>
+            <Text as="p" variant="bodySm">
+              Tracking Guardian Pixel 的加载策略与后端过滤策略保持一致：
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>像素加载条件：</strong>当用户同意 <strong>analytics</strong> 时，像素就会加载并发送所有事件到后端
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>后端过滤策略：</strong>
+                </Text>
+                <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
+                  <li><strong>GA4 (Google Analytics)：</strong>只需 analytics 同意即可发送（GA4 是分析工具，不需要 marketing 同意）</li>
+                  <li><strong>Meta/TikTok：</strong>需要 marketing + saleOfData 同意才发送（这些是广告平台，需要营销同意）</li>
+                </ul>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm">
+              <strong>这确保了：</strong>
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">覆盖率：analytics 同意的用户也能被 GA4 追踪（提高数据完整性）</Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">合规性：marketing 平台（Meta/TikTok）仍受严格检查（符合 GDPR/CCPA 要求）</Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">一致性：像素加载条件 ≤ 后端发送条件（像素加载时，至少 GA4 可以发送）</Text>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              💡 如果用户只同意 analytics 但不同意 marketing，Meta/TikTok 事件会在后端被过滤，但不会影响 GA4 事件的发送。这符合各平台的合规要求。
             </Text>
           </BlockStack>
         </Banner>

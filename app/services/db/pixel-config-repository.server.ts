@@ -16,6 +16,7 @@ export interface PixelConfigCredentials {
   credentials_legacy: Prisma.JsonValue | null; // P0-5: 修复字段名，与 Prisma schema 一致
   clientConfig: Prisma.JsonValue;
   environment: string | null; // P0-5: 添加 environment 字段，用于 Test/Live 环境判断
+  eventMappings: Prisma.JsonValue | null; // P1-1: 添加 eventMappings 字段，用于事件映射配置
 }
 
 export type PixelConfigFull = PixelConfig;
@@ -69,6 +70,7 @@ const CREDENTIALS_SELECT = {
   credentials_legacy: true, // P0-5: 修复字段名，与 Prisma schema 一致
   clientConfig: true,
   environment: true, // P0-5: 添加 environment 字段，用于 Test/Live 环境判断
+  eventMappings: true, // P1-1: 添加 eventMappings 字段，用于事件映射配置
 } as const;
 
 const SUMMARY_SELECT = {
@@ -225,6 +227,9 @@ export async function upsertPixelConfig(
         },
       });
 
+  // P1-1: 事件映射版本化 - 在更新配置前保存快照
+  // 当商家选择不同的 preset 或修改 eventMappings 时，会保存当前配置到 previousConfig
+  // configVersion 会递增，支持回滚到上一个版本
   if (existingConfig && saveSnapshot) {
     await saveConfigSnapshot(shopId, platform, environment as "test" | "live").catch((error) => {
       const errorMessage = error instanceof Error ? error.message : String(error);

@@ -129,8 +129,17 @@ export async function saveWizardConfigs(
         },
       });
 
+      // P1-1: 在更新配置前保存 snapshot，确保 eventMappings 变更可回滚
       if (existingConfig && existingConfig.isActive) {
-        await saveConfigSnapshot(shopId, config.platform, config.environment || "live");
+        // 检查 eventMappings 是否有变更
+        const existingMappings = existingConfig.eventMappings as Record<string, string> | null;
+        const newMappings = config.eventMappings || {};
+        const mappingsChanged = JSON.stringify(existingMappings) !== JSON.stringify(newMappings);
+        
+        // 如果 eventMappings 有变更，保存 snapshot 以便回滚
+        if (mappingsChanged) {
+          await saveConfigSnapshot(shopId, config.platform, config.environment || "live");
+        }
       }
 
       await prisma.pixelConfig.upsert({
@@ -149,6 +158,11 @@ export async function saveWizardConfigs(
           eventMappings: config.eventMappings as object,
           environment: config.environment || "live",
           migrationStatus: "in_progress",
+          // P1-1: 如果 eventMappings 有变更，递增 configVersion
+          ...(existingConfig && existingConfig.isActive && JSON.stringify(existingConfig.eventMappings) !== JSON.stringify(config.eventMappings) ? {
+            configVersion: { increment: 1 },
+            rollbackAllowed: true,
+          } : {}),
           updatedAt: new Date(),
         },
         create: {

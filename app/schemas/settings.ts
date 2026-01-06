@@ -179,6 +179,10 @@ export const WebPixelSettingsSchema = z.object({
   ingestion_key: z.string().min(1, "Ingestion key is required"),
   shop_domain: z.string().min(1, "Shop domain is required"),
   config_version: z.string().optional(), // P1-11: 配置版本号，用于向后兼容
+  // P0-2: 添加 mode 字段，用于控制像素端订阅的事件类型
+  // purchase_only: 仅订阅 checkout_completed 事件（默认，符合隐私最小化原则）
+  // full_funnel: 订阅全漏斗事件（page_viewed, product_viewed, product_added_to_cart, checkout_started, checkout_completed 等）
+  mode: z.enum(["purchase_only", "full_funnel"]).optional().default("purchase_only"),
   // P1-11: pixel_config 已移除，不再在 settings 中存储大 JSON
   // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
   pixel_config: z.string().optional(), // 保留用于向后兼容，但不再使用

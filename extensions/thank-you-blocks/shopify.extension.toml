@@ -7,6 +7,15 @@ api_version = "2025-07"
 # ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
 # 如果这是新扩展，运行 `shopify app deploy` 会自动生成并填充 uid
 # 如果 uid 缺失或无效，会导致扩展创建/更新失败
+#
+# P1-4: UI Extensions Target 说明
+# - target = "purchase.thank-you.block.render": Thank you 页面扩展点
+#   - 在订单完成后的感谢页面显示（purchase.thank-you）
+#   - 不需要 Protected Customer Data (PCD) 权限
+#   - 可以访问订单基本信息（orderId, lineItems 等，通过 Shopify UI Extensions API）
+#   - network_access = true: 允许调用后端 API（如 /api/survey 提交问卷）
+#
+# 注意：Thank you 页面扩展点不涉及客户账户数据，因此不需要 PCD 权限
 [[extensions]]
 type = "ui_extension"
 name = "Post-purchase Survey"
@@ -24,6 +33,21 @@ uid = "5bbce4d5-0610-0b76-fa6d-c6fef535cee9f855bf02"
 # Survey Block - Order Status Page (Customer Account)
 # =============================================================================
 # ⚠️ 重要：uid 必须由 Shopify CLI 在首次部署时自动生成
+#
+# P1-4: UI Extensions Target 说明
+# - target = "customer-account.order-status.block.render": Customer Account Order Status 页面扩展点
+#   - 在客户账户的订单状态页面显示（customer-account.order-status）
+#   - 属于 Customer Account UI Extensions，可能需要访问客户账户相关数据
+#   - 某些属性可能需要 Protected Customer Data (PCD) 访问权限（取决于 Shopify 政策）
+#   - network_access = true: 允许调用后端 API（如 /api/survey 提交问卷）
+#
+# 重要说明：
+# - Customer Account UI Extensions 运行在客户账户上下文中
+# - 如果扩展需要访问客户个人信息（如邮箱、电话、地址），可能需要申请 PCD 权限
+# - v1.0 版本仅使用订单基本信息（orderId, lineItems），不访问客户个人信息
+# - 如果未来需要访问客户个人信息，需要在 Shopify Partner Dashboard 申请 PCD 权限
+#
+# 参考：https://shopify.dev/docs/api/customer-account-ui-extensions
 [[extensions]]
 type = "ui_extension"
 name = "Order Status Survey"

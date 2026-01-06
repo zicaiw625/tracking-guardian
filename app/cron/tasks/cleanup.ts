@@ -137,9 +137,20 @@ export async function cleanupExpiredData(): Promise<CleanupResult> {
     const auditCutoff = new Date();
     auditCutoff.setUTCDate(auditCutoff.getUTCDate() - Math.max(retentionDays, 180));
 
-    // P0-T5: 数据保留策略
-    // - 热数据：30天（DeliveryAttempts，用于实时监控）
-    // - 冷数据：90天（EventLogs，用于历史记录）
+    // P2-1: PRD 对齐 - 事件保留策略（可配置）
+    // 
+    // PRD 要求：event_logs 30 天热 + 90 天冷（可配置）
+    // 
+    // 实现策略：
+    // - 热数据：30天（DeliveryAttempts，用于实时监控和告警）
+    // - 冷数据：90天或商家配置的保留期（EventLogs，用于历史记录和验收报告）
+    // - 商家可在 Settings -> Security 中配置 dataRetentionDays（30-365 天，默认 90 天）
+    // - 清理任务每日自动执行（通过 cron job）
+    // 
+    // 注意：
+    // - DeliveryAttempts 固定保留 30 天（热数据，用于实时监控）
+    // - EventLogs 保留 max(retentionDays, 90) 天（冷数据，至少 90 天）
+    // - 其他数据（ConversionLog、PixelEventReceipt 等）按商家配置的 retentionDays 清理
     const hotDataCutoff = new Date();
     hotDataCutoff.setUTCDate(hotDataCutoff.getUTCDate() - 30);
     

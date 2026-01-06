@@ -252,6 +252,94 @@ export function SecurityTab({
 
             <Divider />
 
+            {/* P2-2: 像素隐私/同意逻辑说明 */}
+            <BlockStack gap="300">
+              <Text as="h3" variant="headingMd">
+                像素隐私与同意逻辑
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                了解像素加载策略与后端过滤逻辑，以及为什么某些平台事件可能被过滤。
+              </Text>
+
+              <Banner tone="info">
+                <BlockStack gap="200">
+                  <Text as="span" fontWeight="semibold">
+                    📋 像素加载策略
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    Web Pixel Extension 的加载条件（在 <code>shopify.extension.toml</code> 中配置）：
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    • <strong>analytics = true</strong>：需要 analytics consent 才能加载像素
+                    <br />• <strong>marketing = false</strong>：不强制要求 marketing consent（提高覆盖率）
+                    <br />• <strong>sale_of_data = "enabled"</strong>：尊重 CCPA 选择（但不强制要求）
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    这意味着：当用户仅同意 analytics 但不同意 marketing 时，像素仍会加载并发送事件到后端。
+                  </Text>
+                </BlockStack>
+              </Banner>
+
+              <Banner tone="warning">
+                <BlockStack gap="200">
+                  <Text as="span" fontWeight="semibold">
+                    🔍 后端过滤策略
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    后端会根据各平台的合规要求进一步过滤事件：
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    • <strong>GA4 (Google Analytics)</strong>：只需 analytics 同意即可发送
+                    <br />• <strong>Meta (Facebook/Instagram)</strong>：需要 marketing + saleOfData 同意才发送
+                    <br />• <strong>TikTok</strong>：需要 marketing + saleOfData 同意才发送
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    <strong>为什么这样设计？</strong>
+                    <br />• 提高覆盖率：analytics 同意的用户也能被 GA4 追踪
+                    <br />• 确保合规：marketing 平台（Meta/TikTok）仍受严格检查
+                    <br />• 一致性：像素加载条件 ≤ 后端发送条件（像素加载时，至少 GA4 可以发送）
+                  </Text>
+                </BlockStack>
+              </Banner>
+
+              <Banner tone="success">
+                <BlockStack gap="200">
+                  <Text as="span" fontWeight="semibold">
+                    ✅ 实际效果
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    当用户只同意 analytics 但不同意 marketing 时：
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    • ✅ 像素会加载（因为 analytics = true）
+                    <br />• ✅ 事件会发送到后端（因为像素已加载）
+                    <br />• ✅ GA4 会收到事件（只需 analytics 同意）
+                    <br />• ❌ Meta/TikTok 不会收到事件（需要 marketing + saleOfData 同意）
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    这避免了"像素加载了但事件被过滤导致商家误以为丢数"的问题。
+                    在 Dashboard 中，您可以查看每个平台的发送统计和过滤原因。
+                  </Text>
+                </BlockStack>
+              </Banner>
+
+              <Banner tone="info">
+                <BlockStack gap="100">
+                  <Text as="span" fontWeight="semibold">
+                    📊 查看过滤统计
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    在 Dashboard 的监控页面，您可以查看：
+                    <br />• 每个平台的事件发送成功率
+                    <br />• 因 consent 过滤的事件数量
+                    <br />• 各平台的同意率统计
+                  </Text>
+                </BlockStack>
+              </Banner>
+            </BlockStack>
+
+            <Divider />
+
             {}
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">

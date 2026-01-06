@@ -419,6 +419,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
                 const platformIdValue = config.platformId?.trim() || null;
                 
+                // P0-2: 根据 eventMappings 推断 mode
+                // 如果 eventMappings 包含 full_funnel 事件（page_viewed, product_viewed, product_added_to_cart, checkout_started），则 mode = full_funnel
+                // 否则 mode = purchase_only
+                const fullFunnelEvents = ["page_viewed", "product_viewed", "product_added_to_cart", "checkout_started"];
+                const hasFullFunnelEvents = Object.keys(config.eventMappings || {}).some(eventName => 
+                    fullFunnelEvents.includes(eventName)
+                );
+                const mode: "purchase_only" | "full_funnel" = hasFullFunnelEvents ? "full_funnel" : "purchase_only";
+                const clientConfig = { mode };
+                
                 await prisma.pixelConfig.upsert({
                     where: {
                         shopId_platform_environment_platformId: {
@@ -433,6 +443,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         credentialsEncrypted: encryptedCredentials,
                         serverSideEnabled: true,
                         eventMappings: config.eventMappings as object,
+                        clientConfig: clientConfig as object,
                         environment: config.environment,
                         migrationStatus: "in_progress",
                         updatedAt: new Date(),
@@ -445,11 +456,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                         credentialsEncrypted: encryptedCredentials,
                         serverSideEnabled: true,
                         eventMappings: config.eventMappings as object,
+                        clientConfig: clientConfig as object,
                         environment: config.environment,
                         migrationStatus: "in_progress",
                         updatedAt: new Date(),
                     },
                 });
+            }
+
+            // P0-2: 保存配置后同步 mode 到 Web Pixel settings
+            if (shop.webPixelId && shop.ingestionSecret) {
+                const { syncWebPixelMode } = await import("~/services/migration.server");
+                // 同步所有环境的 mode（test 和 live）
+                for (const env of ["test", "live"] as const) {
+                    await syncWebPixelMode(
+                        admin,
+                        shop.id,
+                        shop.shopDomain,
+                        shop.webPixelId,
+                        shop.ingestionSecret,
+                        env
+                    );
+                }
             }
 
             return json({

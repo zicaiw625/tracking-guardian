@@ -50,16 +50,41 @@ interface PixelEventSendResult {
 }
 
 /**
- * 将 Shopify 事件名映射到平台事件名
+ * P1-1: 将 Shopify 事件名映射到平台事件名
  * 支持所有 full_funnel 事件类型
+ * 
+ * 事件映射版本化说明：
+ * - PixelConfig.eventMappings 存储平台特定的事件映射（如 GA4/Meta/TikTok preset）
+ * - PixelConfig.configVersion 用于整个配置的版本控制（包括 eventMappings）
+ * - 当商家选择不同的 preset 时，eventMappings 会被更新，configVersion 会递增
+ * - rollback 功能可以回滚到上一个版本的 eventMappings（通过 previousConfig）
+ * 
+ * 优先使用配置的 eventMappings，如果没有配置则使用默认映射
+ * 这允许商家选择不同的映射 preset（GA4/Meta/TikTok 标准映射）
+ * 
+ * 默认映射符合各平台标准：
+ * - GA4: page_view/view_item/add_to_cart/begin_checkout/purchase
+ * - Meta: PageView/ViewContent/AddToCart/InitiateCheckout/Purchase
+ * - TikTok: ViewContent/AddToCart/InitiateCheckout/CompletePayment
  */
 function mapShopifyEventToPlatform(
   shopifyEventName: string,
-  platform: string
+  platform: string,
+  customMappings?: Record<string, string> | null
 ): string {
   // 标准化事件名
   const normalizedEvent = shopifyEventName.toLowerCase().replace(/_/g, "_");
   
+  // P1-1: 优先使用配置的 eventMappings（来自 preset 选择或自定义映射）
+  // 这些映射存储在 PixelConfig.eventMappings 中，可以通过 rollback 回滚
+  if (customMappings && typeof customMappings === 'object' && normalizedEvent in customMappings) {
+    const mapped = customMappings[normalizedEvent];
+    if (mapped && typeof mapped === 'string') {
+      return mapped;
+    }
+  }
+  
+  // 如果没有配置映射，使用默认映射
   const eventMapping: Record<string, Record<string, string>> = {
     google: {
       checkout_completed: "purchase",
@@ -109,7 +134,8 @@ async function sendToGA4(
   credentials: PlatformCredentials,
   eventName: string,
   payload: PixelEventPayload,
-  eventId: string
+  eventId: string,
+  customMappings?: Record<string, string> | null
 ): Promise<PixelEventSendResult> {
   try {
     const googleCreds = credentials as { measurementId?: string; apiSecret?: string };
@@ -121,7 +147,7 @@ async function sendToGA4(
       };
     }
 
-    const platformEventName = mapShopifyEventToPlatform(eventName, "google");
+    const platformEventName = mapShopifyEventToPlatform(eventName, "google", customMappings);
     const data = payload.data || {};
     
     // 构建 GA4 事件参数
@@ -209,7 +235,8 @@ async function sendToMeta(
   credentials: PlatformCredentials,
   eventName: string,
   payload: PixelEventPayload,
-  eventId: string
+  eventId: string,
+  customMappings?: Record<string, string> | null
 ): Promise<PixelEventSendResult> {
   try {
     const metaCreds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
@@ -221,7 +248,7 @@ async function sendToMeta(
       };
     }
 
-    const platformEventName = mapShopifyEventToPlatform(eventName, "meta");
+    const platformEventName = mapShopifyEventToPlatform(eventName, "meta", customMappings);
     const data = payload.data || {};
     const eventTime = Math.floor(Date.now() / 1000);
 
@@ -328,7 +355,8 @@ async function sendToTikTok(
   credentials: PlatformCredentials,
   eventName: string,
   payload: PixelEventPayload,
-  eventId: string
+  eventId: string,
+  customMappings?: Record<string, string> | null
 ): Promise<PixelEventSendResult> {
   try {
     const tiktokCreds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
@@ -340,7 +368,7 @@ async function sendToTikTok(
       };
     }
 
-    const platformEventName = mapShopifyEventToPlatform(eventName, "tiktok");
+    const platformEventName = mapShopifyEventToPlatform(eventName, "tiktok", customMappings);
     const data = payload.data || {};
     const timestamp = new Date().toISOString();
 
@@ -538,11 +566,16 @@ export async function sendPixelEventToPlatform(
     let requestPayload: unknown = null;
     let attemptId: string | null = null;
     
+    // P1-1: 获取配置的 eventMappings（如果存在）
+    const eventMappings = config.eventMappings && typeof config.eventMappings === 'object' 
+      ? (config.eventMappings as Record<string, string>)
+      : null;
+    
     // 构建请求 payload（不包含敏感凭证）
     if (normalizedPlatform === "google") {
       const googleCreds = credentials as { measurementId?: string; apiSecret?: string };
       if (googleCreds.measurementId && googleCreds.apiSecret) {
-        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "google");
+        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "google", eventMappings);
         const data = payload.data || {};
         const params: Record<string, unknown> = { engagement_time_msec: "1" };
         if (platformEventName !== "page_view" && data.value !== undefined && data.value !== null) {
@@ -572,7 +605,7 @@ export async function sendPixelEventToPlatform(
     } else if (normalizedPlatform === "meta" || normalizedPlatform === "facebook") {
       const metaCreds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
       if (metaCreds.pixelId && metaCreds.accessToken) {
-        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "meta");
+        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "meta", eventMappings);
         const data = payload.data || {};
         const eventTime = Math.floor(Date.now() / 1000);
         const contents = data.items && Array.isArray(data.items) && data.items.length > 0
@@ -619,7 +652,7 @@ export async function sendPixelEventToPlatform(
     } else if (normalizedPlatform === "tiktok") {
       const tiktokCreds = credentials as { pixelId?: string; accessToken?: string; testEventCode?: string };
       if (tiktokCreds.pixelId && tiktokCreds.accessToken) {
-        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "tiktok");
+        const platformEventName = mapShopifyEventToPlatform(payload.eventName, "tiktok", eventMappings);
         const data = payload.data || {};
         const timestamp = new Date().toISOString();
         const contents = data.items && Array.isArray(data.items) && data.items.length > 0
@@ -699,11 +732,11 @@ export async function sendPixelEventToPlatform(
     
     try {
       if (normalizedPlatform === "google") {
-        sendResult = await sendToGA4(credentials, payload.eventName, payload, eventId);
+        sendResult = await sendToGA4(credentials, payload.eventName, payload, eventId, eventMappings);
       } else if (normalizedPlatform === "meta" || normalizedPlatform === "facebook") {
-        sendResult = await sendToMeta(credentials, payload.eventName, payload, eventId);
+        sendResult = await sendToMeta(credentials, payload.eventName, payload, eventId, eventMappings);
       } else if (normalizedPlatform === "tiktok") {
-        sendResult = await sendToTikTok(credentials, payload.eventName, payload, eventId);
+        sendResult = await sendToTikTok(credentials, payload.eventName, payload, eventId, eventMappings);
       } else {
         // 不应该到达这里，因为上面已经检查过了
         return {

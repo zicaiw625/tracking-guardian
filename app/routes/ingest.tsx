@@ -38,10 +38,19 @@ import { processBatchEvents } from "~/services/events/pipeline.server";
 import { logger } from "~/utils/logger.server";
 import { getShopForPixelVerificationWithConfigs } from "./api.pixel-events/key-validation";
 import { validatePixelEventHMAC } from "./api.pixel-events/hmac-validation";
-import { validateRequest } from "./api.pixel-events/validation";
+import { validateRequest, isPrimaryEvent } from "./api.pixel-events/validation";
 import { API_CONFIG } from "~/utils/config";
 import { isDevMode } from "~/utils/origin-validation";
-import { generateEventIdForType } from "./api.pixel-events/receipt-handler";
+import { 
+  generateEventIdForType,
+  generateOrderMatchKey,
+  isClientEventRecorded,
+  createEventNonce,
+  upsertPixelEventReceipt,
+  evaluateTrustLevel,
+} from "./api.pixel-events/receipt-handler";
+import type { KeyValidationResult } from "./api.pixel-events/types";
+import { checkInitialConsent } from "./api.pixel-events/consent-filter";
 
 const MAX_BATCH_SIZE = 100; // 批量事件最大数量
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -160,12 +169,64 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
+    // P0-4: 确定事件模式 - 优先从 pixelConfigs 读取，默认使用 purchase_only（隐私最小化）
+    const pixelConfigs = shop.pixelConfigs;
+    let mode: "purchase_only" | "full_funnel" = "purchase_only"; // 默认 purchase_only，符合隐私最小化原则
+    
+    // 从所有配置中查找 mode 设置（优先 full_funnel）
+    for (const config of pixelConfigs) {
+      if (config.clientConfig && typeof config.clientConfig === 'object') {
+        if ('mode' in config.clientConfig) {
+          const configMode = config.clientConfig.mode;
+          if (configMode === 'full_funnel') {
+            mode = "full_funnel";
+            break; // 找到 full_funnel 就停止
+          } else if (configMode === 'purchase_only' && mode !== 'full_funnel') {
+            mode = "purchase_only";
+          }
+        }
+      }
+    }
+
+    // P0-4: 批量处理中的 purchase 事件需要写 receipt/nonce（强去重/强可靠）
+    // 非 purchase 事件只通过 processEventPipeline 写入 EventLog + DeliveryAttempt
+    // 这避免了 page_viewed 等高频事件导致数据库写入 QPS 过高的问题
+    
     // 验证并处理批量事件
     const validatedEvents: Array<{
       payload: PixelEventPayload;
       eventId: string | null;
       destinations: string[];
     }> = [];
+    
+    const origin = request.headers.get("Origin");
+    const isProduction = !isDevMode();
+    
+    // P0-4: 构建 keyValidation（基于 HMAC 验证结果）
+    const keyValidation: KeyValidationResult = (() => {
+      if (isProduction) {
+        // 生产环境：如果到达这里，HMAC 验证肯定已通过（失败会在上方返回 403）
+        return {
+          matched: true,
+          reason: "hmac_verified",
+        };
+      } else {
+        // 开发环境：根据实际的 HMAC 验证结果设置
+        if (signature && shop.ingestionSecret) {
+          // 开发环境：如果有 signature 且验证通过，标记为已验证
+          return {
+            matched: true,
+            reason: "hmac_verified",
+          };
+        } else {
+          // 开发环境：如果没有 signature 或没有进行验证，允许通过但标记为未验证
+          return {
+            matched: !signature || !shop.ingestionSecret,
+            reason: !signature ? "no_signature_in_dev" : (!shop.ingestionSecret ? "no_secret_in_dev" : "hmac_not_verified"),
+          };
+        }
+      }
+    })();
 
     for (let i = 0; i < events.length; i++) {
       const eventValidation = validateRequest(events[i]);
@@ -188,10 +249,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         continue;
       }
 
+      // P0-4: 在 purchase_only 模式下，非主事件应该直接跳过，不写任何数据库记录
+      // 这避免了 page_viewed 等高频事件导致数据库写入 QPS 过高的问题
+      if (!isPrimaryEvent(payload.eventName, mode)) {
+        logger.debug(`Event ${payload.eventName} at index ${i} not accepted for ${shopDomain} (mode: ${mode}) - skipping`);
+        continue; // 跳过非主事件，不加入 validatedEvents
+      }
+
       // 生成 eventId
       const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
+      const isPurchaseEvent = eventType === "purchase";
+      
       const items = payload.data.items as Array<{ 
         id?: string; 
+        quantity?: number | string;
         variantId?: string;
         variant_id?: string;
         productId?: string;
@@ -206,20 +277,126 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           item.id || 
           ""
         ).trim(),
-        quantity: 1,
+        quantity: typeof item.quantity === "number" 
+          ? Math.max(1, Math.floor(item.quantity))
+          : typeof item.quantity === "string"
+          ? Math.max(1, parseInt(item.quantity, 10) || 1)
+          : 1,
       })).filter(item => item.id) || [];
 
+      // P0-4: 对于 purchase 事件，需要生成 orderId 并写 receipt/nonce
+      let orderId: string | null = null;
+      let usedCheckoutTokenAsFallback = false;
+      let eventIdentifier: string | null = null;
+      
+      if (isPurchaseEvent) {
+        try {
+          const matchKeyResult = generateOrderMatchKey(
+            payload.data.orderId,
+            payload.data.checkoutToken,
+            shopDomain
+          );
+          orderId = matchKeyResult.orderId;
+          usedCheckoutTokenAsFallback = matchKeyResult.usedCheckoutTokenAsFallback;
+          eventIdentifier = orderId;
+          
+          // P0-4: 检查是否已记录（去重）
+          const alreadyRecorded = await isClientEventRecorded(shop.id, orderId, eventType);
+          if (alreadyRecorded) {
+            logger.debug(`Purchase event already recorded for order ${orderId}, skipping`, {
+              shopId: shop.id,
+              orderId,
+              eventType,
+            });
+            continue; // 跳过已记录的事件
+          }
+          
+          // P0-4: 创建 nonce（防重放）
+          const nonceFromBody = payload.nonce;
+          const nonceResult = await createEventNonce(
+            shop.id,
+            orderId,
+            payload.timestamp,
+            nonceFromBody,
+            eventType
+          );
+          if (nonceResult.isReplay) {
+            logger.debug(`Replay detected for order ${orderId}, skipping`, {
+              shopId: shop.id,
+              orderId,
+              eventType,
+            });
+            continue; // 跳过重放事件
+          }
+        } catch (error) {
+          logger.warn(`Failed to process purchase event at index ${i}`, {
+            shopDomain,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          continue; // 跳过处理失败的事件
+        }
+      } else {
+        // 对于非 purchase 事件，使用 checkoutToken 或生成临时 identifier
+        const checkoutToken = payload.data.checkoutToken;
+        if (checkoutToken) {
+          orderId = checkoutToken;
+          eventIdentifier = checkoutToken;
+        } else {
+          orderId = `session_${payload.timestamp}_${shopDomain.replace(/\./g, "_")}`;
+          eventIdentifier = null;
+        }
+      }
+
       const eventId = generateEventIdForType(
-        payload.data.orderId || payload.data.checkoutToken || null,
+        eventIdentifier,
         eventType,
         shopDomain,
         payload.data.checkoutToken,
         normalizedItems.length > 0 ? normalizedItems : undefined
       );
 
+      // P0-4: 对于 purchase 事件，写入 receipt
+      if (isPurchaseEvent && orderId) {
+        try {
+          const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
+          const originHost = origin ? new URL(origin).host : null;
+          
+          await upsertPixelEventReceipt(
+            shop.id,
+            orderId,
+            eventId,
+            payload,
+            keyValidation,
+            trustResult,
+            usedCheckoutTokenAsFallback,
+            origin,
+            eventType
+          );
+        } catch (error) {
+          logger.warn(`Failed to write receipt for purchase event at index ${i}`, {
+            shopId: shop.id,
+            orderId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          // 继续处理，不阻塞事件发送
+        }
+      }
+
       // 获取目标平台（从 shop 的 pixelConfigs）
-      const pixelConfigs = shop.pixelConfigs;
-      const destinations = pixelConfigs.map(config => config.platform);
+      // 注意：pixelConfigs 已在上面获取 mode 时使用
+      // P0-3: 只处理启用 client-side 的配置（因为事件来自 Web Pixel Extension）
+      const clientSideConfigs = pixelConfigs.filter(config => config.clientSideEnabled === true);
+      const destinations = clientSideConfigs.map(config => config.platform);
+      
+      // P0-4: 检查 consent（与单事件处理保持一致）
+      const consentResult = checkInitialConsent(payload.consent);
+      if (!consentResult.hasAnyConsent) {
+        logger.debug(`Event at index ${i} has no consent, skipping`, {
+          shopDomain,
+          eventName: payload.eventName,
+        });
+        continue; // 跳过无 consent 的事件
+      }
 
       validatedEvents.push({
         payload,
@@ -228,16 +405,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
     }
 
+    // P0-4: 如果所有事件都被过滤（purchase_only 模式下只有非主事件），返回成功但 accepted_count=0
     if (validatedEvents.length === 0) {
+      logger.debug(`All events filtered for ${shopDomain} (mode: ${mode}) - returning empty accepted_count`);
       return jsonWithCors(
-        { error: "No valid events in batch" },
-        { status: 400, request }
+        {
+          accepted_count: 0,
+          errors: [],
+        },
+        { request }
       );
     }
 
     // 批量处理事件
     try {
-      const results = await processBatchEvents(shop.id, validatedEvents);
+      const results = await processBatchEvents(shop.id, validatedEvents, environment);
       const successCount = results.filter(r => r.success).length;
       const acceptedCount = successCount; // PRD 8.2: accepted_count 表示成功处理的事件数
 

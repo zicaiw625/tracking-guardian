@@ -62,10 +62,16 @@ register(({ analytics, settings, init, customerPrivacy }: {
     environment,
   });
 
-  // P1-11: 不再从 settings.pixel_config 读取配置，使用默认配置
-  // 完整配置由后端根据 shop_domain 提供（如果需要）
-  // v1 默认 purchase_only，符合隐私最小化原则
-  const mode = "purchase_only"; // 使用默认模式
+  // P0-2: 从 settings 读取 mode，如果没有则使用默认值 purchase_only
+  // 这允许后端通过更新 Web Pixel settings 来控制像素端订阅的事件类型
+  // 默认 purchase_only 符合隐私最小化原则
+  const mode = (settings.mode === "full_funnel" ? "full_funnel" : "purchase_only") as "purchase_only" | "full_funnel";
+
+  if (isDevMode) {
+    log(`Pixel mode: ${mode}`, {
+      fromSettings: settings.mode,
+    });
+  }
 
   subscribeToAnalyticsEvents(analytics, sendToBackend, log, mode);
 });

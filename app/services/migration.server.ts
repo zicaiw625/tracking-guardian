@@ -248,12 +248,16 @@ export function buildWebPixelSettings(
     ingestionKey: string,
     shopDomain: string,
     pixelConfig?: Partial<PixelConfig>,
-    environment: "test" | "live" = "live"
+    environment: "test" | "live" = "live",
+    mode?: "purchase_only" | "full_funnel" // P0-2: 添加 mode 参数
 ): WebPixelSettings {
     // P1-11: Web Pixel Settings 只下发小字段，不塞大 JSON
     // 像素端通过 shop_domain 去后端获取完整配置（如果需要）
-    // 只保留必要的标识字段：shop_domain、ingestion_key、config_version、environment
+    // 只保留必要的标识字段：shop_domain、ingestion_key、config_version、environment、mode
     const configVersion = "1"; // 配置版本号，用于向后兼容
+    
+    // P0-2: 从 pixelConfig 或参数中获取 mode，默认 purchase_only
+    const pixelMode = mode || pixelConfig?.mode || "purchase_only";
     
     return {
         ingestion_key: ingestionKey,
@@ -261,6 +265,8 @@ export function buildWebPixelSettings(
         // P1-11: 不再下发 pixel_config JSON，改为只下发 config_version
         // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
         config_version: configVersion,
+        // P0-2: 添加 mode 字段，用于控制像素端订阅的事件类型
+        mode: pixelMode,
         // P0-4: 默认环境（test 或 live），用于后端按环境过滤配置
         environment,
     };
@@ -357,9 +363,10 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
     }
 }
 
-export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string, environment: "test" | "live" = "live"): Promise<CreateWebPixelResult> {
+export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string, environment: "test" | "live" = "live", mode?: "purchase_only" | "full_funnel"): Promise<CreateWebPixelResult> {
     // P0-4: 支持 environment 参数，确保 pixel settings 中包含正确的 environment 字段
-    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, environment);
+    // P0-2: 支持 mode 参数，用于控制像素端订阅的事件类型
+    const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, environment, mode);
     const settings = JSON.stringify(pixelSettings);
     try {
         const response = await admin.graphql(`
@@ -434,14 +441,76 @@ export async function upgradeWebPixelSettings(
     const s = currentSettings as Record<string, unknown>;
 
     const existingKey = (s.ingestion_key as string) || (s.ingestion_secret as string) || ingestionKey;
+    const existingEnvironment = (s.environment as "test" | "live") || "live";
+    const existingMode = (s.mode as "purchase_only" | "full_funnel") || "purchase_only";
 
     logger.info(`Upgrading WebPixel settings for ${shopDomain}`, {
         webPixelId,
         hadIngestionSecret: typeof s.ingestion_secret === "string",
         hadShopDomain: typeof s.shop_domain === "string",
+        existingMode,
     });
 
-    return updateWebPixel(admin, webPixelId, existingKey, shopDomain);
+    // P0-2: 保留现有的 mode 和 environment，如果存在的话
+    return updateWebPixel(admin, webPixelId, existingKey, shopDomain, existingEnvironment, existingMode);
+}
+
+/**
+ * P0-2: 同步 mode 到 Web Pixel settings
+ * 从 shop 的 pixelConfigs 中读取 mode（优先 full_funnel），并更新 Web Pixel settings
+ */
+export async function syncWebPixelMode(
+    admin: AdminApiContext,
+    shopId: string,
+    shopDomain: string,
+    webPixelId: string,
+    ingestionKey: string,
+    environment: "test" | "live" = "live"
+): Promise<CreateWebPixelResult> {
+    try {
+        // 从 shop 的 pixelConfigs 中读取 mode
+        const pixelConfigs = await prisma.pixelConfig.findMany({
+            where: {
+                shopId,
+                isActive: true,
+                environment,
+            },
+            select: {
+                clientConfig: true,
+            },
+        });
+
+        // 优先 full_funnel，如果任何一个配置是 full_funnel，则使用 full_funnel
+        let mode: "purchase_only" | "full_funnel" = "purchase_only";
+        for (const config of pixelConfigs) {
+            if (config.clientConfig && typeof config.clientConfig === 'object') {
+                if ('mode' in config.clientConfig && config.clientConfig.mode === 'full_funnel') {
+                    mode = "full_funnel";
+                    break; // 找到 full_funnel 就停止
+                }
+            }
+        }
+
+        logger.info(`Syncing WebPixel mode for ${shopDomain}`, {
+            shopId,
+            webPixelId,
+            mode,
+            environment,
+            configCount: pixelConfigs.length,
+        });
+
+        return updateWebPixel(admin, webPixelId, ingestionKey, shopDomain, environment, mode);
+    } catch (error) {
+        logger.error("Failed to sync WebPixel mode", {
+            shopId,
+            shopDomain,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to sync mode",
+        };
+    }
 }
 
 export async function getExistingWebPixels(admin: AdminApiContext): Promise<Array<{

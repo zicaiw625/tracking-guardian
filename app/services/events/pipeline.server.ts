@@ -669,7 +669,8 @@ export async function processBatchEvents(
     payload: PixelEventPayload;
     eventId: string | null;
     destinations: string[];
-  }>
+  }>,
+  environment?: "test" | "live" // P0-4: Test/Live 环境过滤
 ): Promise<EventPipelineResult[]> {
   const results: EventPipelineResult[] = [];
 
@@ -678,7 +679,8 @@ export async function processBatchEvents(
       shopId,
       event.payload,
       event.eventId,
-      event.destinations
+      event.destinations,
+      environment
     );
     results.push(result);
   }
