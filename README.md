@@ -69,11 +69,16 @@
 这是产品的"交付件"，也是 Agency 愿意付钱的关键。
 
 - **验收功能**：
-  - 测试清单：生成完整的测试清单（下单、退款、取消、编辑订单等）
+  - 测试清单：生成完整的测试清单
   - 事件触发记录：实时记录事件触发情况
   - 参数完整率：检查事件参数的完整性
   - 订单一致性：验证事件金额/币种与 Shopify 订单的一致性
   - 隐私合规检查：验证像素是否尊重 consent / customerPrivacy
+  
+  > **⚠️ v1.0 验收范围说明**：
+  > - ✅ **支持的事件类型**：checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等 Web Pixels 标准 checkout 漏斗事件
+  > - ❌ **不支持的事件类型**：退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅订单（subscription）等事件在 v1.0 中不可验收
+  > - **原因**：Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）
 - **监控功能**：
   - 事件量骤降检测：监控事件量的异常下降
   - 失败率阈值告警：当失败率超过阈值时告警
@@ -110,22 +115,23 @@
 
 ### 套餐与定价（迁移交付导向）
 
-市场参照：成熟 tracking 工具普遍 $99+/月甚至更高。我们 $29/$49/$199 的优势是"迁移助手 + 验收交付"，定价表达这个价值。
+市场参照：成熟 tracking 工具普遍 $99+/月甚至更高。我们 $29/$79/$199 的优势是"迁移助手 + 验收交付"，定价表达这个价值。
 
 | 套餐 | 定价 | 适用场景 | 核心能力 |
 | --- | --- | --- | --- |
 | **Free** | $0 | 扫描、评估阶段 | Audit 扫描报告（可分享链接，但**不导出**）、迁移清单与建议、风险分级与替代路径、截止日期提醒 |
-| **Migration** | **$49/月** | 像素迁移阶段 | 1 个像素目的地（GA4 或 Meta 或 TikTok 三选一）、Survey 或 Helpdesk 二选一、验收向导（**不含报告导出**）、标准事件映射 + 参数完整率、可下载 payload 证据、Test/Live 环境切换 |
-| **Go-Live** | **$199 一次性/店** 或 $199/月 | 项目交付阶段 | 像素 + 模块发布 + **验收报告导出（PDF/CSV）** - 目标是"Agency 直接报给客户的交付包"、事件参数完整率检查、订单金额/币种一致性验证、隐私合规检查 |
-| **Monitor** | **$29/月（可叠加）** | 上线后监控 | 事件量骤降告警、失败率阈值监控、purchase 缺参率检测、日志留存与查询、版本回滚支持 |
-| **Agency** | **$199/月** | 多店代理/协作 | 多店铺 workspace + 批量 Audit + 批量导出报告 + 团队协作、白标报告支持、专属客户成功经理、SLA 保障 |
+| **Starter** | **$29/月** | 像素迁移阶段 | 1 个像素目的地（GA4 或 Meta 或 TikTok 三选一）、Survey 或 Helpdesk 二选一、验收向导（**不含报告导出**）、标准事件映射 + 参数完整率、可下载 payload 证据、Test/Live 环境切换 |
+| **Growth** | **$79/月** | 项目交付阶段 | 像素迁移 + 模块发布 + **验收报告导出（PDF/CSV）** - 目标是"Agency 直接报给客户的交付包"、事件参数完整率检查、订单金额/币种一致性验证、隐私合规检查、每月 10,000 笔订单追踪 |
+| **Agency** | **$199/月** | 多店代理/协作 | 多店铺 workspace + 批量 Audit + 批量导出报告 + 团队协作、白标报告支持、专属客户成功经理、SLA 保障、每月 100,000 笔订单追踪 |
+
+> **注意**：Monitor 计划（$29/月，可选叠加）不在 v1.0 正式套餐列表中，将在后续版本中提供。
 
 > **付费墙设计原则**：把"看报告"做免费，把"导出报告/分享给客户"做付费，非常适合 Agency 场景。
 > 
 > **付费触发点**（3个强 CTA，直接对应商家的"升级项目交付"）：
-> 1. **启用像素迁移（Test 环境）** → 进入付费试用/订阅（Migration $49/月）
-> 2. **发布 Thank you/Order status 模块** → 进入付费（Migration $49/月）
-> 3. **生成验收报告（PDF/CSV）** → 付费（Go-Live $199 一次性或 $199/月）
+> 1. **启用像素迁移（Test 环境）** → 进入付费试用/订阅（Starter $29/月）
+> 2. **发布 Thank you/Order status 模块** → 进入付费（Starter $29/月）
+> 3. **生成验收报告（PDF/CSV）** → 付费（Growth $79/月）
 >
 > 权限/功能 gating 已在前端页面展示：升级 CTA 位于仪表盘与迁移页；默认 plan 为 Free。
 
@@ -255,18 +261,22 @@ railway up
 **像素事件接收端点**：
 
 - **主要端点（PRD 推荐）**：`POST /ingest`
-  - PRD 中定义的主要端点，推荐新集成使用
-  - 委托给 `/api/pixel-events` 的实际实现，功能完全一致
+  - PRD 8.2 定义的批量事件接口，推荐新集成使用
+  - 支持批量格式：`{ events: [event1, event2, ...], timestamp: number }`
+  - 同时保留对单事件格式的向后兼容（自动委托给 `/api/pixel-events`）
   - 支持 CORS、HMAC 验证、时间窗校验、nonce 防重放等安全机制
+  - Web Pixel Extension 已实现批量发送到 `/ingest` 端点，符合 PRD 性能目标
+  - **审计结论对齐**：接口形态与 PRD 8.2 完全一致，解决了"Ingest API 形态不一致"问题
 
 - **向后兼容端点**：
-  - `POST /api/ingest` - 向后兼容别名，委托给 `/api/pixel-events`
-  - `POST /api/pixel-events` - 实际实现端点（内部使用）
+  - `POST /api/ingest` - 向后兼容别名，委托给 `/ingest`（支持批量格式）
+  - `POST /api/pixel-events` - 实际实现端点（内部使用），支持单事件格式
   
 - **注意**：
-  - 对外文档和第三方集成应推荐使用 `POST /ingest`（符合 PRD）
-  - 所有三个端点功能完全一致，都委托给 `/api/pixel-events` 的实际实现
-  - 详细实现见 `app/routes/api.pixel-events/route.tsx`
+  - 对外文档和第三方集成应推荐使用 `POST /ingest`（符合 PRD 8.2）
+  - Web Pixel Extension 使用批量格式发送到 `/ingest` 端点，提高性能
+  - 批量格式支持最多 100 个事件，自动批处理提高并发处理能力
+  - 详细实现见 `app/routes/ingest.tsx` 和 `app/routes/api.pixel-events/route.tsx`
 
 **配置获取**：
 - 端点 URL 可通过 `app/utils/config.ts` 中的 `getPixelEventEndpoint()` 函数获取

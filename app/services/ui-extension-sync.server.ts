@@ -45,11 +45,30 @@ export async function syncUiExtensionSettings(
       const config = await getUiModuleConfig(shopId, moduleKey);
 
       const settingsKey = `ui_module_${moduleKey}`;
+      
+      // PRD 4.4: 本地化支持 - 将localization数据合并到settings中
+      // 这样extension可以通过settings直接访问localized文本
+      // 格式: settings.survey_title_en, settings.survey_title_zh-CN 等
+      const localizedSettings: Record<string, unknown> = { ...config.settings };
+      
+      if (config.localization) {
+        // 将localization数据扁平化到settings中，格式为: field_locale
+        Object.entries(config.localization).forEach(([locale, localeData]) => {
+          if (localeData && typeof localeData === 'object') {
+            Object.entries(localeData).forEach(([field, value]) => {
+              if (value && typeof value === 'string') {
+                localizedSettings[`${field}_${locale}`] = value;
+              }
+            });
+          }
+        });
+      }
+      
       settings[settingsKey] = {
         enabled: config.isEnabled,
-        settings: config.settings,
+        settings: localizedSettings,
         displayRules: config.displayRules,
-        localization: config.localization,
+        localization: config.localization, // 保留完整localization数据供extension使用
       };
     }
 
@@ -135,12 +154,29 @@ export async function syncSingleModule(
     const config = await getUiModuleConfig(shopId, moduleKey);
 
     const settingsKey = `ui_module_${moduleKey}`;
+    
+    // PRD 4.4: 本地化支持 - 将localization数据合并到settings中
+    const localizedSettings: Record<string, unknown> = { ...config.settings };
+    
+    if (config.localization) {
+      // 将localization数据扁平化到settings中，格式为: field_locale
+      Object.entries(config.localization).forEach(([locale, localeData]) => {
+        if (localeData && typeof localeData === 'object') {
+          Object.entries(localeData).forEach(([field, value]) => {
+            if (value && typeof value === 'string') {
+              localizedSettings[`${field}_${locale}`] = value;
+            }
+          });
+        }
+      });
+    }
+    
     const settings = {
       [settingsKey]: {
         enabled: config.isEnabled,
-        settings: config.settings,
+        settings: localizedSettings,
         displayRules: config.displayRules,
-        localization: config.localization,
+        localization: config.localization, // 保留完整localization数据供extension使用
       },
     };
 

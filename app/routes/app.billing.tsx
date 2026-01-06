@@ -7,22 +7,16 @@ import { CheckCircleIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { BILLING_PLANS, createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId, } from "../services/billing.server";
+import { BILLING_PLANS, createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId, PLAN_IDS } from "../services/billing.server";
 import { getUsageHistory } from "../services/billing/usage-history.server";
-import { handleOneTimePurchaseConfirmation, createOneTimePurchase } from "../services/billing/subscription.server";
+// P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除一次性购买相关导入
 import { logger } from "../utils/logger.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
     const url = new URL(request.url);
     const chargeId = url.searchParams.get("charge_id");
-    const purchaseId = url.searchParams.get("purchase_id");
-    
-    // P1-7: 处理一次性收费确认
-    if (purchaseId) {
-        await handleOneTimePurchaseConfirmation(admin, shopDomain, purchaseId);
-        return redirect("/app/billing?success=true&type=oneTime");
-    }
+    // P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除一次性购买确认处理
     
     if (chargeId) {
         await handleSubscriptionConfirmation(admin, shopDomain, chargeId);
@@ -86,20 +80,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 error: result.error || "订阅创建失败",
             });
         }
-        // P1-7: 一次性收费（用于 Go-Live 验收报告等）
-        case "purchaseOneTime": {
-            const planId = formData.get("planId") as PlanId;
-            const appUrl = process.env.SHOPIFY_APP_URL || "";
-            const returnUrl = `${appUrl}/app/billing`;
-            const result = await createOneTimePurchase(admin, shopDomain, planId, returnUrl, process.env.NODE_ENV !== "production");
-            if (result.success && result.confirmationUrl) {
-                return redirect(result.confirmationUrl);
-            }
-            return json({
-                success: false,
-                error: result.error || "一次性收费创建失败",
-            });
-        }
+        // P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除一次性购买功能
         case "cancel": {
             const subscriptionId = formData.get("subscriptionId") as string;
             if (!subscriptionId) {
@@ -138,7 +119,7 @@ export default function BillingPage() {
     const [searchParams] = useSearchParams();
     const isSubmitting = navigation.state === "submitting";
     const showSuccessBanner = searchParams.get("success") === "true";
-    const isOneTimePurchase = searchParams.get("type") === "oneTime";
+    // P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除 isOneTime 相关逻辑
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
     const handleSubscribe = (planId: string) => {
@@ -160,8 +141,8 @@ export default function BillingPage() {
     };
     return (<Page title="订阅与计费">
       <BlockStack gap="500">
-        {showSuccessBanner && (<Banner title={isOneTimePurchase ? "购买成功！" : "订阅成功！"} tone="success" onDismiss={() => { }}>
-            <p>{isOneTimePurchase ? "Go-Live 交付包已激活，现在可以导出验收报告（PDF/CSV）了。" : "您的订阅已激活，现在可以享受所有功能了。"}</p>
+        {showSuccessBanner && (<Banner title="订阅成功！" tone="success" onDismiss={() => { }}>
+            <p>您的订阅已激活，现在可以享受所有功能了。</p>
           </Banner>)}
 
         {subscription.isTrialing && (<Banner title="试用期" tone="info">
@@ -234,7 +215,9 @@ export default function BillingPage() {
         <Text as="h2" variant="headingMd">可用套餐</Text>
 
         <Layout>
-          {Object.entries(plans).map(([planId, plan]) => {
+          {PLAN_IDS.map((planId) => {
+            const plan = plans[planId];
+            if (!plan) return null;
             const isCurrentPlan = subscription.plan === planId;
             const isUpgrade = plan.price > (plans[subscription.plan as PlanId]?.price || 0);
             const isDowngrade = plan.price < (plans[subscription.plan as PlanId]?.price || 0);
@@ -251,14 +234,10 @@ export default function BillingPage() {
                         <Text as="span" variant="heading2xl">
                           ${plan.price}
                         </Text>
-                        {plan.price > 0 && !("isOneTime" in plan && plan.isOneTime) && (<Text as="span" tone="subdued">/月</Text>)}
-                        {"isOneTime" in plan && plan.isOneTime && (<Text as="span" tone="subdued">一次性</Text>)}
+                        {plan.price > 0 && (<Text as="span" tone="subdued">/月</Text>)}
                       </InlineStack>
-                      {"trialDays" in plan && plan.trialDays > 0 && !("isOneTime" in plan && plan.isOneTime) && (<Text as="span" variant="bodySm" tone="success">
+                      {"trialDays" in plan && plan.trialDays > 0 && (<Text as="span" variant="bodySm" tone="success">
                           {plan.trialDays} 天免费试用
-                        </Text>)}
-                      {"isOneTime" in plan && plan.isOneTime && (<Text as="span" variant="bodySm">
-                          Go-Live 交付包（一次性收费）
                         </Text>)}
                     </BlockStack>
 
@@ -271,22 +250,7 @@ export default function BillingPage() {
                     <Box paddingBlockStart="200">
                       {isCurrentPlan ? (<Button disabled fullWidth>当前套餐</Button>) : plan.price === 0 ? (<Button variant="secondary" fullWidth onClick={handleCancel} loading={isSubmitting} disabled={subscription.plan === "free"}>
                           降级到免费版
-                        </Button>) : "isOneTime" in plan && plan.isOneTime ? (
-                        // P1-7: Go-Live 一次性收费按钮
-                        <Button 
-                          variant="primary" 
-                          fullWidth 
-                          onClick={() => {
-                            const formData = new FormData();
-                            formData.append("_action", "purchaseOneTime");
-                            formData.append("planId", planId);
-                            submit(formData, { method: "post" });
-                          }} 
-                          loading={isSubmitting}
-                        >
-                          {`购买（$${plan.price} 一次性）`}
-                        </Button>
-                      ) : (<Button variant={isUpgrade ? "primary" : "secondary"} fullWidth onClick={() => handleSubscribe(planId)} loading={isSubmitting}>
+                        </Button>) : (<Button variant={isUpgrade ? "primary" : "secondary"} fullWidth onClick={() => handleSubscribe(planId)} loading={isSubmitting}>
                           {isUpgrade ? "升级" : isDowngrade ? "降级" : "选择"}
                         </Button>)}
                     </Box>

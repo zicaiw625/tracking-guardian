@@ -15,6 +15,7 @@ import {
 } from "@shopify/ui-extensions-react/checkout";
 import { useMemo, memo, useState, useEffect } from "react";
 import { BACKEND_URL, isAllowedBackendUrl } from "./config";
+import { getLocalizedText } from "./localization";
 
 export default reactExtension("purchase.thank-you.block.render", () => <ShippingTracker />);
 
@@ -28,9 +29,15 @@ const ShippingTracker = memo(function ShippingTracker() {
     const [error, setError] = useState<string | null>(null);
     const [backendUrlError, setBackendUrlError] = useState(false);
 
-    const title = useMemo(() => (settings.shipping_title as string) || "订单状态", [settings.shipping_title]);
-    const tipText = useMemo(() => (settings.shipping_tip_text as string) ||
-        "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。", [settings.shipping_tip_text]);
+    // P0-1: PRD 对齐 - 使用本地化文本
+    const title = useMemo(() => 
+        getLocalizedText(settings, "shipping_title", "订单状态", undefined, api as { locale?: string }),
+        [settings, api]
+    );
+    const tipText = useMemo(() => 
+        getLocalizedText(settings, "shipping_tip_text", "发货后您将收到包含物流追踪信息的邮件通知。如有任何问题，请随时联系我们的客服团队。", undefined, api as { locale?: string }),
+        [settings, api]
+    );
 
     useEffect(() => {
         async function fetchOrderInfo() {

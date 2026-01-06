@@ -125,6 +125,23 @@ async function sendCheckoutCompletedWithRetry(
   }
 }
 
+// P0-1: PRD 对齐 - 批量事件队列配置
+// PRD 8.2 要求：POST /ingest 支持批量事件格式 { events: [...] }
+// 此配置用于在客户端批量收集事件，然后一次性发送到 /ingest 端点
+// 符合 PRD 的性能目标（减少网络请求数，提高并发处理能力）
+const BATCH_CONFIG = {
+  MAX_BATCH_SIZE: 10, // 最大批量大小
+  MAX_BATCH_DELAY_MS: 1000, // 最大延迟（毫秒）
+  FLUSH_IMMEDIATE_EVENTS: ["checkout_completed"], // 立即发送的事件类型
+} as const;
+
+interface QueuedEvent {
+  eventName: string;
+  data: Record<string, unknown>;
+  timestamp: number;
+  nonce: string;
+}
+
 export function createEventSender(config: EventSenderConfig) {
   const { backendUrl, shopDomain, ingestionSecret, isDevMode, consentManager, logger, environment = "live" } = config;
   const log = logger || (() => {});
@@ -142,8 +159,103 @@ export function createEventSender(config: EventSenderConfig) {
     };
   }
 
-  return async function sendToBackend(eventName: string, data: Record<string, unknown>): Promise<void> {
+  // P0-1: PRD 对齐 - 批量事件队列
+  const eventQueue: QueuedEvent[] = [];
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
+  const flushQueue = async (immediate = false) => {
+    if (eventQueue.length === 0) return;
+
+    const eventsToSend = [...eventQueue];
+    eventQueue.length = 0; // 清空队列
+
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+
+    if (eventsToSend.length === 0) return;
+
+    try {
+      const timestamp = Date.now();
+      
+      // P0-1: PRD 要求的批量格式：{ events: [...] }
+      const batchPayload = {
+        events: eventsToSend.map(event => ({
+          eventName: event.eventName,
+          timestamp: event.timestamp,
+          nonce: event.nonce,
+          shopDomain,
+          consent: {
+            marketing: consentManager.marketingAllowed,
+            analytics: consentManager.analyticsAllowed,
+            saleOfData: consentManager.saleOfDataAllowed,
+          },
+          data: {
+            ...event.data,
+            environment,
+          },
+        })),
+        timestamp, // 批量请求的时间戳（用于HMAC验证）
+      };
+
+      const body = JSON.stringify(batchPayload);
+      // P0-1: PRD 对齐 - 使用 /ingest 批量接口（符合 PRD 8.2 要求）
+      // PRD 8.2 要求：POST /ingest, Body: { events: [...] } (批量)
+      // 此实现完全符合 PRD 规范，支持批量事件发送，提高性能
+      const url = `${backendUrl}/ingest`;
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-Tracking-Guardian-Timestamp": String(timestamp),
+      };
+
+      // P0-1: 生成批量请求的 HMAC 签名
+      if (ingestionSecret) {
+        try {
+          const bodyHash = sha256Hex(body);
+          const signature = generateHMACSignature(ingestionSecret, timestamp, bodyHash);
+          headers["X-Tracking-Guardian-Signature"] = signature;
+
+          if (isDevMode) {
+            log(`Batch HMAC signature generated for ${eventsToSend.length} events`);
+          }
+        } catch (hmacError) {
+          if (isDevMode) {
+            log(`❌ Batch HMAC signature generation failed:`, hmacError);
+          }
+        }
+      }
+
+      // 对于 checkout_completed 事件，使用重试机制
+      const hasCheckoutCompleted = eventsToSend.some(e => e.eventName === "checkout_completed");
+      
+      if (hasCheckoutCompleted && !immediate) {
+        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, 0, headers);
+      } else {
+        fetch(url, {
+          method: "POST",
+          headers,
+          keepalive: true,
+          body,
+        }).catch((error) => {
+          if (isDevMode) {
+            log(`Batch send failed (${eventsToSend.length} events):`, error);
+          }
+        });
+      }
+
+      if (isDevMode) {
+        log(`Batch sent: ${eventsToSend.length} events to /ingest`);
+      }
+    } catch (error) {
+      if (isDevMode) {
+        log("Batch flush error:", error);
+      }
+    }
+  };
+
+  return async function sendToBackend(eventName: string, data: Record<string, unknown>): Promise<void> {
     const hasAnyConsent = consentManager.hasAnalyticsConsent() || consentManager.hasMarketingConsent();
 
     if (!hasAnyConsent) {
@@ -155,94 +267,40 @@ export function createEventSender(config: EventSenderConfig) {
     }
 
     log(
-      `${eventName}: Sending to backend with consent state. ` +
+      `${eventName}: Queuing event with consent state. ` +
       `analytics=${consentManager.analyticsAllowed}, marketing=${consentManager.marketingAllowed}, saleOfData=${consentManager.saleOfDataAllowed}`
     );
 
     try {
       const timestamp = Date.now();
-
       const nonce = `${timestamp}-${Math.random().toString(36).substring(2, 10)}`;
 
-      // P0-1: 请求体中不包含 ingestionKey 或 ingestionSecret
-      // 安全验证完全依赖 HMAC 签名（X-Tracking-Guardian-Signature header）
-      // 服务端通过 shopDomain 查找 shop.ingestionSecret 进行 HMAC 验证
-      const payload = {
+      // 添加到队列
+      eventQueue.push({
         eventName,
+        data,
         timestamp,
         nonce,
-        shopDomain,
-        consent: {
-          marketing: consentManager.marketingAllowed,
-          analytics: consentManager.analyticsAllowed,
-          saleOfData: consentManager.saleOfDataAllowed,
-        },
-        data: {
-          ...data,
-          // P0-4: 添加 environment 字段，用于后端按环境过滤配置
-          environment,
-        },
-      };
+      });
 
-      const body = JSON.stringify(payload);
-      // P0-1: 使用 PRD 定义的 /ingest 端点（而非 /api/pixel-events）
-      // /ingest 是 PRD 中定义的主要端点，/api/pixel-events 作为内部实现端点
-      const url = `${backendUrl}/ingest`;
+      // P0-1: 立即发送的事件（如 checkout_completed）或队列已满时立即刷新
+      const shouldFlushImmediate = 
+        BATCH_CONFIG.FLUSH_IMMEDIATE_EVENTS.includes(eventName) ||
+        eventQueue.length >= BATCH_CONFIG.MAX_BATCH_SIZE;
 
-      const headers: Record<string, string> = {
-        "Content-Type": "text/plain;charset=UTF-8",
-        "X-Tracking-Guardian-Timestamp": String(timestamp),
-      };
-
-      // P0-1: 使用 ingestionSecret 生成 HMAC 签名（不包含在请求体中）
-      // 生产环境必须提供有效的 HMAC 签名，否则请求会被拒绝
-      if (!ingestionSecret) {
-        if (isDevMode) {
-          log(`⚠️ Missing ingestionSecret - HMAC signature cannot be generated. Event will be rejected in production.`);
-        }
-
+      if (shouldFlushImmediate) {
+        await flushQueue(true);
       } else {
-        try {
-          // P0: 使用 @noble/hashes 生成 body hash（hex 格式）
-          // 避免依赖 crypto.subtle 和 TextEncoder
-          const bodyHash = sha256Hex(body);
-
-          // P0: 使用 @noble/hashes 生成 HMAC 签名（hex 格式）
-          // 避免依赖 WebCrypto API 和 btoa
-          const signature = generateHMACSignature(ingestionSecret, timestamp, bodyHash);
-          headers["X-Tracking-Guardian-Signature"] = signature;
-
-          if (isDevMode) {
-            log(`HMAC signature generated successfully for ${eventName}`);
-          }
-        } catch (hmacError) {
-
-          if (isDevMode) {
-            log(`❌ HMAC signature generation failed:`, hmacError);
-            log(`Event ${eventName} will be rejected by server in production without valid signature`);
-          }
-
+        // 设置延迟刷新（如果还没有设置）
+        if (!flushTimer) {
+          flushTimer = setTimeout(() => {
+            flushQueue(false);
+          }, BATCH_CONFIG.MAX_BATCH_DELAY_MS);
         }
-      }
-
-      if (eventName === "checkout_completed") {
-        sendCheckoutCompletedWithRetry(url, body, isDevMode, log, 0, headers);
-      } else {
-
-        fetch(url, {
-          method: "POST",
-          headers,
-          keepalive: true,
-          body,
-        }).catch((error) => {
-          if (isDevMode) {
-            log(`${eventName} failed:`, error);
-          }
-        });
       }
     } catch (error) {
       if (isDevMode) {
-        log("Unexpected error:", error);
+        log("Event queue error:", error);
       }
     }
   };

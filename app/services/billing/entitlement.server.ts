@@ -93,10 +93,13 @@ export async function checkEntitlement(
         return planCheck;
       }
       
-      // P1-7: 如果 plan 不支持，检查是否有 active one-time purchase（Go-Live）
-      // 注意：one-time purchase 确认后会将 plan 设置为 "growth"，所以这里主要是作为备用检查
-      // 如果 plan 已经是 "growth"，上面的检查应该已经返回 allowed
+      // P0-1: PRD 对齐 - v1.0 中 Growth 计划为月付 $79，不再支持一次性收费
+      // 此代码保留用于向后兼容（如果存在历史的一次性购买）
+      // 新订阅应使用月付订阅，plan 检查应该已经返回 allowed
       // 这里是为了处理 edge case（例如 plan 更新延迟）
+      // 
+      // 注意：v1.0 中所有计划均为月付，不再使用一次性收费模式
+      // 如果 plan 是 "growth"，说明是月付订阅（不是一次性购买）
       try {
         const shop = await prisma.shop.findUnique({
           where: { id: shopId },
@@ -104,17 +107,17 @@ export async function checkEntitlement(
         });
         
         if (shop) {
-          // 尝试从 Shopify API 检查 one-time purchase 状态
+          // 尝试从 Shopify API 检查 one-time purchase 状态（仅用于向后兼容）
           // 注意：这需要 admin context，在 entitlement 检查中可能不可用
           // 所以这里只作为备用，主要依赖 plan 检查
-          // 如果 plan 是 "growth"，说明 one-time purchase 已经激活
+          // 如果 plan 是 "growth"，说明是月付订阅（v1.0 中 Growth 计划为月付）
           if (shopPlan === "growth") {
             return { allowed: true };
           }
         }
       } catch (error) {
         // 如果检查失败，回退到 plan 检查结果
-        logger.warn("Failed to check one-time purchase status", {
+        logger.warn("Failed to check one-time purchase status (backward compatibility)", {
           shopId,
           error: error instanceof Error ? error.message : String(error),
         });

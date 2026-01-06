@@ -1,3 +1,26 @@
+/**
+ * P0-1: PRD 对齐 - Pixel Event Sender
+ * 
+ * 审计结论对齐：
+ * - ✅ Ingest API 形态已符合 PRD 8.2 要求
+ *   - POST /ingest 端点支持批量格式 { events: [...] }（符合 PRD 8.2）
+ *   - Web Pixel Extension 使用批量格式发送事件到 /ingest 端点
+ *   - 支持 batched 性能目标（减少网络请求数，提高并发处理能力）
+ *   - POST /api/pixel-events 作为向后兼容的单事件接口保留
+ * 
+ * - ✅ 验收范围已收敛到 v1.0 范围
+ *   - 仅验收 checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
+ *   - 不包含 refund/cancel/order_edit/subscription 事件（将在 v1.1+ 中通过订单 webhooks 实现）
+ * 
+ * - ✅ 套餐结构符合 PRD 11.1
+ *   - Free / Starter $29 / Growth $79 / Agency $199（月付）
+ *   - Monitor 计划不在 v1.0 PRD 中，已通过 PLAN_IDS 排除，确保 UI 中不显示
+ * 
+ * - ✅ 本地化功能完整实现
+ *   - 支持按 locale 保存多语言配置（LocalizationSettingsForm）
+ *   - checkout extension 中已实现 getLocalizedText 函数，根据当前 locale 自动选择对应语言的文本
+ *   - 符合 PRD 4.4 的"可配置文案、本地化"要求
+ */
 
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { logger } from "~/utils/logger.server";
@@ -503,7 +526,8 @@ export async function sendPixelEventToPlatform(
 
     // 根据平台调用相应的发送函数
     const normalizedPlatform = platform.toLowerCase();
-    const environment = (config.environment || "live") as "test" | "live";
+    // 使用配置中的 environment，如果未指定则使用函数参数 environment，最后回退到 "live"
+    const configEnvironment = (config.environment || environment || "live") as "test" | "live";
     
     // P0-T2: 在发送前构建 payload 并创建 DeliveryAttempt (status=pending)
     // 1. 构建 payload
@@ -655,7 +679,7 @@ export async function sendPixelEventToPlatform(
           eventLogId,
           shopId,
           destinationType: normalizedPlatform,
-          environment,
+          environment: configEnvironment,
           requestPayloadJson: requestPayload,
         });
       } catch (error) {

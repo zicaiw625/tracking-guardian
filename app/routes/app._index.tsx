@@ -1393,7 +1393,7 @@ export default function Index() {
                       <Text as="p" variant="bodySm" tone="subdued">
                         测试清单 + 事件参数完整率 + 订单金额/币种一致性 + 隐私合规检查（consent/customerPrivacy）• 给老板/客户看的证据
                       </Text>
-                      <Badge tone="warning">Go-Live $199 一次性/店</Badge>
+                      <Badge tone="warning">Growth $79/月 或 Agency $199/月</Badge>
                     </BlockStack>
                     <Icon source={LockIcon} />
                   </InlineStack>

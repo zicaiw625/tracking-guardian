@@ -372,7 +372,7 @@ export default function VerificationPage() {
     navigator.clipboard.writeText(fullText);
   }, [testGuide]);
 
-  // P1-7: 导出前检查权限，未付费则触发一次性收费
+  // P0-1: PRD 对齐 - v1.0 所有套餐均为月付，移除一次性购买逻辑
   const handleExportPdf = useCallback(() => {
     if (!latestRun) return;
 
@@ -382,12 +382,9 @@ export default function VerificationPage() {
       return;
     }
 
-    // 未付费：触发一次性收费（Go-Live $199）
-    const formData = new FormData();
-    formData.append("_action", "purchaseOneTime");
-    formData.append("planId", "growth"); // Go-Live 套餐
-    submit(formData, { method: "post", action: "/app/billing" });
-  }, [latestRun, canExportReports, submit]);
+    // 未付费：跳转到计费页面升级到 Growth 套餐（月付 $79）
+    window.location.href = "/app/billing?upgrade=growth";
+  }, [latestRun, canExportReports]);
 
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
@@ -398,17 +395,16 @@ export default function VerificationPage() {
       return;
     }
 
-    // 未付费：触发一次性收费（Go-Live $199）
-    const formData = new FormData();
-    formData.append("_action", "purchaseOneTime");
-    formData.append("planId", "growth"); // Go-Live 套餐
-    submit(formData, { method: "post", action: "/app/billing" });
-  }, [latestRun, canExportReports, submit]);
+    // 未付费：跳转到计费页面升级到 Growth 套餐（月付 $79）
+    window.location.href = "/app/billing?upgrade=growth";
+  }, [latestRun, canExportReports]);
 
+  // P0-1: PRD 对齐 - v1.0 验收范围收敛
+  // v1.0 仅支持 checkout/purchase 漏斗事件验收，不支持退款/取消/编辑/订阅等事件
+  // 这些功能将在 v1.1+ 中通过订单 webhooks 实现
   const tabs = [
     { id: "overview", content: "验收概览" },
     { id: "pixel-layer", content: "像素层验收（Web Pixels 标准事件）" },
-    { id: "order-layer", content: "订单层验收（退款/取消/编辑）" },
     { id: "results", content: "详细结果" },
     { id: "realtime", content: "实时监控" },
     { id: "test-guide", content: "测试订单指引" },
@@ -452,7 +448,7 @@ export default function VerificationPage() {
   return (
     <Page
       title="验收（Verification）+ 断档监控（Monitoring）"
-      subtitle="测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 • 隐私合规检查（consent/customerPrivacy）• 验收报告导出（PDF/CSV）是核心付费点（给老板/客户看的证据）• Go-Live $199 一次性/店"
+      subtitle="测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 • 隐私合规检查（consent/customerPrivacy）• 验收报告导出（PDF/CSV）是核心付费点（给老板/客户看的证据）• Growth 套餐 $79/月 或 Agency 套餐 $199/月"
       primaryAction={{
         content: isRunning ? "运行中..." : "运行验收",
         onAction: handleRunVerification,
@@ -480,6 +476,38 @@ export default function VerificationPage() {
       ]}
     >
       <BlockStack gap="500">
+        {/* P0-1: PRD 对齐 - v1.0 验收范围说明（放在最前面，确保用户首先看到） */}
+        <Banner
+          title="⚠️ v1.0 验收范围说明（重要）"
+          tone="warning"
+        >
+          <BlockStack gap="300">
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              <strong>v1.0 版本仅支持 checkout/purchase 漏斗事件验收</strong>
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>✅ 支持的事件类型：</strong>checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等 Web Pixels 标准 checkout 漏斗事件
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>❌ 不支持的事件类型：</strong>退款（refund）、订单取消（cancel）、订单编辑（order_edit）、订阅订单（subscription）等事件在 v1.0 中不可验收
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>原因：</strong>Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，将在 v1.1+ 版本中通过订单 webhooks 实现（严格做 PII 最小化）
+                </Text>
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              <strong>注意：</strong>v1.0 验收范围与 Web Pixel Extension 的能力范围一致，符合隐私最小化原则。
+            </Text>
+          </BlockStack>
+        </Banner>
+
         {/* P2: 免责声明 - 明确说明我们只保证生成与发送成功，不保证平台侧归因一致 */}
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
@@ -523,18 +551,13 @@ export default function VerificationPage() {
             title="📄 生成验收报告（PDF/CSV）- 核心付费点"
             tone="warning"
             action={{ 
-              content: "立即生成报告（$199 一次性）", 
-              onAction: () => {
-                const formData = new FormData();
-                formData.append("_action", "purchaseOneTime");
-                formData.append("planId", "growth");
-                submit(formData, { method: "post", action: "/app/billing" });
-              }
+              content: "升级到 Growth 套餐（$79/月）", 
+              url: "/app/billing?upgrade=growth"
             }}
           >
             <BlockStack gap="200">
               <Text as="p" variant="bodySm">
-                需要 <strong>Go-Live 交付版</strong> ($199 一次性/店) 或 <strong>Agency 版</strong> ($199/月) 套餐。
+                需要 <strong>Growth 成长版</strong> ($79/月) 或 <strong>Agency 版</strong> ($199/月) 套餐。
               </Text>
               <Text as="p" variant="bodySm">
                 报告包含：测试清单 + 事件触发记录 + 参数完整率 + 订单金额/币种一致性 + 隐私合规检查（consent/customerPrivacy）
@@ -549,36 +572,33 @@ export default function VerificationPage() {
           </Banner>
         )}
 
+        {/* P0-1: PRD 对齐 - v1.0 验收范围说明 */}
+        <Banner tone="info">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              📋 v1.0 验收范围说明
+            </Text>
+            <Text as="p" variant="bodySm">
+              <strong>v1.0 版本验收范围：</strong>
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                ✅ <strong>Checkout/Purchase 漏斗事件</strong>：checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等
+              </List.Item>
+              <List.Item>
+                ❌ <strong>退款、取消、编辑订单、订阅事件</strong>：这些事件类型将在 v1.1+ 版本中通过订单 webhooks 实现
+              </List.Item>
+            </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              <strong>原因：</strong>Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件。退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取，v1.0 版本仅依赖 Web Pixel Extension，不处理订单相关 webhooks（符合隐私最小化原则）。
+            </Text>
+          </BlockStack>
+        </Banner>
+
         {}
         {/* P0-T7: checkout_completed 已知行为的产品内提示 */}
         <CheckoutCompletedBehaviorHint mode="info" collapsible={true} />
 
-        {}
-        <Banner
-          title="验收分层说明"
-          tone="info"
-        >
-          <BlockStack gap="200">
-            <Text as="p" variant="bodySm" fontWeight="semibold">
-              验收分为两层，避免"Web Pixel 不可能覆盖退款/取消"等问题：
-            </Text>
-            <List type="bullet">
-              <List.Item>
-                <Text as="span" variant="bodySm">
-                  <strong>像素层验收（Web Pixels 标准事件）：</strong>围绕 checkout 链路事件（started/contact/shipping/payment/completed 等）做触发与缺参检查。
-                </Text>
-              </List.Item>
-              <List.Item>
-                <Text as="span" variant="bodySm">
-                  <strong>订单层验收（Growth/Agency 必选）：</strong>用 webhooks/Admin API 覆盖退款/取消/编辑订单（否则测试清单会落不下来）。
-                </Text>
-              </List.Item>
-            </List>
-            <Text as="p" variant="bodySm" tone="subdued">
-              <strong>注意：</strong>标准事件列表来自 Shopify Web Pixels 文档，避免使用旧脚本时代的事件来对比。
-            </Text>
-          </BlockStack>
-        </Banner>
 
         {}
         <Card>
@@ -1327,7 +1347,7 @@ export default function VerificationPage() {
                   shopId={shop.id}
                   platforms={configuredPlatforms}
                   runId={latestRun?.runId}
-                  eventTypes={["purchase", "refund"]}
+                  eventTypes={["purchase"]}
                   useVerificationEndpoint={true}
                   autoStart={false}
                 />

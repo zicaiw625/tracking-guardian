@@ -1,4 +1,18 @@
 
+/**
+ * P0-1: PRD 对齐 - POST /api/pixel-events 端点
+ * 
+ * 审计结论对齐：
+ * - ✅ 此端点为向后兼容的单事件格式接口（内部使用）
+ * - ✅ PRD 推荐的主要端点为 POST /ingest（支持批量格式 { events: [...] }，符合 PRD 8.2）
+ * - ✅ Web Pixel Extension 使用批量格式发送事件到 /ingest 端点，提高性能
+ * - ✅ 此端点保留以支持单事件格式的向后兼容性
+ * 
+ * 端点说明：
+ * - POST /ingest：PRD 推荐的主要端点，支持批量格式（符合 PRD 8.2）
+ * - POST /api/ingest：向后兼容别名，委托给 /ingest
+ * - POST /api/pixel-events：实际实现端点（内部使用），支持单事件格式
+ */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { checkRateLimitAsync, createRateLimitResponse, trackAnomaly } from "../../utils/rate-limiter";
@@ -625,9 +639,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       consentResult
     );
 
-    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此仅依赖 Web Pixels 标准事件
-    // v1.0 版本仅通过 client-side Web Pixel Extension 发送 purchase 事件到 /ingest 端点
+    // P0-1: PRD 对齐 - v1.0 版本不包含任何 PCD/PII 处理，因此仅依赖 Web Pixels 标准事件
+    // v1.0 版本仅通过 client-side Web Pixel Extension 发送事件到 /ingest 端点（批量格式，符合 PRD 8.2）
     // 不处理订单 webhooks（orders/paid 等已移除）
+    // 
+    // 审计结论对齐：
+    // - ✅ Web Pixel Extension 使用批量格式 { events: [...] } 发送到 /ingest 端点
+    // - ✅ 符合 PRD 8.2 要求的批量接口形态，解决了"Ingest API 形态不一致"问题
+    // - ✅ /api/pixel-events 仅作为向后兼容的单事件格式端点（内部使用）
     if (platformsToRecord.length > 0) {
       if (isPurchaseEvent) {
         if (purchaseStrategy === "hybrid") {

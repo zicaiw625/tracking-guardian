@@ -17,24 +17,20 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
   markdown += `**必需项**: ${checklist.requiredItemsCount} | **可选项**: ${checklist.optionalItemsCount}\n\n`;
   markdown += `---\n\n`;
 
+  // P0-1: PRD 对齐 - v1.0 只支持 purchase 和 cart 事件验收
   const categories: Record<string, TestChecklistItem[]> = {
     purchase: [],
-    refund: [],
     cart: [],
-    subscription: [],
-    order_edit: [],
   };
 
   for (const item of checklist.items) {
     categories[item.category].push(item);
   }
 
+  // P0-1: PRD 对齐 - v1.0 只支持 purchase 和 cart 事件验收
   const categoryLabels: Record<string, string> = {
     purchase: "购买事件",
-    refund: "退款事件",
     cart: "购物车事件",
-    subscription: "订阅事件",
-    order_edit: "订单编辑",
   };
 
   for (const [category, items] of Object.entries(categories)) {

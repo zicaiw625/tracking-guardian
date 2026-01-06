@@ -15,6 +15,7 @@ import {
 } from "@shopify/ui-extensions-react/checkout";
 import { useMemo, memo, useState, useEffect } from "react";
 import { BACKEND_URL, isAllowedBackendUrl } from "./config";
+import { getLocalizedText } from "./localization";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Reorder />);
 
@@ -32,9 +33,19 @@ const Reorder = memo(function Reorder() {
     return api.shop?.storefrontUrl || "";
   }, [api.shop?.storefrontUrl]);
 
-  const title = useMemo(() => (settings.reorder_title as string) || "📦 再次购买", [settings.reorder_title]);
-  const subtitle = useMemo(() => (settings.reorder_subtitle as string) || "喜欢这次购物？一键再次订购相同商品", [settings.reorder_subtitle]);
-  const buttonText = useMemo(() => (settings.reorder_button_text as string) || "再次购买 →", [settings.reorder_button_text]);
+  // P0-1: PRD 对齐 - 使用本地化文本
+  const title = useMemo(() => 
+    getLocalizedText(settings, "reorder_title", "📦 再次购买", undefined, api as { locale?: string }),
+    [settings, api]
+  );
+  const subtitle = useMemo(() => 
+    getLocalizedText(settings, "reorder_subtitle", "喜欢这次购物？一键再次订购相同商品", undefined, api as { locale?: string }),
+    [settings, api]
+  );
+  const buttonText = useMemo(() => 
+    getLocalizedText(settings, "reorder_button_text", "再次购买 →", undefined, api as { locale?: string }),
+    [settings, api]
+  );
 
   useEffect(() => {
     async function fetchOrderInfo() {

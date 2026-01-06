@@ -876,9 +876,9 @@ export default function MigratePage() {
             )}
             {!isGrowthOrAbove && (
               <List type="bullet">
-                <List.Item><strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Migration $49/月）</List.Item>
+                <List.Item><strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Starter $29/月）</List.Item>
                 <List.Item>像素迁移功能包括：标准事件映射 + 参数完整率检查 + 可下载 payload 证据（GA4/Meta/TikTok v1 支持）</List.Item>
-                <List.Item><strong>生成验收报告（PDF/CSV）</strong> → 付费（Go-Live $199 一次性或 $199/月）</List.Item>
+                <List.Item><strong>生成验收报告（PDF/CSV）</strong> → 付费（Growth $79/月 或 Agency $199/月）</List.Item>
                 <List.Item>这是"升级项目交付"的核心能力：让商家"敢点发布/敢切 Live"</List.Item>
               </List>
             )}

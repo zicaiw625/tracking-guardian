@@ -57,38 +57,56 @@ export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
     required: false,
     platforms: ["google", "meta", "tiktok"],
   },
-  {
-    id: "refund",
-    name: "退款",
-    description: "对已完成订单进行退款，验证 refund 事件发送（如支持）",
-    eventType: "refund",
-    required: false,
-    platforms: ["google", "meta"],
-  },
-  {
-    id: "cancel",
-    name: "订单取消",
-    description: "取消一个待处理订单，验证订单状态变化事件",
-    eventType: "order_cancelled",
-    required: false,
-    platforms: ["google", "meta"],
-  },
-  {
-    id: "order_edit",
-    name: "订单编辑",
-    description: "编辑已创建订单（如修改配送地址），验证事件更新",
-    eventType: "order_updated",
-    required: false,
-    platforms: ["google", "meta"],
-  },
-  {
-    id: "subscription",
-    name: "订阅订单",
-    description: "完成一个订阅类型订单（如 Shopify Subscription），验证订阅事件",
-    eventType: "subscription",
-    required: false,
-    platforms: ["google", "meta"],
-  },
+  // P0-1: PRD 对齐 - v1.0 验收范围收敛
+  // 
+  // ⚠️ 重要说明：以下事件类型（refund、cancel、order_edit、subscription）在 v1.0 中不可验收
+  // 
+  // 原因：
+  // - Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件
+  // - 退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取
+  // - v1.0 版本仅依赖 Web Pixel Extension，不处理订单相关 webhooks（符合隐私最小化原则）
+  // 
+  // v1.0 验收范围：
+  // - ✅ checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
+  // - ❌ 退款、取消、编辑订单、订阅事件（将在 v1.1+ 中通过订单 webhooks 实现）
+  // 
+  // 这些功能将在 v1.1+ 版本中通过以下方式实现：
+  // - 启用订单相关 webhooks（orders/updated, refunds/create 等）
+  // - 后台定时对账拉取订单变更
+  // - 生成对应"事件对账"记录（严格做 PII 最小化）
+  // 
+  // {
+  //   id: "refund",
+  //   name: "退款",
+  //   description: "对已完成订单进行退款，验证 refund 事件发送（如支持）",
+  //   eventType: "refund",
+  //   required: false,
+  //   platforms: ["google", "meta"],
+  // },
+  // {
+  //   id: "cancel",
+  //   name: "订单取消",
+  //   description: "取消一个待处理订单，验证订单状态变化事件",
+  //   eventType: "order_cancelled",
+  //   required: false,
+  //   platforms: ["google", "meta"],
+  // },
+  // {
+  //   id: "order_edit",
+  //   name: "订单编辑",
+  //   description: "编辑已创建订单（如修改配送地址），验证事件更新",
+  //   eventType: "order_updated",
+  //   required: false,
+  //   platforms: ["google", "meta"],
+  // },
+  // {
+  //   id: "subscription",
+  //   name: "订阅订单",
+  //   description: "完成一个订阅类型订单（如 Shopify Subscription），验证订阅事件",
+  //   eventType: "subscription",
+  //   required: false,
+  //   platforms: ["google", "meta"],
+  // },
   {
     id: "currency_test",
     name: "多币种测试",
@@ -723,12 +741,17 @@ export function generateTestOrderGuide(runType: "quick" | "full" | "custom"): {
       description: "使用折扣码完成订单，验证折扣后金额正确传递。",
       testItemId: "purchase_discount",
     },
-    {
-      step: 6,
-      title: "测试退款",
-      description: "对测试订单进行部分或全额退款，验证退款事件触发。",
-      testItemId: "refund",
-    },
+    // P0-1: PRD 对齐 - v1.0 验收范围收敛
+    // 
+    // ⚠️ 退款测试在 v1.0 中不可验收
+    // 原因：Web Pixel Extension 无法获取退款事件（需要订单 webhooks，将在 v1.1+ 实现）
+    // 
+    // {
+    //   step: 6,
+    //   title: "测试退款",
+    //   description: "对测试订单进行部分或全额退款，验证退款事件触发。",
+    //   testItemId: "refund",
+    // },
   ];
 
   const steps = runType === "full" ? fullSteps : quickSteps;

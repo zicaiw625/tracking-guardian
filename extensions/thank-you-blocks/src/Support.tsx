@@ -10,6 +10,7 @@ import {
   useApi,
 } from "@shopify/ui-extensions-react/checkout";
 import { useMemo } from "react";
+import { getLocalizedText } from "./localization";
 
 export default reactExtension("purchase.thank-you.block.render", () => <SupportBlock />);
 
@@ -22,10 +23,15 @@ function SupportBlock() {
     return api.shop?.storefrontUrl || "";
   }, [api.shop?.storefrontUrl]);
 
-  const title = useMemo(() => (settings.support_title as string) || "订单帮助与售后", [settings.support_title]);
+  // P0-1: PRD 对齐 - 使用本地化文本
+  const title = useMemo(() => 
+    getLocalizedText(settings, "support_title", "订单帮助与售后", undefined, api as { locale?: string }),
+    [settings, api]
+  );
   const description = useMemo(() =>
-    (settings.support_description as string) ||
-    "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。", [settings.support_description]);
+    getLocalizedText(settings, "support_description", "如需修改收件信息、查看售后政策或联系人工客服，请使用下方入口。", undefined, api as { locale?: string }),
+    [settings, api]
+  );
 
   const faqUrl = useMemo(() => {
     const url = (settings.support_faq_url as string) || "/pages/faq";

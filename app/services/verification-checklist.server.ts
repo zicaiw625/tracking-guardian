@@ -1,3 +1,26 @@
+/**
+ * P0-1: PRD 对齐 - v1.0 验收范围说明
+ * 
+ * v1.0 验收范围（符合 PRD 4.5 要求）：
+ * - ✅ checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
+ * - ❌ 退款、取消、编辑订单、订阅事件（将在 v1.1+ 中通过订单 webhooks 实现）
+ * 
+ * 原因：
+ * - Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件
+ * - 退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取
+ * - v1.0 版本仅依赖 Web Pixel Extension，不处理订单相关 webhooks（符合隐私最小化原则）
+ * 
+ * 审计结论对齐：
+ * - ✅ 验收清单中已移除 refund/cancel/edit/subscription 项（已注释，符合 v1.0 范围收敛要求）
+ * - ✅ 验收范围收敛为 checkout/purchase 漏斗事件（与 Web Pixel Extension 能力一致）
+ * - ✅ 已添加明确说明，这些功能将在 v1.1+ 中通过订单 webhooks 实现
+ * 
+ * v1.1+ 实现计划：
+ * - 启用订单相关 webhooks（orders/updated, refunds/create 等）
+ * - 后台定时对账拉取订单变更
+ * - 生成对应"事件对账"记录（严格做 PII 最小化）
+ */
+
 import { logger } from "../utils/logger.server";
 import type { VerificationTestItem } from "./verification.server";
 
@@ -11,7 +34,9 @@ export interface TestChecklistItem {
   steps: string[];
   expectedResults: string[];
   estimatedTime: number;
-  category: "purchase" | "refund" | "cart" | "subscription" | "order_edit";
+  // P0-1: PRD 对齐 - v1.0 只支持 purchase 和 cart 事件验收
+  // refund、subscription、order_edit 在 v1.1+ 中通过 webhooks 实现
+  category: "purchase" | "cart";
 }
 
 export interface TestChecklist {
@@ -208,91 +233,75 @@ function getAllTestItems(): TestChecklistItem[] {
       estimatedTime: 5,
       category: "purchase",
     },
-    {
-      id: "refund",
-      name: "退款",
-      description: "对已完成订单进行退款，验证退款事件",
-      eventType: "refund",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 在 Shopify Admin 中找到已完成的测试订单",
-        "2. 进入订单详情页",
-        "3. 点击「退款」按钮",
-        "4. 选择退款金额（部分或全额）",
-        "5. 确认退款",
-        "6. 在验收页面查看退款事件",
-      ],
-      expectedResults: [
-        "Refund 事件已触发（如果平台支持）",
-        "事件包含 refund_value（退款金额）",
-        "事件包含 refund_currency（币种）",
-        "事件关联到原始订单",
-      ],
-      estimatedTime: 10,
-      category: "refund",
-    },
-    {
-      id: "order_cancel",
-      name: "订单取消",
-      description: "取消一个待处理的订单",
-      eventType: "cancel",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 在 Shopify Admin 中找到待处理的订单",
-        "2. 进入订单详情页",
-        "3. 点击「取消订单」",
-        "4. 确认取消",
-        "5. 验证取消事件（如果平台支持）",
-      ],
-      expectedResults: [
-        "Cancel 事件已触发（如果平台支持）",
-        "事件关联到原始订单",
-      ],
-      estimatedTime: 5,
-      category: "order_edit",
-    },
-    {
-      id: "order_edit",
-      name: "订单编辑",
-      description: "编辑已完成的订单（修改商品、地址等）",
-      eventType: "order_edit",
-      required: false,
-      platforms: ["google"],
-      steps: [
-        "1. 在 Shopify Admin 中找到已完成的订单",
-        "2. 进入订单详情页",
-        "3. 编辑订单（添加商品、修改地址等）",
-        "4. 保存更改",
-        "5. 验证更新事件（如果平台支持）",
-      ],
-      expectedResults: [
-        "Order Update 事件已触发（如果平台支持）",
-        "事件包含更新后的订单信息",
-      ],
-      estimatedTime: 10,
-      category: "order_edit",
-    },
-    {
-      id: "subscription",
-      name: "订阅订单",
-      description: "完成一个订阅类型的订单（如果商店支持）",
-      eventType: "subscription",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 选择一个订阅商品",
-        "2. 完成订阅订单",
-        "3. 验证订阅事件（如果平台支持）",
-      ],
-      expectedResults: [
-        "Subscription 事件已触发（如果平台支持）",
-        "事件包含订阅相关信息",
-      ],
-      estimatedTime: 5,
-      category: "subscription",
-    },
+    // P0-1: PRD 对齐 - v1.0 验收范围收敛
+    // 
+    // ⚠️ 重要说明：以下事件类型（refund、cancel、order_edit、subscription）在 v1.0 中不可验收
+    // 
+    // 原因：
+    // - Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件
+    // - 退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取
+    // - v1.0 版本仅依赖 Web Pixel Extension，不处理订单相关 webhooks（符合隐私最小化原则）
+    // 
+    // v1.0 验收范围：
+    // - ✅ checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
+    // - ❌ 退款、取消、编辑订单、订阅事件（将在 v1.1+ 中通过订单 webhooks 实现）
+    // 
+    // 这些功能将在 v1.1+ 版本中通过以下方式实现：
+    // - 启用订单相关 webhooks（orders/updated, refunds/create 等）
+    // - 后台定时对账拉取订单变更
+    // - 生成对应"事件对账"记录（严格做 PII 最小化）
+    // 
+    // {
+    //   id: "refund",
+    //   name: "退款",
+    //   description: "对已完成订单进行退款，验证退款事件",
+    //   eventType: "refund",
+    //   required: false,
+    //   platforms: ["google", "meta"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 10,
+    //   category: "refund",
+    // },
+    // 
+    // {
+    //   id: "order_cancel",
+    //   name: "订单取消",
+    //   description: "取消一个待处理的订单",
+    //   eventType: "cancel",
+    //   required: false,
+    //   platforms: ["google", "meta"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 5,
+    //   category: "order_edit",
+    // },
+    // 
+    // {
+    //   id: "order_edit",
+    //   name: "订单编辑",
+    //   description: "编辑已完成的订单（修改商品、地址等）",
+    //   eventType: "order_edit",
+    //   required: false,
+    //   platforms: ["google"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 10,
+    //   category: "order_edit",
+    // },
+    // 
+    // {
+    //   id: "subscription",
+    //   name: "订阅订单",
+    //   description: "完成一个订阅类型的订单（如果商店支持）",
+    //   eventType: "subscription",
+    //   required: false,
+    //   platforms: ["google", "meta"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 5,
+    //   category: "subscription",
+    // },
     {
       id: "add_to_cart",
       name: "添加到购物车",
@@ -332,160 +341,95 @@ function getAllTestItems(): TestChecklistItem[] {
       estimatedTime: 2,
       category: "cart",
     },
-    {
-      id: "order_fulfillment",
-      name: "订单发货",
-      description: "对订单进行发货操作，验证发货事件",
-      eventType: "fulfillment",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 在 Shopify Admin 中找到已完成的订单",
-        "2. 进入订单详情页",
-        "3. 创建发货单（Fulfillment）",
-        "4. 添加物流追踪号（可选）",
-        "5. 标记为已发货",
-        "6. 验证发货事件（如果平台支持）",
-      ],
-      expectedResults: [
-        "Fulfillment 事件已触发（如果平台支持）",
-        "事件包含发货信息",
-        "事件关联到原始订单",
-      ],
-      estimatedTime: 5,
-      category: "order_edit",
-    },
-    {
-      id: "order_partial_refund",
-      name: "部分退款",
-      description: "对订单进行部分退款，验证退款金额正确",
-      eventType: "refund",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 在 Shopify Admin 中找到已完成的订单",
-        "2. 进入订单详情页",
-        "3. 点击「退款」",
-        "4. 选择部分商品或部分金额进行退款",
-        "5. 确认退款",
-        "6. 验证退款事件中的金额是部分退款金额",
-      ],
-      expectedResults: [
-        "Refund 事件已触发",
-        "refund_value 等于部分退款金额（不是全额）",
-        "事件关联到原始订单",
-      ],
-      estimatedTime: 8,
-      category: "refund",
-    },
-    {
-      id: "order_full_refund",
-      name: "全额退款",
-      description: "对订单进行全额退款",
-      eventType: "refund",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 在 Shopify Admin 中找到已完成的订单",
-        "2. 进入订单详情页",
-        "3. 点击「退款」",
-        "4. 选择全额退款",
-        "5. 确认退款",
-        "6. 验证退款事件中的金额等于订单金额",
-      ],
-      expectedResults: [
-        "Refund 事件已触发",
-        "refund_value 等于原始订单金额",
-        "事件关联到原始订单",
-      ],
-      estimatedTime: 5,
-      category: "refund",
-    },
-    {
-      id: "subscription_first",
-      name: "首次订阅订单",
-      description: "完成首次订阅订单（如果商店支持订阅）",
-      eventType: "subscription",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 选择一个订阅商品（Subscription Product）",
-        "2. 完成首次订阅订单",
-        "3. 验证订阅事件已触发",
-        "4. 检查事件中的订阅相关信息",
-      ],
-      expectedResults: [
-        "Subscription 事件已触发（如果平台支持）",
-        "事件包含订阅周期信息",
-        "事件包含首次订阅标识",
-      ],
-      estimatedTime: 5,
-      category: "subscription",
-    },
-    {
-      id: "subscription_renewal",
-      name: "订阅续费",
-      description: "验证订阅自动续费事件（如果商店支持）",
-      eventType: "subscription_renewal",
-      required: false,
-      platforms: ["google", "meta"],
-      steps: [
-        "1. 等待订阅自动续费（或手动触发续费）",
-        "2. 在验收页面查看续费事件",
-        "3. 验证事件关联到原始订阅",
-      ],
-      expectedResults: [
-        "Subscription Renewal 事件已触发（如果平台支持）",
-        "事件包含续费金额",
-        "事件关联到原始订阅订单",
-      ],
-      estimatedTime: 10,
-      category: "subscription",
-    },
-    {
-      id: "order_edit_add_item",
-      name: "订单编辑 - 添加商品",
-      description: "在已完成的订单中添加商品",
-      eventType: "order_edit",
-      required: false,
-      platforms: ["google"],
-      steps: [
-        "1. 在 Shopify Admin 中找到已完成的订单",
-        "2. 进入订单详情页",
-        "3. 点击「编辑订单」",
-        "4. 添加新商品到订单",
-        "5. 保存更改",
-        "6. 验证订单更新事件",
-      ],
-      expectedResults: [
-        "Order Update 事件已触发（如果平台支持）",
-        "事件包含更新后的订单金额",
-        "事件包含新增的商品信息",
-      ],
-      estimatedTime: 8,
-      category: "order_edit",
-    },
-    {
-      id: "order_edit_change_address",
-      name: "订单编辑 - 修改地址",
-      description: "修改订单的收货地址",
-      eventType: "order_edit",
-      required: false,
-      platforms: ["google"],
-      steps: [
-        "1. 在 Shopify Admin 中找到已完成的订单",
-        "2. 进入订单详情页",
-        "3. 编辑收货地址",
-        "4. 保存更改",
-        "5. 验证订单更新事件（如果平台支持）",
-      ],
-      expectedResults: [
-        "Order Update 事件已触发（如果平台支持）",
-        "事件包含更新后的地址信息",
-      ],
-      estimatedTime: 5,
-      category: "order_edit",
-    },
+    // P0-1: PRD 对齐 - v1.0 验收范围收敛
+    // 以下测试项（fulfillment、refund、subscription、order_edit）在 v1.0 中不可验收
+    // 原因：Web Pixel Extension 无法获取这些事件（它们需要订单 webhooks 或后台对账）
+    // 这些功能将在 v1.1+ 中通过订单 webhooks 实现
+    // 
+    // {
+    //   id: "order_fulfillment",
+    //   name: "订单发货",
+    //   description: "对订单进行发货操作，验证发货事件",
+    //   eventType: "fulfillment",
+    //   required: false,
+    //   platforms: ["google", "meta"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 5,
+    //   category: "order_edit",
+    // },
+    // {
+    //   id: "order_partial_refund",
+    //   name: "部分退款",
+    //   description: "对订单进行部分退款，验证退款金额正确",
+    //   eventType: "refund",
+    //   required: false,
+    //   platforms: ["google", "meta"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 8,
+    //   category: "refund",
+    // },
+    // {
+    //   id: "order_full_refund",
+    //   name: "全额退款",
+    //   description: "对订单进行全额退款",
+    //   eventType: "refund",
+    //   required: false,
+    //   platforms: ["google", "meta"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 5,
+    //   category: "refund",
+    // },
+    // {
+    //   id: "subscription_first",
+    //   name: "首次订阅订单",
+    //   description: "完成首次订阅订单（如果商店支持订阅）",
+    //   eventType: "subscription",
+    //   required: false,
+    //   platforms: ["google", "meta"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 5,
+    //   category: "subscription",
+    // },
+    // {
+    //   id: "subscription_renewal",
+    //   name: "订阅续费",
+    //   description: "验证订阅自动续费事件（如果商店支持）",
+    //   eventType: "subscription_renewal",
+    //   required: false,
+    //   platforms: ["google", "meta"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 10,
+    //   category: "subscription",
+    // },
+    // {
+    //   id: "order_edit_add_item",
+    //   name: "订单编辑 - 添加商品",
+    //   description: "在已完成的订单中添加商品",
+    //   eventType: "order_edit",
+    //   required: false,
+    //   platforms: ["google"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 8,
+    //   category: "order_edit",
+    // },
+    // {
+    //   id: "order_edit_change_address",
+    //   name: "订单编辑 - 修改地址",
+    //   description: "修改订单的收货地址",
+    //   eventType: "order_edit",
+    //   required: false,
+    //   platforms: ["google"],
+    //   steps: [...],
+    //   expectedResults: [...],
+    //   estimatedTime: 5,
+    //   category: "order_edit",
+    // },
     {
       id: "purchase_zero_value",
       name: "零金额订单",
@@ -555,24 +499,23 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
   markdown += `**必需项**: ${checklist.requiredItemsCount} | **可选项**: ${checklist.optionalItemsCount}\n\n`;
   markdown += `---\n\n`;
 
+  // P0-1: PRD 对齐 - v1.0 只支持 purchase 和 cart 事件验收
   const categories: Record<string, TestChecklistItem[]> = {
     purchase: [],
-    refund: [],
     cart: [],
-    subscription: [],
-    order_edit: [],
+    // refund、subscription、order_edit 在 v1.1+ 中通过 webhooks 实现
   };
 
   for (const item of checklist.items) {
-    categories[item.category].push(item);
+    if (categories[item.category]) {
+      categories[item.category].push(item);
+    }
   }
 
   const categoryLabels: Record<string, string> = {
     purchase: "购买事件",
-    refund: "退款事件",
     cart: "购物车事件",
-    subscription: "订阅事件",
-    order_edit: "订单编辑",
+    // refund、subscription、order_edit 在 v1.1+ 中实现
   };
 
   for (const [category, items] of Object.entries(categories)) {

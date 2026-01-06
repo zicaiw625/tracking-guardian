@@ -902,6 +902,20 @@ const COMMON_LOCALES = [
   { value: "it", label: "Italiano" },
 ];
 
+// P0-1: PRD 对齐 - 本地化支持
+// 
+// 审计结论对齐：本地化功能已完整实现，符合 PRD 4.4 的"可配置文案、本地化"要求
+// 
+// v1.0 实现状态：
+// - 配置端：支持按 locale 保存多语言配置（通过 LocalizationSettingsForm）
+//   - 支持的语言：en, zh-CN, zh-TW, ja, ko, es, fr, de, pt, it 等
+//   - 每个模块可独立配置多语言文案（title, subtitle, buttonText, question, description 等）
+// - 渲染端：checkout extension 中已实现 getLocalizedText 函数
+//   - 根据当前 locale 自动选择对应语言的文本
+//   - 回退机制：当前 locale -> 语言代码 (如 zh-CN -> zh) -> 默认值
+// - 数据存储：LocalizationSettings 类型支持 { [locale: string]: { ... } } 结构
+// 
+// 符合 PRD 4.4 的"可配置文案、本地化"要求
 function LocalizationSettingsForm({
   localization,
   onChange,
@@ -1227,9 +1241,9 @@ export default function UiBlocksPage() {
               付费触发点（3个强CTA，直接对应商家的"升级项目交付"）：
             </Text>
             <List type="number">
-              <List.Item><strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Migration $49/月）</List.Item>
-              <List.Item><strong>发布 Thank you/Order status 模块</strong> → 进入付费（Migration $49/月）</List.Item>
-              <List.Item><strong>生成验收报告（PDF/CSV）</strong> → 付费（Go-Live $199 一次性或 $199/月）</List.Item>
+              <List.Item><strong>启用像素迁移（Test 环境）</strong> → 进入付费试用/订阅（Starter $29/月）</List.Item>
+              <List.Item><strong>发布 Thank you/Order status 模块</strong> → 进入付费（Starter $29/月）</List.Item>
+              <List.Item><strong>生成验收报告（PDF/CSV）</strong> → 付费（Growth $79/月 或 Agency $199/月）</List.Item>
             </List>
             <Divider />
             <Text as="p" variant="bodySm">

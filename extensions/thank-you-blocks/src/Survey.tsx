@@ -2,6 +2,7 @@ import { reactExtension, BlockStack, Text, Button, InlineLayout, View, Pressable
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { BACKEND_URL, isAllowedBackendUrl } from "./config";
 import { createLogger } from "./logger";
+import { getLocalizedText } from "./localization";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Survey />);
 const Survey = memo(function Survey() {
@@ -18,8 +19,15 @@ const Survey = memo(function Survey() {
     const [selectedSource, setSelectedSource] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const title = useMemo(() => (settings.survey_title as string) || "我们想听听您的意见", [settings.survey_title]);
-    const question = useMemo(() => (settings.survey_question as string) || "您是如何了解到我们的？", [settings.survey_question]);
+    // P0-1: PRD 对齐 - 使用本地化文本
+    const title = useMemo(() => 
+        getLocalizedText(settings, "survey_title", "我们想听听您的意见", undefined, api as { locale?: string }),
+        [settings, api]
+    );
+    const question = useMemo(() => 
+        getLocalizedText(settings, "survey_question", "您是如何了解到我们的？", undefined, api as { locale?: string }),
+        [settings, api]
+    );
     const isBackendConfigured = useMemo(() => !!backendUrl, [backendUrl]);
     const shopDomain = useMemo(() => api.shop?.myshopifyDomain || "", [api.shop?.myshopifyDomain]);
     const logger = useMemo(() => createLogger(shopDomain, "[Survey]"), [shopDomain]);
