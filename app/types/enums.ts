@@ -81,13 +81,16 @@ export const ConsentStrategy = {
 
 export type ConsentStrategyType = typeof ConsentStrategy[keyof typeof ConsentStrategy];
 
+// P1-2: v1.0 平台支持范围收敛到 GA4/Meta/TikTok
+// 其他平台（Pinterest/Snapchat/Twitter）将在 v1.1+ 版本中支持
 export const Platform = {
   GOOGLE: 'google',
   META: 'meta',
   TIKTOK: 'tiktok',
-  PINTEREST: 'pinterest',
-  SNAPCHAT: 'snapchat',
-  TWITTER: 'twitter',
+  // P1-2: v1.0 暂不支持以下平台，将在 v1.1+ 中支持
+  // PINTEREST: 'pinterest',
+  // SNAPCHAT: 'snapchat',
+  // TWITTER: 'twitter',
 } as const;
 
 export type PlatformType = typeof Platform[keyof typeof Platform];
@@ -96,9 +99,10 @@ export const PLATFORM_DISPLAY_NAMES: Record<PlatformType, string> = {
   [Platform.GOOGLE]: 'Google Analytics 4 (GA4)',
   [Platform.META]: 'Meta (Facebook)',
   [Platform.TIKTOK]: 'TikTok',
-  [Platform.PINTEREST]: 'Pinterest',
-  [Platform.SNAPCHAT]: 'Snapchat',
-  [Platform.TWITTER]: 'Twitter/X',
+  // P1-2: v1.0 暂不支持以下平台，将在 v1.1+ 中支持
+  // [Platform.PINTEREST]: 'Pinterest',
+  // [Platform.SNAPCHAT]: 'Snapchat',
+  // [Platform.TWITTER]: 'Twitter/X',
 };
 
 export const EventType = {

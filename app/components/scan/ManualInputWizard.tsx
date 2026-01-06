@@ -28,6 +28,9 @@ export interface ManualInputData {
   fromUpgradeWizard?: boolean;
 }
 
+// P1-2: v1.0 平台支持范围收敛到 GA4/Meta/TikTok
+// 其他平台（Pinterest/Snapchat 等）将在 v1.1+ 版本中支持
+// 在 UI 中会显示 v1 支持标记，帮助用户了解哪些平台可以在 v1.0 中迁移
 const AVAILABLE_PLATFORMS = [
   { value: "google", label: "Google Analytics / GA4" },
   { value: "meta", label: "Meta Pixel / Facebook" },

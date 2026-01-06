@@ -12,6 +12,11 @@
  * - 支持时间戳验证（X-Tracking-Guardian-Timestamp header 或 body 中的 timestamp）
  * - 同时保留对单事件格式的向后兼容（自动检测格式）
  * 
+ * P0-1: 字段名兼容性
+ * - ✅ 支持 PRD 格式：{ event_name, event_id, ts, context, data }
+ * - ✅ 支持内部格式：{ eventName, nonce, timestamp, shopDomain, data }
+ * - ✅ 自动检测并标准化字段名（通过 validateRequest 函数）
+ * 
  * 审计结论对齐：
  * - ✅ 已实现 PRD 8.2 要求的批量事件接口格式
  * - ✅ Web Pixel Extension 使用批量格式发送事件到 /ingest 端点（extensions/tracking-pixel/src/events.ts）
@@ -20,6 +25,9 @@
  * 
  * 接口格式：
  * - 批量格式：{ events: [event1, event2, ...], timestamp?: number }
+ *   - 事件格式支持两种：
+ *     - PRD 格式：{ event_name, event_id, ts, context, data }
+ *     - 内部格式：{ eventName, nonce, timestamp, shopDomain, data }
  * - 单事件格式（向后兼容）：直接发送单个事件对象，委托给 /api/pixel-events
  * 
  * 端点说明：
@@ -256,6 +264,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         continue; // 跳过非主事件，不加入 validatedEvents
       }
 
+      // P0-1: 优先使用 PRD 格式的 event_id（如果提供）
+      // 如果客户端提供了 event_id（通过 PRD 格式），优先使用它；否则生成新的 eventId
+      const prdEventId = payload.nonce; // validation.ts 已将 PRD 格式的 event_id 映射到 nonce 字段
+      
       // 生成 eventId
       const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
       const isPurchaseEvent = eventType === "purchase";
@@ -312,7 +324,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
           
           // P0-4: 创建 nonce（防重放）
-          const nonceFromBody = payload.nonce;
+          // P0-1: 如果提供了 PRD 格式的 event_id，使用它作为 nonce
+          const nonceFromBody = prdEventId || payload.nonce;
           const nonceResult = await createEventNonce(
             shop.id,
             orderId,
@@ -347,7 +360,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
 
-      const eventId = generateEventIdForType(
+      // P0-1: 优先使用 PRD 格式的 event_id，如果未提供则生成新的
+      const eventId = prdEventId || generateEventIdForType(
         eventIdentifier,
         eventType,
         shopDomain,

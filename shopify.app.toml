@@ -20,10 +20,6 @@ redirect_urls = [
 [webhooks]
 api_version = "2025-07"
 
-# P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有订单相关 webhooks
-# v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
-# 已移除：orders/paid, orders/cancelled, orders/updated, refunds/create
-
 # P0-01: App lifecycle webhook (required for data cleanup on uninstall)
 [[webhooks.subscriptions]]
 topics = ["app/uninstalled"]
@@ -32,6 +28,17 @@ uri = "/webhooks"
 # GDPR compliance webhooks (mandatory)
 [[webhooks.subscriptions]]
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/webhooks"
+
+# P0-2: 订单/退款 webhooks（用于 Verification 和 Reconciliation）
+# 注意：这些 webhooks 仅存储订单摘要信息（orderId, orderNumber, totalValue, currency, financialStatus）
+# 不存储任何 PII（邮箱/地址/电话），符合 v1.0 隐私最小化原则
+[[webhooks.subscriptions]]
+topics = ["orders/create", "orders/updated", "orders/cancelled", "orders/edited"]
+uri = "/webhooks"
+
+[[webhooks.subscriptions]]
+topics = ["refunds/create"]
 uri = "/webhooks"
 
 [pos]

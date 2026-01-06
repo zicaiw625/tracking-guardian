@@ -25,18 +25,118 @@ function validateBodyStructure(
   return { valid: true, data: body as Record<string, unknown> };
 }
 
+/**
+ * P0-1: 标准化事件字段名
+ * 支持两种格式：
+ * 1. PRD 格式：event_name, event_id, ts, context, data
+ * 2. 内部格式：eventName, nonce, timestamp, shopDomain, data
+ */
+function normalizeEventFields(
+  data: Record<string, unknown>
+): {
+  eventName: string;
+  timestamp: number;
+  shopDomain: string;
+  eventId?: string;
+  nonce?: string;
+  context?: unknown;
+} | null {
+  // 检测是否为 PRD 格式（优先检查 event_name）
+  const isPRDFormat = "event_name" in data;
+  
+  let eventName: string | undefined;
+  let timestamp: number | undefined;
+  let shopDomain: string | undefined;
+  let eventId: string | undefined;
+  let nonce: string | undefined;
+  let context: unknown | undefined;
+
+  if (isPRDFormat) {
+    // PRD 格式：event_name, event_id, ts, context, data
+    eventName = data.event_name as string | undefined;
+    timestamp = data.ts as number | undefined;
+    eventId = data.event_id as string | undefined;
+    context = data.context;
+    // PRD 格式中 shopDomain 可能在 context 中，或作为顶层字段
+    shopDomain = (data.shopDomain || (context as Record<string, unknown>)?.shopDomain) as string | undefined;
+  } else {
+    // 内部格式：eventName, nonce, timestamp, shopDomain, data
+    eventName = data.eventName as string | undefined;
+    timestamp = data.timestamp as number | undefined;
+    shopDomain = data.shopDomain as string | undefined;
+    nonce = data.nonce as string | undefined;
+    eventId = data.eventId as string | undefined;
+  }
+
+  if (!eventName || typeof eventName !== "string") {
+    return null;
+  }
+
+  if (!shopDomain || typeof shopDomain !== "string") {
+    return null;
+  }
+
+  if (timestamp === undefined || timestamp === null) {
+    return null;
+  }
+
+  if (typeof timestamp !== "number") {
+    return null;
+  }
+
+  return {
+    eventName,
+    timestamp,
+    shopDomain,
+    eventId,
+    nonce,
+    context,
+  };
+}
+
 function validateRequiredFields(
   data: Record<string, unknown>
 ): ValidationResult | null {
-  if (!data.eventName || typeof data.eventName !== "string") {
-    return { valid: false, error: "Missing eventName", code: "missing_event_name" };
+  // P0-1: 先标准化字段名
+  const normalized = normalizeEventFields(data);
+  if (!normalized) {
+    // 检查具体缺失的字段
+    const isPRDFormat = "event_name" in data;
+    if (isPRDFormat) {
+      if (!data.event_name || typeof data.event_name !== "string") {
+        return { valid: false, error: "Missing event_name", code: "missing_event_name" };
+      }
+      if (data.ts === undefined || data.ts === null) {
+        return { valid: false, error: "Missing ts", code: "missing_timestamp" };
+      }
+      if (typeof data.ts !== "number") {
+        return { valid: false, error: "Invalid ts type", code: "invalid_timestamp_type" };
+      }
+    } else {
+      if (!data.eventName || typeof data.eventName !== "string") {
+        return { valid: false, error: "Missing eventName", code: "missing_event_name" };
+      }
+      if (data.timestamp === undefined || data.timestamp === null) {
+        return { valid: false, error: "Missing timestamp", code: "missing_timestamp" };
+      }
+      if (typeof data.timestamp !== "number") {
+        return { valid: false, error: "Invalid timestamp type", code: "invalid_timestamp_type" };
+      }
+    }
+    
+    // 检查 shopDomain（可能在 context 中）
+    const shopDomain = data.shopDomain || (data.context as Record<string, unknown>)?.shopDomain;
+    if (!shopDomain || typeof shopDomain !== "string") {
+      return { valid: false, error: "Missing shopDomain", code: "missing_shop_domain" };
+    }
+    
+    // 如果到达这里，说明有其他问题，返回通用错误
+    return { valid: false, error: "Invalid event format", code: "invalid_body" };
   }
 
-  if (!data.shopDomain || typeof data.shopDomain !== "string") {
-    return { valid: false, error: "Missing shopDomain", code: "missing_shop_domain" };
-  }
+  const { shopDomain, timestamp } = normalized;
 
-  if (!SHOP_DOMAIN_PATTERN.test(data.shopDomain as string)) {
+  if (!SHOP_DOMAIN_PATTERN.test(shopDomain)) {
     return {
       valid: false,
       error: "Invalid shop domain format",
@@ -44,18 +144,10 @@ function validateRequiredFields(
     };
   }
 
-  if (data.timestamp === undefined || data.timestamp === null) {
-    return { valid: false, error: "Missing timestamp", code: "missing_timestamp" };
-  }
-
-  if (typeof data.timestamp !== "number") {
-    return { valid: false, error: "Invalid timestamp type", code: "invalid_timestamp_type" };
-  }
-
   const now = Date.now();
   if (
-    data.timestamp < MIN_REASONABLE_TIMESTAMP ||
-    data.timestamp > now + MAX_FUTURE_TIMESTAMP_MS
+    timestamp < MIN_REASONABLE_TIMESTAMP ||
+    timestamp > now + MAX_FUTURE_TIMESTAMP_MS
   ) {
     return {
       valid: false,
@@ -187,27 +279,44 @@ export function validateRequest(body: unknown): ValidationResult {
     return requiredFieldsError;
   }
 
-  const consentError = validateConsentFormat(data.consent);
+  // P0-1: 标准化字段名
+  const normalized = normalizeEventFields(data);
+  if (!normalized) {
+    return { valid: false, error: "Invalid event format", code: "invalid_body" };
+  }
+
+  const { eventName, timestamp, shopDomain, eventId, nonce, context } = normalized;
+
+  // P0-1: 处理 consent（可能在 context 中，也可能在顶层）
+  const consent = (data.consent || (context as Record<string, unknown>)?.consent) as PixelEventPayload["consent"] | undefined;
+  const consentError = validateConsentFormat(consent);
   if (consentError) {
     return consentError;
   }
 
-  if (data.eventName === "checkout_completed") {
-    const eventData = data.data as Record<string, unknown> | undefined;
-    const checkoutError = validateCheckoutCompletedFields(eventData);
+  // P0-1: 处理 data（PRD 格式中 data 是必需的）
+  const eventData = (data.data || (context as Record<string, unknown>)?.data) as PixelEventPayload["data"] | undefined;
+
+  if (eventName === "checkout_completed") {
+    const checkoutError = validateCheckoutCompletedFields(eventData as Record<string, unknown> | undefined);
     if (checkoutError) {
       return checkoutError;
     }
   }
 
+  // P0-1: 构建标准化后的 payload
+  // eventId 优先使用 PRD 格式的 event_id，其次使用内部的 eventId，最后使用 nonce
+  const finalEventId = eventId || nonce;
+
   return {
     valid: true,
     payload: {
-      eventName: data.eventName as PixelEventName,
-      timestamp: data.timestamp as number,
-      shopDomain: data.shopDomain as string,
-      consent: data.consent as PixelEventPayload["consent"] | undefined,
-      data: (data.data as PixelEventPayload["data"]) || {},
+      eventName: eventName as PixelEventName,
+      timestamp,
+      shopDomain,
+      nonce: finalEventId, // 将 eventId 映射到 nonce 字段（保持向后兼容）
+      consent,
+      data: eventData || {},
     },
   };
 }

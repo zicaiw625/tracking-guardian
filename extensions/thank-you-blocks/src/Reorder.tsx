@@ -155,7 +155,13 @@ const Reorder = memo(function Reorder() {
           lastError = error instanceof Error ? error : new Error(String(error));
           
           if (attempt === retryDelays.length - 1) {
-            setError("获取重新购买链接失败，请稍后刷新页面");
+            // P0-5: network access 失败时的降级处理
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("Failed to fetch")) {
+              setError("网络连接失败，请稍后刷新页面重试");
+            } else {
+              setError("获取重新购买链接失败，请稍后刷新页面");
+            }
           }
         }
       }

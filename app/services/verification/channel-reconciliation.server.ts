@@ -88,17 +88,20 @@ export async function performEnhancedChannelReconciliation(
     };
   }
 
-  const shopifyOrders = await prisma.conversionJob.findMany({
+  // P0-3: 使用 ShopifyOrderSnapshot 作为基准（Shopify 订单真值）
+  // 这确保了对账基准来自 Shopify 官方订单数据，而不是内部事件数据
+  const shopifyOrders = await prisma.shopifyOrderSnapshot.findMany({
     where: {
       shopId,
       createdAt: { gte: since },
-      status: { in: ["completed", "queued", "processing"] },
     },
     select: {
       orderId: true,
       orderNumber: true,
-      orderValue: true,
+      totalValue: true,
       currency: true,
+      financialStatus: true,
+      cancelledAt: true,
       createdAt: true,
     },
   });
@@ -107,12 +110,13 @@ export async function performEnhancedChannelReconciliation(
   const shopifyOrderMap = new Map(
     shopifyOrders.map((o: { orderId: string }) => [o.orderId, o])
   );
+  // P0-3: 使用 totalValue 字段（来自 ShopifyOrderSnapshot）
   const shopifyTotalValue = shopifyOrders.reduce(
-    (sum: number, o: { orderValue: { toNumber: () => number } | number }) => {
-      const value = typeof o.orderValue === 'object' && 'toNumber' in o.orderValue 
-        ? o.orderValue.toNumber() 
-        : typeof o.orderValue === 'number' 
-        ? o.orderValue 
+    (sum: number, o: { totalValue: { toNumber: () => number } | number }) => {
+      const value = typeof o.totalValue === 'object' && 'toNumber' in o.totalValue 
+        ? o.totalValue.toNumber() 
+        : typeof o.totalValue === 'number' 
+        ? o.totalValue 
         : 0;
       return sum + value;
     },
@@ -380,7 +384,8 @@ export async function getOrderCrossPlatformComparison(
   }>;
 }> {
 
-  const shopifyOrder = await prisma.conversionJob.findFirst({
+  // P0-3: 使用 ShopifyOrderSnapshot 作为基准（Shopify 订单真值）
+  const shopifyOrder = await prisma.shopifyOrderSnapshot.findFirst({
     where: {
       shopId,
       orderId,
@@ -388,8 +393,10 @@ export async function getOrderCrossPlatformComparison(
     select: {
       orderId: true,
       orderNumber: true,
-      orderValue: true,
+      totalValue: true,
       currency: true,
+      financialStatus: true,
+      cancelledAt: true,
       createdAt: true,
     },
   });
@@ -495,7 +502,12 @@ export async function getOrderCrossPlatformComparison(
   }> = [];
 
   if (shopifyOrder) {
-    const shopifyValue = Number(shopifyOrder.orderValue || 0);
+    // P0-3: 使用 totalValue 字段（来自 ShopifyOrderSnapshot）
+    const shopifyValue = typeof shopifyOrder.totalValue === 'object' && 'toNumber' in shopifyOrder.totalValue
+      ? shopifyOrder.totalValue.toNumber()
+      : typeof shopifyOrder.totalValue === 'number'
+      ? shopifyOrder.totalValue
+      : 0;
 
     for (const platform of configuredPlatforms) {
       const platformEvent = platformEvents.find((e: { platform: string }) => e.platform === platform);
@@ -537,7 +549,11 @@ export async function getOrderCrossPlatformComparison(
       ? {
           orderId: shopifyOrder.orderId,
           orderNumber: shopifyOrder.orderNumber || undefined,
-          orderValue: Number(shopifyOrder.orderValue || 0),
+          orderValue: typeof shopifyOrder.totalValue === 'object' && 'toNumber' in shopifyOrder.totalValue
+            ? shopifyOrder.totalValue.toNumber()
+            : typeof shopifyOrder.totalValue === 'number'
+            ? shopifyOrder.totalValue
+            : 0,
           currency: shopifyOrder.currency || "USD",
           createdAt: shopifyOrder.createdAt,
         }

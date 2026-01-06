@@ -7,6 +7,11 @@ import {
   handleCustomersDataRequest,
   handleCustomersRedact,
   handleShopRedact,
+  handleOrdersCreate,
+  handleOrdersUpdated,
+  handleOrdersCancelled,
+  handleOrdersEdited,
+  handleRefundsCreate,
 } from "./handlers";
 import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
@@ -15,8 +20,8 @@ function normalizeTopic(topic: string): string {
   return topic.toUpperCase().replace(/\//g, "_");
 }
 
-// P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有订单相关 webhook handlers
-// v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
+// P0-2: Webhook handlers 注册
+// 订单/退款 webhooks 仅存储订单摘要信息（不包含 PII），用于 Verification 和 Reconciliation
 const WEBHOOK_HANDLERS: Record<
   string,
   (
@@ -28,6 +33,13 @@ const WEBHOOK_HANDLERS: Record<
   CUSTOMERS_DATA_REQUEST: (ctx) => handleCustomersDataRequest(ctx),
   CUSTOMERS_REDACT: (ctx) => handleCustomersRedact(ctx),
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
+  // P0-2: 订单 webhooks
+  ORDERS_CREATE: (ctx) => handleOrdersCreate(ctx),
+  ORDERS_UPDATED: (ctx) => handleOrdersUpdated(ctx),
+  ORDERS_CANCELLED: (ctx) => handleOrdersCancelled(ctx),
+  ORDERS_EDITED: (ctx) => handleOrdersEdited(ctx),
+  // P0-2: 退款 webhook
+  REFUNDS_CREATE: (ctx) => handleRefundsCreate(ctx),
 };
 
 const GDPR_TOPICS = new Set([

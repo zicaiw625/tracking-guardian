@@ -57,28 +57,21 @@ export const VERIFICATION_TEST_ITEMS: VerificationTestItem[] = [
     required: false,
     platforms: ["google", "meta", "tiktok"],
   },
-  // P0-1: PRD 对齐 - v1.0 验收范围收敛
-  // 
-  // ⚠️ 重要说明：以下事件类型（refund、cancel、order_edit、subscription）在 v1.0 中不可验收
-  // 
-  // 原因：
-  // - Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件
-  // - 退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取
-  // - v1.0 版本仅依赖 Web Pixel Extension，不处理订单相关 webhooks（符合隐私最小化原则）
+  // P0-2: PRD 对齐 - v1.0 验收范围（已启用订单/退款 webhooks）
   // 
   // v1.0 验收范围：
   // - ✅ checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
-  // - ❌ 退款、取消、编辑订单、订阅事件（将在 v1.1+ 中通过订单 webhooks 实现）
+  //   - 通过 Web Pixel Extension 订阅并上报
+  // - ✅ 订单侧事件（退款、取消、编辑订单）
+  //   - 通过 Shopify webhooks 获取（orders/cancelled, orders/edited, refunds/create）
+  //   - 仅存储订单摘要信息（orderId, orderNumber, totalValue, currency, financialStatus），不包含 PII
   // 
-  // 这些功能将在 v1.1+ 版本中通过以下方式实现：
-  // - 启用订单相关 webhooks（orders/updated, refunds/create 等）
-  // - 后台定时对账拉取订单变更
-  // - 生成对应"事件对账"记录（严格做 PII 最小化）
+  // 注意：订阅事件（subscription）在 v1.0 中暂不支持，将在 v1.1+ 中实现
   // 
   // {
   //   id: "refund",
   //   name: "退款",
-  //   description: "对已完成订单进行退款，验证 refund 事件发送（如支持）",
+  //   description: "对已完成订单进行退款，验证退款事件（通过 webhook）",
   //   eventType: "refund",
   //   required: false,
   //   platforms: ["google", "meta"],

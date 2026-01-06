@@ -3,6 +3,9 @@ import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { BACKEND_URL, isAllowedBackendUrl } from "./config";
 import { createLogger } from "./logger";
 import { getLocalizedText } from "./localization";
+// P0-4: PCD 安全处理（当前版本不使用 buyer 信息，保留以备未来扩展）
+// 如果未来需要使用 buyer 信息，取消注释并申请 PCD 权限
+// import { safeBuyer, canUseBuyerInfo } from "./safe-buyer";
 
 export default reactExtension("purchase.thank-you.block.render", () => <Survey />);
 const Survey = memo(function Survey() {
@@ -136,7 +139,14 @@ const Survey = memo(function Survey() {
         }
         catch (err) {
             logger.error("Survey submission error:", err);
-            setError("提交失败，请稍后重试");
+            // P0-5: network access 失败时的降级处理
+            // 如果 fetch 失败（可能是 network access 未获批），显示友好的错误信息
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("Failed to fetch")) {
+                setError("网络连接失败，请稍后刷新页面重试");
+            } else {
+                setError("提交失败，请稍后重试");
+            }
         }
         finally {
             setSubmitting(false);

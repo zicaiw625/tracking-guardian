@@ -157,13 +157,20 @@ const ShippingTracker = memo(function ShippingTracker() {
                         }
                     } catch (fetchError) {
                         clearTimeout(timeoutId);
+                        // P0-5: network access 失败时的降级处理
+                        // 如果 fetch 失败（可能是 network access 未获批），显示友好的错误信息
                         if (fetchError instanceof Error && fetchError.name === 'AbortError') {
                             lastError = new Error("请求超时");
+                        } else if (fetchError instanceof Error && (fetchError.message.includes("fetch") || fetchError.message.includes("network") || fetchError.message.includes("Failed to fetch"))) {
+                            // Network access 未获批或网络连接失败
+                            lastError = new Error("网络连接失败，请稍后刷新页面重试");
                         } else {
                             lastError = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
                         }
                         if (attempt === retryDelays.length - 1) {
-                            setError("获取物流信息失败，请稍后刷新页面");
+                            // P0-5: 降级显示友好的错误信息，而不是空白或报错
+                            const errorMessage = lastError?.message || "获取物流信息失败，请稍后刷新页面";
+                            setError(errorMessage);
                         }
                     }
                 } catch (error) {

@@ -1,24 +1,22 @@
 /**
- * P0-1: PRD 对齐 - v1.0 验收范围说明
+ * P0-2: PRD 对齐 - v1.0 验收范围说明
  * 
  * v1.0 验收范围（符合 PRD 4.5 要求）：
  * - ✅ checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
- * - ❌ 退款、取消、编辑订单、订阅事件（将在 v1.1+ 中通过订单 webhooks 实现）
+ *   - 通过 Web Pixel Extension 订阅并上报
+ * - ✅ 订单侧事件（退款、取消、编辑订单）
+ *   - 通过 Shopify webhooks 获取（orders/cancelled, orders/edited, refunds/create）
+ *   - 仅存储订单摘要信息（orderId, orderNumber, totalValue, currency, financialStatus），不包含 PII
  * 
- * 原因：
- * - Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件
- * - 退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取
- * - v1.0 版本仅依赖 Web Pixel Extension，不处理订单相关 webhooks（符合隐私最小化原则）
+ * 验收方式：
+ * - 像素侧事件：在验收页面查看 EventLog 和 DeliveryAttempt
+ * - 订单侧事件：在验收页面查看 ShopifyOrderSnapshot 和 RefundSnapshot
+ * - 对账验证：通过 orderId 关联像素事件与订单侧事件，验证金额/币种一致性
  * 
  * 审计结论对齐：
- * - ✅ 验收清单中已移除 refund/cancel/edit/subscription 项（已注释，符合 v1.0 范围收敛要求）
- * - ✅ 验收范围收敛为 checkout/purchase 漏斗事件（与 Web Pixel Extension 能力一致）
- * - ✅ 已添加明确说明，这些功能将在 v1.1+ 中通过订单 webhooks 实现
- * 
- * v1.1+ 实现计划：
- * - 启用订单相关 webhooks（orders/updated, refunds/create 等）
- * - 后台定时对账拉取订单变更
- * - 生成对应"事件对账"记录（严格做 PII 最小化）
+ * - ✅ 验收清单已包含 refund/cancel/edit 项（通过 webhooks 实现）
+ * - ✅ 验收范围覆盖 checkout/purchase 漏斗事件和订单侧事件
+ * - ✅ 订单侧事件严格遵循 PII 最小化原则（仅存储订单摘要信息）
  */
 
 import { logger } from "../utils/logger.server";
@@ -233,75 +231,80 @@ function getAllTestItems(): TestChecklistItem[] {
       estimatedTime: 5,
       category: "purchase",
     },
-    // P0-1: PRD 对齐 - v1.0 验收范围收敛
-    // 
-    // ⚠️ 重要说明：以下事件类型（refund、cancel、order_edit、subscription）在 v1.0 中不可验收
-    // 
-    // 原因：
-    // - Web Pixel Extension 运行在 strict sandbox 环境，只能订阅 Shopify 标准 checkout 漏斗事件
-    // - 退款、取消、编辑订单、订阅等事件需要订单 webhooks 或后台定时对账才能获取
-    // - v1.0 版本仅依赖 Web Pixel Extension，不处理订单相关 webhooks（符合隐私最小化原则）
+    // P0-2: PRD 对齐 - v1.0 验收范围（已启用订单/退款 webhooks）
     // 
     // v1.0 验收范围：
     // - ✅ checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
-    // - ❌ 退款、取消、编辑订单、订阅事件（将在 v1.1+ 中通过订单 webhooks 实现）
+    // - ✅ 订单侧事件（通过 webhooks）：退款、取消、编辑订单
     // 
-    // 这些功能将在 v1.1+ 版本中通过以下方式实现：
-    // - 启用订单相关 webhooks（orders/updated, refunds/create 等）
-    // - 后台定时对账拉取订单变更
-    // - 生成对应"事件对账"记录（严格做 PII 最小化）
-    // 
-    // {
-    //   id: "refund",
-    //   name: "退款",
-    //   description: "对已完成订单进行退款，验证退款事件",
-    //   eventType: "refund",
-    //   required: false,
-    //   platforms: ["google", "meta"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 10,
-    //   category: "refund",
-    // },
-    // 
-    // {
-    //   id: "order_cancel",
-    //   name: "订单取消",
-    //   description: "取消一个待处理的订单",
-    //   eventType: "cancel",
-    //   required: false,
-    //   platforms: ["google", "meta"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 5,
-    //   category: "order_edit",
-    // },
-    // 
-    // {
-    //   id: "order_edit",
-    //   name: "订单编辑",
-    //   description: "编辑已完成的订单（修改商品、地址等）",
-    //   eventType: "order_edit",
-    //   required: false,
-    //   platforms: ["google"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 10,
-    //   category: "order_edit",
-    // },
-    // 
-    // {
-    //   id: "subscription",
-    //   name: "订阅订单",
-    //   description: "完成一个订阅类型的订单（如果商店支持）",
-    //   eventType: "subscription",
-    //   required: false,
-    //   platforms: ["google", "meta"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 5,
-    //   category: "subscription",
-    // },
+    // 注意：
+    // - 像素侧事件：通过 Web Pixel Extension 订阅并上报（checkout_completed 等）
+    // - 订单侧事件：通过 Shopify webhooks 获取（orders/cancelled, orders/edited, refunds/create）
+    // - 订单侧事件仅存储订单摘要信息（orderId, orderNumber, totalValue, currency, financialStatus），不包含 PII
+    // - 验收时需验证：像素事件与订单侧事件能够正确对账（通过 orderId 关联）
+    {
+      id: "refund",
+      name: "退款",
+      description: "对已完成订单进行退款，验证退款事件（通过 webhook）",
+      eventType: "refund",
+      required: false,
+      platforms: ["google", "meta"],
+      steps: [
+        "1. 完成一个订单（记录 orderId）",
+        "2. 在 Shopify Admin 中对订单进行退款",
+        "3. 在验收页面查看订单侧事件（refunds/create webhook）",
+        "4. 验证退款金额与 Shopify 订单一致",
+      ],
+      expectedResults: [
+        "退款事件已通过 webhook 记录（RefundSnapshot）",
+        "退款金额与 Shopify 订单一致",
+        "订单快照已更新（ShopifyOrderSnapshot）",
+      ],
+      estimatedTime: 10,
+      category: "refund",
+    },
+    {
+      id: "order_cancel",
+      name: "订单取消",
+      description: "取消一个待处理的订单（通过 webhook）",
+      eventType: "cancel",
+      required: false,
+      platforms: ["google", "meta"],
+      steps: [
+        "1. 完成一个订单（记录 orderId）",
+        "2. 在 Shopify Admin 中取消订单",
+        "3. 在验收页面查看订单侧事件（orders/cancelled webhook）",
+        "4. 验证订单状态已更新为 cancelled",
+      ],
+      expectedResults: [
+        "订单取消事件已通过 webhook 记录",
+        "订单快照已更新（cancelledAt 字段）",
+        "订单 financialStatus 已更新",
+      ],
+      estimatedTime: 5,
+      category: "order_edit",
+    },
+    {
+      id: "order_edit",
+      name: "订单编辑",
+      description: "编辑已完成的订单（修改商品、地址等，通过 webhook）",
+      eventType: "order_edit",
+      required: false,
+      platforms: ["google"],
+      steps: [
+        "1. 完成一个订单（记录 orderId）",
+        "2. 在 Shopify Admin 中编辑订单（修改商品数量或地址）",
+        "3. 在验收页面查看订单侧事件（orders/edited webhook）",
+        "4. 验证订单金额已更新（如果修改了商品）",
+      ],
+      expectedResults: [
+        "订单编辑事件已通过 webhook 记录（orders/edited）",
+        "订单快照已更新（totalValue, updatedAt）",
+        "订单金额与 Shopify 订单一致",
+      ],
+      estimatedTime: 10,
+      category: "order_edit",
+    },
     {
       id: "add_to_cart",
       name: "添加到购物车",
@@ -341,47 +344,52 @@ function getAllTestItems(): TestChecklistItem[] {
       estimatedTime: 2,
       category: "cart",
     },
-    // P0-1: PRD 对齐 - v1.0 验收范围收敛
-    // 以下测试项（fulfillment、refund、subscription、order_edit）在 v1.0 中不可验收
-    // 原因：Web Pixel Extension 无法获取这些事件（它们需要订单 webhooks 或后台对账）
-    // 这些功能将在 v1.1+ 中通过订单 webhooks 实现
-    // 
-    // {
-    //   id: "order_fulfillment",
-    //   name: "订单发货",
-    //   description: "对订单进行发货操作，验证发货事件",
-    //   eventType: "fulfillment",
-    //   required: false,
-    //   platforms: ["google", "meta"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 5,
-    //   category: "order_edit",
-    // },
-    // {
-    //   id: "order_partial_refund",
-    //   name: "部分退款",
-    //   description: "对订单进行部分退款，验证退款金额正确",
-    //   eventType: "refund",
-    //   required: false,
-    //   platforms: ["google", "meta"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 8,
-    //   category: "refund",
-    // },
-    // {
-    //   id: "order_full_refund",
-    //   name: "全额退款",
-    //   description: "对订单进行全额退款",
-    //   eventType: "refund",
-    //   required: false,
-    //   platforms: ["google", "meta"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 5,
-    //   category: "refund",
-    // },
+    // P0-2: PRD 对齐 - v1.0 验收范围（已启用订单/退款 webhooks）
+    // 以下测试项（fulfillment、subscription）在 v1.0 中不可验收
+    // 原因：这些事件需要额外的 webhook 或后台对账，v1.0 暂不支持
+    // 这些功能将在 v1.1+ 中实现
+    {
+      id: "order_partial_refund",
+      name: "部分退款",
+      description: "对订单进行部分退款，验证退款金额正确（通过 webhook）",
+      eventType: "refund",
+      required: false,
+      platforms: ["google", "meta"],
+      steps: [
+        "1. 完成一个订单（记录 orderId 和 totalValue）",
+        "2. 在 Shopify Admin 中对订单进行部分退款（如退款 50%）",
+        "3. 在验收页面查看退款事件（refunds/create webhook）",
+        "4. 验证退款金额与 Shopify 订单一致",
+      ],
+      expectedResults: [
+        "部分退款事件已通过 webhook 记录（RefundSnapshot）",
+        "退款金额与 Shopify 订单一致",
+        "订单快照已更新",
+      ],
+      estimatedTime: 8,
+      category: "refund",
+    },
+    {
+      id: "order_full_refund",
+      name: "全额退款",
+      description: "对订单进行全额退款（通过 webhook）",
+      eventType: "refund",
+      required: false,
+      platforms: ["google", "meta"],
+      steps: [
+        "1. 完成一个订单（记录 orderId 和 totalValue）",
+        "2. 在 Shopify Admin 中对订单进行全额退款",
+        "3. 在验收页面查看退款事件（refunds/create webhook）",
+        "4. 验证退款金额与订单总金额一致",
+      ],
+      expectedResults: [
+        "全额退款事件已通过 webhook 记录（RefundSnapshot）",
+        "退款金额与订单总金额一致",
+        "订单快照已更新",
+      ],
+      estimatedTime: 5,
+      category: "refund",
+    },
     // {
     //   id: "subscription_first",
     //   name: "首次订阅订单",

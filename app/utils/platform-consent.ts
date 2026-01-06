@@ -7,8 +7,11 @@ export interface PlatformConsentConfig {
     requiresSaleOfData: boolean;
 }
 
+// P1-2: v1.0 平台支持范围收敛到 GA4/Meta/TikTok
+// 其他平台（Pinterest/Snapchat/Twitter/Bing/Clarity）的配置保留用于未来版本（v1.1+）
+// 这些配置在 consent 评估时仍可使用，但 UI 中会明确标记为 v1.1+ 支持
 export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
-
+    // v1.0 支持的平台
     meta: {
         category: "marketing",
         name: "Meta (Facebook/Instagram)",
@@ -23,7 +26,6 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
         consentReason: "用于转化追踪和广告优化",
         requiresSaleOfData: true,
     },
-
     google: {
         category: "analytics",
         name: "Google Analytics 4 (GA4)",
@@ -31,7 +33,7 @@ export const PLATFORM_CONSENT_CONFIG: Record<string, PlatformConsentConfig> = {
         consentReason: "用于网站分析和用户行为理解",
         requiresSaleOfData: false,
     },
-
+    // v1.1+ 支持的平台（配置保留用于未来版本）
     bing: {
         category: "marketing",
         name: "Microsoft Ads (Bing) - 不支持 CAPI",

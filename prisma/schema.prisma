@@ -269,8 +269,8 @@ model PixelConfig {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime
   clientConfig         Json?
-  credentialsEncrypted String? // P0-8: 加密后的凭证（推荐使用）
-  credentials_legacy   Json?   // P0-8: 已废弃，保留用于向后兼容，新数据应使用 credentialsEncrypted
+  credentialsEncrypted String?
+  credentials_legacy   Json?
   configVersion        Int       @default(1)
   environment          String    @default("live")
   previousConfig       Json?
@@ -463,6 +463,8 @@ model Shop {
   UiExtensionSetting      UiExtensionSetting[]
   VerificationRun         VerificationRun[]
   WorkspaceComment        WorkspaceComment[]
+  ShopifyOrderSnapshot    ShopifyOrderSnapshot[]
+  RefundSnapshot          RefundSnapshot[]
 }
 
 model ShopGroup {
@@ -532,17 +534,17 @@ model TaskComment {
 }
 
 model UiExtensionSetting {
-  id               String   @id
-  shopId           String
-  moduleKey        String
-  settingsJson     Json?    // P0-8: 已废弃，保留用于向后兼容，新数据应使用 settingsEncrypted
-  settingsEncrypted String? // P0-8: 加密后的设置（推荐使用）
-  displayRules     Json?
-  localization     Json?
-  isEnabled        Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime
-  Shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  id                String   @id
+  shopId            String
+  moduleKey         String
+  settingsJson      Json?
+  displayRules      Json?
+  localization      Json?
+  isEnabled         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime
+  settingsEncrypted String?
+  Shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, moduleKey])
   @@index([isEnabled])
@@ -723,4 +725,45 @@ model DeliveryAttempt {
   @@index([shopId, status, createdAt])
   @@index([eventLogId])
   @@index([createdAt])
+}
+
+// P0-2: Shopify 订单快照（用于 Verification 和 Reconciliation）
+// 仅存储订单摘要信息（不包含 PII），符合 v1.0 隐私最小化原则
+model ShopifyOrderSnapshot {
+  id              String   @id
+  shopId          String
+  orderId         String
+  orderNumber     String?
+  totalValue      Decimal  @db.Decimal(10, 2)
+  currency        String   @default("USD")
+  financialStatus String?
+  cancelledAt     DateTime?
+  updatedAt       DateTime
+  createdAt       DateTime
+  Shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, orderId], map: "ShopifyOrderSnapshot_shopId_orderId_key")
+  @@index([shopId, createdAt])
+  @@index([shopId, orderId])
+  @@index([orderId])
+  @@index([cancelledAt])
+}
+
+// P0-2: 退款快照（用于 Verification 和 Reconciliation）
+// 仅存储退款摘要信息（不包含 PII），符合 v1.0 隐私最小化原则
+model RefundSnapshot {
+  id        String   @id
+  shopId    String
+  refundId  String
+  orderId   String
+  amount    Decimal  @db.Decimal(10, 2)
+  currency  String   @default("USD")
+  createdAt DateTime
+  Shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, refundId], map: "RefundSnapshot_shopId_refundId_key")
+  @@index([shopId, createdAt])
+  @@index([shopId, orderId])
+  @@index([orderId])
+  @@index([refundId])
 }
