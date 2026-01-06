@@ -239,27 +239,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
       const results = await processBatchEvents(shop.id, validatedEvents);
       const successCount = results.filter(r => r.success).length;
-      const failCount = results.length - successCount;
+      const acceptedCount = successCount; // PRD 8.2: accepted_count 表示成功处理的事件数
+
+      // PRD 8.2: 构建 errors[] 数组，包含所有失败事件的错误信息
+      const errors: Array<{
+        index: number;
+        event_id?: string;
+        event_name?: string;
+        error: string;
+      }> = [];
+
+      results.forEach((result, index) => {
+        if (!result.success) {
+          const eventPayload = validatedEvents[index]?.payload;
+          errors.push({
+            index,
+            event_id: result.eventId || undefined,
+            event_name: eventPayload?.eventName || undefined,
+            error: result.errors?.join("; ") || "Unknown error",
+          });
+        }
+      });
 
       logger.info(`Batch ingest processed`, {
         shopDomain,
         total: validatedEvents.length,
-        success: successCount,
-        failed: failCount,
+        accepted: acceptedCount,
+        errors: errors.length,
       });
 
+      // PRD 8.2: 返回格式 { accepted_count, errors[] }
       return jsonWithCors(
         {
-          success: true,
-          processed: validatedEvents.length,
-          succeeded: successCount,
-          failed: failCount,
-          results: results.map((r, i) => ({
-            index: i,
-            success: r.success,
-            eventId: r.eventId,
-            errors: r.errors,
-          })),
+          accepted_count: acceptedCount,
+          errors: errors.length > 0 ? errors : [],
         },
         { request }
       );
@@ -275,7 +288,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   } else {
     // 单事件格式（向后兼容），委托给 /api/pixel-events
-    return pixelEventsAction({ request });
+    return pixelEventsAction({ request, params: {}, context: {} as any });
   }
 };
 

@@ -69,9 +69,9 @@ async function loaderImpl(request: Request) {
 
     // P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
     // 这会自动处理 JWT 验证和 CORS，并返回 session 信息
-    let session;
+    let session: { shop: string; [key: string]: unknown };
     try {
-      const authResult = await authenticate.public.checkout(request);
+      const authResult = await authenticate.public.checkout(request) as unknown as { session: { shop: string; [key: string]: unknown } };
       session = authResult.session;
     } catch (authError) {
       logger.warn("Checkout authentication failed", {

@@ -457,6 +457,7 @@ export async function getEventLogs(
   id: string;
   eventId: string;
   eventName: string;
+  source: string;
   occurredAt: Date;
   normalizedEventJson: unknown;
   shopifyContextJson: unknown;
@@ -497,6 +498,7 @@ export async function getEventLogs(
       id: log.id,
       eventId: log.eventId,
       eventName: log.eventName,
+      source: log.source,
       occurredAt: log.occurredAt,
       normalizedEventJson: log.normalizedEventJson,
       shopifyContextJson: log.shopifyContextJson,

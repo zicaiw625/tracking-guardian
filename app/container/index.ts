@@ -123,7 +123,7 @@ function createConfigAdapter(): IAppConfig {
       debugLogging: FEATURE_FLAGS.DEBUG_LOGGING,
       extendedPayload: FEATURE_FLAGS.EXTENDED_PAYLOAD,
       trackingApi: FEATURE_FLAGS.TRACKING_API,
-      piiHashing: FEATURE_FLAGS.PII_HASHING,
+      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII_HASHING feature flag
       checkoutBlocks: FEATURE_FLAGS.CHECKOUT_BLOCKS,
     },
     getEnv,

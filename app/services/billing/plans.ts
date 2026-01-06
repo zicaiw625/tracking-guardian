@@ -101,19 +101,21 @@ export const BILLING_PLANS = {
     pixelDestinations: 3,
     uiModules: -1,
     includesVerification: true,
-    includesAlerts: false,
-    includesReconciliation: false,
+    includesAlerts: true, // PRD 11.1: Growth 包含告警功能
+    includesReconciliation: true, // PRD 11.1: Growth 包含事件对账功能
     includesAgency: false,
     includesReportExport: true, // Go-Live 包含报告导出
     tagline: "项目交付包（Agency 直接报给客户的交付包）",
     // P0-1: PRD 对齐 - Growth 为月付 $79（符合 PRD 11.1 要求）
-    // 审计结论：套餐结构与 PRD 完全一致，Growth 计划为月付 $79，不使用 isOneTime 字段
+    // 审计结论：套餐结构与 PRD 完全一致，Growth 计划为月付 $79，包含告警和对账功能
     features: [
       "像素迁移 + 模块发布 + 验收报告导出 (PDF/CSV)",
       "可交付的验收报告（给老板/客户看的证据）",
       "测试清单 + 事件触发记录 + 参数完整率",
       "订单金额/币种一致性验证",
       "隐私合规检查（consent/customerPrivacy）",
+      "事件对账与验收（事件对账功能）",
+      "断档监控与告警（事件量骤降告警、失败率阈值监控）",
       "每月 10,000 笔订单追踪",
       "90 天数据保留",
     ],

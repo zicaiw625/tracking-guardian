@@ -113,10 +113,7 @@ export function CheckoutCompletedBehaviorHint({
   return (
     <Banner tone={tone} icon={icon}>
       <BlockStack gap="200">
-        <Text
-          as="button"
-          variant="bodySm"
-          fontWeight="semibold"
+        <button
           onClick={() => setExpanded(!expanded)}
           style={{
             cursor: "pointer",
@@ -124,11 +121,18 @@ export function CheckoutCompletedBehaviorHint({
             background: "none",
             border: "none",
             padding: 0,
+            font: "inherit",
             color: "inherit",
           }}
         >
-          {displayTitle} {expanded ? "▼" : "▶"}
-        </Text>
+          <Text
+            as="span"
+            variant="bodySm"
+            fontWeight="semibold"
+          >
+            {displayTitle} {expanded ? "▼" : "▶"}
+          </Text>
+        </button>
         <Collapsible open={expanded} id="checkout-completed-hint">
           {content}
         </Collapsible>

@@ -93,9 +93,10 @@ export function checkFeatureAccess(
     const hasAccess = isPlanAtLeast(shopPlan, "starter");
     if (!hasAccess) {
       const planConfig = getPlanOrDefault(shopPlan);
+      // P0-1: PRD 对齐 - v1.0 套餐名称统一为 Starter（而非 Migration）
       return {
         allowed: false,
-        reason: `${feature === "pixel_migration" ? "像素迁移" : "UI 模块"}功能需要 Migration 及以上套餐。当前套餐：${planConfig.name}`,
+        reason: `${feature === "pixel_migration" ? "像素迁移" : "UI 模块"}功能需要 Starter 及以上套餐。当前套餐：${planConfig.name}`,
       };
     }
     return { allowed: true };
@@ -136,18 +137,24 @@ export function checkFeatureAccess(
 }
 
 function getRequiredPlanName(feature: "verification" | "alerts" | "reconciliation" | "agency" | "pixel_migration" | "ui_modules" | "audit" | "report_export"): string {
+  // P0-1: PRD 对齐 - v1.0 套餐功能要求
+  // PRD 11.1: Growth 计划 ($79/月) 包含告警和对账功能
+  // 审计结论：修复 alerts 和 report_export 的要求计划名称，确保与 PRD 一致
   switch (feature) {
     case "audit":
       return "Free";
     case "pixel_migration":
     case "ui_modules":
     case "verification":
-      return "Migration";
+      return "Starter";
     case "alerts":
-      return "Monitor";
+      // PRD 11.1: Growth 计划包含告警功能
+      return "Growth";
     case "report_export":
-      return "Go-Live";
+      // PRD 11.1: Growth 计划包含报告导出功能
+      return "Growth";
     case "reconciliation":
+      // PRD 11.1: Growth 计划包含事件对账功能
       return "Growth";
     case "agency":
       return "Agency";

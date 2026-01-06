@@ -12,7 +12,6 @@ export type {
 export { dispatchWebhook } from "./dispatcher";
 
 export {
-  handleOrdersPaid,
   handleAppUninstalled,
   handleCustomersDataRequest,
   handleCustomersRedact,

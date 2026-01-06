@@ -4,6 +4,7 @@ import prisma from "../../db.server";
 import {
   getTrackingInfo,
   type TrackingProviderConfig,
+  type TrackingInfo,
 } from "../../services/shipping-tracker.server";
 import { logger } from "../../utils/logger.server";
 import type { OrderTrackingSettings } from "../../types/ui-extension";
@@ -23,11 +24,8 @@ interface FulfillmentNode {
   };
 }
 
-interface TrackingInfo {
-  number: string;
-  company: string;
-  url?: string;
-}
+// 使用 shipping-tracker.server.ts 中定义的 TrackingInfo 类型
+// 本地不再定义 TrackingInfo，直接使用导入的类型
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -91,9 +89,9 @@ async function loaderImpl(request: Request) {
 
     // P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
     // 这会自动处理 JWT 验证和 CORS，并返回 session 信息
-    let session;
+    let session: { shop: string; [key: string]: unknown };
     try {
-      const authResult = await authenticate.public.checkout(request);
+      const authResult = await authenticate.public.checkout(request) as unknown as { session: { shop: string; [key: string]: unknown } };
       session = authResult.session;
     } catch (authError) {
       logger.warn("Checkout authentication failed", {
@@ -132,7 +130,7 @@ async function loaderImpl(request: Request) {
       ? (trackingModuleConfig.settings as OrderTrackingSettings | undefined)
       : undefined;
 
-    let trackingInfo = null;
+    let trackingInfo: TrackingInfo | null = null;
     let trackingNumberFromShopify: string | null = null;
     let carrierFromShopify: string | null = null;
     let trackingUrlFromShopify: string | null = null;
@@ -245,13 +243,12 @@ async function loaderImpl(request: Request) {
         );
 
         if (thirdPartyTracking) {
-
+          // TypeScript 类型收窄：thirdPartyTracking 在此处已确认非 null
+          const enrichedTracking = thirdPartyTracking;
           trackingInfo = {
-            ...thirdPartyTracking,
-
-            carrier: thirdPartyTracking.carrier || trackingInfo?.carrier || "unknown",
-
-            trackingNumber: thirdPartyTracking.trackingNumber || trackingInfo?.trackingNumber || trackingNumberToUse,
+            ...enrichedTracking,
+            carrier: enrichedTracking.carrier || trackingInfo?.carrier || "unknown",
+            trackingNumber: enrichedTracking.trackingNumber || trackingInfo?.trackingNumber || trackingNumberToUse,
           };
           logger.info(`Third-party tracking enrich successful for orderId: ${orderId}, provider: ${trackingSettings.provider}`);
         } else {
