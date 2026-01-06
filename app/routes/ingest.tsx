@@ -268,7 +268,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         errors: errors.length,
       });
 
-      // PRD 8.2: 返回格式 { accepted_count, errors[] }
+      // PRD 8.2: 返回格式严格符合 PRD 规范
+      // Response: { accepted_count: number, errors: Array<{ index: number, event_id?: string, event_name?: string, error: string }> }
+      // - accepted_count: 成功处理的事件数量
+      // - errors: 失败事件的错误信息数组（如果所有事件都成功，返回空数组 []）
       return jsonWithCors(
         {
           accepted_count: acceptedCount,
