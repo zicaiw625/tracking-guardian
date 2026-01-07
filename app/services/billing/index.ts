@@ -24,6 +24,7 @@ export {
   type CancelResult,
   type ConfirmationResult,
   type OneTimePurchaseResult,
+  type BillingHistoryItem,
   createSubscription,
   getSubscriptionStatus,
   cancelSubscription,
@@ -31,6 +32,7 @@ export {
   handleSubscriptionConfirmation,
   createOneTimePurchase,
   handleOneTimePurchaseConfirmation,
+  getBillingHistory,
 } from "./subscription.server";
 
 export {
@@ -80,4 +82,3 @@ export {
   formatUsage,
   getSuggestedUpgrade,
 } from "./gate.server";
-
