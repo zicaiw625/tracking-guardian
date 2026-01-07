@@ -18,6 +18,7 @@ import { EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { validateTestEnvironment } from "~/services/migration-wizard.server";
+import { normalizePlanId, planSupportsFeature } from "~/services/billing/plans";
 
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({
   default: module.RealtimeEventMonitor,
@@ -42,7 +43,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   const shop = await prisma.shop.findUnique({
     where: { shopDomain },
-    select: { id: true, shopDomain: true },
+    select: { id: true, shopDomain: true, plan: true },
   });
 
   if (!shop) {
@@ -64,9 +65,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw new Response("Pixel config not found", { status: 404 });
   }
 
+  const planId = normalizePlanId(shop.plan ?? "free");
+  const hasVerificationAccess = planSupportsFeature(planId, "verification");
+
   return json({
     shop: { id: shop.id, domain: shop.shopDomain },
     pixelConfig,
+    hasVerificationAccess,
   });
 };
 
@@ -125,7 +130,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function PixelTestPage() {
-  const { shop, pixelConfig } = useLoaderData<typeof loader>();
+  const { shop, pixelConfig, hasVerificationAccess } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -219,6 +224,13 @@ export default function PixelTestPage() {
               <Text as="p" tone="subdued">
                 监听实时事件并查看 payload 详情，确保事件成功发送。
               </Text>
+              {!hasVerificationAccess && (
+                <Banner tone="warning" title="Verification 实时事件流需付费">
+                  <Text as="p" variant="bodySm">
+                    升级至付费套餐后可启用实时事件流验证能力。
+                  </Text>
+                </Banner>
+              )}
               <Suspense fallback={<Text as="p">加载实时监控...</Text>}>
                 <RealtimeEventMonitor
                   shopId={shop.id}
