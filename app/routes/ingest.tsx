@@ -208,7 +208,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }> = [];
     
     const origin = request.headers.get("Origin");
-    const isProduction = !isDevMode();
     
     // P0-4: 构建 keyValidation（基于 HMAC 验证结果）
     const keyValidation: KeyValidationResult = (() => {
