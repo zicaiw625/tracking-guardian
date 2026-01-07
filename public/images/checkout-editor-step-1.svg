@@ -1,0 +1,11 @@
+<svg width="520" height="320" viewBox="0 0 520 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="520" height="320" rx="16" fill="#F6F6F7"/>
+  <rect x="32" y="40" width="456" height="64" rx="12" fill="#E4E5E7"/>
+  <rect x="32" y="120" width="456" height="160" rx="12" fill="#FFFFFF" stroke="#DDE0E4"/>
+  <rect x="56" y="148" width="200" height="16" rx="8" fill="#BFC3C8"/>
+  <rect x="56" y="176" width="280" height="12" rx="6" fill="#E4E5E7"/>
+  <rect x="56" y="200" width="240" height="12" rx="6" fill="#E4E5E7"/>
+  <rect x="56" y="224" width="180" height="12" rx="6" fill="#E4E5E7"/>
+  <text x="56" y="84" font-family="Arial, sans-serif" font-size="18" fill="#30363C">Checkout Editor 入口</text>
+  <text x="56" y="260" font-family="Arial, sans-serif" font-size="14" fill="#6D7175">设置 → 结账和订单处理 → Checkout Editor</text>
+</svg>

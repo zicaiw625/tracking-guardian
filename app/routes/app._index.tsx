@@ -423,7 +423,7 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
 
           {}
           <Button
-            url="/app/scan"
+            url="/app/audit/start"
             variant="primary"
             size="large"
             fullWidth
@@ -680,7 +680,7 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
             description="开始迁移后，进度将在这里显示。"
             primaryAction={{
               content: "开始体检",
-              url: "/app/scan",
+              url: "/app/audit/start",
             }}
           />
         </BlockStack>
@@ -783,7 +783,7 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
         </BlockStack>
 
         {migrationProgress.progressPercentage < 100 && (
-          <Button url="/app/scan" variant="primary">
+          <Button url="/app/audit/start" variant="primary">
             {migrationProgress.currentStage === "audit" ? "开始体检" : "继续迁移"}
           </Button>
         )}
@@ -806,7 +806,7 @@ const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan
             description="完成上方第 1 步开始扫描。预计耗时约 10 秒，不会修改任何设置。"
             primaryAction={{
               content: "开始扫描",
-              url: "/app/scan",
+              url: "/app/audit/start",
             }}
           />
         </BlockStack>
@@ -876,7 +876,7 @@ const LatestScanCard = memo(function LatestScanCard({ latestScan }: { latestScan
           )}
         </BlockStack>
 
-        <Button url="/app/scan" fullWidth>
+        <Button url="/app/audit/report" fullWidth>
           查看完整报告
         </Button>
       </BlockStack>
@@ -967,7 +967,7 @@ function ScriptTagMigrationBanner({
       title={`检测到 ${scriptTagsCount} 个 ScriptTag 需要迁移`}
       tone="critical"
       action={{ content: "查看迁移方案", url: "/app/migrate" }}
-      secondaryAction={{ content: "查看扫描详情", url: "/app/scan" }}
+      secondaryAction={{ content: "查看扫描详情", url: "/app/audit/report" }}
     >
       <BlockStack gap="300">
         {hasOrderStatusScripts && (
@@ -1070,7 +1070,7 @@ function MigrationChecklistPreviewCard({
             description="完成扫描后，我们将为您生成迁移清单和优先级建议。"
             primaryAction={{
               content: "开始扫描",
-              url: "/app/scan",
+              url: "/app/audit/start",
             }}
           />
         </BlockStack>
@@ -1248,7 +1248,7 @@ function MigrationChecklistPreviewCard({
           </BlockStack>
         )}
 
-        <Button url="/app/scan" fullWidth icon={ArrowRightIcon}>
+        <Button url="/app/audit/report" fullWidth icon={ArrowRightIcon}>
           查看完整清单
         </Button>
       </BlockStack>
@@ -1306,7 +1306,7 @@ export default function Index() {
   const progress = getSetupProgress(setupSteps);
 
   const handleStartAudit = () => {
-    navigate("/app/scan");
+    navigate("/app/audit/start");
   };
 
   const handleViewDashboard = () => {
@@ -1454,12 +1454,16 @@ export default function Index() {
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
                   {data.latestScan
-                    ? "✅ 迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接，导出需升级 Go-Live"
+                    ? "✅ 迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接并导出 PDF/CSV"
                     : "免费开始：自动扫描 ScriptTags/Web Pixels + 手动粘贴 Additional Scripts，生成完整的迁移清单、风险分级和替代路径。报告会明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制"}
                 </Text>
               </BlockStack>
               <Button
-                url="/app/scan"
+                url={
+                  data.migrationProgress?.currentStage === "audit" || !data.migrationProgress || !data.latestScan
+                    ? "/app/audit/start"
+                    : "/app/audit/report"
+                }
                 variant="primary"
                 size="large"
                 icon={ArrowRightIcon}

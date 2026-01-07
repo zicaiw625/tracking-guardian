@@ -2139,7 +2139,7 @@ export default function MonitorPage() {
                     <Button url="/app/reconciliation" icon={SearchIcon}>
                       打开送达对账
                     </Button>
-                    <Button url="/app/scan" icon={SearchIcon} variant="secondary">
+                    <Button url="/app/audit/start" icon={SearchIcon} variant="secondary">
                       重新扫描追踪配置
                     </Button>
                   </InlineStack>
@@ -2180,7 +2180,7 @@ export default function MonitorPage() {
               <List.Item>若仍未收到事件，重新在“迁移”页点击“启用/升级 App Pixel”以刷新最新 backend URL</List.Item>
             </List>
             <InlineStack gap="200" wrap>
-              <Button url="/app/scan" icon={RefreshIcon} variant="primary">
+              <Button url="/app/audit/start" icon={RefreshIcon} variant="primary">
                 重新扫描像素配置
               </Button>
               <Button url="/app/reconciliation" icon={SearchIcon}>
@@ -2251,7 +2251,7 @@ export default function MonitorPage() {
                       建议每月进行一次扫描，确保追踪配置最新，及时发现问题
                     </Text>
                   </BlockStack>
-                  <Button url="/app/scan" size="slim" icon={ArrowRightIcon}>
+                  <Button url="/app/audit/start" size="slim" icon={ArrowRightIcon}>
                     扫描
                   </Button>
                 </InlineStack>
