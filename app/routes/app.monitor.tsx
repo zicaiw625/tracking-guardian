@@ -5,6 +5,7 @@ import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider,
 import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, AlertCircleIcon, CheckCircleIcon, } from "~/components/icons";
 import { TableSkeleton, EnhancedEmptyState, useToastContext, CardSkeleton } from "~/components/ui";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { runDiagnostics } from "~/services/monitoring-diagnostics.server";
 import { useState, Suspense, lazy } from "react";
 
@@ -521,6 +522,17 @@ export default function MonitorPage() {
             }
         ]}>
       <BlockStack gap="500">
+        <PageIntroCard
+          title="上线监控总览"
+          description="持续跟踪事件成功率、失败率与缺参率，异常波动自动提醒。"
+          items={[
+            "查看目的地发送成功率与延迟",
+            "下载失败明细与 payload",
+            "告警配置在设置页统一管理",
+          ]}
+          primaryAction={{ content: "配置告警", url: "/app/settings?tab=alerts" }}
+          secondaryAction={{ content: "导出报告", url: "/app/reports" }}
+        />
         {}
         {(() => {
           const piiRegulationDate = new Date("2025-12-10");

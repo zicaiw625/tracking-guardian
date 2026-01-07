@@ -15,6 +15,7 @@ import {
   Divider,
 } from "@shopify/polaris";
 import { EnhancedEmptyState, useToastContext } from "~/components/ui";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { validateTestEnvironment } from "~/services/migration-wizard.server";
@@ -193,6 +194,17 @@ export default function PixelTestPage() {
       subtitle="实时事件流 / Payload 预览"
       backAction={{ content: "返回 Pixels", url: "/app/pixels" }}
     >
+      <PageIntroCard
+        title="Test 环境验收"
+        description="跟随测试清单触发标准事件，检查 payload 参数完整率与平台发送状态。"
+        items={[
+          "优先验证 checkout_started/checkout_completed",
+          "确认 value/currency/items 参数完整率",
+          "验收通过后再切换 Live",
+        ]}
+        primaryAction={{ content: "返回 Pixels", url: "/app/pixels" }}
+        secondaryAction={{ content: "查看验收页", url: "/app/verification" }}
+      />
       <Layout>
         <Layout.Section>
           <Card>

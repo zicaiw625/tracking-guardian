@@ -14,6 +14,7 @@ import { MigrationChecklistEnhanced } from "~/components/scan/MigrationChecklist
 import { generateMigrationChecklist } from "~/services/migration-checklist.server";
 import { ManualPastePanel } from "~/components/scan/ManualPastePanel";
 import { GuidedSupplement } from "~/components/scan/GuidedSupplement";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 
 const ScriptCodeEditor = lazy(() => import("~/components/scan/ScriptCodeEditor").then(module => ({ default: module.ScriptCodeEditor })));
 import { authenticate } from "../shopify.server";
@@ -1094,6 +1095,46 @@ export function ScanPage({
     const idleCallbackHandlesRef = useRef<Array<number | IdleCallbackHandle>>([]);
     const exportBlobUrlRef = useRef<string | null>(null);
 
+    const introConfig = useMemo(() => {
+        if (selectedTab === 1) {
+            return {
+                title: "手动补充 Additional Scripts",
+                description: "补齐 Shopify API 无法读取的 Additional Scripts，确保报告覆盖 Thank you / Order status。",
+                items: [
+                    "粘贴 Additional Scripts 内容进行分析",
+                    "生成完整的迁移清单与风险分级",
+                    "支持一键保存到审计记录",
+                ],
+                primaryAction: { content: "进入手动分析", url: "/app/audit/manual" },
+                secondaryAction: { content: "查看报告", url: "/app/audit/report" },
+            };
+        }
+        if (selectedTab === 2) {
+            return {
+                title: "Audit 迁移清单",
+                description: "查看风险分级、推荐迁移路径与预估工时，作为迁移交付清单。",
+                items: [
+                    "清单支持 PDF/CSV 导出",
+                    "标注 Web Pixel / UI Extension / Server-side 路径",
+                    "优先处理高风险资产",
+                ],
+                primaryAction: { content: "查看完整报告", url: "/app/audit/report" },
+                secondaryAction: { content: "返回扫描", url: "/app/audit/scan" },
+            };
+        }
+        return {
+            title: "Audit 自动扫描",
+            description: "自动扫描 ScriptTags 与 Web Pixels，生成迁移风险评估和建议。",
+            items: [
+                "检测已安装像素与平台信号",
+                "识别高风险脚本与阻塞项",
+                "输出迁移路径与工时建议",
+            ],
+            primaryAction: { content: "开始扫描", url: "/app/audit/scan" },
+            secondaryAction: { content: "手动补充", url: "/app/audit/manual" },
+        };
+    }, [selectedTab]);
+
     useEffect(() => {
         setSelectedTab(initialTab);
     }, [initialTab]);
@@ -1965,6 +2006,14 @@ export function ScanPage({
           </BlockStack>
         </Banner>
       )}
+
+      <PageIntroCard
+        title={introConfig.title}
+        description={introConfig.description}
+        items={introConfig.items}
+        primaryAction={introConfig.primaryAction}
+        secondaryAction={introConfig.secondaryAction}
+      />
 
         <Tabs tabs={visibleTabs} selected={selectedTab} onSelect={setSelectedTab}>
           {}

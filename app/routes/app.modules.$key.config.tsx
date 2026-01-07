@@ -24,6 +24,7 @@ import { getPlanOrDefault, type PlanId } from "../services/billing/plans";
 import { isPlanAtLeast } from "../utils/plans";
 import { DisplayRulesEditor } from "../components/ui-blocks/DisplayRulesEditor";
 import { useToastContext } from "../components/ui";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -148,6 +149,16 @@ export default function UiModuleConfigPage() {
       <Layout>
         <Layout.Section>
           <BlockStack gap="500">
+            <PageIntroCard
+              title="配置说明"
+              description="调整文案、本地化与显示规则，发布后在 Checkout 中生效。"
+              items={[
+                "支持多语言与可见性规则",
+                "配置后需在 Checkout Editor 发布",
+              ]}
+              primaryAction={{ content: "发布指引", url: `/app/modules/${moduleKey}/publish` }}
+              secondaryAction={{ content: "返回模块列表", url: "/app/ui-blocks" }}
+            />
             {!canEdit && (
               <Banner tone="warning">
                 <BlockStack gap="200">
@@ -296,4 +307,3 @@ export default function UiModuleConfigPage() {
     </Page>
   );
 }
-

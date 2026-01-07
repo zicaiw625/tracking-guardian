@@ -1,9 +1,21 @@
 import { Page, Card, Text, BlockStack, InlineStack, Button, Banner, List } from "@shopify/polaris";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 
 export default function AuditStartPage() {
   return (
     <Page title="Audit 扫描入口" subtitle="引导说明 • 扫描耗时提示 • 一键开始扫描">
       <BlockStack gap="500">
+        <PageIntroCard
+          title="Audit 目的与输出"
+          description="在 3 分钟内完成扫描，生成可交付的迁移清单与风险分级。"
+          items={[
+            "自动扫描 ScriptTags / Web Pixels",
+            "手动补充 Additional Scripts",
+            "输出迁移路径与预估工时",
+          ]}
+          primaryAction={{ content: "开始扫描", url: "/app/audit/scan" }}
+          secondaryAction={{ content: "手动补充", url: "/app/audit/manual" }}
+        />
         <Card>
           <BlockStack gap="400">
             <Text as="h2" variant="headingMd">

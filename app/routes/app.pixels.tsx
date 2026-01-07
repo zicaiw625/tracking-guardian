@@ -13,6 +13,7 @@ import {
   DataTable,
 } from "@shopify/polaris";
 import { EnhancedEmptyState } from "~/components/ui";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 
@@ -161,6 +162,17 @@ export default function PixelsListPage() {
       primaryAction={{ content: "新建 Pixel 配置", url: "/app/pixels/new" }}
     >
       <BlockStack gap="500">
+        <PageIntroCard
+          title="像素迁移中心"
+          description="用模板化流程完成像素迁移、测试与回滚，确保事件映射与参数完整率。"
+          items={[
+            "支持 Test/Live 双环境",
+            "映射 Shopify 标准事件到各平台",
+            "版本管理支持一键回滚",
+          ]}
+          primaryAction={{ content: "新建 Pixel 配置", url: "/app/pixels/new" }}
+          secondaryAction={{ content: "查看测试指引", url: "/app/pixels/new" }}
+        />
         {}
         <Card>
           <BlockStack gap="300">

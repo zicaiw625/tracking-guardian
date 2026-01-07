@@ -15,6 +15,7 @@ import {
   Box,
 } from "@shopify/polaris";
 import { ClipboardIcon, CheckCircleIcon } from "~/components/icons";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -90,6 +91,16 @@ export default function VerificationStartPage() {
       backAction={{ content: "返回验收页面", url: "/app/verification" }}
     >
       <BlockStack gap="500">
+        <PageIntroCard
+          title="生成测试清单"
+          description="将验收步骤整理为清单，便于测试与交付。"
+          items={[
+            "覆盖像素层标准事件",
+            "补充订单层对账验证",
+            "支持复制或下载 CSV",
+          ]}
+          primaryAction={{ content: "返回验收页", url: "/app/verification" }}
+        />
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -288,4 +299,3 @@ export default function VerificationStartPage() {
     </Page>
   );
 }
-

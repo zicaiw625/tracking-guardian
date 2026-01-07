@@ -37,6 +37,7 @@ import {
 } from "~/components/icons";
 import { EnhancedEmptyState, useToastContext } from "~/components/ui";
 import { DisplayRulesEditor } from "~/components/ui-blocks/DisplayRulesEditor";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -1208,6 +1209,17 @@ export default function UiBlocksPage() {
       }}
     >
       <BlockStack gap="500">
+        <PageIntroCard
+          title="模块发布流程"
+          description="配置模块文案与显示规则，并在 Shopify Checkout Editor 中完成发布。"
+          items={[
+            "Thank you / Order status 双 target 支持",
+            "支持本地化与显示规则",
+            "发布后可回到本页查看状态",
+          ]}
+          primaryAction={{ content: "查看发布指引", url: "/app/modules/order_tracking/publish" }}
+          secondaryAction={{ content: "查看 Audit 报告", url: "/app/audit/report" }}
+        />
         <Card>
           <InlineStack align="space-between" blockAlign="center">
             <BlockStack gap="100">

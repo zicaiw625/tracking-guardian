@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, Icon, DataTable, } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, getBillingHistory, type BillingHistoryItem, type PlanId } from "../services/billing.server";
@@ -241,6 +242,18 @@ export default function BillingPage() {
               请升级套餐以继续追踪更多订单。
             </p>
           </Banner>)}
+
+        <PageIntroCard
+          title="订阅与账单概览"
+          description="查看当前套餐、使用量、账单历史，并管理续费与升级。"
+          items={[
+            "套餐权益与用量一目了然",
+            "支持在 Shopify 账单中心查看发票",
+            "升级后自动解锁对应功能",
+          ]}
+          primaryAction={{ content: "查看套餐", url: "/app/billing" }}
+          secondaryAction={{ content: "账单中心", url: billingPortalUrl }}
+        />
 
         <Layout>
           <Layout.Section>

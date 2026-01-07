@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLoaderData, useSubmit, useActionData, useNavigation, useSearchParams } from "@remix-run/react";
 import { Page, BlockStack, Banner, Tabs, ContextualSaveBar } from "@shopify/polaris";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useToastContext } from "~/components/ui";
 
 import { settingsLoader } from "./loader.server";
@@ -485,6 +486,17 @@ export default function SettingsPage() {
       )}
 
       <BlockStack gap="500">
+        <PageIntroCard
+          title="设置总览"
+          description="配置告警通知、服务端追踪、安全与隐私策略，以及订阅计划。"
+          items={[
+            "告警阈值集中在「警报通知」",
+            "服务端追踪用于 CAPI 配置",
+            "数据保留与隐私策略在「安全与隐私」",
+          ]}
+          primaryAction={{ content: "查看订阅计划", url: "/app/settings?tab=subscription" }}
+          secondaryAction={{ content: "配置告警", url: "/app/settings?tab=alerts" }}
+        />
 
         <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (
