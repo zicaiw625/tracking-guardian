@@ -1017,7 +1017,19 @@ function getUpgradeBannerTone(
     }
 }
 
-export default function ScanPage() {
+type ScanPageProps = {
+    initialTab?: number;
+    showTabs?: boolean;
+    pageTitle?: string;
+    pageSubtitle?: string;
+};
+
+export function ScanPage({
+    initialTab = 0,
+    showTabs = true,
+    pageTitle = "Audit 风险报告（免费获客）",
+    pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接，导出需升级 Go-Live",
+}: ScanPageProps) {
     const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
@@ -1027,7 +1039,7 @@ export default function ScanPage() {
     const saveAnalysisFetcher = useFetcher();
     const processPasteFetcher = useFetcher();
     const { showSuccess, showError } = useToastContext();
-    const [selectedTab, setSelectedTab] = useState(0);
+    const [selectedTab, setSelectedTab] = useState(initialTab);
     const [analysisSaved, setAnalysisSaved] = useState(false);
     const [scriptContent, setScriptContent] = useState("");
     const [analysisResult, setAnalysisResult] = useState<ScriptAnalysisResult | null>(null);
@@ -1054,6 +1066,10 @@ export default function ScanPage() {
     const abortControllerRef = useRef<AbortController | null>(null);
     const idleCallbackHandlesRef = useRef<Array<number | IdleCallbackHandle>>([]);
     const exportBlobUrlRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        setSelectedTab(initialTab);
+    }, [initialTab]);
 
     const planIdSafe = planId || "free";
     const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
@@ -1700,6 +1716,7 @@ export default function ScanPage() {
     { id: "manual-supplement", content: "手动补充" },
     { id: "migration-checklist", content: "迁移清单" },
   ];
+  const visibleTabs = showTabs ? tabs : [];
   const paginationLimitWarning = (
     <Banner tone="info" title="扫描分页说明">
       <BlockStack gap="200">
@@ -1842,7 +1859,7 @@ export default function ScanPage() {
     </Banner>
   ) : null;
 
-  return (<Page title="Audit 风险报告（免费获客）" subtitle="迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接，导出需升级 Go-Live">
+  return (<Page title={pageTitle} subtitle={pageSubtitle}>
     <BlockStack gap="500">
       {additionalScriptsWarning}
       {paginationLimitWarning}
@@ -1922,7 +1939,7 @@ export default function ScanPage() {
         </Banner>
       )}
 
-        <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
+        <Tabs tabs={visibleTabs} selected={selectedTab} onSelect={setSelectedTab}>
           {selectedTab === 0 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
                 <InlineStack align="space-between">
@@ -3507,6 +3524,16 @@ export default function ScanPage() {
           {selectedTab === 2 && (
             <BlockStack gap="500">
               <Box paddingBlockStart="400">
+                <InlineStack gap="200" wrap>
+                  <Button variant="primary" url="/app/migrate">
+                    迁移像素（付费）
+                  </Button>
+                  <Button url="/app/migrate#modules">
+                    安装页面模块（付费）
+                  </Button>
+                </InlineStack>
+              </Box>
+              <Box paddingBlockStart="400">
                 {!latestScan ? (
                   <Card>
                     <BlockStack gap="400">
@@ -3736,3 +3763,5 @@ export default function ScanPage() {
       </BlockStack>
     </Page>);
 }
+
+export default ScanPage;
