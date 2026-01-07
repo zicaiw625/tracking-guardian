@@ -1,14 +1,6 @@
-import { ScanPage, loader, action } from "./app.scan";
+export { loader, action } from "./app.scan";
+import { ScanPage } from "./app.scan";
 
-export { loader, action };
-
-export default function AuditManualRoute() {
-  return (
-    <ScanPage
-      initialTab={1}
-      showTabs={false}
-      pageTitle="Audit 手动补充"
-      pageSubtitle="Additional Scripts 粘贴 • 渠道勾选 • 上传清单"
-    />
-  );
+export default function AuditManualPage() {
+  return <ScanPage initialTab={1} showTabs={true} pageTitle="Audit 手动分析" pageSubtitle="手动粘贴 Additional Scripts 代码进行分析，Shopify API 无法自动读取 checkout.liquid 中的 Additional Scripts" />;
 }

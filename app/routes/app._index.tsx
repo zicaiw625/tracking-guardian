@@ -22,11 +22,14 @@ import {
   List,
 } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, ArrowRightIcon, ClockIcon, LockIcon } from "~/components/icons";
-import { EnhancedEmptyState } from "~/components/ui";
+import { EnhancedEmptyState, CardSkeleton } from "~/components/ui";
 import { UpgradeHealthCheck } from "~/components/onboarding/UpgradeHealthCheck";
 import { PostInstallScanProgress } from "~/components/onboarding/PostInstallScanProgress";
-import { RiskDistributionChart } from "~/components/dashboard/RiskDistributionChart";
-import { DependencyGraphPreview } from "~/components/dashboard/DependencyGraphPreview";
+import { lazy, Suspense } from "react";
+const RiskDistributionChart = lazy(() => import("~/components/dashboard/RiskDistributionChart").then(module => ({ default: module.RiskDistributionChart })));
+const DependencyGraphPreview = lazy(() => import("~/components/dashboard/DependencyGraphPreview").then(module => ({ default: module.DependencyGraphPreview })));
+import { HealthMetrics24hCard } from "~/components/dashboard/HealthMetrics24hCard";
+import { AlertsTodoCard } from "~/components/dashboard/AlertsTodoCard";
 
 import { authenticate } from "../shopify.server";
 import { getDashboardData } from "../services/dashboard.server";
@@ -370,14 +373,63 @@ const UpgradeStatusCard = memo(function UpgradeStatusCard({
         </InlineStack>
 
         <BlockStack gap="300">
+          {}
           <InlineStack align="space-between" blockAlign="center">
-            <Text as="span" variant="bodyMd" fontWeight="semibold">
-              当前状态
-            </Text>
+            <BlockStack gap="100">
+              <Text as="span" variant="bodyMd" fontWeight="semibold">
+                Checkout Extensibility 状态
+              </Text>
+              <Text as="span" variant="bodySm" tone="subdued">
+                {upgradeStatus.isUpgraded
+                  ? "您的店铺已使用新版 Checkout Extensibility"
+                  : "您的店铺仍在使用旧版 Checkout 系统"}
+              </Text>
+            </BlockStack>
             <Badge tone={statusBadge.tone}>
               {upgradeStatus.isUpgraded ? "新版本" : "旧版本"}
             </Badge>
           </InlineStack>
+
+          {}
+          {!upgradeStatus.isUpgraded && (
+            <>
+              <Divider />
+              <Banner tone="warning">
+                <BlockStack gap="200">
+                  <Text as="p" variant="bodySm" fontWeight="semibold">
+                    <strong>影响提示：</strong>
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        旧版 ScriptTags 和 Additional Scripts 将在截止日期后停止执行
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        追踪脚本可能失效，导致转化数据丢失
+                      </Text>
+                    </List.Item>
+                    <List.Item>
+                      <Text as="span" variant="bodySm">
+                        建议尽快完成迁移以避免追踪中断
+                      </Text>
+                    </List.Item>
+                  </List>
+                </BlockStack>
+              </Banner>
+            </>
+          )}
+
+          {}
+          <Button
+            url="/app/scan"
+            variant="primary"
+            size="large"
+            fullWidth
+          >
+            开始 Audit
+          </Button>
 
           <Divider />
 
@@ -503,10 +555,12 @@ const RiskScoreCard = memo(function RiskScoreCard({
   riskScore,
   riskLevel,
   estimatedMigrationTimeMinutes,
+  topRiskSources,
 }: {
   riskScore?: number | null;
   riskLevel?: "high" | "medium" | "low" | null;
   estimatedMigrationTimeMinutes?: number | null;
+  topRiskSources?: Array<{ source: string; count: number; category: string }>;
 }) {
   const riskBadge =
     riskLevel === "high"
@@ -579,6 +633,30 @@ const RiskScoreCard = memo(function RiskScoreCard({
             {formatEstimatedTime(estimatedMigrationTimeMinutes ?? null)}
           </Text>
         </InlineStack>
+
+        {}
+        {topRiskSources && topRiskSources.length > 0 && (
+          <>
+            <Divider />
+            <BlockStack gap="200">
+              <Text as="span" variant="bodyMd" fontWeight="semibold">
+                主要风险来源
+              </Text>
+              <List>
+                {topRiskSources.map((source, index) => (
+                  <List.Item key={`${source.category}-${source.source}`}>
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="span" variant="bodySm">
+                        {index + 1}. {source.source}
+                      </Text>
+                      <Badge tone="critical">{source.count} 个</Badge>
+                    </InlineStack>
+                  </List.Item>
+                ))}
+              </List>
+            </BlockStack>
+          </>
+        )}
       </BlockStack>
     </Card>
   );
@@ -623,6 +701,55 @@ const MigrationProgressCard = memo(function MigrationProgressCard({
         </InlineStack>
 
         <ProgressBar progress={migrationProgress.progressPercentage} />
+
+        {}
+        {(migrationProgress.auditCompletion || migrationProgress.pixelsStatus || migrationProgress.modulesEnabled !== undefined || migrationProgress.verificationLatest) && (
+          <BlockStack gap="300">
+            <Divider />
+            <Text as="h3" variant="headingSm">
+              详细进度
+            </Text>
+            <BlockStack gap="200">
+              {migrationProgress.auditCompletion && (
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="span" variant="bodySm">Audit 完成度</Text>
+                  <Badge tone={migrationProgress.auditCompletion.completed ? "success" : migrationProgress.auditCompletion.status === "in_progress" ? "info" : undefined}>
+                    {migrationProgress.auditCompletion.completed ? "已完成" : migrationProgress.auditCompletion.status === "in_progress" ? "进行中" : "待开始"}
+                  </Badge>
+                </InlineStack>
+              )}
+              {migrationProgress.pixelsStatus && (
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="span" variant="bodySm">Pixels 状态</Text>
+                  <InlineStack gap="200">
+                    <Badge tone={migrationProgress.pixelsStatus.test > 0 ? "warning" : undefined}>
+                      Test: {migrationProgress.pixelsStatus.test}
+                    </Badge>
+                    <Badge tone={migrationProgress.pixelsStatus.live > 0 ? "success" : undefined}>
+                      Live: {migrationProgress.pixelsStatus.live}
+                    </Badge>
+                  </InlineStack>
+                </InlineStack>
+              )}
+              {migrationProgress.modulesEnabled !== undefined && (
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="span" variant="bodySm">Modules 启用数</Text>
+                  <Badge tone={migrationProgress.modulesEnabled > 0 ? "success" : undefined}>
+                    {migrationProgress.modulesEnabled} 个
+                  </Badge>
+                </InlineStack>
+              )}
+              {migrationProgress.verificationLatest && (
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="span" variant="bodySm">Verification 最近结果</Text>
+                  <Badge tone={migrationProgress.verificationLatest.status === "completed" ? "success" : migrationProgress.verificationLatest.status === "running" ? "info" : undefined}>
+                    {migrationProgress.verificationLatest.status === "completed" ? "已完成" : migrationProgress.verificationLatest.status === "running" ? "运行中" : migrationProgress.verificationLatest.status === "pending" ? "待开始" : "无记录"}
+                  </Badge>
+                </InlineStack>
+              )}
+            </BlockStack>
+          </BlockStack>
+        )}
 
         <BlockStack gap="200">
           {migrationProgress.stages.map((stage, index) => {
@@ -1264,21 +1391,57 @@ export default function Index() {
           />
         )}
 
+        {}
+        {}
         <Layout>
           <Layout.Section variant="oneThird">
             <UpgradeStatusCard upgradeStatus={data.upgradeStatus} />
           </Layout.Section>
+          {}
           <Layout.Section variant="oneThird">
             <RiskScoreCard
               riskScore={data.riskScore}
               riskLevel={data.riskLevel}
               estimatedMigrationTimeMinutes={data.estimatedMigrationTimeMinutes}
+              topRiskSources={data.topRiskSources}
             />
           </Layout.Section>
+          {}
           <Layout.Section variant="oneThird">
             <MigrationProgressCard migrationProgress={data.migrationProgress} />
           </Layout.Section>
         </Layout>
+
+        {}
+        {data.healthMetrics24h && (
+          <Layout>
+            <Layout.Section>
+              <HealthMetrics24hCard metrics={data.healthMetrics24h} />
+            </Layout.Section>
+          </Layout>
+        )}
+
+        {}
+        <Banner tone="info" title="事件口径说明">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm">
+              <strong>checkout_started 事件说明：</strong>在 extensible 店铺中，每次进入 checkout 页面都会触发 checkout_started 事件。
+              这意味着如果用户多次进入 checkout（例如返回修改信息），该事件会被多次触发，可能影响事件量统计和去重逻辑。
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              建议：在分析事件量时，请考虑 checkout_started 的重复触发特性，重点关注 checkout_completed 等最终转化事件。
+            </Text>
+          </BlockStack>
+        </Banner>
+
+        {}
+        {data.activeAlerts && data.activeAlerts.length > 0 && (
+          <Layout>
+            <Layout.Section>
+              <AlertsTodoCard alerts={data.activeAlerts} />
+            </Layout.Section>
+          </Layout>
+        )}
 
         <Card>
           <BlockStack gap="400">
@@ -1445,12 +1608,16 @@ export default function Index() {
           <Layout>
             {data.dependencyGraph && (
               <Layout.Section variant="oneHalf">
-                <DependencyGraphPreview dependencyGraph={data.dependencyGraph} />
+                <Suspense fallback={<CardSkeleton />}>
+                  <DependencyGraphPreview dependencyGraph={data.dependencyGraph} />
+                </Suspense>
               </Layout.Section>
             )}
             {data.riskDistribution && (
               <Layout.Section variant="oneHalf">
-                <RiskDistributionChart distribution={data.riskDistribution} />
+                <Suspense fallback={<CardSkeleton />}>
+                  <RiskDistributionChart distribution={data.riskDistribution} />
+                </Suspense>
               </Layout.Section>
             )}
           </Layout>

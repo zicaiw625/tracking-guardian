@@ -1464,7 +1464,6 @@ export default function WorkspacePage() {
                   </Box>
                 )}
 
-
                 {selectedTab === 5 && (
                   <Box paddingBlockStart="400">
                     <BlockStack gap="500">
@@ -1828,7 +1827,6 @@ export default function WorkspacePage() {
           </Modal.Section>
         </Modal>
       )}
-
 
       <Modal
         open={showCreateTaskModal}

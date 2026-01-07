@@ -12,6 +12,8 @@ import {
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers";
+import { normalizePlanId } from "../services/billing/plans";
+import { isPlanAtLeast } from "../utils/plans";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -61,6 +63,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           result.previousEnvironment !== "live" &&
           result.newEnvironment === "live"
         ) {
+                    const planId = normalizePlanId(shop.plan ?? "free");
+          const isAgency = isPlanAtLeast(planId, "agency");
+
+                    let riskScore: number | undefined;
+          let assetCount: number | undefined;
+          try {
+            const latestScan = await prisma.scanReport.findFirst({
+              where: { shopId: shop.id },
+              orderBy: { createdAt: "desc" },
+              select: { riskScore: true },
+            });
+            if (latestScan) {
+              riskScore = latestScan.riskScore;
+              const assets = await prisma.auditAsset.count({
+                where: { shopId: shop.id },
+              });
+              assetCount = assets;
+            }
+          } catch (error) {
+                      }
+
           safeFireAndForget(
             trackEvent({
               shopId: shop.id,
@@ -70,7 +93,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 platform,
                 previousEnvironment: result.previousEnvironment,
                 newEnvironment: result.newEnvironment,
-              },
+                                plan: shop.plan ?? "free",
+                role: isAgency ? "agency" : "merchant",
+                destination_type: platform,
+                environment: result.newEnvironment,
+                risk_score: riskScore,
+                asset_count: assetCount,
+                              },
             })
           );
         }

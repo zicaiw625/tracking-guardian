@@ -17,7 +17,11 @@ import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
 
 function normalizeTopic(topic: string): string {
-  return topic.toUpperCase().replace(/\//g, '_');
+  // Shopify topics are usually like "orders/create" — normalize to "ORDERS_CREATE"
+  return topic
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 const WEBHOOK_HANDLERS: Record<

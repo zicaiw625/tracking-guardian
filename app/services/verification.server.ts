@@ -8,6 +8,8 @@ import type { Prisma } from "@prisma/client";
 import { getEventLogs } from "./event-log.server";
 import { trackEvent } from "./analytics.server";
 import { safeFireAndForget } from "../utils/helpers";
+import { normalizePlanId } from "../services/billing/plans";
+import { isPlanAtLeast } from "../utils/plans";
 
 export interface VerificationTestItem {
   id: string;
@@ -590,7 +592,51 @@ export async function analyzeRecentEvents(
     select: { shopDomain: true },
   });
   if (shop) {
-    safeFireAndForget(
+        const shopRecord = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { plan: true },
+    });
+    const planId = normalizePlanId(shopRecord?.plan ?? "free");
+    const isAgency = isPlanAtLeast(planId, "agency");
+    const verificationPassRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
+
+        const pixelConfigs = await prisma.pixelConfig.findMany({
+      where: {
+        shopId,
+        isActive: true,
+        platform: { in: targetPlatforms },
+      },
+      select: {
+        platform: true,
+        environment: true,
+      },
+      take: 1,
+    });
+
+    const destinationType = pixelConfigs.length > 0 ? pixelConfigs[0].platform : targetPlatforms[0] || "none";
+    const environment = pixelConfigs.length > 0 ? pixelConfigs[0].environment : "live";
+
+        const firstEventName = filteredEventLogs.length > 0 ? filteredEventLogs[0].eventName : undefined;
+
+        let riskScore: number | undefined;
+    let assetCount: number | undefined;
+    try {
+      const latestScan = await prisma.scanReport.findFirst({
+        where: { shopId },
+        orderBy: { createdAt: "desc" },
+        select: { riskScore: true },
+      });
+      if (latestScan) {
+        riskScore = latestScan.riskScore;
+        const assets = await prisma.auditAsset.count({
+          where: { shopId },
+        });
+        assetCount = assets;
+      }
+    } catch (error) {
+          }
+
+        safeFireAndForget(
       trackEvent({
         shopId,
         shopDomain: shop.shopDomain,
@@ -600,6 +646,20 @@ export async function analyzeRecentEvents(
           runId,
           runType: run.runType,
           platforms: targetPlatforms,
+          plan: shopRecord?.plan ?? "free",
+          role: isAgency ? "agency" : "merchant",
+          verification_pass_rate: verificationPassRate,
+          totalTests,
+          passedTests,
+          failedTests,
+          missingParamTests,
+          parameterCompleteness,
+          valueAccuracy,
+                    destination_type: destinationType,
+          environment: environment,
+          first_event_name: firstEventName,
+          risk_score: riskScore,
+          asset_count: assetCount,
         },
       })
     );

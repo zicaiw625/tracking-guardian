@@ -90,6 +90,10 @@ export async function generateReportData(
         migrationStatus: true,
         priority: true,
         estimatedTimeMinutes: true,
+        suggestedMigration: true,
+        displayName: true,
+        fingerprint: true,
+        details: true,
       },
     });
 
@@ -105,6 +109,10 @@ export async function generateReportData(
         migrationStatus: asset.migrationStatus,
         priority: asset.priority,
         estimatedTimeMinutes: asset.estimatedTimeMinutes,
+        suggestedMigration: asset.suggestedMigration,
+        displayName: asset.displayName,
+        fingerprint: asset.fingerprint,
+        details: asset.details as Record<string, unknown> | null,
       })),
     };
   }
@@ -308,7 +316,9 @@ export interface ScanReportData {
     estimatedTimeMinutes: number | null;
     suggestedMigration: string;
     displayName: string | null;
+    fingerprint: string | null;
     dependencies?: string[];
+    details: Record<string, unknown> | null;
   }>;
   createdAt: Date;
 }
@@ -415,6 +425,122 @@ export interface BatchReportData {
   };
 }
 
+/**
+ * PRD 2.2: 提取迁移所需的信息
+ * 根据资产类型和迁移路径，提取需要的信息（如Pixel ID、Token、问卷题目等）
+ */
+function extractRequiredInfo(
+  asset: {
+    category: string;
+    platform: string | null;
+    suggestedMigration: string;
+    details: Record<string, unknown> | null;
+  }
+): string {
+  const info: string[] = [];
+  const details = asset.details || {};
+
+    if (asset.suggestedMigration === "web_pixel") {
+    if (asset.platform === "google" || asset.platform === "ga4") {
+      if (details.pixelId) info.push(`Pixel ID: ${details.pixelId}`);
+      if (details.measurementId) info.push(`Measurement ID: ${details.measurementId}`);
+      if (details.apiSecret) info.push(`API Secret: [已配置]`);
+    } else if (asset.platform === "meta" || asset.platform === "facebook") {
+      if (details.pixelId) info.push(`Pixel ID: ${details.pixelId}`);
+      if (details.accessToken) info.push(`Access Token: [已配置]`);
+      if (details.testEventCode) info.push(`Test Event Code: ${details.testEventCode}`);
+    } else if (asset.platform === "tiktok") {
+      if (details.pixelId) info.push(`Pixel ID: ${details.pixelId}`);
+      if (details.accessToken) info.push(`Access Token: [已配置]`);
+    }
+  }
+
+    if (asset.suggestedMigration === "ui_extension") {
+    if (asset.category === "survey") {
+      if (details.questions) {
+        const questions = Array.isArray(details.questions)
+          ? details.questions
+          : typeof details.questions === "string"
+            ? JSON.parse(details.questions)
+            : [];
+        if (questions.length > 0) {
+          info.push(`问卷题目: ${questions.length} 题`);
+          questions.slice(0, 3).forEach((q: unknown, idx: number) => {
+            if (typeof q === "string") {
+              info.push(`  ${idx + 1}. ${q.substring(0, 50)}${q.length > 50 ? "..." : ""}`);
+            } else if (q && typeof q === "object" && "text" in q) {
+              info.push(`  ${idx + 1}. ${String((q as { text: string }).text).substring(0, 50)}`);
+            }
+          });
+        }
+      }
+    }
+    if (asset.category === "support") {
+      if (details.helpdeskUrl) info.push(`帮助中心URL: ${details.helpdeskUrl}`);
+      if (details.contactEmail) info.push(`联系邮箱: ${details.contactEmail}`);
+    }
+  }
+
+    if (asset.suggestedMigration === "server_side") {
+    if (details.apiKey) info.push(`API Key: [已配置]`);
+    if (details.apiSecret) info.push(`API Secret: [已配置]`);
+    if (details.endpoint) info.push(`Endpoint: ${details.endpoint}`);
+  }
+
+    if (info.length === 0) {
+    if (asset.suggestedMigration === "web_pixel") {
+      info.push("需要配置平台凭据（Pixel ID、Access Token等）");
+    } else if (asset.suggestedMigration === "ui_extension") {
+      info.push("需要配置模块设置（文案、显示规则等）");
+    } else if (asset.suggestedMigration === "server_side") {
+      info.push("需要配置服务端API凭据");
+    } else {
+      info.push("无需额外信息");
+    }
+  }
+
+  return info.join("; ");
+}
+
+/**
+ * PRD 2.2: 获取风险原因
+ */
+function getRiskReason(
+  asset: {
+    category: string;
+    platform: string | null;
+    riskLevel: string;
+    details: Record<string, unknown> | null;
+  }
+): string {
+  const reasons: string[] = [];
+  const details = asset.details || {};
+
+  if (asset.riskLevel === "high") {
+    if (asset.category === "pixel") {
+      reasons.push("像素追踪脚本将在Checkout Extensibility升级后失效");
+    } else if (asset.category === "affiliate") {
+      reasons.push("联盟营销脚本需要迁移到服务端");
+    } else {
+      reasons.push("高风险资产，需要优先迁移");
+    }
+  } else if (asset.riskLevel === "medium") {
+    if (asset.category === "survey" || asset.category === "support") {
+      reasons.push("UI模块需要迁移到Checkout UI Extension");
+    } else {
+      reasons.push("中等风险，建议尽快迁移");
+    }
+  } else {
+    reasons.push("低风险，可延后处理");
+  }
+
+    if (asset.platform) {
+    reasons.push(`平台: ${asset.platform}`);
+  }
+
+  return reasons.join("; ");
+}
+
 export async function fetchScanReportData(shopId: string, scanId?: string): Promise<ScanReportData | null> {
   try {
     const shop = await prisma.shop.findUnique({
@@ -447,7 +573,9 @@ export async function fetchScanReportData(shopId: string, scanId?: string): Prom
         estimatedTimeMinutes: true,
         suggestedMigration: true,
         displayName: true,
+        fingerprint: true,
         dependencies: true,
+        details: true,
       },
       orderBy: [
         { priority: "desc" },
@@ -470,7 +598,9 @@ export async function fetchScanReportData(shopId: string, scanId?: string): Prom
         estimatedTimeMinutes: asset.estimatedTimeMinutes,
         suggestedMigration: asset.suggestedMigration,
         displayName: asset.displayName,
+        fingerprint: asset.fingerprint,
         dependencies: asset.dependencies ? (asset.dependencies as string[]) : undefined,
+        details: asset.details as Record<string, unknown> | null,
       })),
       createdAt: scanReport.createdAt,
     };
@@ -871,45 +1001,53 @@ export function generateScanReportHtml(data: ScanReportData): string {
   </div>
 
   <h2>📋 迁移清单（按优先级排序）</h2>
+  <p style="color: #6d7175; font-size: 14px; margin-bottom: 15px;">
+    <strong>PRD 2.2:</strong> 报告采用4列结构：资产名称/指纹、风险等级+原因、推荐迁移路径、预估工时+需要的信息
+  </p>
   <table>
     <thead>
       <tr>
-        <th>资产名称</th>
-        <th>类别</th>
-        <th>平台</th>
-        <th>风险等级</th>
-        <th>优先级</th>
-        <th>预计时间</th>
-        <th>迁移方式</th>
-        <th>迁移状态</th>
-        <th>依赖关系</th>
+        <th>资产名称/指纹</th>
+        <th>风险等级 + 原因</th>
+        <th>推荐迁移路径</th>
+        <th>预估工时 + 需要的信息</th>
       </tr>
     </thead>
     <tbody>
       ${sortedAssets.map((asset) => {
-        const priorityClass = asset.priority && asset.priority >= 8 ? "priority-high" :
-                             asset.priority && asset.priority >= 5 ? "priority-medium" : "priority-low";
-        const priorityDisplay = asset.priority ? `${asset.priority}/10` : "待计算";
+        const assetName = asset.displayName || asset.category;
+        const fingerprint = asset.fingerprint ? `(${asset.fingerprint.substring(0, 8)}...)` : "";
+        const assetNameWithFingerprint = `${assetName} ${fingerprint}`;
+
+        const riskReason = getRiskReason({
+          category: asset.category,
+          platform: asset.platform,
+          riskLevel: asset.riskLevel,
+          details: asset.details,
+        });
+        const riskDisplay = `<span class="badge badge-${asset.riskLevel}">${riskLevelLabels[asset.riskLevel] || asset.riskLevel}</span><br/><small style="color: #6d7175;">${riskReason}</small>`;
+
+        const migrationPath = migrationTypeLabels[asset.suggestedMigration] || asset.suggestedMigration;
+
         const timeDisplay = asset.estimatedTimeMinutes
           ? asset.estimatedTimeMinutes < 60
             ? `${asset.estimatedTimeMinutes} 分钟`
             : `${Math.floor(asset.estimatedTimeMinutes / 60)} 小时 ${asset.estimatedTimeMinutes % 60} 分钟`
           : "待估算";
-        const dependenciesDisplay = asset.dependencies && asset.dependencies.length > 0
-          ? `${asset.dependencies.length} 个依赖`
-          : "无";
+        const requiredInfo = extractRequiredInfo({
+          category: asset.category,
+          platform: asset.platform,
+          suggestedMigration: asset.suggestedMigration,
+          details: asset.details,
+        });
+        const timeAndInfo = `${timeDisplay}<br/><small style="color: #6d7175;">${requiredInfo}</small>`;
 
         return `
         <tr>
-          <td><strong>${asset.displayName || asset.category}</strong></td>
-          <td>${asset.category}</td>
-          <td>${asset.platform || "-"}</td>
-          <td><span class="badge badge-${asset.riskLevel}">${riskLevelLabels[asset.riskLevel] || asset.riskLevel}</span></td>
-          <td class="${priorityClass}">${priorityDisplay}</td>
-          <td>${timeDisplay}</td>
-          <td>${migrationTypeLabels[asset.suggestedMigration] || asset.suggestedMigration}</td>
-          <td><span class="badge badge-${asset.migrationStatus}">${migrationStatusLabels[asset.migrationStatus] || asset.migrationStatus}</span></td>
-          <td>${dependenciesDisplay}</td>
+          <td><strong>${assetNameWithFingerprint}</strong></td>
+          <td>${riskDisplay}</td>
+          <td>${migrationPath}</td>
+          <td>${timeAndInfo}</td>
         </tr>
       `;
       }).join("")}

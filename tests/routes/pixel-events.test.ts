@@ -86,7 +86,7 @@ describe("Pixel Events API - Origin Validation", () => {
       expect(isValidDevOrigin("https://localhost:3000")).toBe(true);
       expect(isValidDevOrigin("http://127.0.0.1:3000")).toBe(true);
       expect(isValidDevOrigin("https:
-      expect(isValidDevOrigin("http://localhost:3000")).toBe(true);
+      expect(isValidDevOrigin("http:
       expect(isValidDevOrigin("https://localhost:3000")).toBe(true);
       expect(isValidDevOrigin("http://127.0.0.1:3000")).toBe(true);
     });

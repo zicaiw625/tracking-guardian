@@ -78,18 +78,54 @@ export default function UiModulePublishGuide() {
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">
-                  目标位置（Targets）
+                  PRD 2.4: UI Extension Targets 说明
                 </Text>
-                <List type="bullet">
+                <Banner tone="info">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      PRD要求：在模块配置页明确说明UI Extension targets
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      每个模块都有对应的target，用于指定模块在Shopify Checkout系统中的显示位置
+                    </Text>
+                  </BlockStack>
+                </Banner>
+                <BlockStack gap="300">
                   {targetCards.map((item) => (
-                    <List.Item key={item.target}>
-                      <Text as="span" variant="bodySm">
-                        <strong>{item.label}</strong>：<code>{item.target}</code>。
-                        {item.description}
-                      </Text>
-                    </List.Item>
+                    <Box
+                      key={item.target}
+                      padding="400"
+                      borderRadius="200"
+                      background="bg-surface-secondary"
+                    >
+                      <BlockStack gap="200">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text as="span" variant="bodyMd" fontWeight="semibold">
+                            {item.label}
+                          </Text>
+                          <Badge tone="info">{item.target}</Badge>
+                        </InlineStack>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          {item.description}
+                        </Text>
+                        {item.target === "purchase.thank-you.block.render" && (
+                          <Banner tone="info">
+                            <Text as="p" variant="bodySm">
+                              <strong>Thank you 模块：</strong>使用 <code>purchase.thank-you.block.render</code> target，适用于客户完成支付后的感谢页。需要 protected customer data 权限才能访问订单相关的客户信息（如 buyer.email、buyer.phone、deliveryAddress 等）。
+                            </Text>
+                          </Banner>
+                        )}
+                        {item.target === "customer-account.order-status.block.render" && (
+                          <Banner tone="info">
+                            <Text as="p" variant="bodySm">
+                              <strong>Order status 模块：</strong>使用 <code>customer-account.order-status.block.render</code> target，适用于客户在订单状态页查看物流与订单信息。需要 protected customer data 权限才能访问客户账户信息（如客户邮箱、地址等）。
+                            </Text>
+                          </Banner>
+                        )}
+                      </BlockStack>
+                    </Box>
                   ))}
-                </List>
+                </BlockStack>
               </BlockStack>
             </Card>
 
@@ -98,22 +134,50 @@ export default function UiModulePublishGuide() {
                 <Text as="h2" variant="headingMd">
                   操作步骤（图文指引）
                 </Text>
+                <Banner tone="info">
+                  <Text as="p" variant="bodySm">
+                    <strong>重要提示：</strong>UI Extensions 需要 protected customer data 权限才能访问部分客户信息。如果某些属性显示为 null，请检查应用的权限配置。
+                  </Text>
+                </Banner>
                 <List type="number">
                   <List.Item>
-                    进入 Shopify Admin，打开 <strong>Checkout Editor</strong>。
+                    <Text as="span" variant="bodySm">
+                      进入 <strong>Shopify Admin</strong> → <strong>设置</strong> → <strong>结账和订单处理</strong> → <strong>Checkout Editor</strong>。
+                    </Text>
                   </List.Item>
                   <List.Item>
-                    在顶部切换到 <strong>Thank you</strong> 或 <strong>Order status</strong> 页面。
+                    <Text as="span" variant="bodySm">
+                      在顶部页面选择器中切换到 <strong>Thank you</strong> 或 <strong>Order status</strong> 页面（根据模块的 target 选择对应页面）。
+                    </Text>
                   </List.Item>
                   <List.Item>
-                    点击 “添加区块”，在应用列表中选择 <strong>Tracking Guardian</strong> 并添加
-                    {moduleName} 模块。
+                    <Text as="span" variant="bodySm">
+                      点击页面编辑器中的 <strong>"添加区块"</strong> 或 <strong>"Add block"</strong> 按钮，在应用列表中找到 <strong>Tracking Guardian</strong>，选择 <strong>{moduleName}</strong> 模块并添加。
+                    </Text>
                   </List.Item>
                   <List.Item>
-                    调整模块位置，点击 “保存并发布”。完成后返回应用查看状态。
+                    <Text as="span" variant="bodySm">
+                      拖拽模块调整位置（建议放在页面顶部或底部），配置模块显示规则（如需要），然后点击 <strong>"保存并发布"</strong> 或 <strong>"Save and publish"</strong>。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      发布完成后，返回本应用查看模块状态，或使用测试订单验证模块是否正常显示。
+                    </Text>
                   </List.Item>
                 </List>
                 <Divider />
+                {}
+                <Banner tone="info">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      PRD 2.4要求：Checkout Editor 放置 block 的截图指引
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      以下为关键步骤的可视化指引，详细截图请参考 Shopify 官方文档或联系支持获取完整截图包。
+                    </Text>
+                  </BlockStack>
+                </Banner>
                 <InlineStack gap="400" wrap>
                   <Box
                     padding="400"
@@ -124,10 +188,13 @@ export default function UiModulePublishGuide() {
                     <BlockStack gap="200" align="center">
                       <Icon source={ImageIcon} />
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        打开 Checkout Editor
+                        步骤1：打开 Checkout Editor
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        在 Shopify Admin 中进入结账编辑器。
+                        在 Shopify Admin → 设置 → 结账和订单处理 → Checkout Editor
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
+                        [截图：Checkout Editor入口位置]
                       </Text>
                     </BlockStack>
                   </Box>
@@ -140,10 +207,13 @@ export default function UiModulePublishGuide() {
                     <BlockStack gap="200" align="center">
                       <Icon source={ImageIcon} />
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        添加应用 Block
+                        步骤2：添加应用 Block
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        选择 Tracking Guardian 并插入模块。
+                        点击"添加区块"，在应用列表中找到 Tracking Guardian
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
+                        [截图：添加block界面，显示Tracking Guardian选项]
                       </Text>
                     </BlockStack>
                   </Box>
@@ -156,10 +226,13 @@ export default function UiModulePublishGuide() {
                     <BlockStack gap="200" align="center">
                       <Icon source={ImageIcon} />
                       <Text as="p" variant="bodySm" fontWeight="semibold">
-                        保存并发布
+                        步骤3：保存并发布
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        保存后刷新应用确认生效。
+                        拖拽调整位置，点击"保存并发布"
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
+                        [截图：保存并发布按钮位置]
                       </Text>
                     </BlockStack>
                   </Box>
@@ -176,15 +249,57 @@ export default function UiModulePublishGuide() {
             </Card>
 
             <Card>
-              <BlockStack gap="200">
+              <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">
                   发布前检查清单
                 </Text>
                 <List type="bullet">
-                  <List.Item>确认模块已启用并保存配置。</List.Item>
-                  <List.Item>检查 target 页面已正确添加应用 block。</List.Item>
-                  <List.Item>发布后使用测试订单或测试结账流程验证显示。</List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      确认模块已在本应用中启用并保存配置。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      检查 target 页面（Thank you 或 Order status）已在 Checkout Editor 中正确添加应用 block。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      确认模块位置符合设计要求（避免遮挡重要信息）。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      发布后使用测试订单或测试结账流程验证模块是否正常显示和功能是否正常。
+                    </Text>
+                  </List.Item>
                 </List>
+                <Divider />
+                <Banner tone="warning">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      <strong>UI Extensions 限制说明：</strong>
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          UI Extensions 运行在严格沙箱环境中，不能随意注入脚本或访问 DOM。
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          部分属性需要 protected customer data 权限，否则会显示为 null。
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          某些行为 UI Extensions 不支持，请参考 Shopify 官方文档了解限制。
+                        </Text>
+                      </List.Item>
+                    </List>
+                  </BlockStack>
+                </Banner>
               </BlockStack>
             </Card>
           </BlockStack>

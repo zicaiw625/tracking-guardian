@@ -38,6 +38,8 @@ import type { ScriptTag, RiskItem } from "../types";
 import { logger } from "../utils/logger.server";
 import { trackEvent } from "../services/analytics.server";
 import { safeFireAndForget } from "../utils/helpers";
+import { normalizePlanId } from "../services/billing/plans";
+import { isPlanAtLeast } from "../utils/plans";
 
 function estimateMigrationTime(
   scriptTagCount: number,
@@ -188,12 +190,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return redirect("/app");
   }
 
-  safeFireAndForget(
+    const planId = normalizePlanId(shop.plan ?? "free");
+  const isAgency = isPlanAtLeast(planId, "agency");
+    safeFireAndForget(
     trackEvent({
       shopId: shop.id,
       shopDomain: shop.shopDomain,
       event: "app_onboarding_started",
       eventId: `app_onboarding_started_${shop.id}`,
+      metadata: {
+        plan: shop.plan ?? "free",
+        role: isAgency ? "agency" : "merchant",
+              },
     })
   );
 

@@ -397,7 +397,6 @@ export default function PrivacyPage() {
               </BlockStack>
             </Box>
 
-
             <Box background="bg-surface-secondary" padding="400" borderRadius="200">
               <BlockStack gap="300">
                 <InlineStack gap="300" blockAlign="center">

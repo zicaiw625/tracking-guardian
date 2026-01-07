@@ -519,7 +519,6 @@ export default function DiagnosticsPage() {
 
                 <FunnelStage label="3. 通过 Key 验证" count={data.eventFunnel.passedKey} total={data.eventFunnel.pixelRequests} description="Ingestion Key 匹配的请求"/>
 
-
                 <FunnelStage label="4. 成功发送到平台" count={data.eventFunnel.sentToPlatforms} total={data.eventFunnel.pixelRequests} description="通过 CAPI 发送到广告平台"/>
               </BlockStack>
 

@@ -16,6 +16,7 @@ export interface MigrationChecklistItem {
   priority: number;
   estimatedTime: number;
   status: "pending" | "in_progress" | "completed" | "skipped";
+  fingerprint?: string | null;
 }
 
 export interface MigrationChecklist {
@@ -249,6 +250,7 @@ export async function generateMigrationChecklist(
       dependencies: true,
       details: true,
       suggestedMigration: true,
+      fingerprint: true,
     },
     orderBy: {
       createdAt: "desc",
@@ -305,6 +307,7 @@ export async function generateMigrationChecklist(
         | "in_progress"
         | "completed"
         | "skipped",
+      fingerprint: asset.fingerprint || null,
     };
   }));
 

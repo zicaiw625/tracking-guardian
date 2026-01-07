@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData } from "@remix-run/react";
 import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Button, Banner, Box, Divider, ProgressBar, Icon, DataTable, Link, Tabs, TextField, Modal, List, RangeSlider, } from "@shopify/polaris";
@@ -33,7 +33,6 @@ import { SCANNER_CONFIG, SCRIPT_ANALYSIS_CONFIG } from "../utils/config";
 import type { ScriptTag, RiskItem } from "../types";
 import type { MigrationAction, EnhancedScanResult } from "../services/scanner/types";
 import { logger } from "../utils/logger.server";
-import { trackEvent } from "../services/analytics.server";
 import {
     validateScriptTagsArray,
     validateRiskItemsArray,
@@ -145,7 +144,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
     const url = new URL(request.url);
-    const isAuditReportView = url.pathname === "/app/audit/report";
+            const isAuditReportView = url.pathname === "/app/audit/report";
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: {
@@ -178,13 +177,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         });
     }
     if (isAuditReportView && !isPlanAtLeast(shop.plan ?? "free", "starter")) {
+                const { trackEvent } = await import("~/services/analytics.server");
+        const { safeFireAndForget } = await import("~/utils/helpers");
         safeFireAndForget(
             trackEvent({
                 shopId: shop.id,
                 shopDomain: shop.shopDomain,
                 event: "app_paywall_viewed",
                 metadata: {
-                    location: "audit_report",
+                    triggerPage: "audit_report",
                     plan: shop.plan ?? "free",
                 },
             })
@@ -195,6 +196,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         orderBy: { createdAt: "desc" },
     });
     if (latestScanRaw?.status === "completed") {
+                const planId = normalizePlan(shop.plan ?? "free");
+        const isAgency = isPlanAtLeast(planId, "agency");
+        const riskScore = latestScanRaw.riskScore ?? 0;
+        const riskItems = validateRiskItemsArray(latestScanRaw.riskItems);
+        const assetCount = riskItems.length;
+        const { trackEvent } = await import("~/services/analytics.server");
+        const { safeFireAndForget } = await import("~/utils/helpers");
         safeFireAndForget(
             trackEvent({
                 shopId: shop.id,
@@ -203,7 +211,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 eventId: `app_audit_completed_${latestScanRaw.id}`,
                 metadata: {
                     scanReportId: latestScanRaw.id,
-                },
+                                        plan: shop.plan ?? "free",
+                    role: isAgency ? "agency" : "merchant",
+                    risk_score: riskScore,
+                    asset_count: assetCount,
+                                    },
             })
         );
     }
@@ -1972,17 +1984,41 @@ export function ScanPage({
       )}
 
         <Tabs tabs={visibleTabs} selected={selectedTab} onSelect={setSelectedTab}>
+          {}
           {showMigrationButtons && !showTabs && (
-            <Box paddingBlockStart="400">
-              <InlineStack gap="200" wrap>
-                <Button variant="primary" url="/app/migrate">
-                  迁移像素（付费）
-                </Button>
-                <Button url="/app/migrate#modules">
-                  安装页面模块（付费）
-                </Button>
-              </InlineStack>
-            </Box>
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h3" variant="headingMd">
+                  🎯 开始迁移（PRD 3: 付费转化节点1）
+                </Text>
+                <Banner tone="info">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm">
+                      <strong>免费功能：</strong>可查看风险与清单、分享链接
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      <strong>付费解锁：</strong>一键生成像素 + Test/Live 环境 + 版本/回滚 + 验收报告导出
+                    </Text>
+                  </BlockStack>
+                </Banner>
+                <InlineStack gap="200" wrap>
+                  <Button
+                    variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
+                    url={isPlanAtLeast(planIdSafe, "starter") ? "/app/migrate" : "/app/billing?upgrade=starter"}
+                    size="large"
+                  >
+                    {isPlanAtLeast(planIdSafe, "starter") ? "迁移像素" : "迁移像素（Starter $29/月）"}
+                  </Button>
+                  <Button
+                    variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
+                    url={isPlanAtLeast(planIdSafe, "starter") ? "/app/ui-blocks" : "/app/billing?upgrade=starter"}
+                    size="large"
+                  >
+                    {isPlanAtLeast(planIdSafe, "starter") ? "安装页面模块" : "安装页面模块（Starter $29/月）"}
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+            </Card>
           )}
           {selectedTab === 0 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
@@ -1991,10 +2027,23 @@ export function ScanPage({
                     <InlineStack gap="200">
                       <Button
                         icon={ExportIcon}
-                        onClick={() => {
+                        onClick={async () => {
                           const planIdSafe = planId || "free";
                           const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
                           if (!isGrowthOrAbove) {
+                                                        fetch("/api/analytics/track", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                event: "app_paywall_viewed",
+                                metadata: {
+                                  triggerPage: "audit_report",
+                                  plan: planIdSafe,
+                                  action: "export_scan_report",
+                                },
+                              }),
+                            }).catch(() => {
+                                                          });
                             showError("报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版可查看和分享链接，但导出功能需升级。");
                             window.location.href = "/app/settings?tab=subscription";
                             return;
@@ -2002,14 +2051,27 @@ export function ScanPage({
                           window.open("/api/exports?type=scan&format=json&include_meta=true", "_blank");
                         }}
                       >
-                        导出扫描报告{!isGrowthOrAbove ? " (需 Go-Live)" : ""}
+                        导出扫描报告{!isPlanAtLeast(planId || "free", "growth") ? " (需 Go-Live)" : ""}
                       </Button>
                       <Button
                         icon={ExportIcon}
-                        onClick={() => {
+                        onClick={async () => {
                           const planIdSafe = planId || "free";
                           const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
                           if (!isGrowthOrAbove) {
+                                                        fetch("/api/analytics/track", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                event: "app_paywall_viewed",
+                                metadata: {
+                                  triggerPage: "audit_report",
+                                  plan: planIdSafe,
+                                  action: "export_risk_report",
+                                },
+                              }),
+                            }).catch(() => {
+                                                          });
                             showError("报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版可查看和分享链接，但导出功能需升级。");
                             window.location.href = "/app/settings?tab=subscription";
                             return;
@@ -2017,7 +2079,7 @@ export function ScanPage({
                           window.open("/api/reports?type=risk", "_blank");
                         }}
                       >
-                        导出风险报告 (PDF){!isGrowthOrAbove ? " (需 Go-Live)" : ""}
+                        导出风险报告 (PDF){!isPlanAtLeast(planId || "free", "growth") ? " (需 Go-Live)" : ""}
                       </Button>
                       <Button
                         icon={ShareIcon}
@@ -2661,7 +2723,6 @@ export function ScanPage({
                 </Text>
                 <Badge tone="attention">{`${migrationActions.length} 项待处理`}</Badge>
               </InlineStack>
-
 
               <BlockStack gap="300">
                 {migrationActions.map((action, index) => (
@@ -3567,17 +3628,41 @@ export function ScanPage({
 
           {selectedTab === 2 && (
             <BlockStack gap="500">
+              {}
               {showTabs && (
-                <Box paddingBlockStart="400">
-                  <InlineStack gap="200" wrap>
-                    <Button variant="primary" url="/app/migrate">
-                      迁移像素（付费）
-                    </Button>
-                    <Button url="/app/migrate#modules">
-                      安装页面模块（付费）
-                    </Button>
-                  </InlineStack>
-                </Box>
+                <Card>
+                  <BlockStack gap="400">
+                    <Text as="h3" variant="headingMd">
+                      🎯 开始迁移（PRD 3: 付费转化节点1）
+                    </Text>
+                    <Banner tone="info">
+                      <BlockStack gap="200">
+                        <Text as="p" variant="bodySm">
+                          <strong>免费功能：</strong>可查看风险与清单、分享链接
+                        </Text>
+                        <Text as="p" variant="bodySm">
+                          <strong>付费解锁：</strong>一键生成像素 + Test/Live 环境 + 版本/回滚 + 验收报告导出
+                        </Text>
+                      </BlockStack>
+                    </Banner>
+                    <InlineStack gap="200" wrap>
+                      <Button
+                        variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
+                        url={isPlanAtLeast(planIdSafe, "starter") ? "/app/migrate" : "/app/billing?upgrade=starter"}
+                        size="large"
+                      >
+                        {isPlanAtLeast(planIdSafe, "starter") ? "迁移像素" : "迁移像素（Starter $29/月）"}
+                      </Button>
+                      <Button
+                        variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
+                        url={isPlanAtLeast(planIdSafe, "starter") ? "/app/ui-blocks" : "/app/billing?upgrade=starter"}
+                        size="large"
+                      >
+                        {isPlanAtLeast(planIdSafe, "starter") ? "安装页面模块" : "安装页面模块（Starter $29/月）"}
+                      </Button>
+                    </InlineStack>
+                  </BlockStack>
+                </Card>
               )}
               <Box paddingBlockStart="400">
                 {!latestScan ? (

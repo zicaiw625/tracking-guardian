@@ -150,7 +150,7 @@ export function TestOrderGuide({
         <Banner tone="info">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">
-              快速开始
+              快速开始（PRD 2.5: 对齐 Shopify 官方测试路径）
             </Text>
             <List type="bullet">
               <List.Item>
@@ -163,6 +163,13 @@ export function TestOrderGuide({
                 在实时监控中查看事件触发情况
               </List.Item>
             </List>
+            <Text as="p" variant="bodySm" tone="subdued">
+              <strong>参考 Shopify 官方文档：</strong>
+              <br />
+              • <a href="https://help.shopify.com/en/manual/checkout-settings/test-checkout" target="_blank" rel="noopener noreferrer">测试结账流程</a>
+              <br />
+              • <a href="https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels" target="_blank" rel="noopener noreferrer">测试自定义像素</a>
+            </Text>
           </BlockStack>
         </Banner>
 

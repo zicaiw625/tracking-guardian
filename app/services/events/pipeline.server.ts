@@ -173,6 +173,15 @@ export async function processEventPipeline(
       validation.errors.join("; ")
     );
 
+        const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { shopDomain: true },
+    });
+    if (shop) {
+      const { metrics } = await import("../../utils/metrics-collector");
+      metrics.pxValidateFailed(shop.shopDomain, "pipeline_validation_failed");
+    }
+
     return {
       success: false,
       errors: validation.errors,
@@ -204,6 +213,19 @@ export async function processEventPipeline(
         platformId: destConfig.platformId,
         existingEventId: dedupResult.existingEventId,
       });
+            const shop = await prisma.shop.findUnique({
+        where: { id: shopId },
+        select: { shopDomain: true },
+      });
+      if (shop) {
+        const { metrics } = await import("../../utils/metrics-collector");
+        const destination = destConfig.configId
+          ? `${destConfig.platform}:${destConfig.configId}`
+          : destConfig.platformId
+          ? `${destConfig.platform}:${destConfig.platformId}`
+          : destConfig.platform;
+        metrics.pxDedupDropped(shop.shopDomain, destination);
+      }
       deduplicationResults.push(true);
     } else {
       deduplicationResults.push(false);
@@ -446,6 +468,7 @@ export async function processEventPipeline(
           );
         }
 
+                const sendStartTime = Date.now();
         const sendResult = await sendPixelEventToPlatform(
           shopId,
           destination,
@@ -456,12 +479,27 @@ export async function processEventPipeline(
           eventLogId,
           environment
         );
+        const sendLatencyMs = Date.now() - sendStartTime;
 
         const destinationType = destConfig.configId
           ? `${destination}:${destConfig.configId}`
           : destConfig.platformId
           ? `${destination}:${destConfig.platformId}`
           : destination;
+
+                                                const shop = await prisma.shop.findUnique({
+          where: { id: shopId },
+          select: { shopDomain: true },
+        });
+        if (shop) {
+          const { metrics } = await import("../../utils/metrics-collector");
+          if (sendResult.success) {
+            metrics.pxDestinationOk(shop.shopDomain, destinationType);
+          } else {
+            metrics.pxDestinationFail(shop.shopDomain, destinationType, sendResult.error || "unknown");
+          }
+          metrics.pxDestinationLatency(shop.shopDomain, destinationType, sendLatencyMs);
+        }
 
         await logEvent(
           shopId,
@@ -482,6 +520,7 @@ export async function processEventPipeline(
             platform: destination,
             configId: destConfig.configId,
             platformId: destConfig.platformId,
+            latencyMs: sendLatencyMs,
           });
         } else {
           logger.warn(`Failed to send ${normalizedPayload.eventName} to ${destination}`, {
@@ -492,6 +531,7 @@ export async function processEventPipeline(
             configId: destConfig.configId,
             platformId: destConfig.platformId,
             error: sendResult.error,
+            latencyMs: sendLatencyMs,
           });
         }
 

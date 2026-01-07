@@ -74,7 +74,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
       return null;
     });
-    safeFireAndForget(
+        safeFireAndForget(
         trackEvent({
             shopId: shop.id,
             shopDomain,
@@ -82,6 +82,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             metadata: {
                 plan: subscriptionStatus.plan,
                 hasActiveSubscription: subscriptionStatus.hasActiveSubscription,
+                triggerPage: "billing",
             },
         })
     );

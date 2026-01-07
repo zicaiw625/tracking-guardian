@@ -619,6 +619,38 @@ export function RealtimeEventMonitor({
                       <Text as="h3" variant="headingSm">
                         完整 Payload
                       </Text>
+                      {}
+                      {(() => {
+                        const payload = selectedEvent.payload;
+                        const piiFields = ["email", "phone", "name", "firstName", "lastName", "address", "city", "postalCode", "country"];
+                        const hasNullPiiFields = piiFields.some(field => {
+                          const value = payload[field];
+                          return value === null || value === undefined;
+                        });
+
+                        if (hasNullPiiFields) {
+                          const piiRegulationDate = new Date("2025-12-10");
+                          const now = new Date();
+                          const isAfterRegulationDate = now >= piiRegulationDate;
+
+                          if (isAfterRegulationDate) {
+                            return (
+                              <Banner tone="info" size="small">
+                                <Text as="p" variant="bodySm">
+                                  <strong>PII 字段为 null 说明：</strong>如果 payload 中的 <code>email</code>、<code>phone</code>、<code>name</code>、<code>address</code> 等字段为 <code>null</code>，这可能是由于：
+                                  <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
+                                    <li>应用的 protected customer data 权限未获批（2025-12-10 起生效）</li>
+                                    <li>客户的隐私同意状态未满足要求</li>
+                                  </ul>
+                                  这是 Shopify 平台的合规行为，<strong>不是故障</strong>。事件仍会正常发送，只是不包含客户个人信息。
+                                </Text>
+                              </Banner>
+                            );
+                          }
+                        }
+
+                        return null;
+                      })()}
                       <Box
                         padding="300"
                         background="bg-surface-secondary"

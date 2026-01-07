@@ -97,6 +97,36 @@ export default function PixelsListPage() {
       title="Pixels"
       primaryAction={{ content: "新建 Pixel 配置", url: "/app/pixels/new" }}
     >
+      <BlockStack gap="500">
+        {}
+        <Card>
+          <BlockStack gap="300">
+            <Text as="h2" variant="headingMd">
+              📋 事件源说明
+            </Text>
+            <Text as="p" variant="bodySm">
+              <strong>PRD 2.3要求：</strong>事件源以 Shopify <strong>Standard events</strong> 为准，再映射到 GA4/Meta/TikTok。
+            </Text>
+            <List type="bullet">
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>Shopify 标准事件：</strong>checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>事件映射：</strong>系统会自动将 Shopify 标准事件映射到各平台对应的事件类型（如 checkout_completed → GA4的purchase、Meta的Purchase、TikTok的CompletePayment）
+                </Text>
+              </List.Item>
+              <List.Item>
+                <Text as="span" variant="bodySm">
+                  <strong>Test 指引：</strong>可直接复用 Shopify 官方"测试自定义像素"的操作路径（进入 checkout 测 checkout_started、填 shipping 测 shipping_submitted 等），详见测试页面指引。
+                </Text>
+              </List.Item>
+            </List>
+          </BlockStack>
+        </Card>
+
       <Layout>
         <Layout.Section>
           <Card>
@@ -154,6 +184,7 @@ export default function PixelsListPage() {
           </Card>
         </Layout.Section>
       </Layout>
+      </BlockStack>
     </Page>
   );
 }

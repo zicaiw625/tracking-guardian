@@ -127,7 +127,7 @@ describe("Subscription Service", () => {
           data: {
             appSubscriptionCreate: {
               appSubscription: { id: "sub-1", status: "PENDING" },
-              confirmationUrl: "https://example.com/confirm",
+              confirmationUrl: "https:
               userErrors: [],
             },
           },
@@ -168,7 +168,7 @@ describe("Subscription Service", () => {
             appInstallation: {
               activeSubscriptions: [
                 {
-                  id: "gid://shopify/AppSubscription/123456",
+                  id: "gid:
                   name: "Tracking Guardian - Growth",
                   status: "ACTIVE",
                   trialDays: 0,

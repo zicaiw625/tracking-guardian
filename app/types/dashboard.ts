@@ -22,6 +22,19 @@ export interface MigrationProgress {
     inProgress: boolean;
   }>;
   progressPercentage: number;
+    auditCompletion?: {
+    completed: boolean;
+    status: "completed" | "in_progress" | "pending";
+  };
+  pixelsStatus?: {
+    test: number;
+    live: number;
+  };
+  modulesEnabled?: number;
+  verificationLatest?: {
+    status: "completed" | "running" | "pending" | null;
+    completedAt?: Date | null;
+  };
 }
 
 export interface DashboardData {
@@ -55,6 +68,11 @@ export interface DashboardData {
   migrationProgress?: MigrationProgress;
   riskScore?: number | null;
   riskLevel?: "high" | "medium" | "low" | null;
+    topRiskSources?: Array<{
+    source: string;
+    count: number;
+    category: string;
+  }>;
 
   migrationChecklist?: {
     totalItems: number;
@@ -81,6 +99,24 @@ export interface DashboardData {
     byCategory: Record<string, number>;
     byPlatform: Record<string, number>;
   } | null;
+    healthMetrics24h?: {
+    successRate: number;
+    failureRate: number;
+    missingParamsRate: number;
+    missingParamsByType: {
+      value: number;
+      currency: number;
+      items: number;
+    };
+    totalEvents: number;
+  } | null;
+    activeAlerts?: Array<{
+    id: string;
+    type: string;
+    severity: "critical" | "warning" | "info";
+    message: string;
+    triggeredAt: Date;
+  }>;
 }
 
 export interface SetupStep {

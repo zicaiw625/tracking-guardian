@@ -18,6 +18,8 @@ interface AggregatedMetric {
     min: number;
     max: number;
     avg: number;
+        p50?: number;
+    p95?: number;
 }
 
 const metrics: MetricEntry[] = [];
@@ -125,12 +127,17 @@ export function getHistogramStats(name: string, labels: Record<string, string> =
     }
 
     const sorted = [...values].sort((a, b) => a - b);
+        const p50 = sorted[Math.floor(sorted.length * 0.5)] || 0;
+    const p95 = sorted[Math.floor(sorted.length * 0.95)] || 0;
+
     return {
         count: values.length,
         sum: values.reduce((a, b) => a + b, 0),
         min: sorted[0],
         max: sorted[sorted.length - 1],
         avg: values.reduce((a, b) => a + b, 0) / values.length,
+                p50,
+        p95,
     };
 }
 
@@ -178,6 +185,24 @@ export const appMetrics = {
 
     pendingRetries: (count: number) =>
         setGauge("pending_retries", count),
+
+        pxIngestAccepted: (shopDomain: string) =>
+        incrementCounter("px_ingest_accepted_count", { shop: shopDomain }),
+
+    pxValidateFailed: (shopDomain: string, reason: string) =>
+        incrementCounter("px_validate_failed_count", { shop: shopDomain, reason }),
+
+    pxDedupDropped: (shopDomain: string, destination: string) =>
+        incrementCounter("px_dedup_dropped_count", { shop: shopDomain, destination }),
+
+    pxDestinationOk: (shopDomain: string, destination: string) =>
+        incrementCounter("px_destination_ok_count", { shop: shopDomain, destination }),
+
+    pxDestinationFail: (shopDomain: string, destination: string, reason?: string) =>
+        incrementCounter("px_destination_fail_count", { shop: shopDomain, destination, reason: reason || "unknown" }),
+
+    pxDestinationLatency: (shopDomain: string, destination: string, latencyMs: number) =>
+        recordHistogram("px_destination_latency_ms", latencyMs, { shop: shopDomain, destination }),
 };
 
 if (process.env.NODE_ENV === "production") {

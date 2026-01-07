@@ -419,10 +419,36 @@ export async function handleAfterAuth(
   if (isNewInstall && admin) {
     const shop = await prisma.shop.findUnique({
       where: { shopDomain: session.shop },
-      select: { id: true },
+      select: { id: true, plan: true },
     });
 
     if (shop) {
+            safeFireAndForget(
+        (async () => {
+          const { trackEvent } = await import("../../services/analytics.server");
+          const { isPlanAtLeast } = await import("../../utils/plans");
+          const { normalizePlan } = await import("../../utils/plans");
+          const planId = normalizePlan(shop.plan || "free");
+          const isAgency = isPlanAtLeast(planId, "agency");
+          await trackEvent({
+            shopId: shop.id,
+            shopDomain: session.shop,
+            event: "app_install_completed",
+            metadata: {
+              plan: shop.plan || "free",
+              shopTier: shopInfo.shopTier || "unknown",
+              role: isAgency ? "agency" : "merchant",
+                          },
+          });
+        })(),
+        {
+          operation: "trackAppInstall",
+          metadata: {
+            shopDomain: session.shop,
+            shopId: shop.id,
+          },
+        }
+      );
 
       safeFireAndForget(
         runPostInstallScan(session.shop, shop.id, admin),

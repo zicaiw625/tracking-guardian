@@ -522,8 +522,7 @@ export async function exportEventLogsAsCSV(
       return value;
     }
 
-    // 构建 CSV
-    const csvLines = [
+        const csvLines = [
       headers.map(escapeCSV).join(","),
       ...rows.map(row => row.map(cell => escapeCSV(String(cell || ""))).join(",")),
     ];

@@ -211,9 +211,9 @@ export default function PublicPrivacyPolicy() {
                   <List.Item>
                     <strong>服务端 API 传输：</strong>所有事件数据（包括哈希后的 PII，如果启用增强匹配）都通过服务端 API 发送到广告平台，而不是通过客户端 JavaScript 代码。这确保了数据传输的安全性和可靠性，并符合各平台的 Server-Side API 最佳实践。我们使用以下服务端 API：
                     <ul style={{ marginTop: "8px", marginLeft: "20px" }}>
-                      <li><strong>Google Analytics 4：</strong> Measurement Protocol API（<code>https://developers.google.com/analytics/devguides/collection/protocol/ga4</code>）</li>
-                      <li><strong>Meta：</strong> Conversions API（<code>https://developers.facebook.com/docs/marketing-api/conversions-api</code>）</li>
-                      <li><strong>TikTok：</strong> Events API（<code>https://developers.tiktok.com/documents/tiktok-events-api/</code>）</li>
+                      <li><strong>Google Analytics 4：</strong> Measurement Protocol API（<code>https://www.google-analytics.com/mp/collect</code>）</li>
+                      <li><strong>Meta：</strong> Conversions API（<code>https://graph.facebook.com/v18.0/events</code>）</li>
+                      <li><strong>TikTok：</strong> Events API（<code>https://business-api.tiktok.com/open_api/v1.3/event/track/</code>）</li>
                       <li><strong>其他平台（Snapchat、Twitter/X 等）：</strong> 代码实现中包含这些平台的服务端 API 支持（在 <code>app/services/platforms/registry.ts</code> 中注册），但在 v1.0 中默认不启用（默认配置 <code>enabled_platforms = "meta,tiktok,google"</code>），不推荐在生产环境使用。这些平台将在 v1.1+ 版本中正式支持。</li>
                     </ul>
                     所有 API 请求都通过 HTTPS 加密传输，确保数据安全。

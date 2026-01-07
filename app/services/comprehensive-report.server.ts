@@ -6,6 +6,107 @@ import { exportVerificationReport, exportMigrationChecklist, exportMultiShopRepo
 import { generateScanReportPdf, generateVerificationReportPdf, generateBatchReports } from "./pdf-generator.server";
 import type { VerificationSummary } from "./verification.server";
 
+/**
+ * PRD 2.2: 提取迁移所需的信息（CSV版本）
+ */
+function extractRequiredInfoForCSV(asset: {
+  category: string;
+  platform: string | null;
+  suggestedMigration: string;
+  details?: Record<string, unknown> | null;
+}): string {
+  const info: string[] = [];
+  const details = asset.details || {};
+
+  if (asset.suggestedMigration === "web_pixel") {
+    if (asset.platform === "google" || asset.platform === "ga4") {
+      if (details.pixelId) info.push(`Pixel ID: ${details.pixelId}`);
+      if (details.measurementId) info.push(`Measurement ID: ${details.measurementId}`);
+      if (details.apiSecret) info.push(`API Secret: [已配置]`);
+    } else if (asset.platform === "meta" || asset.platform === "facebook") {
+      if (details.pixelId) info.push(`Pixel ID: ${details.pixelId}`);
+      if (details.accessToken) info.push(`Access Token: [已配置]`);
+      if (details.testEventCode) info.push(`Test Event Code: ${details.testEventCode}`);
+    } else if (asset.platform === "tiktok") {
+      if (details.pixelId) info.push(`Pixel ID: ${details.pixelId}`);
+      if (details.accessToken) info.push(`Access Token: [已配置]`);
+    }
+  }
+
+  if (asset.suggestedMigration === "ui_extension") {
+    if (asset.category === "survey" && details.questions) {
+      const questions = Array.isArray(details.questions)
+        ? details.questions
+        : typeof details.questions === "string"
+          ? JSON.parse(details.questions)
+          : [];
+      if (questions.length > 0) {
+        info.push(`问卷题目: ${questions.length} 题`);
+      }
+    }
+    if (asset.category === "support") {
+      if (details.helpdeskUrl) info.push(`帮助中心URL: ${details.helpdeskUrl}`);
+      if (details.contactEmail) info.push(`联系邮箱: ${details.contactEmail}`);
+    }
+  }
+
+  if (asset.suggestedMigration === "server_side") {
+    if (details.apiKey) info.push(`API Key: [已配置]`);
+    if (details.apiSecret) info.push(`API Secret: [已配置]`);
+    if (details.endpoint) info.push(`Endpoint: ${details.endpoint}`);
+  }
+
+  if (info.length === 0) {
+    if (asset.suggestedMigration === "web_pixel") {
+      info.push("需要配置平台凭据（Pixel ID、Access Token等）");
+    } else if (asset.suggestedMigration === "ui_extension") {
+      info.push("需要配置模块设置（文案、显示规则等）");
+    } else if (asset.suggestedMigration === "server_side") {
+      info.push("需要配置服务端API凭据");
+    } else {
+      info.push("无需额外信息");
+    }
+  }
+
+  return info.join("; ");
+}
+
+/**
+ * PRD 2.2: 获取风险原因（CSV版本）
+ */
+function getRiskReasonForCSV(asset: {
+  category: string;
+  platform: string | null;
+  riskLevel: string;
+  details?: Record<string, unknown> | null;
+}): string {
+  const reasons: string[] = [];
+
+  if (asset.riskLevel === "high") {
+    if (asset.category === "pixel") {
+      reasons.push("像素追踪脚本将在Checkout Extensibility升级后失效");
+    } else if (asset.category === "affiliate") {
+      reasons.push("联盟营销脚本需要迁移到服务端");
+    } else {
+      reasons.push("高风险资产，需要优先迁移");
+    }
+  } else if (asset.riskLevel === "medium") {
+    if (asset.category === "survey" || asset.category === "support") {
+      reasons.push("UI模块需要迁移到Checkout UI Extension");
+    } else {
+      reasons.push("中等风险，建议尽快迁移");
+    }
+  } else {
+    reasons.push("低风险，可延后处理");
+  }
+
+  if (asset.platform) {
+    reasons.push(`平台: ${asset.platform}`);
+  }
+
+  return reasons.join("; ");
+}
+
 export interface ComprehensiveReportOptions {
   format: "pdf" | "csv" | "json";
   includeScan?: boolean;
@@ -220,19 +321,39 @@ function exportComprehensiveReportCSV(
 
   if (data.scanResults?.auditAssets && data.scanResults.auditAssets.length > 0) {
     lines.push("=== 迁移清单 ===");
-    lines.push("优先级,风险等级,资产名称,平台,分类,建议迁移方式,预计时间(分钟),状态");
+    lines.push("说明: PRD 2.2 - 报告采用4列结构");
+    lines.push("资产名称/指纹,风险等级+原因,推荐迁移路径,预估工时+需要的信息");
     data.scanResults.auditAssets.forEach((asset) => {
+            const assetName = asset.displayName || asset.id || asset.category || "";
+      const fingerprint = asset.fingerprint ? `(${asset.fingerprint.substring(0, 8)}...)` : "";
+      const assetNameWithFingerprint = `"${assetName} ${fingerprint}"`;
+
+            const riskReason = getRiskReasonForCSV(asset);
+      const riskDisplay = `"${asset.riskLevel} - ${riskReason}"`;
+
+            const migrationTypeLabels: Record<string, string> = {
+        web_pixel: "Web Pixel",
+        ui_extension: "UI Extension",
+        server_side: "Server-side",
+        none: "无需迁移",
+      };
+      const migrationPath = migrationTypeLabels[asset.suggestedMigration] || asset.suggestedMigration || "";
+
+            const timeDisplay = asset.estimatedTimeMinutes
+        ? asset.estimatedTimeMinutes < 60
+          ? `${asset.estimatedTimeMinutes} 分钟`
+          : `${Math.floor(asset.estimatedTimeMinutes / 60)} 小时 ${asset.estimatedTimeMinutes % 60} 分钟`
+        : "待估算";
+      const requiredInfo = extractRequiredInfoForCSV(asset);
+      const timeAndInfo = `"${timeDisplay} | ${requiredInfo}"`;
+
       const row = [
-        asset.priority?.toString() || "",
-        asset.riskLevel || "",
-        asset.id || "",
-        asset.platform || "",
-        asset.category || "",
-        "web_pixel",
-        asset.estimatedTimeMinutes?.toString() || "",
-        asset.migrationStatus || "",
+        assetNameWithFingerprint,
+        riskDisplay,
+        `"${migrationPath}"`,
+        timeAndInfo,
       ];
-      lines.push(row.map((cell) => `"${cell}"`).join(","));
+      lines.push(row.join(","));
     });
     lines.push("");
   }

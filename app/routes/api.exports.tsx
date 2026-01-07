@@ -626,12 +626,10 @@ function generateMigrationRecommendations(scan: ScanData): string[] {
     const scriptTags = Array.isArray(scan.scriptTags) ? scan.scriptTags : [];
 
     if (scriptTags.length > 0) {
-        // P0: 对齐 Shopify 官方升级指南措辞
-        recommendations.push(`检测到 ${scriptTags.length} 个 ScriptTag。根据 Shopify 官方升级指南：`);
+                recommendations.push(`检测到 ${scriptTags.length} 个 ScriptTag。根据 Shopify 官方升级指南：`);
         recommendations.push(`• Additional scripts 在新 Thank you / Order status 页面不再支持，需要替换而不是照搬`);
         recommendations.push(`• ScriptTags 在 Order Status 页将被关停（按计划与店铺类型）`);
-        // P0-1: 使用统一的日期常量
-        const plusDate = getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
+                const plusDate = getDateDisplayLabel(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
         const nonPlusDate = getDateDisplayLabel(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
         recommendations.push(`• ScriptTag API 将于 ${plusDate}（Plus）/ ${nonPlusDate}（非 Plus）停止工作`);
         recommendations.push(`建议：使用 Tracking Guardian 将 ScriptTag 迁移到 Web Pixel Extension`);

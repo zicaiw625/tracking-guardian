@@ -3,17 +3,18 @@ import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable, Select, ProgressBar, Button, Icon, Link, Banner, List } from "@shopify/polaris";
 import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, AlertCircleIcon, CheckCircleIcon, } from "~/components/icons";
-import { TableSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
+import { TableSkeleton, EnhancedEmptyState, useToastContext, CardSkeleton } from "~/components/ui";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
-import { MissingParamsChart } from "~/components/monitor/MissingParamsChart";
-import { MissingParamsDetails } from "~/components/monitor/MissingParamsDetails";
-import { EventVolumeChart } from "~/components/monitor/EventVolumeChart";
-import { RealtimeEventMonitor } from "~/components/monitor/RealtimeEventMonitor";
-import { AlertHistoryChart } from "~/components/monitor/AlertHistoryChart";
-import { SuccessRateChart } from "~/components/monitor/SuccessRateChart";
-import { DiagnosticsPanel } from "~/components/monitor/DiagnosticsPanel";
 import { runDiagnostics } from "~/services/monitoring-diagnostics.server";
-import { useState } from "react";
+import { useState, Suspense, lazy } from "react";
+
+const MissingParamsChart = lazy(() => import("~/components/monitor/MissingParamsChart").then(module => ({ default: module.MissingParamsChart })));
+const MissingParamsDetails = lazy(() => import("~/components/monitor/MissingParamsDetails").then(module => ({ default: module.MissingParamsDetails })));
+const EventVolumeChart = lazy(() => import("~/components/monitor/EventVolumeChart").then(module => ({ default: module.EventVolumeChart })));
+const RealtimeEventMonitor = lazy(() => import("~/components/monitor/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
+const AlertHistoryChart = lazy(() => import("~/components/monitor/AlertHistoryChart").then(module => ({ default: module.AlertHistoryChart })));
+const SuccessRateChart = lazy(() => import("~/components/monitor/SuccessRateChart").then(module => ({ default: module.SuccessRateChart })));
+const DiagnosticsPanel = lazy(() => import("~/components/monitor/DiagnosticsPanel").then(module => ({ default: module.DiagnosticsPanel })));
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -79,16 +80,47 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         });
     }
     const planId = normalizePlan(shop.plan ?? "free");
-    const monitoringGate = checkFeatureAccess(normalizePlanId(shop.plan ?? "free"), "alerts");
-    if (!monitoringGate.allowed) {
+    const planIdNormalized = normalizePlanId(shop.plan ?? "free");
+
+        let livePixelEnabled24hAgo = false;
+    try {
+        const livePixelConfigs = await prisma.pixelConfig.findMany({
+            where: {
+                shopId: shop.id,
+                environment: "live",
+                isActive: true,
+            },
+            select: {
+                updatedAt: true,
+            },
+            orderBy: {
+                updatedAt: "asc",
+            },
+            take: 1,
+        });
+
+        if (livePixelConfigs.length > 0) {
+            const oldestLiveSwitch = livePixelConfigs[0].updatedAt;
+            const hoursSinceLiveSwitch = (Date.now() - oldestLiveSwitch.getTime()) / (1000 * 60 * 60);
+            livePixelEnabled24hAgo = hoursSinceLiveSwitch >= 24;
+        }
+    } catch (error) {
+        logger.warn("Failed to check live pixel 24h status", { shopId: shop.id, error });
+    }
+
+        const monitoringGate = checkFeatureAccess(planIdNormalized, "alerts");
+        const shouldShowPaywall = !monitoringGate.allowed || !livePixelEnabled24hAgo;
+
+    if (shouldShowPaywall) {
         safeFireAndForget(
-            trackEvent({
+                        trackEvent({
                 shopId: shop.id,
                 shopDomain,
                 event: "app_paywall_viewed",
                 metadata: {
-                    location: "monitor",
+                    triggerPage: "monitoring",
                     plan: shop.plan ?? "free",
+                    livePixelEnabled24hAgo,
                 },
             })
         );
@@ -280,7 +312,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         missingParamsDetailed,
         successRateHistory,
         diagnosticsReport,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        livePixelEnabled24hAgo,
+        shouldShowPaywall,
     });
 };
 export default function MonitorPage() {
@@ -289,6 +323,8 @@ export default function MonitorPage() {
   const { summary, history, conversionStats, configHealth, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsDetailed, lastUpdated, shop } = loaderData;
   const planId = "planId" in loaderData ? loaderData.planId : "free";
   const monitoringGate = "monitoringGate" in loaderData ? loaderData.monitoringGate : null;
+  const livePixelEnabled24hAgo = "livePixelEnabled24hAgo" in loaderData ? loaderData.livePixelEnabled24hAgo : false;
+  const shouldShowPaywall = "shouldShowPaywall" in loaderData ? loaderData.shouldShowPaywall : false;
   const alertConfigs = "alertConfigs" in loaderData ? loaderData.alertConfigs : false;
   const alertCount = "alertCount" in loaderData ? loaderData.alertCount : 0;
   const recentAlerts = "recentAlerts" in loaderData ? loaderData.recentAlerts : [];
@@ -485,13 +521,86 @@ export default function MonitorPage() {
             }
         ]}>
       <BlockStack gap="500">
-        {monitoringGate && !monitoringGate.allowed && (
+        {}
+        {(() => {
+          const piiRegulationDate = new Date("2025-12-10");
+          const now = new Date();
+          const isAfterRegulationDate = now >= piiRegulationDate;
+
+          if (!isAfterRegulationDate) {
+            return null;
+          }
+
+          return (
+            <Banner tone="warning" title="⚠️ 隐私/PII 新规说明（2025-12-10 起生效）">
+              <BlockStack gap="300">
+                <Text as="p" variant="bodySm">
+                  <strong>重要提示：</strong>从 2025-12-10 起，未获批 protected scopes 的应用，web pixel payload 里的 PII 字段会是 <code>null</code>（仍会收到事件）。
+                </Text>
+                <Divider />
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  PII 字段为 null 的归因逻辑：
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>隐私过滤/同意状态：</strong>如果 <code>email</code>、<code>phone</code>、<code>name</code>、<code>address</code> 等 PII 字段为 <code>null</code>，这通常是由于：
+                      <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
+                        <li>应用的 protected customer data 权限未获批</li>
+                        <li>客户的隐私同意状态（analytics/marketing/saleOfData）未满足要求</li>
+                        <li>平台特定的隐私要求（如 Meta/TikTok 需要 marketing + saleOfData 同意）</li>
+                      </ul>
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>真实故障：</strong>如果 <code>value</code>、<code>currency</code>、<code>event_id</code> 等业务字段为 <code>null</code>，这通常是真正的发送故障，需要检查配置。
+                    </Text>
+                  </List.Item>
+                </List>
+                <Divider />
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  如何区分：
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>PII 字段（email/phone/name/address）为 null：</strong>归因到"隐私过滤/同意状态"，<strong>不是故障</strong>
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>业务字段（value/currency/event_id）为 null：</strong>归因到"真实故障"，需要检查配置
+                    </Text>
+                  </List.Item>
+                </List>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  💡 <strong>提示：</strong>即使 PII 字段为 <code>null</code>，事件仍会正常发送到平台，平台会根据其算法进行归因。这不会影响事件发送，只是部分 PII 字段会被过滤。
+                </Text>
+              </BlockStack>
+            </Banner>
+          );
+        })()}
+
+        {shouldShowPaywall && (
           <UpgradePrompt
             feature="alerts"
             currentPlan={planId}
             gateResult={monitoringGate}
             tone="warning"
           />
+        )}
+        {!livePixelEnabled24hAgo && (
+          <Banner tone="info" title="Live 切换后 24 小时解锁">
+            <BlockStack gap="200">
+              <Text as="p" variant="bodySm">
+                <strong>PRD 3 转化节点3：</strong>Live 切换后 24 小时才解锁 Monitoring + 告警功能。
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                这是为了确保您有足够的数据进行监控分析。请等待 24 小时后再访问此页面。
+              </Text>
+            </BlockStack>
+          </Banner>
         )}
         <Card>
           <BlockStack gap="300">
@@ -555,6 +664,51 @@ export default function MonitorPage() {
             </Text>
           </BlockStack>
         </Banner>
+
+        {}
+        {(() => {
+          const piiRegulationDate = new Date("2025-12-10");
+          const now = new Date();
+          const isAfterRegulationDate = now >= piiRegulationDate;
+
+          if (!isAfterRegulationDate) {
+            return null;
+          }
+
+          return (
+            <Banner tone="warning" title="⚠️ 隐私/PII 新规说明（2025-12-10 起生效）">
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm">
+                  <strong>从 2025-12-10 起：</strong>未获批 protected scopes 的 app，web pixel payload 里的 PII 字段会是 <code>null</code>（仍会收到事件）。
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>PII 字段为 null 的处理：</strong>监控里会把它归因到"隐私过滤/同意状态"，避免误报为"故障"。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>事件仍会正常接收：</strong>即使 PII 字段为 <code>null</code>，事件本身仍会正常发送和接收，只是不包含客户个人信息。
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>如何区分：</strong>
+                      <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
+                        <li><strong>PII 字段（email/phone/name/address）为 null：</strong>归因到"隐私过滤/同意状态"，不是故障</li>
+                        <li><strong>业务字段（value/currency/event_id）为 null：</strong>归因到"真实故障"，需要检查配置</li>
+                      </ul>
+                    </Text>
+                  </List.Item>
+                </List>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  参考：<Link url="https://shopify.dev/docs/apps/store/data-protection/protected-customer-data" external>Shopify Protected Customer Data 文档</Link>
+                </Text>
+              </BlockStack>
+            </Banner>
+          );
+        })()}
 
         <Banner tone="info" title="重要说明：事件发送与平台归因">
           <BlockStack gap="200">
@@ -720,6 +874,9 @@ export default function MonitorPage() {
                   总体缺参率 {missingRate.toFixed(2)}% 超过阈值 10%，请检查事件配置。
                 </Text>
                 <Text as="p" variant="bodySm" tone="subdued">
+                  <strong>注意：</strong>本统计仅包含业务字段（value/currency/event_id）缺失。PII字段（email/phone/name等）为null应归因到"隐私过滤/同意状态"，不会在此处统计为故障。
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
                   受影响的事件类型：
                   {Array.from(new Set(missingParamsStats.map(s => s.eventType))).join(", ")}
                 </Text>
@@ -789,44 +946,52 @@ export default function MonitorPage() {
         )}
 
         {diagnosticsReport && (
-          <DiagnosticsPanel
-            report={{
-              ...diagnosticsReport,
-              timestamp: new Date(diagnosticsReport.timestamp),
-            }}
-            onRunDiagnostics={() => {
-              window.location.reload();
-            }}
-          />
+          <Suspense fallback={<CardSkeleton lines={3} />}>
+            <DiagnosticsPanel
+              report={{
+                ...diagnosticsReport,
+                timestamp: new Date(diagnosticsReport.timestamp),
+              }}
+              onRunDiagnostics={() => {
+                window.location.reload();
+              }}
+            />
+          </Suspense>
         )}
 
         {shop && (
-          <RealtimeEventMonitor
-            shopId={shop.id}
-            autoStart={false}
-          />
+          <Suspense fallback={<CardSkeleton lines={3} />}>
+            <RealtimeEventMonitor
+              shopId={shop.id}
+              autoStart={false}
+            />
+          </Suspense>
         )}
 
         {successRateHistory && successRateHistory.overall && Array.isArray(successRateHistory.overall) && successRateHistory.overall.length > 0 && (
-          <SuccessRateChart
-            overall={successRateHistory.overall.filter((item): item is NonNullable<typeof item> => item !== null)}
-            byDestination={successRateHistory.byDestination || {}}
-            byEventType={successRateHistory.byEventType || {}}
-            selectedDestination={selectedSuccessRateDestination === "all" ? undefined : selectedSuccessRateDestination}
-            onDestinationChange={setSelectedSuccessRateDestination}
-            selectedEventType={selectedSuccessRateEventType === "all" ? undefined : selectedSuccessRateEventType}
-            onEventTypeChange={setSelectedSuccessRateEventType}
-          />
+          <Suspense fallback={<CardSkeleton lines={3} />}>
+            <SuccessRateChart
+              overall={successRateHistory.overall.filter((item): item is NonNullable<typeof item> => item !== null)}
+              byDestination={successRateHistory.byDestination || {}}
+              byEventType={successRateHistory.byEventType || {}}
+              selectedDestination={selectedSuccessRateDestination === "all" ? undefined : selectedSuccessRateDestination}
+              onDestinationChange={setSelectedSuccessRateDestination}
+              selectedEventType={selectedSuccessRateEventType === "all" ? undefined : selectedSuccessRateEventType}
+              onEventTypeChange={setSelectedSuccessRateEventType}
+            />
+          </Suspense>
         )}
 
         {eventVolumeHistory && Array.isArray(eventVolumeHistory) && eventVolumeHistory.length > 0 && volumeStats && (
-          <EventVolumeChart
-            historyData={eventVolumeHistory.filter((item): item is NonNullable<typeof item> => item !== null)}
-            current24h={volumeStats.current24h}
-            previous24h={volumeStats.previous24h}
-            changePercent={volumeStats.changePercent}
-            isDrop={volumeStats.isDrop}
-          />
+          <Suspense fallback={<CardSkeleton lines={3} />}>
+            <EventVolumeChart
+              historyData={eventVolumeHistory.filter((item): item is NonNullable<typeof item> => item !== null)}
+              current24h={volumeStats.current24h}
+              previous24h={volumeStats.previous24h}
+              changePercent={volumeStats.changePercent}
+              isDrop={volumeStats.isDrop}
+            />
+          </Suspense>
         )}
 
         {monitoringStats && missingParamsStats && (
@@ -1017,7 +1182,9 @@ export default function MonitorPage() {
               {missingParamsDetailed && (
                 <>
                   <Divider />
-                  <MissingParamsDetails stats={missingParamsDetailed} />
+                  <Suspense fallback={<CardSkeleton lines={3} />}>
+                    <MissingParamsDetails stats={missingParamsDetailed} />
+                  </Suspense>
                 </>
               )}
 
@@ -1050,11 +1217,13 @@ export default function MonitorPage() {
                         查看缺参率趋势，识别参数缺失的模式和异常情况。建议关注缺参率超过 10% 的时间段。
                       </Text>
                     </Banner>
-                    <MissingParamsChart
-                      historyData={Array.isArray(missingParamsHistory) ? missingParamsHistory.filter((item): item is NonNullable<typeof item> => item !== null) : []}
-                      selectedPlatform={selectedChartPlatform}
-                      onPlatformChange={setSelectedChartPlatform}
-                    />
+                    <Suspense fallback={<CardSkeleton lines={3} />}>
+                      <MissingParamsChart
+                        historyData={Array.isArray(missingParamsHistory) ? missingParamsHistory.filter((item): item is NonNullable<typeof item> => item !== null) : []}
+                        selectedPlatform={selectedChartPlatform}
+                        onPlatformChange={setSelectedChartPlatform}
+                      />
+                    </Suspense>
                   </BlockStack>
                 </>
               )}
@@ -1325,7 +1494,6 @@ export default function MonitorPage() {
             </BlockStack>
           </Card>
         )}
-
 
         {dedupAnalysis && (
           <Card>
@@ -1606,11 +1774,13 @@ export default function MonitorPage() {
                       </Button>
                     </InlineStack>
 
-                    <AlertHistoryChart
-                      alerts={recentAlerts}
-                      timeRange={alertHistoryTimeRange}
-                      onTimeRangeChange={setAlertHistoryTimeRange}
-                    />
+                    <Suspense fallback={<CardSkeleton lines={3} />}>
+                      <AlertHistoryChart
+                        alerts={recentAlerts}
+                        timeRange={alertHistoryTimeRange}
+                        onTimeRangeChange={setAlertHistoryTimeRange}
+                      />
+                    </Suspense>
 
                     <Divider />
 
@@ -1811,11 +1981,35 @@ export default function MonitorPage() {
                           <Text as="p" variant="bodySm" tone="subdued">
                             主要失败原因：{data.topFailureReasons[0]?.reason || "未知"}
                           </Text>
-                          {data.topFailureReasons[0]?.reason?.includes("consent") || data.topFailureReasons[0]?.reason?.includes("同意") ? (
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              💡 提示：如果是因用户同意导致的事件未发送，这是正常现象，不是故障。
-                            </Text>
-                          ) : null}
+                          {}
+                          {(() => {
+                            const reason = data.topFailureReasons[0]?.reason || "";
+                            const isPrivacyFilter =
+                              reason.includes("consent") ||
+                              reason.includes("同意") ||
+                              reason.includes("privacy") ||
+                              reason.includes("隐私") ||
+                              reason.includes("PII") ||
+                              reason.includes("protected customer data");
+
+                            if (isPrivacyFilter) {
+                              return (
+                                <Banner tone="info" size="small">
+                                  <Text as="p" variant="bodySm">
+                                    <strong>隐私过滤/同意状态：</strong>这是由 PII 字段为 null 导致的，不是真实故障。请检查应用的 protected customer data 权限配置和客户的隐私同意状态。
+                                  </Text>
+                                </Banner>
+                              );
+                            }
+
+                            return (
+                              <Banner tone="warning" size="small">
+                                <Text as="p" variant="bodySm">
+                                  <strong>真实故障：</strong>这可能是配置错误或网络问题导致的。请检查像素配置和网络连接。
+                                </Text>
+                              </Banner>
+                            );
+                          })()}
                         </BlockStack>
                       </>)}
                   </BlockStack>

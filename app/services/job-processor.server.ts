@@ -497,12 +497,29 @@ async function sendToPlatformWithCredentials(
 
     };
 
+        const sendStartTime = Date.now();
     const result = await sendConversionToPlatform(
       pixelConfig.platform,
       credentials as PlatformCredentials,
       conversionData,
       eventId
     );
+    const sendLatencyMs = Date.now() - sendStartTime;
+
+        const shop = await prisma.shop.findUnique({
+      where: { id: job.shopId },
+      select: { shopDomain: true },
+    });
+    if (shop) {
+      const { metrics } = await import("../utils/metrics-collector");
+      const destination = pixelConfig.platform;
+      if (result.success) {
+        metrics.pxDestinationOk(shop.shopDomain, destination);
+      } else {
+        metrics.pxDestinationFail(shop.shopDomain, destination, result.error?.message || "unknown");
+      }
+      metrics.pxDestinationLatency(shop.shopDomain, destination, sendLatencyMs);
+    }
 
     if (result.success) {
       return { success: true, status: "sent" };

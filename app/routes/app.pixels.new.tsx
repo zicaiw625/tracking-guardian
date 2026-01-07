@@ -32,6 +32,7 @@ import { getWizardTemplates } from "~/services/pixel-template.server";
 import { encryptJson } from "~/utils/crypto.server";
 import { generateSimpleId, safeFireAndForget } from "~/utils/helpers";
 import { isPlanAtLeast } from "~/utils/plans";
+import { normalizePlanId } from "~/services/billing/plans";
 import { createWebPixel, getExistingWebPixels, isOurWebPixel, updateWebPixel } from "~/services/migration.server";
 import { decryptIngestionSecret, encryptIngestionSecret, isTokenEncrypted } from "~/utils/token-encryption";
 import { randomBytes } from "crypto";
@@ -493,6 +494,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       if (createdPlatforms.length > 0) {
+                const planId = normalizePlanId(shop.plan ?? "free");
+        const isAgency = isPlanAtLeast(planId, "agency");
+        const firstPlatform = createdPlatforms[0];
+
+                let riskScore: number | undefined;
+        let assetCount: number | undefined;
+        try {
+          const latestScan = await prisma.scanReport.findFirst({
+            where: { shopId: shop.id },
+            orderBy: { createdAt: "desc" },
+            select: { riskScore: true },
+          });
+          if (latestScan) {
+            riskScore = latestScan.riskScore;
+            const assets = await prisma.auditAsset.count({
+              where: { shopId: shop.id },
+            });
+            assetCount = assets;
+          }
+        } catch (error) {
+                  }
+
         safeFireAndForget(
           trackEvent({
             shopId: shop.id,
@@ -501,7 +524,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             metadata: {
               count: createdPlatforms.length,
               platforms: createdPlatforms,
-            },
+                            plan: shop.plan ?? "free",
+              role: isAgency ? "agency" : "merchant",
+              destination_type: firstPlatform,
+              environment: "test",
+              risk_score: riskScore,
+              asset_count: assetCount,
+                          },
           })
         );
       }

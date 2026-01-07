@@ -171,7 +171,6 @@ export function SecurityTab({
 
             <Divider />
 
-
             <BlockStack gap="300">
               <Text as="h3" variant="headingMd">
                 数据保留策略

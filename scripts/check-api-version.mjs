@@ -89,7 +89,7 @@ function convertEnumToVersion(enumValue) {
 }
 
 const RELEASE_SCHEDULE_URL =
-  "https://shopify.dev/docs/api/usage/versioning#release-schedule";
+  "https:
 
 function checkVersionAge(version) {
   const match = version.match(/^(\d{4})-(\d{2})$/);

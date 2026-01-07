@@ -60,6 +60,7 @@ import {
 } from "../services/billing/feature-gates.server";
 import { normalizePlanId, type PlanId, planSupportsReportExport } from "../services/billing/plans";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
+import { isPlanAtLeast } from "../utils/plans";
 
 const RealtimeEventMonitor = lazy(() => import("~/components/verification/RealtimeEventMonitor").then(module => ({ default: module.RealtimeEventMonitor })));
 const TestOrderGuide = lazy(() => import("~/components/verification/TestOrderGuide").then(module => ({ default: module.TestOrderGuide })));
@@ -376,8 +377,24 @@ export default function VerificationPage() {
       return;
     }
 
+        const { trackEvent } = require("../services/analytics.server");
+    const { safeFireAndForget } = require("../utils/helpers");
+    safeFireAndForget(
+      trackEvent({
+        shopId: shop?.id || "",
+        shopDomain: shopDomain,
+        event: "app_paywall_viewed",
+        metadata: {
+          triggerPage: "verification_report",
+          plan: currentPlan || "free",
+          reportType: "pdf",
+          runId: latestRun.runId,
+        },
+      })
+    );
+
     window.location.href = "/app/billing?upgrade=growth";
-  }, [latestRun, canExportReports]);
+  }, [latestRun, canExportReports, shop, shopDomain, currentPlan]);
 
   const handleExportCsv = useCallback(() => {
     if (!latestRun) return;
@@ -387,12 +404,29 @@ export default function VerificationPage() {
       return;
     }
 
-    window.location.href = "/app/billing?upgrade=growth";
-  }, [latestRun, canExportReports]);
+        const { trackEvent } = require("../services/analytics.server");
+    const { safeFireAndForget } = require("../utils/helpers");
+    safeFireAndForget(
+      trackEvent({
+        shopId: shop?.id || "",
+        shopDomain: shopDomain,
+        event: "app_paywall_viewed",
+        metadata: {
+          triggerPage: "verification_report",
+          plan: currentPlan || "free",
+          reportType: "csv",
+          runId: latestRun.runId,
+        },
+      })
+    );
 
-  const tabs = [
+    window.location.href = "/app/billing?upgrade=growth";
+  }, [latestRun, canExportReports, shop, shopDomain, currentPlan]);
+
+    const tabs = [
     { id: "overview", content: "验收概览" },
     { id: "pixel-layer", content: "像素层验收（Web Pixels 标准事件）" },
+    { id: "order-layer", content: "订单层验收（Webhook/Admin API 对账）" },
     { id: "results", content: "详细结果" },
     { id: "realtime", content: "实时监控" },
     { id: "test-guide", content: "测试订单指引" },
@@ -464,6 +498,100 @@ export default function VerificationPage() {
       ]}
     >
       <BlockStack gap="500">
+        {}
+        <Card>
+          <BlockStack gap="400">
+            <Text as="h2" variant="headingMd">
+              📊 验收类型说明
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              PRD 2.5要求：验收分为两类，请根据您的需求选择相应的验收方式。
+            </Text>
+            <Layout>
+              <Layout.Section variant="oneHalf">
+                <Box
+                  background="bg-surface-secondary"
+                  padding="400"
+                  borderRadius="200"
+                >
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="h3" variant="headingSm">
+                        🎯 像素层验收
+                      </Text>
+                      <Badge tone="success">所有套餐可用</Badge>
+                    </InlineStack>
+                    <Text as="p" variant="bodySm">
+                      <strong>验收范围：</strong>Web Pixels 标准事件
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          事件触发次数
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          payload 参数完整率（value/currency/items）
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          checkout_completed 的金额/币种一致性
+                        </Text>
+                      </List.Item>
+                    </List>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>支持的事件：</strong>checkout_started、checkout_completed、checkout_contact_info_submitted、checkout_shipping_info_submitted、payment_info_submitted、product_added_to_cart、product_viewed、page_viewed 等
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </Layout.Section>
+              <Layout.Section variant="oneHalf">
+                <Box
+                  background="bg-surface-secondary"
+                  padding="400"
+                  borderRadius="200"
+                >
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="h3" variant="headingSm">
+                        🧾 订单层验收
+                      </Text>
+                      <Badge tone={isPlanAtLeast(currentPlan || "free", "growth") ? "success" : "warning"}>
+                        {isPlanAtLeast(currentPlan || "free", "growth") ? "Growth/Agency 可用" : "需要 Growth/Agency"}
+                      </Badge>
+                    </InlineStack>
+                    <Text as="p" variant="bodySm">
+                      <strong>验收范围：</strong>订单后事件（来自 webhook 或 Admin API）
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          orders/create 事件对账
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          refunds 事件对账
+                        </Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text as="span" variant="bodySm">
+                          cancellations 事件对账
+                        </Text>
+                      </List.Item>
+                    </List>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      <strong>说明：</strong>标准事件覆盖的是"店内行为+checkout链路"，它并不天然覆盖退款/取消等订单后事件，所以订单层验收是第二层验收。
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </Layout.Section>
+            </Layout>
+          </BlockStack>
+        </Card>
+
         <Banner
           title="⚠️ v1.0 验收范围说明（重要）"
           tone="warning"
@@ -526,21 +654,54 @@ export default function VerificationPage() {
         </Banner>
         <CheckoutExtensibilityWarning />
 
-        <Card>
-          <BlockStack gap="300">
-            <InlineStack align="space-between" blockAlign="center">
-              <Text as="h2" variant="headingMd">
-                🧾 订单层验收
+        {}
+        {isPlanAtLeast(currentPlan || "free", "growth") ? (
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingMd">
+                    🧾 订单层验收
+                  </Text>
+                  <Badge tone="success">Growth/Agency 可用</Badge>
+                </BlockStack>
+                <Button url="/app/verification/orders" variant="primary">
+                  进入订单验收
+                </Button>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                订单层验收聚焦 refund/cancel 等订单事件与 webhook 送达情况，适合核对订单级缺口与一致性问题。
               </Text>
-              <Button url="/app/verification/orders" variant="primary">
-                进入订单验收
-              </Button>
-            </InlineStack>
-            <Text as="p" variant="bodySm" tone="subdued">
-              订单层验收聚焦 refund/cancel 等订单事件与 webhook 送达情况，适合核对订单级缺口与一致性问题。
-            </Text>
-          </BlockStack>
-        </Card>
+              <Text as="p" variant="bodySm" tone="subdued">
+                <strong>说明：</strong>标准事件覆盖的是"店内行为+checkout链路"，它并不天然覆盖退款/取消等订单后事件，所以订单层验收是第二层验收。
+              </Text>
+            </BlockStack>
+          </Card>
+        ) : (
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingMd">
+                    🧾 订单层验收
+                  </Text>
+                  <Badge tone="warning">需要 Growth 或 Agency 套餐</Badge>
+                </BlockStack>
+                <Button url="/app/billing?upgrade=growth" variant="secondary">
+                  升级解锁
+                </Button>
+              </InlineStack>
+              <Text as="p" variant="bodySm" tone="subdued">
+                订单层验收聚焦 refund/cancel 等订单事件与 webhook 送达情况，适合核对订单级缺口与一致性问题。
+              </Text>
+              <Banner tone="info">
+                <Text as="p" variant="bodySm">
+                  标准事件覆盖的是"店内行为+checkout链路"，它并不天然覆盖退款/取消等订单后事件，所以订单层验收是第二层验收。需要 Growth ($79/月) 或 Agency ($199/月) 套餐。
+                </Text>
+              </Banner>
+            </BlockStack>
+          </Card>
+        )}
 
         {configuredPlatforms.length === 0 && (
           <Banner
@@ -1330,6 +1491,37 @@ export default function VerificationPage() {
 
           {selectedTab === 2 && (
             <Box padding="400">
+              <BlockStack gap="500">
+                <Banner tone="info" title="PRD 2.5: 订单层验收说明">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm">
+                      <strong>订单层验收范围：</strong>标准事件覆盖的是"店内行为+checkout链路"，
+                      它并不天然覆盖退款/取消等订单后事件，所以订单层验收是第二层验收。
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      订单层验收包括：orders/create、refunds/create、orders/cancelled 等 webhook 事件的对账。
+                    </Text>
+                  </BlockStack>
+                </Banner>
+                <Card>
+                  <BlockStack gap="400">
+                    <Text as="h2" variant="headingMd">
+                      订单层验收
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      对比 Shopify 订单与平台转化数据，验证订单创建、退款、取消等事件的一致性。
+                    </Text>
+                    <Button url="/app/verification/orders" variant="primary">
+                      前往订单层验收页面
+                    </Button>
+                  </BlockStack>
+                </Card>
+              </BlockStack>
+            </Box>
+          )}
+
+          {selectedTab === 3 && (
+            <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={3} />}>
                 <RealtimeEventMonitor
                   shopId={shop.id}
@@ -1343,7 +1535,7 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {selectedTab === 3 && (
+          {selectedTab === 4 && (
             <Box padding="400">
               <Suspense fallback={<CardSkeleton lines={5} />}>
                 <TestOrderGuide
@@ -1370,7 +1562,7 @@ export default function VerificationPage() {
             </Box>
           )}
 
-          {selectedTab === 6 && (
+          {selectedTab === 8 && (
             <Box padding="400">
               <BlockStack gap="500">
                 <Card>

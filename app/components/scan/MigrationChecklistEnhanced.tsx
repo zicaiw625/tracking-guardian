@@ -343,6 +343,21 @@ export function MigrationChecklistEnhanced({
 
         <Divider />
 
+        {}
+        <Banner tone="info">
+          <BlockStack gap="200">
+            <Text as="p" variant="bodySm" fontWeight="semibold">
+              PRD 2.2: 迁移清单交付结构（4列）
+            </Text>
+            <List type="bullet">
+              <List.Item>资产名称/指纹（hash）</List.Item>
+              <List.Item>风险等级（High/Med/Low）+ 原因</List.Item>
+              <List.Item>推荐迁移路径（Web Pixel / UI Extension / Server-side / None）</List.Item>
+              <List.Item>预估工时 + 需要的信息（Pixel ID、Token、问卷题目等）</List.Item>
+            </List>
+          </BlockStack>
+        </Banner>
+
         {filteredAndSortedItems.length === 0 ? (
           <Banner tone="info">
             <Text as="p" variant="bodySm">
@@ -352,8 +367,50 @@ export function MigrationChecklistEnhanced({
             </Text>
           </Banner>
         ) : (
-          <BlockStack gap="300">
-            {filteredAndSortedItems.map((item) => (
+          <>
+            {}
+            <DataTable
+              columnContentTypes={["text", "text", "text", "text"]}
+              headings={[
+                "资产名称/指纹",
+                "风险等级 + 原因",
+                "推荐迁移路径",
+                "预估工时 + 需要的信息"
+              ]}
+              rows={filteredAndSortedItems.map((item) => {
+                const migrationPathLabel = item.suggestedMigration === "web_pixel"
+                  ? "Web Pixel"
+                  : item.suggestedMigration === "ui_extension"
+                    ? "UI Extension"
+                    : item.suggestedMigration === "server_side"
+                      ? "Server-side"
+                      : "None";
+
+                const needsInfo: string[] = [];
+                if (item.platform) needsInfo.push(`平台: ${item.platform}`);
+                if (item.category === "pixel") needsInfo.push("需要 Pixel ID");
+                if (item.category === "survey") needsInfo.push("需要问卷题目");
+                const needsInfoText = needsInfo.length > 0 ? needsInfo.join(", ") : "无特殊要求";
+
+                                const assetNameWithFingerprint = item.fingerprint
+                  ? `${item.title || item.assetId || "未命名资产"} (${item.fingerprint.slice(0, 8)}...)`
+                  : item.title || item.assetId || "未命名资产";
+
+                const riskLevelText = item.riskLevel === "high" ? "高" : item.riskLevel === "medium" ? "中" : "低";
+                const riskReason = item.description || "无描述";
+
+                return [
+                  assetNameWithFingerprint,
+                  `${riskLevelText}风险 - ${riskReason}`,
+                  migrationPathLabel,
+                  `${formatTime(item.estimatedTime)} | ${needsInfoText}`
+                ];
+              })}
+            />
+            <Divider />
+            {}
+            <BlockStack gap="300">
+              {filteredAndSortedItems.map((item) => (
               <Box
                 key={item.id}
                 background={
@@ -511,6 +568,7 @@ export function MigrationChecklistEnhanced({
               </Box>
             ))}
           </BlockStack>
+          </>
         )}
       </BlockStack>
     </Card>

@@ -1,6 +1,5 @@
 #!/usr/bin/env tsx
 
-
 import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join, relative, extname } from "path";
 

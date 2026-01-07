@@ -172,3 +172,7 @@ export const FilterIcon: IconSource = createIcon(
 export const WarningIcon: IconSource = createIcon(
   "M10 2l9 16H1L10 2zm0 4.5a1 1 0 00-1 1v3a1 1 0 002 0v-3a1 1 0 00-1-1zm0 6a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z",
 );
+
+export const QuestionCircleIcon: IconSource = createIcon(
+  "M10 2a8 8 0 100 16 8 8 0 000-16zm0 3a1 1 0 011 1v2a1 1 0 11-2 0V6a1 1 0 011-1zm0 8a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z",
+);

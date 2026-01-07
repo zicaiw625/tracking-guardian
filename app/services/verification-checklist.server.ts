@@ -25,7 +25,14 @@ export interface TestChecklist {
   totalEstimatedTime: number;
   requiredItemsCount: number;
   optionalItemsCount: number;
+    shopifyOfficialGuides?: {
+    testCheckout: string;
+    testPixels: string;
+  };
 }
+
+const SHOPIFY_OFFICIAL_TEST_GUIDE = "https://help.shopify.com/en/manual/checkout-settings/test-checkout";
+const SHOPIFY_PIXEL_TEST_GUIDE = "https://help.shopify.com/en/manual/online-store/themes/customizing-themes/checkout-extensibility/web-pixels-api/test-custom-pixels";
 
 export function generateTestChecklist(
   shopId: string,
@@ -37,13 +44,10 @@ export function generateTestChecklist(
   let selectedItems: TestChecklistItem[];
 
   if (testType === "quick") {
-
-    selectedItems = allItems.filter((item) => item.required);
+        selectedItems = allItems.filter((item) => item.required);
   } else if (testType === "custom" && customTestItems) {
-
     selectedItems = allItems.filter((item) => customTestItems.includes(item.id));
   } else {
-
     selectedItems = allItems;
   }
 
@@ -59,6 +63,10 @@ export function generateTestChecklist(
     totalEstimatedTime,
     requiredItemsCount: requiredItems.length,
     optionalItemsCount: optionalItems.length,
+        shopifyOfficialGuides: {
+      testCheckout: SHOPIFY_OFFICIAL_TEST_GUIDE,
+      testPixels: SHOPIFY_PIXEL_TEST_GUIDE,
+    },
   };
 }
 

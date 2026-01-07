@@ -101,7 +101,7 @@ function injectBackendUrl() {
         if (isCI) {
             console.error("❌ SHOPIFY_APP_URL is required in CI/CD environment!");
             console.error("   Please set SHOPIFY_APP_URL environment variable to your app's URL.");
-            console.error("   Example: SHOPIFY_APP_URL=https://your-app.onrender.com");
+            console.error("   Example: SHOPIFY_APP_URL=https:
             process.exit(1);
         }
         console.log("⚠️  SHOPIFY_APP_URL not set, using default production URL");

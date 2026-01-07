@@ -459,8 +459,7 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
     `;
   }
 
-  // P1-12: 添加免责声明，明确说明我们只保证生成与发送成功，不保证平台侧归因一致
-  html += `
+    html += `
   <div style="margin-top: 40px; padding: 20px; background: #f6f6f7; border-radius: 8px; border-left: 4px solid #008060;">
     <h3 style="color: #202223; margin-top: 0;">重要说明：事件发送与平台归因</h3>
     <p style="margin: 10px 0; color: #202223;"><strong>本应用仅保证事件生成与发送成功，不保证平台侧归因一致。</strong></p>

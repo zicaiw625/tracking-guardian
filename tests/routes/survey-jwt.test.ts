@@ -593,7 +593,7 @@ describe("CSRF Prevention via JWT", () => {
 
   it("validates JWT independently of Origin header", async () => {
     const validToken = generateMockJwt({
-      dest: "https://test-shop.myshopify.com",
+      dest: "https:
     });
 
     vi.mocked(prisma.shop.findUnique).mockResolvedValue({

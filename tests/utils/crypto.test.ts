@@ -485,7 +485,7 @@ describe("Crypto Utils", () => {
 
     it("should handle order IDs with leading zeros", () => {
       expect(normalizeOrderId("00012345")).toBe("00012345");
-      expect(normalizeOrderId("gid://shopify/Order/123456")).toBe("123456");
+      expect(normalizeOrderId("gid:
       expect(normalizeOrderId("gid://shopify/Order/789012")).toBe("789012");
     });
 

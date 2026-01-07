@@ -8,6 +8,7 @@ import { analyzeDependencies } from "./dependency-analysis.server";
 import { getAuditAssetSummary } from "./audit-asset.server";
 import { getEventMonitoringStats, getEventVolumeStats } from "./monitoring.server";
 import { getMissingParamsRate } from "./event-validation.server";
+import { runAlertChecks } from "./alert-dispatcher.server";
 import { logger } from "../utils/logger.server";
 import { calculateMigrationProgress } from "../utils/migration-progress.server";
 import { getTierDisplayInfo } from "./shop-tier.server";
@@ -334,6 +335,125 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     }
   }
 
+    let topRiskSources: Array<{ source: string; count: number; category: string }> = [];
+  try {
+    if (latestScan) {
+      const assetSummary = await getAuditAssetSummary(shop.id);
+      const categoryLabels: Record<string, string> = {
+        pixel: "像素追踪",
+        affiliate: "联盟营销",
+        survey: "问卷调研",
+        support: "客服支持",
+        analytics: "分析工具",
+        other: "其他",
+      };
+
+            const highRiskByCategory = await prisma.auditAsset.groupBy({
+        by: ["category"],
+        where: {
+          shopId: shop.id,
+          riskLevel: "high",
+        },
+        _count: true,
+      });
+
+            const highRiskByPlatform = await prisma.auditAsset.groupBy({
+        by: ["platform"],
+        where: {
+          shopId: shop.id,
+          riskLevel: "high",
+          platform: { not: null },
+        },
+        _count: true,
+      });
+
+            const allSources: Array<{ source: string; count: number; category: string }> = [];
+
+      highRiskByCategory.forEach((item) => {
+        allSources.push({
+          source: categoryLabels[item.category] || item.category,
+          count: item._count,
+          category: item.category,
+        });
+      });
+
+      highRiskByPlatform.forEach((item) => {
+        if (item.platform) {
+          allSources.push({
+            source: item.platform,
+            count: item._count,
+            category: "platform",
+          });
+        }
+      });
+
+            topRiskSources = allSources
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+    }
+  } catch (error) {
+    logger.warn("Failed to get top risk sources", { shopId: shop.id, error });
+  }
+
+    let healthMetrics24h = null;
+  let activeAlerts: Array<{
+    id: string;
+    type: string;
+    severity: "critical" | "warning" | "info";
+    message: string;
+    triggeredAt: Date;
+  }> = [];
+
+  try {
+    const monitoringStats = await getEventMonitoringStats(shop.id, 24);
+    const missingParamsData = await getMissingParamsRate(shop.id, 24);
+
+        const missingParamsByType = {
+      value: 0,
+      currency: 0,
+      items: 0,
+    };
+
+    if (missingParamsData.details) {
+      missingParamsData.details.forEach((detail) => {
+        if (detail.missingParams.includes("value")) {
+          missingParamsByType.value += detail.count;
+        }
+        if (detail.missingParams.includes("currency")) {
+          missingParamsByType.currency += detail.count;
+        }
+        if (detail.missingParams.includes("items")) {
+          missingParamsByType.items += detail.count;
+        }
+      });
+    }
+
+    healthMetrics24h = {
+      successRate: monitoringStats.successRate,
+      failureRate: monitoringStats.failureRate,
+      missingParamsRate: missingParamsData.rate,
+      missingParamsByType,
+      totalEvents: monitoringStats.totalEvents,
+    };
+  } catch (error) {
+    logger.warn("Failed to get 24h health metrics", { shopId: shop.id, error });
+  }
+
+    try {
+    const alertCheckResult = await runAlertChecks(shop.id);
+    activeAlerts = alertCheckResult.results
+      .filter((r) => r.triggered)
+      .map((r) => ({
+        id: r.alertId || `alert-${Date.now()}`,
+        type: r.alertType || "unknown",
+        severity: r.severity || "info",
+        message: r.message || "告警触发",
+        triggeredAt: new Date(),
+      }));
+  } catch (error) {
+    logger.warn("Failed to get active alerts", { shopId: shop.id, error });
+  }
+
   return {
     shopDomain,
     healthScore: score,
@@ -378,6 +498,9 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       : null,
     dependencyGraph: dependencyGraph,
     riskDistribution: riskDistribution,
+    healthMetrics24h,
+    activeAlerts,
+    topRiskSources,
   };
 }
 

@@ -46,6 +46,9 @@ import { validatePixelEventHMAC } from "./hmac-validation";
 import { processEventPipeline } from "../../services/events/pipeline.server";
 import { safeFireAndForget } from "../../utils/helpers";
 import { trackEvent } from "../../services/analytics.server";
+import { normalizePlanId } from "../../services/billing/plans";
+import { isPlanAtLeast } from "../../utils/plans";
+import prisma from "../../db.server";
 
 const MAX_BODY_SIZE = API_CONFIG.MAX_BODY_SIZE;
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
@@ -195,6 +198,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       logger.debug(
         `Pixel payload validation failed: code=${basicValidation.code}, error=${basicValidation.error}`
       );
+            const shopDomainFromPayload = (rawBody as { shopDomain?: string })?.shopDomain || "unknown";
+      metrics.pxValidateFailed(shopDomainFromPayload, basicValidation.code || "unknown");
       return jsonWithCors({ error: "Invalid request" }, { status: 400, request });
     }
 
@@ -239,6 +244,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { status: 404, request }
       );
     }
+
+        const shopWithPlan = await prisma.shop.findUnique({
+      where: { id: shop.id },
+      select: { plan: true },
+    });
 
     const shopAllowedDomains = buildShopAllowedDomains({
       shopDomain: shop.shopDomain,
@@ -417,6 +427,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const trustResult = evaluateTrustLevel(keyValidation, !!payload.data.checkoutToken);
 
+        metrics.pxIngestAccepted(shop.shopDomain);
+
     const eventType = payload.eventName === "checkout_completed" ? "purchase" : payload.eventName;
     const isPurchaseEvent = eventType === "purchase";
 
@@ -492,6 +504,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       normalizedItems.length > 0 ? normalizedItems : undefined,
       payload.nonce || null
     );
+            const existingEventCount = await prisma.eventLog.count({
+      where: { shopId: shop.id },
+    });
+    const isFirstEvent = existingEventCount === 0;
+
+        let riskScore: number | undefined;
+    let assetCount: number | undefined;
+    try {
+      const latestScan = await prisma.scanReport.findFirst({
+        where: { shopId: shop.id },
+        orderBy: { createdAt: "desc" },
+        select: { riskScore: true },
+      });
+      if (latestScan) {
+        riskScore = latestScan.riskScore;
+        const assets = await prisma.auditAsset.count({
+          where: { shopId: shop.id },
+        });
+        assetCount = assets;
+      }
+    } catch (error) {
+          }
+
+    const planId = normalizePlanId(shopWithPlan?.plan ?? "free");
+    const isAgency = isPlanAtLeast(planId, "agency");
     safeFireAndForget(
       trackEvent({
         shopId: shop.id,
@@ -500,9 +537,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         eventId: `px_event_received_${eventId}`,
         metadata: {
           pixelEventName: payload.eventName,
-          environment,
           pixelEventId: eventId,
-        },
+                    plan: shopWithPlan?.plan ?? "free",
+          role: isAgency ? "agency" : "merchant",
+          destination_type: pixelConfigs.length > 0 ? pixelConfigs[0].platform : "none",
+          environment: environment,
+          first_event_name: isFirstEvent ? payload.eventName : undefined,
+          risk_score: riskScore,
+          asset_count: assetCount,
+                  },
       })
     );
 

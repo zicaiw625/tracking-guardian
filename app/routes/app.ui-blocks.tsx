@@ -61,6 +61,7 @@ import {
   type DisplayRules,
 } from "../types/ui-extension";
 import { getPlanOrDefault, type PlanId, BILLING_PLANS } from "../services/billing/plans";
+import { logger } from "../utils/logger.server";
 
 interface LoaderData {
   shop: {
@@ -74,6 +75,7 @@ interface LoaderData {
   planInfo: typeof BILLING_PLANS[PlanId];
   isDevStore: boolean;
   modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }>;
+  surveySubmissionCount?: number;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -95,6 +97,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       planInfo: BILLING_PLANS.free,
       isDevStore: false,
       modulePreviewUrls: {},
+      surveySubmissionCount: 0,
     });
   }
 
@@ -102,6 +105,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planInfo = getPlanOrDefault(planId);
   const modules = await getUiModuleConfigs(shop.id);
   const enabledCount = await getEnabledModulesCount(shop.id);
+
+    let surveySubmissionCount = 0;
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    surveySubmissionCount = await prisma.surveyResponse.count({
+      where: {
+        shopId: shop.id,
+        createdAt: { gte: sevenDaysAgo },
+      },
+    });
+  } catch (error) {
+    logger.warn("Failed to get survey submission count", { shopId: shop.id, error });
+  }
 
   const isDev = isDevStore(shopDomain);
   const modulePreviewUrls: Record<string, { thank_you?: string; order_status?: string }> = {};
@@ -128,6 +145,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     planInfo,
     isDevStore: isDev,
     modulePreviewUrls,
+    surveySubmissionCount,
   });
 };
 
@@ -233,6 +251,7 @@ function ModuleCard({
   upgradeRequired,
   isSelected,
   onSelect,
+  surveySubmissionCount,
 }: {
   module: UiModuleConfig;
   onToggle: (moduleKey: ModuleKey, enabled: boolean) => void;
@@ -242,6 +261,7 @@ function ModuleCard({
   upgradeRequired?: PlanId;
   isSelected?: boolean;
   onSelect?: (moduleKey: ModuleKey, selected: boolean) => void;
+  surveySubmissionCount?: number;
 }) {
   const info = UI_MODULES[module.moduleKey];
 
@@ -291,6 +311,12 @@ function ModuleCard({
                 {info.description}
                 {info.disabled && info.disabledReason && `（${info.disabledReason}）`}
               </Text>
+              {}
+              {module.moduleKey === "survey" && surveySubmissionCount !== undefined && surveySubmissionCount > 0 && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  最近7天提交量: {surveySubmissionCount} 条
+                </Text>
+              )}
             </BlockStack>
           </InlineStack>
 
@@ -1012,7 +1038,7 @@ function LocalizationSettingsForm({
 }
 
 export default function UiBlocksPage() {
-  const { shop, shopDomain, modules, enabledCount, maxModules, planInfo, isDevStore, modulePreviewUrls } = useLoaderData<typeof loader>();
+  const { shop, shopDomain, modules, enabledCount, maxModules, planInfo, isDevStore, modulePreviewUrls, surveySubmissionCount } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -1327,6 +1353,7 @@ export default function UiBlocksPage() {
                       }
                       setSelectedModules(newSelected);
                     }}
+                    surveySubmissionCount={surveySubmissionCount}
                   />
                 ))
               )}
@@ -1399,9 +1426,47 @@ export default function UiBlocksPage() {
               }}
             >
               <BlockStack gap="200">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  PRD 2.4: UI Extensions 的 Protected Customer Data 声明
+                </Text>
                 <Text as="p" variant="bodySm">
                   自 <strong>2025-12-10</strong> 起，Shopify Web Pixels 中的客户个人信息（PII，如邮箱/电话/地址）将仅在应用获得批准的 <strong>Protected Customer Data (PCD)</strong> 权限后才会填充。
                 </Text>
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  需要 Protected Customer Data 的属性：
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>Thank you block (purchase.thank-you.block.render)：</strong>需要 protected customer data 才能访问订单相关的客户信息（如邮箱、电话、地址）
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      <strong>Order status block (customer-account.order-status.block.render)：</strong>需要 protected customer data 才能访问客户账户信息
+                    </Text>
+                  </List.Item>
+                </List>
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  UI Extensions 不支持的行为：
+                </Text>
+                <List type="bullet">
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      不能随意注入脚本（script tags）
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      不能访问 DOM 或执行任意 JavaScript
+                    </Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text as="span" variant="bodySm">
+                      只能在 Shopify 提供的 sandbox 环境中运行
+                    </Text>
+                  </List.Item>
+                </List>
                 <Text as="p" variant="bodySm">
                   如果未获批相关权限，Web Pixel 发送的事件中 PII 字段将为 null。这可能导致：
                 </Text>
