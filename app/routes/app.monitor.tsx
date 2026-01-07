@@ -442,6 +442,10 @@ export default function MonitorPage() {
             url: "/app/migrate",
         }} secondaryActions={[
             {
+                content: "告警中心",
+                url: "/app/alerts",
+            },
+            {
                 content: "运行诊断",
                 url: "/app/diagnostics",
             }
@@ -608,6 +612,9 @@ export default function MonitorPage() {
                   )}
                 </Text>
               )}
+              <Button size="slim" url="/app/alerts">
+                查看告警中心
+              </Button>
               {(() => {
                 if (monitoringAlert.stats && "byEventType" in monitoringAlert.stats && monitoringAlert.stats.byEventType) {
                   return (

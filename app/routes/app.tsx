@@ -8,31 +8,68 @@ import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import translations from "@shopify/polaris/locales/en.json" with { type: "json" };
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 import { ToastProvider } from "../components/ui/ToastProvider";
 import { getPolarisTranslations } from "../utils/polaris-i18n";
+import { getShopPlan } from "../services/shop-tier.server";
+import { isPlanAtLeast, normalizePlan } from "../utils/plans";
 
 const i18n = getPolarisTranslations(translations);
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-    await authenticate.admin(request);
+    const { session, admin } = await authenticate.admin(request);
+    const shopDomain = session.shop;
+    const shop = await prisma.shop.findUnique({
+        where: { shopDomain },
+        select: {
+            id: true,
+            plan: true,
+        },
+    });
+    const planInfo = admin ? await getShopPlan(admin) : null;
+    const planId = normalizePlan(shop?.plan);
+    const workspaceShop = shop
+        ? await prisma.workspaceShop.findFirst({
+            where: { shopId: shop.id },
+            select: { id: true },
+        })
+        : null;
+    const isAgency = isPlanAtLeast(planId, "agency") || !!workspaceShop || planInfo?.partnerDevelopment === true;
     return json({
         apiKey: process.env.SHOPIFY_API_KEY || "",
+        isAgency,
+        planDisplayName: planInfo?.displayName ?? "Unknown",
     });
 };
 export default function App() {
-    const { apiKey } = useLoaderData<typeof loader>();
+    const { apiKey, isAgency } = useLoaderData<typeof loader>();
 
     return (<AppProvider isEmbeddedApp apiKey={apiKey} i18n={i18n as any}>
       <NavMenu>
-        <a href="/app" rel="home">升级迁移交付平台</a>
-        <a href="/app/scan">体检&清单（免费 Audit）</a>
-        <a href="/app/migrate">像素迁移</a>
-        <a href="/app/ui-blocks">页面模块（Survey/Helpdesk）</a>
-        <a href="/app/verification">验收+监控</a>
-        <a href="/app/monitor">监控告警</a>
-        <a href="/app/settings">设置</a>
-        <a href="/app/billing">套餐管理</a>
+        {isAgency ? (
+          <>
+            <a href="/app/workspace">Workspaces</a>
+            <a href="/app/workspace?tab=shops">Shops</a>
+            <a href="/app/workspace/templates">Templates</a>
+            <a href="/app/reports?scope=agency">Reports</a>
+            <a href="/app/workspace?tab=team">Team &amp; Roles</a>
+          </>
+        ) : (
+          <>
+            <a href="/app" rel="home">Dashboard</a>
+            <a href="/app/scan">Audit</a>
+            <a href="/app/migrate">Pixels</a>
+            <a href="/app/ui-blocks">Modules</a>
+            <a href="/app/verification">Verification</a>
+            <a href="/app/monitor">Monitoring</a>
+            <a href="/app/alerts">Alerts</a>
+            <a href="/app/reports">Reports</a>
+            <a href="/app/billing">Billing</a>
+            <a href="/app/settings">Settings</a>
+            <a href="/app/support">Support</a>
+          </>
+        )}
       </NavMenu>
       <ToastProvider>
         <Outlet />
