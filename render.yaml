@@ -87,7 +87,7 @@ cronJobs:
   - name: tracking-guardian-cron
     region: singapore  # 与 web service 相同区域
     schedule: "*/5 * * * *"  # 每 5 分钟执行一次
-    command: >
+    startCommand: >
       curl -X POST 
       -H "Authorization: Bearer $CRON_SECRET" 
       -H "Content-Type: application/json"
