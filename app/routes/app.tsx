@@ -36,7 +36,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const workspaceShop = shop
         ? await prisma.workspaceShop.findFirst({
             where: { shopId: shop.id },
-            select: { id: true },
+            select: { workspaceId: true },
         })
         : null;
     const isAgency = isPlanAtLeast(planId, "agency") || !!workspaceShop || planInfo?.partnerDevelopment === true;
@@ -54,19 +54,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
         let activeShops: Array<{ id: string; domain: string }> | undefined;
-    if (isAgency && shop) {
+    if (isAgency && shop && workspaceShop) {
         try {
             const workspaceShops = await prisma.workspaceShop.findMany({
-                where: { workspaceId: workspaceShop?.id || shop.id },
-                include: {
-                    shop: {
-                        select: { id: true, shopDomain: true },
-                    },
+                where: { workspaceId: workspaceShop.workspaceId },
+                select: {
+                    shopId: true,
                 },
             });
-            activeShops = workspaceShops.map((ws) => ({
-                id: ws.shop.id,
-                domain: ws.shop.shopDomain,
+            const shopIds = workspaceShops.map((ws) => ws.shopId);
+            const shops = await prisma.shop.findMany({
+                where: {
+                    id: { in: shopIds },
+                },
+                select: {
+                    id: true,
+                    shopDomain: true,
+                },
+            });
+            activeShops = shops.map((s) => ({
+                id: s.id,
+                domain: s.shopDomain,
             }));
         } catch (error) {
                     }
