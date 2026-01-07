@@ -135,10 +135,10 @@ async function loaderImpl(request: Request) {
     let carrierFromShopify: string | null = null;
     let trackingUrlFromShopify: string | null = null;
 
-    // P0-3: v1.0 版本已包含 read_orders scope，可以查询 Shopify 订单 fulfillments
+    // P0-3: v1.0 默认不申请 read_orders scope（最小权限）
     // 查询策略：
     // 1. 优先使用用户提供的 trackingNumber（来自 URL 参数）
-    // 2. 如果没有提供，尝试从 Shopify 订单 fulfillments 中获取
+    // 2. 若商家选择额外授权 read_orders，可从 Shopify 订单 fulfillments 中获取
     // 3. 如果配置了第三方追踪服务（AfterShip/17Track）且有 apiKey，使用第三方 API 丰富信息
     // 4. 否则返回提示信息，引导用户查看邮件或联系客服
 
@@ -325,4 +325,3 @@ async function loaderImpl(request: Request) {
     return jsonWithCors({ error: "Failed to fetch tracking info" }, { status: 500, request, staticCors: true });
   }
 }
-
