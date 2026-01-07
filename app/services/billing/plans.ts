@@ -1,20 +1,4 @@
-/**
- * P0-1: PRD 对齐 - 套餐结构与定价
- * 
- * 审计结论对齐：
- * - ✅ 套餐结构完全符合 PRD 11.1 要求
- *   - Free / Starter $29 / Growth $79 / Agency $199（月付）
- *   - 所有套餐均为月付，不使用 isOneTime 字段
- * 
- * - ✅ Monitor 计划不在 v1.0 PRD 中
- *   - Monitor 计划已通过 PLAN_IDS 排除，确保 UI 中不显示
- *   - PLAN_IDS 仅包含 ["free", "starter", "growth", "agency"]
- *   - billing 页面使用 PLAN_IDS 渲染套餐列表，确保 Monitor 不会出现在 UI 中
- * 
- * - ✅ Growth 计划定位为"项目交付包"
- *   - 月付 $79，符合 PRD 11.1 要求
- *   - 包含验收报告导出功能（PDF/CSV），适合 Agency 直接报给客户
- */
+
 
 import { DEPRECATION_DATES, formatDeadlineDate, SHOPIFY_HELP_LINKS } from "../../utils/migration-deadlines";
 
@@ -33,12 +17,10 @@ export interface PlanFeatures {
   includesAlerts: boolean;
   includesReconciliation: boolean;
   includesAgency: boolean;
-  includesReportExport: boolean; // 验收报告导出 (PDF/CSV)
+  includesReportExport: boolean;
   tagline?: string;
-  // P0-1: PRD 对齐 - v1.0 中所有计划均为月付，不支持一次性收费
-  // 审计结论：PRD 11.1 定义的套餐为 Free / Starter $29 / Growth $79 / Agency $199（月付）
-  // 此字段保留用于未来可能的扩展，但 v1.0 中所有计划都不使用此字段
-  isOneTime?: boolean; // 是否为一次性收费（v1.0 中未使用，所有计划均为月付）
+
+  isOneTime?: boolean;
 }
 
 export const BILLING_PLANS = {
@@ -68,7 +50,7 @@ export const BILLING_PLANS = {
     id: "starter",
     name: "Starter 入门版",
     nameEn: "Starter",
-    price: 29, // P1-10: 按 PRD 调整为 $29
+    price: 29,
     monthlyOrderLimit: 1000,
     trialDays: 7,
     pixelDestinations: 1,
@@ -77,7 +59,7 @@ export const BILLING_PLANS = {
     includesAlerts: false,
     includesReconciliation: false,
     includesAgency: false,
-    includesReportExport: false, // Migration 版本不含报告导出（这是 Go-Live 的核心付费点）
+    includesReportExport: false,
     tagline: "像素最小可用迁移（标准事件映射 + 参数完整率）",
     features: [
       "1 个像素目的地 (GA4/Meta/TikTok 三选一)",
@@ -95,19 +77,18 @@ export const BILLING_PLANS = {
     id: "growth",
     name: "Growth 成长版",
     nameEn: "Growth",
-    price: 79, // PRD 11.1: 月付 $79
+    price: 79,
     monthlyOrderLimit: 10000,
     trialDays: 7,
     pixelDestinations: 3,
     uiModules: -1,
     includesVerification: true,
-    includesAlerts: true, // PRD 11.1: Growth 包含告警功能
-    includesReconciliation: true, // PRD 11.1: Growth 包含事件对账功能
+    includesAlerts: true,
+    includesReconciliation: true,
     includesAgency: false,
-    includesReportExport: true, // Go-Live 包含报告导出
+    includesReportExport: true,
     tagline: "项目交付包（Agency 直接报给客户的交付包）",
-    // P0-1: PRD 对齐 - Growth 为月付 $79（符合 PRD 11.1 要求）
-    // 审计结论：套餐结构与 PRD 完全一致，Growth 计划为月付 $79，包含告警和对账功能
+
     features: [
       "像素迁移 + 模块发布 + 验收报告导出 (PDF/CSV)",
       "可交付的验收报告（给老板/客户看的证据）",
@@ -120,20 +101,17 @@ export const BILLING_PLANS = {
       "90 天数据保留",
     ],
   },
-  // P0-1: PRD 对齐 - Monitor 计划不在 v1.0 PRD 中，标记为可选叠加功能
-  // 注意：此计划不在 PRD v1.0 的正式套餐列表中，但保留作为可选功能
-  // 在 v1.0 中，Monitor 不会出现在正式套餐列表中（通过 PLAN_IDS 和 UI 过滤）
-  // 审计结论：Monitor 计划不在 v1.0 PRD 中，已通过 PLAN_IDS 排除，确保 UI 中不显示
+
   monitor: {
     id: "monitor",
     name: "Monitor 监控版（可选叠加）",
     nameEn: "Monitor (Optional Add-on)",
     price: 29,
-    monthlyOrderLimit: 0, // 监控功能不依赖订单限制
-    pixelDestinations: 0, // 监控是叠加功能，不包含像素配置
+    monthlyOrderLimit: 0,
+    pixelDestinations: 0,
     uiModules: 0,
     includesVerification: false,
-    includesAlerts: true, // Monitor 包含告警功能
+    includesAlerts: true,
     includesReconciliation: false,
     includesAgency: false,
     includesReportExport: false,
@@ -189,18 +167,9 @@ export const BILLING_PLANS_COMPAT = {
 
 export type PlanId = keyof typeof BILLING_PLANS;
 
-// P0-1: PRD 对齐 - v1.0 正式套餐列表（不含 monitor）
-// 
-// 审计结论对齐：
-// - ✅ PRD 11.1 定义的套餐为 Free / Starter $29 / Growth $79 / Agency $199（月付）
-// - ✅ Monitor 计划不在 v1.0 PRD 中，已通过此列表排除，确保 UI 中不显示
-// - ✅ Growth 计划为月付 $79，不使用 isOneTime 字段（符合 PRD 11.1 要求）
-// - ✅ 套餐结构与 PRD 完全一致，解决了审计结论中的"商业化套餐结构与 PRD 不一致"问题
-// 
 export const PLAN_IDS: readonly PlanId[] = ["free", "starter", "growth", "agency"];
-// P0-1: Monitor 作为可选叠加功能，不在主套餐列表中（仅用于内部测试，不对外展示）
+
 export const PLAN_IDS_WITH_MONITOR: readonly PlanId[] = ["free", "starter", "growth", "monitor", "agency"];
-// Note: starter = Migration $29/月, growth = Go-Live $79/月, monitor = Monitor $29/月（可选叠加，不在 v1.0 PRD 中）
 
 export const PLAN_IDS_COMPAT: readonly string[] = ["free", "starter", "pro", "growth", "enterprise", "agency"];
 
@@ -243,14 +212,14 @@ export function getPlanLimit(planId: PlanId): number {
 
 export function detectPlanFromPrice(price: number): PlanId {
   if (price >= 199) {
-    // $199 是 Agency (月付)
+
     return "agency";
   }
   if (price >= 79 && price < 199) {
-    return "growth"; // Growth $79/月
+    return "growth";
   }
   if (price >= 29 && price < 79) {
-    return "starter"; // Starter $29/月
+    return "starter";
   }
   return "free";
 }
@@ -266,22 +235,21 @@ export function getTrialDays(planId: PlanId): number {
 }
 
 export function isHigherTier(planA: PlanId, planB: PlanId): boolean {
-  // Monitor 是叠加功能，不参与主层级比较
+
   if (planA === "monitor" || planB === "monitor") {
     return false;
   }
   const tierOrder: Record<Exclude<PlanId, "monitor">, number> = {
     free: 0,
-    starter: 1, // Starter $29/月 (PRD 11.1)
-    growth: 2, // Growth $79/月 (PRD 11.1)
-    agency: 3, // Agency $199/月 (PRD 11.1)
+    starter: 1,
+    growth: 2,
+    agency: 3,
   };
   return tierOrder[planA as Exclude<PlanId, "monitor">] > tierOrder[planB as Exclude<PlanId, "monitor">];
 }
 
 export function getUpgradeOptions(currentPlan: PlanId): PlanId[] {
-  // P0-1: PRD 对齐 - 只返回 v1.0 正式套餐（不含 monitor）
-  // 审计结论：确保升级选项中不包含 Monitor 计划，符合 PRD v1.0 套餐结构
+
   const tierOrder: PlanId[] = ["free", "starter", "growth", "agency"];
   const currentIndex = tierOrder.indexOf(currentPlan);
   return tierOrder.slice(currentIndex + 1);

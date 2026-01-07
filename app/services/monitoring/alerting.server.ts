@@ -43,21 +43,6 @@ export async function checkFailureRateAlert(
 
     if (failureRate > threshold) {
 
-      // Note: Alert history model doesn't exist in schema, commenting out for now
-      // await prisma.monitoringAlertHistory.create({
-      //   data: {
-      //     alertId: alert.id,
-      //     metricValue: failureRate,
-      //     threshold,
-      //     details: {
-      //       total: metrics.total,
-      //       success: metrics.success,
-      //       failed: metrics.failed,
-      //       byDestination: metrics.byDestination,
-      //     },
-      //   },
-      // });
-
       await prisma.alertConfig.update({
         where: { id: alert.id },
         data: {
@@ -106,20 +91,6 @@ export async function checkMissingParamsAlert(
     const metrics = await collectMissingParamsMetrics(shopId, startDate, endDate);
 
     if (metrics.missingRate.value > threshold) {
-      // Note: Alert history model doesn't exist in schema, commenting out for now
-      // await prisma.monitoringAlertHistory.create({
-      //   data: {
-      //     alertId: alert.id,
-      //     metricValue: metrics.missingRate.value,
-      //     threshold,
-      //     details: {
-      //       missingValue: metrics.missingValue,
-      //       missingCurrency: metrics.missingCurrency,
-      //       missingItems: metrics.missingItems,
-      //       total: metrics.total,
-      //     },
-      //   },
-      // });
 
       await prisma.alertConfig.update({
         where: { id: alert.id },
@@ -173,19 +144,6 @@ export async function checkVolumeDropAlert(
     );
 
     if (volumeMetrics.isAnomaly) {
-      // Note: Alert history model doesn't exist in schema, commenting out for now
-      // await prisma.monitoringAlertHistory.create({
-      //   data: {
-      //     alertId: alert.id,
-      //     metricValue: volumeMetrics.changeRate,
-      //     threshold: -50,
-      //     details: {
-      //       currentCount: volumeMetrics.currentCount,
-      //       previousCount: volumeMetrics.previousCount,
-      //       changeRate: volumeMetrics.changeRate,
-      //     },
-      //   },
-      // });
 
       await prisma.alertConfig.update({
         where: { id: alert.id },
@@ -299,13 +257,6 @@ export async function resolveAlert(
   alertHistoryId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Note: Alert history model doesn't exist in schema, commenting out for now
-    // await prisma.monitoringAlertHistory.update({
-    //   where: { id: alertHistoryId },
-    //   data: {
-    //     resolvedAt: new Date(),
-    //   },
-    // });
 
     return { success: true };
   } catch (error) {

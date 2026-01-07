@@ -492,32 +492,22 @@ class RedisClientFactory {
     this.initPromise = null;
   }
 
-  /**
-   * 重置Redis客户端工厂实例
-   * 注意：这是一个fire-and-forget操作，不会等待连接关闭完成
-   * 如果需要确保连接已关闭，请使用异步版本的resetAsync
-   */
   static reset(): void {
     if (RedisClientFactory.instance) {
       const instance = RedisClientFactory.instance;
       RedisClientFactory.instance = null;
-      
-      // 异步关闭连接，但不阻塞调用者
+
       instance.close().catch((error) => {
         logger.error("[REDIS] Error closing connection during reset", { error });
       });
     }
   }
 
-  /**
-   * 异步重置Redis客户端工厂实例
-   * 等待连接关闭完成后再返回
-   */
   static async resetAsync(): Promise<void> {
     if (RedisClientFactory.instance) {
       const instance = RedisClientFactory.instance;
       RedisClientFactory.instance = null;
-      
+
       try {
         await instance.close();
       } catch (error) {

@@ -26,7 +26,7 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
 
   if (job.status === "completed") {
     logger.debug(`[GDPR] Job ${jobId} already completed, skipping`);
-    // 安全地解析已完成的作业结果
+
     const result = job.result;
     if (result && typeof result === "object" && !Array.isArray(result)) {
       return {
@@ -34,7 +34,7 @@ export async function processGDPRJob(jobId: string): Promise<ProcessGDPRJobResul
         result: result as unknown as GDPRJobResult,
       };
     }
-    // 如果结果格式不正确，返回错误
+
     return {
       success: false,
       error: "Invalid job result format",

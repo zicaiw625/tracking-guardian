@@ -24,7 +24,7 @@ export interface CredentialsWithMetadata {
 
 export interface PixelConfigForCredentials {
   credentialsEncrypted?: string | null;
-  credentials_legacy?: unknown; // P0-5: 修复字段名，与 Prisma schema 一致
+  credentials_legacy?: unknown;
   platform?: string;
 }
 

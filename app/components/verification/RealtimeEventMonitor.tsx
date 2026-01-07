@@ -94,7 +94,7 @@ export interface RealtimeEvent {
   };
   discrepancies?: string[];
   platformResponse?: unknown;
-  // P0-T6: 添加 eventLogId 和 deliveryAttemptId 以便获取实际 payload
+
   eventLogId?: string;
   deliveryAttemptId?: string;
 }
@@ -185,8 +185,7 @@ export function RealtimeEventMonitor({
                 if (rawData.type === "verification_run_status" && rawData.status) {
 
                   if (process.env.NODE_ENV === "development") {
-                    // 客户端调试输出：验证运行状态
-                    // eslint-disable-next-line no-console
+
                     console.log("Verification run status:", rawData);
                   }
                 }
@@ -244,8 +243,7 @@ export function RealtimeEventMonitor({
           } catch (err) {
 
             if (process.env.NODE_ENV === "development") {
-              // 客户端调试输出：解析事件数据失败
-              // eslint-disable-next-line no-console
+
               console.error("Failed to parse event data:", err);
             }
           }
@@ -254,8 +252,7 @@ export function RealtimeEventMonitor({
         eventSource.onerror = (err) => {
 
           if (process.env.NODE_ENV === "development") {
-            // 客户端调试输出：SSE连接错误
-            // eslint-disable-next-line no-console
+
             console.error("SSE error:", err);
           }
           setIsConnected(false);
@@ -269,8 +266,7 @@ export function RealtimeEventMonitor({
         showErrorRef.current("无法建立实时监控连接");
 
         if (process.env.NODE_ENV === "development") {
-          // 客户端调试输出：SSE连接建立失败
-          // eslint-disable-next-line no-console
+
           console.error("SSE connection error:", err);
         }
       }
@@ -281,9 +277,9 @@ export function RealtimeEventMonitor({
         try {
           eventSourceRef.current.close();
         } catch (error) {
-          // EventSource may already be closed
+
           if (process.env.NODE_ENV === "development") {
-            // eslint-disable-next-line no-console
+
             console.warn("Error closing EventSource:", error);
           }
         }
@@ -299,7 +295,7 @@ export function RealtimeEventMonitor({
 
     return () => {
       disconnect();
-      // Clear refs to prevent memory leaks
+
       disconnectRef.current = null;
       connectRef.current = null;
     };
@@ -927,7 +923,7 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     shopify: true,
     errors: true,
     mapping: false,
-    payload: false, // P0-T6: 添加 payload 部分
+    payload: false,
   });
   const [payloadData, setPayloadData] = useState<{
     requestPayload?: unknown;
@@ -950,10 +946,9 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     return checkParamCompleteness(event.eventType, event.platform, event.params);
   }, [event.eventType, event.platform, event.params]);
 
-  // P0-T6: 获取实际发送的 payload
   const loadPayload = useCallback(async () => {
     if (!event.eventLogId || loadingPayload) return;
-    
+
     setLoadingPayload(true);
     try {
       const response = await fetch(`/app/api/event-log/${event.eventLogId}`);
@@ -961,12 +956,11 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
         throw new Error("Failed to fetch event log details");
       }
       const data = await response.json();
-      
-      // 找到对应的 delivery attempt
+
       const attempt = data.deliveryAttempts?.find(
         (a: { id: string }) => a.id === event.deliveryAttemptId
       );
-      
+
       if (attempt) {
         setPayloadData({
           requestPayload: attempt.requestPayloadJson,
@@ -984,7 +978,6 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
     }
   }, [event.eventLogId, event.deliveryAttemptId, loadingPayload]);
 
-  // 当展开 payload 部分时自动加载
   useEffect(() => {
     if (expandedSections.payload && !payloadData && event.eventLogId) {
       loadPayload();
@@ -1262,12 +1255,12 @@ function EventDetails({ event }: { event: RealtimeEvent }) {
             </Card>
           )}
 
-          {/* P0-T7: checkout_completed 事件缺失提示 */}
+          {}
           {event.eventType === "checkout_completed" && event.status !== "success" && (
             <CheckoutCompletedBehaviorHint mode="missing" />
           )}
 
-          {/* P0-T6: 实际发送的 Payload */}
+          {}
           {event.eventLogId && (
             <Card>
               <BlockStack gap="200">

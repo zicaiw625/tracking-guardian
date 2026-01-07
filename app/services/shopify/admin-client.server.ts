@@ -343,8 +343,7 @@ export async function createAdminClientForShop(
     }
 
     const graphqlClient = createEnhancedGraphQLClient(shopDomain, accessToken);
-    // GraphQLClient 实现了 AdminApiContext 所需的 graphql 方法
-    // 虽然类型不完全匹配，但功能上是兼容的
+
     return graphqlClient as AdminApiContext;
   } catch (error) {
     logger.error(`[Admin] Failed to create client for ${shopDomain}`, error);

@@ -202,7 +202,7 @@ export function enforceSecurityChecks(): void {
             `Warnings: ${warnings.length}`,
             "=".repeat(80) + "\n"
         ].join("\n");
-        
+
         logger.info(summary);
     }
 

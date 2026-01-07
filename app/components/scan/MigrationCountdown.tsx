@@ -78,11 +78,10 @@ function getMilestones(shopTier: ShopTier, now: Date = new Date()): CountdownMil
 function getDeadline(shopTier: ShopTier): Date {
   switch (shopTier) {
     case "plus":
-      // Plus商家从2025-08-28开始限制，2026-01开始自动升级，legacy定制会丢失
-      // 所以实际截止日期是2026-01之前必须完成迁移
+
       return DEPRECATION_DATES.plusAutoUpgradeStart;
     case "non_plus":
-      // 非Plus商家最晚2026-08-26截止（参考 Shopify Help Center）
+
       return DEPRECATION_DATES.nonPlusScriptTagExecutionOff;
     default:
       return DEPRECATION_DATES.nonPlusScriptTagExecutionOff;

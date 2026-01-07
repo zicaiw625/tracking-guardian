@@ -19,7 +19,7 @@ import {
 import {
   classifyHttpError,
   classifyJsError,
-  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 hashUserData 导入
+
 } from "./base-platform.service";
 
 const SNAPCHAT_API_BASE_URL = "https://tr.snapchat.com";
@@ -152,15 +152,12 @@ export class SnapchatPlatformService implements IPlatformService {
   ): Promise<Record<string, unknown>> {
     const eventTime = Math.floor(Date.now() / 1000);
 
-    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含任何用户标识符
-    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据（包括 hash 形态）
-
     return {
       event_type: SNAPCHAT_EVENT_TYPES.purchase,
       event_conversion_type: "WEB",
       event_tag: eventId,
       timestamp: eventTime * 1000,
-      // P0-3: v1.0 版本 hashed_email 和 hashed_phone_number 字段已移除
+
       price: data.value,
       currency: data.currency,
       transaction_id: data.orderId,
@@ -176,16 +173,13 @@ export class SnapchatPlatformService implements IPlatformService {
   ): Promise<ConversionApiResponse> {
     const eventTime = Math.floor(Date.now() / 1000);
 
-    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含任何用户标识符
-    // v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据（包括 hash 形态）
-
     const eventPayload = {
       pixel_id: credentials.pixelId,
       event_type: SNAPCHAT_EVENT_TYPES.purchase,
       event_conversion_type: "WEB",
       event_tag: eventId,
       timestamp: eventTime * 1000,
-      // P0-3: v1.0 版本 hashed_email 和 hashed_phone_number 字段已移除
+
       price: data.value,
       currency: data.currency,
       transaction_id: data.orderId,

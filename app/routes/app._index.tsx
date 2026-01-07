@@ -876,11 +876,11 @@ function ScriptTagMigrationBanner({
 }
 
 function MigrationDeadlineBanner({ scriptTagsCount }: { scriptTagsCount: number }) {
-  // P0-1: 使用统一的日期常量和官方链接
+
   const plusDeadline = formatDeadlineDate(DEPRECATION_DATES.plusScriptTagExecutionOff, "exact");
   const plusAutoUpgrade = formatDeadlineDate(DEPRECATION_DATES.plusAutoUpgradeStart, "month");
   const nonPlusDeadline = formatDeadlineDate(DEPRECATION_DATES.nonPlusScriptTagExecutionOff, "exact");
-  
+
   return (
     <Banner
       title="重要迁移截止日期"
@@ -1293,7 +1293,7 @@ export default function Index() {
 
         {}
         {}
-        {/* 免费 Audit 入口 - 核心获客点 */}
+        {}
         <Card>
           <BlockStack gap="400">
             <InlineStack align="space-between" blockAlign="center">
@@ -1323,7 +1323,7 @@ export default function Index() {
           </BlockStack>
         </Card>
 
-        {/* 付费墙 CTA - 3个强触发点 */}
+        {}
         {data.latestScan && (
           <Layout>
             <Layout.Section variant="oneThird">

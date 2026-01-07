@@ -56,7 +56,7 @@ interface JobWithRelations {
     id: string;
     shopDomain: string;
     plan: string | null;
-    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
     consentStrategy: string | null;
     primaryDomain: string | null;
     storefrontDomains: string[];
@@ -227,7 +227,7 @@ async function fetchJobsWithRelations(
           id: true,
           shopDomain: true,
           plan: true,
-          // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
           consentStrategy: true,
           primaryDomain: true,
           storefrontDomains: true,
@@ -488,15 +488,13 @@ async function sendToPlatformWithCredentials(
         ? job.orderValue
         : job.orderValue?.toNumber() ?? 0;
 
-    // P0-1: v1.0 版本不包含任何 PCD/PII 处理
-    // ConversionData 类型中已移除所有 PII 字段（包括 preHashedUserData）
     const conversionData: ConversionData = {
       orderId: job.orderId,
       orderNumber: job.orderNumber,
       value: orderValue,
       currency: job.currency,
       lineItems,
-      // P0-1: v1.0 版本 ConversionData 类型中已不包含任何 PII 字段
+
     };
 
     const result = await sendConversionToPlatform(
@@ -597,7 +595,6 @@ async function processSingleJob(
     job.createdAt
   );
 
-  // 优先使用 receipt 中的 eventId（client 端生成的），如果没有则使用与 client 端相同的逻辑生成
   let eventId: string;
   if (receipt?.eventId) {
     eventId = receipt.eventId;
@@ -607,27 +604,24 @@ async function processSingleJob(
       eventId,
     });
   } else {
-    // 使用与 client 端相同的逻辑生成 eventId
-    // 注意：client 端发送的 items.id 可能是 variant_id 或 product_id，需要保持一致
+
     const lineItems = capiInputParsed?.items;
-    // 优先使用 variantId（与 client 端 checkout.lineItems 的 id 字段一致），如果没有则使用 productId
+
     const normalizedItems = lineItems?.map(item => ({
       id: String(item.variantId || item.productId || ""),
       quantity: item.quantity || 1,
     })).filter(item => item.id) || [];
-    
-    // P1-4: 传递 nonce 参数（webhook job 通常没有 nonce，但函数签名需要）
-    // 由于此函数处理的是有 orderId 的 purchase 事件，不会进入 fallback 逻辑
+
     eventId = generateCanonicalEventId(
       job.orderId,
       webhookCheckoutToken || undefined,
       "purchase",
       job.shop.shopDomain,
       normalizedItems,
-      "v2", // 使用新版本
-      null // webhook job 通常没有 nonce
+      "v2",
+      null
     );
-    
+
     logger.debug(`Generated eventId for job ${job.id} using canonical logic`, {
       jobId: job.id,
       orderId: job.orderId,
@@ -669,7 +663,7 @@ async function processSingleJob(
   }
 
   const strategy = job.shop.consentStrategy || "strict";
-  // 使用类型安全的解析函数处理 platformResults
+
   const previousResults = parsePlatformResults(job.platformResults);
 
   const { platformResults, anyFailed, anySent, allSkipped } = await sendToPlatformsParallel(
@@ -715,8 +709,7 @@ async function processSingleJob(
           error: releaseResult.error.message,
           errorType: releaseResult.error.type,
         });
-        // 注意：即使释放失败，也不应该阻止作业完成
-        // 可以考虑添加重试机制或告警
+
       }
     }
 
@@ -810,8 +803,7 @@ async function processSingleJob(
         error: releaseResult.error.message,
         errorType: releaseResult.error.type,
       });
-      // 注意：即使释放失败，也不应该阻止作业完成
-      // 可以考虑添加重试机制或告警
+
     }
   }
 
@@ -889,17 +881,14 @@ export async function processConversionJobs(
   const CONCURRENCY = 10;
   for (let i = 0; i < jobsToProcess.length; i += CONCURRENCY) {
     const batch = jobsToProcess.slice(i, i + CONCURRENCY);
-    
-    // 使用Promise.allSettled确保所有任务都完成，即使有失败
-    // 这样可以避免一个任务失败影响其他任务
+
     const results = await Promise.allSettled(
       batch.map(async (job, index) => {
         try {
-          // 添加任务标识，便于追踪和去重
+
           const jobId = job.id;
           const result = await processSingleJob(job, receiptMap, now);
-          
-          // 验证返回结果的有效性
+
           if (!result || !result.update || !result.result) {
             logger.error(`Invalid result from processSingleJob for job ${job.id}`, {
               jobId: job.id,
@@ -909,13 +898,13 @@ export async function processConversionJobs(
             });
             throw new Error("Invalid result from processSingleJob");
           }
-          
+
           return result;
         } catch (error) {
           const errorMsg =
             error instanceof Error ? error.message : "Unknown error";
           const errorStack = error instanceof Error ? error.stack : undefined;
-          
+
           logger.error(`Failed to process job ${job.id}`, error instanceof Error ? error : new Error(String(error)), {
             jobId: job.id,
             shopId: job.shopId,
@@ -963,8 +952,8 @@ export async function processConversionJobs(
         }
       } else {
         failed++;
-        const errorReason = result.reason instanceof Error 
-          ? result.reason 
+        const errorReason = result.reason instanceof Error
+          ? result.reason
           : new Error(String(result.reason));
         logger.error("Job processing promise rejected", errorReason, {
           errorMessage: errorReason.message,

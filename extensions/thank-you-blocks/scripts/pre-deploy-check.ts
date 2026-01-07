@@ -1,17 +1,5 @@
 #!/usr/bin/env tsx
-/**
- * 部署前完整自检脚本
- * 检查所有 P0/P1 级别问题，确保代码可以安全上架
- * 
- * 检查项：
- * 1. TypeScript 编译通过
- * 2. API 版本配置正确
- * 3. 禁止使用的 API（window, navigator, document）
- * 4. 字符串完整性
- * 5. 扩展 UID 格式和唯一性
- * 6. 依赖版本与 API 版本匹配
- * 7. Link 组件使用正确
- */
+
 
 import { execSync } from "child_process";
 import { readFileSync, existsSync } from "fs";
@@ -34,11 +22,10 @@ function addResult(name: string, passed: boolean, message: string, severity: "er
   results.push({ name, passed, message, severity });
 }
 
-// 1. 检查 TypeScript 编译
 function checkTypeScriptCompilation(): void {
   try {
-    execSync("npm run build", { 
-      cwd: EXTENSION_DIR, 
+    execSync("npm run build", {
+      cwd: EXTENSION_DIR,
       stdio: "pipe",
       encoding: "utf-8"
     });
@@ -49,7 +36,6 @@ function checkTypeScriptCompilation(): void {
   }
 }
 
-// 2. 检查 API 版本
 function checkApiVersion(): void {
   try {
     if (!existsSync(CONFIG_FILE)) {
@@ -59,7 +45,7 @@ function checkApiVersion(): void {
 
     const config = readFileSync(CONFIG_FILE, "utf-8");
     const apiVersionMatch = config.match(/api_version\s*=\s*["']?([^"'\n]+)["']?/);
-    
+
     if (!apiVersionMatch) {
       addResult("API 版本配置", false, "未找到 api_version 配置", "error");
       return;
@@ -67,8 +53,7 @@ function checkApiVersion(): void {
 
     const apiVersion = apiVersionMatch[1];
     const [year, month] = apiVersion.split("-").map(Number);
-    
-    // 检查是否为 2025-07 或更新
+
     if (year < 2025 || (year === 2025 && month < 7)) {
       addResult("API 版本配置", false, `API 版本 ${apiVersion} 过旧，建议升级到 2025-07 或更新版本`, "error");
     } else {
@@ -79,7 +64,6 @@ function checkApiVersion(): void {
   }
 }
 
-// 3. 检查依赖版本与 API 版本匹配
 function checkDependencyVersions(): void {
   try {
     if (!existsSync(PACKAGE_JSON)) {
@@ -96,12 +80,11 @@ function checkDependencyVersions(): void {
       return;
     }
 
-    // 检查版本是否为 2025.7.x
     const versionMatch = uiExtensionsVersion.match(/^(\^|~)?(\d+)\.(\d+)\.(\d+)/);
     if (versionMatch) {
       const major = parseInt(versionMatch[2]);
       const minor = parseInt(versionMatch[3]);
-      
+
       if (major < 2025 || (major === 2025 && minor < 7)) {
         addResult("依赖版本", false, `依赖版本 ${uiExtensionsVersion} 可能过旧，建议升级到 ^2025.7.3`, "warning");
       } else {
@@ -115,15 +98,14 @@ function checkDependencyVersions(): void {
   }
 }
 
-// 4. 运行现有的验证脚本
 function runValidationScript(): void {
   try {
-    const output = execSync("npm run validate", { 
-      cwd: EXTENSION_DIR, 
+    const output = execSync("npm run validate", {
+      cwd: EXTENSION_DIR,
       stdio: "pipe",
       encoding: "utf-8"
     });
-    
+
     if (output.includes("所有检查通过")) {
       addResult("代码质量验证", true, "所有验证检查通过", "error");
     } else {
@@ -135,7 +117,6 @@ function runValidationScript(): void {
   }
 }
 
-// 5. 检查扩展 UID 格式
 function checkExtensionUIDs(): void {
   try {
     if (!existsSync(CONFIG_FILE)) {
@@ -145,7 +126,7 @@ function checkExtensionUIDs(): void {
     const config = readFileSync(CONFIG_FILE, "utf-8");
     const lines = config.split("\n");
     const uids: Array<{ uid: string; line: number }> = [];
-    
+
     for (let i = 0; i < lines.length; i++) {
       const uidMatch = lines[i].match(/uid\s*=\s*["']([^"']+)["']/);
       if (uidMatch) {
@@ -158,13 +139,12 @@ function checkExtensionUIDs(): void {
       return;
     }
 
-    // 检查格式
     const invalidUIDs: string[] = [];
     for (const { uid, line } of uids) {
       const segments = uid.split("-");
       const hasOnlyHexChars = segments.every(seg => /^[0-9a-f]+$/i.test(seg));
       const isValidFormat = segments.length >= 4 && hasOnlyHexChars && uid.length >= 36;
-      
+
       if (!isValidFormat) {
         invalidUIDs.push(`行 ${line}: ${uid}`);
       }
@@ -176,7 +156,6 @@ function checkExtensionUIDs(): void {
       addResult("扩展 UID", true, `所有 ${uids.length} 个 UID 格式正确`, "error");
     }
 
-    // 检查唯一性
     const uidCounts = new Map<string, number[]>();
     uids.forEach(({ uid, line }) => {
       if (!uidCounts.has(uid)) {
@@ -202,21 +181,18 @@ function checkExtensionUIDs(): void {
   }
 }
 
-// 主函数
 function main(): void {
   console.log("🚀 开始部署前完整自检...\n");
   console.log("=" .repeat(60));
 
-  // 运行所有检查
   checkTypeScriptCompilation();
   checkApiVersion();
   checkDependencyVersions();
   checkExtensionUIDs();
   runValidationScript();
 
-  // 输出结果
   console.log("\n📊 检查结果汇总:\n");
-  
+
   const errorCount = results.filter(r => r.severity === "error" && !r.passed).length;
   const warningCount = results.filter(r => r.severity === "warning" && !r.passed).length;
   const passedCount = results.filter(r => r.passed).length;

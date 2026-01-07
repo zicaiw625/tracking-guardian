@@ -524,7 +524,7 @@ export async function checkLocalConsistency(
   admin?: AdminApiContext,
   signal?: AbortSignal
 ): Promise<LocalConsistencyCheck | null> {
-  // 检查是否已取消
+
   if (signal?.aborted) {
     return null;
   }
@@ -538,12 +538,11 @@ export async function checkLocalConsistency(
       new Date(),
       100
     );
-    
-    // 检查是否已取消
+
     if (signal?.aborted) {
       return null;
     }
-    
+
     const order = orders.find((o) => extractOrderId(o.id) === orderId);
     if (order) {
       shopifyOrder = {
@@ -554,7 +553,6 @@ export async function checkLocalConsistency(
     }
   }
 
-  // 检查是否已取消
   if (signal?.aborted) {
     return null;
   }
@@ -568,7 +566,6 @@ export async function checkLocalConsistency(
       orderBy: { createdAt: "desc" },
     });
 
-    // 检查是否已取消
     if (signal?.aborted) {
       return null;
     }
@@ -586,12 +583,10 @@ export async function checkLocalConsistency(
     return null;
   }
 
-  // 检查是否已取消
   if (signal?.aborted) {
     return null;
   }
 
-  // 检查是否已取消
   if (signal?.aborted) {
     return null;
   }
@@ -609,7 +604,6 @@ export async function checkLocalConsistency(
     },
   });
 
-  // 检查是否已取消
   if (signal?.aborted) {
     return null;
   }
@@ -630,7 +624,6 @@ export async function checkLocalConsistency(
     }
   }
 
-  // 检查是否已取消
   if (signal?.aborted) {
     return null;
   }
@@ -649,7 +642,6 @@ export async function checkLocalConsistency(
     orderBy: { createdAt: "desc" },
   });
 
-  // 检查是否已取消
   if (signal?.aborted) {
     return null;
   }
@@ -662,7 +654,6 @@ export async function checkLocalConsistency(
     orderBy: { createdAt: "desc" },
   });
 
-  // 检查是否已取消
   if (signal?.aborted) {
     return null;
   }
@@ -676,7 +667,7 @@ export async function checkLocalConsistency(
   if (pixelReceipt) {
     const metadata = pixelReceipt.metadata as Record<string, unknown> | null;
     const payload = metadata?.payload || metadata;
-    
+
     if (!payload) {
       pixelPayloadValid = false;
       pixelPayloadErrors.push("Pixel 收据缺少 payload");
@@ -702,7 +693,7 @@ export async function checkLocalConsistency(
 
     const orderValue = metadata?.orderValue || metadata?.value;
     const currency = metadata?.currency;
-    
+
     if (orderValue !== undefined && orderValue !== null) {
       const pixelValue = Number(orderValue);
       const valueMatch = Math.abs(pixelValue - shopifyOrder.value) < 0.01;
@@ -837,68 +828,62 @@ export async function performChannelReconciliation(
       let checkPromise: Promise<LocalConsistencyCheck | null> | null = null;
 
       try {
-        // 创建 AbortController 用于取消操作
+
         timeoutController = new AbortController();
         const timeoutSignal = timeoutController.signal;
 
-        // 启动检查操作，传入 AbortSignal
         checkPromise = checkLocalConsistency(shopId, orderId, admin, timeoutSignal);
-        
-        // 创建超时Promise，使用AbortSignal来避免竞态条件
+
         const timeoutPromise = new Promise<null>((resolve) => {
           if (timeoutSignal.aborted) {
             resolve(null);
             return;
           }
-          
+
           timeoutId = setTimeout(() => {
             if (!timeoutSignal.aborted) {
               isTimedOut = true;
-              // 取消操作
+
               timeoutController?.abort();
             }
             resolve(null);
           }, timeout);
         });
 
-        // 使用 Promise.race 竞争执行
-        // 注意：即使超时，checkPromise可能仍在运行，但会被AbortSignal取消
         const check = await Promise.race([checkPromise, timeoutPromise]);
 
-        // 清理定时器（无论结果如何）
         if (timeoutId !== null) {
           clearTimeout(timeoutId);
           timeoutId = null;
         }
 
-        // 如果超时，返回 null（checkPromise 可能仍在运行，但会被 AbortSignal 取消）
         if (isTimedOut || (check === null && timeoutController?.signal.aborted)) {
-          // 记录超时警告，帮助识别性能问题
+
           if (isTimedOut) {
-            logger.warn("Local consistency check timed out", { 
-              shopId, 
-              orderId, 
-              timeoutMs: timeout 
+            logger.warn("Local consistency check timed out", {
+              shopId,
+              orderId,
+              timeoutMs: timeout
             });
           }
-          // 如果超时，确保取消操作并等待checkPromise完成（如果仍在运行）
+
           if (checkPromise && timeoutController && !timeoutController.signal.aborted) {
             timeoutController.abort();
-            // 等待checkPromise完成以避免资源泄漏（使用race避免无限等待）
+
             let cleanupTimeoutId: NodeJS.Timeout | null = null;
             try {
               await Promise.race([
-                checkPromise.catch(() => null), // 忽略错误，因为我们已经超时了
+                checkPromise.catch(() => null),
                 new Promise<void>(resolve => {
                   cleanupTimeoutId = setTimeout(() => {
                     resolve();
-                  }, 1000); // 最多等待1秒
+                  }, 1000);
                 })
               ]);
             } catch {
-              // 忽略错误
+
             } finally {
-              // 确保清理cleanup超时定时器
+
               if (cleanupTimeoutId !== null) {
                 clearTimeout(cleanupTimeoutId);
               }
@@ -907,7 +892,6 @@ export async function performChannelReconciliation(
           return null;
         }
 
-        // 验证返回结果的有效性
         if (check === null) {
           logger.warn("Local consistency check returned null", {
             shopId,
@@ -919,24 +903,23 @@ export async function performChannelReconciliation(
 
         return check;
       } catch (error) {
-        // 清理定时器
+
         if (timeoutId !== null) {
           clearTimeout(timeoutId);
           timeoutId = null;
         }
 
-        // 如果已经超时或被取消，不记录错误
         if (!isTimedOut && !timeoutController?.signal.aborted) {
           logger.warn("Failed to check local consistency", { orderId, error });
         }
         return null;
       } finally {
-        // 确保清理资源
+
         if (timeoutId !== null) {
           clearTimeout(timeoutId);
           timeoutId = null;
         }
-        // 取消操作（如果仍在运行）
+
         if (timeoutController && !timeoutController.signal.aborted) {
           timeoutController.abort();
         }

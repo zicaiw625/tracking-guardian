@@ -21,7 +21,7 @@ export function getPixelEventsCorsHeaders(request: Request, options?: {
     };
 }): HeadersInit {
     const origin = request.headers.get("Origin");
-    // P0-1: 已移除 X-Tracking-Guardian-Key，完全依赖 HMAC 签名验证（X-Tracking-Guardian-Signature）
+
     const allowedHeaders = [
         "Content-Type",
         "X-Tracking-Guardian-Timestamp",
@@ -68,7 +68,7 @@ export function getPixelEventsCorsHeaders(request: Request, options?: {
 }
 export function getPixelEventsCorsHeadersForShop(request: Request, shopAllowedDomains: string[], customHeaders?: string[]): HeadersInit {
     const origin = request.headers.get("Origin");
-    // P0-1: 已移除 X-Tracking-Guardian-Key，完全依赖 HMAC 签名验证（X-Tracking-Guardian-Signature）
+
     const allowedHeaders = [
         "Content-Type",
         "X-Tracking-Guardian-Timestamp",

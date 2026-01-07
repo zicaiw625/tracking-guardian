@@ -391,16 +391,12 @@ export const LineItemSchema = z.object({
   price: z.number().nonnegative(),
 });
 
-// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PreHashedUserData 接口
-// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
-
 export interface ConversionData {
   orderId: string;
   orderNumber: string | null;
   value: number;
   currency: string;
-  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 PII 相关字段
-  // email, phone, firstName, lastName, city, state, country, zip, preHashedUserData 已移除
+
   lineItems?: LineItem[];
 }
 
@@ -409,8 +405,7 @@ export const ConversionDataSchema = z.object({
   orderNumber: z.string().nullable(),
   value: z.number().nonnegative(),
   currency: z.string().length(3),
-  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除所有 PII 相关字段
-  // email, phone, firstName, lastName, city, state, country, zip 已移除
+
   lineItems: z.array(LineItemSchema).optional(),
 });
 

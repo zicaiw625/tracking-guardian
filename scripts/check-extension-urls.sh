@@ -30,7 +30,7 @@ for file in "${TOML_FILES[@]}"; do
     echo "WARNING: $file not found, skipping"
     continue
   fi
-  
+
   if grep -q "backend_url" "$file"; then
     echo "❌ $file: Found 'backend_url' - this should be removed!"
     ERRORS=$((ERRORS + 1))
@@ -53,7 +53,7 @@ for file in "${SOURCE_FILES[@]}"; do
     echo "WARNING: $file not found, skipping"
     continue
   fi
-  
+
   if grep -q "BACKEND_URL = \"$EXPECTED_URL\"" "$file"; then
     echo "✅ $file: OK"
   else
@@ -79,7 +79,7 @@ for file in "${EXTENSION_FILES[@]}"; do
     echo "WARNING: $file not found, skipping"
     continue
   fi
-  
+
   if grep -v "^\s*//" "$file" | grep -v "// P0" | grep -q "settings\.backend_url\|settings\[.backend_url.\]"; then
     echo "❌ $file: Still uses settings.backend_url - should use shared config!"
     ERRORS=$((ERRORS + 1))

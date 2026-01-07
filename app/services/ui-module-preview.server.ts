@@ -105,7 +105,6 @@ export async function getModulePreviewConfig(
     return null;
   }
 
-  // P0-8: 优先使用 settingsEncrypted，如果没有则回退到 settingsJson（向后兼容）
   let settings: Record<string, unknown> = {};
   if (setting.settingsEncrypted) {
     try {
@@ -116,11 +115,11 @@ export async function getModulePreviewConfig(
         moduleKey,
         error: error instanceof Error ? error.message : String(error),
       });
-      // 如果解密失败，回退到 settingsJson（向后兼容）
+
       settings = (setting.settingsJson as Record<string, unknown>) || {};
     }
   } else {
-    // 向后兼容：使用明文 settingsJson（已废弃）
+
     settings = (setting.settingsJson as Record<string, unknown>) || {};
   }
 
@@ -147,7 +146,7 @@ export async function getAllModulePreviewConfigs(
   const result: Record<string, ModulePreviewConfig | null> = {};
 
   for (const setting of settings) {
-    // P0-8: 优先使用 settingsEncrypted，如果没有则回退到 settingsJson（向后兼容）
+
     let moduleSettings: Record<string, unknown> = {};
     if (setting.settingsEncrypted) {
       try {
@@ -158,11 +157,11 @@ export async function getAllModulePreviewConfigs(
           moduleKey: setting.moduleKey,
           error: error instanceof Error ? error.message : String(error),
         });
-        // 如果解密失败，回退到 settingsJson（向后兼容）
+
         moduleSettings = (setting.settingsJson as Record<string, unknown>) || {};
       }
     } else {
-      // 向后兼容：使用明文 settingsJson（已废弃）
+
       moduleSettings = (setting.settingsJson as Record<string, unknown>) || {};
     }
 

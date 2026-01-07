@@ -32,8 +32,6 @@ interface ScriptCodeEditorProps {
 function highlightCode(content: string): string {
   if (!content) return "";
 
-  // 转义所有HTML特殊字符，防止XSS攻击
-  // 先转义 &，避免转义后的实体被再次转义
   let highlighted = content
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -54,7 +52,7 @@ function highlightCode(content: string): string {
     },
 
     {
-      // 匹配转义后的引号中的事件名称
+
       regex: /(&#x27;|&quot;)(purchase|Purchase|CompletePayment|PageView|ViewContent|AddToCart|InitiateCheckout|BeginCheckout|Search|ViewItem)(&#x27;|&quot;)/gi,
       replacement: '<span style="color: #811F3F; font-weight: 600">$1$2$3</span>',
     },
@@ -65,7 +63,7 @@ function highlightCode(content: string): string {
     },
 
     {
-      // 匹配转义后的引号字符串
+
       regex: /(&#x27;|&quot;)(?:(?=(\\?))\2.)*?\1/g,
       replacement: '<span style="color: #A31515">$&</span>',
     },
@@ -298,8 +296,7 @@ export function ScriptCodeEditor({
     } catch (err) {
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：复制失败
-        // eslint-disable-next-line no-console
+
         console.error("Failed to copy:", err);
       }
     }

@@ -1,10 +1,4 @@
-/**
- * P0-2: 退款 webhook handler
- * 
- * 处理 refunds/create webhook
- * 仅存储退款摘要信息（orderId, refundId, amount, currency）
- * 不存储任何 PII，符合 v1.0 隐私最小化原则
- */
+
 
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
@@ -19,9 +13,6 @@ interface RefundWebhookPayload {
   created_at?: string;
 }
 
-/**
- * 从退款 payload 中提取退款摘要信息（不包含 PII）
- */
 function extractRefundSnapshot(payload: RefundWebhookPayload): {
   refundId: string;
   orderId: string;
@@ -44,9 +35,6 @@ function extractRefundSnapshot(payload: RefundWebhookPayload): {
   };
 }
 
-/**
- * 处理 refunds/create webhook
- */
 export async function handleRefundsCreate(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
@@ -56,7 +44,6 @@ export async function handleRefundsCreate(
     const refundPayload = payload as RefundWebhookPayload;
     const snapshot = extractRefundSnapshot(refundPayload);
 
-    // 查找 shop
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: shop },
       select: { id: true },
@@ -71,7 +58,6 @@ export async function handleRefundsCreate(
       };
     }
 
-    // 创建退款快照
     const snapshotId = randomUUID();
 
     await prisma.refundSnapshot.create({
@@ -95,7 +81,7 @@ export async function handleRefundsCreate(
       orderId: snapshot.orderId,
     };
   } catch (error) {
-    // 如果是唯一约束冲突（重复退款），返回成功（幂等性）
+
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       logger.debug(`Refund snapshot already exists: ${(payload as RefundWebhookPayload).id} for ${shop}`);
       return {

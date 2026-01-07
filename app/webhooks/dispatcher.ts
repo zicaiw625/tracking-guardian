@@ -17,11 +17,9 @@ import { tryAcquireWebhookLock, updateWebhookStatus } from "./middleware";
 import type { WebhookContext, WebhookHandlerResult, ShopWithPixelConfigs } from "./types";
 
 function normalizeTopic(topic: string): string {
-  return topic.toUpperCase().replace(/\//g, "_");
+  return topic.toUpperCase().replace(/\
 }
 
-// P0-2: Webhook handlers 注册
-// 订单/退款 webhooks 仅存储订单摘要信息（不包含 PII），用于 Verification 和 Reconciliation
 const WEBHOOK_HANDLERS: Record<
   string,
   (
@@ -33,12 +31,12 @@ const WEBHOOK_HANDLERS: Record<
   CUSTOMERS_DATA_REQUEST: (ctx) => handleCustomersDataRequest(ctx),
   CUSTOMERS_REDACT: (ctx) => handleCustomersRedact(ctx),
   SHOP_REDACT: (ctx) => handleShopRedact(ctx),
-  // P0-2: 订单 webhooks
+
   ORDERS_CREATE: (ctx) => handleOrdersCreate(ctx),
   ORDERS_UPDATED: (ctx) => handleOrdersUpdated(ctx),
   ORDERS_CANCELLED: (ctx) => handleOrdersCancelled(ctx),
   ORDERS_EDITED: (ctx) => handleOrdersEdited(ctx),
-  // P0-2: 退款 webhook
+
   REFUNDS_CREATE: (ctx) => handleRefundsCreate(ctx),
 };
 
@@ -63,18 +61,14 @@ export async function dispatchWebhook(
     }
   }
 
-  // P0-2: GDPR webhooks 必须处理，即使 shop 不存在或已卸载
-  // 对于 GDPR webhooks，即使 shop 不存在也要返回 200，避免 Shopify 重试
   if (!context.admin && !GDPR_TOPICS.has(normalizeTopic(topic))) {
     logger.info(`Webhook ${topic} received for uninstalled shop ${shop}`);
     return new Response("OK", { status: 200 });
   }
 
-  // P0-2: 对于 GDPR webhooks，即使 shopRecord 为 null 也要处理
-  // 这确保了对不存在的 shop 也能正确响应（返回 200）
   if (GDPR_TOPICS.has(normalizeTopic(topic)) && !shopRecord) {
     logger.info(`GDPR webhook ${topic} received for non-existent shop ${shop} - acknowledging`);
-    // 仍然调用 handler，让 handler 决定如何处理（通常会返回 200）
+
   }
 
   const normalizedTopic = normalizeTopic(topic);
@@ -104,16 +98,12 @@ export async function dispatchWebhook(
       await updateWebhookStatus(shop, webhookId, topic, status, result.orderId);
     }
 
-    // P0-2: GDPR webhooks 的业务逻辑失败必须返回 200，避免重试风暴
-    // 注意：HMAC 校验失败已在 webhooks.tsx 中返回 401（认证层面的问题），不会到达这里
-    // 这里只处理业务逻辑失败的情况（如无效 payload、处理错误等），返回 200 避免重试
-    // 但 HMAC 校验失败是认证问题，必须返回 401，不能转换为 200
     const isGDPR = GDPR_TOPICS.has(normalizedTopic);
     if (isGDPR && !result.success) {
       logger.warn(`GDPR webhook ${topic} processing failed for ${shop}, but returning 200 to prevent retries`, {
         message: result.message,
         status: result.status,
-        // P0-2: 记录 request_id 和 topic，但不记录 PII
+
         webhookId,
       });
       return new Response("GDPR webhook acknowledged", { status: 200 });
@@ -123,16 +113,12 @@ export async function dispatchWebhook(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const isGDPR = GDPR_TOPICS.has(normalizedTopic);
-    
-    // P0-2: GDPR webhooks 的业务逻辑异常也要返回 200，避免 Shopify 重试风暴
-    // 注意：HMAC 校验失败是认证问题，已在 webhooks.tsx 中返回 401，不会到达这里
-    // 这里只处理 handler 内部抛出的业务逻辑异常
+
     if (isGDPR) {
       logger.error(`GDPR webhook ${topic} handler threw error for ${shop}, but returning 200 to prevent retries:`, {
         message: errorMessage,
         webhookId,
-        // P0-2: 不记录 stack trace 中的敏感信息（PII）
-        // 但记录 webhookId 和 topic 用于审计
+
       });
 
       if (webhookId) {

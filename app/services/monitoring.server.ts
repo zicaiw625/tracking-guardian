@@ -60,7 +60,6 @@ export async function getEventMonitoringStats(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -75,7 +74,7 @@ export async function getEventMonitoringStats(
         },
       },
     },
-    take: 10000, // 限制最大查询数量，避免超时
+    take: 10000,
   });
 
   const stats: EventMonitoringStats = {
@@ -93,7 +92,6 @@ export async function getEventMonitoringStats(
     stats.failureRate = (stats.failedEvents / stats.totalEvents) * 100;
   }
 
-  // 按平台统计
   const platforms = new Set(attempts.map((a) => a.destinationType));
   platforms.forEach((platform) => {
     const platformAttempts = attempts.filter((a) => a.destinationType === platform);
@@ -109,7 +107,6 @@ export async function getEventMonitoringStats(
     };
   });
 
-  // 按事件类型统计
   const eventTypes = new Set(attempts.map((a) => a.EventLog.eventName));
   eventTypes.forEach((eventType) => {
     const eventAttempts = attempts.filter((a) => a.EventLog.eventName === eventType);
@@ -136,7 +133,6 @@ export async function getMissingParamsStats(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -161,13 +157,11 @@ export async function getMissingParamsStats(
     const key = `${attempt.destinationType}:${attempt.EventLog.eventName}`;
     const missingParams: string[] = [];
 
-    // 从 requestPayloadJson 中提取参数
     const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
     let hasValue = false;
     let hasCurrency = false;
     const hasEventId = !!attempt.EventLog.eventId;
 
-    // 根据平台解析 payload
     if (attempt.destinationType === "google") {
       const body = requestPayload.body as Record<string, unknown>;
       const events = body?.events as Array<Record<string, unknown>> | undefined;
@@ -258,7 +252,6 @@ export async function getMissingParamsRateByEventType(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -304,13 +297,11 @@ export async function getMissingParamsRateByEventType(
     total++;
     const missingParams: string[] = [];
 
-    // 从 requestPayloadJson 中提取参数
     const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
     let hasValue = false;
     let hasCurrency = false;
     const hasEventId = !!attempt.EventLog.eventId;
 
-    // 根据平台解析 payload
     if (attempt.destinationType === "google") {
       const body = requestPayload.body as Record<string, unknown>;
       const events = body?.events as Array<Record<string, unknown>> | undefined;
@@ -440,7 +431,6 @@ export async function getEventVolumeStats(
   const fourteenDaysAgo = new Date(now);
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const [current24h, previous24h, recent14DaysAttempts] = await Promise.all([
     prisma.deliveryAttempt.count({
       where: {
@@ -517,7 +507,7 @@ export async function getEventVolumeStats(
 
     if (allCounts.length >= 7) {
       average7Days = calculateMovingAverage(allCounts, 7);
-      // 防御性检查：确保 allCounts.length > 0 以避免除零错误
+
       const variance = allCounts.length > 0
         ? allCounts.reduce((sum, c) => sum + Math.pow(c - average7Days!, 2), 0) / allCounts.length
         : 0;
@@ -612,7 +602,6 @@ export async function getEventVolumeHistory(
   since.setDate(since.getDate() - days);
   since.setHours(0, 0, 0, 0);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -637,7 +626,7 @@ export async function getEventVolumeHistory(
   let stdDev = 0;
   if (counts.length > 0) {
     mean = counts.reduce((sum, c) => sum + c, 0) / counts.length;
-    // 防御性检查：确保 counts.length > 0 以避免除零错误
+
     const variance = counts.length > 0
       ? counts.reduce((sum, c) => sum + Math.pow(c - mean, 2), 0) / counts.length
       : 0;
@@ -774,23 +763,22 @@ export async function checkMonitoringAlerts(
   }
 
   if (volumeStats.isDrop && Math.abs(volumeStats.changePercent) > volumeDropThreshold) {
-    // P0-T7: checkout_completed 事件量下降可能是平台行为导致的（upsell/加载失败/同意状态）
+
     const checkoutCompletedStats = monitoringStats.byEventType["checkout_completed"];
-    const hasCheckoutCompletedDrop = checkoutCompletedStats && 
-      checkoutCompletedStats.total > 0 && 
+    const hasCheckoutCompletedDrop = checkoutCompletedStats &&
+      checkoutCompletedStats.total > 0 &&
       (checkoutCompletedStats.failed / checkoutCompletedStats.total) * 100 > volumeDropThreshold;
-    
+
     let reason = `事件量下降 ${Math.abs(volumeStats.changePercent).toFixed(2)}%，可能发生断档`;
     if (hasCheckoutCompletedDrop || checkoutCompletedStats) {
       reason += `。注意：checkout_completed 事件量下降可能是 Shopify 平台行为导致的：`;
       reason += `（1）存在 upsell/post-purchase 时，事件在第一个 upsell 页触发，Thank you 页不再触发；`;
       reason += `（2）触发页加载失败时，事件完全不触发；`;
       reason += `（3）用户未同意 analytics consent 时，事件不会触发。`;
-      // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 orders/paid webhook 引用
-      // v1.0 仅依赖 Web Pixels 标准事件，请确保 checkout_completed 事件能够正常触发
+
       reason += `v1.0 版本仅依赖 Web Pixels 标准事件，请确保 checkout_completed 事件能够正常触发。`;
     }
-    
+
     return {
       shouldAlert: true,
       reason,
@@ -853,7 +841,6 @@ export async function reconcileChannels(
   for (const config of shop.pixelConfigs) {
     const platform = config.platform;
 
-    // P0-T8: 使用 delivery_attempts 作为数据源（只统计 purchase/checkout_completed 事件）
     const attempts = await prisma.deliveryAttempt.findMany({
       where: {
         shopId,
@@ -873,17 +860,16 @@ export async function reconcileChannels(
           },
         },
       },
-      take: 10000, // 限制最大查询数量，避免超时
+      take: 10000,
     });
 
-    // 从 normalizedEventJson 中提取 orderId 和 value
     const platformEvents: Array<{ orderId: string; value: number }> = [];
     for (const attempt of attempts) {
       const normalizedEvent = attempt.EventLog.normalizedEventJson as Record<string, unknown>;
-      const orderId = typeof normalizedEvent.order_id === "string" ? normalizedEvent.order_id : 
+      const orderId = typeof normalizedEvent.order_id === "string" ? normalizedEvent.order_id :
                      typeof normalizedEvent.orderId === "string" ? normalizedEvent.orderId : "";
       const value = typeof normalizedEvent.value === "number" ? normalizedEvent.value : 0;
-      
+
       if (orderId) {
         platformEvents.push({ orderId, value });
       }
@@ -939,7 +925,6 @@ export async function getMissingParamsHistory(
   since.setDate(since.getDate() - days);
   since.setHours(0, 0, 0, 0);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -970,14 +955,12 @@ export async function getMissingParamsHistory(
 
   attempts.forEach((attempt) => {
     const date = attempt.createdAt.toISOString().split("T")[0];
-    
-    // 从 requestPayloadJson 中提取参数
+
     const requestPayload = attempt.requestPayloadJson as Record<string, unknown>;
     let hasValue = false;
     let hasCurrency = false;
     const hasEventId = !!attempt.EventLog.eventId;
 
-    // 根据平台解析 payload
     if (attempt.destinationType === "google") {
       const body = requestPayload.body as Record<string, unknown>;
       const events = body?.events as Array<Record<string, unknown>> | undefined;

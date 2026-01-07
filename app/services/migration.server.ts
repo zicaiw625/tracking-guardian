@@ -72,8 +72,6 @@ export interface SavePixelConfigOptions {
 export async function savePixelConfig(shopId: string, platform: Platform, platformId: string, options?: SavePixelConfigOptions) {
     const { clientConfig, credentialsEncrypted, serverSideEnabled } = options || {};
 
-    // P0-4: v1.0 范围收敛 - 只支持 GA4/Meta/TikTok
-    // Snapchat/Twitter/Pinterest 等平台将在 v1.1+ 版本支持
     const v1SupportedPlatforms = ["google", "meta", "tiktok"];
     if (!v1SupportedPlatforms.includes(platform)) {
         throw new Error(
@@ -90,8 +88,6 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
 
     const environment = options?.environment || "live";
 
-    // P0-3: 支持多目的地配置 - 使用包含 platformId 的唯一约束
-    // platformId 是必需的 string，直接使用
     const existingConfig = await prisma.pixelConfig.findUnique({
         where: {
             shopId_platform_environment_platformId: {
@@ -103,13 +99,11 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         },
     });
 
-    // P1-5: 服务端 entitlement 硬门禁 - 检查像素目的地权限
     if (!existingConfig && serverSideEnabled) {
         const { requireEntitlementOrThrow } = await import("./billing/entitlement.server");
         await requireEntitlementOrThrow(shopId, "pixel_destinations");
     }
 
-    // P1-5: 检查 Full Funnel 模式权限（如果启用）
     if (clientConfig && typeof clientConfig === 'object' && 'mode' in clientConfig) {
         const mode = (clientConfig as { mode?: string }).mode;
         if (mode === 'full_funnel') {
@@ -122,8 +116,6 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
         await saveConfigSnapshot(shopId, platform, environment as "test" | "live");
     }
 
-    // P0-3: 支持多目的地配置 - 使用包含 platformId 的唯一约束
-    // platformId 是必需的 string，直接使用
     return prisma.pixelConfig.upsert({
         where: {
             shopId_platform_environment_platformId: {
@@ -159,8 +151,7 @@ export async function savePixelConfig(shopId: string, platform: Platform, platfo
 }
 
 export async function completeMigration(shopId: string, platform: Platform, environment: string = "live", platformId?: string | null) {
-    // P0-3: 支持多目的地配置 - 需要 platformId 来唯一标识配置
-    // 如果未提供 platformId，查找第一个匹配的配置（向后兼容）
+
     if (platformId === undefined) {
         const config = await prisma.pixelConfig.findFirst({
             where: {
@@ -174,11 +165,9 @@ export async function completeMigration(shopId: string, platform: Platform, envi
         }
         platformId = config.platformId;
     }
-    
-    // 使用包含 platformId 的唯一约束更新配置
-    // platformId 可能是 null，需要特殊处理
+
     if (platformId === null || platformId === undefined) {
-        // 如果 platformId 为 null，使用 findFirst 查找，然后更新
+
         const config = await prisma.pixelConfig.findFirst({
             where: {
                 shopId,
@@ -198,7 +187,7 @@ export async function completeMigration(shopId: string, platform: Platform, envi
             },
         });
     }
-    
+
     return prisma.pixelConfig.update({
         where: {
             shopId_platform_environment_platformId: {
@@ -249,25 +238,21 @@ export function buildWebPixelSettings(
     shopDomain: string,
     pixelConfig?: Partial<PixelConfig>,
     environment: "test" | "live" = "live",
-    mode?: "purchase_only" | "full_funnel" // P0-2: 添加 mode 参数
+    mode?: "purchase_only" | "full_funnel"
 ): WebPixelSettings {
-    // P1-11: Web Pixel Settings 只下发小字段，不塞大 JSON
-    // 像素端通过 shop_domain 去后端获取完整配置（如果需要）
-    // 只保留必要的标识字段：shop_domain、ingestion_key、config_version、environment、mode
-    const configVersion = "1"; // 配置版本号，用于向后兼容
-    
-    // P0-2: 从 pixelConfig 或参数中获取 mode，默认 purchase_only
+
+    const configVersion = "1";
+
     const pixelMode = mode || pixelConfig?.mode || "purchase_only";
-    
+
     return {
         ingestion_key: ingestionKey,
         shop_domain: shopDomain,
-        // P1-11: 不再下发 pixel_config JSON，改为只下发 config_version
-        // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
+
         config_version: configVersion,
-        // P0-2: 添加 mode 字段，用于控制像素端订阅的事件类型
+
         mode: pixelMode,
-        // P0-4: 默认环境（test 或 live），用于后端按环境过滤配置
+
         environment,
     };
 }
@@ -364,8 +349,7 @@ export async function createWebPixel(admin: AdminApiContext, ingestionKey?: stri
 }
 
 export async function updateWebPixel(admin: AdminApiContext, webPixelId: string, ingestionKey?: string, shopDomain?: string, environment: "test" | "live" = "live", mode?: "purchase_only" | "full_funnel"): Promise<CreateWebPixelResult> {
-    // P0-4: 支持 environment 参数，确保 pixel settings 中包含正确的 environment 字段
-    // P0-2: 支持 mode 参数，用于控制像素端订阅的事件类型
+
     const pixelSettings = buildWebPixelSettings(ingestionKey || "", shopDomain || "", undefined, environment, mode);
     const settings = JSON.stringify(pixelSettings);
     try {
@@ -451,14 +435,9 @@ export async function upgradeWebPixelSettings(
         existingMode,
     });
 
-    // P0-2: 保留现有的 mode 和 environment，如果存在的话
     return updateWebPixel(admin, webPixelId, existingKey, shopDomain, existingEnvironment, existingMode);
 }
 
-/**
- * P0-2: 同步 mode 到 Web Pixel settings
- * 从 shop 的 pixelConfigs 中读取 mode（优先 full_funnel），并更新 Web Pixel settings
- */
 export async function syncWebPixelMode(
     admin: AdminApiContext,
     shopId: string,
@@ -468,7 +447,7 @@ export async function syncWebPixelMode(
     environment: "test" | "live" = "live"
 ): Promise<CreateWebPixelResult> {
     try {
-        // 从 shop 的 pixelConfigs 中读取 mode
+
         const pixelConfigs = await prisma.pixelConfig.findMany({
             where: {
                 shopId,
@@ -480,13 +459,12 @@ export async function syncWebPixelMode(
             },
         });
 
-        // 优先 full_funnel，如果任何一个配置是 full_funnel，则使用 full_funnel
         let mode: "purchase_only" | "full_funnel" = "purchase_only";
         for (const config of pixelConfigs) {
             if (config.clientConfig && typeof config.clientConfig === 'object') {
                 if ('mode' in config.clientConfig && config.clientConfig.mode === 'full_funnel') {
                     mode = "full_funnel";
-                    break; // 找到 full_funnel 就停止
+                    break;
                 }
             }
         }

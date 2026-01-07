@@ -141,11 +141,9 @@ async function runPostInstallScan(
   try {
     logger.info(`[PostInstall] Starting automatic health check for ${shopDomain}`);
 
-    // 定义明确的类型
     type TypOspResult = Awaited<ReturnType<typeof refreshTypOspStatus>>;
     type ScanResult = Awaited<ReturnType<typeof scanShopTracking>>;
 
-    // 创建独立的 Promise，以便在超时后仍能获取部分结果
     const typOspPromise = refreshTypOspStatus(admin, shopId);
     const scanTrackingPromise = scanShopTracking(admin, shopId, {
       force: false,
@@ -158,7 +156,7 @@ async function runPostInstallScan(
     ]);
 
     let timeoutId: NodeJS.Timeout | null = null;
-    
+
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         reject(new Error("Scan timeout"));
@@ -169,20 +167,18 @@ async function runPostInstallScan(
     let scanResult: PromiseSettledResult<ScanResult> | null = null;
 
     try {
-      // 等待 Promise.race 完成
+
       await Promise.race([scanPromise, timeoutPromise]);
-      
-      // 如果到达这里，说明 scanPromise 先完成了（没有超时）
+
       const results = await scanPromise;
       [typOspResult, scanResult] = results;
-      
-      // 清理超时定时器
+
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
     } catch (timeoutError) {
-      // 超时了，清理定时器
+
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
         timeoutId = null;
@@ -192,8 +188,6 @@ async function runPostInstallScan(
         elapsedMs: Date.now() - startTime,
       });
 
-      // 即使超时，也尝试获取已完成的部分结果
-      // 注意：这里我们仍然等待 Promise.allSettled 完成，但已经知道超时了
       try {
         const partialResults = await scanPromise;
         [typOspResult, scanResult] = partialResults;

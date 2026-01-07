@@ -832,11 +832,9 @@ export async function scanShopTracking(
                     riskDetection.detectedIssues.blockingLoad) {
                     riskLevel = "high";
                 } else if (riskDetection.detectedIssues.duplicateTriggers) {
-                    // If riskLevel is "medium" and duplicate triggers are detected, keep it as "medium"
-                    // (no change needed as it's already "medium" by default)
-                    // This check is kept for clarity, though it will never be "low" at this point
+
                     if (riskLevel === "medium") {
-                        // Already medium, no change needed
+
                     }
                 }
             }

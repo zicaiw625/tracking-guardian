@@ -290,7 +290,7 @@ export function mergeModuleSettings(
     showOnThankYou: true,
     showOnOrderStatus: true,
   };
-  
+
   return {
     ...defaultSettings,
     ...existing,

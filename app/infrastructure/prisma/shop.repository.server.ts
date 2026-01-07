@@ -28,7 +28,7 @@ function mapToDomainShop(prismaShop: {
   plan: string;
   monthlyOrderLimit: number;
   isActive: boolean;
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled、pcdAcknowledged、pcdAcknowledgedAt 字段
+
   consentStrategy: string;
   dataRetentionDays: number;
   ingestionSecret: string | null;
@@ -55,7 +55,7 @@ function mapToDomainShop(prismaShop: {
     plan: prismaShop.plan as PlanId,
     monthlyOrderLimit: prismaShop.monthlyOrderLimit,
     isActive: prismaShop.isActive,
-    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled、pcdAcknowledged、pcdAcknowledgedAt 字段
+
     consentStrategy: prismaShop.consentStrategy as ConsentStrategy,
     dataRetentionDays: prismaShop.dataRetentionDays,
     ingestionSecret: prismaShop.ingestionSecret,
@@ -294,7 +294,7 @@ export class PrismaShopRepository implements IShopRepository {
           shopDomain: true,
           isActive: true,
           plan: true,
-          // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled、pcdAcknowledged 字段
+
           consentStrategy: true,
         },
       });
@@ -304,7 +304,7 @@ export class PrismaShopRepository implements IShopRepository {
         shopDomain: shop.shopDomain,
         isActive: shop.isActive,
         plan: shop.plan as PlanId,
-        // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled、pcdAcknowledged 字段
+
         consentStrategy: shop.consentStrategy as ConsentStrategy,
       });
     } catch (error) {

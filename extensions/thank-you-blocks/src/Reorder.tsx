@@ -33,16 +33,15 @@ const Reorder = memo(function Reorder() {
     return api.shop?.storefrontUrl || "";
   }, [api.shop?.storefrontUrl]);
 
-  // P0-1: PRD 对齐 - 使用本地化文本
-  const title = useMemo(() => 
+  const title = useMemo(() =>
     getLocalizedText(settings, "reorder_title", "📦 再次购买", undefined, api as { locale?: string }),
     [settings, api]
   );
-  const subtitle = useMemo(() => 
+  const subtitle = useMemo(() =>
     getLocalizedText(settings, "reorder_subtitle", "喜欢这次购物？一键再次订购相同商品", undefined, api as { locale?: string }),
     [settings, api]
   );
-  const buttonText = useMemo(() => 
+  const buttonText = useMemo(() =>
     getLocalizedText(settings, "reorder_button_text", "再次购买 →", undefined, api as { locale?: string }),
     [settings, api]
   );
@@ -50,7 +49,7 @@ const Reorder = memo(function Reorder() {
   useEffect(() => {
     async function fetchOrderInfo() {
       try {
-        // Type guard: orderConfirmation is only available in purchase.thank-you.block.render target
+
         if ('orderConfirmation' in api && api.orderConfirmation) {
           const orderData = api.orderConfirmation instanceof Promise
             ? await api.orderConfirmation
@@ -63,8 +62,7 @@ const Reorder = memo(function Reorder() {
           }
         }
       } catch (err) {
-        // Silently handle order info fetch errors
-        // Order info may not be available in all contexts
+
       }
     }
     fetchOrderInfo();
@@ -153,9 +151,9 @@ const Reorder = memo(function Reorder() {
           }
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
-          
+
           if (attempt === retryDelays.length - 1) {
-            // P0-5: network access 失败时的降级处理
+
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("Failed to fetch")) {
               setError("网络连接失败，请稍后刷新页面重试");

@@ -39,7 +39,7 @@ export async function saveConfigSnapshot(
 ): Promise<boolean> {
   try {
     const config = await prisma.pixelConfig.findFirst({
-      where: { 
+      where: {
         shopId,
         platform,
         environment,
@@ -89,7 +89,7 @@ export async function rollbackConfig(
 ): Promise<RollbackResult> {
   try {
     const config = await prisma.pixelConfig.findFirst({
-      where: { 
+      where: {
         shopId,
         platform,
         environment,
@@ -169,10 +169,10 @@ export async function switchEnvironment(
   shopId: string,
   platform: string,
   newEnvironment: PixelEnvironment,
-  currentEnvironment?: PixelEnvironment // P0-5: 改为可选参数，从 DB 读取当前激活环境
+  currentEnvironment?: PixelEnvironment
 ): Promise<EnvironmentSwitchResult> {
   try {
-    // P0-5: 如果没有提供 currentEnvironment，从 DB 读取当前激活环境
+
     let actualCurrentEnvironment = currentEnvironment;
     if (!actualCurrentEnvironment) {
       const activeConfig = await prisma.pixelConfig.findFirst({
@@ -187,10 +187,9 @@ export async function switchEnvironment(
       });
       actualCurrentEnvironment = (activeConfig?.environment as PixelEnvironment) || "test";
     }
-    
-    // 查找当前环境的配置
+
     const config = await prisma.pixelConfig.findFirst({
-      where: { 
+      where: {
         shopId,
         platform,
         environment: actualCurrentEnvironment,
@@ -217,7 +216,6 @@ export async function switchEnvironment(
 
     await saveConfigSnapshot(shopId, platform, actualCurrentEnvironment);
 
-    // 检查目标环境是否已存在配置（使用相同的 platformId 如果可能）
     const targetConfig = await prisma.pixelConfig.findFirst({
       where: {
         shopId,
@@ -228,7 +226,7 @@ export async function switchEnvironment(
     });
 
     if (targetConfig) {
-      // 如果目标环境已有配置，更新它
+
       await prisma.pixelConfig.update({
         where: { id: targetConfig.id },
         data: {
@@ -241,7 +239,7 @@ export async function switchEnvironment(
           isActive: config.isActive,
         },
       });
-      // 停用旧环境的配置
+
       await prisma.pixelConfig.update({
         where: { id: config.id },
         data: {
@@ -249,7 +247,7 @@ export async function switchEnvironment(
         },
       });
     } else {
-      // 如果目标环境没有配置，直接切换环境
+
       await prisma.pixelConfig.update({
         where: { id: config.id },
         data: {
@@ -304,7 +302,7 @@ export async function getConfigVersionInfo(
   lastUpdated: Date;
 } | null> {
   const config = await prisma.pixelConfig.findFirst({
-    where: { 
+    where: {
       shopId,
       platform,
       environment,
@@ -373,7 +371,7 @@ export async function getConfigComparison(
   }>;
 } | null> {
   const config = await prisma.pixelConfig.findFirst({
-    where: { 
+    where: {
       shopId,
       platform,
       environment,

@@ -1,13 +1,5 @@
 #!/usr/bin/env node
-/**
- * 扩展验证脚本
- * 验证 Shopify 扩展的代码质量和配置正确性
- * 
- * 检查项：
- * 1. 禁止使用的浏览器 API（window, navigator, document）
- * 2. 扩展配置文件存在性和基本格式
- * 3. 源代码文件结构
- */
+
 
 import * as fs from "fs";
 import * as path from "path";
@@ -21,7 +13,6 @@ const EXTENSIONS_DIR = path.join(PROJECT_ROOT, "extensions");
 
 const results = [];
 
-// 禁止使用的浏览器 API 模式
 const FORBIDDEN_PATTERNS = [
     {
         pattern: /\bwindow\s*\./,
@@ -45,10 +36,9 @@ const FORBIDDEN_PATTERNS = [
     },
 ];
 
-// 允许的模式（注释中的使用是允许的）
 const ALLOWED_PATTERNS = [
     /\/\/.*(window|navigator|document|localStorage|sessionStorage)/i,
-    /\/\*[\s\S]*?(window|navigator|document|localStorage|sessionStorage)[\s\S]*?\*\//i,
+    /\/\*[\s\S]*?(window|navigator|document|localStorage|sessionStorage)[\s\S]*?\*\
     /".*window.*"/,
     /'.*window.*'/,
     /`.*window.*`/,
@@ -78,7 +68,6 @@ function isAllowed(line) {
     return ALLOWED_PATTERNS.some(pattern => pattern.test(line));
 }
 
-// 1. 检查禁止使用的浏览器 API
 function checkForbiddenAPIs() {
     const violations = [];
     const extensionsSrcDir = path.join(EXTENSIONS_DIR, "thank-you-blocks", "src");
@@ -125,7 +114,7 @@ function checkForbiddenAPIs() {
                             }
                         }
                     } catch (error) {
-                        // 忽略读取错误
+
                     }
                 }
             }
@@ -145,7 +134,6 @@ function checkForbiddenAPIs() {
     };
 }
 
-// 2. 检查扩展配置文件
 function checkExtensionConfigs() {
     const violations = [];
     const configFiles = [
@@ -167,7 +155,6 @@ function checkExtensionConfigs() {
         try {
             const content = fs.readFileSync(configFile, "utf-8");
 
-            // 检查 api_version
             if (!content.includes("api_version")) {
                 violations.push({
                     file: path.relative(PROJECT_ROOT, configFile),
@@ -177,7 +164,6 @@ function checkExtensionConfigs() {
                 });
             }
 
-            // 检查 type
             if (!content.includes("type =")) {
                 violations.push({
                     file: path.relative(PROJECT_ROOT, configFile),
@@ -206,7 +192,6 @@ function checkExtensionConfigs() {
     };
 }
 
-// 3. 检查源代码文件结构
 function checkSourceStructure() {
     const violations = [];
     const expectedDirs = [
@@ -235,17 +220,14 @@ function checkSourceStructure() {
     };
 }
 
-// 主函数
 function main() {
     console.log("🔍 开始验证 Shopify 扩展...\n");
     console.log("=".repeat(60));
 
-    // 运行所有检查
     results.push(checkForbiddenAPIs());
     results.push(checkExtensionConfigs());
     results.push(checkSourceStructure());
 
-    // 输出结果
     console.log("\n📊 检查结果汇总:\n");
 
     let allPassed = true;

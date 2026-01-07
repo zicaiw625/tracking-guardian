@@ -90,7 +90,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         new Response("Unauthorized", { status: 401 })
       );
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,7 +115,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         new Response("Unauthorized", { status: 401 })
       );
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -137,7 +137,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         new Response("Unauthorized", { status: 401 })
       );
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -185,7 +185,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         id: "gdpr-job-id",
       } as any);
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -232,7 +232,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         id: "gdpr-job-id",
       } as any);
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -278,7 +278,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         id: "gdpr-job-id",
       } as any);
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -306,7 +306,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         new SyntaxError("Unexpected token")
       );
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -327,7 +327,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         new Error("Unexpected server error")
       );
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -378,7 +378,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         id: "job-id",
       } as any);
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -419,7 +419,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
       vi.mocked(prisma.session.deleteMany).mockResolvedValue({ count: 1 });
       vi.mocked(prisma.shop.update).mockResolvedValue({} as any);
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -465,7 +465,7 @@ describe("P0-2: Webhook HMAC Signature Verification", () => {
         message: "Unique constraint failed",
       });
 
-      const request = new Request("https://example.com/webhook", {//example.com/webhook", {
+      const request = new Request("https://example.com/webhook", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

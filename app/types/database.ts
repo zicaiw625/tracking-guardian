@@ -18,9 +18,6 @@ export interface CapiLineItem {
   price: number;
 }
 
-// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 HashedUserDataJson 接口
-// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
-
 export interface CapiInputJson {
   orderId: string;
   value: number;
@@ -35,7 +32,7 @@ export interface CapiInputJson {
   webhookReceivedAt?: string;
   checkoutToken?: string | null;
   shopifyOrderId?: number | string;
-  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 hashedUserData 字段
+
 }
 
 export function parseCapiInput(json: unknown): CapiInputJson | null {
@@ -66,12 +63,8 @@ export function parseCapiInput(json: unknown): CapiInputJson | null {
       ? data.shopifyOrderId
       : undefined,
 
-    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 hashedUserData 解析
   };
 }
-
-// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 parseHashedUserData 函数
-// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
 
 function parseCapiLineItem(item: unknown): CapiLineItem | null {
   if (!item || typeof item !== 'object') return null;
@@ -253,7 +246,7 @@ export function parseRiskItems(json: unknown): RiskItemJson[] {
       const severity: RiskItemJson['severity'] = validSeverities.includes(severityValue as RiskItemJson['severity'])
         ? severityValue as RiskItemJson['severity']
         : 'low';
-      
+
       return {
         id: typeof item.id === 'string' ? item.id : '',
         severity,
@@ -431,9 +424,7 @@ export function createJsonParser<T>(
       return mapper(data);
     } catch (error) {
       if (options?.logErrors) {
-        // Use console.error to avoid importing server-only modules
-        // This function may be used in both client and server contexts
-        // eslint-disable-next-line no-console
+
         console.error('JSON parsing error', { error, context: 'createJsonParser' });
       }
       return options?.fallback ?? null;

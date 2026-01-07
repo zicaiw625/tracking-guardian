@@ -503,7 +503,6 @@ async function applyTemplateToShop(
             updateData.credentialsEncrypted = credentialsEncrypted;
           }
 
-          // 查找 test 环境的配置（批量应用默认使用 test 环境）
           const existingConfig = await prisma.pixelConfig.findFirst({
             where: {
               shopId,

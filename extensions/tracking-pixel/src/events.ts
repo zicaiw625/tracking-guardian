@@ -2,8 +2,7 @@
 
 import type { CheckoutData, CartLine } from "./types";
 import type { ConsentManager } from "./consent";
-// P0: 使用 @noble/hashes 替代 WebCrypto API，避免 strict sandbox 环境下的全局对象依赖
-// strict sandbox 只保证 self/console/timers/fetch，不保证 crypto.subtle/TextEncoder/btoa
+
 import { sha256 } from "@noble/hashes/sha256";
 import { hmac } from "@noble/hashes/hmac";
 import { utf8ToBytes, bytesToHex } from "@noble/hashes/utils";
@@ -19,40 +18,25 @@ export interface EventSenderConfig {
 
   backendUrl: string | null;
   shopDomain: string;
-  // P0-4: ingestionSecret 仅用于生成 HMAC 签名，不会出现在请求体中
-  // 服务端通过 shopDomain 查找 shop.ingestionSecret 进行验证
+
   ingestionSecret?: string;
   isDevMode: boolean;
   consentManager: ConsentManager;
   logger?: (...args: unknown[]) => void;
-  // P0-4: 环境（test 或 live），用于后端按环境过滤配置
+
   environment?: "test" | "live";
 }
 
-/**
- * P0: 使用 @noble/hashes 生成 HMAC 签名（hex 格式）
- * 
- * 原因：Shopify Web Pixel strict sandbox 环境不保证 WebCrypto API、
- * TextEncoder、btoa 等全局对象存在，可能导致签名生成失败。
- * 
- * @noble/hashes 是纯 JS 实现，零全局依赖，完全兼容 strict sandbox。
- * 使用 hex 格式而非 base64，避免需要 btoa。
- */
 function generateHMACSignature(
   secret: string,
   timestamp: number,
   bodyHash: string
 ): string {
   const message = `${timestamp}:${bodyHash}`;
-  // 使用 @noble/hashes 的 hmac 函数，返回 hex 格式
+
   return bytesToHex(hmac(sha256, utf8ToBytes(secret), utf8ToBytes(message)));
 }
 
-/**
- * P0: 使用 @noble/hashes 生成 SHA-256 哈希（hex 格式）
- * 
- * 替代 crypto.subtle.digest，避免 strict sandbox 环境下的全局对象依赖。
- */
 function sha256Hex(input: string): string {
   return bytesToHex(sha256(utf8ToBytes(input)));
 }
@@ -125,14 +109,10 @@ async function sendCheckoutCompletedWithRetry(
   }
 }
 
-// P0-1: PRD 对齐 - 批量事件队列配置
-// PRD 8.2 要求：POST /ingest 支持批量事件格式 { events: [...] }
-// 此配置用于在客户端批量收集事件，然后一次性发送到 /ingest 端点
-// 符合 PRD 的性能目标（减少网络请求数，提高并发处理能力）
 const BATCH_CONFIG = {
-  MAX_BATCH_SIZE: 10, // 最大批量大小
-  MAX_BATCH_DELAY_MS: 1000, // 最大延迟（毫秒）
-  FLUSH_IMMEDIATE_EVENTS: ["checkout_completed"], // 立即发送的事件类型
+  MAX_BATCH_SIZE: 10,
+  MAX_BATCH_DELAY_MS: 1000,
+  FLUSH_IMMEDIATE_EVENTS: ["checkout_completed"],
 } as const;
 
 interface QueuedEvent {
@@ -159,7 +139,6 @@ export function createEventSender(config: EventSenderConfig) {
     };
   }
 
-  // P0-1: PRD 对齐 - 批量事件队列
   const eventQueue: QueuedEvent[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -167,7 +146,7 @@ export function createEventSender(config: EventSenderConfig) {
     if (eventQueue.length === 0) return;
 
     const eventsToSend = [...eventQueue];
-    eventQueue.length = 0; // 清空队列
+    eventQueue.length = 0;
 
     if (flushTimer) {
       clearTimeout(flushTimer);
@@ -178,8 +157,7 @@ export function createEventSender(config: EventSenderConfig) {
 
     try {
       const timestamp = Date.now();
-      
-      // P0-1: PRD 要求的批量格式：{ events: [...] }
+
       const batchPayload = {
         events: eventsToSend.map(event => ({
           eventName: event.eventName,
@@ -196,13 +174,11 @@ export function createEventSender(config: EventSenderConfig) {
             environment,
           },
         })),
-        timestamp, // 批量请求的时间戳（用于HMAC验证）
+        timestamp,
       };
 
       const body = JSON.stringify(batchPayload);
-      // P0-1: PRD 对齐 - 使用 /ingest 批量接口（符合 PRD 8.2 要求）
-      // PRD 8.2 要求：POST /ingest, Body: { events: [...] } (批量)
-      // 此实现完全符合 PRD 规范，支持批量事件发送，提高性能
+
       const url = `${backendUrl}/ingest`;
 
       const headers: Record<string, string> = {
@@ -210,7 +186,6 @@ export function createEventSender(config: EventSenderConfig) {
         "X-Tracking-Guardian-Timestamp": String(timestamp),
       };
 
-      // P0-1: 生成批量请求的 HMAC 签名
       if (ingestionSecret) {
         try {
           const bodyHash = sha256Hex(body);
@@ -227,9 +202,8 @@ export function createEventSender(config: EventSenderConfig) {
         }
       }
 
-      // 对于 checkout_completed 事件，使用重试机制
       const hasCheckoutCompleted = eventsToSend.some(e => e.eventName === "checkout_completed");
-      
+
       if (hasCheckoutCompleted && !immediate) {
         sendCheckoutCompletedWithRetry(url, body, isDevMode, log, 0, headers);
       } else {
@@ -275,7 +249,6 @@ export function createEventSender(config: EventSenderConfig) {
       const timestamp = Date.now();
       const nonce = `${timestamp}-${Math.random().toString(36).substring(2, 10)}`;
 
-      // 添加到队列
       eventQueue.push({
         eventName,
         data,
@@ -283,15 +256,14 @@ export function createEventSender(config: EventSenderConfig) {
         nonce,
       });
 
-      // P0-1: 立即发送的事件（如 checkout_completed）或队列已满时立即刷新
-      const shouldFlushImmediate = 
+      const shouldFlushImmediate =
         BATCH_CONFIG.FLUSH_IMMEDIATE_EVENTS.includes(eventName) ||
         eventQueue.length >= BATCH_CONFIG.MAX_BATCH_SIZE;
 
       if (shouldFlushImmediate) {
         await flushQueue(true);
       } else {
-        // 设置延迟刷新（如果还没有设置）
+
         if (!flushTimer) {
           flushTimer = setTimeout(() => {
             flushQueue(false);
@@ -338,11 +310,11 @@ export function subscribeToCheckoutCompleted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
+        id: item.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null, // 明确标记 variantId
+        variantId: item.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],
@@ -371,11 +343,11 @@ function subscribeToCheckoutStarted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
+        id: item.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null, // 明确标记 variantId
+        variantId: item.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],
@@ -403,9 +375,6 @@ function subscribeToProductAddedToCart(
     const quantity = cartLine.quantity || 1;
     const currency = typedEvent.data?.cart?.currencyCode || null;
 
-    // 统一为 value/currency/items[] 格式
-    // items[].id 优先使用 variantId（与 checkout 事件保持一致），如果没有则使用 productId
-    // 注意：cartLine.merchandise 可能包含 variant 信息，但类型定义可能不完整
     const merchandise = cartLine.merchandise as { id?: string; variant?: { id?: string }; product?: { id?: string; title?: string } } | undefined;
     const variantId = merchandise?.variant?.id || merchandise?.id || null;
     const productId = merchandise?.product?.id || null;
@@ -415,7 +384,7 @@ function subscribeToProductAddedToCart(
       value: price * quantity,
       currency: currency,
       items: [{
-        id: itemId, // 统一使用 variantId 优先，如果没有则使用 productId
+        id: itemId,
         name: cartLine.merchandise?.product?.title || "",
         price: price,
         quantity: quantity,
@@ -439,26 +408,23 @@ function subscribeToPageViewed(
   const log = logger || (() => {});
 
   analytics.subscribe("page_viewed", (event: unknown) => {
-    const typedEvent = event as { 
-      data?: { 
+    const typedEvent = event as {
+      data?: {
         page?: { url?: string; title?: string; currencyCode?: string };
         cart?: { currencyCode?: string };
-      } 
+      }
     };
     const page = typedEvent.data?.page;
     if (!page) return;
 
-    // 统一为 value/currency/items[] 格式（page_viewed 事件 value 为 0，items 为空数组）
-    // 注意：page_viewed 事件可能没有 currency，但为了保持一致性，我们尝试从页面或购物车获取
-    // 如果确实没有，后端会使用 USD 作为后备（这是合理的，因为 page_viewed 事件不需要货币信息）
     const currency = page.currencyCode || typedEvent.data?.cart?.currencyCode || null;
 
     sendToBackend("page_viewed", {
       url: page.url || null,
       title: page.title || null,
-      value: 0, // page_viewed 事件没有交易价值
-      currency: currency, // 从页面或购物车获取货币代码（可能为 null，后端会处理）
-      items: [], // page_viewed 事件没有商品信息
+      value: 0,
+      currency: currency,
+      items: [],
     });
   });
 
@@ -475,11 +441,11 @@ function subscribeToProductViewed(
   const log = logger || (() => {});
 
   analytics.subscribe("product_viewed", (event: unknown) => {
-    const typedEvent = event as { 
-      data?: { 
-        productVariant?: { 
-          id?: string; // variant id
-          product?: { id?: string; title?: string }; 
+    const typedEvent = event as {
+      data?: {
+        productVariant?: {
+          id?: string;
+          product?: { id?: string; title?: string };
           price?: { amount?: string | number; currencyCode?: string };
         };
       };
@@ -490,8 +456,6 @@ function subscribeToProductViewed(
     const price = toNumber(productVariant.price?.amount);
     const currency = (productVariant.price as { currencyCode?: string } | undefined)?.currencyCode || null;
 
-    // 统一为 value/currency/items[] 格式
-    // items[].id 优先使用 variantId（与 checkout 事件保持一致），如果没有则使用 productId
     const variantId = productVariant.id || null;
     const productId = productVariant.product?.id || null;
     const itemId = variantId || productId || "";
@@ -500,7 +464,7 @@ function subscribeToProductViewed(
       value: price,
       currency: currency,
       items: [{
-        id: itemId, // 统一使用 variantId 优先，如果没有则使用 productId
+        id: itemId,
         name: productVariant.product?.title || "",
         price: price,
         quantity: 1,
@@ -533,11 +497,11 @@ function subscribeToCheckoutContactInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
+        id: item.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null, // 明确标记 variantId
+        variantId: item.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],
@@ -566,11 +530,11 @@ function subscribeToCheckoutShippingInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
+        id: item.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null, // 明确标记 variantId
+        variantId: item.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],
@@ -599,11 +563,11 @@ function subscribeToPaymentInfoSubmitted(
       value: toNumber(checkout.totalPrice?.amount),
       currency: checkout.currencyCode || null,
       items: checkout.lineItems?.map(item => ({
-        id: item.id || "", // checkout.lineItems 的 id 通常是 variant_id
+        id: item.id || "",
         name: item.title || "",
         price: toNumber(item.variant?.price?.amount),
         quantity: item.quantity || 1,
-        variantId: item.id || null, // 明确标记 variantId
+        variantId: item.id || null,
         productId: item.variant?.product?.id || null,
         productTitle: item.variant?.product?.title || null,
       })) || [],
@@ -619,7 +583,7 @@ export function subscribeToAnalyticsEvents(
   },
   sendToBackend: (eventName: string, data: Record<string, unknown>) => Promise<void>,
   logger?: (...args: unknown[]) => void,
-  mode: "purchase_only" | "full_funnel" = "purchase_only" // v1 默认 purchase_only，符合隐私最小化原则
+  mode: "purchase_only" | "full_funnel" = "purchase_only"
 ): void {
 
   subscribeToCheckoutCompleted(analytics, sendToBackend, logger);

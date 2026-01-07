@@ -75,7 +75,6 @@ export async function batchCompleteJobs(
           },
         });
 
-        // 更新每个作业的详细数据，使用 Promise.allSettled 确保单个失败不影响其他
         const updateResults = await Promise.allSettled(
           completed.map((job) =>
             tx.conversionJob.update({
@@ -89,7 +88,6 @@ export async function batchCompleteJobs(
           )
         );
 
-        // 记录任何失败的更新
         updateResults.forEach((result, index) => {
           if (result.status === 'rejected') {
             const job = completed[index];
@@ -103,7 +101,7 @@ export async function batchCompleteJobs(
       }
 
       if (failed.length > 0) {
-        // 使用 Promise.allSettled 确保单个失败不影响其他
+
         const updateResults = await Promise.allSettled(
           failed.map((job) =>
             tx.conversionJob.update({
@@ -119,7 +117,6 @@ export async function batchCompleteJobs(
           )
         );
 
-        // 记录任何失败的更新
         updateResults.forEach((result, index) => {
           if (result.status === 'rejected') {
             const job = failed[index];
@@ -144,7 +141,7 @@ export async function batchCompleteJobs(
 
         const limitExceededWithErrors = limitExceeded.filter((j) => j.errorMessage);
         if (limitExceededWithErrors.length > 0) {
-          // 使用 Promise.allSettled 确保单个失败不影响其他
+
           const updateResults = await Promise.allSettled(
             limitExceededWithErrors.map((job) =>
               tx.conversionJob.update({
@@ -154,7 +151,6 @@ export async function batchCompleteJobs(
             )
           );
 
-          // 记录任何失败的更新
           updateResults.forEach((result, index) => {
             if (result.status === 'rejected') {
               const job = limitExceededWithErrors[index];
@@ -177,7 +173,6 @@ export async function batchCompleteJobs(
           },
         });
 
-        // 使用 Promise.allSettled 确保单个失败不影响其他
         const updateResults = await Promise.allSettled(
           deadLetter.map((job) =>
             tx.conversionJob.update({
@@ -190,7 +185,6 @@ export async function batchCompleteJobs(
           )
         );
 
-        // 记录任何失败的更新
         updateResults.forEach((result, index) => {
           if (result.status === 'rejected') {
             const job = deadLetter[index];
@@ -305,7 +299,7 @@ export async function batchUpdateShops(
     shopId: string;
     data: Partial<{
       consentStrategy: string;
-      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
       isActive: boolean;
     }>;
   }>

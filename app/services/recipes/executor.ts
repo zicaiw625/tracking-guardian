@@ -11,9 +11,6 @@ import type {
 import { logger } from "../../utils/logger.server";
 import type { Prisma } from "@prisma/client";
 
-/**
- * 将 Prisma AppliedRecipe 模型安全地转换为 AppliedRecipe 类型
- */
 function mapToAppliedRecipe(
   prismaRecipe: {
     id: string;
@@ -339,7 +336,7 @@ export async function runRecipeValidation(
     results.push(result);
   }
 
-  const existingResults = Array.isArray(applied.validationResults) 
+  const existingResults = Array.isArray(applied.validationResults)
     ? (applied.validationResults as unknown as RecipeValidationResult[])
     : [];
   await prisma.appliedRecipe.update({

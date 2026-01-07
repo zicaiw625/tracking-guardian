@@ -2,7 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import type { SurveyResponseData } from "../types";
 import { checkRateLimitAsync, createRateLimitResponse } from "../utils/rate-limiter";
-// P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
+
 import { authenticate } from "../shopify.server";
 import { optionsResponse, jsonWithCors } from "../utils/cors";
 import { logger } from "../utils/logger.server";
@@ -134,8 +134,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return jsonWithCors({ error: "Request body too large", maxSize: MAX_SURVEY_BODY_SIZE }, { status: 413, request, staticCors: true });
     }
     try {
-        // P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
-        // 这会自动处理 JWT 验证和 CORS，并返回 session 信息
+
         let session: { shop: string; [key: string]: unknown };
         try {
             const authResult = await authenticate.public.checkout(request) as unknown as { session: { shop: string; [key: string]: unknown } };

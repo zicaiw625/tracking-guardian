@@ -28,9 +28,6 @@ export interface ManualInputData {
   fromUpgradeWizard?: boolean;
 }
 
-// P1-2: v1.0 平台支持范围收敛到 GA4/Meta/TikTok
-// 其他平台（Pinterest/Snapchat 等）将在 v1.1+ 版本中支持
-// 在 UI 中会显示 v1 支持标记，帮助用户了解哪些平台可以在 v1.0 中迁移
 const AVAILABLE_PLATFORMS = [
   { value: "google", label: "Google Analytics / GA4" },
   { value: "meta", label: "Meta Pixel / Facebook" },
@@ -159,20 +156,20 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               <Text as="p" variant="bodySm" tone="subdued">
                 勾选所有在 Thank you / Order status 页面使用的追踪平台
               </Text>
-              
+
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
                   <strong>v1 支持范围</strong>：GA4、Meta、TikTok（其他平台将在 v1.1+ 支持）。请选择所有您使用的平台，系统将在报告中标注 v1 可迁移的项目。
                 </Text>
               </Banner>
-              
+
               <BlockStack gap="300">
                 {AVAILABLE_PLATFORMS.map((platform) => {
-                  const isV1Supported = 
-                    platform.value === "google" || 
-                    platform.value === "meta" || 
+                  const isV1Supported =
+                    platform.value === "google" ||
+                    platform.value === "meta" ||
                     platform.value === "tiktok";
-                  
+
                   return (
                     <InlineStack key={platform.value} gap="200" blockAlign="center">
                       <Checkbox
@@ -199,19 +196,19 @@ export function ManualInputWizard({ open, onClose, onComplete }: ManualInputWiza
               <Text as="p" variant="bodySm" tone="subdued">
                 勾选所有在 Thank you / Order status 页面使用的功能
               </Text>
-              
+
               <Banner tone="warning">
                 <Text as="p" variant="bodySm">
                   <strong>v1 支持范围</strong>：购后问卷（Survey）和帮助中心（Helpdesk）（其他功能将在 v1.1+ 支持）。请选择所有您使用的功能，系统将在报告中标注 v1 可迁移的项目。
                 </Text>
               </Banner>
-              
+
               <BlockStack gap="300">
                 {AVAILABLE_FEATURES.map((feature) => {
-                  const isV1Supported = 
-                    feature.value === "survey" || 
+                  const isV1Supported =
+                    feature.value === "survey" ||
                     feature.value === "support";
-                  
+
                   return (
                     <InlineStack key={feature.value} gap="200" blockAlign="center">
                       <Checkbox

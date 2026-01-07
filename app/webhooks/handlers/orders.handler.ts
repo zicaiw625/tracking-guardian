@@ -1,10 +1,4 @@
-/**
- * P0-2: 订单 webhook handlers
- * 
- * 处理订单相关 webhooks（orders/create, orders/updated, orders/cancelled, orders/edited）
- * 仅存储订单摘要信息（orderId, orderNumber, totalValue, currency, financialStatus）
- * 不存储任何 PII（邮箱/地址/电话），符合 v1.0 隐私最小化原则
- */
+
 
 import { randomUUID } from "crypto";
 import prisma from "../../db.server";
@@ -13,7 +7,7 @@ import type { WebhookContext, WebhookHandlerResult } from "../types";
 
 interface OrderWebhookPayload {
   id: string | number;
-  name?: string; // order number (e.g., "#1001")
+  name?: string;
   total_price?: string;
   currency?: string;
   financial_status?: string;
@@ -22,9 +16,6 @@ interface OrderWebhookPayload {
   created_at?: string;
 }
 
-/**
- * 从订单 payload 中提取订单摘要信息（不包含 PII）
- */
 function extractOrderSnapshot(payload: OrderWebhookPayload): {
   orderId: string;
   orderNumber: string | null;
@@ -56,9 +47,6 @@ function extractOrderSnapshot(payload: OrderWebhookPayload): {
   };
 }
 
-/**
- * 处理 orders/create webhook
- */
 export async function handleOrdersCreate(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
@@ -68,7 +56,6 @@ export async function handleOrdersCreate(
     const orderPayload = payload as OrderWebhookPayload;
     const snapshot = extractOrderSnapshot(orderPayload);
 
-    // 查找 shop
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: shop },
       select: { id: true },
@@ -83,7 +70,6 @@ export async function handleOrdersCreate(
       };
     }
 
-    // 创建或更新订单快照
     const snapshotId = randomUUID();
 
     await prisma.shopifyOrderSnapshot.upsert({
@@ -136,19 +122,13 @@ export async function handleOrdersCreate(
   }
 }
 
-/**
- * 处理 orders/updated webhook
- */
 export async function handleOrdersUpdated(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
-  // orders/updated 与 orders/create 处理逻辑相同（都是 upsert）
+
   return handleOrdersCreate(context);
 }
 
-/**
- * 处理 orders/cancelled webhook
- */
 export async function handleOrdersCancelled(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
@@ -158,7 +138,6 @@ export async function handleOrdersCancelled(
     const orderPayload = payload as OrderWebhookPayload;
     const snapshot = extractOrderSnapshot(orderPayload);
 
-    // 查找 shop
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: shop },
       select: { id: true },
@@ -173,7 +152,6 @@ export async function handleOrdersCancelled(
       };
     }
 
-    // 更新订单快照，标记为已取消
     const snapshotId = randomUUID();
 
     await prisma.shopifyOrderSnapshot.upsert({
@@ -223,13 +201,10 @@ export async function handleOrdersCancelled(
   }
 }
 
-/**
- * 处理 orders/edited webhook
- */
 export async function handleOrdersEdited(
   context: WebhookContext
 ): Promise<WebhookHandlerResult> {
-  // orders/edited 与 orders/updated 处理逻辑相同
+
   return handleOrdersUpdated(context);
 }
 

@@ -24,7 +24,7 @@ export async function compareConfigVersions(
 ): Promise<ConfigComparisonResult | null> {
   try {
     const config = await prisma.pixelConfig.findFirst({
-      where: { 
+      where: {
         shopId,
         platform,
         environment: "live",

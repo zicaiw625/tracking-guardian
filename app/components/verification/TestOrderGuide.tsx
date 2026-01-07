@@ -66,8 +66,7 @@ export function TestOrderGuide({
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：复制失败
-        // eslint-disable-next-line no-console
+
         console.error("Failed to copy:", error);
       }
     }
@@ -332,7 +331,7 @@ export function TestOrderGuide({
                                       )
                                     )}
                                   </List>
-                                  {/* P0-T7: checkout_completed 事件缺失时的行为提示 */}
+                                  {}
                                   {verificationResults[item.id].missingEvents.some(
                                     (e) => e.toLowerCase().includes("checkout_completed") || e.toLowerCase().includes("purchase")
                                   ) && (

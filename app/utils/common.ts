@@ -358,7 +358,6 @@ export async function retry<T>(
     shouldRetry = () => true,
   } = options;
 
-  // 确保至少执行一次
   const safeMaxAttempts = Math.max(1, maxAttempts);
 
   let lastError: unknown;
@@ -369,19 +368,15 @@ export async function retry<T>(
     } catch (error) {
       lastError = error;
 
-      // 如果是最后一次尝试或不应该重试，直接抛出错误
       if (attempt === safeMaxAttempts || !shouldRetry(error)) {
         throw error;
       }
 
-      // 计算延迟时间（指数退避）
       const delay = Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
       await sleep(delay);
     }
   }
 
-  // 理论上不应该到达这里，因为循环中已经处理了所有情况
-  // 但为了类型安全，如果到达这里，抛出最后一个错误
   throw lastError ?? new Error("Retry function failed without capturing an error");
 }
 

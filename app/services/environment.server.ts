@@ -30,8 +30,7 @@ export async function getEnvironmentConfig(
   environment: PixelEnvironment = "live",
   platformId?: string | null
 ): Promise<EnvironmentConfig | null> {
-  // P0-3: 支持多目的地配置 - 如果提供了 platformId，使用包含 platformId 的唯一约束
-  // 如果未提供 platformId，查找第一个匹配的配置（向后兼容）
+
   const config = platformId !== undefined
     ? await prisma.pixelConfig.findFirst({
         where: {

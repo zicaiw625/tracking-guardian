@@ -54,7 +54,6 @@ export async function exportVerificationReport(
     errors?: string[];
   }>) || [];
 
-  // P0-T6: 获取 payload 证据（默认 N=20 条）
   const payloadSampleCount = 20;
   const eventsWithPayloads = await Promise.all(
     events
@@ -88,9 +87,6 @@ export async function exportVerificationReport(
   }
 }
 
-/**
- * P0-T6: 导出验证报告为 CSV，包含 payload 证据（默认 N=20 条）
- */
 function exportToCSV(
   run: {
     Shop: { shopDomain: string };
@@ -181,8 +177,7 @@ function exportToCSV(
       ];
       lines.push(row.map((cell) => `"${cell}"`).join(","));
     });
-    
-    // P0-T6: 添加 payload 证据部分（默认 N=20 条）
+
     const eventsWithPayloads = events.filter(e => (e as { payload?: unknown }).payload);
     if (eventsWithPayloads.length > 0) {
       lines.push("");
@@ -277,9 +272,7 @@ async function exportToPDF(
 ): Promise<string> {
 
   try {
-    // Dynamic import for pdfkit
-    // Note: Using any type here because pdfkit's type definitions are incomplete
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     let PDFDocument: any;
     try {
       const pdfkitModule = await import("pdfkit");
@@ -459,9 +452,7 @@ export async function exportMigrationChecklist(
 
 async function exportChecklistToPDF(shopDomain: string, assets: Array<Record<string, unknown>>): Promise<string> {
   try {
-    // Dynamic import for pdfkit
-    // Note: Using any type here because pdfkit's type definitions are incomplete
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     let PDFDocument: any;
     try {
       const pdfkitModule = await import("pdfkit");
@@ -720,9 +711,7 @@ async function exportMultiShopToPDF(
   options: ExportOptions & { workspaceName?: string; agencyBranding?: { name?: string; logo?: string } }
 ): Promise<string> {
   try {
-    // Dynamic import for pdfkit
-    // Note: Using any type here because pdfkit's type definitions are incomplete
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     let PDFDocument: any;
     try {
       const pdfkitModule = await import("pdfkit");

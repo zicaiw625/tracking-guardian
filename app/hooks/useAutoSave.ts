@@ -57,12 +57,10 @@ export function useAutoSave<T>({
       setSaveStatus("saved");
       onSaveSuccess?.();
 
-      // 清理之前的状态重置定时器
       if (statusResetTimeoutRef.current) {
         clearTimeout(statusResetTimeoutRef.current);
       }
 
-      // 存储新的状态重置定时器以便清理
       statusResetTimeoutRef.current = setTimeout(() => {
         setSaveStatus("idle");
         statusResetTimeoutRef.current = null;

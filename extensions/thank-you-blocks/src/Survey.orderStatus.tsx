@@ -20,7 +20,6 @@ function SurveyOrderStatus() {
     const title = (settings.survey_title as string) || "我们想听听您的意见";
     const question = (settings.survey_question as string) || "您是如何了解到我们的？";
 
-    // Type guard: shop is only available in certain API contexts
     const shopDomain = ('shop' in api && api.shop?.myshopifyDomain) ? api.shop.myshopifyDomain : "";
     const logger = useMemo(() => createLogger(shopDomain, "[SurveyOrderStatus]"), [shopDomain]);
 

@@ -455,7 +455,7 @@ export async function getReconciliationSummary(shopId: string, days: number = 30
         const platformSummary = summary[platform];
         if (platformSummary.reports.length > 0) {
             const totalDiscrepancy = platformSummary.reports.reduce((sum, r) => sum + r.orderDiscrepancy, 0);
-            // 确保除零保护
+
             const reportCount = platformSummary.reports.length;
             platformSummary.avgDiscrepancy = reportCount > 0 ? totalDiscrepancy / reportCount : 0;
         }

@@ -1,6 +1,4 @@
--- P0-4: v1.0 版本不包含任何 PCD/PII 处理，初始迁移已移除所有 PII 字段创建
--- v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
--- 已从初始迁移中移除：Shop.piiEnabled, Shop.pcdAcknowledged, Shop.pcdAcknowledgedAt, AuditLog.ipAddress, AuditLog.userAgent
+
 
 CREATE TABLE "Session" (
     "id" TEXT NOT NULL,

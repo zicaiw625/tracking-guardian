@@ -28,8 +28,7 @@ interface EventFunnel {
     pixelRequests: number;
     passedOrigin: number;
     passedKey: number;
-    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 matchedWebhook 字段
-    // v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
+
     sentToPlatforms: number;
     period: string;
 }
@@ -42,7 +41,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         select: {
             id: true,
             ingestionSecret: true,
-            // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
             consentStrategy: true,
             dataRetentionDays: true,
 
@@ -71,7 +70,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 pixelRequests: 0,
                 passedOrigin: 0,
                 passedKey: 0,
-                // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 matchedWebhook
+
                 sentToPlatforms: 0,
                 period: "24h",
             } as EventFunnel,
@@ -256,8 +255,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             isTrusted: true,
         },
     });
-    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 matchedWebhook 计数
-    // v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks
+
     const matchedWebhookCount = 0;
     const sentToPlatformsCount = await prisma.conversionLog.count({
         where: {
@@ -270,7 +268,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         pixelRequests: pixelReceiptsCount,
         passedOrigin: pixelReceiptsCount,
         passedKey: trustedReceiptsCount,
-        // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 matchedWebhook
+
         sentToPlatforms: sentToPlatformsCount,
         period: "24h",
     };
@@ -288,10 +286,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             status: "failed",
         },
     });
-    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此不再通过 orders/paid webhook 创建 ConversionJob
-    // v1.0 仅依赖 Web Pixels 标准事件，ConversionJob 仅用于历史数据查询
-    const queuedJobs = 0; // v1.0: 不再创建新的 ConversionJob
-    const deadLetterJobs = 0; // v1.0: 不再创建新的 ConversionJob
+
+    const queuedJobs = 0;
+    const deadLetterJobs = 0;
 
     const recentEventsRaw = await prisma.pixelEventReceipt.findMany({
         where: { shopId: shop.id },
@@ -309,9 +306,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const orderIds = recentEventsRaw.map((e: { orderId: string | null }) => e.orderId).filter(Boolean) as string[];
 
-    // P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此不再通过 orders/paid webhook 创建 ConversionJob
-    // v1.0 仅依赖 Web Pixels 标准事件，ConversionJob 仅用于历史数据查询
-    const relatedJobs: never[] = []; // v1.0: 不再创建新的 ConversionJob
+    const relatedJobs: never[] = [];
 
     type RecentEvent = typeof recentEventsRaw[number];
     type RelatedJob = typeof relatedJobs[number];
@@ -524,8 +519,8 @@ export default function DiagnosticsPage() {
 
                 <FunnelStage label="3. 通过 Key 验证" count={data.eventFunnel.passedKey} total={data.eventFunnel.pixelRequests} description="Ingestion Key 匹配的请求"/>
 
-                {/* P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除"匹配订单 Webhook"阶段 */}
-                {/* v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks */}
+                {}
+                {}
 
                 <FunnelStage label="4. 成功发送到平台" count={data.eventFunnel.sentToPlatforms} total={data.eventFunnel.pixelRequests} description="通过 CAPI 发送到广告平台"/>
               </BlockStack>
@@ -560,8 +555,8 @@ export default function DiagnosticsPage() {
                           {Math.round((data.eventFunnel.passedKey / data.eventFunnel.pixelRequests) * 100)}%
                         </Text>
                       </Box>
-                      {/* P0-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除"Webhook 匹配率"指标 */}
-                      {/* v1.0 仅依赖 Web Pixels 标准事件，不处理订单 webhooks */}
+                      {}
+                      {}
                       <Box>
                         <Text as="span" variant="bodySm" tone="subdued">发送成功率: </Text>
                         <Text as="span" fontWeight="semibold" tone={

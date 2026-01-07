@@ -36,7 +36,7 @@ export async function captureRecentEvents(
   destinationTypes?: string[]
 ): Promise<EventCaptureResult> {
   try {
-    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+
     const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
@@ -76,14 +76,13 @@ export async function captureRecentEvents(
     });
 
     const capturedEvents: CapturedEvent[] = [];
-    
+
     for (const eventLog of eventLogs) {
       const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
       const value = (normalizedEvent?.value as number) || 0;
       const currency = (normalizedEvent?.currency as string) || "USD";
       const items = (normalizedEvent?.items as Array<Record<string, unknown>>) || [];
-      
-      // 为每个 DeliveryAttempt 创建一个 CapturedEvent
+
       for (const attempt of eventLog.DeliveryAttempt) {
         const payload = (attempt.requestPayloadJson as Record<string, unknown>) || {};
         const data = {
@@ -118,8 +117,7 @@ export async function captureRecentEvents(
           },
         });
       }
-      
-      // 如果没有 DeliveryAttempt，仍然创建一个事件记录
+
       if (eventLog.DeliveryAttempt.length === 0) {
         const hasValue = value > 0;
         const hasCurrency = Boolean(currency);
@@ -225,7 +223,7 @@ export async function getEventStatistics(
   };
 }> {
   try {
-    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
+
     const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
@@ -270,11 +268,10 @@ export async function getEventStatistics(
       const value = (normalizedEvent?.value as number) || 0;
       const currency = (normalizedEvent?.currency as string) || "USD";
       const items = (normalizedEvent?.items as Array<Record<string, unknown>>) || [];
-      
+
       const eventType = eventLog.eventName;
       byEventType[eventType] = (byEventType[eventType] || 0) + 1;
 
-      // 为每个 DeliveryAttempt 统计
       for (const attempt of eventLog.DeliveryAttempt) {
         totalEvents++;
         const dest = attempt.destinationType;
@@ -282,12 +279,12 @@ export async function getEventStatistics(
 
         const status = attempt.status === "ok" ? "ok" : "fail";
         byStatus[status] = (byStatus[status] || 0) + 1;
-        
+
         const hasValue = value > 0;
         const hasCurrency = Boolean(currency);
         const hasItems = Array.isArray(items) && items.length > 0;
         const completenessRate = ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
-        
+
         totalCompleteness += completenessRate;
         if (completenessRate === 1) {
           eventsWithAllParams++;
@@ -306,19 +303,18 @@ export async function getEventStatistics(
           eventsWithMissingParams++;
         }
       }
-      
-      // 如果没有 DeliveryAttempt，仍然统计事件本身
+
       if (eventLog.DeliveryAttempt.length === 0) {
         totalEvents++;
         const dest = eventLog.source || "unknown";
         byDestination[dest] = (byDestination[dest] || 0) + 1;
         byStatus["pending"] = (byStatus["pending"] || 0) + 1;
-        
+
         const hasValue = value > 0;
         const hasCurrency = Boolean(currency);
         const hasItems = Array.isArray(items) && items.length > 0;
         const completenessRate = ((hasValue ? 1 : 0) + (hasCurrency ? 1 : 0) + (hasItems ? 1 : 0)) / 3;
-        
+
         totalCompleteness += completenessRate;
         if (completenessRate === 1) {
           eventsWithAllParams++;

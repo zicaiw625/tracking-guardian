@@ -9,10 +9,6 @@ const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const VERSION_PATTERN = /^\d{4}-\d{2}$/;
 
-/**
- * @param {string} filePath
- * @returns {{file: string, version: string | null, line?: number}}
- */
 function extractTomlApiVersion(filePath) {
   const fullPath = path.join(PROJECT_ROOT, filePath);
   try {
@@ -38,10 +34,6 @@ function extractTomlApiVersion(filePath) {
   }
 }
 
-/**
- * @param {string} filePath
- * @returns {{file: string, version: string | null, line?: number}}
- */
 function extractServerApiVersion(filePath) {
   const fullPath = path.join(PROJECT_ROOT, filePath);
   try {
@@ -69,10 +61,6 @@ function extractServerApiVersion(filePath) {
   }
 }
 
-/**
- * @param {string} enumValue
- * @returns {string | null}
- */
 function convertEnumToVersion(enumValue) {
   const match = enumValue.match(/^(\w+)(\d{2})$/);
   if (!match) return null;
@@ -103,9 +91,6 @@ function convertEnumToVersion(enumValue) {
 const RELEASE_SCHEDULE_URL =
   "https://shopify.dev/docs/api/usage/versioning#release-schedule";
 
-/**
- * @param {string} version
- */
 function checkVersionAge(version) {
   const match = version.match(/^(\d{4})-(\d{2})$/);
   if (!match) return;

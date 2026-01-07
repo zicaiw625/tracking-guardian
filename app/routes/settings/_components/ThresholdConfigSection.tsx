@@ -25,14 +25,14 @@ export function ThresholdConfigSection({
 }: ThresholdConfigSectionProps) {
   const recommendationsFetcher = useFetcher<{ recommendations?: { failureRate?: number; missingParams?: number; volumeDrop?: number } }>();
   const currentFetcher = useFetcher<{ current?: { failureRate?: number; missingParams?: number; volumeDrop?: number } }>();
-  const testFetcher = useFetcher<{ 
-    testResult?: { 
-      passed?: boolean; 
+  const testFetcher = useFetcher<{
+    testResult?: {
+      passed?: boolean;
       message?: string;
       failureRate?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
       missingParams?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
       volumeDrop?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
-    } 
+    }
   }>();
 
   const [missingParamsThreshold, setMissingParamsThreshold] = useState(5);
@@ -45,8 +45,8 @@ export function ThresholdConfigSection({
 
   const recommendations = recommendationsFetcher.data?.recommendations as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
   const currentValues = currentFetcher.data?.current as { failureRate?: number; missingParams?: number; volumeDrop?: number } | undefined;
-  const testResult = testFetcher.data?.testResult as { 
-    passed?: boolean; 
+  const testResult = testFetcher.data?.testResult as {
+    passed?: boolean;
     message?: string;
     failureRate?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };
     missingParams?: { wouldTrigger?: boolean; currentValue?: number; threshold?: number };

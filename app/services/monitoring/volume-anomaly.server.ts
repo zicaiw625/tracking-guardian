@@ -83,7 +83,6 @@ export async function detectVolumeAnomaly(
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const current24h = await prisma.deliveryAttempt.count({
     where: {
       shopId,
@@ -110,7 +109,7 @@ export async function detectVolumeAnomaly(
       select: {
         createdAt: true,
       },
-      take: 10000, // 限制最大查询数量，避免超时
+      take: 10000,
     }),
     prisma.deliveryAttempt.findMany({
       where: {
@@ -120,7 +119,7 @@ export async function detectVolumeAnomaly(
       select: {
         createdAt: true,
       },
-      take: 10000, // 限制最大查询数量，避免超时
+      take: 10000,
     }),
   ]);
 
@@ -295,7 +294,6 @@ export async function detectVolumeAnomalyByPlatform(
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    // P0-T8: 使用 delivery_attempts 作为数据源（注意：字段名从 platform 改为 destinationType）
     const [current24h, previous24h, recent7DaysLogs] = await Promise.all([
       prisma.deliveryAttempt.count({
         where: {
@@ -323,7 +321,7 @@ export async function detectVolumeAnomalyByPlatform(
         select: {
           createdAt: true,
         },
-        take: 10000, // 限制最大查询数量，避免超时
+        take: 10000,
       }),
     ]);
 
@@ -525,7 +523,6 @@ export async function getVolumeHistoryByHour(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const logs = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -537,7 +534,7 @@ export async function getVolumeHistoryByHour(
     orderBy: {
       createdAt: "asc",
     },
-    take: 10000, // 限制最大查询数量，避免超时
+    take: 10000,
   });
 
   const hourMap = new Map<string, number>();

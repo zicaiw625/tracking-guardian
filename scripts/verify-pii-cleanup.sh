@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# P0: v1.0 版本 PII 清理验证脚本
-# 此脚本用于验证代码库中是否还有残留的 PII/PCD 相关代码
+
+
 
 set -e
 
@@ -13,7 +13,7 @@ echo ""
 ERRORS=0
 WARNINGS=0
 
-# 定义要检查的关键字
+
 KEYWORDS=(
   "PCD_CONFIG"
   "piiEnabled"
@@ -31,7 +31,7 @@ KEYWORDS=(
   "userAgent"
 )
 
-# 排除的文件和目录
+
 EXCLUDE_PATTERNS=(
   "node_modules"
   ".git"
@@ -44,7 +44,7 @@ EXCLUDE_PATTERNS=(
   "scripts/verify-pii-cleanup.sh"
 )
 
-# 排除的注释模式（允许在注释中提及）
+
 ALLOWED_COMMENT_PATTERNS=(
   "P0-1"
   "P0-2"
@@ -62,14 +62,14 @@ echo "----------------------------------------"
 
 for keyword in "${KEYWORDS[@]}"; do
   echo "检查: $keyword"
-  
-  # 构建排除模式
+
+
   EXCLUDE_ARGS=()
   for pattern in "${EXCLUDE_PATTERNS[@]}"; do
     EXCLUDE_ARGS+=("--exclude-dir=$pattern" "--exclude=$pattern")
   done
-  
-  # 搜索关键字（排除注释中的提及）
+
+
   RESULTS=$(grep -r "$keyword" \
     --include="*.ts" \
     --include="*.tsx" \
@@ -79,11 +79,11 @@ for keyword in "${KEYWORDS[@]}"; do
     --include="*.prisma" \
     "${EXCLUDE_ARGS[@]}" \
     . 2>/dev/null | grep -v "^Binary" || true)
-  
+
   if [ -n "$RESULTS" ]; then
-    # 过滤掉允许的注释模式
+
     FILTERED=$(echo "$RESULTS" | grep -v "$(IFS='|'; echo "${ALLOWED_COMMENT_PATTERNS[*]}")" || true)
-    
+
     if [ -n "$FILTERED" ]; then
       echo "  ❌ 发现残留:"
       echo "$FILTERED" | sed 's/^/    /'

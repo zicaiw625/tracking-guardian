@@ -11,9 +11,6 @@ import {
 import { GDPRJobStatus } from "../../types/enums";
 import type { WebhookContext, WebhookHandlerResult, GDPRJobType } from "../types";
 
-/**
- * P0-2: 日志脱敏 - 移除 PII 字段，只记录必要的元数据
- */
 function sanitizePayloadForLogging(payload: unknown): Record<string, unknown> {
   if (!payload || typeof payload !== "object") {
     return {};
@@ -48,9 +45,6 @@ function sanitizePayloadForLogging(payload: unknown): Record<string, unknown> {
   return sanitized;
 }
 
-/**
- * P0-2: 幂等性检查 - 检查是否已处理过相同的 GDPR 请求
- */
 async function isGDPRJobAlreadyProcessed(
   shopDomain: string,
   jobType: GDPRJobType,
@@ -81,7 +75,7 @@ async function queueGDPRJob(
   payload: unknown,
   requestId: string | null
 ): Promise<{ queued: boolean; reason?: string }> {
-  // P0-2: 幂等性检查
+
   const alreadyProcessed = await isGDPRJobAlreadyProcessed(shopDomain, jobType, requestId);
   if (alreadyProcessed) {
     logger.info(`GDPR ${jobType} job already processed for ${shopDomain} (request_id: ${requestId})`);
@@ -99,7 +93,6 @@ async function queueGDPRJob(
       },
     });
 
-    // P0-2: 日志脱敏 - 不记录 PII
     const sanitizedPayload = sanitizePayloadForLogging(payload);
     logger.info(`GDPR ${jobType} job queued for ${shopDomain}`, {
       requestId,
@@ -108,7 +101,7 @@ async function queueGDPRJob(
 
     return { queued: true };
   } catch (error) {
-    // P0-2: 幂等性 - 如果是因为唯一约束冲突（重复请求），视为已处理
+
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       logger.info(`GDPR ${jobType} job already exists for ${shopDomain} (request_id: ${requestId})`);
       return { queued: false, reason: "already_exists" };
@@ -122,7 +115,6 @@ export async function handleCustomersDataRequest(
 ): Promise<WebhookHandlerResult> {
   const { shop, payload, webhookId } = context;
 
-  // P0-2: 记录 request_id 和 topic，但不记录 PII
   const requestId = typeof payload === "object" && payload !== null && "id" in payload
     ? String(payload.id)
     : webhookId;
@@ -136,8 +128,7 @@ export async function handleCustomersDataRequest(
   try {
     const dataRequestPayload = parseGDPRDataRequestPayload(payload, shop);
     if (!dataRequestPayload) {
-      // P0-2: 无效 payload 返回 400（不是 200），但记录日志
-      // 注意：dispatcher 会确保 GDPR webhooks 即使返回 400 也会被转换为 200，避免重试风暴
+
       logger.warn(`Invalid CUSTOMERS_DATA_REQUEST payload from ${shop}`, {
         requestId,
         webhookId,
@@ -149,9 +140,6 @@ export async function handleCustomersDataRequest(
       };
     }
 
-    // P0-2: 对于不存在的 shop，仍然返回 200（幂等性）
-    // 由于我们默认不存储 PII，大多数情况下可能没有数据可返回
-
     const queueResult = await queueGDPRJob(
       shop,
       "data_request",
@@ -159,7 +147,6 @@ export async function handleCustomersDataRequest(
       requestId
     );
 
-    // P0-2: 即使已处理过，也返回 200（幂等性）
     if (!queueResult.queued && queueResult.reason === "already_processed") {
       return {
         success: true,
@@ -174,18 +161,16 @@ export async function handleCustomersDataRequest(
       message: "GDPR data request queued",
     };
   } catch (error) {
-    // P0-2: 错误处理 - 记录错误但不抛错，返回 200 避免重试风暴
-    // 对于 GDPR webhooks，即使处理失败也要返回 200，避免 Shopify 重试
+
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Failed to queue GDPR data request", {
       shop,
       requestId,
       webhookId,
       error: errorMessage,
-      // 不记录 stack trace 中的敏感信息
+
     });
 
-    // P0-2: 返回 200 而不是 500，避免 webhook 重试风暴
     return {
       success: true,
       status: 200,
@@ -199,7 +184,6 @@ export async function handleCustomersRedact(
 ): Promise<WebhookHandlerResult> {
   const { shop, payload, webhookId } = context;
 
-  // P0-2: 记录 request_id 和 topic，但不记录 PII
   const requestId = typeof payload === "object" && payload !== null && "id" in payload
     ? String(payload.id)
     : webhookId;
@@ -213,8 +197,7 @@ export async function handleCustomersRedact(
   try {
     const customerRedactPayload = parseGDPRCustomerRedactPayload(payload, shop);
     if (!customerRedactPayload) {
-      // P0-2: 无效 payload 返回 400（不是 200），但记录日志
-      // 注意：dispatcher 会确保 GDPR webhooks 即使返回 400 也会被转换为 200，避免重试风暴
+
       logger.warn(`Invalid CUSTOMERS_REDACT payload from ${shop}`, {
         requestId,
         webhookId,
@@ -226,8 +209,6 @@ export async function handleCustomersRedact(
       };
     }
 
-    // P0-2: 对于不存在的 shop，仍然返回 200（幂等性）
-
     const queueResult = await queueGDPRJob(
       shop,
       "customer_redact",
@@ -235,7 +216,6 @@ export async function handleCustomersRedact(
       requestId
     );
 
-    // P0-2: 即使已处理过，也返回 200（幂等性）
     if (!queueResult.queued && queueResult.reason === "already_processed") {
       return {
         success: true,
@@ -250,7 +230,7 @@ export async function handleCustomersRedact(
       message: "GDPR customer redact queued",
     };
   } catch (error) {
-    // P0-2: 错误处理 - 记录错误但不抛错，返回 200 避免重试风暴
+
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Failed to queue GDPR customer redact", {
       shop,
@@ -259,7 +239,6 @@ export async function handleCustomersRedact(
       error: errorMessage,
     });
 
-    // P0-2: 返回 200 而不是 500，避免 webhook 重试风暴
     return {
       success: true,
       status: 200,
@@ -273,7 +252,6 @@ export async function handleShopRedact(
 ): Promise<WebhookHandlerResult> {
   const { shop, payload, webhookId } = context;
 
-  // P0-2: 记录 request_id 和 topic，但不记录 PII
   const requestId = typeof payload === "object" && payload !== null && "id" in payload
     ? String(payload.id)
     : webhookId;
@@ -287,8 +265,7 @@ export async function handleShopRedact(
   try {
     const shopRedactPayload = parseGDPRShopRedactPayload(payload, shop);
     if (!shopRedactPayload) {
-      // P0-2: 无效 payload 返回 400（不是 200），但记录日志
-      // 注意：dispatcher 会确保 GDPR webhooks 即使返回 400 也会被转换为 200，避免重试风暴
+
       logger.warn(`Invalid SHOP_REDACT payload from ${shop}`, {
         requestId,
         webhookId,
@@ -300,8 +277,6 @@ export async function handleShopRedact(
       };
     }
 
-    // P0-2: 对于不存在的 shop，仍然返回 200（幂等性）
-
     const queueResult = await queueGDPRJob(
       shop,
       "shop_redact",
@@ -309,7 +284,6 @@ export async function handleShopRedact(
       requestId
     );
 
-    // P0-2: 即使已处理过，也返回 200（幂等性）
     if (!queueResult.queued && queueResult.reason === "already_processed") {
       return {
         success: true,
@@ -324,7 +298,7 @@ export async function handleShopRedact(
       message: "GDPR shop redact queued",
     };
   } catch (error) {
-    // P0-2: 错误处理 - 记录错误但不抛错，返回 200 避免重试风暴
+
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("Failed to queue GDPR shop redact", {
       shop,
@@ -333,7 +307,6 @@ export async function handleShopRedact(
       error: errorMessage,
     });
 
-    // P0-2: 返回 200 而不是 500，避免 webhook 重试风暴
     return {
       success: true,
       status: 200,

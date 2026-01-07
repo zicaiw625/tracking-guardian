@@ -5,7 +5,7 @@ const PROJECT_ROOT = process.cwd();
 
 const TARGET_DIRS = [PROJECT_ROOT];
 
-const VALID_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".sql", ".prisma"]);
+const VALID_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".sql", ".prisma", ".sh"]);
 
 const IGNORE_DIR_NAMES = new Set([
   "node_modules",
@@ -162,6 +162,72 @@ function removeCommentsFromPrisma(text) {
   return cleaned.endsWith(newline) ? cleaned : cleaned + newline;
 }
 
+function removeCommentsFromShell(text) {
+  const newline = detectNewline(text);
+  const { shebang, rest } = splitShebang(text);
+  const lines = rest.split(newline);
+  const cleanedLines = lines.map((line) => {
+    let result = "";
+    let inSingle = false;
+    let inDouble = false;
+    let escapeNext = false;
+    let paramDepth = 0;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const next = line[i + 1];
+
+      if (escapeNext) {
+        result += char;
+        escapeNext = false;
+        continue;
+      }
+
+      if (!inSingle && char === "\\") {
+        result += char;
+        escapeNext = true;
+        continue;
+      }
+
+      if (!inDouble && char === "'") {
+        inSingle = !inSingle;
+        result += char;
+        continue;
+      }
+
+      if (!inSingle && char === '"') {
+        inDouble = !inDouble;
+        result += char;
+        continue;
+      }
+
+      if (!inSingle && !inDouble) {
+        if (char === "$" && next === "{") {
+          paramDepth += 1;
+          result += char;
+          continue;
+        }
+        if (char === "}" && paramDepth > 0) {
+          paramDepth -= 1;
+          result += char;
+          continue;
+        }
+      }
+
+      if (!inSingle && !inDouble && paramDepth === 0 && char === "#") {
+        break;
+      }
+
+      result += char;
+    }
+
+    return result.trimEnd();
+  });
+
+  const combined = shebang ? shebang + newline + cleanedLines.join(newline) : cleanedLines.join(newline);
+  return combined.endsWith(newline) ? combined : combined + newline;
+}
+
 function removeCommentsFromSourceText(absPath, text) {
   const ext = path.extname(absPath);
   if (ext === ".sql") {
@@ -169,6 +235,9 @@ function removeCommentsFromSourceText(absPath, text) {
   }
   if (ext === ".prisma") {
     return removeCommentsFromPrisma(text);
+  }
+  if (ext === ".sh") {
+    return removeCommentsFromShell(text);
   }
 
   const newline = detectNewline(text);
@@ -222,26 +291,6 @@ function removeCommentsFromSourceText(absPath, text) {
           result += rest[i];
           i++;
           break;
-        }
-        if (rest[i] === "/" && rest[i + 1] === "/") {
-          while (i < len && rest[i] !== "\n" && rest[i] !== "\r") {
-            i++;
-          }
-          continue;
-        }
-        if (rest[i] === "/" && rest[i + 1] === "*") {
-          i += 2;
-          while (i < len - 1) {
-            if (rest[i] === "*" && rest[i + 1] === "/") {
-              i += 2;
-              break;
-            }
-            if (rest[i] === "\n" || rest[i] === "\r") {
-              result += rest[i];
-            }
-            i++;
-          }
-          continue;
         }
         if (rest[i] === quote) {
           result += rest[i];
@@ -333,30 +382,6 @@ function removeCommentsFromSourceText(absPath, text) {
           result += rest[i];
           i++;
           break;
-        }
-        if (rest[i] === "/" && rest[i + 1] === "/") {
-          while (i < len && rest[i] !== "\n" && rest[i] !== "\r") {
-            i++;
-          }
-          if (i < len && (rest[i] === "\n" || rest[i] === "\r")) {
-            result += rest[i];
-            i++;
-          }
-          continue;
-        }
-        if (rest[i] === "/" && rest[i + 1] === "*") {
-          i += 2;
-          while (i < len - 1) {
-            if (rest[i] === "*" && rest[i + 1] === "/") {
-              i += 2;
-              break;
-            }
-            if (rest[i] === "\n" || rest[i] === "\r") {
-              result += rest[i];
-            }
-            i++;
-          }
-          continue;
         }
         result += rest[i];
         i++;

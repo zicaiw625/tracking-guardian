@@ -627,7 +627,7 @@ export default function ReconciliationPage() {
           </BlockStack>
         </Banner>
 
-        {/* P2: 免责声明 - 只保证生成与发送成功，不保证平台侧归因一致 */}
+        {}
         <Banner title="重要说明：服务范围与限制" tone="warning">
           <BlockStack gap="200">
             <p>

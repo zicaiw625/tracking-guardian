@@ -140,7 +140,6 @@ async function executeBatchVerificationAsync(
 
   const { runType, platforms, concurrency } = options;
 
-  // Store job reference for use in nested function
   const jobRef = job;
 
   async function processShop(shopId: string): Promise<void> {
