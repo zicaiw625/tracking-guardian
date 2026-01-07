@@ -144,6 +144,8 @@ function isValidShopTier(tier: unknown): tier is ShopTier {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
+    const url = new URL(request.url);
+    const isAuditReportView = url.pathname === "/app/audit/report";
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: {
@@ -174,6 +176,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             auditAssets: [],
             migrationChecklist: null,
         });
+    }
+    if (isAuditReportView && !isPlanAtLeast(shop.plan ?? "free", "starter")) {
+        safeFireAndForget(
+            trackEvent({
+                shopId: shop.id,
+                shopDomain: shop.shopDomain,
+                event: "app_paywall_viewed",
+                metadata: {
+                    location: "audit_report",
+                    plan: shop.plan ?? "free",
+                },
+            })
+        );
     }
     const latestScanRaw = await prisma.scanReport.findFirst({
         where: { shopId: shop.id },
@@ -1037,6 +1052,7 @@ type ScanPageProps = {
     showTabs?: boolean;
     pageTitle?: string;
     pageSubtitle?: string;
+    showMigrationButtons?: boolean;
 };
 
 export function ScanPage({
@@ -1044,6 +1060,7 @@ export function ScanPage({
     showTabs = true,
     pageTitle = "Audit 风险报告（免费获客）",
     pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接，导出需升级 Go-Live",
+    showMigrationButtons = false,
 }: ScanPageProps) {
     const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist } = useLoaderData<typeof loader>();
     const actionData = useActionData<typeof action>();
@@ -1955,6 +1972,18 @@ export function ScanPage({
       )}
 
         <Tabs tabs={visibleTabs} selected={selectedTab} onSelect={setSelectedTab}>
+          {showMigrationButtons && !showTabs && (
+            <Box paddingBlockStart="400">
+              <InlineStack gap="200" wrap>
+                <Button variant="primary" url="/app/migrate">
+                  迁移像素（付费）
+                </Button>
+                <Button url="/app/migrate#modules">
+                  安装页面模块（付费）
+                </Button>
+              </InlineStack>
+            </Box>
+          )}
           {selectedTab === 0 && (<BlockStack gap="500">
               <Box paddingBlockStart="400">
                 <InlineStack align="space-between">
@@ -3538,16 +3567,18 @@ export function ScanPage({
 
           {selectedTab === 2 && (
             <BlockStack gap="500">
-              <Box paddingBlockStart="400">
-                <InlineStack gap="200" wrap>
-                  <Button variant="primary" url="/app/migrate">
-                    迁移像素（付费）
-                  </Button>
-                  <Button url="/app/migrate#modules">
-                    安装页面模块（付费）
-                  </Button>
-                </InlineStack>
-              </Box>
+              {showTabs && (
+                <Box paddingBlockStart="400">
+                  <InlineStack gap="200" wrap>
+                    <Button variant="primary" url="/app/migrate">
+                      迁移像素（付费）
+                    </Button>
+                    <Button url="/app/migrate#modules">
+                      安装页面模块（付费）
+                    </Button>
+                  </InlineStack>
+                </Box>
+              )}
               <Box paddingBlockStart="400">
                 {!latestScan ? (
                   <Card>

@@ -4,6 +4,7 @@ import { useLoaderData } from "@remix-run/react";
 import { Page, Layout, Card, Text, BlockStack, InlineStack, Badge, Box, Divider, DataTable, Select, ProgressBar, Button, Icon, Link, Banner, List } from "@shopify/polaris";
 import { SettingsIcon, SearchIcon, RefreshIcon, ArrowRightIcon, AlertCircleIcon, CheckCircleIcon, } from "~/components/icons";
 import { TableSkeleton, EnhancedEmptyState, useToastContext } from "~/components/ui";
+import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
 import { MissingParamsChart } from "~/components/monitor/MissingParamsChart";
 import { MissingParamsDetails } from "~/components/monitor/MissingParamsDetails";
 import { EventVolumeChart } from "~/components/monitor/EventVolumeChart";
@@ -23,6 +24,11 @@ import { getEventMonitoringStats, getMissingParamsStats, getEventVolumeStats, ge
 import { getEventSuccessRateHistory } from "../services/monitoring/event-success-rate.server";
 import { analyzeDedupConflicts } from "../services/capi-dedup.server";
 import { getMissingParamsRate } from "../services/event-validation.server";
+import { checkFeatureAccess } from "../services/billing/feature-gates.server";
+import { normalizePlanId } from "../services/billing/plans";
+import { normalizePlan } from "../utils/plans";
+import { trackEvent } from "../services/analytics.server";
+import { safeFireAndForget } from "../utils/helpers";
 interface DeliverySummary {
     platform: string;
     last7DaysAttempted: number;
@@ -71,6 +77,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             monitoringAlert: null,
             missingParamsDetailed: null,
         });
+    }
+    const planId = normalizePlan(shop.plan ?? "free");
+    const monitoringGate = checkFeatureAccess(normalizePlanId(shop.plan ?? "free"), "alerts");
+    if (!monitoringGate.allowed) {
+        safeFireAndForget(
+            trackEvent({
+                shopId: shop.id,
+                shopDomain,
+                event: "app_paywall_viewed",
+                metadata: {
+                    location: "monitor",
+                    plan: shop.plan ?? "free",
+                },
+            })
+        );
     }
     const summary = await getDeliveryHealthSummary(shop.id);
 
@@ -229,6 +250,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     return json({
         shop: { id: shop.id, domain: shopDomain },
+        planId,
+        monitoringGate,
         summary,
         history,
         conversionStats: Object.values(conversionStats).map(stat => ({
@@ -264,6 +287,8 @@ export default function MonitorPage() {
   const loaderData = useLoaderData<typeof loader>();
 
   const { summary, history, conversionStats, configHealth, monitoringStats, missingParamsStats, volumeStats, monitoringAlert, missingParamsDetailed, lastUpdated, shop } = loaderData;
+  const planId = "planId" in loaderData ? loaderData.planId : "free";
+  const monitoringGate = "monitoringGate" in loaderData ? loaderData.monitoringGate : null;
   const alertConfigs = "alertConfigs" in loaderData ? loaderData.alertConfigs : false;
   const alertCount = "alertCount" in loaderData ? loaderData.alertCount : 0;
   const recentAlerts = "recentAlerts" in loaderData ? loaderData.recentAlerts : [];
@@ -460,6 +485,14 @@ export default function MonitorPage() {
             }
         ]}>
       <BlockStack gap="500">
+        {monitoringGate && !monitoringGate.allowed && (
+          <UpgradePrompt
+            feature="alerts"
+            currentPlan={planId}
+            gateResult={monitoringGate}
+            tone="warning"
+          />
+        )}
         <Card>
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
