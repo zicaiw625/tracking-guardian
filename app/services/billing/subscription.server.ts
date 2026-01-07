@@ -55,6 +55,17 @@ export interface OneTimePurchaseStatus {
   createdAt?: string;
 }
 
+export interface BillingHistoryItem {
+  id: string;
+  type: "subscription" | "one_time";
+  name: string;
+  status: string;
+  amount?: number;
+  currency?: string;
+  createdAt?: string;
+  periodEnd?: string;
+}
+
 const CREATE_SUBSCRIPTION_MUTATION = `
   mutation AppSubscriptionCreate(
     $name: String!
@@ -169,6 +180,73 @@ const GET_ONE_TIME_PURCHASES_QUERY = `
     }
   }
 `;
+
+export async function getBillingHistory(
+  admin: AdminGraphQL
+): Promise<BillingHistoryItem[]> {
+  try {
+    const [subscriptionResponse, purchaseResponse] = await Promise.all([
+      admin.graphql(GET_SUBSCRIPTION_QUERY),
+      admin.graphql(GET_ONE_TIME_PURCHASES_QUERY),
+    ]);
+
+    const subscriptionData = await subscriptionResponse.json();
+    const purchaseData = await purchaseResponse.json();
+
+    const subscriptions = subscriptionData.data?.appInstallation?.activeSubscriptions || [];
+    const purchases = purchaseData.data?.appInstallation?.oneTimePurchases || [];
+
+    const subscriptionItems = subscriptions.flatMap(
+      (subscription: {
+        id: string;
+        name: string;
+        status: string;
+        currentPeriodEnd?: string;
+        lineItems?: Array<{
+          plan?: {
+            pricingDetails?: {
+              price?: { amount?: string; currencyCode?: string };
+            };
+          };
+        }>;
+      }) => {
+        const priceDetails = subscription.lineItems?.[0]?.plan?.pricingDetails?.price;
+        return [
+          {
+            id: subscription.id,
+            type: "subscription",
+            name: subscription.name,
+            status: subscription.status,
+            amount: priceDetails ? parseFloat(priceDetails.amount || "0") : undefined,
+            currency: priceDetails?.currencyCode,
+            periodEnd: subscription.currentPeriodEnd,
+          },
+        ];
+      }
+    );
+
+    const purchaseItems = purchases.map((purchase: {
+      id: string;
+      name: string;
+      status: string;
+      price?: { amount?: string; currencyCode?: string };
+      createdAt?: string;
+    }) => ({
+      id: purchase.id,
+      type: "one_time",
+      name: purchase.name,
+      status: purchase.status,
+      amount: purchase.price ? parseFloat(purchase.price.amount || "0") : undefined,
+      currency: purchase.price?.currencyCode,
+      createdAt: purchase.createdAt,
+    }));
+
+    return [...subscriptionItems, ...purchaseItems];
+  } catch (error) {
+    logger.error("Get billing history error", error);
+    return [];
+  }
+}
 
 export async function createSubscription(
   admin: AdminGraphQL,
@@ -580,4 +658,3 @@ export async function handleOneTimePurchaseConfirmation(
     };
   }
 }
-
