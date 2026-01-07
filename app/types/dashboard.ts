@@ -108,7 +108,7 @@ export function getSetupSteps(data: DashboardData): SetupStep[] {
       label: "迁移设置",
       description: "配置服务端转化追踪",
       cta: "配置迁移",
-      url: "/app/migrate",
+      url: "/app/pixels",
 
       done: data.hasServerSideConfig,
     },

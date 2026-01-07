@@ -20,6 +20,7 @@ export interface ConfigVersionManagerProps {
   shopId: string;
   platform: PlatformType;
   currentVersion: number;
+  historyEndpoint?: string;
   onRollbackComplete?: () => void;
 }
 
@@ -38,6 +39,7 @@ export function ConfigVersionManager({
   shopId: _shopId,
   platform,
   currentVersion: _initialCurrentVersion,
+  historyEndpoint,
   onRollbackComplete,
 }: ConfigVersionManagerProps) {
   const [versionHistory, setVersionHistory] = useState<{
@@ -56,7 +58,7 @@ export function ConfigVersionManager({
       formData.append("_action", "getConfigVersionHistory");
       formData.append("platform", platform);
 
-      const response = await fetch("/app/migrate", {
+      const response = await fetch(historyEndpoint || "/app/migrate", {
         method: "POST",
         body: formData,
       });
@@ -74,7 +76,7 @@ export function ConfigVersionManager({
     } finally {
       setIsLoading(false);
     }
-  }, [platform]);
+  }, [platform, historyEndpoint]);
 
   useEffect(() => {
     loadVersionHistory();
@@ -84,8 +86,11 @@ export function ConfigVersionManager({
     const formData = new FormData();
     formData.append("_action", "rollbackConfig");
     formData.append("platform", platform);
-    fetcher.submit(formData, { method: "post" });
-  }, [platform, fetcher]);
+    fetcher.submit(formData, {
+      method: "post",
+      action: historyEndpoint || "/app/migrate",
+    });
+  }, [platform, fetcher, historyEndpoint]);
 
   useEffect(() => {
     if (fetcher.data && (fetcher.data as { success?: boolean }).success) {
@@ -302,4 +307,3 @@ export function ConfigVersionManager({
     </>
   );
 }
-
