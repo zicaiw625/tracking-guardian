@@ -13,9 +13,8 @@ import {
   Box,
   Banner,
   Divider,
-  Icon,
 } from "@shopify/polaris";
-import { ExternalIcon, ImageIcon } from "~/components/icons";
+import { ExternalIcon } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import { UI_MODULES, type ModuleKey } from "../types/ui-extension";
 
@@ -186,16 +185,17 @@ export default function UiModulePublishGuide() {
                     minWidth="220px"
                   >
                     <BlockStack gap="200" align="center">
-                      <Icon source={ImageIcon} />
+                      <img
+                        src="/images/checkout-editor-step-1.svg"
+                        alt="步骤1：打开 Checkout Editor"
+                        style={{ width: "100%", maxWidth: "260px", borderRadius: "12px" }}
+                      />
                       <Text as="p" variant="bodySm" fontWeight="semibold">
                         步骤1：打开 Checkout Editor
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
                         在 Shopify Admin → 设置 → 结账和订单处理 → Checkout Editor
                       </Text>
-                      <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
-                        [截图：Checkout Editor入口位置]
-                      </Text>
                     </BlockStack>
                   </Box>
                   <Box
@@ -205,15 +205,16 @@ export default function UiModulePublishGuide() {
                     minWidth="220px"
                   >
                     <BlockStack gap="200" align="center">
-                      <Icon source={ImageIcon} />
+                      <img
+                        src="/images/checkout-editor-step-2.svg"
+                        alt="步骤2：添加应用 Block"
+                        style={{ width: "100%", maxWidth: "260px", borderRadius: "12px" }}
+                      />
                       <Text as="p" variant="bodySm" fontWeight="semibold">
                         步骤2：添加应用 Block
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        点击"添加区块"，在应用列表中找到 Tracking Guardian
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
-                        [截图：添加block界面，显示Tracking Guardian选项]
+                        点击“添加区块”，在应用列表中找到 Tracking Guardian
                       </Text>
                     </BlockStack>
                   </Box>
@@ -224,15 +225,16 @@ export default function UiModulePublishGuide() {
                     minWidth="220px"
                   >
                     <BlockStack gap="200" align="center">
-                      <Icon source={ImageIcon} />
+                      <img
+                        src="/images/checkout-editor-step-3.svg"
+                        alt="步骤3：保存并发布"
+                        style={{ width: "100%", maxWidth: "260px", borderRadius: "12px" }}
+                      />
                       <Text as="p" variant="bodySm" fontWeight="semibold">
                         步骤3：保存并发布
                       </Text>
                       <Text as="p" variant="bodySm" tone="subdued">
-                        拖拽调整位置，点击"保存并发布"
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued" fontWeight="semibold">
-                        [截图：保存并发布按钮位置]
+                        拖拽调整位置，点击“保存并发布”
                       </Text>
                     </BlockStack>
                   </Box>

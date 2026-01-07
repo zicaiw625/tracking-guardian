@@ -143,8 +143,6 @@ function isValidShopTier(tier: unknown): tier is ShopTier {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session, admin } = await authenticate.admin(request);
     const shopDomain = session.shop;
-    const url = new URL(request.url);
-            const isAuditReportView = url.pathname === "/app/audit/report";
     const shop = await prisma.shop.findUnique({
         where: { shopDomain },
         select: {
@@ -175,21 +173,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             auditAssets: [],
             migrationChecklist: null,
         });
-    }
-    if (isAuditReportView && !isPlanAtLeast(shop.plan ?? "free", "starter")) {
-                const { trackEvent } = await import("~/services/analytics.server");
-        const { safeFireAndForget } = await import("~/utils/helpers");
-        safeFireAndForget(
-            trackEvent({
-                shopId: shop.id,
-                shopDomain: shop.shopDomain,
-                event: "app_paywall_viewed",
-                metadata: {
-                    triggerPage: "audit_report",
-                    plan: shop.plan ?? "free",
-                },
-            })
-        );
     }
     const latestScanRaw = await prisma.scanReport.findFirst({
         where: { shopId: shop.id },
@@ -1071,7 +1054,7 @@ export function ScanPage({
     initialTab = 0,
     showTabs = true,
     pageTitle = "Audit 风险报告（免费获客）",
-    pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接，导出需升级 Go-Live",
+    pageSubtitle = "迁移清单 + 风险分级 + 替代路径（Web Pixel / Checkout UI Extension / 不可迁移）• 明确提示 checkout.liquid / additional scripts / script tags 在 Thank you/Order status 的弃用与限制 • 可分享链接并导出 PDF/CSV",
     showMigrationButtons = false,
 }: ScanPageProps) {
     const { shop, latestScan, scanHistory, deprecationStatus, upgradeStatus, migrationActions, planId, planLabel, planTagline, migrationTimeline, migrationProgress, dependencyGraph, auditAssets, migrationChecklist } = useLoaderData<typeof loader>();
@@ -2025,62 +2008,6 @@ export function ScanPage({
                 <InlineStack align="space-between">
                   {latestScan && (
                     <InlineStack gap="200">
-                      <Button
-                        icon={ExportIcon}
-                        onClick={async () => {
-                          const planIdSafe = planId || "free";
-                          const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
-                          if (!isGrowthOrAbove) {
-                                                        fetch("/api/analytics/track", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                event: "app_paywall_viewed",
-                                metadata: {
-                                  triggerPage: "audit_report",
-                                  plan: planIdSafe,
-                                  action: "export_scan_report",
-                                },
-                              }),
-                            }).catch(() => {
-                                                          });
-                            showError("报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版可查看和分享链接，但导出功能需升级。");
-                            window.location.href = "/app/settings?tab=subscription";
-                            return;
-                          }
-                          window.open("/api/exports?type=scan&format=json&include_meta=true", "_blank");
-                        }}
-                      >
-                        导出扫描报告{!isPlanAtLeast(planId || "free", "growth") ? " (需 Go-Live)" : ""}
-                      </Button>
-                      <Button
-                        icon={ExportIcon}
-                        onClick={async () => {
-                          const planIdSafe = planId || "free";
-                          const isGrowthOrAbove = isPlanAtLeast(planIdSafe, "growth");
-                          if (!isGrowthOrAbove) {
-                                                        fetch("/api/analytics/track", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                event: "app_paywall_viewed",
-                                metadata: {
-                                  triggerPage: "audit_report",
-                                  plan: planIdSafe,
-                                  action: "export_risk_report",
-                                },
-                              }),
-                            }).catch(() => {
-                                                          });
-                            showError("报告导出（PDF/CSV）需要 Go-Live 或 Agency 套餐。免费版和 Migration 版可查看和分享链接，但导出功能需升级。");
-                            window.location.href = "/app/settings?tab=subscription";
-                            return;
-                          }
-                          window.open("/api/reports?type=risk", "_blank");
-                        }}
-                      >
-                        导出风险报告 (PDF){!isPlanAtLeast(planId || "free", "growth") ? " (需 Go-Live)" : ""}
-                      </Button>
                       <Button
                         icon={ShareIcon}
                         onClick={async () => {

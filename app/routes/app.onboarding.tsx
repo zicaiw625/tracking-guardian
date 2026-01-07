@@ -318,8 +318,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (actionType === "complete_onboarding") {
-
-    return redirect("/app/scan");
+    return redirect("/app/audit/start");
   }
 
   return json({ error: "未知操作" }, { status: 400 });
@@ -810,7 +809,7 @@ export default function OnboardingPage() {
                           了解每个风险项的详情和迁移建议
                         </Text>
                       </BlockStack>
-                      <Button url="/app/scan" icon={ArrowRightIcon}>
+                      <Button url="/app/audit/report" icon={ArrowRightIcon}>
                         查看报告
                       </Button>
                     </InlineStack>

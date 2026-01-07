@@ -1,0 +1,12 @@
+<svg width="520" height="320" viewBox="0 0 520 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="520" height="320" rx="16" fill="#F6F6F7"/>
+  <rect x="32" y="40" width="456" height="64" rx="12" fill="#E4E5E7"/>
+  <rect x="32" y="120" width="456" height="160" rx="12" fill="#FFFFFF" stroke="#DDE0E4"/>
+  <rect x="56" y="148" width="140" height="28" rx="8" fill="#008060"/>
+  <text x="68" y="168" font-family="Arial, sans-serif" font-size="14" fill="#FFFFFF">添加区块</text>
+  <rect x="56" y="190" width="240" height="12" rx="6" fill="#E4E5E7"/>
+  <rect x="56" y="214" width="200" height="12" rx="6" fill="#E4E5E7"/>
+  <rect x="56" y="238" width="180" height="12" rx="6" fill="#E4E5E7"/>
+  <text x="56" y="84" font-family="Arial, sans-serif" font-size="18" fill="#30363C">添加应用 Block</text>
+  <text x="56" y="270" font-family="Arial, sans-serif" font-size="14" fill="#6D7175">在应用列表中选择 Tracking Guardian</text>
+</svg>

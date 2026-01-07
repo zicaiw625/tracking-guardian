@@ -50,14 +50,46 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
+  const platforms = Array.from(new Set(pixelConfigs.map((config) => config.platform)));
+  const environments = Array.from(new Set(pixelConfigs.map((config) => config.environment)));
+  const recentAttempts = platforms.length
+    ? await prisma.deliveryAttempt.findMany({
+        where: {
+          shopId: shop.id,
+          destinationType: { in: platforms },
+          environment: { in: environments },
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          destinationType: true,
+          environment: true,
+          status: true,
+          createdAt: true,
+        },
+        take: 200,
+      })
+    : [];
+
+  const latestByKey = recentAttempts.reduce((acc, attempt) => {
+    const key = `${attempt.destinationType}:${attempt.environment}`;
+    if (!acc[key]) {
+      acc[key] = {
+        status: attempt.status,
+        createdAt: attempt.createdAt.toISOString(),
+      };
+    }
+    return acc;
+  }, {} as Record<string, { status: string; createdAt: string }>);
+
   return json({
     shop: { id: shop.id, domain: shop.shopDomain },
     pixelConfigs,
+    latestByKey,
   });
 };
 
 export default function PixelsListPage() {
-  const { shop, pixelConfigs } = useLoaderData<typeof loader>();
+  const { shop, pixelConfigs, latestByKey } = useLoaderData<typeof loader>();
 
   if (!shop) {
     return (
@@ -72,25 +104,56 @@ export default function PixelsListPage() {
     );
   }
 
-  const rows = pixelConfigs.map((config) => [
-    PLATFORM_LABELS[config.platform] || config.platform,
-    config.platformId || "—",
-    config.environment === "live" ? (
-      <Badge tone="success">生产</Badge>
+  const rows = pixelConfigs.map((config) => {
+    const statusKey = `${config.platform}:${config.environment}`;
+    const latestAttempt = latestByKey?.[statusKey];
+    const statusLabel =
+      latestAttempt?.status === "ok"
+        ? { label: "成功", tone: "success" as const }
+        : latestAttempt?.status === "fail"
+          ? { label: "失败", tone: "critical" as const }
+          : latestAttempt?.status === "pending"
+            ? { label: "处理中", tone: "warning" as const }
+            : null;
+
+    const statusCell = latestAttempt ? (
+      <BlockStack gap="100">
+        {statusLabel ? (
+          <Badge tone={statusLabel.tone}>{statusLabel.label}</Badge>
+        ) : (
+          <Badge>{latestAttempt.status}</Badge>
+        )}
+        <Text as="span" variant="bodySm" tone="subdued">
+          {new Date(latestAttempt.createdAt).toLocaleString("zh-CN")}
+        </Text>
+      </BlockStack>
     ) : (
-      <Badge tone="warning">测试</Badge>
-    ),
-    <Badge key={`version-${config.id}`}>v{String(config.configVersion)}</Badge>,
-    new Date(config.updatedAt).toLocaleString("zh-CN"),
-    <InlineStack key={`actions-${config.id}`} gap="200">
-      <Button size="slim" url={`/app/pixels/${config.id}/test`}>
-        测试
-      </Button>
-      <Button size="slim" variant="plain" url={`/app/pixels/${config.id}/versions`}>
-        版本
-      </Button>
-    </InlineStack>,
-  ]);
+      <Text as="span" variant="bodySm" tone="subdued">
+        暂无发送记录
+      </Text>
+    );
+
+    return [
+      PLATFORM_LABELS[config.platform] || config.platform,
+      config.platformId || "—",
+      config.environment === "live" ? (
+        <Badge tone="success">生产</Badge>
+      ) : (
+        <Badge tone="warning">测试</Badge>
+      ),
+      statusCell,
+      <Badge key={`version-${config.id}`}>v{String(config.configVersion)}</Badge>,
+      new Date(config.updatedAt).toLocaleString("zh-CN"),
+      <InlineStack key={`actions-${config.id}`} gap="200">
+        <Button size="slim" url={`/app/pixels/${config.id}/test`}>
+          测试
+        </Button>
+        <Button size="slim" variant="plain" url={`/app/pixels/${config.id}/versions`}>
+          版本
+        </Button>
+      </InlineStack>,
+    ];
+  });
 
   return (
     <Page
@@ -155,8 +218,9 @@ export default function PixelsListPage() {
                     "text",
                     "text",
                     "text",
+                    "text",
                   ]}
-                  headings={["平台", "平台 ID", "环境", "版本", "更新时间", "操作"]}
+                  headings={["平台", "平台 ID", "环境", "最近发送", "版本", "更新时间", "操作"]}
                   rows={rows}
                 />
               )}

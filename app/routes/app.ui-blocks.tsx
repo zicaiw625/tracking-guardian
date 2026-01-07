@@ -1368,7 +1368,7 @@ export default function UiBlocksPage() {
             </Text>
             <InlineStack gap="300" wrap>
               <Button url="/app/settings">平台设置</Button>
-              <Button url="/app/scan">扫描报告</Button>
+              <Button url="/app/audit/report">扫描报告</Button>
               <Button url="/app/migrate">像素迁移</Button>
               <Button url="/app/verification">验收向导</Button>
             </InlineStack>

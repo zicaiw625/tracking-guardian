@@ -102,12 +102,50 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                 eventType: true,
                 status: true,
                 errorMessage: true,
+                eventId: true,
+                platformResponse: true,
                 createdAt: true,
               },
             });
 
             if (recentLogs.length > 0) {
               for (const log of recentLogs) {
+                let attemptDetails: {
+                  errorCode?: string | null;
+                  errorDetail?: string | null;
+                  responseStatus?: number | null;
+                  latencyMs?: number | null;
+                  requestPayloadJson?: unknown;
+                } | null = null;
+
+                if (log.eventId) {
+                  const eventLog = await prisma.eventLog.findFirst({
+                    where: {
+                      shopId: shop.id,
+                      eventId: log.eventId,
+                    },
+                    select: { id: true },
+                  });
+
+                  if (eventLog) {
+                    attemptDetails = await prisma.deliveryAttempt.findFirst({
+                      where: {
+                        shopId: shop.id,
+                        eventLogId: eventLog.id,
+                        destinationType: log.platform,
+                      },
+                      orderBy: { createdAt: "desc" },
+                      select: {
+                        errorCode: true,
+                        errorDetail: true,
+                        responseStatus: true,
+                        latencyMs: true,
+                        requestPayloadJson: true,
+                      },
+                    });
+                  }
+                }
+
                 const event = {
                   id: log.id,
                   eventType: log.eventType,
@@ -120,7 +158,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                     value: Number(log.orderValue),
                     currency: log.currency,
                   },
-                  ...(log.errorMessage && { errors: [log.errorMessage] }),
+                  errorCode: attemptDetails?.errorCode ?? undefined,
+                  errorDetail: attemptDetails?.errorDetail ?? undefined,
+                  payload: attemptDetails?.requestPayloadJson ?? undefined,
+                  responseTime: attemptDetails?.latencyMs ?? undefined,
+                  details: {
+                    eventId: log.eventId ?? undefined,
+                    platformResponse: log.platformResponse ?? undefined,
+                    metadata: attemptDetails?.responseStatus
+                      ? { responseStatus: attemptDetails.responseStatus }
+                      : undefined,
+                  },
+                  ...(log.errorMessage && { errorMessage: log.errorMessage }),
                 };
 
                 sendMessage(event);
@@ -205,4 +254,3 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return new Response("Internal Server Error", { status: 500 });
   }
 };
-

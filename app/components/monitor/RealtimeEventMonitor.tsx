@@ -42,6 +42,8 @@ export interface RealtimeEvent {
     items?: number;
   };
   errorMessage?: string;
+  errorCode?: string;
+  errorDetail?: string;
   payload?: Record<string, unknown>;
   attempts?: number;
   retryCount?: number;
@@ -77,6 +79,18 @@ export function RealtimeEventMonitor({
   const [platformFilter, setPlatformFilter] = useState<string>("all");
   const [selectedEvent, setSelectedEvent] = useState<RealtimeEvent | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  const handleDownloadPayload = useCallback((payload: Record<string, unknown>) => {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `event-payload-${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, []);
 
   const isPausedRef = useRef(isPaused);
 
@@ -607,6 +621,53 @@ export function RealtimeEventMonitor({
                         <Text as="p" variant="bodySm">
                           {selectedEvent.errorMessage}
                         </Text>
+                        {(selectedEvent.errorCode || selectedEvent.errorDetail) && (
+                          <List type="bullet">
+                            {selectedEvent.errorCode && (
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  error_code: {selectedEvent.errorCode}
+                                </Text>
+                              </List.Item>
+                            )}
+                            {selectedEvent.errorDetail && (
+                              <List.Item>
+                                <Text as="span" variant="bodySm">
+                                  error_detail: {selectedEvent.errorDetail}
+                                </Text>
+                              </List.Item>
+                            )}
+                          </List>
+                        )}
+                      </BlockStack>
+                    </Banner>
+                  </>
+                )}
+
+                {!selectedEvent.errorMessage && (selectedEvent.errorCode || selectedEvent.errorDetail) && (
+                  <>
+                    <Divider />
+                    <Banner tone="critical">
+                      <BlockStack gap="200">
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          错误详情
+                        </Text>
+                        <List type="bullet">
+                          {selectedEvent.errorCode && (
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                error_code: {selectedEvent.errorCode}
+                              </Text>
+                            </List.Item>
+                          )}
+                          {selectedEvent.errorDetail && (
+                            <List.Item>
+                              <Text as="span" variant="bodySm">
+                                error_detail: {selectedEvent.errorDetail}
+                              </Text>
+                            </List.Item>
+                          )}
+                        </List>
                       </BlockStack>
                     </Banner>
                   </>
@@ -619,6 +680,12 @@ export function RealtimeEventMonitor({
                       <Text as="h3" variant="headingSm">
                         完整 Payload
                       </Text>
+                      <Button
+                        size="slim"
+                        onClick={() => handleDownloadPayload(selectedEvent.payload!)}
+                      >
+                        下载 Payload (JSON)
+                      </Button>
                       {}
                       {(() => {
                         const payload = selectedEvent.payload;
@@ -703,4 +770,3 @@ export function RealtimeEventMonitor({
     </Card>
   );
 }
-
