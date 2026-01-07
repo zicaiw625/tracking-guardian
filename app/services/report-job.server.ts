@@ -4,9 +4,9 @@ import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 import { CONFIG } from "../utils/config";
 import { safeFireAndForget } from "../utils/helpers";
-import { fetchScanReportData, generateScanReportHtml } from "./report-generator.server";
+import { fetchReconciliationReportData, fetchScanReportData } from "./report-generator.server";
 import { generateVerificationReportData, generateVerificationReportCSV , generateVerificationReportPDF } from "./verification-report.server";
-import { generateScanReportPdf } from "./pdf-generator.server";
+import { generateReconciliationReportPdf, generateScanReportPdf } from "./pdf-generator.server";
 import { exportComprehensiveReport } from "./comprehensive-report.server";
 import type { Prisma } from "@prisma/client";
 
@@ -228,6 +228,57 @@ async function processReportJob(jobId: string): Promise<void> {
           resultUrl = await saveReportResult(jobId, result);
           break;
         }
+        case "reconciliation": {
+          const metadata = typeof job.metadata === "object" && job.metadata !== null && !Array.isArray(job.metadata)
+            ? (job.metadata as Record<string, unknown>)
+            : {};
+          const requestedDays = Number(metadata.days);
+          const days = Number.isFinite(requestedDays) && requestedDays > 0 ? requestedDays : 7;
+
+          if (job.format === "pdf") {
+            const pdfResult = await generateReconciliationReportPdf(job.shopId, days);
+            if (!pdfResult) {
+              throw new Error("Failed to generate reconciliation report PDF");
+            }
+            resultUrl = await saveReportResult(jobId, {
+              content: pdfResult.buffer,
+              filename: pdfResult.filename,
+              mimeType: "application/pdf",
+            });
+          } else if (job.format === "csv") {
+            const data = await fetchReconciliationReportData(job.shopId, days);
+            if (!data) {
+              throw new Error("Failed to fetch reconciliation report data");
+            }
+            const reportDate = data.reportDate.toISOString().split("T")[0];
+            const summaryRows = [
+              ["Report Date", reportDate],
+              ["Total Orders", data.summary.totalOrders.toString()],
+              ["Matched Orders", data.summary.matchedOrders.toString()],
+              ["Unmatched Orders", data.summary.unmatchedOrders.toString()],
+              ["Match Rate", `${data.summary.matchRate.toFixed(1)}%`],
+              [],
+              ["Platform", "Orders", "Revenue", "Match Rate"],
+            ];
+            const platformRows = Object.entries(data.platformBreakdown).map(([platform, stats]) => ([
+              platform,
+              stats.orders.toString(),
+              stats.revenue.toFixed(2),
+              `${stats.matchRate.toFixed(1)}%`,
+            ]));
+            const csv = [...summaryRows, ...platformRows]
+              .map((row) => row.map((value) => `"${value}"`).join(","))
+              .join("\n");
+            resultUrl = await saveReportResult(jobId, {
+              content: csv,
+              filename: `reconciliation-report-${data.shopDomain}-${reportDate}.csv`,
+              mimeType: "text/csv",
+            });
+          } else {
+            throw new Error(`Unsupported format for reconciliation report: ${job.format}`);
+          }
+          break;
+        }
         default:
           throw new Error(`Unsupported report type: ${job.reportType}`);
       }
@@ -310,4 +361,3 @@ export async function cleanupExpiredReportJobs(): Promise<number> {
 
   return result.count;
 }
-

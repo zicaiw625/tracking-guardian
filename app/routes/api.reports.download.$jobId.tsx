@@ -1,8 +1,8 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { fetchScanReportData } from "../services/report-generator.server";
-import { generateScanReportPdf } from "../services/pdf-generator.server";
+import { fetchReconciliationReportData, fetchScanReportData } from "../services/report-generator.server";
+import { generateReconciliationReportPdf, generateScanReportPdf } from "../services/pdf-generator.server";
 import {
   generateVerificationReportCSV,
   generateVerificationReportData,
@@ -137,6 +137,63 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
           "Cache-Control": "no-cache",
         },
       });
+    }
+
+    if (job.reportType === "reconciliation") {
+      const metadata = typeof job.metadata === "object" && job.metadata !== null && !Array.isArray(job.metadata)
+        ? (job.metadata as Record<string, unknown>)
+        : {};
+      const requestedDays = Number(metadata.days);
+      const days = Number.isFinite(requestedDays) && requestedDays > 0 ? requestedDays : 7;
+
+      if (job.format === "pdf") {
+        const pdfResult = await generateReconciliationReportPdf(job.shopId, days);
+        if (!pdfResult) {
+          return new Response("Failed to generate reconciliation report", { status: 500 });
+        }
+        return new Response(pdfResult.buffer, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${pdfResult.filename}"`,
+            "Cache-Control": "no-cache",
+          },
+        });
+      }
+      if (job.format === "csv") {
+        const data = await fetchReconciliationReportData(job.shopId, days);
+        if (!data) {
+          return new Response("No reconciliation report data available", { status: 404 });
+        }
+        const reportDate = data.reportDate.toISOString().split("T")[0];
+        const summaryRows = [
+          ["Report Date", reportDate],
+          ["Total Orders", data.summary.totalOrders.toString()],
+          ["Matched Orders", data.summary.matchedOrders.toString()],
+          ["Unmatched Orders", data.summary.unmatchedOrders.toString()],
+          ["Match Rate", `${data.summary.matchRate.toFixed(1)}%`],
+          [],
+          ["Platform", "Orders", "Revenue", "Match Rate"],
+        ];
+        const platformRows = Object.entries(data.platformBreakdown).map(([platform, stats]) => ([
+          platform,
+          stats.orders.toString(),
+          stats.revenue.toFixed(2),
+          `${stats.matchRate.toFixed(1)}%`,
+        ]));
+        const csv = [...summaryRows, ...platformRows]
+          .map((row) => row.map((value) => `"${value}"`).join(","))
+          .join("\n");
+        const filename = `reconciliation-report-${data.shopDomain}-${reportDate}.csv`;
+        return new Response(csv, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Cache-Control": "no-cache",
+          },
+        });
+      }
     }
 
     return new Response("Unsupported report type", { status: 400 });

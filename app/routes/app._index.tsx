@@ -1394,6 +1394,23 @@ export default function Index() {
             </Layout.Section>
           </Layout>
         )}
+        <Card>
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="100">
+                <Text as="h2" variant="headingMd">
+                  报告中心
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  管理 Audit / Verification / Monitoring 报告导出与历史记录。
+                </Text>
+              </BlockStack>
+              <Button url="/app/reports" size="slim" variant="primary">
+                进入报告中心
+              </Button>
+            </InlineStack>
+          </BlockStack>
+        </Card>
         <Layout>
           <Layout.Section variant="oneThird">
             <HealthScoreCard score={data.healthScore} status={data.healthStatus} />
