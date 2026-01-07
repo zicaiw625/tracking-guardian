@@ -398,6 +398,15 @@ export default function MonitorPage() {
     }
 
     const statsData: ConversionStat[] | null = isConversionStatArray(conversionStats) ? conversionStats : null;
+    const alertSeveritySummary = currentAlertStatus.reduce<Record<string, number>>((acc, alert) => {
+        const key = alert.severity || "medium";
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+    }, {});
+    const alertSummaryTone = currentAlertStatus.length > 0 ? "critical" : "success";
+    const alertSummaryText = currentAlertStatus.length > 0
+        ? `当前有 ${currentAlertStatus.length} 个告警需要关注`
+        : "当前未检测到异常告警";
     const calculateHealthScore = (): number | null => {
         const platforms = Object.keys(summaryData);
         if (platforms.length === 0)
@@ -451,6 +460,32 @@ export default function MonitorPage() {
             }
         ]}>
       <BlockStack gap="500">
+        <Card>
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="100">
+                <Text as="h2" variant="headingMd">
+                  告警中心入口
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {alertSummaryText}
+                </Text>
+              </BlockStack>
+              <Badge tone={alertSummaryTone}>
+                {currentAlertStatus.length > 0 ? `${currentAlertStatus.length} 个告警` : "正常"}
+              </Badge>
+            </InlineStack>
+            <InlineStack gap="200" wrap>
+              <Button url="/app/alerts" variant="primary" size="slim">
+                查看告警中心
+              </Button>
+              <Button url="/app/settings?tab=alerts" variant="secondary" size="slim">
+                配置告警渠道
+              </Button>
+            </InlineStack>
+          </BlockStack>
+        </Card>
+
         <Banner tone="info" title="像素隐私与同意过滤说明">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm">
@@ -1640,6 +1675,67 @@ export default function MonitorPage() {
                   <Text as="p" variant="bodySm" tone="subdued">
                     评分依据：过去 7 天发送成功率
                   </Text>
+                  </BlockStack>
+                </Card>
+            </Layout.Section>
+
+            <Layout.Section variant="oneThird">
+              <Card>
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      告警状态
+                    </Text>
+                    <Badge tone={alertSummaryTone}>
+                      {currentAlertStatus.length > 0 ? `${currentAlertStatus.length} 个告警` : "正常"}
+                    </Badge>
+                  </InlineStack>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    基于最新告警检测结果。
+                  </Text>
+                  {currentAlertStatus.length > 0 ? (
+                    <BlockStack gap="200">
+                      <InlineStack gap="200" wrap>
+                        {Object.entries(alertSeveritySummary).map(([severity, count]) => (
+                          <Badge
+                            key={severity}
+                            tone={severity === "critical" ? "critical" : severity === "high" ? "warning" : "info"}
+                          >
+                            {severity === "critical"
+                              ? `严重 ${count}`
+                              : severity === "high"
+                                ? `高 ${count}`
+                                : `中 ${count}`}
+                          </Badge>
+                        ))}
+                      </InlineStack>
+                      <BlockStack gap="100">
+                        {currentAlertStatus.slice(0, 2).map((alert, idx) => (
+                          <Text key={`${alert.alertType}-${idx}`} as="p" variant="bodySm">
+                            {alert.alertType === "failure_rate"
+                              ? "事件失败率过高"
+                              : alert.alertType === "missing_params"
+                                ? "参数缺失率过高"
+                                : alert.alertType === "volume_drop"
+                                  ? "事件量骤降"
+                                  : alert.alertType === "dedup_conflict"
+                                    ? "去重冲突"
+                                    : alert.alertType === "pixel_heartbeat"
+                                      ? "像素心跳丢失"
+                                      : "告警"}
+                            ：{alert.message}
+                          </Text>
+                        ))}
+                      </BlockStack>
+                    </BlockStack>
+                  ) : (
+                    <Text as="p" variant="bodySm">
+                      ✅ 未发现异常告警。
+                    </Text>
+                  )}
+                  <Button url="/app/alerts" size="slim" variant="plain">
+                    进入告警中心
+                  </Button>
                 </BlockStack>
               </Card>
             </Layout.Section>
