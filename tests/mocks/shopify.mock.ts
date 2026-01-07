@@ -43,7 +43,7 @@ export function createMockSession(overrides: Partial<MockSession> = {}): MockSes
     shop: "test-shop.myshopify.com",
     state: "mock_state",
     isOnline: false,
-    scope: "read_products,write_products,read_orders",
+    scope: "read_products,write_products",
     accessToken: "mock_access_token",
     ...overrides,
   };
@@ -384,4 +384,3 @@ export function resetMockAuthenticate(): void {
     mockAuthenticate.public.appProxy.mockReset();
   }
 }
-

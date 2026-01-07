@@ -49,9 +49,8 @@ services:
       - key: SHOPIFY_API_SECRET
         sync: false
       - key: SCOPES
-        # P0-4: v1.0 版本需要 read_orders scope 以支持 Reorder 功能（查询订单 line items）
-        # Reorder 功能是 v1.0 模块库的核心功能之一，需要读取订单信息以构建再购链接
-        value: read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+        # v1.0 默认最小权限（订单查询能力为可选扩展）
+        value: read_script_tags,read_pixels,write_pixels,read_customer_events
       - key: SHOPIFY_APP_URL
         sync: false  # 部署后获取的 URL
       # Security (Auto-generated)
@@ -79,15 +78,14 @@ services:
       - key: PIXEL_ALLOW_NULL_ORIGIN
         value: "true"  # 允许 Origin: null 的像素请求（Shopify Web Pixel 常见情况）
 
+cronJobs:
   # P0-1: Cron Job 服务 - 定时任务（Monitoring/清理/GDPR）
   # 注意：Render Blueprint 的 cron job 需要手动设置部分环境变量
   # 请在 Render Dashboard 中为 cron job 服务设置以下环境变量（从 web service 复制）：
   # - CRON_SECRET (必须与 web service 相同)
   # - SHOPIFY_APP_URL (web service 的完整 URL，格式：https://tracking-guardian.onrender.com)
-  - type: cron
-    name: tracking-guardian-cron
+  - name: tracking-guardian-cron
     region: singapore  # 与 web service 相同区域
-    plan: free  # 可升级为 starter/standard
     schedule: "*/5 * * * *"  # 每 5 分钟执行一次
     command: >
       curl -X POST 

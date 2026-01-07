@@ -47,7 +47,7 @@ import { logger } from "~/utils/logger.server";
 import { getShopForPixelVerificationWithConfigs } from "./api.pixel-events/key-validation";
 import { validatePixelEventHMAC } from "./api.pixel-events/hmac-validation";
 import { validateRequest, isPrimaryEvent } from "./api.pixel-events/validation";
-import { API_CONFIG } from "~/utils/config";
+import { API_CONFIG, RATE_LIMIT_CONFIG } from "~/utils/config";
 import { isDevMode } from "~/utils/origin-validation";
 import { 
   generateEventIdForType,
@@ -59,9 +59,12 @@ import {
 } from "./api.pixel-events/receipt-handler";
 import type { KeyValidationResult } from "./api.pixel-events/types";
 import { checkInitialConsent } from "./api.pixel-events/consent-filter";
+import { checkRateLimitAsync } from "~/middleware/rate-limit";
+import { safeFireAndForget } from "~/utils/helpers";
 
 const MAX_BATCH_SIZE = 100; // 批量事件最大数量
 const TIMESTAMP_WINDOW_MS = API_CONFIG.TIMESTAMP_WINDOW_MS;
+const INGEST_RATE_LIMIT = RATE_LIMIT_CONFIG.PIXEL_EVENTS;
 
 /**
  * PRD 定义的 POST /ingest 端点
@@ -141,6 +144,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         { error: "Shop not found or inactive" },
         { status: 404, request }
       );
+    }
+
+    const rateLimitKey = `ingest:${shopDomain}`;
+    const rateLimit = await checkRateLimitAsync(
+      rateLimitKey,
+      INGEST_RATE_LIMIT.maxRequests,
+      INGEST_RATE_LIMIT.windowMs
+    );
+    if (!rateLimit.allowed) {
+      logger.warn(`Rate limit exceeded for ingest`, {
+        shopDomain,
+        retryAfter: rateLimit.retryAfter,
+      });
+      const response = jsonWithCors(
+        { error: "Rate limit exceeded", retryAfter: rateLimit.retryAfter },
+        { status: 429, request }
+      );
+      response.headers.set("Retry-After", String(rateLimit.retryAfter ?? 0));
+      response.headers.set("X-RateLimit-Limit", String(INGEST_RATE_LIMIT.maxRequests));
+      response.headers.set("X-RateLimit-Remaining", "0");
+      response.headers.set("X-RateLimit-Reset", String(Math.ceil(rateLimit.resetAt / 1000)));
+      response.headers.set("X-RateLimit-Key", rateLimitKey);
+      return response;
     }
 
     if (isProduction) {
@@ -433,59 +459,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // 批量处理事件
-    try {
-      const results = await processBatchEvents(shop.id, validatedEvents, environment);
-      const successCount = results.filter(r => r.success).length;
-      const acceptedCount = successCount; // PRD 8.2: accepted_count 表示成功处理的事件数
-
-      // PRD 8.2: 构建 errors[] 数组，包含所有失败事件的错误信息
-      const errors: Array<{
-        index: number;
-        event_id?: string;
-        event_name?: string;
-        error: string;
-      }> = [];
-
-      results.forEach((result, index) => {
-        if (!result.success) {
-          const eventPayload = validatedEvents[index]?.payload;
-          errors.push({
-            index,
-            event_id: result.eventId || undefined,
-            event_name: eventPayload?.eventName || undefined,
-            error: result.errors?.join("; ") || "Unknown error",
-          });
-        }
-      });
-
-      logger.info(`Batch ingest processed`, {
-        shopDomain,
-        total: validatedEvents.length,
-        accepted: acceptedCount,
-        errors: errors.length,
-      });
-
-      // PRD 8.2: 返回格式严格符合 PRD 规范
-      // Response: { accepted_count: number, errors: Array<{ index: number, event_id?: string, event_name?: string, error: string }> }
-      // - accepted_count: 成功处理的事件数量
-      // - errors: 失败事件的错误信息数组（如果所有事件都成功，返回空数组 []）
-      return jsonWithCors(
-        {
-          accepted_count: acceptedCount,
-          errors: errors.length > 0 ? errors : [],
+    safeFireAndForget(
+      processBatchEvents(shop.id, validatedEvents, environment).then((results) => {
+        const successCount = results.filter(r => r.success).length;
+        const errorCount = results.filter(r => !r.success).length;
+        logger.info(`Batch ingest processed`, {
+          shopDomain,
+          total: validatedEvents.length,
+          accepted: successCount,
+          errors: errorCount,
+        });
+      }),
+      {
+        operation: "processBatchEvents",
+        metadata: {
+          shopId: shop.id,
+          shopDomain,
+          total: validatedEvents.length,
         },
-        { request }
-      );
-    } catch (error) {
-      logger.error("Batch ingest processing failed", {
-        shopDomain,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return jsonWithCors(
-        { error: "Internal server error", message: error instanceof Error ? error.message : String(error) },
-        { status: 500, request }
-      );
-    }
+      }
+    );
+
+    // PRD 8.2: 返回格式严格符合 PRD 规范
+    // Response: { accepted_count: number, errors: Array<{ index: number, event_id?: string, event_name?: string, error: string }> }
+    // - accepted_count: 已接受处理的事件数量
+    // - errors: 失败事件的错误信息数组（异步处理时返回空数组）
+    return jsonWithCors(
+      {
+        accepted_count: validatedEvents.length,
+        errors: [],
+      },
+      { request }
+    );
   } else {
     // 单事件格式（向后兼容），委托给 /api/pixel-events
     return pixelEventsAction({ request, params: {}, context: {} as any });
@@ -498,4 +503,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export const loader = async (args: LoaderFunctionArgs) => {
   return pixelEventsLoader(args);
 };
-

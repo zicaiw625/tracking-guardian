@@ -171,10 +171,8 @@ pnpm install
 ```env
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-# P0-3: v1.0 版本需要 read_orders scope 以支持 Reorder 功能（查询订单 line items）
-# Reorder 功能是 v1.0 模块库的核心功能之一，需要读取订单信息以构建再购链接
-# 隐私承诺：仅用于查询订单 line items，不存储任何 PII（邮箱/地址/电话）
-SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events,read_orders
+# v1.0 默认最小权限（订单查询能力为可选扩展）
+SCOPES=read_script_tags,read_pixels,write_pixels,read_customer_events
 SHOPIFY_APP_URL=https://your-app-url.com
 DATABASE_URL=postgresql://user:password@localhost:5432/tracking_guardian
 
@@ -266,13 +264,12 @@ railway up
 
 | 权限 | 用途 | 代码调用点 | 首次安装必需? | 隐私承诺 |
 |------|------|-----------|--------------|---------|
-| `read_orders` | **Reorder 功能**：查询订单 line items 以构建再购链接 | `app/routes/api.tracking/route.tsx` | ✅ 是（Reorder 模块必需） | 仅用于查询订单 line items，不存储任何 PII（邮箱/地址/电话）。符合 Shopify PII 最小化原则。 |
 | `read_script_tags` | 扫描旧版 ScriptTags 用于迁移建议 | `scanner.server.ts` | ✅ 是 |
 | `read_pixels` | 查询已安装的 Web Pixel 状态 | `migration.server.ts` | ✅ 是 |
 | `write_pixels` | 创建/更新 App Pixel Extension | `migration.server.ts` | ✅ 是 |
 | `read_customer_events` | （未来）事件对账/同意状态补充 | `app.migrate.tsx` 授权检测 | ⚠️ 场景化 |
 
-**P0-3 说明**：v1.0 版本需要 `read_orders` scope 以支持 **Reorder（再购按钮）** 功能，这是 v1.0 模块库的核心功能之一（见 [Thank you / Order status 模块库](#c-付费thank-you--order-status-模块库v1-包含-3-个核心模块)）。应用仅使用该权限查询订单 line items 以构建再购链接，不存储任何 PII 数据。
+**P0-3 说明**：v1.0 默认不申请 `read_orders`，保持最小权限。订单信息查询仅作为可选扩展能力，需要商家单独授权时再开启。
 
 ### API 端点说明
 
@@ -318,8 +315,7 @@ ScriptTag 清理需要商家手动操作：
 
 ### P0-3: 最小权限说明
 
-- 所有 5 个 scopes 都有明确的代码调用点和业务理由
-- `read_orders` 仅用于 Reorder 功能，不存储任何 PII，符合隐私最小化原则
+- 所有 scopes 都有明确的代码调用点和业务理由
 - 详细权限说明请参阅 [COMPLIANCE.md](COMPLIANCE.md) 中的 "Scopes Justification" 部分
 
 ## Webhook 订阅
