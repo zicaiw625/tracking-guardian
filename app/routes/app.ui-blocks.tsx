@@ -305,6 +305,13 @@ function ModuleCard({
               </Button>
             )}
             <Button
+              url={`/app/modules/${module.moduleKey}/publish`}
+              variant="plain"
+              size="slim"
+            >
+              发布指引
+            </Button>
+            <Button
               variant={module.isEnabled ? "secondary" : "primary"}
               onClick={() => onToggle(module.moduleKey, !module.isEnabled)}
               loading={isSubmitting}
@@ -1381,6 +1388,34 @@ export default function UiBlocksPage() {
         size="large"
       >
         <Modal.Section>
+          <Box paddingBlockEnd="400">
+            <Banner
+              title="受保护客户数据 (PCD) 访问权限说明"
+              tone="warning"
+              action={{
+                content: "了解更多",
+                url: "https://help.shopify.com/en/manual/pixels/web-pixels",
+                external: true,
+              }}
+            >
+              <BlockStack gap="200">
+                <Text as="p" variant="bodySm">
+                  自 <strong>2025-12-10</strong> 起，Shopify Web Pixels 中的客户个人信息（PII，如邮箱/电话/地址）将仅在应用获得批准的 <strong>Protected Customer Data (PCD)</strong> 权限后才会填充。
+                </Text>
+                <Text as="p" variant="bodySm">
+                  如果未获批相关权限，Web Pixel 发送的事件中 PII 字段将为 null。这可能导致：
+                </Text>
+                <ul style={{ paddingLeft: "1.5rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+                  <li><Text as="span" variant="bodySm">Web Pixel 端的受众匹配率下降</Text></li>
+                  <li><Text as="span" variant="bodySm">依赖 hashed PII 的 CAPI 匹配质量降低</Text></li>
+                </ul>
+                <Text as="p" variant="bodySm">
+                  <strong>建议：</strong>为了获得最佳追踪效果，请确保在 Shopify Partner Dashboard 中申请必要的客户数据访问权限。
+                  即使未获批，我们的服务端 CAPI 仍会利用订单 ID 和其他非 PII 信号尽力匹配。
+                </Text>
+              </BlockStack>
+            </Banner>
+          </Box>
           {editingModule && isDevStore && modulePreviewUrls[editingModule] && (
             <Box paddingBlockEnd="400">
               <Banner tone="info">
@@ -1485,4 +1520,3 @@ export default function UiBlocksPage() {
     </Page>
   );
 }
-
