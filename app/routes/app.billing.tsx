@@ -2,12 +2,13 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useSearchParams, useActionData } from "@remix-run/react";
 import { useEffect } from "react";
-import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, Icon, } from "@shopify/polaris";
+import { Page, Layout, Card, Text, BlockStack, InlineStack, Button, Badge, Box, Divider, Banner, ProgressBar, List, Icon, DataTable, } from "@shopify/polaris";
 import { CheckCircleIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, type PlanId } from "../services/billing.server";
+import { createSubscription, getSubscriptionStatus, cancelSubscription, checkOrderLimit, handleSubscriptionConfirmation, getBillingHistory, type BillingHistoryItem, type PlanId } from "../services/billing.server";
 import { getUsageHistory } from "../services/billing/usage-history.server";
 
 import { logger } from "../utils/logger.server";
@@ -61,10 +62,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             plans: BILLING_PLANS,
             planIds: PLAN_IDS,
             appUrl: process.env.SHOPIFY_APP_URL || "",
+            billingHistory: [] as BillingHistoryItem[],
+            billingPortalUrl: `https://${shopDomain}/admin/settings/billing`,
         });
     }
     const subscriptionStatus = await getSubscriptionStatus(admin, shopDomain);
     const orderUsage = await checkOrderLimit(shop.id, subscriptionStatus.plan);
+    const billingHistory = await getBillingHistory(admin);
     const usageHistory = await getUsageHistory(shop.id, 30).catch((err) => {
       logger.warn("Failed to get usage history", {
         error: err instanceof Error ? err.message : String(err),
@@ -94,6 +98,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         plans: BILLING_PLANS,
         planIds: PLAN_IDS,
         appUrl: process.env.SHOPIFY_APP_URL || "",
+        billingHistory,
+        billingPortalUrl: `https://${shopDomain}/admin/settings/billing`,
     });
 };
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -154,7 +160,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 export default function BillingPage() {
     const loaderData = useLoaderData<typeof loader>();
-    const { subscription, usage, plans, planIds } = loaderData;
+    const { subscription, usage, plans, planIds, billingHistory, billingPortalUrl } = loaderData;
     const usageHistory = "usageHistory" in loaderData ? loaderData.usageHistory : null;
     const actionData = useActionData<typeof action>();
     const submit = useSubmit();
@@ -181,6 +187,25 @@ export default function BillingPage() {
 
     const currentPlan = plans[subscription.plan as PlanId];
     const usagePercent = Math.min((usage.current / usage.limit) * 100, 100);
+    const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+    });
+    const billingRows = (billingHistory || []).map((item: BillingHistoryItem) => {
+        const amount = item.amount !== undefined ? `${item.amount.toFixed(2)} ${item.currency || ""}` : "—";
+        const timeframe = item.periodEnd
+            ? `周期至 ${dateFormatter.format(new Date(item.periodEnd))}`
+            : item.createdAt
+                ? dateFormatter.format(new Date(item.createdAt))
+                : "—";
+        return [
+            item.type === "subscription" ? "订阅" : "一次性购买",
+            item.name,
+            amount,
+            item.status,
+            timeframe,
+        ];
+    });
     const handleSubscribe = (planId: string) => {
         const formData = new FormData();
         formData.append("_action", "subscribe");
@@ -217,6 +242,18 @@ export default function BillingPage() {
               请升级套餐以继续追踪更多订单。
             </p>
           </Banner>)}
+
+        <PageIntroCard
+          title="订阅与账单概览"
+          description="查看当前套餐、使用量、账单历史，并管理续费与升级。"
+          items={[
+            "套餐权益与用量一目了然",
+            "支持在 Shopify 账单中心查看发票",
+            "升级后自动解锁对应功能",
+          ]}
+          primaryAction={{ content: "查看套餐", url: "/app/billing" }}
+          secondaryAction={{ content: "账单中心", url: billingPortalUrl }}
+        />
 
         <Layout>
           <Layout.Section>
@@ -270,6 +307,36 @@ export default function BillingPage() {
             </Card>
           </Layout.Section>
         </Layout>
+
+        <Card>
+          <BlockStack gap="400">
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="100">
+                <Text as="h2" variant="headingMd">发票/账单历史</Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  展示当前订阅与一次性购买记录，完整发票请在 Shopify 后台查看。
+                </Text>
+              </BlockStack>
+              <Button url={billingPortalUrl} external>
+                前往 Shopify 账单中心
+              </Button>
+            </InlineStack>
+
+            {billingRows.length === 0 ? (
+              <Banner tone="info">
+                <Text as="p" variant="bodySm">
+                  暂无账单记录。完成首次订阅后，这里会展示发票与账单摘要。
+                </Text>
+              </Banner>
+            ) : (
+              <DataTable
+                columnContentTypes={["text", "text", "text", "text", "text"]}
+                headings={["类型", "项目", "金额", "状态", "周期/时间"]}
+                rows={billingRows}
+              />
+            )}
+          </BlockStack>
+        </Card>
 
         <Text as="h2" variant="headingMd">可用套餐</Text>
 

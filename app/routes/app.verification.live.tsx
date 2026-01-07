@@ -10,6 +10,7 @@ import {
   Banner,
 } from "@shopify/polaris";
 import { CardSkeleton } from "~/components/ui";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -99,6 +100,16 @@ export default function VerificationLivePage() {
       backAction={{ content: "返回验收页面", url: "/app/verification" }}
     >
       <BlockStack gap="500">
+        <PageIntroCard
+          title="实时事件流"
+          description="用于验收对账，实时查看事件触发与参数完整率。"
+          items={[
+            "建议配合测试清单逐步触发事件",
+            "重点关注 checkout_completed 完整率",
+          ]}
+          primaryAction={{ content: "返回验收", url: "/app/verification" }}
+          secondaryAction={{ content: "查看测试清单", url: "/app/verification/start" }}
+        />
         {!canAccessVerification && gateResult && (
           <UpgradePrompt
             feature="verification"
@@ -154,4 +165,3 @@ export default function VerificationLivePage() {
     </Page>
   );
 }
-

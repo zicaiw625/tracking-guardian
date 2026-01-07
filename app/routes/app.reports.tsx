@@ -13,6 +13,7 @@ import {
   Page,
   Text,
 } from "@shopify/polaris";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { useMemo } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -212,6 +213,17 @@ export default function ReportsPage() {
       <Layout>
         <Layout.Section>
           <BlockStack gap="500">
+            <PageIntroCard
+              title="报告输出入口"
+              description="集中管理扫描、验收与监控报告，支持 PDF/CSV 导出。"
+              items={[
+                "Audit 报告用于迁移清单交付",
+                "Verification 报告用于验收签收",
+                "Monitoring 报告用于上线后复盘",
+              ]}
+              primaryAction={{ content: "生成新报告", url: "/app/reports" }}
+              secondaryAction={{ content: "查看验收", url: "/app/verification" }}
+            />
             {actionData?.jobId && (
               <Banner tone="success" title="报告任务已创建">
                 <Text as="p" variant="bodySm">

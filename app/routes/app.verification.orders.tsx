@@ -18,6 +18,7 @@ import {
 import { RefreshIcon } from "~/components/icons";
 import { EnhancedEmptyState } from "~/components/ui";
 import { UpgradePrompt } from "~/components/ui/UpgradePrompt";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -232,6 +233,17 @@ export default function VerificationOrdersPage() {
       ]}
     >
       <BlockStack gap="400">
+        <PageIntroCard
+          title="订单层验收"
+          description="核对 orders/create、refunds、cancellations 等订单后事件与 webhook 送达情况。"
+          items={[
+            "对比 Pixel 与订单数据缺口",
+            "识别订单层异常与漏报",
+            "适用于 Growth/Agency 验收交付",
+          ]}
+          primaryAction={{ content: "返回验收", url: "/app/verification" }}
+          secondaryAction={{ content: "导出报告", url: "/app/reports" }}
+        />
         <Banner tone="info" title="PRD 2.5: 订单层验收说明">
           <BlockStack gap="200">
             <Text as="p" variant="bodySm" fontWeight="semibold">

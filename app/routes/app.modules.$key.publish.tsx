@@ -17,6 +17,7 @@ import {
 import { ExternalIcon } from "~/components/icons";
 import { authenticate } from "../shopify.server";
 import { UI_MODULES, type ModuleKey } from "../types/ui-extension";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 
 const TARGET_DETAILS: Record<
   "thank_you" | "order_status",
@@ -65,6 +66,16 @@ export default function UiModulePublishGuide() {
       <Layout>
         <Layout.Section>
           <BlockStack gap="500">
+            <PageIntroCard
+              title="发布步骤概览"
+              description="将模块添加到 Checkout Editor 并发布，确保客户侧可见。"
+              items={[
+                "选择正确的 target 页面",
+                "完成配置后点击发布",
+                "发布完成可回到模块列表查看状态",
+              ]}
+              primaryAction={{ content: "返回模块列表", url: "/app/ui-blocks" }}
+            />
             <Banner tone="info">
               <BlockStack gap="200">
                 <Text as="p" variant="bodySm">

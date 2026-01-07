@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Page, Card, BlockStack, Text, Banner } from "@shopify/polaris";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { EnhancedEmptyState } from "~/components/ui";
 import { ConfigVersionManager } from "~/components/migrate/ConfigVersionManager";
 import { authenticate } from "~/shopify.server";
@@ -145,6 +146,15 @@ export default function PixelVersionsPage() {
       subtitle="查看配置版本并回滚"
       backAction={{ content: "返回 Pixels", url: "/app/pixels" }}
     >
+      <PageIntroCard
+        title="版本管理"
+        description="查看历史配置并在必要时回滚，确保 Live 环境可恢复。"
+        items={[
+          "每次回滚会生成新的版本快照",
+          "建议先在 Test 环境验证",
+        ]}
+        primaryAction={{ content: "返回 Pixels", url: "/app/pixels" }}
+      />
       <Card>
         <BlockStack gap="300">
           <Text as="h2" variant="headingMd">

@@ -26,6 +26,7 @@ import {
 import { ArrowRightIcon, CheckCircleIcon, SettingsIcon } from "~/components/icons";
 import { useToastContext } from "~/components/ui";
 import { EventMappingEditor } from "~/components/migrate/EventMappingEditor";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "~/shopify.server";
 import prisma from "~/db.server";
 import { getWizardTemplates } from "~/services/pixel-template.server";
@@ -819,6 +820,16 @@ export default function PixelsNewPage() {
       backAction={{ content: "返回 Pixels", url: "/app/pixels" }}
     >
       <BlockStack gap="500">
+        <PageIntroCard
+          title="配置流程概览"
+          description="使用模板快速完成平台配置，先在 Test 环境验证，再切换 Live。"
+          items={[
+            "模板包含常用事件映射",
+            "凭据支持加密存储",
+            "验证通过后再切 Live",
+          ]}
+          primaryAction={{ content: "返回 Pixels", url: "/app/pixels" }}
+        />
         {!isStarterOrAbove && (
           <Banner tone="warning" title="需要升级套餐">
             <Text as="p">

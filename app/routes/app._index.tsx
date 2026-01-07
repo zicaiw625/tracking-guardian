@@ -30,6 +30,7 @@ const RiskDistributionChart = lazy(() => import("~/components/dashboard/RiskDist
 const DependencyGraphPreview = lazy(() => import("~/components/dashboard/DependencyGraphPreview").then(module => ({ default: module.DependencyGraphPreview })));
 import { HealthMetrics24hCard } from "~/components/dashboard/HealthMetrics24hCard";
 import { AlertsTodoCard } from "~/components/dashboard/AlertsTodoCard";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 
 import { authenticate } from "../shopify.server";
 import { getDashboardData } from "../services/dashboard.server";
@@ -1371,6 +1372,18 @@ export default function Index() {
             </BlockStack>
           </Banner>
         )}
+
+        <PageIntroCard
+          title="30 秒看懂迁移进度"
+          description="快速确认升级风险、迁移进度、最近 24h 健康度，并获取下一步行动建议。"
+          items={[
+            "优先完成 Audit 扫描生成迁移清单",
+            "Test 环境验证事件与参数完整率",
+            "上线后开启 Monitoring 与告警",
+          ]}
+          primaryAction={{ content: "开始 Audit", url: "/app/audit/start" }}
+          secondaryAction={{ content: "查看报告", url: "/app/reports" }}
+        />
 
         {showScanProgress && data.showOnboarding && !data.latestScan && (
           <PostInstallScanProgress

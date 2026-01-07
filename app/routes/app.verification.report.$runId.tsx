@@ -26,6 +26,7 @@ import {
   FileIcon,
 } from "~/components/icons";
 import { CardSkeleton, useToastContext, EnhancedEmptyState } from "~/components/ui";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import {
@@ -287,6 +288,16 @@ export default function VerificationReportPage() {
       }
     >
       <BlockStack gap="500">
+        <PageIntroCard
+          title="验收报告说明"
+          description="报告用于交付验收结果，包含事件触发、参数完整率与一致性检查。"
+          items={[
+            "支持 PDF/CSV 导出",
+            "可用于客户/管理层验收签收",
+          ]}
+          primaryAction={{ content: "返回验收", url: "/app/verification" }}
+          secondaryAction={{ content: "报告中心", url: "/app/reports" }}
+        />
         {!canExportReports && (
           <UpgradePrompt
             feature="verification"
@@ -555,4 +566,3 @@ export default function VerificationReportPage() {
     </Page>
   );
 }
-

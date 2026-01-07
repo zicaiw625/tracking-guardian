@@ -34,6 +34,7 @@ import {
 import { CardSkeleton, useToastContext, EnhancedEmptyState } from "~/components/ui";
 import { CheckoutExtensibilityWarning } from "~/components/verification/CheckoutExtensibilityWarning";
 import { CheckoutCompletedBehaviorHint } from "~/components/verification/CheckoutCompletedBehaviorHint";
+import { PageIntroCard } from "~/components/layout/PageIntroCard";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
@@ -498,6 +499,17 @@ export default function VerificationPage() {
       ]}
     >
       <BlockStack gap="500">
+        <PageIntroCard
+          title="验收流程概览"
+          description="通过测试清单验证事件触发与参数完整率，输出可交付的验收报告。"
+          items={[
+            "像素层验收覆盖标准事件",
+            "订单层验收需 Growth/Agency",
+            "报告支持 PDF/CSV 导出",
+          ]}
+          primaryAction={{ content: "查看验收报告", url: "/app/reports" }}
+          secondaryAction={{ content: "进入订单层验收", url: "/app/verification/orders" }}
+        />
         {}
         <Card>
           <BlockStack gap="400">
