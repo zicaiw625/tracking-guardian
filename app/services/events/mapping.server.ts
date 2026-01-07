@@ -354,17 +354,15 @@ function getNestedValue(obj: unknown, path: string): unknown {
     if (current === null || current === undefined) {
       return undefined;
     }
-    
+
     if (typeof current !== "object") {
       return undefined;
     }
 
-    // 检查是否是数组，如果是数组则不支持嵌套访问
     if (Array.isArray(current)) {
       return undefined;
     }
 
-    // 使用更安全的类型检查
     if (typeof current === "object" && current !== null && !Array.isArray(current)) {
       const record = current as Record<string, unknown>;
       if (key in record) {

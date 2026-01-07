@@ -42,8 +42,7 @@ function sendToAnalytics(metric: WebVitalsMetric) {
         "Content-Type": "application/json",
       },
     }).catch((err) => {
-      // 客户端调试输出：发送性能指标失败
-      // eslint-disable-next-line no-console
+
       console.error("Failed to send performance metric:", err);
     });
   }

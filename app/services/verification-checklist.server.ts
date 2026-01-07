@@ -1,23 +1,4 @@
-/**
- * P0-2: PRD 对齐 - v1.0 验收范围说明
- * 
- * v1.0 验收范围（符合 PRD 4.5 要求）：
- * - ✅ checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
- *   - 通过 Web Pixel Extension 订阅并上报
- * - ✅ 订单侧事件（退款、取消、编辑订单）
- *   - 通过 Shopify webhooks 获取（orders/cancelled, orders/edited, refunds/create）
- *   - 仅存储订单摘要信息（orderId, orderNumber, totalValue, currency, financialStatus），不包含 PII
- * 
- * 验收方式：
- * - 像素侧事件：在验收页面查看 EventLog 和 DeliveryAttempt
- * - 订单侧事件：在验收页面查看 ShopifyOrderSnapshot 和 RefundSnapshot
- * - 对账验证：通过 orderId 关联像素事件与订单侧事件，验证金额/币种一致性
- * 
- * 审计结论对齐：
- * - ✅ 验收清单已包含 refund/cancel/edit 项（通过 webhooks 实现）
- * - ✅ 验收范围覆盖 checkout/purchase 漏斗事件和订单侧事件
- * - ✅ 订单侧事件严格遵循 PII 最小化原则（仅存储订单摘要信息）
- */
+
 
 import { logger } from "../utils/logger.server";
 import type { VerificationTestItem } from "./verification.server";
@@ -32,8 +13,7 @@ export interface TestChecklistItem {
   steps: string[];
   expectedResults: string[];
   estimatedTime: number;
-  // P0-1: PRD 对齐 - v1.0 只支持 purchase 和 cart 事件验收
-  // refund、subscription、order_edit 在 v1.1+ 中通过 webhooks 实现
+
   category: "purchase" | "cart";
 }
 
@@ -231,17 +211,7 @@ function getAllTestItems(): TestChecklistItem[] {
       estimatedTime: 5,
       category: "purchase",
     },
-    // P0-2: PRD 对齐 - v1.0 验收范围（已启用订单/退款 webhooks）
-    // 
-    // v1.0 验收范围：
-    // - ✅ checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
-    // - ✅ 订单侧事件（通过 webhooks）：退款、取消、编辑订单
-    // 
-    // 注意：
-    // - 像素侧事件：通过 Web Pixel Extension 订阅并上报（checkout_completed 等）
-    // - 订单侧事件：通过 Shopify webhooks 获取（orders/cancelled, orders/edited, refunds/create）
-    // - 订单侧事件仅存储订单摘要信息（orderId, orderNumber, totalValue, currency, financialStatus），不包含 PII
-    // - 验收时需验证：像素事件与订单侧事件能够正确对账（通过 orderId 关联）
+
     {
       id: "refund",
       name: "退款",
@@ -344,10 +314,7 @@ function getAllTestItems(): TestChecklistItem[] {
       estimatedTime: 2,
       category: "cart",
     },
-    // P0-2: PRD 对齐 - v1.0 验收范围（已启用订单/退款 webhooks）
-    // 以下测试项（fulfillment、subscription）在 v1.0 中不可验收
-    // 原因：这些事件需要额外的 webhook 或后台对账，v1.0 暂不支持
-    // 这些功能将在 v1.1+ 中实现
+
     {
       id: "order_partial_refund",
       name: "部分退款",
@@ -390,54 +357,7 @@ function getAllTestItems(): TestChecklistItem[] {
       estimatedTime: 5,
       category: "refund",
     },
-    // {
-    //   id: "subscription_first",
-    //   name: "首次订阅订单",
-    //   description: "完成首次订阅订单（如果商店支持订阅）",
-    //   eventType: "subscription",
-    //   required: false,
-    //   platforms: ["google", "meta"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 5,
-    //   category: "subscription",
-    // },
-    // {
-    //   id: "subscription_renewal",
-    //   name: "订阅续费",
-    //   description: "验证订阅自动续费事件（如果商店支持）",
-    //   eventType: "subscription_renewal",
-    //   required: false,
-    //   platforms: ["google", "meta"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 10,
-    //   category: "subscription",
-    // },
-    // {
-    //   id: "order_edit_add_item",
-    //   name: "订单编辑 - 添加商品",
-    //   description: "在已完成的订单中添加商品",
-    //   eventType: "order_edit",
-    //   required: false,
-    //   platforms: ["google"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 8,
-    //   category: "order_edit",
-    // },
-    // {
-    //   id: "order_edit_change_address",
-    //   name: "订单编辑 - 修改地址",
-    //   description: "修改订单的收货地址",
-    //   eventType: "order_edit",
-    //   required: false,
-    //   platforms: ["google"],
-    //   steps: [...],
-    //   expectedResults: [...],
-    //   estimatedTime: 5,
-    //   category: "order_edit",
-    // },
+
     {
       id: "purchase_zero_value",
       name: "零金额订单",
@@ -507,11 +427,10 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
   markdown += `**必需项**: ${checklist.requiredItemsCount} | **可选项**: ${checklist.optionalItemsCount}\n\n`;
   markdown += `---\n\n`;
 
-  // P0-1: PRD 对齐 - v1.0 只支持 purchase 和 cart 事件验收
   const categories: Record<string, TestChecklistItem[]> = {
     purchase: [],
     cart: [],
-    // refund、subscription、order_edit 在 v1.1+ 中通过 webhooks 实现
+
   };
 
   for (const item of checklist.items) {
@@ -523,7 +442,7 @@ export function generateChecklistMarkdown(checklist: TestChecklist): string {
   const categoryLabels: Record<string, string> = {
     purchase: "购买事件",
     cart: "购物车事件",
-    // refund、subscription、order_edit 在 v1.1+ 中实现
+
   };
 
   for (const [category, items] of Object.entries(categories)) {

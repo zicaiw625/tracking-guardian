@@ -167,8 +167,7 @@ export function BatchOperationsPanel({
                       body: formData,
                     }).catch((error) => {
                       if (process.env.NODE_ENV === "development") {
-                        // 客户端调试输出：批量验证启动失败
-                        // eslint-disable-next-line no-console
+
                         console.error("Failed to start batch verification:", error);
                       }
                     });

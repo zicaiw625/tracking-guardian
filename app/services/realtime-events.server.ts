@@ -36,10 +36,10 @@ export async function getRecentEvents(
 
   return logs.map((log) => {
     const orderValue = log.orderValue;
-    const numericValue = orderValue != null 
+    const numericValue = orderValue != null
       ? (typeof orderValue === "number" ? orderValue : Number(orderValue))
       : undefined;
-    
+
     return {
       id: log.id,
       eventType: log.eventType,
@@ -74,12 +74,11 @@ export async function subscribeToEvents(
   };
 
   const poll = async () => {
-    // 在开始轮询前检查状态
+
     if (!isActive) {
       return;
     }
 
-    // 防止并发轮询
     if (isPolling) {
       return;
     }
@@ -87,14 +86,13 @@ export async function subscribeToEvents(
     isPolling = true;
 
     try {
-      // 再次检查状态，防止在设置 isPolling 期间被取消
+
       if (!isActive) {
         return;
       }
 
       const events = await getRecentEvents(shopId, 10);
-      
-      // 再次检查状态，防止在异步操作期间被取消
+
       if (!isActive) {
         return;
       }
@@ -102,30 +100,29 @@ export async function subscribeToEvents(
       let newEvents: RealtimeEvent[];
 
       if (!lastEventId) {
-        // 第一次调用，获取所有事件
+
         newEvents = events;
       } else {
-        // 找到 lastEventId 在数组中的位置，获取所有比它新的事件
+
         const lastEventIndex = events.findIndex((e) => e.id === lastEventId);
         if (lastEventIndex === -1) {
-          // 如果找不到 lastEventId，说明所有事件都是新的
+
           newEvents = events;
         } else {
-          // 获取 lastEventId 之前的所有事件（更新的）
+
           newEvents = events.slice(0, lastEventIndex);
         }
       }
 
       if (newEvents.length > 0 && isActive) {
-        // 按时间顺序处理事件（从旧到新）
+
         newEvents.reverse().forEach((event) => {
-          // 在处理每个事件前再次检查状态
+
           if (isActive) {
             callback(event);
           }
         });
 
-        // 更新 lastEventId 为最新的事件ID
         const latestEvent = events[0];
         if (latestEvent && isActive) {
           lastEventId = latestEvent.id;
@@ -137,27 +134,22 @@ export async function subscribeToEvents(
       isPolling = false;
     }
 
-    // 在设置新的 timeout 前再次检查状态
     if (!isActive) {
       return;
     }
 
-    // 清理旧的 timeout（如果存在）
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
       timeoutId = null;
     }
 
-    // 只有在仍然活跃时才设置新的 timeout
     if (isActive) {
       timeoutId = setTimeout(poll, 2000);
     }
   };
 
-  // 启动第一次轮询
   poll();
 
-  // 返回清理函数
   return cleanup;
 }
 

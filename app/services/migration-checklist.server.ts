@@ -269,8 +269,6 @@ export async function generateMigrationChecklist(
       }
     }
 
-    // calculatePriority requires full AuditAsset, but we only have partial fields
-    // Use asset.priority if available, otherwise calculate a simple priority
     const priority = asset.priority ?? (
       asset.riskLevel === "high" ? 9 :
       asset.riskLevel === "medium" ? 6 :
@@ -343,7 +341,7 @@ export async function generateMigrationChecklist(
 
   while (queue.length > 0) {
     const assetId = queue.shift();
-    // 更安全的空值检查：shift() 在数组为空时返回 undefined
+
     if (assetId === undefined) {
       break;
     }

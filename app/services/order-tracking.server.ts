@@ -198,7 +198,7 @@ export async function getOrderTracking(
   trackingNumber?: string
 ): Promise<TrackingInfo | null> {
   try {
-    // P0-5: 使用 getUiModuleConfig 获取已解密的配置（包含解密后的 apiKey）
+
     const config = await getUiModuleConfig(shopId, "order_tracking");
 
     if (!config.isEnabled) {
@@ -211,8 +211,7 @@ export async function getOrderTracking(
     } | null;
 
     const provider = settings?.provider || "native";
-    
-    // P0-5: v1.0 版本只支持 native 提供商，第三方集成将在 v2.0+ 提供
+
     const { canUseThirdPartyTracking } = await import("../utils/version-gate");
     if (provider !== "native") {
       const gateResult = canUseThirdPartyTracking(provider);
@@ -222,8 +221,7 @@ export async function getOrderTracking(
           orderId,
           reason: gateResult.reason,
         });
-        // 降级到 native 提供商
-        // return null; // 或者返回 null，取决于业务需求
+
       }
     }
 

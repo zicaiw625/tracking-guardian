@@ -1,27 +1,4 @@
-/**
- * P0-1: Shopify Thank you / Order status 页面迁移截止日期配置
- * 
- * 统一迁移截止日期 - 使用 Shopify 官方口径（上架 App Store 要求）
- * 
- * 数据来源：Shopify 官方 Help Center（最后验证：2025-01）
- * - Plus 商家：https://help.shopify.com/en/manual/checkout-settings/upgrade-guide
- *   - 关键节点：2025-08-28（升级/限制开始）
- *   - 自动升级：2026-01 起开始自动升级（Plus 的自动升级节奏会更早）
- * - Non-Plus 商家：https://help.shopify.com/en/manual/checkout-settings/upgrade-guide
- *   - 截止日期：2026-08-26
- * 
- * 关键时间点（与 Shopify 官方 Help Center 一致）：
- * - 2025-02-01: ScriptTag 创建被禁止（所有商家）
- * - 2025-08-28: Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读（关键节点：升级/限制开始）
- * - 2026-01: Shopify 开始自动升级 Plus 商家 TYP/OSP 页面（legacy 自定义会丢失，通常带 30 天通知）
- * - 2026-08-26: 非 Plus 商家 ScriptTag 停止执行 / Additional Scripts 只读（截止日期）
- * 
- * 注意：
- * - 所有日期均引用 Shopify 官方 Help Center 和 shopify.dev 文档
- * - 如果 Shopify 官方更新日期，请通过环境变量覆盖或更新此文件
- * - 所有 UI 文案应明确引用 Shopify 官方来源，避免误导
- * - Audit 报告和首页 banner 里应增加"你是 Plus 还是 Non-Plus"的判断与对应日期展示
- */
+
 
 function parseEnvDate(envVar: string | undefined, defaultDate: string): Date {
     if (envVar && /^\d{4}-\d{2}-\d{2}$/.test(envVar)) {
@@ -46,9 +23,7 @@ const DEFAULT_DATES = {
     nonPlusAdditionalScriptsReadOnly: "2026-08-26",
     scriptTagBlocked: "2025-02-01",
 
-    // P1-2: 使用月份级别日期，避免硬编码精确日期
-    // Shopify 官方描述为"2026-01 起"，实际升级时间以官方通知为准
-    plusAutoUpgradeStart: "2026-01-01", // 使用月初作为默认值，但 UI 显示时使用月份精度
+    plusAutoUpgradeStart: "2026-01-01",
 } as const;
 
 export const DEPRECATION_DATES = {
@@ -77,9 +52,6 @@ export const DEPRECATION_DATES = {
         DEFAULT_DATES.scriptTagBlocked
     ),
 
-    // P1-2: 使用月份级别精度，避免硬编码精确日期
-    // Shopify 官方描述：2026-01 起开始自动升级（Plus 商家），通常带 30 天通知
-    // 实际升级时间以 Shopify 官方通知为准，此处仅作为月份级别估算
     plusAutoUpgradeStart: parseEnvDate(
         process.env.DEPRECATION_PLUS_AUTO_UPGRADE,
         DEFAULT_DATES.plusAutoUpgradeStart
@@ -143,8 +115,8 @@ export const DEADLINE_METADATA: Record<string, DateDisplayInfo> = {
     plusAutoUpgradeStart: {
         date: DEPRECATION_DATES.plusAutoUpgradeStart,
         precision: "month",
-        displayLabel: "2026-01", // P1-2: 使用月份精度，避免硬编码精确日期。Shopify 官方描述为"2026-01 起"，实际升级时间以官方通知为准
-        isEstimate: true, // 标记为估算，因为 Shopify 会分批自动升级，通常带 30 天通知
+        displayLabel: "2026-01",
+        isEstimate: true,
     },
 };
 export type ShopTier = "plus" | "non_plus" | "unknown";
@@ -449,7 +421,6 @@ export function getUpgradeStatusMessage(upgradeStatus: ShopUpgradeStatus, hasScr
     }
     if (tier === "plus" && isPlusDeadlinePassed) {
 
-        // P0-9: 使用官方表述，避免精确到日
         const autoUpgradeNote = isInPlusAutoUpgradeWindow
             ? `\n\n⚡ 自动升级窗口已开始：Shopify 正在将 Plus 商家自动迁移到新版页面（${autoUpgradeStartLabel}起，Shopify 会提前通知）。`
             : `\n\n📅 ${autoUpgradeStartLabel}起，Shopify 将开始自动迁移 Plus 商家到新版页面（Shopify 会提前通知）。`;

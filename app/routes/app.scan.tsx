@@ -102,15 +102,15 @@ function cancelIdleCallbackOrTimeout(handle: number | IdleCallbackHandle | null)
     if (handle === null) return;
 
     if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        // 如果 handle 是 number 类型，说明是 setTimeout 返回的，应该用 clearTimeout
+
         if (typeof handle === 'number') {
             clearTimeout(handle);
         } else {
-            // 如果是 IdleCallbackHandle 类型，使用 cancelIdleCallback
+
             cancelIdleCallback(handle);
         }
     } else {
-        // 不支持 cancelIdleCallback 的环境，统一使用 clearTimeout
+
         clearTimeout(handle as number);
     }
 }
@@ -217,11 +217,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
                             }
                             return true;
                         })
-                        .map(p => ({ 
-                            id: p.id, 
-                            settings: (p.settings !== undefined && typeof p.settings === "string") 
-                                ? p.settings 
-                                : null 
+                        .map(p => ({
+                            id: p.id,
+                            settings: (p.settings !== undefined && typeof p.settings === "string")
+                                ? p.settings
+                                : null
                         }));
                 }
             } catch (error) {
@@ -579,7 +579,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 }, { status: 400 });
             }
 
-            // 安全地验证和转换 platformDetails
             const platformDetailsRaw = data.platformDetails;
             const sanitizedPlatformDetails = Array.isArray(platformDetailsRaw)
                 ? platformDetailsRaw
@@ -616,11 +615,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     })
                 : [];
 
-            // 安全地验证和转换其他字段
             const identifiedPlatforms = Array.isArray(data.identifiedPlatforms)
                 ? data.identifiedPlatforms.filter((p): p is string => typeof p === "string")
                 : [];
-            
+
             const risks = Array.isArray(data.risks)
                 ? data.risks.filter((r): r is RiskItem => {
                     if (!r || typeof r !== "object" || Array.isArray(r)) {
@@ -634,11 +632,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     );
                 })
                 : [];
-            
+
             const riskScore = typeof data.riskScore === "number" && !isNaN(data.riskScore)
                 ? Math.max(0, Math.min(100, data.riskScore))
                 : 0;
-            
+
             const recommendations = Array.isArray(data.recommendations)
                 ? data.recommendations.filter((r): r is string => typeof r === "string")
                 : [];
@@ -1012,7 +1010,7 @@ function getUpgradeBannerTone(
         case "resolved": return "success";
         case "low": return "info";
         default: {
-            // Exhaustive check: all cases are handled above
+
             const _exhaustive: never = urgency;
             return "info";
         }
@@ -1154,8 +1152,7 @@ export default function ScanPage() {
         }
 
         if (process.env.NODE_ENV === "development") {
-            // 客户端调试输出：脚本分析错误
-            // eslint-disable-next-line no-console
+
             console.error("Script analysis error", {
                 error: errorMessage,
                 errorType: error instanceof Error ? error.constructor.name : "Unknown",
@@ -1317,8 +1314,7 @@ export default function ScanPage() {
                                 } catch (syncError) {
 
                                     if (process.env.NODE_ENV === "development") {
-                                        // 客户端调试输出：同步分析失败
-                                        // eslint-disable-next-line no-console
+
                                         console.warn(`Chunk ${i} synchronous analysis failed:`, syncError);
                                     }
                                     resolve();
@@ -1351,8 +1347,7 @@ export default function ScanPage() {
                             } catch (error) {
 
                                 if (process.env.NODE_ENV === "development") {
-                                    // 客户端调试输出：分块分析失败
-                                    // eslint-disable-next-line no-console
+
                                     console.warn(`Chunk ${i} analysis failed:`, error);
                                 }
                                 resolve();
@@ -1363,7 +1358,7 @@ export default function ScanPage() {
                             const handle = requestIdleCallback(processChunk, { timeout: TIMEOUTS.IDLE_CALLBACK });
                             idleCallbackHandlesRef.current.push(handle);
                         } else {
-                            // 在浏览器环境中，setTimeout 返回 number 类型
+
                             const handle = setTimeout(processChunk, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number | IdleCallbackHandle;
                             idleCallbackHandlesRef.current.push(handle);
                         }
@@ -1416,7 +1411,7 @@ export default function ScanPage() {
                         const handle = requestIdleCallback(processContent, { timeout: TIMEOUTS.IDLE_CALLBACK });
                         idleCallbackHandlesRef.current.push(handle);
                     } else {
-                        // 在浏览器环境中，setTimeout 返回 number 类型
+
                         const handle = setTimeout(processContent, TIMEOUTS.SET_TIMEOUT_FALLBACK) as unknown as number | IdleCallbackHandle;
                         idleCallbackHandlesRef.current.push(handle);
                     }
@@ -1544,7 +1539,7 @@ export default function ScanPage() {
                 showError("请至少选择一个平台或功能");
             }
         } catch (error) {
-            // eslint-disable-next-line no-console
+
             console.error("Failed to process manual input", error);
             showError("处理失败，请稍后重试");
         }
@@ -1965,12 +1960,12 @@ export default function ScanPage() {
                       >
                         导出风险报告 (PDF){!isGrowthOrAbove ? " (需 Go-Live)" : ""}
                       </Button>
-                      {/* 分享链接是免费的，导出需要付费 */}
+                      {}
                       <Button
                         icon={ShareIcon}
                         onClick={async () => {
                           try {
-                            // 尝试生成可分享链接（免费功能）
+
                             const response = await fetch("/api/reports/share", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
@@ -1986,10 +1981,10 @@ export default function ScanPage() {
                                 throw error;
                               });
                               const shareUrl = data.shareUrl;
-                              
+
                               const validatedRiskScore = validateRiskScore(latestScan.riskScore);
                               const scanDate = safeParseDate(latestScan.createdAt);
-                              
+
                               const shareText = `店铺追踪扫描报告\n风险评分: ${validatedRiskScore}/100\n检测平台: ${identifiedPlatforms.join(", ") || "无"}\n扫描时间: ${scanDate.toLocaleString("zh-CN")}\n\n查看完整报告: ${shareUrl}`;
 
                               if (navigator.share) {
@@ -2003,12 +1998,11 @@ export default function ScanPage() {
                                   return;
                                 } catch (error) {
                                   if (error instanceof Error && error.name !== 'AbortError') {
-                                    // 分享失败，回退到复制
+
                                   }
                                 }
                               }
 
-                              // 回退到复制链接
                               if (navigator.clipboard && navigator.clipboard.writeText) {
                                 await navigator.clipboard.writeText(shareUrl);
                                 showSuccess("报告链接已复制到剪贴板（7天内有效）");
@@ -2016,7 +2010,7 @@ export default function ScanPage() {
                                 showError("浏览器不支持分享或复制功能");
                               }
                             } else {
-                              // 如果生成链接失败，使用简单的文本分享
+
                               const validatedRiskScore = validateRiskScore(latestScan.riskScore);
                               const scanDate = safeParseDate(latestScan.createdAt);
                               const shareData = {
@@ -2031,7 +2025,7 @@ export default function ScanPage() {
                                   return;
                                 } catch (error) {
                                   if (error instanceof Error && error.name !== 'AbortError') {
-                                    // 继续到复制
+
                                   }
                                 }
                               }
@@ -2117,7 +2111,7 @@ export default function ScanPage() {
                       {latestScan.riskScore > 60 ? "High" : latestScan.riskScore > 30 ? "Med" : "Low"}
                     </Badge>
                   </InlineStack>
-                  {/* P1-6: 预计修复时间 */}
+                  {}
                   {(() => {
                     const estimatedTimeMinutes = riskItems.reduce((sum, item) => {
                       const timeMap: Record<string, number> = { high: 30, medium: 15, low: 5 };
@@ -2140,20 +2134,20 @@ export default function ScanPage() {
                     扫描时间:{" "}
                     {safeFormatDate(latestScan.createdAt)}
                   </Text>
-                  {/* P1-6: 关键CTA按钮 */}
+                  {}
                   <Divider />
                   <BlockStack gap="200">
-                    <Button 
+                    <Button
                       url={isPlanAtLeast(planIdSafe, "starter") ? "/app/migrate" : "/app/billing"}
                       variant={isPlanAtLeast(planIdSafe, "starter") ? "primary" : "secondary"}
                       fullWidth
                     >
-                      {isPlanAtLeast(planIdSafe, "starter") 
-                        ? "启用Purchase-only修复（10分钟）" 
+                      {isPlanAtLeast(planIdSafe, "starter")
+                        ? "启用Purchase-only修复（10分钟）"
                         : "升级到 Migration 启用修复"}
                     </Button>
                     {!isPlanAtLeast(planIdSafe, "growth") && (
-                      <Button 
+                      <Button
                         url="/app/billing"
                         variant="secondary"
                         fullWidth
@@ -2499,24 +2493,24 @@ export default function ScanPage() {
                 </Text>
                 <Badge tone="info">{`${riskItems.length} 项`}</Badge>
               </InlineStack>
-              
-              {/* P1-6: 免费层限制 - 只显示前 3 条高风险项 */}
+
+              {}
               {(() => {
                 const isFreePlan = planId === "free";
                 const FREE_AUDIT_LIMIT = 3;
                 const highRiskItems = riskItems.filter(item => item.severity === "high");
-                const displayedItems = isFreePlan 
+                const displayedItems = isFreePlan
                   ? highRiskItems.slice(0, FREE_AUDIT_LIMIT)
                   : riskItems;
-                const hiddenCount = isFreePlan 
+                const hiddenCount = isFreePlan
                   ? Math.max(0, riskItems.length - FREE_AUDIT_LIMIT)
                   : 0;
                 const estimatedTimeMinutes = riskItems.reduce((sum, item) => {
-                  // 根据风险级别估算修复时间
+
                   const timeMap = { high: 30, medium: 15, low: 5 };
                   return sum + (timeMap[item.severity] || 10);
                 }, 0);
-                
+
                 return (
                   <>
                     <BlockStack gap="300">
@@ -2555,8 +2549,8 @@ export default function ScanPage() {
                     </BlockStack>
                   </Box>))}
                     </BlockStack>
-                    
-                    {/* P1-6: 免费层解锁提示 */}
+
+                    {}
                     {isFreePlan && hiddenCount > 0 && (
                       <Banner tone="warning">
                         <BlockStack gap="200">
@@ -2564,15 +2558,15 @@ export default function ScanPage() {
                             <strong>免费版限制：</strong>仅显示前 {FREE_AUDIT_LIMIT} 条高风险项，还有 {hiddenCount} 项未显示。
                           </Text>
                           <InlineStack gap="200">
-                            <Button 
-                              url="/app/billing" 
+                            <Button
+                              url="/app/billing"
                               variant="primary"
                               size="slim"
                             >
                               升级解锁完整报告
                             </Button>
-                            <Button 
-                              url="/app/migrate" 
+                            <Button
+                              url="/app/migrate"
                               size="slim"
                             >
                               启用 Purchase-only 修复（10 分钟）
@@ -2581,8 +2575,8 @@ export default function ScanPage() {
                         </BlockStack>
                       </Banner>
                     )}
-                    
-                    {/* P1-6: 风险分数摘要和预计修复时间 */}
+
+                    {}
                     <Box background="bg-surface-secondary" padding="400" borderRadius="200">
                       <BlockStack gap="300">
                         <InlineStack align="space-between" blockAlign="center">
@@ -2590,7 +2584,7 @@ export default function ScanPage() {
                             预计修复时间
                           </Text>
                           <Badge tone={estimatedTimeMinutes > 60 ? "warning" : "info"}>
-                            {estimatedTimeMinutes > 60 
+                            {estimatedTimeMinutes > 60
                               ? `${Math.floor(estimatedTimeMinutes / 60)} 小时 ${estimatedTimeMinutes % 60} 分钟`
                               : `${estimatedTimeMinutes} 分钟`}
                           </Badge>
@@ -2699,7 +2693,7 @@ export default function ScanPage() {
                             配置 Pixel
                           </Button>
                         )}
-                        {action.type === "enable_capi" && false && ( // v1 暂不支持 CAPI，v1.1+ 功能
+                        {action.type === "enable_capi" && false && (
                           <Button
                             size="slim"
                             url="/app/settings"
@@ -2997,8 +2991,7 @@ export default function ScanPage() {
                           } catch (error) {
 
                             if (process.env.NODE_ENV === "development") {
-                                // 客户端调试输出：剪贴板复制失败
-                                // eslint-disable-next-line no-console
+
                                 console.error("复制失败:", error);
                             }
                             showError("复制失败，请手动复制");
@@ -3043,8 +3036,7 @@ export default function ScanPage() {
                                 } catch (removeError) {
 
                                   if (process.env.NODE_ENV === "development") {
-                                      // 客户端调试输出：清理下载链接失败
-                                      // eslint-disable-next-line no-console
+
                                       console.warn("Failed to remove download link:", removeError);
                                   }
                                 }
@@ -3058,8 +3050,7 @@ export default function ScanPage() {
                             } catch (domError) {
 
                               if (process.env.NODE_ENV === "development") {
-                                  // 客户端调试输出：触发下载失败
-                                  // eslint-disable-next-line no-console
+
                                   console.error("Failed to trigger download:", domError);
                               }
 
@@ -3077,8 +3068,7 @@ export default function ScanPage() {
                           } catch (error) {
 
                             if (process.env.NODE_ENV === "development") {
-                                // 客户端调试输出：导出失败
-                                // eslint-disable-next-line no-console
+
                                 console.error("导出失败:", error);
                             }
 
@@ -3119,8 +3109,7 @@ export default function ScanPage() {
                           } catch (error) {
 
                             if (process.env.NODE_ENV === "development") {
-                                // 客户端调试输出：PDF导出失败
-                                // eslint-disable-next-line no-console
+
                                 console.error("PDF 导出失败:", error);
                             }
                             showError(error instanceof Error ? error.message : "PDF 导出失败，请重试");

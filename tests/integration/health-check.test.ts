@@ -22,7 +22,7 @@ describe("Health Check Endpoint", () => {
 
             const { loader } = await import("../../app/routes/api.health");
 
-            const request = new Request("http://localhost/ready");//localhost/health");
+            const request = new Request("http://localhost/ready");
             const response = await loader({ request, params: {}, context: {} });
             const data = await response.json();
 
@@ -38,7 +38,7 @@ describe("Health Check Endpoint", () => {
 
             const { loader } = await import("../../app/routes/api.health");
 
-            const request = new Request("http://localhost/ready");//localhost/health");
+            const request = new Request("http://localhost/ready");
             const response = await loader({ request, params: {}, context: {} });
             const data = await response.json();
 
@@ -80,7 +80,7 @@ describe("Health Check Endpoint", () => {
 
             const { loader } = await import("../../app/routes/api.health");
 
-            const request = new Request("http://localhost/ready");//localhost/health");
+            const request = new Request("http://localhost/ready");
             const response = await loader({ request, params: {}, context: {} });
             const data = await response.json();
 

@@ -207,7 +207,7 @@ export default function SurveyPage() {
   }
 
   const responseRows = recentResponses.map((response) => {
-    // 安全解析日期
+
     let dateStr = "-";
     if (response.createdAt) {
       try {
@@ -216,7 +216,7 @@ export default function SurveyPage() {
           dateStr = date.toLocaleDateString("zh-CN");
         }
       } catch {
-        // 如果日期解析失败，使用默认值
+
         dateStr = "-";
       }
     }

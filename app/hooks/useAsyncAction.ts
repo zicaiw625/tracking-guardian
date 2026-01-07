@@ -57,7 +57,7 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      // 清理未完成的请求
+
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -67,18 +67,16 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
 
   const execute = useCallback(
     async (...args: Args): Promise<T | null> => {
-      // 取消之前的请求（如果存在）
+
       const previousController = abortControllerRef.current;
       if (previousController) {
         previousController.abort();
       }
 
-      // 创建新的AbortController
       const abortController = new AbortController();
       const currentController = abortController;
       abortControllerRef.current = currentController;
 
-      // 检查组件是否已卸载
       if (!mountedRef.current) {
         return null;
       }
@@ -94,12 +92,10 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
       try {
         const result = await action(...args);
 
-        // 检查是否被取消或组件已卸载
         if (currentController.signal.aborted || !mountedRef.current) {
           return null;
         }
 
-        // 再次检查是否仍然是当前控制器（防止竞态条件）
         if (abortControllerRef.current !== currentController) {
           return null;
         }
@@ -115,12 +111,11 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
 
         return result;
       } catch (err) {
-        // 如果请求被取消或组件已卸载，不更新状态
+
         if (currentController.signal.aborted || !mountedRef.current) {
           return null;
         }
 
-        // 再次检查是否仍然是当前控制器（防止竞态条件）
         if (abortControllerRef.current !== currentController) {
           return null;
         }
@@ -138,7 +133,7 @@ export function useAsyncAction<T, Args extends unknown[] = []>(
 
         return null;
       } finally {
-        // 清理AbortController引用（仅当仍然是当前控制器时）
+
         if (abortControllerRef.current === currentController) {
           abortControllerRef.current = null;
         }

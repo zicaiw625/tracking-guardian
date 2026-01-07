@@ -101,7 +101,7 @@ describe("GDPR Compliance Webhooks", () => {
         id: "shop-id-123",
         shopDomain: "test-shop.myshopify.com",
         isActive: true,
-        // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
         pixelConfigs: [],
       } as any);
 

@@ -21,8 +21,8 @@ interface AuditAssetsByRiskProps {
   onAssetClick?: (assetId: string) => void;
   onMigrateClick?: (asset: AuditAssetRecord) => void;
   currentPlan?: PlanId;
-  // P1-6: 免费层显示限制
-  freeTierLimit?: number; // 免费层最多显示多少条高风险资产
+
+  freeTierLimit?: number;
 }
 
 function determineRiskCategory(
@@ -100,12 +100,12 @@ const RISK_CATEGORY_INFO: Record<string, { label: string; tone: "critical" | "wa
   },
 };
 
-export function AuditAssetsByRisk({ 
-  assets, 
-  onAssetClick, 
+export function AuditAssetsByRisk({
+  assets,
+  onAssetClick,
   onMigrateClick,
   currentPlan = "free",
-  freeTierLimit = 3, // P1-6: 免费层默认只显示前 3 条高风险资产
+  freeTierLimit = 3,
 }: AuditAssetsByRiskProps) {
 
   const assetsByCategory = {
@@ -123,17 +123,14 @@ export function AuditAssetsByRisk({
     }),
   };
 
-  // P1-6: 计算风险分数和预计修复时间
   const highRiskAssets = assetsByCategory.will_fail;
   const mediumRiskAssets = assetsByCategory.can_replace;
   const totalHighRisk = highRiskAssets.length;
   const totalMediumRisk = mediumRiskAssets.length;
-  
-  // 计算总体风险分数（基于高风险和中风险资产数量）
+
   const riskScore = totalHighRisk * 30 + totalMediumRisk * 15;
   const riskLevel = riskScore >= 60 ? "high" : riskScore >= 30 ? "medium" : "low";
-  
-  // 计算预计修复时间（分钟）
+
   const getEstimatedTime = (asset: AuditAssetRecord): number => {
     if (asset.details && typeof asset.details === "object") {
       const details = asset.details as Record<string, unknown>;
@@ -142,19 +139,18 @@ export function AuditAssetsByRisk({
     }
     return asset.riskLevel === "high" ? 30 : 20;
   };
-  
-  const estimatedTimeMinutes = highRiskAssets.reduce((sum, asset) => 
+
+  const estimatedTimeMinutes = highRiskAssets.reduce((sum, asset) =>
     sum + getEstimatedTime(asset), 0
-  ) + mediumRiskAssets.reduce((sum, asset) => 
+  ) + mediumRiskAssets.reduce((sum, asset) =>
     sum + getEstimatedTime(asset), 0
   );
 
-  // P1-6: 免费层限制 - 只显示前 N 条高风险资产
   const isFreeTier = currentPlan === "free";
-  const visibleHighRiskAssets = isFreeTier 
+  const visibleHighRiskAssets = isFreeTier
     ? highRiskAssets.slice(0, freeTierLimit)
     : highRiskAssets;
-  const hiddenHighRiskCount = isFreeTier 
+  const hiddenHighRiskCount = isFreeTier
     ? Math.max(0, totalHighRisk - freeTierLimit)
     : 0;
 
@@ -201,7 +197,7 @@ export function AuditAssetsByRisk({
           <Badge tone="info">{`${totalAssets} 项`}</Badge>
         </InlineStack>
 
-        {/* P1-6: 风险分数摘要卡片 */}
+        {}
         <Card>
           <BlockStack gap="300">
             <Text as="h3" variant="headingSm">
@@ -250,7 +246,7 @@ export function AuditAssetsByRisk({
               </Box>
               <Box minWidth="200px">
                 <BlockStack gap="200">
-                  {/* P1-6: 关键 CTA - 一键修复按钮 */}
+                  {}
                   {totalHighRisk > 0 && (
                     <BlockStack gap="200">
                       <Button
@@ -317,8 +313,8 @@ export function AuditAssetsByRisk({
                               <Badge>{asset.platform}</Badge>
                             )}
                             {(() => {
-                              const priority = asset.details && typeof asset.details === "object" 
-                                ? (asset.details as Record<string, unknown>).priority 
+                              const priority = asset.details && typeof asset.details === "object"
+                                ? (asset.details as Record<string, unknown>).priority
                                 : undefined;
                               if (typeof priority === "number" && priority > 0) {
                                 return (
@@ -390,8 +386,8 @@ export function AuditAssetsByRisk({
                             return null;
                           })()}
                           {(() => {
-                            const priority = asset.details && typeof asset.details === "object" 
-                              ? (asset.details as Record<string, unknown>).priority 
+                            const priority = asset.details && typeof asset.details === "object"
+                              ? (asset.details as Record<string, unknown>).priority
                               : undefined;
                             if (typeof priority === "number" && priority >= 8) {
                               return <Badge tone="critical">高优先级</Badge>;
@@ -404,8 +400,8 @@ export function AuditAssetsByRisk({
                   </Box>
                 );
               })}
-              
-              {/* P1-6: 免费层解锁提示 */}
+
+              {}
               {hiddenHighRiskCount > 0 && (
                 <Box
                   background="bg-surface-secondary"
@@ -480,8 +476,8 @@ export function AuditAssetsByRisk({
                                 <Badge>{asset.platform}</Badge>
                               )}
                               {(() => {
-                                const priority = asset.details && typeof asset.details === "object" 
-                                  ? (asset.details as Record<string, unknown>).priority 
+                                const priority = asset.details && typeof asset.details === "object"
+                                  ? (asset.details as Record<string, unknown>).priority
                                   : undefined;
                                 if (typeof priority === "number" && priority > 0) {
                                   return (
@@ -553,8 +549,8 @@ export function AuditAssetsByRisk({
                               return null;
                             })()}
                             {(() => {
-                              const priority = asset.details && typeof asset.details === "object" 
-                                ? (asset.details as Record<string, unknown>).priority 
+                              const priority = asset.details && typeof asset.details === "object"
+                                ? (asset.details as Record<string, unknown>).priority
                                 : undefined;
                               if (typeof priority === "number" && priority >= 5 && priority < 8) {
                                 return <Badge>中优先级</Badge>;
@@ -612,8 +608,8 @@ export function AuditAssetsByRisk({
                                 <Badge>{asset.platform}</Badge>
                               )}
                               {(() => {
-                                const priority = asset.details && typeof asset.details === "object" 
-                                  ? (asset.details as Record<string, unknown>).priority 
+                                const priority = asset.details && typeof asset.details === "object"
+                                  ? (asset.details as Record<string, unknown>).priority
                                   : undefined;
                                 if (typeof priority === "number" && priority > 0) {
                                   return (

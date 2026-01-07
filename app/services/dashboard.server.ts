@@ -141,7 +141,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
       },
       ReconciliationReport: {
         orderBy: { reportDate: "desc" },
-        take: 7, // P2-9: 性能优化 - 只取最近 7 天的对账报告，使用预聚合数据
+        take: 7,
         select: { orderDiscrepancy: true },
       },
       AlertConfig: {
@@ -159,8 +159,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
           },
         },
       },
-      // P2-9: 性能优化 - 使用预聚合的统计表（如果存在）来加速查询
-      // 当前使用 _count，未来可以考虑使用物化视图或预聚合表
+
     },
   });
 
@@ -186,8 +185,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
 
   const configuredPlatforms = shop.pixelConfigs?.length || 0;
 
-  // P2-9: 性能优化 - 尝试使用预聚合数据获取周转化统计
-  // 如果预聚合数据不可用，回退到实时计算
   let weeklyConversions = shop._count?.ConversionLog || 0;
   try {
     const { getAggregatedMetrics } = await import("./dashboard-aggregation.server");
@@ -196,7 +193,7 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     const aggregated = await getAggregatedMetrics(shop.id, sevenDaysAgo, new Date());
     weeklyConversions = aggregated.totalOrders;
   } catch (error) {
-    // 如果预聚合失败，使用默认的 _count 结果
+
     logger.debug("Failed to get aggregated metrics, using real-time count", {
       shopId: shop.id,
       error: error instanceof Error ? error.message : String(error),
@@ -288,7 +285,6 @@ export async function getDashboardData(shopDomain: string): Promise<DashboardDat
     }
   }
 
-  // 使用类型守卫确保类型安全
   const shopTier = (shop.shopTier !== null && shop.shopTier !== undefined && isValidShopTier(shop.shopTier))
     ? shop.shopTier
     : "unknown";

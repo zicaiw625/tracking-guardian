@@ -9,8 +9,7 @@ import type {
 } from "../../types";
 import type { PlatformType } from "~/types/enums";
 import { logger } from "~/utils/logger.server";
-// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此移除 hashValue, normalizePhone, normalizeEmail 导入
-// 这些函数将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
+
 import {
   type IPlatformService,
   type PlatformSendResult,
@@ -315,10 +314,6 @@ export function formatErrorForLog(error: PlatformError): Record<string, unknown>
     retryAfter: error.retryAfter,
   };
 }
-
-// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此完全删除 MetaUserData, TikTokUserData, PiiQuality 类型定义
-// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
-// 这些类型定义将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
 
 export abstract class BasePlatformService implements IPlatformService {
   abstract readonly platform: PlatformType;

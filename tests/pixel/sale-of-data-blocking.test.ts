@@ -30,7 +30,7 @@ describe("P0-7: sale_of_data Opt-Out Blocking", () => {
     isActive: true,
     ingestionSecret: "test-secret-32-chars-long-here!",
     consentStrategy: "strict",
-    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
     storefrontDomains: ["test-shop.myshopify.com"],
   };
 

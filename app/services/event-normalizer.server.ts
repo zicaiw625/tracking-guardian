@@ -46,7 +46,7 @@ export function normalizeToCanonical(
   const data = payload.data || {};
 
   const value = normalizeValue(data.value);
-  // 传递 eventName 以便 normalizeCurrency 可以根据事件类型决定是否需要记录警告
+
   const currency = normalizeCurrency(data.currency, payload.eventName);
 
   const items = normalizeItems(data.items);
@@ -109,30 +109,14 @@ export function mapToPlatform(
   };
 }
 
-/**
- * P1-4: 生成 canonical event_id（可测试的纯函数，含版本号）
- * 
- * 版本: v2（修复了 fallback 冲突问题）
- * 
- * 生成规则:
- * 1. 对于 purchase/checkout_completed 事件: 使用 orderId 作为 identifier
- * 2. 对于其他事件: 使用 orderId 或 checkoutToken 作为 identifier
- * 3. 如果都没有: 优先使用 nonce（如果提供），否则使用毫秒级时间戳 + 随机数
- * 4. 包含 items hash 以确保同一订单的不同商品组合有不同的 event_id
- * 
- * 输入格式: `${version}:${shopDomain}:${identifier}:${eventName}:${itemsHash}`
- * 输出: SHA256 哈希的前 32 个字符
- * 
- * 注意: 此函数必须是纯函数，相同的输入必须产生相同的输出
- */
 export function generateCanonicalEventId(
   orderId: string | null | undefined,
   checkoutToken: string | null | undefined,
   eventName: string,
   shopDomain: string,
   items?: Array<{ id: string; quantity: number }>,
-  version: string = "v2", // 版本号更新为 v2（修复 fallback 冲突）
-  nonce?: string | null | undefined // P1-4: 添加 nonce 参数用于 fallback 去重
+  version: string = "v2",
+  nonce?: string | null | undefined
 ): string {
   const crypto = require("crypto");
 
@@ -142,9 +126,7 @@ export function generateCanonicalEventId(
   } else if (checkoutToken) {
     identifier = checkoutToken;
   } else {
-    // P1-4: 修复 fallback 冲突问题
-    // 优先使用 nonce（如果提供），确保去重准确性
-    // 如果没有 nonce，使用毫秒级时间戳 + 随机数，避免同一秒内冲突
+
     if (nonce) {
       identifier = `nonce_${nonce}`;
       logger.debug("Using nonce for event ID generation (fallback)", {
@@ -153,9 +135,9 @@ export function generateCanonicalEventId(
         noncePrefix: nonce.substring(0, 8),
       });
     } else {
-      // 使用毫秒级时间戳 + 随机数，确保唯一性
-      const timestampMs = Date.now(); // 毫秒级时间戳
-      const randomSuffix = crypto.randomBytes(4).toString("hex"); // 8 字符随机数
+
+      const timestampMs = Date.now();
+      const randomSuffix = crypto.randomBytes(4).toString("hex");
       identifier = `fallback_${timestampMs}_${randomSuffix}`;
       logger.warn("Generating event ID without orderId, checkoutToken, or nonce (non-idempotent, should be avoided)", {
         eventName,
@@ -167,7 +149,7 @@ export function generateCanonicalEventId(
 
   let itemsHash = "";
   if (items && items.length > 0) {
-    // 对 items 进行排序以确保一致性
+
     const itemsKey = items
       .map(item => `${item.id}:${item.quantity}`)
       .sort()
@@ -179,7 +161,6 @@ export function generateCanonicalEventId(
       .substring(0, 8);
   }
 
-  // 包含版本号以确保未来兼容性
   const input = `${version}:${shopDomain}:${identifier}:${eventName}:${itemsHash}`;
   return crypto
     .createHash("sha256")
@@ -202,11 +183,9 @@ function normalizeValue(value: unknown): number {
 }
 
 function normalizeCurrency(currency: unknown, eventName: string): string {
-  // 如果 currency 为 null 或 undefined
+
   if (currency === null || currency === undefined) {
-    // 对于需要货币的事件（purchase, add_to_cart 等），如果没有货币信息，记录警告并使用 USD 作为兜底
-    // 对于不需要货币的事件（page_viewed），也使用 USD 作为默认值（因为接口要求 string）
-    // 注意：这应该是最后的后备方案，正常情况下应该从事件数据中获取 currency
+
     const requiresCurrency = ["checkout_completed", "purchase", "product_added_to_cart", "checkout_started", "product_viewed"].includes(eventName);
     if (requiresCurrency) {
       logger.warn(`Missing currency for ${eventName} event, using USD as fallback. This may indicate a data quality issue.`, {
@@ -219,13 +198,11 @@ function normalizeCurrency(currency: unknown, eventName: string): string {
   if (typeof currency === "string") {
     const upper = currency.toUpperCase().trim();
 
-    // 验证是否为有效的 ISO 4217 货币代码（3 个大写字母）
     if (/^[A-Z]{3}$/.test(upper)) {
       return upper;
     }
   }
 
-  // 只有在格式错误时才记录警告并使用默认值
   logger.warn("Invalid currency format, defaulting to USD", {
     currency,
     currencyType: typeof currency,

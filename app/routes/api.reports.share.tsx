@@ -7,7 +7,7 @@ import prisma from "../db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
-  
+
   if (!admin || !session) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -24,7 +24,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "Missing reportType or reportId" }, { status: 400 });
     }
 
-    // P0-2: 使用 GraphQL 替代 REST API（符合 Shopify 上架要求）
     const shopQuery = await admin.graphql(`
       query {
         shop {
@@ -33,14 +32,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
     `);
-    
+
     const shopData = await shopQuery.json() as { data?: { shop?: { id?: string; myshopifyDomain?: string } }; errors?: Array<{ message?: string }> };
-    
+
     if (shopData.errors || !shopData.data?.shop) {
       return json({ error: "Shop not found" }, { status: 404 });
     }
 
-    // 获取shop记录
     const shopRecord = await prisma.shop.findUnique({
       where: { shopDomain: session.shop },
       select: { id: true },

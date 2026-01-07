@@ -1,8 +1,4 @@
-/**
- * P2-9: 报表任务状态查询 API
- * 
- * 客户端通过此端点轮询报表生成任务的状态。
- */
+
 
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
@@ -33,7 +29,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     return json({ error: "Job not found" }, { status: 404 });
   }
 
-  // 验证任务属于当前店铺
   if (job.shopId !== shop.id) {
     return json({ error: "Unauthorized" }, { status: 403 });
   }

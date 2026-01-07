@@ -67,7 +67,6 @@ export interface PixelConfig {
 export const DEFAULT_PIXEL_CONFIG: PixelConfig = {
   schema_version: "1",
 
-  // v1 默认使用 purchase_only（仅收集 checkout_completed），商家可在设置中切换 full_funnel
   mode: "purchase_only",
   enabled_platforms: "meta,tiktok,google",
   strictness: "strict",
@@ -107,15 +106,12 @@ export function parsePixelConfig(configStr?: string): PixelConfig {
 export interface PixelSettings {
   ingestion_key?: string;
   shop_domain?: string;
-  config_version?: string; // P1-11: 配置版本号，用于向后兼容
-  // P0-2: 添加 mode 字段，用于控制像素端订阅的事件类型
-  // purchase_only: 仅订阅 checkout_completed 事件（默认，符合隐私最小化原则）
-  // full_funnel: 订阅全漏斗事件（page_viewed, product_viewed, product_added_to_cart, checkout_started, checkout_completed 等）
+  config_version?: string;
+
   mode?: "purchase_only" | "full_funnel";
-  // P1-11: pixel_config 已移除，不再在 settings 中存储大 JSON
-  // 像素端使用默认配置，完整配置由后端根据 shop_domain 提供
-  pixel_config?: string; // 保留用于向后兼容，但不再使用
-  // P0-4: 默认环境（test 或 live），用于后端按环境过滤配置
+
+  pixel_config?: string;
+
   environment?: "test" | "live";
 }
 

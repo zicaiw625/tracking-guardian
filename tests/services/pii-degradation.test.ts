@@ -4,7 +4,6 @@ import type { ConversionData } from "../../app/types";
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// P0-5: v1.0 版本不包含任何 PCD/PII 处理，因此更新测试以验证"不包含 PII"的行为
 describe("P0-01: v1.0 No PII Handling", () => {
   beforeEach(() => {
     mockFetch.mockReset();
@@ -32,7 +31,7 @@ describe("P0-01: v1.0 No PII Handling", () => {
       };
 
       expect(data.orderId).toBe("12345");
-      // P0-3: v1.0 版本不处理任何 PII，即使字段存在也应为 null/undefined
+
       expect(data.email).toBeNull();
       expect(data.phone).toBeNull();
     });
@@ -123,7 +122,6 @@ describe("P0-01: v1.0 No PII Handling", () => {
       const [, requestInit] = mockFetch.mock.calls[0];
       const body = JSON.parse(requestInit.body);
 
-      // P0-3: v1.0 版本不包含 user_data 字段（不处理任何 PII）
       expect(body.data[0].user_data).toBeUndefined();
     });
   });

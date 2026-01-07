@@ -133,7 +133,7 @@ export async function httpRequest<T = unknown>(
         data = await response.json() as T;
       } else {
         const text = await response.text();
-        // 对于非JSON响应，如果T是string类型则返回文本，否则返回错误对象
+
         data = (typeof text === "string" ? text : { type: "text", content: text }) as T;
       }
 

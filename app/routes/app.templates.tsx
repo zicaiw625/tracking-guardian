@@ -372,8 +372,7 @@ export default function TemplatesPage() {
       showError("生成分享链接失败");
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：生成分享链接错误
-        // eslint-disable-next-line no-console
+
         console.error("Share link generation error", error);
       }
     } finally {
@@ -391,8 +390,7 @@ export default function TemplatesPage() {
       showError("复制失败，请手动复制");
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：复制错误
-        // eslint-disable-next-line no-console
+
         console.error("Copy error", error);
       }
     }

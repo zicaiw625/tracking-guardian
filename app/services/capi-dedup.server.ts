@@ -164,8 +164,7 @@ export async function checkShouldSend(
         reason: "duplicate",
       };
     }
-    
-    // Log other errors but don't block the operation
+
     logger.warn("Failed to create event nonce", {
       orderId,
       platform,

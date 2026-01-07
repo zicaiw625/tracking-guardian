@@ -60,7 +60,7 @@ export interface IFeatureFlags {
   debugLogging: boolean;
   extendedPayload: boolean;
   trackingApi: boolean;
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PII_HASHING feature flag
+
   checkoutBlocks: boolean;
 }
 

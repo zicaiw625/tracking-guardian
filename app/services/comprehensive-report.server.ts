@@ -305,9 +305,7 @@ async function exportComprehensiveReportPDF(
   options: ComprehensiveReportOptions
 ): Promise<{ content: Buffer; filename: string; mimeType: string }> {
   try {
-    // Dynamic import for pdfkit
-    // Note: Using any type here because pdfkit's type definitions are incomplete
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     let PDFDocument: any;
     try {
       const pdfkit = await import("pdfkit");
@@ -449,7 +447,6 @@ export async function exportBatchComprehensiveReports(
       throw new Error("archiver package not available for batch report generation");
     }
 
-    // Handle both default export and named export
     const archiverFactory = (archiverModule as { default?: typeof import("archiver") }).default || archiverModule;
     if (typeof archiverFactory !== "function") {
       throw new Error("archiver module is not a function");

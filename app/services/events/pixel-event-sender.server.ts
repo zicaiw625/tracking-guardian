@@ -1,26 +1,4 @@
-/**
- * P0-1: PRD 对齐 - Pixel Event Sender
- * 
- * 审计结论对齐：
- * - ✅ Ingest API 形态已符合 PRD 8.2 要求
- *   - POST /ingest 端点支持批量格式 { events: [...] }（符合 PRD 8.2）
- *   - Web Pixel Extension 使用批量格式发送事件到 /ingest 端点
- *   - 支持 batched 性能目标（减少网络请求数，提高并发处理能力）
- *   - POST /api/pixel-events 作为向后兼容的单事件接口保留
- * 
- * - ✅ 验收范围已收敛到 v1.0 范围
- *   - 仅验收 checkout/purchase 漏斗事件（checkout_started, checkout_completed, product_added_to_cart, product_viewed, page_viewed 等）
- *   - 不包含 refund/cancel/order_edit/subscription 事件（将在 v1.1+ 中通过订单 webhooks 实现）
- * 
- * - ✅ 套餐结构符合 PRD 11.1
- *   - Free / Starter $29 / Growth $79 / Agency $199（月付）
- *   - Monitor 计划不在 v1.0 PRD 中，已通过 PLAN_IDS 排除，确保 UI 中不显示
- * 
- * - ✅ 本地化功能完整实现
- *   - 支持按 locale 保存多语言配置（LocalizationSettingsForm）
- *   - checkout extension 中已实现 getLocalizedText 函数，根据当前 locale 自动选择对应语言的文本
- *   - 符合 PRD 4.4 的"可配置文案、本地化"要求
- */
+
 
 import type { PixelEventPayload } from "~/routes/api.pixel-events/types";
 import { logger } from "~/utils/logger.server";
@@ -30,9 +8,9 @@ import { getPlatformEventName } from "../pixel-mapping.server";
 import type { Platform } from "~/types/platform";
 import type { PlatformCredentials } from "~/types";
 import { fetchWithTimeout, DEFAULT_API_TIMEOUT_MS } from "../platforms/interface";
-import { 
-  createDeliveryAttempt, 
-  updateDeliveryAttempt 
+import {
+  createDeliveryAttempt,
+  updateDeliveryAttempt
 } from "../event-log.server";
 
 const GA4_MEASUREMENT_PROTOCOL_URL = "https://www.google-analytics.com/mp/collect";
@@ -49,42 +27,21 @@ interface PixelEventSendResult {
   responseBody?: string;
 }
 
-/**
- * P1-1: 将 Shopify 事件名映射到平台事件名
- * 支持所有 full_funnel 事件类型
- * 
- * 事件映射版本化说明：
- * - PixelConfig.eventMappings 存储平台特定的事件映射（如 GA4/Meta/TikTok preset）
- * - PixelConfig.configVersion 用于整个配置的版本控制（包括 eventMappings）
- * - 当商家选择不同的 preset 时，eventMappings 会被更新，configVersion 会递增
- * - rollback 功能可以回滚到上一个版本的 eventMappings（通过 previousConfig）
- * 
- * 优先使用配置的 eventMappings，如果没有配置则使用默认映射
- * 这允许商家选择不同的映射 preset（GA4/Meta/TikTok 标准映射）
- * 
- * 默认映射符合各平台标准：
- * - GA4: page_view/view_item/add_to_cart/begin_checkout/purchase
- * - Meta: PageView/ViewContent/AddToCart/InitiateCheckout/Purchase
- * - TikTok: ViewContent/AddToCart/InitiateCheckout/CompletePayment
- */
 function mapShopifyEventToPlatform(
   shopifyEventName: string,
   platform: string,
   customMappings?: Record<string, string> | null
 ): string {
-  // 标准化事件名
+
   const normalizedEvent = shopifyEventName.toLowerCase().replace(/_/g, "_");
-  
-  // P1-1: 优先使用配置的 eventMappings（来自 preset 选择或自定义映射）
-  // 这些映射存储在 PixelConfig.eventMappings 中，可以通过 rollback 回滚
+
   if (customMappings && typeof customMappings === 'object' && normalizedEvent in customMappings) {
     const mapped = customMappings[normalizedEvent];
     if (mapped && typeof mapped === 'string') {
       return mapped;
     }
   }
-  
-  // 如果没有配置映射，使用默认映射
+
   const eventMapping: Record<string, Record<string, string>> = {
     google: {
       checkout_completed: "purchase",
@@ -127,9 +84,6 @@ function mapShopifyEventToPlatform(
   return mapped;
 }
 
-/**
- * 发送事件到 GA4
- */
 async function sendToGA4(
   credentials: PlatformCredentials,
   eventName: string,
@@ -149,13 +103,11 @@ async function sendToGA4(
 
     const platformEventName = mapShopifyEventToPlatform(eventName, "google", customMappings);
     const data = payload.data || {};
-    
-    // 构建 GA4 事件参数
+
     const params: Record<string, unknown> = {
       engagement_time_msec: "1",
     };
 
-    // 对于 page_view 事件，不发送 value（GA4 page_view 事件不需要 value）
     if (platformEventName !== "page_view" && data.value !== undefined && data.value !== null) {
       params.value = data.value;
     }
@@ -183,7 +135,6 @@ async function sendToGA4(
 
     const url = `${GA4_MEASUREMENT_PROTOCOL_URL}?measurement_id=${googleCreds.measurementId}&api_secret=${googleCreds.apiSecret}`;
 
-    // P0: 记录请求 payload 到 EventLog（在发送前）
     const requestPayload = {
       url,
       method: "POST",
@@ -203,9 +154,6 @@ async function sendToGA4(
 
     const errorText = await response.text().catch(() => "");
     const isSuccess = response.status === 204 || response.ok;
-
-    // P0: 更新 EventLog 状态（注意：这里需要 shopId，但函数签名中没有，需要在调用处传入）
-    // 暂时先记录，后续在 sendPixelEventToPlatform 中统一处理
 
     if (isSuccess) {
       return { success: true, platform: "google", requestPayload, responseStatus: response.status };
@@ -228,9 +176,6 @@ async function sendToGA4(
   }
 }
 
-/**
- * 发送事件到 Meta
- */
 async function sendToMeta(
   credentials: PlatformCredentials,
   eventName: string,
@@ -252,7 +197,6 @@ async function sendToMeta(
     const data = payload.data || {};
     const eventTime = Math.floor(Date.now() / 1000);
 
-    // 构建 contents（仅当有商品信息时）
     const contents =
       data.items && Array.isArray(data.items) && data.items.length > 0
         ? data.items.map((item) => ({
@@ -263,8 +207,7 @@ async function sendToMeta(
         : [];
 
     const customData: Record<string, unknown> = {};
-    
-    // 对于 PageView 事件，不发送 value（Meta PageView 事件不需要 value）
+
     if (platformEventName !== "PageView" && data.value !== undefined && data.value !== null) {
       customData.value = data.value;
     }
@@ -294,7 +237,6 @@ async function sendToMeta(
 
     const url = `${META_API_BASE_URL}/${META_API_VERSION}/${metaCreds.pixelId}/events`;
 
-    // P0: 记录请求 payload 到 EventLog（在发送前）
     const requestPayload = {
       url,
       method: "POST",
@@ -348,9 +290,6 @@ async function sendToMeta(
   }
 }
 
-/**
- * 发送事件到 TikTok
- */
 async function sendToTikTok(
   credentials: PlatformCredentials,
   eventName: string,
@@ -372,7 +311,6 @@ async function sendToTikTok(
     const data = payload.data || {};
     const timestamp = new Date().toISOString();
 
-    // 构建 contents（仅当有商品信息时）
     const contents =
       data.items && Array.isArray(data.items) && data.items.length > 0
         ? data.items.map((item) => ({
@@ -384,8 +322,7 @@ async function sendToTikTok(
         : [];
 
     const properties: Record<string, unknown> = {};
-    
-    // 对于 PageView 事件，不发送 value（TikTok PageView 事件不需要 value）
+
     if (platformEventName !== "PageView" && data.value !== undefined && data.value !== null) {
       properties.value = data.value;
     }
@@ -406,13 +343,12 @@ async function sendToTikTok(
       event_id: eventId,
       timestamp,
       context: {
-        user: {}, // TikTok 需要用户数据，但对于非 purchase 事件可能没有
+        user: {},
       },
       properties,
       ...(tiktokCreds.testEventCode && { test_event_code: tiktokCreds.testEventCode }),
     };
 
-    // P0: 记录请求 payload 到 EventLog（在发送前）
     const requestPayload = {
       url: TIKTOK_API_URL,
       method: "POST",
@@ -460,14 +396,6 @@ async function sendToTikTok(
   }
 }
 
-/**
- * 发送 pixel 事件到指定平台
- * 
- * P0-3: 多目的地配置支持
- * 
- * @param configId - 可选的配置ID，用于指定要使用的具体配置（支持同一平台的多个配置）
- * @param platformId - 可选的平台ID（如 GA4 property ID、Meta Pixel ID），用于进一步区分配置
- */
 export async function sendPixelEventToPlatform(
   shopId: string,
   platform: string,
@@ -475,8 +403,8 @@ export async function sendPixelEventToPlatform(
   eventId: string,
   configId?: string,
   platformId?: string,
-  eventLogId?: string | null, // P0-T2: 用于创建 DeliveryAttempt
-  environment?: "test" | "live" // P0-4: Test/Live 环境过滤
+  eventLogId?: string | null,
+  environment?: "test" | "live"
 ): Promise<PixelEventSendResult> {
   try {
     logger.debug(`Sending ${payload.eventName} to ${platform}`, {
@@ -489,21 +417,17 @@ export async function sendPixelEventToPlatform(
       environment,
     });
 
-    // P0-4: 获取平台配置时按 environment 过滤
-    // 如果未指定 environment，默认使用 "live"（向后兼容）
-    const pixelConfigs = await getShopPixelConfigs(shopId, { 
+    const pixelConfigs = await getShopPixelConfigs(shopId, {
       serverSideOnly: true,
       environment: environment || "live"
     });
-    
-    // P0-3: 支持多目的地配置 - 优先通过 configId 查找，其次通过 platformId，最后通过平台名称
-    let config = configId 
+
+    let config = configId
       ? pixelConfigs.find((c) => c.id === configId && c.platform === platform)
       : platformId
       ? pixelConfigs.find((c) => c.platformId === platformId && c.platform === platform)
       : pixelConfigs.find((c) => c.platform === platform);
 
-    // 如果通过 configId 或 platformId 没找到，但存在多个同平台配置，记录警告
     if (!config && (configId || platformId)) {
       const matchingPlatformConfigs = pixelConfigs.filter((c) => c.platform === platform);
       if (matchingPlatformConfigs.length > 1) {
@@ -515,7 +439,7 @@ export async function sendPixelEventToPlatform(
           availableConfigs: matchingPlatformConfigs.map(c => ({ id: c.id, platformId: c.platformId })),
         });
       }
-      // 回退到第一个匹配的配置
+
       config = matchingPlatformConfigs[0];
     }
 
@@ -534,7 +458,6 @@ export async function sendPixelEventToPlatform(
       };
     }
 
-    // 解密凭证
     const credResult = decryptCredentials(config, platform);
     if (!credResult.ok) {
       logger.warn(`Failed to decrypt credentials for platform ${platform}`, {
@@ -552,26 +475,17 @@ export async function sendPixelEventToPlatform(
 
     const credentials = credResult.value.credentials;
 
-    // 根据平台调用相应的发送函数
     const normalizedPlatform = platform.toLowerCase();
-    // 使用配置中的 environment，如果未指定则使用函数参数 environment，最后回退到 "live"
+
     const configEnvironment = (config.environment || environment || "live") as "test" | "live";
-    
-    // P0-T2: 在发送前构建 payload 并创建 DeliveryAttempt (status=pending)
-    // 1. 构建 payload
-    // 2. 写入 delivery_attempts.request_payload_json（status=pending）
-    // 3. HTTP call
-    // 4. 更新 status/latency/response/error
-    
+
     let requestPayload: unknown = null;
     let attemptId: string | null = null;
-    
-    // P1-1: 获取配置的 eventMappings（如果存在）
-    const eventMappings = config.eventMappings && typeof config.eventMappings === 'object' 
+
+    const eventMappings = config.eventMappings && typeof config.eventMappings === 'object'
       ? (config.eventMappings as Record<string, string>)
       : null;
-    
-    // 构建请求 payload（不包含敏感凭证）
+
     if (normalizedPlatform === "google") {
       const googleCreds = credentials as { measurementId?: string; apiSecret?: string };
       if (googleCreds.measurementId && googleCreds.apiSecret) {
@@ -705,7 +619,6 @@ export async function sendPixelEventToPlatform(
       };
     }
 
-    // P0-T2: 在发送前创建 DeliveryAttempt (status=pending)
     if (eventLogId && requestPayload) {
       try {
         attemptId = await createDeliveryAttempt({
@@ -716,7 +629,7 @@ export async function sendPixelEventToPlatform(
           requestPayloadJson: requestPayload,
         });
       } catch (error) {
-        // 记录失败不应阻塞事件发送流程
+
         logger.error("Failed to create DeliveryAttempt (non-blocking)", {
           shopId,
           eventLogId,
@@ -726,10 +639,9 @@ export async function sendPixelEventToPlatform(
       }
     }
 
-    // P2-13: 执行 HTTP 请求，统一超时和错误处理
     const startTime = Date.now();
     let sendResult: PixelEventSendResult;
-    
+
     try {
       if (normalizedPlatform === "google") {
         sendResult = await sendToGA4(credentials, payload.eventName, payload, eventId, eventMappings);
@@ -738,7 +650,7 @@ export async function sendPixelEventToPlatform(
       } else if (normalizedPlatform === "tiktok") {
         sendResult = await sendToTikTok(credentials, payload.eventName, payload, eventId, eventMappings);
       } else {
-        // 不应该到达这里，因为上面已经检查过了
+
         return {
           success: false,
           platform,
@@ -746,7 +658,7 @@ export async function sendPixelEventToPlatform(
         };
       }
     } catch (error) {
-      // P2-13: 统一错误处理（超时、网络错误等）
+
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error(`Failed to send event to ${platform}`, {
         shopId,
@@ -755,7 +667,7 @@ export async function sendPixelEventToPlatform(
         eventId,
         error: errorMessage,
       });
-      
+
       sendResult = {
         success: false,
         platform,
@@ -767,15 +679,14 @@ export async function sendPixelEventToPlatform(
 
     const latencyMs = Date.now() - startTime;
 
-    // P0-T2: 更新 DeliveryAttempt 状态（发送完成后）
     if (attemptId) {
       try {
-        // 分类错误代码
+
         let errorCode: string | null = null;
         if (!sendResult.success && sendResult.error) {
           const errorMsg = sendResult.error.toLowerCase();
           const status = sendResult.responseStatus;
-          
+
           if (status === 401 || status === 403 || errorMsg.includes("unauthorized") || errorMsg.includes("token")) {
             errorCode = "auth_error";
           } else if (status === 429 || errorMsg.includes("rate limit")) {
@@ -792,7 +703,7 @@ export async function sendPixelEventToPlatform(
             errorCode = "send_failed";
           }
         }
-        
+
         await updateDeliveryAttempt({
           attemptId,
           status: sendResult.success ? "ok" : "fail",
@@ -803,7 +714,7 @@ export async function sendPixelEventToPlatform(
           latencyMs,
         });
       } catch (error) {
-        // 记录失败不应阻塞事件发送流程
+
         logger.error("Failed to update DeliveryAttempt (non-blocking)", {
           shopId,
           attemptId,

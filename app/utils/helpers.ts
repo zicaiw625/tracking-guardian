@@ -80,15 +80,12 @@ export function maskSensitive(
 ): string {
   if (!value) return "***";
   if (visibleChars <= 0) return "***";
-  
-  // 如果字符串太短，无法安全显示，直接返回掩码
+
   if (value.length <= 3) return "***";
-  
-  // 计算安全的可见字符数：确保前后都有足够的字符，中间有掩码
-  // 最小需要：前visibleChars + "***" + 后visibleChars = visibleChars * 2 + 3
+
   const minRequiredLength = visibleChars * 2 + 3;
   if (value.length < minRequiredLength) {
-    // 如果长度不足，显示尽可能多的字符，但至少前后各1个字符
+
     const safeVisibleChars = Math.max(1, Math.floor((value.length - 3) / 2));
     return (
       value.substring(0, safeVisibleChars) +
@@ -96,8 +93,7 @@ export function maskSensitive(
       value.substring(value.length - safeVisibleChars)
     );
   }
-  
-  // 长度足够，使用请求的visibleChars，但不超过字符串长度的一半
+
   const safeVisibleChars = Math.min(visibleChars, Math.floor((value.length - 3) / 2));
   return (
     value.substring(0, safeVisibleChars) +
@@ -105,8 +101,6 @@ export function maskSensitive(
     value.substring(value.length - safeVisibleChars)
   );
 }
-
-// 使用现有的isObject函数，避免重复定义
 
 export function getNestedValue<T>(
   obj: unknown,
@@ -129,8 +123,6 @@ export function getNestedValue<T>(
     current = current[key];
   }
 
-  // 类型断言在这里是安全的，因为我们已经验证了路径存在
-  // 但返回类型允许undefined，所以如果类型不匹配会返回fallback
   return (current as T) ?? fallback;
 }
 
@@ -281,7 +273,6 @@ export async function retry<T>(
     shouldRetry = () => true,
   } = options;
 
-  // 确保至少执行一次
   const safeMaxAttempts = Math.max(1, maxAttempts);
 
   let lastError: unknown;
@@ -304,19 +295,13 @@ export async function retry<T>(
     }
   }
 
-  // 如果循环结束但还没有返回或抛出，确保抛出最后一个错误
   if (lastError !== undefined) {
     throw lastError;
   }
 
-  // 理论上不应该到达这里，但为了类型安全添加
   throw new Error("Retry function failed without capturing an error");
 }
 
-/**
- * 安全地执行一个 fire-and-forget Promise
- * 确保所有错误都被捕获和记录，避免未处理的 Promise 拒绝
- */
 export function safeFireAndForget<T>(
   promise: Promise<T>,
   errorContext?: {

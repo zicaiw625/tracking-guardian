@@ -142,8 +142,7 @@ export function BatchApplyWizard({
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：轮询任务状态失败
-        // eslint-disable-next-line no-console
+
         console.error("Failed to poll job status:", error);
       }
     }

@@ -1,16 +1,11 @@
-/**
- * P2-9: Dashboard 指标预聚合服务
- * 
- * 将 dashboard 指标的计算结果缓存到预聚合表中，避免每次请求都进行复杂的 group by 查询。
- * 通过 cron 任务定期更新聚合数据。
- */
+
 
 import prisma from "../db.server";
 import { logger } from "../utils/logger.server";
 
 export interface DailyAggregatedMetrics {
   shopId: string;
-  date: Date; // 日期（只包含年月日）
+  date: Date;
   totalOrders: number;
   totalValue: number;
   successRate: number;
@@ -21,9 +16,6 @@ export interface DailyAggregatedMetrics {
   updatedAt: Date;
 }
 
-/**
- * 聚合指定日期的指标数据
- */
 export async function aggregateDailyMetrics(
   shopId: string,
   date: Date
@@ -33,7 +25,6 @@ export async function aggregateDailyMetrics(
   const endOfDay = new Date(date);
   endOfDay.setUTCHours(23, 59, 59, 999);
 
-  // P0-T8: 使用 delivery_attempts 作为数据源（只统计 purchase/checkout_completed 事件）
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -56,15 +47,14 @@ export async function aggregateDailyMetrics(
         },
       },
     },
-    take: 10000, // 限制最大查询数量，避免超时
+    take: 10000,
   });
 
-  // 从 normalizedEventJson 中提取 value
   const orders: Array<{ platform: string; status: string; value: number }> = [];
   for (const attempt of attempts) {
     const normalizedEvent = attempt.EventLog.normalizedEventJson as Record<string, unknown>;
     const value = typeof normalizedEvent.value === "number" ? normalizedEvent.value : 0;
-    
+
     orders.push({
       platform: attempt.destinationType,
       status: attempt.status,
@@ -77,7 +67,6 @@ export async function aggregateDailyMetrics(
   const totalValue = orders.reduce((sum, o) => sum + o.value, 0);
   const successRate = totalOrders > 0 ? successfulOrders / totalOrders : 0;
 
-  // 按平台分组统计
   const platformBreakdown: Record<string, { count: number; value: number }> = {};
   for (const order of orders) {
     if (!platformBreakdown[order.platform]) {
@@ -87,7 +76,6 @@ export async function aggregateDailyMetrics(
     platformBreakdown[order.platform].value += order.value;
   }
 
-  // 查询事件量（从 pixelEventReceipt）
   const eventVolume = await prisma.pixelEventReceipt.count({
     where: {
       shopId,
@@ -98,8 +86,7 @@ export async function aggregateDailyMetrics(
     },
   });
 
-  // 查询缺失参数率（简化版本，实际应该从更详细的统计中获取）
-  const missingParamsRate = 0; // TODO: 从专门的统计表中获取
+  const missingParamsRate = 0;
 
   const metrics: DailyAggregatedMetrics = {
     shopId,
@@ -114,22 +101,10 @@ export async function aggregateDailyMetrics(
     updatedAt: new Date(),
   };
 
-  // 保存到预聚合表（如果存在）
-  // 注意：这里假设有一个 DailyMetrics 表，实际需要根据 schema 调整
   try {
-    // 使用 upsert 避免重复
-    // await prisma.dailyMetrics.upsert({
-    //   where: {
-    //     shopId_date: {
-    //       shopId,
-    //       date: startOfDay,
-    //     },
-    //   },
-    //   update: metrics,
-    //   create: metrics,
-    // });
+
   } catch (error) {
-    // 如果表不存在，只记录日志，不影响主流程
+
     logger.debug("Daily metrics table not available, skipping aggregation", {
       shopId,
       date: startOfDay.toISOString(),
@@ -139,9 +114,6 @@ export async function aggregateDailyMetrics(
   return metrics;
 }
 
-/**
- * 获取聚合后的指标（优先使用预聚合数据）
- */
 export async function getAggregatedMetrics(
   shopId: string,
   startDate: Date,
@@ -158,55 +130,9 @@ export async function getAggregatedMetrics(
     successRate: number;
   }>;
 }> {
-  // 优先从预聚合表查询
-  // 如果预聚合表不存在或数据不完整，回退到实时计算
+
   try {
-    // const aggregated = await prisma.dailyMetrics.findMany({
-    //   where: {
-    //     shopId,
-    //     date: {
-    //       gte: startDate,
-    //       lte: endDate,
-    //     },
-    //   },
-    //   orderBy: { date: "asc" },
-    // });
 
-    // if (aggregated.length > 0) {
-    //   // 汇总所有日期的数据
-    //   const totalOrders = aggregated.reduce((sum, m) => sum + m.totalOrders, 0);
-    //   const totalValue = aggregated.reduce((sum, m) => sum + m.totalValue, 0);
-    //   const totalSuccessful = aggregated.reduce(
-    //     (sum, m) => sum + m.totalOrders * m.successRate,
-    //     0
-    //   );
-    //   const successRate = totalOrders > 0 ? totalSuccessful / totalOrders : 0;
-
-    //   // 合并平台统计
-    //   const platformBreakdown: Record<string, { count: number; value: number }> = {};
-    //   for (const metric of aggregated) {
-    //     for (const [platform, stats] of Object.entries(metric.platformBreakdown)) {
-    //       if (!platformBreakdown[platform]) {
-    //         platformBreakdown[platform] = { count: 0, value: 0 };
-    //       }
-    //       platformBreakdown[platform].count += stats.count;
-    //       platformBreakdown[platform].value += stats.value;
-    //     }
-    //   }
-
-    //   return {
-    //     totalOrders,
-    //     totalValue,
-    //     successRate,
-    //     platformBreakdown,
-    //     dailyBreakdown: aggregated.map((m) => ({
-    //       date: m.date,
-    //       totalOrders: m.totalOrders,
-    //       totalValue: m.totalValue,
-    //       successRate: m.successRate,
-    //     })),
-    //   };
-    // }
   } catch (error) {
     logger.debug("Failed to get aggregated metrics, falling back to real-time calculation", {
       shopId,
@@ -214,7 +140,6 @@ export async function getAggregatedMetrics(
     });
   }
 
-  // P0-T8: 回退到实时计算（使用 delivery_attempts）
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -238,15 +163,14 @@ export async function getAggregatedMetrics(
         },
       },
     },
-    take: 10000, // 限制最大查询数量，避免超时
+    take: 10000,
   });
 
-  // 从 normalizedEventJson 中提取 value
   const orders: Array<{ platform: string; status: string; value: number; createdAt: Date }> = [];
   for (const attempt of attempts) {
     const normalizedEvent = attempt.EventLog.normalizedEventJson as Record<string, unknown>;
     const value = typeof normalizedEvent.value === "number" ? normalizedEvent.value : 0;
-    
+
     orders.push({
       platform: attempt.destinationType,
       status: attempt.status,
@@ -269,7 +193,6 @@ export async function getAggregatedMetrics(
     platformBreakdown[order.platform].value += order.value;
   }
 
-  // 按日期分组
   const dailyMap = new Map<string, { orders: number; value: number; successful: number }>();
   for (const order of orders) {
     const dateKey = order.createdAt.toISOString().split("T")[0];
@@ -302,9 +225,6 @@ export async function getAggregatedMetrics(
   };
 }
 
-/**
- * 批量聚合多个店铺的指标（用于 cron 任务）
- */
 export async function batchAggregateMetrics(
   shopIds: string[],
   date: Date = new Date()

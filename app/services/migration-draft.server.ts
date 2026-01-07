@@ -120,13 +120,11 @@ export async function getMigrationDraft(
       return null;
     }
 
-    // 验证步骤类型
     if (!isValidWizardStep(draft.step)) {
       logger.warn("Invalid wizard step in draft", { shopId, step: draft.step });
       return null;
     }
 
-    // 验证配置数据类型
     if (!isMigrationDraftData(draft.configData)) {
       logger.warn("Invalid config data in draft", { shopId });
       return null;

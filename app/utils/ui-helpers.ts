@@ -134,8 +134,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     document.body.removeChild(textArea);
     return success;
   } catch (error) {
-    // 客户端调试输出：复制到剪贴板失败
-    // eslint-disable-next-line no-console
+
     console.error("Failed to copy to clipboard:", error);
     return false;
   }

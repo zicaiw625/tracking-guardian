@@ -78,7 +78,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect GTM script", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";https://www.googletagmanager.com/gtm.js?id=GTM-XXXXXX";
+        const content = "https://bat.bing.com/action/0?ti=123456";https:
         expect(detectPlatforms(content)).toContain("google");
       });
 
@@ -95,7 +95,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect Facebook SDK script", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";https://www.googletagmanager.com/gtm.js?id=GTM-XXXXXX";
+        const content = "https://bat.bing.com/action/0?ti=123456";https:
         expect(detectPlatforms(content)).toContain("meta");
       });
 
@@ -117,7 +117,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect TikTok analytics domain", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";https://www.googletagmanager.com/gtm.js?id=GTM-XXXXXX";
+        const content = "https://bat.bing.com/action/0?ti=123456";https:
         expect(detectPlatforms(content)).toContain("tiktok");
       });
     });
@@ -141,7 +141,7 @@ describe("Scanner Service", () => {
       });
 
       it("should detect clarity.ms domain", () => {
-        const content = "https://bat.bing.com/action/0?ti=123456";https://www.googletagmanager.com/gtm.js?id=GTM-XXXXXX";
+        const content = "https://bat.bing.com/action/0?ti=123456";https:
         expect(detectPlatforms(content)).toContain("clarity");
       });
     });

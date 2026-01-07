@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-/**
- * 部署前验证脚本
- * 检查所有阻断项，确保可以正常构建和部署
- */
+
 
 import * as fs from "fs";
 import * as path from "path";
@@ -18,21 +15,15 @@ function validateBuildExtensionsScript() {
     const scriptPath = path.join(__dirname, "build-extensions.mjs");
 
     try {
-        // 检查文件是否存在
+
         if (!fs.existsSync(scriptPath)) {
             result.passed = false;
             result.errors.push(`build-extensions.mjs 文件不存在: ${scriptPath}`);
             return result;
         }
 
-        // 读取文件内容
         const content = fs.readFileSync(scriptPath, "utf-8");
 
-        // 尝试使用 Node.js 语法检查（更可靠的方法）
-        // 如果文件可以正常解析，说明没有语法错误
-        // 基础平衡检查，确保明显的语法问题被捕获
-
-        // 检查是否有语法错误（基本检查）
         const openBraces = (content.match(/{/g) || []).length;
         const closeBraces = (content.match(/}/g) || []).length;
         if (openBraces !== closeBraces) {
@@ -47,7 +38,6 @@ function validateBuildExtensionsScript() {
             result.errors.push(`build-extensions.mjs 中括号不匹配: 开括号 ${openParens}, 闭括号 ${closeParens}`);
         }
 
-        // 检查是否处理了两个配置文件
         if (!content.includes("THANK_YOU_CONFIG_FILE")) {
             result.passed = false;
             result.errors.push("build-extensions.mjs 中缺少对 thank-you-blocks 配置文件的处理");
@@ -78,7 +68,6 @@ function validateExtensionToml() {
 
         const content = fs.readFileSync(tomlPath, "utf-8");
 
-        // 检查未注释的扩展是否有占位符uid
         const lines = content.split("\n");
         let inCommentBlock = false;
         let currentExtensionUid = null;
@@ -87,18 +76,15 @@ function validateExtensionToml() {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
 
-            // 检查是否进入注释块
             if (line.startsWith("# [[extensions]]")) {
                 inCommentBlock = true;
                 continue;
             }
 
-            // 检查是否退出注释块
             if (inCommentBlock && line.startsWith("[[extensions]]") && !line.startsWith("#")) {
                 inCommentBlock = false;
             }
 
-            // 如果不在注释块中，检查uid
             if (!inCommentBlock) {
                 if (line.startsWith("name = ")) {
                     currentExtensionName = line.match(/name = "(.+)"/)?.[1] || null;
@@ -108,7 +94,7 @@ function validateExtensionToml() {
                     currentExtensionUid = line.match(/uid = "(.+)"/)?.[1] || null;
 
                     if (currentExtensionUid) {
-                        // 检查是否是占位符
+
                         if (
                             currentExtensionUid.includes("00000000") ||
                             currentExtensionUid.includes("PLACEHOLDER") ||
@@ -150,7 +136,6 @@ function validateImports() {
             const content = fs.readFileSync(filePath, "utf-8");
             const lines = content.split("\n");
 
-            // 检查是否有重复的react导入
             const reactImports = [];
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
@@ -160,7 +145,7 @@ function validateImports() {
             }
 
             if (reactImports.length > 1) {
-                // 检查是否有重复的导入项
+
                 const allImports = new Set();
                 for (const imp of reactImports) {
                     const match = imp.content.match(/import\s+\{([^}]+)\}\s+from/);
@@ -203,12 +188,10 @@ function validateBackendUrlInjection() {
 
             const content = fs.readFileSync(filePath, "utf-8");
 
-            // 检查是否包含占位符
             if (!content.includes("__BACKEND_URL_PLACEHOLDER__")) {
                 result.warnings.push(`配置文件 ${configFile} 中未找到占位符，可能已被替换`);
             }
 
-            // 检查是否有BACKEND_URL导出
             if (!content.includes("BACKEND_URL")) {
                 result.passed = false;
                 result.errors.push(`配置文件 ${configFile} 中缺少 BACKEND_URL 导出`);

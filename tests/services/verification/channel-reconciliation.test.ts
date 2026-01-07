@@ -36,7 +36,6 @@ describe("Channel Reconciliation Service", () => {
       const shopId = "shop-1";
       const hours = 24;
 
-      // Mock shop.findUnique for getOrderCrossPlatformComparison
       vi.mocked(prisma.shop.findUnique).mockResolvedValueOnce({
         id: shopId,
         shopDomain: "test.myshopify.com",

@@ -38,20 +38,19 @@ export function checkParamCompleteness(
     }
   }
 
-  // 统一处理 params 对象，确保类型安全
-  const isParamsObject = params !== null && 
-                        params !== undefined && 
-                        typeof params === "object" && 
+  const isParamsObject = params !== null &&
+                        params !== undefined &&
+                        typeof params === "object" &&
                         !Array.isArray(params);
   const safeParams: Record<string, unknown> = isParamsObject ? params : {};
 
   if (!mapping) {
-    // 如果没有找到映射，使用默认的必需参数
+
     const requiredParams = ["value", "currency"];
     const presentParams = Object.keys(safeParams);
     const missingParams = requiredParams.filter((p) => {
       const paramValue = safeParams[p];
-      return paramValue === undefined || paramValue === null || 
+      return paramValue === undefined || paramValue === null ||
              (typeof paramValue === "string" && paramValue.trim() === "");
     });
 
@@ -70,7 +69,7 @@ export function checkParamCompleteness(
   const presentParams = Object.keys(safeParams);
   const missingParams = requiredParams.filter((param) => {
     if (typeof param !== "string") {
-      return true; // 无效的参数名
+      return true;
     }
     const paramValue = safeParams[param];
 

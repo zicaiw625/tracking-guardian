@@ -74,22 +74,20 @@ export async function generateVerificationReportData(
   }>) || [];
   const reconciliation = summary?.reconciliation as VerificationSummary["reconciliation"] | undefined;
 
-  // P0: 获取 EventLog 证据链（用于导出报告）
   const eventLogs = await getEventLogs(run.shopId, {
     startDate: run.startedAt || undefined,
     endDate: run.completedAt || undefined,
-    limit: 1000, // 限制数量避免报告过大
+    limit: 1000,
   });
 
-  // 将 EventLog 与 events 关联（通过 eventId 或 orderId）
   const eventsWithEvidence = events.map((e) => {
     const relatedLogs = eventLogs.filter((log) => {
       if (e.orderId && log.requestPayload && typeof log.requestPayload === "object") {
         const payload = log.requestPayload as Record<string, unknown>;
         const body = payload.body as Record<string, unknown> | undefined;
         if (body) {
-          // 检查 GA4/Meta/TikTok payload 中的 orderId
-          const orderIdInPayload = 
+
+          const orderIdInPayload =
             (body as any)?.data?.[0]?.custom_data?.order_id ||
             (body as any)?.events?.[0]?.params?.transaction_id ||
             (body as any)?.properties?.order_id;
@@ -108,7 +106,7 @@ export async function generateVerificationReportData(
       params: e.params,
       discrepancies: e.discrepancies,
       errors: e.errors,
-      // P0: 添加证据链
+
       evidence: relatedLogs.map((log) => ({
         destination: log.destination,
         requestPayload: log.requestPayload,
@@ -186,7 +184,6 @@ export function generateVerificationReportCSV(data: VerificationReportData): str
     `金额准确率: ${data.summary.valueAccuracy}%`,
   ];
 
-  // P1-12: 在 CSV 中添加免责声明
   const disclaimer = [
     "",
     "重要说明：事件发送与平台归因",
@@ -392,7 +389,7 @@ function generateVerificationReportHTML(data: VerificationReportData): string {
     <tbody>
       ${data.events.map((event) => {
         const evidenceCount = (event as any).evidence?.length || 0;
-        const evidenceHtml = evidenceCount > 0 
+        const evidenceHtml = evidenceCount > 0
           ? `<details style="cursor: pointer;"><summary>查看 ${evidenceCount} 条证据</summary><pre style="background: #f6f6f7; padding: 10px; margin: 5px 0; border-radius: 4px; font-size: 12px; max-height: 200px; overflow: auto;">${JSON.stringify((event as any).evidence, null, 2)}</pre></details>`
           : "无证据";
         return `

@@ -7,7 +7,7 @@ export interface ShopWithConfigs {
   id: string;
   shopDomain: string;
   plan: string | null;
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
   consentStrategy: string | null;
   primaryDomain: string | null;
   storefrontDomains: string[];
@@ -60,7 +60,7 @@ export async function fetchJobsWithRelations(
           id: true,
           shopDomain: true,
           plan: true,
-          // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
           consentStrategy: true,
           primaryDomain: true,
           storefrontDomains: true,
@@ -96,7 +96,7 @@ export async function fetchShopsWithConfigs(
       id: true,
       shopDomain: true,
       plan: true,
-      // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled 字段
+
       consentStrategy: true,
       primaryDomain: true,
       storefrontDomains: true,

@@ -111,11 +111,10 @@ export async function executeBatchMigration(
         throw new Error(`Shop not found: ${shopId}`);
       }
 
-      // template is already checked at function start, but TypeScript needs this check
       if (!template) {
         throw new Error(`Template not found: ${jobId}`);
       }
-      // job is guaranteed to exist (checked at function start), but TypeScript needs this
+
       const currentJob = activeJobs.get(jobId);
       if (!currentJob) {
         throw new Error(`Job not found: ${jobId}`);
@@ -130,7 +129,6 @@ export async function executeBatchMigration(
 
       for (const platformConfig of platforms) {
 
-        // 查找 test 环境的配置（批量迁移默认使用 test 环境）
         const existingConfig = await prisma.pixelConfig.findFirst({
           where: {
             shopId,
@@ -176,11 +174,9 @@ export async function executeBatchMigration(
       } catch (error) {
 
         logger.warn(`Failed to create web pixel for ${shop.shopDomain}`, { error });
-        // Note: Cannot update web pixel here as we don't have webPixelId
-        // updateWebPixel requires webPixelId as the second parameter
+
       }
 
-      // Use currentJob from above check
       currentJob.results.push({
         shopId,
         shopDomain: shop.shopDomain,
@@ -197,7 +193,6 @@ export async function executeBatchMigration(
         select: { shopDomain: true },
       });
 
-      // job is guaranteed to exist (checked at function start)
       const currentJob = activeJobs.get(jobId);
       if (!currentJob) {
         logger.error(`Job ${jobId} not found when recording failure`);

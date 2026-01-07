@@ -25,21 +25,16 @@ export interface ErrorHandlerOptions {
   buildResponse?: (error: AppError) => Response;
 }
 
-/**
- * 处理错误并构建响应
- * 这是内部辅助函数，用于统一错误处理逻辑
- */
 function processError(
   error: unknown,
   options: ErrorHandlerOptions,
   request?: Request
 ): Response {
-  // Response 对象应该直接传递，不进行错误处理
+
   if (error instanceof Response) {
     throw error;
   }
 
-  // 处理 null 或 undefined 错误
   let appError: AppError;
   if (error === null || error === undefined) {
     const nullError = new Error("Unknown error: null or undefined");
@@ -48,12 +43,10 @@ function processError(
     appError = ensureAppError(error);
   }
 
-  // 应用错误转换
   if (options.transformError) {
     appError = options.transformError(appError);
   }
 
-  // 记录错误
   const shouldLog = options.logErrors !== false;
   if (shouldLog) {
     if (request) {
@@ -66,7 +59,6 @@ function processError(
     }
   }
 
-  // 构建响应
   if (options.buildResponse) {
     return options.buildResponse(appError);
   }
@@ -159,7 +151,7 @@ function logError(error: AppError, request: Request): void {
   const pathname = url.pathname;
 
   if (error.isInternalError()) {
-    // 内部错误需要详细记录
+
     logger.error(`[${error.code}] ${error.message}`, error, {
       method,
       pathname,

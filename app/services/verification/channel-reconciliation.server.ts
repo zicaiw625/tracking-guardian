@@ -88,8 +88,6 @@ export async function performEnhancedChannelReconciliation(
     };
   }
 
-  // P0-3: 使用 ShopifyOrderSnapshot 作为基准（Shopify 订单真值）
-  // 这确保了对账基准来自 Shopify 官方订单数据，而不是内部事件数据
   const shopifyOrders = await prisma.shopifyOrderSnapshot.findMany({
     where: {
       shopId,
@@ -110,13 +108,13 @@ export async function performEnhancedChannelReconciliation(
   const shopifyOrderMap = new Map(
     shopifyOrders.map((o: { orderId: string }) => [o.orderId, o])
   );
-  // P0-3: 使用 totalValue 字段（来自 ShopifyOrderSnapshot）
+
   const shopifyTotalValue = shopifyOrders.reduce(
     (sum: number, o: { totalValue: { toNumber: () => number } | number }) => {
-      const value = typeof o.totalValue === 'object' && 'toNumber' in o.totalValue 
-        ? o.totalValue.toNumber() 
-        : typeof o.totalValue === 'number' 
-        ? o.totalValue 
+      const value = typeof o.totalValue === 'object' && 'toNumber' in o.totalValue
+        ? o.totalValue.toNumber()
+        : typeof o.totalValue === 'number'
+        ? o.totalValue
         : 0;
       return sum + value;
     },
@@ -130,7 +128,6 @@ export async function performEnhancedChannelReconciliation(
   for (const config of shop.pixelConfigs) {
     const platform = config.platform;
 
-    // P0: 使用 EventLog + DeliveryAttempt 作为数据源
     const eventLogs = await prisma.eventLog.findMany({
       where: {
         shopId,
@@ -139,7 +136,7 @@ export async function performEnhancedChannelReconciliation(
         DeliveryAttempt: {
           some: {
             destinationType: platform,
-            status: "ok", // 只统计成功发送的
+            status: "ok",
           },
         },
       },
@@ -158,14 +155,13 @@ export async function performEnhancedChannelReconciliation(
       },
     });
 
-    // 从 EventLog 中提取订单信息
     const platformLogs = eventLogs.map((eventLog) => {
       const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
       const orderId = (normalizedEvent?.orderId as string) || "";
       const orderNumber = (normalizedEvent?.orderNumber as string) || null;
       const value = (normalizedEvent?.value as number) || 0;
       const currency = (normalizedEvent?.currency as string) || "USD";
-      
+
       return {
         orderId,
         orderNumber,
@@ -181,10 +177,10 @@ export async function performEnhancedChannelReconciliation(
     );
     const platformTotalValue = platformLogs.reduce(
       (sum: number, l: { orderValue: { toNumber: () => number } | number }) => {
-        const value = typeof l.orderValue === 'object' && 'toNumber' in l.orderValue 
-          ? l.orderValue.toNumber() 
-          : typeof l.orderValue === 'number' 
-          ? l.orderValue 
+        const value = typeof l.orderValue === 'object' && 'toNumber' in l.orderValue
+          ? l.orderValue.toNumber()
+          : typeof l.orderValue === 'number'
+          ? l.orderValue
           : 0;
         return sum + value;
       },
@@ -194,10 +190,10 @@ export async function performEnhancedChannelReconciliation(
     platformOrderMaps[platform] = platformOrderIds;
     platformValueMaps[platform] = new Map(
       platformLogs.map((l: { orderId: string; orderValue: { toNumber: () => number } | number }) => {
-        const value = typeof l.orderValue === 'object' && 'toNumber' in l.orderValue 
-          ? l.orderValue.toNumber() 
-          : typeof l.orderValue === 'number' 
-          ? l.orderValue 
+        const value = typeof l.orderValue === 'object' && 'toNumber' in l.orderValue
+          ? l.orderValue.toNumber()
+          : typeof l.orderValue === 'number'
+          ? l.orderValue
           : 0;
         return [l.orderId, value];
       })
@@ -384,7 +380,6 @@ export async function getOrderCrossPlatformComparison(
   }>;
 }> {
 
-  // P0-3: 使用 ShopifyOrderSnapshot 作为基准（Shopify 订单真值）
   const shopifyOrder = await prisma.shopifyOrderSnapshot.findFirst({
     where: {
       shopId,
@@ -401,7 +396,6 @@ export async function getOrderCrossPlatformComparison(
     },
   });
 
-  // P0: 使用 EventLog + DeliveryAttempt 作为数据源
   const eventLogs = await prisma.eventLog.findMany({
     where: {
       shopId,
@@ -423,24 +417,22 @@ export async function getOrderCrossPlatformComparison(
     },
   });
 
-  // 过滤出匹配 orderId 的事件
   const matchingEvents = eventLogs.filter((eventLog) => {
     const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
     const eventOrderId = normalizedEvent?.orderId as string | undefined;
     return eventOrderId === orderId;
   });
 
-  // 从 DeliveryAttempt 中提取平台事件信息
   const platformEvents = matchingEvents.flatMap((eventLog) => {
     const normalizedEvent = eventLog.normalizedEventJson as Record<string, unknown> | null;
     const eventValue = (normalizedEvent?.value as number) || 0;
     const currency = (normalizedEvent?.currency as string) || "USD";
-    
+
     return eventLog.DeliveryAttempt.map((attempt) => {
-      // 尝试从 requestPayloadJson 中提取更准确的值
+
       let finalValue = eventValue;
       let finalCurrency = currency;
-      
+
       if (attempt.requestPayloadJson) {
         const requestPayload = attempt.requestPayloadJson as Record<string, unknown> | null;
         if (attempt.destinationType === "google") {
@@ -502,7 +494,7 @@ export async function getOrderCrossPlatformComparison(
   }> = [];
 
   if (shopifyOrder) {
-    // P0-3: 使用 totalValue 字段（来自 ShopifyOrderSnapshot）
+
     const shopifyValue = typeof shopifyOrder.totalValue === 'object' && 'toNumber' in shopifyOrder.totalValue
       ? shopifyOrder.totalValue.toNumber()
       : typeof shopifyOrder.totalValue === 'number'
@@ -559,10 +551,10 @@ export async function getOrderCrossPlatformComparison(
         }
       : null,
     platformEvents: platformEvents.map((e) => {
-      const orderValue = typeof e.orderValue === 'object' && 'toNumber' in e.orderValue 
-        ? e.orderValue.toNumber() 
-        : typeof e.orderValue === 'number' 
-        ? e.orderValue 
+      const orderValue = typeof e.orderValue === 'object' && 'toNumber' in e.orderValue
+        ? e.orderValue.toNumber()
+        : typeof e.orderValue === 'number'
+        ? e.orderValue
         : 0;
       return {
         platform: e.platform,

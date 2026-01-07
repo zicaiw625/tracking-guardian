@@ -90,13 +90,12 @@ let cleanupInterval: NodeJS.Timeout | null = null;
 
 export function startCleanupInterval(): void {
   if (cleanupInterval !== null) {
-    return; // 已经启动
+    return;
   }
 
   if (typeof setInterval !== "undefined") {
     cleanupInterval = setInterval(cleanupExpiredJobs, 60 * 60 * 1000);
-    
-    // 在 Node.js 环境中，使用 unref() 防止定时器阻止进程退出
+
     if (cleanupInterval && typeof cleanupInterval.unref === "function") {
       cleanupInterval.unref();
     }
@@ -110,7 +109,6 @@ export function stopCleanupInterval(): void {
   }
 }
 
-// 自动启动清理定时器
 if (typeof setInterval !== "undefined") {
   startCleanupInterval();
 }

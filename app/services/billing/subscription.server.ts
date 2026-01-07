@@ -40,7 +40,6 @@ export interface ConfirmationResult {
   error?: string;
 }
 
-// P1-7: 一次性收费相关接口
 export interface OneTimePurchaseResult {
   success: boolean;
   confirmationUrl?: string;
@@ -128,7 +127,6 @@ const CANCEL_SUBSCRIPTION_MUTATION = `
   }
 `;
 
-// P1-7: 一次性收费 GraphQL Mutation
 const CREATE_ONE_TIME_PURCHASE_MUTATION = `
   mutation AppPurchaseOneTimeCreate(
     $name: String!
@@ -179,11 +177,11 @@ export async function createSubscription(
   returnUrl: string,
   isTest = false
 ): Promise<SubscriptionResult> {
-  // P0-1: PRD 对齐 - Monitor 不在 v1.0 正式套餐中，不允许订阅
+
   if (planId === "monitor") {
-    return { 
-      success: false, 
-      error: "Monitor 计划不在 v1.0 正式套餐中。Monitor 是可选叠加功能，将在后续版本中作为独立附加服务提供。" 
+    return {
+      success: false,
+      error: "Monitor 计划不在 v1.0 正式套餐中。Monitor 是可选叠加功能，将在后续版本中作为独立附加服务提供。"
     };
   }
 
@@ -259,7 +257,6 @@ export async function createSubscription(
     };
   }
 }
-
 
 export async function getSubscriptionStatus(
   admin: AdminGraphQL,
@@ -431,19 +428,6 @@ export async function handleSubscriptionConfirmation(
   }
 }
 
-/**
- * P1-7: 创建一次性收费（用于 Go-Live 验收报告等）
- * 
- * P0-1: PRD 对齐 - v1.0 中 Growth 计划为月付 $79，不再支持一次性收费
- * 此函数保留用于向后兼容（如果存在历史的一次性购买记录）
- * 新订阅应使用 createSubscription 创建月付订阅
- * 
- * P0-1: PRD 对齐 - v1.0 中所有计划均为月付，不支持一次性收费
- * 审计结论：PRD 11.1 定义的套餐为 Free / Starter $29 / Growth $79 / Agency $199（月付）
- * Growth 计划已改为月付 $79，不再使用一次性收费模式
- * 
- * 注意：此函数保留用于未来可能的扩展，但 v1.0 中所有计划都不支持一次性收费
- */
 export async function createOneTimePurchase(
   admin: AdminGraphQL,
   shopDomain: string,
@@ -453,10 +437,6 @@ export async function createOneTimePurchase(
 ): Promise<OneTimePurchaseResult> {
   const plan = BILLING_PLANS[planId];
 
-  // P0-1: PRD 对齐 - v1.0 中所有计划都不支持一次性收费
-  // PRD 11.1 明确要求所有套餐均为月付：Free / Starter $29 / Growth $79 / Agency $199
-  // Growth 计划已改为月付 $79，不再使用一次性收费模式
-  // 审计结论：套餐结构与 PRD 完全一致，所有计划均为月付
   if (!plan || !("isOneTime" in plan) || !plan.isOneTime) {
     return { success: false, error: "此套餐不支持一次性收费（v1.0 中所有计划均为月付，符合 PRD 11.1 要求）" };
   }
@@ -520,9 +500,6 @@ export async function createOneTimePurchase(
   }
 }
 
-/**
- * P1-7: 获取一次性收费状态
- */
 export async function getOneTimePurchaseStatus(
   admin: AdminGraphQL,
   shopDomain: string
@@ -532,7 +509,6 @@ export async function getOneTimePurchaseStatus(
     const data = await response.json();
     const purchases = data.data?.appInstallation?.oneTimePurchases || [];
 
-    // 查找已激活的一次性收费（通常用于 Go-Live）
     const activePurchase = purchases.find(
       (p: { status: string }) => p.status === "ACTIVE"
     );
@@ -554,13 +530,6 @@ export async function getOneTimePurchaseStatus(
   }
 }
 
-/**
- * P1-7: 处理一次性收费确认（在用户完成支付后调用）
- * 
- * P0-1: PRD 对齐 - v1.0 中 Growth 计划为月付 $79，不再支持一次性收费
- * 此函数保留用于向后兼容（如果存在历史的一次性购买记录）
- * 新订阅应使用 handleSubscriptionConfirmation 处理月付订阅确认
- */
 export async function handleOneTimePurchaseConfirmation(
   admin: AdminGraphQL,
   shopDomain: string,
@@ -570,10 +539,7 @@ export async function handleOneTimePurchaseConfirmation(
     const status = await getOneTimePurchaseStatus(admin, shopDomain);
 
     if (status.hasActivePurchase && status.purchaseId === purchaseId) {
-      // P0-1: PRD 对齐 - v1.0 中 Growth 计划为月付 $79，不再支持一次性收费
-      // 此代码保留用于向后兼容（如果存在历史的一次性购买）
-      // 新订阅应使用 createSubscription 创建月付订阅
-      // 注意：这里将历史一次性购买转换为 Growth 月付计划（仅用于向后兼容）
+
       const planId: PlanId = "growth";
       const planConfig = BILLING_PLANS[planId];
 

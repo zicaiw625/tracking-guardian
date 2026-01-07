@@ -1,14 +1,4 @@
 
-/**
- * P1-5: 服务端 Entitlement 硬门禁
- * 
- * 此模块提供统一的 entitlement 检查机制，防止绕过前端限制直接调用接口。
- * 所有关键能力（full funnel、告警、报告导出、多目的地等）都应在服务端进行硬门禁。
- * 
- * 使用方式：
- * - requireEntitlementOrThrow: 检查失败时抛出错误（用于 action handlers）
- * - checkEntitlement: 返回检查结果（用于条件判断）
- */
 
 import prisma from "~/db.server";
 import { logger } from "~/utils/logger.server";
@@ -45,9 +35,6 @@ export interface EntitlementCheckResult {
   requiredPlan?: string;
 }
 
-/**
- * 获取店铺的当前套餐
- */
 async function getShopPlan(shopId: string): Promise<PlanId> {
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
@@ -61,9 +48,6 @@ async function getShopPlan(shopId: string): Promise<PlanId> {
   return (shop.plan || "free") as PlanId;
 }
 
-/**
- * 检查 entitlement - 返回检查结果
- */
 export async function checkEntitlement(
   shopId: string,
   entitlement: Entitlement
@@ -73,7 +57,7 @@ export async function checkEntitlement(
 
   switch (entitlement) {
     case "full_funnel":
-      // Full funnel 需要 Growth 及以上套餐
+
       if (shopPlan === "free" || shopPlan === "starter") {
         return {
           allowed: false,
@@ -87,42 +71,32 @@ export async function checkEntitlement(
       return checkFeatureAccess(shopPlan, "alerts");
 
     case "report_export": {
-      // P1-7: 检查 plan 是否支持报告导出
+
       const planCheck = checkFeatureAccess(shopPlan, "report_export");
       if (planCheck.allowed) {
         return planCheck;
       }
-      
-      // P0-1: PRD 对齐 - v1.0 中 Growth 计划为月付 $79，不再支持一次性收费
-      // 此代码保留用于向后兼容（如果存在历史的一次性购买）
-      // 新订阅应使用月付订阅，plan 检查应该已经返回 allowed
-      // 这里是为了处理 edge case（例如 plan 更新延迟）
-      // 
-      // 注意：v1.0 中所有计划均为月付，不再使用一次性收费模式
-      // 如果 plan 是 "growth"，说明是月付订阅（不是一次性购买）
+
       try {
         const shop = await prisma.shop.findUnique({
           where: { id: shopId },
           select: { shopDomain: true },
         });
-        
+
         if (shop) {
-          // 尝试从 Shopify API 检查 one-time purchase 状态（仅用于向后兼容）
-          // 注意：这需要 admin context，在 entitlement 检查中可能不可用
-          // 所以这里只作为备用，主要依赖 plan 检查
-          // 如果 plan 是 "growth"，说明是月付订阅（v1.0 中 Growth 计划为月付）
+
           if (shopPlan === "growth") {
             return { allowed: true };
           }
         }
       } catch (error) {
-        // 如果检查失败，回退到 plan 检查结果
+
         logger.warn("Failed to check one-time purchase status (backward compatibility)", {
           shopId,
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      
+
       return planCheck;
     }
 
@@ -152,7 +126,7 @@ export async function checkEntitlement(
       return checkFeatureAccess(shopPlan, "verification");
 
     case "audit_unlimited":
-      // Audit 免费，但完整报告导出需要付费
+
       return { allowed: true };
 
     default:
@@ -164,9 +138,6 @@ export async function checkEntitlement(
   }
 }
 
-/**
- * 检查 entitlement - 失败时抛出错误（用于 action handlers）
- */
 export async function requireEntitlementOrThrow(
   shopId: string,
   entitlement: Entitlement
@@ -201,9 +172,6 @@ export async function requireEntitlementOrThrow(
   }
 }
 
-/**
- * 检查多个 entitlements - 全部通过才返回 true
- */
 export async function checkMultipleEntitlements(
   shopId: string,
   entitlements: Entitlement[]
@@ -217,22 +185,16 @@ export async function checkMultipleEntitlements(
   return { allowed: true };
 }
 
-/**
- * 检查多个 entitlements - 失败时抛出错误
- */
 export async function requireMultipleEntitlementsOrThrow(
   shopId: string,
   entitlements: Entitlement[]
 ): Promise<void> {
   const result = await checkMultipleEntitlements(shopId, entitlements);
   if (!result.allowed) {
-    await requireEntitlementOrThrow(shopId, entitlements[0]); // 抛出第一个失败的错误
+    await requireEntitlementOrThrow(shopId, entitlements[0]);
   }
 }
 
-/**
- * 获取店铺的所有 entitlements 摘要
- */
 export async function getEntitlementsSummary(shopId: string): Promise<{
   [K in Entitlement]: boolean;
 }> {
@@ -247,6 +209,6 @@ export async function getEntitlementsSummary(shopId: string): Promise<{
     pixel_destinations: (await checkPixelDestinationsLimit(shopId, shopPlan)).allowed,
     ui_modules: (await checkUiModulesLimit(shopId, shopPlan)).allowed,
     verification: planSupportsFeature(shopPlan, "verification"),
-    audit_unlimited: true, // Audit 始终可用
+    audit_unlimited: true,
   };
 }

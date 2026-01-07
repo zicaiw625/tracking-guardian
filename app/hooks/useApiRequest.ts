@@ -213,11 +213,9 @@ export function useQuery<T>(
 
   const navigate = useNavigate();
 
-  // 使用ref存储回调函数，避免依赖项变化导致无限循环
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
 
-  // 更新ref当回调函数变化时
   useEffect(() => {
     onSuccessRef.current = onSuccess;
   }, [onSuccess]);

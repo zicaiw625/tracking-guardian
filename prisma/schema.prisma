@@ -727,8 +727,6 @@ model DeliveryAttempt {
   @@index([createdAt])
 }
 
-// P0-2: Shopify 订单快照（用于 Verification 和 Reconciliation）
-// 仅存储订单摘要信息（不包含 PII），符合 v1.0 隐私最小化原则
 model ShopifyOrderSnapshot {
   id              String   @id
   shopId          String
@@ -749,8 +747,6 @@ model ShopifyOrderSnapshot {
   @@index([cancelledAt])
 }
 
-// P0-2: 退款快照（用于 Verification 和 Reconciliation）
-// 仅存储退款摘要信息（不包含 PII），符合 v1.0 隐私最小化原则
 model RefundSnapshot {
   id        String   @id
   shopId    String

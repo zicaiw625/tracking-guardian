@@ -736,7 +736,7 @@ export default function WorkspacePage() {
             showSuccess("批量应用已启动，正在处理中...");
 
           } else if (data.result) {
-            const progress = data.result.totalShops > 0 
+            const progress = data.result.totalShops > 0
               ? Math.round((data.result.successCount + data.result.failedCount) / data.result.totalShops * 100)
               : 100;
             setBatchApplyStatus({

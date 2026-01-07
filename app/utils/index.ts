@@ -6,8 +6,7 @@ export { logger, createRequestLogger, type RequestLogger } from "./logger.server
 
 export {
   hashValue,
-  // P0-3: v1.0 版本不包含任何 PCD/PII 处理，normalizePhone/normalizeEmail 在 v1.0 中不使用
-  // 保留导出仅为了代码兼容性，它们将在 v1.1 中重新启用
+
   normalizePhone,
   normalizeEmail,
   getEncryptionKey,
@@ -100,7 +99,7 @@ export {
   SCANNER_CONFIG,
   MONITORING_CONFIG,
   FEATURE_FLAGS,
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG 导出
+
   INGESTION_KEY_CONFIG,
 
   validateConfig,
@@ -166,7 +165,7 @@ export {
 } from "./shop-access";
 
 export {
-  // P0-6: v1.0 版本移除 validateOrderWebhookPayload 和 parseOrderWebhookPayload 导出
+
   parseGDPRDataRequestPayload,
   parseGDPRCustomerRedactPayload,
   parseGDPRShopRedactPayload,
@@ -315,10 +314,6 @@ export {
   SecureUrlSchema,
   SafeStringSchema,
 } from "./security";
-
-// P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此完全移除 pii.ts 文件及其所有导出
-// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据
-// 如果将来需要 PII 处理，这些函数将在 v1.1 中重新引入
 
 export {
   evaluatePlatformConsent,

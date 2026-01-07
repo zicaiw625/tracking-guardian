@@ -44,11 +44,11 @@ export function ErrorBoundary() {
 
   if (isRouteErrorResponse(error)) {
     status = error.status;
-    title = error.status === 404 
-      ? "页面未找到" 
+    title = error.status === 404
+      ? "页面未找到"
       : `${error.status} ${error.statusText || "错误"}`;
-    message = typeof error.data === 'string' 
-      ? error.data 
+    message = typeof error.data === 'string'
+      ? error.data
       : error.status === 404
         ? "您访问的页面不存在。"
         : "页面加载时发生错误。";
@@ -56,36 +56,33 @@ export function ErrorBoundary() {
   } else if (error instanceof Error) {
     message = error.message || "发生了一个错误。";
     code = error.name || "Error";
-    // 尝试从错误中提取更多信息
+
     if (error.stack && process.env.NODE_ENV === "development") {
-      // 客户端调试输出：错误堆栈（错误边界）
-      // eslint-disable-next-line no-console
+
       console.error("Error stack:", error.stack);
     }
   } else if (typeof error === "object" && error !== null) {
-    // 处理非标准错误对象
+
     const errObj = error as Record<string, unknown>;
-    message = typeof errObj.message === "string" 
-      ? errObj.message 
+    message = typeof errObj.message === "string"
+      ? errObj.message
       : typeof errObj.error === "string"
         ? errObj.error
         : "发生未知错误。";
-    code = typeof errObj.code === "string" 
-      ? errObj.code 
+    code = typeof errObj.code === "string"
+      ? errObj.code
       : typeof errObj.name === "string"
         ? errObj.name
         : "UNKNOWN";
     if (process.env.NODE_ENV === "development") {
-      // 客户端调试输出：非标准错误（错误边界）
-      // eslint-disable-next-line no-console
+
       console.error("Non-standard error caught in root ErrorBoundary:", error);
     }
   } else {
     message = "发生未知错误。";
     code = "UNKNOWN";
     if (process.env.NODE_ENV === "development") {
-      // 客户端调试输出：未知错误类型（错误边界）
-      // eslint-disable-next-line no-console
+
       console.error("Unknown error type caught in root ErrorBoundary:", error);
     }
   }

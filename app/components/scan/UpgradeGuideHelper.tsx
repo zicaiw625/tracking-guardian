@@ -55,8 +55,7 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：文件上传错误
-        // eslint-disable-next-line no-console
+
         console.error("File upload error:", error);
       }
       showError("文件处理失败，请稍后重试。");
@@ -147,8 +146,7 @@ export function UpgradeGuideHelper({ onAssetsCreated }: UpgradeGuideHelperProps)
     } catch (error) {
 
       if (process.env.NODE_ENV === "development") {
-        // 客户端调试输出：解析错误
-        // eslint-disable-next-line no-console
+
         console.error("Parse error:", error);
       }
       showError("解析文件失败，请稍后重试。");

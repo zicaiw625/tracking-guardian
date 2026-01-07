@@ -21,10 +21,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       session: authResult.session,
     };
   } catch (error) {
-    // P0-2: HMAC 校验失败必须返回 400/401（而不是 200），否则会被拒审
-    // Shopify 审查/自动化检查会测试这个（社区里反复有人栽）
-    // 注意：HMAC 校验失败是认证层面的问题，应该返回 401，即使是 GDPR webhooks 也不例外
-    // GDPR webhooks 的业务逻辑失败才返回 200 避免重试风暴，但认证失败必须返回 401
+
     if (error instanceof Response) {
       const errorStatus = error.status;
       const topic = request.headers.get("X-Shopify-Topic") || "unknown";
@@ -32,10 +29,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         topic,
         shop: request.headers.get("X-Shopify-Shop-Domain") || "unknown",
       });
-      
-      // P0-2: HMAC 校验失败必须返回 401（认证层面的问题）
-      // 即使是 GDPR webhooks，HMAC 校验失败也应该返回 401
-      // 只有业务逻辑失败时，GDPR webhooks 才返回 200 避免重试风暴
+
       if (errorStatus === 401 || errorStatus === 403) {
         return new Response("Unauthorized: Invalid HMAC", { status: 401 });
       }

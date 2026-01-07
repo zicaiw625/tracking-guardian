@@ -66,7 +66,7 @@ function buildDefaultPayload(data: ConversionData, eventId: string): Record<stri
     order_number: data.orderNumber,
     value: data.value,
     currency: data.currency,
-    // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含 customer 字段
+
     items: data.lineItems?.map(item => ({
       product_id: item.productId,
       variant_id: item.variantId,
@@ -131,7 +131,7 @@ export class WebhookPlatformService implements IPlatformService {
     }
     let payload: string;
     if (credentials.payloadTemplate) {
-      // P0-3: v1.0 版本不包含任何 PCD/PII 处理，因此不包含 preHashedUserData 字段
+
       const templateData = {
         ...data,
         eventId,

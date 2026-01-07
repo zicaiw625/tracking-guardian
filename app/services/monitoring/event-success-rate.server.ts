@@ -75,7 +75,6 @@ export async function getEventSuccessRateStats(
   since.setHours(since.getHours() - hours);
   const now = new Date();
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -90,7 +89,7 @@ export async function getEventSuccessRateStats(
         },
       },
     },
-    take: 10000, // 限制最大查询数量，避免超时
+    take: 10000,
   });
 
   const total = attempts.length;
@@ -213,7 +212,6 @@ export async function getEventSuccessRateHistory(
   since.setHours(since.getHours() - hours);
   const now = new Date();
 
-  // P0-T8: 使用 delivery_attempts 作为数据源
   const attempts = await prisma.deliveryAttempt.findMany({
     where: {
       shopId,
@@ -232,7 +230,7 @@ export async function getEventSuccessRateHistory(
     orderBy: {
       createdAt: "asc",
     },
-    take: 10000, // 限制最大查询数量，避免超时
+    take: 10000,
   });
 
   const hourMap = new Map<string, { total: number; successful: number; failed: number }>();

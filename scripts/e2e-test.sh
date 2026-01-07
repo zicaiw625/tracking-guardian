@@ -1,39 +1,39 @@
 #!/bin/bash
-#
-# E2E 测试脚本
-# 
-# 用法:
-#   ./scripts/e2e-test.sh [选项]
-#
-# 选项:
-#   --full      运行完整测试套件
-#   --quick     运行快速冒烟测试
-#   --coverage  生成覆盖率报告
-#   --ci        CI 模式（无交互）
-#
+
+
+
+
+
+
+
+
+
+
+
+
 
 set -e
 
-# 颜色输出
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# 打印带颜色的消息
+
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# 默认值
+
 FULL_TEST=false
 QUICK_TEST=false
 COVERAGE=false
 CI_MODE=false
 
-# 解析参数
+
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --full) FULL_TEST=true ;;
@@ -45,41 +45,41 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# 项目根目录
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 log_info "项目根目录: $PROJECT_ROOT"
 
-# ============================================================
-# 1. 环境检查
-# ============================================================
+
+
+
 log_info "检查环境..."
 
-# 检查 Node.js
+
 if ! command -v node &> /dev/null; then
     log_error "未找到 Node.js，请先安装"
     exit 1
 fi
 log_success "Node.js 版本: $(node --version)"
 
-# 检查 pnpm
+
 if ! command -v pnpm &> /dev/null; then
     log_error "未找到 pnpm，请先安装: npm install -g pnpm"
     exit 1
 fi
 log_success "pnpm 版本: $(pnpm --version)"
 
-# 检查依赖
+
 if [ ! -d "node_modules" ]; then
     log_warn "未找到 node_modules，正在安装依赖..."
     pnpm install
 fi
 
-# ============================================================
-# 2. 类型检查
-# ============================================================
+
+
+
 log_info "运行类型检查..."
 
 if pnpm typecheck; then
@@ -89,9 +89,9 @@ else
     exit 1
 fi
 
-# ============================================================
-# 3. Linting
-# ============================================================
+
+
+
 log_info "运行 ESLint..."
 
 if pnpm lint; then
@@ -100,9 +100,9 @@ else
     log_warn "Linting 有警告，继续执行..."
 fi
 
-# ============================================================
-# 4. 单元测试
-# ============================================================
+
+
+
 log_info "运行单元测试..."
 
 TEST_CMD="pnpm test"
@@ -116,14 +116,14 @@ if [ "$CI_MODE" = true ]; then
 fi
 
 if [ "$QUICK_TEST" = true ]; then
-    # 快速测试：只运行关键路径
+
     log_info "运行快速冒烟测试..."
-    
+
     $TEST_CMD -- tests/services/recipes/registry.test.ts \
                  tests/services/billing-gate.test.ts \
                  tests/pixel/consent.test.ts
 else
-    # 完整测试
+
     log_info "运行完整测试套件..."
     $TEST_CMD
 fi
@@ -135,14 +135,14 @@ else
     exit 1
 fi
 
-# ============================================================
-# 5. 集成测试
-# ============================================================
+
+
+
 if [ "$FULL_TEST" = true ] || [ "$QUICK_TEST" = false ]; then
     log_info "运行集成测试..."
-    
+
     pnpm test -- tests/integration/
-    
+
     if [ $? -eq 0 ]; then
         log_success "集成测试通过"
     else
@@ -151,9 +151,9 @@ if [ "$FULL_TEST" = true ] || [ "$QUICK_TEST" = false ]; then
     fi
 fi
 
-# ============================================================
-# 6. Recipe 系统测试
-# ============================================================
+
+
+
 log_info "运行 Recipe 系统测试..."
 
 pnpm test -- tests/services/recipes/
@@ -165,9 +165,9 @@ else
     exit 1
 fi
 
-# ============================================================
-# 7. 计费系统测试
-# ============================================================
+
+
+
 log_info "运行计费系统测试..."
 
 pnpm test -- tests/services/billing/
@@ -179,14 +179,14 @@ else
     exit 1
 fi
 
-# ============================================================
-# 8. Webhook 测试
-# ============================================================
+
+
+
 if [ "$FULL_TEST" = true ]; then
     log_info "运行 Webhook 测试..."
-    
+
     pnpm test -- tests/webhooks/
-    
+
     if [ $? -eq 0 ]; then
         log_success "Webhook 测试通过"
     else
@@ -195,9 +195,9 @@ if [ "$FULL_TEST" = true ]; then
     fi
 fi
 
-# ============================================================
-# 9. 构建测试
-# ============================================================
+
+
+
 log_info "测试构建..."
 
 if pnpm build; then
@@ -207,12 +207,12 @@ else
     exit 1
 fi
 
-# ============================================================
-# 10. 扩展构建
-# ============================================================
+
+
+
 if [ "$FULL_TEST" = true ]; then
     log_info "构建扩展..."
-    
+
     if pnpm build:extensions; then
         log_success "扩展构建成功"
     else
@@ -220,25 +220,25 @@ if [ "$FULL_TEST" = true ]; then
     fi
 fi
 
-# ============================================================
-# 11. 覆盖率报告
-# ============================================================
+
+
+
 if [ "$COVERAGE" = true ]; then
     log_info "生成覆盖率报告..."
-    
+
     if [ -d "coverage" ]; then
         log_success "覆盖率报告已生成: coverage/index.html"
-        
-        # 检查覆盖率阈值
+
+
         COVERAGE_THRESHOLD=70
-        
-        # 解析覆盖率（简化版本）
+
+
         if [ -f "coverage/coverage-summary.json" ]; then
             LINES_PCT=$(cat coverage/coverage-summary.json | grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*' | grep -o 'pct":[0-9.]*' | head -1 | cut -d: -f2)
-            
+
             if [ -n "$LINES_PCT" ]; then
                 log_info "行覆盖率: ${LINES_PCT}%"
-                
+
                 if (( $(echo "$LINES_PCT < $COVERAGE_THRESHOLD" | bc -l) )); then
                     log_warn "覆盖率低于 ${COVERAGE_THRESHOLD}%"
                 else
@@ -251,9 +251,9 @@ if [ "$COVERAGE" = true ]; then
     fi
 fi
 
-# ============================================================
-# 12. 总结
-# ============================================================
+
+
+
 echo ""
 echo "============================================================"
 log_success "所有测试通过！"

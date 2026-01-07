@@ -46,7 +46,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           try {
             controller.close();
           } catch (error) {
-            // Stream may already be closed
+
           }
         }
       };
@@ -95,7 +95,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           }
         } catch (error) {
           logger.error("Failed to fetch monitoring stats:", error);
-          // Don't close on single error, but cleanup if stream is broken
+
           if (isClosed) {
             cleanup();
           }
@@ -107,7 +107,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     },
     cancel() {
-      // Ensure cleanup when stream is cancelled
+
       if (interval !== null) {
         clearInterval(interval);
         interval = null;

@@ -1,7 +1,6 @@
 
 
 import type { PlanId } from "../../services/billing/plans";
-// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 PCD_CONFIG 导入
 
 export type ShopTier = "plus" | "non_plus" | "unknown";
 
@@ -19,7 +18,6 @@ export interface Shop {
   readonly monthlyOrderLimit: number;
   readonly isActive: boolean;
 
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled、pcdAcknowledged、pcdAcknowledgedAt 字段
   readonly consentStrategy: ConsentStrategy;
   readonly dataRetentionDays: number;
 
@@ -57,7 +55,7 @@ export interface ShopWithBilling extends ShopBasic {
 }
 
 export interface ShopWithConsent extends ShopBasic {
-  // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled、pcdAcknowledged 字段
+
   readonly consentStrategy: ConsentStrategy;
 }
 
@@ -92,7 +90,6 @@ export function createShop(params: {
     monthlyOrderLimit: 100,
     isActive: true,
 
-    // P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此移除 piiEnabled、pcdAcknowledged、pcdAcknowledgedAt 字段
     consentStrategy: "strict",
     dataRetentionDays: 90,
 
@@ -124,9 +121,6 @@ export function getShopStatus(shop: Shop): ShopStatus {
   }
   return shop.isActive ? "active" : "inactive";
 }
-
-// P0-2: v1.0 版本不包含任何 PCD/PII 处理，因此完全删除 isPiiFullyEnabled 函数
-// 此函数将在 v1.1 中重新引入（当需要 PCD/PII 处理时）
 
 export function isWithinUsageLimits(shop: ShopWithBilling, currentUsage: number): boolean {
   return currentUsage < shop.monthlyOrderLimit;

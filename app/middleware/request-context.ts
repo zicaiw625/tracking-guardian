@@ -124,8 +124,3 @@ export function withShopDomain(): ContextMiddlewareOptions {
   };
 }
 
-// P1-1: v1.0 版本不包含任何 PCD/PII 处理，因此移除 IP 和 User-Agent 相关的工具函数
-// v1.0 仅依赖 Web Pixels 标准事件，不处理任何客户数据或网络标识符
-// 已移除：getClientIp, getUserAgent, getRequestInfo
-// 这些函数可能在未来被误用，因此从 v1.0 代码库中完全删除
-

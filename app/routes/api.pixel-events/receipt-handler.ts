@@ -84,7 +84,7 @@ export function evaluateTrustLevel(
     trustLevel = "partial";
   } else if (!keyValidation.matched) {
     trustLevel = "untrusted";
-    // P0-1: 使用 hmac_signature_invalid 替代 ingestion_key_invalid，更准确地反映验证方式
+
     untrustedReason = keyValidation.reason || "hmac_signature_invalid";
   } else if (!hasCheckoutToken) {
     trustLevel = "partial";
@@ -187,19 +187,15 @@ export async function upsertPixelEventReceipt(
   }
 }
 
-/**
- * 规范化 currency：优先使用 payload 中的 currency，如果确实没有则使用 USD 作为后备
- * 确保多币种商店的对账/一致性检查不会失真
- */
 function normalizeCurrencyForStorage(currency: unknown): string {
   if (currency && typeof currency === 'string' && currency.trim()) {
     const normalized = currency.trim().toUpperCase();
-    // 验证是否为有效的 ISO 4217 货币代码（3 个大写字母）
+
     if (/^[A-Z]{3}$/.test(normalized)) {
       return normalized;
     }
   }
-  // 只有在确实没有有效的 currency 时才使用 USD 作为后备
+
   return "USD";
 }
 
@@ -328,20 +324,17 @@ export function generateEventIdForType(
   shopDomain: string,
   checkoutToken?: string | null,
   items?: Array<{ id: string; quantity: number }>,
-  nonce?: string | null // P1-4: 添加 nonce 参数用于 fallback 去重
+  nonce?: string | null
 ): string {
-  // 使用与 pipeline.server.ts 相同的 generateCanonicalEventId 逻辑
-  // 这确保了 client/server 端 event_id 生成的一致性
-  // 同一笔订单在 client 端（pixel）和 server 端（webhook）生成的 event_id 应该一致
-  // P1-4: 传递 nonce 参数用于 fallback 去重
+
   return generateCanonicalEventId(
-    identifier || null, // 确保传递 null 而不是空字符串，以保持与 pipeline 的一致性
+    identifier || null,
     checkoutToken || null,
     eventType,
     shopDomain,
     items,
-    "v2", // 使用新版本
-    nonce || null // P1-4: 传递 nonce 用于 fallback 去重
+    "v2",
+    nonce || null
   );
 }
 

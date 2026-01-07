@@ -100,8 +100,7 @@ export function PostInstallScanProgress({
 
     return () => {
       isMounted = false;
-      
-      // 清理所有定时器
+
       if (mainInterval) {
         clearInterval(mainInterval);
         mainInterval = null;

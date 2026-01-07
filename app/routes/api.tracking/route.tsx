@@ -8,7 +8,7 @@ import {
 } from "../../services/shipping-tracker.server";
 import { logger } from "../../utils/logger.server";
 import type { OrderTrackingSettings } from "../../types/ui-extension";
-// P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
+
 import { authenticate, createAdminClientForShop } from "../../shopify.server";
 import { optionsResponse, jsonWithCors } from "../../utils/cors";
 import { withRateLimit, pathShopKeyExtractor, type RateLimitedHandler } from "../../middleware/rate-limit";
@@ -23,9 +23,6 @@ interface FulfillmentNode {
     url?: string;
   };
 }
-
-// 使用 shipping-tracker.server.ts 中定义的 TrackingInfo 类型
-// 本地不再定义 TrackingInfo，直接使用导入的类型
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method === "OPTIONS") {
@@ -87,8 +84,6 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Missing orderId" }, { status: 400, request, staticCors: true });
     }
 
-    // P0-1: 使用官方 authenticate.public.checkout 处理 Checkout UI Extension 请求
-    // 这会自动处理 JWT 验证和 CORS，并返回 session 信息
     let session: { shop: string; [key: string]: unknown };
     try {
       const authResult = await authenticate.public.checkout(request) as unknown as { session: { shop: string; [key: string]: unknown } };
@@ -124,9 +119,8 @@ async function loaderImpl(request: Request) {
       return jsonWithCors({ error: "Shop not found" }, { status: 404, request, staticCors: true });
     }
 
-    // P0-5: 使用 getUiModuleConfig 获取已解密的配置（包含解密后的 apiKey）
     const trackingModuleConfig = await getUiModuleConfig(shop.id, "order_tracking");
-    const trackingSettings = trackingModuleConfig.isEnabled 
+    const trackingSettings = trackingModuleConfig.isEnabled
       ? (trackingModuleConfig.settings as OrderTrackingSettings | undefined)
       : undefined;
 
@@ -135,19 +129,11 @@ async function loaderImpl(request: Request) {
     let carrierFromShopify: string | null = null;
     let trackingUrlFromShopify: string | null = null;
 
-    // P0-3: v1.0 默认不申请 read_orders scope（最小权限）
-    // 查询策略：
-    // 1. 优先使用用户提供的 trackingNumber（来自 URL 参数）
-    // 2. 若商家选择额外授权 read_orders，可从 Shopify 订单 fulfillments 中获取
-    // 3. 如果配置了第三方追踪服务（AfterShip/17Track）且有 apiKey，使用第三方 API 丰富信息
-    // 4. 否则返回提示信息，引导用户查看邮件或联系客服
-
     logger.info(`Tracking info requested for orderId: ${orderId}, shop: ${shopDomain}`, {
       hasTrackingNumber: !!trackingNumber,
       hasThirdPartyProvider: !!trackingSettings?.provider && trackingSettings.provider !== "native",
     });
 
-    // P0-3: 查询 Shopify 订单 fulfillments 获取物流信息
     try {
       const admin = await createAdminClientForShop(shopDomain);
       if (admin) {
@@ -185,7 +171,7 @@ async function loaderImpl(request: Request) {
         });
 
         if (fulfillmentData.data?.order?.fulfillments?.edges?.length > 0) {
-          // 取第一个 fulfillment 的 tracking info（通常订单只有一个 fulfillment）
+
           const firstFulfillment = fulfillmentData.data.order.fulfillments.edges[0].node;
           if (firstFulfillment.trackingInfo) {
             trackingNumberFromShopify = firstFulfillment.trackingInfo.number || null;
@@ -199,7 +185,7 @@ async function loaderImpl(request: Request) {
         }
       }
     } catch (error) {
-      // 如果查询失败（例如没有 read_orders scope 或订单不存在），记录警告但继续处理
+
       logger.warn("Failed to query Shopify order fulfillments", {
         error: error instanceof Error ? error.message : String(error),
         orderId,
@@ -207,10 +193,8 @@ async function loaderImpl(request: Request) {
       });
     }
 
-    // 优先使用用户提供的 trackingNumber，否则使用从 Shopify 获取的
     const trackingNumberToUse = trackingNumber || trackingNumberFromShopify || null;
-    
-    // 如果没有 trackingNumber 且没有配置第三方服务，返回提示信息
+
     if (!trackingNumberToUse) {
       return jsonWithCors(
         {
@@ -243,7 +227,7 @@ async function loaderImpl(request: Request) {
         );
 
         if (thirdPartyTracking) {
-          // TypeScript 类型收窄：thirdPartyTracking 在此处已确认非 null
+
           const enrichedTracking = thirdPartyTracking;
           trackingInfo = {
             ...enrichedTracking,
@@ -266,7 +250,7 @@ async function loaderImpl(request: Request) {
     }
 
     if (!trackingInfo) {
-      // P0-3: 如果没有第三方追踪信息，但从 Shopify 获取到了基本信息，返回这些信息
+
       if (trackingNumberToUse) {
         return jsonWithCors(
           {
@@ -301,7 +285,6 @@ async function loaderImpl(request: Request) {
       );
     }
 
-    // P2-14: 返回字段最小化，只返回展示所需的 tracking 字段
     return jsonWithCors({
       success: true,
       tracking: {
